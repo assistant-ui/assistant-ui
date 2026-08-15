@@ -2,70 +2,40 @@ import { describe, expect, it, vi } from "vitest";
 import { ModelContextRegistry } from "./registry";
 
 describe("ModelContextRegistry", () => {
-  it("isolates subscriber errors while registering tools", () => {
+  it("notifies every subscriber and rethrows when a registration subscriber throws", () => {
     const registry = new ModelContextRegistry();
     const error = new Error("subscriber failed");
     const laterSubscriber = vi.fn();
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
     registry.subscribe(() => {
       throw error;
     });
     registry.subscribe(laterSubscriber);
 
-    try {
-      const handle = registry.addTool({ toolName: "search" });
+    expect(() => registry.addTool({ toolName: "search" })).toThrow(error);
 
-      expect(registry.getModelContext().tools).toHaveProperty("search");
-      expect(laterSubscriber).toHaveBeenCalledTimes(1);
-      expect(consoleError).toHaveBeenCalledWith(
-        "[assistant-ui] Model context registry listener threw an error",
-        error,
-      );
-
-      expect(() => handle.remove()).toThrow(error);
-
-      expect(registry.getModelContext().tools).toBeUndefined();
-      expect(laterSubscriber).toHaveBeenCalledTimes(2);
-    } finally {
-      consoleError.mockRestore();
-    }
+    expect(registry.getModelContext().tools).toHaveProperty("search");
+    expect(laterSubscriber).toHaveBeenCalledTimes(1);
   });
 
-  it("isolates subscriber errors while registering providers", () => {
+  it("keeps a provider registered when a registration subscriber throws", () => {
     const registry = new ModelContextRegistry();
     const error = new Error("subscriber failed");
     const laterSubscriber = vi.fn();
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
     registry.subscribe(() => {
       throw error;
     });
     registry.subscribe(laterSubscriber);
 
-    try {
-      const handle = registry.addProvider({
+    expect(() =>
+      registry.addProvider({
         getModelContext: () => ({ system: "provider instructions" }),
-      });
+      }),
+    ).toThrow(error);
 
-      expect(registry.getModelContext().system).toBe("provider instructions");
-      expect(laterSubscriber).toHaveBeenCalledTimes(1);
-      expect(consoleError).toHaveBeenCalledWith(
-        "[assistant-ui] Model context registry listener threw an error",
-        error,
-      );
-
-      expect(() => handle.remove()).toThrow(error);
-
-      expect(registry.getModelContext().system).toBeUndefined();
-      expect(laterSubscriber).toHaveBeenCalledTimes(2);
-    } finally {
-      consoleError.mockRestore();
-    }
+    expect(registry.getModelContext().system).toBe("provider instructions");
+    expect(laterSubscriber).toHaveBeenCalledTimes(1);
   });
 
   it("rolls back providers that fail to subscribe", () => {
@@ -91,36 +61,26 @@ describe("ModelContextRegistry", () => {
     expect(observedSystems).toEqual(["provider instructions", undefined]);
   });
 
-  it("rethrows subscriber errors from provider updates after notifying everyone", () => {
+  it("notifies every subscriber and rethrows on provider updates", () => {
     const registry = new ModelContextRegistry();
     const error = new Error("subscriber failed");
     const laterSubscriber = vi.fn();
     let publishUpdate = () => {};
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+
+    registry.addProvider({
+      getModelContext: () => ({ system: "provider instructions" }),
+      subscribe: (callback) => {
+        publishUpdate = callback;
+        return () => {};
+      },
+    });
 
     registry.subscribe(() => {
       throw error;
     });
     registry.subscribe(laterSubscriber);
 
-    try {
-      registry.addProvider({
-        getModelContext: () => ({ system: "provider instructions" }),
-        subscribe: (callback) => {
-          publishUpdate = callback;
-          callback();
-          return () => {};
-        },
-      });
-
-      expect(consoleError).toHaveBeenCalledTimes(2);
-      expect(laterSubscriber).toHaveBeenCalledTimes(2);
-      expect(() => publishUpdate()).toThrow(error);
-      expect(laterSubscriber).toHaveBeenCalledTimes(3);
-    } finally {
-      consoleError.mockRestore();
-    }
+    expect(() => publishUpdate()).toThrow(error);
+    expect(laterSubscriber).toHaveBeenCalledTimes(1);
   });
 });

@@ -2,38 +2,24 @@ import { describe, expect, it, vi } from "vitest";
 import { CompositeContextProvider } from "./composite-context-provider";
 
 describe("CompositeContextProvider", () => {
-  it("isolates subscriber errors while registering providers", () => {
+  it("notifies every subscriber and rethrows when a registration subscriber throws", () => {
     const composite = new CompositeContextProvider();
     const error = new Error("subscriber failed");
     const laterSubscriber = vi.fn();
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
 
     composite.subscribe(() => {
       throw error;
     });
     composite.subscribe(laterSubscriber);
 
-    try {
-      const unregister = composite.registerModelContextProvider({
+    expect(() =>
+      composite.registerModelContextProvider({
         getModelContext: () => ({ system: "provider instructions" }),
-      });
+      }),
+    ).toThrow(error);
 
-      expect(composite.getModelContext().system).toBe("provider instructions");
-      expect(laterSubscriber).toHaveBeenCalledTimes(1);
-      expect(consoleError).toHaveBeenCalledWith(
-        "[assistant-ui] Model context provider listener threw an error",
-        error,
-      );
-
-      expect(() => unregister()).toThrow(error);
-
-      expect(composite.getModelContext().system).toBeUndefined();
-      expect(laterSubscriber).toHaveBeenCalledTimes(2);
-    } finally {
-      consoleError.mockRestore();
-    }
+    expect(composite.getModelContext().system).toBe("provider instructions");
+    expect(laterSubscriber).toHaveBeenCalledTimes(1);
   });
 
   it("rolls back providers that fail to subscribe", () => {
@@ -83,36 +69,26 @@ describe("CompositeContextProvider", () => {
     expect(composite.getModelContext().system).toBeUndefined();
   });
 
-  it("rethrows subscriber errors from provider updates after notifying everyone", () => {
+  it("notifies every subscriber and rethrows on provider updates", () => {
     const composite = new CompositeContextProvider();
     const error = new Error("subscriber failed");
     const laterSubscriber = vi.fn();
     let publishUpdate = () => {};
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
+
+    composite.registerModelContextProvider({
+      getModelContext: () => ({ system: "provider instructions" }),
+      subscribe: (callback) => {
+        publishUpdate = callback;
+        return () => {};
+      },
+    });
 
     composite.subscribe(() => {
       throw error;
     });
     composite.subscribe(laterSubscriber);
 
-    try {
-      composite.registerModelContextProvider({
-        getModelContext: () => ({ system: "provider instructions" }),
-        subscribe: (callback) => {
-          publishUpdate = callback;
-          callback();
-          return () => {};
-        },
-      });
-
-      expect(consoleError).toHaveBeenCalledTimes(2);
-      expect(laterSubscriber).toHaveBeenCalledTimes(2);
-      expect(() => publishUpdate()).toThrow(error);
-      expect(laterSubscriber).toHaveBeenCalledTimes(3);
-    } finally {
-      consoleError.mockRestore();
-    }
+    expect(() => publishUpdate()).toThrow(error);
+    expect(laterSubscriber).toHaveBeenCalledTimes(1);
   });
 });

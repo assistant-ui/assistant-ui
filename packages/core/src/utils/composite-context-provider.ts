@@ -4,7 +4,6 @@ import {
 } from "../model-context/types";
 import { notifySubscribers as notifyStateSubscribers } from "../subscribable/subscribable";
 import type { Unsubscribe } from "../types/unsubscribe";
-import { notifyEventListeners } from "./notify-event-listeners";
 
 export class CompositeContextProvider implements ModelContextProvider {
   private _providers = new Set<ModelContextProvider>();
@@ -17,23 +16,16 @@ export class CompositeContextProvider implements ModelContextProvider {
     const wasRegistered = this._providers.has(provider);
     this._providers.add(provider);
     let unsubscribe: Unsubscribe | undefined;
-    let isRegistering = true;
     try {
       unsubscribe = provider.subscribe?.(() => {
-        if (isRegistering) {
-          this.notifyRegistrationSubscribers();
-        } else {
-          this.notifySubscribers();
-        }
+        this.notifySubscribers();
       });
     } catch (error) {
       if (!wasRegistered) this._providers.delete(provider);
-      this.notifyRegistrationSubscribers();
+      this.notifySubscribers();
       throw error;
-    } finally {
-      isRegistering = false;
     }
-    this.notifyRegistrationSubscribers();
+    this.notifySubscribers();
     return () => {
       this._providers.delete(provider);
       unsubscribe?.();
@@ -45,14 +37,6 @@ export class CompositeContextProvider implements ModelContextProvider {
 
   notifySubscribers() {
     notifyStateSubscribers(this._subscribers);
-  }
-
-  private notifyRegistrationSubscribers() {
-    notifyEventListeners(
-      this._subscribers,
-      undefined,
-      "Model context provider",
-    );
   }
 
   subscribe(callback: () => void) {

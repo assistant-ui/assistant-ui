@@ -8,7 +8,6 @@ import {
 } from "./types";
 import type { Unsubscribe } from "../types/unsubscribe";
 import { notifySubscribers as notifyStateSubscribers } from "../subscribable/subscribable";
-import { notifyEventListeners } from "../utils/notify-event-listeners";
 import type {
   ModelContextRegistryToolHandle,
   ModelContextRegistryInstructionHandle,
@@ -80,21 +79,13 @@ export class ModelContextRegistry implements ModelContextProvider {
     notifyStateSubscribers(this._subscribers);
   }
 
-  private notifyRegistrationSubscribers(): void {
-    notifyEventListeners(
-      this._subscribers,
-      undefined,
-      "Model context registry",
-    );
-  }
-
   addTool<TArgs extends Record<string, unknown>, TResult>(
     tool: AssistantToolProps<TArgs, TResult>,
   ): ModelContextRegistryToolHandle<TArgs, TResult> {
     const id = Symbol();
 
     this._tools.set(id, tool);
-    this.notifyRegistrationSubscribers();
+    this.notifySubscribers();
 
     return {
       update: (newTool: AssistantToolProps<TArgs, TResult>) => {
@@ -121,7 +112,7 @@ export class ModelContextRegistry implements ModelContextProvider {
 
     if (!disabled) {
       this._instructions.set(id, instruction);
-      this.notifyRegistrationSubscribers();
+      this.notifySubscribers();
     }
 
     return {
@@ -153,25 +144,18 @@ export class ModelContextRegistry implements ModelContextProvider {
     this._providers.set(id, provider);
 
     let unsubscribe: Unsubscribe | undefined;
-    let isRegistering = true;
     try {
       unsubscribe = provider.subscribe?.(() => {
-        if (isRegistering) {
-          this.notifyRegistrationSubscribers();
-        } else {
-          this.notifySubscribers();
-        }
+        this.notifySubscribers();
       });
     } catch (error) {
       this._providers.delete(id);
-      this.notifyRegistrationSubscribers();
+      this.notifySubscribers();
       throw error;
-    } finally {
-      isRegistering = false;
     }
     this._providerUnsubscribes.set(id, unsubscribe);
 
-    this.notifyRegistrationSubscribers();
+    this.notifySubscribers();
 
     return {
       remove: () => {
