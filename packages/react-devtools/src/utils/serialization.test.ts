@@ -33,6 +33,27 @@ describe("sanitizeForMessage", () => {
     const cyclicArray: unknown[] = [];
     cyclicArray.push(cyclicArray);
     expect(sanitizeForMessage(cyclicArray)).toEqual(["[Circular]"]);
+
+    const cyclicMap = new Map<string, unknown>();
+    cyclicMap.set("self", cyclicMap);
+    expect(sanitizeForMessage(cyclicMap)).toEqual({ self: "[Circular]" });
+
+    const cyclicSet = new Set<unknown>();
+    cyclicSet.add(cyclicSet);
+    expect(sanitizeForMessage(cyclicSet)).toEqual(["[Circular]"]);
+  });
+
+  it("converts non-JSON primitives to strings", () => {
+    const result = sanitizeForMessage({
+      bigint: 42n,
+      symbol: Symbol("status"),
+    });
+
+    expect(result).toEqual({
+      bigint: "42",
+      symbol: "Symbol(status)",
+    });
+    expect(() => JSON.stringify(result)).not.toThrow();
   });
 });
 
