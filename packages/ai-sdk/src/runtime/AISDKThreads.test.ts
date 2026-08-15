@@ -68,6 +68,51 @@ describe("AISDKThreads", () => {
     handle.destroy();
   });
 
+  it("keeps a switched-away thread streaming in the background", async () => {
+    const { transport, emit, close } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ transport: () => transport }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    flushTapSync(() => aui.composer.setText("stream me"));
+    flushTapSync(() => aui.composer.send());
+    await vi.waitFor(() => {
+      expect(
+        handle.getClient().thread.getState().messages.length,
+      ).toBeGreaterThan(0);
+    });
+    emit(
+      { type: "start" },
+      { type: "text-start", id: "t1" },
+      { type: "text-delta", id: "t1", delta: "partial" },
+    );
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    expect(handle.getClient().thread.getState().messages).toHaveLength(0);
+
+    // The detached chat keeps consuming the stream while another thread is
+    // visible
+    emit(
+      { type: "text-delta", id: "t1", delta: " and finished" },
+      { type: "text-end", id: "t1" },
+      { type: "finish" },
+    );
+    close();
+
+    flushTapSync(() => handle.getClient().threads.switchToThread("main"));
+    await vi.waitFor(() => {
+      expect(threadText(handle as never)).toEqual([
+        "stream me",
+        "partial and finished",
+      ]);
+      expect(handle.getClient().thread.getState().isRunning).toBe(false);
+    });
+
+    handle.destroy();
+  });
+
   it("wires model context and per-thread transports onto the wire", async () => {
     const bodies: unknown[] = [];
     const fetchStub = vi.fn(async (_url: unknown, init?: RequestInit) => {
