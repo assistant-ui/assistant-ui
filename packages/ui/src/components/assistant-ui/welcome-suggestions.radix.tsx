@@ -25,10 +25,7 @@ import {
   type RefObject,
 } from "react";
 import { Direction } from "radix-ui";
-import {
-  Collection as CollectionPrimitive,
-  DismissableLayer as DismissableLayerPrimitive,
-} from "radix-ui/internal";
+import { DismissableLayer as DismissableLayerPrimitive } from "radix-ui/internal";
 import { cn } from "@/lib/utils";
 
 export type SuggestionItem = {
@@ -64,25 +61,6 @@ const normalizeItem = (raw: RawSuggestion): SuggestionEntry =>
       }
     : raw;
 
-const acceptDraft = (aui: ReturnType<typeof useAui>, prompt: string) => {
-  if (aui.composer().getState().text) return false;
-  aui.composer().setText(prompt);
-  return true;
-};
-
-type PickerItemData = { id: string; prompt: string };
-
-const [PickerCollection, usePickerCollection] =
-  CollectionPrimitive.createCollection<HTMLButtonElement, PickerItemData>(
-    "ThreadWelcomePicker",
-  );
-
-const [PillCollection, usePillCollection] =
-  CollectionPrimitive.createCollection<HTMLButtonElement>("ThreadWelcomePills");
-
-const [StackCollection, useStackCollection] =
-  CollectionPrimitive.createCollection<HTMLButtonElement>("ThreadWelcomeStack");
-
 // Tailwind's scanner needs the `has-[~[data-slot*=composer]]` class literals
 // below spelled out verbatim, so their copies of this selector cannot
 // reference the constant; keep them in sync by hand.
@@ -100,22 +78,6 @@ const findComposerInput = (from: Element | null) => {
   return null;
 };
 
-// Lexical's reported caret offset can overshoot the synced text around
-// empty leading lines, so caretAtEnd compares leniently.
-const useComposerCaret = () => {
-  const aui = useAui();
-  const posRef = useRef(0);
-  const setCursorPosition = useCallback((pos: number) => {
-    posRef.current = pos;
-  }, []);
-  const caretAtEnd = useCallback(
-    () => posRef.current >= aui.composer().getState().text.length,
-    [aui],
-  );
-  const caretAtStart = useCallback(() => posRef.current <= 0, []);
-  return { setCursorPosition, caretAtEnd, caretAtStart };
-};
-
 // Reads the same sibling relation the styles read with
 // `has-[~[data-slot*=composer]]`, so the mirrored arrow directions and the
 // flipped layout can never disagree.
@@ -125,6 +87,40 @@ const composerFollows = (from: Element | null) => {
     if (el.matches(COMPOSER_SELECTOR)) return true;
   }
   return false;
+};
+
+// Physical keys resolve to layout-independent intents in one place: vertical
+// arrows depend on whether the composer follows the list, the inline arrow on
+// text direction. Every handler below works in these intents.
+type LogicalKey =
+  | "towardList"
+  | "towardComposer"
+  | "forward"
+  | "back"
+  | "enter"
+  | "escape"
+  | "tab";
+
+const ACTION_KEYS: Record<string, LogicalKey> = {
+  Enter: "enter",
+  Escape: "escape",
+  Tab: "tab",
+};
+
+const resolveKey = (
+  key: string,
+  composerAfter: boolean,
+  rtl: boolean,
+): LogicalKey | null => {
+  if (key === "ArrowDown" || key === "ArrowUp") {
+    return (key === "ArrowUp") === composerAfter
+      ? "towardList"
+      : "towardComposer";
+  }
+  if (key === "ArrowRight" || key === "ArrowLeft") {
+    return (key === "ArrowLeft") === rtl ? "forward" : "back";
+  }
+  return ACTION_KEYS[key] ?? null;
 };
 
 const pillClass =
@@ -178,21 +174,452 @@ const trailingClass = {
     "text-muted-foreground ml-auto size-4 opacity-0 group-data-[highlighted]/row:opacity-50",
 };
 
-type WelcomeSuggestionsContextValue = {
-  entries: readonly SuggestionEntry[];
-  group: SuggestionGroup | undefined;
-  openGroup: (group: SuggestionGroup) => void;
-  close: () => void;
-  setGhost: (text: string | null) => void;
-  moveHighlight: (delta: 1 | -1) => void;
-  highlightItem: (id: string, preview?: boolean) => void;
-  highlightAtEdge: (edge: "first" | "last") => boolean;
-  selectCurrent: () => void;
-  acceptCurrent: () => boolean;
-  currentId: string | null;
-  send: boolean;
-  popoverId: string;
+type NavState = {
+  /** Index of the open group within entries, or null at the top level. */
+  group: number | null;
+  /** Id of the highlighted row in the current level, or null. */
+  active: string | null;
+  /** The composer keeps DOM focus while arrows move this highlight. */
+  virtual: boolean;
+  /** The highlight was last moved by keyboard; only then does it preview. */
+  keyboard: boolean;
 };
+
+const NAV_IDLE: NavState = {
+  group: null,
+  active: null,
+  virtual: false,
+  keyboard: false,
+};
+
+type RowRecord = { id: string; prompt: string; el: HTMLElement };
+
+type GroupKeySurface = {
+  onEscape?: (() => void) | undefined;
+  onTab?: (() => void) | undefined;
+  onExitEdge?: (() => void) | undefined;
+};
+
+// All navigation logic lives in this plain controller. It reads volatile
+// values through refs, so every method is stable for the component lifetime
+// and event handlers never close over stale state.
+const createNavController = ({
+  navRef,
+  entriesRef,
+  composerAfter,
+  rowEls,
+  setNav,
+  popoverId,
+  registry,
+  acceptPrompt,
+  caretAtEnd,
+  caretAtStart,
+}: {
+  navRef: RefObject<NavState>;
+  entriesRef: RefObject<readonly SuggestionEntry[]>;
+  composerAfter: () => boolean;
+  rowEls: RefObject<(HTMLElement | null)[]>;
+  setNav: (update: (prev: NavState) => NavState) => void;
+  popoverId: string;
+  registry: ReturnType<typeof unstable_useComposerInputPluginRegistry>;
+  acceptPrompt: (prompt: string) => boolean;
+  caretAtEnd: () => boolean;
+  caretAtStart: () => boolean;
+}) => {
+  // Group items register themselves so custom picker children take part in
+  // navigation without the list scraping the DOM.
+  const records = new Set<RowRecord>();
+
+  const rowId = (index: number) => `${popoverId}t${index}`;
+
+  // The active list: registered group items while a group is open, otherwise
+  // the top-level entries addressed by their deterministic row ids.
+  const rows = (): {
+    id: string;
+    entry?: SuggestionEntry;
+    prompt: string | null;
+    el: HTMLElement | null;
+  }[] => {
+    if (navRef.current.group !== null) {
+      return Array.from(records).sort((a, b) =>
+        a.el.compareDocumentPosition(b.el) & Node.DOCUMENT_POSITION_FOLLOWING
+          ? -1
+          : 1,
+      );
+    }
+    return entriesRef.current.map((entry, index) => ({
+      id: rowId(index),
+      entry,
+      prompt: isGroup(entry) ? null : promptOf(entry),
+      el: rowEls.current[index] ?? null,
+    }));
+  };
+
+  const activeRow = () => {
+    const active = navRef.current.active;
+    return active === null
+      ? undefined
+      : rows().find((row) => row.id === active);
+  };
+
+  const exitToIdle = () =>
+    setNav((prev) =>
+      prev.active === null && !prev.virtual
+        ? prev
+        : { ...prev, active: null, virtual: false, keyboard: false },
+    );
+
+  const close = () => setNav(() => NAV_IDLE);
+
+  const openGroup = (group: SuggestionGroup) => {
+    const index = entriesRef.current.indexOf(group);
+    if (index === -1) return;
+    setNav(() => ({
+      group: index,
+      active: null,
+      virtual: true,
+      keyboard: true,
+    }));
+    registry?.requestFocus();
+  };
+
+  const returnToTop = () => {
+    const groupIndex = navRef.current.group;
+    if (groupIndex === null) return close();
+    setNav(() => ({
+      group: null,
+      active: rowId(groupIndex),
+      virtual: true,
+      keyboard: true,
+    }));
+    registry?.requestFocus();
+  };
+
+  // Same-row moves are ignored: a ghost preview can resize the composer, and
+  // Chrome refires mousemove under a stationary cursor when rows shift.
+  const highlightPointer = (id: string) =>
+    setNav((prev) =>
+      prev.active === id ? prev : { ...prev, active: id, keyboard: false },
+    );
+
+  const clearHighlight = () =>
+    setNav((prev) =>
+      prev.active === null ? prev : { ...prev, active: null, keyboard: false },
+    );
+
+  const focusList = () =>
+    setNav((prev) => ({
+      group: prev.group,
+      active:
+        prev.active ??
+        rowId(composerAfter() ? entriesRef.current.length - 1 : 0),
+      virtual: false,
+      keyboard: true,
+    }));
+
+  const acceptActive = () => {
+    const prompt = activeRow()?.prompt;
+    return prompt == null ? false : acceptPrompt(prompt);
+  };
+
+  const isGroupOpen = () => navRef.current.group !== null;
+  const caretAtComposerEdge = () =>
+    composerAfter() ? caretAtStart() : caretAtEnd();
+
+  // The top level clamps at the far edge and exits at the composer edge; the
+  // composer edge row is index 0 unless the layout is flipped.
+  const handleTopKey = (
+    key: LogicalKey,
+    source: "composer" | "list",
+  ): boolean => {
+    const list = rows();
+    if (list.length === 0) return false;
+    const nearIndex = composerAfter() ? list.length - 1 : 0;
+    const activeIndex = list.findIndex(
+      (row) => row.id === navRef.current.active,
+    );
+    const deeper = composerAfter() ? -1 : 1;
+
+    const highlight = (index: number) =>
+      setNav((prev) => ({
+        ...prev,
+        active: list[index]!.id,
+        virtual: source === "composer",
+        keyboard: true,
+      }));
+    const clamp = (index: number) =>
+      Math.min(Math.max(index, 0), list.length - 1);
+
+    switch (key) {
+      case "towardList":
+        if (activeIndex !== -1) highlight(clamp(activeIndex + deeper));
+        else if (source === "list" || caretAtComposerEdge()) {
+          highlight(nearIndex);
+        } else return false;
+        return true;
+      case "towardComposer":
+        if (activeIndex !== -1 && activeIndex !== nearIndex) {
+          highlight(clamp(activeIndex - deeper));
+        } else if (source === "list") registry?.requestFocus();
+        else if (activeIndex === -1) return false;
+        else exitToIdle();
+        return true;
+      case "forward":
+      case "enter": {
+        const entry = list[activeIndex]?.entry;
+        if (!entry) return false;
+        if (isGroup(entry)) openGroup(entry);
+        else if (key === "enter") list[activeIndex]!.el?.click();
+        else if (!acceptActive()) return false;
+        else if (source === "list") registry?.requestFocus();
+        return true;
+      }
+      case "escape":
+        if (source !== "composer" || activeIndex === -1) return false;
+        exitToIdle();
+        return true;
+      default:
+        return false;
+    }
+  };
+
+  // Group navigation wraps at the far edge; the composer edge climbs out a
+  // level when the surface provides an exit.
+  const handleGroupKey = (
+    key: LogicalKey,
+    surface: GroupKeySurface,
+  ): boolean => {
+    const list = rows();
+    const activeIndex = list.findIndex(
+      (row) => row.id === navRef.current.active,
+    );
+    const nearEdge = composerAfter() ? list.length - 1 : 0;
+    const deeper = composerAfter() ? -1 : 1;
+
+    const highlightWrapped = (delta: number) => {
+      if (list.length === 0) return;
+      const next =
+        delta === 1
+          ? activeIndex >= list.length - 1
+            ? 0
+            : activeIndex + 1
+          : activeIndex <= 0
+            ? list.length - 1
+            : activeIndex - 1;
+      setNav((prev) => ({ ...prev, active: list[next]!.id, keyboard: true }));
+    };
+
+    switch (key) {
+      case "towardList":
+        highlightWrapped(deeper);
+        return true;
+      case "towardComposer":
+        if (
+          surface.onExitEdge &&
+          (activeIndex === -1 || activeIndex === nearEdge)
+        ) {
+          surface.onExitEdge();
+        } else highlightWrapped(-deeper);
+        return true;
+      case "forward":
+        return navRef.current.active !== null && acceptActive();
+      case "enter":
+        if (navRef.current.active === null) return false;
+        activeRow()?.el?.click();
+        return true;
+      case "escape":
+        (surface.onEscape ?? close)();
+        return true;
+      case "tab":
+        if (surface.onTab) {
+          surface.onTab();
+          return true;
+        }
+        close();
+        return false;
+      default:
+        return false;
+    }
+  };
+
+  return {
+    registerRow: (row: RowRecord) => {
+      records.add(row);
+      return () => void records.delete(row);
+    },
+    rowId,
+    activeRow,
+    exitToIdle,
+    close,
+    openGroup,
+    returnToTop,
+    highlightPointer,
+    clearHighlight,
+    focusList,
+    composerAfter,
+    isGroupOpen,
+    caretAtComposerEdge,
+    handleTopKey,
+    handleGroupKey,
+  };
+};
+
+const useWelcomeSuggestionsState = ({
+  suggestions,
+  send,
+}: {
+  suggestions: readonly SuggestionEntry[] | undefined;
+  send: boolean;
+}) => {
+  const registry = unstable_useComposerInputPluginRegistry();
+  const aui = useAui();
+  const staticSuggestions = useAuiState((s) => s.suggestions.suggestions);
+  const composerText = useAuiState((s) => s.composer.text);
+  const popoverId = useId();
+
+  const entries = useMemo(
+    () => (suggestions ?? staticSuggestions).map(normalizeItem),
+    [suggestions, staticSuggestions],
+  );
+
+  const [nav, setNav] = useState<NavState>(NAV_IDLE);
+  const navRef = useRef(nav);
+  navRef.current = nav;
+  const entriesRef = useRef(entries);
+  entriesRef.current = entries;
+
+  const rootRef = useRef<HTMLDivElement | null>(null);
+  const rowEls = useRef<(HTMLElement | null)[]>([]);
+  const pillEls = useRef<(HTMLButtonElement | null)[]>([]);
+  const posRef = useRef(0);
+
+  const [ctl] = useState(() =>
+    createNavController({
+      navRef,
+      entriesRef,
+      composerAfter: () => composerFollows(rootRef.current),
+      rowEls,
+      setNav,
+      popoverId,
+      registry,
+      acceptPrompt: (prompt) => {
+        if (aui.composer().getState().text) return false;
+        aui.composer().setText(prompt);
+        return true;
+      },
+      // Lexical's reported caret offset can overshoot the synced text around
+      // empty leading lines, so the end comparison is lenient.
+      caretAtEnd: () => posRef.current >= aui.composer().getState().text.length,
+      caretAtStart: () => posRef.current <= 0,
+    }),
+  );
+
+  const setCursorPosition = useCallback((pos: number) => {
+    posRef.current = pos;
+  }, []);
+
+  const groupEntry = nav.group !== null ? entries[nav.group] : undefined;
+  const openedGroup =
+    groupEntry && isGroup(groupEntry) ? groupEntry : undefined;
+
+  // The open group is an index into entries, so a suggestions update can
+  // orphan it; close instead of letting the stale index block navigation.
+  useEffect(() => {
+    if (nav.group !== null && openedGroup === undefined) ctl.close();
+  }, [nav.group, openedGroup, ctl]);
+
+  // The ghost preview is derived state with a single writer: the highlighted
+  // leaf's prompt while the highlight is keyboard-driven, nothing otherwise.
+  const ghostRef = useRef<{
+    input: HTMLTextAreaElement;
+    placeholder: string;
+  } | null>(null);
+
+  const setGhost = useCallback((text: string | null) => {
+    if (text === null) {
+      if (!ghostRef.current) return;
+      ghostRef.current.input.placeholder = ghostRef.current.placeholder;
+      ghostRef.current = null;
+      return;
+    }
+    const input = ghostRef.current?.input ?? findComposerInput(rootRef.current);
+    if (!input) return;
+    ghostRef.current ??= { input, placeholder: input.placeholder };
+    input.placeholder = text;
+  }, []);
+
+  useEffect(() => {
+    setGhost(
+      nav.keyboard && nav.active !== null
+        ? (ctl.activeRow()?.prompt ?? null)
+        : null,
+    );
+  }, [nav, setGhost, ctl]);
+
+  useEffect(() => () => setGhost(null), [setGhost]);
+
+  // The composer advertises the combobox relation while it drives the
+  // highlight, per the editable combobox pattern.
+  useEffect(() => {
+    if (!registry || !nav.virtual) return undefined;
+    if (nav.group === null && nav.active === null) return undefined;
+    registry.setActiveDescendant("welcome-suggestions", {
+      popoverId,
+      highlightedItemId: nav.active ?? undefined,
+    });
+    return () => registry.setActiveDescendant("welcome-suggestions", null);
+  }, [registry, nav.virtual, nav.group, nav.active, popoverId]);
+
+  // Any composer edit is the user's: close the group or hand the arrows back.
+  const navEngagedRef = useRef(false);
+  navEngagedRef.current = nav.group !== null || nav.virtual;
+  useEffect(() => {
+    if (navEngagedRef.current) ctl.close();
+  }, [composerText, ctl]);
+
+  // A press on a row must stay live so its click can commit; any other
+  // outside press ends the virtual highlight.
+  useEffect(() => {
+    if (!nav.virtual || nav.group !== null) return undefined;
+    const onPointerDown = (e: PointerEvent) => {
+      const target = e.target as Element | null;
+      if (target && rootRef.current?.contains(target)) return;
+      ctl.exitToIdle();
+    };
+    document.addEventListener("pointerdown", onPointerDown);
+    return () => document.removeEventListener("pointerdown", onPointerDown);
+  }, [nav.virtual, nav.group, ctl]);
+
+  return useMemo(
+    () => ({
+      ...ctl,
+      entries,
+      group: openedGroup,
+      groupIndex: nav.group,
+      active: nav.active,
+      send,
+      popoverId,
+      setCursorPosition,
+      rowEls,
+      pillEls,
+      rootRef,
+    }),
+    [
+      ctl,
+      entries,
+      openedGroup,
+      nav.group,
+      nav.active,
+      send,
+      popoverId,
+      setCursorPosition,
+    ],
+  );
+};
+
+type WelcomeSuggestionsContextValue = ReturnType<
+  typeof useWelcomeSuggestionsState
+>;
 
 const WelcomeSuggestionsContext =
   createContext<WelcomeSuggestionsContextValue | null>(null);
@@ -207,179 +634,11 @@ export function useWelcomeSuggestions(): WelcomeSuggestionsContextValue {
   return ctx;
 }
 
-const useWelcomeSuggestionsState = ({
-  suggestions,
-  send,
-}: {
-  suggestions: readonly SuggestionEntry[] | undefined;
-  send: boolean;
-}) => {
-  const registry = unstable_useComposerInputPluginRegistry();
-  const aui = useAui();
-  const staticSuggestions = useAuiState((s) => s.suggestions.suggestions);
-  const composerText = useAuiState((s) => s.composer.text);
-  const getItems = usePickerCollection(undefined);
-  const popoverId = useId();
-
-  const entries = useMemo(
-    () => (suggestions ?? staticSuggestions).map(normalizeItem),
-    [suggestions, staticSuggestions],
-  );
-
-  const [openLabel, setOpenLabel] = useState<string | null>(null);
-  const [currentId, setCurrentId] = useState<string | null>(null);
-  const currentIdRef = useRef(currentId);
-  currentIdRef.current = currentId;
-
-  const group = entries.find(
-    (e): e is SuggestionGroup => isGroup(e) && e.label === openLabel,
-  );
-
-  const ghostRef = useRef<{
-    input: HTMLTextAreaElement;
-    placeholder: string;
-  } | null>(null);
-
-  const setGhost = useCallback(
-    (text: string | null) => {
-      if (text === null) {
-        if (!ghostRef.current) return;
-        ghostRef.current.input.placeholder = ghostRef.current.placeholder;
-        ghostRef.current = null;
-        return;
-      }
-      const input =
-        ghostRef.current?.input ??
-        findComposerInput(document.getElementById(popoverId));
-      if (!input) return;
-      ghostRef.current ??= { input, placeholder: input.placeholder };
-      input.placeholder = text;
-    },
-    [popoverId],
-  );
-
-  useEffect(() => () => setGhost(null), [setGhost]);
-
-  const close = useCallback(() => {
-    setOpenLabel(null);
-    setCurrentId(null);
-    setGhost(null);
-  }, [setGhost]);
-
-  const openGroup = useCallback(
-    (g: SuggestionGroup) => {
-      setOpenLabel(g.label);
-      setCurrentId(null);
-      currentIdRef.current = null;
-      registry?.requestFocus();
-    },
-    [registry],
-  );
-
-  // Enter and click share one select path: Enter clicks the highlighted
-  // item's collection ref, so ThreadPrimitive.Suggestion handles both.
-  const selectCurrent = useCallback(() => {
-    const current = getItems().find((item) => item.id === currentIdRef.current);
-    current?.ref.current?.click();
-  }, [getItems]);
-
-  const acceptCurrent = useCallback(() => {
-    const prompt = getItems().find(
-      (item) => item.id === currentIdRef.current,
-    )?.prompt;
-    if (prompt === undefined) return false;
-    return acceptDraft(aui, prompt);
-  }, [aui, getItems]);
-
-  // Hover never previews: a wrapping ghost resizes the composer, shifting
-  // the list under a stationary cursor in a loop.
-  const highlightItem = useCallback(
-    (id: string, preview = true) => {
-      if (currentIdRef.current === id) return;
-      currentIdRef.current = id;
-      setCurrentId(id);
-      if (!preview) return setGhost(null);
-      const prompt = getItems().find((item) => item.id === id)?.prompt;
-      if (prompt !== undefined) setGhost(prompt);
-    },
-    [setGhost, getItems],
-  );
-
-  const moveHighlight = useCallback(
-    (delta: 1 | -1) => {
-      const items = getItems();
-      if (items.length === 0) return;
-      const index = items.findIndex((item) => item.id === currentIdRef.current);
-      const nextIndex =
-        delta === 1
-          ? index >= items.length - 1
-            ? 0
-            : index + 1
-          : index <= 0
-            ? items.length - 1
-            : index - 1;
-      highlightItem(items[nextIndex]!.id);
-    },
-    [getItems, highlightItem],
-  );
-
-  const highlightAtEdge = useCallback(
-    (edge: "first" | "last") => {
-      const items = getItems();
-      const index = items.findIndex((item) => item.id === currentIdRef.current);
-      if (index === -1) return true;
-      return edge === "first" ? index === 0 : index === items.length - 1;
-    },
-    [getItems],
-  );
-
-  // Any composer edit while a group is open is the user's: hand control
-  // back. The ref keeps the effect keyed to text changes alone.
-  const groupOpenRef = useRef(false);
-  groupOpenRef.current = group !== undefined;
-  useEffect(() => {
-    if (groupOpenRef.current) close();
-  }, [composerText, close]);
-
-  return useMemo<WelcomeSuggestionsContextValue>(
-    () => ({
-      entries,
-      group,
-      openGroup,
-      close,
-      setGhost,
-      moveHighlight,
-      highlightItem,
-      highlightAtEdge,
-      selectCurrent,
-      acceptCurrent,
-      currentId,
-      send,
-      popoverId,
-    }),
-    [
-      entries,
-      group,
-      openGroup,
-      close,
-      setGhost,
-      moveHighlight,
-      highlightItem,
-      highlightAtEdge,
-      selectCurrent,
-      acceptCurrent,
-      currentId,
-      send,
-      popoverId,
-    ],
-  );
-};
-
-const WelcomeSuggestionsState: FC<{
-  suggestions: readonly SuggestionEntry[] | undefined;
-  send: boolean;
+export const WelcomeSuggestionsRoot: FC<{
+  suggestions?: readonly SuggestionEntry[] | undefined;
+  send?: boolean | undefined;
   children: ReactNode;
-}> = ({ suggestions, send, children }) => {
+}> = ({ suggestions, send = true, children }) => {
   const value = useWelcomeSuggestionsState({ suggestions, send });
 
   if (value.entries.length === 0) return null;
@@ -387,6 +646,7 @@ const WelcomeSuggestionsState: FC<{
   return (
     <WelcomeSuggestionsContext.Provider value={value}>
       <div
+        ref={value.rootRef}
         data-slot="aui_thread-welcome-suggestions"
         data-open={value.group ? "" : undefined}
         className="group/suggestions relative w-full"
@@ -397,77 +657,127 @@ const WelcomeSuggestionsState: FC<{
   );
 };
 
-export const WelcomeSuggestionsRoot: FC<{
-  suggestions?: readonly SuggestionEntry[] | undefined;
-  send?: boolean | undefined;
-  children: ReactNode;
-}> = ({ suggestions, send = true, children }) => (
-  <PickerCollection.Provider scope={undefined}>
-    <PillCollection.Provider scope={undefined}>
-      <StackCollection.Provider scope={undefined}>
-        <WelcomeSuggestionsState suggestions={suggestions} send={send}>
-          {children}
-        </WelcomeSuggestionsState>
-      </StackCollection.Provider>
-    </PillCollection.Provider>
-  </PickerCollection.Provider>
-);
+// The outside-press opt-out mirrors the base flavor: a defaultPrevented
+// pointerdown lets outside controls act on the panel without dismissing it,
+// and the composer is exempt because it drives the panel while open.
+const dismissLayerProps = ({
+  onEscape,
+  onDismiss,
+}: {
+  onEscape: () => void;
+  onDismiss: () => void;
+}) => ({
+  onEscapeKeyDown: () => onEscape(),
+  onFocusOutside: (e: { preventDefault(): void }) => e.preventDefault(),
+  onPointerDownOutside: (e: {
+    detail: { originalEvent: Event };
+    preventDefault(): void;
+  }) => {
+    const original = e.detail.originalEvent;
+    const target = original.target as Element | null;
+    if (original.defaultPrevented || target?.closest(COMPOSER_SELECTOR)) {
+      e.preventDefault();
+    }
+  },
+  onDismiss: () => onDismiss(),
+});
+
+// Routes composer keydowns to group navigation while a group is open. Tab is
+// intercepted because a native move would land on the composer's neighbors,
+// not the suggestions.
+const useComposerCoupling = (surface: GroupKeySurface) => {
+  const registry = unstable_useComposerInputPluginRegistry();
+  const direction = Direction.useDirection();
+  const { group, handleGroupKey, composerAfter } = useWelcomeSuggestions();
+  const surfaceRef = useRef(surface);
+  surfaceRef.current = surface;
+  const rtl = direction === "rtl";
+
+  useEffect(() => {
+    if (!group || !registry) return undefined;
+    return registry.register({
+      handleKeyDown(e) {
+        const key = resolveKey(e.key, composerAfter(), rtl);
+        if (key === null || key === "back") return false;
+        const handled = handleGroupKey(key, surfaceRef.current);
+        if (handled) e.preventDefault();
+        return handled;
+      },
+      setCursorPosition() {},
+    });
+  }, [registry, group, handleGroupKey, composerAfter, rtl]);
+};
 
 export const WelcomeSuggestionsPills: FC = () => {
-  const { entries, group, openGroup, send } = useWelcomeSuggestions();
+  const {
+    entries,
+    group,
+    openGroup,
+    send,
+    isGroupOpen,
+    caretAtComposerEdge,
+    setCursorPosition,
+    composerAfter,
+    pillEls,
+  } = useWelcomeSuggestions();
   const direction = Direction.useDirection();
-  const getPills = usePillCollection(undefined);
   const registry = unstable_useComposerInputPluginRegistry();
-  const { setCursorPosition, caretAtEnd, caretAtStart } = useComposerCaret();
+  const rtl = direction === "rtl";
 
   useEffect(() => {
     if (!registry) return undefined;
     return registry.register({
       handleKeyDown(e) {
-        if (group) return false;
-        if (e.key !== "ArrowUp" && e.key !== "ArrowDown") return false;
-        const first = getPills()[0]?.ref.current ?? null;
-        const flipped = composerFollows(first);
-        if (e.key !== (flipped ? "ArrowUp" : "ArrowDown")) return false;
-        if (!(flipped ? caretAtStart() : caretAtEnd())) return false;
-        first?.focus();
+        if (isGroupOpen()) return false;
+        if (resolveKey(e.key, composerAfter(), false) !== "towardList") {
+          return false;
+        }
+        if (!caretAtComposerEdge()) return false;
+        pillEls.current.find(Boolean)?.focus();
         e.preventDefault();
         return true;
       },
       setCursorPosition,
     });
-  }, [registry, group, caretAtEnd, caretAtStart, setCursorPosition, getPills]);
+  }, [
+    registry,
+    isGroupOpen,
+    composerAfter,
+    caretAtComposerEdge,
+    setCursorPosition,
+    pillEls,
+  ]);
 
   const onPillKeyDown = (
     e: ReactKeyboardEvent<HTMLButtonElement>,
     entry: SuggestionEntry,
   ) => {
-    if (e.key === "Escape" && registry) {
+    const key = resolveKey(e.key, composerAfter(), rtl);
+    if (key === "escape" && registry) {
       registry.requestFocus();
       e.preventDefault();
       return;
     }
-    if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-      const flipped = composerFollows(e.currentTarget);
-      if (e.key === (flipped ? "ArrowDown" : "ArrowUp")) {
-        if (registry) {
-          registry.requestFocus();
-          e.preventDefault();
-        }
-      } else if (isGroup(entry)) {
+    if (key === "towardComposer") {
+      if (registry) {
+        registry.requestFocus();
+        e.preventDefault();
+      }
+      return;
+    }
+    if (key === "towardList") {
+      if (isGroup(entry)) {
         openGroup(entry);
         e.preventDefault();
       }
       return;
     }
-    const forwardKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
-    const backKey = direction === "rtl" ? "ArrowRight" : "ArrowLeft";
-    if (e.key !== forwardKey && e.key !== backKey) return;
-    const pills = getPills()
-      .map((item) => item.ref.current)
-      .filter((node): node is HTMLButtonElement => node !== null);
+    if (key !== "forward" && key !== "back") return;
+    const pills = pillEls.current.filter(
+      (el): el is HTMLButtonElement => el !== null,
+    );
     const next =
-      pills[pills.indexOf(e.currentTarget) + (e.key === forwardKey ? 1 : -1)];
+      pills[pills.indexOf(e.currentTarget) + (key === "forward" ? 1 : -1)];
     if (next) {
       next.focus();
       e.preventDefault();
@@ -482,35 +792,39 @@ export const WelcomeSuggestionsPills: FC = () => {
         group && "invisible",
       )}
     >
-      <PillCollection.Slot scope={undefined}>
-        <div className="mx-auto flex w-max items-center justify-center gap-2 px-1.5">
-          {entries.map((entry, idx) => (
-            <PillCollection.ItemSlot key={idx} scope={undefined}>
-              {isGroup(entry) ? (
-                <button
-                  type="button"
-                  className={pillClass}
-                  onClick={() => openGroup(entry)}
-                  onKeyDown={(e) => onPillKeyDown(e, entry)}
-                >
-                  {entry.icon}
-                  {entry.label}
-                </button>
-              ) : (
-                <ThreadPrimitive.Suggestion
-                  prompt={promptOf(entry)}
-                  send={send}
-                  className={pillClass}
-                  onKeyDown={(e) => onPillKeyDown(e, entry)}
-                >
-                  {entry.icon}
-                  {entry.label}
-                </ThreadPrimitive.Suggestion>
-              )}
-            </PillCollection.ItemSlot>
-          ))}
-        </div>
-      </PillCollection.Slot>
+      <div className="mx-auto flex w-max items-center justify-center gap-2 px-1.5">
+        {entries.map((entry, idx) =>
+          isGroup(entry) ? (
+            <button
+              key={idx}
+              ref={(el) => {
+                pillEls.current[idx] = el;
+              }}
+              type="button"
+              className={pillClass}
+              onClick={() => openGroup(entry)}
+              onKeyDown={(e) => onPillKeyDown(e, entry)}
+            >
+              {entry.icon}
+              {entry.label}
+            </button>
+          ) : (
+            <ThreadPrimitive.Suggestion
+              key={idx}
+              ref={(el) => {
+                pillEls.current[idx] = el;
+              }}
+              prompt={promptOf(entry)}
+              send={send}
+              className={pillClass}
+              onKeyDown={(e) => onPillKeyDown(e, entry)}
+            >
+              {entry.icon}
+              {entry.label}
+            </ThreadPrimitive.Suggestion>
+          ),
+        )}
+      </div>
     </div>
   );
 };
@@ -541,33 +855,41 @@ export const WelcomeSuggestionsPickerItem: FC<
   ...props
 }) => {
   const id = useId();
-  const { currentId, highlightItem, close, send } = useWelcomeSuggestions();
-  const highlighted = currentId === id;
+  const { active, highlightPointer, close, send, registerRow } =
+    useWelcomeSuggestions();
+  const elRef = useRef<HTMLButtonElement | null>(null);
+  const highlighted = active === id;
+
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return undefined;
+    return registerRow({ id, prompt, el });
+  }, [registerRow, id, prompt]);
+
   return (
-    <PickerCollection.ItemSlot scope={undefined} id={id} prompt={prompt}>
-      <ThreadPrimitive.Suggestion
-        id={id}
-        prompt={prompt}
-        send={send}
-        data-slot="aui_thread-welcome-picker-item"
-        role="option"
-        aria-selected={highlighted}
-        data-highlighted={highlighted || undefined}
-        onClick={() => close()}
-        onMouseMove={() => highlightItem(id, false)}
-        className={cn(
-          welcomeSuggestionRowVariants({ highlight, density, separators }),
-          className,
-        )}
-        {...props}
-      >
-        {icon}
-        {children ?? label}
-        {itemIcon !== "off" && (
-          <ItemIcon className={trailingClass[itemIcon ?? "always"]} />
-        )}
-      </ThreadPrimitive.Suggestion>
-    </PickerCollection.ItemSlot>
+    <ThreadPrimitive.Suggestion
+      ref={elRef}
+      id={id}
+      prompt={prompt}
+      send={send}
+      data-slot="aui_thread-welcome-picker-item"
+      role="option"
+      aria-selected={highlighted}
+      data-highlighted={highlighted || undefined}
+      onClick={() => close()}
+      onMouseMove={() => highlightPointer(id)}
+      className={cn(
+        welcomeSuggestionRowVariants({ highlight, density, separators }),
+        className,
+      )}
+      {...props}
+    >
+      {icon}
+      {children ?? label}
+      {itemIcon !== "off" && (
+        <ItemIcon className={trailingClass[itemIcon ?? "always"]} />
+      )}
+    </ThreadPrimitive.Suggestion>
   );
 };
 
@@ -593,121 +915,6 @@ const GroupPickerItems: FC<
   </>
 );
 
-// Routes composer keydowns to panel navigation while a group is open.
-// onExitEdge makes the arrow toward the composer, at its nearest item,
-// climb out a level instead of wrapping. Tab is intercepted because a
-// native move would land on the composer's neighbors, not the suggestions.
-const useComposerCoupling = ({
-  listboxRef,
-  onEscape,
-  onTab,
-  onExitEdge,
-}: {
-  listboxRef: RefObject<HTMLDivElement | null>;
-  onEscape?: () => void;
-  onTab?: () => void;
-  onExitEdge?: () => void;
-}) => {
-  const registry = unstable_useComposerInputPluginRegistry();
-  const direction = Direction.useDirection();
-  const {
-    group,
-    moveHighlight,
-    highlightAtEdge,
-    selectCurrent,
-    acceptCurrent,
-    close,
-    currentId,
-    popoverId,
-  } = useWelcomeSuggestions();
-  const currentIdRef = useRef(currentId);
-  currentIdRef.current = currentId;
-  const acceptKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
-
-  useEffect(() => {
-    if (!group || !registry) return undefined;
-    return registry.register({
-      handleKeyDown(e) {
-        if (e.key === "ArrowDown") {
-          if (
-            onExitEdge &&
-            highlightAtEdge("last") &&
-            composerFollows(listboxRef.current)
-          )
-            onExitEdge();
-          else moveHighlight(1);
-          e.preventDefault();
-          return true;
-        }
-        if (e.key === "ArrowUp") {
-          if (
-            onExitEdge &&
-            highlightAtEdge("first") &&
-            !composerFollows(listboxRef.current)
-          )
-            onExitEdge();
-          else moveHighlight(-1);
-          e.preventDefault();
-          return true;
-        }
-        if (e.key === acceptKey && currentIdRef.current) {
-          if (!acceptCurrent()) return false;
-          e.preventDefault();
-          return true;
-        }
-        if (e.key === "Enter" && currentIdRef.current) {
-          selectCurrent();
-          e.preventDefault();
-          return true;
-        }
-        if (e.key === "Escape") {
-          e.preventDefault();
-          if (onEscape) onEscape();
-          else close();
-          return true;
-        }
-        if (e.key === "Tab") {
-          if (onTab) {
-            onTab();
-            e.preventDefault();
-            return true;
-          }
-          close();
-          return false;
-        }
-        return false;
-      },
-      setCursorPosition() {},
-    });
-  }, [
-    registry,
-    group,
-    moveHighlight,
-    highlightAtEdge,
-    selectCurrent,
-    acceptCurrent,
-    acceptKey,
-    close,
-    onEscape,
-    onTab,
-    onExitEdge,
-    listboxRef,
-  ]);
-
-  useEffect(() => {
-    if (!registry || !group) return undefined;
-    return () => registry.setActiveDescendant("welcome-suggestions", null);
-  }, [registry, group]);
-
-  useEffect(() => {
-    if (!registry || !group) return;
-    registry.setActiveDescendant("welcome-suggestions", {
-      popoverId,
-      highlightedItemId: currentId ?? undefined,
-    });
-  }, [registry, group, popoverId, currentId]);
-};
-
 export type WelcomeSuggestionsPickerProps = VariantProps<
   typeof welcomeSuggestionRowVariants
 > & {
@@ -722,42 +929,25 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
   separators,
   children,
 }) => {
-  const { entries, group, close, popoverId } = useWelcomeSuggestions();
-  const getPills = usePillCollection(undefined);
-  const listboxRef = useRef<HTMLDivElement>(null);
+  const { group, groupIndex, close, popoverId, pillEls } =
+    useWelcomeSuggestions();
 
   // The pills row is invisible until the close commits, so the focus move
   // waits a frame.
   const returnToPills = useCallback(() => {
-    const idx = group ? entries.indexOf(group) : -1;
+    const index = groupIndex;
     close();
-    if (idx === -1) return;
-    requestAnimationFrame(() => {
-      getPills()[idx]?.ref.current?.focus();
-    });
-  }, [group, entries, close, getPills]);
+    if (index === null) return;
+    requestAnimationFrame(() => pillEls.current[index]?.focus());
+  }, [groupIndex, close, pillEls]);
 
-  useComposerCoupling({
-    listboxRef,
-    onTab: returnToPills,
-    onExitEdge: returnToPills,
-  });
+  useComposerCoupling({ onTab: returnToPills, onExitEdge: returnToPills });
 
   if (!group) return null;
   return (
     <DismissableLayerPrimitive.Root
       asChild
-      onEscapeKeyDown={() => close()}
-      onFocusOutside={(e) => e.preventDefault()}
-      onPointerDownOutside={(e) => {
-        // A defaultPrevented pointerdown is an opt-out, so outside controls
-        // can act on the open panel without dismissing it.
-        const original = e.detail.originalEvent;
-        const target = original.target as Element | null;
-        if (original.defaultPrevented || target?.closest(COMPOSER_SELECTOR))
-          e.preventDefault();
-      }}
-      onDismiss={() => close()}
+      {...dismissLayerProps({ onEscape: close, onDismiss: close })}
     >
       <div
         data-slot="aui_thread-welcome-picker"
@@ -780,32 +970,27 @@ export const WelcomeSuggestionsPicker: FC<WelcomeSuggestionsPickerProps> = ({
             <XIcon className="size-3.5" />
           </button>
         </div>
-        <PickerCollection.Slot scope={undefined}>
-          <div
-            ref={listboxRef}
-            id={popoverId}
-            role="listbox"
-            aria-label={group.label}
-            className="flex flex-col outline-none"
-          >
-            {children ?? (
-              <GroupPickerItems
-                group={group}
-                itemIcon={itemIcon}
-                highlight={highlight}
-                density={density}
-                separators={separators}
-              />
-            )}
-          </div>
-        </PickerCollection.Slot>
+        <div
+          id={popoverId}
+          role="listbox"
+          aria-label={group.label}
+          className="flex flex-col outline-none"
+        >
+          {children ?? (
+            <GroupPickerItems
+              group={group}
+              itemIcon={itemIcon}
+              highlight={highlight}
+              density={density}
+              separators={separators}
+            />
+          )}
+        </div>
       </div>
     </DismissableLayerPrimitive.Root>
   );
 };
 
-// The DismissableLayer wraps only the sub-level's children, not the
-// container: remounting the container on close would drop restored focus.
 export type WelcomeSuggestionsStackProps = VariantProps<
   typeof welcomeSuggestionRowVariants
 > & {
@@ -822,257 +1007,84 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
   separators,
   className,
 }) => {
-  const { entries, group, openGroup, close, setGhost, send, popoverId } =
-    useWelcomeSuggestions();
+  const {
+    entries,
+    group,
+    active,
+    rowId,
+    openGroup,
+    close,
+    returnToTop,
+    exitToIdle,
+    highlightPointer,
+    clearHighlight,
+    focusList,
+    isGroupOpen,
+    handleTopKey,
+    composerAfter,
+    setCursorPosition,
+    send,
+    popoverId,
+    rowEls,
+  } = useWelcomeSuggestions();
   const direction = Direction.useDirection();
-  const openKey = direction === "rtl" ? "ArrowLeft" : "ArrowRight";
-  const getStackRows = useStackCollection(undefined);
   const registry = unstable_useComposerInputPluginRegistry();
-  const aui = useAui();
-  const composerText = useAuiState((s) => s.composer.text);
-  const { setCursorPosition, caretAtEnd, caretAtStart } = useComposerCaret();
+  const rtl = direction === "rtl";
   const listRef = useRef<HTMLDivElement>(null);
-  const [topIdx, setTopIdx] = useState<number | null>(null);
-  // The composer keeps DOM focus while the arrows move a virtual highlight.
-  const [composerNav, setComposerNav] = useState(false);
-  const composerNavRef = useRef(false);
-  const topIdxRef = useRef(topIdx);
-  topIdxRef.current = topIdx;
 
-  const enterComposerNav = useCallback(() => {
-    composerNavRef.current = true;
-    setComposerNav(true);
-  }, []);
-  const rowId = useCallback(
-    (idx: number) => `${popoverId}t${idx}`,
-    [popoverId],
-  );
+  useComposerCoupling({ onEscape: returnToTop, onTab: returnToTop });
 
-  const exitComposerNav = useCallback(() => {
-    composerNavRef.current = false;
-    setComposerNav(false);
-    setTopIdx(null);
-    setGhost(null);
-  }, [setGhost]);
-
-  const previewRow = useCallback(
-    (idx: number) => {
-      const entry = entries[idx];
-      if (!entry) return;
-      setGhost(isGroup(entry) ? null : promptOf(entry));
-    },
-    [entries, setGhost],
-  );
-
-  const acceptRow = useCallback(
-    (idx: number) => {
-      const entry = entries[idx];
-      if (!entry || isGroup(entry)) return false;
-      return acceptDraft(aui, promptOf(entry));
-    },
-    [entries, aui],
-  );
-
-  const clickRow = useCallback(
-    (idx: number) => getStackRows()[idx]?.ref.current?.click(),
-    [getStackRows],
-  );
-
-  const returnToTop = useCallback(() => {
-    const idx = group ? entries.indexOf(group) : -1;
-    close();
-    if (idx === -1) return;
-    setTopIdx(idx);
-    enterComposerNav();
-    registry?.requestFocus();
-  }, [group, entries, close, registry, enterComposerNav]);
-
-  useComposerCoupling({
-    listboxRef: listRef,
-    onEscape: returnToTop,
-    onTab: returnToTop,
-  });
-
-  useEffect(() => {
-    if (group) exitComposerNav();
-  }, [group, exitComposerNav]);
-
-  // Any composer edit is the user's: hand the arrows back. The ref keeps
-  // the effect keyed to text changes alone.
-  useEffect(() => {
-    if (composerNavRef.current) exitComposerNav();
-  }, [composerText, exitComposerNav]);
-
-  // A press on a row must stay live so its click can commit; any other
-  // outside press ends composer navigation.
-  useEffect(() => {
-    if (!composerNav) return undefined;
-    const onPointerDown = (e: PointerEvent) => {
-      const target = e.target as Element | null;
-      if (target && listRef.current?.contains(target)) return;
-      exitComposerNav();
-    };
-    document.addEventListener("pointerdown", onPointerDown);
-    return () => document.removeEventListener("pointerdown", onPointerDown);
-  }, [composerNav, exitComposerNav]);
-
-  // The highlight anchors to the composer: entry lands on the adjacent row,
-  // the far edge clamps, and the adjacent edge exits instead of wrapping.
   useEffect(() => {
     if (!registry) return undefined;
     return registry.register({
       handleKeyDown(e) {
-        if (group) return false;
-        if (e.key === "ArrowUp" || e.key === "ArrowDown") {
-          const flipped = composerFollows(listRef.current);
-          const enterDelta = flipped ? -1 : 1;
-          const entryIdx = flipped ? entries.length - 1 : 0;
-          if (e.key === (flipped ? "ArrowUp" : "ArrowDown")) {
-            if (
-              topIdxRef.current === null &&
-              !(flipped ? caretAtStart() : caretAtEnd())
-            )
-              return false;
-            enterComposerNav();
-            const next =
-              topIdxRef.current === null
-                ? entryIdx
-                : Math.min(
-                    Math.max(topIdxRef.current + enterDelta, 0),
-                    entries.length - 1,
-                  );
-            topIdxRef.current = next;
-            setTopIdx(next);
-            previewRow(next);
-            e.preventDefault();
-            return true;
-          }
-          if (topIdxRef.current === null) return false;
-          if (topIdxRef.current === entryIdx) exitComposerNav();
-          else {
-            enterComposerNav();
-            const next = topIdxRef.current - enterDelta;
-            topIdxRef.current = next;
-            setTopIdx(next);
-            previewRow(next);
-          }
-          e.preventDefault();
-          return true;
-        }
-        const idx = topIdxRef.current;
-        if (idx === null) return false;
-        if (e.key === "Escape") {
-          exitComposerNav();
-          e.preventDefault();
-          return true;
-        }
-        if (e.key === "Tab") {
-          exitComposerNav();
+        if (isGroupOpen()) return false;
+        const key = resolveKey(e.key, composerAfter(), rtl);
+        if (key === null || key === "back") return false;
+        if (key === "tab") {
+          exitToIdle();
           return false;
         }
-        const entry = entries[idx];
-        if (!entry) return false;
-        if (e.key === "Enter") {
-          if (isGroup(entry)) openGroup(entry);
-          else clickRow(idx);
-          e.preventDefault();
-          return true;
-        }
-        if (e.key === openKey) {
-          if (isGroup(entry)) openGroup(entry);
-          else if (!acceptRow(idx)) return false;
-          e.preventDefault();
-          return true;
-        }
-        return false;
+        // A caret-blocked vertical arrow must stay a caret move.
+        if (!handleTopKey(key, "composer")) return false;
+        e.preventDefault();
+        return true;
       },
       setCursorPosition,
     });
   }, [
     registry,
-    group,
-    openKey,
-    entries,
-    openGroup,
-    exitComposerNav,
-    enterComposerNav,
-    previewRow,
-    acceptRow,
-    clickRow,
-    caretAtEnd,
-    caretAtStart,
+    isGroupOpen,
+    composerAfter,
+    rtl,
+    exitToIdle,
+    handleTopKey,
     setCursorPosition,
   ]);
 
-  useEffect(() => {
-    if (!registry || !composerNav || topIdx === null) return undefined;
-    registry.setActiveDescendant("welcome-suggestions-top", {
-      popoverId,
-      highlightedItemId: rowId(topIdx),
-    });
-    return () => registry.setActiveDescendant("welcome-suggestions-top", null);
-  }, [registry, composerNav, topIdx, popoverId, rowId]);
-
   const onKeyDown = (e: ReactKeyboardEvent<HTMLDivElement>) => {
     if (group) return;
-    if (e.key === "ArrowDown" || e.key === "ArrowUp") {
-      const idx = topIdxRef.current;
-      const last = entries.length - 1;
-      const flipped = composerFollows(listRef.current);
-      const exitKey = flipped ? "ArrowDown" : "ArrowUp";
-      const exitIdx = flipped ? last : 0;
-      if (e.key === exitKey && (idx === null || idx === exitIdx) && registry) {
-        registry.requestFocus();
-        e.preventDefault();
-        return;
-      }
-      const next =
-        idx === null
-          ? e.key === "ArrowDown"
-            ? 0
-            : last
-          : e.key === "ArrowDown"
-            ? Math.min(idx + 1, last)
-            : Math.max(idx - 1, 0);
-      topIdxRef.current = next;
-      setTopIdx(next);
-      previewRow(next);
-      e.preventDefault();
+    const key = resolveKey(e.key, composerAfter(), rtl);
+    if (key === null || key === "back" || key === "escape" || key === "tab") {
       return;
     }
-    if (e.key !== openKey && e.key !== "Enter") return;
-    if (topIdx === null) return;
-    const entry = entries[topIdx];
-    if (!entry) return;
-    if (isGroup(entry)) {
-      openGroup(entry);
-      e.preventDefault();
-    } else if (e.key === "Enter") {
-      clickRow(topIdx);
-      e.preventDefault();
-    } else if (acceptRow(topIdx)) {
-      registry?.requestFocus();
-      e.preventDefault();
-    }
+    if (handleTopKey(key, "list")) e.preventDefault();
   };
 
   // mousedown is prevented so rows never take DOM focus from the container
-  // or composer. Hover clears any keyboard ghost so a preview can't go
-  // stale on another row.
+  // or composer.
   const rowProps = (idx: number) => ({
     id: rowId(idx),
+    ref: (el: HTMLElement | null) => {
+      rowEls.current[idx] = el;
+    },
     "data-slot": "aui_thread-welcome-stack-row",
     role: "option",
-    "aria-selected": topIdx === idx,
-    "data-highlighted": topIdx === idx || undefined,
+    "aria-selected": active === rowId(idx),
+    "data-highlighted": active === rowId(idx) || undefined,
     tabIndex: -1,
     onMouseDown: (e: ReactMouseEvent) => e.preventDefault(),
-    onMouseMove: () => {
-      if (topIdxRef.current === idx) return;
-      topIdxRef.current = idx;
-      setTopIdx(idx);
-      if (composerNavRef.current) setGhost(null);
-    },
+    onMouseMove: () => highlightPointer(rowId(idx)),
   });
 
   return (
@@ -1081,122 +1093,98 @@ export const WelcomeSuggestionsStack: FC<WelcomeSuggestionsStackProps> = ({
       id={popoverId}
       role="listbox"
       aria-label={group ? group.label : "Suggestions"}
-      aria-activedescendant={
-        !group && topIdx !== null ? rowId(topIdx) : undefined
-      }
+      aria-activedescendant={!group && active !== null ? active : undefined}
       tabIndex={group ? -1 : 0}
       onKeyDown={onKeyDown}
       onFocus={() => {
-        if (group) return;
-        const idx =
-          topIdxRef.current ??
-          (composerFollows(listRef.current) ? entries.length - 1 : 0);
-        exitComposerNav();
-        setTopIdx(idx);
-        previewRow(idx);
+        if (!group) focusList();
       }}
       onBlur={(e) => {
         if (e.currentTarget.contains(e.relatedTarget)) return;
-        setTopIdx(null);
-        setGhost(null);
+        clearHighlight();
       }}
       onMouseLeave={() => {
-        if (
-          !group &&
-          !composerNav &&
-          document.activeElement !== listRef.current
-        )
-          setTopIdx(null);
+        if (!group && document.activeElement !== listRef.current) {
+          clearHighlight();
+        }
       }}
       data-slot="aui_thread-welcome-stack"
       className={cn("mx-[2.5%] flex flex-col outline-none", className)}
     >
       {group ? (
+        // The DismissableLayer wraps only the sub-level's children, not the
+        // container: remounting the container on close would drop restored
+        // focus.
         <DismissableLayerPrimitive.Root
           asChild
-          onEscapeKeyDown={() => returnToTop()}
-          onFocusOutside={(e) => e.preventDefault()}
-          onPointerDownOutside={(e) => {
-            // A defaultPrevented pointerdown is an opt-out, so outside
-            // controls can act on the open sub-level without dismissing it.
-            const original = e.detail.originalEvent;
-            const target = original.target as Element | null;
-            if (original.defaultPrevented || target?.closest(COMPOSER_SELECTOR))
-              e.preventDefault();
-          }}
-          onDismiss={() => close()}
+          {...dismissLayerProps({ onEscape: returnToTop, onDismiss: close })}
         >
-          <PickerCollection.Slot scope={undefined}>
-            <div
-              key={group.label}
-              role="presentation"
-              className="fade-in animate-in flex w-full flex-col duration-150"
-            >
-              <GroupPickerItems
-                group={group}
-                itemIcon={itemIcon}
-                highlight={highlight}
-                density={density}
-                separators={separators}
-              />
-            </div>
-          </PickerCollection.Slot>
-        </DismissableLayerPrimitive.Root>
-      ) : (
-        <StackCollection.Slot scope={undefined}>
           <div
+            key={group.label}
             role="presentation"
             className="fade-in animate-in flex w-full flex-col duration-150"
           >
-            {entries.map((entry, idx) => (
-              <StackCollection.ItemSlot key={idx} scope={undefined}>
-                {isGroup(entry) ? (
-                  <button
-                    type="button"
-                    {...rowProps(idx)}
-                    className={welcomeSuggestionRowVariants({
-                      highlight,
-                      density,
-                      separators,
-                    })}
-                    onClick={() => openGroup(entry)}
-                  >
-                    {entry.icon}
-                    {entry.label}
-                    {groupIcon !== "off" && (
-                      <GroupIcon
-                        className={cn(
-                          trailingClass[groupIcon ?? "always"],
-                          "rtl:rotate-180",
-                        )}
-                      />
-                    )}
-                  </button>
-                ) : (
-                  <ThreadPrimitive.Suggestion
-                    prompt={promptOf(entry)}
-                    send={send}
-                    {...rowProps(idx)}
-                    className={welcomeSuggestionRowVariants({
-                      highlight,
-                      density,
-                      separators,
-                    })}
-                    onClick={() => exitComposerNav()}
-                  >
-                    {entry.icon}
-                    {entry.label}
-                    {itemIcon !== "off" && (
-                      <ItemIcon
-                        className={trailingClass[itemIcon ?? "always"]}
-                      />
-                    )}
-                  </ThreadPrimitive.Suggestion>
-                )}
-              </StackCollection.ItemSlot>
-            ))}
+            <GroupPickerItems
+              group={group}
+              itemIcon={itemIcon}
+              highlight={highlight}
+              density={density}
+              separators={separators}
+            />
           </div>
-        </StackCollection.Slot>
+        </DismissableLayerPrimitive.Root>
+      ) : (
+        <div
+          key="top"
+          role="presentation"
+          className="fade-in animate-in flex w-full flex-col duration-150"
+        >
+          {entries.map((entry, idx) =>
+            isGroup(entry) ? (
+              <button
+                key={idx}
+                type="button"
+                {...rowProps(idx)}
+                className={welcomeSuggestionRowVariants({
+                  highlight,
+                  density,
+                  separators,
+                })}
+                onClick={() => openGroup(entry)}
+              >
+                {entry.icon}
+                {entry.label}
+                {groupIcon !== "off" && (
+                  <GroupIcon
+                    className={cn(
+                      trailingClass[groupIcon ?? "always"],
+                      "rtl:rotate-180",
+                    )}
+                  />
+                )}
+              </button>
+            ) : (
+              <ThreadPrimitive.Suggestion
+                key={idx}
+                prompt={promptOf(entry)}
+                send={send}
+                {...rowProps(idx)}
+                className={welcomeSuggestionRowVariants({
+                  highlight,
+                  density,
+                  separators,
+                })}
+                onClick={() => exitToIdle()}
+              >
+                {entry.icon}
+                {entry.label}
+                {itemIcon !== "off" && (
+                  <ItemIcon className={trailingClass[itemIcon ?? "always"]} />
+                )}
+              </ThreadPrimitive.Suggestion>
+            ),
+          )}
+        </div>
       )}
     </div>
   );
