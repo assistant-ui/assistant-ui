@@ -1,5 +1,6 @@
 type EventListener<T> = (payload: T) => unknown;
 
+// A function payload is indistinguishable from a factory and gets invoked; wrap a function-typed payload in a factory.
 export const notifyEventListeners = <T>(
   listeners: Iterable<EventListener<T>>,
   payloadOrFactory: T | (() => T),

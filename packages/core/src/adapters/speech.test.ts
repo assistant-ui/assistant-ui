@@ -88,7 +88,7 @@ describe("WebSpeechSynthesisAdapter", () => {
 });
 
 describe("WebSpeechDictationAdapter", () => {
-  it("continues notifying dictation listeners when one throws", () => {
+  const stubSpeechRecognition = () => {
     const listeners = new Map<string, EventListener>();
     class MockSpeechRecognition {
       lang = "";
@@ -106,6 +106,11 @@ describe("WebSpeechDictationAdapter", () => {
     vi.stubGlobal("window", {
       SpeechRecognition: MockSpeechRecognition,
     });
+    return listeners;
+  };
+
+  it("continues notifying dictation listeners when one throws", () => {
+    const listeners = stubSpeechRecognition();
     const listenerError = new Error("listener failed");
     const consoleError = vi
       .spyOn(console, "error")
@@ -160,23 +165,7 @@ describe("WebSpeechDictationAdapter", () => {
   });
 
   it("isolates async failures and payload mutations", async () => {
-    const listeners = new Map<string, EventListener>();
-    class MockSpeechRecognition {
-      lang = "";
-      continuous = false;
-      interimResults = false;
-
-      addEventListener(type: string, listener: EventListener) {
-        listeners.set(type, listener);
-      }
-
-      start() {}
-      stop() {}
-      abort() {}
-    }
-    vi.stubGlobal("window", {
-      SpeechRecognition: MockSpeechRecognition,
-    });
+    const listeners = stubSpeechRecognition();
     const listenerError = new Error("async listener failed");
     const consoleError = vi
       .spyOn(console, "error")
