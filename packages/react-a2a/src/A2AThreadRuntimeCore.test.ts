@@ -518,6 +518,25 @@ describe("A2AThreadRuntimeCore", () => {
       });
     });
 
+    it("handles malformed status message parts", async () => {
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield {
+            type: "statusUpdate",
+            event: {
+              taskId: "t1",
+              contextId: "ctx-1",
+              status: { state: "completed", message: {} },
+            },
+          } as unknown as A2AStreamEvent;
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getMessages()[1]!.content).toEqual([]);
+    });
+
     it("tracks task state from status updates", async () => {
       const core = createCore({
         streamMessage: vi.fn().mockImplementation(async function* () {
@@ -628,6 +647,31 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Artifact handling ---
 
   describe("artifacts", () => {
+    it("treats malformed artifact parts as empty", async () => {
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield {
+            type: "artifactUpdate",
+            event: {
+              taskId: "t1",
+              contextId: "ctx-1",
+              artifact: { artifactId: "a1", parts: {} },
+            },
+          } as unknown as A2AStreamEvent;
+          yield artifactUpdateEvent("a1", [{ text: "part" }], {
+            append: true,
+          });
+          yield statusUpdateEvent("completed", "Done");
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getArtifacts()).toEqual([
+        { artifactId: "a1", parts: [{ text: "part" }] },
+      ]);
+    });
+
     it("accumulates artifacts from artifact update events", async () => {
       const core = createCore({
         streamMessage: vi.fn().mockImplementation(async function* () {
@@ -825,6 +869,71 @@ describe("A2AThreadRuntimeCore", () => {
   // --- Task snapshot ---
 
   describe("task snapshot", () => {
+    it("treats malformed artifact parts as empty", async () => {
+      const taskSnapshot = {
+        id: "t1",
+        status: { state: "completed" },
+        artifacts: [{ artifactId: "a1", parts: {} }],
+      } as unknown as A2ATask;
+
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield { type: "task", task: taskSnapshot } as A2AStreamEvent;
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getArtifacts()).toEqual([{ artifactId: "a1", parts: [] }]);
+      expect(core.getTask()?.artifacts).toEqual([
+        { artifactId: "a1", parts: [] },
+      ]);
+    });
+
+    it.each([undefined, null, {}, "not-an-array"])(
+      "does not consume malformed task artifacts: %j",
+      async (artifacts) => {
+        const taskSnapshot = {
+          id: "t1",
+          status: { state: "completed" },
+          artifacts,
+          history: artifacts,
+        } as unknown as A2ATask;
+        const core = createCore({
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield { type: "task", task: taskSnapshot } as A2AStreamEvent;
+          }),
+        });
+
+        await core.append(createUserAppendMessage("Go"));
+
+        expect(core.getArtifacts()).toEqual([]);
+        if (artifacts === undefined) {
+          expect(core.getTask()?.artifacts).toBeUndefined();
+          expect(core.getTask()?.history).toBeUndefined();
+        } else {
+          expect(core.getTask()?.artifacts).toEqual([]);
+          expect(core.getTask()?.history).toEqual([]);
+        }
+      },
+    );
+
+    it("handles malformed status message parts", async () => {
+      const taskSnapshot = {
+        id: "t1",
+        status: { state: "completed", message: {} },
+      } as unknown as A2ATask;
+      const core = createCore({
+        streamMessage: vi.fn().mockImplementation(async function* () {
+          yield { type: "task", task: taskSnapshot } as A2AStreamEvent;
+        }),
+      });
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(core.getMessages()[1]!.content).toEqual([]);
+    });
+
     it("handles full task snapshot from stream", async () => {
       const taskSnapshot: A2ATask = {
         id: "t1",
