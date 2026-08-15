@@ -1,0 +1,14 @@
+/* Optional token defaults. Every component carries these values as var() fallbacks, so importing this file is only needed to override tokens globally or to make overrides observable in one place. */
+:root {
+  --dg-c1: #3b82f6;
+  --dg-c2: #059669;
+  --dg-c3: #8b5cf6;
+  --dg-c4: #0891b2;
+  --dg-pos: #3b82f6;
+  --dg-neg: #ef4444;
+  --dg-ink: currentColor;
+  --dg-muted: color-mix(in oklab, currentColor 45%, transparent);
+  --dg-grid: color-mix(in oklab, currentColor 10%, transparent);
+  --dg-surface: transparent;
+  --dg-font: ui-monospace, "SF Mono", Menlo, monospace;
+}

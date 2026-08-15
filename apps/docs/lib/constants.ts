@@ -124,6 +124,7 @@ export type NavItem =
 export const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Docs", href: "/docs" },
   { type: "link", label: "Elements", href: "/elements" },
+  { type: "link", label: "Diagrammatic", href: "/diagrammatic" },
   {
     type: "mega",
     label: "Resources",

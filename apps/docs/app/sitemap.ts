@@ -1,6 +1,7 @@
 import type { MetadataRoute } from "next";
 import { source, getTapDocsPages, blog, examples, careers } from "@/lib/source";
 import { ELEMENTS } from "@/components/elements/registry";
+import { CHARTS } from "@/components/diagrammatic/registry";
 import { DEMOS } from "@/lib/demos";
 import { BASE_URL, PRODUCTS } from "@/lib/constants";
 
@@ -20,6 +21,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${BASE_URL}/elements/vocabulary`,
       changeFrequency: "monthly",
       priority: 0.6,
+    },
+    {
+      url: `${BASE_URL}/diagrammatic`,
+      changeFrequency: "weekly",
+      priority: 0.7,
     },
     { url: `${BASE_URL}/oss`, changeFrequency: "weekly", priority: 0.7 },
     { url: `${BASE_URL}/packages`, changeFrequency: "weekly", priority: 0.6 },
@@ -78,6 +84,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
+  const diagramPages: MetadataRoute.Sitemap = CHARTS.map((chart) => ({
+    url: `${BASE_URL}/diagrammatic/${chart.slug}`,
+    changeFrequency: "monthly" as const,
+    priority: 0.6,
+  }));
+
   const demoPages: MetadataRoute.Sitemap = DEMOS.map((demo) => ({
     url: `${BASE_URL}/demos/${demo.slug}`,
     changeFrequency: "monthly" as const,
@@ -99,6 +111,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...blogPages,
     ...examplePages,
     ...elementPages,
+    ...diagramPages,
     ...demoPages,
     ...careerPages,
   ];
