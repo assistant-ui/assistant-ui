@@ -73,7 +73,10 @@ class FakeRedisClient implements RedisLikeClient {
     const entries = this.streams.get(key) ?? [];
     if (start === "-") return entries;
     const exclusiveId = start.startsWith("(") ? start.slice(1) : start;
-    return entries.filter((entry) => entry.id > exclusiveId);
+    const sequence = (id: string) => Number(id.split("-")[0]);
+    return entries.filter(
+      (entry) => sequence(entry.id) > sequence(exclusiveId),
+    );
   }
 
   async pipeline(commands: readonly PipelineCommand[]): Promise<void> {
@@ -169,6 +172,40 @@ describe("RedisResumableStreamStore", () => {
 
     expect(chunks).toEqual(["current"]);
     await expect(store.status("current")).resolves.toBe("done");
+  });
+
+  it("fences a superseded producer out of the reacquired stream", async () => {
+    const client = new FakeRedisClient();
+    const keyPrefix = "test";
+    const streamId = "fenced";
+    const metaKey = `${keyPrefix}:{${streamId}}:meta`;
+    const staleStore = new RedisResumableStreamStore(client, { keyPrefix });
+    await expect(staleStore.acquire(streamId)).resolves.toBe("producer");
+    await staleStore.append(streamId, encoder.encode("before"));
+
+    client.strings.delete(metaKey);
+    const freshStore = new RedisResumableStreamStore(client, { keyPrefix });
+    await expect(freshStore.acquire(streamId)).resolves.toBe("producer");
+    await freshStore.append(streamId, encoder.encode("fresh"));
+
+    await expect(
+      staleStore.append(streamId, encoder.encode("stale")),
+    ).rejects.toThrow(`Stream superseded by a new acquisition: ${streamId}`);
+    await expect(
+      staleStore.finalize(streamId, "done"),
+    ).resolves.toBeUndefined();
+    await expect(freshStore.status(streamId)).resolves.toBe("streaming");
+
+    await freshStore.finalize(streamId, "done");
+    const chunks: string[] = [];
+    for await (const entry of freshStore.read(
+      streamId,
+      "",
+      new AbortController().signal,
+    )) {
+      chunks.push(decoder.decode(entry.chunk));
+    }
+    expect(chunks).toEqual(["fresh"]);
   });
 
   it("stops an existing reader when the stream generation changes", async () => {
