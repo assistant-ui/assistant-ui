@@ -2,9 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import { ChatRegistry } from "./ChatRegistry";
 
 describe("ChatRegistry", () => {
-  it("attempts to stop every chat when one stop rejects", async () => {
+  it("waits for every stop when one stop rejects", async () => {
     const firstStop = vi.fn().mockRejectedValue(new Error("stop failed"));
-    const secondStop = vi.fn().mockResolvedValue(undefined);
+    let resolveSecond!: () => void;
+    const secondPending = new Promise<void>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const secondStop = vi.fn().mockReturnValue(secondPending);
     const stopByKey = new Map([
       ["first", firstStop],
       ["second", secondStop],
@@ -20,9 +24,19 @@ describe("ChatRegistry", () => {
     registry.getOrCreate("first");
     registry.getOrCreate("second");
 
-    await expect(registry.stopAll()).resolves.toBeUndefined();
+    let stopAllSettled = false;
+    const stopAll = registry.stopAll().then(() => {
+      stopAllSettled = true;
+    });
+
+    await new Promise((resolve) => setTimeout(resolve, 0));
 
     expect(firstStop).toHaveBeenCalledOnce();
     expect(secondStop).toHaveBeenCalledOnce();
+    expect(stopAllSettled).toBe(false);
+
+    resolveSecond();
+    await expect(stopAll).resolves.toBeUndefined();
+    expect(stopAllSettled).toBe(true);
   });
 });
