@@ -3,19 +3,27 @@ import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { barPath, stroke } from "../../core/geometry";
-import { ACCENT, GRID, ink } from "../../core/theme";
+import { ACCENT, GRID, cat, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
 export type ColumnProps = BaseProps & {
   items: Item[];
   highlight?: "max" | "last" | string;
+  categorical?: boolean;
+  values?: boolean;
 };
 
+/**
+ * `categorical` colors each item as its own entity from the token palette;
+ * `values` prints every value, not only the highlighted one.
+ */
 export const Column = forwardRef<SVGSVGElement, ColumnProps>(
   (
     {
       items,
       highlight = "last",
+      categorical,
+      values,
       format = formatCompact,
       title,
       aspect,
@@ -54,9 +62,10 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
             <g key={`${row.label}-${i}`} data-part="mark" data-i={i}>
               <path
                 d={barPath(x, bottom - h, width, h, 3, "top")}
-                fill={accent ? ACCENT : ink(0.3)}
+                fill={categorical ? cat(i) : accent ? ACCENT : ink(0.3)}
+                opacity={categorical ? 0.9 : 1}
               />
-              {accent && (
+              {(values || (!categorical && accent)) && (
                 <text
                   x={x + width / 2}
                   y={bottom - h - 4}

@@ -1,70 +1,233 @@
+import type { ReactNode } from "react";
 import type { DemoExample } from "./demos/types";
-import { examples as lineExamples } from "./demos/line";
-import { examples as areaExamples } from "./demos/area";
-import { examples as stackedAreaExamples } from "./demos/stacked-area";
-import { examples as streamgraphExamples } from "./demos/streamgraph";
-import { examples as mirroredAreaExamples } from "./demos/mirrored-area";
-import { examples as slopeExamples } from "./demos/slope";
-import { examples as bumpExamples } from "./demos/bump";
-import { examples as candlestickExamples } from "./demos/candlestick";
-import { examples as horizonExamples } from "./demos/horizon";
-import { examples as ganttExamples } from "./demos/gantt";
-import { examples as barExamples } from "./demos/bar";
-import { examples as columnExamples } from "./demos/column";
-import { examples as groupedBarExamples } from "./demos/grouped-bar";
-import { examples as stackedBarExamples } from "./demos/stacked-bar";
-import { examples as lollipopExamples } from "./demos/lollipop";
-import { examples as dotPlotExamples } from "./demos/dot-plot";
-import { examples as leaderboardExamples } from "./demos/leaderboard";
-import { examples as pictogramExamples } from "./demos/pictogram";
-import { examples as radialBarExamples } from "./demos/radial-bar";
-import { examples as polarAreaExamples } from "./demos/polar-area";
-import { examples as pieExamples } from "./demos/pie";
-import { examples as waffleExamples } from "./demos/waffle";
-import { examples as treemapExamples } from "./demos/treemap";
-import { examples as sunburstExamples } from "./demos/sunburst";
-import { examples as icicleExamples } from "./demos/icicle";
-import { examples as circlePackingExamples } from "./demos/circle-packing";
-import { examples as marimekkoExamples } from "./demos/marimekko";
-import { examples as funnelExamples } from "./demos/funnel";
-import { examples as histogramExamples } from "./demos/histogram";
-import { examples as boxPlotExamples } from "./demos/box-plot";
-import { examples as violinExamples } from "./demos/violin";
-import { examples as ridgelineExamples } from "./demos/ridgeline";
-import { examples as beeswarmExamples } from "./demos/beeswarm";
-import { examples as stripPlotExamples } from "./demos/strip-plot";
-import { examples as populationPyramidExamples } from "./demos/population-pyramid";
-import { examples as scatterExamples } from "./demos/scatter";
-import { examples as connectedScatterExamples } from "./demos/connected-scatter";
-import { examples as hexbinExamples } from "./demos/hexbin";
-import { examples as contourExamples } from "./demos/contour";
-import { examples as heatmapExamples } from "./demos/heatmap";
-import { examples as quadrantExamples } from "./demos/quadrant";
-import { examples as parallelCoordinatesExamples } from "./demos/parallel-coordinates";
-import { examples as radarExamples } from "./demos/radar";
-import { examples as divergingBarExamples } from "./demos/diverging-bar";
-import { examples as divergingStackedExamples } from "./demos/diverging-stacked";
-import { examples as dumbbellExamples } from "./demos/dumbbell";
-import { examples as differenceAreaExamples } from "./demos/difference-area";
-import { examples as sankeyExamples } from "./demos/sankey";
-import { examples as chordExamples } from "./demos/chord";
-import { examples as waterfallExamples } from "./demos/waterfall";
-import { examples as networkExamples } from "./demos/network";
-import { examples as arcDiagramExamples } from "./demos/arc-diagram";
-import { examples as treeExamples } from "./demos/tree";
-import { examples as dendrogramExamples } from "./demos/dendrogram";
-import { examples as vennExamples } from "./demos/venn";
-import { examples as choroplethExamples } from "./demos/choropleth";
-import { examples as symbolMapExamples } from "./demos/symbol-map";
-import { examples as dotMapExamples } from "./demos/dot-map";
-import { examples as flowMapExamples } from "./demos/flow-map";
-import { examples as sparklineExamples } from "./demos/sparkline";
-import { examples as sparkbarExamples } from "./demos/sparkbar";
-import { examples as winLossExamples } from "./demos/win-loss";
-import { examples as bulletExamples } from "./demos/bullet";
-import { examples as progressRingExamples } from "./demos/progress-ring";
-import { examples as gaugeExamples } from "./demos/gauge";
-import { examples as splitBarExamples } from "./demos/split-bar";
+import { examples as lineExamples, glyph as lineGlyph } from "./demos/line";
+import { examples as areaExamples, glyph as areaGlyph } from "./demos/area";
+import {
+  examples as stackedAreaExamples,
+  glyph as stackedAreaGlyph,
+} from "./demos/stacked-area";
+import {
+  examples as streamgraphExamples,
+  glyph as streamgraphGlyph,
+} from "./demos/streamgraph";
+import {
+  examples as mirroredAreaExamples,
+  glyph as mirroredAreaGlyph,
+} from "./demos/mirrored-area";
+import { examples as slopeExamples, glyph as slopeGlyph } from "./demos/slope";
+import { examples as bumpExamples, glyph as bumpGlyph } from "./demos/bump";
+import {
+  examples as candlestickExamples,
+  glyph as candlestickGlyph,
+} from "./demos/candlestick";
+import {
+  examples as horizonExamples,
+  glyph as horizonGlyph,
+} from "./demos/horizon";
+import { examples as ganttExamples, glyph as ganttGlyph } from "./demos/gantt";
+import { examples as barExamples, glyph as barGlyph } from "./demos/bar";
+import {
+  examples as columnExamples,
+  glyph as columnGlyph,
+} from "./demos/column";
+import {
+  examples as groupedBarExamples,
+  glyph as groupedBarGlyph,
+} from "./demos/grouped-bar";
+import {
+  examples as stackedBarExamples,
+  glyph as stackedBarGlyph,
+} from "./demos/stacked-bar";
+import {
+  examples as lollipopExamples,
+  glyph as lollipopGlyph,
+} from "./demos/lollipop";
+import {
+  examples as dotPlotExamples,
+  glyph as dotPlotGlyph,
+} from "./demos/dot-plot";
+import {
+  examples as leaderboardExamples,
+  glyph as leaderboardGlyph,
+} from "./demos/leaderboard";
+import {
+  examples as pictogramExamples,
+  glyph as pictogramGlyph,
+} from "./demos/pictogram";
+import {
+  examples as radialBarExamples,
+  glyph as radialBarGlyph,
+} from "./demos/radial-bar";
+import {
+  examples as polarAreaExamples,
+  glyph as polarAreaGlyph,
+} from "./demos/polar-area";
+import { examples as pieExamples, glyph as pieGlyph } from "./demos/pie";
+import {
+  examples as waffleExamples,
+  glyph as waffleGlyph,
+} from "./demos/waffle";
+import {
+  examples as treemapExamples,
+  glyph as treemapGlyph,
+} from "./demos/treemap";
+import {
+  examples as sunburstExamples,
+  glyph as sunburstGlyph,
+} from "./demos/sunburst";
+import {
+  examples as icicleExamples,
+  glyph as icicleGlyph,
+} from "./demos/icicle";
+import {
+  examples as circlePackingExamples,
+  glyph as circlePackingGlyph,
+} from "./demos/circle-packing";
+import {
+  examples as marimekkoExamples,
+  glyph as marimekkoGlyph,
+} from "./demos/marimekko";
+import {
+  examples as funnelExamples,
+  glyph as funnelGlyph,
+} from "./demos/funnel";
+import {
+  examples as histogramExamples,
+  glyph as histogramGlyph,
+} from "./demos/histogram";
+import {
+  examples as boxPlotExamples,
+  glyph as boxPlotGlyph,
+} from "./demos/box-plot";
+import {
+  examples as violinExamples,
+  glyph as violinGlyph,
+} from "./demos/violin";
+import {
+  examples as ridgelineExamples,
+  glyph as ridgelineGlyph,
+} from "./demos/ridgeline";
+import {
+  examples as beeswarmExamples,
+  glyph as beeswarmGlyph,
+} from "./demos/beeswarm";
+import {
+  examples as stripPlotExamples,
+  glyph as stripPlotGlyph,
+} from "./demos/strip-plot";
+import {
+  examples as populationPyramidExamples,
+  glyph as populationPyramidGlyph,
+} from "./demos/population-pyramid";
+import {
+  examples as scatterExamples,
+  glyph as scatterGlyph,
+} from "./demos/scatter";
+import {
+  examples as connectedScatterExamples,
+  glyph as connectedScatterGlyph,
+} from "./demos/connected-scatter";
+import {
+  examples as hexbinExamples,
+  glyph as hexbinGlyph,
+} from "./demos/hexbin";
+import {
+  examples as contourExamples,
+  glyph as contourGlyph,
+} from "./demos/contour";
+import {
+  examples as heatmapExamples,
+  glyph as heatmapGlyph,
+} from "./demos/heatmap";
+import {
+  examples as quadrantExamples,
+  glyph as quadrantGlyph,
+} from "./demos/quadrant";
+import {
+  examples as parallelCoordinatesExamples,
+  glyph as parallelCoordinatesGlyph,
+} from "./demos/parallel-coordinates";
+import { examples as radarExamples, glyph as radarGlyph } from "./demos/radar";
+import {
+  examples as divergingBarExamples,
+  glyph as divergingBarGlyph,
+} from "./demos/diverging-bar";
+import {
+  examples as divergingStackedExamples,
+  glyph as divergingStackedGlyph,
+} from "./demos/diverging-stacked";
+import {
+  examples as dumbbellExamples,
+  glyph as dumbbellGlyph,
+} from "./demos/dumbbell";
+import {
+  examples as differenceAreaExamples,
+  glyph as differenceAreaGlyph,
+} from "./demos/difference-area";
+import {
+  examples as sankeyExamples,
+  glyph as sankeyGlyph,
+} from "./demos/sankey";
+import { examples as chordExamples, glyph as chordGlyph } from "./demos/chord";
+import {
+  examples as waterfallExamples,
+  glyph as waterfallGlyph,
+} from "./demos/waterfall";
+import {
+  examples as networkExamples,
+  glyph as networkGlyph,
+} from "./demos/network";
+import {
+  examples as arcDiagramExamples,
+  glyph as arcDiagramGlyph,
+} from "./demos/arc-diagram";
+import { examples as treeExamples, glyph as treeGlyph } from "./demos/tree";
+import {
+  examples as dendrogramExamples,
+  glyph as dendrogramGlyph,
+} from "./demos/dendrogram";
+import { examples as vennExamples, glyph as vennGlyph } from "./demos/venn";
+import {
+  examples as choroplethExamples,
+  glyph as choroplethGlyph,
+} from "./demos/choropleth";
+import {
+  examples as symbolMapExamples,
+  glyph as symbolMapGlyph,
+} from "./demos/symbol-map";
+import {
+  examples as dotMapExamples,
+  glyph as dotMapGlyph,
+} from "./demos/dot-map";
+import {
+  examples as flowMapExamples,
+  glyph as flowMapGlyph,
+} from "./demos/flow-map";
+import {
+  examples as sparklineExamples,
+  glyph as sparklineGlyph,
+} from "./demos/sparkline";
+import {
+  examples as sparkbarExamples,
+  glyph as sparkbarGlyph,
+} from "./demos/sparkbar";
+import {
+  examples as winLossExamples,
+  glyph as winLossGlyph,
+} from "./demos/win-loss";
+import {
+  examples as bulletExamples,
+  glyph as bulletGlyph,
+} from "./demos/bullet";
+import {
+  examples as progressRingExamples,
+  glyph as progressRingGlyph,
+} from "./demos/progress-ring";
+import { examples as gaugeExamples, glyph as gaugeGlyph } from "./demos/gauge";
+import {
+  examples as splitBarExamples,
+  glyph as splitBarGlyph,
+} from "./demos/split-bar";
 
 type ChartInput = {
   slug: string;
@@ -73,6 +236,7 @@ type ChartInput = {
   use: string;
   watch: string;
   exportName: string;
+  glyph: ReactNode;
   examples: DemoExample[];
 };
 
@@ -96,6 +260,7 @@ const SECTIONS: SectionInput[] = [
         use: "Trends, rates, and anything measured on a continuous timeline.",
         watch:
           "More than four lines turns to spaghetti; facet into small multiples instead.",
+        glyph: lineGlyph,
         examples: lineExamples,
       },
       {
@@ -106,6 +271,7 @@ const SECTIONS: SectionInput[] = [
         use: "A single quantity where the volume under the trend matters.",
         watch:
           "Filled layers hide each other; for several series use a stacked area or separate panels.",
+        glyph: areaGlyph,
         examples: areaExamples,
       },
       {
@@ -116,6 +282,7 @@ const SECTIONS: SectionInput[] = [
         use: "A total and its parts moving together through time.",
         watch:
           "Middle bands ride on wobbly baselines; only the bottom band and the total read precisely.",
+        glyph: stackedAreaGlyph,
         examples: stackedAreaExamples,
       },
       {
@@ -126,6 +293,7 @@ const SECTIONS: SectionInput[] = [
         use: "Organic part-to-whole rhythm over long ranges, where shape outranks exact values.",
         watch:
           "There is no readable axis; if someone needs numbers, use a stacked area.",
+        glyph: streamgraphGlyph,
         examples: streamgraphExamples,
       },
       {
@@ -136,6 +304,7 @@ const SECTIONS: SectionInput[] = [
         use: "Paired in-and-out volumes: download against upload, inbound against outbound.",
         watch:
           "The two halves share a scale by convention; label both directions or one gets misread.",
+        glyph: mirroredAreaGlyph,
         examples: mirroredAreaExamples,
       },
       {
@@ -146,6 +315,7 @@ const SECTIONS: SectionInput[] = [
         use: "Before-and-after across many entities, where the slope is the story.",
         watch:
           "Crossing lines get busy past a dozen entities; highlight a few and mute the rest.",
+        glyph: slopeGlyph,
         examples: slopeExamples,
       },
       {
@@ -155,6 +325,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Rank over time, crossings included.",
         use: "League tables and rankings where position matters more than value.",
         watch: "Ranks hide magnitudes; a one-place drop can be a landslide.",
+        glyph: bumpGlyph,
         examples: bumpExamples,
       },
       {
@@ -165,6 +336,7 @@ const SECTIONS: SectionInput[] = [
         use: "Price movement summaries where range and direction both matter.",
         watch:
           "Each candle needs comfortable width; compress too far and wicks turn to noise.",
+        glyph: candlestickGlyph,
         examples: candlestickExamples,
       },
       {
@@ -175,6 +347,7 @@ const SECTIONS: SectionInput[] = [
         use: "Dense grids of many series where vertical space is scarce.",
         watch:
           "Readers need a key to unfold the layers; keep the fold count at two or three.",
+        glyph: horizonGlyph,
         examples: horizonExamples,
       },
       {
@@ -185,6 +358,7 @@ const SECTIONS: SectionInput[] = [
         use: "Schedules, phases, and overlaps across a project window.",
         watch:
           "It shows plan, not progress; pair the bars with a done state or a today line.",
+        glyph: ganttGlyph,
         examples: ganttExamples,
       },
     ],
@@ -201,6 +375,7 @@ const SECTIONS: SectionInput[] = [
         use: "Category comparisons with long labels; the horizontal layout gives names room.",
         watch:
           "Start the value axis at zero; a trimmed baseline lies about ratios.",
+        glyph: barGlyph,
         examples: barExamples,
       },
       {
@@ -211,6 +386,7 @@ const SECTIONS: SectionInput[] = [
         use: "A handful of categories or periods side by side.",
         watch:
           "Past a dozen columns the labels collide; go horizontal instead.",
+        glyph: columnGlyph,
         examples: columnExamples,
       },
       {
@@ -221,6 +397,7 @@ const SECTIONS: SectionInput[] = [
         use: "Two or three series compared within each category.",
         watch:
           "Four or more bars per cluster stops being comparable; split into small multiples.",
+        glyph: groupedBarGlyph,
         examples: groupedBarExamples,
       },
       {
@@ -231,6 +408,7 @@ const SECTIONS: SectionInput[] = [
         use: "Totals first, composition second, across categories.",
         watch:
           "Only the bottom segment sits on a common baseline; middle segments resist comparison.",
+        glyph: stackedBarGlyph,
         examples: stackedBarExamples,
       },
       {
@@ -241,6 +419,7 @@ const SECTIONS: SectionInput[] = [
         use: "The same jobs as bars with less ink, kinder to dense category lists.",
         watch:
           "The dot marks the value; stems thick enough to read as bars defeat the point.",
+        glyph: lollipopGlyph,
         examples: lollipopExamples,
       },
       {
@@ -251,6 +430,7 @@ const SECTIONS: SectionInput[] = [
         use: "Precise category values without the visual weight of bars.",
         watch:
           "It needs a visible scale; dots floating in space rank but do not measure.",
+        glyph: dotPlotGlyph,
         examples: dotPlotExamples,
       },
       {
@@ -261,6 +441,7 @@ const SECTIONS: SectionInput[] = [
         use: "Top-N lists where names, values, and proportion all need to be present.",
         watch:
           "Cap the list and fold the tail into Other; a 40-row leaderboard is a table.",
+        glyph: leaderboardGlyph,
         examples: leaderboardExamples,
       },
       {
@@ -271,6 +452,7 @@ const SECTIONS: SectionInput[] = [
         use: "Small countable quantities with human weight: people, seats, incidents.",
         watch:
           "Partial units confuse; round honestly and never scale the icon itself.",
+        glyph: pictogramGlyph,
         examples: pictogramExamples,
       },
       {
@@ -281,6 +463,7 @@ const SECTIONS: SectionInput[] = [
         use: "A few progress-like values with strong visual identity.",
         watch:
           "Outer rings are longer at equal value; it decorates more than it measures.",
+        glyph: radialBarGlyph,
         examples: radialBarExamples,
       },
       {
@@ -291,6 +474,7 @@ const SECTIONS: SectionInput[] = [
         use: "Cyclic categories with a dramatic shape, the Nightingale rose.",
         watch:
           "Area grows with the square of radius; readers overestimate the big sectors.",
+        glyph: polarAreaGlyph,
         examples: polarAreaExamples,
       },
     ],
@@ -308,6 +492,7 @@ const SECTIONS: SectionInput[] = [
         use: "Two to four shares where the headline is one dominant slice.",
         watch:
           "Angles compare poorly; five or more slices belong in a bar chart.",
+        glyph: pieGlyph,
         examples: pieExamples,
       },
       {
@@ -318,6 +503,7 @@ const SECTIONS: SectionInput[] = [
         use: "Shares that people can count, roughly one cell per percent.",
         watch:
           "It works to about four groups; beyond that the runs of color blur together.",
+        glyph: waffleGlyph,
         examples: waffleExamples,
       },
       {
@@ -328,6 +514,7 @@ const SECTIONS: SectionInput[] = [
         use: "Hierarchical composition with many leaves, biggest first.",
         watch:
           "Area compares poorly across distant tiles; label the few that matter.",
+        glyph: treemapGlyph,
         examples: treemapExamples,
       },
       {
@@ -338,6 +525,7 @@ const SECTIONS: SectionInput[] = [
         use: "Two or three levels of composition around a common center.",
         watch:
           "Outer rings exaggerate; deep hierarchies read better as an icicle.",
+        glyph: sunburstGlyph,
         examples: sunburstExamples,
       },
       {
@@ -348,6 +536,7 @@ const SECTIONS: SectionInput[] = [
         use: "Drill-down composition where the rectangles stay comparable.",
         watch:
           "Depth eats height quickly; show the levels people actually navigate.",
+        glyph: icicleGlyph,
         examples: icicleExamples,
       },
       {
@@ -358,6 +547,7 @@ const SECTIONS: SectionInput[] = [
         use: "Cluster membership and relative size with an organic feel.",
         watch:
           "Packing wastes space and distorts comparison; use it for structure, not measurement.",
+        glyph: circlePackingGlyph,
         examples: circlePackingExamples,
       },
       {
@@ -368,6 +558,7 @@ const SECTIONS: SectionInput[] = [
         use: "Market maps: segment width by size, then split each by composition.",
         watch:
           "It takes practice to read; annotate the one or two cells that carry the story.",
+        glyph: marimekkoGlyph,
         examples: marimekkoExamples,
       },
       {
@@ -377,6 +568,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Stage-by-stage survival.",
         use: "Conversion pipelines where each stage is a subset of the last.",
         watch: "The taper exaggerates; label every stage with its real rate.",
+        glyph: funnelGlyph,
         examples: funnelExamples,
       },
     ],
@@ -392,6 +584,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Frequency by bin.",
         use: "The shape of one variable: skew, spread, and outliers.",
         watch: "Bin width changes the story; try several before trusting one.",
+        glyph: histogramGlyph,
         examples: histogramExamples,
       },
       {
@@ -402,6 +595,7 @@ const SECTIONS: SectionInput[] = [
         use: "Comparing distributions across groups on one scale.",
         watch:
           "It hides multimodality; a two-humped group looks like a calm box.",
+        glyph: boxPlotGlyph,
         examples: boxPlotExamples,
       },
       {
@@ -412,6 +606,7 @@ const SECTIONS: SectionInput[] = [
         use: "Group comparisons where the full density profile matters.",
         watch:
           "Small samples make confident-looking violins; show the sample size.",
+        glyph: violinGlyph,
         examples: violinExamples,
       },
       {
@@ -422,6 +617,7 @@ const SECTIONS: SectionInput[] = [
         use: "How a distribution drifts across many groups or time slices.",
         watch:
           "Overlap hides valleys behind peaks; order the rows meaningfully.",
+        glyph: ridgelineGlyph,
         examples: ridgelineExamples,
       },
       {
@@ -432,6 +628,7 @@ const SECTIONS: SectionInput[] = [
         use: "Small datasets where each observation deserves its own dot.",
         watch:
           "Past a few hundred points the swarm congeals; switch to a density.",
+        glyph: beeswarmGlyph,
         examples: beeswarmExamples,
       },
       {
@@ -441,6 +638,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Raw points along a line.",
         use: "Quick distribution reads and honest small-n comparisons.",
         watch: "Identical values overplot; jitter, or shift to a beeswarm.",
+        glyph: stripPlotGlyph,
         examples: stripPlotExamples,
       },
       {
@@ -451,6 +649,7 @@ const SECTIONS: SectionInput[] = [
         use: "Age and cohort structure compared between two groups.",
         watch:
           "Mirrored bars resist precise comparison; overlay them if exact gaps matter.",
+        glyph: populationPyramidGlyph,
         examples: populationPyramidExamples,
       },
     ],
@@ -468,6 +667,7 @@ const SECTIONS: SectionInput[] = [
         use: "Relationships, clusters, and outliers between two measures.",
         watch:
           "The trend line is a summary, not proof; correlation is not causation.",
+        glyph: scatterGlyph,
         examples: scatterExamples,
       },
       {
@@ -477,6 +677,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A scatter walked through time.",
         use: "How two measures moved together across ordered periods.",
         watch: "It needs a start and end cue; unlabeled loops disorient.",
+        glyph: connectedScatterGlyph,
         examples: connectedScatterExamples,
       },
       {
@@ -487,6 +688,7 @@ const SECTIONS: SectionInput[] = [
         use: "Tens of thousands of points binned into honest cells.",
         watch:
           "Bin size sets the story and empty cells matter; show the scale.",
+        glyph: hexbinGlyph,
         examples: hexbinExamples,
       },
       {
@@ -496,6 +698,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Density as elevation lines.",
         use: "The shape of a dense 2D distribution without overplotting.",
         watch: "Levels are model output; annotate what each band means.",
+        glyph: contourGlyph,
         examples: contourExamples,
       },
       {
@@ -505,6 +708,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A matrix colored by value.",
         use: "Category-by-category intensity: confusion matrices, correlations, schedules.",
         watch: "One sequential ramp only; a rainbow scrambles the order.",
+        glyph: heatmapGlyph,
         examples: heatmapExamples,
       },
       {
@@ -515,6 +719,7 @@ const SECTIONS: SectionInput[] = [
         use: "Prioritization maps: effort against impact, risk against reward.",
         watch:
           "The cut lines are editorial; be ready to defend where the crosshair sits.",
+        glyph: quadrantGlyph,
         examples: quadrantExamples,
       },
       {
@@ -525,6 +730,7 @@ const SECTIONS: SectionInput[] = [
         use: "Spotting profiles and trade-offs across four or more measures.",
         watch:
           "Axis order changes the picture; normalize each axis and say so.",
+        glyph: parallelCoordinatesGlyph,
         examples: parallelCoordinatesExamples,
       },
       {
@@ -535,6 +741,7 @@ const SECTIONS: SectionInput[] = [
         use: "Two or three profiles compared across a handful of shared dimensions.",
         watch:
           "Shape area misleads and axis order is arbitrary; bars are often clearer.",
+        glyph: radarGlyph,
         examples: radarExamples,
       },
     ],
@@ -551,6 +758,7 @@ const SECTIONS: SectionInput[] = [
         use: "Surplus against deficit, growth against decline, by category.",
         watch:
           "Sort by value, not alphabet, so the sign structure stays visible.",
+        glyph: divergingBarGlyph,
         examples: divergingBarExamples,
       },
       {
@@ -561,6 +769,7 @@ const SECTIONS: SectionInput[] = [
         use: "Likert scales and any agree-versus-disagree balance.",
         watch:
           "Anchor rows on the neutral midpoint or the comparison collapses.",
+        glyph: divergingStackedGlyph,
         examples: divergingStackedExamples,
       },
       {
@@ -570,6 +779,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Then and now, one row per entity.",
         use: "Before-and-after gaps across categories without slope clutter.",
         watch: "Two points only; for the path between them use a slope chart.",
+        glyph: dumbbellGlyph,
         examples: dumbbellExamples,
       },
       {
@@ -580,6 +790,7 @@ const SECTIONS: SectionInput[] = [
         use: "Actual against target where being above or below is the story.",
         watch:
           "Shade the gap, not the lines, and reserve the two hues for sign.",
+        glyph: differenceAreaGlyph,
         examples: differenceAreaExamples,
       },
     ],
@@ -595,6 +806,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Where quantities come from and go.",
         use: "Distribution across stages: sources into channels into destinations.",
         watch: "Links must conserve; leaks and rounding need explaining.",
+        glyph: sankeyGlyph,
         examples: sankeyExamples,
       },
       {
@@ -605,6 +817,7 @@ const SECTIONS: SectionInput[] = [
         use: "Dense mutual exchange: migration, trade, traffic between equals.",
         watch:
           "Beautiful and hard to read; reserve it for genuinely circular relationships.",
+        glyph: chordGlyph,
         examples: chordExamples,
       },
       {
@@ -615,6 +828,7 @@ const SECTIONS: SectionInput[] = [
         use: "Bridges from a starting figure through gains and losses to an end.",
         watch:
           "Floating bars confuse without connectors and clear sign colors.",
+        glyph: waterfallGlyph,
         examples: waterfallExamples,
       },
     ],
@@ -631,6 +845,7 @@ const SECTIONS: SectionInput[] = [
         use: "Structure in connections: hubs, bridges, and islands.",
         watch:
           "Force layouts are unstable art; pin the nodes readers must find.",
+        glyph: networkGlyph,
         examples: networkExamples,
       },
       {
@@ -640,6 +855,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A network flattened onto one line.",
         use: "Connection patterns over an ordered set, sequences especially.",
         watch: "Node order decides everything; sort it on purpose.",
+        glyph: arcDiagramGlyph,
         examples: arcDiagramExamples,
       },
       {
@@ -650,6 +866,7 @@ const SECTIONS: SectionInput[] = [
         use: "Org charts, file systems, and decision paths.",
         watch:
           "Wide levels squeeze; collapse subtrees rather than shrinking the type.",
+        glyph: treeGlyph,
         examples: treeExamples,
       },
       {
@@ -660,6 +877,7 @@ const SECTIONS: SectionInput[] = [
         use: "Hierarchical clustering: what joined what, and how early.",
         watch:
           "Height is the metric; cutting at a level is what defines the clusters.",
+        glyph: dendrogramGlyph,
         examples: dendrogramExamples,
       },
       {
@@ -669,6 +887,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Set overlap, literally.",
         use: "Two or three sets where the overlap is the message.",
         watch: "Region area rarely matches the counts; label every region.",
+        glyph: vennGlyph,
         examples: vennExamples,
       },
     ],
@@ -684,6 +903,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Regions colored by value.",
         use: "Rates and ratios across regions on one sequential ramp.",
         watch: "Big areas dominate; map rates, never raw counts.",
+        glyph: choroplethGlyph,
         examples: choroplethExamples,
       },
       {
@@ -694,6 +914,7 @@ const SECTIONS: SectionInput[] = [
         use: "Absolute quantities at locations, where counts stay honest.",
         watch:
           "Overlapping circles occlude; scale by area and show a size legend.",
+        glyph: symbolMapGlyph,
         examples: symbolMapExamples,
       },
       {
@@ -704,6 +925,7 @@ const SECTIONS: SectionInput[] = [
         use: "Density and settlement patterns that emerge from individual units.",
         watch:
           "Placement within a region is approximate; say what one dot equals.",
+        glyph: dotMapGlyph,
         examples: dotMapExamples,
       },
       {
@@ -713,6 +935,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Movement between places.",
         use: "Origin-to-destination volumes: routes, trade, migration.",
         watch: "More than a handful of routes tangles; bundle or filter.",
+        glyph: flowMapGlyph,
         examples: flowMapExamples,
       },
     ],
@@ -729,6 +952,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A trend the size of a word.",
         use: "Inline context in tables and tiles: direction at a glance.",
         watch: "No axes means no precision; pair it with the current value.",
+        glyph: sparklineGlyph,
         examples: sparklineExamples,
       },
       {
@@ -738,6 +962,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A bar series the size of a word.",
         use: "Discrete periods inline: recent counts beside their label.",
         watch: "Keep one scale across sibling rows or the comparison lies.",
+        glyph: sparkbarGlyph,
         examples: sparkbarExamples,
       },
       {
@@ -747,6 +972,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "Outcome sequences as up-down ticks.",
         use: "Streaks and momentum across repeated binary events.",
         watch: "Two states only; when magnitude matters, use a sparkbar.",
+        glyph: winLossGlyph,
         examples: winLossExamples,
       },
       {
@@ -756,6 +982,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A KPI against target and bands.",
         use: "Dashboard measures with qualitative context in minimal height.",
         watch: "Explain the bands once; unlabeled shading is decoration.",
+        glyph: bulletGlyph,
         examples: bulletExamples,
       },
       {
@@ -766,6 +993,7 @@ const SECTIONS: SectionInput[] = [
         use: "Single completion states in cards, lists, and avatars.",
         watch:
           "Rings past 100% or holding several values stop reading; use a bar.",
+        glyph: progressRingGlyph,
         examples: progressRingExamples,
       },
       {
@@ -775,6 +1003,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "A dial with one number on it.",
         use: "A single bounded value where alarm zones matter.",
         watch: "It spends a lot of space on one number; a bullet is denser.",
+        glyph: gaugeGlyph,
         examples: gaugeExamples,
       },
       {
@@ -784,6 +1013,7 @@ const SECTIONS: SectionInput[] = [
         blurb: "One row, two shares.",
         use: "Inline two-way proportions: sent against received, hit against miss.",
         watch: "Two segments only; more shares deserve a real stacked bar.",
+        glyph: splitBarGlyph,
         examples: splitBarExamples,
       },
     ],

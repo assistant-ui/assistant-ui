@@ -49,9 +49,7 @@ export function Plate({ chart, delay = 0 }: { chart: Chart; delay?: number }) {
               "[&_[data-part=legend]]:hidden [&_text]:hidden",
           )}
         >
-          <div className="w-full max-w-[16.5rem]">
-            {chart.examples[0]?.chart}
-          </div>
+          <div className="w-full max-w-[16.5rem]">{chart.glyph}</div>
         </div>
         <h3 className="text-[14px] font-medium tracking-tight">{chart.name}</h3>
         <p className="mt-1 hidden text-[12.5px] leading-snug text-(--da-ink)/45 sm:block">

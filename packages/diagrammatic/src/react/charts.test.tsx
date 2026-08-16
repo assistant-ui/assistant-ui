@@ -146,6 +146,15 @@ export const FIXTURES: Record<string, ReactElement> = {
     />
   ),
   bar: <dg.Bar items={items} />,
+  "bar-categorical": <dg.Bar categorical items={items.slice(0, 4)} />,
+  "column-categorical": (
+    <dg.Column
+      categorical
+      values
+      highlight="max"
+      items={[38, 52, 44, 66].map((v, i) => ({ label: `m${i + 1}`, value: v }))}
+    />
+  ),
   column: (
     <dg.Column
       items={[38, 52, 44, 66, 58, 74, 90].map((v, i) => ({

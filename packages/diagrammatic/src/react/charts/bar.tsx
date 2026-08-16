@@ -3,12 +3,13 @@ import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { barPath, stroke } from "../../core/geometry";
-import { ACCENT, GRID, ink } from "../../core/theme";
+import { ACCENT, GRID, cat, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
 export type BarProps = BaseProps & {
   items: Item[];
   highlight?: "max" | string;
+  categorical?: boolean;
 };
 
 export const Bar = forwardRef<SVGSVGElement, BarProps>(
@@ -16,6 +17,7 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
     {
       items,
       highlight = "max",
+      categorical,
       format = formatCompact,
       title,
       aspect,
@@ -53,7 +55,8 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
               </text>
               <path
                 d={barPath(44, y, w, rowH - 8.5, 2.5, "right")}
-                fill={accent ? ACCENT : ink(0.3)}
+                fill={categorical ? cat(i) : accent ? ACCENT : ink(0.3)}
+                opacity={categorical ? 0.9 : 1}
               />
               <text x={44 + w + 4} y={y + rowH / 2} {...TXT.axis}>
                 {format(row.value)}
