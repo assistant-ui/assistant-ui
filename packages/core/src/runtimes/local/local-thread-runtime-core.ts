@@ -340,6 +340,7 @@ export class LocalThreadRuntimeCore
       message: newMessage,
       ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
     });
+    void historyWrite?.catch(() => {});
 
     const startRun = message.startRun ?? message.role === "user";
     if (startRun) {
