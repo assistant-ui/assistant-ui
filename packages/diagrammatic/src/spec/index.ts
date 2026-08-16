@@ -53,6 +53,7 @@ import type {
   QuadrantProps,
   RadarProps,
   RadialBarProps,
+  RangeBarProps,
   RidgelineProps,
   SankeyProps,
   ScatterProps,
@@ -68,6 +69,7 @@ import type {
   SymbolMapProps,
   TreemapProps,
   TreeProps,
+  UpsetProps,
   VennProps,
   ViolinProps,
   WaffleProps,
@@ -110,6 +112,7 @@ export type ChartSpec =
   | S<"stacked-bar", StackedBarProps>
   | S<"lollipop", LollipopProps>
   | S<"dot-plot", DotPlotProps>
+  | S<"range-bar", RangeBarProps>
   | S<"leaderboard", LeaderboardProps>
   | S<"pictogram", PictogramProps>
   | S<"radial-bar", RadialBarProps>
@@ -149,6 +152,7 @@ export type ChartSpec =
   | S<"tree", TreeProps>
   | S<"dendrogram", DendrogramProps>
   | S<"venn", VennProps>
+  | S<"upset", UpsetProps>
   | S<"choropleth", ChoroplethProps>
   | S<"symbol-map", SymbolMapProps>
   | S<"dot-map", DotMapProps>
@@ -198,6 +202,7 @@ const REGISTRY: Record<string, Descriptor> = {
   ]),
   lollipop: entry(charts.Lollipop, [["items", "array"]]),
   "dot-plot": entry(charts.DotPlot, [["items", "array"]]),
+  "range-bar": entry(charts.RangeBar, [["items", "array"]]),
   leaderboard: entry(charts.Leaderboard, [["items", "array"]]),
   pictogram: entry(charts.Pictogram, [
     ["items", "array"],
@@ -266,6 +271,10 @@ const REGISTRY: Record<string, Descriptor> = {
     ["a", "object"],
     ["b", "object"],
     ["overlap", "number"],
+  ]),
+  upset: entry(charts.Upset, [
+    ["sets", "array"],
+    ["intersections", "array"],
   ]),
   choropleth: entry(charts.Choropleth, [["values", "array"]]),
   "symbol-map": entry(charts.SymbolMap, [["marks", "array"]]),

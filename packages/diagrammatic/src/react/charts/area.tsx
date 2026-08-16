@@ -4,6 +4,7 @@ import type { Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import {
   areaPath,
+  bandPath,
   linePath,
   linear,
   round,
@@ -26,6 +27,7 @@ export type AreaProps = BaseProps & {
   yMax?: number;
   yTicks?: readonly Tick[];
   regions?: { from: number; to: number; label?: string }[];
+  bands?: readonly { lower: number[]; upper: number[] }[];
 };
 
 export const Area = forwardRef<SVGSVGElement, AreaProps>(
@@ -35,6 +37,7 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
       yMax,
       yTicks,
       regions,
+      bands,
       labels,
       format = formatCompact,
       title,
@@ -52,7 +55,13 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
       ticks: Boolean(yTicks?.length),
     });
     const max =
-      yMax ?? Math.max(...data, ...(yTicks?.map((tick) => tick.at) ?? []), 1);
+      yMax ??
+      Math.max(
+        ...data,
+        ...(bands?.flatMap((band) => [...band.lower, ...band.upper]) ?? []),
+        ...(yTicks?.map((tick) => tick.at) ?? []),
+        1,
+      );
     const Y = linear(0, max, bottom, top);
     const pts = scalePoints(data, left, right, bottom, top, 0, max);
     const last = pts[pts.length - 1];
@@ -70,6 +79,17 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
         className={className}
       >
         <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
+        {bands?.map((band, i) => (
+          <path
+            key={`band-${i}`}
+            d={bandPath(
+              scalePoints(band.upper, left, right, bottom, top, 0, max),
+              scalePoints(band.lower, left, right, bottom, top, 0, max),
+            )}
+            fill={ink(0.12 - Math.min(i, 2) * 0.03)}
+            data-part="band"
+          />
+        ))}
         {regions?.map((region) => (
           <g
             key={`${region.from}-${region.to}`}

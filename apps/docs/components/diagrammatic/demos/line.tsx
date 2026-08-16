@@ -48,7 +48,7 @@ export const examples: DemoExample[] = [
     title: "Mean response length by training recipe",
     setup:
       "The chart that decided the run: mean tokens per response, three reward recipes, evaluated every thousand steps. The shaded span is where the alternating penalty was on.",
-    read: "Baseline inflates without a ceiling. The fixed penalty overcorrects into terseness and never comes back. Only the alternating recipe bends inside the band and settles near 275, which was the target the whole time.",
+    read: "Baseline inflates without a ceiling. The fixed penalty overcorrects into terseness and never comes back. Only the alternating recipe bends inside the penalty window and lands in the 250 to 300 token band, which was the target the whole time.",
     source: "Mean tokens per response, eval every 1k steps.",
     chart: (
       <FigTooltip
@@ -67,6 +67,12 @@ export const examples: DemoExample[] = [
             { at: 200, label: "200" },
             { at: 400, label: "400" },
             { at: 600, label: "600" },
+          ]}
+          bands={[
+            {
+              lower: Array.from({ length: STEPS.length }, () => 250),
+              upper: Array.from({ length: STEPS.length }, () => 300),
+            },
           ]}
           series={[
             { name: "baseline", data: BASELINE },

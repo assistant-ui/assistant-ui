@@ -4,6 +4,7 @@ import {
   dendrogram,
   packSiblings,
   partition,
+  sankeyColumns,
   sankeyTwoColumn,
   squarify,
   stack,
@@ -136,6 +137,43 @@ describe("sankeyTwoColumn", () => {
         expect(e1!).toBeLessThanOrEqual(node.y1 + 1e-6);
       }
     }
+  });
+});
+
+describe("sankeyColumns", () => {
+  it("places intermediate nodes in a middle column", () => {
+    const { nodes, ribbons } = sankeyColumns(
+      {
+        nodes: [{ id: "a" }, { id: "b" }, { id: "c" }],
+        links: [
+          { source: "a", target: "b", value: 4 },
+          { source: "b", target: "c", value: 4 },
+        ],
+      },
+      0,
+      100,
+      0,
+    );
+    expect(nodes.find((n) => n.id === "a")!.column).toBe(0);
+    expect(nodes.find((n) => n.id === "b")!.column).toBe(1);
+    expect(nodes.find((n) => n.id === "c")!.column).toBe(2);
+    expect(ribbons).toHaveLength(2);
+  });
+
+  it("honors node.group as an explicit column", () => {
+    const { nodes } = sankeyColumns(
+      {
+        nodes: [
+          { id: "a", group: 0 },
+          { id: "b", group: 2 },
+        ],
+        links: [{ source: "a", target: "b", value: 1 }],
+      },
+      0,
+      40,
+      0,
+    );
+    expect(nodes.find((n) => n.id === "b")!.column).toBe(2);
   });
 });
 

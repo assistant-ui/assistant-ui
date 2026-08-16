@@ -17,7 +17,7 @@ describe("validateSpec", () => {
   });
 
   it("covers all 66 chart types", () => {
-    expect(CHART_TYPES).toHaveLength(66);
+    expect(CHART_TYPES).toHaveLength(68);
   });
 
   it("rejects non-objects", () => {

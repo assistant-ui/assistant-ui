@@ -356,16 +356,131 @@ export type SankeyNode = {
   y0: number;
   y1: number;
   side: "left" | "right";
+  column: number;
 };
 export type SankeyRibbon = {
   sy0: number;
   sy1: number;
   ty0: number;
   ty1: number;
+  sourceColumn: number;
+  targetColumn: number;
   sourceIndex: number;
   source: string;
   target: string;
 };
+
+function sankeyNodeColumns(graph: Graph): Map<string, number> {
+  if (graph.nodes.some((node) => node.group !== undefined)) {
+    return new Map(graph.nodes.map((node) => [node.id, node.group ?? 0]));
+  }
+  const incoming = new Map<string, string[]>();
+  for (const node of graph.nodes) incoming.set(node.id, []);
+  for (const link of graph.links) {
+    incoming.get(link.target)?.push(link.source);
+  }
+  const rank = new Map<string, number>();
+  const visiting = new Set<string>();
+  const walk = (id: string): number => {
+    const cached = rank.get(id);
+    if (cached !== undefined) return cached;
+    if (visiting.has(id)) return 0;
+    visiting.add(id);
+    const parents = incoming.get(id) ?? [];
+    const next = parents.length === 0 ? 0 : Math.max(...parents.map(walk)) + 1;
+    rank.set(id, next);
+    visiting.delete(id);
+    return next;
+  };
+  for (const node of graph.nodes) walk(node.id);
+  return rank;
+}
+
+/** One column per topological rank, or per `node.group` when any node sets it. */
+export function sankeyColumns(
+  graph: Graph,
+  top: number,
+  bottom: number,
+  gap: number,
+): { nodes: SankeyNode[]; ribbons: SankeyRibbon[] } {
+  const columns = sankeyNodeColumns(graph);
+  const lastColumn = Math.max(0, ...columns.values());
+  const linkValue = (id: string, side: "source" | "target") =>
+    graph.links
+      .filter((l) => l[side] === id)
+      .reduce((sum, l) => sum + (l.value ?? 1), 0);
+  const valueOf = (id: string) =>
+    Math.max(linkValue(id, "source"), linkValue(id, "target"), 1);
+  const byColumn = new Map<number, typeof graph.nodes>();
+  for (const node of graph.nodes) {
+    const col = columns.get(node.id) ?? 0;
+    byColumn.set(col, [...(byColumn.get(col) ?? []), node]);
+  }
+  const nodes: SankeyNode[] = [];
+  const index = new Map<string, number>();
+  for (const [col, list] of [...byColumn.entries()].sort(
+    (a, b) => a[0] - b[0],
+  )) {
+    const sorted = [...list].sort((a, b) => valueOf(b.id) - valueOf(a.id));
+    const total = sorted.reduce((sum, n) => sum + valueOf(n.id), 0) || 1;
+    const height = bottom - top - gap * Math.max(0, sorted.length - 1);
+    let cursor = top;
+    for (const node of sorted) {
+      const h = (valueOf(node.id) / total) * height;
+      const laid: SankeyNode = {
+        id: node.id,
+        label: node.label ?? node.id,
+        y0: cursor,
+        y1: cursor + h,
+        column: col,
+        side: col === 0 ? "left" : "right",
+      };
+      index.set(node.id, nodes.length);
+      nodes.push(laid);
+      cursor += h + gap;
+    }
+  }
+  const outCursor = new Map(nodes.map((n) => [n.id, n.y0]));
+  const inCursor = new Map(nodes.map((n) => [n.id, n.y0]));
+  const unit = new Map<number, number>();
+  for (const [col, list] of byColumn) {
+    const pixels = list.reduce((sum, n) => {
+      const laid = nodes.find((node) => node.id === n.id);
+      return sum + (laid ? laid.y1 - laid.y0 : 0);
+    }, 0);
+    const values = list.reduce((sum, n) => sum + valueOf(n.id), 0) || 1;
+    unit.set(col, (pixels || 1) / values);
+  }
+  const ordered = [...graph.links].sort(
+    (a, b) =>
+      (index.get(a.source) ?? 0) - (index.get(b.source) ?? 0) ||
+      (b.value ?? 1) - (a.value ?? 1),
+  );
+  const ribbons: SankeyRibbon[] = [];
+  for (const link of ordered) {
+    const sourceCol = columns.get(link.source) ?? 0;
+    const targetCol = columns.get(link.target) ?? lastColumn;
+    const v = link.value ?? 1;
+    const sh = v * (unit.get(sourceCol) ?? 1);
+    const th = v * (unit.get(targetCol) ?? 1);
+    const sy0 = outCursor.get(link.source) ?? top;
+    const ty0 = inCursor.get(link.target) ?? top;
+    ribbons.push({
+      sy0,
+      sy1: sy0 + sh,
+      ty0,
+      ty1: ty0 + th,
+      sourceColumn: sourceCol,
+      targetColumn: targetCol,
+      sourceIndex: index.get(link.source) ?? 0,
+      source: link.source,
+      target: link.target,
+    });
+    outCursor.set(link.source, sy0 + sh);
+    inCursor.set(link.target, ty0 + th);
+  }
+  return { nodes, ribbons };
+}
 
 /** Two-column sankey: sources on the left, sinks on the right, value-sorted. */
 export function sankeyTwoColumn(
@@ -374,70 +489,7 @@ export function sankeyTwoColumn(
   bottom: number,
   gap: number,
 ): { nodes: SankeyNode[]; ribbons: SankeyRibbon[] } {
-  const isTarget = new Set(graph.links.map((l) => l.target));
-  const sources = graph.nodes.filter((n) => !isTarget.has(n.id));
-  const sinks = graph.nodes.filter((n) => isTarget.has(n.id));
-  const linkValue = (id: string, side: "source" | "target") =>
-    graph.links
-      .filter((l) => l[side] === id)
-      .reduce((sum, l) => sum + (l.value ?? 1), 0);
-  const layoutColumn = (
-    list: typeof sources,
-    side: "left" | "right",
-    valueOf: (id: string) => number,
-  ): SankeyNode[] => {
-    const sorted = [...list].sort((a, b) => valueOf(b.id) - valueOf(a.id));
-    const total = sorted.reduce((sum, n) => sum + valueOf(n.id), 0) || 1;
-    const height = bottom - top - gap * Math.max(0, sorted.length - 1);
-    let cursor = top;
-    return sorted.map((node) => {
-      const h = (valueOf(node.id) / total) * height;
-      const laid: SankeyNode = {
-        id: node.id,
-        label: node.label ?? node.id,
-        y0: cursor,
-        y1: cursor + h,
-        side,
-      };
-      cursor += h + gap;
-      return laid;
-    });
-  };
-  const left = layoutColumn(sources, "left", (id) => linkValue(id, "source"));
-  const right = layoutColumn(sinks, "right", (id) => linkValue(id, "target"));
-  const leftCursor = new Map(left.map((n) => [n.id, n.y0]));
-  const rightCursor = new Map(right.map((n) => [n.id, n.y0]));
-  const leftIndex = new Map(left.map((n, i) => [n.id, i]));
-  const ribbons: SankeyRibbon[] = [];
-  const ordered = [...graph.links].sort(
-    (a, b) =>
-      (leftIndex.get(a.source) ?? 0) - (leftIndex.get(b.source) ?? 0) ||
-      (b.value ?? 1) - (a.value ?? 1),
-  );
-  const leftTotal = left.reduce((s, n) => s + (n.y1 - n.y0), 0) || 1;
-  const rightTotal = right.reduce((s, n) => s + (n.y1 - n.y0), 0) || 1;
-  const totalValue =
-    graph.links.reduce((sum, l) => sum + (l.value ?? 1), 0) || 1;
-  const leftUnit = leftTotal / totalValue;
-  const rightUnit = rightTotal / totalValue;
-  for (const link of ordered) {
-    const sh = (link.value ?? 1) * leftUnit;
-    const th = (link.value ?? 1) * rightUnit;
-    const sy0 = leftCursor.get(link.source) ?? top;
-    const ty0 = rightCursor.get(link.target) ?? top;
-    ribbons.push({
-      sy0,
-      sy1: sy0 + sh,
-      ty0,
-      ty1: ty0 + th,
-      sourceIndex: leftIndex.get(link.source) ?? 0,
-      source: link.source,
-      target: link.target,
-    });
-    leftCursor.set(link.source, sy0 + sh);
-    rightCursor.set(link.target, ty0 + th);
-  }
-  return { nodes: [...left, ...right], ribbons };
+  return sankeyColumns(graph, top, bottom, gap);
 }
 
 export type ChordArc = { start: number; end: number };

@@ -5,11 +5,14 @@ import { BoxPlot } from "./charts/box-plot";
 import { Candlestick } from "./charts/candlestick";
 import { Column } from "./charts/column";
 import { Funnel } from "./charts/funnel";
-import { Heatmap } from "./charts/heatmap";
 import { Gantt } from "./charts/gantt";
+import { Heatmap } from "./charts/heatmap";
 import { Histogram } from "./charts/histogram";
 import { Horizon } from "./charts/horizon";
 import { Line } from "./charts/line";
+import { RangeBar } from "./charts/range-bar";
+import { Sankey } from "./charts/sankey";
+import { Upset } from "./charts/upset";
 import { Violin } from "./charts/violin";
 import { Waterfall } from "./charts/waterfall";
 
@@ -178,6 +181,84 @@ describe("ceiling capabilities", () => {
       />,
     );
     expect(html).toContain(">60%</text>");
+  });
+
+  it("Line bands render behind the series", () => {
+    const html = renderToStaticMarkup(
+      <Line
+        data={[10, 20, 30]}
+        bands={[{ lower: [8, 16, 24], upper: [12, 24, 36] }]}
+      />,
+    );
+    expect(html).toContain('data-part="band"');
+  });
+
+  it("Histogram cumulative climbs to a unit share", () => {
+    const html = renderToStaticMarkup(
+      <Histogram cumulative bins={[1, 1, 2]} />,
+    );
+    expect(html).toContain('data-part="mark"');
+    expect(html).not.toContain("NaN");
+  });
+
+  it("Heatmap calendar uses rounded day cells", () => {
+    const html = renderToStaticMarkup(
+      <Heatmap
+        mark="calendar"
+        matrix={{
+          rows: ["M", "T"],
+          cols: ["w1", "w2"],
+          values: [
+            [1, 0],
+            [2, 3],
+          ],
+        }}
+      />,
+    );
+    expect(html).toContain("rx=");
+  });
+
+  it("RangeBar prints the interval and a mark", () => {
+    const html = renderToStaticMarkup(
+      <RangeBar items={[{ label: "eng", from: 10, to: 20, at: 14 }]} />,
+    );
+    expect(html).toContain("10");
+    expect(html).toContain("20");
+    expect(html).toContain('data-part="mark"');
+  });
+
+  it("Sankey places an intermediate node in its own column", () => {
+    const html = renderToStaticMarkup(
+      <Sankey
+        labels={["in", "mid", "out"]}
+        graph={{
+          nodes: [{ id: "a" }, { id: "b" }, { id: "c" }],
+          links: [
+            { source: "a", target: "b", value: 4 },
+            { source: "b", target: "c", value: 4 },
+          ],
+        }}
+      />,
+    );
+    expect(html).toContain(">in</text>");
+    expect(html).toContain(">mid</text>");
+    expect(html).toContain(">out</text>");
+    expect(html).toContain(">a</text>");
+    expect(html).toContain(">b</text>");
+  });
+
+  it("Upset draws one column per intersection", () => {
+    const html = renderToStaticMarkup(
+      <Upset
+        sets={["a", "b"]}
+        intersections={[
+          { sets: ["a"], value: 4 },
+          { sets: ["a", "b"], value: 2 },
+        ]}
+      />,
+    );
+    expect(html).toContain(">a</text>");
+    expect(html).toContain(">4</text>");
   });
 
   it("Heatmap prints values only on dark cells", () => {

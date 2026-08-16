@@ -3,6 +3,7 @@ import { forwardRef } from "react";
 import type { Series, Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import {
+  bandPath,
   linePath,
   linear,
   round,
@@ -35,6 +36,7 @@ export type LineProps = BaseProps & {
   yTicks?: readonly Tick[];
   step?: boolean;
   regions?: { from: number; to: number; label?: string }[];
+  bands?: readonly { lower: number[]; upper: number[] }[];
   marks?: readonly LineMark[];
 };
 
@@ -47,6 +49,7 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
       yTicks,
       step,
       regions,
+      bands,
       marks,
       labels,
       legend,
@@ -73,6 +76,7 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
       yMax ??
       Math.max(
         ...all.flatMap((s) => s.data),
+        ...(bands?.flatMap((band) => [...band.lower, ...band.upper]) ?? []),
         ...(yTicks?.map((tick) => tick.at) ?? []),
         1,
       );
@@ -96,6 +100,17 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
         className={className}
       >
         <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
+        {bands?.map((band, i) => (
+          <path
+            key={`band-${i}`}
+            d={bandPath(
+              scalePoints(band.upper, left, right, bottom, top, 0, max),
+              scalePoints(band.lower, left, right, bottom, top, 0, max),
+            )}
+            fill={ink(0.12 - Math.min(i, 2) * 0.03)}
+            data-part="band"
+          />
+        ))}
         {regions?.map((region) => (
           <g
             key={`${region.from}-${region.to}`}

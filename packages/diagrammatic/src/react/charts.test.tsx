@@ -120,6 +120,7 @@ export const FIXTURES: Record<string, ReactElement> = {
   ),
   "heatmap-calendar": (
     <dg.Heatmap
+      mark="calendar"
       matrix={{
         rows: ["Mon", "", "Wed", "", "Fri", "", ""],
         cols: Array.from({ length: 16 }, (_, i) =>
@@ -177,6 +178,14 @@ export const FIXTURES: Record<string, ReactElement> = {
     />
   ),
   lollipop: <dg.Lollipop items={items} />,
+  "range-bar": (
+    <dg.RangeBar
+      items={[
+        { label: "eng", from: 140, to: 210, at: 176 },
+        { label: "design", from: 120, to: 180, at: 152 },
+      ]}
+    />
+  ),
   "dot-plot": <dg.DotPlot items={items} ticks={[5, 15, 25]} />,
   leaderboard: <dg.Leaderboard items={items} />,
   pictogram: (
@@ -470,6 +479,17 @@ export const FIXTURES: Record<string, ReactElement> = {
         ],
       }}
       highlight="cli"
+    />
+  ),
+  upset: (
+    <dg.Upset
+      sets={["sev-1", "weekend", "customer"]}
+      intersections={[
+        { sets: ["sev-1"], value: 12 },
+        { sets: ["sev-1", "customer"], value: 7 },
+        { sets: ["weekend"], value: 4 },
+        { sets: ["sev-1", "weekend", "customer"], value: 2 },
+      ]}
     />
   ),
   tree: <dg.Tree root={tree} />,

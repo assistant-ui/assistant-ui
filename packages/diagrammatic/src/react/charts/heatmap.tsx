@@ -7,11 +7,11 @@ import { ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type HeatmapProps = BaseProps & {
   matrix: Matrix;
-  mark?: "cell" | "dot";
+  mark?: "cell" | "dot" | "calendar";
   values?: boolean;
 };
 
-/** `mark="dot"` sizes a circle per cell instead of shading it: the punchcard. */
+/** `mark="dot"` sizes a circle per cell: the punchcard. `calendar` is weeks across. */
 export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
   (
     {
@@ -85,6 +85,69 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
                   r={0.6 + t * maxR}
                   fill={ACCENT}
                   opacity={0.25 + 0.6 * t}
+                  data-part="mark"
+                  data-i={c}
+                  data-i2={r}
+                />
+              );
+            }),
+          )}
+        </ChartSvg>
+      );
+    }
+    if (mark === "calendar") {
+      const cellW = (right - left) / Math.max(1, cols);
+      const cellH = (bottom - top) / Math.max(1, rows);
+      const gap = Math.min(1.4, cellW * 0.18);
+      return (
+        <ChartSvg
+          ref={ref}
+          {...rest}
+          vh={vh}
+          title={title}
+          density={density}
+          className={className}
+        >
+          {matrix.rows.map((row, r) =>
+            row ? (
+              <text
+                key={row}
+                x={left - 4}
+                y={rowMid(r, cellH, top)}
+                textAnchor="end"
+                dominantBaseline="central"
+                {...T.axis}
+              >
+                {row}
+              </text>
+            ) : null,
+          )}
+          {matrix.cols.map((col, c) =>
+            col ? (
+              <text
+                key={`${col}-${c}`}
+                x={left + c * cellW + cellW / 2}
+                y={axisY}
+                textAnchor="middle"
+                {...T.axis}
+              >
+                {col}
+              </text>
+            ) : null,
+          )}
+          {matrix.values.flatMap((rowValues, r) =>
+            rowValues.map((v, c) => {
+              const share = v / max;
+              return (
+                <rect
+                  key={`${r}-${c}`}
+                  x={left + c * cellW + gap / 2}
+                  y={top + r * cellH + gap / 2}
+                  width={Math.max(cellW - gap, 0.5)}
+                  height={Math.max(cellH - gap, 0.5)}
+                  rx={Math.min(1.4, cellW * 0.22)}
+                  fill={ACCENT}
+                  opacity={v === 0 ? 0.06 : seqOpacity(share)}
                   data-part="mark"
                   data-i={c}
                   data-i2={r}

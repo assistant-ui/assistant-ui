@@ -15,6 +15,7 @@ export type HistogramProps = BaseProps & {
   compare?: readonly number[];
   marker?: { at: number; label?: string };
   smooth?: boolean;
+  cumulative?: boolean;
 };
 
 export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
@@ -24,6 +25,7 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
       compare,
       marker,
       smooth,
+      cumulative,
       labels,
       title,
       aspect,
@@ -38,14 +40,28 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
     const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
       labels: Boolean(labels),
     });
-    const max = Math.max(...bins, ...(compare ?? []), 1);
+    const running = (values: readonly number[]) => {
+      const total = values.reduce((sum, v) => sum + v, 0) || 1;
+      let acc = 0;
+      return values.map((v) => {
+        acc += v;
+        return acc / total;
+      });
+    };
+    const shown = cumulative ? running(bins) : bins;
+    const shownCompare = compare
+      ? cumulative
+        ? running(compare)
+        : compare
+      : undefined;
+    const max = cumulative ? 1 : Math.max(...shown, ...(shownCompare ?? []), 1);
     const span = right - left;
-    const width = span / Math.max(1, bins.length);
-    const compareWidth = span / Math.max(1, compare?.length ?? 0);
-    const comparePath = compare
+    const width = span / Math.max(1, shown.length);
+    const compareWidth = span / Math.max(1, shownCompare?.length ?? 0);
+    const comparePath = shownCompare
       ? [
           `M${round(left)} ${round(bottom)}`,
-          ...compare.flatMap((value, i) => [
+          ...shownCompare.flatMap((value, i) => [
             `V${round(bottom - (value / max) * (bottom - top))}`,
             `H${round(left + (i + 1) * compareWidth)}`,
           ]),
@@ -53,7 +69,7 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
         ].join(" ")
       : null;
     const curve = smooth
-      ? scalePoints(bins, left, right, bottom, top, 0, max)
+      ? scalePoints(shown, left, right, bottom, top, 0, max)
       : null;
     return (
       <ChartSvg
@@ -73,7 +89,7 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
           data-part="grid"
           {...stroke.hair}
         />
-        {bins.map((_, i) => (
+        {shown.map((_, i) => (
           <rect
             key={`hit-${i}`}
             x={round(left + i * width)}
@@ -101,7 +117,7 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
             />
           </>
         ) : (
-          bins.map((v, i) => (
+          shown.map((v, i) => (
             <rect
               key={i}
               x={round(left + 2 + i * width)}

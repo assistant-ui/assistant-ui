@@ -62,4 +62,52 @@ export const examples: DemoExample[] = [
       </FigTooltip>
     ),
   },
+  {
+    title: "Production deploys, last half year",
+    setup:
+      "Twenty-six weeks, seven days. Empty cells stay empty. This is the calendar job, not the punchcard.",
+    read: "Tuesday is the release train. Thursday is the hotfix column. Saturday is almost blank except the two incident weekends in March. The quiet week in late December is the freeze.",
+    source: "Successful production deploys, 1 Jan to 30 Jun. n = 312.",
+    chart: (
+      <FigTooltip
+        matrix={{
+          rows: DAYS,
+          columns: Array.from({ length: 26 }, (_, week) =>
+            week % 4 === 0 ? `w${week + 1}` : "",
+          ),
+          values: DAYS.map((_, day) =>
+            Array.from({ length: 26 }, (_, week) => {
+              if (week === 51 || week === 0) return day === 1 ? 1 : 0;
+              if (day >= 5) return week === 10 || week === 18 ? 2 : 0;
+              if (day === 1) return week % 1 === 0 ? 4 + (week % 3) : 1;
+              if (day === 3) return week % 2 === 0 ? 3 : 1;
+              return day === 4 && week % 5 === 0 ? 2 : 1;
+            }),
+          ),
+        }}
+      >
+        <Heatmap
+          density="figure"
+          aspect={2.1}
+          mark="calendar"
+          title="Production deploys"
+          matrix={{
+            rows: DAYS,
+            cols: Array.from({ length: 26 }, (_, week) =>
+              week % 4 === 0 ? `w${week + 1}` : "",
+            ),
+            values: DAYS.map((_, day) =>
+              Array.from({ length: 26 }, (_, week) => {
+                if (week === 0) return day === 1 ? 1 : 0;
+                if (day >= 5) return week === 10 || week === 18 ? 2 : 0;
+                if (day === 1) return 4 + (week % 3);
+                if (day === 3) return week % 2 === 0 ? 3 : 1;
+                return day === 4 && week % 5 === 0 ? 2 : 1;
+              }),
+            ),
+          }}
+        />
+      </FigTooltip>
+    ),
+  },
 ];

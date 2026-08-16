@@ -47,6 +47,10 @@ import {
   glyph as dotPlotGlyph,
 } from "./demos/dot-plot";
 import {
+  examples as rangeBarExamples,
+  glyph as rangeBarGlyph,
+} from "./demos/range-bar";
+import {
   examples as leaderboardExamples,
   glyph as leaderboardGlyph,
 } from "./demos/leaderboard";
@@ -175,6 +179,7 @@ import {
   glyph as dendrogramGlyph,
 } from "./demos/dendrogram";
 import { examples as vennExamples, glyph as vennGlyph } from "./demos/venn";
+import { examples as upsetExamples, glyph as upsetGlyph } from "./demos/upset";
 import {
   examples as choroplethExamples,
   glyph as choroplethGlyph,
@@ -424,6 +429,17 @@ const SECTIONS: SectionInput[] = [
           "It needs a visible scale; dots floating in space rank but do not measure.",
         glyph: dotPlotGlyph,
         examples: dotPlotExamples,
+      },
+      {
+        slug: "range-bar",
+        exportName: "RangeBar",
+        name: "Range bar",
+        blurb: "A span per category, not a single value.",
+        use: "Intervals: salary bands, confidence ranges, forecast low to high.",
+        watch:
+          "The bar is the interval; a tick marks a point estimate. Do not turn it into a Gantt.",
+        glyph: rangeBarGlyph,
+        examples: rangeBarExamples,
       },
       {
         slug: "leaderboard",
@@ -849,6 +865,17 @@ const SECTIONS: SectionInput[] = [
         watch: "Region area rarely matches the counts; label every region.",
         glyph: vennGlyph,
         examples: vennExamples,
+      },
+      {
+        slug: "upset",
+        exportName: "Upset",
+        name: "Upset",
+        blurb: "Set intersections past two or three circles.",
+        use: "Which tags, flags, or cohorts travel together when Venn runs out.",
+        watch:
+          "Sort combinations by size. More than about a dozen columns becomes a table.",
+        glyph: upsetGlyph,
+        examples: upsetExamples,
       },
     ],
   },

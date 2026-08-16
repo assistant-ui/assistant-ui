@@ -38,6 +38,7 @@ export { GroupedBar, type GroupedBarProps } from "./react/charts/grouped-bar";
 export { StackedBar, type StackedBarProps } from "./react/charts/stacked-bar";
 export { Lollipop, type LollipopProps } from "./react/charts/lollipop";
 export { DotPlot, type DotPlotProps } from "./react/charts/dot-plot";
+export { RangeBar, type RangeBarProps } from "./react/charts/range-bar";
 export { Leaderboard, type LeaderboardProps } from "./react/charts/leaderboard";
 export { Pictogram, type PictogramProps } from "./react/charts/pictogram";
 export { RadialBar, type RadialBarProps } from "./react/charts/radial-bar";
@@ -104,6 +105,7 @@ export { ArcDiagram, type ArcDiagramProps } from "./react/charts/arc-diagram";
 export { Tree, type TreeProps } from "./react/charts/tree";
 export { Dendrogram, type DendrogramProps } from "./react/charts/dendrogram";
 export { Venn, type VennProps } from "./react/charts/venn";
+export { Upset, type UpsetProps } from "./react/charts/upset";
 
 export { Choropleth, type ChoroplethProps } from "./react/charts/choropleth";
 export { SymbolMap, type SymbolMapProps } from "./react/charts/symbol-map";
@@ -120,3 +122,7 @@ export {
 } from "./react/charts/progress-ring";
 export { Gauge, type GaugeProps } from "./react/charts/gauge";
 export { SplitBar, type SplitBarProps } from "./react/charts/split-bar";
+export {
+  SmallMultiples,
+  type SmallMultiplesProps,
+} from "./react/small-multiples";
