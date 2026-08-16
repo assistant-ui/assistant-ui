@@ -6,16 +6,29 @@
  */
 export type MarkQuery = {
   series?: string;
+  series2?: string;
   index?: number;
+  index2?: number;
 };
 
+const SLOTS = [
+  ["series", "data-series"],
+  ["series2", "data-series2"],
+  ["index", "data-i"],
+  ["index2", "data-i2"],
+] as const;
+
 function matches(mark: Element, query: MarkQuery): boolean {
-  if (query.series === undefined && query.index === undefined) return false;
-  if (query.series !== undefined) {
-    if (mark.getAttribute("data-series") !== query.series) return false;
-  }
-  if (query.index !== undefined) {
-    if (Number(mark.getAttribute("data-i")) !== query.index) return false;
+  if (SLOTS.every(([key]) => query[key] === undefined)) return false;
+  for (const [key, attr] of SLOTS) {
+    const wanted = query[key];
+    if (wanted === undefined) continue;
+    const actual = mark.getAttribute(attr);
+    if (typeof wanted === "number") {
+      if (actual === null || Number(actual) !== wanted) return false;
+    } else if (actual !== wanted) {
+      return false;
+    }
   }
   return true;
 }

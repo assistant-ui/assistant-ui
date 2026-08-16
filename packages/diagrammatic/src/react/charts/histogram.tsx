@@ -39,6 +39,18 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
           data-part="grid"
           {...stroke.hair}
         />
+        {bins.map((_, i) => (
+          <rect
+            key={`hit-${i}`}
+            x={round(10 + i * width)}
+            y={16}
+            width={round(width)}
+            height={bottom - 16}
+            fill="transparent"
+            data-part="mark"
+            data-i={i}
+          />
+        ))}
         {curve ? (
           <>
             <path

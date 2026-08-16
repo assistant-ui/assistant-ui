@@ -34,7 +34,10 @@ export const Network = forwardRef<SVGSVGElement, NetworkProps>(
               x2={round(b.x)}
               y2={round(b.y)}
               stroke={ink(0.2)}
-              data-part="grid"
+              data-part="mark"
+              data-i={i}
+              data-series={link.source}
+              data-series2={link.target}
               {...stroke.hair}
             />
           );

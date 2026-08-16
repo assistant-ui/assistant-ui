@@ -49,6 +49,18 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
           data-part="grid"
           {...stroke.hair}
         />
+        {items.map((_, i) => (
+          <rect
+            key={`hit-${i}`}
+            x={round(14 + step * i)}
+            y={10}
+            width={round(step)}
+            height={bottom - 10}
+            fill="transparent"
+            data-part="mark"
+            data-i={i}
+          />
+        ))}
         {items.map((row, i) => {
           const x = 14 + step * (i + 0.5) - width / 2;
           const h = (row.value / max) * (bottom - 20);

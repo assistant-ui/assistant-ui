@@ -115,6 +115,20 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
             </text>
           </g>
         )}
+        {grids.map((pts, k) =>
+          pts.map((p, i) => (
+            <circle
+              key={`hit-${k}-${i}`}
+              cx={round(p.x)}
+              cy={round(p.y)}
+              r={Math.min(4, 86 / count)}
+              fill="transparent"
+              data-part="mark"
+              data-i={i}
+              data-series={all[k]!.name || undefined}
+            />
+          )),
+        )}
         {showLegend && multi && (
           <Legend
             names={all.map((s) => s.name)}

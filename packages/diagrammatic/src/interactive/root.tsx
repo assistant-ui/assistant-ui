@@ -31,6 +31,7 @@ export type RootProps = ComponentPropsWithoutRef<"div"> & {
   onMarkClick?: (datum: MarkDatum, event: MouseEvent<HTMLDivElement>) => void;
   onMarkHover?: (datum: MarkDatum | null) => void;
   highlight?: MarkQuery | readonly MarkQuery[] | null;
+  highlightOnHover?: boolean;
 };
 
 /**
@@ -42,8 +43,11 @@ export type RootProps = ComponentPropsWithoutRef<"div"> & {
  * built-in default, `onMarkHover` fires once per mark entered or left (null
  * on leave) for stateful effects like cross-highlighting, and `onMarkClick`
  * fires when a mark is clicked — navigation, drill-down, selection — with
- * marks getting a pointer cursor while it is provided. The wrapper positions
- * relatively so the Tooltip can place itself in container coordinates.
+ * marks getting a pointer cursor while it is provided. `highlightOnHover`
+ * spotlights the hovered mark's index (or series) through the same stamps as
+ * the controlled `highlight` prop, which takes precedence when provided. The
+ * wrapper positions relatively so the Tooltip can place itself in container
+ * coordinates.
  */
 export const Root = forwardRef<HTMLDivElement, RootProps>(
   (
@@ -56,6 +60,7 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
       onMarkClick,
       onMarkHover,
       highlight,
+      highlightOnHover,
       ...props
     },
     ref,
@@ -75,7 +80,16 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
       },
       [ref],
     );
-    const highlightKey = JSON.stringify(highlight ?? null);
+    const [hoverHighlight, setHoverHighlight] = useState<MarkQuery | null>(
+      null,
+    );
+    const effectiveHighlight =
+      highlight !== undefined
+        ? highlight
+        : highlightOnHover
+          ? hoverHighlight
+          : null;
+    const highlightKey = JSON.stringify(effectiveHighlight ?? null);
     useEffect(() => {
       if (!container.current) return;
       applyHighlight(
@@ -120,6 +134,13 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
         if (datum.element !== lastMark.current) {
           lastMark.current = datum.element;
           onMarkHover?.(datum);
+          setHoverHighlight(
+            datum.index !== undefined
+              ? { index: datum.index }
+              : datum.series
+                ? { series: datum.series }
+                : null,
+          );
         }
       } else {
         dispatch.onPointerDrift(x, y);
@@ -128,6 +149,7 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
             graceTimer.current = null;
             lastMark.current = null;
             onMarkHover?.(null);
+            setHoverHighlight(null);
             dispatch.onMarkLeave();
           }, GRACE_MS);
         }
@@ -138,6 +160,7 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
       onPointerLeave?.(event);
       cancelGrace();
       dispatch.onMarkLeave();
+      setHoverHighlight(null);
       if (lastMark.current) {
         lastMark.current = null;
         onMarkHover?.(null);

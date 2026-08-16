@@ -1,4 +1,5 @@
 import { Column, formatCompact } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper, Report } from "./scenes";
 
@@ -31,21 +32,34 @@ export const examples: DemoExample[] = [
         chip="Score"
         note="Score is a weighted aggregate of the rubric items. Runs that miss a blocking criterion score 0."
       >
-        <Column
-          categorical
-          values
-          title="FrontierBench 1.1 scores"
-          items={[
-            { label: "glacier", value: 24.5 },
-            { label: "pico", value: 27.9 },
-            { label: "quill", value: 31.6 },
-            { label: "atlas-0", value: 40.2 },
-            { label: "swift", value: 45.8 },
-            { label: "nova", value: 46.3 },
-            { label: "atlas-1", value: 49.1 },
+        <FigTooltip
+          labels={[
+            "glacier",
+            "pico",
+            "quill",
+            "atlas-0",
+            "swift",
+            "nova",
+            "atlas-1",
           ]}
-          format={(v) => v.toFixed(1)}
-        />
+          series={{ score: [24.5, 27.9, 31.6, 40.2, 45.8, 46.3, 49.1] }}
+        >
+          <Column
+            categorical
+            values
+            title="FrontierBench 1.1 scores"
+            items={[
+              { label: "glacier", value: 24.5 },
+              { label: "pico", value: 27.9 },
+              { label: "quill", value: 31.6 },
+              { label: "atlas-0", value: 40.2 },
+              { label: "swift", value: 45.8 },
+              { label: "nova", value: 46.3 },
+              { label: "atlas-1", value: 49.1 },
+            ]}
+            format={(v) => v.toFixed(1)}
+          />
+        </FigTooltip>
       </Report>
     ),
   },

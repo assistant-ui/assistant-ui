@@ -9,6 +9,8 @@ import {
 import * as React from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { Bar } from "../react/charts/bar";
+import { Heatmap } from "../react/charts/heatmap";
+import { Sankey } from "../react/charts/sankey";
 import { Line } from "../react/charts/line";
 import * as Interactive from "./index";
 
@@ -86,6 +88,81 @@ describe("highlight", () => {
     expect(marks[0]!.hasAttribute("data-dg-muted")).toBe(true);
   });
 
+  it("highlightOnHover spotlights the hovered index and clears with grace", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = render(
+        <Interactive.Root data-testid="root" highlightOnHover>
+          <Bar items={ITEMS} />
+        </Interactive.Root>,
+      );
+      const bars = container.querySelectorAll('g[data-part="mark"]');
+      fireEvent.pointerMove(bars[2]!, { clientX: 5, clientY: 5 });
+      expect(bars[2]!.hasAttribute("data-dg-active")).toBe(true);
+      expect(bars[0]!.hasAttribute("data-dg-muted")).toBe(true);
+
+      fireEvent.pointerMove(screen.getByTestId("root"), {
+        clientX: 2,
+        clientY: 2,
+      });
+      expect(bars[2]!.hasAttribute("data-dg-active")).toBe(true);
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(bars[2]!.hasAttribute("data-dg-active")).toBe(false);
+      expect(bars[0]!.hasAttribute("data-dg-muted")).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("controlled highlight wins over highlightOnHover", () => {
+    const { container } = render(
+      <Interactive.Root
+        data-testid="root"
+        highlight={{ index: 0 }}
+        highlightOnHover
+      >
+        <Bar items={ITEMS} />
+      </Interactive.Root>,
+    );
+    const bars = container.querySelectorAll('g[data-part="mark"]');
+    fireEvent.pointerMove(bars[2]!, { clientX: 5, clientY: 5 });
+    expect(bars[0]!.hasAttribute("data-dg-active")).toBe(true);
+    expect(bars[2]!.hasAttribute("data-dg-muted")).toBe(true);
+  });
+
+  it("line exposes one hit mark per data point", () => {
+    const { container } = render(
+      <Line
+        series={[
+          { name: "a", data: [1, 2, 3, 4] },
+          { name: "b", data: [4, 3, 2, 1] },
+        ]}
+      />,
+    );
+    const hits = container.querySelectorAll('circle[data-part="mark"][data-i]');
+    expect(hits).toHaveLength(8);
+    expect(hits[0]!.getAttribute("data-series")).toBe("a");
+    const datum = Interactive.getMarkDatum(hits[5]!);
+    expect(datum).toMatchObject({ index: 1, series: "b" });
+  });
+
+  it("getSeriesColor resolves a series' rendered color from any element", () => {
+    const { container } = render(
+      <Line
+        series={[
+          { name: "a", data: [1, 2, 3] },
+          { name: "b", data: [3, 2, 1] },
+        ]}
+      />,
+    );
+    const anyHit = container.querySelector('circle[data-part="mark"]')!;
+    const color = Interactive.getSeriesColor(anyHit, "b");
+    expect(color).toBeTruthy();
+    expect(color).not.toBe("transparent");
+  });
+
   it("round-trips: onMarkHover drives a controlled highlight", () => {
     function Cross() {
       const [hl, setHl] = React.useState<Interactive.MarkQuery | null>(null);
@@ -108,6 +185,136 @@ describe("highlight", () => {
     expect(marks[0]!.hasAttribute("data-dg-muted")).toBe(true);
     fireEvent.pointerLeave(screen.getByTestId("root"));
     expect(marks[0]!.hasAttribute("data-dg-muted")).toBe(false);
+  });
+});
+
+describe("four-slot addressing", () => {
+  it("heatmap cells decode to (column, row)", () => {
+    const { container } = render(
+      <Heatmap
+        matrix={{
+          rows: ["a", "b"],
+          cols: ["x", "y", "z"],
+          values: [
+            [1, 2, 3],
+            [4, 5, 6],
+          ],
+        }}
+      />,
+    );
+    const cells = container.querySelectorAll('[data-part="mark"][data-i2]');
+    expect(cells.length).toBe(6);
+    const datum = Interactive.getMarkDatum(cells[5]!);
+    expect(datum).toMatchObject({ index: 2, index2: 1 });
+  });
+
+  it("sankey ribbons decode to (order, source, target)", () => {
+    const { container } = render(
+      <Sankey
+        graph={{
+          nodes: [{ id: "sun" }, { id: "wind" }, { id: "home" }],
+          links: [
+            { source: "sun", target: "home", value: 3 },
+            { source: "wind", target: "home", value: 1 },
+          ],
+        }}
+      />,
+    );
+    const ribbon = container.querySelector('[data-series2="home"]')!;
+    const datum = Interactive.getMarkDatum(ribbon);
+    expect(datum?.series).toBe("sun");
+    expect(datum?.series2).toBe("home");
+    expect(datum?.index).toBe(0);
+  });
+
+  it("highlight matches on any slot combination", () => {
+    const { container, rerender } = render(
+      <Interactive.Root highlight={{ index: 1, index2: 0 }}>
+        <Heatmap
+          matrix={{
+            rows: ["a", "b"],
+            cols: ["x", "y"],
+            values: [
+              [1, 2],
+              [3, 4],
+            ],
+          }}
+        />
+      </Interactive.Root>,
+    );
+    const active = container.querySelectorAll("[data-dg-active]");
+    expect(active.length).toBe(1);
+    expect(active[0]!.getAttribute("data-i")).toBe("1");
+    expect(active[0]!.getAttribute("data-i2")).toBe("0");
+
+    rerender(
+      <Interactive.Root highlight={{ series2: "home" }}>
+        <Sankey
+          graph={{
+            nodes: [{ id: "sun" }, { id: "farm" }, { id: "home" }],
+            links: [
+              { source: "sun", target: "home", value: 2 },
+              { source: "sun", target: "farm", value: 1 },
+            ],
+          }}
+        />
+      </Interactive.Root>,
+    );
+    const lit = container.querySelectorAll("[data-dg-active]");
+    expect(lit.length).toBe(1);
+    expect(lit[0]!.getAttribute("data-series2")).toBe("home");
+  });
+});
+
+describe("resolvePlacement", () => {
+  it("flips top to bottom when the tip would leave the container", () => {
+    const flipped = Interactive.resolvePlacement(
+      "top",
+      50,
+      20,
+      10,
+      60,
+      40,
+      200,
+      150,
+    );
+    expect(flipped.top).toBe(30);
+    const kept = Interactive.resolvePlacement(
+      "top",
+      50,
+      120,
+      10,
+      60,
+      40,
+      200,
+      150,
+    );
+    expect(kept.top).toBe(70);
+  });
+
+  it("clamps the crossing axis inside the container", () => {
+    const nearRight = Interactive.resolvePlacement(
+      "top",
+      195,
+      100,
+      10,
+      80,
+      30,
+      200,
+      150,
+    );
+    expect(nearRight.left).toBe(200 - 80 - 2);
+    const nearLeft = Interactive.resolvePlacement(
+      "bottom",
+      5,
+      40,
+      10,
+      80,
+      30,
+      200,
+      150,
+    );
+    expect(nearLeft.left).toBe(2);
   });
 });
 

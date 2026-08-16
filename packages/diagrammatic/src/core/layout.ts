@@ -363,6 +363,8 @@ export type SankeyRibbon = {
   ty0: number;
   ty1: number;
   sourceIndex: number;
+  source: string;
+  target: string;
 };
 
 /** Two-column sankey: sources on the left, sinks on the right, value-sorted. */
@@ -429,6 +431,8 @@ export function sankeyTwoColumn(
       ty0,
       ty1: ty0 + th,
       sourceIndex: leftIndex.get(link.source) ?? 0,
+      source: link.source,
+      target: link.target,
     });
     leftCursor.set(link.source, sy0 + sh);
     rightCursor.set(link.target, ty0 + th);

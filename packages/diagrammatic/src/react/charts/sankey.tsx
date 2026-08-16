@@ -26,6 +26,8 @@ export const Sankey = forwardRef<SVGSVGElement, SankeyProps>(
             opacity={0.32 - (i % 2) * 0.1}
             data-part="mark"
             data-i={i}
+            data-series={ribbon.source}
+            data-series2={ribbon.target}
           />
         ))}
         {nodes.map((node) => (

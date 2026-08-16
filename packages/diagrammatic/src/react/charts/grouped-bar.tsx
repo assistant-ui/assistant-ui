@@ -37,6 +37,18 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
             colors={series.map((_, k) => cat(k))}
           />
         )}
+        {groups.map((_, g) => (
+          <rect
+            key={`hit-${g}`}
+            x={round(14 + groupStep * g)}
+            y={top}
+            width={round(groupStep)}
+            height={bottom - top}
+            fill="transparent"
+            data-part="mark"
+            data-i={g}
+          />
+        ))}
         {groups.map((group, g) =>
           series.map((s, k) => {
             const v = s.data[g] ?? 0;

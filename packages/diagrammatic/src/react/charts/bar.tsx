@@ -41,6 +41,18 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
           data-part="grid"
           {...stroke.hair}
         />
+        {items.map((_, i) => (
+          <rect
+            key={`hit-${i}`}
+            x={44}
+            y={round(10 + i * rowH)}
+            width={142}
+            height={round(rowH)}
+            fill="transparent"
+            data-part="mark"
+            data-i={i}
+          />
+        ))}
         {items.map((row, i) => {
           const y = 10 + i * rowH;
           const mid = y + rowH / 2;

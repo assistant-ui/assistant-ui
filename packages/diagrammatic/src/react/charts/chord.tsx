@@ -41,6 +41,8 @@ export const Chord = forwardRef<SVGSVGElement, ChordProps>(
               opacity={0.28 - (i % 2) * 0.1}
               data-part="mark"
               data-i={i}
+              data-series={flows[i]!.from}
+              data-series2={flows[i]!.to}
             />
           );
         })}

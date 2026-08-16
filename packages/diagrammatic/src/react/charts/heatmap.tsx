@@ -58,7 +58,8 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
                   fill={ACCENT}
                   opacity={0.25 + 0.6 * t}
                   data-part="mark"
-                  data-i={r * cols + c}
+                  data-i={c}
+                  data-i2={r}
                 />
               );
             }),
@@ -104,7 +105,8 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
               fill={ACCENT}
               opacity={seqOpacity(v / max)}
               data-part="mark"
-              data-i={r * cols + c}
+              data-i={c}
+              data-i2={r}
             />
           )),
         )}

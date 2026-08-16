@@ -91,6 +91,17 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
             {format(data[data.length - 1] ?? 0)}
           </text>
         )}
+        {pts.map((p, i) => (
+          <circle
+            key={`hit-${i}`}
+            cx={round(p.x)}
+            cy={round(p.y)}
+            r={Math.min(4, 86 / Math.max(1, pts.length - 1))}
+            fill="transparent"
+            data-part="mark"
+            data-i={i}
+          />
+        ))}
         {labels && (
           <AxisLabels
             labels={labels}

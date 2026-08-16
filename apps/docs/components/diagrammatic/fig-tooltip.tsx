@@ -1,7 +1,7 @@
 "use client";
 
-import { type ReactNode, useState } from "react";
-import { type MarkQuery, Root, Tooltip } from "diagrammatic/interactive";
+import type { ReactNode } from "react";
+import { Root, Tooltip, getSeriesColor } from "diagrammatic/interactive";
 
 type FigTooltipProps = {
   labels?: readonly string[];
@@ -10,14 +10,6 @@ type FigTooltipProps = {
   total?: boolean;
   children: ReactNode;
 };
-
-function markColor(element: Element, name: string): string | undefined {
-  const svg = element.closest("svg");
-  const mark = svg?.querySelector(`[data-series="${CSS.escape(name)}"]`);
-  if (!mark) return undefined;
-  const style = getComputedStyle(mark);
-  return style.fill === "none" ? style.stroke : style.fill;
-}
 
 /**
  * Declarative tooltip skin over the package's interactive layer. Every prop
@@ -32,16 +24,8 @@ export function FigTooltip({
   total,
   children,
 }: FigTooltipProps) {
-  const [highlight, setHighlight] = useState<MarkQuery | null>(null);
   return (
-    <Root
-      highlight={highlight}
-      onMarkHover={(datum) =>
-        setHighlight(
-          datum && datum.index !== undefined ? { index: datum.index } : null,
-        )
-      }
-    >
+    <Root highlightOnHover>
       {children}
       <Tooltip side="top" sideOffset={12}>
         {({ datum }) => {
@@ -54,7 +38,13 @@ export function FigTooltip({
                   const value = values[index];
                   return value === undefined
                     ? []
-                    : [{ name, value, color: markColor(datum.element, name) }];
+                    : [
+                        {
+                          name,
+                          value,
+                          color: getSeriesColor(datum.element, name),
+                        },
+                      ];
                 });
           const sum = rows.reduce(
             (acc, row) =>

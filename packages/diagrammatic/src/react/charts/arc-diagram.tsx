@@ -59,6 +59,8 @@ export const ArcDiagram = forwardRef<SVGSVGElement, ArcDiagramProps>(
               stroke={accent ? ACCENT : ink(0.3)}
               data-part="mark"
               data-i={i}
+              data-series={link.source}
+              data-series2={link.target}
               {...(accent ? stroke.line : stroke.hair)}
             />
           );
