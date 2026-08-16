@@ -36,7 +36,6 @@ export const Choropleth = forwardRef<SVGSVGElement, ChoroplethProps>(
             y={tile.y}
             width={TILE_SIZE}
             height="10.8"
-            rx="2.5"
             fill={ACCENT}
             opacity={seqOpacity((values[i] ?? 0) / max)}
             data-part="mark"
@@ -51,7 +50,6 @@ export const Choropleth = forwardRef<SVGSVGElement, ChoroplethProps>(
               y={vh - 12}
               width="8.5"
               height="6"
-              rx="1.5"
               fill={ACCENT}
               opacity={seqOpacity(t)}
             />

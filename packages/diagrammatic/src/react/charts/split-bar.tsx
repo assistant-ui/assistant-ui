@@ -1,7 +1,7 @@
 import type { MicroBaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
-import { barPath } from "../../core/geometry";
+import { round } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
 import { MicroSvg } from "../svg";
 
@@ -25,22 +25,21 @@ export const SplitBar = forwardRef<SVGSVGElement, SplitBarProps>(
         title={title}
         className={className}
       >
-        <path
-          d={barPath(0, 6.5, Math.max(w - 0.7, 1), 7, 3.5, "left")}
+        <rect
+          x="0"
+          y="6.5"
+          width={round(Math.max(w - 0.7, 1))}
+          height="7"
           fill={ACCENT}
           opacity="0.85"
           data-part="mark"
           data-series={a.label}
         />
-        <path
-          d={barPath(
-            Math.min(w + 0.7, 59),
-            6.5,
-            Math.max(60 - w - 0.7, 1),
-            7,
-            3.5,
-            "right",
-          )}
+        <rect
+          x={round(Math.min(w + 0.7, 59))}
+          y="6.5"
+          width={round(Math.max(60 - w - 0.7, 1))}
+          height="7"
           fill={ink(0.2)}
           data-part="mark"
           data-series={b.label}

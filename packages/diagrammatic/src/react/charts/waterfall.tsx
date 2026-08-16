@@ -50,7 +50,6 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
                 y={round(top)}
                 width={width}
                 height={round(Math.max(h, 1.5))}
-                rx="2.5"
                 fill={entry.total ? ink(0.55) : entry.value >= 0 ? POS : NEG}
                 opacity={entry.total ? 1 : 0.85}
               />

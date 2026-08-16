@@ -40,14 +40,7 @@ export const Icicle = forwardRef<SVGSVGElement, IcicleProps>(
           if (slice.depth === 0) {
             return (
               <g key={i} data-part="mark" data-series={slice.node.label}>
-                <rect
-                  x={x}
-                  y={y}
-                  width={w}
-                  height={rowH}
-                  rx="3"
-                  fill={ink(0.08)}
-                />
+                <rect x={x} y={y} width={w} height={rowH} fill={ink(0.08)} />
                 {fits && (
                   <text x={x + 5} y={y + rowH / 2 + 1.8} {...TXT.label}>
                     {slice.node.label}
@@ -63,7 +56,6 @@ export const Icicle = forwardRef<SVGSVGElement, IcicleProps>(
                 y={y}
                 width={w}
                 height={rowH}
-                rx="3"
                 fill={cat(branchOf(i))}
                 opacity={
                   slice.depth === 1

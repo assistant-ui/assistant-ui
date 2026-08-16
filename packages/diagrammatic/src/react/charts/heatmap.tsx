@@ -101,7 +101,6 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
               y={8 + r * cellH}
               width={Math.max(cellW - 2, 0.5)}
               height={Math.max(cellH - 2, 0.5)}
-              rx="3"
               fill={ACCENT}
               opacity={seqOpacity(v / max)}
               data-part="mark"

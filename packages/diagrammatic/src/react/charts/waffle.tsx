@@ -31,7 +31,6 @@ export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
             y={gridTop + Math.floor(i / 10) * cell}
             width={cell - 2.4}
             height={cell - 2.4}
-            rx="2"
             fill={cat(series)}
             opacity="0.88"
             data-part="mark"

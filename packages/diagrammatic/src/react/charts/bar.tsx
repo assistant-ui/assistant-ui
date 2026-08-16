@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
-import { barPath, stroke } from "../../core/geometry";
+import { round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, cat, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
@@ -53,8 +53,11 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
               <text x="40" y={y + rowH / 2} textAnchor="end" {...TXT.label}>
                 {row.label}
               </text>
-              <path
-                d={barPath(44, y, w, rowH - 8.5, 2.5, "right")}
+              <rect
+                x={44}
+                y={round(y)}
+                width={round(w)}
+                height={round(rowH - 8.5)}
                 fill={categorical ? cat(i) : accent ? ACCENT : ink(0.3)}
                 opacity={categorical ? 0.9 : 1}
               />

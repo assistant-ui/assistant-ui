@@ -1,8 +1,8 @@
 import type { BaseProps } from "../svg";
+import { round } from "../../core/geometry";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
-import { barPath } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
@@ -43,23 +43,12 @@ export const Leaderboard = forwardRef<SVGSVGElement, LeaderboardProps>(
               >
                 {row.label}
               </text>
+              <rect x="48" y={y} width={trackW} height="8.5" fill={ink(0.08)} />
               <rect
                 x="48"
-                y={y}
-                width={trackW}
+                y={round(y)}
+                width={round(Math.max((row.value / max) * trackW, 4))}
                 height="8.5"
-                rx="4.25"
-                fill={ink(0.08)}
-              />
-              <path
-                d={barPath(
-                  48,
-                  y,
-                  Math.max((row.value / max) * trackW, 4),
-                  8.5,
-                  4.25,
-                  "right",
-                )}
                 fill={i === 0 ? ACCENT : ink(0.4)}
               />
               {showValues && (

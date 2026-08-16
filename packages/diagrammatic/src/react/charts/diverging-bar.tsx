@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
-import { barPath, stroke } from "../../core/geometry";
+import { round, stroke } from "../../core/geometry";
 import { NEG, POS, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
@@ -52,14 +52,20 @@ export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
                 {row.label}
               </text>
               {positive ? (
-                <path
-                  d={barPath(105.5, y, w, rowH - 3.6, 2.5, "right")}
+                <rect
+                  x={105.5}
+                  y={round(y)}
+                  width={round(w)}
+                  height={round(rowH - 3.6)}
                   fill={POS}
                   opacity="0.85"
                 />
               ) : (
-                <path
-                  d={barPath(102.5 - w, y, w, rowH - 3.6, 2.5, "left")}
+                <rect
+                  x={round(102.5 - w)}
+                  y={round(y)}
+                  width={round(w)}
+                  height={round(rowH - 3.6)}
                   fill={NEG}
                   opacity="0.85"
                 />

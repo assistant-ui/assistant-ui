@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
-import { barPath, stroke } from "../../core/geometry";
+import { round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, cat, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
@@ -60,8 +60,11 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
                 : row.label === highlight;
           return (
             <g key={`${row.label}-${i}`} data-part="mark" data-i={i}>
-              <path
-                d={barPath(x, bottom - h, width, h, 3, "top")}
+              <rect
+                x={round(x)}
+                y={round(bottom - h)}
+                width={round(width)}
+                height={round(h)}
                 fill={categorical ? cat(i) : accent ? ACCENT : ink(0.3)}
                 opacity={categorical ? 0.9 : 1}
               />

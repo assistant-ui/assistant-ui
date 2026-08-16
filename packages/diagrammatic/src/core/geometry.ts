@@ -128,27 +128,6 @@ export function arcStroke(
  * Bar with the data end rounded and the baseline end square. `end` names the
  * side that carries the value.
  */
-export function barPath(
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  r: number,
-  end: "right" | "top" | "left" | "bottom",
-): string {
-  const rr = Math.max(0, Math.min(r, w / 2, h / 2));
-  switch (end) {
-    case "right":
-      return `M${round(x)} ${round(y)} H${round(x + w - rr)} A${rr} ${rr} 0 0 1 ${round(x + w)} ${round(y + rr)} V${round(y + h - rr)} A${rr} ${rr} 0 0 1 ${round(x + w - rr)} ${round(y + h)} H${round(x)} Z`;
-    case "left":
-      return `M${round(x + w)} ${round(y)} H${round(x + rr)} A${rr} ${rr} 0 0 0 ${round(x)} ${round(y + rr)} V${round(y + h - rr)} A${rr} ${rr} 0 0 0 ${round(x + rr)} ${round(y + h)} H${round(x + w)} Z`;
-    case "top":
-      return `M${round(x)} ${round(y + h)} V${round(y + rr)} A${rr} ${rr} 0 0 1 ${round(x + rr)} ${round(y)} H${round(x + w - rr)} A${rr} ${rr} 0 0 1 ${round(x + w)} ${round(y + rr)} V${round(y + h)} Z`;
-    case "bottom":
-      return `M${round(x)} ${round(y)} V${round(y + h - rr)} A${rr} ${rr} 0 0 0 ${round(x + rr)} ${round(y + h)} H${round(x + w - rr)} A${rr} ${rr} 0 0 0 ${round(x + w)} ${round(y + h - rr)} V${round(y)} Z`;
-  }
-}
-
 export function hexPath(cx: number, cy: number, r: number): string {
   const pts = Array.from({ length: 6 }, (_, i) =>
     polar(cx, cy, r, (Math.PI / 3) * i + Math.PI / 6),

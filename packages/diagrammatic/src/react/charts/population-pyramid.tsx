@@ -1,7 +1,7 @@
 import type { BaseProps } from "../svg";
+import { round } from "../../core/geometry";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
-import { barPath } from "../../core/geometry";
 import { C } from "../../core/theme";
 import { ChartSvg, Legend, TXT, vbHeight } from "../svg";
 
@@ -37,14 +37,20 @@ export const PopulationPyramid = forwardRef<
         const rw = ((right.data[i] ?? 0) / max) * 80;
         return (
           <g key={band} data-part="mark" data-i={i}>
-            <path
-              d={barPath(90 - lw, y, lw, rowH - 3.2, 2.5, "left")}
+            <rect
+              x={round(90 - lw)}
+              y={round(y)}
+              width={round(lw)}
+              height={round(rowH - 3.2)}
               fill={C[0]}
               opacity="0.85"
               data-series={left.name}
             />
-            <path
-              d={barPath(110, y, rw, rowH - 3.2, 2.5, "right")}
+            <rect
+              x="110"
+              y={round(y)}
+              width={round(rw)}
+              height={round(rowH - 3.2)}
               fill={C[2]}
               opacity="0.85"
               data-series={right.name}

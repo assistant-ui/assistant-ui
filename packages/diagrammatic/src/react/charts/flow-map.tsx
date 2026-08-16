@@ -42,7 +42,6 @@ export const FlowMap = forwardRef<SVGSVGElement, FlowMapProps>(
             y={tile.y}
             width={TILE_SIZE}
             height="10.8"
-            rx="2.5"
             fill={ink(0.08)}
             data-part="grid"
           />

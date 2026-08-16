@@ -51,7 +51,6 @@ export const Treemap = forwardRef<SVGSVGElement, TreemapProps>(
                   y={rect.y}
                   width={rect.w}
                   height={rect.h}
-                  rx="3"
                   fill={cat(i)}
                   opacity="0.85"
                 />
@@ -65,7 +64,6 @@ export const Treemap = forwardRef<SVGSVGElement, TreemapProps>(
                       y={r.y}
                       width={r.w}
                       height={r.h}
-                      rx="2.5"
                       fill={cat(i)}
                       opacity={k % 2 === 0 ? 0.85 : 0.55}
                     />

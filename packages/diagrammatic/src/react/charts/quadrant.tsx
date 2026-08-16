@@ -34,7 +34,6 @@ export const Quadrant = forwardRef<SVGSVGElement, QuadrantProps>(
           y="8"
           width="172"
           height={bottom - 12}
-          rx="4"
           fill="none"
           stroke={GRID}
           data-part="grid"

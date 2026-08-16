@@ -41,7 +41,6 @@ export const SymbolMap = forwardRef<SVGSVGElement, SymbolMapProps>(
             y={tile.y}
             width={TILE_SIZE}
             height="10.8"
-            rx="2.5"
             fill={ink(0.08)}
             data-part="grid"
           />

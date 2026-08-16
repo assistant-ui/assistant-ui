@@ -2,8 +2,8 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import {
   areaPath,
-  barPath,
   linePath,
+  round,
   scalePoints,
   stroke,
 } from "../../core/geometry";
@@ -56,16 +56,12 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
           </>
         ) : (
           bins.map((v, i) => (
-            <path
+            <rect
               key={i}
-              d={barPath(
-                12 + i * width,
-                bottom - (v / max) * (bottom - 16),
-                width - 1.4,
-                (v / max) * (bottom - 16),
-                2,
-                "top",
-              )}
+              x={round(12 + i * width)}
+              y={round(bottom - (v / max) * (bottom - 16))}
+              width={round(width - 1.4)}
+              height={round((v / max) * (bottom - 16))}
               fill={ink(0.35)}
               data-part="mark"
               data-i={i}

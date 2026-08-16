@@ -65,7 +65,6 @@ export const DivergingStacked = forwardRef<
                     y={y}
                     width={w}
                     height={rowH - 4.5}
-                    rx="2.5"
                     fill={segment.fill ?? ink(0.15)}
                     opacity={segment.fill ? segment.opacity : 1}
                   />

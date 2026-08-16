@@ -79,7 +79,6 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
             y="7"
             width="6"
             height="4.5"
-            rx="1"
             fill={POS}
             opacity="0.35"
           />
@@ -91,7 +90,6 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
             y="7"
             width="6"
             height="4.5"
-            rx="1"
             fill={NEG}
             opacity="0.35"
           />

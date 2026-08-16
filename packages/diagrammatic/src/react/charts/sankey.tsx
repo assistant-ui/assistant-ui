@@ -35,7 +35,6 @@ export const Sankey = forwardRef<SVGSVGElement, SankeyProps>(
               y={round(node.y0)}
               width="5"
               height={round(node.y1 - node.y0)}
-              rx="2"
               fill={ink(0.7)}
             />
             <text

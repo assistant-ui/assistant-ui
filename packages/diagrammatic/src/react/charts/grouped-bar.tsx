@@ -1,7 +1,7 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
-import { barPath, stroke } from "../../core/geometry";
+import { round, stroke } from "../../core/geometry";
 import { GRID, cat } from "../../core/theme";
 import { AxisLabels, ChartSvg, Legend, vbHeight } from "../svg";
 
@@ -46,9 +46,12 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
               (series.length * barW + (series.length - 1) * 2) / 2 +
               k * (barW + 2);
             return (
-              <path
+              <rect
                 key={`${group}-${s.name}`}
-                d={barPath(x, bottom - h, barW, h, 2.5, "top")}
+                x={round(x)}
+                y={round(bottom - h)}
+                width={round(barW)}
+                height={round(h)}
                 fill={cat(k)}
                 opacity="0.9"
                 data-part="mark"

@@ -37,7 +37,6 @@ export const Marimekko = forwardRef<SVGSVGElement, MarimekkoProps>(
                       y={y0}
                       width={w}
                       height={Math.max(h, 0.5)}
-                      rx="2"
                       fill={cat(k)}
                       opacity="0.88"
                     />

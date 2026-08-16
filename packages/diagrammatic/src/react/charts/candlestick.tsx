@@ -60,7 +60,6 @@ export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
                 y={top}
                 width={body}
                 height={Math.max(height, 1.5)}
-                rx="1.5"
                 fill={up ? POS : NEG}
               />
             </g>

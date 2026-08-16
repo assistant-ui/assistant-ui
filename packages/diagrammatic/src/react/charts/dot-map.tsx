@@ -35,7 +35,6 @@ export const DotMap = forwardRef<SVGSVGElement, DotMapProps>(
             y={tile.y}
             width={TILE_SIZE}
             height="10.8"
-            rx="2.5"
             fill={ink(0.06)}
             data-part="grid"
           />

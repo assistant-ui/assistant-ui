@@ -50,7 +50,6 @@ export const BoxPlot = forwardRef<SVGSVGElement, BoxPlotProps>(
                   y={Y(box.q3)}
                   width={half * 2}
                   height={Y(box.q1) - Y(box.q3)}
-                  rx="3"
                   fill={ink(0.08)}
                 />
                 <line

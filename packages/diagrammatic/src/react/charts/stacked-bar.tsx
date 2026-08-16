@@ -1,7 +1,7 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
-import { barPath, stroke } from "../../core/geometry";
+import { round, stroke } from "../../core/geometry";
 import { GRID, cat } from "../../core/theme";
 import { AxisLabels, ChartSvg, Legend, vbHeight } from "../svg";
 
@@ -55,9 +55,12 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
             const x = centers[g]! - width / 2;
             const segment =
               k === series.length - 1 ? (
-                <path
+                <rect
                   key={`${group}-${s.name}`}
-                  d={barPath(x, y - gap, width, h, 3, "top")}
+                  x={round(x)}
+                  y={round(y - gap)}
+                  width={round(width)}
+                  height={round(h)}
                   fill={cat(k)}
                   opacity="0.9"
                   data-part="mark"
