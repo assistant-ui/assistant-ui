@@ -205,7 +205,7 @@ export function SyncPlugin({
     if (!composerRuntime) return;
 
     const initialText = composerRuntime.getState().text;
-    if (initialText && initialText !== lastSyncedTextRef.current) {
+    if (initialText !== lastSyncedTextRef.current) {
       isSyncingFromRuntimeRef.current = true;
       lastSyncedTextRef.current = initialText;
       syncRuntimeToLexical(editor, initialText, parserRef.current, () => {

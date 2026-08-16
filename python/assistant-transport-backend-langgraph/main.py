@@ -229,7 +229,7 @@ async def subagent_node(state: SubagentState) -> dict[str, Any]:
     if os.getenv("OPENAI_API_KEY"):
         # Initialize a simpler LLM for the subagent
         llm = ChatOpenAI(
-            model="gpt-5.4-nano",
+            model="gpt-5.6-luna",
             temperature=0.7,
             streaming=True
         )
@@ -267,7 +267,7 @@ async def agent_node(state: GraphState) -> dict[str, Any]:
     if os.getenv("OPENAI_API_KEY"):
         # Initialize the LLM with tool binding
         llm = ChatOpenAI(
-            model="gpt-5.4-nano",
+            model="gpt-5.6-luna",
             temperature=0.7,
             streaming=True,
         )

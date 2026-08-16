@@ -1,8 +1,8 @@
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { InputResponse, SendTurnPayload } from "eve/client";
+import { InputResponse } from "eve/client";
 
-import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, UseEveAgentOptions } from "eve/react";
+import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, UseEveAgentHelpers, UseEveAgentOptions } from "eve/react";
 
 type AddToolResultOptions = {
   messageId: string;
@@ -331,6 +331,18 @@ type EveAuthorizationData = {
   readonly reason?: string;
 };
 
+type EveMessageContent = string | ({
+  readonly type: "text";
+  readonly text: string;
+} | {
+  readonly type: "file";
+  readonly data: string;
+  readonly mediaType: string;
+  readonly filename?: string;
+})[];
+
+type EveRuntimeExtras = Pick<UseEveAgentHelpers<EveMessageData>, "error" | "events" | "reset" | "session">;
+
 type ExportedMessageRepository = {
   headId?: string | null;
   messages: Array<{
@@ -441,6 +453,8 @@ type ExternalThreadQueueAdapter = {
   move: (queueItemId: string, placement: QueuePlacement) => void;
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
+  __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
+  __internal_notifyCancelled?: (() => void) | undefined;
 };
 
 type FeedbackAdapter = {
@@ -458,6 +472,7 @@ type FileMessagePart = {
   readonly data: string;
   readonly mimeType: string;
   readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -506,6 +521,7 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 interface JSONSchema7 {
@@ -1186,6 +1202,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -1497,7 +1514,7 @@ declare const convertEveMessage: (message: EveMessage, index: number, messages: 
 
 declare const convertEveMessages: (data: EveMessageData, options?: ConvertEveMessagesOptions) => ThreadMessage[];
 
-declare const getEveMessageContent: (message: AppendMessage) => NonNullable<SendTurnPayload["message"]>;
+declare const getEveMessageContent: (message: AppendMessage) => EveMessageContent;
 
 declare global {
   interface Window {
@@ -1507,11 +1524,19 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { ConvertEveMessagesOptions, EveAuthorizationData, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime };
+  export { ConvertEveMessagesOptions, EveAuthorizationData, EveMessageContent, EveRuntimeExtras, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime, useEveError, useEveEvents, useEveReset, useEveSession };
 }
 
 declare const toEveInputResponse: (response: RespondToToolApprovalOptions) => InputResponse;
 
 declare const useEveAgentRuntime: (options?: UseEveAgentRuntimeOptions) => AssistantRuntime;
+
+declare const useEveError: () => Error | undefined;
+
+declare const useEveEvents: () => readonly import("eve/client").MessageStreamEvent[];
+
+declare const useEveReset: () => () => void;
+
+declare const useEveSession: () => import("eve/client").ClientSessionState | undefined;
 
 export { entry_root_exports as entry_root };

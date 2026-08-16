@@ -8,6 +8,7 @@ import {
   type QueueItemState,
 } from "../../store/scopes/queue-item";
 import { generateId } from "../../utils/id";
+import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import { getThreadMessageText } from "../../utils/text";
 import type {
   ExternalThreadQueueAdapter,
@@ -79,13 +80,15 @@ export const createMessageQueue = (
 
   let running = false;
   let paused = false;
+  let dispatchTransform: (message: AppendMessage) => AppendMessage = (m) => m;
   // swallow the cancelled run's settle when steering so it does not double-advance
   let suppressIdle = 0;
   // settles from cancelled runs that must drop `running` without advancing
   let cancelSettles = 0;
+  let interrupting = false;
 
   const notify = () => {
-    for (const callback of subscribers) callback();
+    notifyEventListeners(subscribers, undefined, "Message queue");
   };
 
   const setLanes = (next: Record<Lane, readonly QueueItemState[]>) => {
@@ -117,7 +120,7 @@ export const createMessageQueue = (
     setLanes({ ...lanes, [lane]: lanes[lane].slice(1) });
     if (!message) return;
     running = true;
-    driver.run(message, { steer: false });
+    driver.run(dispatchTransform(message), { steer: false });
   };
 
   const interrupt = (message: AppendMessage) => {
@@ -126,9 +129,17 @@ export const createMessageQueue = (
     // already cancel-notified
     suppressIdle += Math.max(cancelSettles, 1);
     cancelSettles = 0;
-    driver.cancel!();
+    // a driver whose cancel routes through the runtime notifies this queue
+    // back; the interrupt already accounted for that settle and is dispatching
+    // in its place
+    interrupting = true;
+    try {
+      driver.cancel!();
+    } finally {
+      interrupting = false;
+    }
     running = true;
-    driver.run(message, { steer: true });
+    driver.run(dispatchTransform(message), { steer: true });
   };
 
   const push = (lane: Lane, message: AppendMessage) => {
@@ -241,6 +252,14 @@ export const createMessageQueue = (
     });
   };
 
+  const notifyCancelled = () => {
+    if (interrupting) return;
+    if (running && cancelSettles === 0) {
+      paused = true;
+      cancelSettles = 1;
+    }
+  };
+
   const adapter: ExternalThreadQueueAdapter = {
     items: lanes.queue,
     steerItems: lanes.steer,
@@ -249,6 +268,10 @@ export const createMessageQueue = (
     move,
     edit,
     remove,
+    __internal_setDispatchTransform: (transform) => {
+      dispatchTransform = transform;
+    },
+    __internal_notifyCancelled: notifyCancelled,
   };
 
   return {
@@ -270,12 +293,7 @@ export const createMessageQueue = (
       running = false;
       advance();
     },
-    notifyCancelled: () => {
-      if (running && cancelSettles === 0) {
-        paused = true;
-        cancelSettles = 1;
-      }
-    },
+    notifyCancelled,
     clear: () => {
       messages.clear();
       setLanes({ queue: EMPTY_QUEUE_ITEMS, steer: EMPTY_QUEUE_ITEMS });

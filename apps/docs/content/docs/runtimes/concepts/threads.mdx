@@ -230,13 +230,13 @@ A thread that has not been sent yet is left alone because it holds no remote sta
 
 What happens to a run in progress depends on the path. The remount path drops the runtime that was rendering the run; whether the run itself stops is up to that hook's unmount cleanup, which core cannot enforce. On the in-place path the runtime that declared the capability decides, since core does not stop the run for it. Either way this belongs on an event rather than a short timer: drive it from a state change like the one above, or skip the call while `useAuiState((s) => s.thread.isRunning)` is true.
 
-How the refetch happens depends on the runtime, in one of three ways. When it declares the capability, the thread runtime is reused: composer drafts survive, existing messages stay rendered while the fresh state loads, and the returned promise settles with the refetch, rejecting if it fails. A remote thread list without the capability remounts the runtime hook instead, which re-runs `load()` at the cost of discarding unsent composer input, and resolves once the new runtime attaches. The single and in-memory thread lists hold no remote state and have no hook to remount, so there it resolves without doing anything.
+How the refetch happens depends on the runtime, in one of three ways. When it declares the capability, the thread runtime is reused: composer drafts survive, existing messages stay rendered while the fresh state loads, and the returned promise settles with the refetch, rejecting if it fails. A remote thread list without the capability remounts the runtime hook instead, which re-runs `load()` at the cost of discarding unsent composer input, and resolves once the new runtime attaches. The single and in-memory thread lists have no hook to remount: they take the in-place path when their tap `ExternalThread` was given `onRefetchThread`, and resolve without doing anything when it was not.
 
 `useAuiState((s) => s.thread.capabilities.refetchThread)` reports which of those you would get, in place or not. It is not a signal for whether to offer a refresh at all: it is false on the remount path, where the call still does the work, and false again where the call does nothing.
 
 Both the LangGraph and Google ADK adapters register the in-place refetch capability when their runtime hook receives a `load` function; without one they fall back to the remount path. Other remote adapters take the remount path unless they provide the capability themselves.
 
-For an external store runtime, declare it with `onRefetchThread`, which is unrelated to `onReload` (that one re-generates an assistant message):
+For an external store runtime, declare it with `onRefetchThread`, which is unrelated to `onReload` (that one re-generates an assistant message); the tap `ExternalThread` accepts the same prop:
 
 ```ts
 useExternalStoreRuntime({

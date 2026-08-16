@@ -1,15 +1,18 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { paper } from "./surfaces";
 
-export interface SuggestionsProps {
+export interface SuggestionsProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   suggestions: readonly string[];
   selectedSuggestion: string | null;
   cycle: number;
   onSuggestion: (suggestion: string) => void;
   variant?: "pills" | "list";
-  className?: string;
 }
 
 export function Suggestions({
@@ -19,11 +22,13 @@ export function Suggestions({
   onSuggestion,
   variant = "pills",
   className,
+  ...props
 }: SuggestionsProps) {
   const list = variant === "list";
 
   return (
     <div
+      data-slot="suggestions"
       key={cycle}
       className={cn(
         list
@@ -31,6 +36,8 @@ export function Suggestions({
           : "flex max-w-md flex-wrap justify-center gap-2",
         className,
       )}
+
+      {...props}
     >
       {suggestions.map((suggestion, index) => (
         <button

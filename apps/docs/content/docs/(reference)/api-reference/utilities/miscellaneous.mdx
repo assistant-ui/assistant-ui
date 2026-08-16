@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
+import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, MessageNotSentError, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -58,6 +58,23 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 ### InMemoryThreadList
 
 <ParametersTable {...InMemoryThreadList} />
+
+### isMessageNotSentError
+
+```ts
+const isMessageNotSentError: (error: unknown) => error is MessageNotSentError;
+```
+
+### MessageNotSentError
+
+Rejection reason for a send that never reached the backend, so nothing ran
+and nothing is recoverable from the thread. A runtime adapter throws it from
+`onNew` to hand the message back to the thread composer, which restores the
+draft it cleared at dispatch time when nothing has claimed the composer
+since. An edit composer closes at dispatch, so a rejected edit is not
+restored.
+
+<ParametersTable {...MessageNotSentError} />
 
 ### SingleThreadList
 
