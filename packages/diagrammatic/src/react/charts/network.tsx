@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Graph } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
-import { radialNetwork } from "../../core/layout";
+import { placeNetworkLabels, radialNetwork } from "../../core/layout";
 import { ACCENT, SURFACE, ink } from "../../core/theme";
 import { ChartSvg, typeScale, vbHeight } from "../svg";
 
@@ -21,6 +21,25 @@ export const Network = forwardRef<SVGSVGElement, NetworkProps>(
     }
     const maxDegree = Math.max(...degree.values(), 1);
     const hub = [...degree.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
+    const marks = graph.nodes.flatMap((node) => {
+      const p = positions.get(node.id);
+      if (!p) return [];
+      const d = degree.get(node.id) ?? 0;
+      return [
+        {
+          id: node.id,
+          label: node.label ?? "",
+          x: p.x,
+          y: p.y,
+          r: 2.8 + (d / maxDegree) * 5.2,
+        },
+      ];
+    });
+    const labels = placeNetworkLabels(
+      marks.filter((mark) => mark.label),
+      { x0: 3, y0: 3, x1: 197, y1: vh - 3 },
+      T.label.fontSize,
+    );
     return (
       <ChartSvg
         ref={ref}
@@ -50,31 +69,29 @@ export const Network = forwardRef<SVGSVGElement, NetworkProps>(
             />
           );
         })}
-        {graph.nodes.map((node) => {
-          const p = positions.get(node.id);
-          if (!p) return null;
-          const d = degree.get(node.id) ?? 0;
-          const r = 2.8 + (d / maxDegree) * 5.2;
-          const isHub = node.id === hub;
+        {marks.map((mark) => {
+          const label = labels.get(mark.id);
           return (
-            <g key={node.id} data-part="mark" data-series={node.id}>
+            <g key={mark.id} data-part="mark" data-series={mark.id}>
               <circle
-                cx={round(p.x)}
-                cy={round(p.y)}
-                r={round(r)}
-                fill={isHub ? ACCENT : ink(0.5)}
+                cx={round(mark.x)}
+                cy={round(mark.y)}
+                r={round(mark.r)}
+                fill={mark.id === hub ? ACCENT : ink(0.5)}
               />
-              {node.label && (
+              {label && (
                 <text
-                  x={round(p.x + r + 3)}
-                  y={round(p.y + 1.8)}
+                  x={round(label.x)}
+                  y={round(label.y)}
+                  textAnchor={label.textAnchor}
+                  dominantBaseline={label.dominantBaseline}
                   stroke={SURFACE}
                   strokeWidth="2.5"
                   strokeLinejoin="round"
                   paintOrder="stroke"
-                  {...T.axis}
+                  {...T.label}
                 >
-                  {node.label}
+                  {mark.label}
                 </text>
               )}
             </g>

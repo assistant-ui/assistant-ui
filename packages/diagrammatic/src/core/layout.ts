@@ -350,6 +350,229 @@ export function radialNetwork(
   return positions;
 }
 
+export type NetworkLabel = {
+  id: string;
+  x: number;
+  y: number;
+  textAnchor: "start" | "middle" | "end";
+  dominantBaseline: "auto" | "hanging" | "central";
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+};
+
+type LabelSlot = {
+  dx: number;
+  dy: number;
+  textAnchor: NetworkLabel["textAnchor"];
+  dominantBaseline: NetworkLabel["dominantBaseline"];
+};
+
+const LABEL_SLOTS: LabelSlot[] = [
+  { dx: 1, dy: 0, textAnchor: "start", dominantBaseline: "central" },
+  { dx: 1, dy: 1, textAnchor: "start", dominantBaseline: "hanging" },
+  { dx: 0, dy: 1, textAnchor: "middle", dominantBaseline: "hanging" },
+  { dx: -1, dy: 1, textAnchor: "end", dominantBaseline: "hanging" },
+  { dx: -1, dy: 0, textAnchor: "end", dominantBaseline: "central" },
+  { dx: -1, dy: -1, textAnchor: "end", dominantBaseline: "auto" },
+  { dx: 0, dy: -1, textAnchor: "middle", dominantBaseline: "auto" },
+  { dx: 1, dy: -1, textAnchor: "start", dominantBaseline: "auto" },
+];
+
+type NetworkLabelNode = {
+  id: string;
+  label: string;
+  x: number;
+  y: number;
+  r: number;
+};
+
+function labelMetrics(text: string, fontSize: number) {
+  return { w: Math.max(1, text.length) * fontSize * 0.62, h: fontSize * 1.2 };
+}
+
+function slotBox(
+  node: NetworkLabelNode,
+  slot: LabelSlot,
+  fontSize: number,
+): Omit<NetworkLabel, "id"> {
+  const { w, h } = labelMetrics(node.label, fontSize);
+  const reach = node.r + 2.4;
+  const x = node.x + slot.dx * reach;
+  const y = node.y + slot.dy * reach;
+  const left =
+    slot.textAnchor === "start"
+      ? x
+      : slot.textAnchor === "end"
+        ? x - w
+        : x - w / 2;
+  const right = left + w;
+  const top =
+    slot.dominantBaseline === "hanging"
+      ? y
+      : slot.dominantBaseline === "central"
+        ? y - h / 2
+        : y - h * 0.8;
+  const bottom = top + h;
+  return {
+    x,
+    y,
+    textAnchor: slot.textAnchor,
+    dominantBaseline: slot.dominantBaseline,
+    left,
+    right,
+    top,
+    bottom,
+  };
+}
+
+function boxHitsCircle(
+  box: { left: number; right: number; top: number; bottom: number },
+  x: number,
+  y: number,
+  r: number,
+): number {
+  const nx = Math.max(box.left, Math.min(x, box.right));
+  const ny = Math.max(box.top, Math.min(y, box.bottom));
+  return Math.max(0, r - Math.hypot(x - nx, y - ny));
+}
+
+function boxHitsBox(
+  a: { left: number; right: number; top: number; bottom: number },
+  b: { left: number; right: number; top: number; bottom: number },
+): number {
+  const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+  const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+function octantIndex(dx: number, dy: number): number {
+  const angle = Math.atan2(dy, dx);
+  return ((Math.round(angle / (Math.PI / 4)) % 8) + 8) % 8;
+}
+
+function openOctant(
+  x: number,
+  y: number,
+  others: readonly NetworkLabelNode[],
+): number {
+  if (others.length === 0) return 6;
+  const angles = others
+    .map((node) => Math.atan2(node.y - y, node.x - x))
+    .sort((a, b) => a - b);
+  let bestMid = angles[0]! + Math.PI;
+  let bestSpan = -1;
+  for (let i = 0; i < angles.length; i += 1) {
+    const a = angles[i]!;
+    const b = angles[(i + 1) % angles.length]!;
+    const span = i === angles.length - 1 ? b + Math.PI * 2 - a : b - a;
+    if (span > bestSpan) {
+      bestSpan = span;
+      bestMid = a + span / 2;
+    }
+  }
+  return octantIndex(Math.cos(bestMid), Math.sin(bestMid));
+}
+
+function nearestClearance(
+  node: NetworkLabelNode,
+  nodes: readonly NetworkLabelNode[],
+): number {
+  let gap = Infinity;
+  for (const other of nodes) {
+    if (other.id === node.id) continue;
+    gap = Math.min(
+      gap,
+      Math.hypot(other.x - node.x, other.y - node.y) - node.r - other.r,
+    );
+  }
+  return gap;
+}
+
+/**
+ * Labels the largest marks, plus a smaller mark only when its nearest
+ * neighbor leaves room for the name. Crowded leaves stay unlabeled.
+ */
+export function placeNetworkLabels(
+  nodes: readonly NetworkLabelNode[],
+  bounds: { x0: number; y0: number; x1: number; y1: number },
+  fontSize: number,
+): Map<string, NetworkLabel> {
+  if (nodes.length === 0) return new Map();
+  const cx = nodes.reduce((sum, node) => sum + node.x, 0) / nodes.length;
+  const cy = nodes.reduce((sum, node) => sum + node.y, 0) / nodes.length;
+  const maxR = Math.max(...nodes.map((node) => node.r));
+  const forced = new Set(
+    [...nodes]
+      .sort((a, b) => b.r - a.r || a.id.localeCompare(b.id))
+      .filter((node) => node.r >= maxR * 0.72)
+      .slice(0, 3)
+      .map((node) => node.id),
+  );
+  const order = [...nodes].sort((a, b) => {
+    const fa = forced.has(a.id) ? 1 : 0;
+    const fb = forced.has(b.id) ? 1 : 0;
+    if (fa !== fb) return fb - fa;
+    if (a.r !== b.r) return b.r - a.r;
+    return (
+      Math.hypot(b.x - cx, b.y - cy) - Math.hypot(a.x - cx, a.y - cy) ||
+      a.id.localeCompare(b.id)
+    );
+  });
+  const placed: NetworkLabel[] = [];
+  const byId = new Map<string, NetworkLabel>();
+  for (const node of order) {
+    const preferred =
+      Math.hypot(node.x - cx, node.y - cy) < 1
+        ? openOctant(
+            node.x,
+            node.y,
+            nodes.filter((other) => other.id !== node.id),
+          )
+        : octantIndex(node.x - cx, node.y - cy);
+    let best: NetworkLabel | undefined;
+    let bestScore = Infinity;
+    for (let i = 0; i < LABEL_SLOTS.length; i += 1) {
+      const slot = LABEL_SLOTS[i]!;
+      const box = slotBox(node, slot, fontSize);
+      const steps = Math.min((i - preferred + 8) % 8, (preferred - i + 8) % 8);
+      let score = steps * 4 + (slot.dx !== 0 && slot.dy !== 0 ? 1.5 : 0);
+      score +=
+        Math.max(0, bounds.x0 - box.left) * 80 +
+        Math.max(0, box.right - bounds.x1) * 80 +
+        Math.max(0, bounds.y0 - box.top) * 80 +
+        Math.max(0, box.bottom - bounds.y1) * 80;
+      for (const other of nodes) {
+        const r = other.id === node.id ? other.r * 0.35 : other.r + 1.2;
+        const hit = boxHitsCircle(box, other.x, other.y, r);
+        if (hit > 0) score += 90 + hit * 40;
+      }
+      for (const label of placed) {
+        const hit = boxHitsBox(box, {
+          left: label.left - 0.8,
+          right: label.right + 0.8,
+          top: label.top - 0.6,
+          bottom: label.bottom + 0.6,
+        });
+        if (hit > 0) score += 40 + hit * 8;
+      }
+      if (score < bestScore) {
+        bestScore = score;
+        best = { id: node.id, ...box };
+      }
+    }
+    const isolated =
+      nearestClearance(node, nodes) >=
+      Math.max(fontSize * 5, labelMetrics(node.label, fontSize).w);
+    if (best && (forced.has(node.id) || (isolated && bestScore < 24))) {
+      placed.push(best);
+      byId.set(node.id, best);
+    }
+  }
+  return byId;
+}
+
 export type SankeyNode = {
   id: string;
   label: string;

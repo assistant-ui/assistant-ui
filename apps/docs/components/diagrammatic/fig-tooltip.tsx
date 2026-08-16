@@ -50,17 +50,13 @@ export function FigTooltip({
               matrix.columns?.[index],
             ].filter(Boolean);
             return (
-              <div className="w-max border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
-                {where.length > 0 && (
-                  <p className="mb-0.5 text-[10px] tracking-[0.08em] text-[#1a1b1e]/50 uppercase">
-                    {where.join(" · ")}
-                  </p>
-                )}
-                <p className="text-right tabular-nums">
+              <Tip>
+                {where.length > 0 && <Head>{where.join(" · ")}</Head>}
+                <span className="tabular-nums">
                   {cell}
                   {unit}
-                </p>
-              </div>
+                </span>
+              </Tip>
             );
           }
           if (datum.series !== undefined && (entries || datum.series2)) {
@@ -70,17 +66,21 @@ export function FigTooltip({
             const value = entries?.[key];
             if (value !== undefined || datum.series2) {
               return (
-                <div className="w-max border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
-                  <p className="flex items-baseline gap-3">
-                    <span className="text-[#1a1b1e]/60">{key}</span>
-                    {value !== undefined && (
-                      <span className="ml-auto text-right tabular-nums">
-                        {value}
-                        {unit}
-                      </span>
-                    )}
-                  </p>
-                </div>
+                <Tip>
+                  <Row
+                    name={key}
+                    {...(value !== undefined
+                      ? {
+                          value: (
+                            <>
+                              {value}
+                              {unit}
+                            </>
+                          ),
+                        }
+                      : {})}
+                  />
+                </Tip>
               );
             }
           }
@@ -108,56 +108,102 @@ export function FigTooltip({
           );
           if (!title && rows.length === 0 && !datum.series) return null;
           return (
-            <div className="w-max border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
-              {title && (
-                <p className="mb-1 text-[10px] tracking-[0.08em] text-[#1a1b1e]/50 uppercase">
-                  {title}
-                </p>
-              )}
-              {rows.length > 0 ? (
-                <table className="border-separate border-spacing-0">
-                  <tbody>
-                    {rows.map((row) => (
-                      <tr
-                        key={row.name}
-                        className={
-                          !datum.series || row.name === datum.series
-                            ? "text-[#1a1b1e]"
-                            : "text-[#1a1b1e]/45"
-                        }
-                      >
-                        <td className="pr-1.5">
-                          <span
-                            className="inline-block size-2"
-                            style={{ background: row.color }}
-                          />
-                        </td>
-                        <td className="pr-3">{row.name}</td>
-                        <td className="text-right tabular-nums">
+            <Tip>
+              {title && <Head>{title}</Head>}
+              {rows.length === 1 && title ? (
+                <span className="tabular-nums">
+                  {rows[0]!.value}
+                  {unit}
+                </span>
+              ) : rows.length > 0 ? (
+                <div className="flex flex-col gap-px">
+                  {rows.map((row) => (
+                    <Row
+                      key={row.name}
+                      name={row.name}
+                      value={
+                        <>
                           {row.value}
                           {unit}
-                        </td>
-                      </tr>
-                    ))}
-                    {total && rows.length > 1 && (
-                      <tr className="text-[#1a1b1e]">
-                        <td />
-                        <td className="pt-1 pr-3">total</td>
-                        <td className="pt-1 text-right tabular-nums">
-                          {sum}
-                          {unit}
-                        </td>
-                      </tr>
-                    )}
-                  </tbody>
-                </table>
+                        </>
+                      }
+                      {...(row.color ? { color: row.color } : {})}
+                      dim={!!datum.series && row.name !== datum.series}
+                    />
+                  ))}
+                  {total && rows.length > 1 && (
+                    <div className="mt-0.5 border-t border-black/10 pt-1">
+                      <Row
+                        name="total"
+                        pad
+                        value={
+                          <>
+                            {sum}
+                            {unit}
+                          </>
+                        }
+                      />
+                    </div>
+                  )}
+                </div>
               ) : (
                 datum.series && <p>{datum.series}</p>
               )}
-            </div>
+            </Tip>
           );
         }}
       </Tooltip>
     </Root>
+  );
+}
+
+function Tip({ children }: { children: ReactNode }) {
+  return (
+    <div className="not-prose w-max border border-black/10 bg-white/98 px-2 py-1.5 font-[family-name:var(--font-mono)] text-[11px]/[14px] text-[#1a1b1e] shadow-md">
+      {children}
+    </div>
+  );
+}
+
+function Head({ children }: { children: ReactNode }) {
+  return (
+    <p className="mb-1 text-[10px]/[12px] text-[#1a1b1e]/45">{children}</p>
+  );
+}
+
+function Row({
+  name,
+  value,
+  color,
+  dim,
+  pad,
+}: {
+  name: ReactNode;
+  value?: ReactNode;
+  color?: string;
+  dim?: boolean;
+  pad?: boolean;
+}) {
+  return (
+    <div
+      className={
+        dim
+          ? "flex items-baseline gap-1.5 text-[#1a1b1e]/45"
+          : "flex items-baseline gap-1.5"
+      }
+    >
+      {color ? (
+        <span
+          className="inline-block size-1.5 shrink-0 self-center"
+          style={{ background: color }}
+        />
+      ) : pad ? (
+        <span className="inline-block size-1.5 shrink-0" />
+      ) : null}
+      <span>{name}</span>
+      {value !== undefined ? (
+        <span className="tabular-nums">{value}</span>
+      ) : null}
+    </div>
   );
 }

@@ -4,6 +4,8 @@ import {
   dendrogram,
   packSiblings,
   partition,
+  placeNetworkLabels,
+  radialNetwork,
   sankeyColumns,
   sankeyTwoColumn,
   squarify,
@@ -188,6 +190,108 @@ describe("chordLayout", () => {
       arcs[0]!.end - arcs[0]!.start,
       5,
     );
+  });
+});
+
+describe("placeNetworkLabels", () => {
+  const bounds = { x0: 0, y0: 0, x1: 200, y1: 120 };
+
+  it("puts a label on the outside of a side node, not always to the right", () => {
+    const labels = placeNetworkLabels(
+      [
+        { id: "hub", label: "hub", x: 100, y: 60, r: 8 },
+        { id: "west", label: "west", x: 54, y: 60, r: 5 },
+        { id: "east", label: "east", x: 146, y: 60, r: 5 },
+      ],
+      bounds,
+      3.6,
+    );
+    expect(labels.get("west")!.textAnchor).toBe("end");
+    expect(labels.get("west")!.x).toBeLessThan(54);
+    expect(labels.get("east")!.textAnchor).toBe("start");
+    expect(labels.get("east")!.x).toBeGreaterThan(146);
+    expect(labels.get("hub")!.textAnchor).toBe("middle");
+  });
+
+  it("labels the largest marks and skips crowded leaves", () => {
+    const graph = {
+      nodes: [
+        { id: "gw", label: "gateway" },
+        { id: "checkout", label: "checkout" },
+        { id: "pay", label: "payments" },
+        { id: "inv", label: "inventory" },
+        { id: "price", label: "pricing" },
+        { id: "auth", label: "auth" },
+        { id: "cart", label: "cart" },
+        { id: "risk", label: "risk" },
+        { id: "email", label: "email" },
+        { id: "flag", label: "flags" },
+      ],
+      links: [
+        { source: "gw", target: "checkout" },
+        { source: "gw", target: "auth" },
+        { source: "gw", target: "cart" },
+        { source: "gw", target: "flag" },
+        { source: "checkout", target: "pay" },
+        { source: "checkout", target: "inv" },
+        { source: "checkout", target: "price" },
+        { source: "checkout", target: "risk" },
+        { source: "pay", target: "risk" },
+        { source: "pay", target: "email" },
+        { source: "cart", target: "inv" },
+        { source: "auth", target: "flag" },
+      ],
+    };
+    const positions = radialNetwork(graph, 100, 70, 46);
+    const degree = new Map<string, number>();
+    for (const link of graph.links) {
+      degree.set(link.source, (degree.get(link.source) ?? 0) + 1);
+      degree.set(link.target, (degree.get(link.target) ?? 0) + 1);
+    }
+    const maxDegree = Math.max(...degree.values());
+    const marks = graph.nodes.map((node) => {
+      const p = positions.get(node.id)!;
+      return {
+        id: node.id,
+        label: node.label,
+        x: p.x,
+        y: p.y,
+        r: 2.8 + ((degree.get(node.id) ?? 0) / maxDegree) * 5.2,
+      };
+    });
+    const labels = placeNetworkLabels(marks, bounds, 3.6);
+    expect(labels.has("checkout")).toBe(true);
+    expect(labels.has("gw")).toBe(true);
+    expect(labels.has("pay")).toBe(true);
+    expect(labels.has("inv")).toBe(false);
+    expect(labels.size).toBeGreaterThanOrEqual(3);
+    expect(labels.size).toBeLessThan(6);
+    const boxes = [...labels.values()];
+    for (let i = 0; i < boxes.length; i += 1) {
+      for (let k = i + 1; k < boxes.length; k += 1) {
+        const a = boxes[i]!;
+        const b = boxes[k]!;
+        const w = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+        const h = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+        expect(w <= 0 || h <= 0).toBe(true);
+      }
+    }
+  });
+
+  it("labels an isolated leaf and leaves a packed pair unnamed", () => {
+    const labels = placeNetworkLabels(
+      [
+        { id: "hub", label: "hub", x: 100, y: 60, r: 8 },
+        { id: "a", label: "a", x: 128, y: 60, r: 3 },
+        { id: "b", label: "b", x: 136, y: 60, r: 3 },
+        { id: "solo", label: "solo", x: 36, y: 28, r: 3 },
+      ],
+      bounds,
+      3.6,
+    );
+    expect(labels.has("hub")).toBe(true);
+    expect(labels.has("solo")).toBe(true);
+    expect(labels.has("a") && labels.has("b")).toBe(false);
   });
 });
 
