@@ -726,6 +726,56 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     expect(runs).toHaveLength(1);
   });
 
+  it.each([
+    { label: "fails", settle: "reject" as const },
+    { label: "succeeds", settle: "resolve" as const },
+  ])(
+    "keeps history importable when a released stalled upload later $label",
+    async ({ settle }) => {
+      const { thread, uploads, appended } = createOptimisticThread({
+        history: {},
+      });
+
+      thread.composer.setText("stalled attachment");
+      await thread.composer.addAttachment(textFile());
+      const firstSend = thread.composer.send();
+      void firstSend.catch(() => {});
+      await flush();
+
+      thread.composer.setText("released message");
+      void thread.composer.send().catch(() => {});
+      await flush();
+
+      thread.cancelRun();
+      await flush();
+
+      if (settle === "reject") {
+        uploads[0]!.reject(new Error("upload failed"));
+        await expect(firstSend).rejects.toThrow("upload failed");
+      } else {
+        uploads[0]!.resolve();
+        await firstSend;
+      }
+      await flush();
+
+      // Every persisted parentId must reference an already-persisted message,
+      // or the next history load cannot import the log.
+      const persistedIds = new Set<string>();
+      for (const item of appended) {
+        if (item.parentId !== null) {
+          expect(persistedIds.has(item.parentId)).toBe(true);
+        }
+        persistedIds.add(item.message.id);
+      }
+      const released = appended.find(
+        (item) =>
+          item.message.content[0]?.type === "text" &&
+          item.message.content[0].text === "released message",
+      );
+      expect(released).toBeDefined();
+    },
+  );
+
   it("returns the uploaded draft to the composer when the thread is reset mid-upload", async () => {
     const { thread, runs, uploads } = createOptimisticThread();
 

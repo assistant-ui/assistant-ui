@@ -97,11 +97,30 @@ export class LocalThreadRuntimeCore
   // only unblocks waiters and queued sends; the stalled send itself is not
   // invalidated, matching the lock path where a send that settles after a
   // cancelled run still appends and starts its run.
-  private _awaitAttachmentSend(pending: Promise<void>): Promise<void> {
+  private _awaitAttachmentSend(
+    pending: Promise<void>,
+  ): Promise<"settled" | "released"> {
     this._attachmentSendReleased ??= new Promise<void>((resolve) => {
       this._releaseAttachmentSend = resolve;
     });
-    return Promise.race([pending, this._attachmentSendReleased]);
+    return Promise.race([
+      pending.then(() => "settled" as const),
+      this._attachmentSendReleased.then(() => "released" as const),
+    ]);
+  }
+
+  // Ids of optimistic placeholders whose uploads have not settled. A released
+  // waiter must not record one as its durable parent: the upload can still
+  // fail and delete it, orphaning the recorded parentId in history, and a run
+  // parented under it would hand the model an attachment without content.
+  private _unsettledOptimisticIds = new Set<string>();
+
+  private _nearestSettledParentId(parentId: string | null): string | null {
+    let current = parentId;
+    while (current !== null && this._unsettledOptimisticIds.has(current)) {
+      current = this.repository.getMessage(current).parentId;
+    }
+    return current;
   }
 
   private _releasePendingAttachmentSend(): void {
@@ -413,9 +432,25 @@ export class LocalThreadRuntimeCore
     const pendingAttachmentSend = this._pendingAttachmentSend;
     if (pendingAttachmentSend) {
       this._notifySubscribers();
-      await this._awaitAttachmentSend(pendingAttachmentSend);
+      const outcome = await this._awaitAttachmentSend(pendingAttachmentSend);
       // This await is unbounded: it lasts as long as the upload ahead of it.
       if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      // A released waiter moves off the unsettled branch before persisting or
+      // running: its durable parent and its run context must not include a
+      // placeholder whose upload can still fail. The placeholder, once
+      // complete, re-parents under the current tail through its own path.
+      if (outcome === "released") {
+        try {
+          const item = this.repository.getMessage(newMessage.id);
+          const settledParentId = this._nearestSettledParentId(item.parentId);
+          if (settledParentId !== item.parentId) {
+            this.repository.addOrUpdateMessage(settledParentId, item.message);
+            this._notifySubscribers();
+          }
+        } catch {
+          return;
+        }
+      }
     }
 
     // A rolled back optimistic parent relinks its children, so the persisted
@@ -480,6 +515,7 @@ export class LocalThreadRuntimeCore
       { type: "complete", reason: "unknown" },
     );
     this.repository.addOrUpdateMessage(message.parentId, optimisticMessage);
+    this._unsettledOptimisticIds.add(optimisticMessage.id);
     this._notifySubscribers();
 
     await this._chainAttachmentSend(async () => {
@@ -488,6 +524,7 @@ export class LocalThreadRuntimeCore
         if (initPromise) await initPromise;
         attachments = await uploadAttachments();
       } catch (e) {
+        this._unsettledOptimisticIds.delete(optimisticMessage.id);
         this.repository.deleteMessage(optimisticMessage.id);
         this._notifySubscribers();
         throw e;
@@ -498,6 +535,7 @@ export class LocalThreadRuntimeCore
       // that cleared the repository) has nowhere to land. The composer was
       // emptied at dispatch, so the uploaded draft is offered back to it
       // rather than dropped without a message or an error.
+      this._unsettledOptimisticIds.delete(optimisticMessage.id);
       let parentId: string | null;
       try {
         parentId = this.repository.getMessage(optimisticMessage.id).parentId;
@@ -517,6 +555,10 @@ export class LocalThreadRuntimeCore
       if (!this._isAncestorOfHead(optimisticMessage.id)) {
         parentId = this.repository.headId;
       }
+      // A queued optimistic send freed by a release completes while the
+      // placeholder ahead of it is still unsettled; it lands beside it, not
+      // under it, for the same reason a released plain append moves.
+      parentId = this._nearestSettledParentId(parentId);
       const completedMessage = {
         ...optimisticMessage,
         attachments,
