@@ -940,6 +940,16 @@ export class LocalThreadRuntimeCore
     return message;
   }
 
+  public override reset(
+    initialMessages?: readonly ThreadMessageLike[],
+  ): void {
+    // Resetting discards the repository, so nothing a stalled upload was
+    // ordering still exists; without this, sends after a reset would wait on
+    // that upload with no runtime escape hatch.
+    this._releasePendingAttachmentSend();
+    super.reset(initialMessages);
+  }
+
   public detach() {
     invalidateThreadRuntime(this);
     // drop the queue so pending items cannot dispatch on a detached thread

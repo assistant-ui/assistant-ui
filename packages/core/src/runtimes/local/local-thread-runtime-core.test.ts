@@ -776,6 +776,24 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     },
   );
 
+  it("frees sends after a thread reset that discarded a stalled upload", async () => {
+    const { thread, runs } = createOptimisticThread();
+
+    thread.composer.setText("stalled attachment");
+    await thread.composer.addAttachment(textFile());
+    void thread.composer.send().catch(() => {});
+    await flush();
+
+    thread.reset();
+
+    thread.composer.setText("after reset");
+    void thread.composer.send().catch(() => {});
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.map((m) => m.role)).toEqual(["user", "assistant"]);
+  });
+
   it("returns the uploaded draft to the composer when the thread is reset mid-upload", async () => {
     const { thread, runs, uploads } = createOptimisticThread();
 
