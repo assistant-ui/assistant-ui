@@ -281,6 +281,9 @@ function FollowUps() {
             autoSend
           >
             {s.title ?? s.prompt}
+            {s.label && (
+              <span className="text-muted-foreground ms-1">{s.label}</span>
+            )}
           </ThreadPrimitive.Suggestion>
         ))}
       </div>
