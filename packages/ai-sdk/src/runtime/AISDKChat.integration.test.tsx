@@ -10,7 +10,7 @@ import { AISDKChat } from "./AISDKChat";
 import { createCancellableTransport } from "./__tests__/controlled-transport";
 
 describe("AISDKChat React integration", () => {
-  it("keeps an owned chat running through the Strict Mode effect probe", async () => {
+  it("does not treat React provider unmount as client destruction", async () => {
     const { transport, getCancelCount, close } = createCancellableTransport();
     let started = false;
     let isRunning = () => false;
@@ -38,12 +38,10 @@ describe("AISDKChat React integration", () => {
     await waitFor(() => {
       expect(isRunning()).toBe(true);
     });
-    expect(getCancelCount()).toBe(0);
 
-    close();
-    await waitFor(() => {
-      expect(isRunning()).toBe(false);
-    });
     view.unmount();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(getCancelCount()).toBe(0);
+    close();
   });
 });

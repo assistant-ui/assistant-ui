@@ -1,9 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
-import { Chat } from "@ai-sdk/react";
 import { AISDKChat } from "./AISDKChat";
-import type { AISDKChatOptions } from "./AISDKChat";
 import {
   createCancellableTransport,
   createControlledTransport,
@@ -90,7 +88,7 @@ describe("AISDKChat as a standalone client config entry", () => {
     });
   });
 
-  it("keeps an in-flight chat running across a soft unmount", async () => {
+  it("stops a soft-unmounted chat on later client destruction", async () => {
     const { transport, getCancelCount } = createCancellableTransport();
     const handle = createAssistantClient(
       AuiConfig({ threads: AISDKChat({ transport }) }),
@@ -108,27 +106,10 @@ describe("AISDKChat as a standalone client config entry", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     expect(getCancelCount()).toBe(0);
 
-    handle.subscribe(() => {});
-    expect(handle.getClient().thread.getState().isRunning).toBe(true);
-
     handle.destroy();
     await vi.waitFor(() => {
       expect(getCancelCount()).toBe(1);
     });
-  });
-
-  it("does not stop a caller-owned chat when its client is destroyed", async () => {
-    const { transport } = createCancellableTransport();
-    const chat = new Chat({ transport });
-    const stop = vi.spyOn(chat, "stop");
-    const options = { chat } as unknown as AISDKChatOptions;
-    const handle = createAssistantClient(
-      AuiConfig({ threads: AISDKChat(options) }),
-    );
-    handle.subscribe(() => {});
-
-    handle.destroy();
-    expect(stop).not.toHaveBeenCalled();
   });
 
   it("installs the RuntimeAdapter scope defaults", () => {

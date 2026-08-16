@@ -12,7 +12,6 @@ export {
 export { DefaultAssistantClient } from "./utils/react-assistant-context";
 export { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 export {
-  useAssistantClientDestroySignal,
   useAssistantClientRef,
   useAssistantEmit,
   useAssistantScopeEffect,

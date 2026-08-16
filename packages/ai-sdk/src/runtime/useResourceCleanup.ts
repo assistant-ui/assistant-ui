@@ -1,5 +1,5 @@
 import { useEffect, useRef } from "react";
-import { useAssistantClientDestroySignal } from "@assistant-ui/store/client";
+import { useAssistantClientDestroySignal } from "@assistant-ui/store/internal";
 
 export const useResourceCleanup = (enabled: boolean, cleanup: () => void) => {
   const destroySignal = useAssistantClientDestroySignal();
@@ -25,6 +25,8 @@ export const useResourceCleanup = (enabled: boolean, cleanup: () => void) => {
       { once: true },
     );
 
+    // The listener must survive standalone soft unmounts so a later permanent
+    // client destroy still cleans up the retained resource state.
     return undefined;
   }, [destroySignal, enabled]);
 };

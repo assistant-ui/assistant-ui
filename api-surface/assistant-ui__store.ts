@@ -246,7 +246,11 @@ declare const auiConfigBrand: unique symbol;
 declare const clientIdBrand: unique symbol;
 
 declare namespace entry_client_exports {
-  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, useAssistantClientDestroySignal, useAssistantClientRef, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, viewportOverflows };
+  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, useAssistantClientRef, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, viewportOverflows };
+}
+
+declare namespace entry_internal_exports {
+  export { useAssistantClientDestroySignal };
 }
 
 declare const createAssistantClient: (config: AuiConfig.Input | AssistantConfigSource, options?: {
@@ -361,4 +365,4 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
 
 declare const viewportOverflows: (metrics: ViewportMetrics) => boolean;
 
-export { entry_client_exports as entry_client, entry_root_exports as entry_root };
+export { entry_client_exports as entry_client, entry_internal_exports as entry_internal, entry_root_exports as entry_root };
