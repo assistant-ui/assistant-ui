@@ -249,10 +249,6 @@ declare namespace entry_client_exports {
   export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, useAssistantClientRef, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, viewportOverflows };
 }
 
-declare namespace entry_internal_exports {
-  export { useAssistantClientDestroySignal };
-}
-
 declare const createAssistantClient: (config: AuiConfig.Input | AssistantConfigSource, options?: {
   parent?: AssistantClient | AssistantClientSource | undefined;
 }) => AssistantClientHandle;
@@ -284,6 +280,10 @@ declare const getProxiedAssistantState: (client: AssistantClient) => AssistantSt
 
 declare namespace entry_root_exports {
   export { AssistantClient, AssistantClientAccessor, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventScope, AssistantEventSelector, AssistantState, AuiConfig, AuiIf, AuiProvider, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, Derived, DerivedElement, RenderChildrenWithAccessor, ScopeRegistry, ScopesConfig, Unsubscribe, attachTransformScopes, forwardTransformScopes, getClientId, normalizeEventSelector, useAssistantClientRef, useAssistantEmit, useAui, useAuiEvent, useAuiState, useClientList, useClientLookup, useClientResource };
+}
+
+declare namespace entry_internal_exports {
+  export { useAssistantClientDestroySignal };
 }
 
 declare const isUserScrollUp: (previous: {
