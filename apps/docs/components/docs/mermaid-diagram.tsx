@@ -24,7 +24,7 @@ export function MermaidDiagram({ children = "" }: MermaidDiagramProps) {
   } catch {
     return (
       <figure className="my-8">
-        <pre className="bg-muted/75 overflow-x-auto rounded-lg p-4 text-sm">
+        <pre className="bg-code-surface overflow-x-auto rounded-lg p-4 text-sm">
           {children.trim()}
         </pre>
         <p className="text-muted-foreground border-border border-t px-4 py-1.5 text-xs">

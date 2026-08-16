@@ -1,12 +1,14 @@
 import type {
   OAuthTokens,
   OAuthClientInformationFull,
-} from "@modelcontextprotocol/sdk/shared/auth.js";
+  OAuthDiscoveryState,
+} from "@modelcontextprotocol/client";
 
 export type MCPPersistedAuthState = {
   tokens?: OAuthTokens;
   clientInformation?: OAuthClientInformationFull;
   codeVerifier?: string;
+  discoveryState?: OAuthDiscoveryState;
   /** Bearer token (entered at add-form time). */
   token?: string;
 };

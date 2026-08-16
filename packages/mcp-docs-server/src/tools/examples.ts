@@ -1,4 +1,4 @@
-import { z } from "zod/v3";
+import { z } from "zod";
 import { readFile, readdir, lstat } from "node:fs/promises";
 import { join, extname } from "node:path";
 import { CODE_EXAMPLES_PATH, MAX_FILE_SIZE } from "../constants.js";
@@ -63,7 +63,7 @@ export const examplesTools = {
   name: "assistantUIExamples",
   description:
     "List available examples or retrieve complete code for a specific example",
-  parameters: examplesInputSchema.shape,
+  parameters: examplesInputSchema,
   execute: async ({ example }: z.infer<typeof examplesInputSchema>) => {
     try {
       if (!example) {

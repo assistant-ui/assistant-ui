@@ -294,7 +294,6 @@ export function fixJson(input: string): [string, string[]] {
           }
 
           default: {
-            lastValidIndex = i;
             currentKey = "0";
             processValueStart(char, i, "INSIDE_ARRAY_AFTER_VALUE");
             break;

@@ -24,7 +24,8 @@ const useThreadSuggestion = ({
   send?: boolean | undefined;
 
   /**
-   * Whether to clear the composer after sending.
+   * Whether to clear the composer after sending. A send queued while a run is
+   * in progress never clears the composer.
    * When send is set to false, determines if composer text is replaced with suggestion (true, default),
    * or if it's appended to the composer text (false).
    *

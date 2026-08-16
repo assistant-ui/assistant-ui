@@ -109,6 +109,13 @@ type ExternalStoreAdapterBase<T> = {
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
 
+  /**
+   * Applies a message list the runtime rewrote, and is what tells the runtime
+   * a removal it makes will survive the next snapshot. Without it, cancelling a
+   * run leaves a trailing user message in the thread and the composer
+   * untouched; an adapter that removes that message itself owns handing it
+   * back, because the runtime cannot see a removal it did not make.
+   */
   setMessages?: ((messages: readonly T[]) => void) | undefined;
   /**
    * Fires when the user explicitly switches branches via the runtime's
@@ -143,6 +150,15 @@ type ExternalStoreAdapterBase<T> = {
     | undefined;
   onResume?: ((config: ResumeRunConfig) => Promise<void>) | undefined;
   onCancel?: (() => Promise<void>) | undefined;
+  /**
+   * Re-fetches the thread's state from the backing store, in place; a
+   * rejection reaches the `threads.reloadMainThread()` caller. Unrelated to
+   * `onReload`, which re-generates an assistant message.
+   *
+   * The caller does not stop a run in progress first, so an adapter that can
+   * stream owns whatever coordination one needs.
+   */
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?:
     | ((options: AddToolResultOptions) => Promise<void> | void)
     | undefined;

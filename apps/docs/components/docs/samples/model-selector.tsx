@@ -24,6 +24,7 @@ const PROVIDER_NAMES: Record<string, string> = {
   openai: "OpenAI",
   "google-ai-studio": "Google",
   grok: "xAI",
+  deepseek: "DeepSeek",
   groq: "Groq",
 };
 
@@ -33,11 +34,7 @@ function providerOf(modelId: string): string {
 
 const compactNumber = new Intl.NumberFormat("en", { notation: "compact" });
 
-const EFFORT_SUPPORTED_MODELS = new Set([
-  "gpt-5.4-nano",
-  "gpt-5.4-mini",
-  "grok/grok-3-mini",
-]);
+const EFFORT_SUPPORTED_MODELS = new Set(["gpt-5.6-luna"]);
 
 const models: ModelOption[] = [];
 const modelsByProvider = new Map<string, ModelOption[]>();

@@ -9,6 +9,13 @@ export type ThreadListItemState = {
   readonly lastMessageAt?: Date | undefined;
   readonly status: ThreadListItemStatus;
   readonly custom?: Record<string, unknown> | undefined;
+  /**
+   * Whether this thread has a run in progress, including a run that continues
+   * after the user switches to another thread. A thread list that mounts only
+   * the open thread has no runtime to run the others, so they read as not
+   * running rather than as unknown.
+   */
+  readonly isRunning: boolean;
 };
 
 export type ThreadListItemMethods = {
@@ -35,15 +42,16 @@ export type ThreadListItemMeta = {
 
 export type ThreadListItemEvents = {
   /**
-   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
-   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
-   * compatibility.
+   * @deprecated Use `threads.selectionChanged` instead; its `threadId` is the
+   * newly selected thread. Inside a per-item `threadListItem` scope, filter by
+   * `threadId === threadListItem.id` to reproduce the per-item delivery. Kept
+   * for backward compatibility.
    */
   "threadListItem.switchedTo": { threadId: string };
   /**
-   * @deprecated State-derivable. Compare `s.threads.mainThreadId` against the
-   * item's `s.threadListItem.id` via `useAuiState` instead. Kept for backward
-   * compatibility.
+   * @deprecated Use `threads.selectionChanged` instead; its
+   * `previousThreadId` is the thread that was switched away from. Kept for
+   * backward compatibility.
    */
   "threadListItem.switchedAway": { threadId: string };
 };

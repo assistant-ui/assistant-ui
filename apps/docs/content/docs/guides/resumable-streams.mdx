@@ -84,7 +84,7 @@ The context exposes two more verbs: `ctx.status(streamId)` returns `"streaming" 
 
 ## Client side: native integration
 
-`@assistant-ui/react-ai-sdk` ships a `resumable` option on `AssistantChatTransport`. It captures the stream id from the response header, redirects `chat.resumeStream()` reconnects to your resume route, and clears the stored id when the response finishes naturally. Pair it with `useChatRuntime`, which fires `chat.resumeStream()` on mount whenever a pending id is present in storage.
+`@assistant-ui/react-ai-sdk` ships a `resumable` option on `AssistantChatTransport`. It captures the stream id from the response header, redirects `chat.resumeStream()` reconnects to your resume route, and clears the stored id when the response finishes naturally. Pair it with `useChatRuntime`, which fires `chat.resumeStream()` whenever its resumable storage reports a pending id, including ids discovered after mount.
 
 ```tsx title="/app/page.tsx"
 "use client";
@@ -127,11 +127,82 @@ export default function Page() {
 }
 ```
 
-`onResumeError` runs when the client finds a stored stream id but the reconnect attempt fails. Use it to show a toast, report telemetry, or mark the thread as needing retry; assistant-ui still clears the stale stream id after the callback runs.
+`onResumeError` runs when the client finds a stored stream id but the reconnect attempt fails. Use it to show a toast, report telemetry, or mark the thread as needing retry. Assistant-ui clears the failed stream id after the callback unless a newer id has replaced it.
 
-`createResumableSessionStorage` returns a `ResumableClientStorage` backed by `window.sessionStorage`. Pass `{ key }` to namespace per route or per chat surface, or supply your own implementation of the three methods (`getStreamId`, `setStreamId`, `clear`). If you are running on a transport that already wraps `fetch` or `prepareReconnectToStreamRequest`, the `resumable` option composes with your existing handlers.
+`createResumableSessionStorage` returns a `ResumableClientStorage` backed by `window.sessionStorage`. Pass `{ key }` to namespace per route or chat surface; `key` also accepts a getter that is read lazily on every access, so you can derive it from the active thread's identity (see [Multiple threads](#multiple-threads)). While the getter returns `undefined`, reads report no pending stream and writes are dropped. Reuse one storage instance per key, because separate instances do not synchronize their in-memory caches. The persisted entry survives reloads, while in-memory ownership prevents one mounted thread from attaching to another thread's pending stream. An idle follower that learns a stream id from its backend can call `storage.setStreamId(streamId, threadId)` after the corresponding message exists in local history; the runtime attaches when that thread is current, without requiring a remount. The built-in storage holds one pending stream id per key; the [Multiple threads](#multiple-threads) pattern gives each thread its own key, so several threads stay resumable at once. A custom `ResumableClientStorage` can instead key its records by the optional `threadId` arguments and implement `subscribe(listener, threadId)` for post-mount updates, or replace the storage methods entirely. If you are running on a transport that already wraps `fetch` or `prepareReconnectToStreamRequest`, the `resumable` option composes with your existing handlers.
 
 The default finish detector scans the SSE body for the AI SDK `"type":"finish"` marker. Override `isFinishEvent` on the `resumable` option when you ship a custom encoder.
+
+### Multiple threads
+
+The snippet above stores the pending stream id under one `sessionStorage` key, which is correct for a single chat surface. Under a thread list runtime (`useRemoteThreadListRuntime`, which `useChatRuntime` wraps) with more than one alive thread, a single shared key is written and cleared by whichever thread acts last: switch threads while a response is in flight and the response header writes its stream id to the shared key, which the thread you switched to reads on mount and resumes — replaying the other conversation's stream into this one. An unscoped clear when a stream finishes can also drop another thread's pending id. And after a reload, a pending id under the shared key is claimed by whichever thread is main at mount, which with a thread list is a fresh empty thread rather than the one that started the stream.
+
+Scope the key to the thread, and construct the transport and storage per thread inside the per-thread runtime hook rather than once at module level. Derive the key from the thread's identity with a getter so it is read lazily on every access:
+
+```tsx title="/app/page.tsx"
+"use client";
+
+import {
+  AssistantCloud,
+  AssistantRuntimeProvider,
+  useAui,
+  useCloudThreadListAdapter,
+  useRemoteThreadListRuntime,
+} from "@assistant-ui/react";
+import {
+  AssistantChatTransport,
+  createResumableSessionStorage,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
+import { useMemo } from "react";
+import { Thread } from "@/components/assistant-ui/thread";
+import { ThreadList } from "@/components/assistant-ui/thread-list";
+
+const cloud = new AssistantCloud({
+  baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,
+  anonymous: true,
+});
+
+function ResumableThreadRuntime() {
+  const aui = useAui();
+  const transport = useMemo(
+    () =>
+      new AssistantChatTransport({
+        api: "/api/chat",
+        resumable: {
+          storage: createResumableSessionStorage({
+            key: () => {
+              const item = aui.threadListItem.getState();
+              return `aui-resumable-stream-id:${item.remoteId ?? item.id}`;
+            },
+          }),
+          resumeApi: (streamId) => `/api/chat/resume/${streamId}`,
+        },
+      }),
+    [aui],
+  );
+  return useChatRuntime({ transport });
+}
+
+export default function Page() {
+  const adapter = useCloudThreadListAdapter({ cloud });
+  const runtime = useRemoteThreadListRuntime({
+    adapter,
+    runtimeHook: ResumableThreadRuntime,
+  });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      <ThreadList />
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+`useCloudThreadListAdapter` is the same adapter `useChatRuntime({ cloud })` builds internally, so cloud thread history and attachments keep working; to bring your own backend, pass a custom `RemoteThreadListAdapter` instead. Each thread's runtime hook constructs its own transport and storage, keyed by that thread's identity, so one conversation's stream id can never be read or cleared by another. `useChatRuntime` is a no-op thread list when nested as a `runtimeHook`, so it only runs the per-thread chat runtime against the per-thread transport; the real thread list is the outer `useRemoteThreadListRuntime`.
+
+Key by `remoteId ?? id` under a recognizable prefix, read lazily. A brand-new thread has no `remoteId` yet, but the transport initializes the thread before the request goes out, so by the time the response header delivers the stream id the getter resolves to the `remoteId`. After a reload the same conversation comes back with that `remoteId` as its id, so the stored entry is found again and the pending stream resumes. The local-id fallback covers a thread that has never sent, whose key nothing else reads or writes. Keying by the local id alone would break resume across reloads for threads created in the current session, because their local `__LOCALID_` id is replaced by the `remoteId` when the list reloads.
 
 ## Storage choices
 

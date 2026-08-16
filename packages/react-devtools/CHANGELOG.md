@@ -1,5 +1,17 @@
 # @assistant-ui/react-devtools
 
+## 1.2.13
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 1.2.12
+
+### Patch Changes
+
+- [#5323](https://github.com/assistant-ui/assistant-ui/pull/5323) [`5caac74`](https://github.com/assistant-ui/assistant-ui/commit/5caac7482407f682930cb5ac1f0db00485c8e4bd) - fix: case-insensitive data: and http(s) scheme checks in preview parsing ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 1.2.11
 
 ### Patch Changes

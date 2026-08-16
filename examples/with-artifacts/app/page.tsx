@@ -4,6 +4,7 @@ import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
   AuiProvider,
+  AuiConfig,
   Suggestions,
   Tools,
   unstable_Interactables,
@@ -38,7 +39,8 @@ function ArtifactExperience() {
 }
 
 function ArtifactScopes() {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     tools: Tools({ toolkit }),
     unstable_interactables: unstable_Interactables(),
     suggestions: Suggestions([
@@ -58,7 +60,7 @@ function ArtifactScopes() {
   });
 
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <ArtifactSurfaceProvider>
         <ArtifactExperience />
       </ArtifactSurfaceProvider>

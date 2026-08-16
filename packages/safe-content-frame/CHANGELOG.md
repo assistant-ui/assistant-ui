@@ -1,5 +1,17 @@
 # safe-content-frame
 
+## 0.0.27
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.0.26
+
+### Patch Changes
+
+- [#5539](https://github.com/assistant-ui/assistant-ui/pull/5539) [`71231d3`](https://github.com/assistant-ui/assistant-ui/commit/71231d3ee52ef094c5b04b4d040714f9a409ecab) - fix: surface iframe content load errors instead of reporting a timeout ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.0.25
 
 ### Patch Changes

@@ -36,14 +36,17 @@ Compose `McpAppRenderer({...})` into your `Tools` resource. Provide `host.url` p
 
 ```tsx
 import {
-  useAui,
+  AuiConfig,
+  AuiProvider,
   Tools,
   McpAppRenderer,
   McpAppsRemoteHost,
+  useAui,
 } from "@assistant-ui/react";
 
-function MyAssistant() {
-  useAui({
+function MyAssistant({ children }) {
+  const aui = useAui();
+  const config = AuiConfig({
     tools: Tools({
       toolkit: myToolkit,
       mcpApp: McpAppRenderer({
@@ -53,11 +56,37 @@ function MyAssistant() {
       }),
     }),
   });
-  // ...
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 }
 ```
 
 `McpAppsRemoteHost` is the default host strategy — it POSTs `{ method, params }` to your route. A different strategy (e.g. a client-side MCP client) can be plugged in by writing a custom resource that returns the same `McpAppsHost` shape (`{ loadResource, callTool, readResource, listResources }`).
+
+Changes to `headers` or a custom `fetch` function apply to subsequent host requests without reloading the widget. When the account or workspace identity changes, key the host resource explicitly so its UI resource reloads.
+
+Install the resource helper:
+
+```bash
+pnpm add @assistant-ui/tap
+```
+
+```tsx
+import { withKey } from "@assistant-ui/tap";
+
+const mcpApp = McpAppRenderer({
+  host: withKey(
+    workspaceId,
+    McpAppsRemoteHost({
+      url: "/api/mcp-apps",
+      headers: () => getWorkspaceHeaders(workspaceId),
+    }),
+  ),
+});
+```
 
 `openLink` is auto-wired to `window.open(url, "_blank", "noopener,noreferrer")`. `sendMessage` is auto-wired to append a user message to the current thread (accepts `string`, `{ prompt }`, `{ text }`, or `{ message }`).
 
@@ -154,7 +183,7 @@ const tools = await client.listTools();
 const { modelVisible } = splitMcpAppTools(tools);
 
 const result = streamText({
-  model: openai("gpt-5.4-nano"),
+  model: openai("gpt-5.6-luna"),
   tools: modelVisible.tools,
   // ...
 });
@@ -164,7 +193,7 @@ const result = streamText({
 
 [OpenAI Apps SDK](https://developers.openai.com/apps-sdk) servers carry the same `ui://` template under a different convention: the pointer is `_meta["openai/outputTemplate"]` on the tool definition (not `_meta.ui.resourceUri`), and the resource is served as `text/html+skybridge` rather than `text/html;profile=mcp-app`. `@ai-sdk/mcp` does not recognize `openai/outputTemplate`, so it never populates `callProviderMetadata.mcp.app` and the renderer stays idle.
 
-The renderer needs no change; you only have to surface the pointer. assistant-ui already reads `result._meta["ui/resourceUri"]` off tool results, so the smallest bridge is to copy the template onto the result by tool name. Build the map once from the tool listing, then stamp it inside each tool's `execute`:
+The renderer needs no change; you only have to surface the pointer. assistant-ui reads the canonical `result._meta.ui.resourceUri` off tool results (and still accepts the deprecated flat `result._meta["ui/resourceUri"]`), so the smallest bridge is to copy the template onto the result by tool name. Build the map once from the tool listing, then stamp it inside each tool's `execute`:
 
 ```ts
 import type { Tool } from "ai";
@@ -184,7 +213,13 @@ const withTemplateUri = (tool: Tool, name: string): Tool => {
     ...tool,
     execute: async (args, options) => {
       const result = (await exec(args, options)) as { _meta?: Record<string, unknown> };
-      return { ...result, _meta: { ...result._meta, "ui/resourceUri": uri } };
+      return {
+        ...result,
+        _meta: {
+          ...result._meta,
+          ui: { ...(result._meta?.["ui"] as Record<string, unknown>), resourceUri: uri },
+        },
+      };
     },
   } satisfies Tool;
 };
@@ -253,7 +288,7 @@ Alternatively, AG-UI servers can place MCP host fields directly on `TOOL_CALL_RE
 }
 ```
 
-In this form, the runtime assembles a `CallToolResult`-shaped `part.result` from `content`, `structuredContent`, `_meta`, and `isError`. At least one of `structuredContent` or `_meta` must be present; when both are absent the enriched path does not activate and the result falls back to the plain `content` string. An `ACTIVITY_SNAPSHOT` is still required to provide the app's `resourceUri` and optional server identity, but it does not need to repeat `result`.
+In this form, the runtime assembles a `CallToolResult`-shaped `part.result` from `content`, `structuredContent`, `_meta`, and `isError`. At least one of `structuredContent` or `_meta` must be present; when both are absent the enriched path does not activate and the result falls back to the plain `content` string. The `_meta` can also carry the app pointer itself (canonical `ui.resourceUri`, or the deprecated flat `"ui/resourceUri"`), in which case no `ACTIVITY_SNAPSHOT` is needed to activate the widget. A snapshot remains the only carrier for server identity (`serverId`), and when both provide a `resourceUri` the snapshot wins.
 
 The visibility split follows the MCP Apps contract: `content` is model-visible; `structuredContent` and `_meta` are available only to the host and widget. When assistant-ui serializes history into a later AG-UI request, it sends the saved model-visible text and never includes `structuredContent` or `_meta`.
 
@@ -308,4 +343,4 @@ McpAppRenderer({
 - Widgets run cross-origin in a sandboxed iframe. The bridge filters incoming messages by both source window and origin.
 - The host route is your auth boundary — apply session checks, rate limiting, and per-tool allowlists there. The renderer trusts whatever the route returns.
 - `openLink` rejects non-`http(s)` URLs at the bridge layer, but your `openLink` handler should still treat the URL as untrusted (e.g. always use `noopener,noreferrer`).
-- Keep `host` and `handlers` references stable across renders (e.g. module-scope constants or `useMemo`); an unstable identity will tear down and refetch the widget on every parent re-render.
+- Keep custom `host` and `handlers` references stable across renders (e.g. module-scope constants or `useMemo`); an unstable custom-host identity keeps the widget in `loadingFallback` while refetching on every parent re-render.

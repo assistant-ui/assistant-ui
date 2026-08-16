@@ -49,51 +49,47 @@ Because `ScopeRegistry` uses TypeScript module augmentation, different packages 
 
 ## Filling scopes
 
-`useAui` has two modes:
-
-- **`useAui()`** — no arguments. Returns the store from the nearest `AuiProvider`.
-- **`useAui({ ... })`** — with arguments. Takes the store from the nearest `AuiProvider` and extends it by filling the scopes you pass in.
-
-You fill a scope by passing a resource to `useAui`:
+You fill scopes with an `AuiProvider` whose `config` is built with `AuiConfig(...)`:
 
 ```tsx
-const aui = useAui({
+AuiConfig({
   threadList: ThreadListResource(),
 });
 ```
 
 Each key matches a name from `ScopeRegistry`. Each value is a Tap resource element that implements the scope's methods.
 
-To make the store available to child components, wrap them in `AuiProvider`:
+At the top level, `config` alone creates the store:
 
 ```tsx
 const App = () => {
-  const aui = useAui({ threadList: ThreadListResource() });
+  const config = AuiConfig({ threadList: ThreadListResource() });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider config={config}>
       <ThreadView />
     </AuiProvider>
   );
 };
 ```
 
-Now any component inside `App` can call `useAui()` (no arguments) to get the store with the `threadList` scope filled.
+Now any component inside `App` can call `useAui()` to get the store with the `threadList` scope filled.
 
-You don't have to fill every scope at once. Each level of your tree can extend the store with its own scopes:
+You don't have to fill every scope at once. Each level of your tree can extend the store with its own scopes — a nested provider passes `extends={aui}` to extend the parent (or `extends={null}` to isolate):
 
 ```tsx
 const ThreadView = () => {
   // extends the parent store with a thread scope
-  const aui = useAui({ thread: ThreadResource() });
+  const aui = useAui();
+  const config = AuiConfig({ thread: ThreadResource() });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <MessageList />
     </AuiProvider>
   );
 };
 ```
 
-The `useAui({ thread: ... })` call takes the parent store (which already has `threadList`) and extends it with `thread`. Components inside `ThreadView` can access both scopes.
+The nested provider takes the parent store (which already has `threadList`) and extends it with `thread`. Components inside `ThreadView` can access both scopes.
 
 <Cards>
   <Card title="Methods" href="/tap/docs/store/methods">

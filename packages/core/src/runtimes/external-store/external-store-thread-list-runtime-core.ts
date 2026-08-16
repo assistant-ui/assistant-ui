@@ -5,6 +5,7 @@ import type {
   ThreadListRuntimeCore,
 } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "./external-store-adapter";
+import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
 
 export type ExternalStoreThreadFactory = () => ExternalStoreThreadRuntimeCore;
 
@@ -150,6 +151,7 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
 
     // `initialLoad ||`: `_mainThread!` must be assigned on construction.
     if (initialLoad || previousThreadId !== newThreadId) {
+      if (!initialLoad) invalidateThreadRuntime(this._mainThread);
       this._mainThreadId = newThreadId;
       this._mainThread = this.threadFactory();
     }
@@ -167,6 +169,15 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
     }
 
     this._notifySubscribers();
+  }
+
+  public async reloadMainThread(): Promise<void> {
+    // There is no runtime hook to remount here, so the capability is the only
+    // path and an adapter without it has nothing to refetch with.
+    if (!this._mainThread.unstable_refetchThread) return;
+    // No unsent-thread guard: every entry here is regular or archived, so the
+    // "new" status the remote thread list has to exclude cannot occur.
+    await this._mainThread.unstable_refetchThread();
   }
 
   public async switchToThread(

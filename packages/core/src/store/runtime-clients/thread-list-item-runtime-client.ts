@@ -1,54 +1,59 @@
-import type { Unsubscribe } from "../../types/unsubscribe";
-import { useEffect } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { resource } from "@assistant-ui/tap";
-import { type ClientOutput, useAssistantEmit } from "@assistant-ui/store";
-import type {
-  ThreadListItemEventType,
-  ThreadListItemRuntime,
-} from "../../runtime/api/thread-list-item-runtime";
+import type { ClientOutput } from "@assistant-ui/store";
+import { useAssistantEmit } from "@assistant-ui/store/client";
+import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
 import { useSubscribable } from "./useSubscribable";
+import { handleThreadListAction } from "./handle-thread-list-action";
 
 const useThreadListItemClient = ({
   runtime,
+  mainThreadIsRunning = false,
 }: {
   runtime: ThreadListItemRuntime;
+  // A thread list that cannot report per-thread run state still leaves the open
+  // thread observable, and the thread client tracks that reactively. Omitted
+  // where the runtime state is already authoritative for every thread.
+  mainThreadIsRunning?: boolean | undefined;
 }): ClientOutput<"threadListItem"> => {
-  const state = useSubscribable(runtime);
+  const runtimeState = useSubscribable(runtime);
+  const state = useMemo(() => {
+    const isRunning =
+      runtimeState.isRunning || (runtimeState.isMain && mainThreadIsRunning);
+    if (isRunning === runtimeState.isRunning) return runtimeState;
+    return { ...runtimeState, isRunning };
+  }, [runtimeState, mainThreadIsRunning]);
   const emit = useAssistantEmit();
 
-  // Bind thread list item events to event manager
+  // Emitted after the flush that rebinds the derived scopes; the runtime's own
+  // synchronous notification would be delivered against the pre-switch binding.
+  const { isMain, id: threadId } = runtimeState;
+  const selectionRef = useRef({ isMain, threadId });
   useEffect(() => {
-    const unsubscribers: Unsubscribe[] = [];
-
-    // Subscribe to thread list item events
-    const threadListItemEvents: ThreadListItemEventType[] = [
-      "switchedTo",
-      "switchedAway",
-    ];
-
-    for (const event of threadListItemEvents) {
-      const unsubscribe = runtime.unstable_on(event, () => {
-        emit(`threadListItem.${event}`, {
-          threadId: runtime.getState()!.id,
-        });
-      });
-      unsubscribers.push(unsubscribe);
-    }
-
-    return () => {
-      for (const unsub of unsubscribers) unsub();
-    };
-  }, [runtime, emit]);
+    const previous = selectionRef.current;
+    if (previous.isMain === isMain && previous.threadId === threadId) return;
+    selectionRef.current = { isMain, threadId };
+    emit(isMain ? "threadListItem.switchedTo" : "threadListItem.switchedAway", {
+      threadId,
+    });
+  }, [isMain, threadId, emit]);
 
   return {
     getState: () => state,
-    switchTo: runtime.switchTo,
-    rename: runtime.rename,
-    updateCustom: runtime.updateCustom,
-    archive: runtime.archive,
-    unarchive: runtime.unarchive,
-    delete: runtime.delete,
-    generateTitle: runtime.generateTitle,
+    switchTo: (options) =>
+      handleThreadListAction("switch", () => runtime.switchTo(options)),
+    rename: (newTitle) =>
+      handleThreadListAction("rename", () => runtime.rename(newTitle)),
+    updateCustom: (custom) =>
+      handleThreadListAction("update custom metadata", () =>
+        runtime.updateCustom(custom),
+      ),
+    archive: () => handleThreadListAction("archive", () => runtime.archive()),
+    unarchive: () =>
+      handleThreadListAction("unarchive", () => runtime.unarchive()),
+    delete: () => handleThreadListAction("delete", () => runtime.delete()),
+    generateTitle: () =>
+      handleThreadListAction("generate title", () => runtime.generateTitle()),
     initialize: runtime.initialize,
     detach: runtime.detach,
     __internal_getRuntime: () => runtime,

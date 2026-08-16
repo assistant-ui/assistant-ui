@@ -63,6 +63,7 @@ export default defineToolkit({
 
 ```tsx title="app/Form.tsx"
 import {
+  AuiConfig,
   AuiProvider,
   makeAssistantVisible,
   Tools,
@@ -77,10 +78,10 @@ const ClickableButton = makeAssistantVisible(Button, {
 
 // Use in your component
 function Form() {
-  const aui = useAui({ tools: Tools({ toolkit }) });
-
+  const aui = useAui();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider extends={aui} config={config}>
       <form>{/* form fields */}</form>
     </AuiProvider>
   );

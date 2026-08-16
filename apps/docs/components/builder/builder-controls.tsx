@@ -12,7 +12,7 @@ import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/radix/tooltip";
+} from "@/components/ui/tooltip";
 import {
   BORDER_RADIUSES,
   CODE_HIGHLIGHT_THEMES,
@@ -688,16 +688,18 @@ function SectionWithToggle({
 function ColorModeHeader() {
   return (
     <Tooltip>
-      <TooltipTrigger asChild>
-        <div className="flex gap-1">
-          <div className="flex size-5 items-center justify-center">
-            <SunIcon className="text-muted-foreground size-3.5" />
+      <TooltipTrigger
+        render={
+          <div className="flex gap-1">
+            <div className="flex size-5 items-center justify-center">
+              <SunIcon className="text-muted-foreground size-3.5" />
+            </div>
+            <div className="flex size-5 items-center justify-center">
+              <MoonIcon className="text-muted-foreground size-3.5" />
+            </div>
           </div>
-          <div className="flex size-5 items-center justify-center">
-            <MoonIcon className="text-muted-foreground size-3.5" />
-          </div>
-        </div>
-      </TooltipTrigger>
+        }
+      />
       <TooltipContent side="top">Light &amp; Dark mode colors</TooltipContent>
     </Tooltip>
   );
@@ -718,14 +720,16 @@ function Row({
         {label}
         {info && (
           <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                type="button"
-                className="text-muted-foreground hover:text-foreground flex items-center"
-              >
-                <CircleAlertIcon className="size-3" />
-              </button>
-            </TooltipTrigger>
+            <TooltipTrigger
+              render={
+                <button
+                  type="button"
+                  className="text-muted-foreground hover:text-foreground flex items-center"
+                >
+                  <CircleAlertIcon className="size-3" />
+                </button>
+              }
+            />
             <TooltipContent side="top">{info}</TooltipContent>
           </Tooltip>
         )}

@@ -7,6 +7,7 @@ import {
   type AssistantInstructionsConfig,
 } from "./types";
 import type { Unsubscribe } from "../types/unsubscribe";
+import { notifySubscribers as notifyStateSubscribers } from "../subscribable/subscribable";
 import type {
   ModelContextRegistryToolHandle,
   ModelContextRegistryInstructionHandle,
@@ -75,9 +76,7 @@ export class ModelContextRegistry implements ModelContextProvider {
   }
 
   private notifySubscribers(): void {
-    for (const callback of this._subscribers) {
-      callback();
-    }
+    notifyStateSubscribers(this._subscribers);
   }
 
   addTool<TArgs extends Record<string, unknown>, TResult>(
@@ -144,9 +143,20 @@ export class ModelContextRegistry implements ModelContextProvider {
 
     this._providers.set(id, provider);
 
-    const unsubscribe = provider.subscribe?.(() => {
-      this.notifySubscribers();
-    });
+    let unsubscribe: Unsubscribe | undefined;
+    try {
+      unsubscribe = provider.subscribe?.(() => {
+        this.notifySubscribers();
+      });
+    } catch (error) {
+      this._providers.delete(id);
+      try {
+        this.notifySubscribers();
+      } catch (notifyError) {
+        console.error(notifyError);
+      }
+      throw error;
+    }
     this._providerUnsubscribes.set(id, unsubscribe);
 
     this.notifySubscribers();

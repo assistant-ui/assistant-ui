@@ -80,6 +80,9 @@ literal, including spreading `s.thread` into a new object, causes a
 re-render on every store update; either select primitives or return a
 memoized reference.
 
+Scopes that may be unavailable can be read via `s.optional.<scope>`,
+which resolves to `undefined` instead of throwing.
+
 {/* api-example:useAuiState:start */}
 ```tsx
 import { useAuiState } from "@assistant-ui/react";

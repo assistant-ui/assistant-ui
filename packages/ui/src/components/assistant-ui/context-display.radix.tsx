@@ -6,6 +6,7 @@ import type { ThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/radix/tooltip";
 import { cn } from "@/lib/utils";
@@ -140,7 +141,9 @@ function ContextDisplayRootBase({
 
   return (
     <ContextDisplayContext.Provider value={contextValue}>
-      <Tooltip>{children}</Tooltip>
+      <TooltipProvider>
+        <Tooltip>{children}</Tooltip>
+      </TooltipProvider>
     </ContextDisplayContext.Provider>
   );
 }

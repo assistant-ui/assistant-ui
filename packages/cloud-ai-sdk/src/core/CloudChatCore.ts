@@ -194,11 +194,15 @@ export class CloudChatCore {
       ...chatInit,
       id: chatKey,
       transport: this.createTransport(chatKey, registry),
-      onFinish: async (event) => {
+      onFinish: (event) => {
         try {
           this.options.chatConfig.onFinish?.(event);
         } finally {
-          await this.persistChatMessages(chatKey, registry, event);
+          void this.persistChatMessages(chatKey, registry, event).catch(
+            (error) => {
+              this.handleSyncError(error);
+            },
+          );
         }
       },
       onError: (error) => {
@@ -217,6 +221,28 @@ export class CloudChatCore {
 
   private handleSyncError(err: unknown): void {
     const error = err instanceof Error ? err : new Error(String(err));
-    this.options.onSyncError?.(error);
+    const onSyncError = this.options.onSyncError;
+    if (!onSyncError) return;
+
+    const reportCallbackError = (callbackError: unknown) => {
+      console.error(
+        "[cloud-ai-sdk] onSyncError callback threw an error",
+        callbackError,
+      );
+    };
+
+    try {
+      const result = onSyncError(error) as unknown;
+      if (
+        result !== null &&
+        (typeof result === "object" || typeof result === "function") &&
+        "then" in result &&
+        typeof result.then === "function"
+      ) {
+        void Promise.resolve(result).catch(reportCallbackError);
+      }
+    } catch (callbackError) {
+      reportCallbackError(callbackError);
+    }
   }
 }

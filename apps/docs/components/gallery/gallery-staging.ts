@@ -10,12 +10,17 @@ export const galleryStagingCss = `
 }
 
 .aui-gallery-canvas {
-  background: color-mix(in oklab, var(--muted) 45%, var(--background));
+  background: color-mix(in oklab, var(--foreground) 2.5%, transparent);
   border-radius: 24px;
   padding: 2rem;
 }
 
+.dark .aui-gallery-canvas {
+  background: color-mix(in oklab, var(--foreground) 4%, transparent);
+}
+
 .aui-gallery [data-aui="card"] {
+  --aui-card-padding: 1.25rem;
   border-color: transparent;
   border-radius: 16px;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px -12px rgb(0 0 0 / 0.12);

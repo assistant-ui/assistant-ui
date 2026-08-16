@@ -2,7 +2,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { NextResponse } from "next/server";
 import {
   convertToModelMessages,
@@ -157,7 +157,7 @@ export async function POST(req: Request) {
       return new Response("Config too large", { status: 400 });
     }
 
-    const model = getModel("openai/gpt-5.4-nano");
+    const model = getModel();
 
     const prunedMessages = pruneMessages({
       messages: await convertToModelMessages(messages),

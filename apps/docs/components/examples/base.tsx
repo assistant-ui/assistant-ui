@@ -871,6 +871,7 @@ export const Base: FC = () => {
 
   return (
     <CloneThreadShell
+      railClassName="border-r-0"
       collapsed={sidebarCollapsed}
       onCollapsedChange={setSidebarCollapsed}
       mobileSidebarOpen={mobileSidebarOpen}

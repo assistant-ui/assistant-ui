@@ -1,5 +1,4 @@
-import { useEffect } from "react";
-import { useEffectEvent } from "use-effect-event";
+import { useEffect, useEffectEvent } from "react";
 import { useAui } from "./useAui";
 import type {
   AssistantEventName,
@@ -36,7 +35,7 @@ import { normalizeEventSelector } from "./types/events";
  * @example
  * ```tsx
  * // React to thread switches.
- * useAuiEvent("threadListItem.switchedTo", () => {
+ * useAuiEvent("threads.selectionChanged", () => {
  *   resetLocalState();
  * });
  * ```

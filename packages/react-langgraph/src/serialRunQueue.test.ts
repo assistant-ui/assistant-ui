@@ -48,7 +48,7 @@ describe("createSerialRunQueue", () => {
     expect(onRunningChange.mock.calls.map((c) => c[0])).toEqual([true, false]);
   });
 
-  it("drop resolves queued payloads without running them", async () => {
+  it("rejects dropped payloads without running them", async () => {
     const { run, gates } = gatedRun();
     const onRunningChange = vi.fn();
     const queue = createSerialRunQueue({ run, onRunningChange });
@@ -57,7 +57,7 @@ describe("createSerialRunQueue", () => {
     const second = queue.enqueue("b");
 
     queue.drop();
-    await second;
+    await expect(second).rejects.toThrow("Queued run was dropped.");
     expect(run).toHaveBeenCalledTimes(1);
 
     gates[0]!();
@@ -83,7 +83,7 @@ describe("createSerialRunQueue", () => {
 
     gates[0]!();
     await expect(first).rejects.toThrow("boom");
-    await second;
+    await expect(second).rejects.toThrow("Queued run was dropped.");
     expect(run).toHaveBeenCalledTimes(1);
     expect(onRunningChange.mock.calls.map((c) => c[0])).toEqual([true, false]);
   });

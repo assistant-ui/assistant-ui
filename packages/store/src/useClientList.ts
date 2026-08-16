@@ -1,14 +1,8 @@
-import { useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { withKey, type Resource } from "@assistant-ui/tap";
 
 import { useClientLookup } from "./useClientLookup";
-import type { ClientMethods } from "./types/client";
-
-type InferClientState<TMethods> = TMethods extends {
-  getState: () => infer S;
-}
-  ? S
-  : unknown;
+import type { ClientMethods, InferClientState } from "./types/client";
 
 type DataHandle<TData> = { data: TData | undefined; hasData: boolean };
 
@@ -42,7 +36,7 @@ export const useClientList = <TData, TMethods extends ClientMethods>(
 
   type Props = useClientList.ResourceProps<TData>;
 
-  const initialDataHandles: DataHandle<TData>[] = useMemo(() => [], []);
+  const initialDataHandles = useRef<DataHandle<TData>[]>([]).current;
 
   const [items, setItems] = useState<Record<string, Props>>(() => {
     const entries: [string, Props][] = [];
@@ -71,9 +65,13 @@ export const useClientList = <TData, TMethods extends ClientMethods>(
     ),
   );
 
-  initialDataHandles.forEach((handle) => {
-    handle.data = undefined;
-    handle.hasData = false;
+  // Clear on commit, not during render, so discarded renders can replay
+  useEffect(() => {
+    for (const handle of initialDataHandles) {
+      handle.data = undefined;
+      handle.hasData = false;
+    }
+    initialDataHandles.length = 0;
   });
 
   const add = (data: TData) => {

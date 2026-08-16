@@ -9,6 +9,7 @@ export type {
   AdkEventPart,
   AdkEventActions,
   AdkMessage,
+  AdkThreadSnapshot,
   AdkMessageContentPart,
   AdkToolCall,
   AdkToolConfirmation,

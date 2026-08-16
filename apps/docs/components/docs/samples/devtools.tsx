@@ -11,6 +11,7 @@ import {
 import {
   AssistantRuntimeProvider,
   AuiIf,
+  AuiProvider,
   ComposerPrimitive,
   DevToolsHooks,
   DevToolsProviderApi,
@@ -178,7 +179,7 @@ const useDevToolsDemo = () => {
   const [adapter] = useState(createAdapter);
   const [apiId, setApiId] = useState<number | null>(null);
   const client = useMemo(() => createScopedClient(apiId), [apiId]);
-  const aui = useAui({ tools: Tools({ toolkit }) }, { parent: null });
+  const aui = useAui({ tools: Tools({ toolkit }) });
   const { resolvedTheme } = useTheme();
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
@@ -297,6 +298,14 @@ function Composer() {
 }
 
 export function DevToolsSample() {
+  return (
+    <AuiProvider value={null}>
+      <DevToolsSampleInner />
+    </AuiProvider>
+  );
+}
+
+function DevToolsSampleInner() {
   const { adapter, aui, client, setApiId, theme } = useDevToolsDemo();
   const runtime = useLocalRuntime(adapter, { initialMessages: panelSeed });
 
@@ -345,6 +354,14 @@ function DemoTurnSuggestion() {
  * whole page. The panel inside the window is the real DevToolsPanel.
  */
 export function DevToolsModalSample() {
+  return (
+    <AuiProvider value={null}>
+      <DevToolsModalSampleInner />
+    </AuiProvider>
+  );
+}
+
+function DevToolsModalSampleInner() {
   const { adapter, aui, client, setApiId, theme } = useDevToolsDemo();
   const runtime = useLocalRuntime(adapter, { initialMessages: modalSeed });
   const [open, setOpen] = useState(false);

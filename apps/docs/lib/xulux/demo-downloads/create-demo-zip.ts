@@ -56,7 +56,7 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     "components/assistant-ui/tool-fallback.tsx": toolFallbackShim(),
     "components/assistant-ui/tooltip-icon-button.tsx": tooltipIconButtonShim(),
     "components/docs/assistant/docs-model-options.ts": docsModelOptionsShim(),
-    "constants/model.ts": 'export const DEFAULT_MODEL_ID = "gpt-4.1-mini";\n',
+    "constants/model.ts": 'export const DEFAULT_MODEL_ID = "gpt-5.6-luna";\n',
     "public/favicon/icon.svg": faviconSvg(),
     [`components/examples/${manifest.slug}.tsx`]: demoSource,
   };
@@ -274,7 +274,7 @@ function runtimeProviderTsx() {
 }
 
 function chatRouteTs() {
-  return `import { openai } from "@ai-sdk/openai";\nimport {\n  convertToModelMessages,\n  createUIMessageStream,\n  createUIMessageStreamResponse,\n  streamText,\n} from "ai";\n\nexport const maxDuration = 30;\n\nexport async function POST(req: Request) {\n  const { messages } = await req.json();\n\n  if (!process.env.OPENAI_API_KEY) {\n    const stream = createUIMessageStream({\n      originalMessages: messages,\n      execute: async ({ writer }) => {\n        const messageId = \`msg-\${crypto.randomUUID()}\`;\n        const textId = "fallback-text";\n\n        writer.write({ type: "start", messageId });\n        writer.write({ type: "start-step" });\n        writer.write({ type: "text-start", id: textId });\n        writer.write({\n          type: "text-delta",\n          id: textId,\n          delta:\n            "This starter is running without OPENAI_API_KEY. Add one to .env.local to enable live AI responses.",\n        });\n        writer.write({ type: "text-end", id: textId });\n        writer.write({ type: "finish-step" });\n        writer.write({ type: "finish" });\n      },\n    });\n\n    return createUIMessageStreamResponse({ stream });\n  }\n\n  const result = streamText({\n    model: openai("gpt-4.1-mini"),\n    messages: await convertToModelMessages(messages),\n  });\n\n  return result.toUIMessageStreamResponse();\n}\n`;
+  return `import { openai } from "@ai-sdk/openai";\nimport {\n  convertToModelMessages,\n  createUIMessageStream,\n  createUIMessageStreamResponse,\n  streamText,\n} from "ai";\n\nexport const maxDuration = 30;\n\nexport async function POST(req: Request) {\n  const { messages } = await req.json();\n\n  if (!process.env.OPENAI_API_KEY) {\n    const stream = createUIMessageStream({\n      originalMessages: messages,\n      execute: async ({ writer }) => {\n        const messageId = \`msg-\${crypto.randomUUID()}\`;\n        const textId = "fallback-text";\n\n        writer.write({ type: "start", messageId });\n        writer.write({ type: "start-step" });\n        writer.write({ type: "text-start", id: textId });\n        writer.write({\n          type: "text-delta",\n          id: textId,\n          delta:\n            "This starter is running without OPENAI_API_KEY. Add one to .env.local to enable live AI responses.",\n        });\n        writer.write({ type: "text-end", id: textId });\n        writer.write({ type: "finish-step" });\n        writer.write({ type: "finish" });\n      },\n    });\n\n    return createUIMessageStreamResponse({ stream });\n  }\n\n  const result = streamText({\n    model: openai("gpt-5.6-luna"),\n    messages: await convertToModelMessages(messages),\n  });\n\n  return result.toUIMessageStreamResponse();\n}\n`;
 }
 
 function markdownTextShim() {
@@ -294,7 +294,7 @@ function tooltipIconButtonShim() {
 }
 
 function docsModelOptionsShim() {
-  return `export function docsModelOptions() {\n  return [\n    { id: "gpt-4.1-mini", name: "GPT-4.1 mini" },\n    { id: "gpt-4.1", name: "GPT-4.1" },\n  ];\n}\n`;
+  return `export function docsModelOptions() {\n  return [\n    { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },\n    { id: "gpt-5.6-terra", name: "GPT-5.6 Terra" },\n  ];\n}\n`;
 }
 
 function faviconSvg() {

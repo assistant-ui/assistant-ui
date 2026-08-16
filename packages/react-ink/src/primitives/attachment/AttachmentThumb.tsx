@@ -4,7 +4,10 @@ import { useAuiState } from "@assistant-ui/store";
 
 export type AttachmentThumbProps = ComponentProps<typeof Text>;
 
-export const AttachmentThumb: FC<AttachmentThumbProps> = (props) => {
+export const AttachmentThumb: FC<AttachmentThumbProps> = ({
+  children,
+  ...textProps
+}) => {
   const label = useAuiState((s) => {
     const name = s.attachment.name;
     const dot = name.lastIndexOf(".");
@@ -13,5 +16,5 @@ export const AttachmentThumb: FC<AttachmentThumbProps> = (props) => {
     }
     return s.attachment.type;
   });
-  return <Text {...props}>{label}</Text>;
+  return <Text {...textProps}>{children ?? label}</Text>;
 };

@@ -52,13 +52,13 @@ export type ReasoningRootProps = Omit<
     onOpenChange?: (open: boolean) => void;
     defaultOpen?: boolean;
     /**
-     * Whether the reasoning is currently streaming. When provided, it
-     * supersedes `defaultOpen`: the disclosure auto-opens while streaming
-     * with a bottom-pinned live preview, auto-collapses when streaming
-     * ends, and the first manual toggle takes over the open/close state
-     * permanently. The live preview keeps following the newest tokens while
-     * the disclosure is open during streaming, even after a manual toggle,
-     * and pauses while the reader is scrolled up.
+     * Whether the reasoning is currently streaming. While `true` the
+     * disclosure is held open with a bottom-pinned live preview; when
+     * streaming ends it returns to `defaultOpen`, and the first manual
+     * toggle takes over the open/close state permanently. The live preview
+     * keeps following the newest tokens while the disclosure is open during
+     * streaming, even after a manual toggle, and pauses while the reader is
+     * scrolled up.
      */
     streaming?: boolean;
   };
@@ -81,14 +81,18 @@ function ReasoningRoot({
   const isControlled = controlledOpen !== undefined;
   const isOpen = isControlled
     ? controlledOpen
-    : (userOpen ?? streaming ?? initialOpenRef.current);
+    : (userOpen ?? (streaming || initialOpenRef.current));
   const isPreview = streaming === true && isOpen;
 
   const prevStreamingRef = useRef(streaming);
   useLayoutEffect(() => {
     if (prevStreamingRef.current === streaming) return;
     prevStreamingRef.current = streaming;
-    if (!isControlled && userOpen === null) lockScroll();
+    // A streaming transition only animates the panel when the resting state
+    // is collapsed; with `defaultOpen` the disclosure stays open across it.
+    if (!isControlled && userOpen === null && !initialOpenRef.current) {
+      lockScroll();
+    }
   }, [streaming, isControlled, userOpen, lockScroll]);
 
   const handleOpenChange = useCallback(
@@ -139,7 +143,7 @@ function ReasoningFade({
         className={cn(
           "aui-reasoning-fade pointer-events-none absolute inset-x-0 top-0 z-10 h-8",
           "bg-[linear-gradient(to_bottom,var(--color-background),transparent)]",
-          "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_bottom,hsl(var(--muted)/0.5),transparent)]",
+          "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_bottom,color-mix(in_oklab,var(--color-muted)_50%,var(--color-background)),transparent)]",
           "fade-in-0 animate-in",
           "duration-(--animation-duration)",
           className,
@@ -155,7 +159,7 @@ function ReasoningFade({
       className={cn(
         "aui-reasoning-fade pointer-events-none absolute inset-x-0 bottom-0 z-10 h-8",
         "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
-        "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_top,hsl(var(--muted)/0.5),transparent)]",
+        "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_top,color-mix(in_oklab,var(--color-muted)_50%,var(--color-background)),transparent)]",
         "fade-in-0 animate-in",
         "duration-(--animation-duration)",
         className,
@@ -339,11 +343,10 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
 }) => {
   const isReasoningStreaming = useAuiState((s) => {
     if (s.message.status?.type !== "running") return false;
-    const lastIndex = s.message.parts.length - 1;
-    if (lastIndex < 0) return false;
-    const lastType = s.message.parts[lastIndex]?.type;
-    if (lastType !== "reasoning") return false;
-    return lastIndex >= startIndex && lastIndex <= endIndex;
+    for (let index = startIndex; index <= endIndex; index++) {
+      if (s.message.parts[index]?.status.type === "running") return true;
+    }
+    return false;
   });
 
   return (

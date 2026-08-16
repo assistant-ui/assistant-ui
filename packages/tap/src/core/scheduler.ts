@@ -1,3 +1,6 @@
+import { throwAggregated } from "./helpers/throwAggregated";
+import { isDevelopment } from "./helpers/env";
+
 type Task = () => void;
 
 type GlobalFlushState = {
@@ -5,11 +8,13 @@ type GlobalFlushState = {
   isScheduled: boolean;
 };
 
-const MAX_FLUSH_LIMIT = 50;
+const MAX_UPDATE_DEPTH = 50;
 let flushState: GlobalFlushState = {
-  schedulers: new Set([]),
+  schedulers: new Set(),
   isScheduled: false,
 };
+let activeDrainRuns: Map<UpdateScheduler, number> | null = null;
+const pendingNotifies: (() => void)[] = [];
 
 export class UpdateScheduler {
   private _isDirty = false;
@@ -25,6 +30,16 @@ export class UpdateScheduler {
   }
 
   markDirty() {
+    if (
+      activeDrainRuns &&
+      (activeDrainRuns.get(this) ?? 0) >= MAX_UPDATE_DEPTH
+    ) {
+      throw new Error(
+        `Maximum update depth exceeded. This can happen when a resource ` +
+          `repeatedly calls setState inside useEffect.`,
+      );
+    }
+
     this._isDirty = true;
 
     flushState.schedulers.add(this);
@@ -32,10 +47,43 @@ export class UpdateScheduler {
   }
 
   runTask() {
+    activeDrainRuns?.set(this, (activeDrainRuns.get(this) ?? 0) + 1);
+
     this._isDirty = false;
     this._task();
   }
+
+  settle() {
+    this._isDirty = false;
+  }
 }
+
+const scheduledTasks: Task[] = [];
+const taskScheduler = new UpdateScheduler(() => {
+  const tasks = scheduledTasks.splice(0);
+  const errors: unknown[] = [];
+  for (const task of tasks) {
+    try {
+      task();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  throwAggregated(errors, "Errors occurred while running scheduled tasks");
+});
+
+export const scheduleTask = (task: Task): void => {
+  taskScheduler.markDirty();
+  scheduledTasks.push(task);
+};
+
+export const scheduleNotify = (notify: () => void): void => {
+  if (activeDrainRuns !== null) {
+    pendingNotifies.push(notify);
+    return;
+  }
+  notify();
+};
 
 const scheduleFlush = () => {
   if (flushState.isScheduled) return;
@@ -44,22 +92,14 @@ const scheduleFlush = () => {
 };
 
 const flushScheduled = () => {
+  // save/restore: flushTapSync re-enters flushScheduled with its own flushState
+  const prevDrainRuns = activeDrainRuns;
+  activeDrainRuns = new Map();
+  const errors: unknown[] = [];
   try {
-    const errors = [];
-    let flushDepth = 0;
-
     for (const scheduler of flushState.schedulers) {
       flushState.schedulers.delete(scheduler);
       if (!scheduler.isDirty) continue;
-
-      flushDepth++;
-
-      if (flushDepth > MAX_FLUSH_LIMIT) {
-        throw new Error(
-          `Maximum update depth exceeded. This can happen when a resource ` +
-            `repeatedly calls setState inside useEffect.`,
-        );
-      }
 
       try {
         scheduler.runTask();
@@ -67,21 +107,22 @@ const flushScheduled = () => {
         errors.push(error);
       }
     }
-
-    if (errors.length > 0) {
-      if (errors.length === 1) {
-        throw errors[0];
-      } else {
-        for (const error of errors) {
-          console.error(error);
-        }
-        throw new AggregateError(errors, "Errors occurred during flushSync");
-      }
-    }
   } finally {
+    activeDrainRuns = prevDrainRuns;
     flushState.schedulers.clear();
     flushState.isScheduled = false;
+
+    if (activeDrainRuns === null) {
+      while (pendingNotifies.length > 0) {
+        try {
+          pendingNotifies.shift()!();
+        } catch (error) {
+          errors.push(error);
+        }
+      }
+    }
   }
+  throwAggregated(errors, "Errors occurred during flushSync");
 };
 
 // Use MessageChannel to schedule flushes as macrotasks (like React's scheduler).
@@ -114,9 +155,19 @@ const scheduleMacrotask = (() => {
 })();
 
 export const flushTapSync = <T>(callback: () => T): T => {
+  if (activeDrainRuns !== null) {
+    if (isDevelopment) {
+      console.warn(
+        "flushTapSync was called from inside a render or commit. " +
+          "The flush is deferred until the current pass completes.",
+      );
+    }
+    return callback();
+  }
+
   const prev = flushState;
   flushState = {
-    schedulers: new Set([]),
+    schedulers: new Set(),
     isScheduled: true,
   };
 

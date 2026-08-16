@@ -155,12 +155,22 @@ export default defineToolkit({
 ```
 
 ```tsx title="ToolProvider.tsx"
-import { AuiProvider, Tools, useAui } from "@assistant-ui/react-native";
+import {
+  AuiConfig,
+  AuiProvider,
+  Tools,
+  useAui,
+} from "@assistant-ui/react-native";
 import toolkit from "./weather-toolkit";
 
 function ToolProvider({ children }: { children: React.ReactNode }) {
-  const aui = useAui({ tools: Tools({ toolkit }) });
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  const aui = useAui();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 }
 ```
 
@@ -218,7 +228,7 @@ export function useMyToolToolkit(someOuterProp: string) {
 }
 ```
 
-Import the toolkit hook, pass its result to `useAui({ tools: Tools({ toolkit }) })`, and provide the returned `aui` with `AuiProvider`, as shown in the [Tools](#tools) section above.
+Import the toolkit hook, hoist `const aui = useAui()` and `const config = AuiConfig({ tools: Tools({ toolkit }) })` in the component body, and mount it with `<AuiProvider extends={aui} config={config}>`, as shown in the [Tools](#tools) section above.
 
 ### makeAssistantDataUI
 

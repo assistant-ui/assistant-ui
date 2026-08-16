@@ -37,7 +37,7 @@ const useActionBarExportMarkdown = ({
     a.href = url;
     a.download = filename ?? `message-${Date.now()}.md`;
     a.click();
-    URL.revokeObjectURL(url);
+    setTimeout(() => URL.revokeObjectURL(url), 40_000);
   }, [aui, filename, onExport]);
 
   if (!hasExportableContent) return null;

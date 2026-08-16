@@ -17,12 +17,15 @@ import type {
   ThreadComposerRuntimeCore,
 } from "./composer-runtime-core";
 import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 
 export type RuntimeCapabilities = {
   readonly switchToBranch: boolean;
   readonly switchBranchDuringRun: boolean;
   readonly edit: boolean;
   readonly reload: boolean;
+  /** Whether the runtime can refetch this thread's remote state in place. */
+  readonly refetchThread: boolean;
   readonly delete: boolean;
   readonly cancel: boolean;
   readonly unstable_copy: boolean;
@@ -153,6 +156,7 @@ export type ThreadRuntimeCore = Readonly<{
   startRun: (config: StartRunConfig) => void;
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;
+  unstable_notifySessionReset: () => void;
 
   addToolResult: (options: AddToolResultOptions) => void;
   resumeToolCall: (options: ResumeToolCallOptions) => void;
@@ -175,7 +179,8 @@ export type ThreadRuntimeCore = Readonly<{
   beginEdit: (messageId: string) => void;
 
   getQueueItems?: () => readonly QueueItemState[];
-  steerQueueItem?: (queueItemId: string) => void;
+  getSteerQueueItems?: () => readonly QueueItemState[];
+  moveQueueItem?: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem?: (queueItemId: string) => void;
 
   speech: SpeechState | undefined;
@@ -215,6 +220,19 @@ export type ThreadRuntimeCore = Readonly<{
   importExternalState(state: any): void;
 
   reset(initialMessages?: readonly ThreadMessageLike[]): void;
+
+  /**
+   * Re-fetches this thread's state from its backing store, in place: no
+   * runtime-hook remount, so runtime identity and composer drafts survive.
+   * Presence signals the capability to `threads.reloadMainThread()`, which
+   * calls this and propagates its rejection. It does not touch a run in
+   * progress first, because stopping one is `cancelRun`, whose contract is
+   * that the user abandoned a send: it returns the trailing user message to
+   * the composer. An implementation is therefore responsible for whatever
+   * coordination a concurrent run needs. Runtimes without remote state leave
+   * it undefined.
+   */
+  unstable_refetchThread?: (() => Promise<void>) | undefined;
 
   /**
    * @deprecated This API is still under active development and might change without notice.

@@ -91,6 +91,10 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     throw EMPTY_THREAD_ERROR;
   },
 
+  unstable_notifySessionReset() {
+    throw EMPTY_THREAD_ERROR;
+  },
+
   composer: {
     attachments: [],
     attachmentAccept: "*",
@@ -144,7 +148,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     },
 
     queue: [] as never[],
-    steerQueueItem() {},
+    moveQueueItem() {},
     removeQueueItem() {},
 
     dictation: undefined,
@@ -189,6 +193,7 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     edit: false,
     delete: false,
     reload: false,
+    refetchThread: false,
     cancel: false,
     unstable_copy: false,
     speech: false,

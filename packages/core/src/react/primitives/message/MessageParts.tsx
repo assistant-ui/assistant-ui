@@ -214,7 +214,12 @@ export namespace MessagePrimitiveParts {
     Image?: ImageMessagePartComponent | undefined;
     /** Component for rendering file content */
     File?: FileMessagePartComponent | undefined;
-    /** Component for rendering audio content (experimental) */
+    /**
+     * Component for rendering audio content.
+     *
+     * @deprecated Render audio through the `File` slot instead, branching on an
+     * `audio/*` mime type.
+     */
     Unstable_Audio?: Unstable_AudioMessagePartComponent | undefined;
     /** Configuration for data part rendering */
     data?: DataConfig | undefined;
@@ -721,7 +726,6 @@ const EMPTY_RUNNING_TEXT_PART: Extract<EnrichedPartState, { type: "text" }> =
   });
 
 /**
- * @internal
  * Renders a single part by index, calling `children` with the
  * {@link EnrichedPartState} (tool/data UI enrichments + addResult/resume
  * for tool calls). Shared between `<MessagePrimitive.Parts>` and

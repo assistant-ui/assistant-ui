@@ -22,6 +22,39 @@ const convertFileData = (data: string) => {
 };
 
 describe("toLanguageModelMessages", () => {
+  it("carries a file part filename through to the model message", () => {
+    const [message] = toLanguageModelMessages([
+      {
+        id: "user-1",
+        role: "user",
+        createdAt: new Date("2026-01-01T00:00:00.000Z"),
+        content: [
+          {
+            type: "file",
+            data: "SGVsbG8=",
+            mimeType: "text/plain",
+            filename: "notes.txt",
+          },
+        ],
+        attachments: [],
+        metadata: { custom: {} },
+      },
+    ]);
+    if (message?.role !== "user") throw new Error("Expected a user message");
+
+    expect(message.content[0]).toMatchObject({
+      type: "file",
+      filename: "notes.txt",
+    });
+  });
+
+  it("omits filename when the part has none", () => {
+    const [message] = toLanguageModelMessages([createFileMessage("SGVsbG8=")]);
+    if (message?.role !== "user") throw new Error("Expected a user message");
+
+    expect(message.content[0]).not.toHaveProperty("filename");
+  });
+
   it("preserves base64 file data as a string", () => {
     expect(convertFileData("SGVsbG8=")).toBe("SGVsbG8=");
   });

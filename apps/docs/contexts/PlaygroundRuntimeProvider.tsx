@@ -4,7 +4,7 @@ import {
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 export function PlaygroundRuntimeProvider({
   children,
