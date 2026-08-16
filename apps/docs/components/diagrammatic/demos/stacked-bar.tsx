@@ -1,6 +1,7 @@
 import { StackedBar } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { AppCard } from "./scenes";
+import { AppCard, Terminal } from "./scenes";
 
 export const glyph = (
   <StackedBar
@@ -14,24 +15,59 @@ export const glyph = (
   />
 );
 
+const DAYS = [
+  ...Array.from({ length: 31 }, (_, i) => `Jul ${i + 1}`),
+  ...Array.from({ length: 18 }, (_, i) => `Aug ${i + 1}`),
+];
+
+const USAGE: Record<string, number[]> = {
+  pico: [
+    9, 9, 9, 10, 10, 7, 7, 10, 11, 11, 11, 11, 8, 8, 12, 12, 12, 13, 13, 9, 9,
+    13, 14, 14, 14, 14, 10, 10, 15, 15, 16, 16, 17, 12, 13, 21, 22, 23, 25, 27,
+    19, 20, 32, 34, 36, 38, 40, 29, 31,
+  ],
+  quill: [
+    7, 7, 7, 7, 8, 5, 5, 7, 7, 7, 7, 8, 5, 5, 8, 9, 8, 8, 8, 5, 5, 8, 8, 8, 8,
+    8, 6, 6, 8, 8, 8, 8, 8, 6, 6, 9, 9, 10, 9, 9, 6, 6, 9, 9, 9, 9, 9, 6, 7,
+  ],
+  "atlas-0": [
+    11, 11, 11, 11, 11, 7, 7, 10, 10, 10, 10, 10, 7, 6, 9, 9, 9, 9, 9, 6, 6, 9,
+    8, 8, 8, 8, 5, 5, 8, 8, 8, 7, 7, 5, 5, 7, 7, 7, 7, 7, 4, 4, 6, 6, 6, 6, 6,
+    4, 4,
+  ],
+  nova: [
+    5, 5, 6, 5, 5, 4, 4, 5, 5, 5, 5, 7, 4, 4, 6, 6, 6, 6, 6, 4, 5, 6, 6, 6, 6,
+    6, 4, 4, 6, 7, 6, 6, 6, 4, 4, 6, 6, 6, 8, 6, 4, 4, 7, 7, 7, 7, 7, 5, 5,
+  ],
+  swift: [
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
+    1, 1, 1, 2, 2, 2, 3, 3, 2, 2, 4, 4, 4, 4, 5, 3, 4, 5, 6, 6, 6, 6, 5, 5,
+  ],
+  glacier: [
+    2, 2, 2, 2, 2, 1, 1, 2, 2, 2, 2, 2, 1, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2,
+    2, 2, 2, 2, 2, 2, 3, 3, 2, 2, 3, 3, 3, 3, 3, 2, 2, 3, 3, 3, 3, 3, 2, 2,
+  ],
+};
+
 export const examples: DemoExample[] = [
   {
-    title: "Monthly cloud cost by service",
+    title: "The usage calendar: seven weeks, one bar per day",
     setup:
-      "Finance flags the cloud bill after it jumps twice in four months, and the platform lead has to explain which service did it. Four invoices, three line items each, stacked so the totals stay comparable.",
-    read: "The bar tops tell the total's story: up, up, relief, worst month yet. Compute is the segment that moves the top every time; storage and egress just ride along. The March dip was a reserved-instance credit, not discipline.",
+      "The public data page every AI tool ships now: daily token volume stacked by model, seven weeks wide, one thin bar per day. The chart stays a server component; wrapping it in the interactive layer's Root adds a pointer-following tooltip that reads the hovered day straight off the mark seams.",
+    read: "The stack order keeps each model's band readable at two pixels wide, and hovering any day opens the full ledger: every model's tokens plus the total, the hovered band emphasized. pico's bottom band doubles across the last three weeks while atlas-0 thins in mirror — a migration, drawn daily and quotable on hover.",
     chart: (
-      <AppCard title="Cloud cost by service" meta="4 invoices">
-        <StackedBar
-          title="Monthly cloud cost by service"
-          groups={["Jan", "Feb", "Mar", "Apr"]}
-          series={[
-            { name: "compute", data: [26, 33, 22, 38] },
-            { name: "storage", data: [19, 22, 15, 26] },
-            { name: "egress", data: [12, 17, 10, 14] },
-          ]}
-        />
-      </AppCard>
+      <Terminal title="daily tokens by model — B/day">
+        <FigTooltip labels={DAYS} series={USAGE} unit="B" total>
+          <StackedBar
+            title="Daily token volume by model"
+            groups={DAYS.map((day, i) => (i % 7 === 0 ? day : ""))}
+            series={Object.entries(USAGE).map(([name, data]) => ({
+              name,
+              data,
+            }))}
+          />
+        </FigTooltip>
+      </Terminal>
     ),
   },
   {

@@ -44,19 +44,31 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
             colors={series.map((_, k) => cat(k))}
           />
         )}
-        {groups.map((group, g) => {
+        {groups.map((_, g) => (
+          <rect
+            key={`hit-${g}`}
+            x={round(centers[g]! - step / 2)}
+            y={top}
+            width={round(step)}
+            height={bottom - top}
+            fill="transparent"
+            data-part="mark"
+            data-i={g}
+          />
+        ))}
+        {groups.map((_, g) => {
           let cursor = bottom;
           const denominator = normalize ? totals[g] || 1 : max;
           return series.map((s, k) => {
             const v = s.data[g] ?? 0;
             const h = (v / denominator) * (bottom - top);
-            const gap = k === 0 ? 0 : 1.6;
+            const gap = k === 0 ? 0 : Math.min(1.6, width * 0.12);
             const y = cursor - h;
             const x = centers[g]! - width / 2;
             const segment =
               k === series.length - 1 ? (
                 <rect
-                  key={`${group}-${s.name}`}
+                  key={`${g}-${k}`}
                   x={round(x)}
                   y={round(y - gap)}
                   width={round(width)}
@@ -69,7 +81,7 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
                 />
               ) : (
                 <rect
-                  key={`${group}-${s.name}`}
+                  key={`${g}-${k}`}
                   x={x}
                   y={y - gap}
                   width={width}

@@ -19,6 +19,14 @@ import {
 import { type MarkDatum, getMarkDatum } from "./datum";
 import { type MarkQuery, applyHighlight } from "./highlight";
 
+/**
+ * Pointer flicker guard: leaving a mark keeps the tooltip alive for this many
+ * milliseconds, so sweeping across the gaps between dense marks reads as one
+ * continuous hover. Re-entering any mark cancels the pending clear; leaving
+ * the container clears immediately.
+ */
+const GRACE_MS = 120;
+
 export type RootProps = ComponentPropsWithoutRef<"div"> & {
   onMarkClick?: (datum: MarkDatum, event: MouseEvent<HTMLDivElement>) => void;
   onMarkHover?: (datum: MarkDatum | null) => void;
@@ -81,6 +89,9 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
         onMarkMove: (datum: MarkDatum, x: number, y: number) => {
           setState({ datum, x, y });
         },
+        onPointerDrift: (x: number, y: number) => {
+          setState((prev) => (prev.datum ? { ...prev, x, y } : prev));
+        },
         onMarkLeave: () => {
           setState((prev) => (prev.datum ? { ...prev, datum: null } : prev));
         },
@@ -88,28 +99,44 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
       [],
     );
 
+    const graceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const cancelGrace = useCallback(() => {
+      if (graceTimer.current !== null) {
+        clearTimeout(graceTimer.current);
+        graceTimer.current = null;
+      }
+    }, []);
+    useEffect(() => cancelGrace, [cancelGrace]);
+
     const handleMove = (event: PointerEvent<HTMLDivElement>) => {
       onPointerMove?.(event);
       const datum = getMarkDatum(event.target);
+      const rect = event.currentTarget.getBoundingClientRect();
+      const x = event.clientX - rect.left;
+      const y = event.clientY - rect.top;
       if (datum) {
-        const rect = event.currentTarget.getBoundingClientRect();
-        dispatch.onMarkMove(
-          datum,
-          event.clientX - rect.left,
-          event.clientY - rect.top,
-        );
+        cancelGrace();
+        dispatch.onMarkMove(datum, x, y);
+        if (datum.element !== lastMark.current) {
+          lastMark.current = datum.element;
+          onMarkHover?.(datum);
+        }
       } else {
-        dispatch.onMarkLeave();
-      }
-      const mark = datum?.element ?? null;
-      if (mark !== lastMark.current) {
-        lastMark.current = mark;
-        onMarkHover?.(datum);
+        dispatch.onPointerDrift(x, y);
+        if (lastMark.current && graceTimer.current === null) {
+          graceTimer.current = setTimeout(() => {
+            graceTimer.current = null;
+            lastMark.current = null;
+            onMarkHover?.(null);
+            dispatch.onMarkLeave();
+          }, GRACE_MS);
+        }
       }
     };
 
     const handleLeave = (event: PointerEvent<HTMLDivElement>) => {
       onPointerLeave?.(event);
+      cancelGrace();
       dispatch.onMarkLeave();
       if (lastMark.current) {
         lastMark.current = null;

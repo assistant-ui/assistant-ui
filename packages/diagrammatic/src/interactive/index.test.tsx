@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import * as React from "react";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { Bar } from "../react/charts/bar";
 import { Line } from "../react/charts/line";
 import * as Interactive from "./index";
@@ -184,17 +190,35 @@ describe("Interactive.Root + Tooltip", () => {
     expect(screen.queryByRole("tooltip")).toBeNull();
   });
 
-  it("clears when the pointer moves off the marks", () => {
-    const { container } = renderChart();
-    const marks = container.querySelectorAll('[data-part="mark"]');
-    fireEvent.pointerMove(marks[0]!, { clientX: 10, clientY: 10 });
-    expect(screen.queryByRole("tooltip")).not.toBeNull();
+  it("holds through gap sweeps and clears only after the grace period", () => {
+    vi.useFakeTimers();
+    try {
+      const { container } = renderChart();
+      const marks = container.querySelectorAll('[data-part="mark"]');
+      fireEvent.pointerMove(marks[0]!, { clientX: 10, clientY: 10 });
+      expect(screen.queryByRole("tooltip")).not.toBeNull();
 
-    fireEvent.pointerMove(screen.getByTestId("root"), {
-      clientX: 5,
-      clientY: 5,
-    });
-    expect(screen.queryByRole("tooltip")).toBeNull();
+      fireEvent.pointerMove(screen.getByTestId("root"), {
+        clientX: 5,
+        clientY: 5,
+      });
+      expect(screen.getByRole("tooltip").textContent).toBe("react");
+
+      fireEvent.pointerMove(marks[1]!, { clientX: 20, clientY: 10 });
+      vi.advanceTimersByTime(300);
+      expect(screen.getByRole("tooltip").textContent).toBe("vue");
+
+      fireEvent.pointerMove(screen.getByTestId("root"), {
+        clientX: 5,
+        clientY: 5,
+      });
+      act(() => {
+        vi.advanceTimersByTime(150);
+      });
+      expect(screen.queryByRole("tooltip")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("places by side and merges consumer style", () => {
