@@ -351,6 +351,90 @@ describe("useThreadViewportAutoScroll", () => {
     expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
   });
 
+  it("keeps following after a pointerdown that does not scroll the viewport", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <BottomAnchorThread />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    act(() => {
+      viewport.dispatchEvent(new Event("pointerdown"));
+    });
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
+  });
+
+  it("cancels a queued bottom scroll when the user scrolls up", async () => {
+    let nextFrameId = 0;
+    let pendingFrame: {
+      id: number;
+      callback: FrameRequestCallback;
+    } | null = null;
+    const originalRequestAnimationFrame = globalThis.requestAnimationFrame;
+    const originalCancelAnimationFrame = globalThis.cancelAnimationFrame;
+
+    vi.stubGlobal("requestAnimationFrame", (callback: FrameRequestCallback) => {
+      const id = ++nextFrameId;
+      pendingFrame = { id, callback };
+      return id;
+    });
+    const cancelAnimationFrame = vi.fn((id: number) => {
+      if (pendingFrame?.id === id) pendingFrame = null;
+    });
+    vi.stubGlobal("cancelAnimationFrame", cancelAnimationFrame);
+
+    try {
+      render(
+        <SyncRuntimeProvider>
+          <BottomAnchorThread />
+        </SyncRuntimeProvider>,
+      );
+
+      const viewport = getViewport();
+      await waitFor(() => {
+        expect(screen.getAllByTestId("thread-message")).toHaveLength(
+          messages.length,
+        );
+        expect(pendingFrame).not.toBeNull();
+      });
+
+      let scrollTopAfterLeave = 0;
+      act(() => {
+        viewport.scrollTop = getMaxScrollTop(viewport);
+        viewport.dispatchEvent(new Event("scroll"));
+        viewport.scrollTop -= 80;
+        scrollTopAfterLeave = viewport.scrollTop;
+        viewport.dispatchEvent(new Event("scroll"));
+      });
+
+      const frame = pendingFrame as {
+        id: number;
+        callback: FrameRequestCallback;
+      } | null;
+      if (frame) {
+        act(() => {
+          frame.callback(performance.now());
+        });
+      }
+
+      expect(viewport.scrollTop).toBe(scrollTopAfterLeave);
+      expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
+      expect(cancelAnimationFrame).toHaveBeenCalledWith(expect.any(Number));
+    } finally {
+      vi.stubGlobal("requestAnimationFrame", originalRequestAnimationFrame);
+      vi.stubGlobal("cancelAnimationFrame", originalCancelAnimationFrame);
+    }
+  });
+
   it("does not resume bottom follow after a stable-height user scroll-up", async () => {
     render(
       <SyncRuntimeProvider>

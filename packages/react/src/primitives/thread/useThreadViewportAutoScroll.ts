@@ -80,28 +80,25 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     div.scrollTo({ top: div.scrollHeight, behavior });
   }, []);
 
+  const cancelScheduledFrame = useCallback(() => {
+    if (scheduledFrameRef.current === null) return;
+    cancelAnimationFrame(scheduledFrameRef.current);
+    scheduledFrameRef.current = null;
+  }, []);
+
   const scheduleScrollToBottom = useCallback(
     (behavior: ScrollBehavior) => {
       scrollingToBottomBehaviorRef.current = behavior;
-      if (scheduledFrameRef.current !== null) {
-        cancelAnimationFrame(scheduledFrameRef.current);
-      }
+      cancelScheduledFrame();
       scheduledFrameRef.current = requestAnimationFrame(() => {
         scheduledFrameRef.current = null;
         scrollToBottom(behavior);
       });
     },
-    [scrollToBottom],
+    [cancelScheduledFrame, scrollToBottom],
   );
 
-  useLayoutEffect(
-    () => () => {
-      if (scheduledFrameRef.current !== null) {
-        cancelAnimationFrame(scheduledFrameRef.current);
-      }
-    },
-    [],
-  );
+  useLayoutEffect(() => () => cancelScheduledFrame(), [cancelScheduledFrame]);
 
   const hasActiveTopAnchor = useCallback(() => {
     const state = threadViewportStore.getState();
@@ -144,6 +141,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         }
         if (autoScroll) followBottomRef.current = true;
       } else if (userScrolledUp) {
+        cancelScheduledFrame();
         scrollingToBottomBehaviorRef.current = null;
         followBottomRef.current = false;
       }
@@ -199,7 +197,6 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     // the next content growth, e.g. expanding a collapsible tool call.
     const cancelPendingScrollToBottom = () => {
       scrollingToBottomBehaviorRef.current = null;
-      followBottomRef.current = false;
     };
     el.addEventListener("scroll", handleScroll);
     el.addEventListener("pointerdown", cancelPendingScrollToBottom);

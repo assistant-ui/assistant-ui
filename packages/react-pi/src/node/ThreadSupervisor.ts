@@ -524,8 +524,8 @@ export class PiThreadSupervisor {
     });
 
     options.preflightResult = (success) => {
+      // Pi follows a failed preflight by rejecting prompt() with the real error.
       if (success) settlePreflight();
-      else settlePreflight(new Error("Pi rejected the prompt before running"));
     };
 
     void record.session
@@ -536,8 +536,11 @@ export class PiThreadSupervisor {
       })
       .catch((err: unknown) => {
         record.lastError = errorText(err);
-        this.emit(record, { type: "error", error: record.lastError });
-        settlePreflight(err);
+        if (preflightSettled) {
+          this.emit(record, { type: "error", error: record.lastError });
+        } else {
+          settlePreflight(err);
+        }
       });
 
     try {
