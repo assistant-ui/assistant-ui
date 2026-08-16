@@ -5,7 +5,10 @@ import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
 import { AISDKThreads } from "./AISDKThreads";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
-import { createControlledTransport } from "./__tests__/controlled-transport";
+import {
+  createCancellableTransport,
+  createControlledTransport,
+} from "./__tests__/controlled-transport";
 
 const textReply = (text: string) =>
   [
@@ -111,6 +114,45 @@ describe("AISDKThreads", () => {
     });
 
     handle.destroy();
+  });
+
+  it("stops all in-flight chats when its client is destroyed", async () => {
+    const chats: ReturnType<typeof createCancellableTransport>[] = [];
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: AISDKThreads({
+          transport: () => {
+            const chat = createCancellableTransport();
+            chats.push(chat);
+            return chat.transport;
+          },
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    try {
+      flushTapSync(() => aui.composer.setText("first"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => {
+        expect(aui.thread.getState().isRunning).toBe(true);
+      });
+
+      flushTapSync(() => aui.threads.switchToNewThread());
+      flushTapSync(() => handle.getClient().composer.setText("second"));
+      flushTapSync(() => handle.getClient().composer.send());
+      await vi.waitFor(() => {
+        expect(chats).toHaveLength(2);
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+      });
+    } finally {
+      handle.destroy();
+    }
+
+    await vi.waitFor(() => {
+      expect(chats.map((chat) => chat.getCancelCount())).toEqual([1, 1]);
+    });
   });
 
   it("wires model context and per-thread transports onto the wire", async () => {

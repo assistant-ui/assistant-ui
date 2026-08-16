@@ -2,7 +2,10 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
 import { AISDKChat } from "./AISDKChat";
-import { createControlledTransport } from "./__tests__/controlled-transport";
+import {
+  createCancellableTransport,
+  createControlledTransport,
+} from "./__tests__/controlled-transport";
 
 describe("AISDKChat as a standalone client config entry", () => {
   afterEach(() => {
@@ -60,6 +63,29 @@ describe("AISDKChat as a standalone client config entry", () => {
     } finally {
       handle.destroy();
     }
+  });
+
+  it("stops an in-flight chat when its client is destroyed", async () => {
+    const { transport, getCancelCount } = createCancellableTransport();
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKChat({ transport }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    try {
+      flushTapSync(() => aui.composer.setText("stop me"));
+      flushTapSync(() => aui.composer.send());
+      await vi.waitFor(() => {
+        expect(aui.thread.getState().isRunning).toBe(true);
+      });
+    } finally {
+      handle.destroy();
+    }
+
+    await vi.waitFor(() => {
+      expect(getCancelCount()).toBe(1);
+    });
   });
 
   it("installs the RuntimeAdapter scope defaults", () => {
