@@ -162,7 +162,9 @@ export class AgUiThreadRuntimeCore {
   private history: ThreadHistoryAdapter | undefined;
   private lastRunConfig: RunConfig | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
-  private readonly recordedHistoryIds = new Set<string>();
+  private readonly snapshotHistoryIds = new Set<string>();
+  private readonly persistedHistoryIds = new Set<string>();
+  private readonly historyWrites = new Map<string, Promise<void>>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private pendingResumeMessageId: string | null = null;
@@ -890,9 +892,9 @@ export class AgUiThreadRuntimeCore {
       this.resetRepositoryHead(lastAppliedId);
     }
 
-    this.recordedHistoryIds.clear();
+    this.snapshotHistoryIds.clear();
     for (const { message } of this.getMessageRepository().messages) {
-      this.recordedHistoryIds.add(message.id);
+      this.snapshotHistoryIds.add(message.id);
     }
     this.notifyUpdate();
   }
@@ -954,9 +956,10 @@ export class AgUiThreadRuntimeCore {
     }
 
     this.assistantHistoryParents.clear();
-    this.recordedHistoryIds.clear();
+    this.snapshotHistoryIds.clear();
+    this.persistedHistoryIds.clear();
     for (const { message } of loaded.messages) {
-      this.recordedHistoryIds.add(message.id);
+      this.persistedHistoryIds.add(message.id);
     }
     this.notifyUpdate();
   }
@@ -1392,10 +1395,12 @@ export class AgUiThreadRuntimeCore {
       }
     }
 
-    if (this.recordedHistoryIds.has(oldId)) {
-      this.recordedHistoryIds.delete(oldId);
-      if (!collidesWithExisting) {
-        this.recordedHistoryIds.add(newId);
+    for (const ids of [this.snapshotHistoryIds, this.persistedHistoryIds]) {
+      if (ids.has(oldId)) {
+        ids.delete(oldId);
+        if (!collidesWithExisting) {
+          ids.add(newId);
+        }
       }
     }
 
@@ -1752,7 +1757,7 @@ export class AgUiThreadRuntimeCore {
         const activeItem = this.tryGetMessage(activeAssistant.id);
         if (activeItem) {
           if (preservesActiveAssistant) {
-            this.recordedHistoryIds.delete(activeAssistant.id);
+            this.snapshotHistoryIds.delete(activeAssistant.id);
           }
           this.markPendingAssistantHistory(
             activeAssistant.id,
@@ -1783,7 +1788,9 @@ export class AgUiThreadRuntimeCore {
   }
 
   private recordHistoryEntry(parentId: string | null, message: ThreadMessage) {
-    this.appendHistoryItem(parentId, message);
+    void this.appendHistoryItem(parentId, message)?.catch((error) => {
+      this.logger.error?.("[agui] failed to append history entry", error);
+    });
   }
 
   private markPendingAssistantHistory(
@@ -1795,33 +1802,108 @@ export class AgUiThreadRuntimeCore {
   }
 
   private persistAssistantHistory(messageId: string) {
-    if (!this.history) return;
+    const history = this.history;
+    if (!history) return;
     const parentId = this.assistantHistoryParents.get(messageId);
     if (parentId === undefined) return;
     const message = this.tryGetMessage(messageId)?.message;
     if (!message || message.role !== "assistant") return;
     if (!this.isPersistableStatus(message.status)) return;
-    this.assistantHistoryParents.delete(messageId);
-    if (this.recordedHistoryIds.has(messageId)) {
-      // recordedHistoryIds tracks snapshot-owned ids that may never have
-      // reached the adapter; ThreadHistoryAdapter.update is documented as an
-      // upsert keyed on the message id, so it covers both cases. Append-only
-      // adapters skip rather than duplicate an entry the snapshot owns.
-      if (!this.history.update) return;
-      void this.history.update({ parentId, message }).catch((error) => {
-        this.logger.error?.("[agui] failed to update history entry", error);
-      });
+    const wasPersisted = this.persistedHistoryIds.has(messageId);
+    const update = history.update;
+    const shouldUpdate =
+      update !== undefined &&
+      (wasPersisted || this.snapshotHistoryIds.has(messageId));
+
+    if (shouldUpdate) {
+      const write = this.chainHistoryWrite(messageId, () =>
+        update.call(history, { parentId, message }),
+      );
+      this.assistantHistoryParents.delete(messageId);
+      void write.then(
+        () => {
+          this.persistedHistoryIds.add(messageId);
+        },
+        (error) => {
+          const pending = this.historyWrites.get(messageId);
+          if (pending === undefined || pending === write) {
+            this.assistantHistoryParents.set(messageId, parentId);
+          }
+          this.logger.error?.("[agui] failed to update history entry", error);
+        },
+      );
       return;
     }
-    this.appendHistoryItem(parentId, message);
+
+    if (wasPersisted) {
+      this.assistantHistoryParents.delete(messageId);
+      return;
+    }
+
+    const write = this.appendHistoryItem(parentId, message);
+    if (!write) return;
+    this.assistantHistoryParents.delete(messageId);
+    void write.then(
+      () => {},
+      (error) => {
+        const pending = this.historyWrites.get(messageId);
+        if (pending === undefined || pending === write) {
+          this.assistantHistoryParents.set(messageId, parentId);
+        }
+        this.logger.error?.("[agui] failed to append history entry", error);
+      },
+    );
   }
 
-  private appendHistoryItem(parentId: string | null, message: ThreadMessage) {
-    if (!this.history || this.recordedHistoryIds.has(message.id)) return;
-    this.recordedHistoryIds.add(message.id);
-    void this.history.append({ parentId, message }).catch((error) => {
-      this.recordedHistoryIds.delete(message.id);
-      this.logger.error?.("[agui] failed to append history entry", error);
-    });
+  private appendHistoryItem(
+    parentId: string | null,
+    message: ThreadMessage,
+  ): Promise<void> | undefined {
+    if (!this.history || this.persistedHistoryIds.has(message.id)) return;
+    const pending = this.historyWrites.get(message.id);
+    if (pending) return pending;
+
+    const append = this.history.append.bind(this.history);
+    const write = this.chainHistoryWrite(message.id, () =>
+      append({ parentId, message }),
+    );
+    void write.then(
+      () => {
+        this.persistedHistoryIds.add(message.id);
+      },
+      () => {},
+    );
+    return write;
+  }
+
+  private chainHistoryWrite(
+    id: string,
+    write: () => Promise<void>,
+  ): Promise<void> {
+    const pending = this.historyWrites.get(id);
+    let next: Promise<void>;
+    if (pending) {
+      next = pending.then(write, write);
+    } else {
+      try {
+        next = Promise.resolve(write());
+      } catch (error) {
+        next = Promise.reject(error);
+      }
+    }
+    this.historyWrites.set(id, next);
+    void next.then(
+      () => {
+        if (this.historyWrites.get(id) === next) {
+          this.historyWrites.delete(id);
+        }
+      },
+      () => {
+        if (this.historyWrites.get(id) === next) {
+          this.historyWrites.delete(id);
+        }
+      },
+    );
+    return next;
   }
 }

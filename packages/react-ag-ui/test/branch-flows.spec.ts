@@ -450,7 +450,7 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     expect(append).not.toHaveBeenCalled();
   });
 
-  it("does not duplicate snapshot assistants with append-only history", async () => {
+  it("persists snapshot assistants with append-only history", async () => {
     const serverAssistantId = "assistant-server";
     const append = vi.fn().mockResolvedValue(undefined);
     const agent = {
@@ -485,7 +485,39 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
 
     expect(
       append.mock.calls.some(([item]) => item.message.id === serverAssistantId),
-    ).toBe(false);
+    ).toBe(true);
+  });
+
+  it("retains persisted assistants after a snapshot clears the visible path", async () => {
+    const serverAssistantId = "assistant-server";
+    let runCount = 0;
+    const append = vi.fn().mockResolvedValue(undefined);
+    const agent = {
+      runAgent: vi.fn(async (_input: any, subscriber: any) => {
+        runCount++;
+        emitAssistantText(
+          subscriber,
+          serverAssistantId,
+          runCount === 1 ? "first" : "second",
+        );
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.append(createAppendMessage());
+    core.applyExternalMessages([]);
+    await core.reload(null);
+
+    expect(
+      append.mock.calls.filter(
+        ([item]) => item.message.id === serverAssistantId,
+      ),
+    ).toHaveLength(1);
   });
 
   it("keeps a recreated stable assistant after switching branches", async () => {
