@@ -1,3 +1,4 @@
+import { isRecord } from "@assistant-ui/core/internal";
 import type { AdkSendMessageConfig } from "../types";
 
 type ParsedAdkRequest =
@@ -17,9 +18,6 @@ type ParsedAdkRequest =
       config: AdkSendMessageConfig;
       stateDelta?: Record<string, unknown> | undefined;
     };
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const invalidField = (field: string, expectation: string): Error =>
   new Error(
@@ -42,15 +40,6 @@ const readOptionalString = (
   return value;
 };
 
-const readPartRecord = (
-  part: Record<string, unknown>,
-  field: string,
-): Record<string, unknown> => {
-  const value = part[field];
-  if (!isRecord(value)) throw invalidField(field, "an object");
-  return value;
-};
-
 const validateOptionalPartString = (
   part: Record<string, unknown>,
   key: string,
@@ -61,94 +50,74 @@ const validateOptionalPartString = (
   }
 };
 
+// Nested fields are validated only when present: ADK serializes with
+// exclude_none semantics and the Part vocabulary grows upstream, so absent
+// fields and unknown part kinds pass through to the runner untouched.
 const validatePart = (part: Record<string, unknown>, index: number) => {
   const field = (name: string) => `parts[${index}].${name}`;
-  const contentFields = [
-    "text",
-    "functionCall",
-    "functionResponse",
-    "executableCode",
-    "codeExecutionResult",
-    "inlineData",
-    "fileData",
-  ].filter((name) => part[name] !== undefined);
-
-  if (contentFields.length !== 1) {
-    throw invalidField(
-      `parts[${index}]`,
-      "exactly one supported ADK content field",
-    );
+  if (Object.keys(part).length === 0) {
+    throw invalidField(`parts[${index}]`, "a non-empty part object");
   }
   if (part.thought !== undefined && typeof part.thought !== "boolean") {
     throw invalidField(field("thought"), "a boolean");
   }
+  if (part.text !== undefined && typeof part.text !== "string") {
+    throw invalidField(field("text"), "a string");
+  }
 
-  const contentField = contentFields[0]!;
-  if (contentField === "text") {
-    if (typeof part.text !== "string") {
-      throw invalidField(field("text"), "a string");
+  const validateRecordField = (
+    key: string,
+    validateContent: (content: Record<string, unknown>) => void,
+  ) => {
+    const value = part[key];
+    if (value === undefined) return;
+    if (!isRecord(value)) throw invalidField(field(key), "an object");
+    validateContent(value);
+  };
+
+  validateRecordField("functionCall", (content) => {
+    validateOptionalPartString(content, "name", field("functionCall.name"));
+    validateOptionalPartString(content, "id", field("functionCall.id"));
+    if (content.args !== undefined && !isRecord(content.args)) {
+      throw invalidField(field("functionCall.args"), "an object");
     }
-    return;
-  }
-
-  const content = readPartRecord(part, contentField);
-  switch (contentField) {
-    case "functionCall":
-      if (typeof content.name !== "string") {
-        throw invalidField(field("functionCall.name"), "a string");
-      }
-      validateOptionalPartString(content, "id", field("functionCall.id"));
-      if (!isRecord(content.args)) {
-        throw invalidField(field("functionCall.args"), "an object");
-      }
-      return;
-    case "functionResponse":
-      if (typeof content.name !== "string") {
-        throw invalidField(field("functionResponse.name"), "a string");
-      }
-      validateOptionalPartString(content, "id", field("functionResponse.id"));
-      if (!("response" in content)) {
-        throw invalidField(field("functionResponse.response"), "a value");
-      }
-      return;
-    case "executableCode":
-      if (typeof content.code !== "string") {
-        throw invalidField(field("executableCode.code"), "a string");
-      }
-      validateOptionalPartString(
-        content,
-        "language",
-        field("executableCode.language"),
-      );
-      return;
-    case "codeExecutionResult":
-      if (typeof content.output !== "string") {
-        throw invalidField(field("codeExecutionResult.output"), "a string");
-      }
-      validateOptionalPartString(
-        content,
-        "outcome",
-        field("codeExecutionResult.outcome"),
-      );
-      return;
-    case "inlineData":
-      if (typeof content.mimeType !== "string") {
-        throw invalidField(field("inlineData.mimeType"), "a string");
-      }
-      if (typeof content.data !== "string") {
-        throw invalidField(field("inlineData.data"), "a string");
-      }
-      return;
-    case "fileData":
-      if (typeof content.fileUri !== "string") {
-        throw invalidField(field("fileData.fileUri"), "a string");
-      }
-      validateOptionalPartString(
-        content,
-        "mimeType",
-        field("fileData.mimeType"),
-      );
-  }
+  });
+  validateRecordField("functionResponse", (content) => {
+    validateOptionalPartString(content, "name", field("functionResponse.name"));
+    validateOptionalPartString(content, "id", field("functionResponse.id"));
+  });
+  validateRecordField("executableCode", (content) => {
+    validateOptionalPartString(content, "code", field("executableCode.code"));
+    validateOptionalPartString(
+      content,
+      "language",
+      field("executableCode.language"),
+    );
+  });
+  validateRecordField("codeExecutionResult", (content) => {
+    validateOptionalPartString(
+      content,
+      "output",
+      field("codeExecutionResult.output"),
+    );
+    validateOptionalPartString(
+      content,
+      "outcome",
+      field("codeExecutionResult.outcome"),
+    );
+  });
+  validateRecordField("inlineData", (content) => {
+    validateOptionalPartString(
+      content,
+      "mimeType",
+      field("inlineData.mimeType"),
+    );
+    validateOptionalPartString(content, "data", field("inlineData.data"));
+  });
+  validateRecordField("fileData", (content) => {
+    validateOptionalPartString(content, "fileUri", field("fileData.fileUri"));
+    validateOptionalPartString(content, "mimeType", field("fileData.mimeType"));
+  });
 };
 
 /**

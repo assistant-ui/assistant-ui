@@ -147,12 +147,25 @@ describe("parseAdkRequest", () => {
       'field "parts[0].functionCall.args"',
     ],
     [
-      { parts: [{ functionResponse: { name: "search" } }] },
-      'field "parts[0].functionResponse.response"',
+      { parts: [{ functionResponse: { name: 42 } }] },
+      'field "parts[0].functionResponse.name"',
     ],
-    [{ parts: [{ text: "hello", inlineData: {} }] }, 'field "parts[0]"'],
   ])("rejects malformed nested ADK parts %#", async (body, error) => {
     await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);
+  });
+
+  it("accepts exclude_none and unknown part shapes", async () => {
+    const parts = [
+      { functionCall: { name: "get_time", id: "call-1" } },
+      { functionResponse: { name: "search", id: "call-1" } },
+      { text: "hi", inlineData: { mimeType: "image/png", data: "abc" } },
+      { videoMetadata: { fps: 1 } },
+      { text: "hello", thoughtSignature: "sig" },
+    ];
+
+    await expect(
+      parseAdkRequest(makeRequest({ parts })),
+    ).resolves.toMatchObject({ parts });
   });
 
   it("requires message content", async () => {
