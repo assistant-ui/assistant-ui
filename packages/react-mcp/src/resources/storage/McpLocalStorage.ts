@@ -1,6 +1,8 @@
 import { resource } from "@assistant-ui/tap";
 import {
+  OAuthMetadataSchema,
   OAuthClientInformationFullSchema,
+  OAuthProtectedResourceMetadataSchema,
   OAuthTokensSchema,
 } from "@modelcontextprotocol/core";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
@@ -133,6 +135,54 @@ const normalizeClientInformation = (
   return result.success ? result.data : undefined;
 };
 
+const isSecureNetworkUrl = (value: unknown): value is string => {
+  if (!isNonEmptyString(value)) return false;
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === "https:" ||
+      (url.protocol === "http:" &&
+        (url.hostname === "localhost" ||
+          url.hostname.endsWith(".localhost") ||
+          url.hostname.startsWith("127.") ||
+          url.hostname === "[::1]"))
+    );
+  } catch {
+    return false;
+  }
+};
+
+const normalizeDiscoveryState = (
+  value: unknown,
+): MCPPersistedAuthState["discoveryState"] | undefined => {
+  if (!isRecord(value) || !isSecureNetworkUrl(value.authorizationServerUrl)) {
+    return undefined;
+  }
+
+  // A malformed optional field is dropped alone: keeping the validated
+  // authorization server URL preserves the redirect-time binding, and the SDK
+  // re-discovers whatever metadata is missing.
+  const state: NonNullable<MCPPersistedAuthState["discoveryState"]> = {
+    authorizationServerUrl: value.authorizationServerUrl,
+  };
+
+  if (isSecureNetworkUrl(value.resourceMetadataUrl)) {
+    state.resourceMetadataUrl = value.resourceMetadataUrl;
+  }
+
+  const metadata = OAuthMetadataSchema.safeParse(
+    value.authorizationServerMetadata,
+  );
+  if (metadata.success) state.authorizationServerMetadata = metadata.data;
+
+  const resourceMetadata = OAuthProtectedResourceMetadataSchema.safeParse(
+    value.resourceMetadata,
+  );
+  if (resourceMetadata.success) state.resourceMetadata = resourceMetadata.data;
+
+  return state;
+};
+
 export const normalizePersistedAuthState = (
   value: unknown,
 ): MCPPersistedAuthState | null => {
@@ -149,6 +199,9 @@ export const normalizePersistedAuthState = (
 
   const clientInformation = normalizeClientInformation(value.clientInformation);
   if (clientInformation) state.clientInformation = clientInformation;
+
+  const discoveryState = normalizeDiscoveryState(value.discoveryState);
+  if (discoveryState) state.discoveryState = discoveryState;
 
   return Object.keys(state).length > 0 ? state : null;
 };

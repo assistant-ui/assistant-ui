@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
-import { RuntimeAdapter, Suggestions } from "@assistant-ui/core/store";
-import { createChatRuntime } from "~/utils/runtime";
+import { Suggestions } from "@assistant-ui/core/store";
+import { AISDKChat } from "@assistant-ui/ai-sdk";
 
 const config = AuiConfig({
-  threads: RuntimeAdapter(createChatRuntime()),
+  threads: AISDKChat(),
   suggestions: Suggestions([
     {
       title: "Plan a weekend trip",

@@ -42,6 +42,10 @@ import { generateId } from "../../utils/id";
 import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
 import { EMPTY_QUEUE_ITEMS } from "../../store/scopes/queue-item";
 import type { QuoteInfo } from "../../types/quote";
+import {
+  captureThreadRuntimeGeneration,
+  isThreadRuntimeGenerationCurrent,
+} from "../../runtime/utils/thread-runtime-lifecycle";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
@@ -121,6 +125,14 @@ export class ExternalStoreThreadRuntimeCore
   private _converter = new ThreadMessageConverter();
 
   private _store!: ExternalStoreAdapter<any>;
+
+  private _getInitializePromise?: () => Promise<unknown> | undefined;
+
+  public __internal_setGetInitializePromise(
+    getPromise: () => Promise<unknown> | undefined,
+  ) {
+    this._getInitializePromise = getPromise;
+  }
 
   private _transformedQueue: ExternalThreadQueueAdapter | undefined;
 
@@ -492,22 +504,36 @@ export class ExternalStoreThreadRuntimeCore
       rawMessage.sourceId != null ||
       rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
 
+    // A transformed-queue send is stamped at flush; any other queue's
+    // transform would gate against its own thread's messages, so those stamp
+    // at send.
+    const message =
+      !isEdit &&
+      this._store.queue &&
+      this._store.queue === this._transformedQueue
+        ? rawMessage
+        : this.enrichAppendMetadata(rawMessage);
+
+    // The queue driver dispatches through the host adapter, outside this
+    // core, so the initialization barrier must run before a message can
+    // enter the queue.
+    const generation = captureThreadRuntimeGeneration(this);
+    this.ensureInitialized();
+
+    const initPromise = this._getInitializePromise?.();
+    if (initPromise) {
+      await initPromise;
+    }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+
     // Buffering does not start a run, so the tool-abort below must wait until
     // the queue flushes. By then the prior run (and its tools) has settled.
     if (!isEdit && this._store.queue) {
-      // Skip only for the queue this core actually installed on: another
-      // core's transform would gate against its own thread's messages.
-      const queued =
-        this._store.queue === this._transformedQueue
-          ? rawMessage
-          : this.enrichAppendMetadata(rawMessage);
-      if (queued.steer ?? this._store.isRunning ?? false)
-        this._store.queue.steer(queued);
-      else this._store.queue.enqueue(queued);
+      if (message.steer ?? this._store.isRunning ?? false)
+        this._store.queue.steer(message);
+      else this._store.queue.enqueue(message);
       return;
     }
-
-    const message = this.enrichAppendMetadata(rawMessage);
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn
@@ -518,6 +544,7 @@ export class ExternalStoreThreadRuntimeCore
     if (message.startRun ?? message.role === "user") {
       await this._toolInvocations?.abort();
     }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
     if (isEdit) {
       if (!this._store.onEdit)
@@ -600,15 +627,22 @@ export class ExternalStoreThreadRuntimeCore
     // imported state) is treated as historical — no streamCall/execute
     // fires for the loaded tool calls. The adapter is expected to update
     // its messages in response to onLoadExternalState; that update flows
-    // back here via __internal_setAdapter. We only clear adapter-side
-    // tool statuses when the tracker is the source of truth — otherwise
-    // we'd wipe statuses the adapter is managing on its own.
-    if (this._toolInvocations) {
-      this._toolInvocations.reset();
-      this._store.setToolStatuses?.({});
-    }
+    // back here via __internal_setAdapter. The tracker publishes the
+    // cleared status map itself, so adapter-side statuses reset only when
+    // the tracker is the source of truth.
+    this._toolInvocations?.reset();
 
     this._store.onLoadExternalState(state);
+  }
+
+  /**
+   * Adapter-facing notification that the backing session was discarded.
+   * Clears session-scoped tool-invocation state and parks queued work,
+   * without run-cancel semantics (`onCancel`, composer draft restoration).
+   */
+  public unstable_notifySessionReset(): void {
+    this._toolInvocations?.reset();
+    this._store.queue?.__internal_notifyCancelled?.();
   }
 
   public cancelRun(): void {

@@ -52,7 +52,30 @@ export class UpdateScheduler {
     this._isDirty = false;
     this._task();
   }
+
+  settle() {
+    this._isDirty = false;
+  }
 }
+
+const scheduledTasks: Task[] = [];
+const taskScheduler = new UpdateScheduler(() => {
+  const tasks = scheduledTasks.splice(0);
+  const errors: unknown[] = [];
+  for (const task of tasks) {
+    try {
+      task();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+  throwAggregated(errors, "Errors occurred while running scheduled tasks");
+});
+
+export const scheduleTask = (task: Task): void => {
+  taskScheduler.markDirty();
+  scheduledTasks.push(task);
+};
 
 export const scheduleNotify = (notify: () => void): void => {
   if (activeDrainRuns !== null) {

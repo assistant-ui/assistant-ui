@@ -206,7 +206,14 @@ export class TestResourceManager<R, A extends readonly unknown[]> {
  * Useful for testing async state updates.
  */
 export function waitForNextTick(): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, 0));
+  return new Promise((resolve) => {
+    const channel = new MessageChannel();
+    channel.port1.onmessage = () => {
+      channel.port1.close();
+      setTimeout(resolve, 0);
+    };
+    channel.port2.postMessage(null);
+  });
 }
 
 /**

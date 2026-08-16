@@ -8,11 +8,10 @@ import { useMemo } from "../../react-hooks/useMemo";
 import { useRef } from "../../react-hooks/useRef";
 import { useState } from "../../react-hooks/useState";
 import { isDevelopment } from "../../core/helpers/env";
+import { waitForNextTick as flushUpdates } from "../test-utils";
 
 const mountRuns = isDevelopment ? 2 : 1;
 const remountEvents = isDevelopment ? ["mount", "unmount", "mount"] : ["mount"];
-
-const flushUpdates = () => new Promise((resolve) => setTimeout(resolve, 0));
 
 const createCounterRoot = () => {
   let setCount: (value: number) => void;

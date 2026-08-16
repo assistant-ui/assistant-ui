@@ -6,6 +6,7 @@ description: Decision guide for choosing the right runtime, by framework or by f
 import { A2AIcon } from "@/components/icons/a2a";
 import { AdkIcon } from "@/components/icons/adk";
 import { AguiIcon } from "@/components/icons/agui";
+import { ClaudeIcon } from "@/components/icons/claude";
 import { CloudflareIcon } from "@/components/icons/cloudflare";
 import { LangChainIcon } from "@/components/icons/langchain";
 import { LangGraphIcon } from "@/components/icons/langgraph";
@@ -80,7 +81,7 @@ assistant-ui ships React adapter packages for these. Pick the matching card and 
 
 ### Integration guides
 
-For frameworks without a dedicated adapter, these wiring guides route through one of the adapters above.
+For frameworks without a dedicated adapter, these wiring guides route through an existing runtime: an adapter above, or one of the core runtimes.
 
   <Cards>
     <Card
@@ -94,6 +95,12 @@ For frameworks without a dedicated adapter, these wiring guides route through on
       title="Mastra"
       description="TypeScript agent framework. Wired through the Vercel AI SDK runtime."
       href="/docs/integrations/frameworks/mastra/overview"
+    />
+    <Card
+      icon={<ClaudeIcon width={20} height={20} className="text-[#D97757]" />}
+      title="Claude Managed Agents"
+      description="Anthropic-hosted agent sessions. Wired through the external store runtime: event-log replay, approval gates, sessions as threads."
+      href="/docs/runtimes/claude-managed-agents"
     />
   </Cards>
 

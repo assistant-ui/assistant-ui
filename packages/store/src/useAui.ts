@@ -327,36 +327,82 @@ const useHostedAssistantClient = ({
   const { value: client, effects } = useTapHost(function AssistantClientHost() {
     const notifications = useNotificationManager();
 
-    const store = useTapRoot(function AuiRoot() {
-      return useAuiRoot({ parent, entries, clientRef, notifications });
+    const { client } = useAuiRoot({
+      parent,
+      entries,
+      clientRef,
+      notifications,
     });
 
-    const client = useSyncExternalStore(
-      store.subscribe,
-      () => store.getValue().client,
-      () => store.getValue().client,
+    useEffect(
+      () => parent.subscribe(notifications.notifySubscribers),
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
+      [parent, notifications],
     );
 
-    // flushTapSync makes structural rebinds triggered by a notification land
-    // before the notification returns; the client ref is refreshed in the same
-    // window so event delivery resolves scopes against the post-flush client
-    useEffect(() => {
-      const notify = () =>
-        flushTapSync(() => {
-          clientRef.current = store.getValue().client;
-          notifications.notifySubscribers();
-        });
-      const unsubscribeStore = store.subscribe(notify);
-      const unsubscribeParent = parent.subscribe(notify);
-      return () => {
-        unsubscribeStore();
-        unsubscribeParent();
-      };
-      // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
-    }, [store, parent, notifications]);
+    // Every commit publishes a fresh envelope, so value-only updates reach
+    // subscribers here while the client inside keeps its identity
+    useEffect(() => notifications.notifySubscribers());
 
     return client;
   });
+
+  // The only hook that runs before descendant layout effects: a parent's
+  // useLayoutEffect fires after its children's, and useEffect leaves the
+  // pre-passive window this publication exists to close.
+  useInsertionEffect(() => {
+    clientRef.parent = parent;
+    clientRef.current = client;
+  }, [client, parent, clientRef]);
+
+  return { client, effects };
+};
+
+// Host for the deprecated useAui({...}) overload: the client tree runs under
+// a self-scheduled tap root instead of riding React's scheduler
+const useTapRootAssistantClient = ({
+  parent,
+  entries,
+}: {
+  parent: AssistantClient;
+  entries: ScopeEntry[];
+}): ScopedAuiClient => {
+  const clientRef = useRef<ClientRef>({ parent, current: null }).current;
+  const { value: client, effects } = useTapHost(
+    function LegacyAssistantClientHost() {
+      const notifications = useNotificationManager();
+
+      const store = useTapRoot(function AuiRoot() {
+        return useAuiRoot({ parent, entries, clientRef, notifications });
+      });
+
+      const client = useSyncExternalStore(
+        store.subscribe,
+        () => store.getValue().client,
+        () => store.getValue().client,
+      );
+
+      // flushTapSync makes structural rebinds triggered by a notification land
+      // before the notification returns; the client ref is refreshed in the same
+      // window so event delivery resolves scopes against the post-flush client
+      useEffect(() => {
+        const notify = () =>
+          flushTapSync(() => {
+            clientRef.current = store.getValue().client;
+            notifications.notifySubscribers();
+          });
+        const unsubscribeStore = store.subscribe(notify);
+        const unsubscribeParent = parent.subscribe(notify);
+        return () => {
+          unsubscribeStore();
+          unsubscribeParent();
+        };
+        // oxlint-disable-next-line react-hooks/exhaustive-deps -- parent is a prop of the outer hook; the host re-renders with a fresh closure when it changes
+      }, [store, parent, notifications]);
+
+      return client;
+    },
+  );
 
   // The only hook that runs before descendant layout effects: a parent's
   // useLayoutEffect fires after its children's, and useEffect leaves the
@@ -482,14 +528,10 @@ const useDerivedOnlyClient = (
 
 type ScopedAuiClient = { client: AssistantClient; effects?: () => void };
 
-// Creates a client extending an explicit parent (which may live in another
-// React root) with the scopes in the config; context is never consulted.
-// `effects` (rooted mode only) commits the host — the provider mounts it
-// ahead of its children's effects; hosts also self-commit as a fallback.
-export const useConfiguredAui = (
+const useScopeEntries = (
   parent: AssistantClient,
   clients: AuiConfig.Input,
-): ScopedAuiClient => {
+): { entries: ScopeEntry[]; rooted: boolean } => {
   const entries = Object.entries(
     applyTransformScopes(clients, parent),
   ) as ScopeEntry[];
@@ -504,13 +546,34 @@ export const useConfiguredAui = (
       entries.some(([, element]) => !isDerivedElement(element)),
   );
 
+  return { entries, rooted };
+};
+
+// Creates a client extending an explicit parent (which may live in another
+// React root) with the scopes in the config; context is never consulted.
+// `effects` (rooted mode only) commits the host — the provider mounts it
+// ahead of its children's effects; hosts also self-commit as a fallback.
+// `useHost` is fixed per call site.
+const useConfiguredAuiImpl = (
+  parent: AssistantClient,
+  clients: AuiConfig.Input,
+  useHost: typeof useHostedAssistantClient,
+): ScopedAuiClient => {
+  const { entries, rooted } = useScopeEntries(parent, clients);
+
   if (rooted) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks
-    return useHostedAssistantClient({ parent, entries });
+    return useHost({ parent, entries });
   }
   // oxlint-disable-next-line react-hooks/rules-of-hooks
   return { client: useDerivedOnlyClient(parent, entries) };
 };
+
+export const useConfiguredAui = (
+  parent: AssistantClient,
+  clients: AuiConfig.Input,
+): ScopedAuiClient =>
+  useConfiguredAuiImpl(parent, clients, useHostedAssistantClient);
 
 export namespace useAui {
   export type Props = AuiConfig.Input;
@@ -589,7 +652,11 @@ export function useAui(clients?: useAui.Props): AssistantClient {
   const parent = useAssistantContextValue();
   if (clients) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site
-    const { client, effects } = useConfiguredAui(parent, clients);
+    const { client, effects } = useConfiguredAuiImpl(
+      parent,
+      clients,
+      useTapRootAssistantClient,
+    );
     if (effects) setTapEffects(client, effects);
     return client;
   }

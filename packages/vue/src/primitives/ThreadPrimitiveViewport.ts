@@ -16,7 +16,7 @@ import {
   isViewportAtBottom,
   observeContentResize,
   viewportOverflows,
-} from "./viewportScroll";
+} from "@assistant-ui/store/client";
 import { viewportInjectionKey } from "./viewportContext";
 
 /**
@@ -172,7 +172,7 @@ export const ThreadPrimitiveViewport = defineComponent({
       scheduleScrollToBottom("auto");
     });
 
-    useAuiEvent("threadListItem.switchedTo", () => {
+    useAuiEvent("threads.selectionChanged", () => {
       if (!props.scrollToBottomOnThreadSwitch) return;
       scheduleScrollToBottom("instant");
     });

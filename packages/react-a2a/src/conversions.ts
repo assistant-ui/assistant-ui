@@ -54,7 +54,7 @@ export function a2aPartToContent(
 export function a2aPartsToContent(
   parts: A2APart[],
 ): ThreadAssistantMessage["content"] {
-  return parts.map(a2aPartToContent);
+  return (Array.isArray(parts) ? parts : []).map(a2aPartToContent);
 }
 
 const TERMINAL_STATES = new Set<A2ATaskState>([
@@ -183,5 +183,5 @@ export function contentPartsToA2AParts(
 export function a2aMessageToContent(
   message: A2AMessage,
 ): ThreadAssistantMessage["content"] {
-  return a2aPartsToContent(message.parts);
+  return a2aPartsToContent(message?.parts ?? []);
 }

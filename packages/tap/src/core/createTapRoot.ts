@@ -6,8 +6,9 @@ import {
 } from "./ResourceFiber";
 import { useTapRoot } from "../hooks/useTapRoot";
 import { isDevelopment } from "./helpers/env";
-import { flushTapSync, UpdateScheduler } from "./scheduler";
+import { flushTapSync, scheduleTask } from "./scheduler";
 import { createResourceFiberRoot } from "./helpers/root";
+import { isThenable } from "./helpers/thenable";
 
 export const createTapRoot = <R>(
   render: () => R,
@@ -15,23 +16,42 @@ export const createTapRoot = <R>(
 ): useTapRoot.Root<R> & { unmount: () => void } => {
   const fiber = createResourceFiber(
     useTapRoot,
-    createResourceFiberRoot(() => {
-      throw new Error("Unexpected update on createTapRoot outer fiber");
+    createResourceFiberRoot((evaluate, apply) => {
+      if (!evaluate()) return;
+      apply();
+      scheduleTask(() => {
+        if (!fiber.isMounted) return;
+        if (isDevelopment && fiber.devStrictMode) {
+          void renderResourceFiber(fiber, [render]);
+        }
+        void renderResourceFiber(fiber, [render]);
+        commitResourceFiber(fiber);
+      });
     }),
     undefined,
     isDevelopment ? "root" : null,
   );
 
-  // In strict mode, render twice to detect side effects
   const renderFiber = () => {
-    if (isDevelopment && fiber.devStrictMode) {
-      void renderResourceFiber(fiber, [render]);
+    try {
+      // In strict mode, render twice to detect side effects
+      if (isDevelopment && fiber.devStrictMode) {
+        void renderResourceFiber(fiber, [render]);
+      }
+      return renderResourceFiber(fiber, [render]) as useTapRoot.Root<R>;
+    } catch (error) {
+      if (isThenable(error)) {
+        throw new Error(
+          "createTapRoot suspended during its initial render; resolve the " +
+            "data first or use useTapRoot under a Suspense boundary.",
+        );
+      }
+      throw error;
     }
-    return renderResourceFiber(fiber, [render]) as useTapRoot.Root<R>;
   };
 
-  const commitScheduler = new UpdateScheduler(() => commitResourceFiber(fiber));
-  const commitFiber = () => flushTapSync(() => commitScheduler.markDirty());
+  const commitFiber = () =>
+    flushTapSync(() => scheduleTask(() => commitResourceFiber(fiber)));
 
   let root: useTapRoot.Root<R> | undefined;
   const ensureRoot = () => (root ??= renderFiber());
@@ -47,9 +67,10 @@ export const createTapRoot = <R>(
   }
 
   let subscriberCount = 0;
-  const unmountScheduler = new UpdateScheduler(() => {
-    if (subscriberCount === 0) unmountResourceFiber(fiber);
-  });
+  const scheduleUnmount = () =>
+    scheduleTask(() => {
+      if (subscriberCount === 0 && fiber.isMounted) unmountResourceFiber(fiber);
+    });
 
   return {
     getValue: () => ensureRoot().getValue(),
@@ -74,7 +95,7 @@ export const createTapRoot = <R>(
         if (!isSubscribed) return;
         isSubscribed = false;
         unsubscribe();
-        if (--subscriberCount === 0) unmountScheduler.markDirty();
+        if (--subscriberCount === 0) scheduleUnmount();
       };
     },
     unmount: () => {
