@@ -66,11 +66,13 @@ resource re-renders, so the error surfaces from that render rather than in the
 store's notify loop. A throw that repairs itself before the re-render reads the
 snapshot produces no error at all.
 
-What differs is *which* re-render. Under [`useResource`](/tap/docs/tap/api-reference#useresource)
-it is a React render, and under
-[`useTapRoot`](/tap/docs/tap/trees-and-rerenders#separate-scheduling-with-usetaproot)
-the throwing update escalates to a host render, so in both cases a React error
-boundary catches it. Only under a bare
-[`createTapRoot`](/tap/docs/tap/api-reference#createtaproot) — where no React
-host exists — does the error surface from the scheduler flush as an uncaught
+What differs is *which* re-render, and that is decided by the host at the root
+of the resource tree, not by the hook that reads the resource. When the tree is
+hosted by a React component — [`useResource`](/tap/docs/tap/api-reference#useresource)
+in a component, or
+[`useTapRoot`](/tap/docs/tap/trees-and-rerenders#separate-scheduling-with-usetaproot),
+which escalates a throwing update to a host render — the error surfaces in a
+React render and an error boundary catches it. Under a bare
+[`createTapRoot`](/tap/docs/tap/api-reference#createtaproot) — no React host —
+the re-render runs in the scheduler flush, so the error escapes as an uncaught
 error, the same route every other resource render error takes there.

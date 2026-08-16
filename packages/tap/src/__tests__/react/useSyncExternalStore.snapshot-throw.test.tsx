@@ -7,6 +7,7 @@ import { useSyncExternalStore } from "../../react-hooks/useSyncExternalStore";
 import { useCallback } from "../../react-hooks/useCallback";
 import { createTapRoot } from "../../core/createTapRoot";
 import { flushTapSync } from "../../core/scheduler";
+import { waitForNextTick } from "../test-utils";
 
 const createStore = (initial: string[]) => {
   let state = initial;
@@ -54,8 +55,6 @@ class ErrorBoundary extends React.Component<
   }
 }
 
-const waitForFlush = () => new Promise((r) => setTimeout(r, 10));
-
 describe("useSyncExternalStore snapshot throws", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -75,7 +74,7 @@ describe("useSyncExternalStore snapshot throws", () => {
 
     await act(async () => {
       store.setState(["a"]);
-      await waitForFlush();
+      await waitForNextTick();
     });
 
     expect(container.textContent).toBe("caught: index out of bounds");
@@ -99,7 +98,7 @@ describe("useSyncExternalStore snapshot throws", () => {
       // changed
       store.setState(["a"]);
       store.setStateWithoutNotifying(["a", "c"]);
-      await waitForFlush();
+      await waitForNextTick();
     });
 
     expect(container.textContent).toBe("c");
@@ -107,7 +106,7 @@ describe("useSyncExternalStore snapshot throws", () => {
 });
 
 describe("useSyncExternalStore snapshot throws on a createTapRoot host", () => {
-  it("surfaces a persistently throwing snapshot from the scheduler flush", () => {
+  it("surfaces a persistently throwing snapshot from the scheduler flush", async () => {
     const store = createStore(["a", "b"]);
     const root = createTapRoot(
       function SnapshotThrowRoot() {
@@ -126,5 +125,7 @@ describe("useSyncExternalStore snapshot throws on a createTapRoot host", () => {
     );
 
     unsubscribe();
+    // drain the scheduled unmount task so it cannot escape past this test
+    await waitForNextTick();
   });
 });
