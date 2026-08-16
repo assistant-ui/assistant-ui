@@ -343,7 +343,7 @@ Three modes, declared per-connector or per-custom-record:
 }
 ```
 
-The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), DCR (RFC 7591), PKCE, token exchange, and refresh; this package mediates `MCPStorage` reads/writes and the redirect step. The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route knows which server to complete.
+The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), DCR (RFC 7591 — [deprecated in favor of CIMD](#how-it-works) but still supported), PKCE, token exchange, and refresh; this package mediates `MCPStorage` reads/writes and the redirect step. The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route knows which server to complete.
 
 ## State & methods
 
