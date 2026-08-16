@@ -17,7 +17,6 @@ const TEXT_CHARTS = new Set([
   "progress-ring",
   "gauge",
   "split-bar",
-  "kpi-tile",
 ]);
 
 export function Plate({ chart, delay = 0 }: { chart: Chart; delay?: number }) {

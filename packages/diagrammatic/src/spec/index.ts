@@ -38,7 +38,6 @@ import type {
   HistogramProps,
   HorizonProps,
   IcicleProps,
-  KpiTileProps,
   LeaderboardProps,
   LineProps,
   LollipopProps,
@@ -160,8 +159,7 @@ export type ChartSpec =
   | S<"bullet", BulletProps>
   | S<"progress-ring", ProgressRingProps>
   | S<"gauge", GaugeProps>
-  | S<"split-bar", SplitBarProps>
-  | S<"kpi-tile", KpiTileProps>;
+  | S<"split-bar", SplitBarProps>;
 
 type Kind = "array" | "object" | "string" | "number";
 type Descriptor = {
@@ -289,10 +287,6 @@ const REGISTRY: Record<string, Descriptor> = {
   "split-bar": entry(charts.SplitBar, [
     ["a", "object"],
     ["b", "object"],
-  ]),
-  "kpi-tile": entry(charts.KpiTile, [
-    ["label", "string"],
-    ["value", "string"],
   ]),
 };
 

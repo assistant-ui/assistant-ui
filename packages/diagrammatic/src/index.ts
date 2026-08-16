@@ -118,4 +118,3 @@ export {
 } from "./react/charts/progress-ring";
 export { Gauge, type GaugeProps } from "./react/charts/gauge";
 export { SplitBar, type SplitBarProps } from "./react/charts/split-bar";
-export { KpiTile, type KpiTileProps } from "./react/charts/kpi-tile";

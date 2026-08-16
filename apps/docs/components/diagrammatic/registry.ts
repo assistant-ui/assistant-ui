@@ -65,7 +65,6 @@ import { examples as bulletExamples } from "./demos/bullet";
 import { examples as progressRingExamples } from "./demos/progress-ring";
 import { examples as gaugeExamples } from "./demos/gauge";
 import { examples as splitBarExamples } from "./demos/split-bar";
-import { examples as kpiTileExamples } from "./demos/kpi-tile";
 
 type ChartInput = {
   slug: string;
@@ -719,7 +718,7 @@ const SECTIONS: SectionInput[] = [
     ],
   },
   {
-    label: "Micro & KPI",
+    label: "Micro",
     intro:
       "Charts the size of a word, built to live inside tables, tiles, and sentences.",
     charts: [
@@ -786,15 +785,6 @@ const SECTIONS: SectionInput[] = [
         use: "Inline two-way proportions: sent against received, hit against miss.",
         watch: "Two segments only; more shares deserve a real stacked bar.",
         examples: splitBarExamples,
-      },
-      {
-        slug: "kpi-tile",
-        exportName: "KpiTile",
-        name: "KPI tile",
-        blurb: "The number, its change, and its recent past.",
-        use: "Headline metrics where the value itself is the chart.",
-        watch: "One tile, one message; a wall of tiles is a table in costume.",
-        examples: kpiTileExamples,
       },
     ],
   },

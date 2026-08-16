@@ -500,14 +500,6 @@ export const FIXTURES: Record<string, ReactElement> = {
       b={{ label: "up", value: 28 }}
     />
   ),
-  "kpi-tile": (
-    <dg.KpiTile
-      label="active runs"
-      value="1,284"
-      delta={{ value: "12.4%", direction: "up" }}
-      trend={[30, 42, 38, 52, 48, 62, 70, 84]}
-    />
-  ),
 };
 
 describe("every chart form", () => {

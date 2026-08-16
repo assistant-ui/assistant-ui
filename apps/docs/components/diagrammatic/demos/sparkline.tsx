@@ -72,4 +72,27 @@ export const examples: DemoExample[] = [
     read: "Visits and basket size climb together while returns fall — every shape agrees, which almost never happens and deserves the one-line celebration. When the shapes disagree, this row becomes the agenda.",
     chart: <Rows rows={STORE} />,
   },
+  {
+    title: "The stat tile: a composition, not a component",
+    setup:
+      "Every dashboard opens with a card like this — a label, a big number, a delta, a trend. It is deliberately not a chart component: the number and delta are copy, not data, so the tile is markup you own with a Sparkline dropped in.",
+    read: "The package draws the one part that is actually a chart; the rest is your design system's job. Swap the typography, move the delta, stack three tiles in a row — the composition is yours, which is the point.",
+    chart: (
+      <div className="border-foreground/15 mx-auto w-full max-w-52 border px-4 py-3.5 font-[family-name:var(--font-mono)]">
+        <p className="text-foreground/50 text-[11px]">active runs</p>
+        <div className="mt-1 flex items-baseline justify-between gap-3">
+          <span className="text-foreground/90 text-2xl tabular-nums">
+            1,284
+          </span>
+          <span className="text-[11px] text-[#3b82f6]">▲ 12.4%</span>
+        </div>
+        <div className="mt-3">
+          <Sparkline
+            data={[30, 42, 38, 52, 48, 62, 70, 84]}
+            title="active runs trend"
+          />
+        </div>
+      </div>
+    ),
+  },
 ];
