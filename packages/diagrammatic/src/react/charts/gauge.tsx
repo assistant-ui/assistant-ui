@@ -54,7 +54,8 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
     },
     ref,
   ) => {
-    const vh = vbHeight(aspect, 5 / 3);
+    const vh =
+      vbHeight(aspect, 5 / 3) + (ticks?.some((tick) => tick.label) ? 14 : 0);
     const cy = vh - 26;
     const r = Math.min(cy - 10, 78);
     const share = Math.max(0, Math.min(1, value));
@@ -103,7 +104,10 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
           const a = angleAt(tick.at);
           const p0 = polar(100, cy, r + 3.5, a);
           const p1 = polar(100, cy, r + 7.5, a);
-          const pl = polar(100, cy, r + 12, a);
+          const atEnd = tick.at <= 0.02 || tick.at >= 0.98;
+          const pl = atEnd
+            ? { x: tick.at < 0.5 ? 100 - r : 100 + r, y: cy + 11 }
+            : polar(100, cy, r + 12, a);
           return (
             <g key={tick.at} data-part="grid">
               <line
@@ -117,9 +121,10 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
               {tick.label && (
                 <text
                   x={round(pl.x)}
-                  y={round(pl.y) + 1.2}
+                  y={round(atEnd ? pl.y : pl.y + 1.4)}
                   textAnchor="middle"
                   {...TXT.axis}
+                  fontSize={4.8}
                   fill={inRed(tick.at) ? NEG : undefined}
                 >
                   {tick.label}
@@ -157,9 +162,9 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
         )}
         <text
           x="100"
-          y={needle ? cy - 16 : cy - 8}
+          y={needle ? cy - 17 : cy - 9}
           textAnchor="middle"
-          fontSize="11.5"
+          fontSize={needle ? 12 : 15}
           fill={ink(0.85)}
           fontFamily={TXT.value.fontFamily}
         >
@@ -168,32 +173,39 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
         {label && (
           <text
             x="100"
-            y={needle ? cy - 6 : cy + 2}
+            y={needle ? cy - 6 : cy + 4}
             textAnchor="middle"
             data-part="axis"
-            {...TXT.axis}
+            {...TXT.label}
+            fontSize={needle ? 5.6 : 7.5}
           >
             {label}
           </text>
         )}
-        <text
-          x={100 - r}
-          y={cy + 12}
-          textAnchor="middle"
-          data-part="axis"
-          {...TXT.axis}
-        >
-          {min}
-        </text>
-        <text
-          x={100 + r}
-          y={cy + 12}
-          textAnchor="middle"
-          data-part="axis"
-          {...TXT.axis}
-        >
-          {max}
-        </text>
+        {min ? (
+          <text
+            x={100 - r}
+            y={cy + 13}
+            textAnchor="middle"
+            data-part="axis"
+            {...TXT.axis}
+            fontSize={5}
+          >
+            {min}
+          </text>
+        ) : null}
+        {max ? (
+          <text
+            x={100 + r}
+            y={cy + 13}
+            textAnchor="middle"
+            data-part="axis"
+            {...TXT.axis}
+            fontSize={5}
+          >
+            {max}
+          </text>
+        ) : null}
       </ChartSvg>
     );
   },

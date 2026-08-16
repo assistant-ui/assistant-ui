@@ -14,7 +14,7 @@ export const examples: DemoExample[] = [
     read: "One glance, three readings: 172 on the speedo, the tach needle two major ticks shy of the 7.2k redline, and oil at 94° with headroom before its own red band. Every zone-crossing rule travels with each dial — red ticks past each limit, needles that flip red only when they cross — so the cluster stays readable at speed, which is the whole design brief of a dashboard.",
     chart: (
       <Terminal title="drivetrain — telemetry">
-        <div className="grid grid-cols-[1.15fr_1.5fr_1.15fr] items-end gap-3 [&_[data-part=axis]]:[font-size:4.6px] [&_[data-part=grid]_text]:[font-size:5.2px]">
+        <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[1.15fr_1.5fr_1.15fr] [&_[data-part=grid]_text]:[font-size:7.2px]">
           <Gauge
             needle
             value={172 / 300}
