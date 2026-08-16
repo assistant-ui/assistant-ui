@@ -1,4 +1,5 @@
 import { Chord } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper } from "./scenes";
 
@@ -27,20 +28,39 @@ export const examples: DemoExample[] = [
         title="The Pacific's main street"
         source="Source: customs aggregates"
       >
-        <Chord
-          title="Trade flows between regions"
-          groups={["americas", "europe", "asia", "africa", "oceania"]}
-          flows={[
-            { from: "americas", to: "asia", value: 30 },
-            { from: "europe", to: "asia", value: 22 },
-            { from: "americas", to: "europe", value: 18 },
-            { from: "europe", to: "africa", value: 11 },
-            { from: "asia", to: "africa", value: 8 },
-            { from: "asia", to: "oceania", value: 7 },
-            { from: "americas", to: "africa", value: 4 },
-            { from: "americas", to: "oceania", value: 3 },
-          ]}
-        />
+        <FigTooltip
+          entries={{
+            "americas → asia": 30,
+            "europe → asia": 22,
+            "americas → europe": 18,
+            "europe → africa": 11,
+            "asia → africa": 8,
+            "asia → oceania": 7,
+            "americas → africa": 4,
+            "americas → oceania": 3,
+            americas: 55,
+            europe: 51,
+            asia: 67,
+            africa: 23,
+            oceania: 10,
+          }}
+          unit="B"
+        >
+          <Chord
+            title="Trade flows between regions"
+            groups={["americas", "europe", "asia", "africa", "oceania"]}
+            flows={[
+              { from: "americas", to: "asia", value: 30 },
+              { from: "europe", to: "asia", value: 22 },
+              { from: "americas", to: "europe", value: 18 },
+              { from: "europe", to: "africa", value: 11 },
+              { from: "asia", to: "africa", value: 8 },
+              { from: "asia", to: "oceania", value: 7 },
+              { from: "americas", to: "africa", value: 4 },
+              { from: "americas", to: "oceania", value: 3 },
+            ]}
+          />
+        </FigTooltip>
       </Paper>
     ),
   },

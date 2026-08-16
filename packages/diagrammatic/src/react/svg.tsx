@@ -1,3 +1,4 @@
+import { round } from "../core/geometry";
 import {
   type ComponentPropsWithoutRef,
   type CSSProperties,
@@ -252,6 +253,48 @@ export function AxisLabels({
           </text>
         ),
       )}
+    </g>
+  );
+}
+
+/**
+ * A row of transparent full-height hit rects for charts whose marks are
+ * continuous paths: one column per data index, split at the midpoints
+ * between evenly spaced points, so the pointer always resolves to a datum.
+ */
+export function ColumnHits({
+  count,
+  x0,
+  x1,
+  top,
+  bottom,
+}: {
+  count: number;
+  x0: number;
+  x1: number;
+  top: number;
+  bottom: number;
+}) {
+  if (count < 1) return null;
+  const step = count === 1 ? x1 - x0 : (x1 - x0) / (count - 1);
+  return (
+    <g>
+      {Array.from({ length: count }, (_, i) => {
+        const left = i === 0 ? x0 : x0 + step * (i - 0.5);
+        const right = i === count - 1 ? x1 : x0 + step * (i + 0.5);
+        return (
+          <rect
+            key={i}
+            x={round(left)}
+            y={round(top)}
+            width={round(right - left)}
+            height={round(bottom - top)}
+            fill="transparent"
+            data-part="mark"
+            data-i={i}
+          />
+        );
+      })}
     </g>
   );
 }

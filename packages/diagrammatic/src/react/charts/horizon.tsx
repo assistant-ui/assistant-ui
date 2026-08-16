@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { areaPath, clamp01, scalePoints, stroke } from "../../core/geometry";
 import { ACCENT, GRID } from "../../core/theme";
-import { AxisLabels, ChartSvg, TXT, vbHeight } from "../svg";
+import { AxisLabels, ChartSvg, ColumnHits, TXT, vbHeight } from "../svg";
 
 export type HorizonProps = BaseProps & { data: number[]; bands?: 2 | 3 };
 
@@ -15,6 +15,13 @@ export const Horizon = forwardRef<SVGSVGElement, HorizonProps>(
     const max = Math.max(...data, 1);
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        <ColumnHits
+          count={data.length}
+          x0={10}
+          x1={190}
+          top={18}
+          bottom={bottom}
+        />
         <line
           x1="10"
           y1={bottom}

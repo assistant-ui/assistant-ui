@@ -1,4 +1,5 @@
 import { Sparkbar } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Terminal } from "./scenes";
 
@@ -53,25 +54,33 @@ export const examples: DemoExample[] = [
     read: "The daily rhythm repeats: quiet mornings, afternoon peaks. Wednesday's tallest bar landed at 18h, which is the deploy-freeze conversation waiting to happen; zero blocks stay visibly empty instead of being interpolated away.",
     chart: (
       <Terminal title="deploys — 3 days">
-        <Rows
-          rows={[
-            {
-              label: "mon",
-              data: [3, 5, 4, 7, 6, 9, 8, 10, 7, 6, 8, 9],
-              value: "82",
-            },
-            {
-              label: "tue",
-              data: [5, 4, 6, 5, 8, 7, 9, 8, 10, 9, 7, 8],
-              value: "86",
-            },
-            {
-              label: "wed",
-              data: [2, 3, 5, 4, 6, 5, 7, 9, 8, 10, 9, 11],
-              value: "79",
-            },
-          ]}
-        />
+        <FigTooltip
+          series={{
+            mon: [3, 5, 4, 7, 6, 9, 8, 10, 7, 6, 8, 9],
+            tue: [5, 4, 6, 5, 8, 7, 9, 8, 10, 9, 7, 8],
+            wed: [2, 3, 5, 4, 6, 5, 7, 9, 8, 10, 9, 11],
+          }}
+        >
+          <Rows
+            rows={[
+              {
+                label: "mon",
+                data: [3, 5, 4, 7, 6, 9, 8, 10, 7, 6, 8, 9],
+                value: "82",
+              },
+              {
+                label: "tue",
+                data: [5, 4, 6, 5, 8, 7, 9, 8, 10, 9, 7, 8],
+                value: "86",
+              },
+              {
+                label: "wed",
+                data: [2, 3, 5, 4, 6, 5, 7, 9, 8, 10, 9, 11],
+                value: "79",
+              },
+            ]}
+          />
+        </FigTooltip>
       </Terminal>
     ),
   },

@@ -1,4 +1,5 @@
 import { Scatter } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper, Slide } from "./scenes";
 
@@ -25,31 +26,48 @@ export const examples: DemoExample[] = [
     read: "Richer runs longer along a curve that flattens past $40k, and the two enormous bubbles sit mid-curve, carrying most of humanity with them. A small rich country and a giant middle-income one can share a life expectancy; the sizes say which fact matters more.",
     chart: (
       <Slide title="The development curve" footer="sized by population">
-        <Scatter
-          title="GDP per capita against life expectancy"
-          points={[
-            { x: 12, y: 71, size: 1400 },
-            { x: 18, y: 74, size: 1100 },
-            { x: 8, y: 68, size: 340 },
-            { x: 6, y: 64, size: 220 },
-            { x: 10, y: 69, size: 175 },
-            { x: 15, y: 72, size: 96 },
-            { x: 22, y: 76, size: 128 },
-            { x: 26, y: 75, size: 88 },
-            { x: 30, y: 78, size: 210 },
-            { x: 34, y: 79, size: 52 },
-            { x: 38, y: 80, size: 67 },
-            { x: 42, y: 81, size: 330 },
-            { x: 45, y: 80, size: 26 },
-            { x: 48, y: 82, size: 47 },
-            { x: 52, y: 81, size: 18 },
-            { x: 54, y: 83, size: 84 },
-            { x: 58, y: 82, size: 6 },
-            { x: 62, y: 84, size: 10 },
-          ]}
-          xLabel="gdp per capita ($k)"
-          yLabel="life expectancy"
-        />
+        <FigTooltip
+          series={{
+            "gdp $k": [
+              12, 18, 8, 6, 10, 15, 22, 26, 30, 34, 38, 42, 45, 48, 52, 54, 58,
+              62,
+            ],
+            "life exp": [
+              71, 74, 68, 64, 69, 72, 76, 75, 78, 79, 80, 81, 80, 82, 81, 83,
+              82, 84,
+            ],
+            "pop (M)": [
+              1400, 1100, 340, 220, 175, 96, 128, 88, 210, 52, 67, 330, 26, 47,
+              18, 84, 6, 10,
+            ],
+          }}
+        >
+          <Scatter
+            title="GDP per capita against life expectancy"
+            points={[
+              { x: 12, y: 71, size: 1400 },
+              { x: 18, y: 74, size: 1100 },
+              { x: 8, y: 68, size: 340 },
+              { x: 6, y: 64, size: 220 },
+              { x: 10, y: 69, size: 175 },
+              { x: 15, y: 72, size: 96 },
+              { x: 22, y: 76, size: 128 },
+              { x: 26, y: 75, size: 88 },
+              { x: 30, y: 78, size: 210 },
+              { x: 34, y: 79, size: 52 },
+              { x: 38, y: 80, size: 67 },
+              { x: 42, y: 81, size: 330 },
+              { x: 45, y: 80, size: 26 },
+              { x: 48, y: 82, size: 47 },
+              { x: 52, y: 81, size: 18 },
+              { x: 54, y: 83, size: 84 },
+              { x: 58, y: 82, size: 6 },
+              { x: 62, y: 84, size: 10 },
+            ]}
+            xLabel="gdp per capita ($k)"
+            yLabel="life expectancy"
+          />
+        </FigTooltip>
       </Slide>
     ),
   },

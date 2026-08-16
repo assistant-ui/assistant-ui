@@ -1,4 +1,5 @@
 import { MirroredArea } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper } from "./scenes";
 
@@ -23,39 +24,69 @@ export const examples: DemoExample[] = [
         title="The reservoir's year"
         source="Source: dam operator logs"
       >
-        <MirroredArea
-          title="Reservoir inflow and release"
-          down={{
-            name: "inflow",
-            data: [
+        <FigTooltip
+          labels={[
+            "Nov a",
+            "Nov b",
+            "Dec a",
+            "Dec b",
+            "Jan a",
+            "Jan b",
+            "Feb a",
+            "Feb b",
+            "Mar a",
+            "Mar b",
+            "Apr a",
+            "Apr b",
+            "May a",
+            "May b",
+            "Jun a",
+            "Jun b",
+          ]}
+          series={{
+            inflow: [
               18, 24, 34, 46, 56, 62, 58, 50, 40, 32, 24, 18, 14, 11, 10, 9,
             ],
-          }}
-          up={{
-            name: "release",
-            data: [
+            release: [
               12, 14, 15, 18, 24, 32, 40, 46, 44, 40, 34, 28, 22, 18, 15, 13,
             ],
           }}
-          labels={[
-            "Nov",
-            "",
-            "Dec",
-            "",
-            "Jan",
-            "",
-            "Feb",
-            "",
-            "Mar",
-            "",
-            "Apr",
-            "",
-            "May",
-            "",
-            "Jun",
-            "",
-          ]}
-        />
+          unit="m³/s"
+        >
+          <MirroredArea
+            title="Reservoir inflow and release"
+            down={{
+              name: "inflow",
+              data: [
+                18, 24, 34, 46, 56, 62, 58, 50, 40, 32, 24, 18, 14, 11, 10, 9,
+              ],
+            }}
+            up={{
+              name: "release",
+              data: [
+                12, 14, 15, 18, 24, 32, 40, 46, 44, 40, 34, 28, 22, 18, 15, 13,
+              ],
+            }}
+            labels={[
+              "Nov",
+              "",
+              "Dec",
+              "",
+              "Jan",
+              "",
+              "Feb",
+              "",
+              "Mar",
+              "",
+              "Apr",
+              "",
+              "May",
+              "",
+              "Jun",
+              "",
+            ]}
+          />
+        </FigTooltip>
       </Paper>
     ),
   },

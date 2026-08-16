@@ -11,6 +11,7 @@ type FigTooltipProps = {
     rows?: readonly string[];
     values: readonly (readonly (number | string)[])[];
   };
+  entries?: Readonly<Record<string, number | string>>;
   unit?: string;
   total?: boolean;
   children: ReactNode;
@@ -26,6 +27,7 @@ export function FigTooltip({
   labels,
   series,
   matrix,
+  entries,
   unit = "",
   total,
   children,
@@ -56,6 +58,27 @@ export function FigTooltip({
                 </p>
               </div>
             );
+          }
+          if (datum.series !== undefined && (entries || datum.series2)) {
+            const key = datum.series2
+              ? `${datum.series} → ${datum.series2}`
+              : datum.series;
+            const value = entries?.[key];
+            if (value !== undefined || datum.series2) {
+              return (
+                <div className="border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
+                  <p className="flex items-baseline gap-3">
+                    <span className="text-[#1a1b1e]/60">{key}</span>
+                    {value !== undefined && (
+                      <span className="ml-auto text-right tabular-nums">
+                        {value}
+                        {unit}
+                      </span>
+                    )}
+                  </p>
+                </div>
+              );
+            }
           }
           const title = index === undefined ? undefined : labels?.[index];
           const rows =

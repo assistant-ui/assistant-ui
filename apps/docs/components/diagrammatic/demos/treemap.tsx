@@ -1,4 +1,5 @@
 import { Treemap } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper } from "./scenes";
 
@@ -42,47 +43,64 @@ export const examples: DemoExample[] = [
         title="The budget, to scale"
         source="Source: treasury outturn"
       >
-        <Treemap
-          title="Budget by area"
-          root={{
-            label: "budget",
-            children: [
-              {
-                label: "social",
-                children: [
-                  { label: "pensions", value: 310 },
-                  { label: "welfare", value: 140 },
-                  { label: "housing", value: 45 },
-                ],
-              },
-              {
-                label: "health",
-                children: [
-                  { label: "hospitals", value: 165 },
-                  { label: "primary", value: 75 },
-                  { label: "pharma", value: 40 },
-                ],
-              },
-              {
-                label: "education",
-                children: [
-                  { label: "schools", value: 90 },
-                  { label: "higher", value: 40 },
-                ],
-              },
-              {
-                label: "other",
-                children: [
-                  { label: "defense", value: 90 },
-                  { label: "transport", value: 60 },
-                  { label: "debt", value: 55 },
-                  { label: "culture", value: 15 },
-                ],
-              },
-            ],
+        <FigTooltip
+          entries={{
+            pensions: "$310B",
+            welfare: "$140B",
+            housing: "$45B",
+            hospitals: "$165B",
+            primary: "$75B",
+            pharma: "$40B",
+            schools: "$90B",
+            higher: "$40B",
+            defense: "$90B",
+            transport: "$60B",
+            debt: "$55B",
+            culture: "$15B",
           }}
-          format={(v) => `$${v}B`}
-        />
+        >
+          <Treemap
+            title="Budget by area"
+            root={{
+              label: "budget",
+              children: [
+                {
+                  label: "social",
+                  children: [
+                    { label: "pensions", value: 310 },
+                    { label: "welfare", value: 140 },
+                    { label: "housing", value: 45 },
+                  ],
+                },
+                {
+                  label: "health",
+                  children: [
+                    { label: "hospitals", value: 165 },
+                    { label: "primary", value: 75 },
+                    { label: "pharma", value: 40 },
+                  ],
+                },
+                {
+                  label: "education",
+                  children: [
+                    { label: "schools", value: 90 },
+                    { label: "higher", value: 40 },
+                  ],
+                },
+                {
+                  label: "other",
+                  children: [
+                    { label: "defense", value: 90 },
+                    { label: "transport", value: 60 },
+                    { label: "debt", value: 55 },
+                    { label: "culture", value: 15 },
+                  ],
+                },
+              ],
+            }}
+            format={(v) => `$${v}B`}
+          />
+        </FigTooltip>
       </Paper>
     ),
   },

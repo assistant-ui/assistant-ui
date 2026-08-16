@@ -1,4 +1,5 @@
 import { Line } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Report } from "./scenes";
 
@@ -23,51 +24,86 @@ export const examples: DemoExample[] = [
         chip="3 recipes"
         note="Mean tokens per response, evaluated every 1k steps. Shaded span: alternating penalty active."
       >
-        <Line
-          title="Mean response length by recipe"
-          series={[
-            {
-              name: "baseline",
-              data: [
-                220, 244, 271, 301, 334, 369, 405, 441, 476, 509, 539, 566, 589,
-                608, 622, 631,
-              ],
-            },
-            {
-              name: "fixed penalty",
-              data: [
-                220, 238, 252, 248, 225, 201, 182, 169, 161, 156, 153, 151, 150,
-                150, 149, 149,
-              ],
-            },
-            {
-              name: "alternating",
-              data: [
-                220, 248, 282, 320, 352, 344, 310, 285, 272, 266, 269, 273, 272,
-                274, 273, 275,
-              ],
-            },
-          ]}
-          regions={[{ from: 4, to: 9, label: "alt penalty" }]}
+        <FigTooltip
           labels={[
             "0",
-            "",
+            "1k",
             "2k",
-            "",
+            "3k",
             "4k",
-            "",
+            "5k",
             "6k",
-            "",
+            "7k",
             "8k",
-            "",
+            "9k",
             "10k",
-            "",
+            "11k",
             "12k",
-            "",
+            "13k",
             "14k",
-            "",
+            "15k",
           ]}
-        />
+          series={{
+            baseline: [
+              220, 244, 271, 301, 334, 369, 405, 441, 476, 509, 539, 566, 589,
+              608, 622, 631,
+            ],
+            "fixed penalty": [
+              220, 238, 252, 248, 225, 201, 182, 169, 161, 156, 153, 151, 150,
+              150, 149, 149,
+            ],
+            alternating: [
+              220, 248, 282, 320, 352, 344, 310, 285, 272, 266, 269, 273, 272,
+              274, 273, 275,
+            ],
+          }}
+        >
+          <Line
+            title="Mean response length by recipe"
+            series={[
+              {
+                name: "baseline",
+                data: [
+                  220, 244, 271, 301, 334, 369, 405, 441, 476, 509, 539, 566,
+                  589, 608, 622, 631,
+                ],
+              },
+              {
+                name: "fixed penalty",
+                data: [
+                  220, 238, 252, 248, 225, 201, 182, 169, 161, 156, 153, 151,
+                  150, 150, 149, 149,
+                ],
+              },
+              {
+                name: "alternating",
+                data: [
+                  220, 248, 282, 320, 352, 344, 310, 285, 272, 266, 269, 273,
+                  272, 274, 273, 275,
+                ],
+              },
+            ]}
+            regions={[{ from: 4, to: 9, label: "alt penalty" }]}
+            labels={[
+              "0",
+              "",
+              "2k",
+              "",
+              "4k",
+              "",
+              "6k",
+              "",
+              "8k",
+              "",
+              "10k",
+              "",
+              "12k",
+              "",
+              "14k",
+              "",
+            ]}
+          />
+        </FigTooltip>
       </Report>
     ),
   },

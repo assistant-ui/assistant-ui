@@ -1,4 +1,5 @@
 import { PolarArea } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper } from "./scenes";
 
@@ -30,19 +31,25 @@ export const examples: DemoExample[] = [
         title="Where the wind lives"
         source="Source: harbor anemometer, one year"
       >
-        <PolarArea
-          title="Wind hours by direction"
-          items={[
-            { label: "N", value: 86 },
-            { label: "NE", value: 52 },
-            { label: "E", value: 71 },
-            { label: "SE", value: 38 },
-            { label: "S", value: 59 },
-            { label: "SW", value: 28 },
-            { label: "W", value: 47 },
-            { label: "NW", value: 66 },
-          ]}
-        />
+        <FigTooltip
+          labels={["N", "NE", "E", "SE", "S", "SW", "W", "NW"]}
+          series={{ hours: [86, 52, 71, 38, 59, 28, 47, 66] }}
+          unit="h"
+        >
+          <PolarArea
+            title="Wind hours by direction"
+            items={[
+              { label: "N", value: 86 },
+              { label: "NE", value: 52 },
+              { label: "E", value: 71 },
+              { label: "SE", value: 38 },
+              { label: "S", value: 59 },
+              { label: "SW", value: 28 },
+              { label: "W", value: 47 },
+              { label: "NW", value: 66 },
+            ]}
+          />
+        </FigTooltip>
       </Paper>
     ),
   },

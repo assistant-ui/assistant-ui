@@ -50,13 +50,11 @@ export const CirclePacking = forwardRef<SVGSVGElement, CirclePackingProps>(
           const showLabel = !labeled.has(entry.cluster) && r > 10;
           if (showLabel) labeled.add(entry.cluster);
           return (
-            <g
-              key={i}
-              data-part="mark"
-              data-i={i}
-              data-series={clusters[entry.cluster]?.label}
-            >
+            <g key={i}>
               <circle
+                data-part="mark"
+                data-i={i}
+                data-series={entry.leaf.label ?? clusters[entry.cluster]?.label}
                 cx={x}
                 cy={y}
                 r={r}

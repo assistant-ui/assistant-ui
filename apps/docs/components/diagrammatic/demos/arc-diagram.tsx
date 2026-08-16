@@ -1,4 +1,5 @@
 import { ArcDiagram } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Terminal } from "./scenes";
 
@@ -31,42 +32,55 @@ export const examples: DemoExample[] = [
     read: "The tall arcs are the long-distance imports to worry about: cli reaching over nine modules to ws is the coupling the next refactor should cut, and test reaching back across the whole file to cli is the second. Short, local arcs are healthy; height is distance, and distance is risk.",
     chart: (
       <Terminal title="imports — file order">
-        <ArcDiagram
-          title="Module imports in file order"
-          graph={{
-            nodes: [
-              "cli",
-              "cfg",
-              "core",
-              "auth",
-              "db",
-              "api",
-              "net",
-              "ws",
-              "ui",
-              "log",
-              "fs",
-              "test",
-            ].map((id) => ({ id })),
-            links: [
-              { source: "cli", target: "cfg" },
-              { source: "cli", target: "ui" },
-              { source: "cli", target: "ws" },
-              { source: "core", target: "db" },
-              { source: "core", target: "log" },
-              { source: "auth", target: "db" },
-              { source: "db", target: "api" },
-              { source: "api", target: "net" },
-              { source: "api", target: "cfg" },
-              { source: "net", target: "ws" },
-              { source: "ui", target: "log" },
-              { source: "ui", target: "fs" },
-              { source: "test", target: "cli" },
-              { source: "test", target: "api" },
-            ],
+        <FigTooltip
+          entries={{
+            cli: "3 imports",
+            core: "2 imports",
+            auth: "1 import",
+            db: "1 import",
+            api: "2 imports",
+            net: "1 import",
+            ui: "2 imports",
+            test: "2 imports",
           }}
-          highlight="cli"
-        />
+        >
+          <ArcDiagram
+            title="Module imports in file order"
+            graph={{
+              nodes: [
+                "cli",
+                "cfg",
+                "core",
+                "auth",
+                "db",
+                "api",
+                "net",
+                "ws",
+                "ui",
+                "log",
+                "fs",
+                "test",
+              ].map((id) => ({ id })),
+              links: [
+                { source: "cli", target: "cfg" },
+                { source: "cli", target: "ui" },
+                { source: "cli", target: "ws" },
+                { source: "core", target: "db" },
+                { source: "core", target: "log" },
+                { source: "auth", target: "db" },
+                { source: "db", target: "api" },
+                { source: "api", target: "net" },
+                { source: "api", target: "cfg" },
+                { source: "net", target: "ws" },
+                { source: "ui", target: "log" },
+                { source: "ui", target: "fs" },
+                { source: "test", target: "cli" },
+                { source: "test", target: "api" },
+              ],
+            }}
+            highlight="cli"
+          />
+        </FigTooltip>
       </Terminal>
     ),
   },

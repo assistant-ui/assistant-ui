@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import type { Series } from "../../core/types";
 import { bandPath, linePath, scalePoints, stroke } from "../../core/geometry";
 import { NEG, POS, ink } from "../../core/theme";
-import { AxisLabels, ChartSvg, TXT, vbHeight } from "../svg";
+import { AxisLabels, ChartSvg, ColumnHits, TXT, vbHeight } from "../svg";
 
 export type DifferenceAreaProps = BaseProps & {
   actual: Series;
@@ -21,6 +21,13 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
     const below = a.map((p, i) => ({ x: p.x, y: Math.max(p.y, b[i]!.y) }));
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        <ColumnHits
+          count={actual.data.length}
+          x0={14}
+          x1={186}
+          top={18}
+          bottom={bottom}
+        />
         <path
           d={bandPath(above, b)}
           fill={POS}

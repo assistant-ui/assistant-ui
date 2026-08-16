@@ -1,4 +1,5 @@
 import { Waffle } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Slide } from "./scenes";
 
@@ -22,14 +23,16 @@ export const examples: DemoExample[] = [
     read: "Fresh liquid water is one cell. One. The ocean's 97 make scarcity countable in a way percentages never manage — the entire freshwater argument lives in the corner of the grid, and every student finds it.",
     chart: (
       <Slide title="Earth's water" footer="one cell = 1%">
-        <Waffle
-          title="Earth's water"
-          items={[
-            { label: "ocean", value: 97 },
-            { label: "ice", value: 2 },
-            { label: "fresh", value: 1 },
-          ]}
-        />
+        <FigTooltip entries={{ ocean: "97%", ice: "2%", fresh: "1%" }}>
+          <Waffle
+            title="Earth's water"
+            items={[
+              { label: "ocean", value: 97 },
+              { label: "ice", value: 2 },
+              { label: "fresh", value: 1 },
+            ]}
+          />
+        </FigTooltip>
       </Slide>
     ),
   },

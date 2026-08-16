@@ -4,7 +4,7 @@ import type { Series } from "../../core/types";
 import { bandPath, scalePoints } from "../../core/geometry";
 import { cat } from "../../core/theme";
 import { stack } from "../../core/layout";
-import { ChartSvg, Legend, vbHeight } from "../svg";
+import { ChartSvg, ColumnHits, Legend, vbHeight } from "../svg";
 
 export type StreamgraphProps = BaseProps & { series: Series[] };
 
@@ -24,6 +24,13 @@ export const Streamgraph = forwardRef<SVGSVGElement, StreamgraphProps>(
     );
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        <ColumnHits
+          count={series[0]?.data.length ?? 0}
+          x0={14}
+          x1={186}
+          top={mid - half}
+          bottom={mid + half}
+        />
         {series.map((s, k) => (
           <path
             key={s.name}

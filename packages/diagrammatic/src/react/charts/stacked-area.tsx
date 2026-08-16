@@ -4,7 +4,7 @@ import type { Series } from "../../core/types";
 import { bandPath, linePath, scalePoints, stroke } from "../../core/geometry";
 import { SURFACE, cat } from "../../core/theme";
 import { stack } from "../../core/layout";
-import { AxisLabels, ChartSvg, Legend, vbHeight } from "../svg";
+import { AxisLabels, ChartSvg, ColumnHits, Legend, vbHeight } from "../svg";
 
 export type StackedAreaProps = BaseProps & { series: Series[] };
 
@@ -21,6 +21,13 @@ export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
     );
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        <ColumnHits
+          count={series[0]?.data.length ?? 0}
+          x0={14}
+          x1={186}
+          top={top}
+          bottom={bottom}
+        />
         {series.map((s, k) => (
           <path
             key={s.name}

@@ -39,12 +39,7 @@ export const Treemap = forwardRef<SVGSVGElement, TreemapProps>(
               : [];
           const labelFits = rect.w > 26 && rect.h > 14;
           return (
-            <g
-              key={child.label}
-              data-part="mark"
-              data-i={i}
-              data-series={child.label}
-            >
+            <g key={child.label}>
               {grandchildren.length === 0 ? (
                 <rect
                   x={rect.x}
@@ -53,6 +48,9 @@ export const Treemap = forwardRef<SVGSVGElement, TreemapProps>(
                   height={rect.h}
                   fill={cat(i)}
                   opacity="0.85"
+                  data-part="mark"
+                  data-i={i}
+                  data-series={child.label}
                 />
               ) : (
                 grandchildren.map((grandchild, k) => {
@@ -66,6 +64,9 @@ export const Treemap = forwardRef<SVGSVGElement, TreemapProps>(
                       height={r.h}
                       fill={cat(i)}
                       opacity={k % 2 === 0 ? 0.85 : 0.55}
+                      data-part="mark"
+                      data-i={i}
+                      data-series={grandchild.label}
                     />
                   );
                 })

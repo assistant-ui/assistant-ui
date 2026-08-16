@@ -1,4 +1,5 @@
 import { ConnectedScatter } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper, Report } from "./scenes";
 
@@ -86,21 +87,38 @@ export const examples: DemoExample[] = [
         title="The loop, 2018–2025"
         source="Source: bureau of labor statistics"
       >
-        <ConnectedScatter
-          title="Inflation against unemployment"
-          points={[
-            { x: 3.9, y: 2.4, label: "2018" },
-            { x: 3.7, y: 1.8 },
-            { x: 8.1, y: 1.2 },
-            { x: 5.4, y: 4.7 },
-            { x: 3.6, y: 8 },
-            { x: 3.5, y: 4.1 },
-            { x: 3.9, y: 3.1 },
-            { x: 4.1, y: 2.7, label: "2025" },
+        <FigTooltip
+          labels={[
+            "2018",
+            "2019",
+            "2020",
+            "2021",
+            "2022",
+            "2023",
+            "2024",
+            "2025",
           ]}
-          xLabel="unemployment %"
-          yLabel="inflation %"
-        />
+          series={{
+            "unemployment %": [3.9, 3.7, 8.1, 5.4, 3.6, 3.5, 3.9, 4.1],
+            "inflation %": [2.4, 1.8, 1.2, 4.7, 8, 4.1, 3.1, 2.7],
+          }}
+        >
+          <ConnectedScatter
+            title="Inflation against unemployment"
+            points={[
+              { x: 3.9, y: 2.4, label: "2018" },
+              { x: 3.7, y: 1.8 },
+              { x: 8.1, y: 1.2 },
+              { x: 5.4, y: 4.7 },
+              { x: 3.6, y: 8 },
+              { x: 3.5, y: 4.1 },
+              { x: 3.9, y: 3.1 },
+              { x: 4.1, y: 2.7, label: "2025" },
+            ]}
+            xLabel="unemployment %"
+            yLabel="inflation %"
+          />
+        </FigTooltip>
       </Paper>
     ),
   },

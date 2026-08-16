@@ -1,4 +1,5 @@
 import { WinLoss } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper } from "./scenes";
 
@@ -44,20 +45,27 @@ export const examples: DemoExample[] = [
     read: "Above or below; the streaks read before the record does. s24 opens with a title-charge run and s25 opens with a slump — same club, and the eye knows which season had the sacked manager before counting a single tick.",
     chart: (
       <Paper kicker="Club" title="Two seasons">
-        <Rows
-          rows={[
-            {
-              label: "s24",
-              data: [1, 1, -1, 1, -1, 1, 1, 1, -1, 1, 1, -1],
-              title: "season s24",
-            },
-            {
-              label: "s25",
-              data: [-1, 1, 1, -1, 1, -1, -1, 1, 1, 1, -1, 1],
-              title: "season s25",
-            },
-          ]}
-        />
+        <FigTooltip
+          series={{
+            s24: ["W", "W", "L", "W", "L", "W", "W", "W", "L", "W", "W", "L"],
+            s25: ["L", "W", "W", "L", "W", "L", "L", "W", "W", "W", "L", "W"],
+          }}
+        >
+          <Rows
+            rows={[
+              {
+                label: "s24",
+                data: [1, 1, -1, 1, -1, 1, 1, 1, -1, 1, 1, -1],
+                title: "season s24",
+              },
+              {
+                label: "s25",
+                data: [-1, 1, 1, -1, 1, -1, -1, 1, 1, 1, -1, 1],
+                title: "season s25",
+              },
+            ]}
+          />
+        </FigTooltip>
       </Paper>
     ),
   },
