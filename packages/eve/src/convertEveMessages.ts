@@ -610,8 +610,12 @@ export const toEveInputResponse = (
   }
 
   const decisionOptionId = response.approved ? "approve" : "cancel";
+  // Eve's harness always declares `approve`/`cancel` on a `tool-approval`
+  // request, so honoring the kind alone keeps a non-spec approval payload
+  // that dropped its options answerable rather than stuck.
   if (
     !inputRequest ||
+    inputRequest.kind === "tool-approval" ||
     options?.some((option) => option.id === decisionOptionId)
   ) {
     return { requestId, optionId: decisionOptionId, ...(text && { text }) };

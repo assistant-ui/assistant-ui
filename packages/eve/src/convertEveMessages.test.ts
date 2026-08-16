@@ -1748,6 +1748,24 @@ describe("toEveInputResponse", () => {
     });
   });
 
+  it("answers a tool-approval by kind even when its options are missing", () => {
+    const inputRequest = withInputRequest({
+      kind: "tool-approval",
+      display: "confirmation",
+    });
+
+    expect(
+      toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
+    ).toEqual({ requestId: "req_1", optionId: "approve" });
+
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, reason: "not now" },
+        inputRequest,
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "cancel", text: "not now" });
+  });
+
   it("never answers an optionless confirmation as free-form text", () => {
     const inputRequest = withInputRequest({ display: "confirmation" });
 
