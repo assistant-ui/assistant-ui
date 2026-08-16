@@ -202,6 +202,7 @@ type MCPPersistedAuthState = {
   tokens?: OAuthTokens;
   clientInformation?: OAuthClientInformationFull;
   codeVerifier?: string;
+  discoveryState?: OAuthDiscoveryState;
   token?: string;   // bearer
 };
 
@@ -361,6 +362,8 @@ mount McpManagerResource
   → on connect: state = connecting → connected; listTools()
   → toolkit memo recomputes; modelContext.register(toolkit) (re-registers on change)
 ```
+
+During auto-connect, a rejected `storage.loadAuthState()` sets `lastError` and transitions the server to `"error"` without creating a transport; failures from cancelled or superseded attempts are ignored.
 
 `McpServerResource.connect()`:
 

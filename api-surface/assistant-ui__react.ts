@@ -1248,6 +1248,7 @@ declare class CloudFileAttachmentAdapter implements AttachmentAdapter {
   #private;
   accept: string;
   constructor(cloud: AssistantCloud);
+  constructor(getCloud: () => AssistantCloud);
   add(_param0: {
     file: File;
   }): AsyncGenerator<PendingAttachment, void>;
@@ -5662,6 +5663,7 @@ type Unstable_UseComposerInputOptions = {
 
 type Unstable_UseLiveCompletionAdapterOptions = {
   readonly fetcher: (query: string) => Promise<readonly Unstable_TriggerItem[]>;
+  readonly cacheKey?: string | number | undefined;
   readonly debounceMs?: number | undefined;
   readonly enabled?: boolean | undefined;
 };

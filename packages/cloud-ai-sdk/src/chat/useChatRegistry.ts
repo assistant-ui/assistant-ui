@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "@ai-sdk/react";
 import { ChatRegistry } from "./ChatRegistry";
@@ -68,6 +68,15 @@ export function useChatRegistry({
     : freshSessionKey.current!;
 
   const activeChat = registry.getOrCreate(activeChatKey, threadId);
+
+  const committedRegistryRef = useRef(registry);
+  useEffect(() => {
+    const previousRegistry = committedRegistryRef.current;
+    committedRegistryRef.current = registry;
+    if (previousRegistry !== registry) {
+      void previousRegistry.stopAll();
+    }
+  }, [registry]);
 
   return { registry, activeChat };
 }

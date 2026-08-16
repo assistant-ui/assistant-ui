@@ -1004,6 +1004,7 @@ declare class CloudFileAttachmentAdapter implements AttachmentAdapter {
   #private;
   accept: string;
   constructor(cloud: AssistantCloud);
+  constructor(getCloud: () => AssistantCloud);
   add(_param2: {
     file: File;
   }): AsyncGenerator<PendingAttachment, void>;

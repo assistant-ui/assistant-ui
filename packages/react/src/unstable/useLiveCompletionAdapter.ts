@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   Unstable_TriggerAdapter,
   Unstable_TriggerItem,
@@ -13,6 +20,11 @@ export type Unstable_UseLiveCompletionAdapterOptions = {
    * next render.
    */
   readonly fetcher: (query: string) => Promise<readonly Unstable_TriggerItem[]>;
+  /**
+   * Identifies the fetcher's data source. Change this when switching accounts,
+   * workspaces, or another boundary that should invalidate cached results.
+   */
+  readonly cacheKey?: string | number | undefined;
   /** Debounce applied before a fetch fires, in milliseconds. @default 60 */
   readonly debounceMs?: number | undefined;
   /** When `false`, no fetch is scheduled and the adapter stays empty. @default true */
@@ -52,7 +64,7 @@ const NO_QUERY = "\u0000";
 export function unstable_useLiveCompletionAdapter(
   options: Unstable_UseLiveCompletionAdapterOptions,
 ): { adapter: Unstable_TriggerAdapter; isLoading: boolean } {
-  const { fetcher, debounceMs = 60, enabled = true } = options;
+  const { fetcher, cacheKey, debounceMs = 60, enabled = true } = options;
 
   const [state, setState] = useState<{
     query: string;
@@ -128,6 +140,16 @@ export function unstable_useLiveCompletionAdapter(
     tokenRef.current += 1;
     setIsLoading(false);
   }, [cancelTimer, rearmPendingRetry]);
+
+  const cacheKeyRef = useRef(cacheKey);
+  useLayoutEffect(() => {
+    if (cacheKeyRef.current === cacheKey) return;
+    cacheKeyRef.current = cacheKey;
+    invalidatePending();
+    retryableQueryRef.current = null;
+    pendingRetryQueryRef.current = null;
+    setState({ query: NO_QUERY, items: [], failed: false });
+  }, [cacheKey, invalidatePending]);
 
   useEffect(() => {
     if (enabled) return;

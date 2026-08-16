@@ -968,7 +968,7 @@ type OpenCodeRuntimeOptions = ExternalStoreSharedOptions & {
     modelID: string;
   } | undefined;
   defaultAgent?: string | undefined;
-  onError?: (error: unknown) => void;
+  onError?: (error: unknown) => void | Promise<void>;
   adapters?: {
     attachments?: AttachmentAdapter;
     speech?: SpeechSynthesisAdapter;
