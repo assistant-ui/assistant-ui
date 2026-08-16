@@ -312,6 +312,61 @@ describe("useThreadViewportAutoScroll", () => {
     scrollToSpy.mockRestore();
   });
 
+  it("keeps following after a content-growth burst undershoots the bottom", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <BottomAnchorThread />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(screen.getAllByTestId("thread-message")).toHaveLength(
+        messages.length,
+      );
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    const scrollTopBeforeBurst = viewport.scrollTop;
+    viewportMeasurementOffset += 164;
+    act(() => {
+      viewport.scrollTop = scrollTopBeforeBurst + 106;
+      viewport.dispatchEvent(new Event("scroll"));
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+    expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+  });
+
+  it("does not resume bottom follow after a stable-height user scroll-up", async () => {
+    render(
+      <SyncRuntimeProvider>
+        <BottomAnchorThread />
+      </SyncRuntimeProvider>,
+    );
+
+    const viewport = getViewport();
+    await waitFor(() => {
+      expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    });
+
+    act(() => {
+      viewport.scrollTop = viewport.scrollTop - 80;
+      viewport.dispatchEvent(new Event("scroll"));
+    });
+
+    const scrollTopAfterLeave = viewport.scrollTop;
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+
+    expect(viewport.scrollTop).toBe(scrollTopAfterLeave);
+    expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+  });
+
   it("defers auto-scroll to an active top anchor only while the run is active", async () => {
     let releaseRun!: () => void;
     const runGate = new Promise<void>((resolve) => {

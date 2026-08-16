@@ -124,6 +124,10 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       // no-op: a smooth scroll-to-bottom fires many midpoint scroll events
       // before landing, don't flicker isAtBottom or clear intent mid-animation
     } else {
+      const isUserScrollUp =
+        lastScrollTop.current > div.scrollTop &&
+        lastScrollHeight.current === div.scrollHeight;
+
       if (newIsAtBottom) {
         // newIsAtBottom is ambiguous when the viewport doesn't overflow —
         // keep intent alive until content can actually scroll
@@ -131,16 +135,12 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         if (viewportOverflows) {
           scrollingToBottomBehaviorRef.current = null;
         }
-      } else if (
-        lastScrollTop.current > div.scrollTop &&
-        lastScrollHeight.current === div.scrollHeight
-      ) {
+      } else if (isUserScrollUp) {
         // scrollHeight equality rules out content-driven shifts being misread as user scroll-up
         scrollingToBottomBehaviorRef.current = null;
       }
 
-      const shouldUpdate =
-        newIsAtBottom || scrollingToBottomBehaviorRef.current === null;
+      const shouldUpdate = newIsAtBottom || isUserScrollUp;
 
       if (shouldUpdate && newIsAtBottom !== isAtBottom) {
         writableStore(threadViewportStore).setState({
