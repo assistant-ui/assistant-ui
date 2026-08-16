@@ -335,7 +335,7 @@ export class LocalThreadRuntimeCore
       reason: "unknown",
     });
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
-    this._options.adapters.history?.append({
+    const historyWrite = this._options.adapters.history?.append({
       parentId: message.parentId,
       message: newMessage,
       ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
@@ -343,14 +343,20 @@ export class LocalThreadRuntimeCore
 
     const startRun = message.startRun ?? message.role === "user";
     if (startRun) {
-      await this.startRun({
-        parentId: newMessage.id,
-        sourceId: message.sourceId,
-        runConfig: message.runConfig ?? {},
-      });
+      const [runResult, historyResult] = await Promise.allSettled([
+        this.startRun({
+          parentId: newMessage.id,
+          sourceId: message.sourceId,
+          runConfig: message.runConfig ?? {},
+        }),
+        historyWrite,
+      ]);
+      if (runResult.status === "rejected") throw runResult.reason;
+      if (historyResult.status === "rejected") throw historyResult.reason;
     } else {
       this.repository.resetHead(newMessage.id);
       this._notifySubscribers();
+      await historyWrite;
     }
   }
 

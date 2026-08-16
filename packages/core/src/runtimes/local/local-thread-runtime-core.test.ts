@@ -143,6 +143,37 @@ describe("LocalThreadRuntimeCore events", () => {
   });
 });
 
+describe("LocalThreadRuntimeCore history persistence", () => {
+  it("surfaces failed user persistence without abandoning the run", async () => {
+    const persistenceError = new Error("history unavailable");
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const append = vi
+      .fn()
+      .mockRejectedValueOnce(persistenceError)
+      .mockResolvedValueOnce(undefined);
+    const thread = createThread(
+      { run },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append,
+        },
+      },
+    );
+
+    await expect(thread.append(userMessage("hello"))).rejects.toBe(
+      persistenceError,
+    );
+
+    expect(append).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenCalledOnce();
+  });
+});
+
 describe("LocalThreadRuntimeCore - detach", () => {
   it("drops a pending append when detached", async () => {
     let resolveInitialization!: () => void;
