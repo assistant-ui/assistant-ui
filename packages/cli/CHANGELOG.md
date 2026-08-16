@@ -1,5 +1,20 @@
 # assistant-ui
 
+## 0.0.110
+
+### Patch Changes
+
+- [#5806](https://github.com/assistant-ui/assistant-ui/pull/5806) [`a0e30a3`](https://github.com/assistant-ui/assistant-ui/commit/a0e30a3350d21087a289703871b257a59532bf8f) - fix(cli): clarify malformed package.json errors from the info command ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.0.109
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8)]:
+  - @assistant-ui/agent-launcher@0.1.10
+
 ## 0.0.108
 
 ### Patch Changes

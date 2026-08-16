@@ -90,6 +90,26 @@ export const createReplayBoundaryStream = async (
   const reader = body.getReader();
   let bytesForwarded = 0;
   let replayFinished = false;
+  let readerCleanup: Promise<void> | undefined;
+
+  const releaseReader = () => {
+    if (readerCleanup) return readerCleanup;
+    reader.releaseLock();
+    readerCleanup = Promise.resolve();
+    return readerCleanup;
+  };
+
+  const cancelReader = (reason?: unknown) => {
+    if (readerCleanup) return readerCleanup;
+    readerCleanup = (async () => {
+      try {
+        await reader.cancel(reason);
+      } finally {
+        reader.releaseLock();
+      }
+    })();
+    return readerCleanup;
+  };
 
   const finishReplay = async () => {
     if (replayFinished) return;
@@ -103,44 +123,50 @@ export const createReplayBoundaryStream = async (
 
   return new ReadableStream<Uint8Array>({
     async pull(controller) {
-      const { done, value } = await reader.read();
+      try {
+        const { done, value } = await reader.read();
 
-      if (done) {
+        if (done) {
+          await releaseReader();
+          await finishReplay();
+          controller.close();
+          return;
+        }
+
+        if (replayFinished) {
+          controller.enqueue(value);
+          return;
+        }
+
+        const nextBytesForwarded = bytesForwarded + value.byteLength;
+
+        if (nextBytesForwarded < replayContentLength) {
+          bytesForwarded = nextBytesForwarded;
+          controller.enqueue(value);
+          return;
+        }
+
+        if (nextBytesForwarded === replayContentLength) {
+          controller.enqueue(value);
+          await finishReplay();
+          return;
+        }
+
+        const replayBytesInChunk = replayContentLength - bytesForwarded;
+
+        controller.enqueue(value.subarray(0, replayBytesInChunk));
         await finishReplay();
-        controller.close();
-        return;
+        controller.enqueue(value.subarray(replayBytesInChunk));
+      } catch (error) {
+        await cancelReader(error).catch(() => {});
+        throw error;
       }
-
-      if (replayFinished) {
-        controller.enqueue(value);
-        return;
-      }
-
-      const nextBytesForwarded = bytesForwarded + value.byteLength;
-
-      if (nextBytesForwarded < replayContentLength) {
-        bytesForwarded = nextBytesForwarded;
-        controller.enqueue(value);
-        return;
-      }
-
-      if (nextBytesForwarded === replayContentLength) {
-        controller.enqueue(value);
-        await finishReplay();
-        return;
-      }
-
-      const replayBytesInChunk = replayContentLength - bytesForwarded;
-
-      controller.enqueue(value.subarray(0, replayBytesInChunk));
-      await finishReplay();
-      controller.enqueue(value.subarray(replayBytesInChunk));
     },
     async cancel(reason) {
       const wasFinished = replayFinished;
       replayFinished = true;
       if (!wasFinished) setReplaying(false);
-      await reader.cancel(reason);
+      await cancelReader(reason);
     },
   });
 };

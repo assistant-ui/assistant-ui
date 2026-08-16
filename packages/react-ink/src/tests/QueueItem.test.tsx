@@ -54,6 +54,13 @@ import { QueueItemRemove } from "../primitives/queueItem/QueueItemRemove";
 import { QueueItemSteer } from "../primitives/queueItem/QueueItemSteer";
 import { QueueItemText } from "../primitives/queueItem/QueueItemText";
 
+const mockQueueItemParts = (parts: Array<{ type: string; text?: string }>) =>
+  mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+    selector({
+      queueItem: { parts },
+    } as unknown as Parameters<UseAuiStateSelector>[0]),
+  );
+
 const pressEnter = () => {
   for (const handler of inputHandlers) handler("", { return: true });
 };
@@ -65,16 +72,20 @@ afterEach(() => {
 });
 
 describe("QueueItemPrimitive.Text", () => {
-  it("renders prompt from queueItem state", () => {
-    mockUseAuiState.mockReturnValue("hello world");
+  it("renders only text parts from queueItem state", () => {
+    mockQueueItemParts([
+      { type: "text", text: "hello world" },
+      { type: "file", text: "not-a-text-part" },
+    ]);
 
     const { lastFrame } = render(<QueueItemText />);
 
     expect(lastFrame()).toContain("hello world");
+    expect(lastFrame()).not.toContain("not-a-text-part");
   });
 
   it("renders children when provided", () => {
-    mockUseAuiState.mockReturnValue("hello world");
+    mockQueueItemParts([{ type: "text", text: "hello world" }]);
 
     const { lastFrame } = render(<QueueItemText>override</QueueItemText>);
 
@@ -83,7 +94,7 @@ describe("QueueItemPrimitive.Text", () => {
   });
 
   it("forwards Ink Text props", () => {
-    mockUseAuiState.mockReturnValue("colored");
+    mockQueueItemParts([{ type: "text", text: "colored" }]);
 
     const { lastFrame } = render(<QueueItemText color="cyan" />);
 

@@ -35,4 +35,4 @@ npm run dev
 ## Related Documentation
 
 - [assistant-ui Documentation](https://www.assistant-ui.com/docs)
-- [Thread List Guide](https://www.assistant-ui.com/docs/thread-list)
+- [Thread List Guide](https://www.assistant-ui.com/docs/ui/thread-list)

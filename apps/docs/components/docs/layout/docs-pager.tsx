@@ -60,7 +60,7 @@ export function DocsPager({ previous, next, markdownUrl }: DocsPagerProps) {
           <DropdownMenuTrigger className={buttonClass}>
             <MoreHorizontal className="size-4" />
           </DropdownMenuTrigger>
-          <DropdownMenuContent>
+          <DropdownMenuContent className="w-max">
             <DropdownMenuItem onClick={copy} disabled={isLoading}>
               <Copy className="size-4" />
               {isLoading ? "Loading..." : "Copy page"}

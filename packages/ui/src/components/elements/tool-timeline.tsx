@@ -7,7 +7,8 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { collapsePanel, SwapLabel } from "./surfaces";
+import { collapsePanel, ShimmerLabel, SwapLabel } from "./surfaces";
+import { take } from "./range";
 
 export interface TimelineStep {
   verb: string;
@@ -46,6 +47,7 @@ export function ToolTimeline({
 }: ToolTimelineProps) {
   return (
     <Collapsible
+      data-slot="tool-timeline"
       open={open}
       onOpenChange={onOpenChange}
       className={cn("w-full max-w-sm", className)}
@@ -56,23 +58,20 @@ export function ToolTimeline({
           active={streaming ? 0 : 1}
           className="text-start tabular-nums"
         >
-          <span className="relative inline-block leading-none">
-            <span>{activeLabel}</span>
-            <span
-              aria-hidden
-              className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-            >
-              {activeLabel}
-            </span>
-          </span>
+          <ShimmerLabel
+            active={streaming}
+            className="relative inline-block leading-none"
+          >
+            {activeLabel}
+          </ShimmerLabel>
           <>{restingLabel}</>
         </SwapLabel>
       </CollapsibleTrigger>
       <CollapsibleContent className={cn(collapsePanel, "outline-none")}>
         <div className="flex flex-col gap-2.5 ps-4 pt-2.5">
-          {steps.slice(0, visibleSteps).map((step, index) => {
+          {take(steps, visibleSteps).map((step, index, shown) => {
             const Icon = step.icon;
-            const active = streaming && index === visibleSteps - 1;
+            const active = streaming && index === shown.length - 1;
 
             return (
               <div
@@ -80,17 +79,12 @@ export function ToolTimeline({
                 className="fade-in slide-in-from-bottom-1 animate-in fill-mode-both text-foreground/55 flex items-center gap-2 text-[13.5px] duration-300"
               >
                 <Icon className="text-foreground/35 size-3.5 shrink-0" />
-                <span className="relative inline-block leading-none">
-                  <span>{step.verb}</span>
-                  {active && (
-                    <span
-                      aria-hidden
-                      className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-                    >
-                      {step.verb}
-                    </span>
-                  )}
-                </span>
+                <ShimmerLabel
+                  active={active}
+                  className="relative inline-block leading-none"
+                >
+                  {step.verb}
+                </ShimmerLabel>
                 <span className="bg-foreground/[0.06] text-foreground/70 rounded-md px-1.5 py-0.5 font-mono text-[11px]">
                   {step.chip}
                 </span>

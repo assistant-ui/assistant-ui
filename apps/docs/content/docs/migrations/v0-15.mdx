@@ -224,6 +224,40 @@ return (
 );
 ```
 
+## Thread Switch Events: `threads.selectionChanged`
+
+The per-item thread switch events are deprecated in favor of a single event on the thread list. `threads.selectionChanged` fires once per switch and carries both sides of the transition:
+
+```ts
+// Before
+useAuiEvent("threadListItem.switchedTo", ({ threadId }) => {
+  // threadId: the newly selected thread
+});
+useAuiEvent("threadListItem.switchedAway", ({ threadId }) => {
+  // threadId: the thread that was switched away from
+});
+
+// After
+useAuiEvent("threads.selectionChanged", ({ threadId, previousThreadId }) => {
+  // threadId: the newly selected thread
+  // previousThreadId: the thread that was switched away from
+});
+```
+
+Like its predecessors, it does not fire for the initially selected thread on mount. The deprecated events still fire and will keep working until the next major.
+
+The deprecated pair was scope-filtered: inside a per-item `threadListItem` scope (such as `ThreadListPrimitive.Items`), `threadListItem.switchedTo` only fired for that item. `threads.selectionChanged` resolves against the shared `threads` scope, so every listener fires on every switch. Filter by id to reproduce the per-item behavior:
+
+```ts
+const id = useAuiState((s) => s.threadListItem.id);
+useAuiEvent("threads.selectionChanged", ({ threadId }) => {
+  if (threadId !== id) return;
+  // this item became selected
+});
+```
+
+The new event also fires in situations where the deprecated pair did not: `InMemoryThreadList` emits on selection changes (it previously emitted no switch events), and `switchToNewThread()` emits for the newly created thread. Selection-driven defaults such as `scrollToBottomOnThreadSwitch` and `unstable_focusOnThreadSwitched` now engage in both situations. Runtimes that resolve a deep-linked `threadId`/`initialThreadId` after mount (such as `useRemoteThreadListRuntime`) start on a placeholder new thread, so the deep link's resolution also fires the event — `previousThreadId` is the placeholder in that case.
+
 ## Still Deprecated (not removed)
 
 - Primitive `If` components (`ThreadPrimitive.If`, `MessagePrimitive.If`, `ThreadPrimitive.Empty`) — replaced by `AuiIf`. The codemod migrates these.

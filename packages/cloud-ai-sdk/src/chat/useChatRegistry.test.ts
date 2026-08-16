@@ -91,9 +91,12 @@ describe("useChatRegistry", () => {
   });
 
   it("creates a new registry and chat when the scope changes", () => {
-    const createChat = vi
-      .fn()
-      .mockImplementation((chatKey: string) => ({ id: chatKey, messages: [] }));
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const createChat = vi.fn().mockImplementation((chatKey: string) => ({
+      id: chatKey,
+      messages: [],
+      stop,
+    }));
     const scopeA = {};
     const scopeB = {};
 
@@ -114,5 +117,29 @@ describe("useChatRegistry", () => {
     expect(result.current.registry).not.toBe(registryA);
     expect(result.current.activeChat).not.toBe(chatA);
     expect(createChat).toHaveBeenCalledTimes(2);
+    expect(stop).toHaveBeenCalledOnce();
+    expect(registryA.get("thread-1")).toBe(chatA);
+  });
+
+  it("does not stop chats during ordinary rerenders", () => {
+    const scope = {};
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const createChat = vi.fn().mockImplementation((chatKey: string) => ({
+      id: chatKey,
+      messages: [],
+      stop,
+    }));
+
+    const { rerender } = renderHook(() =>
+      useChatRegistry({
+        scope,
+        threadId: "thread-1",
+        createChat: createChat as never,
+      }),
+    );
+
+    rerender();
+
+    expect(stop).not.toHaveBeenCalled();
   });
 });

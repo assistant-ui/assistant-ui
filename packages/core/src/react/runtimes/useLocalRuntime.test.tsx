@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantCloud } from "assistant-cloud";
@@ -17,9 +17,16 @@ const makeCloud = () =>
     threads: {
       list: vi.fn().mockResolvedValue({ threads: [] }),
     },
+    files: {
+      generatePresignedUploadUrl: vi.fn().mockResolvedValue({
+        signedUrl: "https://storage.example/upload",
+        publicUrl: "https://cdn.example/file.txt",
+      }),
+    },
   }) as unknown as AssistantCloud;
 
 afterEach(() => {
+  vi.unstubAllGlobals();
   vi.restoreAllMocks();
 });
 
@@ -57,6 +64,47 @@ describe("useLocalRuntime", () => {
       expect(secondCloud.threads.list).toHaveBeenCalledOnce();
     });
     expect(firstCloud.threads.list).toHaveBeenCalledOnce();
+  });
+
+  it("uses the current Cloud client for attachment uploads", async () => {
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue({ ok: true }));
+    const firstCloud = makeCloud();
+    const secondCloud = makeCloud();
+    let addAttachment: ((file: File) => Promise<void>) | undefined;
+    let getAttachmentStatus: (() => unknown) | undefined;
+
+    const App = ({ cloud }: { cloud: AssistantCloud }) => {
+      const runtime = useLocalRuntime(chatModel, { cloud });
+      addAttachment = (file) => runtime.thread.composer.addAttachment(file);
+      getAttachmentStatus = () =>
+        runtime.thread.composer.getState().attachments[0]?.status;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const { rerender } = render(<App cloud={firstCloud} />);
+
+    await waitFor(() => {
+      expect(firstCloud.threads.list).toHaveBeenCalledOnce();
+    });
+
+    rerender(<App cloud={secondCloud} />);
+
+    await act(async () => {
+      await addAttachment!(
+        new File(["hello"], "notes.txt", { type: "text/plain" }),
+      );
+    });
+
+    expect(firstCloud.files.generatePresignedUploadUrl).not.toHaveBeenCalled();
+    expect(secondCloud.files.generatePresignedUploadUrl).toHaveBeenCalledOnce();
+    expect(getAttachmentStatus!()).toEqual({
+      type: "requires-action",
+      reason: "composer-send",
+    });
   });
 
   it("handles rejected history loads", async () => {

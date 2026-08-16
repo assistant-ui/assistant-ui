@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
+import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
+import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
+import type { ModelContextProvider } from "../../model-context/types";
 
 describe("RemoteThreadListHookInstanceManager", () => {
   it("rejects a pending start when the thread runtime is stopped", async () => {
@@ -14,6 +17,51 @@ describe("RemoteThreadListHookInstanceManager", () => {
     await expect(startPromise).rejects.toThrow(
       "Thread was deleted before runtime was started",
     );
+  });
+
+  it("drops a pending append when a thread runtime is stopped", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) } satisfies ModelContextProvider,
+      { messages: [], onNew } as ExternalStoreAdapter,
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+    const manager = new RemoteThreadListHookInstanceManager(
+      () => ({}) as never,
+      {} as ThreadListRuntimeCore,
+    );
+    const internals = manager as unknown as {
+      instances: Map<
+        string,
+        { runtime: typeof runtime; generation: number; isRunning: boolean }
+      >;
+    };
+    internals.instances.set("thread-1", {
+      runtime,
+      generation: 0,
+      isRunning: false,
+    });
+
+    const appendPromise = runtime.append({
+      parentId: null,
+      sourceId: null,
+      runConfig: {},
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+      createdAt: new Date(0),
+    });
+    await Promise.resolve();
+    manager.stopThreadRuntime("thread-1");
+    resolveInitialization();
+
+    await appendPromise;
+    expect(onNew).not.toHaveBeenCalled();
   });
 });
 
