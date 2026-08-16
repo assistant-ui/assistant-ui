@@ -48,9 +48,9 @@ export function Terminal({
   children: ReactNode;
 }) {
   return (
-    <div className="w-full border border-[#1d2b26] bg-[#0b120f] px-5 pt-3.5 pb-4 font-[family-name:var(--font-mono)] text-[#c8d6cd] [--dg-c1:#34d399] [--dg-c2:#fbbf24] [--dg-c3:#38bdf8] [--dg-c4:#fb7185] [--dg-c5:#a78bfa] [--dg-c6:#2dd4bf] [--dg-c7:#fb923c] [--dg-pos:#34d399] [--dg-surface:#0b120f]">
-      <div className="flex items-center gap-2 text-[10.5px] text-[#5d6f66]">
-        <span className="size-1.5 rounded-full bg-[#34d399]" />
+    <div className="w-full border border-[#e4e5e7] bg-white px-5 pt-3.5 pb-4 font-[family-name:var(--font-mono)] text-[#17181d] [--dg-c1:#059669] [--dg-c2:#d97706] [--dg-c3:#0284c7] [--dg-c4:#e11d48] [--dg-c5:#7c3aed] [--dg-c6:#0d9488] [--dg-c7:#ea580c] [--dg-pos:#059669] [--dg-surface:#ffffff]">
+      <div className="flex items-center gap-2 text-[10.5px] text-[#8b8f96]">
+        <span className="size-1.5 rounded-full bg-[#059669]" />
         {title}
       </div>
       <div className="mt-3">{children}</div>
@@ -122,11 +122,11 @@ export function Slide({
   children: ReactNode;
 }) {
   return (
-    <div className="w-full bg-[#101014] px-7 pt-6 pb-5 text-[#ececf1] [--dg-c1:#7dd3fc] [--dg-c2:#f0abfc] [--dg-c3:#fde68a] [--dg-c4:#86efac] [--dg-c5:#c4b5fd] [--dg-c6:#fda4af] [--dg-c7:#5eead4] [--dg-surface:#101014]">
+    <div className="w-full border border-[#e7e7ea] bg-white px-7 pt-6 pb-5 text-[#17171c] [--dg-c1:#4f46e5] [--dg-c2:#c026d3] [--dg-c3:#d97706] [--dg-c4:#059669] [--dg-c5:#7c3aed] [--dg-c6:#e11d48] [--dg-c7:#0d9488] [--dg-surface:#ffffff]">
       <p className="text-[17px] font-semibold tracking-tight">{title}</p>
       <div className="mt-5">{children}</div>
       {footer ? (
-        <p className="mt-4 text-[10.5px] tracking-[0.08em] text-[#5f5f6b] uppercase">
+        <p className="mt-4 text-[10.5px] tracking-[0.08em] text-[#9b9ba6] uppercase">
           {footer}
         </p>
       ) : null}

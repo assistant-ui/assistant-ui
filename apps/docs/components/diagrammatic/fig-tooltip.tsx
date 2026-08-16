@@ -53,9 +53,9 @@ export function FigTooltip({
           );
           if (!title && rows.length === 0 && !datum.series) return null;
           return (
-            <div className="border border-white/10 bg-[#17181b]/95 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#e8e9e4] shadow-lg">
+            <div className="border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
               {title && (
-                <p className="mb-1 text-[10px] tracking-[0.08em] text-[#e8e9e4]/55 uppercase">
+                <p className="mb-1 text-[10px] tracking-[0.08em] text-[#1a1b1e]/50 uppercase">
                   {title}
                 </p>
               )}
@@ -67,8 +67,8 @@ export function FigTooltip({
                         key={row.name}
                         className={
                           !datum.series || row.name === datum.series
-                            ? "text-[#e8e9e4]"
-                            : "text-[#e8e9e4]/55"
+                            ? "text-[#1a1b1e]"
+                            : "text-[#1a1b1e]/45"
                         }
                       >
                         <td className="pr-1.5">
@@ -85,7 +85,7 @@ export function FigTooltip({
                       </tr>
                     ))}
                     {total && rows.length > 1 && (
-                      <tr className="text-[#e8e9e4]">
+                      <tr className="text-[#1a1b1e]">
                         <td />
                         <td className="pt-1 pr-3">total</td>
                         <td className="pt-1 text-right tabular-nums">
