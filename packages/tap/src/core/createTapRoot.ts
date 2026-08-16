@@ -16,16 +16,25 @@ export const createTapRoot = <R>(
 ): useTapRoot.Root<R> & { unmount: () => void } => {
   const fiber = createResourceFiber(
     useTapRoot,
-    createResourceFiberRoot(() => {
-      throw new Error("Unexpected update on createTapRoot outer fiber");
+    createResourceFiberRoot((evaluate, apply) => {
+      if (!evaluate()) return;
+      apply();
+      scheduleTask(() => {
+        if (!fiber.isMounted) return;
+        if (isDevelopment && fiber.devStrictMode) {
+          void renderResourceFiber(fiber, [render]);
+        }
+        void renderResourceFiber(fiber, [render]);
+        commitResourceFiber(fiber);
+      });
     }),
     undefined,
     isDevelopment ? "root" : null,
   );
 
-  // In strict mode, render twice to detect side effects
   const renderFiber = () => {
     try {
+      // In strict mode, render twice to detect side effects
       if (isDevelopment && fiber.devStrictMode) {
         void renderResourceFiber(fiber, [render]);
       }

@@ -387,6 +387,10 @@ export class LocalThreadRuntimeCore
     throw new Error("Runtime does not support importing external states.");
   }
 
+  public unstable_notifySessionReset(): void {
+    throw new Error("Runtime does not support resetting sessions.");
+  }
+
   public async startRun(
     { parentId, runConfig }: StartRunConfig,
     runCallback?: ChatModelAdapter["run"],

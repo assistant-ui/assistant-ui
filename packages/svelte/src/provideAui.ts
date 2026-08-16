@@ -7,7 +7,7 @@ import {
   type AuiConfig,
 } from "@assistant-ui/store/client";
 import { auiContextKey, createClientFacade, type AuiContext } from "./context";
-import { isDevelopment } from "./isDevelopment";
+import { isDevelopment } from "@assistant-ui/core/store/internal";
 
 const thunkToSource = (getConfig: () => AuiConfig): AssistantConfigSource => {
   const store = toStore(getConfig);

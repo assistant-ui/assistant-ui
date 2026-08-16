@@ -999,6 +999,9 @@ export class AgUiThreadRuntimeCore {
         ? (this.tryGetMessages(parentId) ?? this.repository.getMessages())
         : this.repository.getMessages()),
     ];
+    const runStartMessageIds = new Set(
+      this.getMessageRepository().messages.map(({ message }) => message.id),
+    );
 
     this.pendingError = null;
     const assistantParentId = parent ? parentId : this.repository.headId;
@@ -1006,9 +1009,10 @@ export class AgUiThreadRuntimeCore {
     // A snapshot the preserve gate declines still evicts the in-flight
     // assistant; recreating under the cached id on the next content-bearing
     // emit keeps both the stream and the message identity. Status-only emits,
-    // data-only content, and server-id collisions must not recreate: the
-    // snapshot already carries this turn's assistant, so resurrecting for
-    // custom-event data would leave a trailing data-only duplicate.
+    // data-only content, and off-branch server-id collisions must not
+    // recreate: the snapshot already carries this turn's assistant, so
+    // resurrecting for custom-event data would leave a trailing data-only
+    // duplicate.
     let assistantCollided = false;
     const ensureAssistant = (allowRecreate = false): string => {
       const cached = assistantMessageId;
@@ -1016,12 +1020,20 @@ export class AgUiThreadRuntimeCore {
       if (cached !== undefined && (assistantCollided || !allowRecreate)) {
         return cached;
       }
+      const repositoryHeadId = this.repository.headId;
+      const shouldUseSelectedParent =
+        cached === undefined ||
+        (shouldEagerlyInsertAssistant &&
+          (repositoryHeadId === null ||
+            runStartMessageIds.has(repositoryHeadId)));
+      // Branch runs keep their selected parent unless the snapshot advanced to
+      // a message introduced during this run.
       const parentId =
-        cached === undefined &&
+        shouldUseSelectedParent &&
         assistantParentId &&
         this.hasMessage(assistantParentId)
           ? assistantParentId
-          : this.repository.headId;
+          : repositoryHeadId;
       const created = this.insertAssistantPlaceholder(parentId, cached);
       assistantMessageId = created;
       this.markPendingAssistantHistory(created, parentId);
@@ -1050,8 +1062,21 @@ export class AgUiThreadRuntimeCore {
       onServerMessageId: (serverId) => {
         const placeholder = ensureAssistant(true);
         if (placeholder === serverId) return;
-        if (this.reassignAssistantId(placeholder, serverId)) {
+        const reassigned = this.reassignAssistantId(placeholder, serverId);
+        // A collision drops the placeholder before revealing the existing
+        // server message as the current head. Only messages introduced during
+        // this run can replace the placeholder; regeneration must not rewrite
+        // a previous branch when the server incorrectly reuses its id.
+        const adoptsVisibleCollision =
+          !reassigned &&
+          !runStartMessageIds.has(serverId) &&
+          this.repository.headId === serverId;
+        if (reassigned || adoptsVisibleCollision) {
           assistantMessageId = serverId;
+          if (adoptsVisibleCollision) {
+            const parentId = this.tryGetMessage(serverId)?.parentId ?? null;
+            this.markPendingAssistantHistory(serverId, parentId);
+          }
         } else {
           assistantCollided = true;
         }
@@ -1711,7 +1736,6 @@ export class AgUiThreadRuntimeCore {
           );
         }
       }
-      const snapshotHeadId = converted.at(-1)?.id ?? null;
       const snapshotContainsActiveAssistant = converted.some(
         (message) => message.id === activeAssistant?.id,
       );
@@ -1724,9 +1748,17 @@ export class AgUiThreadRuntimeCore {
         converted.push(activeAssistant);
       }
       this.applyExternalMessages(converted);
-      if (preservesActiveAssistant) {
-        this.recordedHistoryIds.delete(activeAssistant.id);
-        this.markPendingAssistantHistory(activeAssistant.id, snapshotHeadId);
+      if (activeAssistant !== undefined) {
+        const activeItem = this.tryGetMessage(activeAssistant.id);
+        if (activeItem) {
+          if (preservesActiveAssistant) {
+            this.recordedHistoryIds.delete(activeAssistant.id);
+          }
+          this.markPendingAssistantHistory(
+            activeAssistant.id,
+            activeItem.parentId,
+          );
+        }
       }
     } catch (error) {
       this.logger.error?.("[agui] failed to import messages snapshot", error);
@@ -1770,6 +1802,17 @@ export class AgUiThreadRuntimeCore {
     if (!message || message.role !== "assistant") return;
     if (!this.isPersistableStatus(message.status)) return;
     this.assistantHistoryParents.delete(messageId);
+    if (this.recordedHistoryIds.has(messageId)) {
+      // recordedHistoryIds tracks snapshot-owned ids that may never have
+      // reached the adapter; ThreadHistoryAdapter.update is documented as an
+      // upsert keyed on the message id, so it covers both cases. Append-only
+      // adapters skip rather than duplicate an entry the snapshot owns.
+      if (!this.history.update) return;
+      void this.history.update({ parentId, message }).catch((error) => {
+        this.logger.error?.("[agui] failed to update history entry", error);
+      });
+      return;
+    }
     this.appendHistoryItem(parentId, message);
   }
 
