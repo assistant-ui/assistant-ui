@@ -66,8 +66,9 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 ```
 
 <Callout type="idea">
-  The legacy `interactables: Interactables()` scope and the new
-  `unstable_interactables: unstable_Interactables()` scope are mutually
+  The deprecated [`interactables:
+  Interactables()`](/docs/api-reference/tools/interactables-legacy) scope and the
+  new `unstable_interactables: unstable_Interactables()` scope are mutually
   exclusive. Mount only one interactables API in a single provider config.
 </Callout>
 
@@ -711,7 +712,7 @@ Inside a thread-scoped `render`, `streaming: true` carries the same live state: 
 
 ## Multiple Instances
 
-A `name` can have many live instances at once. They all share one `update_{name}` tool: the model addresses an instance with the tool's `id` parameter, which it reads from the state snapshots in the conversation. The tool's name, schema, and description never change as instances mount and unmount, so the model's tool list (and provider prompt caches) stay stable. While exactly one instance exists, the model may omit `id`; a call with an unknown `id` returns an error listing the valid ids, so the model can recover.
+A `name` can have many live instances at once. They all share one `update_{name}` tool: the model addresses an instance with the tool's `id` parameter, which it reads from the state snapshots in the conversation. The tool's name, schema, and description never change as instances mount and unmount, so the model's tool list (and provider prompt caches) stay stable. The schema marks `id` as required, so the model is expected to send it on every call; the runtime still resolves an id-less call while exactly one instance exists. A call with an unknown `id` returns an error listing the valid ids, so the model can recover.
 
 How instances come into being differs by scope.
 

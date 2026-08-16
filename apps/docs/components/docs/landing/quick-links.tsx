@@ -10,6 +10,7 @@ export const GROUPS: {
       { label: "Primitives", href: "/docs/primitives" },
       { label: "Components", href: "/docs/ui/thread" },
       { label: "Tool UI", href: "/docs/tools/tool-ui" },
+      { label: "Generative UI", href: "/docs/tools/generative-ui" },
       { label: "MCP servers", href: "/docs/tools/mcp" },
       { label: "API reference", href: "/docs/api-reference/overview" },
     ],

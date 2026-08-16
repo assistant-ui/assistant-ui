@@ -3,8 +3,15 @@
 import { useMessagePartText, useSmooth } from "@assistant-ui/react";
 import { harden } from "rehype-harden";
 import rehypeRaw from "rehype-raw";
-import rehypeSanitize from "rehype-sanitize";
-import { Streamdown, type StreamdownProps } from "streamdown";
+import rehypeSanitize, {
+  defaultSchema,
+  type Options as SanitizeSchema,
+} from "rehype-sanitize";
+import {
+  Streamdown,
+  defaultRehypePlugins,
+  type StreamdownProps,
+} from "streamdown";
 import {
   type ComponentRef,
   forwardRef,
@@ -14,19 +21,50 @@ import {
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
 import { tailBoundedRemend } from "../remend";
-import type { SecurityConfig, StreamdownTextPrimitiveProps } from "../types";
+import type {
+  AllowedTags,
+  SecurityConfig,
+  StreamdownTextPrimitiveProps,
+} from "../types";
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
 
-/**
- * Builds rehypePlugins array with security configuration.
- */
+// Streamdown extends the default sanitize schema without exporting it, so it is
+// read back off its own plugin set; a copy would fall behind on a bump. An
+// unrecognized shape falls back to that default, which hast-util-sanitize
+// shallow-merges, so a partial schema here would strip every unlisted tag.
+const sanitizeEntry: unknown = defaultRehypePlugins["sanitize"];
+const streamdownSanitizeSchema = (
+  Array.isArray(sanitizeEntry) ? sanitizeEntry[1] : defaultSchema
+) as SanitizeSchema;
+
+function buildSecuritySanitizeSchema(
+  allowedTags: AllowedTags | undefined,
+): SanitizeSchema {
+  if (!allowedTags || Object.keys(allowedTags).length === 0) {
+    return streamdownSanitizeSchema;
+  }
+
+  return {
+    ...streamdownSanitizeSchema,
+    tagNames: [
+      ...(streamdownSanitizeSchema.tagNames ?? []),
+      ...Object.keys(allowedTags),
+    ],
+    attributes: {
+      ...streamdownSanitizeSchema.attributes,
+      ...allowedTags,
+    },
+  };
+}
+
 function buildSecurityRehypePlugins(
   security: SecurityConfig,
+  allowedTags: AllowedTags | undefined,
 ): NonNullable<StreamdownProps["rehypePlugins"]> {
   return [
     rehypeRaw,
-    [rehypeSanitize, {}],
+    [rehypeSanitize, buildSecuritySanitizeSchema(allowedTags)],
     [
       harden,
       {
@@ -187,10 +225,10 @@ export const StreamdownTextPrimitive = forwardRef<
     const rehypePlugins = useMemo(() => {
       if (!security) return userRehypePlugins;
       return [
-        ...buildSecurityRehypePlugins(security),
+        ...buildSecurityRehypePlugins(security, allowedTags),
         ...(userRehypePlugins ?? []),
       ];
-    }, [security, userRehypePlugins]);
+    }, [allowedTags, security, userRehypePlugins]);
 
     const optionalProps = {
       ...(className && { className }),

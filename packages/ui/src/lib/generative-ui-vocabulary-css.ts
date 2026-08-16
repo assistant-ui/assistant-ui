@@ -9,6 +9,23 @@ type CssRuleset = Record<string, CssDeclarationBlock | CssMediaBlock>;
 export const auiHairlineBorder =
   "color-mix(in oklab, var(--border) 60%, transparent)";
 
+/**
+ * A card earns its frame from its content rather than by existing: the renderer
+ * stamps `data-aui-surface` when a tinted background or a footer makes it one,
+ * and a carousel slot is a surface by position. Plain sections stay weightless
+ * so a composition of several reads as one message rather than a stack of
+ * slabs. The flag is an attribute rather than `:has()` because the repository's
+ * browserslist still includes Firefox 111, where an unsupported selector would
+ * discard the whole rule.
+ */
+export const auiCardSurfaceSelectors = [
+  '[data-aui="card"][data-aui-surface]',
+  '[data-aui="carousel"] [data-aui="card"]',
+] as const;
+
+const cardSurface = (scope?: string) =>
+  auiCardSurfaceSelectors.map((s) => (scope ? `${scope} ${s}` : s)).join(", ");
+
 // Density knobs, host-overridable via CSS custom properties: --aui-control-height, --aui-control-font-size, --aui-button-padding-x, --aui-field-padding-x.
 export const generativeUiVocabularyCss: CssRuleset = {
   "[data-aui]": {
@@ -219,15 +236,36 @@ export const generativeUiVocabularyCss: CssRuleset = {
     gap: "0.25rem",
   },
 
+  // The surface spaces itself: several `present` calls land as adjacent blocks
+  // in a host container this stylesheet does not own. In a block context these
+  // margins collapse into one gap between neighbours; a flex or grid host adds
+  // them to its own spacing instead.
+  '[data-aui="root"]': {
+    display: "flex",
+    "flex-direction": "column",
+    gap: "0.875rem",
+    "margin-block": "0.875rem",
+  },
+  // A call whose nodes have not arrived yet renders no children, and an empty
+  // surface would otherwise hold its margins open for the length of the stream.
+  '[data-aui="root"]:empty': { display: "none" },
+
+  // Padding rides a custom property rather than the surface rule, so the
+  // `data-aui-padding` tokens below still win on source order; a selector
+  // specific enough to name a surface would otherwise outrank them and make
+  // the model's own value inert.
   '[data-aui="card"]': {
     display: "flex",
     "flex-direction": "column",
     gap: "0.875rem",
+    padding: "var(--aui-card-padding, 0)",
+  },
+  [cardSurface()]: {
+    "--aui-card-padding": "1.25rem",
     "background-color": "var(--card)",
     color: "var(--card-foreground)",
     border: `1px solid ${auiHairlineBorder}`,
     "border-radius": "var(--radius)",
-    padding: "1.25rem",
     "box-shadow":
       "0 1px 2px color-mix(in oklab, var(--foreground) 8%, transparent)",
   },
@@ -644,14 +682,14 @@ export const generativeUiElementsThemeVars = {
  * The elements theme for the vocabulary: the borderless paper/field/ink language from the elements family, applied to any subtree carrying `data-aui-theme="elements"`. Layered after {@link generativeUiVocabularyCss}; the base rules keep layout and typography, this layer replaces surfaces, borders, radii, and color.
  */
 export const generativeUiElementsThemeCss: CssRuleset = {
-  [`${T} [data-aui="card"]`]: {
+  [cardSurface(T)]: {
     border: "none",
     "border-radius": "20px",
     "background-color": "var(--background)",
     "box-shadow":
       "0 1px 2px rgba(0,0,0,0.04), 0 12px 32px -16px rgba(0,0,0,0.12)",
   },
-  [`${TD} [data-aui="card"]`]: {
+  [cardSurface(TD)]: {
     "background-color": "var(--popover)",
     "box-shadow": "none",
   },

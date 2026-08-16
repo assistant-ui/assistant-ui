@@ -58,6 +58,12 @@ const cspHeader = `
 `;
 
 const config: NextConfig = {
+  experimental: {
+    // Learn previews compile several complete lesson stages into the docs app.
+    // Bound build concurrency so Vercel and other constrained builders do not
+    // run out of memory while Turbopack compiles those routes in parallel.
+    cpus: 2,
+  },
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
@@ -86,6 +92,11 @@ const config: NextConfig = {
     {
       source: "/docs/runtimes/ai-sdk/v6",
       destination: "/docs/runtimes/ai-sdk/v6-legacy",
+      permanent: true,
+    },
+    {
+      source: "/docs/tools/interactables-legacy",
+      destination: "/docs/tools/interactables#migrating-from-the-previous-api",
       permanent: true,
     },
     {

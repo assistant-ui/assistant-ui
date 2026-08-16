@@ -1,5 +1,43 @@
 # @assistant-ui/react-a2a
 
+## 0.2.29
+
+### Patch Changes
+
+- [#5818](https://github.com/assistant-ui/assistant-ui/pull/5818) [`b35102d`](https://github.com/assistant-ui/assistant-ui/commit/b35102d2ce0771165a9f6ff074ff70ae7f7fe498) - fix: reject synchronous message responses with invalid A2A roles ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`a90db30`](https://github.com/assistant-ui/assistant-ui/commit/a90db30dbf1c73eb2ba8cc587cf157b1a04ce541), [`cfb5fab`](https://github.com/assistant-ui/assistant-ui/commit/cfb5fab251784ce20722ec9371fd66137a9727f8), [`65e03a6`](https://github.com/assistant-ui/assistant-ui/commit/65e03a697366c62cc5295c28ae528634baaf2901), [`d3fece3`](https://github.com/assistant-ui/assistant-ui/commit/d3fece3b17487edbbeeedb903f0e8075f82b2dd7), [`4b75b8f`](https://github.com/assistant-ui/assistant-ui/commit/4b75b8f96729314a369879d26d8e4cd8321eac36), [`1e98bcf`](https://github.com/assistant-ui/assistant-ui/commit/1e98bcf3f406385f3c924521b73300c12898fea6), [`82cbc15`](https://github.com/assistant-ui/assistant-ui/commit/82cbc1560b069ba1dd7e9b068585f5c647629b36), [`e28a62d`](https://github.com/assistant-ui/assistant-ui/commit/e28a62d84439e93a32b64f166196cef2cb02e5db), [`48af3c5`](https://github.com/assistant-ui/assistant-ui/commit/48af3c5c4198b9f3fe015e77580922b2e4733e7a), [`22fa20f`](https://github.com/assistant-ui/assistant-ui/commit/22fa20ffd1f0d192c417b12d4512dcffeab5161b), [`00a630a`](https://github.com/assistant-ui/assistant-ui/commit/00a630aa93ce0a5e40f81fbf6ff1886275f72356), [`417efee`](https://github.com/assistant-ui/assistant-ui/commit/417efee92b48f3fac057d65200f85d4df8657fa0), [`1e1d52b`](https://github.com/assistant-ui/assistant-ui/commit/1e1d52bd2f08b8712764792a9d95b608cb365b64), [`685a069`](https://github.com/assistant-ui/assistant-ui/commit/685a06939edb9478d68258cab632f389c2742a05), [`f59d24b`](https://github.com/assistant-ui/assistant-ui/commit/f59d24b3ee7036c94bce7bc0a38f018574f50a69), [`092585b`](https://github.com/assistant-ui/assistant-ui/commit/092585b6859eeca4d2947cbe858019f5a9d9e101)]:
+  - @assistant-ui/core@0.3.13
+  - @assistant-ui/store@0.3.9
+
+## 0.2.28
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8), [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967)]:
+  - assistant-stream@0.3.36
+  - @assistant-ui/core@0.3.10
+  - @assistant-ui/store@0.3.8
+
+## 0.2.27
+
+### Patch Changes
+
+- [#5547](https://github.com/assistant-ui/assistant-ui/pull/5547) [`b3fcd4f`](https://github.com/assistant-ui/assistant-ui/commit/b3fcd4f5d51e804e291844d05e65243b7380ba2b) - fix: restore inbound file and audio parts as file message parts instead of text placeholders ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5551](https://github.com/assistant-ui/assistant-ui/pull/5551) [`0b81109`](https://github.com/assistant-ui/assistant-ui/commit/0b81109b02ae5fe39d8c4984c0fdae4ab0e1ef78) - fix: keep the wire filename on inbound image parts ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5570](https://github.com/assistant-ui/assistant-ui/pull/5570) [`7e5f2fd`](https://github.com/assistant-ui/assistant-ui/commit/7e5f2fd7154df8b206984f82e135c2c278fd1224) - fix: preserve replacement run state when an aborted run settles late ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5634](https://github.com/assistant-ui/assistant-ui/pull/5634) [`8bfd4ca`](https://github.com/assistant-ui/assistant-ui/commit/8bfd4ca8833586af90dda61b3d9e3cafc895ce97) - fix: isolate runtime callback failures from A2A stream processing ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622), [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a), [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623), [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f)]:
+  - @assistant-ui/store@0.3.4
+  - @assistant-ui/core@0.3.6
+  - assistant-stream@0.3.34
+
 ## 0.2.26
 
 ### Patch Changes

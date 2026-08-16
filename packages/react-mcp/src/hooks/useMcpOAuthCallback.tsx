@@ -1,6 +1,7 @@
 import { type FC, type ReactNode, useEffect, useRef, useState } from "react";
 import { useAui } from "@assistant-ui/store";
 import { decodeServerIdFromState } from "../auth/createOAuthProvider";
+import { invokeMcpCallback } from "../utils/invokeMcpCallback";
 
 export const createMcpOAuthCallbackError = (
   err: unknown,
@@ -52,7 +53,7 @@ export function useMcpOAuthCallback(
     if (startedRef.current === url) return;
     startedRef.current = url;
 
-    (async () => {
+    void (async () => {
       let serverId: string | null = null;
       try {
         const parsed = new URL(url);
@@ -71,12 +72,14 @@ export function useMcpOAuthCallback(
         setResult({ status: "running", serverId, error: null });
         await aui.mcp.server({ id: serverId }).completeAuth(url);
         setResult({ status: "done", serverId, error: null });
-        optsRef.current.onComplete?.(serverId);
       } catch (err) {
-        const e = createMcpOAuthCallbackError(err, serverId);
-        setResult({ status: "error", serverId, error: e });
-        optsRef.current.onError?.(e);
+        const error = createMcpOAuthCallbackError(err, serverId);
+        setResult({ status: "error", serverId, error });
+        invokeMcpCallback("onError", optsRef.current.onError, error);
+        return;
       }
+
+      invokeMcpCallback("onComplete", optsRef.current.onComplete, serverId);
     })();
   }, [aui, opts.url]);
 

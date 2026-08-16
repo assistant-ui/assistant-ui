@@ -26,6 +26,7 @@
       "@assistant-ui/react-generative-ui/*": [
         "../../packages/react-generative-ui/src/*"
       ],
+      "@assistant-ui/store/client": ["../../packages/store/src/client"],
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/core/*": ["../../packages/core/src/*"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"],

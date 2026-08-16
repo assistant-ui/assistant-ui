@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import type { ReactNode } from "react";
 import { CheckIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -18,7 +19,17 @@ export function RecommendationCard({
   onAccept,
   onAlternatives,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "state"
+  | "question"
+  | "children"
+  | "confidenceLabel"
+  | "acceptedLabel"
+  | "onAccept"
+  | "onAlternatives"
+> & {
   state: RecommendationState;
   question: string;
   children: ReactNode;
@@ -26,15 +37,17 @@ export function RecommendationCard({
   acceptedLabel: string;
   onAccept?: () => void;
   onAlternatives?: () => void;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="recommendation-card"
       className={cn(
         paper,
         "flex w-full max-w-sm flex-col gap-3 rounded-[20px] p-4",
         className,
       )}
+
+      {...props}
     >
       <p className="text-sm font-medium">{question}</p>
       <p className="text-foreground/55 text-[13px] leading-relaxed">

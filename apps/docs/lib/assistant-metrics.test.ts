@@ -1,5 +1,5 @@
 import { expect, it } from "vitest";
-import { getThreadMessageTokenUsage } from "@assistant-ui/react-ai-sdk";
+import { getThreadMessageTokenUsage } from "@assistant-ui/ai-sdk";
 
 it("reads usage from legacy custom.usage metadata path", () => {
   const usage = getThreadMessageTokenUsage({

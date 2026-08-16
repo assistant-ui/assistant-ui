@@ -1,8 +1,9 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { RefreshCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { ghostButton, mono, paper } from "./surfaces";
+import { ghostButton, mono, paper, ShimmerLabel } from "./surfaces";
 
 const DOTS = Array.from({ length: 64 }, (_, i) => i);
 
@@ -10,13 +11,18 @@ export function ImageGeneration({
   prompt,
   generating,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "children" | "prompt" | "generating"> & {
   prompt: string;
   generating: boolean;
-  className?: string;
 }) {
   return (
-    <div className={cn("flex w-52 flex-col gap-2.5", className)}>
+    <div
+      data-slot="image-generation"
+      className={cn("flex w-52 flex-col gap-2.5", className)}
+
+      {...props}
+    >
       <div
         className={cn(
           paper,
@@ -68,15 +74,7 @@ export function ImageGeneration({
       <div className="flex items-center justify-between gap-2">
         <p className="text-foreground/45 min-w-0 flex-1 truncate text-xs">
           {generating ? (
-            <span className="relative">
-              <span>Generating</span>
-              <span
-                aria-hidden
-                className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-              >
-                Generating
-              </span>
-            </span>
+            <ShimmerLabel className="relative">Generating</ShimmerLabel>
           ) : (
             prompt
           )}
