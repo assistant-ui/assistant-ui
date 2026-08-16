@@ -46,7 +46,7 @@ export const Icicle = forwardRef<SVGSVGElement, IcicleProps>(
                   width={w}
                   height={rowH}
                   rx="3"
-                  fill={ink(0.15)}
+                  fill={ink(0.08)}
                 />
                 {fits && (
                   <text x={x + 5} y={y + rowH / 2 + 1.8} {...TXT.label}>

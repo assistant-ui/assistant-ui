@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { polar, ring, round } from "../../core/geometry";
 import { chordLayout } from "../../core/layout";
-import { cat } from "../../core/theme";
+import { SURFACE, cat } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
 export type ChordProps = BaseProps & {
@@ -56,7 +56,9 @@ export const Chord = forwardRef<SVGSVGElement, ChordProps>(
               arc.end * TAU,
             )}
             fill={cat(i)}
-            opacity="0.9"
+            fillOpacity="0.9"
+            stroke={SURFACE}
+            strokeWidth="2"
             data-part="mark"
             data-series={groups[i]}
           />

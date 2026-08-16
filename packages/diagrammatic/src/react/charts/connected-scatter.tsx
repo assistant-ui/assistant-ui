@@ -1,6 +1,6 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import { linePath, round, stroke } from "../../core/geometry";
+import { round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, SURFACE, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 import { scatterFrame } from "./scatter";
@@ -41,7 +41,9 @@ export const ConnectedScatter = forwardRef<
         {...stroke.hair}
       />
       <path
-        d={linePath(path)}
+        d={path
+          .map((p, i) => `${i === 0 ? "M" : "L"}${round(p.x)} ${round(p.y)}`)
+          .join(" ")}
         fill="none"
         stroke={ink(0.45)}
         data-part="mark"

@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { polar, ring, round } from "../../core/geometry";
-import { ACCENT, seqOpacity } from "../../core/theme";
+import { ACCENT, SURFACE, seqOpacity } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
 export type PolarAreaProps = BaseProps & { items: Item[] };
@@ -13,7 +13,6 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
     const cy = vh / 2;
     const outer = Math.min(cy - 14, 50);
     const slice = (Math.PI * 2) / Math.max(1, items.length);
-    const gap = 0.035;
     const max = Math.max(...items.map((r) => r.value), 1);
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
@@ -27,11 +26,13 @@ export const PolarArea = forwardRef<SVGSVGElement, PolarAreaProps>(
                 cy,
                 6,
                 8 + t * (outer - 8),
-                i * slice + gap,
-                (i + 1) * slice - gap,
+                i * slice,
+                (i + 1) * slice,
               )}
               fill={ACCENT}
-              opacity={seqOpacity(t)}
+              fillOpacity={seqOpacity(t)}
+              stroke={SURFACE}
+              strokeWidth="2"
               data-part="mark"
               data-i={i}
             />

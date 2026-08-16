@@ -36,11 +36,7 @@ export const Sankey = forwardRef<SVGSVGElement, SankeyProps>(
               width="5"
               height={round(node.y1 - node.y0)}
               rx="2"
-              fill={
-                node.side === "left"
-                  ? cat(nodes.filter((n) => n.side === "left").indexOf(node))
-                  : ink(0.45)
-              }
+              fill={ink(0.7)}
             />
             <text
               x={node.side === "left" ? X0 + 5 : X1 - 5}

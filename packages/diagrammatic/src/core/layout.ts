@@ -313,7 +313,7 @@ export function radialNetwork(
   }
   let frontier = [hub.id];
   const seen = new Set(frontier);
-  let depth = 1;
+  const layers: string[][] = [];
   while (seen.size < graph.nodes.length && frontier.length > 0) {
     const next: string[] = [];
     for (const id of frontier) {
@@ -330,17 +330,23 @@ export function radialNetwork(
         next.push(node.id);
       }
     }
-    next.forEach((id, i) => {
+    layers.push(next);
+    frontier = next;
+  }
+  layers.forEach((ids, layer) => {
+    const depth = layer + 1;
+    const radius = (ringGap * depth) / layers.length;
+    ids.forEach((id, i) => {
       const angle =
-        (i / next.length) * Math.PI * 2 - Math.PI / 2 + depth * 0.35;
+        (i / Math.max(1, ids.length)) * Math.PI * 2 -
+        Math.PI / 2 +
+        depth * 0.35;
       positions.set(id, {
-        x: cx + Math.cos(angle) * ringGap * depth,
-        y: cy + Math.sin(angle) * ringGap * depth * 0.72,
+        x: cx + Math.cos(angle) * radius,
+        y: cy + Math.sin(angle) * radius * 0.72,
       });
     });
-    frontier = next;
-    depth += 1;
-  }
+  });
   return positions;
 }
 

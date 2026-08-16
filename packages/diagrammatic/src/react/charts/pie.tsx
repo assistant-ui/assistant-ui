@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { ring } from "../../core/geometry";
-import { cat } from "../../core/theme";
+import { SURFACE, cat } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
 export type PieProps = BaseProps & {
@@ -32,14 +32,13 @@ export const Pie = forwardRef<SVGSVGElement, PieProps>(
     const radius = Math.min(cy - 10, 46);
     const total = items.reduce((sum, r) => sum + r.value, 0) || 1;
     const fmt = format ?? ((v: number) => `${Math.round((v / total) * 100)}%`);
-    const gap = 0.03;
     let angle = 0;
     const rowStep = Math.min(15, (vh - 20) / Math.max(1, items.length));
     const legendTop = cy - ((items.length - 1) / 2) * rowStep;
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
         {items.map((slice, i) => {
-          const a0 = angle + gap;
+          const a0 = angle;
           angle += (slice.value / total) * Math.PI * 2;
           return (
             <path
@@ -50,10 +49,12 @@ export const Pie = forwardRef<SVGSVGElement, PieProps>(
                 Math.max(inner * radius, 0.001),
                 radius,
                 a0,
-                angle - gap,
+                angle,
               )}
               fill={cat(i)}
-              opacity="0.9"
+              fillOpacity="0.9"
+              stroke={SURFACE}
+              strokeWidth="2"
               data-part="mark"
               data-i={i}
             />

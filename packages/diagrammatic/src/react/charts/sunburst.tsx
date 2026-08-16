@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import type { TreeNode } from "../../core/types";
 import { polar, ring, round } from "../../core/geometry";
 import { partition } from "../../core/layout";
-import { cat } from "../../core/theme";
+import { SURFACE, cat } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
 export type SunburstProps = BaseProps & { root: TreeNode; depth?: number };
@@ -35,7 +35,6 @@ export const Sunburst = forwardRef<SVGSVGElement, SunburstProps>(
       }
       return count;
     };
-    const gap = 0.04;
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
         {all.map((slice, i) => {
@@ -46,13 +45,15 @@ export const Sunburst = forwardRef<SVGSVGElement, SunburstProps>(
               d={ring(
                 100,
                 cy,
-                12 + (slice.depth - 1) * ringWidth + (slice.depth > 1 ? 2 : 0),
+                12 + (slice.depth - 1) * ringWidth,
                 12 + slice.depth * ringWidth,
-                slice.start * TAU + gap,
-                Math.max(slice.start * TAU + gap, slice.end * TAU - gap),
+                slice.start * TAU,
+                slice.end * TAU,
               )}
               fill={cat(branchOf(i))}
-              opacity={
+              stroke={SURFACE}
+              strokeWidth="2"
+              fillOpacity={
                 slice.depth === 1
                   ? 0.9
                   : priorSiblings(i) % 2 === 0
