@@ -291,6 +291,60 @@ describe("createMcpAppBridge", () => {
     bridge.dispose();
   });
 
+  it("isolates throwing notification handlers and reports their errors", () => {
+    const { frame, captured } = makeFrame();
+    const initializedError = new Error("initialized callback failed");
+    const sizeChangeError = new Error("size change callback failed");
+    const teardownError = new Error("teardown callback failed");
+    const onError = vi.fn();
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: {
+        onInitialized: () => {
+          throw initializedError;
+        },
+        onSizeChange: () => {
+          throw sizeChangeError;
+        },
+        onLog: () => {
+          throw "log callback failed";
+        },
+        onRequestTeardown: () => {
+          throw teardownError;
+        },
+        onError,
+      },
+    });
+
+    expect(() => {
+      deliver(bridge, {
+        jsonrpc: "2.0",
+        method: "notifications/initialized",
+      });
+      deliver(bridge, {
+        jsonrpc: "2.0",
+        method: "notifications/size_changed",
+      });
+      deliver(bridge, {
+        jsonrpc: "2.0",
+        method: "notifications/log",
+      });
+      deliver(bridge, {
+        jsonrpc: "2.0",
+        method: "notifications/request_teardown",
+      });
+    }).not.toThrow();
+
+    expect(onError.mock.calls.map(([error]) => error)).toEqual([
+      initializedError,
+      sizeChangeError,
+      new Error("log callback failed"),
+      teardownError,
+    ]);
+    expect(captured).toEqual([]);
+    bridge.dispose();
+  });
+
   it("notifyToolInput / notifyToolResult / notifyHostContextChanged post both legacy and 2026-01-26 notifications", () => {
     const { frame, captured } = makeFrame();
     const bridge = createMcpAppBridge({ frame });
