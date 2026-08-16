@@ -1,7 +1,7 @@
 "use client";
 
-import type { ReactNode } from "react";
-import { Root, Tooltip } from "diagrammatic/interactive";
+import { type ReactNode, useState } from "react";
+import { type MarkQuery, Root, Tooltip } from "diagrammatic/interactive";
 
 type FigTooltipProps = {
   labels?: readonly string[];
@@ -32,8 +32,16 @@ export function FigTooltip({
   total,
   children,
 }: FigTooltipProps) {
+  const [highlight, setHighlight] = useState<MarkQuery | null>(null);
   return (
-    <Root>
+    <Root
+      highlight={highlight}
+      onMarkHover={(datum) =>
+        setHighlight(
+          datum && datum.index !== undefined ? { index: datum.index } : null,
+        )
+      }
+    >
       {children}
       <Tooltip side="top" sideOffset={12}>
         {({ datum }) => {

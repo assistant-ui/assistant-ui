@@ -218,24 +218,40 @@ export function AxisLabels({
   labels,
   xs,
   y,
+  vertical,
 }: {
   labels: string[];
   xs: number[];
   y: number;
+  vertical?: boolean;
 }) {
   return (
     <g data-part="axis">
-      {labels.map((label, i) => (
-        <text
-          key={`${label}-${i}`}
-          x={xs[i]}
-          y={y}
-          textAnchor="middle"
-          {...TXT.axis}
-        >
-          {label}
-        </text>
-      ))}
+      {labels.map((label, i) =>
+        vertical ? (
+          <text
+            key={`${label}-${i}`}
+            x={xs[i]}
+            y={y}
+            transform={`rotate(90 ${xs[i]} ${y})`}
+            textAnchor="start"
+            dominantBaseline="central"
+            {...TXT.axis}
+          >
+            {label}
+          </text>
+        ) : (
+          <text
+            key={`${label}-${i}`}
+            x={xs[i]}
+            y={y}
+            textAnchor="middle"
+            {...TXT.axis}
+          >
+            {label}
+          </text>
+        ),
+      )}
     </g>
   );
 }

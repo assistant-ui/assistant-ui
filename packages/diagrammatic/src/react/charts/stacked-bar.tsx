@@ -19,7 +19,8 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
     const vh = vbHeight(aspect, 5 / 3);
     const showLegend = legend ?? series.length > 1;
     const top = showLegend ? 26 : 14;
-    const bottom = vh - 16;
+    const vertical = groups.length > 24;
+    const bottom = vertical ? vh - 26 : vh - 16;
     const totals = groups.map((_, g) =>
       series.reduce((sum, s) => sum + (s.data[g] ?? 0), 0),
     );
@@ -97,7 +98,12 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
             return segment;
           });
         })}
-        <AxisLabels labels={groups} xs={centers} y={vh - 4} />
+        <AxisLabels
+          labels={groups}
+          xs={centers}
+          y={vertical ? bottom + 5 : vh - 4}
+          vertical={vertical}
+        />
       </ChartSvg>
     );
   },

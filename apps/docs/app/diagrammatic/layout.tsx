@@ -1,3 +1,4 @@
+import "diagrammatic/styles.css";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { IBM_Plex_Mono, Instrument_Serif } from "next/font/google";
