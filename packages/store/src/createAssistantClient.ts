@@ -13,7 +13,6 @@ import {
   type ClientRef,
   type ScopeEntry,
 } from "./useAui";
-import { setAssistantClientDestroySignal } from "./utils/tap-assistant-context";
 
 /**
  * A live view onto an `AssistantClient` whose identity may change over time.
@@ -143,7 +142,6 @@ export const createAssistantClient = (
     current: null,
   };
   const destroyController = new AbortController();
-  setAssistantClientDestroySignal(clientRef, destroyController.signal);
   const notifications = createNotificationManager();
 
   const root = createTapRoot(
@@ -161,7 +159,13 @@ export const createAssistantClient = (
       const entries = Object.entries(
         applyTransformScopes(currentConfig, parent),
       ) as ScopeEntry[];
-      const result = useAuiRoot({ parent, entries, clientRef, notifications });
+      const result = useAuiRoot({
+        parent,
+        entries,
+        clientRef,
+        notifications,
+        destroySignal: destroyController.signal,
+      });
       // Seeded during render, before the commit runs mount effects that read it
       if (clientRef.current === null) {
         clientRef.current = result.client;

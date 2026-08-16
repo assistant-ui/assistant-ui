@@ -124,7 +124,7 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
       >(),
   );
 
-  useResourceCleanup(() => {
+  useResourceCleanup(true, () => {
     for (const { chat } of chats.values()) {
       void chat.stop().catch(() => {});
     }

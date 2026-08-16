@@ -29,7 +29,7 @@ const useAISDKChat = <UI_MESSAGE extends UIMessage = UIMessage>(
     id,
     isMainThread: true,
     getThreadListItem: () => threadListItem,
-    stopOnUnmount: options === undefined || !("chat" in options),
+    stopOnClientDestroy: options === undefined || !("chat" in options),
   });
   return useResource(RuntimeAdapter(runtime));
 };

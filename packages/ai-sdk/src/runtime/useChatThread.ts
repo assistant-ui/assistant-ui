@@ -50,7 +50,7 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   id: string;
   isMainThread: boolean;
   getThreadListItem: () => InitializableThreadListItem | undefined;
-  stopOnUnmount?: boolean;
+  stopOnClientDestroy?: boolean;
   /**
    * An externally owned chat instance. State lives on the instance, so it
    * survives the hosting resource unmounting; construction options are read
@@ -169,7 +169,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     id,
     isMainThread,
     getThreadListItem,
-    stopOnUnmount = false,
+    stopOnClientDestroy = false,
     chat: externalChat,
   } = env;
 
@@ -184,10 +184,8 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(externalChat !== undefined && { chat: externalChat }),
   });
 
-  useResourceCleanup(() => {
-    if (stopOnUnmount) {
-      void chat.stop().catch(() => {});
-    }
+  useResourceCleanup(stopOnClientDestroy, () => {
+    void chat.stop().catch(() => {});
   });
 
   const runtime = useAISDKRuntime(chat, {
