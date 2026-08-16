@@ -2,10 +2,8 @@
 import { getClientState } from "../useClientResource";
 import type { AssistantClient, AssistantState } from "../types/client";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
-
-const isIgnoredKey = (key: string | symbol): key is "on" | "subscribe" => {
-  return key === "on" || key === "subscribe" || typeof key === "symbol";
-};
+import { isScopeAvailable } from "./client-accessor";
+import { clientScopeKeys, isIgnoredClientKey } from "./client-keys";
 
 /**
  * Proxied state that lazily accesses scope states
@@ -26,17 +24,19 @@ const createProxiedAssistantState = (
       );
       if (introspection !== false) return introspection;
       const scope = prop as keyof AssistantClient;
-      if (isIgnoredKey(scope)) return undefined;
-      if (client[scope].source === null) return undefined;
+      if (isIgnoredClientKey(scope)) return undefined;
+      // Collapses absent (a hand-built parent chain without the scope) and
+      // unavailable into undefined; only the base state throws for those
+      if (!isScopeAvailable(client[scope])) return undefined;
       return getClientState(client[scope]());
     }
 
     ownKeys(): ArrayLike<string | symbol> {
-      return Object.keys(client).filter((key) => !isIgnoredKey(key));
+      return clientScopeKeys(client);
     }
 
     has(_: unknown, prop: string | symbol): boolean {
-      return !isIgnoredKey(prop) && prop in client;
+      return !isIgnoredClientKey(prop) && prop in client;
     }
   }
 
@@ -54,19 +54,18 @@ const createProxiedAssistantState = (
         ));
       }
       const scope = prop as keyof AssistantClient;
-      if (isIgnoredKey(scope)) return undefined;
+      if (isIgnoredClientKey(scope)) return undefined;
       return getClientState(client[scope]());
     }
 
     ownKeys(): ArrayLike<string | symbol> {
-      return [
-        ...Object.keys(client).filter((key) => !isIgnoredKey(key)),
-        "optional",
-      ];
+      return [...clientScopeKeys(client), "optional"];
     }
 
     has(_: unknown, prop: string | symbol): boolean {
-      return prop === "optional" || (!isIgnoredKey(prop) && prop in client);
+      return (
+        prop === "optional" || (!isIgnoredClientKey(prop) && prop in client)
+      );
     }
   }
 

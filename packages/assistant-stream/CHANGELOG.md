@@ -1,5 +1,55 @@
 # assistant-stream
 
+## 0.3.37
+
+### Patch Changes
+
+- [#5729](https://github.com/assistant-ui/assistant-ui/pull/5729) [`0ae51a8`](https://github.com/assistant-ui/assistant-ui/commit/0ae51a8e8c4c49c4b8810b9c64845eeeded8b9bc) - feat: support ioredis 6 alongside 5 in the resumable stream store ([@okisdev](https://github.com/okisdev))
+
+- [#5734](https://github.com/assistant-ui/assistant-ui/pull/5734) [`e319574`](https://github.com/assistant-ui/assistant-ui/commit/e319574df10df2dbf2d57fc2bcf7cb92d3c6a2e6) - fix: isolate tool execution lifecycle callback errors from stream settlement ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.3.36
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.3.35
+
+### Patch Changes
+
+- [#5534](https://github.com/assistant-ui/assistant-ui/pull/5534) [`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174) - fix: preserve streamed tool arguments when other content is interleaved ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5700](https://github.com/assistant-ui/assistant-ui/pull/5700) [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a) - fix: carry a reasoning summary on the data stream. a reasoning part opened with `unstable_summary` previously lost it on that wire, and a summary-only part produced no frames at all, so it never reached the client. the encoder now emits a reasoning part-start frame when there is a summary to carry; a stream that does not use the field is unchanged, and one that does requires a decoder that understands the frame. ([@okisdev](https://github.com/okisdev))
+
+- [#5639](https://github.com/assistant-ui/assistant-ui/pull/5639) [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4) - feat: preserve app-authored reasoning summaries on message parts ([@rupic-app](https://github.com/apps/rupic-app))
+
+## 0.3.34
+
+### Patch Changes
+
+- [#5609](https://github.com/assistant-ui/assistant-ui/pull/5609) [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622) - fix: await resumable reader cleanup during cancellation ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.3.33
+
+### Patch Changes
+
+- [#5565](https://github.com/assistant-ui/assistant-ui/pull/5565) [`78943a3`](https://github.com/assistant-ui/assistant-ui/commit/78943a37b1006bfbee42596f838850cd96ab4566) - feat: add opt-in `strict: false` mode that reconciles malformed stream input instead of throwing (decoders, state accumulator); assistant-transport resume runs always decode leniently ([@Yonom](https://github.com/Yonom))
+
+## 0.3.32
+
+### Patch Changes
+
+- [#5521](https://github.com/assistant-ui/assistant-ui/pull/5521) [`01140bd`](https://github.com/assistant-ui/assistant-ui/commit/01140bde14fbfa89af9bdd080bbf79b3a509b524) - fix: prevent pending frontend tool output from enqueuing after stream cancellation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5463](https://github.com/assistant-ui/assistant-ui/pull/5463) [`4c313cf`](https://github.com/assistant-ui/assistant-ui/commit/4c313cfabe9802a7e59362c323ec926a24d089d4) - fix: carry a file part's filename through to the model message ([@okisdev](https://github.com/okisdev))
+
+  `GenericFilePart` had no `filename` field, so a `FileMessagePart` or `ImageMessagePart` carrying one arrived at the provider anonymous even though `LanguageModelV2FilePart` accepts a filename. The field is now declared and forwarded by both `toGenericMessages` and the react-data-stream converter, and omitted entirely when the source part has none.
+
+- [#5537](https://github.com/assistant-ui/assistant-ui/pull/5537) [`c868710`](https://github.com/assistant-ui/assistant-ui/commit/c8687104b0407f424d55dd0a369d692fe7a4c708) - fix: keep a settled tool call distinguishable from an unfinished one, so a tool returning false, 0, "" or null no longer loses its result on the cloud round trip and no longer reads as never completed ([@okisdev](https://github.com/okisdev))
+
+- [#5535](https://github.com/assistant-ui/assistant-ui/pull/5535) [`5ececc1`](https://github.com/assistant-ui/assistant-ui/commit/5ececc1df536e098f8ee252addd2e62be7d61a7a) - fix: synthesize a result for tool calls that have none, so a thread holding a cancelled or abandoned tool call no longer breaks every later run ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.31
 
 ### Patch Changes

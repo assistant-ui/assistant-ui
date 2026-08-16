@@ -6,7 +6,8 @@ export { RenderChildrenWithAccessor } from "./RenderChildrenWithAccessor";
 
 // components
 export { AuiIf } from "./AuiIf";
-export { AuiProvider } from "./utils/react-assistant-context";
+export { AuiProvider } from "./AuiProvider";
+export { AuiConfig } from "./AuiConfig";
 
 // resources
 export { Derived, type DerivedElement } from "./Derived";

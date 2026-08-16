@@ -1,5 +1,29 @@
 # @assistant-ui/tap
 
+## 0.9.12
+
+### Patch Changes
+
+- [#5827](https://github.com/assistant-ui/assistant-ui/pull/5827) [`c98699d`](https://github.com/assistant-ui/assistant-ui/commit/c98699d83b1fcc98511ca00e810e1c3d2ba019ba) - feat: mountOnSubscribe ([@Yonom](https://github.com/Yonom))
+
+## 0.9.11
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.9.10
+
+### Patch Changes
+
+- [#5655](https://github.com/assistant-ui/assistant-ui/pull/5655) [`71cf74e`](https://github.com/assistant-ui/assistant-ui/commit/71cf74eaa7fb3bcf1cc7af346637b51f99e3fc33) - feat: add a react-free standalone shim entry and make the react peer optional ([@okisdev](https://github.com/okisdev))
+
+## 0.9.9
+
+### Patch Changes
+
+- [#5399](https://github.com/assistant-ui/assistant-ui/pull/5399) [`b8daa96`](https://github.com/assistant-ui/assistant-ui/commit/b8daa967f4e5cb181c3e9ed065ab6949ee848fa4) - re-add the deprecated useMemoCache export for older @assistant-ui/store versions ([@Yonom](https://github.com/Yonom))
+
 ## 0.9.8
 
 ### Patch Changes

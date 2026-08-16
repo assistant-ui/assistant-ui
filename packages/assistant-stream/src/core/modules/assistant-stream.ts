@@ -29,6 +29,10 @@ type ToolCallPartInit = {
   response?: ToolResponseLike<ReadonlyJSONValue>;
 };
 
+type ReasoningPartInit = {
+  unstable_summary?: string;
+};
+
 /**
  * Imperative writer for constructing an {@link AssistantStream}.
  *
@@ -39,8 +43,12 @@ type ToolCallPartInit = {
 export type AssistantStreamController = {
   /** Appends text to the current text part, opening one if needed. */
   appendText(textDelta: string): void;
-  /** Appends reasoning text to the current reasoning part, opening one if needed. */
-  appendReasoning(reasoningDelta: string): void;
+  /**
+   * Appends reasoning text to the current reasoning part, opening one if
+   * needed. Supplying options opens a new part and applies them to it, so a
+   * summary always lands on a part of its own.
+   */
+  appendReasoning(reasoningDelta: string, options?: ReasoningPartInit): void;
   /** Appends a source citation part to the stream. */
   appendSource(options: SourcePart): void;
   /** Appends a file part to the stream. */
@@ -55,6 +63,15 @@ export type AssistantStreamController = {
    * part first.
    */
   addTextPart(): TextStreamController;
+  /**
+   * Opens a reasoning part and returns its writer.
+   *
+   * Use the options object to provide an app-authored summary for the part.
+   * A summary makes the data stream emit a reasoning part-start frame, which
+   * decoders older than that frame reject, so a stream only requires a current
+   * client once it uses the field.
+   */
+  addReasoningPart(options?: ReasoningPartInit): TextStreamController;
   /**
    * Opens a tool-call part by tool name and returns its writer.
    *
@@ -89,8 +106,13 @@ export type AssistantStreamController = {
   withParentId(parentId: string): AssistantStreamController;
 };
 
+type AssistantStreamOptions = {
+  strict?: boolean | undefined;
+};
+
 // Shared state between controller instances
 type AssistantStreamControllerState = {
+  strict: boolean;
   merger: ReturnType<typeof createMergeStream>;
   append?:
     | {
@@ -107,8 +129,12 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
   private readonly _state: AssistantStreamControllerState;
   private _parentId?: string;
 
-  constructor(state?: AssistantStreamControllerState) {
+  constructor(
+    state?: AssistantStreamControllerState,
+    options: AssistantStreamOptions = {},
+  ) {
     this._state = state || {
+      strict: options.strict ?? true,
       merger: createMergeStream(),
       contentCounter: new Counter(),
     };
@@ -134,6 +160,28 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._state.closeSubscriber = callback;
   }
 
+  private _addTransformedStream(
+    stream: AssistantStream,
+    transformer: ReadableWritablePair<
+      AssistantStreamChunk,
+      AssistantStreamChunk
+    >,
+  ) {
+    if (stream.locked) {
+      throw new TypeError(
+        "Cannot merge a stream that is already locked to a reader.",
+      );
+    }
+
+    const pipeTask = stream
+      .pipeTo(transformer.writable)
+      .catch(async (error) => {
+        await transformer.writable.abort(error).catch(() => undefined);
+        throw error;
+      });
+    this._state.merger.addStream(transformer.readable, pipeTask);
+  }
+
   private _addPart(part: PartInit, stream: AssistantStream) {
     if (this._state.append) {
       this._state.append.controller.close();
@@ -145,16 +193,16 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
       part,
       path: [],
     });
-    this._state.merger.addStream(
-      stream.pipeThrough(
-        new PathAppendEncoder(this._state.contentCounter.value),
-      ),
+    this._addTransformedStream(
+      stream,
+      new PathAppendEncoder(this._state.contentCounter.value),
     );
   }
 
   merge(stream: AssistantStream) {
-    this._state.merger.addStream(
-      stream.pipeThrough(new PathMergeEncoder(this._state.contentCounter)),
+    this._addTransformedStream(
+      stream,
+      new PathMergeEncoder(this._state.contentCounter),
     );
   }
 
@@ -172,29 +220,43 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
     this._state.append.controller.append(textDelta);
   }
 
-  appendReasoning(textDelta: string) {
+  appendReasoning(textDelta: string, options?: ReasoningPartInit) {
+    // An init describes a part, so supplying one opens a part rather than
+    // extending whichever one happens to be open.
     if (
+      options !== undefined ||
       this._state.append?.kind !== "reasoning" ||
       this._state.append.parentId !== this._parentId
     ) {
       this._state.append = {
         kind: "reasoning",
         parentId: this._parentId,
-        controller: this.addReasoningPart(),
+        controller: this.addReasoningPart(options),
       };
     }
+    // Opening a part from an init with no text is how a summary-only part is
+    // created, and appending there would put a chunk on the stream that no
+    // producer emitted. An empty delta from an ordinary caller still appends.
+    if (options !== undefined && textDelta.length === 0) return;
     this._state.append.controller.append(textDelta);
   }
 
   addTextPart() {
-    const [stream, controller] = createTextStreamController();
+    const [stream, controller] = createTextStreamController({
+      strict: this._state.strict,
+    });
     this._addPart(this._withParentIdOption({ type: "text" }), stream);
     return controller;
   }
 
-  addReasoningPart() {
-    const [stream, controller] = createTextStreamController();
-    this._addPart(this._withParentIdOption({ type: "reasoning" }), stream);
+  addReasoningPart(options?: ReasoningPartInit) {
+    const [stream, controller] = createTextStreamController({
+      strict: this._state.strict,
+    });
+    this._addPart(
+      this._withParentIdOption({ type: "reasoning", ...options }),
+      stream,
+    );
     return controller;
   }
 
@@ -300,8 +362,9 @@ class AssistantStreamControllerImpl implements AssistantStreamController {
  */
 export function createAssistantStream(
   callback: (controller: AssistantStreamController) => PromiseLike<void> | void,
+  options: AssistantStreamOptions = {},
 ): AssistantStream {
-  const controller = new AssistantStreamControllerImpl();
+  const controller = new AssistantStreamControllerImpl(undefined, options);
 
   const runTask = async () => {
     try {
@@ -334,7 +397,9 @@ export function createAssistantStream(
  * Use this when the stream needs to be returned before all writers are known.
  * Closing the returned controller finishes the paired stream.
  */
-export function createAssistantStreamController() {
+export function createAssistantStreamController(
+  options: AssistantStreamOptions = {},
+) {
   const { resolve, promise } = promiseWithResolvers<void>();
   let controller!: AssistantStreamController;
   const stream = createAssistantStream((c) => {
@@ -345,7 +410,7 @@ export function createAssistantStreamController() {
     );
 
     return promise;
-  });
+  }, options);
   return [stream, controller] as const;
 }
 

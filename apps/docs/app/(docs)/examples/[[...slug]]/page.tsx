@@ -11,7 +11,7 @@ import { DocsPager } from "@/components/docs/layout/docs-pager";
 import { findNeighbour } from "fumadocs-core/page-tree";
 import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
-import { Button } from "@/components/ui/radix/button";
+import { Button } from "@/components/ui/button";
 import { getDemo } from "@/lib/demos";
 
 // The AI SDK example renders the Base demo component.
@@ -72,11 +72,14 @@ export default async function Page(props: {
               </h1>
               <div className="flex items-center gap-2">
                 {demo && (
-                  <Button variant="outline" size="sm" asChild>
-                    <Link href={`/demos/${demo.slug}`}>
-                      Open demo
-                      <ArrowUpRightIcon className="size-3.5" />
-                    </Link>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    nativeButton={false}
+                    render={<Link href={`/demos/${demo.slug}`} />}
+                  >
+                    Open demo
+                    <ArrowUpRightIcon className="size-3.5" />
                   </Button>
                 )}
                 <DocsPager

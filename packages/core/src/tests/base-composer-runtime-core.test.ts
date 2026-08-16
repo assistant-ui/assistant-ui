@@ -8,23 +8,24 @@ import type { SendOptions } from "../runtime/interfaces/composer-runtime-core";
 
 class TestComposerCore extends BaseComposerRuntimeCore {
   private _attachmentAdapter: AttachmentAdapter | undefined;
-  private _dictationAdapter: DictationAdapter | undefined;
   public sentMessages: Array<Omit<AppendMessage, "parentId" | "sourceId">> = [];
   public sentOptions: Array<SendOptions | undefined> = [];
 
   protected getAttachmentAdapter() {
     return this._attachmentAdapter;
   }
+  private _dictationAdapter: DictationAdapter | undefined;
+
   protected getDictationAdapter(): DictationAdapter | undefined {
     return this._dictationAdapter;
   }
 
-  setAttachmentAdapter(adapter: AttachmentAdapter | undefined) {
-    this._attachmentAdapter = adapter;
-  }
-
   setDictationAdapter(adapter: DictationAdapter | undefined) {
     this._dictationAdapter = adapter;
+  }
+
+  setAttachmentAdapter(adapter: AttachmentAdapter | undefined) {
+    this._attachmentAdapter = adapter;
   }
 
   get canCancel() {
@@ -451,5 +452,106 @@ describe("BaseComposerRuntimeCore", () => {
         expect(onError).not.toHaveBeenCalled();
       });
     });
+  });
+});
+
+describe("BaseComposerRuntimeCore.restoreDraft", () => {
+  it("refuses while the composer holds something of its own", () => {
+    const composer = new TestComposerCore();
+    composer.setText("mine");
+
+    expect(composer.restoreDraft({ text: "returned" })).toBe(false);
+    expect(composer.text).toBe("mine");
+  });
+
+  it("rebases a live dictation session onto the restored text", () => {
+    let emitSpeech!: (result: { transcript: string }) => void;
+    const composer = new TestComposerCore();
+    composer.setDictationAdapter({
+      listen: () => ({
+        status: { type: "running" },
+        stop: async () => {},
+        cancel: () => {},
+        onSpeechStart: () => () => {},
+        onSpeechEnd: () => () => {},
+        onSpeech: (callback) => {
+          emitSpeech = callback;
+          return () => {};
+        },
+      }),
+    });
+
+    composer.startDictation();
+    expect(composer.restoreDraft({ text: "returned" })).toBe(true);
+    emitSpeech({ transcript: "and this" });
+
+    expect(composer.text).toBe("returned and this");
+  });
+});
+
+describe("BaseComposerRuntimeCore.retractDraft", () => {
+  const makeCompleteAttachment = (id: string) => ({
+    id,
+    type: "file" as const,
+    name: "spec.pdf",
+    contentType: "application/pdf",
+    status: { type: "complete" as const },
+    content: [],
+  });
+
+  it("clears the composer while it still holds the exact draft", () => {
+    const composer = new TestComposerCore();
+    const draft = {
+      text: "returned",
+      quote: { text: "quoted", messageId: "m-1" },
+      attachments: [makeCompleteAttachment("a1")],
+    };
+
+    expect(composer.restoreDraft(draft)).toBe(true);
+    composer.retractDraft(draft);
+
+    expect(composer.text).toBe("");
+    expect(composer.quote).toBeUndefined();
+    expect(composer.attachments).toEqual([]);
+  });
+
+  it("leaves an edited text alone", () => {
+    const composer = new TestComposerCore();
+    const draft = { text: "returned" };
+
+    expect(composer.restoreDraft(draft)).toBe(true);
+    composer.setText("edited");
+    composer.retractDraft(draft);
+
+    expect(composer.text).toBe("edited");
+  });
+
+  it("leaves a changed quote alone", () => {
+    const composer = new TestComposerCore();
+    const draft = { text: "returned", quote: { text: "quoted" } };
+
+    expect(composer.restoreDraft(draft)).toBe(true);
+    composer.setQuote({ text: "other" });
+    composer.retractDraft(draft);
+
+    expect(composer.text).toBe("returned");
+    expect(composer.quote).toEqual({ text: "other" });
+  });
+
+  it("leaves changed attachments alone", () => {
+    const composer = new TestComposerCore();
+    const draft = {
+      text: "returned",
+      attachments: [makeCompleteAttachment("a1")],
+    };
+
+    expect(composer.restoreDraft(draft)).toBe(true);
+    composer.retractDraft({
+      ...draft,
+      attachments: [makeCompleteAttachment("a1")],
+    });
+
+    expect(composer.text).toBe("returned");
+    expect(composer.attachments).toHaveLength(1);
   });
 });

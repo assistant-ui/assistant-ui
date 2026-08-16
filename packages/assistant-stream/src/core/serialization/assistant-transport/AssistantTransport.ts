@@ -111,7 +111,8 @@ export class AssistantTransportDecoder extends PipeableTransformStream<
   Uint8Array<ArrayBuffer>,
   AssistantStreamChunk
 > {
-  constructor() {
+  constructor(options: { strict?: boolean | undefined } = {}) {
+    const strict = options.strict ?? true;
     super((readable) => {
       let receivedDone = false;
       const warnedReasons = new Set<string>();
@@ -144,12 +145,23 @@ export class AssistantTransportDecoder extends PipeableTransformStream<
                   }
                   break;
                 default:
-                  throw new Error(`Unknown SSE event type: ${event.event}`);
+                  if (strict)
+                    throw new Error(`Unknown SSE event type: ${event.event}`);
+                  if (!warnedReasons.has(`event:${event.event}`)) {
+                    warnedReasons.add(`event:${event.event}`);
+                    console.error(
+                      `Ignored unknown SSE event type: ${event.event}`,
+                    );
+                  }
               }
             },
             flush() {
               if (!receivedDone) {
-                throw new Error(
+                if (strict)
+                  throw new Error(
+                    "Stream ended abruptly without receiving [DONE] marker",
+                  );
+                console.warn(
                   "Stream ended abruptly without receiving [DONE] marker",
                 );
               }

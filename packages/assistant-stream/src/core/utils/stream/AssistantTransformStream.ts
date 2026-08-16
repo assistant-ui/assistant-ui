@@ -18,6 +18,7 @@ type AssistantTransformerTransformCallback<I> = (
 ) => void | PromiseLike<void>;
 
 type AssistantTransformer<I> = {
+  strict?: boolean | undefined;
   flush?: AssistantTransformerFlushCallback;
   start?: AssistantTransformerStartCallback;
   transform?: AssistantTransformerTransformCallback<I>;
@@ -32,7 +33,9 @@ export class AssistantTransformStream<I> extends TransformStream<
     writableStrategy?: QueuingStrategy<I>,
     readableStrategy?: QueuingStrategy<AssistantStreamChunk>,
   ) {
-    const [stream, runController] = createAssistantStreamController();
+    const [stream, runController] = createAssistantStreamController({
+      strict: transformer.strict,
+    });
 
     let runPipeTask: Promise<void>;
     super(

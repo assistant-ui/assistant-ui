@@ -10,6 +10,9 @@ observe via `setState(snapshot)` and what the current behavior is.
 > first observation — args regress, args change after first completion,
 > result is replaced, result is cleared, key order shuffles — the tracker
 > never invokes the host's tool callback a second time.
+>
+> `reset()` starts a new execution boundary. A reused `toolCallId` in the
+> next boundary gets a new execution identity and may fire once there.
 
 This guarantees host-side side effects (the typical reason `streamCall` /
 `execute` exists at all) can't double-run. The cost: post-completion
@@ -65,7 +68,7 @@ The tracker calls `setResponse` on the active controller and closes it.
 The backend result is emitted before the args stream closes, so a stale
 args parse failure cannot replace it. `reader.response.get()` resolves.
 If the tool also had a frontend `execute`, the executor is short-circuited
-via `_skipExecuteStreamIds`. Single fire.
+via the entry's per-execution skip marker. Single fire.
 
 ### A.6. Previously-resolved tool's `result` is replaced
 Silently ignored — `entry.hasResult` short-circuits both the
@@ -153,15 +156,16 @@ tracker's view of "what we last observed". The next snapshot retries.
 
 ### F.1. `reset()` called while `execute()` invocations are in flight
 `abort()` is invoked, in-flight executions reject with
-`Tool execution aborted`. Once they settle, the cleanup logic clears
-`_executing`. The settled-resolver promises fire so the abort promise
-resolves.
+`Tool execution aborted`. Once they settle, the cleanup logic removes their
+execution identities from `_executing`. The settled-resolver promises fire so
+the abort promise resolves.
 
 ### F.2. `setState` called during `reset()`'s in-flight abort
 The new snapshot is processed against an empty `_entries`. Tool calls
 in it are seeded as restored (because `reset()` re-armed
-`_pendingRestore`). Eventual cancellation `result` chunks for the
-aborted executions are dropped via `_skipExecuteStreamIds`.
+`_pendingRestore`). Eventual cancellation `result` chunks for the aborted
+executions are dropped when their execution identity no longer matches the
+current entry.
 
 ### F.3. `resume(toolCallId, payload)` for an unknown id
 Silently no-ops. (The pre-class hook *threw*; the tracker softens this
@@ -174,6 +178,13 @@ lifetime: existing active entries are *demoted to restored* (so the
 rebuilt pipeline does not re-fire `streamCall` for them) and the
 snapshot is processed against the fresh pipeline. Repeated failures
 keep the tracker dead with a visible error to avoid restart loops.
+
+### F.5. Reset followed by same-id reuse
+The assistant-stream pipeline assigns each streamed tool part an opaque
+execution identity. Human-input callbacks, lifecycle callbacks, result chunks,
+and pending execution cleanup are accepted only when that identity is still
+current for the `toolCallId`. A late callback from before `reset()` is therefore
+dropped even when the next session reuses the id.
 
 ## Known limitations
 

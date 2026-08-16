@@ -1,3 +1,9 @@
+import {
+  CloudResponseError,
+  readCloudRecord,
+  readCloudString,
+} from "./cloudResponse";
+
 export type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "jwt" | "api-key";
   getAuthHeaders(): Promise<Record<string, string> | false>;
@@ -32,6 +38,56 @@ const getJwtExpiry = (jwt: string): number => {
   } catch (error) {
     throw new Error(`Unable to determine the token expiry: ${error}`);
   }
+};
+
+type RefreshToken = {
+  token: string;
+  expires_at: string;
+};
+
+const readNonEmptyCloudString = (value: unknown, field: string): string => {
+  const result = readCloudString(value, field);
+  if (result.length === 0) {
+    throw new CloudResponseError(
+      `Invalid Assistant Cloud response for "${field}": expected a non-empty string`,
+    );
+  }
+  return result;
+};
+
+const readRefreshTokenResponse = (
+  value: unknown,
+  field: string,
+): RefreshToken => {
+  const refreshToken = readCloudRecord(value, field);
+  return {
+    token: readNonEmptyCloudString(refreshToken.token, `${field}.token`),
+    expires_at: readNonEmptyCloudString(
+      refreshToken.expires_at,
+      `${field}.expires_at`,
+    ),
+  };
+};
+
+const readAuthTokenResponse = async (
+  response: Response,
+  field: string,
+): Promise<{ data: Record<string, unknown>; accessToken: string }> => {
+  let value: unknown;
+  try {
+    value = await response.json();
+  } catch {
+    throw new CloudResponseError(
+      `Invalid Assistant Cloud response for "${field}": expected valid JSON`,
+    );
+  }
+
+  const data = readCloudRecord(value, field);
+  const accessToken = readNonEmptyCloudString(
+    data.access_token,
+    `${field}.access_token`,
+  );
+  return { data, accessToken };
 };
 
 export class AssistantCloudJWTAuthStrategy implements AssistantCloudAuthStrategy {
@@ -133,9 +189,7 @@ const getLocalStorage = (): Storage | null => {
   }
 };
 
-const readRefreshToken = ():
-  | { token: string; expires_at: string }
-  | undefined => {
+const readRefreshToken = (): RefreshToken | undefined => {
   const storage = getLocalStorage();
   if (!storage) return undefined;
   try {
@@ -148,10 +202,7 @@ const readRefreshToken = ():
   }
 };
 
-const writeRefreshToken = (refreshToken: {
-  token: string;
-  expires_at: string;
-}): void => {
+const writeRefreshToken = (refreshToken: RefreshToken): void => {
   const storage = getLocalStorage();
   if (!storage) return;
   try {
@@ -192,12 +243,19 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
           );
 
           if (response.ok) {
-            const data = await response.json();
-            const { access_token, refresh_token } = data;
-            if (refresh_token) {
-              writeRefreshToken(refresh_token);
+            const { data, accessToken } = await readAuthTokenResponse(
+              response,
+              "refresh auth token response",
+            );
+            if (data.refresh_token != null) {
+              writeRefreshToken(
+                readRefreshTokenResponse(
+                  data.refresh_token,
+                  "refresh auth token response.refresh_token",
+                ),
+              );
             }
-            return access_token;
+            return accessToken;
           }
         } else {
           removeRefreshToken();
@@ -211,13 +269,18 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
 
       if (!response.ok) return null;
 
-      const data = await response.json();
-      const { access_token, refresh_token } = data;
+      const { data, accessToken } = await readAuthTokenResponse(
+        response,
+        "anonymous auth token response",
+      );
 
-      if (!access_token || !refresh_token) return null;
-
-      writeRefreshToken(refresh_token);
-      return access_token;
+      writeRefreshToken(
+        readRefreshTokenResponse(
+          data.refresh_token,
+          "anonymous auth token response.refresh_token",
+        ),
+      );
+      return accessToken;
     });
   }
 

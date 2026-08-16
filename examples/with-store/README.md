@@ -95,14 +95,19 @@ const FooListResource = resource(
 
 ```typescript
 const FooProvider = ({ index, children }) => {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     foo: Derived({
       source: "fooList",
       query: { index },
       get: (aui) => aui.fooList().foo({ index }),
     }),
   });
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };
 ```
 

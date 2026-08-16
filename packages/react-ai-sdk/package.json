@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-ai-sdk",
-  "version": "1.4.2",
+  "version": "1.4.5",
   "description": "Vercel AI SDK adapter for assistant-ui",
   "keywords": [
     "ai-sdk",
@@ -15,17 +15,6 @@
   "author": "AgentbaseAI Inc.",
   "license": "MIT",
   "type": "module",
-  "imports": {
-    "#mcp-stdio": {
-      "types": "./src/mcp-stdio.node.ts",
-      "react-native": "./dist/mcp-stdio.unsupported.js",
-      "edge-light": "./dist/mcp-stdio.unsupported.js",
-      "workerd": "./dist/mcp-stdio.unsupported.js",
-      "browser": "./dist/mcp-stdio.unsupported.js",
-      "node": "./dist/mcp-stdio.node.js",
-      "default": "./dist/mcp-stdio.unsupported.js"
-    }
-  },
   "exports": {
     ".": {
       "react-native": {
@@ -46,18 +35,10 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build",
-    "test": "vitest run",
-    "test:watch": "vitest"
+    "build": "aui-build"
   },
   "dependencies": {
-    "@ai-sdk/mcp": "^2.0.16",
-    "@ai-sdk/react": "^4.0.40",
-    "@assistant-ui/core": "^0.3.2",
-    "@assistant-ui/store": "^0.3.2",
-    "ai": "^7.0.37",
-    "assistant-cloud": "*",
-    "assistant-stream": "^0.3.31"
+    "@assistant-ui/ai-sdk": "^0.0.0"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -69,14 +50,7 @@
     }
   },
   "devDependencies": {
-    "@assistant-ui/x-buildutils": "workspace:*",
-    "@testing-library/react": "^16.3.2",
-    "@types/json-schema": "^7.0.15",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "jsdom": "^29.1.1",
-    "react": "^19.2.8",
-    "vitest": "^4.1.10"
+    "@assistant-ui/x-buildutils": "workspace:*"
   },
   "publishConfig": {
     "access": "public",

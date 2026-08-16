@@ -1,5 +1,10 @@
 import { type FC, type PropsWithChildren, useMemo } from "react";
-import { useAui, AuiProvider, type ClientOutput } from "@assistant-ui/store";
+import {
+  useAui,
+  AuiConfig,
+  AuiProvider,
+  type ClientOutput,
+} from "@assistant-ui/store";
 import type { PartState } from "../../store/scopes/part";
 
 import { resource } from "@assistant-ui/tap";
@@ -42,9 +47,13 @@ export const TextMessagePartProvider: FC<
     isRunning?: boolean;
   }>
 > = ({ text, isRunning = false, children }) => {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     part: TextMessagePartClient({ text, isRunning }),
   });
-
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };

@@ -128,6 +128,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "tooling",
   },
   {
+    name: "@assistant-ui/metro",
+    description: "Metro plugin for the generative UI compiler.",
+    category: "tooling",
+  },
+  {
     name: "@assistant-ui/x-generative-compiler",
     description: 'Framework-agnostic "use generative" compiler.',
     category: "tooling",
@@ -148,8 +153,13 @@ export const PACKAGES: PackageInfo[] = [
     category: "cloud",
   },
   {
-    name: "@assistant-ui/react-ai-sdk",
+    name: "@assistant-ui/ai-sdk",
     description: "Vercel AI SDK adapter.",
+    category: "frameworks",
+  },
+  {
+    name: "@assistant-ui/react-ai-sdk",
+    description: "Re-export of @assistant-ui/ai-sdk.",
     category: "frameworks",
   },
   {
@@ -175,6 +185,11 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "@assistant-ui/react-opencode",
     description: "OpenCode runtime adapter.",
+    category: "frameworks",
+  },
+  {
+    name: "@assistant-ui/react-pi",
+    description: "Pi coding-agent runtime adapter.",
     category: "frameworks",
   },
   {
@@ -230,6 +245,11 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "@assistant-ui/react-hook-form",
     description: "React Hook Form integration.",
+    category: "ui",
+  },
+  {
+    name: "@assistant-ui/react-generative-ui",
+    description: "Render model-authored component trees.",
     category: "ui",
   },
   {

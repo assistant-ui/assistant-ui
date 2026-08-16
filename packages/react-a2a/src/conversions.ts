@@ -16,11 +16,18 @@ export function a2aPartToContent(
   }
   if (part.url !== undefined) {
     if (isImageMediaType(part.mediaType)) {
-      return { type: "image", image: part.url };
+      return {
+        type: "image",
+        image: part.url,
+        ...(part.filename && { filename: part.filename }),
+      };
     }
     return {
-      type: "text",
-      text: part.filename ? `[${part.filename}](${part.url})` : part.url,
+      type: "file",
+      data: part.url,
+      mimeType: part.mediaType ?? "application/octet-stream",
+      sourceType: "url",
+      ...(part.filename && { filename: part.filename }),
     };
   }
   if (part.raw !== undefined) {
@@ -28,11 +35,14 @@ export function a2aPartToContent(
       return {
         type: "image",
         image: `data:${part.mediaType};base64,${part.raw}`,
+        ...(part.filename && { filename: part.filename }),
       };
     }
     return {
-      type: "text",
-      text: `[File: ${part.filename ?? "download"}]`,
+      type: "file",
+      data: part.raw,
+      mimeType: part.mediaType ?? "application/octet-stream",
+      ...(part.filename && { filename: part.filename }),
     };
   }
   if (part.data !== undefined) {
@@ -95,6 +105,7 @@ export function contentPartsToA2AParts(
     data?: unknown;
     mimeType?: string | undefined;
     filename?: string | undefined;
+    sourceType?: "url" | "id" | undefined;
     audio?: { data: string; format: string } | undefined;
   }>,
   fallbackMimeType?: string,
@@ -123,7 +134,7 @@ export function contentPartsToA2AParts(
         case "file": {
           if (typeof part.data !== "string" || !part.data) return null;
           const declaredMimeType = part.mimeType || fallbackMimeType;
-          if (httpUrlPattern.test(part.data)) {
+          if (part.sourceType === "url" || httpUrlPattern.test(part.data)) {
             return {
               url: part.data,
               ...(declaredMimeType && { mediaType: declaredMimeType }),

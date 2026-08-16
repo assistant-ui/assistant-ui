@@ -88,7 +88,7 @@
   }
 }
 
-.ch-collapse-trigger[data-state="closed"]::after {
+.ch-collapse-trigger:not([data-panel-open])::after {
   animation: ch-hint-in 200ms ease 400ms backwards;
 }
 
@@ -102,11 +102,11 @@
   overflow: hidden;
 }
 
-.ch-collapse-content[data-state="open"] {
+.ch-collapse-content[data-open] {
   animation: ch-fold-open 200ms ease-out;
 }
 
-.ch-collapse-content[data-state="closed"] {
+.ch-collapse-content[data-closed] {
   animation: ch-fold-close 200ms ease-out;
 }
 
@@ -115,13 +115,13 @@
     height: 0;
   }
   to {
-    height: var(--radix-collapsible-content-height);
+    height: var(--collapsible-panel-height);
   }
 }
 
 @keyframes ch-fold-close {
   from {
-    height: var(--radix-collapsible-content-height);
+    height: var(--collapsible-panel-height);
   }
   to {
     height: 0;
@@ -131,9 +131,9 @@
 @media (prefers-reduced-motion: reduce) {
   .code-slideshow [data-changed],
   .code-slideshow .ch-tooltip,
-  .ch-collapse-trigger[data-state="closed"]::after,
-  .ch-collapse-content[data-state="open"],
-  .ch-collapse-content[data-state="closed"] {
+  .ch-collapse-trigger:not([data-panel-open])::after,
+  .ch-collapse-content[data-open],
+  .ch-collapse-content[data-closed] {
     animation: none;
   }
 }

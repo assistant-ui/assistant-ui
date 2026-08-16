@@ -6,7 +6,7 @@ import type {
   RemoteThreadMetadata,
 } from "@assistant-ui/core";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
-import type { AdkEvent, AdkMessage } from "./types";
+import type { AdkEvent, AdkMessage, AdkThreadSnapshot } from "./types";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
 
 export type AdkSessionAdapterOptions = {
@@ -41,7 +41,10 @@ export type AdkArtifactData = {
 
 type AdkSessionAdapterResult = {
   adapter: RemoteThreadListAdapter;
-  load: (sessionId: string) => Promise<{ messages: AdkMessage[] }>;
+  load: (
+    sessionId: string,
+    options?: { signal?: AbortSignal | undefined },
+  ) => Promise<AdkThreadSnapshot>;
   artifacts: {
     list: (sessionId: string) => Promise<string[]>;
     load: (
@@ -302,10 +305,12 @@ export function createAdkSessionAdapter(
 
   const load = async (
     sessionId: string,
-  ): Promise<{ messages: AdkMessage[] }> => {
+    options?: { signal?: AbortSignal | undefined },
+  ): Promise<AdkThreadSnapshot> => {
     const headers = await getHeaders();
     const res = await fetch(`${baseUrl}/${encodeURIComponent(sessionId)}`, {
       headers,
+      ...(options?.signal ? { signal: options.signal } : {}),
     });
     if (!res.ok) {
       throw new Error(`Failed to load session: ${res.status}`);
@@ -329,7 +334,19 @@ export function createAdkSessionAdapter(
     for (const event of events) {
       messages = accumulator.processEvent(event);
     }
-    return { messages };
+    // The per-turn state rides along, so a refetch can swap the thread over in
+    // one commit instead of reconstructing it from the messages alone.
+    return {
+      messages,
+      longRunningToolIds: accumulator.getLongRunningToolIds(),
+      toolConfirmations: accumulator.getToolConfirmations(),
+      authRequests: accumulator.getAuthRequests(),
+      escalated: accumulator.isEscalated(),
+      messageMetadata: accumulator.getMessageMetadata(),
+      stateDelta: accumulator.getStateDelta(),
+      artifactDelta: accumulator.getArtifactDelta(),
+      agentInfo: accumulator.getAgentInfo(),
+    };
   };
 
   const artifactBaseUrl = (sessionId: string) =>

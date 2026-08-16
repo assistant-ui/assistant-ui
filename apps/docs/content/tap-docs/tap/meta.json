@@ -1,5 +1,6 @@
 {
   "title": "Tap",
+  "icon": "Droplet",
   "root": true,
   "pages": [
     "quickstart",

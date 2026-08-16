@@ -20,10 +20,7 @@ import {
   Tools,
   Suggestions,
 } from "@assistant-ui/react";
-import {
-  useChatRuntime,
-  AssistantChatTransport,
-} from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { SendHorizontal, SquareIcon } from "lucide-react";
 import {
@@ -80,10 +77,16 @@ interface PlaygroundChatProviderProps {
   children: ReactNode;
 }
 
+interface PlaygroundChatProviderInnerProps extends PlaygroundChatProviderProps {
+  parentAui: ReturnType<typeof useAui>;
+}
+
 export function PlaygroundChatProvider(props: PlaygroundChatProviderProps) {
+  const parentAui = useAui();
+
   return (
     <AuiProvider value={null}>
-      <PlaygroundChatProviderInner {...props} />
+      <PlaygroundChatProviderInner {...props} parentAui={parentAui} />
     </AuiProvider>
   );
 }
@@ -92,7 +95,8 @@ function PlaygroundChatProviderInner({
   config,
   setConfig,
   children,
-}: PlaygroundChatProviderProps) {
+  parentAui,
+}: PlaygroundChatProviderInnerProps) {
   const configRef = useRef(config);
   configRef.current = config;
 
@@ -147,7 +151,7 @@ function PlaygroundChatProviderInner({
 
   return (
     <PlaygroundChatContext.Provider value={value}>
-      {children}
+      <AuiProvider value={parentAui}>{children}</AuiProvider>
     </PlaygroundChatContext.Provider>
   );
 }

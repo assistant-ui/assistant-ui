@@ -10,6 +10,7 @@ const setText = vi.fn<(text: string) => void>();
 const setCursorPosition = vi.fn<(pos: number) => void>();
 const sendSpy = vi.fn<(options?: { steer?: boolean }) => void>();
 const addAttachment = vi.fn<(file: File) => Promise<void>>();
+const cancelSpy = vi.fn<() => void>();
 
 const composerState = {
   isEditing: true,
@@ -41,7 +42,7 @@ vi.mock("@assistant-ui/store", () => {
     composer: {
       setText: (text: string) => setText(text),
       getState: () => composerState,
-      cancel: () => {},
+      cancel: () => cancelSpy(),
       send: (options?: { steer?: boolean }) => sendSpy(options),
       addAttachment: (file: File) => addAttachment(file),
     },
@@ -78,8 +79,12 @@ vi.mock("./trigger/TriggerPopoverRootContext", () => ({
   useTriggerPopoverActiveAriaOptional: () => activeAria,
 }));
 
+let escapeKeydownHandler: ((event: KeyboardEvent) => void) | null = null;
+
 vi.mock("@radix-ui/react-use-escape-keydown", () => ({
-  useEscapeKeydown: () => {},
+  useEscapeKeydown: (handler: (event: KeyboardEvent) => void) => {
+    escapeKeydownHandler = handler;
+  },
 }));
 
 vi.mock("../../utils/hooks/useOnScrollToBottom", () => ({
@@ -181,16 +186,19 @@ describe("ComposerPrimitiveInput", () => {
     setCursorPosition.mockReset();
     sendSpy.mockReset();
     addAttachment.mockReset();
+    cancelSpy.mockReset();
     composerState.isEditing = true;
     composerState.text = "";
     composerState.isEmpty = true;
     composerState.canSend = true;
     composerState.dictation = undefined;
+    composerState.canCancel = false;
     threadState.isDisabled = false;
     threadState.isRunning = false;
     threadState.capabilities = { queue: false, attachments: false };
     pluginRegistry = null;
     activeAria = null;
+    escapeKeydownHandler = null;
     setMatchMedia(false);
 
     requestSubmitSpy = vi.fn<(submitter?: HTMLElement | null) => void>();
@@ -511,6 +519,49 @@ describe("ComposerPrimitiveInput", () => {
       expect(sendSpy).toHaveBeenCalledWith({ steer: true });
       expect(requestSubmitSpy).not.toHaveBeenCalled();
       expect(event.defaultPrevented).toBe(true);
+    });
+  });
+
+  describe("escape behavior", () => {
+    const fireEscape = (
+      textarea: HTMLTextAreaElement,
+      opts: { isComposing?: boolean } = {},
+    ): KeyboardEvent => {
+      const event = new KeyboardEvent("keydown", {
+        bubbles: true,
+        cancelable: true,
+        key: "Escape",
+        isComposing: opts.isComposing ?? false,
+      });
+      textarea.dispatchEvent(event);
+      escapeKeydownHandler?.(event);
+      return event;
+    };
+
+    it("cancels the composer on Escape when cancellable", async () => {
+      composerState.canCancel = true;
+      const textarea = await mount();
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        event = fireEscape(textarea);
+      });
+
+      expect(cancelSpy).toHaveBeenCalledTimes(1);
+      expect(event.defaultPrevented).toBe(true);
+    });
+
+    it("ignores Escape while an IME composition is active", async () => {
+      composerState.canCancel = true;
+      const textarea = await mount();
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        event = fireEscape(textarea, { isComposing: true });
+      });
+
+      expect(cancelSpy).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
     });
   });
 

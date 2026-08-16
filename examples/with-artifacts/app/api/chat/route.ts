@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   });
 
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
+    model: openai("gpt-5.6-luna"),
     system:
       "You create functional HTML artifacts. When the user requests a webpage, interface, visualization, or other visual content, call the artifact tool with a short title and a complete HTML document. When an artifact already exists and the user requests a change, call update_artifact with its id and only the fields that changed. Do not put artifact HTML in a code block.",
     messages: await convertToModelMessages(
