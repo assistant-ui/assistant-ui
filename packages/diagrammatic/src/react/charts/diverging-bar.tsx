@@ -48,13 +48,13 @@ export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
           const positive = row.value >= 0;
           return (
             <g key={row.label} data-part="mark" data-i={i}>
-              <text x="8" y={y + rowH / 2 + 1} {...TXT.axis}>
+              <text x="8" y={y + rowH / 2 + 1.8} {...TXT.axis}>
                 {row.label}
               </text>
               {positive ? (
                 <rect
                   x={105.5}
-                  y={round(y)}
+                  y={round(y + 1.8)}
                   width={round(w)}
                   height={round(rowH - 3.6)}
                   fill={POS}
@@ -63,7 +63,7 @@ export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
               ) : (
                 <rect
                   x={round(102.5 - w)}
-                  y={round(y)}
+                  y={round(y + 1.8)}
                   width={round(w)}
                   height={round(rowH - 3.6)}
                   fill={NEG}
@@ -72,7 +72,7 @@ export const DivergingBar = forwardRef<SVGSVGElement, DivergingBarProps>(
               )}
               <text
                 x={positive ? 105.5 + w + 3.5 : 102.5 - w - 3.5}
-                y={y + rowH / 2 + 1}
+                y={y + rowH / 2 + 1.8}
                 textAnchor={positive ? "start" : "end"}
                 {...TXT.axis}
               >

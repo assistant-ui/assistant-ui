@@ -39,7 +39,7 @@ export const PopulationPyramid = forwardRef<
           <g key={band} data-part="mark" data-i={i}>
             <rect
               x={round(90 - lw)}
-              y={round(y)}
+              y={round(y + 1.6)}
               width={round(lw)}
               height={round(rowH - 3.2)}
               fill={C[0]}
@@ -48,7 +48,7 @@ export const PopulationPyramid = forwardRef<
             />
             <rect
               x="110"
-              y={round(y)}
+              y={round(y + 1.6)}
               width={round(rw)}
               height={round(rowH - 3.2)}
               fill={C[2]}
@@ -57,7 +57,7 @@ export const PopulationPyramid = forwardRef<
             />
             <text
               x="100"
-              y={y + rowH / 2 + 0.6}
+              y={y + rowH / 2 + 1.6}
               textAnchor="middle"
               {...TXT.axis}
             >

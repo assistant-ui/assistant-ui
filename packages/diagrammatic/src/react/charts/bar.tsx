@@ -43,6 +43,8 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
         />
         {items.map((row, i) => {
           const y = 10 + i * rowH;
+          const mid = y + rowH / 2;
+          const barH = Math.min(11, Math.max(rowH * 0.55, rowH - 8.5));
           const w = Math.max((row.value / max) * 130, 2);
           const accent =
             highlight === "max"
@@ -50,18 +52,18 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
               : row.label === highlight;
           return (
             <g key={row.label} data-part="mark" data-i={i}>
-              <text x="40" y={y + rowH / 2} textAnchor="end" {...TXT.label}>
+              <text x="40" y={mid + 1.8} textAnchor="end" {...TXT.label}>
                 {row.label}
               </text>
               <rect
                 x={44}
-                y={round(y)}
+                y={round(mid - barH / 2)}
                 width={round(w)}
-                height={round(rowH - 8.5)}
+                height={round(barH)}
                 fill={categorical ? cat(i) : accent ? ACCENT : ink(0.3)}
                 opacity={categorical ? 0.9 : 1}
               />
-              <text x={44 + w + 4} y={y + rowH / 2} {...TXT.axis}>
+              <text x={44 + w + 4} y={mid + 1.8} {...TXT.axis}>
                 {format(row.value)}
               </text>
             </g>
