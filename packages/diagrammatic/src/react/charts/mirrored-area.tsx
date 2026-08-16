@@ -68,7 +68,7 @@ export const MirroredArea = forwardRef<SVGSVGElement, MirroredAreaProps>(
         <text
           x="14"
           y="9"
-          fontSize="4.5"
+          fontSize="3.2"
           fill={ACCENT}
           fontFamily={TXT.axis.fontFamily}
         >

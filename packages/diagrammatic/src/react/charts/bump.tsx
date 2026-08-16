@@ -63,7 +63,7 @@ export const Bump = forwardRef<SVGSVGElement, BumpProps>(
               <text
                 x={last.x + 6}
                 y={last.y + 1.6}
-                fontSize="4.5"
+                fontSize="3.2"
                 fill={cat(k)}
                 fontFamily={TXT.axis.fontFamily}
               >

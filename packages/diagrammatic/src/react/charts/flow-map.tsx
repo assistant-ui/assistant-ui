@@ -95,7 +95,7 @@ export const FlowMap = forwardRef<SVGSVGElement, FlowMapProps>(
                 x={round(tileCenter(originTile).x)}
                 y={round(tileCenter(originTile).y + 12)}
                 textAnchor="middle"
-                fontSize="4.5"
+                fontSize="3.2"
                 fill={ACCENT}
                 fontFamily={TXT.axis.fontFamily}
               >

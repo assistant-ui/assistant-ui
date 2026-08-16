@@ -37,7 +37,7 @@ export const Leaderboard = forwardRef<SVGSVGElement, LeaderboardProps>(
               <text
                 x="14"
                 y={y + 6.2}
-                fontSize="6"
+                fontSize="4.2"
                 fill={ink(0.6)}
                 fontFamily={TXT.axis.fontFamily}
               >
@@ -55,7 +55,7 @@ export const Leaderboard = forwardRef<SVGSVGElement, LeaderboardProps>(
                 <text
                   x="186"
                   y={y + 6.2}
-                  fontSize="6"
+                  fontSize="4.2"
                   textAnchor="end"
                   fill={ink(0.4)}
                   fontFamily={TXT.axis.fontFamily}

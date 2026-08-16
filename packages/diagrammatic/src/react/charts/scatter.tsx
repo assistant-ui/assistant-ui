@@ -104,12 +104,18 @@ export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
           ),
         )}
         {yLabel && (
-          <text x="19" y="12" {...TXT.axis}>
-            {yLabel} ↑
+          <text
+            x="4"
+            y={vh / 2 - 6}
+            transform={`rotate(-90 4 ${vh / 2 - 6})`}
+            textAnchor="middle"
+            {...TXT.axis}
+          >
+            {yLabel}
           </text>
         )}
         {xLabel && (
-          <text x="186" y={vh - 5} textAnchor="end" {...TXT.axis}>
+          <text x="100" y={vh - 3} textAnchor="middle" {...TXT.axis}>
             {xLabel} →{sized ? " · size = value" : ""}
           </text>
         )}

@@ -76,7 +76,7 @@ export const DivergingStacked = forwardRef<
         <text
           x="34"
           y={vh - 4}
-          fontSize="4.5"
+          fontSize="3.2"
           fill={NEG}
           fontFamily={TXT.axis.fontFamily}
         >
@@ -89,7 +89,7 @@ export const DivergingStacked = forwardRef<
           x="188"
           y={vh - 4}
           textAnchor="end"
-          fontSize="4.5"
+          fontSize="3.2"
           fill={POS}
           fontFamily={TXT.axis.fontFamily}
         >

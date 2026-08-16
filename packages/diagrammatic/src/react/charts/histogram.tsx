@@ -96,7 +96,7 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
               <text
                 x={15 + (marker.at / Math.max(1, bins.length)) * 176}
                 y="12"
-                fontSize="4.5"
+                fontSize="3.2"
                 fill={ACCENT}
                 fontFamily={TXT.axis.fontFamily}
               >

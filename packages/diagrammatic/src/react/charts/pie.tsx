@@ -65,7 +65,7 @@ export const Pie = forwardRef<SVGSVGElement, PieProps>(
             x="64"
             y={cy - 1}
             textAnchor="middle"
-            fontSize="10"
+            fontSize="7"
             fill={TXT.value.fill}
             fontFamily={TXT.value.fontFamily}
           >

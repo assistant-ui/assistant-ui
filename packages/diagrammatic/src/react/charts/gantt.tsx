@@ -77,7 +77,7 @@ export const Gantt = forwardRef<SVGSVGElement, GanttProps>(
               x={round(X(today))}
               y="6"
               textAnchor="middle"
-              fontSize="4.5"
+              fontSize="3.2"
               fill={ACCENT}
               fontFamily={TXT.axis.fontFamily}
             >

@@ -62,7 +62,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
           x="100"
           y={cy - 8}
           textAnchor="middle"
-          fontSize="16"
+          fontSize="11.5"
           fill={ink(0.85)}
           fontFamily={TXT.value.fontFamily}
         >

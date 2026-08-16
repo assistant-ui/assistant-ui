@@ -177,7 +177,7 @@ export const ConnectedScatter = forwardRef<
               x2={round(X(refPoint.x))}
               y2={round(Y(refPoint.y))}
               stroke={ink(0.45)}
-              strokeDasharray="2 2.5"
+              strokeDasharray="2.5 3"
               {...stroke.hair}
             />
             <line
@@ -186,7 +186,7 @@ export const ConnectedScatter = forwardRef<
               x2={round(X(refPoint.x))}
               y2={bottom}
               stroke={ink(0.45)}
-              strokeDasharray="2 2.5"
+              strokeDasharray="2.5 3"
               {...stroke.hair}
             />
             {refPoint.yLabel && (
@@ -214,7 +214,7 @@ export const ConnectedScatter = forwardRef<
             {refPoint.label && (
               <text
                 x={round(X(refPoint.x))}
-                y={round(Y(refPoint.y)) - 5}
+                y={round(Y(refPoint.y)) - 8}
                 textAnchor="middle"
                 {...TXT.axis}
                 fill={ink(0.8)}
@@ -320,12 +320,12 @@ export const ConnectedScatter = forwardRef<
                 last &&
                 ((
                   reverseX
-                    ? last.x - 4 - run.name.length * 2.4 < 14
-                    : last.x + 4 + run.name.length * 2.4 > 186
+                    ? last.x - 4 - run.name.length * 1.7 < 14
+                    : last.x + 4 + run.name.length * 1.7 > 186
                 ) ? (
                   <text
                     x={round(last.x) + (reverseX ? 4 : -4)}
-                    y={round(last.y) + 1.5}
+                    y={round(last.y) - 2.5}
                     textAnchor={reverseX ? "start" : "end"}
                     {...TXT.axis}
                   >
@@ -334,7 +334,7 @@ export const ConnectedScatter = forwardRef<
                 ) : (
                   <text
                     x={round(last.x) + (reverseX ? -4 : 4)}
-                    y={round(last.y) + 1.5}
+                    y={round(last.y) - 2.5}
                     textAnchor={reverseX ? "end" : "start"}
                     {...TXT.axis}
                   >
@@ -345,13 +345,19 @@ export const ConnectedScatter = forwardRef<
           );
         })}
         {yLabel && (
-          <text x="19" y="12" {...TXT.axis}>
-            {yLabel} ↑
+          <text
+            x="4"
+            y={vh / 2 - 6}
+            transform={`rotate(-90 4 ${vh / 2 - 6})`}
+            textAnchor="middle"
+            {...TXT.axis}
+          >
+            {yLabel}
           </text>
         )}
         {xLabel && (
-          <text x="186" y={vh - 5} textAnchor="end" {...TXT.axis}>
-            {xLabel} →
+          <text x="100" y={vh - 3} textAnchor="middle" {...TXT.axis}>
+            {reverseX ? `← ${xLabel}` : `${xLabel} →`}
           </text>
         )}
       </ChartSvg>

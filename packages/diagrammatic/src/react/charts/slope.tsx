@@ -64,7 +64,7 @@ export const Slope = forwardRef<SVGSVGElement, SlopeProps>(
               <text
                 x="156"
                 y={Y(row.to) + 1.6}
-                fontSize="4.5"
+                fontSize="3.2"
                 fill={accent ? ACCENT : TXT.axis.fill}
                 fontFamily={TXT.axis.fontFamily}
               >

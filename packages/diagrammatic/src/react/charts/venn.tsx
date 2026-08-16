@@ -56,7 +56,7 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
           x={100 - r}
           y={cy - 4}
           textAnchor="middle"
-          fontSize="4.5"
+          fontSize="3.2"
           fill={C[0]}
           fontFamily={TXT.axis.fontFamily}
         >
@@ -69,7 +69,7 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
           x={100 + r}
           y={cy - 4}
           textAnchor="middle"
-          fontSize="4.5"
+          fontSize="3.2"
           fill={C[2]}
           fontFamily={TXT.axis.fontFamily}
         >

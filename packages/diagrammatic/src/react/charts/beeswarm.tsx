@@ -62,7 +62,7 @@ export const Beeswarm = forwardRef<SVGSVGElement, BeeswarmProps>(
             x={X(flag.at)}
             y={mid - 16}
             textAnchor="middle"
-            fontSize="4.5"
+            fontSize="3.2"
             fill={ACCENT}
             fontFamily={TXT.axis.fontFamily}
           >

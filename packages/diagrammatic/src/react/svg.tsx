@@ -48,10 +48,10 @@ export type MicroBaseProps = SvgAttributes & {
 };
 
 export const TXT = {
-  axis: { fontSize: 4.5, fill: MUTED, fontFamily: FONT },
-  label: { fontSize: 5, fill: ink(0.55), fontFamily: FONT },
-  value: { fontSize: 5, fill: ink(0.75), fontFamily: FONT },
-  onSeries: { fontSize: 4.5, fill: "#fff", opacity: 0.95, fontFamily: FONT },
+  axis: { fontSize: 3.2, fill: MUTED, fontFamily: FONT },
+  label: { fontSize: 3.6, fill: ink(0.55), fontFamily: FONT },
+  value: { fontSize: 3.6, fill: ink(0.75), fontFamily: FONT },
+  onSeries: { fontSize: 3.2, fill: "#fff", opacity: 0.95, fontFamily: FONT },
 } as const;
 
 const BLOCK: CSSProperties = {
@@ -180,7 +180,7 @@ export function Legend({
   y?: number;
   anchor?: "start" | "end";
 }) {
-  const widths = names.map((name) => 7.6 + name.length * 2.9 + 9);
+  const widths = names.map((name) => 6.4 + name.length * 2.1 + 8);
   const total = widths.reduce((sum, w) => sum + w, 0) - 9;
   let cursor = anchor === "end" ? x - total : x;
   return (
