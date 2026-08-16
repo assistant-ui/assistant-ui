@@ -434,9 +434,11 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         response,
         findEveInputRequest(agent.data, response.approvalId),
       );
-      return enqueueSend(() => agent.respond([inputResponse])).catch((error) => {
-        if (!isDroppedSend(error)) throw error;
-      });
+      return enqueueSend(() => agent.respond([inputResponse])).catch(
+        (error) => {
+          if (!isDroppedSend(error)) throw error;
+        },
+      );
     },
   });
   runtimeRef.current = runtime;
