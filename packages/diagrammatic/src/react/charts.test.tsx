@@ -303,6 +303,37 @@ export const FIXTURES: Record<string, ReactElement> = {
       yLabel="life expectancy"
     />
   ),
+  "connected-scatter-series": (
+    <dg.ConnectedScatter
+      series={[
+        {
+          name: "atlas",
+          points: [
+            { x: 2, y: 30 },
+            { x: 4, y: 40 },
+            { x: 8, y: 46, label: "atlas-1" },
+          ],
+        },
+        {
+          name: "nova",
+          points: [
+            { x: 3, y: 28 },
+            { x: 6, y: 41 },
+          ],
+        },
+        { name: "solo", points: [{ x: 2.2, y: 42 }] },
+      ]}
+      xLabel="cost"
+      yLabel="score"
+    />
+  ),
+  "line-regions": (
+    <dg.Line
+      data={[220, 260, 320, 410, 380, 300, 280, 275]}
+      regions={[{ from: 2, to: 5, label: "alt penalty" }]}
+      labels={["0", "2k", "4k", "6k"]}
+    />
+  ),
   "connected-scatter": (
     <dg.ConnectedScatter
       points={[

@@ -19,7 +19,7 @@ export type MarkDatum = {
  */
 export function getMarkDatum(target: EventTarget | null): MarkDatum | null {
   if (!(target instanceof Element)) return null;
-  const mark = target.closest?.('[data-part="mark"]');
+  const mark = target.closest?.('[data-part="mark"], [data-part="region"]');
   if (!mark) return null;
   const index = mark.getAttribute("data-i");
   return {

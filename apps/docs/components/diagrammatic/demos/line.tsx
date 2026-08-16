@@ -118,4 +118,21 @@ export const examples: DemoExample[] = [
       </Slide>
     ),
   },
+  {
+    title: "The regime bands: response length under the alternating penalty",
+    setup:
+      "A training-dynamics chart with its regimes annotated: mean response length over training steps, and a shaded `regions` band marking where the alternating length penalty was active. The band is addressable like any mark, so prose below the chart can light it up through the highlight system.",
+    read: "Length climbs unchecked until the penalty regime begins, bends down inside the band, and stabilizes after it lifts — the annotation turns a wiggly line into a causal story. Region bands are data props (from, to, label), not decoration.",
+    chart: (
+      <Report title="Response length across training" chip="tokens">
+        <Line
+          title="Mean response length"
+          data={[220, 262, 331, 418, 396, 322, 287, 268, 274, 279]}
+          regions={[{ from: 3, to: 6, label: "alt penalty" }]}
+          labels={["0", "2k", "4k", "6k", "8k"]}
+          format={(v) => `${v}t`}
+        />
+      </Report>
+    ),
+  },
 ];

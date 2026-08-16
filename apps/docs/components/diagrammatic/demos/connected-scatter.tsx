@@ -1,6 +1,6 @@
 import { ConnectedScatter } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Paper, Slide } from "./scenes";
+import { AppCard, Paper, Report, Slide } from "./scenes";
 
 export const glyph = (
   <ConnectedScatter
@@ -96,6 +96,47 @@ export const examples: DemoExample[] = [
           yLabel="pace (min/km)"
         />
       </AppCard>
+    ),
+  },
+  {
+    title: "The frontier chart: score against cost, families as threads",
+    setup:
+      "The chart every model comparison ends on: each family is a series of test-time configs threaded through score-vs-cost space, standalone models are single labeled markers, and marker shape carries identity alongside color. Built with the `series` prop; shapes cycle circle, diamond, square, triangle.",
+    read: "The atlas family dominates the frontier's left edge — more score per dollar at every config — while nova's thread flattens past $6: paying more stops buying capability. The lone solo marker sits above nova's whole curve at a third of the cost, which is the chart's headline.",
+    chart: (
+      <Report
+        title="FrontierBench 1.1"
+        chip="Score vs Cost ($)"
+        note="Score: weighted aggregate of rubric items. Cost: mean USD per rollout."
+      >
+        <ConnectedScatter
+          title="Score against cost per rollout"
+          series={[
+            {
+              name: "atlas",
+              points: [
+                { x: 1.6, y: 30.5 },
+                { x: 2.4, y: 36.6 },
+                { x: 3.2, y: 40.5 },
+                { x: 4.1, y: 43 },
+              ],
+            },
+            {
+              name: "nova",
+              points: [
+                { x: 2.5, y: 27.6 },
+                { x: 3.6, y: 35.2 },
+                { x: 5.1, y: 38.4 },
+                { x: 6.9, y: 40.9 },
+                { x: 9.4, y: 41.5 },
+              ],
+            },
+            { name: "solo", points: [{ x: 2.1, y: 42.6 }] },
+          ]}
+          xLabel="avg cost (USD) per rollout"
+          yLabel="score (%)"
+        />
+      </Report>
     ),
   },
 ];

@@ -37,7 +37,9 @@ export function applyHighlight(
       : Array.isArray(highlight)
         ? highlight
         : [highlight];
-  for (const mark of container.querySelectorAll('[data-part="mark"]')) {
+  for (const mark of container.querySelectorAll(
+    '[data-part="mark"], [data-part="region"]',
+  )) {
     if (queries.length === 0) {
       mark.removeAttribute("data-dg-active");
       mark.removeAttribute("data-dg-muted");

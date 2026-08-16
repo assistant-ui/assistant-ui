@@ -3,6 +3,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import * as React from "react";
 import { afterEach, describe, expect, it } from "vitest";
 import { Bar } from "../react/charts/bar";
+import { Line } from "../react/charts/line";
 import * as Interactive from "./index";
 
 const ITEMS = [
@@ -62,6 +63,21 @@ describe("highlight", () => {
       expect(mark.hasAttribute("data-dg-active")).toBe(false);
       expect(mark.hasAttribute("data-dg-muted")).toBe(false);
     }
+  });
+
+  it("includes region annotations in highlight matching", () => {
+    const { container } = render(
+      <Interactive.Root highlight={{ series: "alt penalty" }}>
+        <Line
+          data={[1, 4, 3, 6, 5]}
+          regions={[{ from: 1, to: 3, label: "alt penalty" }]}
+        />
+      </Interactive.Root>,
+    );
+    const region = container.querySelector('[data-part="region"]');
+    expect(region?.hasAttribute("data-dg-active")).toBe(true);
+    const marks = container.querySelectorAll('[data-part="mark"]');
+    expect(marks[0]!.hasAttribute("data-dg-muted")).toBe(true);
   });
 
   it("round-trips: onMarkHover drives a controlled highlight", () => {
