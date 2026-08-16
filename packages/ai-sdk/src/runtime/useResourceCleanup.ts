@@ -1,22 +1,22 @@
 import { useEffect, useRef } from "react";
+import { useAssistantClientDestroySignal } from "@assistant-ui/store/client";
 
 export const useResourceCleanup = (cleanup: () => void) => {
-  const lifecycleRef = useRef({ cleanup, generation: 0 });
+  const destroySignal = useAssistantClientDestroySignal();
+  const cleanupRef = useRef(cleanup);
+  const registeredSignalRef = useRef<AbortSignal | undefined>(undefined);
 
   useEffect(() => {
-    lifecycleRef.current.cleanup = cleanup;
+    cleanupRef.current = cleanup;
   });
 
   useEffect(() => {
-    const lifecycle = lifecycleRef.current;
-    const generation = ++lifecycle.generation;
-    return () => {
-      // Ignore Strict Mode's immediate cleanup when the same owner remounts.
-      queueMicrotask(() => {
-        if (lifecycle.generation === generation) {
-          lifecycle.cleanup();
-        }
-      });
-    };
-  }, []);
+    if (!destroySignal) return () => cleanupRef.current();
+    if (registeredSignalRef.current === destroySignal) return;
+
+    registeredSignalRef.current = destroySignal;
+    destroySignal.addEventListener("abort", () => cleanupRef.current(), {
+      once: true,
+    });
+  }, [destroySignal]);
 };

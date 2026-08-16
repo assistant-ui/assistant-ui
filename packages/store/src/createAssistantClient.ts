@@ -13,6 +13,7 @@ import {
   type ClientRef,
   type ScopeEntry,
 } from "./useAui";
+import { setAssistantClientDestroySignal } from "./utils/tap-assistant-context";
 
 /**
  * A live view onto an `AssistantClient` whose identity may change over time.
@@ -141,6 +142,8 @@ export const createAssistantClient = (
     parent: parentSource.getClient(),
     current: null,
   };
+  const destroyController = new AbortController();
+  setAssistantClientDestroySignal(clientRef, destroyController.signal);
   const notifications = createNotificationManager();
 
   const root = createTapRoot(
@@ -227,6 +230,7 @@ export const createAssistantClient = (
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
+      destroyController.abort();
       // Wired: flushTapSync lands the soft unmount before returning. Already
       // released: the soft unmount tap scheduled then completes on its task
       if (unwire) flushTapSync(unwire);

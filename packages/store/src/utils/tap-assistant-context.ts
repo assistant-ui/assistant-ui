@@ -19,6 +19,18 @@ export type AssistantTapContextValue = {
   emit: EmitFn;
 };
 
+const destroySignals = new WeakMap<
+  AssistantTapContextValue["clientRef"],
+  AbortSignal
+>();
+
+export const setAssistantClientDestroySignal = (
+  clientRef: AssistantTapContextValue["clientRef"],
+  signal: AbortSignal,
+) => {
+  destroySignals.set(clientRef, signal);
+};
+
 const AssistantTapContext = createContext<AssistantTapContextValue | null>(
   null,
 );
@@ -41,6 +53,11 @@ const useAssistantTapContext = () => {
 
 export const useAssistantClientRef = () => {
   return useAssistantTapContext().clientRef;
+};
+
+export const useAssistantClientDestroySignal = () => {
+  const ctx = use(AssistantTapContext);
+  return ctx ? destroySignals.get(ctx.clientRef) : undefined;
 };
 
 /**
