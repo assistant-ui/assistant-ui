@@ -12,11 +12,13 @@ export const useResourceCleanup = (cleanup: () => void) => {
 
   useEffect(() => {
     if (!destroySignal) return () => cleanupRef.current();
-    if (registeredSignalRef.current === destroySignal) return;
+    if (registeredSignalRef.current === destroySignal) return undefined;
 
     registeredSignalRef.current = destroySignal;
     destroySignal.addEventListener("abort", () => cleanupRef.current(), {
       once: true,
     });
+
+    return undefined;
   }, [destroySignal]);
 };
