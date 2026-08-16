@@ -70,8 +70,10 @@ export class GorpStreamResponse extends Response {
 export const fromGorpStreamResponse = (
   response: Response,
 ): ReadableStream<GorpStreamChunk> => {
-  if (!response.ok)
+  if (!response.ok) {
+    void response.body?.cancel().catch(() => undefined);
     throw new Error(`Response failed, status ${response.status}`);
+  }
   if (!response.body) throw new Error("Response body is null");
   const mediaType = response.headers
     .get("Content-Type")
@@ -79,9 +81,11 @@ export const fromGorpStreamResponse = (
     ?.trim()
     .toLowerCase();
   if (mediaType !== "text/event-stream") {
+    void response.body?.cancel().catch(() => undefined);
     throw new Error("Response is not an event stream");
   }
   if (response.headers.get("Assistant-Stream-Format") !== "object-stream/v0") {
+    void response.body?.cancel().catch(() => undefined);
     throw new Error("Unsupported Assistant-Stream-Format header");
   }
   return response.body.pipeThrough(new GorpStreamDecoder());

@@ -1,5 +1,15 @@
 # @assistant-ui/store
 
+## 0.3.9
+
+### Patch Changes
+
+- [#5829](https://github.com/assistant-ui/assistant-ui/pull/5829) [`4b75b8f`](https://github.com/assistant-ui/assistant-ui/commit/4b75b8f96729314a369879d26d8e4cd8321eac36) - fix: scoped event listeners under a derived-only provider filter against the child's own bindings instead of the parent's, in both directions and through scope-less intermediate hosts ([@okisdev](https://github.com/okisdev))
+
+- [#5795](https://github.com/assistant-ui/assistant-ui/pull/5795) [`00a630a`](https://github.com/assistant-ui/assistant-ui/commit/00a630aa93ce0a5e40f81fbf6ff1886275f72356) - fix: publish hosted scope rebinds before descendant layout effects ([@Gujiassh](https://github.com/Gujiassh))
+
+- [#5769](https://github.com/assistant-ui/assistant-ui/pull/5769) [`f59d24b`](https://github.com/assistant-ui/assistant-ui/commit/f59d24b3ee7036c94bce7bc0a38f018574f50a69) - fix: deliver `threadListItem.switchedTo` to default-scope listeners ([#5699](https://github.com/assistant-ui/assistant-ui/issues/5699)). the thread list item client now emits the switch from its own observed selection transition, after the flush that rebinds the derived scopes, instead of relaying the runtime's synchronous notification. scoped listeners now resolve their scope against the host's current client at delivery time, so a listener subscribed before a structural swap follows the scope's present binding; the notification manager re-reads the listener set at flush time per the documented live-set semantics. listeners that need a pinned instance subscribe on an id-scoped client instead. ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.8
 
 ### Patch Changes

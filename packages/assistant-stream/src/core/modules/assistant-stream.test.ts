@@ -91,6 +91,30 @@ describe("createAssistantStream task settlement", () => {
     expect(unhandledRejections).toEqual([]);
   });
 
+  it("waits for merged source cleanup during cancellation", async () => {
+    let finishCleanup = () => {};
+    const cleanup = new Promise<void>((resolve) => {
+      finishCleanup = resolve;
+    });
+    const cancelSource = vi.fn(() => cleanup);
+    const stream = createAssistantStream((controller) => {
+      controller.merge(new ReadableStream({ cancel: cancelSource }));
+      return new Promise(() => {});
+    });
+
+    let cancelSettled = false;
+    const cancel = stream.cancel().then(() => {
+      cancelSettled = true;
+    });
+
+    await vi.waitFor(() => expect(cancelSource).toHaveBeenCalledOnce());
+    expect(cancelSettled).toBe(false);
+
+    finishCleanup();
+    await expect(cancel).resolves.toBeUndefined();
+    expect(cancelSettled).toBe(true);
+  });
+
   it("reports callback failures after the controller is explicitly closed", async () => {
     const error = new Error("cleanup failed");
     const consoleError = vi
@@ -169,6 +193,70 @@ describe("createAssistantStream task settlement", () => {
       expect(consoleError).toHaveBeenCalledWith(streamError);
     } finally {
       consoleError.mockRestore();
+    }
+  });
+
+  it("surfaces a merged stream error while sibling cleanup continues", async () => {
+    let finishCleanup = () => {};
+    const cleanup = new Promise<void>((resolve) => {
+      finishCleanup = resolve;
+    });
+    const cancelSource = vi.fn(() => cleanup);
+    const streamError = new Error("merged stream failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const stream = createAssistantStream((controller) => {
+        controller.merge(
+          new ReadableStream({
+            start(streamController) {
+              streamController.error(streamError);
+            },
+          }),
+        );
+        controller.merge(new ReadableStream({ cancel: cancelSource }));
+        return new Promise(() => {});
+      });
+      const readResult = stream
+        .getReader()
+        .read()
+        .then(
+          (value) => ({ value }),
+          (error: unknown) => ({ error }),
+        );
+
+      await vi.waitFor(() => expect(cancelSource).toHaveBeenCalledOnce());
+      await expect(readResult).resolves.toEqual({ error: streamError });
+    } finally {
+      finishCleanup();
+      await cleanup;
+      consoleError.mockRestore();
+    }
+  });
+
+  it("emits an error chunk when merging a locked stream", async () => {
+    const source = new ReadableStream();
+    const sourceReader = source.getReader();
+
+    try {
+      const chunks = await collectChunks(
+        createAssistantStream((controller) => {
+          controller.merge(source);
+        }),
+      );
+
+      expect(chunks).toEqual([
+        {
+          type: "error",
+          path: [],
+          error:
+            "TypeError: Cannot merge a stream that is already locked to a reader.",
+        },
+      ]);
+    } finally {
+      sourceReader.releaseLock();
     }
   });
 });

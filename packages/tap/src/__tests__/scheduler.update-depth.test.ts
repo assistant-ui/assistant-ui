@@ -1,5 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { UpdateScheduler, flushTapSync } from "../core/scheduler";
+import { waitForNextTick } from "./test-utils";
 
 describe("scheduler update depth", () => {
   it("runs many independent schedulers in one flush without tripping the limit", async () => {
@@ -10,7 +11,7 @@ describe("scheduler update depth", () => {
     );
 
     for (const scheduler of schedulers) scheduler.markDirty();
-    await new Promise((resolve) => setTimeout(resolve, 0));
+    await waitForNextTick();
 
     expect(runCount).toBe(60);
     expect(schedulers.every((scheduler) => !scheduler.isDirty)).toBe(true);

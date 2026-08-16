@@ -75,7 +75,7 @@
     "@types/json-schema": "^7.0.15",
     "ioredis": "^6.0.0",
     "ioredis-v5": "npm:ioredis@^5.11.1",
-    "redis": "^6.2.0",
+    "redis": "^6.2.1",
     "vitest": "^4.1.10"
   },
   "publishConfig": {
