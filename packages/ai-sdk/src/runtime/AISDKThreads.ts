@@ -128,7 +128,6 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
     for (const { chat } of chats.values()) {
       void chat.stop().catch(() => {});
     }
-    chats.clear();
   });
 
   return useResource(
