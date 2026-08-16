@@ -2290,6 +2290,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   importExternalState(): void;
   unstable_notifySessionReset(): void;
   startRun(_param5: StartRunConfig, runCallback?: ChatModelAdapter["run"]): Promise<void>;
+  reset(initialMessages?: readonly ThreadMessageLike[]): void;
   detach(): void;
   cancelRun(): void;
   addToolResult(_param6: AddToolResultOptions): void;
