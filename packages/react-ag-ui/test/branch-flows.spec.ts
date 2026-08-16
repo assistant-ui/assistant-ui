@@ -639,9 +639,7 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     await vi.waitFor(() => expect(updates).toBe(2));
 
     expect(
-      append.mock.calls.some(
-        ([item]) => item.message.id === serverAssistantId,
-      ),
+      append.mock.calls.some(([item]) => item.message.id === serverAssistantId),
     ).toBe(false);
   });
 
