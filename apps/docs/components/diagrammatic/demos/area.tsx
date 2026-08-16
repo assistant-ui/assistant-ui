@@ -52,6 +52,11 @@ export const examples: DemoExample[] = [
         >
           <Area
             title="Weekly rainfall"
+            yTicks={[
+              { at: 0, label: "0" },
+              { at: 150, label: "150" },
+              { at: 300, label: "300" },
+            ]}
             data={[
               30, 55, 85, 130, 185, 240, 310, 340, 325, 290, 260, 205, 150, 95,
               60, 25,

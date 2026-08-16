@@ -1,26 +1,62 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
-import { bandPath, linePath, scalePoints, stroke } from "../../core/geometry";
+import {
+  bandPath,
+  linePath,
+  round,
+  scalePoints,
+  stroke,
+} from "../../core/geometry";
 import { NEG, POS, ink } from "../../core/theme";
 import { AxisLabels, ChartSvg, ColumnHits, TXT, vbHeight } from "../svg";
 
 export type DifferenceAreaProps = BaseProps & {
   actual: Series;
   reference: Series;
+  yTicks?: readonly { at: number; label: string }[];
 };
 
 export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
-  ({ actual, reference, labels, title, aspect, className, ...rest }, ref) => {
+  (
+    { actual, reference, yTicks, labels, title, aspect, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const bottom = labels ? vh - 16 : vh - 8;
-    const max = Math.max(...actual.data, ...reference.data, 1);
+    const max = Math.max(
+      ...actual.data,
+      ...reference.data,
+      ...(yTicks?.map((tick) => tick.at) ?? []),
+      1,
+    );
+    const Y = (v: number) => bottom - (v / max) * (bottom - 18);
     const a = scalePoints(actual.data, 14, 186, bottom, 18, 0, max);
     const b = scalePoints(reference.data, 14, 186, bottom, 18, 0, max);
     const above = a.map((p, i) => ({ x: p.x, y: Math.min(p.y, b[i]!.y) }));
     const below = a.map((p, i) => ({ x: p.x, y: Math.max(p.y, b[i]!.y) }));
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        {yTicks?.map((tick) => (
+          <g key={tick.at} data-part="grid">
+            <line
+              x1="14"
+              y1={round(Y(tick.at))}
+              x2="186"
+              y2={round(Y(tick.at))}
+              stroke={ink(0.08)}
+              {...stroke.hair}
+            />
+            <text
+              x="12"
+              y={round(Y(tick.at)) + 1.2}
+              textAnchor="end"
+              {...TXT.axis}
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
         <ColumnHits
           count={actual.data.length}
           x0={14}

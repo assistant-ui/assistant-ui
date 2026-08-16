@@ -49,6 +49,11 @@ export const examples: DemoExample[] = [
         >
           <DifferenceArea
             title="Actual revenue against forecast"
+            yTicks={[
+              { at: 30, label: "30" },
+              { at: 60, label: "60" },
+              { at: 90, label: "90" },
+            ]}
             actual={{
               name: "actual",
               data: [30, 38, 44, 41, 36, 34, 53, 60, 68, 76, 84, 92],

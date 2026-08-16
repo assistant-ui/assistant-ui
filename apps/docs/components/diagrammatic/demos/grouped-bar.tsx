@@ -40,6 +40,11 @@ export const examples: DemoExample[] = [
               { name: "silver", data: [44, 32, 22, 12, 19] },
               { name: "bronze", data: [42, 19, 29, 13, 16] },
             ]}
+            yTicks={[
+              { at: 0, label: "0" },
+              { at: 20, label: "20" },
+              { at: 40, label: "40" },
+            ]}
           />
         </FigTooltip>
       </Paper>

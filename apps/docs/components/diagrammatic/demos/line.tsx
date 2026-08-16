@@ -60,6 +60,11 @@ export const examples: DemoExample[] = [
         >
           <Line
             title="Mean response length by recipe"
+            yTicks={[
+              { at: 200, label: "200" },
+              { at: 400, label: "400" },
+              { at: 600, label: "600" },
+            ]}
             series={[
               {
                 name: "baseline",

@@ -50,6 +50,11 @@ export const examples: DemoExample[] = [
         >
           <StackedArea
             title="Generation mix"
+            yTicks={[
+              { at: 0, label: "0" },
+              { at: 20, label: "20" },
+              { at: 40, label: "40" },
+            ]}
             labels={[
               "00",
               "",

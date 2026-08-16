@@ -85,6 +85,12 @@ export const examples: DemoExample[] = [
             { label: "'24", value: 204_000 },
             { label: "'25", value: 187_000 },
           ]}
+          yTicks={[
+            { at: 0, label: "0" },
+            { at: 100_000, label: "100k" },
+            { at: 200_000, label: "200k" },
+          ]}
+          target={{ at: 200_000, label: "policy target" }}
           highlight="last"
           format={(v) => formatCompact(v)}
         />

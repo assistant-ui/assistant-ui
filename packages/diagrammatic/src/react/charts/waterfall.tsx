@@ -65,7 +65,7 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
                     : format(entry.value)}
                 </text>
               )}
-              {next && !next.total && (
+              {next && (
                 <line
                   x1={round(x + width)}
                   y1={round(Y(entry.to))}
@@ -73,6 +73,8 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
                   y2={round(Y(entry.to))}
                   stroke={ink(0.3)}
                   {...stroke.hair}
+                  strokeDasharray="1.5 2"
+                  data-part="grid"
                 />
               )}
               <text

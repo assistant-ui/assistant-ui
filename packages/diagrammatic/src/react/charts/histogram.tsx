@@ -12,19 +12,41 @@ import { AxisLabels, ChartSvg, TXT, vbHeight } from "../svg";
 
 export type HistogramProps = BaseProps & {
   bins: number[];
+  compare?: readonly number[];
   marker?: { at: number; label?: string };
   smooth?: boolean;
 };
 
 export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
   (
-    { bins, marker, smooth, labels, title, aspect, className, ...rest },
+    {
+      bins,
+      compare,
+      marker,
+      smooth,
+      labels,
+      title,
+      aspect,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const bottom = labels ? vh - 16 : vh - 8;
-    const max = Math.max(...bins, 1);
+    const max = Math.max(...bins, ...(compare ?? []), 1);
     const width = 176 / Math.max(1, bins.length);
+    const compareWidth = 176 / Math.max(1, compare?.length ?? 0);
+    const comparePath = compare
+      ? [
+          `M10 ${round(bottom)}`,
+          ...compare.flatMap((value, i) => [
+            `V${round(bottom - (value / max) * (bottom - 16))}`,
+            `H${round(10 + (i + 1) * compareWidth)}`,
+          ]),
+          `V${round(bottom)}`,
+        ].join(" ")
+      : null;
     const curve = smooth
       ? scalePoints(bins, 10, 190, bottom, 16, 0, max)
       : null;
@@ -79,6 +101,16 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
               data-i={i}
             />
           ))
+        )}
+        {comparePath && (
+          <path
+            d={comparePath}
+            stroke={ink(0.55)}
+            {...stroke.line}
+            strokeDasharray="3 2"
+            fill="none"
+            data-part="mark"
+          />
         )}
         {marker && (
           <g>

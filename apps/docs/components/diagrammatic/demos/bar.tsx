@@ -21,7 +21,7 @@ export const examples: DemoExample[] = [
     title: "Weekly npm downloads across frameworks",
     setup:
       "A tech lead is asked, again, whether the team bet on the right framework, and pulls one week of npm downloads for the shortlist. Horizontal bars, ranked, values at the end.",
-    read: "The gap between first and second is the chart: react's bar is double vue's, and from fifth down the remaining four frameworks together do not add up to svelte alone. Whatever the benchmarks say, the ecosystem gravity is not close.",
+    read: "The gap between first and second is the chart: react's bar is double vue's, and only two frameworks clear the dashed 10m line. From fifth down the remaining four together do not add up to svelte alone. Whatever the benchmarks say, the ecosystem gravity is not close.",
     chart: (
       <Report
         title="Weekly npm downloads"
@@ -67,6 +67,12 @@ export const examples: DemoExample[] = [
               { label: "qwik", value: 900_000 },
               { label: "stencil", value: 600_000 },
             ]}
+            xTicks={[
+              { at: 0, label: "0" },
+              { at: 10_000_000, label: "10m" },
+              { at: 20_000_000, label: "20m" },
+            ]}
+            target={{ at: 10_000_000, label: "10m club" }}
           />
         </FigTooltip>
       </Report>

@@ -89,6 +89,16 @@ export const examples: DemoExample[] = [
             y: 40 + i * 14 + (i % 5) * 18 - (i % 3) * 12,
           }))}
           trend
+          xTicks={[
+            { at: 15, label: "15°" },
+            { at: 25, label: "25°" },
+            { at: 35, label: "35°" },
+          ]}
+          yTicks={[
+            { at: 100, label: "100" },
+            { at: 300, label: "300" },
+            { at: 500, label: "500" },
+          ]}
           xLabel="high (°c)"
           yLabel="scoops sold"
         />

@@ -17,7 +17,7 @@ export const examples: DemoExample[] = [
     title: "API response times, one day of requests",
     setup:
       "The ops channel lights up every time checkout feels slow, so an SRE dumps a day of requests and buckets them by response time. The average says 420ms and explains nothing; the shape is the actual answer.",
-    read: "Most requests land near 400ms, but the long right tail is where the pages come from: a few hundred requests living past 700ms. The dashed median line keeps the tail honest; without it the outliers would set the story.",
+    read: "Most requests land near 400ms, but the long right tail is where the pages come from: a few hundred requests living past 700ms. The dashed outline is last week's distribution on the same scale — the whole shape has shifted right since the deploy, which is the regression the median alone would have understated.",
     chart: (
       <Terminal title="api latency — 24h">
         <FigTooltip
@@ -28,6 +28,7 @@ export const examples: DemoExample[] = [
           <Histogram
             title="API response times"
             bins={[6, 12, 22, 38, 58, 78, 92, 84, 66, 46, 30, 18, 10, 5]}
+            compare={[10, 20, 36, 55, 74, 88, 82, 64, 48, 34, 24, 16, 9, 4]}
             marker={{ at: 6.9, label: "median 392ms" }}
             labels={["0", "200ms", "400ms", "600ms", "800ms"]}
           />

@@ -53,6 +53,7 @@ export const examples: DemoExample[] = [
           }}
         >
           <Heatmap
+            values
             title="Deploys by service and hour"
             matrix={{
               rows: ["api", "web", "db", "jobs", "cdn"],

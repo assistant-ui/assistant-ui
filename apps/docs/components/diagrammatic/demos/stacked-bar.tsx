@@ -65,6 +65,11 @@ export const examples: DemoExample[] = [
               name,
               data,
             }))}
+            yTicks={[
+              { at: 0, label: "0" },
+              { at: 40, label: "40" },
+              { at: 80, label: "80" },
+            ]}
           />
         </FigTooltip>
       </Terminal>

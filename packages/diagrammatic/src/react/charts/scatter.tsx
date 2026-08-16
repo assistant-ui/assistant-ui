@@ -10,6 +10,8 @@ export type ScatterProps = BaseProps & {
   trend?: boolean;
   xLabel?: string;
   yLabel?: string;
+  xTicks?: readonly { at: number; label: string }[];
+  yTicks?: readonly { at: number; label: string }[];
 };
 
 export function scatterFrame(
@@ -30,7 +32,18 @@ export function scatterFrame(
 
 export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
   (
-    { points, trend, xLabel, yLabel, title, aspect, className, ...rest },
+    {
+      points,
+      trend,
+      xLabel,
+      yLabel,
+      xTicks,
+      yTicks,
+      title,
+      aspect,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
@@ -46,6 +59,46 @@ export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
     const [xLo, xHi] = extent(points.map((p) => p.x));
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        {yTicks?.map((tick) => (
+          <g key={`y-${tick.at}`} data-part="grid">
+            <line
+              x1="14"
+              y1={round(Y(tick.at))}
+              x2="186"
+              y2={round(Y(tick.at))}
+              stroke={GRID}
+              {...stroke.hair}
+            />
+            <text
+              x="12"
+              y={round(Y(tick.at)) + 1.5}
+              textAnchor="end"
+              {...TXT.axis}
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
+        {xTicks?.map((tick) => (
+          <g key={`x-${tick.at}`} data-part="grid">
+            <line
+              x1={round(X(tick.at))}
+              y1="8"
+              x2={round(X(tick.at))}
+              y2={bottom}
+              stroke={GRID}
+              {...stroke.hair}
+            />
+            <text
+              x={round(X(tick.at))}
+              y={bottom + 6}
+              textAnchor="middle"
+              {...TXT.axis}
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
         <line
           x1="14"
           y1={bottom}

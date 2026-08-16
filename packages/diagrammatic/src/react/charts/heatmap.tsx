@@ -1,17 +1,30 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Matrix } from "../../core/types";
+import { formatCompact, type Matrix } from "../../core/types";
 import { ACCENT, seqOpacity } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
 export type HeatmapProps = BaseProps & {
   matrix: Matrix;
   mark?: "cell" | "dot";
+  values?: boolean;
 };
 
 /** `mark="dot"` sizes a circle per cell instead of shading it: the punchcard. */
 export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
-  ({ matrix, mark = "cell", title, aspect, className, ...rest }, ref) => {
+  (
+    {
+      matrix,
+      mark = "cell",
+      values,
+      format = formatCompact,
+      title,
+      aspect,
+      className,
+      ...rest
+    },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const cols = matrix.cols.length;
     const rows = matrix.rows.length;
@@ -95,20 +108,41 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
           ) : null,
         )}
         {matrix.values.flatMap((rowValues, r) =>
-          rowValues.map((v, c) => (
-            <rect
-              key={`${r}-${c}`}
-              x={30 + c * cellW}
-              y={8 + r * cellH}
-              width={Math.max(cellW - 2, 0.5)}
-              height={Math.max(cellH - 2, 0.5)}
-              fill={ACCENT}
-              opacity={seqOpacity(v / max)}
-              data-part="mark"
-              data-i={c}
-              data-i2={r}
-            />
-          )),
+          rowValues.map((v, c) => {
+            const x = 30 + c * cellW;
+            const y = 8 + r * cellH;
+            const width = Math.max(cellW - 2, 0.5);
+            const height = Math.max(cellH - 2, 0.5);
+            const share = v / max;
+            return (
+              <g key={`${r}-${c}`}>
+                <rect
+                  x={x}
+                  y={y}
+                  width={width}
+                  height={height}
+                  fill={ACCENT}
+                  opacity={seqOpacity(share)}
+                  data-part="mark"
+                  data-i={c}
+                  data-i2={r}
+                />
+                {values && share >= 0.35 ? (
+                  <text
+                    x={x + width / 2}
+                    y={y + height / 2 + 1}
+                    textAnchor="middle"
+                    fontSize={3}
+                    fill="#fff"
+                    opacity={0.9}
+                    fontFamily={TXT.axis.fontFamily}
+                  >
+                    {format(v)}
+                  </text>
+                ) : null}
+              </g>
+            );
+          }),
         )}
       </ChartSvg>
     );

@@ -76,6 +76,11 @@ export const examples: DemoExample[] = [
         >
           <Candlestick
             title="Coffee futures"
+            yTicks={[
+              { at: 180, label: "180¢" },
+              { at: 210, label: "210¢" },
+              { at: 240, label: "240¢" },
+            ]}
             data={[
               { open: 178, close: 180, low: 175, high: 183 },
               { open: 180, close: 179, low: 176, high: 184 },

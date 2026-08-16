@@ -5,10 +5,17 @@ import { round } from "../../core/geometry";
 import { ACCENT } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
-export type FunnelProps = BaseProps & { items: Item[]; showRates?: boolean };
+export type FunnelProps = BaseProps & {
+  items: Item[];
+  showRates?: boolean;
+  rates?: boolean;
+};
 
 export const Funnel = forwardRef<SVGSVGElement, FunnelProps>(
-  ({ items, showRates = true, title, aspect, className, ...rest }, ref) => {
+  (
+    { items, showRates = true, rates, title, aspect, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const first = items[0]?.value ?? 1;
     const rowH = (vh - 12) / Math.max(1, items.length);
@@ -40,6 +47,15 @@ export const Funnel = forwardRef<SVGSVGElement, FunnelProps>(
                   {showRates ? ` · ${rate}%` : ""}
                 </text>
               )}
+              {rates && items[i + 1] ? (
+                <text
+                  x={round(100 + w1 / 2 + 4)}
+                  y={round(y + rowH - 1)}
+                  {...TXT.axis}
+                >
+                  {Math.round((items[i + 1]!.value / stage.value) * 100) + "%"}
+                </text>
+              ) : null}
             </g>
           );
         })}

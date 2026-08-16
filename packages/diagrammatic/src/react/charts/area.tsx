@@ -14,6 +14,7 @@ import { AxisLabels, ChartSvg, TXT, labelXs, vbHeight } from "../svg";
 export type AreaProps = BaseProps & {
   data: number[];
   yMax?: number;
+  yTicks?: readonly { at: number; label: string }[];
   regions?: { from: number; to: number; label?: string }[];
 };
 
@@ -22,6 +23,7 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
     {
       data,
       yMax,
+      yTicks,
       regions,
       labels,
       format = formatCompact,
@@ -34,21 +36,36 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const bottom = labels ? vh - 16 : vh - 8;
-    const pts = scalePoints(
-      data,
-      14,
-      186,
-      bottom,
-      14,
-      0,
-      yMax ?? Math.max(...data, 1),
-    );
+    const max =
+      yMax ?? Math.max(...data, ...(yTicks?.map((tick) => tick.at) ?? []), 1);
+    const Y = (v: number) => bottom - (v / max) * (bottom - 14);
+    const pts = scalePoints(data, 14, 186, bottom, 14, 0, max);
     const last = pts[pts.length - 1];
     const count = Math.max(1, data.length - 1);
     const RX = (i: number) =>
       14 + (Math.max(0, Math.min(count, i)) / count) * 172;
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        {yTicks?.map((tick) => (
+          <g key={tick.at} data-part="grid">
+            <line
+              x1="14"
+              y1={round(Y(tick.at))}
+              x2="186"
+              y2={round(Y(tick.at))}
+              stroke={ink(0.08)}
+              {...stroke.hair}
+            />
+            <text
+              x="12"
+              y={round(Y(tick.at)) + 1.2}
+              textAnchor="end"
+              {...TXT.axis}
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
         {regions?.map((region) => (
           <g
             key={`${region.from}-${region.to}`}

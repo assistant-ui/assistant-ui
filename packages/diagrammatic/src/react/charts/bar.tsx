@@ -10,6 +10,8 @@ export type BarProps = BaseProps & {
   items: Item[];
   highlight?: "max" | string;
   categorical?: boolean;
+  xTicks?: readonly { at: number; label: string }[];
+  target?: { at: number; label?: string };
 };
 
 export const Bar = forwardRef<SVGSVGElement, BarProps>(
@@ -18,6 +20,8 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
       items,
       highlight = "max",
       categorical,
+      xTicks,
+      target,
       format = formatCompact,
       title,
       aspect,
@@ -27,9 +31,16 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
-    const max = Math.max(...items.map((r) => r.value), 1);
+    const max = Math.max(
+      ...items.map((r) => r.value),
+      ...(xTicks?.map((tick) => tick.at) ?? []),
+      ...(target ? [target.at] : []),
+      1,
+    );
+    const X = (at: number) => 44 + (at / max) * 130;
     const highest = Math.max(...items.map((r) => r.value));
     const rowH = Math.min(19.5, (vh - 12) / Math.max(1, items.length));
+    const rowsBottom = 10 + items.length * rowH;
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
         <line
@@ -41,6 +52,50 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
           data-part="grid"
           {...stroke.hair}
         />
+        {xTicks?.map((tick) => (
+          <g key={tick.at} data-part="grid">
+            <line
+              x1={round(X(tick.at))}
+              y1="8"
+              x2={round(X(tick.at))}
+              y2={rowsBottom}
+              stroke={ink(0.08)}
+              {...stroke.hair}
+            />
+            <text
+              x={round(X(tick.at))}
+              y={vh - 3}
+              textAnchor="middle"
+              {...TXT.axis}
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
+        {target && (
+          <g data-part="grid">
+            <line
+              x1={round(X(target.at))}
+              y1="8"
+              x2={round(X(target.at))}
+              y2={rowsBottom}
+              stroke={ink(0.45)}
+              strokeDasharray="2.5 3"
+              {...stroke.hair}
+            />
+            {target.label && (
+              <text
+                x={round(X(target.at))}
+                y="5"
+                textAnchor="middle"
+                {...TXT.axis}
+                fill={ink(0.8)}
+              >
+                {target.label}
+              </text>
+            )}
+          </g>
+        )}
         {items.map((_, i) => (
           <rect
             key={`hit-${i}`}
@@ -57,7 +112,7 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
           const y = 10 + i * rowH;
           const mid = y + rowH / 2;
           const barH = Math.min(11, Math.max(rowH * 0.55, rowH - 8.5));
-          const w = Math.max((row.value / max) * 130, 2);
+          const w = Math.max(X(row.value) - 44, 2);
           const accent =
             highlight === "max"
               ? row.value === highest

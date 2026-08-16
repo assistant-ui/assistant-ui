@@ -1,7 +1,7 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { polar, round } from "../../core/geometry";
-import { ACCENT, ink } from "../../core/theme";
+import { ACCENT, NEG, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
 export type GaugeProps = BaseProps & {
@@ -10,11 +10,25 @@ export type GaugeProps = BaseProps & {
   label?: string;
   min?: string;
   max?: string;
+  ticks?: readonly { at: number; label?: string }[];
+  minorTicks?: number;
+  redline?: number;
+  needle?: boolean;
 };
 
-function semiArc(cx: number, cy: number, r: number, share: number): string {
-  const a0 = -Math.PI;
-  const a1 = a0 + Math.max(0.001, Math.min(1, share)) * Math.PI;
+function angleAt(share: number): number {
+  return -Math.PI + Math.max(0, Math.min(1, share)) * Math.PI;
+}
+
+function semiArc(
+  cx: number,
+  cy: number,
+  r: number,
+  from: number,
+  to: number,
+): string {
+  const a0 = angleAt(from);
+  const a1 = angleAt(Math.max(from + 0.001, to));
   const start = polar(cx, cy, r, a0);
   const end = polar(cx, cy, r, a1);
   return `M${round(start.x)} ${round(start.y)} A${r} ${r} 0 0 1 ${round(end.x)} ${round(end.y)}`;
@@ -29,6 +43,10 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
       label,
       min = "0",
       max = "100",
+      ticks,
+      minorTicks,
+      redline,
+      needle,
       title,
       aspect,
       className,
@@ -38,29 +56,108 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const cy = vh - 26;
-    const r = Math.min(cy - 10, 54);
+    const r = Math.min(cy - 10, 78);
     const share = Math.max(0, Math.min(1, value));
+    const inRed = (at: number) => redline !== undefined && at >= redline;
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
         <path
-          d={semiArc(100, cy, r, 1)}
+          d={semiArc(100, cy, r, 0, 1)}
           fill="none"
-          strokeWidth="9"
-          strokeLinecap="round"
+          strokeWidth={needle ? 3 : 9}
+          strokeLinecap={needle ? "butt" : "round"}
           stroke={ink(0.08)}
           data-part="grid"
         />
+        {redline !== undefined && (
+          <path
+            d={semiArc(100, cy, r + 7.5, redline, 1)}
+            fill="none"
+            stroke={NEG}
+            strokeWidth="1.8"
+            opacity="0.8"
+            data-part="grid"
+          />
+        )}
+        {minorTicks
+          ? Array.from({ length: minorTicks + 1 }, (_, i) => {
+              const at = i / minorTicks;
+              const a = angleAt(at);
+              const p0 = polar(100, cy, r + 4.5, a);
+              const p1 = polar(100, cy, r + 6.5, a);
+              return (
+                <line
+                  key={`m-${i}`}
+                  x1={round(p0.x)}
+                  y1={round(p0.y)}
+                  x2={round(p1.x)}
+                  y2={round(p1.y)}
+                  stroke={inRed(at) ? NEG : ink(0.35)}
+                  strokeWidth="0.35"
+                  data-part="grid"
+                />
+              );
+            })
+          : null}
+        {ticks?.map((tick) => {
+          const a = angleAt(tick.at);
+          const p0 = polar(100, cy, r + 3.5, a);
+          const p1 = polar(100, cy, r + 7.5, a);
+          const pl = polar(100, cy, r + 12, a);
+          return (
+            <g key={tick.at} data-part="grid">
+              <line
+                x1={round(p0.x)}
+                y1={round(p0.y)}
+                x2={round(p1.x)}
+                y2={round(p1.y)}
+                stroke={inRed(tick.at) ? NEG : ink(0.6)}
+                strokeWidth="0.9"
+              />
+              {tick.label && (
+                <text
+                  x={round(pl.x)}
+                  y={round(pl.y) + 1.2}
+                  textAnchor="middle"
+                  {...TXT.axis}
+                  fill={inRed(tick.at) ? NEG : undefined}
+                >
+                  {tick.label}
+                </text>
+              )}
+            </g>
+          );
+        })}
         <path
-          d={semiArc(100, cy, r, share)}
+          d={semiArc(100, cy, r, 0, share)}
           fill="none"
           stroke={ACCENT}
-          strokeWidth="9"
-          strokeLinecap="round"
+          strokeWidth={needle ? 3 : 9}
+          strokeLinecap={needle ? "butt" : "round"}
           data-part="mark"
         />
+        {needle && (
+          <g data-part="mark">
+            {(() => {
+              const a = angleAt(share);
+              const tip = polar(100, cy, r - 3, a);
+              const tail = polar(100, cy, -5, a);
+              const side = a + Math.PI / 2;
+              const b0 = polar(100, cy, 1.1, side);
+              const b1 = polar(100, cy, -1.1, side);
+              return (
+                <path
+                  d={`M${round(tip.x)} ${round(tip.y)} L${round(tail.x + (b0.x - 100))} ${round(tail.y + (b0.y - cy))} L${round(tail.x + (b1.x - 100))} ${round(tail.y + (b1.y - cy))} Z`}
+                  fill={inRed(share) ? NEG : ACCENT}
+                />
+              );
+            })()}
+            <circle cx="100" cy={cy} r="3" fill={ink(0.85)} />
+          </g>
+        )}
         <text
           x="100"
-          y={cy - 8}
+          y={needle ? cy - 16 : cy - 8}
           textAnchor="middle"
           fontSize="11.5"
           fill={ink(0.85)}
@@ -69,14 +166,32 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
           {display ?? `${Math.round(share * 100)}%`}
         </text>
         {label && (
-          <text x="100" y={cy + 2} textAnchor="middle" {...TXT.axis}>
+          <text
+            x="100"
+            y={needle ? cy - 6 : cy + 2}
+            textAnchor="middle"
+            data-part="axis"
+            {...TXT.axis}
+          >
             {label}
           </text>
         )}
-        <text x={100 - r} y={cy + 12} textAnchor="middle" {...TXT.axis}>
+        <text
+          x={100 - r}
+          y={cy + 12}
+          textAnchor="middle"
+          data-part="axis"
+          {...TXT.axis}
+        >
           {min}
         </text>
-        <text x={100 + r} y={cy + 12} textAnchor="middle" {...TXT.axis}>
+        <text
+          x={100 + r}
+          y={cy + 12}
+          textAnchor="middle"
+          data-part="axis"
+          {...TXT.axis}
+        >
           {max}
         </text>
       </ChartSvg>

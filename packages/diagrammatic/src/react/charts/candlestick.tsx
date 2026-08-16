@@ -1,22 +1,35 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { formatCompact } from "../../core/types";
-import { extent, stroke } from "../../core/geometry";
+import { extent, round, stroke } from "../../core/geometry";
 import { GRID, NEG, POS, ink } from "../../core/theme";
 import { AxisLabels, ChartSvg, TXT, vbHeight } from "../svg";
 
 export type CandlestickProps = BaseProps & {
   data: { open: number; high: number; low: number; close: number }[];
+  yTicks?: readonly { at: number; label: string }[];
 };
 
 export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
   (
-    { data, labels, format = formatCompact, title, aspect, className, ...rest },
+    {
+      data,
+      yTicks,
+      labels,
+      format = formatCompact,
+      title,
+      aspect,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const bottom = labels ? vh - 16 : vh - 8;
-    const [lo, hi] = extent(data.flatMap((c) => [c.low, c.high]));
+    const [lo, hi] = extent([
+      ...data.flatMap((c) => [c.low, c.high]),
+      ...(yTicks?.map((tick) => tick.at) ?? []),
+    ]);
     const span = hi - lo || 1;
     const Y = (v: number) => bottom - ((v - lo) / span) * (bottom - 14);
     const step = 168 / Math.max(1, data.length);
@@ -24,6 +37,26 @@ export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
     const body = Math.min(9, step * 0.45);
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        {yTicks?.map((tick) => (
+          <g key={tick.at} data-part="grid">
+            <line
+              x1="26"
+              y1={round(Y(tick.at))}
+              x2="192"
+              y2={round(Y(tick.at))}
+              stroke={ink(0.08)}
+              {...stroke.hair}
+            />
+            <text
+              x="24"
+              y={round(Y(tick.at)) + 1.2}
+              textAnchor="end"
+              {...TXT.axis}
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
         {[lo, hi].map((v) => (
           <g key={v}>
             <line

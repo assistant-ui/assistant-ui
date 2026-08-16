@@ -2,18 +2,29 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
-import { GRID, cat } from "../../core/theme";
-import { AxisLabels, ChartSvg, Legend, vbHeight } from "../svg";
+import { GRID, cat, ink } from "../../core/theme";
+import { AxisLabels, ChartSvg, Legend, TXT, vbHeight } from "../svg";
 
 export type StackedBarProps = BaseProps & {
   groups: string[];
   series: Series[];
   normalize?: boolean;
+  yTicks?: readonly { at: number; label: string }[];
 };
 
 export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
   (
-    { groups, series, normalize, legend, title, aspect, className, ...rest },
+    {
+      groups,
+      series,
+      normalize,
+      yTicks,
+      legend,
+      title,
+      aspect,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
@@ -21,10 +32,16 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
     const top = showLegend ? 26 : 14;
     const vertical = groups.length > 24;
     const bottom = vertical ? vh - 26 : vh - 16;
+    const leftEdge = 14;
     const totals = groups.map((_, g) =>
       series.reduce((sum, s) => sum + (s.data[g] ?? 0), 0),
     );
-    const max = Math.max(...totals, 1);
+    const max = Math.max(
+      ...totals,
+      ...(yTicks?.map((tick) => tick.at) ?? []),
+      1,
+    );
+    const Y = (at: number) => bottom - (at / max) * (bottom - top);
     const step = 176 / Math.max(1, groups.length);
     const width = Math.min(20, step * 0.55);
     const centers = groups.map((_, g) => 14 + step * (g + 0.5));
@@ -39,6 +56,26 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
           data-part="grid"
           {...stroke.hair}
         />
+        {yTicks?.map((tick) => (
+          <g key={tick.at} data-part="grid">
+            <line
+              x1={leftEdge}
+              y1={round(Y(tick.at))}
+              x2="190"
+              y2={round(Y(tick.at))}
+              stroke={ink(0.08)}
+              {...stroke.hair}
+            />
+            <text
+              x={leftEdge - 2}
+              y={round(Y(tick.at)) + 1.2}
+              textAnchor="end"
+              {...TXT.axis}
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
         {showLegend && (
           <Legend
             names={series.map((s) => s.name)}

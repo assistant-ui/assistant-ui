@@ -2,21 +2,31 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
-import { GRID, cat } from "../../core/theme";
-import { AxisLabels, ChartSvg, Legend, vbHeight } from "../svg";
+import { GRID, cat, ink } from "../../core/theme";
+import { AxisLabels, ChartSvg, Legend, TXT, vbHeight } from "../svg";
 
 export type GroupedBarProps = BaseProps & {
   groups: string[];
   series: Series[];
+  yTicks?: readonly { at: number; label: string }[];
 };
 
 export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
-  ({ groups, series, legend, title, aspect, className, ...rest }, ref) => {
+  (
+    { groups, series, yTicks, legend, title, aspect, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const showLegend = legend ?? series.length > 1;
     const top = showLegend ? 24 : 12;
     const bottom = vh - 16;
-    const max = Math.max(...series.flatMap((s) => s.data), 1);
+    const leftEdge = 14;
+    const max = Math.max(
+      ...series.flatMap((s) => s.data),
+      ...(yTicks?.map((tick) => tick.at) ?? []),
+      1,
+    );
+    const Y = (v: number) => bottom - (v / max) * (bottom - top - 4);
     const groupStep = 176 / Math.max(1, groups.length);
     const barW = Math.min(13, (groupStep * 0.7) / Math.max(1, series.length));
     const centers = groups.map((_, g) => 14 + groupStep * (g + 0.5));
@@ -31,6 +41,26 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
           data-part="grid"
           {...stroke.hair}
         />
+        {yTicks?.map((tick) => (
+          <g key={tick.at} data-part="grid">
+            <line
+              x1={leftEdge}
+              y1={round(Y(tick.at))}
+              x2="190"
+              y2={round(Y(tick.at))}
+              stroke={ink(0.08)}
+              {...stroke.hair}
+            />
+            <text
+              x={leftEdge - 2}
+              y={round(Y(tick.at)) + 1.2}
+              textAnchor="end"
+              {...TXT.axis}
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
         {showLegend && (
           <Legend
             names={series.map((s) => s.name)}
@@ -52,7 +82,7 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
         {groups.map((group, g) =>
           series.map((s, k) => {
             const v = s.data[g] ?? 0;
-            const h = (v / max) * (bottom - top - 4);
+            const h = bottom - Y(v);
             const x =
               centers[g]! -
               (series.length * barW + (series.length - 1) * 2) / 2 +

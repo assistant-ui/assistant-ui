@@ -37,6 +37,7 @@ export const examples: DemoExample[] = [
           series={{ cohort: [8000, 5680, 3980, 2760, 1930, 1350, 940] }}
         >
           <Funnel
+            rates
             title="Signup funnel"
             items={[
               { label: "visited", value: 8000 },

@@ -16,6 +16,7 @@ export type LineProps = BaseProps & {
   data?: number[];
   series?: Series[];
   yMax?: number;
+  yTicks?: readonly { at: number; label: string }[];
   step?: boolean;
   regions?: { from: number; to: number; label?: string }[];
 };
@@ -26,6 +27,7 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
       data,
       series,
       yMax,
+      yTicks,
       step,
       regions,
       labels,
@@ -44,7 +46,14 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
     const showLegend = legend ?? multi;
     const top = showLegend ? 22 : 12;
     const bottom = labels ? vh - 16 : vh - 8;
-    const max = yMax ?? Math.max(...all.flatMap((s) => s.data), 1);
+    const max =
+      yMax ??
+      Math.max(
+        ...all.flatMap((s) => s.data),
+        ...(yTicks?.map((tick) => tick.at) ?? []),
+        1,
+      );
+    const Y = (v: number) => bottom - (v / max) * (bottom - top);
     const grids = all.map((s) =>
       scalePoints(s.data, 14, 186, bottom, top, 0, max),
     );
@@ -55,6 +64,26 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
       14 + (Math.max(0, Math.min(count, i)) / count) * 172;
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        {yTicks?.map((tick) => (
+          <g key={tick.at} data-part="grid">
+            <line
+              x1="14"
+              y1={round(Y(tick.at))}
+              x2="186"
+              y2={round(Y(tick.at))}
+              stroke={ink(0.08)}
+              {...stroke.hair}
+            />
+            <text
+              x="12"
+              y={round(Y(tick.at)) + 1.2}
+              textAnchor="end"
+              {...TXT.axis}
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
         {regions?.map((region) => (
           <g
             key={`${region.from}-${region.to}`}
