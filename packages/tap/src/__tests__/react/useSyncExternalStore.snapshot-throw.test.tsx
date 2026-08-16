@@ -109,9 +109,12 @@ describe("useSyncExternalStore snapshot throws", () => {
 describe("useSyncExternalStore snapshot throws on a createTapRoot host", () => {
   it("surfaces a persistently throwing snapshot from the scheduler flush", () => {
     const store = createStore(["a", "b"]);
-    const root = createTapRoot(() => useResource(SecondItem(store)), {
-      mountOnSubscribe: true,
-    });
+    const root = createTapRoot(
+      function SnapshotThrowRoot() {
+        return useResource(SecondItem(store));
+      },
+      { mountOnSubscribe: true },
+    );
     const unsubscribe = root.subscribe(() => {});
 
     expect(root.getValue()).toBe("b");
