@@ -1404,6 +1404,27 @@ export class AgUiThreadRuntimeCore {
       }
     }
 
+    // An in-flight write completes under the id it was started with, so the
+    // rename moves the chain entry and transfers the completion mark; without
+    // this the resolve records the dead id and the live one appends again.
+    const pendingWrite = this.historyWrites.get(oldId);
+    if (pendingWrite) {
+      this.historyWrites.delete(oldId);
+      if (!collidesWithExisting) {
+        this.historyWrites.set(newId, pendingWrite);
+        const settle = () => {
+          if (this.historyWrites.get(newId) === pendingWrite) {
+            this.historyWrites.delete(newId);
+          }
+        };
+        void pendingWrite.then(() => {
+          this.persistedHistoryIds.delete(oldId);
+          this.persistedHistoryIds.add(newId);
+          settle();
+        }, settle);
+      }
+    }
+
     this.notifyUpdate();
     return !collidesWithExisting;
   }
