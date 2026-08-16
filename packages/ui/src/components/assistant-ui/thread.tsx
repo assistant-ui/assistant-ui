@@ -5,7 +5,9 @@ import {
   ComposerAttachments,
   UserMessageAttachments,
 } from "@/components/assistant-ui/attachment";
+import { File } from "@/components/assistant-ui/file";
 import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
+import { Image } from "@/components/assistant-ui/image";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import {
   Reasoning,
@@ -35,6 +37,8 @@ import {
   MessagePrimitive,
   SuggestionPrimitive,
   ThreadPrimitive,
+  type FileMessagePartComponent,
+  type ImageMessagePartComponent,
   type ToolCallMessagePartComponent,
   useAuiState,
 } from "@assistant-ui/react";
@@ -398,6 +402,18 @@ const AssistantMessage: FC = () => {
                 return part.toolUI ?? <ToolFallbackComponent {...part} />;
               case "data":
                 return part.dataRendererUI;
+              case "file":
+                return (
+                  <div data-slot="aui_assistant-message-file" className="py-1">
+                    <File {...part} />
+                  </div>
+                );
+              case "image":
+                return (
+                  <div data-slot="aui_assistant-message-image" className="py-1">
+                    <Image {...part} />
+                  </div>
+                );
               case "indicator":
                 return (
                   <span
@@ -476,6 +492,18 @@ const AssistantActionBar: FC = () => {
   );
 };
 
+const UserFilePart: FileMessagePartComponent = (part) => (
+  <div data-slot="aui_user-message-file" className="py-1">
+    <File {...part} />
+  </div>
+);
+
+const UserImagePart: ImageMessagePartComponent = (part) => (
+  <div data-slot="aui_user-message-image" className="py-1">
+    <Image {...part} />
+  </div>
+);
+
 const UserMessage: FC = () => {
   return (
     <MessagePrimitive.Root
@@ -487,7 +515,9 @@ const UserMessage: FC = () => {
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
         <div className="aui-user-message-content peer bg-muted text-foreground rounded-xl px-4 py-2 wrap-break-word empty:hidden">
-          <MessagePrimitive.Parts />
+          <MessagePrimitive.Parts
+            components={{ File: UserFilePart, Image: UserImagePart }}
+          />
         </div>
         <div className="aui-user-action-bar-wrapper absolute start-0 top-1/2 -translate-x-full -translate-y-1/2 pe-2 peer-empty:hidden rtl:translate-x-full">
           <UserActionBar />

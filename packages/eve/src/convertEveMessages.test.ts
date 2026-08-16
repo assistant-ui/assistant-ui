@@ -33,6 +33,11 @@ const withApprovalPart = (eve?: {
   ],
 });
 
+const eventMeta = (sequence: number) => ({
+  at: "2026-01-01T00:00:00.000Z",
+  id: `evt_${sequence}`,
+});
+
 describe("convertEveMessages", () => {
   it("converts text and reasoning parts", () => {
     const data = {
@@ -93,11 +98,12 @@ describe("convertEveMessages", () => {
                   name: "send_email",
                   inputRequest: {
                     requestId: "req_1",
+                    kind: "tool-approval",
                     prompt: "Send the email?",
                     display: "confirmation",
                     options: [
                       { id: "approve", label: "Approve" },
-                      { id: "deny", label: "Deny", style: "danger" },
+                      { id: "cancel", label: "Cancel", style: "danger" },
                       { id: "escalate", label: "Escalate" },
                     ],
                   },
@@ -123,7 +129,7 @@ describe("convertEveMessages", () => {
             id: "req_1",
             options: [
               { id: "approve", kind: "allow-once", label: "Approve" },
-              { id: "deny", kind: "reject-once", label: "Deny" },
+              { id: "cancel", kind: "reject-once", label: "Cancel" },
               { id: "escalate", kind: "_escalate", label: "Escalate" },
             ],
           },
@@ -138,6 +144,7 @@ describe("convertEveMessages", () => {
       {
         requestId: "req_1",
         prompt: "Which environment?",
+        kind: "question",
         display: "select",
         allowFreeform: true,
         options: [
@@ -148,7 +155,11 @@ describe("convertEveMessages", () => {
     ],
     [
       "only the fields the request defines",
-      { requestId: "req_1", prompt: "What should the subject line be?" },
+      {
+        requestId: "req_1",
+        prompt: "What should the subject line be?",
+        kind: "question",
+      },
     ],
   ] satisfies [string, EveMessageInputRequest][])(
     "projects %s onto providerMetadata.eve",
@@ -922,6 +933,7 @@ describe("convertEveMessages", () => {
       const events: readonly EveAgentReducerEvent[] = [
         {
           type: "authorization.required",
+          meta: eventMeta(0),
           data: {
             turnId: "turn_1",
             stepIndex: 0,
@@ -932,6 +944,7 @@ describe("convertEveMessages", () => {
         },
         {
           type: "turn.cancelled",
+          meta: eventMeta(1),
           data: { turnId: "turn_1", sequence: 1 },
         },
       ];
@@ -1086,14 +1099,22 @@ describe("convertEveMessages", () => {
         },
         {
           type: "turn.started",
+          meta: eventMeta(0),
           data: { turnId: "turn_1", sequence: 0 },
         },
         {
           type: "step.started",
-          data: { turnId: "turn_1", stepIndex: 0, sequence: 1 },
+          meta: eventMeta(1),
+          data: {
+            turnId: "turn_1",
+            stepIndex: 0,
+            sequence: 1,
+            modelId: "test-model",
+          },
         },
         {
           type: "message.appended",
+          meta: eventMeta(2),
           data: {
             turnId: "turn_1",
             stepIndex: 0,
@@ -1109,6 +1130,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1149,6 +1171,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1159,6 +1182,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.completed",
+            meta: eventMeta(4),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1188,6 +1212,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1198,6 +1223,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.required",
+            meta: eventMeta(4),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1208,6 +1234,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.completed",
+            meta: eventMeta(5),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1236,6 +1263,7 @@ describe("convertEveMessages", () => {
                 {
                   requestId: "req_1",
                   prompt: "What should the subject line be?",
+                  kind: "question",
                   display: "text",
                   action: {
                     kind: "tool-call",
@@ -1246,13 +1274,18 @@ describe("convertEveMessages", () => {
                 },
               ],
             },
+            meta: eventMeta(3),
           },
         ];
 
-        // Rehydrating a session replays the stored event log through this same
-        // reducer, so a pending request reloaded from history carries the same
-        // projection a live stream does.
-        for (const state of [replay(events), replay([...events])]) {
+        // Rehydration replays the *stored* event log, which has been through
+        // the wire and back, so the reloaded case is the serialized payload
+        // rather than the same objects a second time.
+        const rehydrated = JSON.parse(
+          JSON.stringify(events),
+        ) as readonly EveAgentReducerEvent[];
+
+        for (const state of [replay(events), replay(rehydrated)]) {
           const part = state.messages
             .find((message) => message.role === "assistant")
             ?.parts.find((candidate) => candidate.type === "dynamic-tool");
@@ -1287,6 +1320,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "session.failed",
+            meta: eventMeta(3),
             data: { sessionId: "session_1", code: "internal", message: "boom" },
           },
         ]);
@@ -1310,6 +1344,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "turn.failed",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               sequence: 3,
@@ -1331,6 +1366,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "message.completed",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1341,6 +1377,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "turn.completed",
+            meta: eventMeta(4),
             data: { turnId: "turn_1", sequence: 4 },
           },
         ]);
@@ -1540,9 +1577,9 @@ describe("getEveMessageContent", () => {
   });
 });
 
-const approveDeny = [
+const approveCancel = [
   { id: "approve", label: "Approve" },
-  { id: "deny", label: "Deny" },
+  { id: "cancel", label: "Cancel" },
 ];
 const environments = [
   { id: "staging", label: "Staging" },
@@ -1554,6 +1591,7 @@ const withInputRequest = (
 ): EveMessageInputRequest => ({
   requestId: "req_1",
   prompt: "Send the email?",
+  kind: "question",
   ...overrides,
 });
 
@@ -1566,11 +1604,11 @@ describe("toEveInputResponse", () => {
           approved: false,
           reason: "Not yet",
         },
-        withInputRequest({ display: "confirmation", options: approveDeny }),
+        withInputRequest({ display: "confirmation", options: approveCancel }),
       ),
     ).toEqual({
       requestId: "req_1",
-      optionId: "deny",
+      optionId: "cancel",
       text: "Not yet",
     });
   });
@@ -1589,7 +1627,7 @@ describe("toEveInputResponse", () => {
         approved: false,
         reason: "Not yet",
       }),
-    ).toEqual({ requestId: "req_1", optionId: "deny", text: "Not yet" });
+    ).toEqual({ requestId: "req_1", optionId: "cancel", text: "Not yet" });
 
     expect(
       toEveInputResponse({
@@ -1600,11 +1638,11 @@ describe("toEveInputResponse", () => {
     ).toEqual({ requestId: "req_1", optionId: "staging" });
   });
 
-  it("keeps the confirmation mapping when the request carries approve/deny options", () => {
+  it("keeps the confirmation mapping when the request carries approve/cancel options", () => {
     expect(
       toEveInputResponse(
         { approvalId: "req_1", approved: true },
-        withInputRequest({ display: "confirmation", options: approveDeny }),
+        withInputRequest({ display: "confirmation", options: approveCancel }),
       ),
     ).toEqual({ requestId: "req_1", optionId: "approve" });
   });
@@ -1683,7 +1721,7 @@ describe("toEveInputResponse", () => {
     expect(() =>
       toEveInputResponse(
         { approvalId: "req_1", approved: false, optionId: "schedule-later" },
-        withInputRequest({ display: "confirmation", options: approveDeny }),
+        withInputRequest({ display: "confirmation", options: approveCancel }),
       ),
     ).toThrow(/no option with id "schedule-later"/);
   });
@@ -1691,7 +1729,7 @@ describe("toEveInputResponse", () => {
   it("prefers a literal approve option over the free-form path on a text-display request", () => {
     const inputRequest = withInputRequest({
       display: "text",
-      options: approveDeny,
+      options: approveCancel,
     });
 
     expect(
@@ -1746,6 +1784,7 @@ describe("findEveInputRequest", () => {
                 inputRequest: {
                   requestId: "req_1",
                   prompt: "What should the subject line be?",
+                  kind: "question",
                   display: "text",
                   allowFreeform: true,
                 },

@@ -26,6 +26,7 @@ import {
   inkButton,
   mono,
   paper,
+  ShimmerLabel,
 } from "./surfaces";
 import { clamp, pct } from "./range";
 
@@ -370,15 +371,9 @@ export function ComposerVoice({
           0:{String(seconds).padStart(2, "0")}
         </span>
       ) : (
-        <span className="text-foreground/55 relative text-[13px]">
-          <span>Transcribing</span>
-          <span
-            aria-hidden
-            className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-          >
-            Transcribing
-          </span>
-        </span>
+        <ShimmerLabel className="text-foreground/55 relative text-[13px]">
+          Transcribing
+        </ShimmerLabel>
       )}
     </div>
   );

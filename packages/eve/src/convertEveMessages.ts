@@ -25,7 +25,7 @@ import type {
   EveMessageInputRequest,
   EveMessagePart,
 } from "eve/react";
-import type { InputResponse, SendTurnPayload } from "eve/client";
+import type { InputResponse } from "eve/client";
 
 const ASSISTANT_COMPLETE_STATUS = {
   type: "complete",
@@ -149,7 +149,7 @@ const toolApprovalOptionsFromInputRequest = (
     kind:
       option.id === "approve"
         ? "allow-once"
-        : option.id === "deny"
+        : option.id === "cancel"
           ? "reject-once"
           : `_${option.id}`,
     ...(option.label && { label: option.label }),
@@ -192,6 +192,7 @@ const toJsonSafeInputRequest = (
 ): PartProviderMetadata[string] => ({
   requestId: inputRequest.requestId,
   prompt: inputRequest.prompt,
+  kind: inputRequest.kind,
   ...(inputRequest.display !== undefined && { display: inputRequest.display }),
   ...(inputRequest.allowFreeform !== undefined && {
     allowFreeform: inputRequest.allowFreeform,
@@ -451,12 +452,29 @@ export const convertEveMessages = (
   );
 
 /**
+ * Structural subset of the `string | UserContent` message content Eve's `send`
+ * API accepts. The helpers declare the shapes they produce and leave
+ * assignability to the send call site, checked against the installed version.
+ */
+export type EveMessageContent =
+  | string
+  | (
+      | { readonly type: "text"; readonly text: string }
+      | {
+          readonly type: "file";
+          readonly data: string;
+          readonly mediaType: string;
+          readonly filename?: string;
+        }
+    )[];
+
+/**
  * Converts an assistant-ui append message into the message payload accepted by
  * Eve's `send` API.
  */
 export const getEveMessageContent = (
   message: AppendMessage,
-): NonNullable<SendTurnPayload["message"]> => {
+): EveMessageContent => {
   const content = [
     ...message.content,
     ...(message.attachments?.flatMap((attachment) => attachment.content) ?? []),
@@ -546,7 +564,7 @@ export const findEveInputRequest = (
  * `providerMetadata.eve.inputRequest`, is what the response is mapped
  * against, so every returned response carries either an
  * option the request declares or a free-form answer. A literal option match
- * wins, then the `"approve"` / `"deny"` option the response's boolean decision
+ * wins, then the `"approve"` / `"cancel"` option the response's boolean decision
  * names, then the response's `reason` text when the request takes a free-form
  * answer (`display: "text"`, `allowFreeform`, or no options at all, and never
  * `display: "confirmation"`) and the response is not a refusal.
@@ -559,7 +577,7 @@ export const findEveInputRequest = (
  *
  * With no request to map against — a one-argument call, or a part carrying no
  * `toolMetadata.eve.inputRequest` — the response maps as it always has, to the
- * literal `"approve"` / `"deny"` option every eve approval declares. Guessing
+ * literal `"approve"` / `"cancel"` option every eve approval declares. Guessing
  * a display mode is what this mapper stopped doing; an unknown request is not
  * a guess about one.
  */
@@ -591,7 +609,7 @@ export const toEveInputResponse = (
     );
   }
 
-  const decisionOptionId = response.approved ? "approve" : "deny";
+  const decisionOptionId = response.approved ? "approve" : "cancel";
   if (
     !inputRequest ||
     options?.some((option) => option.id === decisionOptionId)
@@ -599,7 +617,7 @@ export const toEveInputResponse = (
     return { requestId, optionId: decisionOptionId, ...(text && { text }) };
   }
 
-  // Eve recognises an approval by its literal two-option `approve`/`deny`
+  // Eve recognises an approval by its literal two-option `approve`/`cancel`
   // shape, so past this point the request is a question and the boolean
   // carries no decision eve would act on.
   const acceptsText =

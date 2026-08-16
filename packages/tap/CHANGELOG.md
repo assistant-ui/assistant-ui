@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.12
+
+### Patch Changes
+
+- [#5827](https://github.com/assistant-ui/assistant-ui/pull/5827) [`c98699d`](https://github.com/assistant-ui/assistant-ui/commit/c98699d83b1fcc98511ca00e810e1c3d2ba019ba) - feat: mountOnSubscribe ([@Yonom](https://github.com/Yonom))
+
 ## 0.9.11
 
 ### Patch Changes

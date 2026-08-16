@@ -4,6 +4,7 @@ import type { ExternalStoreAdapter } from "../runtimes/external-store/external-s
 import type { ModelContextProvider } from "../model-context/types";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 import type { AppendMessage } from "../types/message";
+import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
 
 const mockContextProvider: ModelContextProvider = {
   getModelContext: () => ({}),
@@ -866,6 +867,144 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
       makeStore(),
     );
     expect(withoutQueue.capabilities.queue).toBe(false);
+  });
+
+  it("waits for thread initialization before enqueueing into the queue adapter", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = makeQueue();
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew, queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+
+    expect(queue.enqueue).not.toHaveBeenCalled();
+
+    resolveInitialization();
+    await appendPromise;
+
+    expect(queue.enqueue).toHaveBeenCalledTimes(1);
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue when the thread is invalidated during initialization", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew: vi.fn(), queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+    invalidateThreadRuntime(runtime);
+    resolveInitialization();
+
+    await appendPromise;
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.steer).not.toHaveBeenCalled();
+  });
+
+  it("waits for thread initialization before dispatching an append", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+
+    expect(onNew).not.toHaveBeenCalled();
+
+    resolveInitialization();
+    await appendPromise;
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
+
+  it("shares the initialization barrier across concurrent appends", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const firstAppend = runtime.append(appendMessage());
+    const secondAppend = runtime.append(appendMessage());
+    await Promise.resolve();
+
+    expect(onNew).not.toHaveBeenCalled();
+
+    resolveInitialization();
+    await Promise.all([firstAppend, secondAppend]);
+
+    expect(onNew).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not dispatch when thread initialization rejects", async () => {
+    const initialization = Promise.reject(new Error("initialization failed"));
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    await expect(runtime.append(appendMessage())).rejects.toThrow(
+      "initialization failed",
+    );
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("drops an append disposed while aborting client-side tools", async () => {
+    let resolveAbort!: () => void;
+    const abortPromise = new Promise<void>((resolve) => {
+      resolveAbort = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => Promise.resolve());
+    const abort = vi.fn(() => abortPromise);
+    (
+      runtime as unknown as { _toolInvocations: { abort: typeof abort } }
+    )._toolInvocations = {
+      abort,
+    };
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+    expect(abort).toHaveBeenCalledOnce();
+
+    invalidateThreadRuntime(runtime);
+    resolveAbort();
+
+    await appendPromise;
+    expect(onNew).not.toHaveBeenCalled();
   });
 
   it("routes a tail append through the queue adapter instead of onNew", async () => {

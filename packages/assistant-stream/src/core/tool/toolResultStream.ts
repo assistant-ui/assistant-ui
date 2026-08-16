@@ -1,9 +1,55 @@
-import type { Tool, ToolCallReader, ToolExecuteFunction } from "./tool-types";
+import type {
+  Tool,
+  ToolCallReader,
+  ToolExecuteFunction,
+  ToolExecutionContext,
+} from "./tool-types";
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { ToolExecutionStream } from "./ToolExecutionStream";
 import type { AssistantMessage } from "../utils/types";
 import type { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
+
+const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
+
+type InternalHumanCallback = (
+  toolCallId: string,
+  payload: unknown,
+  executionId: symbol,
+) => Promise<unknown>;
+
+type InternalToolResultStreamOptions = Omit<
+  ToolResultStreamOptions,
+  "onExecutionStart" | "onExecutionEnd"
+> & {
+  onExecutionStart?:
+    | ((toolCallId: string, toolName: string, executionId: symbol) => void)
+    | undefined;
+  onExecutionEnd?:
+    | ((toolCallId: string, toolName: string, executionId: symbol) => void)
+    | undefined;
+};
+
+type InternalToolExecutionOptions = {
+  execute: (toolCall: {
+    toolCallId: string;
+    toolName: string;
+    args: ReadonlyJSONObject;
+    executionId: symbol;
+  }) => ReturnType<typeof getToolResponse>;
+  streamCall: (toolCall: {
+    reader: ToolCallReader<any, ReadonlyJSONValue>;
+    toolCallId: string;
+    toolName: string;
+    executionId: symbol;
+  }) => void;
+  onExecutionStart?:
+    | ((toolCallId: string, toolName: string, executionId: symbol) => void)
+    | undefined;
+  onExecutionEnd?:
+    | ((toolCallId: string, toolName: string, executionId: symbol) => void)
+    | undefined;
+};
 
 const isStandardSchemaV1 = (
   schema: unknown,
@@ -23,8 +69,9 @@ function getToolResponse(
     toolCallId: string;
     toolName: string;
     args: ReadonlyJSONObject;
+    executionId: symbol;
   },
-  human: (toolCallId: string, payload: unknown) => Promise<unknown>,
+  human: InternalHumanCallback,
 ) {
   const tool = tools?.[toolCall.toolName];
   if (!tool?.execute) return undefined;
@@ -83,11 +130,17 @@ function getToolResponse(
     );
 
     const executePromise = (async () => {
-      const result = (await executeFn(toolCall.args, {
+      const executionContext = {
         toolCallId: toolCall.toolCallId,
         abortSignal,
-        human: (payload: unknown) => human(toolCall.toolCallId, payload),
-      })) as unknown as ReadonlyJSONValue;
+        human: (payload: unknown) =>
+          human(toolCall.toolCallId, payload, toolCall.executionId),
+        [TOOL_EXECUTION_ID]: toolCall.executionId,
+      } as ToolExecutionContext;
+      const result = (await executeFn(
+        toolCall.args,
+        executionContext,
+      )) as unknown as ReadonlyJSONValue;
       const response = ToolResponse.toResponse(result);
       if (
         tool.toModelOutput &&
@@ -134,14 +187,18 @@ function getToolStreamResponse(
   context: {
     toolCallId: string;
     toolName: string;
+    executionId: symbol;
   },
-  human: (toolCallId: string, payload: unknown) => Promise<unknown>,
+  human: InternalHumanCallback,
 ) {
-  tools?.[context.toolName]?.streamCall?.(reader, {
+  const executionContext = {
     toolCallId: context.toolCallId,
     abortSignal,
-    human: (payload: unknown) => human(context.toolCallId, payload),
-  });
+    human: (payload: unknown) =>
+      human(context.toolCallId, payload, context.executionId),
+    [TOOL_EXECUTION_ID]: context.executionId,
+  } as ToolExecutionContext;
+  tools?.[context.toolName]?.streamCall?.(reader, executionContext);
 }
 
 export async function unstable_runPendingTools(
@@ -156,8 +213,8 @@ export async function unstable_runPendingTools(
       const promiseOrUndefined = getToolResponse(
         tools,
         abortSignal,
-        part,
-        human ??
+        { ...part, executionId: Symbol() },
+        (human as InternalHumanCallback) ??
           (async () => {
             throw new Error(
               "Tool human input is not supported in this context",
@@ -250,12 +307,27 @@ export function toolResultStream(
   const toolsFn = typeof tools === "function" ? tools : () => tools;
   const abortSignalFn =
     typeof abortSignal === "function" ? abortSignal : () => abortSignal;
-  return new ToolExecutionStream({
+  const internalOptions = options as
+    | InternalToolResultStreamOptions
+    | undefined;
+  const internalHuman = human as InternalHumanCallback;
+  const executionOptions: InternalToolExecutionOptions = {
     execute: (toolCall) =>
-      getToolResponse(toolsFn(), abortSignalFn(), toolCall, human),
+      getToolResponse(toolsFn(), abortSignalFn(), toolCall, internalHuman),
     streamCall: ({ reader, ...context }) =>
-      getToolStreamResponse(toolsFn(), abortSignalFn(), reader, context, human),
-    onExecutionStart: options?.onExecutionStart,
-    onExecutionEnd: options?.onExecutionEnd,
-  });
+      getToolStreamResponse(
+        toolsFn(),
+        abortSignalFn(),
+        reader,
+        context,
+        internalHuman,
+      ),
+    onExecutionStart: internalOptions?.onExecutionStart,
+    onExecutionEnd: internalOptions?.onExecutionEnd,
+  };
+  return new ToolExecutionStream(
+    executionOptions as unknown as ConstructorParameters<
+      typeof ToolExecutionStream
+    >[0],
+  );
 }
