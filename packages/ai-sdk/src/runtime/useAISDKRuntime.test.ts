@@ -42,6 +42,28 @@ const createChatHelpers = (messages: any[] = []) => {
   return chatHelpers;
 };
 
+const captureUnhandledRejections = async (
+  callback: () => Promise<void> | void,
+) => {
+  const reasons: unknown[] = [];
+  const listener = (reason: unknown) => {
+    reasons.push(reason);
+  };
+  const priorListeners = process.listeners("unhandledRejection");
+  process.removeAllListeners("unhandledRejection");
+  process.on("unhandledRejection", listener);
+  try {
+    await callback();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return reasons;
+  } finally {
+    process.removeListener("unhandledRejection", listener);
+    for (const prior of priorListeners) {
+      process.on("unhandledRejection", prior);
+    }
+  }
+};
+
 const textOf = (message: any): string =>
   message.content
     .filter((part: any) => part.type === "text")
@@ -104,25 +126,29 @@ describe("useAISDKRuntime", () => {
     });
   });
 
-  it("consumes AbortError when cancelling a run", async () => {
+  it("adopts a rejected stop so cancellation is not an unhandled rejection", async () => {
     const abortError = new Error("signal is aborted without reason");
     abortError.name = "AbortError";
     const chat = createChatHelpers();
-    chat.stop = vi.fn().mockRejectedValue(abortError);
+    let stopCalls = 0;
+    chat.stop = () => {
+      stopCalls += 1;
+      return new Promise((_, reject) => {
+        setTimeout(() => reject(abortError), 5);
+      });
+    };
     const consoleError = vi
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
     try {
       const { result } = renderHook(() => useAISDKRuntime(chat));
-
-      act(() => {
+      const unhandledRejections = await captureUnhandledRejections(() => {
         result.current.thread.cancelRun();
       });
 
-      await waitFor(() => expect(chat.stop).toHaveBeenCalledOnce());
-      await new Promise((resolve) => setTimeout(resolve, 0));
-
+      expect(stopCalls).toBe(1);
+      expect(unhandledRejections).toEqual([]);
       expect(consoleError).not.toHaveBeenCalled();
     } finally {
       consoleError.mockRestore();
