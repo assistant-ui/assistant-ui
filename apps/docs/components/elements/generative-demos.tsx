@@ -14,8 +14,8 @@ function GenerativeDemo({ slug }: { slug: string }) {
       data-aui-theme="elements"
       className={
         TALL_TEMPLATES.has(slug)
-          ? "aui-gallery [&_[data-aui='card']]:bg-background w-full max-w-sm origin-center scale-[0.68]"
-          : "aui-gallery [&_[data-aui='card']]:bg-background w-full max-w-sm origin-center scale-[0.85]"
+          ? "aui-gallery [&_[data-aui='card']]:bg-background w-full max-w-sm origin-center scale-[0.68] [&_[data-aui='card']]:p-5"
+          : "aui-gallery [&_[data-aui='card']]:bg-background w-full max-w-sm origin-center scale-[0.85] [&_[data-aui='card']]:p-5"
       }
     >
       <TemplatePreview tree={entry.template.tree} />
