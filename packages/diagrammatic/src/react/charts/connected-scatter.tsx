@@ -12,6 +12,16 @@ export type ConnectedScatterProps = BaseProps & {
   series?: { name: string; points: ConnectedPoint[] }[];
   xLabel?: string;
   yLabel?: string;
+  xTicks?: readonly { at: number; label: string }[];
+  yTicks?: readonly { at: number; label: string }[];
+  reverseX?: boolean;
+  refPoint?: {
+    x: number;
+    y: number;
+    xLabel?: string;
+    yLabel?: string;
+    label?: string;
+  };
 };
 
 /**
@@ -31,8 +41,8 @@ function Marker({
   y: number;
   fill: string;
 } & Record<string, unknown>) {
-  const r = 3.1;
-  const common = { fill, stroke: SURFACE, strokeWidth: 1, ...rest };
+  const r = 2.3;
+  const common = { fill, stroke: SURFACE, strokeWidth: 0.8, ...rest };
   switch (shape % 6) {
     case 1:
       return (
@@ -77,16 +87,70 @@ export const ConnectedScatter = forwardRef<
   ConnectedScatterProps
 >(
   (
-    { points, series, xLabel, yLabel, title, aspect, className, ...rest },
+    {
+      points,
+      series,
+      xLabel,
+      yLabel,
+      xTicks,
+      yTicks,
+      reverseX,
+      refPoint,
+      title,
+      aspect,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const all = series ?? [{ name: "", points: points ?? [] }];
     const multi = series !== undefined;
     const everyPoint = all.flatMap((s) => s.points);
-    const { X, Y, bottom } = scatterFrame(everyPoint, vh);
+    const { X: XF, Y, bottom } = scatterFrame(everyPoint, vh);
+    const X = reverseX ? (v: number) => 200 - XF(v) : XF;
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+        {yTicks?.map((tick) => (
+          <g key={`y-${tick.at}`} data-part="grid">
+            <line
+              x1="14"
+              y1={round(Y(tick.at))}
+              x2="186"
+              y2={round(Y(tick.at))}
+              stroke={GRID}
+              {...stroke.hair}
+            />
+            <text
+              x="12"
+              y={round(Y(tick.at)) + 1.5}
+              textAnchor="end"
+              {...TXT.axis}
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
+        {xTicks?.map((tick) => (
+          <g key={`x-${tick.at}`} data-part="grid">
+            <line
+              x1={round(X(tick.at))}
+              y1="8"
+              x2={round(X(tick.at))}
+              y2={bottom}
+              stroke={GRID}
+              {...stroke.hair}
+            />
+            <text
+              x={round(X(tick.at))}
+              y={bottom + 6}
+              textAnchor="middle"
+              {...TXT.axis}
+            >
+              {tick.label}
+            </text>
+          </g>
+        ))}
         <line
           x1="14"
           y1={bottom}
@@ -105,6 +169,61 @@ export const ConnectedScatter = forwardRef<
           data-part="grid"
           {...stroke.hair}
         />
+        {refPoint && (
+          <g data-part="grid">
+            <line
+              x1="14"
+              y1={round(Y(refPoint.y))}
+              x2={round(X(refPoint.x))}
+              y2={round(Y(refPoint.y))}
+              stroke={ink(0.45)}
+              strokeDasharray="2 2.5"
+              {...stroke.hair}
+            />
+            <line
+              x1={round(X(refPoint.x))}
+              y1={round(Y(refPoint.y))}
+              x2={round(X(refPoint.x))}
+              y2={bottom}
+              stroke={ink(0.45)}
+              strokeDasharray="2 2.5"
+              {...stroke.hair}
+            />
+            {refPoint.yLabel && (
+              <text
+                x="12"
+                y={round(Y(refPoint.y)) + 1.5}
+                textAnchor="end"
+                {...TXT.axis}
+                fill={ink(0.8)}
+              >
+                {refPoint.yLabel}
+              </text>
+            )}
+            {refPoint.xLabel && (
+              <text
+                x={round(X(refPoint.x))}
+                y={bottom + 6}
+                textAnchor="middle"
+                {...TXT.axis}
+                fill={ink(0.8)}
+              >
+                {refPoint.xLabel}
+              </text>
+            )}
+            {refPoint.label && (
+              <text
+                x={round(X(refPoint.x))}
+                y={round(Y(refPoint.y)) - 5}
+                textAnchor="middle"
+                {...TXT.axis}
+                fill={ink(0.8)}
+              >
+                {refPoint.label}
+              </text>
+            )}
+          </g>
+        )}
         {all.map((run, k) => {
           const path = run.points.map((p) => ({ x: X(p.x), y: Y(p.y) }));
           const first = path[0];
@@ -157,7 +276,7 @@ export const ConnectedScatter = forwardRef<
                 <circle
                   cx={round(first.x)}
                   cy={round(first.y)}
-                  r="3.6"
+                  r="3"
                   fill={SURFACE}
                   stroke={ink(0.6)}
                   {...stroke.medium}
@@ -167,10 +286,22 @@ export const ConnectedScatter = forwardRef<
                 <circle
                   cx={round(last.x)}
                   cy={round(last.y)}
-                  r="3.8"
+                  r="3.2"
                   fill={ACCENT}
                 />
               )}
+              {run.points.map((p, i) => (
+                <circle
+                  key={`hit-${i}`}
+                  cx={round(X(p.x))}
+                  cy={round(Y(p.y))}
+                  r="4.5"
+                  fill="transparent"
+                  data-part="mark"
+                  data-series={run.name || undefined}
+                  data-i={i}
+                />
+              ))}
               {run.points.map((p, i) =>
                 p.label ? (
                   <text
@@ -187,20 +318,25 @@ export const ConnectedScatter = forwardRef<
               {multi &&
                 run.name &&
                 last &&
-                (last.x + 5 + run.name.length * 2.7 > 186 ? (
+                ((
+                  reverseX
+                    ? last.x - 4 - run.name.length * 2.4 < 14
+                    : last.x + 4 + run.name.length * 2.4 > 186
+                ) ? (
                   <text
-                    x={round(last.x) - 5}
-                    y={round(last.y) + 1.6}
-                    textAnchor="end"
-                    {...TXT.label}
+                    x={round(last.x) + (reverseX ? 4 : -4)}
+                    y={round(last.y) + 1.5}
+                    textAnchor={reverseX ? "start" : "end"}
+                    {...TXT.axis}
                   >
                     {run.name}
                   </text>
                 ) : (
                   <text
-                    x={round(last.x) + 5}
-                    y={round(last.y) + 1.6}
-                    {...TXT.label}
+                    x={round(last.x) + (reverseX ? -4 : 4)}
+                    y={round(last.y) + 1.5}
+                    textAnchor={reverseX ? "end" : "start"}
+                    {...TXT.axis}
                   >
                     {run.name}
                   </text>

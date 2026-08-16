@@ -31,7 +31,7 @@ export type RootProps = ComponentPropsWithoutRef<"div"> & {
   onMarkClick?: (datum: MarkDatum, event: MouseEvent<HTMLDivElement>) => void;
   onMarkHover?: (datum: MarkDatum | null) => void;
   highlight?: MarkQuery | readonly MarkQuery[] | null;
-  highlightOnHover?: boolean;
+  highlightOnHover?: boolean | "index" | "series";
 };
 
 /**
@@ -135,11 +135,17 @@ export const Root = forwardRef<HTMLDivElement, RootProps>(
           lastMark.current = datum.element;
           onMarkHover?.(datum);
           setHoverHighlight(
-            datum.index !== undefined
-              ? { index: datum.index }
-              : datum.series
+            highlightOnHover === "series"
+              ? datum.series
                 ? { series: datum.series }
-                : null,
+                : datum.index !== undefined
+                  ? { index: datum.index }
+                  : null
+              : datum.index !== undefined
+                ? { index: datum.index }
+                : datum.series
+                  ? { series: datum.series }
+                  : null,
           );
         }
       } else {

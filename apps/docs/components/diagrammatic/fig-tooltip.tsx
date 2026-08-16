@@ -12,6 +12,8 @@ type FigTooltipProps = {
     values: readonly (readonly (number | string)[])[];
   };
   entries?: Readonly<Record<string, number | string>>;
+  solo?: boolean;
+  highlight?: "index" | "series";
   unit?: string;
   total?: boolean;
   children: ReactNode;
@@ -28,12 +30,14 @@ export function FigTooltip({
   series,
   matrix,
   entries,
+  solo,
+  highlight,
   unit = "",
   total,
   children,
 }: FigTooltipProps) {
   return (
-    <Root highlightOnHover>
+    <Root highlightOnHover={highlight ?? true}>
       {children}
       <Tooltip side="top" sideOffset={12}>
         {({ datum }) => {
@@ -85,6 +89,7 @@ export function FigTooltip({
             index === undefined
               ? []
               : Object.entries(series ?? {}).flatMap(([name, values]) => {
+                  if (solo && name !== datum.series) return [];
                   const value = values[index];
                   return value === undefined
                     ? []
