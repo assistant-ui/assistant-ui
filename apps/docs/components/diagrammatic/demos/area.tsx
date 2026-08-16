@@ -1,4 +1,5 @@
 import { Area } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper } from "./scenes";
 
@@ -22,33 +23,61 @@ export const examples: DemoExample[] = [
         title="A monsoon in millimetres"
         source="Source: reservoir authority gauge, monthly totals"
       >
-        <Area
-          title="Weekly rainfall"
-          data={[
-            30, 55, 85, 130, 185, 240, 310, 340, 325, 290, 260, 205, 150, 95,
-            60, 25,
-          ]}
-          regions={[{ from: 5, to: 11, label: "core monsoon" }]}
+        <FigTooltip
           labels={[
-            "Jun",
-            "",
-            "",
-            "",
-            "Jul",
-            "",
-            "",
-            "",
-            "Aug",
-            "",
-            "",
-            "",
-            "Sep",
-            "",
-            "",
-            "",
+            "Jun w1",
+            "Jun w2",
+            "Jun w3",
+            "Jun w4",
+            "Jul w1",
+            "Jul w2",
+            "Jul w3",
+            "Jul w4",
+            "Aug w1",
+            "Aug w2",
+            "Aug w3",
+            "Aug w4",
+            "Sep w1",
+            "Sep w2",
+            "Sep w3",
+            "Sep w4",
           ]}
-          format={(v) => `${v}mm`}
-        />
+          series={{
+            rainfall: [
+              30, 55, 85, 130, 185, 240, 310, 340, 325, 290, 260, 205, 150, 95,
+              60, 25,
+            ],
+          }}
+          unit="mm"
+        >
+          <Area
+            title="Weekly rainfall"
+            data={[
+              30, 55, 85, 130, 185, 240, 310, 340, 325, 290, 260, 205, 150, 95,
+              60, 25,
+            ]}
+            regions={[{ from: 5, to: 11, label: "core monsoon" }]}
+            labels={[
+              "Jun",
+              "",
+              "",
+              "",
+              "Jul",
+              "",
+              "",
+              "",
+              "Aug",
+              "",
+              "",
+              "",
+              "Sep",
+              "",
+              "",
+              "",
+            ]}
+            format={(v) => `${v}mm`}
+          />
+        </FigTooltip>
       </Paper>
     ),
   },

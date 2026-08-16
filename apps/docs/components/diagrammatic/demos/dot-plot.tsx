@@ -1,4 +1,5 @@
 import { DotPlot, formatCompact } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Report } from "./scenes";
 
@@ -30,23 +31,53 @@ export const examples: DemoExample[] = [
         chip="levels"
         note="Medians across the engineering ladder, base salary only."
       >
-        <DotPlot
-          title="Median salary by role"
-          items={[
-            { label: "distinguished", value: 222_000 },
-            { label: "director", value: 208_000 },
-            { label: "principal", value: 204_000 },
-            { label: "staff", value: 178_000 },
-            { label: "em", value: 162_000 },
-            { label: "senior", value: 148_000 },
-            { label: "pm", value: 126_000 },
-            { label: "mid", value: 118_000 },
-            { label: "junior", value: 88_000 },
-            { label: "intern", value: 64_000 },
+        <FigTooltip
+          labels={[
+            "distinguished",
+            "director",
+            "principal",
+            "staff",
+            "em",
+            "senior",
+            "pm",
+            "mid",
+            "junior",
+            "intern",
           ]}
-          ticks={[100_000, 150_000, 200_000]}
-          format={(v) => `$${formatCompact(v)}`}
-        />
+          series={{
+            median: [
+              "$222k",
+              "$208k",
+              "$204k",
+              "$178k",
+              "$162k",
+              "$148k",
+              "$126k",
+              "$118k",
+              "$88k",
+              "$64k",
+            ],
+          }}
+        >
+          <DotPlot
+            title="Median salary by role"
+            items={[
+              { label: "distinguished", value: 222_000 },
+              { label: "director", value: 208_000 },
+              { label: "principal", value: 204_000 },
+              { label: "staff", value: 178_000 },
+              { label: "em", value: 162_000 },
+              { label: "senior", value: 148_000 },
+              { label: "pm", value: 126_000 },
+              { label: "mid", value: 118_000 },
+              { label: "junior", value: 88_000 },
+              { label: "intern", value: 64_000 },
+            ]}
+            ticks={[100_000, 150_000, 200_000]}
+            highlight="em"
+            format={(v) => `$${formatCompact(v)}`}
+          />
+        </FigTooltip>
       </Report>
     ),
   },

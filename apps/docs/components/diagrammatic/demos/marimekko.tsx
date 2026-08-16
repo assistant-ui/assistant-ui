@@ -1,4 +1,5 @@
 import { Marimekko } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Report } from "./scenes";
 
@@ -58,61 +59,72 @@ export const examples: DemoExample[] = [
         chip="revenue"
         note="Column width is regional share of revenue; height is vendor share within the region."
       >
-        <Marimekko
-          title="Market by region and vendor"
-          columns={[
-            {
-              label: "AMER",
-              width: 62,
-              shares: [
-                { label: "north", value: 46 },
-                { label: "acme", value: 28 },
-                { label: "zephyr", value: 14 },
-                { label: "other", value: 12 },
-              ],
-            },
-            {
-              label: "EMEA",
-              width: 48,
-              shares: [
-                { label: "north", value: 32 },
-                { label: "acme", value: 40 },
-                { label: "zephyr", value: 16 },
-                { label: "other", value: 12 },
-              ],
-            },
-            {
-              label: "APAC",
-              width: 40,
-              shares: [
-                { label: "north", value: 48 },
-                { label: "acme", value: 18 },
-                { label: "zephyr", value: 22 },
-                { label: "other", value: 12 },
-              ],
-            },
-            {
-              label: "LATAM",
-              width: 28,
-              shares: [
-                { label: "north", value: 26 },
-                { label: "acme", value: 48 },
-                { label: "zephyr", value: 12 },
-                { label: "other", value: 14 },
-              ],
-            },
-            {
-              label: "JP",
-              width: 22,
-              shares: [
-                { label: "north", value: 38 },
-                { label: "acme", value: 22 },
-                { label: "zephyr", value: 30 },
-                { label: "other", value: 10 },
-              ],
-            },
-          ]}
-        />
+        <FigTooltip
+          labels={["AMER", "EMEA", "APAC", "LATAM", "JP"]}
+          series={{
+            north: [46, 32, 48, 26, 38],
+            acme: [28, 40, 18, 48, 22],
+            zephyr: [14, 16, 22, 12, 30],
+            other: [12, 12, 12, 14, 10],
+          }}
+          unit="%"
+        >
+          <Marimekko
+            title="Market by region and vendor"
+            columns={[
+              {
+                label: "AMER",
+                width: 62,
+                shares: [
+                  { label: "north", value: 46 },
+                  { label: "acme", value: 28 },
+                  { label: "zephyr", value: 14 },
+                  { label: "other", value: 12 },
+                ],
+              },
+              {
+                label: "EMEA",
+                width: 48,
+                shares: [
+                  { label: "north", value: 32 },
+                  { label: "acme", value: 40 },
+                  { label: "zephyr", value: 16 },
+                  { label: "other", value: 12 },
+                ],
+              },
+              {
+                label: "APAC",
+                width: 40,
+                shares: [
+                  { label: "north", value: 48 },
+                  { label: "acme", value: 18 },
+                  { label: "zephyr", value: 22 },
+                  { label: "other", value: 12 },
+                ],
+              },
+              {
+                label: "LATAM",
+                width: 28,
+                shares: [
+                  { label: "north", value: 26 },
+                  { label: "acme", value: 48 },
+                  { label: "zephyr", value: 12 },
+                  { label: "other", value: 14 },
+                ],
+              },
+              {
+                label: "JP",
+                width: 22,
+                shares: [
+                  { label: "north", value: 38 },
+                  { label: "acme", value: 22 },
+                  { label: "zephyr", value: 30 },
+                  { label: "other", value: 10 },
+                ],
+              },
+            ]}
+          />
+        </FigTooltip>
       </Report>
     ),
   },

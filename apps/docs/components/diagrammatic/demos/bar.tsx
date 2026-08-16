@@ -1,4 +1,5 @@
 import { Bar } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Report } from "./scenes";
 
@@ -27,20 +28,47 @@ export const examples: DemoExample[] = [
         chip="top 9"
         note="Downloads from the public registry, week of launch."
       >
-        <Bar
-          title="Weekly npm downloads"
-          items={[
-            { label: "react", value: 25_000_000 },
-            { label: "vue", value: 12_000_000 },
-            { label: "angular", value: 9_100_000 },
-            { label: "svelte", value: 6_200_000 },
-            { label: "preact", value: 4_400_000 },
-            { label: "solid", value: 2_100_000 },
-            { label: "lit", value: 1_600_000 },
-            { label: "qwik", value: 900_000 },
-            { label: "stencil", value: 600_000 },
+        <FigTooltip
+          labels={[
+            "react",
+            "vue",
+            "angular",
+            "svelte",
+            "preact",
+            "solid",
+            "lit",
+            "qwik",
+            "stencil",
           ]}
-        />
+          series={{
+            downloads: [
+              "25m",
+              "12m",
+              "9.1m",
+              "6.2m",
+              "4.4m",
+              "2.1m",
+              "1.6m",
+              "900k",
+              "600k",
+            ],
+          }}
+        >
+          <Bar
+            title="Weekly npm downloads"
+            items={[
+              { label: "react", value: 25_000_000 },
+              { label: "vue", value: 12_000_000 },
+              { label: "angular", value: 9_100_000 },
+              { label: "svelte", value: 6_200_000 },
+              { label: "preact", value: 4_400_000 },
+              { label: "solid", value: 2_100_000 },
+              { label: "lit", value: 1_600_000 },
+              { label: "qwik", value: 900_000 },
+              { label: "stencil", value: 600_000 },
+            ]}
+          />
+        </FigTooltip>
       </Report>
     ),
   },

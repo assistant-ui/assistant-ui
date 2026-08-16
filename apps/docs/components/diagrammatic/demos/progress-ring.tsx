@@ -20,7 +20,7 @@ export const examples: DemoExample[] = [
       <AppCard title="Quarter goals" meta="week 6">
         <div className="mx-auto grid w-full max-w-96 grid-cols-3 gap-4">
           <ProgressRing value={0.82} label="ship" />
-          <ProgressRing value={0.55} label="docs" />
+          <ProgressRing value={0.55} display="11/20" label="docs" />
           <ProgressRing value={0.3} label="hire" />
         </div>
       </AppCard>

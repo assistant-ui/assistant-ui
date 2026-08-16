@@ -1,4 +1,5 @@
 import { Lollipop } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper } from "./scenes";
 
@@ -28,22 +29,40 @@ export const examples: DemoExample[] = [
         title="Caffeine, honestly"
         source="Source: beverage lab assays"
       >
-        <Lollipop
-          title="Caffeine per serving"
-          items={[
-            { label: "drip", value: 145 },
-            { label: "cold brew", value: 128 },
-            { label: "energy", value: 110 },
-            { label: "latte", value: 77 },
-            { label: "matcha", value: 70 },
-            { label: "espresso", value: 63 },
-            { label: "black tea", value: 47 },
-            { label: "cola", value: 34 },
-            { label: "cocoa", value: 12 },
-            { label: "decaf", value: 5 },
+        <FigTooltip
+          labels={[
+            "drip",
+            "cold brew",
+            "energy",
+            "latte",
+            "matcha",
+            "espresso",
+            "black tea",
+            "cola",
+            "cocoa",
+            "decaf",
           ]}
-          format={(v) => `${v}mg`}
-        />
+          series={{ caffeine: [145, 128, 110, 77, 70, 63, 47, 34, 12, 5] }}
+          unit="mg"
+        >
+          <Lollipop
+            title="Caffeine per serving"
+            items={[
+              { label: "drip", value: 145 },
+              { label: "cold brew", value: 128 },
+              { label: "energy", value: 110 },
+              { label: "latte", value: 77 },
+              { label: "matcha", value: 70 },
+              { label: "espresso", value: 63 },
+              { label: "black tea", value: 47 },
+              { label: "cola", value: 34 },
+              { label: "cocoa", value: 12 },
+              { label: "decaf", value: 5 },
+            ]}
+            highlight="espresso"
+            format={(v) => `${v}mg`}
+          />
+        </FigTooltip>
       </Paper>
     ),
   },

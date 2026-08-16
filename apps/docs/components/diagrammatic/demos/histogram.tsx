@@ -1,4 +1,5 @@
 import { Histogram } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Slide, Terminal } from "./scenes";
 
@@ -19,12 +20,18 @@ export const examples: DemoExample[] = [
     read: "Most requests land near 400ms, but the long right tail is where the pages come from: a few hundred requests living past 700ms. The dashed median line keeps the tail honest; without it the outliers would set the story.",
     chart: (
       <Terminal title="api latency — 24h">
-        <Histogram
-          title="API response times"
-          bins={[6, 12, 22, 38, 58, 78, 92, 84, 66, 46, 30, 18, 10, 5]}
-          marker={{ at: 6.9, label: "median 392ms" }}
-          labels={["0", "200ms", "400ms", "600ms", "800ms"]}
-        />
+        <FigTooltip
+          series={{
+            requests: [6, 12, 22, 38, 58, 78, 92, 84, 66, 46, 30, 18, 10, 5],
+          }}
+        >
+          <Histogram
+            title="API response times"
+            bins={[6, 12, 22, 38, 58, 78, 92, 84, 66, 46, 30, 18, 10, 5]}
+            marker={{ at: 6.9, label: "median 392ms" }}
+            labels={["0", "200ms", "400ms", "600ms", "800ms"]}
+          />
+        </FigTooltip>
       </Terminal>
     ),
   },

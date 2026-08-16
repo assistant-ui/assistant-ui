@@ -21,7 +21,11 @@ function Rows({
           className="flex items-center justify-between gap-3"
         >
           <span className="w-12 opacity-60">{row.label}</span>
-          <Sparkline data={row.data} title={row.label} />
+          <Sparkline
+            data={row.data}
+            title={row.label}
+            fill={row.label === "cpu"}
+          />
           <span className="w-10 text-right opacity-90">{row.value}</span>
         </div>
       ))}

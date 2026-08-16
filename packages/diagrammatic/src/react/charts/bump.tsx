@@ -26,16 +26,39 @@ export const Bump = forwardRef<SVGSVGElement, BumpProps>(
           const pts = s.ranks.map((rank, i) => ({ x: xs[i]!, y: Y(rank) }));
           const last = pts[pts.length - 1]!;
           return (
-            <g key={s.name} data-part="mark" data-series={s.name}>
+            <g key={s.name}>
               <path
                 d={linePath(pts)}
                 fill="none"
                 stroke={cat(k)}
                 opacity="0.85"
+                data-part="mark"
+                data-series={s.name}
                 {...stroke.line}
               />
               {pts.map((p, i) => (
-                <circle key={i} cx={p.x} cy={p.y} r="2.4" fill={cat(k)} />
+                <circle
+                  key={i}
+                  cx={p.x}
+                  cy={p.y}
+                  r="2.4"
+                  fill={cat(k)}
+                  data-part="mark"
+                  data-series={s.name}
+                  data-i={i}
+                />
+              ))}
+              {pts.map((p, i) => (
+                <circle
+                  key={`hit-${i}`}
+                  cx={p.x}
+                  cy={p.y}
+                  r="4.5"
+                  fill="transparent"
+                  data-part="mark"
+                  data-series={s.name}
+                  data-i={i}
+                />
               ))}
               <text
                 x={last.x + 6}

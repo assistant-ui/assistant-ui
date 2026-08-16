@@ -1,4 +1,5 @@
 import { Candlestick } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper } from "./scenes";
 
@@ -34,46 +35,86 @@ export const examples: DemoExample[] = [
         title="The frost gap"
         source="Source: exchange settlement data"
       >
-        <Candlestick
-          title="Coffee futures"
-          data={[
-            { open: 178, close: 180, low: 175, high: 183 },
-            { open: 180, close: 179, low: 176, high: 184 },
-            { open: 179, close: 182, low: 177, high: 185 },
-            { open: 182, close: 185, low: 179, high: 188 },
-            { open: 185, close: 183, low: 180, high: 189 },
-            { open: 184, close: 187, low: 181, high: 190 },
-            { open: 187, close: 186, low: 183, high: 191 },
-            { open: 205, close: 228, low: 202, high: 236 },
-            { open: 228, close: 241, low: 222, high: 248 },
-            { open: 241, close: 232, low: 226, high: 246 },
-            { open: 232, close: 224, low: 218, high: 238 },
-            { open: 224, close: 218, low: 212, high: 230 },
-            { open: 218, close: 221, low: 214, high: 226 },
-            { open: 221, close: 216, low: 211, high: 224 },
-            { open: 216, close: 213, low: 208, high: 219 },
-            { open: 213, close: 214, low: 209, high: 218 },
-          ]}
+        <FigTooltip
           labels={[
-            "M",
-            "",
-            "W",
-            "",
-            "F",
-            "M",
-            "",
-            "W",
-            "",
-            "F",
-            "M",
-            "",
-            "W",
-            "",
-            "F",
-            "",
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Mon",
+            "Tue",
+            "Wed",
+            "Thu",
+            "Fri",
+            "Mon",
           ]}
-          format={(v) => `${v}¢`}
-        />
+          series={{
+            open: [
+              178, 180, 179, 182, 185, 184, 187, 205, 228, 241, 232, 224, 218,
+              221, 216, 213,
+            ],
+            close: [
+              180, 179, 182, 185, 183, 187, 186, 228, 241, 232, 224, 218, 221,
+              216, 213, 214,
+            ],
+            high: [
+              183, 184, 185, 188, 189, 190, 191, 236, 248, 246, 238, 230, 226,
+              224, 219, 218,
+            ],
+            low: [
+              175, 176, 177, 179, 180, 181, 183, 202, 222, 226, 218, 212, 214,
+              211, 208, 209,
+            ],
+          }}
+          unit="¢"
+        >
+          <Candlestick
+            title="Coffee futures"
+            data={[
+              { open: 178, close: 180, low: 175, high: 183 },
+              { open: 180, close: 179, low: 176, high: 184 },
+              { open: 179, close: 182, low: 177, high: 185 },
+              { open: 182, close: 185, low: 179, high: 188 },
+              { open: 185, close: 183, low: 180, high: 189 },
+              { open: 184, close: 187, low: 181, high: 190 },
+              { open: 187, close: 186, low: 183, high: 191 },
+              { open: 205, close: 228, low: 202, high: 236 },
+              { open: 228, close: 241, low: 222, high: 248 },
+              { open: 241, close: 232, low: 226, high: 246 },
+              { open: 232, close: 224, low: 218, high: 238 },
+              { open: 224, close: 218, low: 212, high: 230 },
+              { open: 218, close: 221, low: 214, high: 226 },
+              { open: 221, close: 216, low: 211, high: 224 },
+              { open: 216, close: 213, low: 208, high: 219 },
+              { open: 213, close: 214, low: 209, high: 218 },
+            ]}
+            labels={[
+              "M",
+              "",
+              "W",
+              "",
+              "F",
+              "M",
+              "",
+              "W",
+              "",
+              "F",
+              "M",
+              "",
+              "W",
+              "",
+              "F",
+              "",
+            ]}
+            format={(v) => `${v}¢`}
+          />
+        </FigTooltip>
       </Paper>
     ),
   },

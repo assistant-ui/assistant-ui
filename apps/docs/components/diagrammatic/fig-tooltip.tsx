@@ -6,6 +6,11 @@ import { Root, Tooltip, getSeriesColor } from "diagrammatic/interactive";
 type FigTooltipProps = {
   labels?: readonly string[];
   series?: Readonly<Record<string, readonly (number | string)[]>>;
+  matrix?: {
+    columns?: readonly string[];
+    rows?: readonly string[];
+    values: readonly (readonly (number | string)[])[];
+  };
   unit?: string;
   total?: boolean;
   children: ReactNode;
@@ -20,6 +25,7 @@ type FigTooltipProps = {
 export function FigTooltip({
   labels,
   series,
+  matrix,
   unit = "",
   total,
   children,
@@ -30,6 +36,27 @@ export function FigTooltip({
       <Tooltip side="top" sideOffset={12}>
         {({ datum }) => {
           const index = datum.index;
+          if (matrix && index !== undefined && datum.index2 !== undefined) {
+            const cell = matrix.values[datum.index2]?.[index];
+            if (cell === undefined) return null;
+            const where = [
+              matrix.rows?.[datum.index2],
+              matrix.columns?.[index],
+            ].filter(Boolean);
+            return (
+              <div className="border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
+                {where.length > 0 && (
+                  <p className="mb-0.5 text-[10px] tracking-[0.08em] text-[#1a1b1e]/50 uppercase">
+                    {where.join(" · ")}
+                  </p>
+                )}
+                <p className="text-right tabular-nums">
+                  {cell}
+                  {unit}
+                </p>
+              </div>
+            );
+          }
           const title = index === undefined ? undefined : labels?.[index];
           const rows =
             index === undefined

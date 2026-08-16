@@ -1,4 +1,5 @@
 import { Heatmap } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { AppCard, Terminal } from "./scenes";
 
@@ -38,11 +39,10 @@ export const examples: DemoExample[] = [
     read: "The noon column burns across every service: release o'clock is real. The db row peaks latest and the cdn earliest, which is the deploy pipeline's ordering showing up as color.",
     chart: (
       <Terminal title="deploys — svc × hour">
-        <Heatmap
-          title="Deploys by service and hour"
+        <FigTooltip
           matrix={{
             rows: ["api", "web", "db", "jobs", "cdn"],
-            cols: ["8h", "10h", "12h", "14h", "16h", "18h", "20h", "22h"],
+            columns: ["8h", "10h", "12h", "14h", "16h", "18h", "20h", "22h"],
             values: [
               [0.2, 0.4, 0.7, 0.5, 0.3, 0.2, 0.1, 0.15],
               [0.3, 0.6, 0.9, 0.7, 0.5, 0.3, 0.2, 0.1],
@@ -51,7 +51,22 @@ export const examples: DemoExample[] = [
               [0.05, 0.2, 0.3, 0.4, 0.6, 0.8, 0.5, 0.4],
             ],
           }}
-        />
+        >
+          <Heatmap
+            title="Deploys by service and hour"
+            matrix={{
+              rows: ["api", "web", "db", "jobs", "cdn"],
+              cols: ["8h", "10h", "12h", "14h", "16h", "18h", "20h", "22h"],
+              values: [
+                [0.2, 0.4, 0.7, 0.5, 0.3, 0.2, 0.1, 0.15],
+                [0.3, 0.6, 0.9, 0.7, 0.5, 0.3, 0.2, 0.1],
+                [0.2, 0.5, 0.8, 1, 0.7, 0.4, 0.3, 0.2],
+                [0.1, 0.3, 0.5, 0.7, 0.9, 0.6, 0.4, 0.3],
+                [0.05, 0.2, 0.3, 0.4, 0.6, 0.8, 0.5, 0.4],
+              ],
+            }}
+          />
+        </FigTooltip>
       </Terminal>
     ),
   },

@@ -1,4 +1,5 @@
 import { DivergingBar } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Report } from "./scenes";
 
@@ -30,22 +31,52 @@ export const examples: DemoExample[] = [
         chip="QBR"
         note="Variance to plan by product line, percent."
       >
-        <DivergingBar
-          title="Revenue against plan"
-          items={[
-            { label: "cloud", value: 48 },
-            { label: "search", value: 34 },
-            { label: "mail", value: 26 },
-            { label: "iot", value: 18 },
-            { label: "docs", value: 9 },
-            { label: "gaming", value: 4 },
-            { label: "maps", value: -12 },
-            { label: "ads", value: -22 },
-            { label: "music", value: -29 },
-            { label: "video", value: -38 },
+        <FigTooltip
+          labels={[
+            "cloud",
+            "search",
+            "mail",
+            "iot",
+            "docs",
+            "gaming",
+            "maps",
+            "ads",
+            "music",
+            "video",
           ]}
-          format={(v) => `${v}%`}
-        />
+          series={{
+            "vs plan": [
+              "+48%",
+              "+34%",
+              "+26%",
+              "+18%",
+              "+9%",
+              "+4%",
+              "-12%",
+              "-22%",
+              "-29%",
+              "-38%",
+            ],
+          }}
+        >
+          <DivergingBar
+            title="Revenue against plan"
+            sorted
+            items={[
+              { label: "maps", value: -12 },
+              { label: "cloud", value: 48 },
+              { label: "docs", value: 9 },
+              { label: "video", value: -38 },
+              { label: "search", value: 34 },
+              { label: "gaming", value: 4 },
+              { label: "ads", value: -22 },
+              { label: "mail", value: 26 },
+              { label: "music", value: -29 },
+              { label: "iot", value: 18 },
+            ]}
+            format={(v) => `${v}%`}
+          />
+        </FigTooltip>
       </Report>
     ),
   },

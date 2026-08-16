@@ -1,4 +1,5 @@
 import { Waterfall } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Report } from "./scenes";
 
@@ -29,20 +30,37 @@ export const examples: DemoExample[] = [
         chip="Q3"
         note="Bridge from gross bookings to net revenue."
       >
-        <Waterfall
-          title="Gross to net"
-          steps={[
-            { label: "gross", value: 40, total: true },
-            { label: "subs", value: 18 },
-            { label: "addons", value: 14 },
-            { label: "service", value: 20 },
-            { label: "expand", value: 9 },
-            { label: "refunds", value: -22 },
-            { label: "credits", value: -10 },
-            { label: "churn", value: -11 },
-            { label: "net", value: 58, total: true },
+        <FigTooltip
+          labels={[
+            "gross",
+            "subs",
+            "addons",
+            "service",
+            "expand",
+            "refunds",
+            "credits",
+            "churn",
+            "net",
           ]}
-        />
+          series={{
+            delta: ["40", "+18", "+14", "+20", "+9", "-22", "-10", "-11", "58"],
+          }}
+        >
+          <Waterfall
+            title="Gross to net"
+            steps={[
+              { label: "gross", value: 40, total: true },
+              { label: "subs", value: 18 },
+              { label: "addons", value: 14 },
+              { label: "service", value: 20 },
+              { label: "expand", value: 9 },
+              { label: "refunds", value: -22 },
+              { label: "credits", value: -10 },
+              { label: "churn", value: -11 },
+              { label: "net", value: 58, total: true },
+            ]}
+          />
+        </FigTooltip>
       </Report>
     ),
   },

@@ -1,4 +1,5 @@
 import { Bump } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Report } from "./scenes";
 
@@ -23,16 +24,7 @@ export const examples: DemoExample[] = [
     read: "React takes the crown from jQuery in year three and never gives it back; vue touches first for exactly one year; svelte climbs from last to second while jQuery and backbone sink in slow motion. Ranks hide magnitudes — the gap between third and fourth may be a chasm or a rounding error, and this chart deliberately cannot say.",
     chart: (
       <Report title="Framework popularity rank" chip="8 years">
-        <Bump
-          title="Framework popularity rank"
-          series={[
-            { name: "react", ranks: [2, 2, 1, 1, 1, 2, 1, 1] },
-            { name: "jquery", ranks: [1, 1, 2, 3, 4, 4, 4, 5] },
-            { name: "vue", ranks: [5, 3, 3, 2, 2, 1, 3, 3] },
-            { name: "angular", ranks: [3, 4, 4, 5, 5, 5, 5, 4] },
-            { name: "svelte", ranks: [6, 6, 5, 4, 3, 3, 2, 2] },
-            { name: "backbone", ranks: [4, 5, 6, 6, 6, 6, 6, 6] },
-          ]}
+        <FigTooltip
           labels={[
             "2018",
             "2019",
@@ -43,7 +35,37 @@ export const examples: DemoExample[] = [
             "2024",
             "2025",
           ]}
-        />
+          series={{
+            react: [2, 2, 1, 1, 1, 2, 1, 1],
+            jquery: [1, 1, 2, 3, 4, 4, 4, 5],
+            vue: [5, 3, 3, 2, 2, 1, 3, 3],
+            angular: [3, 4, 4, 5, 5, 5, 5, 4],
+            svelte: [6, 6, 5, 4, 3, 3, 2, 2],
+            backbone: [4, 5, 6, 6, 6, 6, 6, 6],
+          }}
+        >
+          <Bump
+            title="Framework popularity rank"
+            series={[
+              { name: "react", ranks: [2, 2, 1, 1, 1, 2, 1, 1] },
+              { name: "jquery", ranks: [1, 1, 2, 3, 4, 4, 4, 5] },
+              { name: "vue", ranks: [5, 3, 3, 2, 2, 1, 3, 3] },
+              { name: "angular", ranks: [3, 4, 4, 5, 5, 5, 5, 4] },
+              { name: "svelte", ranks: [6, 6, 5, 4, 3, 3, 2, 2] },
+              { name: "backbone", ranks: [4, 5, 6, 6, 6, 6, 6, 6] },
+            ]}
+            labels={[
+              "2018",
+              "2019",
+              "2020",
+              "2021",
+              "2022",
+              "2023",
+              "2024",
+              "2025",
+            ]}
+          />
+        </FigTooltip>
       </Report>
     ),
   },

@@ -1,4 +1,5 @@
 import { BoxPlot } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { Paper } from "./scenes";
 
@@ -25,59 +26,78 @@ export const examples: DemoExample[] = [
         title="Yield, risk included"
         source="Source: three-season field trial"
       >
-        <BoxPlot
-          title="Yield by practice"
-          groups={[
-            {
-              label: "conventional",
-              low: 3.1,
-              q1: 4.2,
-              median: 5,
-              q3: 5.8,
-              high: 6.9,
-            },
-            {
-              label: "no-till",
-              low: 3.8,
-              q1: 4.5,
-              median: 5,
-              q3: 5.5,
-              high: 6.2,
-            },
-            {
-              label: "cover crop",
-              low: 3.5,
-              q1: 4.3,
-              median: 4.8,
-              q3: 5.4,
-              high: 6.1,
-            },
-            {
-              label: "mixed",
-              low: 3,
-              q1: 3.9,
-              median: 4.6,
-              q3: 5.3,
-              high: 6.4,
-            },
-            {
-              label: "organic",
-              low: 2.6,
-              q1: 3.4,
-              median: 4,
-              q3: 4.7,
-              high: 5.6,
-            },
-            {
-              label: "agroforestry",
-              low: 2.2,
-              q1: 3.1,
-              median: 3.9,
-              q3: 4.9,
-              high: 6,
-            },
+        <FigTooltip
+          labels={[
+            "conventional",
+            "no-till",
+            "cover crop",
+            "mixed",
+            "organic",
+            "agroforestry",
           ]}
-        />
+          series={{
+            high: [6.9, 6.2, 6.1, 6.4, 5.6, 6],
+            q3: [5.8, 5.5, 5.4, 5.3, 4.7, 4.9],
+            median: [5, 5, 4.8, 4.6, 4, 3.9],
+            q1: [4.2, 4.5, 4.3, 3.9, 3.4, 3.1],
+            low: [3.1, 3.8, 3.5, 3, 2.6, 2.2],
+          }}
+          unit="t"
+        >
+          <BoxPlot
+            title="Yield by practice"
+            groups={[
+              {
+                label: "conventional",
+                low: 3.1,
+                q1: 4.2,
+                median: 5,
+                q3: 5.8,
+                high: 6.9,
+              },
+              {
+                label: "no-till",
+                low: 3.8,
+                q1: 4.5,
+                median: 5,
+                q3: 5.5,
+                high: 6.2,
+              },
+              {
+                label: "cover crop",
+                low: 3.5,
+                q1: 4.3,
+                median: 4.8,
+                q3: 5.4,
+                high: 6.1,
+              },
+              {
+                label: "mixed",
+                low: 3,
+                q1: 3.9,
+                median: 4.6,
+                q3: 5.3,
+                high: 6.4,
+              },
+              {
+                label: "organic",
+                low: 2.6,
+                q1: 3.4,
+                median: 4,
+                q3: 4.7,
+                high: 5.6,
+              },
+              {
+                label: "agroforestry",
+                low: 2.2,
+                q1: 3.1,
+                median: 3.9,
+                q3: 4.9,
+                high: 6,
+              },
+            ]}
+          />
+        </FigTooltip>
       </Paper>
     ),
   },

@@ -1,4 +1,5 @@
 import { Pie } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 import { AppCard, Report } from "./scenes";
 
@@ -22,15 +23,21 @@ export const examples: DemoExample[] = [
     read: "Chrome and Safari together are seven sessions in ten, and 'other' — where the legacy browsers live — is 12%. Whether 12% is a lot is a business question, but the pie makes sure nobody argues about the number itself. Four slices is the ceiling; past that, angles stop being comparable.",
     chart: (
       <Report title="Browser share" chip="sessions">
-        <Pie
-          title="Browser share of sessions"
-          items={[
-            { label: "chrome", value: 42 },
-            { label: "safari", value: 27 },
-            { label: "edge", value: 19 },
-            { label: "other", value: 12 },
-          ]}
-        />
+        <FigTooltip
+          labels={["chrome", "safari", "edge", "other"]}
+          series={{ share: [42, 27, 19, 12] }}
+          unit="%"
+        >
+          <Pie
+            title="Browser share of sessions"
+            items={[
+              { label: "chrome", value: 42 },
+              { label: "safari", value: 27 },
+              { label: "edge", value: 19 },
+              { label: "other", value: 12 },
+            ]}
+          />
+        </FigTooltip>
       </Report>
     ),
   },
