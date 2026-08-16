@@ -13,6 +13,7 @@ import {
 import { useEffect, useState, type FC, type PropsWithChildren } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../../context";
+import { useThreadViewport } from "../../context/react/ThreadViewportContext";
 import * as MessagePrimitive from "../message";
 import { ThreadPrimitiveMessages } from "./ThreadMessages";
 import { ThreadPrimitiveRoot } from "./ThreadRoot";
@@ -152,6 +153,11 @@ const Message: FC = () => (
   </MessagePrimitive.Root>
 );
 
+const AtBottom: FC = () => {
+  const isAtBottom = useThreadViewport((s) => s.isAtBottom);
+  return <output data-testid="is-at-bottom">{String(isAtBottom)}</output>;
+};
+
 const Thread = ({
   autoScroll,
   scrollToBottomOnInitialize,
@@ -167,6 +173,7 @@ const Thread = ({
       scrollToBottomOnInitialize={scrollToBottomOnInitialize}
     >
       <ThreadPrimitiveMessages components={{ Message }} />
+      <AtBottom />
     </ThreadPrimitiveViewport>
   </ThreadPrimitiveRoot>
 );
@@ -175,6 +182,7 @@ const BottomAnchorThread = () => (
   <ThreadPrimitiveRoot>
     <ThreadPrimitiveViewport data-testid="viewport">
       <ThreadPrimitiveMessages components={{ Message }} />
+      <AtBottom />
     </ThreadPrimitiveViewport>
   </ThreadPrimitiveRoot>
 );
@@ -340,6 +348,7 @@ describe("useThreadViewportAutoScroll", () => {
     act(notifyResizeObservers);
 
     expect(viewport.scrollTop).toBe(getMaxScrollTop(viewport));
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("true");
   });
 
   it("does not resume bottom follow after a stable-height user scroll-up", async () => {
@@ -365,6 +374,7 @@ describe("useThreadViewportAutoScroll", () => {
 
     expect(viewport.scrollTop).toBe(scrollTopAfterLeave);
     expect(viewport.scrollTop).toBeLessThan(getMaxScrollTop(viewport));
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
   });
 
   it("defers auto-scroll to an active top anchor only while the run is active", async () => {
@@ -456,5 +466,8 @@ describe("useThreadViewportAutoScroll", () => {
     });
 
     expect(getViewport().scrollTop).toBe(0);
+    viewportMeasurementOffset += 200;
+    act(notifyResizeObservers);
+    expect(screen.getByTestId("is-at-bottom").textContent).toBe("false");
   });
 });

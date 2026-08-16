@@ -3,6 +3,7 @@
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
 import { useAuiEvent, useAuiState } from "@assistant-ui/store";
+import { isUserScrollUp } from "@assistant-ui/store/client";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -68,11 +69,13 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // triggers, cleared when handleScroll confirms we reached bottom, or when the
   // user actively scrolls up while content size is stable.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
+  const followBottomRef = useRef(autoScroll);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
     const div = divRef.current;
     if (!div) return;
 
+    followBottomRef.current = true;
     scrollingToBottomBehaviorRef.current = behavior;
     div.scrollTo({ top: div.scrollHeight, behavior });
   }, []);
@@ -124,9 +127,13 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       // no-op: a smooth scroll-to-bottom fires many midpoint scroll events
       // before landing, don't flicker isAtBottom or clear intent mid-animation
     } else {
-      const isUserScrollUp =
-        lastScrollTop.current > div.scrollTop &&
-        lastScrollHeight.current === div.scrollHeight;
+      const userScrolledUp = isUserScrollUp(
+        {
+          scrollTop: lastScrollTop.current,
+          scrollHeight: lastScrollHeight.current,
+        },
+        div,
+      );
 
       if (newIsAtBottom) {
         // newIsAtBottom is ambiguous when the viewport doesn't overflow —
@@ -135,12 +142,14 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         if (viewportOverflows) {
           scrollingToBottomBehaviorRef.current = null;
         }
-      } else if (isUserScrollUp) {
-        // scrollHeight equality rules out content-driven shifts being misread as user scroll-up
+        if (autoScroll) followBottomRef.current = true;
+      } else if (userScrolledUp) {
         scrollingToBottomBehaviorRef.current = null;
+        followBottomRef.current = false;
       }
 
-      const shouldUpdate = newIsAtBottom || isUserScrollUp;
+      const shouldUpdate =
+        newIsAtBottom || scrollingToBottomBehaviorRef.current === null;
 
       if (shouldUpdate && newIsAtBottom !== isAtBottom) {
         writableStore(threadViewportStore).setState({
@@ -176,7 +185,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     } else if (
       autoScroll &&
       !(isRunning && hasActiveTopAnchor()) &&
-      threadViewportStore.getState().isAtBottom
+      followBottomRef.current
     ) {
       scrollToBottom("instant");
     }
@@ -190,6 +199,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     // the next content growth, e.g. expanding a collapsible tool call.
     const cancelPendingScrollToBottom = () => {
       scrollingToBottomBehaviorRef.current = null;
+      followBottomRef.current = false;
     };
     el.addEventListener("scroll", handleScroll);
     el.addEventListener("pointerdown", cancelPendingScrollToBottom);
