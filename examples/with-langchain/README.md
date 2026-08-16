@@ -19,7 +19,7 @@ NEXT_PUBLIC_LANGGRAPH_API_URL=http://localhost:2024
 NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
 ```
 
-Start a local LangGraph server via [LangGraph Studio](https://studio.langchain.com) pointing at your graph, or use [LangSmith](https://www.langchain.com/langsmith) for a hosted deployment.
+Start a local LangGraph server with [`langgraph dev`](https://docs.langchain.com/oss/python/langgraph/local-server), then inspect it in [LangSmith Studio](https://docs.langchain.com/langsmith/quick-start-studio). For a hosted deployment, use [LangSmith](https://www.langchain.com/langsmith).
 
 ### Run
 

@@ -36,4 +36,4 @@ npm run dev
 ## Related Documentation
 
 - [assistant-ui Documentation](https://www.assistant-ui.com/docs)
-- [React Hook Form Integration](https://www.assistant-ui.com/docs/integrations)
+- [Form-Filling AI Copilot Example](https://www.assistant-ui.com/examples/form-demo)
