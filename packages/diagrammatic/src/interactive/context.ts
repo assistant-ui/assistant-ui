@@ -1,15 +1,7 @@
 "use client";
 
 import { createContext, useContext } from "react";
-
-/**
- * The datum a hovered mark identifies. Charts stamp `data-i` and `data-series`
- * on every mark; the consumer owns the data those indices point into.
- */
-export type MarkDatum = {
-  index: number | undefined;
-  series: string | undefined;
-};
+import type { MarkDatum } from "./datum";
 
 /** Hover state; x and y are container-relative pointer coordinates. */
 export type TooltipState = {

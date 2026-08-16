@@ -6,7 +6,8 @@ import {
   type ReactNode,
   forwardRef,
 } from "react";
-import { type MarkDatum, useTooltipState } from "./context";
+import { useTooltipState } from "./context";
+import type { MarkDatum } from "./datum";
 
 export type TooltipSide = "top" | "bottom" | "left" | "right";
 

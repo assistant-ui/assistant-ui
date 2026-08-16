@@ -12,3 +12,13 @@
   --dg-surface: transparent;
   --dg-font: ui-monospace, "SF Mono", Menlo, monospace;
 }
+
+/* Highlight contract: Interactive.Root stamps data-dg-active / data-dg-muted
+   on marks when a highlight is set. These defaults fade the rest; restyle
+   either state with your own CSS. */
+[data-part="mark"] {
+  transition: opacity 150ms ease;
+}
+[data-part="mark"][data-dg-muted] {
+  opacity: 0.2;
+}
