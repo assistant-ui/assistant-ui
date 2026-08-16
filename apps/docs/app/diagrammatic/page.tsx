@@ -72,7 +72,8 @@ export default function DiagrammaticPage() {
             "max-w-[17ch] text-[clamp(3rem,8.5vw,7rem)] leading-[0.98] tracking-[-0.01em] text-balance",
           )}
         >
-          Sixty-six ways to <em className="text-(--da-red)">draw</em> a number.
+          Sixty-seven ways to <em className="text-(--da-red)">draw</em> a
+          number.
         </h1>
         <div className="mt-10 flex flex-wrap items-end justify-between gap-x-12 gap-y-6">
           <p className="max-w-md text-[15px] leading-relaxed text-(--da-ink)/60">

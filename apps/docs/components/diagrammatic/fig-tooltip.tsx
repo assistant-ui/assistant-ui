@@ -50,7 +50,7 @@ export function FigTooltip({
               matrix.columns?.[index],
             ].filter(Boolean);
             return (
-              <div className="border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
+              <div className="w-max border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
                 {where.length > 0 && (
                   <p className="mb-0.5 text-[10px] tracking-[0.08em] text-[#1a1b1e]/50 uppercase">
                     {where.join(" · ")}
@@ -70,7 +70,7 @@ export function FigTooltip({
             const value = entries?.[key];
             if (value !== undefined || datum.series2) {
               return (
-                <div className="border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
+                <div className="w-max border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
                   <p className="flex items-baseline gap-3">
                     <span className="text-[#1a1b1e]/60">{key}</span>
                     {value !== undefined && (
@@ -108,7 +108,7 @@ export function FigTooltip({
           );
           if (!title && rows.length === 0 && !datum.series) return null;
           return (
-            <div className="border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
+            <div className="w-max border border-black/10 bg-white/98 px-2.5 py-2 font-[family-name:var(--font-mono)] text-[11px] leading-4 text-[#1a1b1e] shadow-md">
               {title && (
                 <p className="mb-1 text-[10px] tracking-[0.08em] text-[#1a1b1e]/50 uppercase">
                   {title}

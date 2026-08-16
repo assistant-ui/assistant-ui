@@ -29,6 +29,10 @@
       "types": "./dist/interactive/index.d.ts",
       "default": "./dist/interactive/index.js"
     },
+    "./world": {
+      "types": "./dist/world/index.d.ts",
+      "default": "./dist/world/index.js"
+    },
     "./styles.css": {
       "style": "./src/styles.css",
       "default": "./src/styles.css"

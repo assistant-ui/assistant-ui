@@ -192,6 +192,10 @@ import {
   glyph as choroplethGlyph,
 } from "./demos/choropleth";
 import {
+  examples as worldMapExamples,
+  glyph as worldMapGlyph,
+} from "./demos/world-map";
+import {
   examples as symbolMapExamples,
   glyph as symbolMapGlyph,
 } from "./demos/symbol-map";
@@ -905,6 +909,16 @@ const SECTIONS: SectionInput[] = [
         watch: "Big areas dominate; map rates, never raw counts.",
         glyph: choroplethGlyph,
         examples: choroplethExamples,
+      },
+      {
+        slug: "world-map",
+        exportName: "WorldMap",
+        name: "World map",
+        blurb: "Real country outlines, shaded by value.",
+        use: "Per-country metrics on actual geography, keyed by ISO code.",
+        watch: "Area still lies: shade rates or shares, and label the tail.",
+        glyph: worldMapGlyph,
+        examples: worldMapExamples,
       },
       {
         slug: "symbol-map",
