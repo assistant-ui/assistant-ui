@@ -188,16 +188,24 @@ describe("normalizePersistedAuthState", () => {
         },
       }),
     ).toEqual({ token: "bearer-token" });
+  });
 
+  it("keeps the URL binding when optional discovery fields are malformed", () => {
     expect(
       normalizePersistedAuthState({
         token: "bearer-token",
         discoveryState: {
           authorizationServerUrl: "https://auth.example.com",
           authorizationServerMetadata: { issuer: 123 },
+          resourceMetadata: { resource: 42 },
         },
       }),
-    ).toEqual({ token: "bearer-token" });
+    ).toEqual({
+      token: "bearer-token",
+      discoveryState: {
+        authorizationServerUrl: "https://auth.example.com",
+      },
+    });
   });
 
   it.each([
@@ -215,7 +223,9 @@ describe("normalizePersistedAuthState", () => {
 
   it.each([
     "http://localhost:3000",
+    "http://foo.localhost:3000",
     "http://127.0.0.1:3000",
+    "http://127.0.0.2:3000",
     "http://[::1]:3000",
   ])("keeps loopback HTTP discovery URLs: %s", (url) => {
     expect(
@@ -227,7 +237,7 @@ describe("normalizePersistedAuthState", () => {
     });
   });
 
-  it("drops discovery state with an unsafe resource metadata URL", () => {
+  it("drops an unsafe resource metadata URL but keeps the binding", () => {
     expect(
       normalizePersistedAuthState({
         token: "bearer-token",
@@ -236,7 +246,12 @@ describe("normalizePersistedAuthState", () => {
           resourceMetadataUrl: "http://mcp.example.com/oauth-resource",
         },
       }),
-    ).toEqual({ token: "bearer-token" });
+    ).toEqual({
+      token: "bearer-token",
+      discoveryState: {
+        authorizationServerUrl: "https://auth.example.com",
+      },
+    });
   });
 
   it("keeps valid fields when neighboring fields are malformed", () => {

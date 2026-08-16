@@ -10,10 +10,7 @@ import {
   type ElicitResult,
   type StreamableHTTPClientTransportOptions,
 } from "@modelcontextprotocol/client";
-import {
-  clearOAuthProviderAuthState,
-  createOAuthProvider,
-} from "../auth/createOAuthProvider";
+import { createOAuthProvider } from "../auth/createOAuthProvider";
 import { buildHeaders } from "../auth/buildHeaders";
 import { assertValidServerId } from "../utils/serverId";
 import { validateElicitationContent } from "./validateElicitationContent";
@@ -543,7 +540,7 @@ const useMcpServerResource = (
     remove: async () => {
       await doDisconnect();
       try {
-        await clearOAuthProviderAuthState(props.storage, props.id);
+        await props.storage.clearAuthState(props.id);
         await props.onRemove();
       } catch (err) {
         setLastError({

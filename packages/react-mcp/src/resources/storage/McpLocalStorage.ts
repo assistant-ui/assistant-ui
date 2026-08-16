@@ -4,7 +4,6 @@ import {
   OAuthClientInformationFullSchema,
   OAuthProtectedResourceMetadataSchema,
   OAuthTokensSchema,
-  OpenIdProviderDiscoveryMetadataSchema,
 } from "@modelcontextprotocol/core";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
@@ -144,7 +143,8 @@ const isSecureNetworkUrl = (value: unknown): value is string => {
       url.protocol === "https:" ||
       (url.protocol === "http:" &&
         (url.hostname === "localhost" ||
-          url.hostname === "127.0.0.1" ||
+          url.hostname.endsWith(".localhost") ||
+          url.hostname.startsWith("127.") ||
           url.hostname === "[::1]"))
     );
   } catch {
@@ -159,37 +159,26 @@ const normalizeDiscoveryState = (
     return undefined;
   }
 
+  // A malformed optional field is dropped alone: keeping the validated
+  // authorization server URL preserves the redirect-time binding, and the SDK
+  // re-discovers whatever metadata is missing.
   const state: NonNullable<MCPPersistedAuthState["discoveryState"]> = {
     authorizationServerUrl: value.authorizationServerUrl,
   };
 
-  if (value.resourceMetadataUrl !== undefined) {
-    if (!isSecureNetworkUrl(value.resourceMetadataUrl)) return undefined;
+  if (isSecureNetworkUrl(value.resourceMetadataUrl)) {
     state.resourceMetadataUrl = value.resourceMetadataUrl;
   }
 
-  if (value.authorizationServerMetadata !== undefined) {
-    const oauth = OAuthMetadataSchema.safeParse(
-      value.authorizationServerMetadata,
-    );
-    if (oauth.success) {
-      state.authorizationServerMetadata = oauth.data;
-    } else {
-      const openId = OpenIdProviderDiscoveryMetadataSchema.safeParse(
-        value.authorizationServerMetadata,
-      );
-      if (!openId.success) return undefined;
-      state.authorizationServerMetadata = openId.data;
-    }
-  }
+  const metadata = OAuthMetadataSchema.safeParse(
+    value.authorizationServerMetadata,
+  );
+  if (metadata.success) state.authorizationServerMetadata = metadata.data;
 
-  if (value.resourceMetadata !== undefined) {
-    const metadata = OAuthProtectedResourceMetadataSchema.safeParse(
-      value.resourceMetadata,
-    );
-    if (!metadata.success) return undefined;
-    state.resourceMetadata = metadata.data;
-  }
+  const resourceMetadata = OAuthProtectedResourceMetadataSchema.safeParse(
+    value.resourceMetadata,
+  );
+  if (resourceMetadata.success) state.resourceMetadata = resourceMetadata.data;
 
   return state;
 };

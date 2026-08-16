@@ -13,7 +13,6 @@ import { McpServerResource } from "./McpServerResource";
 import { McpLocalStorage } from "./storage/McpLocalStorage";
 import type { MCPStorage, MCPStorageElement } from "./storage/types";
 import { assertUniqueServerIds } from "../utils/serverId";
-import { clearOAuthProviderAuthState } from "../auth/createOAuthProvider";
 import type {
   MCPAuthConfig,
   MCPConnector,
@@ -306,7 +305,7 @@ const useMcpManagerResource = (
       try {
         await lookup.get({ key: id }).remove();
       } catch {
-        await clearOAuthProviderAuthState(storage, id);
+        await storage.clearAuthState(id);
         setCustomServers((prev) => prev.filter((s) => s.id !== id));
       }
     },
