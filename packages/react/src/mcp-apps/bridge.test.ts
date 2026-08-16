@@ -475,4 +475,35 @@ describe("createMcpAppBridge", () => {
     expect(onRequestTeardown).toHaveBeenCalledWith({ reason: "done" });
     bridge.dispose();
   });
+
+  it("isolates a throwing onError from widget error notifications", () => {
+    const { frame } = makeFrame();
+    const callbackError = new Error("error callback failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const onError = vi.fn(() => {
+      throw callbackError;
+    });
+    const bridge = createMcpAppBridge({
+      frame,
+      handlers: { callTool: vi.fn(), onError },
+    });
+
+    expect(() =>
+      deliver(bridge, {
+        jsonrpc: "2.0",
+        method: "notifications/error",
+        params: { message: "kaboom" },
+      }),
+    ).not.toThrow();
+
+    expect(onError).toHaveBeenCalledWith(new Error("kaboom"));
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] MCP App onError callback threw an error",
+      callbackError,
+    );
+    consoleError.mockRestore();
+    bridge.dispose();
+  });
 });

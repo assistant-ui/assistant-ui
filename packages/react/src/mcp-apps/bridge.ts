@@ -422,7 +422,7 @@ export function createMcpAppBridge(
       }
       case "notifications/error": {
         const p = (note.params ?? {}) as { message?: string };
-        handlers.onError?.(
+        reportError(
           new Error(typeof p.message === "string" ? p.message : "Widget error"),
         );
         return;
