@@ -1,6 +1,6 @@
 "use client";
 
-import { useChat, type UIMessage } from "@ai-sdk/react";
+import { useChat, type Chat, type UIMessage } from "@ai-sdk/react";
 import {
   pickExternalStoreSharedOptions,
   type AssistantRuntime,
@@ -45,10 +45,16 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
     };
 
-export type ChatThreadEnvironment = {
+export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   id: string;
   isMainThread: boolean;
   getThreadListItem: () => InitializableThreadListItem | undefined;
+  /**
+   * An externally owned chat instance. State lives on the instance, so it
+   * survives the hosting resource unmounting; construction options are read
+   * from the instance.
+   */
+  chat?: Chat<UI_MESSAGE> | undefined;
 };
 
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -103,13 +109,17 @@ const getResumedStreamIds = (storage: ResumableClientStorage | undefined) => {
   return resumedStreamIds;
 };
 
-export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
+/**
+ * Splits the combined options into the assistant-ui side and the `ChatInit`
+ * remainder the AI SDK consumes, so external `Chat` construction forwards the
+ * same fields `useChat` would.
+ */
+export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
   options: ChatThreadOptions<UI_MESSAGE> | undefined,
-  env: ChatThreadEnvironment,
-): AssistantRuntime => {
+) => {
   const {
     adapters,
-    transport: transportOptions,
+    transport,
     toCreateMessage,
     isDisabled: _isDisabled,
     isSendDisabled: _isSendDisabled,
@@ -119,15 +129,41 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     onResumeToolCall,
     onResumeError,
     joinStrategy,
-    ...chatOptions
+    ...chatInit
   } = options ?? {};
-  // peel guard: any shared key left in `chatOptions` collapses this to `never`
-  true satisfies keyof typeof chatOptions &
+  // peel guard: any shared key left in `chatInit` collapses this to `never`
+  true satisfies keyof typeof chatInit &
     keyof ExternalStoreSharedOptions extends never
     ? true
     : never;
+  return {
+    adapters,
+    transport,
+    toCreateMessage,
+    onResume,
+    onResumeToolCall,
+    onResumeError,
+    joinStrategy,
+    chatInit,
+  };
+};
 
-  const { id, isMainThread, getThreadListItem } = env;
+export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
+  options: ChatThreadOptions<UI_MESSAGE> | undefined,
+  env: ChatThreadEnvironment<UI_MESSAGE>,
+): AssistantRuntime => {
+  const {
+    adapters,
+    transport: transportOptions,
+    toCreateMessage,
+    onResume,
+    onResumeToolCall,
+    onResumeError,
+    joinStrategy,
+    chatInit: chatOptions,
+  } = splitChatThreadOptions(options);
+
+  const { id, isMainThread, getThreadListItem, chat: externalChat } = env;
 
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
   const sourceTransport = transportOptions ?? defaultTransport;
@@ -137,6 +173,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...chatOptions,
     id,
     transport,
+    ...(externalChat !== undefined && { chat: externalChat }),
   });
 
   const runtime = useAISDKRuntime(chat, {

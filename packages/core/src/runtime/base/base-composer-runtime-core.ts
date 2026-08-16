@@ -720,9 +720,8 @@ export abstract class BaseComposerRuntimeCore
 
     const session = this._dictationSession;
     const sessionId = this._activeDictationSessionId;
-    session.stop().finally(() => {
-      this._cleanupDictation({ sessionId });
-    });
+    const cleanup = () => this._cleanupDictation({ sessionId });
+    void session.stop().then(cleanup, cleanup);
   }
 
   private _cleanupDictation(options?: { sessionId: number | undefined }): void {

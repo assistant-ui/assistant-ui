@@ -1,17 +1,21 @@
 import { useState, useMemo } from "react";
 import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
+import type {
+  AssistantClient,
+  ClientOutput,
+  ScopesConfig,
+} from "@assistant-ui/store";
 import {
-  type ClientOutput,
   useClientLookup,
   Derived,
   attachTransformScopes,
   useClientResource,
-} from "@assistant-ui/store";
-import { useThreadSelectionEvents } from "@assistant-ui/core/store/internal";
-import { generateId } from "@assistant-ui/core";
-
-import { ModelContext } from "@assistant-ui/core/store";
-import { Tools, DataRenderers } from "@assistant-ui/core/react";
+} from "@assistant-ui/store/client";
+import { useThreadSelectionEvents } from "../../store/internal";
+import { generateId } from "../../utils/id";
+import { ModelContext } from "../../store/clients/model-context-client";
+import { Tools } from "./Tools";
+import { DataRenderers } from "./DataRenderers";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -19,6 +23,7 @@ export type InMemoryThreadListProps = {
   thread: (threadId: string) => ResourceElement<ClientOutput<"thread">>;
   onSwitchToThread?: (threadId: string) => void;
   onSwitchToNewThread?: () => void;
+  onDelete?: (threadId: string) => void;
 };
 
 type ThreadData = {
@@ -86,17 +91,24 @@ const useInMemoryThreadList = (
     thread: threadFactory,
     onSwitchToThread,
     onSwitchToNewThread,
+    onDelete,
   } = props;
 
-  const [mainThreadId, setMainThreadId] = useState("main");
-  const [threads, setThreads] = useState<readonly ThreadData[]>(() => [
-    { id: "main", title: "Main Thread", status: "regular" },
-  ]);
+  const [{ threads, mainThreadId }, setListState] = useState<{
+    threads: readonly ThreadData[];
+    mainThreadId: string;
+  }>(() => ({
+    threads: [{ id: "main", title: "Main Thread", status: "regular" }],
+    mainThreadId: "main",
+  }));
+  const setThreads = (
+    update: (prev: readonly ThreadData[]) => readonly ThreadData[],
+  ) => setListState((prev) => ({ ...prev, threads: update(prev.threads) }));
 
   useThreadSelectionEvents(mainThreadId);
 
   const handleSwitchToThread = (threadId: string) => {
-    setMainThreadId(threadId);
+    setListState((prev) => ({ ...prev, mainThreadId: threadId }));
     onSwitchToThread?.(threadId);
   };
 
@@ -132,21 +144,39 @@ const useInMemoryThreadList = (
   };
 
   const handleDelete = (threadId: string) => {
-    setThreads((prev) => prev.filter((t) => t.id !== threadId));
-    setMainThreadId((prev) =>
-      prev === threadId
-        ? threads.find((t) => t.id !== threadId)?.id || "main"
-        : prev,
-    );
+    // Deleting the last thread starts a fresh one; the removed id must not
+    // stay selected. The fallback id is minted eagerly so the updater stays
+    // pure under batched deletes.
+    const fallbackId = `thread-${generateId()}`;
+    setListState((prev) => {
+      const remaining = prev.threads.filter((t) => t.id !== threadId);
+      if (remaining.length === 0) {
+        return {
+          threads: [{ id: fallbackId, title: "New Thread", status: "regular" }],
+          mainThreadId: fallbackId,
+        };
+      }
+      return {
+        threads: remaining,
+        mainThreadId:
+          prev.mainThreadId === threadId
+            ? (remaining.find((t) => t.status === "regular") ?? remaining[0]!)
+                .id
+            : prev.mainThreadId,
+      };
+    });
+    onDelete?.(threadId);
   };
 
   const handleSwitchToNewThread = () => {
     const newId = `thread-${generateId()}`;
-    setThreads((prev) => [
-      ...prev,
-      { id: newId, title: "New Thread", status: "regular" },
-    ]);
-    setMainThreadId(newId);
+    setListState((prev) => ({
+      threads: [
+        ...prev.threads,
+        { id: newId, title: "New Thread", status: "regular" },
+      ],
+      mainThreadId: newId,
+    }));
     onSwitchToNewThread?.();
   };
 
@@ -214,7 +244,15 @@ const useInMemoryThreadList = (
 
 export const InMemoryThreadList = resource(useInMemoryThreadList);
 
-attachTransformScopes(useInMemoryThreadList, (scopes, parent) => {
+/**
+ * The scope defaults `InMemoryThreadList` installs when it is used as the
+ * `threads` config entry. Adapter packages that wrap it in their own config
+ * entry attach this to the wrapping resource for scope parity.
+ */
+export const inMemoryThreadListTransformScopes = (
+  scopes: ScopesConfig,
+  parent: AssistantClient,
+): void => {
   scopes.thread ??= Derived({
     source: "threads",
     query: { type: "main" },
@@ -247,4 +285,6 @@ attachTransformScopes(useInMemoryThreadList, (scopes, parent) => {
       get: (aui) => aui.thread.suggestions(),
     });
   }
-});
+};
+
+attachTransformScopes(useInMemoryThreadList, inMemoryThreadListTransformScopes);

@@ -881,22 +881,10 @@ type OpenCodeAttachmentAdapterOptions = {
 };
 
 declare class OpenCodeEventSource {
-  private readonly listeners;
-  private readonly reconnectDelayMs;
-  private readonly maxReconnectDelayMs;
-  private abortController;
-  private connectionPromise;
-  private stopped;
-  private nextReconnectDelayMs;
-  private hadConnection;
-  private readonly client;
+  #private;
   constructor(client: OpencodeClient);
   subscribe(listener: Listener): () => void;
   dispose(): void;
-  private emit;
-  private connect;
-  private disconnect;
-  private run;
 }
 
 type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
@@ -1088,39 +1076,13 @@ type OpenCodeStateEvent = {
 };
 
 declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
-  private state;
-  private readonly listeners;
-  private readonly getEventSource;
-  private unsubscribeFromEvents;
-  private loadPromise;
-  private reconnectSyncToken;
-  private readonly childControllersById;
-  private readonly childSessionIdByPartId;
-  private ancestorSessionIds;
-  private isChildSession;
-  private readonly stagedMessages;
-  private readonly client;
-  private readonly sessionId;
+  #private;
   constructor(client: OpencodeClient, getEventSource: OpenCodeEventSourceProvider, sessionId: string);
-  private notifyListeners;
-  private updateChildSnapshot;
-  private attachChildController;
-  private detachChildControllers;
-  private discard;
-  private rebuildChildSessionIndex;
-  private updateChildSessionIndex;
-  private removeFromChildSessionIndex;
-  private syncChildControllers;
-  private syncChildSessionIndex;
-  private ensureEventSubscription;
-  private handleStreamReconnect;
   dispose(): void;
   getState: () => OpenCodeThreadState;
   subscribe: (listener: () => void) => () => void;
   load(force?: boolean): Promise<void>;
   refresh(): Promise<void>;
-  private createPendingMessage;
-  private promptMessage;
   sendMessage(message: AppendMessage, options?: OpenCodeUserMessageOptions): Promise<void>;
   stageMessage(message: AppendMessage, options?: OpenCodeUserMessageOptions): Promise<void>;
   sendStagedMessage(parentId: string, options?: OpenCodeUserMessageOptions): Promise<boolean>;
@@ -1131,9 +1093,6 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   replyToPermission(permissionId: string, response: OpenCodePermissionResponse): Promise<void>;
   replyToQuestion(questionId: string, answers: readonly QuestionAnswer$1[]): Promise<void>;
   rejectQuestion(questionId: string): Promise<void>;
-  private refreshInBackground;
-  private handleServerEvent;
-  private dispatch;
 }
 
 type OpenCodeThreadControllerLike = {
