@@ -136,9 +136,16 @@ export const useAdkMessages = ({
         m.id ? m : { ...m, id: uuidv4() },
       ) as AdkMessage[];
 
-      const accumulator = new AdkEventAccumulator(messagesRef.current);
-      for (const msg of newMessagesWithId) {
-        accumulator.processEvent(messageToEvent(msg));
+      // A staged message is already in the thread under its own id, and the
+      // merged event below re-emits the whole batch under the first one. Seeding
+      // with the originals would leave every later staged id beside the merged
+      // copy of itself.
+      const resentIds = new Set(newMessagesWithId.map((m) => m.id));
+      const accumulator = new AdkEventAccumulator(
+        messagesRef.current.filter((m) => !resentIds.has(m.id)),
+      );
+      for (const event of messagesToEvents(newMessagesWithId)) {
+        accumulator.processEvent(event);
       }
       setMessagesImmediate(accumulator.getMessages());
 
@@ -254,6 +261,55 @@ export const useAdkMessages = ({
     replaceMessages,
     applySnapshot,
   };
+};
+
+/**
+ * Transport sends every human and tool message of one `send` call as a single
+ * ADK `Content`, and ADK parses that event's function responses before running
+ * any tool, so the batch runs whole or not at all. The optimistic projection
+ * has to sit on the same boundary, so a run of those messages becomes one
+ * synthetic event whose parts come from the same per-message conversion.
+ *
+ * The transport drops `ai` messages from that `Content`, so one interleaved
+ * between two replies does not split the batch on the wire and must not split
+ * it here either. It still becomes its own event, placed after the merged one,
+ * so the optimistic projection keeps the assistant turn.
+ *
+ * @internal — exported for unit tests.
+ */
+export const messagesToEvents = (messages: AdkMessage[]): AdkEvent[] => {
+  // A reload sends no messages at all, and the empty user content the transport
+  // puts on the wire for it is not part of the optimistic view: projecting one
+  // would put an empty user bubble above every regenerated turn.
+  if (messages.length === 0) return [];
+
+  const events: AdkEvent[] = [];
+  const run: AdkMessage[] = [];
+  let runIndex = 0;
+
+  for (const msg of messages) {
+    if (msg.type === "ai") {
+      events.push(messageToEvent(msg));
+    } else {
+      if (run.length === 0) runIndex = events.length;
+      run.push(msg);
+    }
+  }
+
+  const parts = run.flatMap((m) => messageToEvent(m).content?.parts ?? []);
+  const human = run.find((m) => m.type === "human");
+
+  // A batch that contributes no part still reaches the wire: the transport
+  // sends an empty user `Content`, which a reload replays as an empty human
+  // message. Emitting it here keeps the optimistic view equal to that replay.
+  if (parts.length === 0) parts.push({ text: "" });
+
+  const event: AdkEvent = { id: (human ?? run[0])?.id ?? uuidv4() };
+  if (human || run.length === 0) event.author = "user";
+  event.content = { role: "user", parts };
+  events.splice(run.length > 0 ? runIndex : events.length, 0, event);
+
+  return events;
 };
 
 /** @internal — exported for unit tests. */

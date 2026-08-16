@@ -147,6 +147,14 @@ const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
   })),
 });
 
+const deferred = <T,>() => {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((res) => {
+    resolve = res;
+  });
+  return { promise, resolve };
+};
+
 describe("useStreamRuntime thread options", () => {
   it("keeps stream options isolated between mounted threads", async () => {
     mockUseStream.mockReturnValue(createMockStream());
@@ -184,6 +192,85 @@ describe("useStreamRuntime thread options", () => {
     expect(threadAOptions).not.toBe(threadBOptions);
     expect(threadAOptions?.threadId).toBe("thread-a");
 
+    view.unmount();
+  });
+
+  it("submits with the initialized thread id when initialization resolves before rerender", async () => {
+    const stream = createMockStream();
+    mockUseStream.mockReturnValue(stream);
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const threadListAdapter = makeThreadListAdapter();
+    threadListAdapter.list = vi.fn(async () => ({ threads: [] }));
+    threadListAdapter.initialize = vi.fn(() => initialization.promise);
+
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const TestRuntime = () => {
+      const runtime = useStreamRuntime({
+        apiUrl: "/api",
+        unstable_threadListAdapter: threadListAdapter,
+      } as never);
+      capture.runtime = runtime;
+      return <AssistantRuntimeProvider runtime={runtime} />;
+    };
+
+    const view = render(<TestRuntime />);
+    await waitFor(() => expect(capture.runtime).not.toBeNull());
+
+    await act(async () => {
+      capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      });
+      await Promise.resolve();
+    });
+
+    expect(stream.submit).not.toHaveBeenCalled();
+
+    await act(async () => {
+      initialization.resolve({ remoteId: "thread-b", externalId: "thread-b" });
+    });
+
+    await waitFor(() =>
+      expect(stream.submit).toHaveBeenCalledWith(
+        { messages: [{ type: "human", content: "hello" }] },
+        { threadId: "thread-b" },
+      ),
+    );
+    view.unmount();
+  });
+
+  it("omits the threadId override when initialization yields no external id", async () => {
+    const stream = createMockStream();
+    mockUseStream.mockReturnValue(stream);
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const TestRuntime = () => {
+      const runtime = useStreamRuntime({ apiUrl: "/api" } as never);
+      capture.runtime = runtime;
+      return <AssistantRuntimeProvider runtime={runtime} />;
+    };
+    const view = render(<TestRuntime />);
+    await waitFor(() => expect(capture.runtime).not.toBeNull());
+
+    await act(async () => {
+      await capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "one" }],
+      });
+    });
+    await act(async () => {
+      await capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "two" }],
+      });
+    });
+
+    expect(stream.submit).toHaveBeenCalledTimes(2);
+    for (const call of stream.submit.mock.calls) {
+      expect(call[1]).not.toHaveProperty("threadId");
+    }
     view.unmount();
   });
 });

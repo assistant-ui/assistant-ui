@@ -144,6 +144,29 @@ describe("LocalThreadRuntimeCore events", () => {
   });
 });
 
+describe("LocalThreadRuntimeCore - detach", () => {
+  it("drops a pending append when detached", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const thread = createThread({ run });
+    thread.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = thread.append(userMessage("hello"));
+    await Promise.resolve();
+    thread.detach();
+    resolveInitialization();
+
+    await appendPromise;
+    expect(run).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+  });
+});
+
 describe("LocalThreadRuntimeCore human-in-the-loop tools", () => {
   it("pauses on requires-action while a listed tool call has no result", async () => {
     const { thread, runs } = createApprovalThread(toolCallResult("send_email"));
@@ -604,6 +627,48 @@ describe("LocalThreadRuntimeCore cancellation", () => {
 });
 
 describe("LocalThreadRuntimeCore suggestions", () => {
+  it("ignores suggestion generation from a superseded run", async () => {
+    let releaseFirst!: () => void;
+    let releaseSecond!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const secondGate = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    let runCount = 0;
+    const generate = vi.fn().mockResolvedValue([{ prompt: "follow up" }]);
+    const thread = createThread(
+      {
+        async run() {
+          runCount += 1;
+          await (runCount === 1 ? firstGate : secondGate);
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { suggestion: { generate } },
+    );
+
+    const firstAppend = thread.append(userMessage("first"));
+    await flush();
+    const secondAppend = thread.append(userMessage("second"));
+    await flush();
+
+    releaseFirst();
+    await firstAppend;
+    await flush();
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(thread.suggestions).toEqual([]);
+
+    releaseSecond();
+    await secondAppend;
+    await flush();
+
+    expect(generate).toHaveBeenCalledOnce();
+    expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
+  });
+
   it("cancelRun aborts pending suggestion generation", async () => {
     const generate = vi.fn().mockImplementation(
       ({ signal }: { signal?: AbortSignal }) =>

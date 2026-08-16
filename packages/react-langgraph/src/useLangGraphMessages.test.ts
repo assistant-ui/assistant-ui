@@ -1119,7 +1119,7 @@ describe("useLangGraphMessages", {}, () => {
       result.current.sendMessage([{ type: "human", content: "test" }], {
         checkpointId: "cp-456",
         command: { resume: "yes" },
-        runConfig: { model: "gpt-5.4-nano" },
+        runConfig: { model: "gpt-5.6-luna" },
       });
     });
 
@@ -1128,7 +1128,7 @@ describe("useLangGraphMessages", {}, () => {
       const config = streamSpy.mock.calls[0]![1];
       expect(config.checkpointId).toBe("cp-456");
       expect(config.command).toEqual({ resume: "yes" });
-      expect(config.runConfig).toEqual({ model: "gpt-5.4-nano" });
+      expect(config.runConfig).toEqual({ model: "gpt-5.6-luna" });
       expect(config.abortSignal).toBeInstanceOf(AbortSignal);
       expect(typeof config.initialize).toBe("function");
     });

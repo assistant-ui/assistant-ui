@@ -1,10 +1,14 @@
-import { CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, useChat } from "@ai-sdk/react";
+import { Chat, CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, useChat } from "@ai-sdk/react";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { ChatInit, DefaultChatTransport, HttpChatTransportInitOptions, ToolSet, UIMessage } from "ai";
+import { ChatInit, ChatTransport, DefaultChatTransport, HttpChatTransportInitOptions, ToolSet, UIMessage } from "ai";
 
 import { ComponentType, ReactNode } from "react";
+
+declare const AISDKChat: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKChatOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
+
+type AISDKChatOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatThreadOptions<UI_MESSAGE>;
 
 type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   adapters?: (NonNullable<ExternalStoreAdapter["adapters"]> & {
@@ -16,6 +20,12 @@ type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   onResume?: ExternalStoreAdapter["onResume"];
   onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
   joinStrategy?: JoinStrategy | undefined;
+};
+
+declare const AISDKThreads: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKThreadsOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
+
+type AISDKThreadsOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "id" | "messages" | "transport"> & {
+  transport?: ChatTransport<UI_MESSAGE> | (() => ChatTransport<UI_MESSAGE>) | undefined;
 };
 
 declare class AISDKToolkit {
@@ -60,9 +70,8 @@ type AssistantChatResumableOptions = {
 };
 
 declare class AssistantChatTransport<UI_MESSAGE extends UIMessage> extends DefaultChatTransport<UI_MESSAGE> {
-  private runtime;
-  private getThreadListItem;
-  private readonly resumable;
+  #private;
+  __internal_clone(): AssistantChatTransport<UI_MESSAGE>;
   constructor(initOptions?: AssistantChatTransportInitOptions<UI_MESSAGE>);
   setRuntime(runtime: AssistantRuntime): void;
   getResumableAdapter(): AssistantChatResumableOptions | undefined;
@@ -101,7 +110,7 @@ type AssistantCloudAuthStrategy = {
 };
 
 declare class AssistantCloudAuthTokens {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   create(): Promise<AssistantCloudAuthTokensCreateResponse>;
 }
@@ -126,7 +135,7 @@ type AssistantCloudConfig = ({
 };
 
 declare class AssistantCloudFiles {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   pdfToImages(body: PdfToImagesRequestBody): Promise<PdfToImagesResponse>;
   generatePresignedUploadUrl(body: GeneratePresignedUploadUrlRequestBody): Promise<GeneratePresignedUploadUrlResponse>;
@@ -147,14 +156,14 @@ type AssistantCloudProjectThreadMessageListResponse = {
 };
 
 declare class AssistantCloudProjectThreadMessages {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   list(threadId: string, query?: AssistantCloudProjectThreadMessageListQuery): Promise<AssistantCloudProjectThreadMessageListResponse>;
 }
 
 declare class AssistantCloudProjectThreads {
+  #private;
   readonly messages: AssistantCloudProjectThreadMessages;
-  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
 }
@@ -200,7 +209,7 @@ type AssistantCloudRunReport = {
 };
 
 declare class AssistantCloudRuns {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
@@ -249,7 +258,7 @@ type AssistantCloudThreadMessageUpdateBody = {
 };
 
 declare class AssistantCloudThreadMessages {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
@@ -257,8 +266,8 @@ declare class AssistantCloudThreadMessages {
 }
 
 declare class AssistantCloudThreads {
+  #private;
   readonly messages: AssistantCloudThreadMessages;
-  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -506,6 +515,45 @@ type ChatModelRunResult = {
     readonly timing?: MessageTiming | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   };
+};
+
+type ChatThreadOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<UI_MESSAGE> & ExternalStoreSharedOptions & {
+  adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
+  toCreateMessage?: CustomToCreateMessageFunction;
+  onResume?: AISDKRuntimeAdapter["onResume"];
+  onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
+  onResumeError?: ((error: unknown) => void) | undefined;
+  joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
+};
+
+type ClientError<E extends string> = {
+  methods: Record<E, () => E>;
+  meta: {
+    source: ClientNames;
+    query: Record<E, E>;
+  };
+  events: Record<`${E}.`, E>;
+};
+
+type ClientEventsType<K extends string> = Record<`${K}.${string}`, unknown>;
+
+type ClientMetaType = {
+  source: ClientNames;
+  query: Record<string, unknown>;
+};
+
+interface ClientMethods {
+  [key: string | symbol]: (...args: any[]) => any;
+}
+
+type ClientNames = keyof ClientSchemas extends (infer U) ? U : never;
+
+type ClientOutput<K extends ClientNames> = ClientSchemas[K]["methods"] & ClientMethods;
+
+type ClientSchemas = keyof ScopeRegistry extends never ? {
+  "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
+} : {
+  [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
 };
 
 type CloudMessage = {
@@ -1366,6 +1414,17 @@ type ReportToolCall = {
   sampling_calls?: SamplingCallData[];
 };
 
+type ReservedAccessorProps = "name" | "query" | "source";
+
+type ReservedScopeNames = "on" | "optional" | "subscribe";
+
+type ResourceElement<V> = {
+  readonly hook: (...args: any[]) => V;
+  readonly args: readonly unknown[];
+  readonly key?: string | number;
+  readonly deps?: readonly unknown[];
+};
+
 type RespondToToolApprovalOptions = {
   approvalId: string;
   approved: boolean;
@@ -1413,6 +1472,10 @@ type SamplingCallData = {
   cached_input_tokens?: number;
   duration_ms?: number;
 };
+
+interface ScopeRegistry {
+  [key: string]: { methods: any; meta?: any; events?: any };
+}
 
 type SendOptions = {
   startRun?: boolean;
@@ -1708,6 +1771,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -2056,16 +2120,20 @@ type Unstable_InteractableSnapshotEntry = {
 
 type Unsubscribe = () => void;
 
-type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<UI_MESSAGE> & ExternalStoreSharedOptions & {
+type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatThreadOptions<UI_MESSAGE> & {
   cloud?: AssistantCloud | undefined;
-  adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
-  toCreateMessage?: CustomToCreateMessageFunction;
-  onResume?: AISDKRuntimeAdapter["onResume"];
-  onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
-  onResumeError?: ((error: unknown) => void) | undefined;
-  joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
 };
+
+type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : unknown extends ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> ? TClient : ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> & ClientError<never>;
+
+type ValidateEvents<K extends string, TClient> = "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? unknown : ClientError<`ERROR: ${K} has invalid events type`> : unknown;
+
+type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? unknown : ClientError<`ERROR: ${K} has invalid meta type`> : unknown;
+
+type ValidateMethods<K extends string, TClient> = TClient extends {
+  methods: ClientMethods;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 type VoiceSessionState = {
   readonly status: RealtimeVoiceAdapter.Status;
@@ -2107,7 +2175,7 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, FrontendTools, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKChat, useAISDKError, useAISDKRuntime, useChatRuntime, useThreadTokenUsage };
+  export { AISDKChat, AISDKChatOptions, AISDKThreads, AISDKThreadsOptions, AISDKToolkit, AISDKToolkitOptions, AISDKToolkitToolsOptions, AssistantChatResumableOptions, AssistantChatTransport, FrontendTools, GenerativeToolsOptions, RESUMABLE_STREAM_ID_HEADER, ResumableClientStorage, ThreadTokenUsage, TokenUsageExtractableMessage, UseChatRuntimeOptions, createResumableSessionStorage, frontendTools, generativeTools, getThreadMessageTokenUsage, injectQuoteContext, unstable_injectInteractableContext, useAISDKChat, useAISDKError, useAISDKRuntime, useChatRuntime, useThreadTokenUsage };
 }
 
 declare function injectQuoteContext(messages: UIMessage[]): UIMessage[];

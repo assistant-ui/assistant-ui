@@ -22,7 +22,10 @@ export interface ChangelogRecord {
 
   hasEagerState: boolean;
   eagerState: any;
+  prevState: any;
+  settled: boolean;
   queued: boolean;
+  logged: boolean;
 }
 
 export type ReducerCell = {
@@ -49,14 +52,18 @@ export type MemoCell<T = any> = {
 
 export type EffectCell = {
   readonly type: "effect";
+  setup: (() => (() => void) | undefined) | undefined;
+  setupDeps: readonly unknown[] | undefined;
   cleanup: (() => void) | undefined;
+  // null = never ran or disconnected, undefined = deps-less
   deps: readonly unknown[] | null | undefined;
+  generation: number;
 };
 
 export type Cell = ReducerCell | MemoCell | EffectCell;
 
 export type CommitCallback = () => void;
-export type CommitCallbacks = Array<CommitCallback[] | undefined>;
+export type CommitCallbacks = CommitCallback[];
 
 export type ResourceContext = Map<object, ResourceContextValue>;
 export type ResourceContextDeps = Map<object, ResourceFiber<any> | null>;
@@ -69,8 +76,9 @@ export interface ResourceContextValue {
 export interface TapRoot {
   version: number;
   committedVersion: number;
-  context: ResourceContext;
   readonly changelog: ChangelogRecord[];
+  readonly committedLog: ChangelogRecord[];
+  unsettledCount: number;
   readonly dispatchUpdate: (
     evaluate: () => boolean,
     apply: () => boolean,
@@ -86,13 +94,16 @@ export interface ResourceFiber<R> {
   readonly devStrictMode: "root" | "child" | null;
 
   cells: Cell[];
+  effectCells: EffectCell[];
 
   wipContextDeps: ResourceContextDeps | null;
   contextDeps: ResourceContextDeps | null;
-  commitCallbacks: CommitCallbacks | null;
   wipCommitCallbacks: CommitCallbacks | null;
 
   currentIndex: number;
+  // workInProgress persists across uncommitted renders: a StrictMode double
+  // invoke reaches tap as separate renderResourceFiber calls with no attempt
+  // boundary, so an entry discard would re-run every compiled memo factory.
   memoCache: {
     current: unknown[][] | null;
     workInProgress: unknown[][] | null;

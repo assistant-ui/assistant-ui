@@ -4824,6 +4824,84 @@ describe("AGUIThreadRuntimeCore", () => {
     for (const { full, text } of observed) expect(text).toBe(full);
   });
 
+  it("reasserts custom data parts after a messages snapshot", async () => {
+    const mid = "44444444-5555-6666-7777-888888888888";
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: mid },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: { type: "TEXT_MESSAGE_CONTENT", messageId: mid, delta: "Hi" },
+        });
+        subscriber.onCustomEvent?.({
+          event: {
+            type: "CUSTOM",
+            name: "sources",
+            value: { messageId: mid, sources: [{ title: "Docs" }] },
+          },
+        });
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u-snap", role: "user", content: "hi" },
+              { id: mid, role: "assistant", content: "Hi" },
+            ],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(core.getMessages().at(-1)).toMatchObject({
+      id: mid,
+      role: "assistant",
+      content: [
+        { type: "text", text: "Hi" },
+        {
+          type: "data",
+          name: "sources",
+          data: { messageId: mid, sources: [{ title: "Docs" }] },
+        },
+      ],
+      status: { type: "complete" },
+    });
+  });
+
+  it("does not resurrect an evicted assistant for data-only content after a snapshot", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onCustomEvent?.({
+          event: { type: "CUSTOM", name: "sources", value: { id: "s1" } },
+        });
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "u-snap", role: "user", content: "hi" },
+              { id: "a-snap", role: "assistant", content: "Hi from snapshot" },
+            ],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistants = core.getMessages().filter((m) => m.role === "assistant");
+    expect(assistants).toHaveLength(1);
+    expect(assistants[0]).toMatchObject({
+      id: "a-snap",
+      content: [{ type: "text", text: "Hi from snapshot" }],
+    });
+  });
+
   it("renders an assistant delivered via MESSAGES_SNAPSHOT without text deltas", async () => {
     const mid = "33333333-4444-5555-6666-777777777777";
     const agent = {

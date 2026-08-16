@@ -526,12 +526,18 @@ export class A2AThreadRuntimeCore {
       abortController.signal,
     );
 
+    let receivedEvent = false;
     for await (const event of stream) {
       if (abortController.signal.aborted) break;
+      receivedEvent = true;
       this.handleStreamEvent(assistantId, event);
     }
 
     if (!abortController.signal.aborted) {
+      if (!receivedEvent) {
+        throw new Error("A2A message stream ended without any events.");
+      }
+
       const lastStatus = this.getAssistantStatus(assistantId);
       if (lastStatus?.type === "running") {
         this.updateAssistantStatus(assistantId, {

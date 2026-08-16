@@ -1,5 +1,18 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.33
+
+### Patch Changes
+
+- [#5706](https://github.com/assistant-ui/assistant-ui/pull/5706) [`8931526`](https://github.com/assistant-ui/assistant-ui/commit/8931526edb88404da9aaad9b9dc6c1ebfcc855eb) - fix: clear stale thread lists when the Cloud client changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5715](https://github.com/assistant-ui/assistant-ui/pull/5715) [`8bba3aa`](https://github.com/assistant-ui/assistant-ui/commit/8bba3aaadcae042b4750436e6aa62bbba4815dde) - fix: include archived Cloud threads when requested and preserve archive filters ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5706](https://github.com/assistant-ui/assistant-ui/pull/5706) [`8931526`](https://github.com/assistant-ui/assistant-ui/commit/8931526edb88404da9aaad9b9dc6c1ebfcc855eb) - fix: settle thread loading when automatic fetching becomes disabled ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`8bba3aa`](https://github.com/assistant-ui/assistant-ui/commit/8bba3aaadcae042b4750436e6aa62bbba4815dde)]:
+  - assistant-cloud@0.1.40
+
 ## 0.1.32
 
 ### Patch Changes
