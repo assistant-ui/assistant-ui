@@ -1,6 +1,7 @@
 "use client";
 
 import { type FormEvent, useCallback, useState } from "react";
+import { Button } from "@/components/ui/button";
 
 interface ApplyFormProps {
   roleTitle: string;
@@ -105,12 +106,9 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
         ></textarea>
       </label>
 
-      <button
-        type="submit"
-        className="border-border text-foreground hover:border-primary hover:bg-primary/5 hover:text-primary inline-flex w-fit items-center justify-center rounded-full border px-5 py-2 text-sm font-medium transition"
-      >
+      <Button type="submit" variant="outline" className="w-fit">
         Apply now
-      </button>
+      </Button>
 
       {fallbackVisible ? (
         <div className="border-border/70 bg-background/50 mt-2 grid gap-2 rounded-lg border border-dashed p-3">
@@ -118,15 +116,18 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
             If your email client didn&apos;t open, use the options below.
           </p>
           <div className="flex flex-wrap items-center gap-2">
-            <a
-              href={mailtoHref}
-              className="border-border text-foreground hover:border-primary hover:bg-primary/5 hover:text-primary inline-flex items-center justify-center rounded-full border px-4 py-1.5 text-xs font-medium transition"
+            <Button
+              variant="outline"
+              size="sm"
+              nativeButton={false}
+              render={<a href={mailtoHref} />}
             >
               Open email client
-            </a>
-            <button
+            </Button>
+            <Button
               type="button"
-              className="border-border text-foreground hover:border-primary hover:bg-primary/5 hover:text-primary inline-flex items-center justify-center rounded-full border px-4 py-1.5 text-xs font-medium transition"
+              variant="outline"
+              size="sm"
               onClick={async () => {
                 try {
                   const text = `To: careers@assistant-ui.com
@@ -143,7 +144,7 @@ ${composedBody}`;
               }}
             >
               Copy email text
-            </button>
+            </Button>
             <span className="text-muted-foreground text-xs">
               {copyStatus === "success"
                 ? "Copied!"

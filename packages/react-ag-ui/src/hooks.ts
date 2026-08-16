@@ -1,5 +1,6 @@
 "use client";
 
+import { useCallback } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { CreateAppendMessage } from "@assistant-ui/core";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -14,6 +15,19 @@ const EMPTY_INTERRUPTS: readonly AgUiInterrupt[] = [];
  */
 export const useAgUiInterrupts = (): readonly AgUiInterrupt[] =>
   agUiExtras.use((e) => e.interrupts, EMPTY_INTERRUPTS);
+
+/**
+ * Returns a stable function that sends an A2UI action back to the agent and
+ * resumes the run.
+ */
+export const useAgUiSendA2uiAction = () => {
+  const aui = useAui();
+  return useCallback(
+    (action: Record<string, unknown>): void =>
+      agUiExtras.get(aui).sendA2uiAction(action),
+    [aui],
+  );
+};
 
 /**
  * Returns a function that submits responses (each `resolved` or `cancelled`)

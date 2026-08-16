@@ -59,22 +59,19 @@ export const CounterResource = resource(useCounterResource);
 
 ## Use it in React
 
-Use `useAui` to create a store, `AuiProvider` to provide it to the tree, and `useAuiState` to subscribe to state.
+Use `AuiProvider` to create a store and provide it to the tree, and `useAuiState` to subscribe to state.
 
 ```tsx title="app/CounterApp.tsx"
 "use client";
 
-import { useAui, AuiProvider } from "@assistant-ui/store";
+import { AuiConfig, AuiProvider } from "@assistant-ui/store";
 import { CounterResource } from "@/lib/store/counter-store";
 import { CounterDisplay } from "./CounterDisplay";
 
 export const CounterApp = () => {
-  const aui = useAui({
-    counter: CounterResource({ initialCount: 0 }),
-  });
-
+  const config = AuiConfig({ counter: CounterResource({ initialCount: 0 }) });
   return (
-    <AuiProvider value={aui}>
+    <AuiProvider config={config}>
       <CounterDisplay />
     </AuiProvider>
   );

@@ -166,7 +166,8 @@ export function cleanTypeText(typeText: string): string {
 }
 
 export function cleanSignatureText(text: string): string {
-  return cleanTypeText(text)
+  return rawTypeText(text)
+    .replace(/^\s*\|\s*/, "")
     .replace(/\r\n/g, "\n")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")

@@ -171,6 +171,19 @@ export const parseAgUiEvent = (
         { type: "REASONING_MESSAGE_END" as const },
         { messageId: getString("messageId") },
       );
+    case "REASONING_ENCRYPTED_VALUE": {
+      const entityId = getString("entityId");
+      const encryptedValue = getString("encryptedValue");
+      const subtype = getString("subtype");
+      if (!entityId || !encryptedValue) return null;
+      if (subtype !== "message" && subtype !== "tool-call") return null;
+      return {
+        type: "REASONING_ENCRYPTED_VALUE" as const,
+        subtype,
+        entityId,
+        encryptedValue,
+      };
+    }
     case "REASONING_END":
       return withOptional(
         { type: "REASONING_END" as const },
@@ -241,11 +254,18 @@ export const parseAgUiEvent = (
     case "ACTIVITY_SNAPSHOT": {
       const activityType = getString("activityType");
       if (!activityType || !isPlainObject(payload.content)) return null;
-      return {
-        type: "ACTIVITY_SNAPSHOT" as const,
-        activityType,
-        content: payload.content,
-      };
+      return withOptional(
+        {
+          type: "ACTIVITY_SNAPSHOT" as const,
+          activityType,
+          content: payload.content,
+        },
+        {
+          messageId: getString("messageId"),
+          replace:
+            typeof payload.replace === "boolean" ? payload.replace : undefined,
+        },
+      );
     }
     case "RAW":
       return withOptional(

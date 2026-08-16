@@ -28,6 +28,10 @@ export const REACT_GENERATIVE_UI_TEAMS_INDEX = path.join(
   REACT_GENERATIVE_UI_PKG,
   "teams.ts",
 );
+export const REACT_GENERATIVE_UI_A2UI_INDEX = path.join(
+  REACT_GENERATIVE_UI_PKG,
+  "a2ui.ts",
+);
 
 export const TYPE_DOCS_INPUT = path.join(
   DOCS_ROOT,
@@ -52,7 +56,7 @@ export const INTEGRATION_PACKAGES = [
   {
     slug: "react-ai-sdk",
     packageName: "@assistant-ui/react-ai-sdk",
-    entry: path.join(REPO_ROOT, "packages/react-ai-sdk/src/index.ts"),
+    entry: path.join(REPO_ROOT, "packages/ai-sdk/src/index.ts"),
   },
   {
     slug: "react-data-stream",

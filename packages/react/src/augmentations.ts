@@ -21,10 +21,12 @@
  * }
  * ```
  */
-export namespace Assistant {
-  export interface Commands {}
+import type { Assistant as CoreAssistant } from "@assistant-ui/core";
 
-  export interface ExternalState {}
+export namespace Assistant {
+  export interface Commands extends CoreAssistant.Commands {}
+
+  export interface ExternalState extends CoreAssistant.ExternalState {}
 }
 
 export type UserCommands = Assistant.Commands[keyof Assistant.Commands];

@@ -4,10 +4,12 @@ import { GeistSans } from "geist/font/sans";
 import { GeistMono } from "geist/font/mono";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Provider } from "./provider";
 import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";
+import { galleryStagingCss } from "@/components/gallery/gallery-staging";
 
 const getMetadataBase = () => {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -64,6 +66,7 @@ export default function Layout({ children }: { children: ReactNode }) {
     <html lang="en" suppressHydrationWarning>
       <head>
         <GenerativeUIStyle />
+        <style>{galleryStagingCss}</style>
         <script
           defer
           src="/umami/script.js"
@@ -97,6 +100,7 @@ export default function Layout({ children }: { children: ReactNode }) {
         </div>
         <Provider>{children}</Provider>
         <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

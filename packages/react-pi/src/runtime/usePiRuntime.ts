@@ -16,15 +16,13 @@ import type {
 } from "@assistant-ui/react";
 import {
   useEffect,
+  useEffectEvent,
   useCallback,
   useMemo,
   useRef,
   useState,
   useSyncExternalStore,
 } from "react";
-// Ponyfill: React only ships `useEffectEvent` from 19.2, but the peer range
-// allows React 18.
-import { useEffectEvent } from "use-effect-event";
 import {
   appendMessageParts,
   buildPiSendInput,
@@ -98,6 +96,22 @@ export const NOOP_CONTROLLER: PiThreadControllerLike = {
 
 const NOOP_ON_NEW = () =>
   Promise.reject(new Error("Pi thread is still initializing"));
+
+const reportPiCallbackError = (callbackError: unknown) => {
+  console.error("[react-pi] onError callback threw an error", callbackError);
+};
+
+const invokePiErrorCallback = (
+  onError: PiRuntimeOptions["onError"],
+  error: unknown,
+) => {
+  if (!onError) return;
+  try {
+    void Promise.resolve(onError(error)).catch(reportPiCallbackError);
+  } catch (callbackError) {
+    reportPiCallbackError(callbackError);
+  }
+};
 
 const buildExtras = (
   controller: PiThreadControllerLike,
@@ -208,7 +222,7 @@ const usePiThreadStore = (
   const isRunning = isPiStateRunning(state);
 
   const onLoadError = useEffectEvent((error: unknown) => {
-    onError?.(error);
+    invokePiErrorCallback(onError, error);
   });
 
   useEffect(() => {
@@ -236,37 +250,36 @@ const usePiThreadStore = (
   // adapter forwards every send straight to the controller instead of
   // buffering client-side. Exposing it flips on `capabilities.queue`, which is
   // what lets the composer keep accepting input while a run is streaming
-  // (plain Enter → follow-up, Cmd/Ctrl+Shift+Enter → steer).
+  // (mid-run sends steer by default; `send({ steer: false })` queues a
+  // follow-up).
   const queue = useMemo<ExternalThreadQueueAdapter>(
     () => ({
-      items: [
-        ...state.queue.steering.map((content, index) => ({
-          id: piQueueItemId("steer", index),
-          prompt: content,
-        })),
-        ...state.queue.followUp.map((content, index) => ({
-          id: piQueueItemId("followUp", index),
-          prompt: content,
-        })),
-      ],
-      enqueue: (message, { steer }) => {
+      items: state.queue.followUp.map((content, index) => ({
+        id: piQueueItemId("followUp", index),
+        prompt: content,
+        parts: [{ type: "text" as const, text: content }],
+      })),
+      steerItems: state.queue.steering.map((content, index) => ({
+        id: piQueueItemId("steer", index),
+        prompt: content,
+        parts: [{ type: "text" as const, text: content }],
+      })),
+      enqueue: (message) => {
         void controller
-          .sendMessage(
-            message,
-            steer ? { streamingBehavior: "steer" } : undefined,
-          )
-          .catch((error: unknown) => onError?.(error));
+          .sendMessage(message)
+          .catch((error: unknown) => invokePiErrorCallback(onError, error));
       },
-      // Pi owns the queue server-side and exposes no per-item promote or
-      // remove, so these two degrade to no-ops; the items above stay an
-      // honest mirror of the server queue. Clearing all is supported.
-      steer: () => {},
+      steer: (message) => {
+        void controller
+          .sendMessage(message, { streamingBehavior: "steer" })
+          .catch((error: unknown) => invokePiErrorCallback(onError, error));
+      },
+      // the server-side queue exposes no per-item operations; shared queue
+      // UI cannot feature-detect these, so they deliberately no-op rather
+      // than crash an unguarded click path
+      move: () => {},
+      edit: () => {},
       remove: () => {},
-      clear: () => {
-        void controller.clearQueue().catch((error: unknown) => {
-          onError?.(error);
-        });
-      },
     }),
     [controller, state.queue, onError],
   );
@@ -287,15 +300,21 @@ const usePiThreadStore = (
         try {
           await controller.sendMessage(message);
         } catch (error) {
-          onError?.(error);
+          invokePiErrorCallback(onError, error);
           throw error;
         }
       },
       onCancel: async () => {
         try {
-          await controller.cancel();
+          // clear before cancelling so the server cannot promote a queued
+          // prompt into a new run in between
+          try {
+            await controller.clearQueue();
+          } finally {
+            await controller.cancel();
+          }
         } catch (error) {
-          onError?.(error);
+          invokePiErrorCallback(onError, error);
           throw error;
         }
       },
@@ -303,14 +322,14 @@ const usePiThreadStore = (
         try {
           await controller.respondToToolApproval(approvalId, approved);
         } catch (error) {
-          onError?.(error);
+          invokePiErrorCallback(onError, error);
           throw error;
         }
       },
       onResumeToolCall: ({ toolCallId, payload }) => {
         void controller
           .resumeToolCall(toolCallId, payload as PiInterruptAnswer)
-          .catch((error) => onError?.(error));
+          .catch((error) => invokePiErrorCallback(onError, error));
       },
     }),
     [
@@ -394,7 +413,7 @@ const useNewPiThreadStore = (
           setOptimisticMessages((messages) =>
             messages.filter((message) => message !== optimistic),
           );
-          onError?.(error);
+          invokePiErrorCallback(onError, error);
           throw error;
         }
       },

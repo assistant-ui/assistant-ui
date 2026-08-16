@@ -135,8 +135,21 @@ describe("react dispatcher", () => {
     },
   );
 
+  it("routes useId and useImperativeHandle through the dispatcher", () => {
+    const ref: { current: { focus(): string } | null } = { current: null };
+    const fiber = createTestResource(() => {
+      const id = React.useId();
+      React.useImperativeHandle(ref, () => ({ focus: () => id }), [id]);
+      return id;
+    });
+    const id = renderResourceFiber(fiber, []);
+    expect(typeof id).toBe("string");
+    commitResourceFiber(fiber);
+    expect(ref.current!.focus()).toBe(id);
+  });
+
   it("throws for a hook tap does not implement", () => {
-    const fiber = createTestResource(() => React.useId());
+    const fiber = createTestResource(() => React.useDeferredValue("value"));
     // render directly: a mid-render throw must not leave a tracked, unmounted
     // fiber for `cleanupAllResources` to choke on.
     expect(() => renderResourceFiber(fiber, [])).toThrow();

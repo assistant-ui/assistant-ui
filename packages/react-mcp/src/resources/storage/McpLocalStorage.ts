@@ -2,7 +2,7 @@ import { resource } from "@assistant-ui/tap";
 import {
   OAuthClientInformationFullSchema,
   OAuthTokensSchema,
-} from "@modelcontextprotocol/sdk/shared/auth.js";
+} from "@modelcontextprotocol/core";
 import type { MCPAuthConfig, MCPCustomServerRecord } from "../../mcp-scope";
 import type { MCPPersistedAuthState } from "../../auth/types";
 import { assertValidServerId } from "../../utils/serverId";

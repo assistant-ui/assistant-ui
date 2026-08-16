@@ -1,13 +1,8 @@
 import type {
-  DataMessagePart,
-  FileMessagePart,
-  ImageMessagePart,
   MessageStatus,
   SourceProviderMetadata,
   ThreadMessage,
-  TextMessagePart,
   ToolApprovalOption,
-  Unstable_AudioMessagePart,
 } from "../../../types/message";
 import type { CompleteAttachment } from "../../../types/attachment";
 import { fromThreadMessageLike } from "../../../runtime/utils/thread-message-like";
@@ -37,6 +32,7 @@ type AuiV0MessagePart =
   | {
       readonly type: "reasoning";
       readonly text: string;
+      readonly unstable_summary?: string;
     }
   | {
       readonly type: "source";
@@ -82,14 +78,43 @@ type AuiV0MessagePart =
       readonly data: string;
       readonly mimeType: string;
       readonly filename?: string;
+      readonly sourceType?: "url" | "id";
+    }
+  | {
+      readonly type: "data";
+      readonly name: string;
+      readonly data: ReadonlyJSONValue;
     };
 
 type AuiV0AttachmentPart =
-  | TextMessagePart
-  | ImageMessagePart
-  | FileMessagePart
-  | Unstable_AudioMessagePart
-  | DataMessagePart<ReadonlyJSONValue>;
+  | {
+      readonly type: "text";
+      readonly text: string;
+    }
+  | {
+      readonly type: "image";
+      readonly image: string;
+      readonly filename?: string;
+    }
+  | {
+      readonly type: "file";
+      readonly data: string;
+      readonly mimeType: string;
+      readonly filename?: string;
+      readonly sourceType?: "url" | "id";
+    }
+  | {
+      readonly type: "audio";
+      readonly audio: {
+        readonly data: string;
+        readonly format: "mp3" | "wav";
+      };
+    }
+  | {
+      readonly type: "data";
+      readonly name: string;
+      readonly data: ReadonlyJSONValue;
+    };
 
 type AuiV0Attachment = {
   readonly id: string;
@@ -125,16 +150,41 @@ const encodeAttachmentPart = (
   const type = part.type;
   switch (type) {
     case "text":
+      return { type: "text", text: part.text };
+
     case "image":
+      return {
+        type: "image",
+        image: part.image,
+        ...(part.filename != null ? { filename: part.filename } : undefined),
+      };
+
     case "file":
+      return {
+        type: "file",
+        data: part.data,
+        mimeType: part.mimeType,
+        ...(part.filename != null ? { filename: part.filename } : undefined),
+        ...(part.sourceType != null
+          ? { sourceType: part.sourceType }
+          : undefined),
+      };
+
     case "audio":
-      return part;
+      return {
+        type: "audio",
+        audio: { data: part.audio.data, format: part.audio.format },
+      };
 
     case "data": {
       if (!isJSONValue(part.data)) {
         console.warn(`attachment data is not JSON! ${JSON.stringify(part)}`);
       }
-      return { ...part, data: part.data as ReadonlyJSONValue };
+      return {
+        type: "data",
+        name: part.name,
+        data: part.data as ReadonlyJSONValue,
+      };
     }
 
     default: {
@@ -182,7 +232,13 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           return { type: "text", text: part.text };
 
         case "reasoning":
-          return { type: "reasoning", text: part.text };
+          return {
+            type: "reasoning",
+            text: part.text,
+            ...(part.unstable_summary !== undefined
+              ? { unstable_summary: part.unstable_summary }
+              : undefined),
+          };
 
         case "source":
           if (part.sourceType === "url") {
@@ -213,7 +269,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
           };
 
         case "tool-call": {
-          if (!isJSONValue(part.result)) {
+          if (part.result !== undefined && !isJSONValue(part.result)) {
             console.warn(
               `tool-call result is not JSON! ${JSON.stringify(part)}`,
             );
@@ -225,7 +281,7 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(JSON.stringify(part.args) === part.argsText
               ? { args: part.args }
               : { argsText: part.argsText }),
-            ...(part.result
+            ...(part.result !== undefined
               ? { result: part.result as ReadonlyJSONValue }
               : undefined),
             ...(part.isError ? { isError: true } : undefined),
@@ -242,10 +298,22 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             data: part.data,
             mimeType: part.mimeType,
             ...(part.filename ? { filename: part.filename } : undefined),
+            ...(part.sourceType ? { sourceType: part.sourceType } : undefined),
           };
 
+        case "data": {
+          if (!isJSONValue(part.data)) {
+            console.warn(`data part is not JSON! ${JSON.stringify(part)}`);
+          }
+          return {
+            type: "data",
+            name: part.name,
+            data: part.data as ReadonlyJSONValue,
+          };
+        }
+
         default: {
-          const unhandledType: "audio" | "data" | "generative-ui" = type;
+          const unhandledType: "audio" | "generative-ui" = type;
           throw new Error(
             `Message part type not supported by aui/v0: ${unhandledType}`,
           );

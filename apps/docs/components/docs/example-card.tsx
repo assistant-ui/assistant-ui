@@ -13,7 +13,7 @@ export function ExampleCard({
   return (
     <Link
       href={link}
-      className="not-prose group bg-card hover:border-foreground/20 block overflow-hidden rounded-lg border transition-colors"
+      className="not-prose group border-border/60 hover:border-foreground/20 block overflow-hidden rounded-lg border transition-colors"
       {...(external && { target: "_blank", rel: "noopener noreferrer" })}
     >
       <div className="overflow-hidden">

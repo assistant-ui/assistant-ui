@@ -11,6 +11,7 @@ import type {
   AdkStreamCallback,
   AdkToolConfirmation,
   AdkAuthRequest,
+  AdkThreadSnapshot,
   OnAdkErrorCallback,
   OnAdkCustomEventCallback,
   OnAdkAgentTransferCallback,
@@ -23,6 +24,28 @@ export type UseAdkMessagesOptions = {
     onCustomEvent?: OnAdkCustomEventCallback;
     onAgentTransfer?: OnAdkAgentTransferCallback;
   };
+};
+
+type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
+
+const reportCallbackError = (name: AdkRuntimeCallbackName, error: unknown) => {
+  console.error(`[react-google-adk] ${name} callback threw an error`, error);
+};
+
+const invokeAdkRuntimeCallback = <TArgs extends unknown[]>(
+  name: AdkRuntimeCallbackName,
+  callback: ((...args: TArgs) => void | Promise<void>) | undefined,
+  ...args: TArgs
+) => {
+  if (!callback) return;
+
+  try {
+    void Promise.resolve(callback(...args)).catch((error) => {
+      reportCallbackError(name, error);
+    });
+  } catch (error) {
+    reportCallbackError(name, error);
+  }
 };
 
 export const useAdkMessages = ({
@@ -62,8 +85,29 @@ export const useAdkMessages = ({
     _setMessages(msgs);
   }, []);
 
+  /**
+   * Swap the thread over to a loaded snapshot in one commit. Unlike
+   * {@link replaceMessages} this never passes through a cleared state, so a
+   * refetch that lands while a confirmation is on screen replaces it rather
+   * than blanking it first.
+   */
+  const applySnapshot = useCallback(
+    (snapshot: AdkThreadSnapshot) => {
+      setMessagesImmediate(snapshot.messages);
+      setLongRunningToolIds(snapshot.longRunningToolIds ?? []);
+      setToolConfirmations(snapshot.toolConfirmations ?? []);
+      setAuthRequests(snapshot.authRequests ?? []);
+      setEscalated(snapshot.escalated ?? false);
+      setMessageMetadata(snapshot.messageMetadata ?? new Map());
+      setStateDelta(snapshot.stateDelta ?? {});
+      setArtifactDelta(snapshot.artifactDelta ?? {});
+      setAgentInfo(snapshot.agentInfo ?? {});
+    },
+    [setMessagesImmediate],
+  );
+
   // Replace the message list AND reset derived per-turn HITL state.
-  // Used by truncation paths (edit, reload, load) so that stale interrupt
+  // Used by truncation paths (edit, reload) so that stale interrupt
   // markers and per-message metadata from the removed messages don't leak
   // into the next turn.
   const replaceMessages = useCallback(
@@ -138,18 +182,31 @@ export const useAdkMessages = ({
           const transfer = accumulator.getLastTransferToAgent();
           if (transfer && transfer !== lastTransferToAgentRef.current) {
             lastTransferToAgentRef.current = transfer;
-            onAgentTransfer?.(transfer);
+            invokeAdkRuntimeCallback(
+              "onAgentTransfer",
+              onAgentTransfer,
+              transfer,
+            );
           }
 
           // Fire custom event callback for events with customMetadata
           if (event.customMetadata && onCustomEvent) {
             for (const [key, value] of Object.entries(event.customMetadata)) {
-              onCustomEvent(key, value);
+              invokeAdkRuntimeCallback(
+                "onCustomEvent",
+                onCustomEvent,
+                key,
+                value,
+              );
             }
           }
 
           if (event.errorCode || event.errorMessage) {
-            onError?.(event.errorMessage ?? event.errorCode);
+            invokeAdkRuntimeCallback(
+              "onError",
+              onError,
+              event.errorMessage ?? event.errorCode,
+            );
           }
         }
       } catch (error) {
@@ -195,6 +252,7 @@ export const useAdkMessages = ({
     cancel,
     setMessages: setMessagesImmediate,
     replaceMessages,
+    applySnapshot,
   };
 };
 

@@ -65,6 +65,7 @@ export type {
 export type {
   RemoteThreadListAdapter,
   RemoteThreadListOptions,
+  RemoteThreadListProviderComponent,
 } from "@assistant-ui/core";
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
 export { createVoiceSession } from "@assistant-ui/core";
@@ -93,6 +94,7 @@ export {
   useAuiState,
   useAuiEvent,
   AuiProvider,
+  AuiConfig,
   AuiIf,
   type AssistantClient,
   type AssistantState,

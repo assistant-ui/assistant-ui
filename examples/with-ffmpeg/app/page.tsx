@@ -5,6 +5,7 @@ import {
   useAui,
   useAuiState,
   AuiProvider,
+  AuiConfig,
   Suggestions,
   Tools,
 } from "@assistant-ui/react";
@@ -54,11 +55,16 @@ const FfmpegToolsProvider: FC<{ file: File; children: ReactNode }> = ({
 
   const toolkit = useFfmpegToolkit(file, ffmpegRef);
 
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     tools: Tools({ toolkit }),
   });
 
-  return <AuiProvider value={aui}>{children}</AuiProvider>;
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 };
 
 export default function Home() {
@@ -70,7 +76,8 @@ export default function Home() {
     setLastFile(lastAttachment.file!);
   }, [attachments]);
 
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     suggestions: Suggestions([
       {
         title: "Convert video to GIF",
@@ -87,7 +94,7 @@ export default function Home() {
 
   return (
     <div className="flex h-full flex-col">
-      <AuiProvider value={aui}>
+      <AuiProvider extends={aui} config={config}>
         {lastFile ? (
           <FfmpegToolsProvider file={lastFile}>
             <Thread />

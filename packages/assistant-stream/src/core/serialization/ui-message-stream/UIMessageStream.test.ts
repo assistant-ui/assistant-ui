@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { UIMessageStreamDecoder } from "./UIMessageStream";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
+import { NO_RESULT } from "../../tool/ToolResponse";
 
 // Helper function to collect all chunks from a stream
 async function collectChunks<T>(stream: ReadableStream<T>): Promise<T[]> {
@@ -750,5 +751,36 @@ describe("UIMessageStreamDecoder", () => {
     const byPath = new Map(argDeltas.map((c) => [c.path[0], c.textDelta]));
     expect(byPath.get(0)).toBe("{}");
     expect(byPath.get(1)).toBe('{"x":1}');
+  });
+
+  it("materializes a tool result frame that carries no result", async () => {
+    const events = [
+      JSON.stringify({ type: "start", messageId: "msg_123" }),
+      JSON.stringify({
+        type: "tool-call-start",
+        id: "tc_1",
+        toolCallId: "call_abc",
+        toolName: "notify",
+      }),
+      JSON.stringify({ type: "tool-call-delta", argsText: "{}" }),
+      JSON.stringify({ type: "tool-call-end" }),
+      JSON.stringify({ type: "tool-result", toolCallId: "call_abc" }),
+      JSON.stringify({
+        type: "finish",
+        finishReason: "stop",
+        usage: { inputTokens: 10, outputTokens: 5 },
+      }),
+      "[DONE]",
+    ];
+
+    const stream = createUIMessageStream(events);
+    const decodedStream = stream.pipeThrough(new UIMessageStreamDecoder());
+    const chunks = await collectChunks(decodedStream);
+
+    const result = chunks.find(
+      (c): c is AssistantStreamChunk & { type: "result" } =>
+        c.type === "result",
+    );
+    expect(result?.result).toBe(NO_RESULT);
   });
 });

@@ -460,6 +460,16 @@ describe("A2AClient", () => {
           },
         },
       ],
+      [
+        "a message with an unknown role",
+        {
+          message: {
+            messageId: "m2",
+            role: "banana",
+            parts: [{ text: "Hi" }],
+          },
+        },
+      ],
     ])("rejects %s returned with a successful status", async (_name, body) => {
       fetchMock.mockResolvedValue(mockFetchResponse(body));
 
@@ -724,6 +734,14 @@ describe("A2AClient", () => {
       const [url] = fetchMock.mock.calls[0]!;
       expect(url).toBe("https://agent.test/tasks/t1?history_length=5");
     });
+
+    it("rejects malformed successful responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(client.getTask("t1")).rejects.toThrow(
+        "Invalid A2A tasks:get response: expected a valid task payload.",
+      );
+    });
   });
 
   // --- listTasks ---
@@ -751,6 +769,65 @@ describe("A2AClient", () => {
       expect(url).toContain("status=TASK_STATE_WORKING");
       expect(url).toContain("page_size=10");
     });
+
+    it("rejects malformed successful responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({ tasks: 42 }));
+
+      await expect(client.listTasks()).rejects.toThrow(
+        "Invalid A2A tasks:list response: expected a valid task list payload.",
+      );
+    });
+
+    it("normalizes empty responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(client.listTasks()).resolves.toEqual({
+        tasks: [],
+        nextPageToken: "",
+        pageSize: 0,
+        totalSize: 0,
+      });
+    });
+
+    it("rejects malformed tasks in successful responses", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          tasks: [{}],
+          nextPageToken: "",
+          pageSize: 1,
+          totalSize: 1,
+        }),
+      );
+
+      await expect(client.listTasks()).rejects.toThrow(
+        "Invalid A2A tasks:list response: expected a valid task list payload.",
+      );
+    });
+
+    it("normalizes omitted pagination defaults", async () => {
+      const tasks = [{ id: "t1", status: { state: "completed" } }];
+      fetchMock.mockResolvedValue(mockFetchResponse({ tasks }));
+
+      await expect(client.listTasks()).resolves.toEqual({
+        tasks,
+        nextPageToken: "",
+        pageSize: 0,
+        totalSize: 0,
+      });
+    });
+
+    it("rejects malformed pagination fields", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          tasks: [],
+          nextPageToken: 42,
+        }),
+      );
+
+      await expect(client.listTasks()).rejects.toThrow(
+        "Invalid A2A tasks:list response: expected a valid task list payload.",
+      );
+    });
   });
 
   // --- cancelTask ---
@@ -777,6 +854,14 @@ describe("A2AClient", () => {
 
       const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
       expect(body.metadata).toEqual({ reason: "user requested" });
+    });
+
+    it("rejects malformed successful responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(client.cancelTask("t1")).rejects.toThrow(
+        "Invalid A2A tasks:cancel response: expected a valid task payload.",
+      );
     });
   });
 
@@ -929,6 +1014,69 @@ describe("A2AClient", () => {
       expect(evt.event.taskId).toBe("t1");
       expect(evt.event.status.state).toBe("working");
       expect(evt.event.status.message?.role).toBe("agent");
+    });
+
+    it("cancels the response body when iteration stops early", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+      const cancel = vi.fn();
+      const encoder = new TextEncoder();
+      const body = new ReadableStream<Uint8Array>({
+        start(controller) {
+          controller.enqueue(encoder.encode(`data: ${sseData}\n\n`));
+        },
+        cancel,
+      });
+
+      fetchMock.mockResolvedValue(
+        new Response(body, {
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      );
+
+      for await (const _event of client.streamMessage(userMessage)) {
+        break;
+      }
+
+      expect(cancel).toHaveBeenCalledOnce();
+    });
+
+    it("does not surface cancellation errors on early exit", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+      const encoder = new TextEncoder();
+      let controller!: ReadableStreamDefaultController<Uint8Array>;
+      const body = new ReadableStream<Uint8Array>({
+        start(streamController) {
+          controller = streamController;
+          controller.enqueue(encoder.encode(`data: ${sseData}\n\n`));
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        new Response(body, {
+          headers: { "Content-Type": "text/event-stream" },
+        }),
+      );
+
+      const consume = async () => {
+        for await (const _event of client.streamMessage(userMessage)) {
+          controller.error(new Error("stream failed"));
+          break;
+        }
+      };
+
+      await expect(consume()).resolves.toBeUndefined();
     });
 
     it("parses CRLF-delimited SSE events", async () => {
@@ -1148,12 +1296,13 @@ describe("A2AClient", () => {
       expect(events).toHaveLength(1);
     });
 
-    it("rejects successful responses that are not event streams", async () => {
+    it("rejects and cancels successful responses that are not event streams", async () => {
+      const cancel = vi.fn();
+      const body = new ReadableStream<Uint8Array>({ cancel });
       fetchMock.mockResolvedValue(
-        mockSSETextResponse(
-          "<html><body>Please sign in</body></html>",
-          "text/html; charset=utf-8",
-        ),
+        new Response(body, {
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        }),
       );
 
       const consumeStream = async () => {
@@ -1165,10 +1314,13 @@ describe("A2AClient", () => {
       await expect(consumeStream()).rejects.toThrow(
         'Expected A2A stream response Content-Type "text/event-stream", received "text/html; charset=utf-8"',
       );
+      expect(cancel).toHaveBeenCalledOnce();
     });
 
     it("rejects task subscriptions without a content type", async () => {
-      fetchMock.mockResolvedValue(mockSSETextResponse("", null));
+      fetchMock.mockResolvedValue(
+        new Response(new ReadableStream<Uint8Array>()),
+      );
 
       const consumeStream = async () => {
         for await (const event of client.subscribeToTask("t1")) {
@@ -1249,9 +1401,34 @@ describe("A2AClient", () => {
       expect((evt.event.status.message as any)?.content).toBeUndefined();
     });
 
-    it("skips malformed SSE events", async () => {
+    it("skips malformed and unrecognized SSE events", async () => {
+      const first = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+      const second = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_COMPLETED" },
+        },
+      });
+
       fetchMock.mockResolvedValue(
-        mockSSEResponse(["data: {invalid json}", "", ""]),
+        mockSSEResponse([
+          `data: ${first}`,
+          "",
+          "data: {invalid json}",
+          "",
+          "data: {}",
+          "",
+          `data: ${second}`,
+          "",
+          "",
+        ]),
       );
 
       const events: A2AStreamEvent[] = [];
@@ -1259,7 +1436,11 @@ describe("A2AClient", () => {
         events.push(event);
       }
 
-      expect(events).toHaveLength(0);
+      expect(events).toHaveLength(2);
+      expect(events.map((event) => event.type)).toEqual([
+        "statusUpdate",
+        "statusUpdate",
+      ]);
     });
   });
 

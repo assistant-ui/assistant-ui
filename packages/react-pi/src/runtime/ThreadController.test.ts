@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it, onTestFinished, vi } from "vitest";
 import type { AppendMessage } from "@assistant-ui/react";
 import { PiThreadController } from "./ThreadController";
 import type {
@@ -242,6 +242,33 @@ describe("PiThreadController", () => {
     });
   });
 
+  it("isolates subscriber errors while sending messages", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    const listenerError = new Error("listener failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    onTestFinished(() => consoleError.mockRestore());
+    const laterListener = vi.fn();
+
+    controller.subscribe(() => {
+      throw listenerError;
+    });
+    controller.subscribe(laterListener);
+
+    await expect(
+      controller.sendMessage(userMessage("hello")),
+    ).resolves.toBeUndefined();
+
+    expect(client.sent).toHaveLength(1);
+    expect(laterListener).toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[react-pi] Listener threw an error",
+      listenerError,
+    );
+  });
+
   it("maps image attachments to Pi image content", async () => {
     const client = createFakeClient();
     const controller = new PiThreadController(client, THREAD);
@@ -250,6 +277,22 @@ describe("PiThreadController", () => {
         content: [
           { type: "text", text: "look" },
           { type: "image", image: "data:image/png;base64,AAAA" },
+        ],
+      } as Partial<AppendMessage>),
+    );
+    expect(client.sent[0]!.input.attachments).toEqual([
+      { type: "image", mimeType: "image/png", data: "AAAA" },
+    ]);
+  });
+
+  it("maps uppercase-scheme data URLs to Pi image content with a lowercase mime", async () => {
+    const client = createFakeClient();
+    const controller = new PiThreadController(client, THREAD);
+    await controller.sendMessage(
+      userMessage("look", {
+        content: [
+          { type: "text", text: "look" },
+          { type: "image", image: "DATA:IMAGE/PNG;base64,AAAA" },
         ],
       } as Partial<AppendMessage>),
     );

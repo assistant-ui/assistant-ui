@@ -1,0 +1,82 @@
+name: Deploy Examples
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - examples/with-expo/**
+      - examples/with-react-ink-web/**
+      - packages/react-native/**
+      - packages/react-ink/**
+      - packages/react-ink-markdown/**
+      - packages/react-ai-sdk/**
+      - packages/ai-sdk/**
+      - packages/core/**
+      - .github/workflows/deploy-examples.yaml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+
+jobs:
+  deploy-production:
+    name: Deploy Production (${{ matrix.example }})
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - example: with-expo
+            chat-endpoint-url: https://www.assistant-ui.com/api/chat
+          - example: with-react-ink-web
+    env:
+      VERCEL_PROJECT_ID: ${{ matrix.example == 'with-expo' && secrets.VERCEL_EXPO_PROJECT_ID || matrix.example == 'with-react-ink-web' && secrets.VERCEL_INK_PROJECT_ID || '' }}
+      EXPO_PUBLIC_CHAT_ENDPOINT_URL: ${{ matrix.chat-endpoint-url }}
+    steps:
+      - name: Checkout code repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          fetch-depth: 1
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # ratchet:pnpm/action-setup@v6.0.10
+
+      - name: Setup node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
+        with:
+          node-version: 24
+          cache: "pnpm"
+
+      - name: Cache turbo build setup
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # ratchet:actions/cache@v6.1.0
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-${{ matrix.example }}-${{ github.ref }}-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-${{ matrix.example }}-${{ github.ref }}-
+            ${{ runner.os }}-turbo-${{ matrix.example }}-
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Pull Vercel Environment Information
+        working-directory: examples/${{ matrix.example }}
+        run: vercel pull --yes --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build Project Artifacts
+        working-directory: examples/${{ matrix.example }}
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy Project Artifacts to Vercel
+        working-directory: examples/${{ matrix.example }}
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}

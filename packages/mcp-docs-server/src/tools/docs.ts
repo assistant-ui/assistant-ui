@@ -1,4 +1,4 @@
-import { z } from "zod/v3";
+import { z } from "zod";
 import { stat, lstat } from "node:fs/promises";
 import { join, extname } from "node:path";
 import {
@@ -213,7 +213,7 @@ export const docsTools = {
   name: "assistantUIDocs",
   description:
     'Retrieve assistant-ui documentation by path. Use "/" to list all sections. Supports multiple paths in a single request.',
-  parameters: docsInputSchema.shape,
+  parameters: docsInputSchema,
   execute: async ({ paths }: z.infer<typeof docsInputSchema>) => {
     logger.info(`Retrieving documentation for paths: ${paths.join(", ")}`);
 

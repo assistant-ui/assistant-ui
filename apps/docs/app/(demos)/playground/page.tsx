@@ -25,6 +25,7 @@ import { ThreadListPrimitive } from "@assistant-ui/react";
 import { BuilderControls } from "@/components/builder/builder-controls";
 import { BuilderPreview } from "@/components/builder/builder-preview";
 import { BuilderCodeOutput } from "@/components/builder/builder-code-output";
+import { Button } from "@/components/ui/button";
 import { ShareButton } from "@/components/builder/share-button";
 import { CreateDialog } from "@/components/builder/create-dialog";
 import {
@@ -37,7 +38,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/radix/sheet";
+} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import {
   usePlaygroundState,
@@ -173,16 +174,20 @@ function BuilderPlayground() {
           </div>
 
           <Sheet open={controlsOpen} onOpenChange={setControlsOpen}>
-            <SheetTrigger asChild>
-              <button
-                type="button"
-                className="text-muted-foreground hover:bg-foreground/5 hover:text-foreground flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs font-medium transition-colors md:hidden"
-                aria-label="Open controls"
-              >
-                <SlidersHorizontal className="size-4" />
-                <span>Customize</span>
-              </button>
-            </SheetTrigger>
+            <SheetTrigger
+              render={
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="md:hidden"
+                  aria-label="Open controls"
+                >
+                  <SlidersHorizontal className="size-4" />
+                  <span>Customize</span>
+                </Button>
+              }
+            />
             <SheetContent
               side="bottom"
               className="h-[85vh] overflow-hidden rounded-t-2xl"
@@ -225,15 +230,17 @@ function BuilderPlayground() {
 
             {isAiPlaygroundEnabled && (
               <Sheet open={mobileSheetOpen} onOpenChange={setMobileSheetOpen}>
-                <SheetTrigger asChild>
-                  <button
-                    type="button"
-                    className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors md:hidden"
-                    aria-label="Open AI chat"
-                  >
-                    <Sparkles className="size-3.5" />
-                  </button>
-                </SheetTrigger>
+                <SheetTrigger
+                  render={
+                    <button
+                      type="button"
+                      className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors md:hidden"
+                      aria-label="Open AI chat"
+                    >
+                      <Sparkles className="size-3.5" />
+                    </button>
+                  }
+                />
                 <SheetContent
                   side="bottom"
                   className="flex h-[85vh] flex-col overflow-hidden rounded-t-2xl p-0"
@@ -274,13 +281,10 @@ function BuilderPlayground() {
               container={previewContainerRef}
               onOpenCodeView={() => setShowCode(true)}
             >
-              <button
-                type="button"
-                className="bg-foreground text-background hover:bg-foreground/90 flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
-              >
+              <Button type="button" size="sm">
                 <SquareTerminal className="size-3.5" />
                 <span className="hidden sm:inline">Create Project</span>
-              </button>
+              </Button>
             </CreateDialog>
           </div>
         </div>

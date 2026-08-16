@@ -1,7 +1,11 @@
 "use client";
 
 import { type FC, memo, type PropsWithChildren, useEffect } from "react";
-import { type AssistantClient, useAui } from "@assistant-ui/store";
+import {
+  type AssistantClient,
+  type AuiConfig,
+  useAui,
+} from "@assistant-ui/store";
 import type { AssistantRuntime } from "./runtime/AssistantRuntime";
 import { AssistantProviderBase } from "@assistant-ui/core/react";
 import { ThreadPrimitiveViewportProvider } from "../context/providers/ThreadViewportProvider";
@@ -24,6 +28,12 @@ export namespace AssistantRuntimeProvider {
      * @defaultValue undefined
      */
     aui?: AssistantClient;
+
+    /**
+     * Optional extra scopes provided alongside the runtime's `threads`
+     * scope; build with `AuiConfig`.
+     */
+    config?: AuiConfig;
   }>;
 }
 
@@ -39,9 +49,9 @@ const DevToolsRegistration: FC = () => {
 
 export const AssistantRuntimeProviderImpl: FC<
   AssistantRuntimeProvider.Props
-> = ({ children, aui, runtime }) => {
+> = ({ children, aui, config, runtime }) => {
   return (
-    <AssistantProviderBase runtime={runtime} aui={aui ?? null}>
+    <AssistantProviderBase runtime={runtime} aui={aui ?? null} config={config}>
       <DevToolsRegistration />
       {/* TODO temporarily allow accessing viewport state from outside the viewport */}
       {/* TODO figure out if this behavior should be deprecated, since it is quite hacky */}

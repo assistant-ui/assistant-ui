@@ -1,7 +1,7 @@
 import type {
   OAuthTokens,
   OAuthClientInformationFull,
-} from "@modelcontextprotocol/sdk/shared/auth.js";
+} from "@modelcontextprotocol/client";
 
 export type MCPPersistedAuthState = {
   tokens?: OAuthTokens;

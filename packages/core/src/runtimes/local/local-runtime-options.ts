@@ -32,4 +32,19 @@ export type LocalRuntimeOptionsBase = {
    * `composer.queue` and sent once the run settles. Steering runs it next.
    */
   unstable_enableMessageQueue?: boolean | undefined;
+
+  /**
+   * Auto-clear the message queue when the thread rewinds (message edit).
+   * Defaults to `true`.
+   * @deprecated Removal after 2026-11-05 — the queue will always survive rewinds.
+   */
+  unstable_queueClearOnRewind?: boolean | undefined;
+
+  /**
+   * Auto-clear the message queue when the user cancels the run. Defaults to
+   * `true`. When `false`, cancel pauses the queue and keeps the pending
+   * items; the next send drains them.
+   * @deprecated Removal after 2026-11-05 — cancel will always pause the queue and keep the items.
+   */
+  unstable_queueClearOnCancel?: boolean | undefined;
 };

@@ -258,7 +258,7 @@ Renders a single attachment at a specific index.
 
 ### AttachmentDropzone
 
-Drag-and-drop zone for file attachments. Sets `data-dragging` when a file is being dragged over it. Renders a `<div>` element unless `asChild` is set.
+Drag-and-drop zone for file attachments. Sets `data-dragging` when a file is being dragged over it and the runtime supports attachments; without the attachments capability the dropzone accepts no files and shows no highlight. Non-file drags (text, links) are ignored. Renders a `<div>` element unless `asChild` is set.
 
 ```tsx
 <ComposerPrimitive.AttachmentDropzone className="rounded-xl border-2 border-dashed data-[dragging]:border-primary data-[dragging]:bg-primary/5">
@@ -507,7 +507,7 @@ Wrap your composer with `AttachmentDropzone` to support dragging files directly 
 </ComposerPrimitive.AttachmentDropzone>
 ```
 
-The dropzone sets `data-dragging` when a file is being dragged over it, so you can style the active state with CSS.
+The dropzone sets `data-dragging` when a file is being dragged over it, so you can style the active state with CSS. It requires the runtime's attachments capability (an attachment adapter); without it the dropzone stays inert.
 
 ### With Voice Input
 

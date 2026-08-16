@@ -1,3 +1,5 @@
+import { isAiPlaygroundEnabled } from "./feature-flags";
+
 export const BASE_URL = "https://www.assistant-ui.com";
 export const CLOUD_URL = "https://cloud.assistant-ui.com";
 
@@ -27,6 +29,13 @@ export const PRODUCTS: Product[] = [
     label: "tw-shimmer",
     href: "/tw-shimmer",
     description: "Tailwind CSS shimmer effects",
+    external: false,
+  },
+  {
+    slug: "tw-glass",
+    label: "tw-glass",
+    href: "/tw-glass",
+    description: "Tailwind CSS glass refraction effects",
     external: false,
   },
   {
@@ -75,6 +84,17 @@ export const PRODUCTS: Product[] = [
 
 /** Internal products/pages that have sub-project routes (used by SubProjectLayout switcher). */
 export const SUB_PROJECTS: (Product & { slug: string })[] = [
+  ...(isAiPlaygroundEnabled
+    ? [
+        {
+          slug: "learn",
+          label: "Learn",
+          href: "/learn",
+          description: "Guided assistant-ui courses",
+          external: false,
+        },
+      ]
+    : []),
   {
     slug: "playground",
     label: "Playground",
@@ -103,8 +123,7 @@ export type NavItem =
 
 export const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Docs", href: "/docs" },
-  { type: "link", label: "Playground", href: "/playground" },
-  { type: "link", label: "Gallery", href: "/gallery" },
+  { type: "link", label: "Elements", href: "/elements" },
   {
     type: "mega",
     label: "Resources",
@@ -112,6 +131,16 @@ export const NAV_ITEMS: NavItem[] = [
       {
         label: "Learn",
         items: [
+          ...(isAiPlaygroundEnabled
+            ? [
+                {
+                  label: "Interactive course",
+                  href: "/learn",
+                  description: "Build your first AI app, step by step",
+                  external: false,
+                },
+              ]
+            : []),
           {
             label: "Examples",
             href: "/examples",
@@ -165,10 +194,10 @@ export const NAV_ITEMS: NavItem[] = [
         label: "Open source",
         items: [
           {
-            label: "GitHub",
-            href: "https://github.com/assistant-ui/assistant-ui",
-            description: "Star us on GitHub",
-            external: true,
+            label: "All projects",
+            href: "/oss",
+            description: "Everything we build in the open",
+            external: false,
           },
           {
             label: "Packages",
@@ -176,21 +205,33 @@ export const NAV_ITEMS: NavItem[] = [
             description: "Every distribution on npm",
             external: false,
           },
+        ],
+      },
+      {
+        label: "Community",
+        items: [
           {
-            label: "React Native",
-            href: "/native",
-            description: "Build mobile apps",
-            external: false,
+            label: "GitHub",
+            href: "https://github.com/assistant-ui/assistant-ui",
+            description: "Star us and open issues",
+            external: true,
           },
           {
-            label: "Ink",
-            href: "/ink",
-            description: "Build terminal UIs",
-            external: false,
+            label: "Discord",
+            href: "https://discord.gg/S9dwgCNEFs",
+            description: "Ask questions and share what you build",
+            external: true,
+          },
+          {
+            label: "X",
+            href: "https://x.com/assistantui",
+            description: "Follow along with releases",
+            external: true,
           },
         ],
       },
     ],
   },
+  { type: "link", label: "Playground", href: "/playground" },
   { type: "link", label: "Pricing", href: "/pricing" },
 ];

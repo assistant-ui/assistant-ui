@@ -52,7 +52,7 @@ export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
     typeof slice === "object" &&
     slice !== null &&
     ((slice as unknown) === proxiedState ||
-      (slice as unknown) === proxiedState?.optional)
+      (slice as unknown) === proxiedState.optional)
   ) {
     throw new Error(
       "You tried to return the entire AssistantState. This is not supported due to technical limitations.",

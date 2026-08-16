@@ -1,6 +1,6 @@
 import type { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
-import type { ToolResponseLike } from "../tool/ToolResponse";
+import { NO_RESULT, type ToolResponseLike } from "../tool/ToolResponse";
 import type { ReadonlyJSONValue } from "../../utils/json/json-value";
 import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 import { createTextStream, type TextStreamController } from "./text";
@@ -74,13 +74,18 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
   async setResponse(response: ToolResponseLike<ReadonlyJSONValue>) {
     if (this._isClosed) return;
 
+    // Wire decoders hand this a raw payload, so an omitted result is
+    // materialized here rather than reaching the message part as a settled call
+    // indistinguishable from one that never finished.
+    const result = response.result;
+
     this._controller.enqueue({
       type: "result",
       path: [],
       ...(response.artifact !== undefined
         ? { artifact: response.artifact }
         : {}),
-      result: response.result,
+      result: result === undefined ? NO_RESULT : result,
       isError: response.isError ?? false,
       ...(response.modelContent !== undefined
         ? { modelContent: response.modelContent }

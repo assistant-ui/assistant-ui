@@ -1,4 +1,4 @@
-import { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
+import { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/client";
 
 import { Primitive } from "@radix-ui/react-primitive";
 
@@ -49,6 +49,13 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
   [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
 };
 
+type ElicitationFieldContextValue = {
+  name: string;
+  schema: unknown;
+  value: unknown;
+  setValue: (value: unknown) => void;
+};
+
 type MCPAuthConfig = {
   type: "none";
 } | {
@@ -73,6 +80,8 @@ type MCPConnector = {
   icon?: string | undefined;
   auth: MCPAuthConfig;
   connectionTimeout?: number | undefined;
+  readonly cache?: MCPResponseCacheConfig | undefined;
+  readonly elicitation?: boolean | undefined;
 };
 
 type MCPCustomServerRecord = {
@@ -81,7 +90,28 @@ type MCPCustomServerRecord = {
   url: string;
   auth: MCPAuthConfig;
   connectionTimeout?: number | undefined;
+  readonly cache?: MCPResponseCacheConfig | undefined;
+  readonly elicitation?: boolean | undefined;
   createdAt: number;
+};
+
+type MCPElicitation = {
+  readonly id: string;
+  readonly message: string;
+  readonly requestedSchema: unknown;
+  readonly error?: {
+    readonly message: string;
+    readonly properties?: readonly string[] | undefined;
+  } | undefined;
+};
+
+type MCPElicitationResponse = {
+  action: "accept";
+  content: Record<string, unknown>;
+} | {
+  action: "decline";
+} | {
+  action: "cancel";
 };
 
 type MCPManagerMethods = {
@@ -98,6 +128,8 @@ type MCPManagerMethods = {
     url: string;
     auth: MCPAuthConfig;
     connectionTimeout?: number | undefined;
+    readonly cache?: MCPResponseCacheConfig | undefined;
+    readonly elicitation?: boolean | undefined;
   }) => Promise<string>;
   removeServer: (id: string) => Promise<void>;
 };
@@ -116,6 +148,10 @@ type MCPPersistedAuthState = {
   token?: string;
 };
 
+type MCPResponseCacheConfig = {
+  readonly defaultTtlMs?: number;
+};
+
 type MCPServerKind = "connector" | "custom";
 
 type MCPServerMethods = {
@@ -129,6 +165,10 @@ type MCPServerMethods = {
   }) => Promise<unknown>;
   readResource: (uri: string) => Promise<unknown>;
   completeAuth: (callbackUrl: string) => Promise<void>;
+  answerElicitation(id: string, response: MCPElicitationResponse): readonly {
+    property: string;
+    message: string;
+  }[] | undefined;
 };
 
 type MCPServerQuery = {
@@ -153,6 +193,7 @@ type MCPServerState = {
   } | null;
   tools: MCPToolInfo[];
   authorizationUrl: string | null;
+  readonly pendingElicitations: readonly MCPElicitation[];
 };
 
 type MCPStorage = {
@@ -255,6 +296,76 @@ declare const McpCustomServerByIndexProvider: FC<PropsWithChildren<{
 declare const McpCustomStorage: Resource<MCPStorage, [
   impl: MCPStorage
 ]>;
+
+declare namespace McpElicitationPrimitiveAccept {
+  type Element = ComponentRef<typeof Primitive.button>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.button>;
+}
+
+declare const McpElicitationPrimitiveAccept: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
+  asChild?: boolean;
+}, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
+
+declare namespace McpElicitationPrimitiveCancel {
+  type Element = ComponentRef<typeof Primitive.button>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.button>;
+}
+
+declare const McpElicitationPrimitiveCancel: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
+  asChild?: boolean;
+}, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
+
+declare namespace McpElicitationPrimitiveDecline {
+  type Element = ComponentRef<typeof Primitive.button>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.button>;
+}
+
+declare const McpElicitationPrimitiveDecline: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLButtonElement> & import("react").ButtonHTMLAttributes<HTMLButtonElement> & {
+  asChild?: boolean;
+}, "ref"> & import("react").RefAttributes<HTMLButtonElement>>;
+
+declare namespace McpElicitationPrimitiveError {
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
+}
+
+declare const McpElicitationPrimitiveError: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
+  asChild?: boolean;
+}, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
+
+declare namespace McpElicitationPrimitiveFields {
+  type Props = {
+    children: (field: ElicitationFieldContextValue) => ReactNode;
+  };
+}
+
+declare const McpElicitationPrimitiveFields: FC<McpElicitationPrimitiveFields.Props>;
+
+declare namespace McpElicitationPrimitiveItems {
+  type Props = {
+    children: ReactNode | ((elicitation: MCPElicitation) => ReactNode);
+  };
+}
+
+declare const McpElicitationPrimitiveItems: FC<McpElicitationPrimitiveItems.Props>;
+
+declare namespace McpElicitationPrimitiveMessage {
+  type Element = ComponentRef<typeof Primitive.span>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.span>;
+}
+
+declare const McpElicitationPrimitiveMessage: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLSpanElement> & import("react").HTMLAttributes<HTMLSpanElement> & {
+  asChild?: boolean;
+}, "ref"> & import("react").RefAttributes<HTMLSpanElement>>;
+
+declare namespace McpElicitationPrimitiveRoot {
+  type Element = ComponentRef<typeof Primitive.div>;
+  type Props = ComponentPropsWithoutRef<typeof Primitive.div>;
+}
+
+declare const McpElicitationPrimitiveRoot: import("react").ForwardRefExoticComponent<Omit<import("react").ClassAttributes<HTMLDivElement> & import("react").HTMLAttributes<HTMLDivElement> & {
+  asChild?: boolean;
+}, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
 declare const McpLocalStorage: Resource<MCPStorage, [
   opts?: McpLocalStorageOptions | undefined
@@ -449,6 +560,10 @@ type McpServerResourceProps = {
   redirectUri: string;
   autoConnect: boolean;
   connectionTimeout?: number | undefined;
+  cache?: {
+    readonly defaultTtlMs?: number;
+  } | undefined;
+  readonly elicitation?: boolean;
   onRemove: () => Promise<void>;
 };
 
@@ -481,9 +596,15 @@ type UseMcpOAuthCallbackResult = {
   error: Error | null;
 };
 
-type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : TClient extends {
+type ValidateClient<K extends string, TClient> = K extends ReservedScopeNames ? ClientError<`ERROR: ${K} is a reserved scope name`> : unknown extends ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> ? TClient : ValidateMethods<K, TClient> & ValidateMeta<K, TClient> & ValidateEvents<K, TClient> & ClientError<never>;
+
+type ValidateEvents<K extends string, TClient> = "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? unknown : ClientError<`ERROR: ${K} has invalid events type`> : unknown;
+
+type ValidateMeta<K extends string, TClient> = "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? unknown : ClientError<`ERROR: ${K} has invalid meta type`> : unknown;
+
+type ValidateMethods<K extends string, TClient> = TClient extends {
   methods: ClientMethods;
-} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? "meta" extends keyof TClient ? TClient["meta"] extends ClientMetaType ? "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? TClient : ClientError<`ERROR: ${K} has invalid events type`> : TClient : ClientError<`ERROR: ${K} has invalid meta type`> : "events" extends keyof TClient ? TClient["events"] extends ClientEventsType<K> ? TClient : ClientError<`ERROR: ${K} has invalid events type`> : TClient : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
+} ? keyof TClient["methods"] & ReservedAccessorProps extends never ? unknown : ClientError<`ERROR: ${K} methods declare a reserved accessor property (source/query/name)`> : ClientError<`ERROR: ${K} has invalid methods type`>;
 
 declare namespace addForm_d_exports {
   export { McpAddFormPrimitiveAuthFields as AuthFields, McpAddFormPrimitiveAuthSelect as AuthSelect, McpAddFormPrimitiveCancel as Cancel, McpAddFormPrimitiveError as Error, McpAddFormPrimitiveNameField as NameField, McpAddFormPrimitiveRoot as Root, McpAddFormPrimitiveSubmit as Submit, McpAddFormPrimitiveUrlField as UrlField };
@@ -491,8 +612,12 @@ declare namespace addForm_d_exports {
 
 declare function defineConnector(connector: MCPConnector): MCPConnector;
 
+declare namespace elicitation_d_exports {
+  export { McpElicitationPrimitiveAccept as Accept, McpElicitationPrimitiveCancel as Cancel, McpElicitationPrimitiveDecline as Decline, McpElicitationPrimitiveError as Error, McpElicitationPrimitiveFields as Fields, McpElicitationPrimitiveItems as Items, McpElicitationPrimitiveMessage as Message, McpElicitationPrimitiveRoot as Root, useMcpElicitation, useMcpElicitationField };
+}
+
 declare namespace entry_root_exports {
-  export { MCPAuthConfig, MCPConnectionState, MCPConnector, MCPCustomServerRecord, MCPManagerMethods, MCPManagerState, MCPPersistedAuthState, MCPServerKind, MCPServerMethods, MCPServerQuery, MCPServerState, MCPStorage, MCPStorageElement, MCPToolInfo, addForm_d_exports as McpAddFormPrimitive, McpConnectorByIndexProvider, McpCustomServerByIndexProvider, McpCustomStorage, McpLocalStorage, McpLocalStorageOptions, manager_d_exports as McpManagerPrimitive, McpManagerResource, McpManagerResourceProps, McpMemoryStorage, McpOAuthCallback, McpServerByIdProvider, server_d_exports as McpServerPrimitive, McpServerResource, McpServerResourceProps, UseMcpOAuthCallbackOptions, UseMcpOAuthCallbackResult, defineConnector, useMcpOAuthCallback };
+  export { MCPAuthConfig, MCPConnectionState, MCPConnector, MCPCustomServerRecord, MCPElicitation, MCPElicitationResponse, MCPManagerMethods, MCPManagerState, MCPPersistedAuthState, MCPResponseCacheConfig, MCPServerKind, MCPServerMethods, MCPServerQuery, MCPServerState, MCPStorage, MCPStorageElement, MCPToolInfo, addForm_d_exports as McpAddFormPrimitive, McpConnectorByIndexProvider, McpCustomServerByIndexProvider, McpCustomStorage, elicitation_d_exports as McpElicitationPrimitive, McpLocalStorage, McpLocalStorageOptions, manager_d_exports as McpManagerPrimitive, McpManagerResource, McpManagerResourceProps, McpMemoryStorage, McpOAuthCallback, McpServerByIdProvider, server_d_exports as McpServerPrimitive, McpServerResource, McpServerResourceProps, UseMcpOAuthCallbackOptions, UseMcpOAuthCallbackResult, defineConnector, useMcpOAuthCallback };
 }
 
 declare namespace manager_d_exports {
@@ -502,6 +627,10 @@ declare namespace manager_d_exports {
 declare namespace server_d_exports {
   export { McpServerPrimitiveConnectButton as ConnectButton, McpServerPrimitiveDisconnectButton as DisconnectButton, McpServerPrimitiveError as Error, McpServerPrimitiveIcon as Icon, McpServerPrimitiveName as Name, McpServerPrimitiveOAuthLink as OAuthLink, McpServerPrimitiveRemoveButton as RemoveButton, McpServerPrimitiveRoot as Root, McpServerPrimitiveStatus as Status, McpServerPrimitiveToolName as ToolName, McpServerPrimitiveTools as Tools, useMcpServerTool };
 }
+
+declare const useMcpElicitation: () => MCPElicitation;
+
+declare const useMcpElicitationField: () => ElicitationFieldContextValue;
 
 declare function useMcpOAuthCallback(opts?: UseMcpOAuthCallbackOptions): UseMcpOAuthCallbackResult;
 

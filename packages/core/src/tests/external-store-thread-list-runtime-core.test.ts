@@ -1,20 +1,40 @@
 import { describe, expect, it, vi } from "vitest";
 import { ExternalStoreThreadListRuntimeCore } from "../runtimes/external-store/external-store-thread-list-runtime-core";
 import type { ExternalStoreThreadRuntimeCore } from "../runtimes/external-store/external-store-thread-runtime-core";
+import { ExternalStoreThreadRuntimeCore as ExternalStoreThreadRuntimeCoreImpl } from "../runtimes/external-store/external-store-thread-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "../runtimes/external-store/external-store-adapter";
+import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
+import type { ModelContextProvider } from "../model-context/types";
 import { ThreadListRuntimeImpl } from "../runtime/api/thread-list-runtime";
 
-const makeFactory = () =>
+const makeFactory = (overrides: Record<string, unknown> = {}) =>
   vi.fn(
     () =>
       ({
         subscribe: () => () => {},
+        capabilities: { cancel: false },
+        ...overrides,
       }) as unknown as ExternalStoreThreadRuntimeCore,
   );
 
 const makeAdapter = (
   overrides: Partial<ExternalStoreThreadListAdapter> = {},
 ): ExternalStoreThreadListAdapter => ({ ...overrides });
+
+const mockContextProvider: ModelContextProvider = {
+  getModelContext: () => ({}),
+};
+
+const appendMessage = () => ({
+  parentId: null,
+  sourceId: null,
+  runConfig: {},
+  role: "user" as const,
+  content: [{ type: "text" as const, text: "hello" }],
+  attachments: [],
+  metadata: { custom: {} },
+  createdAt: new Date(0),
+});
 
 describe("ExternalStoreThreadListRuntimeCore - construction", () => {
   it("assigns a resolvable fallback mainThreadId when adapter has no threadId", () => {
@@ -173,6 +193,66 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
       "thread-gamma",
     ]);
   });
+
+  it("drops a pending append from the previous thread after a switch", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const firstRuntime = new ExternalStoreThreadRuntimeCoreImpl(
+      mockContextProvider,
+      { messages: [], onNew } as ExternalStoreAdapter,
+    );
+    firstRuntime.__internal_setGetInitializePromise(() => initialization);
+    const secondRuntime = new ExternalStoreThreadRuntimeCoreImpl(
+      mockContextProvider,
+      { messages: [], onNew: vi.fn() } as ExternalStoreAdapter,
+    );
+    const factory = vi
+      .fn()
+      .mockReturnValueOnce(firstRuntime)
+      .mockReturnValueOnce(secondRuntime);
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      factory,
+    );
+
+    const appendPromise = firstRuntime.append(appendMessage());
+    await Promise.resolve();
+    core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" }));
+    resolveInitialization();
+
+    await appendPromise;
+    expect(onNew).not.toHaveBeenCalled();
+  });
+});
+
+describe("ExternalStoreThreadListRuntimeCore - detach", () => {
+  it("leaves the main thread's pending append alone when an item detaches", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCoreImpl(
+      mockContextProvider,
+      { messages: [], onNew } as ExternalStoreAdapter,
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      vi.fn(() => runtime),
+    );
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+    await core.detach();
+    resolveInitialization();
+
+    await appendPromise;
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("ExternalStoreThreadListRuntimeCore - isMain via ThreadListRuntimeImpl", () => {
@@ -242,5 +322,41 @@ describe("ExternalStoreThreadListRuntimeCore - switchToThread", () => {
     );
     await core.switchToThread("thread-alpha");
     expect(onSwitchToThread).not.toHaveBeenCalled();
+  });
+});
+
+describe("ExternalStoreThreadListRuntimeCore.reloadMainThread", () => {
+  it("dispatches to the main thread's refetch capability", async () => {
+    const refetch = vi.fn(async () => {});
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactory({ unstable_refetchThread: refetch }),
+    );
+
+    await core.reloadMainThread();
+
+    expect(refetch).toHaveBeenCalledOnce();
+  });
+
+  it("resolves quietly when the adapter declares no refetch capability", async () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactory(),
+    );
+
+    await expect(core.reloadMainThread()).resolves.toBeUndefined();
+  });
+
+  it("propagates a refetch failure", async () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter(),
+      makeFactory({
+        unstable_refetchThread: async () => {
+          throw new Error("refetch failed");
+        },
+      }),
+    );
+
+    await expect(core.reloadMainThread()).rejects.toThrow("refetch failed");
   });
 });

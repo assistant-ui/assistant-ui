@@ -1,13 +1,9 @@
 import type { SpeechState } from "../interfaces/thread-runtime-core";
 import { symbolInnerMessage } from "../utils/external-store-message";
-import type {
-  ToolCallMessagePartStatus,
-  ThreadMessage,
-  ThreadAssistantMessagePart,
-  ThreadUserMessagePart,
-} from "../../types/message";
+import type { ThreadMessage } from "../../types/message";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { MessagePartStatus, RunConfig } from "../../types/message";
+import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { getThreadMessageText } from "../../utils/text";
 import { NestedSubscriptionSubject } from "../../subscribable/subscribable";
 import {
@@ -32,30 +28,6 @@ import type { MessageRuntimePath } from "./paths";
 import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import type { MessageStateBinding } from "./bindings";
 
-const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
-  type: "complete",
-});
-
-export const toMessagePartStatus = (
-  message: ThreadMessage,
-  partIndex: number,
-  part: ThreadUserMessagePart | ThreadAssistantMessagePart,
-): ToolCallMessagePartStatus => {
-  if (message.role !== "assistant") return COMPLETE_STATUS;
-
-  if (part.type === "tool-call") {
-    if (!part.result) {
-      return message.status as ToolCallMessagePartStatus;
-    } else {
-      return COMPLETE_STATUS;
-    }
-  }
-
-  const isLastPart = partIndex === Math.max(0, message.content.length - 1);
-  if (message.status.type === "requires-action") return COMPLETE_STATUS;
-  return isLastPart ? (message.status as MessagePartStatus) : COMPLETE_STATUS;
-};
-
 const getMessagePartState = (
   message: MessageState,
   partIndex: number,
@@ -70,7 +42,7 @@ const getMessagePartState = (
   return Object.freeze({
     ...part,
     ...{ [symbolInnerMessage]: (part as any)[symbolInnerMessage] },
-    status,
+    status: status as MessagePartStatus,
   });
 };
 
