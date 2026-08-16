@@ -4,13 +4,14 @@ import type { Series } from "../../core/types";
 import { bandPath, scalePoints } from "../../core/geometry";
 import { cat } from "../../core/theme";
 import { stack } from "../../core/layout";
-import { ChartSvg, ColumnHits, Legend, vbHeight } from "../svg";
+import { ChartSvg, ColumnHits, Legend, typeScale, vbHeight } from "../svg";
 
 export type StreamgraphProps = BaseProps & { series: Series[] };
 
 export const Streamgraph = forwardRef<SVGSVGElement, StreamgraphProps>(
-  ({ series, legend, title, aspect, className, ...rest }, ref) => {
+  ({ series, legend, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const showLegend = legend ?? series.length > 1;
     const { totals, levels } = stack(series.map((s) => s.data));
     const max = Math.max(...totals, 1);
@@ -23,7 +24,14 @@ export const Streamgraph = forwardRef<SVGSVGElement, StreamgraphProps>(
       scalePoints(level, 8, 192, mid + half, mid - half, -max / 2, max / 2),
     );
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <ColumnHits
           count={series[0]?.data.length ?? 0}
           x0={14}
@@ -46,6 +54,7 @@ export const Streamgraph = forwardRef<SVGSVGElement, StreamgraphProps>(
             names={series.map((s) => s.name)}
             colors={series.map((_, k) => cat(k))}
             x={8}
+            type={T.axis}
           />
         )}
       </ChartSvg>

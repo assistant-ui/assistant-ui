@@ -57,7 +57,7 @@ export const DotPlot = forwardRef<SVGSVGElement, DotPlotProps>(
               : row.label === highlight;
           return (
             <g key={row.label} data-part="mark" data-i={i}>
-              <text x="8" y={y + 1.8} {...TXT.axis}>
+              <text x="8" y={y} dominantBaseline="central" {...TXT.axis}>
                 {row.label}
               </text>
               <line

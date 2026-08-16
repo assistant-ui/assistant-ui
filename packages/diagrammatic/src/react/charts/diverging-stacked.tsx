@@ -1,7 +1,7 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { NEG, POS, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, TXT, rowMarkH, vbHeight } from "../svg";
 
 export type DivergingStackedProps = BaseProps & {
   rows: { label: string; values: [number, number, number, number, number] }[];
@@ -40,6 +40,8 @@ export const DivergingStacked = forwardRef<
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
         {rows.map((row, i) => {
           const y = 8 + i * rowH;
+          const mid = y + rowH / 2;
+          const barH = rowMarkH(rowH, 0.62);
           const [strongNeg, neg, neutral, pos, strongPos] = row.values;
           let x = center - (strongNeg + neg + neutral / 2) * unit;
           const segments = [
@@ -51,7 +53,7 @@ export const DivergingStacked = forwardRef<
           ];
           return (
             <g key={row.label} data-part="mark" data-i={i}>
-              <text x="8" y={y + rowH / 2 + 1} {...TXT.axis}>
+              <text x="8" y={mid} dominantBaseline="central" {...TXT.axis}>
                 {row.label}
               </text>
               {segments.map((segment, k) => {
@@ -62,9 +64,9 @@ export const DivergingStacked = forwardRef<
                   <rect
                     key={k}
                     x={x0}
-                    y={y}
+                    y={mid - barH / 2}
                     width={w}
-                    height={rowH - 4.5}
+                    height={barH}
                     fill={segment.fill ?? ink(0.15)}
                     opacity={segment.fill ? segment.opacity : 1}
                   />

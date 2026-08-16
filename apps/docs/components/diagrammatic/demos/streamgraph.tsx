@@ -1,7 +1,12 @@
 import { Streamgraph } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Slide } from "./scenes";
+
+const WEEKS = Array.from({ length: 16 }, (_, i) => `w${i + 1}`);
+const DOCS = [12, 13, 12, 14, 15, 16, 18, 22, 28, 34, 31, 26, 22, 20, 19, 18];
+const PLAYGROUND = [6, 6, 7, 7, 8, 9, 12, 18, 32, 24, 16, 12, 10, 9, 9, 8];
+const DISCORD = [4, 4, 5, 5, 6, 7, 9, 14, 26, 18, 12, 9, 8, 7, 7, 6];
+const GITHUB = [8, 8, 9, 9, 10, 11, 12, 14, 16, 15, 14, 13, 12, 12, 11, 11];
 
 export const glyph = (
   <Streamgraph
@@ -17,65 +22,33 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "Listening hours by genre across a season",
+    title: "Traffic around the v2 launch",
     setup:
-      "A music app's year-in-review team wants the listening story to feel like weather, not accounting. Nine months of hours by genre, centered on their own flow instead of a zero line.",
-    read: "The river reads as rhythm: pop swells into summer and recedes, while lo-fi quietly widens underneath — the study-season signal. There is no axis to read numbers from, and that is the form's deal; if someone needs values, this becomes a stacked area.",
+      "Sixteen weeks of unique visitors across four surfaces, centered on their own flow. Week 9 is the v2 launch. The form is here because the event is a shape, not a number.",
+    read: "Playground and Discord balloon on launch week and collapse the week after. Docs swells a week later and stays fat: people come to try, then stay to read. GitHub barely twitches. If you need the counts, this is the wrong chart.",
+    source: "Unique visitors by surface, week 1 is eight weeks before launch.",
     chart: (
-      <Slide title="A season of listening" footer="year in review">
-        <FigTooltip
-          labels={[
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-            "Oct",
-            "Nov",
-            "Dec",
+      <FigTooltip
+        labels={WEEKS}
+        series={{
+          docs: DOCS,
+          playground: PLAYGROUND,
+          discord: DISCORD,
+          github: GITHUB,
+        }}
+      >
+        <Streamgraph
+          density="figure"
+          aspect={2.2}
+          title="Traffic around the v2 launch"
+          series={[
+            { name: "docs", data: DOCS },
+            { name: "playground", data: PLAYGROUND },
+            { name: "discord", data: DISCORD },
+            { name: "github", data: GITHUB },
           ]}
-          series={{
-            pop: [8, 10, 12, 16, 20, 24, 22, 18, 16, 14, 12, 11],
-            "hip-hop": [6, 8, 10, 14, 12, 16, 18, 16, 14, 12, 10, 9],
-            rock: [10, 9, 8, 10, 14, 12, 14, 16, 18, 16, 12, 11],
-            electronic: [3, 4, 6, 7, 9, 11, 12, 10, 8, 7, 6, 5],
-            "lo-fi": [4, 5, 6, 8, 8, 9, 10, 10, 12, 13, 14, 15],
-            jazz: [3, 3, 4, 4, 5, 4, 4, 5, 6, 7, 8, 8],
-          }}
-          unit="h"
-        >
-          <Streamgraph
-            title="Listening hours by genre"
-            series={[
-              {
-                name: "pop",
-                data: [8, 10, 12, 16, 20, 24, 22, 18, 16, 14, 12, 11],
-              },
-              {
-                name: "hip-hop",
-                data: [6, 8, 10, 14, 12, 16, 18, 16, 14, 12, 10, 9],
-              },
-              {
-                name: "rock",
-                data: [10, 9, 8, 10, 14, 12, 14, 16, 18, 16, 12, 11],
-              },
-              {
-                name: "electronic",
-                data: [3, 4, 6, 7, 9, 11, 12, 10, 8, 7, 6, 5],
-              },
-              {
-                name: "lo-fi",
-                data: [4, 5, 6, 8, 8, 9, 10, 10, 12, 13, 14, 15],
-              },
-              { name: "jazz", data: [3, 3, 4, 4, 5, 4, 4, 5, 6, 7, 8, 8] },
-            ]}
-          />
-        </FigTooltip>
-      </Slide>
+        />
+      </FigTooltip>
     ),
   },
 ];

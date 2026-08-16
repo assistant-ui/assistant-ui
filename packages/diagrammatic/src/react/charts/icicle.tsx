@@ -42,7 +42,12 @@ export const Icicle = forwardRef<SVGSVGElement, IcicleProps>(
               <g key={i} data-part="mark" data-series={slice.node.label}>
                 <rect x={x} y={y} width={w} height={rowH} fill={ink(0.08)} />
                 {fits && (
-                  <text x={x + 5} y={y + rowH / 2 + 1.8} {...TXT.label}>
+                  <text
+                    x={x + 5}
+                    y={y + rowH / 2}
+                    dominantBaseline="central"
+                    {...TXT.label}
+                  >
                     {slice.node.label}
                   </text>
                 )}
@@ -66,7 +71,12 @@ export const Icicle = forwardRef<SVGSVGElement, IcicleProps>(
                 }
               />
               {fits && (
-                <text x={x + 5} y={y + rowH / 2 + 1.8} {...TXT.onSeries}>
+                <text
+                  x={x + 5}
+                  y={y + rowH / 2}
+                  dominantBaseline="central"
+                  {...TXT.onSeries}
+                >
                   {slice.node.label}
                 </text>
               )}

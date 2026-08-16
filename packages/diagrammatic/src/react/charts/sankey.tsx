@@ -41,7 +41,8 @@ export const Sankey = forwardRef<SVGSVGElement, SankeyProps>(
             />
             <text
               x={node.side === "left" ? X0 + 5 : X1 - 5}
-              y={round((node.y0 + node.y1) / 2 + 1.8)}
+              y={round((node.y0 + node.y1) / 2)}
+              dominantBaseline="central"
               textAnchor={node.side === "left" ? "start" : "end"}
               {...TXT.label}
             >

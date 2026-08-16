@@ -9,11 +9,12 @@ export type {
   TreeNode,
 } from "./core/types";
 export { formatCompact } from "./core/types";
+export type { Density } from "./react/svg";
 export type { BaseProps, MicroBaseProps } from "./react/svg";
 export type { Tile } from "./core/tiles";
 export { ABSTRACT_TILES } from "./core/tiles";
 
-export { Line, type LineProps } from "./react/charts/line";
+export { Line, type LineMark, type LineProps } from "./react/charts/line";
 export { Area, type AreaProps } from "./react/charts/area";
 export {
   StackedArea,

@@ -4,7 +4,7 @@ import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { ACCENT, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, TXT, rowMarkH, vbHeight } from "../svg";
 
 export type LeaderboardProps = BaseProps & {
   items: Item[];
@@ -32,29 +32,39 @@ export const Leaderboard = forwardRef<SVGSVGElement, LeaderboardProps>(
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
         {items.map((row, i) => {
           const y = 10 + i * rowH;
+          const mid = y + rowH / 2;
+          const barH = Math.min(8.5, rowMarkH(rowH, 0.5));
           return (
             <g key={row.label} data-part="mark" data-i={i}>
               <text
                 x="14"
-                y={y + 6.2}
+                y={mid}
+                dominantBaseline="central"
                 fontSize="4.2"
                 fill={ink(0.6)}
                 fontFamily={TXT.axis.fontFamily}
               >
                 {row.label}
               </text>
-              <rect x="48" y={y} width={trackW} height="8.5" fill={ink(0.08)} />
               <rect
                 x="48"
-                y={round(y)}
+                y={round(mid - barH / 2)}
+                width={trackW}
+                height={barH}
+                fill={ink(0.08)}
+              />
+              <rect
+                x="48"
+                y={round(mid - barH / 2)}
                 width={round(Math.max((row.value / max) * trackW, 4))}
-                height="8.5"
+                height={barH}
                 fill={i === 0 ? ACCENT : ink(0.4)}
               />
               {showValues && (
                 <text
                   x="186"
-                  y={y + 6.2}
+                  y={mid}
+                  dominantBaseline="central"
                   fontSize="4.2"
                   textAnchor="end"
                   fill={ink(0.4)}

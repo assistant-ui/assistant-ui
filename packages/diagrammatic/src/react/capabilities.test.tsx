@@ -5,7 +5,9 @@ import { BoxPlot } from "./charts/box-plot";
 import { Column } from "./charts/column";
 import { Funnel } from "./charts/funnel";
 import { Heatmap } from "./charts/heatmap";
+import { Gantt } from "./charts/gantt";
 import { Histogram } from "./charts/histogram";
+import { Horizon } from "./charts/horizon";
 import { Line } from "./charts/line";
 import { Violin } from "./charts/violin";
 import { Waterfall } from "./charts/waterfall";
@@ -17,6 +19,68 @@ describe("ceiling capabilities", () => {
     );
     expect(html).toContain(">4x</text>");
     expect(html).toContain('data-part="grid"');
+  });
+
+  it("Line prints named marks on a series", () => {
+    const html = renderToStaticMarkup(
+      <Line
+        series={[{ name: "baseline", data: [10, 20, 30] }]}
+        marks={[{ series: "baseline", at: 2, label: "30 tok" }]}
+      />,
+    );
+    expect(html).toContain(">30 tok</text>");
+  });
+
+  it("Line figure density stamps the frame and uses the figure type scale", () => {
+    const html = renderToStaticMarkup(
+      <Line density="figure" data={[1, 2, 3]} labels={["a", "b", "c"]} />,
+    );
+    expect(html).toContain('data-density="figure"');
+    expect(html).toContain('font-size="3.6"');
+  });
+
+  it("Gantt keeps a usable bar height on a ten-row figure", () => {
+    const html = renderToStaticMarkup(
+      <Gantt
+        density="figure"
+        aspect={1.9}
+        today={50}
+        labels={["Apr", "Jul"]}
+        rows={Array.from({ length: 10 }, (_, i) => ({
+          label: `r${i}`,
+          from: i,
+          to: i + 8,
+        }))}
+      />,
+    );
+    const heights = [...html.matchAll(/<rect[^>]*height="([^"]+)"/g)].map((m) =>
+      Number(m[1]),
+    );
+    expect(heights.length).toBe(10);
+    expect(Math.min(...heights)).toBeGreaterThanOrEqual(2.4);
+    expect(html).toContain('dominant-baseline="central"');
+  });
+
+  it("Line y-tick rules are dashed", () => {
+    const html = renderToStaticMarkup(
+      <Line data={[1, 5, 3]} yTicks={[{ at: 4, label: "4x" }]} />,
+    );
+    expect(html).toContain('stroke-dasharray="1.8 2.4"');
+    expect(html).toContain(">4x</text>");
+  });
+
+  it("Horizon stacks named series as separate bands", () => {
+    const html = renderToStaticMarkup(
+      <Horizon
+        series={[
+          { name: "api-1a", data: [1, 3, 2] },
+          { name: "api-1b", data: [2, 4, 1] },
+        ]}
+      />,
+    );
+    expect(html).toContain(">api-1a</text>");
+    expect(html).toContain(">api-1b</text>");
+    expect(html.split('data-part="mark"').length).toBeGreaterThan(2);
   });
 
   it("Column renders a labeled target line inside the domain", () => {

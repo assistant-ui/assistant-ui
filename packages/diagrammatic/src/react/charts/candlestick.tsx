@@ -1,9 +1,9 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { formatCompact } from "../../core/types";
-import { extent, round, stroke } from "../../core/geometry";
+import { extent, stroke } from "../../core/geometry";
 import { GRID, NEG, POS, ink } from "../../core/theme";
-import { AxisLabels, ChartSvg, TXT, vbHeight } from "../svg";
+import { AxisLabels, ChartSvg, TickGrid, typeScale, vbHeight } from "../svg";
 
 export type CandlestickProps = BaseProps & {
   data: { open: number; high: number; low: number; close: number }[];
@@ -19,12 +19,14 @@ export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
       format = formatCompact,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const bottom = labels ? vh - 16 : vh - 8;
     const [lo, hi] = extent([
       ...data.flatMap((c) => [c.low, c.high]),
@@ -36,27 +38,15 @@ export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
     const xs = data.map((_, i) => 30 + step * (i + 0.5));
     const body = Math.min(9, step * 0.45);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
-        {yTicks?.map((tick) => (
-          <g key={tick.at} data-part="grid">
-            <line
-              x1="26"
-              y1={round(Y(tick.at))}
-              x2="192"
-              y2={round(Y(tick.at))}
-              stroke={ink(0.08)}
-              {...stroke.hair}
-            />
-            <text
-              x="24"
-              y={round(Y(tick.at)) + 1.2}
-              textAnchor="end"
-              {...TXT.axis}
-            >
-              {tick.label}
-            </text>
-          </g>
-        ))}
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
+        <TickGrid ticks={yTicks} at={Y} from={26} to={192} type={T.axis} />
         {[lo, hi].map((v) => (
           <g key={v}>
             <line
@@ -68,7 +58,7 @@ export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
               data-part="grid"
               {...stroke.hair}
             />
-            <text x="23" y={Y(v) + 1.6} textAnchor="end" {...TXT.axis}>
+            <text x="23" y={Y(v) + 1.6} textAnchor="end" {...T.axis}>
               {format(v)}
             </text>
           </g>
@@ -98,7 +88,14 @@ export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
             </g>
           );
         })}
-        {labels && <AxisLabels labels={labels} xs={xs} y={vh - 4} />}
+        {labels && (
+          <AxisLabels
+            labels={labels}
+            xs={xs}
+            y={vh - (density === "figure" ? 6 : 4)}
+            type={T.axis}
+          />
+        )}
       </ChartSvg>
     );
   },

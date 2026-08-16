@@ -47,7 +47,7 @@ export const WorldMap = forwardRef<SVGSVGElement, WorldMapProps>(
         title={title}
         className={className}
       >
-        {WORLD.map((country) => {
+        {WORLD.map((country, i) => {
           const value = values?.[country.iso];
           const share =
             value === undefined
@@ -55,7 +55,7 @@ export const WorldMap = forwardRef<SVGSVGElement, WorldMapProps>(
               : Math.max(0, Math.min(1, value / denominator));
           return (
             <path
-              key={country.iso}
+              key={`${country.iso}-${i}`}
               d={country.d}
               fill={ACCENT}
               fillOpacity={share === undefined ? 0 : 0.1 + share * 0.85}

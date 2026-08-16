@@ -42,7 +42,13 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
           className={className}
         >
           {matrix.rows.map((row, r) => (
-            <text key={row} x="8" y={12 + r * stepY + 1.8} {...TXT.axis}>
+            <text
+              key={row}
+              x="8"
+              y={12 + r * stepY}
+              dominantBaseline="central"
+              {...TXT.axis}
+            >
               {row}
             </text>
           ))}
@@ -88,7 +94,8 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
           <text
             key={row}
             x="8"
-            y={8 + r * cellH + cellH / 2 + 1.6}
+            y={8 + r * cellH + cellH / 2}
+            dominantBaseline="central"
             {...TXT.axis}
           >
             {row}

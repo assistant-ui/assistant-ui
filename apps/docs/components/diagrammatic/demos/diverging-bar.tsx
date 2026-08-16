@@ -1,7 +1,6 @@
 import { DivergingBar } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Report } from "./scenes";
 
 export const glyph = (
   <DivergingBar
@@ -23,61 +22,58 @@ export const examples: DemoExample[] = [
   {
     title: "Revenue against plan, by product",
     setup:
-      "The quarterly business review opens with every product's revenue versus plan. Zero is the plan; direction is the verdict, delivered before any number is read.",
-    read: "Cloud beats plan by 48% while video misses by 38 — the same information as a table of ten percentages, but the room splits into 'above the line' and 'below the line' in one second: six products above, four below, and the misses get steeper as the list descends. Video's bar is why agenda item two exists.",
+      "Zero is the plan. The form sorts itself. Direction is the verdict before any number is read.",
+    read: "Cloud is 48% over. Video is 38% under. Six products above the line, four below, and the misses get steeper as the list descends. Video is why agenda item two exists.",
+    source: "Q2 2025 revenue versus the January plan.",
     chart: (
-      <Report
-        title="Revenue vs plan"
-        chip="QBR"
-        note="Variance to plan by product line, percent."
+      <FigTooltip
+        labels={[
+          "cloud",
+          "search",
+          "mail",
+          "iot",
+          "docs",
+          "gaming",
+          "maps",
+          "ads",
+          "music",
+          "video",
+        ]}
+        series={{
+          "vs plan": [
+            "+48%",
+            "+34%",
+            "+26%",
+            "+18%",
+            "+9%",
+            "+4%",
+            "-12%",
+            "-22%",
+            "-29%",
+            "-38%",
+          ],
+        }}
       >
-        <FigTooltip
-          labels={[
-            "cloud",
-            "search",
-            "mail",
-            "iot",
-            "docs",
-            "gaming",
-            "maps",
-            "ads",
-            "music",
-            "video",
+        <DivergingBar
+          density="figure"
+          aspect={1.2}
+          title="Revenue against plan"
+          sorted
+          items={[
+            { label: "maps", value: -12 },
+            { label: "cloud", value: 48 },
+            { label: "docs", value: 9 },
+            { label: "video", value: -38 },
+            { label: "search", value: 34 },
+            { label: "gaming", value: 4 },
+            { label: "ads", value: -22 },
+            { label: "mail", value: 26 },
+            { label: "music", value: -29 },
+            { label: "iot", value: 18 },
           ]}
-          series={{
-            "vs plan": [
-              "+48%",
-              "+34%",
-              "+26%",
-              "+18%",
-              "+9%",
-              "+4%",
-              "-12%",
-              "-22%",
-              "-29%",
-              "-38%",
-            ],
-          }}
-        >
-          <DivergingBar
-            title="Revenue against plan"
-            sorted
-            items={[
-              { label: "maps", value: -12 },
-              { label: "cloud", value: 48 },
-              { label: "docs", value: 9 },
-              { label: "video", value: -38 },
-              { label: "search", value: 34 },
-              { label: "gaming", value: 4 },
-              { label: "ads", value: -22 },
-              { label: "mail", value: 26 },
-              { label: "music", value: -29 },
-              { label: "iot", value: 18 },
-            ]}
-            format={(v) => `${v}%`}
-          />
-        </FigTooltip>
-      </Report>
+          format={(v) => `${v}%`}
+        />
+      </FigTooltip>
     ),
   },
 ];

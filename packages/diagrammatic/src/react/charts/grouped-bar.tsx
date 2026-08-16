@@ -2,8 +2,8 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
-import { GRID, cat, ink } from "../../core/theme";
-import { AxisLabels, ChartSvg, Legend, TXT, vbHeight } from "../svg";
+import { GRID, cat } from "../../core/theme";
+import { AxisLabels, ChartSvg, Legend, TickGrid, vbHeight } from "../svg";
 
 export type GroupedBarProps = BaseProps & {
   groups: string[];
@@ -41,26 +41,7 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
           data-part="grid"
           {...stroke.hair}
         />
-        {yTicks?.map((tick) => (
-          <g key={tick.at} data-part="grid">
-            <line
-              x1={leftEdge}
-              y1={round(Y(tick.at))}
-              x2="190"
-              y2={round(Y(tick.at))}
-              stroke={ink(0.08)}
-              {...stroke.hair}
-            />
-            <text
-              x={leftEdge - 2}
-              y={round(Y(tick.at)) + 1.2}
-              textAnchor="end"
-              {...TXT.axis}
-            >
-              {tick.label}
-            </text>
-          </g>
-        ))}
+        <TickGrid ticks={yTicks} at={Y} from={leftEdge} to={190} />
         {showLegend && (
           <Legend
             names={series.map((s) => s.name)}

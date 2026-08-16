@@ -1,67 +1,59 @@
 import { Chord } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Paper } from "./scenes";
+
+const GROUPS = ["payments", "checkout", "search", "growth", "platform"];
+const FLOWS = [
+  { from: "payments", to: "checkout", value: 38 },
+  { from: "checkout", to: "payments", value: 22 },
+  { from: "checkout", to: "search", value: 14 },
+  { from: "search", to: "checkout", value: 9 },
+  { from: "growth", to: "checkout", value: 18 },
+  { from: "platform", to: "payments", value: 16 },
+  { from: "platform", to: "search", value: 11 },
+  { from: "payments", to: "platform", value: 8 },
+  { from: "growth", to: "search", value: 7 },
+  { from: "search", to: "growth", value: 4 },
+];
 
 export const glyph = (
   <Chord
-    title="Trade flows between regions"
-    groups={["americas", "europe", "asia", "africa"]}
-    flows={[
-      { from: "americas", to: "asia", value: 30 },
-      { from: "americas", to: "europe", value: 18 },
-      { from: "europe", to: "africa", value: 14 },
-      { from: "asia", to: "africa", value: 8 },
-    ]}
+    title="On-call handoffs"
+    groups={GROUPS.slice(0, 4)}
+    flows={FLOWS.slice(0, 5)}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Trade flows between regions",
+    title: "On-call handoffs, one quarter",
     setup:
-      "A trade economist draws four regions on one circle, ribbons between them sized by volume, because when everyone trades with everyone, columns stop working and the circle starts.",
-    read: "The americas–asia ribbon dwarfs the rest of the circle — the Pacific is the world economy's main street, and the europe–asia ribbon beside it is the second. Africa's arc touches all four partners thinly, which is both its trade profile and its negotiating position; oceania's whole arc rides on asia. Eight ribbons, one glance, no matrix.",
+      "Pages that left one rotation and landed on another. The circle is the point: these teams page each other.",
+    read: "Payments into checkout is the thickest ribbon, and the return is thinner. Growth almost only hands into checkout. Platform is the utility: it sends into payments and search and gets little back.",
+    source: "Incident handoffs, Q2 2025. n = 147.",
     chart: (
-      <Paper
-        kicker="Trade"
-        title="The Pacific's main street"
-        source="Source: customs aggregates"
+      <FigTooltip
+        entries={{
+          "payments → checkout": 38,
+          "checkout → payments": 22,
+          "checkout → search": 14,
+          "search → checkout": 9,
+          "growth → checkout": 18,
+          "platform → payments": 16,
+          "platform → search": 11,
+          "payments → platform": 8,
+          "growth → search": 7,
+          "search → growth": 4,
+        }}
       >
-        <FigTooltip
-          entries={{
-            "americas → asia": 30,
-            "europe → asia": 22,
-            "americas → europe": 18,
-            "europe → africa": 11,
-            "asia → africa": 8,
-            "asia → oceania": 7,
-            "americas → africa": 4,
-            "americas → oceania": 3,
-            americas: 55,
-            europe: 51,
-            asia: 67,
-            africa: 23,
-            oceania: 10,
-          }}
-          unit="B"
-        >
-          <Chord
-            title="Trade flows between regions"
-            groups={["americas", "europe", "asia", "africa", "oceania"]}
-            flows={[
-              { from: "americas", to: "asia", value: 30 },
-              { from: "europe", to: "asia", value: 22 },
-              { from: "americas", to: "europe", value: 18 },
-              { from: "europe", to: "africa", value: 11 },
-              { from: "asia", to: "africa", value: 8 },
-              { from: "asia", to: "oceania", value: 7 },
-              { from: "americas", to: "africa", value: 4 },
-              { from: "americas", to: "oceania", value: 3 },
-            ]}
-          />
-        </FigTooltip>
-      </Paper>
+        <Chord
+          density="figure"
+          aspect={1.15}
+          title="On-call handoffs"
+          groups={GROUPS}
+          flows={FLOWS}
+        />
+      </FigTooltip>
     ),
   },
 ];

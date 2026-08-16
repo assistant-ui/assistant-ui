@@ -1,37 +1,40 @@
 import { FlowMap } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard } from "./scenes";
+
+const ROUTES = [
+  { col: 4, row: 1, value: 84 },
+  { col: 14, row: 3, value: 41 },
+  { col: 15, row: 3, value: 28 },
+  { col: 11, row: 6, value: 19 },
+  { col: 5, row: 6, value: 12 },
+  { col: 2, row: 2, value: 9 },
+  { col: 7, row: 3, value: 7 },
+  { col: 8, row: 2, value: 5 },
+];
 
 export const glyph = (
   <FlowMap
-    title="Shipments out of one hub"
-    origin={{ col: 5, row: 3, label: "hub" }}
-    routes={[
-      { col: 13, row: 2, value: 26 },
-      { col: 14, row: 4, value: 18 },
-      { col: 11, row: 6, value: 12 },
-    ]}
+    title="Egress from iad"
+    origin={{ col: 13, row: 2, label: "iad" }}
+    routes={ROUTES.slice(0, 4)}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Shipments out of one hub",
+    title: "Egress from iad-1",
     setup:
-      "A distribution planner draws the hub's outbound lanes on the map, stroke width proportional to volume, because lane economics are geographic.",
-    read: "The thin southern route is the one under review — a third of the northern lane's volume over similar distance. Width is volume, so the map ranks the lanes before the spreadsheet opens; the review meeting starts from the skinny line.",
+      "One origin, eight destinations. Width is terabytes. More than a handful tangles; eight is the job.",
+    read: "The westbound stroke to sfo is the fat one. Paris and Tokyo split the rest of the planet. The thin interior routes are why we still pay origin CPU in Denver.",
+    source: "Origin iad-1 egress, last 7 days. Width = TB.",
     chart: (
-      <AppCard title="Lanes out of the hub" meta="weekly tonnage">
-        <FlowMap
-          title="Shipments out of one hub"
-          origin={{ col: 5, row: 3, label: "hub" }}
-          routes={[
-            { col: 13, row: 2, value: 26 },
-            { col: 14, row: 4, value: 18 },
-            { col: 11, row: 6, value: 12 },
-          ]}
-        />
-      </AppCard>
+      <FlowMap
+        density="figure"
+        aspect={1.7}
+        title="Egress from iad-1"
+        origin={{ col: 13, row: 2, label: "iad-1" }}
+        routes={ROUTES}
+      />
     ),
   },
 ];

@@ -1,107 +1,101 @@
 import { Treemap } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Paper } from "./scenes";
+
+const ROOT = {
+  label: "opex · $84m",
+  children: [
+    {
+      label: "engineering",
+      children: [
+        { label: "platform", value: 14.2 },
+        { label: "product", value: 11.6 },
+        { label: "infra", value: 8.4 },
+        { label: "data", value: 6.1 },
+        { label: "security", value: 3.8 },
+      ],
+    },
+    {
+      label: "gtm",
+      children: [
+        { label: "sales", value: 12.4 },
+        { label: "success", value: 5.6 },
+        { label: "marketing", value: 4.9 },
+        { label: "partners", value: 2.2 },
+      ],
+    },
+    {
+      label: "g&a",
+      children: [
+        { label: "people", value: 4.8 },
+        { label: "finance", value: 3.1 },
+        { label: "legal", value: 2.4 },
+        { label: "facilities", value: 2.1 },
+        { label: "other", value: 2.4 },
+      ],
+    },
+  ],
+};
 
 export const glyph = (
   <Treemap
-    title="Disk usage by directory"
+    title="Opex"
     root={{
-      label: "repo",
+      label: "opex",
       children: [
-        { label: "node_modules", value: 2.1 },
         {
-          label: "src",
+          label: "eng",
           children: [
-            { label: "app", value: 0.5 },
-            { label: "assets", value: 0.34 },
+            { label: "platform", value: 14 },
+            { label: "product", value: 12 },
           ],
         },
         {
-          label: "dist",
+          label: "gtm",
           children: [
-            { label: "js", value: 0.38 },
-            { label: ".git", value: 0.28 },
+            { label: "sales", value: 12 },
+            { label: "cs", value: 6 },
           ],
         },
-        { label: "cache", value: 0.2 },
       ],
     }}
-    format={(v) => `${v} GB`}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "A national budget by area",
+    title: "FY25 opex, three branches",
     setup:
-      "A civics explainer draws the national budget to scale, because parliamentary debate time and actual spending have almost nothing to do with each other.",
-    read: "Pensions and health together are most of the map, and everything argued about on television fits in the corner rectangles. Drawing money as area is the fastest cure for budget-debate proportion blindness.",
+      "A treemap with four tiles is a pie. This one is the annual opex tree: engineering, go-to-market, and G&A, then the teams inside them.",
+    read: "Engineering is half the page. Platform alone is larger than all of G&A. Sales is the only GTM tile that competes with a product team. The small legal and facilities cells are why this is a treemap and not five columns.",
+    source: "FY25 operating expense, $84.0m. Leaves are teams.",
     chart: (
-      <Paper
-        kicker="Budget"
-        title="The budget, to scale"
-        source="Source: treasury outturn"
+      <FigTooltip
+        entries={{
+          platform: "$14.2m",
+          product: "$11.6m",
+          infra: "$8.4m",
+          data: "$6.1m",
+          security: "$3.8m",
+          sales: "$12.4m",
+          success: "$5.6m",
+          marketing: "$4.9m",
+          partners: "$2.2m",
+          people: "$4.8m",
+          finance: "$3.1m",
+          legal: "$2.4m",
+          facilities: "$2.1m",
+          other: "$2.4m",
+        }}
       >
-        <FigTooltip
-          entries={{
-            pensions: "$310B",
-            welfare: "$140B",
-            housing: "$45B",
-            hospitals: "$165B",
-            primary: "$75B",
-            pharma: "$40B",
-            schools: "$90B",
-            higher: "$40B",
-            defense: "$90B",
-            transport: "$60B",
-            debt: "$55B",
-            culture: "$15B",
-          }}
-        >
-          <Treemap
-            title="Budget by area"
-            root={{
-              label: "budget",
-              children: [
-                {
-                  label: "social",
-                  children: [
-                    { label: "pensions", value: 310 },
-                    { label: "welfare", value: 140 },
-                    { label: "housing", value: 45 },
-                  ],
-                },
-                {
-                  label: "health",
-                  children: [
-                    { label: "hospitals", value: 165 },
-                    { label: "primary", value: 75 },
-                    { label: "pharma", value: 40 },
-                  ],
-                },
-                {
-                  label: "education",
-                  children: [
-                    { label: "schools", value: 90 },
-                    { label: "higher", value: 40 },
-                  ],
-                },
-                {
-                  label: "other",
-                  children: [
-                    { label: "defense", value: 90 },
-                    { label: "transport", value: 60 },
-                    { label: "debt", value: 55 },
-                    { label: "culture", value: 15 },
-                  ],
-                },
-              ],
-            }}
-            format={(v) => `$${v}B`}
-          />
-        </FigTooltip>
-      </Paper>
+        <Treemap
+          density="figure"
+          aspect={1.55}
+          title="FY25 opex"
+          depth={2}
+          root={ROOT}
+        />
+      </FigTooltip>
     ),
   },
 ];

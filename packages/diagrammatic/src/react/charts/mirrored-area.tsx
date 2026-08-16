@@ -7,23 +7,31 @@ import {
   AxisLabels,
   ChartSvg,
   ColumnHits,
-  TXT,
   labelXs,
+  typeScale,
   vbHeight,
 } from "../svg";
 
 export type MirroredAreaProps = BaseProps & { down: Series; up: Series };
 
 export const MirroredArea = forwardRef<SVGSVGElement, MirroredAreaProps>(
-  ({ down, up, labels, title, aspect, className, ...rest }, ref) => {
+  ({ down, up, labels, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const bottom = labels ? vh - 18 : vh - 10;
     const mid = (12 + bottom) / 2;
     const max = Math.max(...down.data, ...up.data, 1);
     const topPts = scalePoints(down.data, 14, 186, mid - 2, 12, 0, max);
     const upPts = scalePoints(up.data, 14, 186, mid + 2, bottom, 0, max);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <ColumnHits
           count={down.data.length}
           x0={14}
@@ -68,13 +76,13 @@ export const MirroredArea = forwardRef<SVGSVGElement, MirroredAreaProps>(
         <text
           x="14"
           y="9"
-          fontSize="3.2"
+          fontSize={T.axis.fontSize}
           fill={ACCENT}
-          fontFamily={TXT.axis.fontFamily}
+          fontFamily={T.axis.fontFamily}
         >
           ↓ {down.name}
         </text>
-        <text x="14" y={bottom - 2} {...TXT.axis}>
+        <text x="14" y={bottom - 2} {...T.axis}>
           ↑ {up.name}
         </text>
         {labels && (
@@ -84,7 +92,8 @@ export const MirroredArea = forwardRef<SVGSVGElement, MirroredAreaProps>(
               topPts.map((p) => p.x),
               labels.length,
             )}
-            y={vh - 4}
+            y={vh - (density === "figure" ? 6 : 4)}
+            type={T.axis}
           />
         )}
       </ChartSvg>

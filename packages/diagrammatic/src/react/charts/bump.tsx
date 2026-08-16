@@ -2,15 +2,16 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { linePath, stroke } from "../../core/geometry";
 import { cat } from "../../core/theme";
-import { AxisLabels, ChartSvg, TXT, vbHeight } from "../svg";
+import { AxisLabels, ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type BumpProps = BaseProps & {
   series: { name: string; ranks: number[] }[];
 };
 
 export const Bump = forwardRef<SVGSVGElement, BumpProps>(
-  ({ series, labels, title, aspect, className, ...rest }, ref) => {
+  ({ series, labels, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const stageCount = series[0]?.ranks.length ?? 0;
     const xs = Array.from(
       { length: stageCount },
@@ -21,7 +22,14 @@ export const Bump = forwardRef<SVGSVGElement, BumpProps>(
     const Y = (rank: number) =>
       10 + ((rank - 1) / Math.max(1, maxRank - 1)) * (bottom - 18);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {series.map((s, k) => {
           const pts = s.ranks.map((rank, i) => ({ x: xs[i]!, y: Y(rank) }));
           const last = pts[pts.length - 1]!;
@@ -63,16 +71,23 @@ export const Bump = forwardRef<SVGSVGElement, BumpProps>(
               <text
                 x={last.x + 6}
                 y={last.y + 1.6}
-                fontSize="3.2"
+                fontSize={T.axis.fontSize}
                 fill={cat(k)}
-                fontFamily={TXT.axis.fontFamily}
+                fontFamily={T.axis.fontFamily}
               >
                 {s.name}
               </text>
             </g>
           );
         })}
-        {labels && <AxisLabels labels={labels} xs={xs} y={vh - 4} />}
+        {labels && (
+          <AxisLabels
+            labels={labels}
+            xs={xs}
+            y={vh - (density === "figure" ? 6 : 4)}
+            type={T.axis}
+          />
+        )}
       </ChartSvg>
     );
   },

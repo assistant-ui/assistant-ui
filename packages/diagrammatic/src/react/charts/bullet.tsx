@@ -22,7 +22,7 @@ export const Bullet = forwardRef<SVGSVGElement, BulletProps>(
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
         {label && (
-          <text x="4" y={mid + 1.8} {...TXT.axis}>
+          <text x="4" y={mid} dominantBaseline="central" {...TXT.axis}>
             {label}
           </text>
         )}

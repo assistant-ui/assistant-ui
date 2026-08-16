@@ -1,108 +1,76 @@
 import { Scatter } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Paper, Slide } from "./scenes";
 
-const GADGETS = Array.from({ length: 26 }, (_, i) => ({
-  x: 4 + i * 3 + (i % 5),
-  y: 2.1 + i * 0.09 + (i % 7) * 0.05,
-}));
+const MODELS = [
+  { x: 0.42, y: 24.5, size: 128, label: "glacier" },
+  { x: 0.61, y: 27.9, size: 32, label: "pico" },
+  { x: 1.1, y: 31.6, size: 128, label: "quill" },
+  { x: 3.2, y: 40.2, size: 200, label: "atlas-0" },
+  { x: 1.9, y: 45.8, size: 128, label: "swift" },
+  { x: 4.1, y: 46.3, size: 200, label: "nova" },
+  { x: 9.6, y: 49.1, size: 1000, label: "atlas-1" },
+  { x: 12.4, y: 51.2, size: 1000, label: "atlas-1.1" },
+  { x: 0.28, y: 18.4, size: 8, label: "tiny" },
+  { x: 6.8, y: 44.1, size: 256, label: "nova-fast" },
+  { x: 2.4, y: 38.6, size: 64, label: "kite" },
+  { x: 8.2, y: 47.0, size: 400, label: "ridge" },
+];
 
 export const glyph = (
   <Scatter
-    title="Rating against hours of use"
-    points={GADGETS}
-    trend
-    xLabel="hours of use"
-    yLabel="rating"
+    title="Score against cost"
+    points={MODELS.slice(0, 7).map(({ label: _label, ...pt }) => pt)}
+    xLabel="cost"
+    yLabel="score"
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "The sized variant: GDP, life expectancy, population",
+    title: "SWE-bench against cost, sized by context",
     setup:
-      "Give points a `size` and the scatter grows a third channel: area. The development-economics classic, one bubble per country, sized by population so the two giants cannot hide inside averages.",
-    read: "Richer runs longer along a curve that flattens past $40k, and the two enormous bubbles sit mid-curve, carrying most of humanity with them. A small rich country and a giant middle-income one can share a life expectancy; the sizes say which fact matters more.",
+      "Twelve models. X is dollars per million output tokens. Y is SWE-bench Verified. Area is context window in thousands. The third channel is why this is not a line.",
+    read: "swift sits at 45.8 for $1.90 with only 128k context. atlas-1 buys 3.3 more points at five times the price and a 1M window. tiny is honest about being tiny. The empty upper-left is the product that does not exist yet.",
+    source: "SWE-bench Verified, public list prices, August 2025.",
     chart: (
-      <Slide title="The development curve" footer="sized by population">
-        <FigTooltip
-          series={{
-            "gdp $k": [
-              12, 18, 8, 6, 10, 15, 22, 26, 30, 34, 38, 42, 45, 48, 52, 54, 58,
-              62,
-            ],
-            "life exp": [
-              71, 74, 68, 64, 69, 72, 76, 75, 78, 79, 80, 81, 80, 82, 81, 83,
-              82, 84,
-            ],
-            "pop (M)": [
-              1400, 1100, 340, 220, 175, 96, 128, 88, 210, 52, 67, 330, 26, 47,
-              18, 84, 6, 10,
-            ],
-          }}
-        >
-          <Scatter
-            title="GDP per capita against life expectancy"
-            points={[
-              { x: 12, y: 71, size: 1400 },
-              { x: 18, y: 74, size: 1100 },
-              { x: 8, y: 68, size: 340 },
-              { x: 6, y: 64, size: 220 },
-              { x: 10, y: 69, size: 175 },
-              { x: 15, y: 72, size: 96 },
-              { x: 22, y: 76, size: 128 },
-              { x: 26, y: 75, size: 88 },
-              { x: 30, y: 78, size: 210 },
-              { x: 34, y: 79, size: 52 },
-              { x: 38, y: 80, size: 67 },
-              { x: 42, y: 81, size: 330 },
-              { x: 45, y: 80, size: 26 },
-              { x: 48, y: 82, size: 47 },
-              { x: 52, y: 81, size: 18 },
-              { x: 54, y: 83, size: 84 },
-              { x: 58, y: 82, size: 6 },
-              { x: 62, y: 84, size: 10 },
-            ]}
-            xLabel="gdp per capita ($k)"
-            yLabel="life expectancy"
-          />
-        </FigTooltip>
-      </Slide>
-    ),
-  },
-  {
-    title: "Gelato sales against afternoon temperature",
-    setup:
-      "A gelateria owner finally checks the folk wisdom against the till: 24 summer days, each an afternoon high and a scoop count.",
-    read: "The classic correlation, steep and tight: every degree is worth roughly a tray. The residuals have stories too; the point far above the line was the street festival, the one far below was the day the machine broke.",
-    chart: (
-      <Paper
-        kicker="Summer"
-        title="Every degree is a tray"
-        source="Source: one gelateria's till, 24 days"
+      <FigTooltip
+        labels={MODELS.map((row) => row.label)}
+        series={{
+          score: MODELS.map((row) => row.y),
+          "$ / M out": MODELS.map((row) => row.x),
+          "context k": MODELS.map((row) => row.size),
+        }}
       >
-        <Scatter
-          title="Gelato sales by temperature"
-          points={Array.from({ length: 24 }, (_, i) => ({
-            x: 12 + i + (i % 4),
-            y: 40 + i * 14 + (i % 5) * 18 - (i % 3) * 12,
-          }))}
-          trend
-          xTicks={[
-            { at: 15, label: "15°" },
-            { at: 25, label: "25°" },
-            { at: 35, label: "35°" },
-          ]}
-          yTicks={[
-            { at: 100, label: "100" },
-            { at: 300, label: "300" },
-            { at: 500, label: "500" },
-          ]}
-          xLabel="high (°c)"
-          yLabel="scoops sold"
-        />
-      </Paper>
+        <div>
+          <Scatter
+            density="figure"
+            aspect={1.7}
+            title="SWE-bench against cost"
+            points={MODELS}
+            xLabel="$ / M output tokens"
+            yLabel="SWE-bench Verified"
+            xTicks={[
+              { at: 1, label: "$1" },
+              { at: 4, label: "$4" },
+              { at: 8, label: "$8" },
+              { at: 12, label: "$12" },
+            ]}
+            yTicks={[
+              { at: 20, label: "20" },
+              { at: 35, label: "35" },
+              { at: 50, label: "50" },
+            ]}
+          />
+          <ul className="mt-3 columns-2 gap-x-8 font-[family-name:var(--font-mono)] text-[11px] leading-5 text-(--da-ink)/55">
+            {MODELS.map((row) => (
+              <li key={row.label}>
+                {row.label} · {row.y} · ${row.x} · {row.size}k
+              </li>
+            ))}
+          </ul>
+        </div>
+      </FigTooltip>
     ),
   },
 ];

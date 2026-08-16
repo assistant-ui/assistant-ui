@@ -1,7 +1,6 @@
 import { StackedBar } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { AppCard, Terminal } from "./scenes";
 
 export const glyph = (
   <StackedBar
@@ -51,48 +50,29 @@ const USAGE: Record<string, number[]> = {
 
 export const examples: DemoExample[] = [
   {
-    title: "The usage calendar: seven weeks, one bar per day",
+    title: "Daily tokens by model, seven weeks",
     setup:
-      "The public data page every AI tool ships now: daily token volume stacked by model, seven weeks wide, one thin bar per day. The chart stays a server component; wrapping it in the interactive layer's Root adds a pointer-following tooltip that reads the hovered day straight off the mark seams.",
-    read: "The stack order keeps each model's band readable at two pixels wide, and hovering any day opens the full ledger: every model's tokens plus the total, the hovered band emphasized. pico's bottom band doubles across the last three weeks while atlas-0 thins in mirror — a migration, drawn daily and quotable on hover.",
+      "The public usage page: daily token volume stacked by model, forty-nine thin bars. Totals first, mix second. Hover any day for the ledger.",
+    read: "pico's bottom band doubles in the last three weeks while atlas-0 thins in mirror. That is a migration, not a traffic spike. swift appears from nothing in late July and is already a visible slice by mid-August.",
+    source: "Billed tokens per day, 1 Jul to 18 Aug.",
     chart: (
-      <Terminal title="daily tokens by model — B/day">
-        <FigTooltip labels={DAYS} series={USAGE} unit="B" total>
-          <StackedBar
-            title="Daily token volume by model"
-            groups={DAYS.map((day, i) => (i % 7 === 0 ? day : ""))}
-            series={Object.entries(USAGE).map(([name, data]) => ({
-              name,
-              data,
-            }))}
-            yTicks={[
-              { at: 0, label: "0" },
-              { at: 40, label: "40" },
-              { at: 80, label: "80" },
-            ]}
-          />
-        </FigTooltip>
-      </Terminal>
-    ),
-  },
-  {
-    title: "The normalized variant: device mix by year",
-    setup:
-      "Passing `normalize` stretches every bar to 100%, so only composition remains. Five years of a storefront's traffic by device, for the meeting where someone asks whether the mobile redesign can wait another year.",
-    read: "Mobile eats four points of share a year, every year, and tablet quietly halves. Absolute traffic grew the whole time, which the normalized form deliberately hides; that is the trade, and here it is the right one.",
-    chart: (
-      <AppCard title="Device mix" meta="share of traffic">
+      <FigTooltip labels={DAYS} series={USAGE} unit="B" total>
         <StackedBar
-          normalize
-          title="Device mix by year"
-          groups={["'21", "'22", "'23", "'24", "'25"]}
-          series={[
-            { name: "mobile", data: [44, 50, 56, 61, 66] },
-            { name: "desktop", data: [42, 38, 34, 31, 28] },
-            { name: "tablet", data: [14, 12, 10, 8, 6] },
+          density="figure"
+          aspect={2.2}
+          title="Daily token volume by model"
+          groups={DAYS.map((day, i) => (i % 7 === 0 ? day : ""))}
+          series={Object.entries(USAGE).map(([name, data]) => ({
+            name,
+            data,
+          }))}
+          yTicks={[
+            { at: 0, label: "0" },
+            { at: 40, label: "40" },
+            { at: 80, label: "80" },
           ]}
         />
-      </AppCard>
+      </FigTooltip>
     ),
   },
 ];

@@ -1,7 +1,6 @@
 import { Leaderboard } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { AppCard } from "./scenes";
 
 export const glyph = (
   <Leaderboard
@@ -18,54 +17,58 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "Top referrers by visits",
+    title: "Top referrers, last 28 days",
     setup:
-      "An analytics dashboard answers 'where do visitors come from' in the sidebar, where a full chart won't fit. The leaderboard fuses table and bar: rank, name, value, and a quiet gauge in one row each.",
-    read: "Google alone matches the next two rows combined, and below fifth place the bars collapse into the long tail — four sources that together move less traffic than hn alone. The bars keep the ratios honest while the numbers stay quotable — neither a table nor a chart could do both alone.",
+      "The docs site answers where readers arrive from. Rank, name, sessions, and a quiet bar in one row. Anything past the tenth line is Other.",
+    read: "Google is still half of github plus x. The surprise is changelog.assistant-ui.com in sixth: the release notes now outrun YouTube. Below hn the bars collapse; those four rows together do not match reddit.",
+    source: "Sessions, last 28 days. Direct and unattributed omitted.",
     chart: (
-      <AppCard title="Top referrers" meta="visits">
-        <FigTooltip
-          labels={[
-            "google",
-            "github",
-            "x.com",
-            "reddit",
-            "hn",
-            "youtube",
-            "linkedin",
-            "bing",
-            "ddg",
+      <FigTooltip
+        labels={[
+          "google",
+          "github",
+          "x.com",
+          "reddit",
+          "news.ycombinator.com",
+          "changelog",
+          "youtube",
+          "linkedin",
+          "bing",
+          "other",
+        ]}
+        series={{
+          sessions: [
+            "18.4k",
+            "9.1k",
+            "6.6k",
+            "4.8k",
+            "3.2k",
+            "1.9k",
+            "1.1k",
+            "640",
+            "410",
+            "2.4k",
+          ],
+        }}
+      >
+        <Leaderboard
+          density="figure"
+          aspect={1.15}
+          title="Top referrers"
+          items={[
+            { label: "google", value: 18_400 },
+            { label: "github", value: 9_100 },
+            { label: "x.com", value: 6_600 },
+            { label: "reddit", value: 4_800 },
+            { label: "news.ycombinator.com", value: 3_200 },
+            { label: "changelog", value: 1_900 },
+            { label: "youtube", value: 1_100 },
+            { label: "linkedin", value: 640 },
+            { label: "bing", value: 410 },
+            { label: "other", value: 2_400 },
           ]}
-          series={{
-            visits: [
-              "14.8k",
-              "8.2k",
-              "6.1k",
-              "4.1k",
-              "2.9k",
-              "1.4k",
-              "620",
-              "480",
-              "260",
-            ],
-          }}
-        >
-          <Leaderboard
-            title="Top referrers by visits"
-            items={[
-              { label: "google", value: 14_800 },
-              { label: "github", value: 8_200 },
-              { label: "x.com", value: 6_100 },
-              { label: "reddit", value: 4_100 },
-              { label: "hn", value: 2_900 },
-              { label: "youtube", value: 1_400 },
-              { label: "linkedin", value: 620 },
-              { label: "bing", value: 480 },
-              { label: "ddg", value: 260 },
-            ]}
-          />
-        </FigTooltip>
-      </AppCard>
+        />
+      </FigTooltip>
     ),
   },
 ];

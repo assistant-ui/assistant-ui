@@ -1,69 +1,51 @@
 import { Lollipop } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Paper } from "./scenes";
+
+const REPOS = [
+  { label: "payments", value: 1.4 },
+  { label: "checkout", value: 2.1 },
+  { label: "api", value: 2.8 },
+  { label: "mobile", value: 3.6 },
+  { label: "web", value: 4.2 },
+  { label: "search", value: 5.1 },
+  { label: "growth", value: 6.4 },
+  { label: "data", value: 7.8 },
+  { label: "infra", value: 9.6 },
+  { label: "docs", value: 14.2 },
+  { label: "design-sys", value: 18.5 },
+  { label: "legacy-billing", value: 36.0 },
+];
 
 export const glyph = (
   <Lollipop
-    title="Satisfaction score by team"
-    items={[
-      { label: "support", value: 58 },
-      { label: "sales", value: 84 },
-      { label: "eng", value: 40 },
-      { label: "ops", value: 66 },
-      { label: "design", value: 92 },
-      { label: "hr", value: 48 },
-    ]}
+    title="Hours to first review"
+    items={REPOS.slice(0, 6)}
+    format={(v) => `${v}h`}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Caffeine per serving",
+    title: "Hours to first review, by repo",
     setup:
-      "A health page ranks common drinks by caffeine per serving, because the folk ranking is confidently wrong and the correction deserves a clean chart.",
-    read: "Espresso's reputation outruns its milligrams: the drip mug nearly triples it. Even the energy drink loses to plain filter coffee. The dots make the exact values quotable, which is what a myth-busting chart needs.",
+      "Twelve repositories, one median. Lollipops keep the list readable when twelve bars would ink the page shut. The stem is not the value; the dot is.",
+    read: "Payments is reviewed in 1.4 hours. Legacy billing sits at 36, a working week of silence. Design-sys and docs are the quiet queue nobody staffs. Cutting the three longest still leaves a ladder, which is why this is a lollipop and not a highlight reel.",
+    source: "First non-author review, last 60 days. n = 1,042 PRs.",
     chart: (
-      <Paper
-        kicker="Health"
-        title="Caffeine, honestly"
-        source="Source: beverage lab assays"
+      <FigTooltip
+        labels={REPOS.map((row) => row.label)}
+        series={{ "median hours": REPOS.map((row) => row.value) }}
       >
-        <FigTooltip
-          labels={[
-            "drip",
-            "cold brew",
-            "energy",
-            "latte",
-            "matcha",
-            "espresso",
-            "black tea",
-            "cola",
-            "cocoa",
-            "decaf",
-          ]}
-          series={{ caffeine: [145, 128, 110, 77, 70, 63, 47, 34, 12, 5] }}
-          unit="mg"
-        >
-          <Lollipop
-            title="Caffeine per serving"
-            items={[
-              { label: "drip", value: 145 },
-              { label: "cold brew", value: 128 },
-              { label: "energy", value: 110 },
-              { label: "latte", value: 77 },
-              { label: "matcha", value: 70 },
-              { label: "espresso", value: 63 },
-              { label: "black tea", value: 47 },
-              { label: "cola", value: 34 },
-              { label: "cocoa", value: 12 },
-              { label: "decaf", value: 5 },
-            ]}
-            highlight="espresso"
-            format={(v) => `${v}mg`}
-          />
-        </FigTooltip>
-      </Paper>
+        <Lollipop
+          density="figure"
+          aspect={2}
+          title="Hours to first review"
+          items={REPOS}
+          highlight="legacy-billing"
+          format={(v) => `${v}h`}
+        />
+      </FigTooltip>
     ),
   },
 ];

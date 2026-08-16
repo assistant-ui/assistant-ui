@@ -1,7 +1,26 @@
 import { Horizon } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Terminal } from "./scenes";
+
+function load(peakHour: number, night = 1.4, peak = 9.2): number[] {
+  return Array.from({ length: 24 }, (_, h) => {
+    const d = Math.min(Math.abs(h - peakHour), 24 - Math.abs(h - peakHour));
+    return (
+      Math.round((night + (peak - night) * Math.exp(-((d * d) / 18))) * 10) / 10
+    );
+  });
+}
+
+const FLEET = [
+  { name: "api-1a", data: load(11, 1.6, 9.4) },
+  { name: "api-1b", data: load(11, 1.5, 8.8) },
+  { name: "api-2a", data: load(10, 1.8, 7.6) },
+  { name: "worker-a", data: load(14, 0.8, 9.8) },
+  { name: "worker-b", data: load(15, 0.9, 8.4) },
+  { name: "jobs", data: load(2, 2.2, 9.1) },
+  { name: "edge-w", data: load(9, 1.2, 6.4) },
+  { name: "edge-e", data: load(16, 1.1, 6.8) },
+];
 
 export const glyph = (
   <Horizon
@@ -16,68 +35,29 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "Server load across 24 hours, folded three times",
+    title: "Fleet load, eight hosts, one day",
     setup:
-      "A dashboard has forty servers and forty rows of vertical space, so each load chart gets one short band. The horizon form folds a tall line into layers: the darker the band, the higher the fold.",
-    read: "The dark blocks around hours 8 and 11 are the load peaks, readable in a strip a line chart could not survive in. Readers need the key — dark means folded, not different — so keep the fold count at two or three.",
+      "A dashboard that has eight hosts and eight rows of height. Each strip is a full day folded three times. Darker means a higher fold, not a different host.",
+    read: "The API pair peaks together at 11. Workers peak later, after the queue fills. Jobs burns at 02:00, which is the batch window. The two edge rows stay pale all day. A line chart of this fleet would not fit on the page.",
+    source: "Requests per second, hourly. Darker fold is higher load.",
     chart: (
-      <Terminal title="fleet load — 24h">
-        <FigTooltip
-          labels={[
-            "0h00",
-            "0h45",
-            "1h30",
-            "2h15",
-            "3h00",
-            "3h45",
-            "4h30",
-            "5h15",
-            "6h00",
-            "6h45",
-            "7h30",
-            "8h15",
-            "9h00",
-            "9h45",
-            "10h30",
-            "11h15",
-            "12h00",
-            "12h45",
-            "13h30",
-            "14h15",
-            "15h00",
-            "15h45",
-            "16h30",
-            "17h15",
-            "18h00",
-            "18h45",
-            "19h30",
-            "20h15",
-            "21h00",
-            "21h45",
-            "22h30",
-            "23h15",
-          ]}
-          series={{
-            load: [
-              2, 2.4, 3, 3.6, 4.4, 5, 4.2, 5.4, 7, 8.6, 9.5, 8.8, 7.4, 8.2, 9.2,
-              9.6, 8.4, 7, 6.2, 6.8, 7.4, 6.4, 5.4, 5, 5.6, 6.2, 5.2, 4.4, 3.8,
-              3.2, 2.8, 2.4,
-            ],
-          }}
-          unit="k rps"
-        >
-          <Horizon
-            title="Server load across 24 hours"
-            data={[
-              2, 2.4, 3, 3.6, 4.4, 5, 4.2, 5.4, 7, 8.6, 9.5, 8.8, 7.4, 8.2, 9.2,
-              9.6, 8.4, 7, 6.2, 6.8, 7.4, 6.4, 5.4, 5, 5.6, 6.2, 5.2, 4.4, 3.8,
-              3.2, 2.8, 2.4,
-            ]}
-            bands={3}
-            labels={["00", "06", "12", "18", "24"]}
-          />
-        </FigTooltip>
-      </Terminal>
+      <FigTooltip
+        labels={Array.from(
+          { length: 24 },
+          (_, h) => `${String(h).padStart(2, "0")}:00`,
+        )}
+        series={Object.fromEntries(FLEET.map((row) => [row.name, row.data]))}
+        unit="k rps"
+      >
+        <Horizon
+          density="figure"
+          aspect={2}
+          title="Fleet load across 24 hours"
+          series={FLEET}
+          bands={3}
+          labels={["00", "06", "12", "18"]}
+        />
+      </FigTooltip>
     ),
   },
 ];

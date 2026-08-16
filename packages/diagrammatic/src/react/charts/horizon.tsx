@@ -2,59 +2,124 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { areaPath, clamp01, scalePoints, stroke } from "../../core/geometry";
 import { ACCENT, GRID } from "../../core/theme";
-import { AxisLabels, ChartSvg, ColumnHits, TXT, vbHeight } from "../svg";
+import {
+  AxisLabels,
+  ChartSvg,
+  ColumnHits,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
-export type HorizonProps = BaseProps & { data: number[]; bands?: 2 | 3 };
+export type HorizonProps = BaseProps & {
+  data?: number[];
+  series?: readonly { name: string; data: number[] }[];
+  bands?: 2 | 3;
+};
 
 const OPACITIES = [0.25, 0.5, 0.85];
 
 export const Horizon = forwardRef<SVGSVGElement, HorizonProps>(
-  ({ data, bands = 3, labels, title, aspect, className, ...rest }, ref) => {
-    const vh = vbHeight(aspect, 5 / 3);
-    const bottom = labels ? vh - 16 : vh - 8;
-    const max = Math.max(...data, 1);
+  (
+    {
+      data,
+      series,
+      bands = 3,
+      labels,
+      title,
+      aspect,
+      density,
+      className,
+      ...rest
+    },
+    ref,
+  ) => {
+    const rows = series?.length ? series : [{ name: "", data: data ?? [] }];
+    const named = rows.some((row) => row.name);
+    const vh = vbHeight(aspect, named ? 1.35 : 5 / 3);
+    const T = typeScale(density);
+    const { left, right, top, bottom } = plotFrame(vh, density, {
+      labels: Boolean(labels),
+      left: named ? (density === "figure" ? 34 : 28) : 10,
+    });
+    const rowH = (bottom - top) / Math.max(1, rows.length);
+    const peak = Math.max(...rows.flatMap((row) => row.data), 1);
+    const count = rows[0]?.data.length ?? 0;
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <ColumnHits
-          count={data.length}
-          x0={10}
-          x1={190}
-          top={18}
+          count={count}
+          x0={left}
+          x1={right}
+          top={top}
           bottom={bottom}
         />
+        {rows.map((row, ri) => {
+          const y1 = top + ri * rowH;
+          const y0 = y1 + rowH - 1.2;
+          return (
+            <g key={row.name || ri}>
+              {row.name ? (
+                <text
+                  x={left - 2}
+                  y={y1 + rowH / 2}
+                  dominantBaseline="central"
+                  textAnchor="end"
+                  {...T.axis}
+                >
+                  {row.name}
+                </text>
+              ) : null}
+              {Array.from({ length: bands }, (_, layer) => {
+                const values = row.data.map((v) =>
+                  clamp01((v / peak) * bands - layer),
+                );
+                const pts = scalePoints(values, left, right, y0, y1 + 1, 0, 1);
+                return (
+                  <path
+                    key={layer}
+                    d={areaPath(pts, y0)}
+                    fill={ACCENT}
+                    opacity={OPACITIES[layer] ?? 0.9}
+                    data-part="mark"
+                    data-series={row.name || undefined}
+                    data-i={layer}
+                  />
+                );
+              })}
+            </g>
+          );
+        })}
         <line
-          x1="10"
+          x1={left}
           y1={bottom}
-          x2="190"
+          x2={right}
           y2={bottom}
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
         />
-        {Array.from({ length: bands }, (_, layer) => {
-          const values = data.map((v) => clamp01((v / max) * bands - layer));
-          const pts = scalePoints(values, 10, 190, bottom, 18, 0, 1);
-          return (
-            <path
-              key={layer}
-              d={areaPath(pts, bottom)}
-              fill={ACCENT}
-              opacity={OPACITIES[layer] ?? 0.9}
-              data-part="mark"
-              data-i={layer}
-            />
-          );
-        })}
-        <text x="190" y="10" textAnchor="end" {...TXT.axis}>
-          {bands} bands · darker = higher
-        </text>
+        {rows.length === 1 ? (
+          <text x={right} y={top - 4} textAnchor="end" {...T.axis}>
+            {bands} bands · darker = higher
+          </text>
+        ) : null}
         {labels && (
           <AxisLabels
             labels={labels}
             xs={labels.map(
-              (_, i) => 10 + (i * 180) / Math.max(1, labels.length - 1),
+              (_, i) =>
+                left + (i * (right - left)) / Math.max(1, labels.length - 1),
             )}
-            y={vh - 4}
+            y={vh - (density === "figure" ? 6 : 4)}
+            type={T.axis}
           />
         )}
       </ChartSvg>

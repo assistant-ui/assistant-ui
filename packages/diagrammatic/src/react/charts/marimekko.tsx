@@ -41,7 +41,12 @@ export const Marimekko = forwardRef<SVGSVGElement, MarimekkoProps>(
                       opacity="0.88"
                     />
                     {labelFits && (
-                      <text x={x0 + 5} y={y0 + h / 2 + 1.8} {...TXT.onSeries}>
+                      <text
+                        x={x0 + 5}
+                        y={y0 + h / 2}
+                        dominantBaseline="central"
+                        {...TXT.onSeries}
+                      >
                         {share.label}
                       </text>
                     )}

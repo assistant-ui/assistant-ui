@@ -1,7 +1,9 @@
 import { WinLoss } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Paper } from "./scenes";
+
+const S24 = [1, 1, -1, 1, -1, 1, 1, 1, -1, 1, 1, -1, 1, 1, 1, -1, 1, 1];
+const S25 = [-1, -1, 1, -1, 1, -1, -1, 1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1];
 
 function Rows({
   rows,
@@ -9,7 +11,7 @@ function Rows({
   rows: { label: string; data: number[]; title: string }[];
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-56 flex-col gap-4 font-[family-name:var(--font-mono)] text-xs">
+    <div className="mx-auto flex w-full max-w-80 flex-col gap-4 font-[family-name:var(--font-mono)] text-xs">
       {rows.map((row) => (
         <div key={row.label} className="flex items-center gap-3">
           <span className="w-10 opacity-60">{row.label}</span>
@@ -23,50 +25,33 @@ function Rows({
 export const glyph = (
   <Rows
     rows={[
-      {
-        label: "s24",
-        data: [1, 1, -1, 1, -1, 1, 1, 1, -1, 1, 1, -1],
-        title: "season s24",
-      },
-      {
-        label: "s25",
-        data: [-1, 1, 1, -1, 1, -1, -1, 1, 1, 1, -1, 1],
-        title: "season s25",
-      },
+      { label: "s24", data: S24.slice(0, 12), title: "season 24/25" },
+      { label: "s25", data: S25.slice(0, 12), title: "season 25/26" },
     ]}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Two seasons of results",
+    title: "Arsenal, first eighteen league matches",
     setup:
-      "A club's season page compresses every match into a tick above or below the line — no scores, just outcomes in order, because streaks are what fans actually remember.",
-    read: "Above or below; the streaks read before the record does. s24 opens with a title-charge run and s25 opens with a slump — same club, and the eye knows which season had the sacked manager before counting a single tick.",
+      "A club page compresses each result into a tick above or below the line. No scores. Streaks are what the eye keeps.",
+    read: "24/25 opens with a title-charge run. 25/26 opens 1-4 and only finds the same rhythm after matchweek 8. Same club; the sack conversation lived in those first seven ticks.",
+    source: "Premier League, matchweeks 1 to 18.",
     chart: (
-      <Paper kicker="Club" title="Two seasons">
-        <FigTooltip
-          series={{
-            s24: ["W", "W", "L", "W", "L", "W", "W", "W", "L", "W", "W", "L"],
-            s25: ["L", "W", "W", "L", "W", "L", "L", "W", "W", "W", "L", "W"],
-          }}
-        >
-          <Rows
-            rows={[
-              {
-                label: "s24",
-                data: [1, 1, -1, 1, -1, 1, 1, 1, -1, 1, 1, -1],
-                title: "season s24",
-              },
-              {
-                label: "s25",
-                data: [-1, 1, 1, -1, 1, -1, -1, 1, 1, 1, -1, 1],
-                title: "season s25",
-              },
-            ]}
-          />
-        </FigTooltip>
-      </Paper>
+      <FigTooltip
+        series={{
+          "24/25": S24.map((v) => (v > 0 ? "W" : "L")),
+          "25/26": S25.map((v) => (v > 0 ? "W" : "L")),
+        }}
+      >
+        <Rows
+          rows={[
+            { label: "24/25", data: S24, title: "season 24/25" },
+            { label: "25/26", data: S25, title: "season 25/26" },
+          ]}
+        />
+      </FigTooltip>
     ),
   },
 ];

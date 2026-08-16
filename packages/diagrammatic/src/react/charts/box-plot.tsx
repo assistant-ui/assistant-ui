@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { extent, round, stroke } from "../../core/geometry";
 import { ACCENT, cat, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, TickGrid, TXT, vbHeight } from "../svg";
 
 export type BoxPlotProps = BaseProps & {
   groups: {
@@ -37,26 +37,7 @@ export const BoxPlot = forwardRef<SVGSVGElement, BoxPlotProps>(
     const half = Math.min(14, step * 0.28);
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
-        {yTicks?.map((tick) => (
-          <g key={tick.at} data-part="grid">
-            <line
-              x1="14"
-              y1={round(Y(tick.at))}
-              x2="190"
-              y2={round(Y(tick.at))}
-              stroke={ink(0.08)}
-              {...stroke.hair}
-            />
-            <text
-              x="12"
-              y={round(Y(tick.at)) + 1.2}
-              textAnchor="end"
-              {...TXT.axis}
-            >
-              {tick.label}
-            </text>
-          </g>
-        ))}
+        <TickGrid ticks={yTicks} at={Y} from={14} to={190} />
         {groups.map((box, i) => {
           const x = 14 + step * (i + 0.5);
           const color = categorical ? cat(i) : undefined;

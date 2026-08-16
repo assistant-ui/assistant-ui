@@ -1,53 +1,54 @@
 import { GroupedBar } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Paper } from "./scenes";
+
+const GROUPS = ["Q1 24", "Q2 24", "Q3 24", "Q4 24", "Q1 25", "Q2 25"];
+const SEV1 = [6, 8, 5, 11, 4, 3];
+const SEV2 = [18, 21, 16, 28, 14, 12];
+const SEV3 = [41, 38, 44, 52, 36, 33];
 
 export const glyph = (
   <GroupedBar
-    title="Signups by region and plan"
-    groups={["NA", "EU", "APAC"]}
+    title="Incidents by severity"
+    groups={["Q4", "Q1", "Q2"]}
     series={[
-      { name: "free", data: [46, 62, 78] },
-      { name: "pro", data: [34, 48, 55] },
-      { name: "team", data: [20, 36, 30] },
+      { name: "SEV-1", data: [11, 4, 3] },
+      { name: "SEV-2", data: [28, 14, 12] },
+      { name: "SEV-3", data: [52, 36, 33] },
     ]}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Medal table, three games",
+    title: "Incidents by severity, six quarters",
     setup:
-      "A sports desk builds the medal graphic that runs every two years: five countries, three metals, side by side because gold-vs-gold is the comparison headlines are made of.",
-    read: "USA and China trade blows on gold while Britain's bronze bar outruns its gold — a depth-of-field story, not a podium-topping one — and Japan beats Australia on gold while losing to it on total. The grouped form keeps each metal's race separate; stacking them would bury the only number anyone quotes.",
+      "The reliability review compares three severities inside each quarter. Grouping keeps SEV-1 against SEV-1; a stack would hide the only number the board quotes.",
+    read: "Q4 24 is the outage quarter: SEV-1 triples, SEV-2 follows. The next two quarters fall in lockstep, which is the on-call hiring landing, not seasonality. SEV-3 barely moves; the form's job is the tall red cluster, not the grey wall behind it.",
+    source: "Incident bot, production only. n = 486.",
     chart: (
-      <Paper kicker="Games" title="The medal table">
-        <FigTooltip
-          labels={["USA", "CHN", "GBR", "JPN", "AUS"]}
-          series={{
-            gold: [40, 38, 14, 20, 18],
-            silver: [44, 32, 22, 12, 19],
-            bronze: [42, 19, 29, 13, 16],
-          }}
-          total
-        >
-          <GroupedBar
-            title="Medals by country"
-            groups={["USA", "CHN", "GBR", "JPN", "AUS"]}
-            series={[
-              { name: "gold", data: [40, 38, 14, 20, 18] },
-              { name: "silver", data: [44, 32, 22, 12, 19] },
-              { name: "bronze", data: [42, 19, 29, 13, 16] },
-            ]}
-            yTicks={[
-              { at: 0, label: "0" },
-              { at: 20, label: "20" },
-              { at: 40, label: "40" },
-            ]}
-          />
-        </FigTooltip>
-      </Paper>
+      <FigTooltip
+        labels={GROUPS}
+        series={{ "SEV-1": SEV1, "SEV-2": SEV2, "SEV-3": SEV3 }}
+        total
+      >
+        <GroupedBar
+          density="figure"
+          aspect={2}
+          title="Incidents by severity"
+          groups={GROUPS}
+          series={[
+            { name: "SEV-1", data: SEV1 },
+            { name: "SEV-2", data: SEV2 },
+            { name: "SEV-3", data: SEV3 },
+          ]}
+          yTicks={[
+            { at: 0, label: "0" },
+            { at: 25, label: "25" },
+            { at: 50, label: "50" },
+          ]}
+        />
+      </FigTooltip>
     ),
   },
 ];

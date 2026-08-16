@@ -4,7 +4,7 @@ import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, cat, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, TickGrid, TXT, vbHeight } from "../svg";
 
 export type BarProps = BaseProps & {
   items: Item[];
@@ -52,26 +52,14 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
           data-part="grid"
           {...stroke.hair}
         />
-        {xTicks?.map((tick) => (
-          <g key={tick.at} data-part="grid">
-            <line
-              x1={round(X(tick.at))}
-              y1="8"
-              x2={round(X(tick.at))}
-              y2={rowsBottom}
-              stroke={ink(0.08)}
-              {...stroke.hair}
-            />
-            <text
-              x={round(X(tick.at))}
-              y={vh - 3}
-              textAnchor="middle"
-              {...TXT.axis}
-            >
-              {tick.label}
-            </text>
-          </g>
-        ))}
+        <TickGrid
+          ticks={xTicks}
+          at={X}
+          from={8}
+          to={rowsBottom}
+          axis="x"
+          labelAt={vh - 3}
+        />
         {target && (
           <g data-part="grid">
             <line
@@ -119,7 +107,13 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
               : row.label === highlight;
           return (
             <g key={row.label} data-part="mark" data-i={i}>
-              <text x="40" y={mid + 1.8} textAnchor="end" {...TXT.label}>
+              <text
+                x="40"
+                y={mid}
+                textAnchor="end"
+                dominantBaseline="central"
+                {...TXT.label}
+              >
                 {row.label}
               </text>
               <rect
@@ -130,7 +124,12 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
                 fill={categorical ? cat(i) : accent ? ACCENT : ink(0.3)}
                 opacity={categorical ? 0.9 : 1}
               />
-              <text x={44 + w + 4} y={mid + 1.8} {...TXT.axis}>
+              <text
+                x={44 + w + 4}
+                y={mid}
+                dominantBaseline="central"
+                {...TXT.axis}
+              >
                 {format(row.value)}
               </text>
             </g>

@@ -1,33 +1,57 @@
 import { Sunburst } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Report } from "./scenes";
+
+const ROOT = {
+  label: "10.4k sessions",
+  children: [
+    {
+      label: "docs",
+      children: [
+        { label: "guides", value: 1840 },
+        { label: "api", value: 1320 },
+        { label: "examples", value: 740 },
+        { label: "search", value: 410 },
+      ],
+    },
+    {
+      label: "app",
+      children: [
+        { label: "thread", value: 1680 },
+        { label: "compose", value: 920 },
+        { label: "settings", value: 310 },
+      ],
+    },
+    {
+      label: "marketing",
+      children: [
+        { label: "home", value: 1560 },
+        { label: "pricing", value: 880 },
+        { label: "blog", value: 540 },
+        { label: "changelog", value: 200 },
+      ],
+    },
+  ],
+};
 
 export const glyph = (
   <Sunburst
-    title="Budget by department, then team"
+    title="Sessions"
     root={{
-      label: "budget",
+      label: "sessions",
       children: [
         {
-          label: "eng",
+          label: "docs",
           children: [
-            { label: "platform", value: 26 },
-            { label: "product", value: 19 },
+            { label: "guides", value: 18 },
+            { label: "api", value: 13 },
           ],
         },
         {
-          label: "gtm",
+          label: "app",
           children: [
-            { label: "sales", value: 18 },
-            { label: "marketing", value: 15 },
-          ],
-        },
-        {
-          label: "ops",
-          children: [
-            { label: "people", value: 13 },
-            { label: "finance", value: 9 },
+            { label: "thread", value: 17 },
+            { label: "compose", value: 9 },
           ],
         },
       ],
@@ -37,71 +61,35 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "Budget by department, then team",
+    title: "Where 10.4k weekly sessions go",
     setup:
-      "A finance partner presents the annual budget in two rings: departments inside, their teams outside. The inner ring is the org chart; the outer ring is where the money actually lands.",
-    read: "Engineering's inner arc is the widest, and its three outer teams split it 26–19–12 — platform eats more than product and infra combined trails it, facts the department-level number hid. Every outer arc sums exactly into its parent; ten teams, four departments, and the geometry audits the spreadsheet.",
+      "Two rings: surface, then page. The sunburst is a drill path around a center, not a budget poster.",
+    read: "Docs is the outer majority, and guides plus api are most of that ring. The app's thread page is already as large as home. Pricing is the only marketing leaf that competes with a product surface.",
+    source: "Unique sessions, week of 4 Aug 2025.",
     chart: (
-      <Report title="Budget by department" chip="2 rings">
-        <FigTooltip
-          entries={{
-            eng: 57,
-            gtm: 39,
-            ops: 22,
-            design: 13,
-            platform: 26,
-            product: 19,
-            infra: 12,
-            sales: 18,
-            marketing: 15,
-            partners: 6,
-            people: 13,
-            finance: 9,
-            brand: 8,
-            systems: 5,
-          }}
-          unit="M"
-        >
-          <Sunburst
-            title="Budget by department, then team"
-            root={{
-              label: "budget",
-              children: [
-                {
-                  label: "eng",
-                  children: [
-                    { label: "platform", value: 26 },
-                    { label: "product", value: 19 },
-                    { label: "infra", value: 12 },
-                  ],
-                },
-                {
-                  label: "gtm",
-                  children: [
-                    { label: "sales", value: 18 },
-                    { label: "marketing", value: 15 },
-                    { label: "partners", value: 6 },
-                  ],
-                },
-                {
-                  label: "ops",
-                  children: [
-                    { label: "people", value: 13 },
-                    { label: "finance", value: 9 },
-                  ],
-                },
-                {
-                  label: "design",
-                  children: [
-                    { label: "brand", value: 8 },
-                    { label: "systems", value: 5 },
-                  ],
-                },
-              ],
-            }}
-          />
-        </FigTooltip>
-      </Report>
+      <FigTooltip
+        entries={{
+          guides: "1,840",
+          api: "1,320",
+          examples: "740",
+          search: "410",
+          thread: "1,680",
+          compose: "920",
+          settings: "310",
+          home: "1,560",
+          pricing: "880",
+          blog: "540",
+          changelog: "200",
+        }}
+      >
+        <Sunburst
+          density="figure"
+          aspect={1.15}
+          title="Weekly sessions"
+          depth={2}
+          root={ROOT}
+        />
+      </FigTooltip>
     ),
   },
 ];

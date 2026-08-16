@@ -83,10 +83,16 @@ export const Pie = forwardRef<SVGSVGElement, PieProps>(
             return (
               <g key={slice.label}>
                 <circle cx="126" cy={y} r="2.4" fill={cat(i)} />
-                <text x="132" y={y + 1.8} {...TXT.label}>
+                <text x="132" y={y} dominantBaseline="central" {...TXT.label}>
                   {slice.label}
                 </text>
-                <text x="188" y={y + 1.8} textAnchor="end" {...TXT.value}>
+                <text
+                  x="188"
+                  y={y}
+                  textAnchor="end"
+                  dominantBaseline="central"
+                  {...TXT.value}
+                >
                   {fmt(slice.value)}
                 </text>
               </g>

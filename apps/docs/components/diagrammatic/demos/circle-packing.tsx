@@ -1,35 +1,63 @@
 import { CirclePacking } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { AppCard } from "./scenes";
+
+const ROOT = {
+  label: "pages",
+  children: [
+    {
+      label: "checkout",
+      children: [
+        { label: "api", value: 184 },
+        { label: "web", value: 96 },
+        { label: "workers", value: 41 },
+      ],
+    },
+    {
+      label: "search",
+      children: [
+        { label: "query", value: 72 },
+        { label: "index", value: 38 },
+        { label: "rank", value: 22 },
+      ],
+    },
+    {
+      label: "growth",
+      children: [
+        { label: "email", value: 28 },
+        { label: "ads", value: 19 },
+        { label: "seo", value: 11 },
+      ],
+    },
+    {
+      label: "platform",
+      children: [
+        { label: "auth", value: 34 },
+        { label: "billing", value: 27 },
+        { label: "flags", value: 9 },
+      ],
+    },
+  ],
+};
 
 export const glyph = (
   <CirclePacking
-    title="Org clusters"
+    title="Pages by family"
     root={{
-      label: "org",
+      label: "pages",
       children: [
         {
-          label: "platform",
+          label: "checkout",
           children: [
-            { label: "core", value: 20 },
-            { label: "infra", value: 9 },
-            { label: "tools", value: 6 },
+            { label: "api", value: 18 },
+            { label: "web", value: 10 },
           ],
         },
         {
-          label: "growth",
+          label: "search",
           children: [
-            { label: "web", value: 12 },
-            { label: "data", value: 7 },
-            { label: "ads", value: 4 },
-          ],
-        },
-        {
-          label: "labs",
-          children: [
-            { label: "ai", value: 5 },
-            { label: "research", value: 3 },
+            { label: "query", value: 7 },
+            { label: "index", value: 4 },
           ],
         },
       ],
@@ -39,77 +67,35 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "Org clusters, sized by headcount",
+    title: "Pages last quarter, by service family",
     setup:
-      "A new executive asks for the org 'at a glance', and the chief of staff draws it as nested circles: groups contain teams, area is headcount, containment does the explaining.",
-    read: "Platform is the big continent and core is its capital; labs floats small and separate, which is both its budget and its culture. Packing wastes space by design — that softness is why it reads as territory instead of spreadsheet.",
+      "Incidents packed by the family that owned them, then by service. Size is page count. The packing is for membership, not measurement.",
+    read: "Checkout is the planet. api inside it is larger than every search service combined. Growth is a moon. The structure is the argument: pages concentrate where checkout talks to the card network, not where headcount sits.",
+    source: "PagerDuty pages, last 90 days. n = 581.",
     chart: (
-      <AppCard title="Org, at a glance" meta="83 people">
-        <FigTooltip
-          entries={{
-            platform: 40,
-            growth: 26,
-            labs: 10,
-            design: 7,
-            core: 20,
-            infra: 9,
-            tools: 6,
-            sre: 5,
-            web: 12,
-            data: 7,
-            ads: 4,
-            lifecycle: 3,
-            ai: 5,
-            research: 3,
-            robotics: 2,
-            brand: 4,
-            systems: 3,
-          }}
-          unit=" people"
-        >
-          <CirclePacking
-            title="Org clusters"
-            root={{
-              label: "org",
-              children: [
-                {
-                  label: "platform",
-                  children: [
-                    { label: "core", value: 20 },
-                    { label: "infra", value: 9 },
-                    { label: "tools", value: 6 },
-                    { label: "sre", value: 5 },
-                  ],
-                },
-                {
-                  label: "growth",
-                  children: [
-                    { label: "web", value: 12 },
-                    { label: "data", value: 7 },
-                    { label: "ads", value: 4 },
-                    { label: "lifecycle", value: 3 },
-                  ],
-                },
-                {
-                  label: "labs",
-                  children: [
-                    { label: "ai", value: 5 },
-                    { label: "research", value: 3 },
-                    { label: "robotics", value: 2 },
-                  ],
-                },
-                {
-                  label: "design",
-                  children: [
-                    { label: "brand", value: 4 },
-                    { label: "systems", value: 3 },
-                  ],
-                },
-              ],
-            }}
-          />
-        </FigTooltip>
-      </AppCard>
+      <FigTooltip
+        entries={{
+          api: 184,
+          web: 96,
+          workers: 41,
+          query: 72,
+          index: 38,
+          rank: 22,
+          email: 28,
+          ads: 19,
+          seo: 11,
+          auth: 34,
+          billing: 27,
+          flags: 9,
+        }}
+      >
+        <CirclePacking
+          density="figure"
+          aspect={1.15}
+          title="Pages by service family"
+          root={ROOT}
+        />
+      </FigTooltip>
     ),
   },
 ];

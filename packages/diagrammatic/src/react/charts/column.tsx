@@ -4,7 +4,7 @@ import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, cat, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, TickGrid, TXT, vbHeight } from "../svg";
 
 export type ColumnProps = BaseProps & {
   items: Item[];
@@ -60,26 +60,7 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
           data-part="grid"
           {...stroke.hair}
         />
-        {yTicks?.map((tick) => (
-          <g key={tick.at} data-part="grid">
-            <line
-              x1={leftEdge}
-              y1={round(Y(tick.at))}
-              x2="190"
-              y2={round(Y(tick.at))}
-              stroke={ink(0.08)}
-              {...stroke.hair}
-            />
-            <text
-              x={leftEdge - 2}
-              y={round(Y(tick.at)) + 1.2}
-              textAnchor="end"
-              {...TXT.axis}
-            >
-              {tick.label}
-            </text>
-          </g>
-        ))}
+        <TickGrid ticks={yTicks} at={Y} from={leftEdge} to={190} />
         {target && (
           <g data-part="grid">
             <line

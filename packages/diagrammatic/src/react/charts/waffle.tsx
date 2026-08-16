@@ -43,10 +43,16 @@ export const Waffle = forwardRef<SVGSVGElement, WaffleProps>(
             return (
               <g key={item.label}>
                 <circle cx="132" cy={y} r="2.4" fill={cat(i)} />
-                <text x="138" y={y + 1.8} {...TXT.label}>
+                <text x="138" y={y} dominantBaseline="central" {...TXT.label}>
                   {item.label}
                 </text>
-                <text x="192" y={y + 1.8} textAnchor="end" {...TXT.value}>
+                <text
+                  x="192"
+                  y={y}
+                  textAnchor="end"
+                  dominantBaseline="central"
+                  {...TXT.value}
+                >
                   {fmt(item.value)}
                 </text>
               </g>

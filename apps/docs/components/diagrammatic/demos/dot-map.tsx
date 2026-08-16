@@ -1,47 +1,36 @@
 import { ABSTRACT_TILES, DotMap } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard } from "./scenes";
+
+const COUNTS = ABSTRACT_TILES.map((tile) => {
+  const east = tile.col >= 13;
+  const capital = tile.col >= 4 && tile.col <= 7 && tile.row <= 2;
+  const west = tile.col <= 3 && tile.row <= 4;
+  if (capital) return 8 + tile.col;
+  if (east) return 5 + Math.max(0, 3 - tile.row);
+  if (west) return 4;
+  if (tile.row >= 6) return 1;
+  return 2;
+});
 
 export const glyph = (
-  <DotMap
-    title="Where the users are"
-    counts={ABSTRACT_TILES.map((tile) =>
-      Math.max(
-        0,
-        Math.round(
-          3.2 *
-            (Math.sin(tile.col * 0.9 + tile.row * 1.4) +
-              Math.cos(tile.col * 0.4 - tile.row * 0.7)),
-        ),
-      ),
-    )}
-    unitLabel="1 dot = 100 users"
-  />
+  <DotMap title="WAU" counts={COUNTS} unitLabel="1 dot = 50 WAU" />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Where the users are",
+    title: "One dot is fifty weekly actives",
     setup:
-      "Instead of coloring regions, a growth report scatters one dot per hundred users across the landmass, because density as texture keeps region size from lying.",
-    read: "The dot clouds hug the same coast the choropleth darkened, but here a big sparse region reads sparse instead of shouting its area. Each dot is a hundred people; the eye counts crowds the way it never counts color.",
+      "Texture instead of fill. A large empty region stays empty. The unit is printed on the figure.",
+    read: "The coast is a crowd. The interior is a scatter. You can count the capital and you cannot mistake a large pale region for a market.",
+    source: "Weekly actives, week of 11 Aug. 1 dot = 50 people.",
     chart: (
-      <AppCard title="Where the users are" meta="1 dot = 100">
-        <DotMap
-          title="Where the users are"
-          counts={ABSTRACT_TILES.map((tile) =>
-            Math.max(
-              0,
-              Math.round(
-                4.6 *
-                  (Math.sin(tile.col * 0.9 + tile.row * 1.4) +
-                    Math.cos(tile.col * 0.4 - tile.row * 0.7)),
-              ),
-            ),
-          )}
-          unitLabel="1 dot = 100 users"
-        />
-      </AppCard>
+      <DotMap
+        density="figure"
+        aspect={1.7}
+        title="Weekly actives"
+        counts={COUNTS}
+        unitLabel="1 dot = 50 weekly actives"
+      />
     ),
   },
 ];

@@ -1,4 +1,4 @@
-import { round } from "../core/geometry";
+import { round, stroke } from "../core/geometry";
 import {
   type ComponentPropsWithoutRef,
   type CSSProperties,
@@ -34,12 +34,15 @@ type SvgAttributes = Omit<
  * the primary axis. `legend` defaults to automatic: shown when two or more
  * series are present. `format` renders numbers wherever the chart prints one.
  */
+export type Density = "compact" | "figure";
+
 export type BaseProps = SvgAttributes & {
   title?: string;
   labels?: string[];
   legend?: boolean;
   format?: (value: number) => string;
   aspect?: number;
+  density?: Density;
 };
 
 /** The micro charts drop axis and legend concerns but keep the svg surface. */
@@ -47,12 +50,57 @@ export type MicroBaseProps = SvgAttributes & {
   title?: string;
 };
 
-export const TXT = {
+type TypeStyle = {
+  fontSize: number;
+  fill: string;
+  fontFamily: string;
+  opacity?: number;
+};
+
+export const TXT: {
+  axis: TypeStyle;
+  label: TypeStyle;
+  value: TypeStyle;
+  onSeries: TypeStyle;
+} = {
   axis: { fontSize: 3.2, fill: MUTED, fontFamily: FONT },
   label: { fontSize: 3.6, fill: ink(0.55), fontFamily: FONT },
   value: { fontSize: 3.6, fill: ink(0.75), fontFamily: FONT },
   onSeries: { fontSize: 3.2, fill: "#fff", opacity: 0.95, fontFamily: FONT },
-} as const;
+};
+
+export function typeScale(density?: Density) {
+  if (density === "figure") {
+    return {
+      axis: { ...TXT.axis, fontSize: 3.6 },
+      label: { ...TXT.label, fontSize: 3.8 },
+      value: { ...TXT.value, fontSize: 4 },
+      onSeries: { ...TXT.onSeries, fontSize: 3.4 },
+    };
+  }
+  return TXT;
+}
+
+export function plotFrame(
+  vh: number,
+  density: Density | undefined,
+  opts: { legend?: boolean; labels?: boolean; left?: number } = {},
+) {
+  const fig = density === "figure";
+  const left = opts.left ?? (fig ? 22 : 14);
+  const right = fig ? 190 : 186;
+  const top = opts.legend ? (fig ? 26 : 22) : fig ? 16 : 12;
+  const bottom = opts.labels ? vh - (fig ? 20 : 16) : vh - (fig ? 12 : 8);
+  return { left, right, top, bottom, fig };
+}
+
+export function rowMid(index: number, rowH: number, top: number): number {
+  return top + (index + 0.5) * rowH;
+}
+
+export function rowMarkH(rowH: number, ratio = 0.42): number {
+  return Math.max(2.4, Math.min(rowH * ratio, rowH - 1.4));
+}
 
 const BLOCK: CSSProperties = {
   display: "block",
@@ -77,6 +125,7 @@ type FrameProps = SvgAttributes & {
   legend?: boolean | undefined;
   format?: ((value: number) => string) | undefined;
   aspect?: number | undefined;
+  density?: Density | undefined;
   children: ReactNode;
 };
 
@@ -91,6 +140,7 @@ export const ChartSvg = forwardRef<SVGSVGElement, FrameProps & { vh: number }>(
       legend: _legend,
       format: _format,
       aspect: _aspect,
+      density,
       ...rest
     },
     ref,
@@ -104,6 +154,7 @@ export const ChartSvg = forwardRef<SVGSVGElement, FrameProps & { vh: number }>(
         aria-label={label}
         aria-hidden={label ? undefined : true}
         data-dg=""
+        data-density={density}
         {...rest}
         style={{ ...BLOCK, ...style }}
       >
@@ -136,6 +187,7 @@ export const MicroSvg = forwardRef<
       legend: _legend,
       format: _format,
       aspect: _aspect,
+      density: _density,
       ...rest
     },
     ref,
@@ -173,15 +225,23 @@ export function Legend({
   x = 12,
   y = 11,
   anchor = "start",
+  type = TXT.axis,
 }: {
   names: string[];
   colors: string[];
   x?: number;
   y?: number;
   anchor?: "start" | "end";
+  type?: TypeStyle;
 }) {
-  const widths = names.map((name) => 6.4 + name.length * 2.1 + 8);
-  const total = widths.reduce((sum, w) => sum + w, 0) - 9;
+  const em = type.fontSize;
+  const swatch = em * 0.55;
+  const gap = em * 0.5;
+  const pad = em * 1.35;
+  const widths = names.map(
+    (name) => swatch * 2 + gap + name.length * em * 0.62 + pad,
+  );
+  const total = widths.reduce((sum, w) => sum + w, 0);
   let cursor = anchor === "end" ? x - total : x;
   return (
     <g data-part="legend">
@@ -190,8 +250,13 @@ export function Legend({
         cursor += widths[i]!;
         return (
           <g key={name}>
-            <circle cx={x0 + 2.4} cy={y - 1.6} r="2.4" fill={colors[i]} />
-            <text x={x0 + 7.6} y={y} {...TXT.axis}>
+            <circle
+              cx={x0 + swatch}
+              cy={y - em * 0.35}
+              r={swatch}
+              fill={colors[i]}
+            />
+            <text x={x0 + swatch * 2 + gap} y={y} {...type}>
               {name}
             </text>
           </g>
@@ -199,6 +264,51 @@ export function Legend({
       })}
     </g>
   );
+}
+
+export function TickGrid({
+  ticks,
+  at,
+  from,
+  to,
+  type = TXT.axis,
+  axis = "y",
+  labelAt,
+}: {
+  ticks?: readonly { at: number; label: string }[] | undefined;
+  at: (value: number) => number;
+  from: number;
+  to: number;
+  type?: TypeStyle;
+  axis?: "y" | "x";
+  labelAt?: number;
+}) {
+  if (!ticks?.length) return null;
+  const across = axis === "y";
+  return ticks.map((tick) => {
+    const p = round(at(tick.at));
+    return (
+      <g key={`${axis}-${tick.at}`} data-part="grid">
+        <line
+          x1={across ? from : p}
+          y1={across ? p : from}
+          x2={across ? to : p}
+          y2={across ? p : to}
+          stroke={ink(0.16)}
+          strokeDasharray="1.8 2.4"
+          {...stroke.hair}
+        />
+        <text
+          x={across ? from - 2 : p}
+          y={across ? p + 1.2 : (labelAt ?? to + 6)}
+          textAnchor={across ? "end" : "middle"}
+          {...type}
+        >
+          {tick.label}
+        </text>
+      </g>
+    );
+  });
 }
 
 /**
@@ -220,11 +330,13 @@ export function AxisLabels({
   xs,
   y,
   vertical,
+  type = TXT.axis,
 }: {
   labels: string[];
   xs: number[];
   y: number;
   vertical?: boolean;
+  type?: TypeStyle;
 }) {
   return (
     <g data-part="axis">
@@ -237,7 +349,7 @@ export function AxisLabels({
             transform={`rotate(90 ${xs[i]} ${y})`}
             textAnchor="start"
             dominantBaseline="central"
-            {...TXT.axis}
+            {...type}
           >
             {label}
           </text>
@@ -247,7 +359,7 @@ export function AxisLabels({
             x={xs[i]}
             y={y}
             textAnchor="middle"
-            {...TXT.axis}
+            {...type}
           >
             {label}
           </text>

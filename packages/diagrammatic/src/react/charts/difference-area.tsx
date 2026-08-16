@@ -1,15 +1,16 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
-import {
-  bandPath,
-  linePath,
-  round,
-  scalePoints,
-  stroke,
-} from "../../core/geometry";
+import { bandPath, linePath, scalePoints, stroke } from "../../core/geometry";
 import { NEG, POS, ink } from "../../core/theme";
-import { AxisLabels, ChartSvg, ColumnHits, TXT, vbHeight } from "../svg";
+import {
+  AxisLabels,
+  ChartSvg,
+  ColumnHits,
+  TickGrid,
+  TXT,
+  vbHeight,
+} from "../svg";
 
 export type DifferenceAreaProps = BaseProps & {
   actual: Series;
@@ -37,26 +38,7 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
     const below = a.map((p, i) => ({ x: p.x, y: Math.max(p.y, b[i]!.y) }));
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
-        {yTicks?.map((tick) => (
-          <g key={tick.at} data-part="grid">
-            <line
-              x1="14"
-              y1={round(Y(tick.at))}
-              x2="186"
-              y2={round(Y(tick.at))}
-              stroke={ink(0.08)}
-              {...stroke.hair}
-            />
-            <text
-              x="12"
-              y={round(Y(tick.at)) + 1.2}
-              textAnchor="end"
-              {...TXT.axis}
-            >
-              {tick.label}
-            </text>
-          </g>
-        ))}
+        <TickGrid ticks={yTicks} at={Y} from={14} to={186} />
         <ColumnHits
           count={actual.data.length}
           x0={14}

@@ -157,6 +157,11 @@ export default async function ChartPage({
           </div>
           <div className={cn(gutter, "py-10 md:py-12")}>
             <div className="mx-auto w-full max-w-[54rem]">{hero.chart}</div>
+            {hero.source ? (
+              <p className="mt-4 text-center text-[12px] leading-relaxed text-(--da-ink)/40">
+                {hero.source}
+              </p>
+            ) : null}
           </div>
           <figcaption
             className={cn(

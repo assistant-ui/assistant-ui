@@ -1,130 +1,65 @@
 import { Heatmap } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { AppCard, Terminal } from "./scenes";
 
-const CALENDAR = Array.from({ length: 7 }, (_, r) =>
-  Array.from({ length: 16 }, (_, c) => {
-    const day = c * 7 + r;
-    if (r >= 5) return Math.max(0, Math.round(Math.sin(day * 0.9) * 2));
-    return Math.max(
-      0,
-      Math.round((Math.sin(day * 1.7) + Math.sin(day * 0.6) + 1.2) * 4),
-    );
+const DAYS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+const HOURS = Array.from({ length: 24 }, (_, hour) =>
+  hour % 3 === 0 ? String(hour) : "",
+);
+
+const PUNCH: number[][] = DAYS.map((_, day) =>
+  Array.from({ length: 24 }, (_, hour) => {
+    const weekend = day >= 5;
+    if (weekend) {
+      if (hour >= 10 && hour <= 14)
+        return day === 5 ? 6 + (hour === 11 ? 4 : 0) : 2;
+      if (hour === 21 || hour === 22) return 3;
+      return hour >= 8 && hour <= 18 ? 1 : 0;
+    }
+    if (hour >= 9 && hour <= 11) return [14, 18, 22][hour - 9]!;
+    if (hour >= 12 && hour <= 14) return [16, 20, 24][hour - 12]!;
+    if (hour >= 15 && hour <= 18) return [26, 31, 22, 14][hour - 15]!;
+    if (hour === 21 || hour === 22) return day === 3 ? 11 : 7;
+    if (hour === 8) return 5;
+    return hour >= 7 && hour <= 23 ? 2 : 0;
   }),
 );
 
 export const glyph = (
   <Heatmap
-    title="Deploys by service and hour"
+    title="Commits"
+    mark="dot"
     matrix={{
-      rows: ["api", "web", "db", "jobs", "cdn"],
-      cols: ["8h", "10h", "12h", "14h", "16h", "18h", "20h", "22h"],
-      values: [
-        [0.2, 0.4, 0.7, 0.5, 0.3, 0.2, 0.1, 0.15],
-        [0.3, 0.6, 0.9, 0.7, 0.5, 0.3, 0.2, 0.1],
-        [0.2, 0.5, 0.8, 1, 0.7, 0.4, 0.3, 0.2],
-        [0.1, 0.3, 0.5, 0.7, 0.9, 0.6, 0.4, 0.3],
-        [0.05, 0.2, 0.3, 0.4, 0.6, 0.8, 0.5, 0.4],
-      ],
+      rows: DAYS,
+      cols: ["0", "6", "12", "18"],
+      values: PUNCH.map((row) => [row[0]!, row[6]!, row[12]!, row[18]!]),
     }}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Deploys by service and hour",
+    title: "Commits by weekday and hour",
     setup:
-      "A platform team suspects the release train bunches up, so they pull a week of deploy events and bucket them by service and by hour of day. Two categorical axes, one intensity: the classic heatmap job.",
-    read: "The noon column burns across every service: release o'clock is real. The db row peaks latest and the cdn earliest, which is the deploy pipeline's ordering showing up as color.",
+      "Seven days, twenty-four hours, a dot per cell. The punchcard is the job Heatmap already owns.",
+    read: "The afternoon column from 15h to 16h is the release train. Thursday night is the only late cluster. Saturday morning exists; Sunday almost does not. Empty hours stay empty.",
+    source: "git commits on origin/main, last 12 weeks. n = 1,486.",
     chart: (
-      <Terminal title="deploys — svc × hour">
-        <FigTooltip
-          matrix={{
-            rows: ["api", "web", "db", "jobs", "cdn"],
-            columns: ["8h", "10h", "12h", "14h", "16h", "18h", "20h", "22h"],
-            values: [
-              [0.2, 0.4, 0.7, 0.5, 0.3, 0.2, 0.1, 0.15],
-              [0.3, 0.6, 0.9, 0.7, 0.5, 0.3, 0.2, 0.1],
-              [0.2, 0.5, 0.8, 1, 0.7, 0.4, 0.3, 0.2],
-              [0.1, 0.3, 0.5, 0.7, 0.9, 0.6, 0.4, 0.3],
-              [0.05, 0.2, 0.3, 0.4, 0.6, 0.8, 0.5, 0.4],
-            ],
-          }}
-        >
-          <Heatmap
-            values
-            title="Deploys by service and hour"
-            matrix={{
-              rows: ["api", "web", "db", "jobs", "cdn"],
-              cols: ["8h", "10h", "12h", "14h", "16h", "18h", "20h", "22h"],
-              values: [
-                [0.2, 0.4, 0.7, 0.5, 0.3, 0.2, 0.1, 0.15],
-                [0.3, 0.6, 0.9, 0.7, 0.5, 0.3, 0.2, 0.1],
-                [0.2, 0.5, 0.8, 1, 0.7, 0.4, 0.3, 0.2],
-                [0.1, 0.3, 0.5, 0.7, 0.9, 0.6, 0.4, 0.3],
-                [0.05, 0.2, 0.3, 0.4, 0.6, 0.8, 0.5, 0.4],
-              ],
-            }}
-          />
-        </FigTooltip>
-      </Terminal>
-    ),
-  },
-  {
-    title: "The punchcard: commits by weekday and hour",
-    setup:
-      'The same matrix drawn with `mark="dot"` sizes a circle per cell instead of shading it: the classic punchcard that code-hosting profiles made famous. Here, a repo\'s commits bucketed by weekday and two-hour block.',
-    read: "Midweek afternoons carry the repo; the dots thin toward the weekend but never disappear. Size reads better than color when the values sit close together, which is why the punchcard survives as a form.",
-    chart: (
-      <Terminal title="commits — punchcard">
+      <FigTooltip
+        matrix={{
+          rows: DAYS,
+          columns: Array.from({ length: 24 }, (_, hour) => `${hour}h`),
+          values: PUNCH,
+        }}
+      >
         <Heatmap
+          density="figure"
+          aspect={1.7}
           mark="dot"
           title="Commits by weekday and hour"
-          matrix={{
-            rows: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-            cols: ["0h", "", "", "6h", "", "", "12h", "", "", "18h", "", ""],
-            values: [0.45, 0.85, 1, 0.9, 0.75, 0.5, 0.3].map((day, r) =>
-              Array.from({ length: 12 }, (_, c) =>
-                Math.max(
-                  0,
-                  day * Math.sin(((c + 0.5) / 12) * Math.PI) +
-                    0.12 * Math.sin(c * 2.1 + r),
-                ),
-              ),
-            ),
-          }}
+          matrix={{ rows: DAYS, cols: HOURS, values: PUNCH }}
         />
-      </Terminal>
-    ),
-  },
-  {
-    title: "The calendar: sixteen weeks of contributions",
-    setup:
-      "Feed the matrix seven weekday rows and one column per week and the heatmap becomes a contribution calendar. Sixteen weeks of a maintainer's activity, weekends on the bottom rows.",
-    read: "The weekday stripes are the job; the two pale columns are vacations, visible without a single date label. The bottom two rows run cooler than the rest, which is what a healthy relationship with open source looks like.",
-    chart: (
-      <AppCard title="Contribution activity" meta="16 weeks">
-        <Heatmap
-          title="Contribution activity"
-          aspect={2.2}
-          matrix={{
-            rows: ["Mon", "", "Wed", "", "Fri", "", "Sun"],
-            cols: Array.from({ length: 16 }, (_, i) =>
-              i === 0
-                ? "May"
-                : i === 5
-                  ? "Jun"
-                  : i === 9
-                    ? "Jul"
-                    : i === 14
-                      ? "Aug"
-                      : "",
-            ),
-            values: CALENDAR,
-          }}
-        />
-      </AppCard>
+      </FigTooltip>
     ),
   },
 ];

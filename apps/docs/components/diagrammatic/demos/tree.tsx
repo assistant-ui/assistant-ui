@@ -1,22 +1,44 @@
 import { Tree } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard } from "./scenes";
+
+const ROOT = {
+  label: "eng",
+  children: [
+    {
+      label: "platform",
+      children: [
+        { label: "runtime" },
+        { label: "data" },
+        { label: "security" },
+      ],
+    },
+    {
+      label: "product",
+      children: [
+        { label: "checkout" },
+        { label: "search" },
+        { label: "growth" },
+      ],
+    },
+    {
+      label: "mobile",
+      children: [{ label: "ios" }, { label: "android" }],
+    },
+    {
+      label: "infra",
+      children: [{ label: "sre" }, { label: "net" }],
+    },
+  ],
+};
 
 export const glyph = (
   <Tree
-    title="A small org chart"
+    title="Engineering"
     root={{
-      label: "ceo",
+      label: "eng",
       children: [
-        {
-          label: "eng",
-          children: [{ label: "platform" }, { label: "product" }],
-        },
-        { label: "design", children: [{ label: "brand" }] },
-        {
-          label: "gtm",
-          children: [{ label: "sales" }, { label: "marketing" }],
-        },
+        { label: "platform", children: [{ label: "runtime" }] },
+        { label: "product", children: [{ label: "checkout" }] },
       ],
     }}
   />
@@ -24,46 +46,18 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "A small org chart",
-    setup:
-      "A hiring page shows the company's shape before candidates ask. Position encodes reporting lines and nothing else — no sizes, no metrics, just who answers to whom.",
-    read: "Four branches, ten leaves, and the asymmetry is the message: eng carries four teams while design carries two, and ops hangs finance and people off one lead. Design's short branch says 'early'; gtm's symmetric trio says 'built to a plan'. Org charts confess more than the about page intends.",
+    title: "Engineering after the July reorg",
+    setup: "Who reports to whom. No sizes. The tree is the org, not a metric.",
+    read: "Product and platform now match at three teams. Mobile is still a pair. Infra is two names that used to be one on-call. The missing design branch is the other memo.",
+    source: "People directory, 1 Aug 2025.",
     chart: (
-      <AppCard title="The org, level two" meta="hiring page">
-        <Tree
-          title="A small org chart"
-          root={{
-            label: "ceo",
-            children: [
-              {
-                label: "eng",
-                children: [
-                  { label: "platform" },
-                  { label: "product" },
-                  { label: "infra" },
-                  { label: "qa" },
-                ],
-              },
-              {
-                label: "design",
-                children: [{ label: "brand" }, { label: "systems" }],
-              },
-              {
-                label: "gtm",
-                children: [
-                  { label: "sales" },
-                  { label: "marketing" },
-                  { label: "partners" },
-                ],
-              },
-              {
-                label: "ops",
-                children: [{ label: "finance" }, { label: "people" }],
-              },
-            ],
-          }}
-        />
-      </AppCard>
+      <Tree
+        density="figure"
+        aspect={1.35}
+        title="Engineering"
+        depth={2}
+        root={ROOT}
+      />
     ),
   },
 ];

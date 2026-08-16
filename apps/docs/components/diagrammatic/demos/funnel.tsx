@@ -1,56 +1,37 @@
 import { Funnel } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { AppCard } from "./scenes";
 
-export const glyph = (
-  <Funnel
-    title="Signup funnel"
-    items={[
-      { label: "visited", value: 8000 },
-      { label: "signed up", value: 5760 },
-      { label: "activated", value: 4000 },
-      { label: "subscribed", value: 2720 },
-      { label: "retained", value: 1760 },
-    ]}
-  />
-);
+const STAGES = [
+  { label: "view cart", value: 18_420 },
+  { label: "address", value: 11_240 },
+  { label: "payment", value: 9_010 },
+  { label: "confirm", value: 6_280 },
+  { label: "paid", value: 5_810 },
+];
+
+export const glyph = <Funnel title="Checkout" items={STAGES.slice(0, 4)} />;
 
 export const examples: DemoExample[] = [
   {
-    title: "Signup funnel, visit to retained",
+    title: "Checkout, one Wednesday",
     setup:
-      "A PM traces one cohort of eight thousand visitors through seven product stages, because 'conversion is 12%' hides which stage is doing the losing.",
-    read: "Every stage keeps roughly seventy percent, and that innocent-looking rate compounds to 8000-becomes-940 by the end. No single stage is broken, which is the uncomfortable finding: fixing this funnel means nudging six steps, not rescuing one.",
+      "Five stages, each a subset of the last. The taper is decoration; the rate on every step is the argument.",
+    read: "Address loses 39% of the cart. Payment holds most of who remain. Confirm is the second cliff: 30% leave after they have already typed a card. Paid is 31.5% of view-cart, and almost everyone who confirms pays.",
+    source: "Checkout POST funnel, Wednesday 13 Aug. n = 18,420 carts.",
     chart: (
-      <AppCard title="Signup funnel" meta="one cohort">
-        <FigTooltip
-          labels={[
-            "visited",
-            "viewed pricing",
-            "signed up",
-            "activated",
-            "invited team",
-            "subscribed",
-            "retained",
-          ]}
-          series={{ cohort: [8000, 5680, 3980, 2760, 1930, 1350, 940] }}
-        >
-          <Funnel
-            rates
-            title="Signup funnel"
-            items={[
-              { label: "visited", value: 8000 },
-              { label: "viewed pricing", value: 5680 },
-              { label: "signed up", value: 3980 },
-              { label: "activated", value: 2760 },
-              { label: "invited team", value: 1930 },
-              { label: "subscribed", value: 1350 },
-              { label: "retained", value: 940 },
-            ]}
-          />
-        </FigTooltip>
-      </AppCard>
+      <FigTooltip
+        labels={STAGES.map((row) => row.label)}
+        series={{ sessions: STAGES.map((row) => row.value) }}
+      >
+        <Funnel
+          density="figure"
+          aspect={1.35}
+          title="Checkout funnel"
+          rates
+          items={STAGES}
+        />
+      </FigTooltip>
     ),
   },
 ];

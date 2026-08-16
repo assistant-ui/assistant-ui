@@ -1,39 +1,35 @@
 import { Waffle } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Slide } from "./scenes";
 
-export const glyph = (
-  <Waffle
-    title="How often teams deploy"
-    items={[
-      { label: "daily", value: 38 },
-      { label: "weekly", value: 27 },
-      { label: "monthly", value: 22 },
-      { label: "never", value: 13 },
-    ]}
-  />
-);
+const DEPLOYS = [
+  { label: "clean", value: 91 },
+  { label: "rollback", value: 6 },
+  { label: "hotfix", value: 3 },
+];
+
+export const glyph = <Waffle title="Last 100 deploys" items={DEPLOYS} />;
 
 export const examples: DemoExample[] = [
   {
-    title: "Earth's water, out of a hundred cells",
+    title: "Last 100 production deploys",
     setup:
-      "A science-class poster answers 'why do we worry about water on a blue planet' with one grid: all of Earth's water, one hundred cells.",
-    read: "Fresh liquid water is one cell. One. The ocean's 97 make scarcity countable in a way percentages never manage — the entire freshwater argument lives in the corner of the grid, and every student finds it.",
+      "One cell, one deploy. A waffle is for shares you can count with a finger, not a famous fact about the planet.",
+    read: "Ninety-one green cells. Six rollbacks sit in a run, which is the bad week in March. Three hotfixes are scattered. The SLO is 95 clean; the board can count the miss without a caption.",
+    source:
+      "Production deploys, trailing 100. Rollback means revert within 2h.",
     chart: (
-      <Slide title="Earth's water" footer="one cell = 1%">
-        <FigTooltip entries={{ ocean: "97%", ice: "2%", fresh: "1%" }}>
-          <Waffle
-            title="Earth's water"
-            items={[
-              { label: "ocean", value: 97 },
-              { label: "ice", value: 2 },
-              { label: "fresh", value: 1 },
-            ]}
-          />
-        </FigTooltip>
-      </Slide>
+      <FigTooltip
+        labels={DEPLOYS.map((row) => row.label)}
+        series={{ deploys: DEPLOYS.map((row) => row.value) }}
+      >
+        <Waffle
+          density="figure"
+          aspect={1.2}
+          title="Last 100 production deploys"
+          items={DEPLOYS}
+        />
+      </FigTooltip>
     ),
   },
 ];

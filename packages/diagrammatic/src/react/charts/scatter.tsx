@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import type { Pt } from "../../core/types";
 import { extent, round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, TickGrid, TXT, vbHeight } from "../svg";
 
 export type ScatterProps = BaseProps & {
   points: { x: number; y: number; size?: number; label?: string }[];
@@ -59,46 +59,8 @@ export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
     const [xLo, xHi] = extent(points.map((p) => p.x));
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
-        {yTicks?.map((tick) => (
-          <g key={`y-${tick.at}`} data-part="grid">
-            <line
-              x1="14"
-              y1={round(Y(tick.at))}
-              x2="186"
-              y2={round(Y(tick.at))}
-              stroke={GRID}
-              {...stroke.hair}
-            />
-            <text
-              x="12"
-              y={round(Y(tick.at)) + 1.5}
-              textAnchor="end"
-              {...TXT.axis}
-            >
-              {tick.label}
-            </text>
-          </g>
-        ))}
-        {xTicks?.map((tick) => (
-          <g key={`x-${tick.at}`} data-part="grid">
-            <line
-              x1={round(X(tick.at))}
-              y1="8"
-              x2={round(X(tick.at))}
-              y2={bottom}
-              stroke={GRID}
-              {...stroke.hair}
-            />
-            <text
-              x={round(X(tick.at))}
-              y={bottom + 6}
-              textAnchor="middle"
-              {...TXT.axis}
-            >
-              {tick.label}
-            </text>
-          </g>
-        ))}
+        <TickGrid ticks={yTicks} at={Y} from={14} to={186} />
+        <TickGrid ticks={xTicks} at={X} from={8} to={bottom} axis="x" />
         <line
           x1="14"
           y1={bottom}

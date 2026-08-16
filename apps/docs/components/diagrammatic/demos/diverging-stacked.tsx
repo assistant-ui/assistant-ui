@@ -1,52 +1,76 @@
 import { DivergingStacked } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { AppCard } from "./scenes";
+
+const ROWS = [
+  {
+    label: "sales · n=42",
+    values: [4, 8, 12, 38, 38] as [number, number, number, number, number],
+  },
+  {
+    label: "product · n=28",
+    values: [6, 12, 18, 36, 28] as [number, number, number, number, number],
+  },
+  {
+    label: "eng · n=96",
+    values: [8, 14, 20, 34, 24] as [number, number, number, number, number],
+  },
+  {
+    label: "design · n=18",
+    values: [12, 22, 24, 26, 16] as [number, number, number, number, number],
+  },
+  {
+    label: "data · n=22",
+    values: [10, 18, 22, 30, 20] as [number, number, number, number, number],
+  },
+  {
+    label: "support · n=54",
+    values: [22, 28, 18, 20, 12] as [number, number, number, number, number],
+  },
+  {
+    label: "legacy · n=16",
+    values: [30, 26, 16, 18, 10] as [number, number, number, number, number],
+  },
+];
 
 export const glyph = (
   <DivergingStacked
-    title="Would recommend, by team"
-    rows={[
-      { label: "eng", values: [8, 16, 18, 34, 24] },
-      { label: "design", values: [14, 24, 22, 26, 14] },
-      { label: "sales", values: [4, 10, 14, 40, 32] },
-      { label: "support", values: [22, 30, 20, 18, 10] },
-    ]}
-    endLabels={["disagree", "agree"]}
+    title="Would recommend"
+    rows={ROWS.slice(0, 4).map((row) => ({
+      label: row.label.split(" ")[0]!,
+      values: row.values,
+    }))}
+    endLabels={["no", "yes"]}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Would recommend, by team",
+    title: "Would recommend this job, by team",
     setup:
-      "The engagement survey's key question, one row per team, agreement growing rightward from a shared spine. Likert data has a home form, and this is it.",
-    read: "Sales leans hard right — 72% agree — while support's left tail is the chart's alarm: a third of the team would not recommend working there. The shared spine lets the eye rank four teams' sentiment without reading a single percentage.",
+      "Five-point Likert, anchored on neutral. Agreement grows right. Each row carries its n so a team of 16 cannot shout down a team of 96.",
+    read: "Sales is 76% yes. Support and legacy lean left, and legacy's strong-no bar is the largest single slab on the page. Neutral is the spine, not a leftover.",
+    source: "Engagement survey, June 2025. eNPS item only.",
     chart: (
-      <AppCard title="Would recommend, by team" meta="survey">
-        <FigTooltip
-          labels={["eng", "design", "sales", "support"]}
-          series={{
-            "strong no": [8, 14, 4, 22],
-            no: [16, 24, 10, 30],
-            neutral: [18, 22, 14, 20],
-            yes: [34, 26, 40, 18],
-            "strong yes": [24, 14, 32, 10],
-          }}
-          unit="%"
-        >
-          <DivergingStacked
-            title="Would recommend, by team"
-            rows={[
-              { label: "eng", values: [8, 16, 18, 34, 24] },
-              { label: "design", values: [14, 24, 22, 26, 14] },
-              { label: "sales", values: [4, 10, 14, 40, 32] },
-              { label: "support", values: [22, 30, 20, 18, 10] },
-            ]}
-            endLabels={["disagree", "agree"]}
-          />
-        </FigTooltip>
-      </AppCard>
+      <FigTooltip
+        labels={ROWS.map((row) => row.label)}
+        series={{
+          "strong no": ROWS.map((row) => row.values[0]),
+          no: ROWS.map((row) => row.values[1]),
+          neutral: ROWS.map((row) => row.values[2]),
+          yes: ROWS.map((row) => row.values[3]),
+          "strong yes": ROWS.map((row) => row.values[4]),
+        }}
+        unit="%"
+      >
+        <DivergingStacked
+          density="figure"
+          aspect={1.25}
+          title="Would recommend this job"
+          rows={ROWS}
+          endLabels={["disagree", "agree"]}
+        />
+      </FigTooltip>
     ),
   },
 ];

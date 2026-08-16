@@ -1,56 +1,42 @@
 import { PolarArea } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Paper } from "./scenes";
+
+const HOURS = Array.from({ length: 24 }, (_, hour) => {
+  const label = String(hour).padStart(2, "0");
+  if (hour >= 0 && hour < 6)
+    return { label, value: [18, 14, 11, 9, 8, 10][hour]! };
+  if (hour < 12) return { label, value: [16, 22, 28, 34, 31, 27][hour - 6]! };
+  if (hour < 18) return { label, value: [29, 33, 38, 52, 61, 48][hour - 12]! };
+  return { label, value: [36, 28, 24, 22, 21, 19][hour - 18]! };
+});
 
 export const glyph = (
   <PolarArea
-    title="Wind hours by direction"
-    items={[
-      { label: "N", value: 86 },
-      { label: "NE", value: 52 },
-      { label: "E", value: 71 },
-      { label: "SE", value: 38 },
-      { label: "S", value: 59 },
-      { label: "SW", value: 28 },
-      { label: "W", value: 47 },
-      { label: "NW", value: 66 },
-    ]}
+    title="Arrivals by hour"
+    items={HOURS.filter((_, i) => i % 3 === 0)}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Wind hours by direction",
+    title: "Trauma arrivals by hour, one year",
     setup:
-      "A kitesurf school decides where to build its new launch from a year of anemometer logs. The wind rose is the oldest polar chart there is: direction as angle, hours as radius.",
-    read: "North and east own this coastline — the rose points where the wind comes from, and the northeast quadrant holds most of the year's sailable hours. The southwest sliver is why the old launch site kept disappointing.",
+      "A Nightingale rose for a city hospital: twenty-four hours around the clock, radius as volume. The form exists for a cycle, not a ranking.",
+    read: "The afternoon swell from 15h to 17h is the road. The 03h dent is the quiet the night shift actually gets. Area grows with the square of radius, so 61 at 16h looks larger than the 18-to-61 ratio; the tooltip keeps the count honest.",
+    source: "ED trauma desk, 2024. n = 6,412 arrivals.",
     chart: (
-      <Paper
-        kicker="Coast"
-        title="Where the wind lives"
-        source="Source: harbor anemometer, one year"
+      <FigTooltip
+        labels={HOURS.map((row) => `${row.label}h`)}
+        series={{ arrivals: HOURS.map((row) => row.value) }}
       >
-        <FigTooltip
-          labels={["N", "NE", "E", "SE", "S", "SW", "W", "NW"]}
-          series={{ hours: [86, 52, 71, 38, 59, 28, 47, 66] }}
-          unit="h"
-        >
-          <PolarArea
-            title="Wind hours by direction"
-            items={[
-              { label: "N", value: 86 },
-              { label: "NE", value: 52 },
-              { label: "E", value: 71 },
-              { label: "SE", value: 38 },
-              { label: "S", value: 59 },
-              { label: "SW", value: 28 },
-              { label: "W", value: 47 },
-              { label: "NW", value: 66 },
-            ]}
-          />
-        </FigTooltip>
-      </Paper>
+        <PolarArea
+          density="figure"
+          aspect={1.15}
+          title="Trauma arrivals by hour"
+          items={HOURS}
+        />
+      </FigTooltip>
     ),
   },
 ];

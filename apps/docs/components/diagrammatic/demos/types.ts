@@ -11,4 +11,5 @@ export type DemoExample = {
   setup: string;
   read: string;
   chart: ReactNode;
+  source?: string;
 };

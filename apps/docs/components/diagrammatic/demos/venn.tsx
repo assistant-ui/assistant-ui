@@ -1,34 +1,42 @@
 import { Venn } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { AppCard } from "./scenes";
 
 export const glyph = (
   <Venn
-    title="Web and app users"
-    a={{ label: "web only", value: 4200 }}
-    b={{ label: "app only", value: 3100 }}
-    overlap={1300}
+    title="Web and iOS"
+    a={{ label: "web", value: 48_200 }}
+    b={{ label: "iOS", value: 31_400 }}
+    overlap={6_100}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Web and app users",
+    title: "Web and iOS, last 28 days",
     setup:
-      "A product team debates whether web and app are 'the same users on two surfaces' or two audiences. Two circles, three honest numbers, and the debate has a referee.",
-    read: "The overlap is 1,300 of 8,600 — fifteen percent. These are mostly two audiences, and the roadmap's 'seamless cross-device sync' pitch just met the population it actually serves. The circles are sized to their counts; the geometry is the finding.",
+      "Two circles. Three labeled counts. Area is illustrative; the numbers carry the truth.",
+    read: "6.1k people used both. That is 8% of the 73.5k union. The sync project serves a sliver. Web-only is still the product.",
+    source: "WAU, last 28 days. Overlap is the same person on both surfaces.",
     chart: (
-      <AppCard title="Web × app" meta="8.6k users">
-        <FigTooltip entries={{ "web only": "4.2k", "app only": "3.1k" }}>
-          <Venn
-            title="Web and app users"
-            a={{ label: "web only", value: 4200 }}
-            b={{ label: "app only", value: 3100 }}
-            overlap={1300}
-          />
-        </FigTooltip>
-      </AppCard>
+      <FigTooltip
+        entries={{
+          web: "48.2k",
+          iOS: "31.4k",
+          both: "6.1k",
+          "web only": "42.1k",
+          "iOS only": "25.3k",
+        }}
+      >
+        <Venn
+          density="figure"
+          aspect={1.25}
+          title="Web and iOS WAU"
+          a={{ label: "web", value: 48_200 }}
+          b={{ label: "iOS", value: 31_400 }}
+          overlap={6_100}
+        />
+      </FigTooltip>
     ),
   },
 ];

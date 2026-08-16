@@ -184,7 +184,7 @@ const REGISTRY: Record<string, Descriptor> = {
   slope: entry(charts.Slope, [["items", "array"]]),
   bump: entry(charts.Bump, [["series", "array"]]),
   candlestick: entry(charts.Candlestick, [["data", "array"]]),
-  horizon: entry(charts.Horizon, [["data", "array"]]),
+  horizon: entry(charts.Horizon, []),
   gantt: entry(charts.Gantt, [["rows", "array"]]),
   bar: entry(charts.Bar, [["items", "array"]]),
   column: entry(charts.Column, [["items", "array"]]),

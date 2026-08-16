@@ -1,40 +1,38 @@
 import { Radar } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { Report } from "./scenes";
+
+const AXES = ["pages", "after hours", "SEV-1", "time to ack", "weekend"];
 
 export const glyph = (
   <Radar
-    title="Two models across five capabilities"
-    axes={["code", "reason", "write", "vision", "speed"]}
+    title="On-call load"
+    axes={AXES}
     series={[
-      { name: "atlas-1", data: [0.85, 0.7, 0.6, 0.8, 0.75] },
-      { name: "nova-2", data: [0.55, 0.85, 0.75, 0.45, 0.6] },
+      { name: "primary", data: [0.7, 0.4, 0.3, 0.5, 0.35] },
+      { name: "secondary", data: [0.4, 0.6, 0.2, 0.35, 0.55] },
     ]}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Three models across six capabilities",
+    title: "Primary against secondary, one quarter",
     setup:
-      "An eval report compares three language models across six benchmark axes, overlaid so their strengths argue in the same frame.",
-    read: "The outlines disagree most on code and vision — atlas-1's corners — while nova-2 bulges toward reasoning and writing and quill trades everything for speed and cost. The overlap in the middle is where benchmarks tie and marketing departments do not.",
+      "Two profiles, five axes ordered by how much they burn people: volume, night, severity, speed, weekend. Area is not a score. The shape is the staffing argument.",
+    read: "Primary eats the pages and the SEV-1s. Secondary eats the nights and the weekends. Time-to-ack is the only shared corner. The hole in secondary's SEV-1 spoke is the policy working: secondaries do not own the incident.",
+    source:
+      "On-call load, Q2 2025. Each axis scaled to the worse rotation = 1.",
     chart: (
-      <Report
-        title="Three models, six axes"
-        chip="evals"
-        note="Normalized benchmark scores; the outer edge is best in class."
-      >
-        <Radar
-          title="Three models across six capabilities"
-          axes={["code", "reason", "write", "vision", "speed", "cost"]}
-          series={[
-            { name: "atlas-1", data: [0.85, 0.7, 0.6, 0.8, 0.55, 0.35] },
-            { name: "nova-2", data: [0.55, 0.85, 0.75, 0.45, 0.6, 0.55] },
-            { name: "quill", data: [0.45, 0.5, 0.55, 0.3, 0.9, 0.92] },
-          ]}
-        />
-      </Report>
+      <Radar
+        density="figure"
+        aspect={1.15}
+        title="On-call load"
+        axes={AXES}
+        series={[
+          { name: "primary", data: [1, 0.42, 1, 0.68, 0.31] },
+          { name: "secondary", data: [0.46, 1, 0.18, 0.54, 1] },
+        ]}
+      />
     ),
   },
 ];

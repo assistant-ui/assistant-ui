@@ -39,8 +39,9 @@ export const Funnel = forwardRef<SVGSVGElement, FunnelProps>(
               {w0 > 40 && (
                 <text
                   x="100"
-                  y={y + rowH / 2 + 1.2}
+                  y={y + rowH / 2}
                   textAnchor="middle"
+                  dominantBaseline="central"
                   {...TXT.onSeries}
                 >
                   {stage.label}

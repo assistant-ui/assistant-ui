@@ -1,6 +1,23 @@
 import { SplitBar } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { Terminal } from "./scenes";
+
+const ROWS = [
+  {
+    label: "edge · iad-1",
+    a: { label: "hit", value: 91 },
+    b: { label: "miss", value: 9 },
+  },
+  {
+    label: "edge · cdg-1",
+    a: { label: "hit", value: 84 },
+    b: { label: "miss", value: 16 },
+  },
+  {
+    label: "origin · writes",
+    a: { label: "ok", value: 97 },
+    b: { label: "err", value: 3 },
+  },
+];
 
 function Rows({
   rows,
@@ -12,7 +29,7 @@ function Rows({
   }[];
 }) {
   return (
-    <div className="mx-auto flex w-full max-w-56 flex-col gap-3 font-[family-name:var(--font-mono)] text-xs">
+    <div className="mx-auto flex w-full max-w-72 flex-col gap-3 font-[family-name:var(--font-mono)] text-xs">
       {rows.map((row) => (
         <div key={row.label} className="flex flex-col gap-1">
           <span className="opacity-55">{row.label}</span>
@@ -28,56 +45,15 @@ function Rows({
   );
 }
 
-export const glyph = (
-  <Rows
-    rows={[
-      {
-        label: "down / up",
-        a: { label: "down", value: 72 },
-        b: { label: "up", value: 28 },
-      },
-      {
-        label: "read / write",
-        a: { label: "read", value: 55 },
-        b: { label: "write", value: 45 },
-      },
-      {
-        label: "hit / miss",
-        a: { label: "hit", value: 86 },
-        b: { label: "miss", value: 14 },
-      },
-    ]}
-  />
-);
+export const glyph = <Rows rows={ROWS} />;
 
 export const examples: DemoExample[] = [
   {
-    title: "Traffic shape at a glance",
+    title: "Cache hits against origin errors",
     setup:
-      "A network dashboard summarizes three ratios per link — download/upload, read/write, cache hit/miss — each as one bar split at the boundary. Two shares that sum to the whole; the split point is the entire message.",
-    read: "72/28 down-up is a consumer link doing consumer things; 86/14 hit-miss is a cache earning its memory. The read/write split near even is the one worth watching — writes that heavy usually mean someone is logging too much.",
-    chart: (
-      <Terminal title="link ratios">
-        <Rows
-          rows={[
-            {
-              label: "down / up",
-              a: { label: "down", value: 72 },
-              b: { label: "up", value: 28 },
-            },
-            {
-              label: "read / write",
-              a: { label: "read", value: 55 },
-              b: { label: "write", value: 45 },
-            },
-            {
-              label: "hit / miss",
-              a: { label: "hit", value: 86 },
-              b: { label: "miss", value: 14 },
-            },
-          ]}
-        />
-      </Terminal>
-    ),
+      "A traffic row is two shares that sum to the whole. Three links, three bars, no poster. The split point is the entire message.",
+    read: "iad-1 is earning its memory at 91/9. cdg-1 is the leak: 16% miss is why origin CPU woke up. Writes at 3% error are inside budget, so the page is about the Paris cache, not the database.",
+    source: "Edge and origin counters, last 60 minutes.",
+    chart: <Rows rows={ROWS} />,
   },
 ];

@@ -1,21 +1,16 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
-import {
-  bandPath,
-  linePath,
-  round,
-  scalePoints,
-  stroke,
-} from "../../core/geometry";
-import { SURFACE, cat, ink } from "../../core/theme";
+import { bandPath, linePath, scalePoints, stroke } from "../../core/geometry";
+import { SURFACE, cat } from "../../core/theme";
 import { stack } from "../../core/layout";
 import {
   AxisLabels,
   ChartSvg,
   ColumnHits,
   Legend,
-  TXT,
+  TickGrid,
+  typeScale,
   vbHeight,
 } from "../svg";
 
@@ -26,10 +21,21 @@ export type StackedAreaProps = BaseProps & {
 
 export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
   (
-    { series, yTicks, labels, legend, title, aspect, className, ...rest },
+    {
+      series,
+      yTicks,
+      labels,
+      legend,
+      title,
+      aspect,
+      density,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const showLegend = legend ?? series.length > 1;
     const top = showLegend ? 24 : 12;
     const bottom = labels ? vh - 16 : vh - 8;
@@ -44,27 +50,15 @@ export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
       scalePoints(level, 14, 186, bottom, top, 0, max),
     );
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
-        {yTicks?.map((tick) => (
-          <g key={tick.at} data-part="grid">
-            <line
-              x1="14"
-              y1={round(Y(tick.at))}
-              x2="186"
-              y2={round(Y(tick.at))}
-              stroke={ink(0.08)}
-              {...stroke.hair}
-            />
-            <text
-              x="12"
-              y={round(Y(tick.at)) + 1.2}
-              textAnchor="end"
-              {...TXT.axis}
-            >
-              {tick.label}
-            </text>
-          </g>
-        ))}
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
+        <TickGrid ticks={yTicks} at={Y} from={14} to={186} type={T.axis} />
         <ColumnHits
           count={series[0]?.data.length ?? 0}
           x0={14}
@@ -95,13 +89,15 @@ export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
           <Legend
             names={series.map((s) => s.name)}
             colors={series.map((_, k) => cat(k))}
+            type={T.axis}
           />
         )}
         {labels && (
           <AxisLabels
             labels={labels}
             xs={scaled[0]!.map((p) => p.x)}
-            y={vh - 4}
+            y={vh - (density === "figure" ? 6 : 4)}
+            type={T.axis}
           />
         )}
       </ChartSvg>

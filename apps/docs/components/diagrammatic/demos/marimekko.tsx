@@ -1,131 +1,88 @@
 import { Marimekko } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Report } from "./scenes";
+
+const COLUMNS = [
+  {
+    label: "NA",
+    width: 48,
+    shares: [
+      { label: "aws", value: 31 },
+      { label: "azure", value: 9 },
+      { label: "gcp", value: 6 },
+      { label: "other", value: 2 },
+    ],
+  },
+  {
+    label: "EU",
+    width: 27,
+    shares: [
+      { label: "aws", value: 12 },
+      { label: "azure", value: 8 },
+      { label: "gcp", value: 5 },
+      { label: "other", value: 2 },
+    ],
+  },
+  {
+    label: "APAC",
+    width: 19,
+    shares: [
+      { label: "aws", value: 8 },
+      { label: "azure", value: 4 },
+      { label: "gcp", value: 5 },
+      { label: "other", value: 2 },
+    ],
+  },
+  {
+    label: "LATAM",
+    width: 6,
+    shares: [
+      { label: "aws", value: 3 },
+      { label: "azure", value: 1 },
+      { label: "gcp", value: 1 },
+      { label: "other", value: 1 },
+    ],
+  },
+];
 
 export const glyph = (
   <Marimekko
-    title="Market by region and vendor"
-    columns={[
-      {
-        label: "AMER",
-        width: 62,
-        shares: [
-          { label: "north", value: 50 },
-          { label: "acme", value: 30 },
-          { label: "other", value: 20 },
-        ],
-      },
-      {
-        label: "EMEA",
-        width: 48,
-        shares: [
-          { label: "north", value: 35 },
-          { label: "acme", value: 42 },
-          { label: "other", value: 23 },
-        ],
-      },
-      {
-        label: "APAC",
-        width: 40,
-        shares: [
-          { label: "north", value: 55 },
-          { label: "acme", value: 20 },
-          { label: "other", value: 25 },
-        ],
-      },
-      {
-        label: "LATAM",
-        width: 28,
-        shares: [
-          { label: "north", value: 28 },
-          { label: "acme", value: 50 },
-          { label: "other", value: 22 },
-        ],
-      },
-    ]}
+    title="Market by region"
+    columns={COLUMNS.slice(0, 3).map((column) => ({
+      ...column,
+      shares: column.shares.slice(0, 3),
+    }))}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Market by region and vendor",
+    title: "Cloud spend, region by vendor",
     setup:
-      "A strategy deck sizes the market two ways at once: column width is each region's share of global revenue, segment height is vendor share within it. Area is therefore actual dollars.",
-    read: "Acme leads EMEA and LATAM by share, but the mekko shows why the board still worries: those are the narrow columns. North's fat AMER segment alone out-areas acme's two regional wins combined, and zephyr — invisible in every regional ranking — quietly holds real area in APAC and JP, the challenger the share tables keep missing.",
+      "Width is the region's share of the bill. Height inside a column is the vendor. The cell that matters is the one you annotate.",
+    read: "NA is half the rectangle, and AWS is two-thirds of NA. That one cell is 31 of 100. Azure only competes in the EU column. APAC is the only place GCP is even with Azure.",
+    source: "FY25 cloud invoice, share of $6.74m. Cells sum to 100.",
     chart: (
-      <Report
-        title="Market by region and vendor"
-        chip="revenue"
-        note="Column width is regional share of revenue; height is vendor share within the region."
+      <FigTooltip
+        matrix={{
+          rows: ["aws", "azure", "gcp", "other"],
+          columns: ["NA", "EU", "APAC", "LATAM"],
+          values: [
+            [31, 12, 8, 3],
+            [9, 8, 4, 1],
+            [6, 5, 5, 1],
+            [2, 2, 2, 1],
+          ],
+        }}
+        unit="%"
       >
-        <FigTooltip
-          labels={["AMER", "EMEA", "APAC", "LATAM", "JP"]}
-          series={{
-            north: [46, 32, 48, 26, 38],
-            acme: [28, 40, 18, 48, 22],
-            zephyr: [14, 16, 22, 12, 30],
-            other: [12, 12, 12, 14, 10],
-          }}
-          unit="%"
-        >
-          <Marimekko
-            title="Market by region and vendor"
-            columns={[
-              {
-                label: "AMER",
-                width: 62,
-                shares: [
-                  { label: "north", value: 46 },
-                  { label: "acme", value: 28 },
-                  { label: "zephyr", value: 14 },
-                  { label: "other", value: 12 },
-                ],
-              },
-              {
-                label: "EMEA",
-                width: 48,
-                shares: [
-                  { label: "north", value: 32 },
-                  { label: "acme", value: 40 },
-                  { label: "zephyr", value: 16 },
-                  { label: "other", value: 12 },
-                ],
-              },
-              {
-                label: "APAC",
-                width: 40,
-                shares: [
-                  { label: "north", value: 48 },
-                  { label: "acme", value: 18 },
-                  { label: "zephyr", value: 22 },
-                  { label: "other", value: 12 },
-                ],
-              },
-              {
-                label: "LATAM",
-                width: 28,
-                shares: [
-                  { label: "north", value: 26 },
-                  { label: "acme", value: 48 },
-                  { label: "zephyr", value: 12 },
-                  { label: "other", value: 14 },
-                ],
-              },
-              {
-                label: "JP",
-                width: 22,
-                shares: [
-                  { label: "north", value: 38 },
-                  { label: "acme", value: 22 },
-                  { label: "zephyr", value: 30 },
-                  { label: "other", value: 10 },
-                ],
-              },
-            ]}
-          />
-        </FigTooltip>
-      </Report>
+        <Marimekko
+          density="figure"
+          aspect={1.7}
+          title="Cloud spend by region and vendor"
+          columns={COLUMNS}
+        />
+      </FigTooltip>
     ),
   },
 ];

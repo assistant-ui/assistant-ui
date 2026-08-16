@@ -1,107 +1,75 @@
 import { Network } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Terminal } from "./scenes";
+
+const GRAPH = {
+  nodes: [
+    { id: "gw", label: "gateway" },
+    { id: "checkout", label: "checkout" },
+    { id: "pay", label: "payments" },
+    { id: "inv", label: "inventory" },
+    { id: "price", label: "pricing" },
+    { id: "auth", label: "auth" },
+    { id: "cart", label: "cart" },
+    { id: "risk", label: "risk" },
+    { id: "email", label: "email" },
+    { id: "flag", label: "flags" },
+  ],
+  links: [
+    { source: "gw", target: "checkout" },
+    { source: "gw", target: "auth" },
+    { source: "gw", target: "cart" },
+    { source: "gw", target: "flag" },
+    { source: "checkout", target: "pay" },
+    { source: "checkout", target: "inv" },
+    { source: "checkout", target: "price" },
+    { source: "checkout", target: "risk" },
+    { source: "pay", target: "risk" },
+    { source: "pay", target: "email" },
+    { source: "cart", target: "inv" },
+    { source: "auth", target: "flag" },
+  ],
+};
 
 export const glyph = (
   <Network
-    title="Service dependencies"
+    title="Checkout path"
     graph={{
-      nodes: [
-        { id: "api", label: "api" },
-        { id: "web", label: "web" },
-        { id: "db", label: "db" },
-        { id: "jobs", label: "jobs" },
-        { id: "cache", label: "cache" },
-        { id: "auth", label: "auth" },
-        { id: "w1" },
-        { id: "w2" },
-        { id: "d1" },
-        { id: "d2" },
-        { id: "j1" },
-        { id: "c1" },
-      ],
-      links: [
-        { source: "api", target: "web" },
-        { source: "api", target: "db" },
-        { source: "api", target: "jobs" },
-        { source: "api", target: "cache" },
-        { source: "api", target: "auth" },
-        { source: "web", target: "w1" },
-        { source: "web", target: "w2" },
-        { source: "db", target: "d1" },
-        { source: "db", target: "d2" },
-        { source: "jobs", target: "j1" },
-        { source: "cache", target: "c1" },
-        { source: "web", target: "db" },
-      ],
+      nodes: GRAPH.nodes.slice(0, 6),
+      links: GRAPH.links.slice(0, 6),
     }}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Service dependencies",
+    title: "The gateway sits in the middle on purpose",
     setup:
-      "An on-call engineer sketches the system before the incident review: services as nodes, calls as edges, the most-connected node pulled to the center by the layout itself.",
-    read: "The api sits at the center because six services touch it — which is also the incident review's conclusion, drawn before anyone speaks. The unlabeled leaves are replicas; the two edges that skip the api entirely, web→db and jobs→search, are the shortcuts the outage traced.",
+      "Ten services on the checkout path. The layout pulls the highest-degree node to the center. That node is the gateway. Find it before the incident review starts.",
+    read: "Gateway has four edges. Checkout has four more behind it. A page on gateway is a page on the store. The risk service is the only box both checkout and payments touch, which is why it showed up in two timelines.",
+    source: "Service graph from the checkout trace sample, 14 Aug.",
     chart: (
-      <Terminal title="service graph — prod">
-        <FigTooltip
-          entries={{
-            api: "6 links",
-            web: "4 links",
-            db: "4 links",
-            jobs: "4 links",
-            cache: "2 links",
-            auth: "2 links",
-            search: "3 links",
-          }}
-        >
-          <Network
-            title="Service dependencies"
-            graph={{
-              nodes: [
-                { id: "api", label: "api" },
-                { id: "web", label: "web" },
-                { id: "db", label: "db" },
-                { id: "jobs", label: "jobs" },
-                { id: "cache", label: "cache" },
-                { id: "auth", label: "auth" },
-                { id: "search", label: "search" },
-                { id: "w1" },
-                { id: "w2" },
-                { id: "d1" },
-                { id: "d2" },
-                { id: "j1" },
-                { id: "j2" },
-                { id: "c1" },
-                { id: "s1" },
-                { id: "a1" },
-              ],
-              links: [
-                { source: "api", target: "web" },
-                { source: "api", target: "db" },
-                { source: "api", target: "jobs" },
-                { source: "api", target: "cache" },
-                { source: "api", target: "auth" },
-                { source: "api", target: "search" },
-                { source: "web", target: "w1" },
-                { source: "web", target: "w2" },
-                { source: "db", target: "d1" },
-                { source: "db", target: "d2" },
-                { source: "jobs", target: "j1" },
-                { source: "jobs", target: "j2" },
-                { source: "cache", target: "c1" },
-                { source: "search", target: "s1" },
-                { source: "auth", target: "a1" },
-                { source: "web", target: "db" },
-                { source: "jobs", target: "search" },
-              ],
-            }}
-          />
-        </FigTooltip>
-      </Terminal>
+      <FigTooltip
+        entries={{
+          gateway: "4 links",
+          checkout: "4 links",
+          payments: "3 links",
+          inventory: "2 links",
+          pricing: "1 link",
+          auth: "2 links",
+          cart: "2 links",
+          risk: "2 links",
+          email: "1 link",
+          flags: "2 links",
+        }}
+      >
+        <Network
+          density="figure"
+          aspect={1.2}
+          title="Checkout service graph"
+          graph={GRAPH}
+        />
+      </FigTooltip>
     ),
   },
 ];

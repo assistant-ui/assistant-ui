@@ -1,7 +1,21 @@
 import { StackedArea } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Terminal } from "./scenes";
+
+const HOURS = Array.from({ length: 25 }, (_, i) => String(i).padStart(2, "0"));
+const GAS = [
+  15, 14, 13, 13, 12, 11, 9, 7, 6, 5, 4, 4, 5, 5, 6, 8, 10, 13, 15, 16, 16, 16,
+  16, 15, 15,
+];
+const NUCLEAR = Array.from({ length: 25 }, () => 8);
+const WIND = [
+  9, 10, 10, 9, 9, 8, 8, 7, 7, 7, 8, 8, 8, 7, 7, 8, 8, 8, 9, 9, 10, 10, 10, 9,
+  9,
+];
+const SOLAR = [
+  0, 0, 0, 0, 0, 0, 1, 3, 7, 11, 15, 17, 18, 17, 15, 12, 8, 4, 1, 0, 0, 0, 0, 0,
+  0,
+];
 
 export const glyph = (
   <StackedArea
@@ -20,77 +34,47 @@ export const examples: DemoExample[] = [
     title: "Grid generation mix across one day",
     setup:
       "A grid operator's dashboard shows the day's generation stacked by source, because demand must always equal the top edge. This is a sunny weekday in spring.",
-    read: "Solar swells through midday and gas fills the morning and evening shoulders around it; the famous duck-curve shape is the gas band's waistline. Nuclear runs dead flat at the bottom — the baseload doing exactly what the word means — and wind hums along above it, indifferent to the sun.",
+    read: "Solar swells through midday and gas fills the morning and evening shoulders around it. The duck-curve is the gas band's waist. Nuclear is a flat floor; wind ignores the sun. Demand is the top edge: it never dips when solar vanishes, so gas has to come back.",
+    source: "Spring weekday, one control area. Gigawatts at the hour.",
     chart: (
-      <Terminal title="grid mix — live">
-        <FigTooltip
+      <FigTooltip
+        labels={HOURS}
+        series={{ gas: GAS, nuclear: NUCLEAR, wind: WIND, solar: SOLAR }}
+        unit="GW"
+        total
+      >
+        <StackedArea
+          density="figure"
+          aspect={2.2}
+          title="Generation mix"
+          yTicks={[
+            { at: 0, label: "0" },
+            { at: 20, label: "20" },
+            { at: 40, label: "40" },
+          ]}
           labels={[
             "00",
-            "02",
-            "04",
+            "",
+            "",
             "06",
-            "08",
-            "10",
+            "",
+            "",
             "12",
-            "14",
-            "16",
+            "",
+            "",
             "18",
-            "20",
-            "22",
+            "",
+            "",
             "24",
           ]}
-          series={{
-            gas: [14, 13, 12, 10, 7, 5, 6, 8, 10, 13, 15, 16, 15],
-            nuclear: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8],
-            wind: [9, 10, 9, 8, 7, 7, 8, 7, 8, 8, 9, 10, 10],
-            solar: [0, 0, 0, 2, 8, 14, 17, 16, 12, 6, 1, 0, 0],
-          }}
-          unit="GW"
-          total
-        >
-          <StackedArea
-            title="Generation mix"
-            yTicks={[
-              { at: 0, label: "0" },
-              { at: 20, label: "20" },
-              { at: 40, label: "40" },
-            ]}
-            labels={[
-              "00",
-              "",
-              "",
-              "06",
-              "",
-              "",
-              "12",
-              "",
-              "",
-              "18",
-              "",
-              "",
-              "24",
-            ]}
-            series={[
-              {
-                name: "gas",
-                data: [14, 13, 12, 10, 7, 5, 6, 8, 10, 13, 15, 16, 15],
-              },
-              {
-                name: "nuclear",
-                data: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8],
-              },
-              {
-                name: "wind",
-                data: [9, 10, 9, 8, 7, 7, 8, 7, 8, 8, 9, 10, 10],
-              },
-              {
-                name: "solar",
-                data: [0, 0, 0, 2, 8, 14, 17, 16, 12, 6, 1, 0, 0],
-              },
-            ]}
-          />
-        </FigTooltip>
-      </Terminal>
+          series={[
+            { name: "gas", data: GAS },
+            { name: "nuclear", data: NUCLEAR },
+            { name: "wind", data: WIND },
+            { name: "solar", data: SOLAR },
+          ]}
+        />
+      </FigTooltip>
     ),
   },
 ];

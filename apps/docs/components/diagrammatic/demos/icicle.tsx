@@ -1,29 +1,65 @@
 import { Icicle } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { Terminal } from "./scenes";
+
+const ROOT = {
+  label: "checkout · 4.82s",
+  children: [
+    {
+      label: "db · 2.26s",
+      children: [
+        { label: "inventory", value: 1.12 },
+        { label: "pricing", value: 0.64 },
+        { label: "pool wait", value: 0.32 },
+        { label: "serialize", value: 0.18 },
+      ],
+    },
+    {
+      label: "payments · 1.48s",
+      children: [
+        { label: "authorize", value: 0.92 },
+        { label: "3ds", value: 0.38 },
+        { label: "retry", value: 0.18 },
+      ],
+    },
+    {
+      label: "render · 0.74s",
+      children: [
+        { label: "template", value: 0.41 },
+        { label: "partials", value: 0.21 },
+        { label: "json", value: 0.12 },
+      ],
+    },
+    {
+      label: "auth · 0.34s",
+      children: [
+        { label: "session", value: 0.21 },
+        { label: "token", value: 0.13 },
+      ],
+    },
+  ],
+};
 
 export const glyph = (
   <Icicle
-    title="Monorepo size"
+    title="Request time"
     root={{
-      label: "repo · 4.2 GB",
+      label: "handler",
       children: [
         {
-          label: "packages",
+          label: "db",
           children: [
-            { label: "react", value: 50 },
-            { label: "core", value: 32 },
+            { label: "query", value: 38 },
+            { label: "pool", value: 6 },
           ],
         },
         {
-          label: "apps",
+          label: "render",
           children: [
-            { label: "web", value: 34 },
-            { label: "docs", value: 22 },
+            { label: "template", value: 16 },
+            { label: "json", value: 8 },
           ],
         },
-        { label: "docs", value: 36 },
       ],
     }}
   />
@@ -31,62 +67,36 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "Where a slow request spends its time",
+    title: "Where a 4.82s checkout spends time",
     setup:
-      "A 420ms endpoint gets profiled, and the trace comes back as the icicle every profiler draws: the handler on top, its callees beneath, width equal to time.",
-    read: "The db block is half the request, and inside it the query dwarfs serialization — the index to add is three levels down and one glance away. A flame graph is an icicle wearing profiler clothes; the reading skill transfers exactly.",
+      "A p95 checkout gets profiled. The icicle is the flame graph without the fire: handler on top, callees beneath, width equal to time.",
+    read: "Database is 2.26s, and inventory is half of that. Payments is the second slab, almost all authorize. Render and auth together do not match the inventory query. The index to add is three levels down.",
+    source: "p95 checkout POST, 14 Aug 2025, traced for 20 minutes.",
     chart: (
-      <Terminal title="trace · GET /orders — 420ms">
-        <FigTooltip
-          entries={{
-            db: "54ms",
-            query: "38ms",
-            pool: "6ms",
-            serialize: "10ms",
-            render: "31ms",
-            template: "16ms",
-            partials: "7ms",
-            markdown: "8ms",
-            auth: "8ms",
-            session: "5ms",
-            token: "3ms",
-            cache: "7ms",
-          }}
-        >
-          <Icicle
-            title="Request time by call"
-            root={{
-              label: "handler · 420ms",
-              children: [
-                {
-                  label: "db",
-                  children: [
-                    { label: "query", value: 38 },
-                    { label: "pool", value: 6 },
-                    { label: "serialize", value: 10 },
-                  ],
-                },
-                {
-                  label: "render",
-                  children: [
-                    { label: "template", value: 16 },
-                    { label: "partials", value: 7 },
-                    { label: "markdown", value: 8 },
-                  ],
-                },
-                {
-                  label: "auth",
-                  children: [
-                    { label: "session", value: 5 },
-                    { label: "token", value: 3 },
-                  ],
-                },
-                { label: "cache", value: 7 },
-              ],
-            }}
-          />
-        </FigTooltip>
-      </Terminal>
+      <FigTooltip
+        entries={{
+          inventory: "1.12s",
+          pricing: "0.64s",
+          "pool wait": "0.32s",
+          serialize: "0.18s",
+          authorize: "0.92s",
+          "3ds": "0.38s",
+          retry: "0.18s",
+          template: "0.41s",
+          partials: "0.21s",
+          json: "0.12s",
+          session: "0.21s",
+          token: "0.13s",
+        }}
+      >
+        <Icicle
+          density="figure"
+          aspect={1.7}
+          title="Checkout p95 by call"
+          depth={2}
+          root={ROOT}
+        />
+      </FigTooltip>
     ),
   },
 ];

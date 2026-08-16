@@ -1,67 +1,45 @@
 import { Pie } from "diagrammatic";
 import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
-import { AppCard, Report } from "./scenes";
+
+const BILL = [
+  { label: "compute", value: 4_180_000 },
+  { label: "storage", value: 1_120_000 },
+  { label: "egress", value: 740_000 },
+  { label: "observability", value: 410_000 },
+  { label: "other", value: 290_000 },
+];
 
 export const glyph = (
   <Pie
-    title="Browser share of sessions"
-    items={[
-      { label: "chrome", value: 42 },
-      { label: "safari", value: 27 },
-      { label: "edge", value: 19 },
-      { label: "other", value: 12 },
-    ]}
+    title="Cloud bill"
+    items={BILL.slice(0, 4)}
+    format={(v) => `$${(v / 1_000_000).toFixed(1)}m`}
   />
 );
 
 export const examples: DemoExample[] = [
   {
-    title: "Browser share of sessions",
+    title: "FY25 cloud bill",
     setup:
-      "A frontend team is deciding how long to keep supporting a legacy rendering path, and the answer starts with one question: who actually visits? A month of sessions, four slices.",
-    read: "Chrome and Safari together are seven sessions in ten, and 'other' — where the legacy browsers live — is 12%. Whether 12% is a lot is a business question, but the pie makes sure nobody argues about the number itself. Four slices is the ceiling; past that, angles stop being comparable.",
+      "Five slices, one dominant. The pie exists for a share you can point at, not a ranking of vendors.",
+    read: "Compute is 62% of $6.74m. Storage plus egress is still smaller than that one slice. The meeting is about idle GPU, not the observability line.",
+    source: "Cloud invoice rollup, FY25. Total $6.74m.",
     chart: (
-      <Report title="Browser share" chip="sessions">
-        <FigTooltip
-          labels={["chrome", "safari", "edge", "other"]}
-          series={{ share: [42, 27, 19, 12] }}
-          unit="%"
-        >
-          <Pie
-            title="Browser share of sessions"
-            items={[
-              { label: "chrome", value: 42 },
-              { label: "safari", value: 27 },
-              { label: "edge", value: 19 },
-              { label: "other", value: 12 },
-            ]}
-          />
-        </FigTooltip>
-      </Report>
-    ),
-  },
-  {
-    title: "The donut variant: storage by content type",
-    setup:
-      "Passing `inner` opens the middle of the pie, and the hole is not wasted space: it is where the total lives. A phone's storage screen, redrawn with the headline number in the center.",
-    read: "Photos and video are two-thirds of the ring, and the 128 in the middle is the number the user actually came for. Ring plus center answers both questions at once: how much, and made of what.",
-    chart: (
-      <AppCard title="Storage" meta="128 GB">
+      <FigTooltip
+        labels={BILL.map((row) => row.label)}
+        series={{
+          spend: ["$4.18m", "$1.12m", "$0.74m", "$0.41m", "$0.29m"],
+        }}
+      >
         <Pie
-          inner={0.62}
-          title="Storage by content type"
-          items={[
-            { label: "photos", value: 49 },
-            { label: "video", value: 36 },
-            { label: "docs", value: 27 },
-            { label: "other", value: 16 },
-          ]}
-          center="128"
-          centerLabel="GB used"
-          format={(v) => `${v} GB`}
+          density="figure"
+          aspect={1.25}
+          title="FY25 cloud spend"
+          items={BILL}
+          format={(v) => `$${(v / 1_000_000).toFixed(2)}m`}
         />
-      </AppCard>
+      </FigTooltip>
     ),
   },
 ];

@@ -51,14 +51,6 @@ import {
   glyph as leaderboardGlyph,
 } from "./demos/leaderboard";
 import {
-  examples as pictogramExamples,
-  glyph as pictogramGlyph,
-} from "./demos/pictogram";
-import {
-  examples as radialBarExamples,
-  glyph as radialBarGlyph,
-} from "./demos/radial-bar";
-import {
   examples as polarAreaExamples,
   glyph as polarAreaGlyph,
 } from "./demos/polar-area";
@@ -111,10 +103,6 @@ import {
   examples as beeswarmExamples,
   glyph as beeswarmGlyph,
 } from "./demos/beeswarm";
-import {
-  examples as stripPlotExamples,
-  glyph as stripPlotGlyph,
-} from "./demos/strip-plot";
 import {
   examples as populationPyramidExamples,
   glyph as populationPyramidGlyph,
@@ -449,28 +437,6 @@ const SECTIONS: SectionInput[] = [
         examples: leaderboardExamples,
       },
       {
-        slug: "pictogram",
-        exportName: "Pictogram",
-        name: "Pictogram",
-        blurb: "Counts as repeated units.",
-        use: "Small countable quantities with human weight: people, seats, incidents.",
-        watch:
-          "Partial units confuse; round honestly and never scale the icon itself.",
-        glyph: pictogramGlyph,
-        examples: pictogramExamples,
-      },
-      {
-        slug: "radial-bar",
-        exportName: "RadialBar",
-        name: "Radial bar",
-        blurb: "Bars bent around a circle.",
-        use: "A few progress-like values with strong visual identity.",
-        watch:
-          "Outer rings are longer at equal value; it decorates more than it measures.",
-        glyph: radialBarGlyph,
-        examples: radialBarExamples,
-      },
-      {
         slug: "polar-area",
         exportName: "PolarArea",
         name: "Polar area",
@@ -634,16 +600,6 @@ const SECTIONS: SectionInput[] = [
           "Past a few hundred points the swarm congeals; switch to a density.",
         glyph: beeswarmGlyph,
         examples: beeswarmExamples,
-      },
-      {
-        slug: "strip-plot",
-        exportName: "StripPlot",
-        name: "Strip plot",
-        blurb: "Raw points along a line.",
-        use: "Quick distribution reads and honest small-n comparisons.",
-        watch: "Identical values overplot; jitter, or shift to a beeswarm.",
-        glyph: stripPlotGlyph,
-        examples: stripPlotExamples,
       },
       {
         slug: "population-pyramid",

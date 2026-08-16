@@ -3,7 +3,7 @@ import { round } from "../../core/geometry";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
 import { C } from "../../core/theme";
-import { ChartSvg, Legend, TXT, vbHeight } from "../svg";
+import { ChartSvg, Legend, TXT, rowMarkH, vbHeight } from "../svg";
 
 export type PopulationPyramidProps = BaseProps & {
   bands: string[];
@@ -33,32 +33,35 @@ export const PopulationPyramid = forwardRef<
       )}
       {bands.map((band, i) => {
         const y = top + i * rowH;
+        const mid = y + rowH / 2;
+        const barH = rowMarkH(rowH, 0.58);
         const lw = ((left.data[i] ?? 0) / max) * 80;
         const rw = ((right.data[i] ?? 0) / max) * 80;
         return (
           <g key={band} data-part="mark" data-i={i}>
             <rect
               x={round(90 - lw)}
-              y={round(y + 1.6)}
+              y={round(mid - barH / 2)}
               width={round(lw)}
-              height={round(rowH - 3.2)}
+              height={round(barH)}
               fill={C[0]}
               opacity="0.85"
               data-series={left.name}
             />
             <rect
               x="110"
-              y={round(y + 1.6)}
+              y={round(mid - barH / 2)}
               width={round(rw)}
-              height={round(rowH - 3.2)}
+              height={round(barH)}
               fill={C[2]}
               opacity="0.85"
               data-series={right.name}
             />
             <text
               x="100"
-              y={y + rowH / 2 + 1.6}
+              y={mid}
               textAnchor="middle"
+              dominantBaseline="central"
               {...TXT.axis}
             >
               {band}

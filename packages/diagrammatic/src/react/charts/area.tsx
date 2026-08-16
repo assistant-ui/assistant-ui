@@ -9,7 +9,15 @@ import {
   stroke,
 } from "../../core/geometry";
 import { GRID, ink } from "../../core/theme";
-import { AxisLabels, ChartSvg, TXT, labelXs, vbHeight } from "../svg";
+import {
+  AxisLabels,
+  ChartSvg,
+  TickGrid,
+  labelXs,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
 export type AreaProps = BaseProps & {
   data: number[];
@@ -29,43 +37,36 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
       format = formatCompact,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
-    const bottom = labels ? vh - 16 : vh - 8;
+    const T = typeScale(density);
+    const { left, right, top, bottom } = plotFrame(vh, density, {
+      labels: Boolean(labels),
+    });
     const max =
       yMax ?? Math.max(...data, ...(yTicks?.map((tick) => tick.at) ?? []), 1);
-    const Y = (v: number) => bottom - (v / max) * (bottom - 14);
-    const pts = scalePoints(data, 14, 186, bottom, 14, 0, max);
+    const Y = (v: number) => bottom - (v / max) * (bottom - top);
+    const pts = scalePoints(data, left, right, bottom, top, 0, max);
     const last = pts[pts.length - 1];
     const count = Math.max(1, data.length - 1);
+    const span = right - left;
     const RX = (i: number) =>
-      14 + (Math.max(0, Math.min(count, i)) / count) * 172;
+      left + (Math.max(0, Math.min(count, i)) / count) * span;
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
-        {yTicks?.map((tick) => (
-          <g key={tick.at} data-part="grid">
-            <line
-              x1="14"
-              y1={round(Y(tick.at))}
-              x2="186"
-              y2={round(Y(tick.at))}
-              stroke={ink(0.08)}
-              {...stroke.hair}
-            />
-            <text
-              x="12"
-              y={round(Y(tick.at)) + 1.2}
-              textAnchor="end"
-              {...TXT.axis}
-            >
-              {tick.label}
-            </text>
-          </g>
-        ))}
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
+        <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
         {regions?.map((region) => (
           <g
             key={`${region.from}-${region.to}`}
@@ -74,22 +75,26 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
           >
             <rect
               x={round(RX(region.from))}
-              y={12}
+              y={top}
               width={round(Math.max(0, RX(region.to) - RX(region.from)))}
-              height={bottom - 12}
-              fill={ink(0.06)}
+              height={bottom - top}
+              fill={ink(density === "figure" ? 0.09 : 0.06)}
             />
             {region.label && (
-              <text x={round(RX(region.from)) + 2.5} y={17} {...TXT.axis}>
+              <text
+                x={round(RX(region.from)) + 2.5}
+                y={top + (density === "figure" ? 6 : 5)}
+                {...T.label}
+              >
                 {region.label}
               </text>
             )}
           </g>
         ))}
         <line
-          x1="14"
+          x1={left}
           y1={bottom}
-          x2="186"
+          x2={right}
           y2={bottom}
           stroke={GRID}
           data-part="grid"
@@ -104,7 +109,7 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
           {...stroke.line}
         />
         {last && (
-          <text x={last.x} y={last.y - 5} textAnchor="middle" {...TXT.value}>
+          <text x={last.x} y={last.y - 5} textAnchor="middle" {...T.value}>
             {format(data[data.length - 1] ?? 0)}
           </text>
         )}
@@ -126,7 +131,8 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
               pts.map((p) => p.x),
               labels.length,
             )}
-            y={vh - 4}
+            y={vh - (density === "figure" ? 6 : 4)}
+            type={T.axis}
           />
         )}
       </ChartSvg>
