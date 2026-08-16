@@ -940,9 +940,7 @@ export class LocalThreadRuntimeCore
     return message;
   }
 
-  public override reset(
-    initialMessages?: readonly ThreadMessageLike[],
-  ): void {
+  public override reset(initialMessages?: readonly ThreadMessageLike[]): void {
     // Resetting discards the repository, so nothing a stalled upload was
     // ordering still exists; without this, sends after a reset would wait on
     // that upload with no runtime escape hatch.
