@@ -104,6 +104,57 @@ describe("useAISDKRuntime", () => {
     });
   });
 
+  it("consumes AbortError when cancelling a run", async () => {
+    const abortError = new Error("signal is aborted without reason");
+    abortError.name = "AbortError";
+    const chat = createChatHelpers();
+    chat.stop = vi.fn().mockRejectedValue(abortError);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const { result } = renderHook(() => useAISDKRuntime(chat));
+
+      act(() => {
+        result.current.thread.cancelRun();
+      });
+
+      await waitFor(() => expect(chat.stop).toHaveBeenCalledOnce());
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("reports non-AbortError cancellation failures", async () => {
+    const stopError = new Error("stop failed");
+    const chat = createChatHelpers();
+    chat.stop = vi.fn().mockRejectedValue(stopError);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const { result } = renderHook(() => useAISDKRuntime(chat));
+
+      act(() => {
+        result.current.thread.cancelRun();
+      });
+
+      await waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[ExternalStoreThreadRuntimeCore] onCancel callback rejected",
+          stopError,
+        );
+      });
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("cancels pending tool calls before sending a new message", async () => {
     const chat = createChatHelpers([
       {
