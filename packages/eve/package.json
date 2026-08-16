@@ -33,11 +33,12 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@assistant-ui/core": "^0.3.13"
+    "@assistant-ui/core": "^0.3.13",
+    "@assistant-ui/store": "^0.3.9"
   },
   "peerDependencies": {
     "@types/react": "*",
-    "eve": "^0.27.6",
+    "eve": ">=0.32.0",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
@@ -50,7 +51,7 @@
     "@testing-library/dom": "^10.4.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^19.2.18",
-    "eve": "^0.27.6",
+    "eve": "^0.37.0",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

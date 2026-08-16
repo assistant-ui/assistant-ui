@@ -36,7 +36,7 @@ Converts an assistant-ui append message into the message payload accepted by
 Eve's `send` API.
 
 ```ts
-const getEveMessageContent: (message: AppendMessage) => NonNullable<SendTurnPayload["message"]>;
+const getEveMessageContent: (message: AppendMessage) => EveMessageContent;
 ```
 
 ### toEveInputResponse
@@ -56,4 +56,42 @@ session, supports cancellation, and maps Eve input requests to assistant-ui
 tool approval UI.
 
 <ParametersTable {...eve_useEveAgentRuntime} />
+
+### useEveError
+
+Read the last Eve session error from the runtime extras.
+
+```ts
+const useEveError: () => Error | undefined;
+```
+
+### useEveEvents
+
+Read the authoritative Eve server event stream from the runtime extras.
+Defaults to an empty array outside an Eve runtime.
+
+```ts
+const useEveEvents: () => readonly MessageStreamEvent[];
+```
+
+### useEveReset
+
+Returns a function that resets the Eve session: aborts any in-flight turn,
+recreates the owned session, and clears events and projected data. Pending
+staged messages and tool execution state are discarded. Safe to render
+outside an Eve runtime; invoking the returned function there throws.
+
+```ts
+const useEveReset: () => () => void;
+```
+
+### useEveSession
+
+Read the current Eve session cursor from the runtime extras. Persist it to
+resume the session later via `initialSession`. `undefined` when no session
+exists yet or outside an Eve runtime.
+
+```ts
+const useEveSession: () => ClientSessionState | undefined;
+```
 {/* api-reference:end */}

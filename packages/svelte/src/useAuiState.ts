@@ -3,11 +3,15 @@ import {
   getProxiedAssistantState,
   type AssistantState,
 } from "@assistant-ui/store/client";
-import { getAuiContext } from "./context";
+import { getAuiContext, type ScopeTarget } from "./context";
 
 /**
  * Subscribes to a slice of `AssistantState` and returns it behind a reactive
- * `current` getter. Call during component initialization.
+ * `current` getter.
+ *
+ * Reads the surrounding provider's scopes by default (call during component
+ * initialization); pass `item` (a per-item handle such as a `MessageItem`
+ * from `threadMessages`) to read that item's scopes instead, from anywhere.
  *
  * Reading `current` inside an effect or template tracks the store: the read
  * re-runs when the selected slice changes by `Object.is`, so a store update
@@ -28,8 +32,9 @@ import { getAuiContext } from "./context";
  */
 export const useAuiState = <T>(
   selector: (state: AssistantState) => T,
+  options?: { item?: ScopeTarget | undefined },
 ): { readonly current: T } => {
-  const { source } = getAuiContext();
+  const source = (options?.item ?? getAuiContext()).source;
 
   // Wake dependents only when the selected slice changes by Object.is, matching
   // the react (useSyncExternalStore) and vue (computed) bridges: a store tick

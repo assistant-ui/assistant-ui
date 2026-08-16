@@ -145,19 +145,20 @@ export type ThreadMeta = {
 
 export type ThreadEvents = {
   /**
-   * @deprecated State-derivable. Observe `isRunning` flipping to `true` via
-   * `useAuiState` instead. Kept for backward compatibility.
+   * A run started on this thread. Also observable as `isRunning` flipping to
+   * `true` in thread state.
    */
   "thread.runStart": { threadId: string };
   /**
-   * @deprecated State-derivable. Observe `isRunning` flipping to `false` via
-   * `useAuiState` instead. Kept for backward compatibility.
+   * A run on this thread ended, whether it completed, errored, or was
+   * cancelled. Also observable as `isRunning` flipping to `false` in thread
+   * state.
    */
   "thread.runEnd": { threadId: string };
   /**
-   * @deprecated State-derivable. This event fires before the first message is
-   * added; observe `messages` becoming non-empty via `useAuiState` instead of
-   * reading state inside this event handler. Kept for backward compatibility.
+   * The thread transitioned from new to initialized. Fires before the first
+   * message is added, so read thread state via `useAuiState` rather than
+   * inside this event handler.
    */
   "thread.initialize": { threadId: string };
   /**

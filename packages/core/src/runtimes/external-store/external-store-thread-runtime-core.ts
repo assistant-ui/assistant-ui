@@ -627,15 +627,22 @@ export class ExternalStoreThreadRuntimeCore
     // imported state) is treated as historical — no streamCall/execute
     // fires for the loaded tool calls. The adapter is expected to update
     // its messages in response to onLoadExternalState; that update flows
-    // back here via __internal_setAdapter. We only clear adapter-side
-    // tool statuses when the tracker is the source of truth — otherwise
-    // we'd wipe statuses the adapter is managing on its own.
-    if (this._toolInvocations) {
-      this._toolInvocations.reset();
-      this._store.setToolStatuses?.({});
-    }
+    // back here via __internal_setAdapter. The tracker publishes the
+    // cleared status map itself, so adapter-side statuses reset only when
+    // the tracker is the source of truth.
+    this._toolInvocations?.reset();
 
     this._store.onLoadExternalState(state);
+  }
+
+  /**
+   * Adapter-facing notification that the backing session was discarded.
+   * Clears session-scoped tool-invocation state and parks queued work,
+   * without run-cancel semantics (`onCancel`, composer draft restoration).
+   */
+  public unstable_notifySessionReset(): void {
+    this._toolInvocations?.reset();
+    this._store.queue?.__internal_notifyCancelled?.();
   }
 
   public cancelRun(): void {

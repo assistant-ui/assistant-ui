@@ -3,6 +3,35 @@ export { useAui } from "./useAui";
 export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
 
+export type { ScopeTarget } from "./context";
+export {
+  composerCancel,
+  composerInput,
+  composerSend,
+} from "./primitives/composer";
+export {
+  actionBarCopy,
+  actionBarEdit,
+  actionBarReload,
+} from "./primitives/actionBar";
+export {
+  branchPickerNext,
+  branchPickerPrevious,
+} from "./primitives/branchPicker";
+export {
+  threadScrollToBottom,
+  threadViewport,
+} from "./primitives/threadViewport";
+export { threadMessages, type MessageItem } from "./primitives/threadMessages";
+export { messageParts, type PartItem } from "./primitives/messageParts";
+export { suggestionTrigger } from "./primitives/suggestions";
+export {
+  threadList,
+  threadListItemTrigger,
+  threadListNew,
+  type ThreadListItem,
+} from "./primitives/threadList";
+
 export {
   AuiConfig,
   Derived,

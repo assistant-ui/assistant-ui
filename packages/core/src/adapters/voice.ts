@@ -1,4 +1,5 @@
 import type { Unsubscribe } from "../types/unsubscribe";
+import { notifyEventListeners } from "../utils/notify-event-listeners";
 
 export namespace RealtimeVoiceAdapter {
   export type Status =
@@ -57,22 +58,6 @@ export type VoiceSessionHelpers = {
   isDisposed: () => boolean;
 };
 
-const notifyListeners = <T>(
-  listeners: ReadonlySet<(value: T) => void>,
-  value: T,
-) => {
-  for (const listener of listeners) {
-    try {
-      listener(value);
-    } catch (error) {
-      console.error(
-        "[assistant-ui] Voice session listener threw an error",
-        error,
-      );
-    }
-  }
-};
-
 export function createVoiceSession(
   options: { abortSignal?: AbortSignal },
   setup: (helpers: VoiceSessionHelpers) => Promise<VoiceSessionControls>,
@@ -101,25 +86,25 @@ export function createVoiceSession(
     setStatus: (status) => {
       if (disposed) return;
       currentStatus = status;
-      notifyListeners(statusCbs, status);
+      notifyEventListeners(statusCbs, status, "Voice session");
     },
     end: (reason, error?) => {
       if (disposed) return;
       currentStatus = { type: "ended", reason, error };
-      notifyListeners(statusCbs, currentStatus);
+      notifyEventListeners(statusCbs, currentStatus, "Voice session");
       cleanup();
     },
     emitTranscript: (item) => {
       if (disposed) return;
-      notifyListeners(transcriptCbs, item);
+      notifyEventListeners(transcriptCbs, item, "Voice session");
     },
     emitMode: (mode) => {
       if (disposed) return;
-      notifyListeners(modeCbs, mode);
+      notifyEventListeners(modeCbs, mode, "Voice session");
     },
     emitVolume: (volume) => {
       if (disposed) return;
-      notifyListeners(volumeCbs, volume);
+      notifyEventListeners(volumeCbs, volume, "Voice session");
     },
     isDisposed: () => disposed,
   };

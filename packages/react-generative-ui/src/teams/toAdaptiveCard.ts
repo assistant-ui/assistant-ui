@@ -618,7 +618,7 @@ export function convertElement(
     case "Table":
       return [convertTable(props, context)];
     case "Alert": {
-      const tone = props["tone"];
+      const tone = props["tone"] ?? "info";
       const style =
         typeof tone === "string"
           ? (ALERT_STYLE_MAP[tone] ?? "default")

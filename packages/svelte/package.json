@@ -38,7 +38,7 @@
     "@assistant-ui/tap": "^0.9.12"
   },
   "peerDependencies": {
-    "svelte": "^5.7.0"
+    "svelte": "^5.29.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",

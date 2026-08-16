@@ -45,12 +45,12 @@ type SlackConversionWarning = {
 
 | Component | Slack output | Fidelity |
 |---|---|---|
-| `Header` | `header` block | Faithful |
-| `Text` | `section` block with `mrkdwn` text | Faithful |
+| `Header` | `header` block | Only `text` survives; `size` is dropped silently, since Slack's `header` block has no size |
+| `Text` | `section` block with `mrkdwn` text | Only `value` survives; `size`, `weight`, and `color` are dropped silently |
 | `Markdown` | `markdown` block | Downgrades to a `section` once the payload's markdown budget is spent |
 | `Caption`, `Badge` | `context` block with one element | The two become identical output and cannot be told apart coming back |
 | `Image` | `image` block | Only `src` and `alt` survive; `size` and `round` are dropped silently |
-| `Divider` | `divider` block | Faithful |
+| `Divider` | `divider` block | `flush` is dropped silently |
 | `Fact` | Merged into one `section`'s `fields`, as `*label*` then value | Consecutive facts merge; every 10 fields start a new section |
 | `Table` | `data_table` block, first row as header | Cells become `raw_number` or `raw_text`; rows are padded to a uniform width; a column without a string label keeps its position with an empty header and warns |
 | `Card` | Native `card` block, or a header plus inline blocks | See [Cards](#cards) |
@@ -71,6 +71,8 @@ type SlackConversionWarning = {
 | `Spacer`, `Icon` | Dropped | Silently, since neither has a Slack equivalent |
 
 An unknown component and a bare string child are both handled: the unknown one is dropped with a warning, and the string becomes a `section`.
+
+Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; and `Button`'s `block`. `Card`'s `asForm` and `Button`'s `submit` are dropped for a different reason: Slack has no client-side form model to submit into, so a submit button and a click button both convert to the same `button` element carrying the node's `$action`, and a card marked `asForm` converts exactly like one that is not.
 
 ### Cards
 

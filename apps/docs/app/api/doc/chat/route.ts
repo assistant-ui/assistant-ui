@@ -3,7 +3,7 @@ import { getDistinctId } from "@/lib/posthog-server";
 import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
+import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
 import {
@@ -14,7 +14,7 @@ import {
 } from "@/lib/source";
 import { getModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { createBashTool } from "bash-tool";
 import {
   convertToModelMessages,

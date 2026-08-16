@@ -71,7 +71,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
         SyntaxHighlighter,
         CodeHeader,
       }}
-      language={language || "unknown"}
+      language={language}
       code={children}
     />
   );

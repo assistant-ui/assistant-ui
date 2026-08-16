@@ -52,12 +52,30 @@ const isConfigSource = (
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
+// getConfig doubles as a useSyncExternalStore getSnapshot, which requires a
+// stable result between notifications; a live source's thunk may build its
+// config inline, so the result is cached until the source notifies. The cache
+// is also dropped on subscribe, so a change that happened while nobody was
+// subscribed is picked up on the post-subscribe check.
 const toConfigSource = (
   config: AuiConfig.Input | AssistantConfigSource,
-): AssistantConfigSource =>
-  isConfigSource(config)
-    ? config
-    : { getConfig: () => config, subscribe: NO_OP_SUBSCRIBE };
+): AssistantConfigSource => {
+  if (!isConfigSource(config)) {
+    return { getConfig: () => config, subscribe: NO_OP_SUBSCRIBE };
+  }
+
+  let cache: { value: AuiConfig.Input } | null = null;
+  return {
+    getConfig: () => (cache ??= { value: config.getConfig() }).value,
+    subscribe: (listener) => {
+      cache = null;
+      return config.subscribe(() => {
+        cache = null;
+        listener();
+      });
+    },
+  };
+};
 
 // A client (including the sentinel proxies, whose property reads all resolve)
 // always carries `on`; a source or handle never does, so its absence is the

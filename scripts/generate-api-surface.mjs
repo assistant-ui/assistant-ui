@@ -537,6 +537,107 @@ function stringLiteralUnionMemberValue(type) {
   return undefined;
 }
 
+function hasModifier(node, kind) {
+  return Boolean(node.modifiers?.some((modifier) => modifier.kind === kind));
+}
+
+function isPrivateIdentifierMember(node) {
+  return Boolean(node.name && ts.isPrivateIdentifier(node.name));
+}
+
+function shouldStripClassMember(member) {
+  if (ts.isConstructorDeclaration(member)) return false;
+  return (
+    hasModifier(member, ts.SyntaxKind.PrivateKeyword) ||
+    isPrivateIdentifierMember(member)
+  );
+}
+
+function publicizeConstructor(member, factory) {
+  let changed = false;
+  const parameters = member.parameters.map((parameter) => {
+    if (!hasModifier(parameter, ts.SyntaxKind.PrivateKeyword)) {
+      return parameter;
+    }
+    changed = true;
+    const modifiers = parameter.modifiers?.filter(
+      (modifier) =>
+        modifier.kind !== ts.SyntaxKind.PrivateKeyword &&
+        modifier.kind !== ts.SyntaxKind.ReadonlyKeyword,
+    );
+    return factory.updateParameterDeclaration(
+      parameter,
+      modifiers && modifiers.length > 0 ? modifiers : undefined,
+      parameter.dotDotDotToken,
+      parameter.name,
+      parameter.questionToken,
+      parameter.type,
+      parameter.initializer,
+    );
+  });
+  return changed
+    ? factory.updateConstructorDeclaration(
+        member,
+        member.modifiers,
+        parameters,
+        member.body,
+      )
+    : member;
+}
+
+function privateIdentityMarker(factory) {
+  return factory.createPropertyDeclaration(
+    undefined,
+    factory.createPrivateIdentifier("#private"),
+    undefined,
+    undefined,
+    undefined,
+  );
+}
+
+function stripPrivateClassMembers(node, factory, visit, context) {
+  const visited = ts.visitEachChild(node, visit, context);
+  const members = [];
+  let strippedAny = false;
+  let changed = visited !== node;
+  for (const member of visited.members) {
+    if (shouldStripClassMember(member)) {
+      if (!hasModifier(member, ts.SyntaxKind.StaticKeyword)) {
+        strippedAny = true;
+      }
+      changed = true;
+      continue;
+    }
+    const nextMember = ts.isConstructorDeclaration(member)
+      ? publicizeConstructor(member, factory)
+      : member;
+    if (nextMember !== member) changed = true;
+    members.push(nextMember);
+  }
+  if (strippedAny) {
+    members.unshift(privateIdentityMarker(factory));
+  }
+  if (!changed) return visited;
+  if (ts.isClassDeclaration(visited)) {
+    return factory.updateClassDeclaration(
+      visited,
+      visited.modifiers,
+      visited.name,
+      visited.typeParameters,
+      visited.heritageClauses,
+      members,
+    );
+  }
+  return factory.updateClassExpression(
+    visited,
+    visited.modifiers,
+    visited.name,
+    visited.typeParameters,
+    visited.heritageClauses,
+    members,
+  );
+}
+
 function normalizeStringLiteralUnionType(node, factory) {
   const memberValues = node.types.map(stringLiteralUnionMemberValue);
   if (memberValues.some((value) => value === undefined)) return node;
@@ -575,6 +676,14 @@ export function normalizeBundledDeclaration(content) {
     (context) => {
       let bindingParameterIndex = 0;
       const visit = (node) => {
+        if (ts.isClassDeclaration(node) || ts.isClassExpression(node)) {
+          return stripPrivateClassMembers(
+            node,
+            context.factory,
+            visit,
+            context,
+          );
+        }
         if (ts.isUnionTypeNode(node)) {
           const attachmentNormalized = normalizeAttachmentUnionType(
             ts.visitEachChild(node, visit, context),

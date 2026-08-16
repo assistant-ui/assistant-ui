@@ -52,6 +52,10 @@ export class UpdateScheduler {
     this._isDirty = false;
     this._task();
   }
+
+  settle() {
+    this._isDirty = false;
+  }
 }
 
 const scheduledTasks: Task[] = [];
