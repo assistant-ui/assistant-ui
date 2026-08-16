@@ -200,6 +200,9 @@ export class AgUiThreadRuntimeCore {
 
   detachRuntime() {
     this.runtime = undefined;
+    void this.cancel().catch((error) => {
+      this.logger.error("[agui] failed to cancel run during teardown", error);
+    });
   }
 
   getMessages(): readonly ThreadMessage[] {
