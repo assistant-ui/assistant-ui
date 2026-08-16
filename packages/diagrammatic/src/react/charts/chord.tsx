@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import { polar, ring, round } from "../../core/geometry";
 import { chordLayout } from "../../core/layout";
 import { SURFACE, cat } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type ChordProps = BaseProps & {
   groups: string[];
@@ -13,14 +13,22 @@ export type ChordProps = BaseProps & {
 const TAU = Math.PI * 2;
 
 export const Chord = forwardRef<SVGSVGElement, ChordProps>(
-  ({ groups, flows, title, aspect, className, ...rest }, ref) => {
+  ({ groups, flows, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const cy = vh / 2;
     const radius = Math.min(cy - 14, 40);
     const { arcs, ribbons } = chordLayout(groups, flows);
     const point = (f: number) => polar(100, cy, radius, f * TAU - Math.PI / 2);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {ribbons.map((ribbon, i) => {
           const s0 = point(ribbon.s0);
           const s1 = point(ribbon.s1);
@@ -77,7 +85,7 @@ export const Chord = forwardRef<SVGSVGElement, ChordProps>(
               textAnchor={
                 side > 0.35 ? "start" : side < -0.35 ? "end" : "middle"
               }
-              {...TXT.axis}
+              {...T.axis}
             >
               {groups[i]}
             </text>

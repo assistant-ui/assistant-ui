@@ -1,7 +1,8 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
+import { rowMarkH, rowMid } from "../../core/geometry";
 import { NEG, POS, ink } from "../../core/theme";
-import { ChartSvg, TXT, rowMarkH, vbHeight } from "../svg";
+import { ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type DivergingStackedProps = BaseProps & {
   rows: { label: string; values: [number, number, number, number, number] }[];
@@ -19,13 +20,20 @@ export const DivergingStacked = forwardRef<
       endLabels = ["disagree", "agree"],
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
-    const rowH = (vh - 22) / Math.max(1, rows.length);
+    const T = typeScale(density);
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: true,
+      left: density === "figure" ? 38 : 34,
+    });
+    const rowH = (bottom - top) / Math.max(1, rows.length);
+    const barH = rowMarkH(rowH, 0.62);
     const maxLeft = Math.max(
       ...rows.map((r) => r.values[0] + r.values[1] + r.values[2] / 2),
       1,
@@ -34,14 +42,19 @@ export const DivergingStacked = forwardRef<
       ...rows.map((r) => r.values[2] / 2 + r.values[3] + r.values[4]),
       1,
     );
-    const unit = 154 / (maxLeft + maxRight);
-    const center = 34 + maxLeft * unit;
+    const unit = (right - left) / (maxLeft + maxRight);
+    const center = left + maxLeft * unit;
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {rows.map((row, i) => {
-          const y = 8 + i * rowH;
-          const mid = y + rowH / 2;
-          const barH = rowMarkH(rowH, 0.62);
+          const mid = rowMid(i, rowH, top);
           const [strongNeg, neg, neutral, pos, strongPos] = row.values;
           let x = center - (strongNeg + neg + neutral / 2) * unit;
           const segments = [
@@ -53,7 +66,13 @@ export const DivergingStacked = forwardRef<
           ];
           return (
             <g key={row.label} data-part="mark" data-i={i}>
-              <text x="8" y={mid} dominantBaseline="central" {...TXT.axis}>
+              <text
+                x={left - 4}
+                y={mid}
+                textAnchor="end"
+                dominantBaseline="central"
+                {...T.axis}
+              >
                 {row.label}
               </text>
               {segments.map((segment, k) => {
@@ -76,24 +95,24 @@ export const DivergingStacked = forwardRef<
           );
         })}
         <text
-          x="34"
-          y={vh - 4}
-          fontSize="3.2"
+          x={left}
+          y={axisY}
+          fontSize={T.axis.fontSize}
           fill={NEG}
-          fontFamily={TXT.axis.fontFamily}
+          fontFamily={T.axis.fontFamily}
         >
           ← {endLabels[0]}
         </text>
-        <text x={center} y={vh - 4} textAnchor="middle" {...TXT.axis}>
+        <text x={center} y={axisY} textAnchor="middle" {...T.axis}>
           neutral
         </text>
         <text
-          x="188"
-          y={vh - 4}
+          x={right}
+          y={axisY}
           textAnchor="end"
-          fontSize="3.2"
+          fontSize={T.axis.fontSize}
           fill={POS}
-          fontFamily={TXT.axis.fontFamily}
+          fontFamily={T.axis.fontFamily}
         >
           {endLabels[1]} →
         </text>

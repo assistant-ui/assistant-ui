@@ -1,8 +1,8 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import { extent, stroke } from "../../core/geometry";
+import { extent, linear, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
-import { ChartSvg, typeScale, vbHeight } from "../svg";
+import { ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type SlopeProps = BaseProps & {
   items: { label: string; from: number; to: number }[];
@@ -16,10 +16,11 @@ export const Slope = forwardRef<SVGSVGElement, SlopeProps>(
   ) => {
     const T = typeScale(density);
     const vh = vbHeight(aspect, 5 / 3);
-    const bottom = vh - 16;
+    const { top, bottom, axisY } = plotFrame(vh, density, {
+      labels: Boolean(labels),
+    });
     const [lo, hi] = extent(items.flatMap((r) => [r.from, r.to]));
-    const span = hi - lo || 1;
-    const Y = (v: number) => bottom - ((v - lo) / span) * (bottom - 16);
+    const Y = linear(lo, hi, bottom, top);
     return (
       <ChartSvg
         ref={ref}
@@ -31,7 +32,7 @@ export const Slope = forwardRef<SVGSVGElement, SlopeProps>(
       >
         <line
           x1="46"
-          y1="12"
+          y1={top}
           x2="46"
           y2={bottom + 2}
           stroke={GRID}
@@ -40,7 +41,7 @@ export const Slope = forwardRef<SVGSVGElement, SlopeProps>(
         />
         <line
           x1="150"
-          y1="12"
+          y1={top}
           x2="150"
           y2={bottom + 2}
           stroke={GRID}
@@ -48,12 +49,12 @@ export const Slope = forwardRef<SVGSVGElement, SlopeProps>(
           {...stroke.hair}
         />
         {labels?.[0] && (
-          <text x="46" y={vh - 4} textAnchor="middle" {...T.axis}>
+          <text x="46" y={axisY} textAnchor="middle" {...T.axis}>
             {labels[0]}
           </text>
         )}
         {labels?.[1] && (
-          <text x="150" y={vh - 4} textAnchor="middle" {...T.axis}>
+          <text x="150" y={axisY} textAnchor="middle" {...T.axis}>
             {labels[1]}
           </text>
         )}

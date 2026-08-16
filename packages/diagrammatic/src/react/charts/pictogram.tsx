@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { round } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type PictogramProps = BaseProps & {
   items: Item[];
@@ -12,20 +12,31 @@ export type PictogramProps = BaseProps & {
 };
 
 export const Pictogram = forwardRef<SVGSVGElement, PictogramProps>(
-  ({ items, unit, unitLabel, title, aspect, className, ...rest }, ref) => {
+  (
+    { items, unit, unitLabel, title, aspect, density, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const cells = Math.max(...items.map((r) => Math.ceil(r.value / unit)), 1);
     const rowH = (vh - 24) / Math.max(1, items.length);
     const size = Math.min(12, rowH - 6, 150 / cells - 3);
     const pitch = size + 3.4;
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {items.map((row, r) => {
           const y = 10 + r * rowH + (rowH - size) / 2 - 3;
           const filled = row.value / unit;
           return (
             <g key={row.label} data-part="mark" data-i={r}>
-              <text x="8" y={y + size / 2 + 1.8} {...TXT.axis}>
+              <text x="8" y={y + size / 2 + 1.8} {...T.axis}>
                 {row.label}
               </text>
               {Array.from({ length: cells }, (_, c) => {
@@ -78,7 +89,7 @@ export const Pictogram = forwardRef<SVGSVGElement, PictogramProps>(
             </g>
           );
         })}
-        <text x="192" y={vh - 5} textAnchor="end" {...TXT.axis}>
+        <text x="192" y={vh - 5} textAnchor="end" {...T.axis}>
           1 square = {unit}
           {unitLabel ? ` ${unitLabel}` : ""}
         </text>

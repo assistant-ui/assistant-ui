@@ -3,13 +3,14 @@ import { forwardRef } from "react";
 import type { TreeNode } from "../../core/types";
 import { partition } from "../../core/layout";
 import { cat, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type IcicleProps = BaseProps & { root: TreeNode; depth?: number };
 
 export const Icicle = forwardRef<SVGSVGElement, IcicleProps>(
-  ({ root, depth = 2, title, aspect, className, ...rest }, ref) => {
+  ({ root, depth = 2, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const all = partition(root, depth);
     const rowH = (vh - 16 - depth * 2) / (depth + 1);
     const branchOf = (index: number): number => {
@@ -31,7 +32,14 @@ export const Icicle = forwardRef<SVGSVGElement, IcicleProps>(
       return count;
     };
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {all.map((slice, i) => {
           const x = 8 + slice.start * 184;
           const w = Math.max((slice.end - slice.start) * 184 - 2, 1);
@@ -46,7 +54,7 @@ export const Icicle = forwardRef<SVGSVGElement, IcicleProps>(
                     x={x + 5}
                     y={y + rowH / 2}
                     dominantBaseline="central"
-                    {...TXT.label}
+                    {...T.label}
                   >
                     {slice.node.label}
                   </text>
@@ -75,7 +83,7 @@ export const Icicle = forwardRef<SVGSVGElement, IcicleProps>(
                   x={x + 5}
                   y={y + rowH / 2}
                   dominantBaseline="central"
-                  {...TXT.onSeries}
+                  {...T.onSeries}
                 >
                   {slice.node.label}
                 </text>

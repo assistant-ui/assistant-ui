@@ -4,7 +4,7 @@ import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { stroke } from "../../core/geometry";
 import { C } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type VennProps = BaseProps & { a: Item; b: Item; overlap: number };
 
@@ -18,16 +18,25 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
       format = formatCompact,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const cy = vh / 2;
     const r = Math.min(cy - 12, 38);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <circle
           cx={100 - r * 0.58}
           cy={cy}
@@ -58,11 +67,11 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
           textAnchor="middle"
           fontSize="3.2"
           fill={C[0]}
-          fontFamily={TXT.axis.fontFamily}
+          fontFamily={T.axis.fontFamily}
         >
           {a.label}
         </text>
-        <text x={100 - r} y={cy + 4} textAnchor="middle" {...TXT.value}>
+        <text x={100 - r} y={cy + 4} textAnchor="middle" {...T.value}>
           {format(a.value)}
         </text>
         <text
@@ -71,17 +80,17 @@ export const Venn = forwardRef<SVGSVGElement, VennProps>(
           textAnchor="middle"
           fontSize="3.2"
           fill={C[2]}
-          fontFamily={TXT.axis.fontFamily}
+          fontFamily={T.axis.fontFamily}
         >
           {b.label}
         </text>
-        <text x={100 + r} y={cy + 4} textAnchor="middle" {...TXT.value}>
+        <text x={100 + r} y={cy + 4} textAnchor="middle" {...T.value}>
           {format(b.value)}
         </text>
-        <text x="100" y={cy - 4} textAnchor="middle" {...TXT.axis}>
+        <text x="100" y={cy - 4} textAnchor="middle" {...T.axis}>
           both
         </text>
-        <text x="100" y={cy + 4} textAnchor="middle" {...TXT.value}>
+        <text x="100" y={cy + 4} textAnchor="middle" {...T.value}>
           {format(overlap)}
         </text>
       </ChartSvg>

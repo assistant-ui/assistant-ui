@@ -2,7 +2,8 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { hexPath, round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, SURFACE, cat, ink } from "../../core/theme";
-import { ChartSvg, TickGrid, TXT, vbHeight } from "../svg";
+import { ChartSvg, TickGrid, typeScale, vbHeight } from "../svg";
+import type { Tick } from "../../core/types";
 import { scatterFrame } from "./scatter";
 
 type ConnectedPoint = { x: number; y: number; label?: string };
@@ -12,8 +13,8 @@ export type ConnectedScatterProps = BaseProps & {
   series?: { name: string; points: ConnectedPoint[] }[];
   xLabel?: string;
   yLabel?: string;
-  xTicks?: readonly { at: number; label: string }[];
-  yTicks?: readonly { at: number; label: string }[];
+  xTicks?: readonly Tick[];
+  yTicks?: readonly Tick[];
   reverseX?: boolean;
   refPoint?: {
     x: number;
@@ -98,35 +99,69 @@ export const ConnectedScatter = forwardRef<
       refPoint,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const all = series ?? [{ name: "", points: points ?? [] }];
     const multi = series !== undefined;
     const everyPoint = all.flatMap((s) => s.points);
-    const { X: XF, Y, bottom } = scatterFrame(everyPoint, vh);
-    const X = reverseX ? (v: number) => 200 - XF(v) : XF;
+    const {
+      X: XF,
+      Y,
+      left,
+      right,
+      top,
+      bottom,
+      axisY,
+    } = scatterFrame(everyPoint, vh, density, {
+      x: [
+        ...(xTicks?.map((tick) => tick.at) ?? []),
+        ...(refPoint ? [refPoint.x] : []),
+      ],
+      y: [
+        ...(yTicks?.map((tick) => tick.at) ?? []),
+        ...(refPoint ? [refPoint.y] : []),
+      ],
+    });
+    const X = reverseX ? (v: number) => left + right - XF(v) : XF;
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
-        <TickGrid ticks={yTicks} at={Y} from={14} to={186} />
-        <TickGrid ticks={xTicks} at={X} from={8} to={bottom} axis="x" />
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
+        <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
+        <TickGrid
+          ticks={xTicks}
+          at={X}
+          from={top}
+          to={bottom}
+          axis="x"
+          labelAt={axisY}
+          type={T.axis}
+        />
         <line
-          x1="14"
+          x1={left}
           y1={bottom}
-          x2="186"
+          x2={right}
           y2={bottom}
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
         />
         <line
-          x1="14"
+          x1={left}
           y1={bottom}
-          x2="14"
-          y2="8"
+          x2={left}
+          y2={top}
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
@@ -134,7 +169,7 @@ export const ConnectedScatter = forwardRef<
         {refPoint && (
           <g data-part="grid">
             <line
-              x1="14"
+              x1={left}
               y1={round(Y(refPoint.y))}
               x2={round(X(refPoint.x))}
               y2={round(Y(refPoint.y))}
@@ -156,7 +191,7 @@ export const ConnectedScatter = forwardRef<
                 x="12"
                 y={round(Y(refPoint.y)) + 1.5}
                 textAnchor="end"
-                {...TXT.axis}
+                {...T.axis}
                 fill={ink(0.8)}
               >
                 {refPoint.yLabel}
@@ -165,9 +200,9 @@ export const ConnectedScatter = forwardRef<
             {refPoint.xLabel && (
               <text
                 x={round(X(refPoint.x))}
-                y={bottom + 6}
+                y={axisY}
                 textAnchor="middle"
-                {...TXT.axis}
+                {...T.axis}
                 fill={ink(0.8)}
               >
                 {refPoint.xLabel}
@@ -178,7 +213,7 @@ export const ConnectedScatter = forwardRef<
                 x={round(X(refPoint.x))}
                 y={round(Y(refPoint.y)) - 8}
                 textAnchor="middle"
-                {...TXT.axis}
+                {...T.axis}
                 fill={ink(0.8)}
               >
                 {refPoint.label}
@@ -271,7 +306,7 @@ export const ConnectedScatter = forwardRef<
                     x={round(X(p.x))}
                     y={round(Y(p.y)) + (!multi && i === 0 ? 10 : -6)}
                     textAnchor="middle"
-                    {...TXT.axis}
+                    {...T.axis}
                   >
                     {p.label}
                   </text>
@@ -282,14 +317,14 @@ export const ConnectedScatter = forwardRef<
                 last &&
                 ((
                   reverseX
-                    ? last.x - 4 - run.name.length * 1.7 < 14
-                    : last.x + 4 + run.name.length * 1.7 > 186
+                    ? last.x - 4 - run.name.length * 1.7 < left
+                    : last.x + 4 + run.name.length * 1.7 > right
                 ) ? (
                   <text
                     x={round(last.x) + (reverseX ? 4 : -4)}
                     y={round(last.y) - 2.5}
                     textAnchor={reverseX ? "start" : "end"}
-                    {...TXT.axis}
+                    {...T.axis}
                   >
                     {run.name}
                   </text>
@@ -298,7 +333,7 @@ export const ConnectedScatter = forwardRef<
                     x={round(last.x) + (reverseX ? -4 : 4)}
                     y={round(last.y) - 2.5}
                     textAnchor={reverseX ? "end" : "start"}
-                    {...TXT.axis}
+                    {...T.axis}
                   >
                     {run.name}
                   </text>
@@ -312,13 +347,13 @@ export const ConnectedScatter = forwardRef<
             y={vh / 2 - 6}
             transform={`rotate(-90 4 ${vh / 2 - 6})`}
             textAnchor="middle"
-            {...TXT.axis}
+            {...T.axis}
           >
             {yLabel}
           </text>
         )}
         {xLabel && (
-          <text x="100" y={vh - 3} textAnchor="middle" {...TXT.axis}>
+          <text x="100" y={axisY} textAnchor="middle" {...T.axis}>
             {reverseX ? `← ${xLabel}` : `${xLabel} →`}
           </text>
         )}

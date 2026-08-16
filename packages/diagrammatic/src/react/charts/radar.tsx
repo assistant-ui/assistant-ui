@@ -3,14 +3,18 @@ import { forwardRef } from "react";
 import type { Series } from "../../core/types";
 import { linePath, polar, round, stroke } from "../../core/geometry";
 import { C, GRID } from "../../core/theme";
-import { ChartSvg, Legend, TXT, vbHeight } from "../svg";
+import { ChartSvg, Legend, typeScale, vbHeight } from "../svg";
 
 export type RadarProps = BaseProps & { axes: string[]; series: Series[] };
 
 /** Compares at most two profiles; extra series are ignored by contract. */
 export const Radar = forwardRef<SVGSVGElement, RadarProps>(
-  ({ axes, series, legend, title, aspect, className, ...rest }, ref) => {
+  (
+    { axes, series, legend, title, aspect, density, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const shown = series.slice(0, 3);
     const colors = [C[0], C[2], C[4]];
     const showLegend = legend ?? shown.length > 1;
@@ -25,7 +29,14 @@ export const Radar = forwardRef<SVGSVGElement, RadarProps>(
         false,
       )} Z`;
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {[1, 0.66, 0.33].map((level) => (
           <path
             key={level}
@@ -58,7 +69,7 @@ export const Radar = forwardRef<SVGSVGElement, RadarProps>(
                 x={round(label.x)}
                 y={round(label.y) + 1.8}
                 textAnchor="middle"
-                {...TXT.axis}
+                {...T.axis}
               >
                 {axis}
               </text>

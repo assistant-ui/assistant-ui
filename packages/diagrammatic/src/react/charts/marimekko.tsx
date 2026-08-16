@@ -2,20 +2,28 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { cat } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type MarimekkoProps = BaseProps & {
   columns: { label: string; width: number; shares: Item[] }[];
 };
 
 export const Marimekko = forwardRef<SVGSVGElement, MarimekkoProps>(
-  ({ columns, title, aspect, className, ...rest }, ref) => {
+  ({ columns, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const bottom = vh - 14;
     const totalWidth = columns.reduce((sum, c) => sum + c.width, 0) || 1;
     let x = 8;
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {columns.map((column, c) => {
           const w =
             (column.width / totalWidth) * (184 - (columns.length - 1) * 2);
@@ -45,7 +53,7 @@ export const Marimekko = forwardRef<SVGSVGElement, MarimekkoProps>(
                         x={x0 + 5}
                         y={y0 + h / 2}
                         dominantBaseline="central"
-                        {...TXT.onSeries}
+                        {...T.onSeries}
                       >
                         {share.label}
                       </text>
@@ -53,7 +61,7 @@ export const Marimekko = forwardRef<SVGSVGElement, MarimekkoProps>(
                   </g>
                 );
               })}
-              <text x={x0 + w / 2} y={vh - 4} textAnchor="middle" {...TXT.axis}>
+              <text x={x0 + w / 2} y={vh - 4} textAnchor="middle" {...T.axis}>
                 {column.label}
               </text>
             </g>

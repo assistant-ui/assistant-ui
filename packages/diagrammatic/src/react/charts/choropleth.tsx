@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import type { Tile } from "../../core/tiles";
 import { ABSTRACT_TILES, TILE_SIZE } from "../../core/tiles";
 import { ACCENT, seqOpacity } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type ChoroplethProps = BaseProps & {
   values: number[];
@@ -20,15 +20,24 @@ export const Choropleth = forwardRef<SVGSVGElement, ChoroplethProps>(
       legendLabel,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const max = Math.max(...values, 1);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {tiles.map((tile, i) => (
           <rect
             key={`${tile.col}-${tile.row}`}
@@ -54,10 +63,10 @@ export const Choropleth = forwardRef<SVGSVGElement, ChoroplethProps>(
               opacity={seqOpacity(t)}
             />
           ))}
-          <text x="122" y={vh - 7} textAnchor="end" {...TXT.axis}>
+          <text x="122" y={vh - 7} textAnchor="end" {...T.axis}>
             {legendLabel ? `${legendLabel}: low` : "low"}
           </text>
-          <text x="174" y={vh - 7} {...TXT.axis}>
+          <text x="174" y={vh - 7} {...T.axis}>
             high
           </text>
         </g>

@@ -1,10 +1,10 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { formatCompact } from "../../core/types";
-import { extent, stroke } from "../../core/geometry";
+import { extent, linear, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
 import { swarmLanes } from "../../core/layout";
-import { AxisLabels, ChartSvg, TXT, vbHeight } from "../svg";
+import { AxisLabels, ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type BeeswarmProps = BaseProps & {
   values: number[];
@@ -20,24 +20,35 @@ export const Beeswarm = forwardRef<SVGSVGElement, BeeswarmProps>(
       format = formatCompact,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
+    const { left, right, axisY } = plotFrame(vh, density, {
+      labels: true,
+    });
     const mid = vh / 2 - (labels ? 4 : 0);
     const [lo, hi] = extent([...values, ...(flag ? [flag.at] : [])]);
-    const span = hi - lo || 1;
-    const X = (v: number) => 16 + ((v - lo) / span) * 168;
+    const X = linear(lo, hi, left, right);
     const xs = values.map(X);
     const lanes = swarmLanes(xs, 7.6);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <line
-          x1="12"
+          x1={left}
           y1={mid}
-          x2="188"
+          x2={right}
           y2={mid}
           stroke={GRID}
           data-part="grid"
@@ -62,9 +73,9 @@ export const Beeswarm = forwardRef<SVGSVGElement, BeeswarmProps>(
             x={X(flag.at)}
             y={mid - 16}
             textAnchor="middle"
-            fontSize="3.2"
+            fontSize={T.axis.fontSize}
             fill={ACCENT}
-            fontFamily={TXT.axis.fontFamily}
+            fontFamily={T.axis.fontFamily}
           >
             {flag.label}
           </text>
@@ -73,16 +84,18 @@ export const Beeswarm = forwardRef<SVGSVGElement, BeeswarmProps>(
           <AxisLabels
             labels={labels}
             xs={labels.map(
-              (_, i) => 16 + (i * 168) / Math.max(1, labels.length - 1),
+              (_, i) =>
+                left + (i * (right - left)) / Math.max(1, labels.length - 1),
             )}
-            y={vh - 6}
+            y={axisY}
+            type={T.axis}
           />
         ) : (
           <g data-part="axis">
-            <text x="16" y={vh - 6} textAnchor="middle" {...TXT.axis}>
+            <text x={left} y={axisY} textAnchor="middle" {...T.axis}>
               {format(lo)}
             </text>
-            <text x="184" y={vh - 6} textAnchor="middle" {...TXT.axis}>
+            <text x={right} y={axisY} textAnchor="middle" {...T.axis}>
               {format(hi)}
             </text>
           </g>

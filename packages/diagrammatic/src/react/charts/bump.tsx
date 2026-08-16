@@ -1,8 +1,8 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import { linePath, stroke } from "../../core/geometry";
+import { linePath, linear, stroke } from "../../core/geometry";
 import { cat } from "../../core/theme";
-import { AxisLabels, ChartSvg, typeScale, vbHeight } from "../svg";
+import { AxisLabels, ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type BumpProps = BaseProps & {
   series: { name: string; ranks: number[] }[];
@@ -12,15 +12,17 @@ export const Bump = forwardRef<SVGSVGElement, BumpProps>(
   ({ series, labels, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
     const T = typeScale(density);
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: Boolean(labels),
+      left: 22,
+    });
     const stageCount = series[0]?.ranks.length ?? 0;
     const xs = Array.from(
       { length: stageCount },
-      (_, i) => 22 + (i * 140) / Math.max(1, stageCount - 1),
+      (_, i) => left + (i * (right - left - 28)) / Math.max(1, stageCount - 1),
     );
-    const bottom = labels ? vh - 18 : vh - 10;
     const maxRank = Math.max(...series.flatMap((s) => s.ranks), 1);
-    const Y = (rank: number) =>
-      10 + ((rank - 1) / Math.max(1, maxRank - 1)) * (bottom - 18);
+    const Y = linear(1, Math.max(maxRank, 1), top, bottom);
     return (
       <ChartSvg
         ref={ref}
@@ -81,12 +83,7 @@ export const Bump = forwardRef<SVGSVGElement, BumpProps>(
           );
         })}
         {labels && (
-          <AxisLabels
-            labels={labels}
-            xs={xs}
-            y={vh - (density === "figure" ? 6 : 4)}
-            type={T.axis}
-          />
+          <AxisLabels labels={labels} xs={xs} y={axisY} type={T.axis} />
         )}
       </ChartSvg>
     );

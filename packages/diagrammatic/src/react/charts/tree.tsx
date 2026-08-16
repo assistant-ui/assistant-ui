@@ -4,13 +4,14 @@ import type { TreeNode } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
 import { treeLayout } from "../../core/layout";
 import { ACCENT, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type TreeProps = BaseProps & { root: TreeNode; depth?: number };
 
 export const Tree = forwardRef<SVGSVGElement, TreeProps>(
-  ({ root, depth = 2, title, aspect, className, ...rest }, ref) => {
+  ({ root, depth = 2, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const points = treeLayout(root, depth);
     const maxDepth = Math.max(...points.map((p) => p.depth), 1);
     const X = (t: number) => 24 + t * 152;
@@ -22,7 +23,14 @@ export const Tree = forwardRef<SVGSVGElement, TreeProps>(
         .map((p, rank) => [p, rank] as const),
     );
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {points.map((point, i) => {
           if (point.parent < 0) return null;
           const parent = points[point.parent]!;
@@ -59,7 +67,7 @@ export const Tree = forwardRef<SVGSVGElement, TreeProps>(
                 }
               />
               {point.depth < 2 ? (
-                <text x={round(x + r + 3)} y={round(y + 1.8)} {...TXT.axis}>
+                <text x={round(x + r + 3)} y={round(y + 1.8)} {...T.axis}>
                   {point.node.label}
                 </text>
               ) : (
@@ -67,7 +75,7 @@ export const Tree = forwardRef<SVGSVGElement, TreeProps>(
                   x={round(x)}
                   y={round(y + r + 6 + ((leafRank.get(point) ?? 0) % 2) * 6)}
                   textAnchor="middle"
-                  {...TXT.axis}
+                  {...T.axis}
                 >
                   {point.node.label}
                 </text>

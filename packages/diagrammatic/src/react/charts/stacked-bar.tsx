@@ -1,15 +1,23 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Series } from "../../core/types";
-import { round, stroke } from "../../core/geometry";
+import type { Series, Tick } from "../../core/types";
+import { linear, round, stroke } from "../../core/geometry";
 import { GRID, cat } from "../../core/theme";
-import { AxisLabels, ChartSvg, Legend, TickGrid, vbHeight } from "../svg";
+import {
+  AxisLabels,
+  ChartSvg,
+  Legend,
+  TickGrid,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
 export type StackedBarProps = BaseProps & {
   groups: string[];
   series: Series[];
   normalize?: boolean;
-  yTicks?: readonly { at: number; label: string }[];
+  yTicks?: readonly Tick[];
 };
 
 export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
@@ -22,17 +30,22 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
       legend,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const showLegend = legend ?? series.length > 1;
-    const top = showLegend ? 26 : 14;
     const vertical = groups.length > 24;
-    const bottom = vertical ? vh - 26 : vh - 16;
-    const leftEdge = 14;
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      legend: showLegend,
+      labels: true,
+      ticks: Boolean(yTicks?.length),
+    });
+    const plotBottom = vertical ? bottom - 10 : bottom;
     const totals = groups.map((_, g) =>
       series.reduce((sum, s) => sum + (s.data[g] ?? 0), 0),
     );
@@ -41,26 +54,34 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
       ...(yTicks?.map((tick) => tick.at) ?? []),
       1,
     );
-    const Y = (at: number) => bottom - (at / max) * (bottom - top);
-    const step = 176 / Math.max(1, groups.length);
+    const Y = linear(0, max, plotBottom, top);
+    const step = (right - left) / Math.max(1, groups.length);
     const width = Math.min(20, step * 0.55);
-    const centers = groups.map((_, g) => 14 + step * (g + 0.5));
+    const centers = groups.map((_, g) => left + step * (g + 0.5));
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <line
-          x1="10"
-          y1={bottom}
-          x2="190"
-          y2={bottom}
+          x1={left}
+          y1={plotBottom}
+          x2={right}
+          y2={plotBottom}
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
         />
-        <TickGrid ticks={yTicks} at={Y} from={leftEdge} to={190} />
+        <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
         {showLegend && (
           <Legend
             names={series.map((s) => s.name)}
             colors={series.map((_, k) => cat(k))}
+            type={T.axis}
           />
         )}
         {groups.map((_, g) => (
@@ -69,49 +90,35 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
             x={round(centers[g]! - step / 2)}
             y={top}
             width={round(step)}
-            height={bottom - top}
+            height={plotBottom - top}
             fill="transparent"
             data-part="mark"
             data-i={g}
           />
         ))}
         {groups.map((_, g) => {
-          let cursor = bottom;
+          let cursor = plotBottom;
           const denominator = normalize ? totals[g] || 1 : max;
           return series.map((s, k) => {
             const v = s.data[g] ?? 0;
-            const h = (v / denominator) * (bottom - top);
+            const h = (v / denominator) * (plotBottom - top);
             const gap = k === 0 ? 0 : Math.min(1.6, width * 0.12);
             const y = cursor - h;
             const x = centers[g]! - width / 2;
-            const segment =
-              k === series.length - 1 ? (
-                <rect
-                  key={`${g}-${k}`}
-                  x={round(x)}
-                  y={round(y - gap)}
-                  width={round(width)}
-                  height={round(h)}
-                  fill={cat(k)}
-                  opacity="0.9"
-                  data-part="mark"
-                  data-series={s.name}
-                  data-i={g}
-                />
-              ) : (
-                <rect
-                  key={`${g}-${k}`}
-                  x={x}
-                  y={y - gap}
-                  width={width}
-                  height={h}
-                  fill={cat(k)}
-                  opacity="0.9"
-                  data-part="mark"
-                  data-series={s.name}
-                  data-i={g}
-                />
-              );
+            const segment = (
+              <rect
+                key={`${g}-${k}`}
+                x={round(x)}
+                y={round(y - gap)}
+                width={round(width)}
+                height={round(h)}
+                fill={cat(k)}
+                opacity="0.9"
+                data-part="mark"
+                data-series={s.name}
+                data-i={g}
+              />
+            );
             cursor = y - gap;
             return segment;
           });
@@ -119,8 +126,9 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
         <AxisLabels
           labels={groups}
           xs={centers}
-          y={vertical ? bottom + 5 : vh - 4}
+          y={vertical ? plotBottom + 5 : axisY}
           vertical={vertical}
+          type={T.axis}
         />
       </ChartSvg>
     );

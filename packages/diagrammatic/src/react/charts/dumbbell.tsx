@@ -1,8 +1,8 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import { extent, round, stroke } from "../../core/geometry";
+import { extent, linear, round, rowMid, stroke } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
-import { ChartSvg, Legend, TXT, vbHeight } from "../svg";
+import { ChartSvg, Legend, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type DumbbellProps = BaseProps & {
   items: { label: string; from: number; to: number }[];
@@ -19,20 +19,31 @@ export const Dumbbell = forwardRef<SVGSVGElement, DumbbellProps>(
       legend,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const showLegend = legend ?? true;
-    const top = showLegend ? 20 : 10;
+    const { left, right, top, bottom } = plotFrame(vh, density, {
+      legend: showLegend,
+      left: density === "figure" ? 50 : 44,
+    });
     const [lo, hi] = extent(items.flatMap((r) => [r.from, r.to]));
-    const span = hi - lo || 1;
-    const X = (v: number) => 44 + ((v - lo) / span) * 140;
-    const rowH = (vh - top - 8) / Math.max(1, items.length);
+    const X = linear(lo, hi, left, right);
+    const rowH = (bottom - top) / Math.max(1, items.length);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {showLegend && (
           <Legend
             names={[fromLabel, toLabel]}
@@ -40,13 +51,20 @@ export const Dumbbell = forwardRef<SVGSVGElement, DumbbellProps>(
             x={192}
             y={10}
             anchor="end"
+            type={T.axis}
           />
         )}
         {items.map((row, i) => {
-          const y = top + rowH * (i + 0.5);
+          const y = rowMid(i, rowH, top);
           return (
             <g key={row.label} data-part="mark" data-i={i}>
-              <text x="8" y={y} dominantBaseline="central" {...TXT.axis}>
+              <text
+                x={left - 4}
+                y={y}
+                textAnchor="end"
+                dominantBaseline="central"
+                {...T.axis}
+              >
                 {row.label}
               </text>
               <line

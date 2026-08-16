@@ -4,13 +4,14 @@ import type { TreeNode } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
 import { nodeValue, packSiblings } from "../../core/layout";
 import { cat, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type CirclePackingProps = BaseProps & { root: TreeNode };
 
 export const CirclePacking = forwardRef<SVGSVGElement, CirclePackingProps>(
-  ({ root, title, aspect, className, ...rest }, ref) => {
+  ({ root, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const cy = vh / 2;
     const outer = Math.min(cy - 8, 54);
     const clusters = root.children ?? [];
@@ -32,7 +33,14 @@ export const CirclePacking = forwardRef<SVGSVGElement, CirclePackingProps>(
     const scale = (outer - 4) / spread;
     const labeled = new Set<number>();
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <circle
           cx="100"
           cy={cy}
@@ -65,7 +73,7 @@ export const CirclePacking = forwardRef<SVGSVGElement, CirclePackingProps>(
                 {...stroke.medium}
               />
               {showLabel && (
-                <text x={x} y={y + 1.6} textAnchor="middle" {...TXT.axis}>
+                <text x={x} y={y + 1.6} textAnchor="middle" {...T.axis}>
                   {clusters[entry.cluster]?.label}
                 </text>
               )}

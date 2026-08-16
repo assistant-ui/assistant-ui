@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { arcStroke } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type ProgressRingProps = BaseProps & {
   value: number;
@@ -12,13 +12,24 @@ export type ProgressRingProps = BaseProps & {
 
 /** A single completion state, 0 to 1, wrapped in a ring. */
 export const ProgressRing = forwardRef<SVGSVGElement, ProgressRingProps>(
-  ({ value, display, label, title, aspect, className, ...rest }, ref) => {
+  (
+    { value, display, label, title, aspect, density, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const cy = vh / 2 - (label ? 4 : 0);
     const r = cy - 8;
     const share = Math.max(0, Math.min(1, value));
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <circle
           cx="100"
           cy={cy}
@@ -42,7 +53,7 @@ export const ProgressRing = forwardRef<SVGSVGElement, ProgressRingProps>(
           textAnchor="middle"
           fontSize={r * 0.42}
           fill={ink(0.8)}
-          fontFamily={TXT.value.fontFamily}
+          fontFamily={T.value.fontFamily}
         >
           {display ?? `${Math.round(share * 100)}%`}
         </text>
@@ -51,7 +62,7 @@ export const ProgressRing = forwardRef<SVGSVGElement, ProgressRingProps>(
             x="100"
             y={cy + r + 12}
             textAnchor="middle"
-            {...TXT.axis}
+            {...T.axis}
             fontSize={Math.max(4.5, r * 0.16)}
           >
             {label}

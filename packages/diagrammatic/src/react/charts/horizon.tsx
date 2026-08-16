@@ -1,6 +1,12 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import { areaPath, clamp01, scalePoints, stroke } from "../../core/geometry";
+import {
+  areaPath,
+  clamp01,
+  rowMid,
+  scalePoints,
+  stroke,
+} from "../../core/geometry";
 import { ACCENT, GRID } from "../../core/theme";
 import {
   AxisLabels,
@@ -38,7 +44,7 @@ export const Horizon = forwardRef<SVGSVGElement, HorizonProps>(
     const named = rows.some((row) => row.name);
     const vh = vbHeight(aspect, named ? 1.35 : 5 / 3);
     const T = typeScale(density);
-    const { left, right, top, bottom } = plotFrame(vh, density, {
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
       labels: Boolean(labels),
       left: named ? (density === "figure" ? 34 : 28) : 10,
     });
@@ -69,7 +75,7 @@ export const Horizon = forwardRef<SVGSVGElement, HorizonProps>(
               {row.name ? (
                 <text
                   x={left - 2}
-                  y={y1 + rowH / 2}
+                  y={rowMid(ri, rowH, top)}
                   dominantBaseline="central"
                   textAnchor="end"
                   {...T.axis}
@@ -118,7 +124,7 @@ export const Horizon = forwardRef<SVGSVGElement, HorizonProps>(
               (_, i) =>
                 left + (i * (right - left)) / Math.max(1, labels.length - 1),
             )}
-            y={vh - (density === "figure" ? 6 : 4)}
+            y={axisY}
             type={T.axis}
           />
         )}

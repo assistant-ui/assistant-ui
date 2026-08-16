@@ -4,7 +4,7 @@ import type { Graph } from "../../core/types";
 import { round } from "../../core/geometry";
 import { sankeyTwoColumn } from "../../core/layout";
 import { cat, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type SankeyProps = BaseProps & { graph: Graph };
 
@@ -12,12 +12,20 @@ const X0 = 19;
 const X1 = 181;
 
 export const Sankey = forwardRef<SVGSVGElement, SankeyProps>(
-  ({ graph, title, aspect, className, ...rest }, ref) => {
+  ({ graph, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const { nodes, ribbons } = sankeyTwoColumn(graph, 12, vh - 12, 8);
     const mx = round((X0 + X1) / 2);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {ribbons.map((ribbon, i) => (
           <path
             key={i}
@@ -44,7 +52,7 @@ export const Sankey = forwardRef<SVGSVGElement, SankeyProps>(
               y={round((node.y0 + node.y1) / 2)}
               dominantBaseline="central"
               textAnchor={node.side === "left" ? "start" : "end"}
-              {...TXT.label}
+              {...T.label}
             >
               {node.label}
             </text>

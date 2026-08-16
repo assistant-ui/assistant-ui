@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { linePath, scalePoints } from "../../core/geometry";
 import { ACCENT, SURFACE, ink } from "../../core/theme";
-import { AxisLabels, ChartSvg, TXT, vbHeight } from "../svg";
+import { AxisLabels, ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type RidgelineProps = BaseProps & {
   rows: { label: string; bins: number[] }[];
@@ -10,20 +10,34 @@ export type RidgelineProps = BaseProps & {
 };
 
 export const Ridgeline = forwardRef<SVGSVGElement, RidgelineProps>(
-  ({ rows, highlight, labels, title, aspect, className, ...rest }, ref) => {
+  (
+    { rows, highlight, labels, title, aspect, density, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
-    const bottom = labels ? vh - 14 : vh - 6;
-    const rowStep = (bottom - 34) / Math.max(1, rows.length - 1);
+    const T = typeScale(density);
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: Boolean(labels),
+      left: density === "figure" ? 36 : 34,
+    });
+    const rowStep = (bottom - top) / Math.max(1, rows.length);
     const max = Math.max(...rows.flatMap((r) => r.bins), 1);
     const rise = Math.min(30, rowStep * 1.7);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {rows.map((row, i) => {
-          const baseline = 34 + i * rowStep;
+          const baseline = top + (i + 1) * rowStep - 2;
           const pts = scalePoints(
             row.bins,
-            34,
-            190,
+            left,
+            right,
             baseline,
             baseline - rise,
             0,
@@ -38,13 +52,13 @@ export const Ridgeline = forwardRef<SVGSVGElement, RidgelineProps>(
               data-series={row.label}
             >
               <path
-                d={`${linePath(pts)} L190 ${baseline} L34 ${baseline} Z`}
+                d={`${linePath(pts)} L${right} ${baseline} L${left} ${baseline} Z`}
                 fill={SURFACE}
                 stroke={accent ? ACCENT : ink(0.4)}
                 strokeWidth={accent ? 1.5 : 1}
                 vectorEffect="non-scaling-stroke"
               />
-              <text x="8" y={baseline + 1} {...TXT.axis}>
+              <text x={left - 2} y={baseline + 1} textAnchor="end" {...T.axis}>
                 {row.label}
               </text>
             </g>
@@ -54,9 +68,11 @@ export const Ridgeline = forwardRef<SVGSVGElement, RidgelineProps>(
           <AxisLabels
             labels={labels}
             xs={labels.map(
-              (_, i) => 44 + (i * 138) / Math.max(1, labels.length - 1),
+              (_, i) =>
+                left + (i * (right - left)) / Math.max(1, labels.length - 1),
             )}
-            y={vh - 3}
+            y={axisY}
+            type={T.axis}
           />
         )}
       </ChartSvg>

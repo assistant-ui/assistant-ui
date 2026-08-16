@@ -4,13 +4,14 @@ import type { Graph } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
 import { radialNetwork } from "../../core/layout";
 import { ACCENT, SURFACE, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type NetworkProps = BaseProps & { graph: Graph };
 
 export const Network = forwardRef<SVGSVGElement, NetworkProps>(
-  ({ graph, title, aspect, className, ...rest }, ref) => {
+  ({ graph, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const cy = vh / 2;
     const positions = radialNetwork(graph, 100, cy, Math.min(cy - 14, 46));
     const degree = new Map<string, number>();
@@ -21,7 +22,14 @@ export const Network = forwardRef<SVGSVGElement, NetworkProps>(
     const maxDegree = Math.max(...degree.values(), 1);
     const hub = [...degree.entries()].sort((a, b) => b[1] - a[1])[0]?.[0];
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {graph.links.map((link, i) => {
           const a = positions.get(link.source);
           const b = positions.get(link.target);
@@ -64,7 +72,7 @@ export const Network = forwardRef<SVGSVGElement, NetworkProps>(
                   strokeWidth="2.5"
                   strokeLinejoin="round"
                   paintOrder="stroke"
-                  {...TXT.axis}
+                  {...T.axis}
                 >
                   {node.label}
                 </text>

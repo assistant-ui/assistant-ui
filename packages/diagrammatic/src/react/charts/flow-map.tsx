@@ -9,7 +9,7 @@ import {
 } from "../../core/tiles";
 import { round } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type FlowMapProps = BaseProps & {
   origin: { col: number; row: number; label?: string };
@@ -25,16 +25,25 @@ export const FlowMap = forwardRef<SVGSVGElement, FlowMapProps>(
       tiles = ABSTRACT_TILES,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const originTile = tileAt(tiles, origin.col, origin.row);
     const max = Math.max(...routes.map((r) => r.value), 1);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {tiles.map((tile) => (
           <rect
             key={`${tile.col}-${tile.row}`}
@@ -97,14 +106,14 @@ export const FlowMap = forwardRef<SVGSVGElement, FlowMapProps>(
                 textAnchor="middle"
                 fontSize="3.2"
                 fill={ACCENT}
-                fontFamily={TXT.axis.fontFamily}
+                fontFamily={T.axis.fontFamily}
               >
                 {origin.label}
               </text>
             )}
           </g>
         )}
-        <text x="192" y={vh - 7} textAnchor="end" {...TXT.axis}>
+        <text x="192" y={vh - 7} textAnchor="end" {...T.axis}>
           width = volume
         </text>
       </ChartSvg>

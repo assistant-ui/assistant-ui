@@ -4,7 +4,7 @@ import type { TreeNode } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { nodeValue, squarify } from "../../core/layout";
 import { cat } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type TreemapProps = BaseProps & { root: TreeNode; depth?: number };
 
@@ -16,12 +16,14 @@ export const Treemap = forwardRef<SVGSVGElement, TreemapProps>(
       format = formatCompact,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const children = root.children ?? [];
     const outer = squarify(
       children.map(nodeValue),
@@ -29,7 +31,14 @@ export const Treemap = forwardRef<SVGSVGElement, TreemapProps>(
       2.4,
     );
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {children.map((child, i) => {
           const rect = outer[i]!;
           const grandchildren = depth >= 2 ? (child.children ?? []) : [];
@@ -72,7 +81,7 @@ export const Treemap = forwardRef<SVGSVGElement, TreemapProps>(
                 })
               )}
               {labelFits && (
-                <text x={rect.x + 5} y={rect.y + 9} {...TXT.onSeries}>
+                <text x={rect.x + 5} y={rect.y + 9} {...T.onSeries}>
                   {child.label}
                 </text>
               )}
@@ -80,7 +89,7 @@ export const Treemap = forwardRef<SVGSVGElement, TreemapProps>(
                 <text
                   x={rect.x + 5}
                   y={rect.y + 16.5}
-                  {...TXT.onSeries}
+                  {...T.onSeries}
                   opacity="0.7"
                 >
                   {format(nodeValue(child))}

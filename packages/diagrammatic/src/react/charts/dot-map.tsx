@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import type { Tile } from "../../core/tiles";
 import { ABSTRACT_TILES, TILE_SIZE } from "../../core/tiles";
 import { ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type DotMapProps = BaseProps & {
   counts: number[];
@@ -20,14 +20,23 @@ export const DotMap = forwardRef<SVGSVGElement, DotMapProps>(
       unitLabel,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {tiles.map((tile) => (
           <rect
             key={`${tile.col}-${tile.row}`}
@@ -57,7 +66,7 @@ export const DotMap = forwardRef<SVGSVGElement, DotMapProps>(
           }),
         )}
         {unitLabel && (
-          <text x="192" y={vh - 7} textAnchor="end" {...TXT.axis}>
+          <text x="192" y={vh - 7} textAnchor="end" {...T.axis}>
             {unitLabel}
           </text>
         )}

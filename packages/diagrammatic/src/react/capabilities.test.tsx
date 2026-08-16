@@ -2,6 +2,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { Bar } from "./charts/bar";
 import { BoxPlot } from "./charts/box-plot";
+import { Candlestick } from "./charts/candlestick";
 import { Column } from "./charts/column";
 import { Funnel } from "./charts/funnel";
 import { Heatmap } from "./charts/heatmap";
@@ -67,6 +68,48 @@ describe("ceiling capabilities", () => {
     );
     expect(html).toContain('stroke-dasharray="1.8 2.4"');
     expect(html).toContain(">4x</text>");
+  });
+
+  it("Candlestick yTicks own the value axis", () => {
+    const html = renderToStaticMarkup(
+      <Candlestick
+        data={[{ open: 10, close: 12, low: 8, high: 20 }]}
+        yTicks={[
+          { at: 10, label: "10" },
+          { at: 20, label: "20" },
+        ]}
+      />,
+    );
+    expect(html).toContain(">10</text>");
+    expect(html).toContain(">20</text>");
+    expect(html).not.toContain(">8</text>");
+  });
+
+  it("Column figure density stamps the frame and uses the figure type scale", () => {
+    const html = renderToStaticMarkup(
+      <Column
+        density="figure"
+        items={[{ label: "a", value: 10 }]}
+        yTicks={[{ at: 10, label: "10" }]}
+      />,
+    );
+    expect(html).toContain('data-density="figure"');
+    expect(html).toContain('font-size="3.6"');
+    expect(html).toContain('stroke-dasharray="1.8 2.4"');
+  });
+
+  it("Bar figure density keeps row labels on the midline", () => {
+    const html = renderToStaticMarkup(
+      <Bar
+        density="figure"
+        items={[
+          { label: "alpha", value: 10 },
+          { label: "beta", value: 6 },
+        ]}
+      />,
+    );
+    expect(html).toContain('data-density="figure"');
+    expect(html).toContain('dominant-baseline="central"');
   });
 
   it("Horizon stacks named series as separate bands", () => {

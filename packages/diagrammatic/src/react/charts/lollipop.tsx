@@ -2,9 +2,9 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
-import { stroke } from "../../core/geometry";
+import { linear, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type LollipopProps = BaseProps & {
   items: Item[];
@@ -19,30 +19,42 @@ export const Lollipop = forwardRef<SVGSVGElement, LollipopProps>(
       format = formatCompact,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
-    const bottom = vh - 16;
+    const T = typeScale(density);
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: true,
+    });
     const max = Math.max(...items.map((r) => r.value), 1);
+    const Y = linear(0, max, bottom, top);
     const highest = Math.max(...items.map((r) => r.value));
-    const step = 176 / Math.max(1, items.length);
+    const step = (right - left) / Math.max(1, items.length);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <line
-          x1="10"
+          x1={left}
           y1={bottom}
-          x2="190"
+          x2={right}
           y2={bottom}
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
         />
         {items.map((row, i) => {
-          const x = 14 + step * (i + 0.5);
-          const y = bottom - (row.value / max) * (bottom - 22);
+          const x = left + step * (i + 0.5);
+          const y = Y(row.value);
           const accent =
             highlight === "max"
               ? row.value === highest
@@ -64,11 +76,11 @@ export const Lollipop = forwardRef<SVGSVGElement, LollipopProps>(
                 fill={accent ? ACCENT : ink(0.55)}
               />
               {accent && (
-                <text x={x} y={y - 7} textAnchor="middle" {...TXT.value}>
+                <text x={x} y={y - 7} textAnchor="middle" {...T.value}>
                   {format(row.value)}
                 </text>
               )}
-              <text x={x} y={vh - 4} textAnchor="middle" {...TXT.axis}>
+              <text x={x} y={axisY} textAnchor="middle" {...T.axis}>
                 {row.label}
               </text>
             </g>

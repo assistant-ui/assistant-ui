@@ -4,15 +4,16 @@ import type { TreeNode } from "../../core/types";
 import { polar, ring, round } from "../../core/geometry";
 import { partition } from "../../core/layout";
 import { SURFACE, cat } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type SunburstProps = BaseProps & { root: TreeNode; depth?: number };
 
 const TAU = Math.PI * 2;
 
 export const Sunburst = forwardRef<SVGSVGElement, SunburstProps>(
-  ({ root, depth = 2, title, aspect, className, ...rest }, ref) => {
+  ({ root, depth = 2, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const cy = vh / 2;
     const outer = Math.min(cy - 8, 48);
     const all = partition(root, depth);
@@ -36,7 +37,14 @@ export const Sunburst = forwardRef<SVGSVGElement, SunburstProps>(
       return count;
     };
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {all.map((slice, i) => {
           if (slice.depth === 0) return null;
           return (
@@ -77,7 +85,7 @@ export const Sunburst = forwardRef<SVGSVGElement, SunburstProps>(
               x={round(p.x)}
               y={round(p.y) + 1.6}
               textAnchor="middle"
-              {...TXT.onSeries}
+              {...T.onSeries}
             >
               {slice.node.label}
             </text>

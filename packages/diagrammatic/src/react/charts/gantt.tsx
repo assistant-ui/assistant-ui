@@ -1,15 +1,15 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import { extent, round, stroke } from "../../core/geometry";
-import { ACCENT, ink } from "../../core/theme";
 import {
-  AxisLabels,
-  ChartSvg,
+  extent,
+  linear,
+  round,
   rowMarkH,
   rowMid,
-  typeScale,
-  vbHeight,
-} from "../svg";
+  stroke,
+} from "../../core/geometry";
+import { ACCENT, ink } from "../../core/theme";
+import { AxisLabels, ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type GanttProps = BaseProps & {
   rows: {
@@ -28,15 +28,16 @@ export const Gantt = forwardRef<SVGSVGElement, GanttProps>(
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const T = typeScale(density);
-    const top = today === undefined ? 10 : 16;
-    const bottom = labels ? vh - 16 : vh - 6;
-    const left = density === "figure" ? 52 : 46;
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: Boolean(labels),
+      legend: today !== undefined,
+      left: density === "figure" ? 52 : 46,
+    });
     const [lo, hi] = extent([
       ...rows.flatMap((r) => [r.from, r.to]),
       ...(today === undefined ? [] : [today]),
     ]);
-    const span = hi - lo || 1;
-    const X = (v: number) => left + ((v - lo) / span) * (190 - left);
+    const X = linear(lo, hi, left, right);
     const rowH = (bottom - top) / Math.max(1, rows.length);
     const barH = rowMarkH(rowH, 0.4);
     return (
@@ -110,9 +111,9 @@ export const Gantt = forwardRef<SVGSVGElement, GanttProps>(
             labels={labels}
             xs={labels.map(
               (_, i) =>
-                left + (i * (190 - left)) / Math.max(1, labels.length - 1),
+                left + (i * (right - left)) / Math.max(1, labels.length - 1),
             )}
-            y={vh - (density === "figure" ? 6 : 4)}
+            y={axisY}
             type={T.axis}
           />
         )}

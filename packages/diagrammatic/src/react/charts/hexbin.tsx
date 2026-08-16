@@ -4,13 +4,17 @@ import type { Pt } from "../../core/types";
 import { extent, hexPath } from "../../core/geometry";
 import { ACCENT, seqOpacity } from "../../core/theme";
 import { hexbin } from "../../core/layout";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type HexbinProps = BaseProps & { points: Pt[]; radius?: number };
 
 export const Hexbin = forwardRef<SVGSVGElement, HexbinProps>(
-  ({ points, radius = 8.6, title, aspect, className, ...rest }, ref) => {
+  (
+    { points, radius = 8.6, title, aspect, density, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const [xLo, xHi] = extent(points.map((p) => p.x));
     const [yLo, yHi] = extent(points.map((p) => p.y));
     const projected = points.map((p) => ({
@@ -20,7 +24,14 @@ export const Hexbin = forwardRef<SVGSVGElement, HexbinProps>(
     const bins = hexbin(projected, radius, 200, vh - 18);
     const max = Math.max(...bins.map((b) => b.count), 1);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {bins.map((bin, i) => (
           <path
             key={i}
@@ -40,10 +51,10 @@ export const Hexbin = forwardRef<SVGSVGElement, HexbinProps>(
               opacity={seqOpacity(t)}
             />
           ))}
-          <text x="130" y={vh - 5} textAnchor="end" {...TXT.axis}>
+          <text x="130" y={vh - 5} textAnchor="end" {...T.axis}>
             low
           </text>
-          <text x="180" y={vh - 5} {...TXT.axis}>
+          <text x="180" y={vh - 5} {...T.axis}>
             high
           </text>
         </g>

@@ -1,4 +1,5 @@
 import { round, stroke } from "../core/geometry";
+import type { Tick } from "../core/types";
 import {
   type ComponentPropsWithoutRef,
   type CSSProperties,
@@ -84,22 +85,26 @@ export function typeScale(density?: Density) {
 export function plotFrame(
   vh: number,
   density: Density | undefined,
-  opts: { legend?: boolean; labels?: boolean; left?: number } = {},
+  opts: {
+    legend?: boolean;
+    labels?: boolean;
+    ticks?: boolean;
+    left?: number;
+  } = {},
 ) {
   const fig = density === "figure";
-  const left = opts.left ?? (fig ? 22 : 14);
+  const left = opts.left ?? (fig || opts.ticks ? 22 : 14);
   const right = fig ? 190 : 186;
   const top = opts.legend ? (fig ? 26 : 22) : fig ? 16 : 12;
   const bottom = opts.labels ? vh - (fig ? 20 : 16) : vh - (fig ? 12 : 8);
-  return { left, right, top, bottom, fig };
-}
-
-export function rowMid(index: number, rowH: number, top: number): number {
-  return top + (index + 0.5) * rowH;
-}
-
-export function rowMarkH(rowH: number, ratio = 0.42): number {
-  return Math.max(2.4, Math.min(rowH * ratio, rowH - 1.4));
+  return {
+    left,
+    right,
+    top,
+    bottom,
+    fig,
+    axisY: vh - (fig ? 6 : 4),
+  };
 }
 
 const BLOCK: CSSProperties = {
@@ -275,7 +280,7 @@ export function TickGrid({
   axis = "y",
   labelAt,
 }: {
-  ticks?: readonly { at: number; label: string }[] | undefined;
+  ticks?: readonly Tick[] | undefined;
   at: (value: number) => number;
   from: number;
   to: number;

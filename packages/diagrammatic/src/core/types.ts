@@ -1,5 +1,6 @@
 export type Series = { name: string; data: number[] };
 export type Item = { label: string; value: number };
+export type Tick = { at: number; label: string };
 export type TreeNode = { label: string; value?: number; children?: TreeNode[] };
 export type GraphNode = { id: string; label?: string; group?: number };
 export type GraphLink = { source: string; target: string; value?: number };

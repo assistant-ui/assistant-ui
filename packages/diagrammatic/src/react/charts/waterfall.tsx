@@ -1,9 +1,9 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { formatCompact } from "../../core/types";
-import { round, stroke } from "../../core/geometry";
+import { linear, round, stroke } from "../../core/geometry";
 import { GRID, NEG, POS, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type WaterfallProps = BaseProps & {
   steps: { label: string; value: number; total?: boolean }[];
@@ -11,11 +11,22 @@ export type WaterfallProps = BaseProps & {
 
 export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
   (
-    { steps, format = formatCompact, title, aspect, className, ...rest },
+    {
+      steps,
+      format = formatCompact,
+      title,
+      aspect,
+      density,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
-    const bottom = vh - 18;
+    const T = typeScale(density);
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: true,
+    });
     let running = 0;
     const resolved = steps.map((step) => {
       const from = step.total ? 0 : running;
@@ -24,30 +35,37 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
       return { ...step, from, to };
     });
     const max = Math.max(...resolved.flatMap((s) => [s.from, s.to]), 1);
-    const Y = (v: number) => bottom - (v / max) * (bottom - 18);
-    const step = 184 / Math.max(1, steps.length);
+    const Y = linear(0, max, bottom, top);
+    const step = (right - left) / Math.max(1, steps.length);
     const width = Math.min(17, step * 0.6);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <line
-          x1="8"
+          x1={left}
           y1={bottom}
-          x2="192"
+          x2={right}
           y2={bottom}
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
         />
         {resolved.map((entry, i) => {
-          const x = 8 + step * (i + 0.5) - width / 2;
-          const top = Y(Math.max(entry.from, entry.to));
+          const x = left + step * (i + 0.5) - width / 2;
+          const barTop = Y(Math.max(entry.from, entry.to));
           const h = Math.abs(Y(entry.from) - Y(entry.to));
           const next = resolved[i + 1];
           return (
             <g key={entry.label} data-part="mark" data-i={i}>
               <rect
                 x={round(x)}
-                y={round(top)}
+                y={round(barTop)}
                 width={width}
                 height={round(Math.max(h, 1.5))}
                 fill={entry.total ? ink(0.55) : entry.value >= 0 ? POS : NEG}
@@ -56,9 +74,9 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
               {!entry.total && (
                 <text
                   x={round(x + width / 2)}
-                  y={round(top - 3)}
+                  y={round(barTop - 3)}
                   textAnchor="middle"
-                  {...TXT.axis}
+                  {...T.axis}
                 >
                   {entry.value > 0
                     ? `+${format(entry.value)}`
@@ -79,9 +97,9 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
               )}
               <text
                 x={round(x + width / 2)}
-                y={vh - 6}
+                y={axisY}
                 textAnchor="middle"
-                {...TXT.axis}
+                {...T.axis}
               >
                 {entry.label}
               </text>

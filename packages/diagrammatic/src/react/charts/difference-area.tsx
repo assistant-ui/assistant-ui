@@ -1,49 +1,78 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Series } from "../../core/types";
-import { bandPath, linePath, scalePoints, stroke } from "../../core/geometry";
+import type { Series, Tick } from "../../core/types";
+import {
+  bandPath,
+  linePath,
+  linear,
+  scalePoints,
+  stroke,
+} from "../../core/geometry";
 import { NEG, POS, ink } from "../../core/theme";
 import {
   AxisLabels,
   ChartSvg,
   ColumnHits,
   TickGrid,
-  TXT,
+  plotFrame,
+  typeScale,
   vbHeight,
 } from "../svg";
 
 export type DifferenceAreaProps = BaseProps & {
   actual: Series;
   reference: Series;
-  yTicks?: readonly { at: number; label: string }[];
+  yTicks?: readonly Tick[];
 };
 
 export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
   (
-    { actual, reference, yTicks, labels, title, aspect, className, ...rest },
+    {
+      actual,
+      reference,
+      yTicks,
+      labels,
+      title,
+      aspect,
+      density,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
-    const bottom = labels ? vh - 16 : vh - 8;
+    const T = typeScale(density);
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      legend: true,
+      labels: Boolean(labels),
+      ticks: Boolean(yTicks?.length),
+    });
     const max = Math.max(
       ...actual.data,
       ...reference.data,
       ...(yTicks?.map((tick) => tick.at) ?? []),
       1,
     );
-    const Y = (v: number) => bottom - (v / max) * (bottom - 18);
-    const a = scalePoints(actual.data, 14, 186, bottom, 18, 0, max);
-    const b = scalePoints(reference.data, 14, 186, bottom, 18, 0, max);
+    const Y = linear(0, max, bottom, top);
+    const a = scalePoints(actual.data, left, right, bottom, top, 0, max);
+    const b = scalePoints(reference.data, left, right, bottom, top, 0, max);
     const above = a.map((p, i) => ({ x: p.x, y: Math.min(p.y, b[i]!.y) }));
     const below = a.map((p, i) => ({ x: p.x, y: Math.max(p.y, b[i]!.y) }));
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
-        <TickGrid ticks={yTicks} at={Y} from={14} to={186} />
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
+        <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
         <ColumnHits
           count={actual.data.length}
-          x0={14}
-          x1={186}
-          top={18}
+          x0={left}
+          x1={right}
+          top={top}
           bottom={bottom}
         />
         <path
@@ -77,48 +106,48 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
         />
         <g data-part="legend">
           <line
-            x1="14"
+            x1={left}
             y1="9.4"
-            x2="24"
+            x2={left + 10}
             y2="9.4"
             stroke={ink(0.75)}
             {...stroke.line}
           />
-          <text x="27" y="11" {...TXT.axis}>
+          <text x={left + 13} y="11" {...T.axis}>
             {actual.name}
           </text>
           <line
-            x1="58"
+            x1={left + 44}
             y1="9.4"
-            x2="68"
+            x2={left + 54}
             y2="9.4"
             stroke={ink(0.4)}
             strokeDasharray="3 3"
             {...stroke.hair}
           />
-          <text x="71" y="11" {...TXT.axis}>
+          <text x={left + 57} y="11" {...T.axis}>
             {reference.name}
           </text>
           <rect
-            x="112"
+            x={left + 98}
             y="7"
             width="6"
             height="4.5"
             fill={POS}
             opacity="0.35"
           />
-          <text x="121" y="11" {...TXT.axis}>
+          <text x={left + 107} y="11" {...T.axis}>
             ahead
           </text>
           <rect
-            x="148"
+            x={left + 134}
             y="7"
             width="6"
             height="4.5"
             fill={NEG}
             opacity="0.35"
           />
-          <text x="157" y="11" {...TXT.axis}>
+          <text x={left + 143} y="11" {...T.axis}>
             behind
           </text>
         </g>
@@ -126,9 +155,11 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
           <AxisLabels
             labels={labels}
             xs={labels.map(
-              (_, i) => 14 + (i * 172) / Math.max(1, labels.length - 1),
+              (_, i) =>
+                left + (i * (right - left)) / Math.max(1, labels.length - 1),
             )}
-            y={vh - 4}
+            y={axisY}
+            type={T.axis}
           />
         )}
       </ChartSvg>

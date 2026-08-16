@@ -1,8 +1,9 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import { extent, round, stroke } from "../../core/geometry";
+import type { Tick } from "../../core/types";
+import { extent, linear, round, stroke } from "../../core/geometry";
 import { ACCENT, cat, ink } from "../../core/theme";
-import { ChartSvg, TickGrid, TXT, vbHeight } from "../svg";
+import { ChartSvg, TickGrid, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type BoxPlotProps = BaseProps & {
   groups: {
@@ -15,7 +16,7 @@ export type BoxPlotProps = BaseProps & {
     points?: readonly number[];
   }[];
   categorical?: boolean;
-  yTicks?: readonly { at: number; label: string }[];
+  yTicks?: readonly Tick[];
 };
 
 function jitter(value: number, index: number): number {
@@ -24,22 +25,35 @@ function jitter(value: number, index: number): number {
 }
 
 export const BoxPlot = forwardRef<SVGSVGElement, BoxPlotProps>(
-  ({ groups, categorical, yTicks, title, aspect, className, ...rest }, ref) => {
+  (
+    { groups, categorical, yTicks, title, aspect, density, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
-    const bottom = vh - 16;
+    const T = typeScale(density);
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: true,
+      ticks: Boolean(yTicks?.length),
+    });
     const [lo, hi] = extent([
       ...groups.flatMap((g) => [g.low, g.high, ...(g.points ?? [])]),
       ...(yTicks?.map((t) => t.at) ?? []),
     ]);
-    const span = hi - lo || 1;
-    const Y = (v: number) => bottom - ((v - lo) / span) * (bottom - 14);
-    const step = 176 / Math.max(1, groups.length);
+    const Y = linear(lo, hi, bottom, top);
+    const step = (right - left) / Math.max(1, groups.length);
     const half = Math.min(14, step * 0.28);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
-        <TickGrid ticks={yTicks} at={Y} from={14} to={190} />
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
+        <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
         {groups.map((box, i) => {
-          const x = 14 + step * (i + 0.5);
+          const x = left + step * (i + 0.5);
           const color = categorical ? cat(i) : undefined;
           const frame = color ?? ink(0.55);
           return (
@@ -88,10 +102,10 @@ export const BoxPlot = forwardRef<SVGSVGElement, BoxPlotProps>(
               />
               <text
                 x={x}
-                y={vh - 4}
+                y={axisY}
                 textAnchor="middle"
-                {...TXT.axis}
-                fontSize={Math.min(4.5, Math.max(3.2, step * 0.09))}
+                {...T.axis}
+                fontSize={Math.min(4.5, Math.max(T.axis.fontSize, step * 0.09))}
               >
                 {box.label}
               </text>

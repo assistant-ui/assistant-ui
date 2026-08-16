@@ -1,9 +1,9 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
-import { ring } from "../../core/geometry";
+import { ring, rowMid } from "../../core/geometry";
 import { SURFACE, cat } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type PieProps = BaseProps & {
   items: Item[];
@@ -20,6 +20,7 @@ export const Pie = forwardRef<SVGSVGElement, PieProps>(
       format,
       title,
       aspect,
+      density,
       className,
       center,
       centerLabel,
@@ -28,15 +29,23 @@ export const Pie = forwardRef<SVGSVGElement, PieProps>(
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const cy = vh / 2;
     const radius = Math.min(cy - 10, 46);
     const total = items.reduce((sum, r) => sum + r.value, 0) || 1;
     const fmt = format ?? ((v: number) => `${Math.round((v / total) * 100)}%`);
     let angle = 0;
-    const rowStep = Math.min(15, (vh - 20) / Math.max(1, items.length));
-    const legendTop = cy - ((items.length - 1) / 2) * rowStep;
+    const rowH = Math.min(15, (vh - 20) / Math.max(1, items.length));
+    const legendTop = cy - (items.length * rowH) / 2;
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {items.map((slice, i) => {
           const a0 = angle;
           angle += (slice.value / total) * Math.PI * 2;
@@ -65,25 +74,25 @@ export const Pie = forwardRef<SVGSVGElement, PieProps>(
             x="64"
             y={cy - 1}
             textAnchor="middle"
-            fontSize="7"
-            fill={TXT.value.fill}
-            fontFamily={TXT.value.fontFamily}
+            fontSize={density === "figure" ? 7.4 : 7}
+            fill={T.value.fill}
+            fontFamily={T.value.fontFamily}
           >
             {center}
           </text>
         )}
         {centerLabel && (
-          <text x="64" y={cy + 8.5} textAnchor="middle" {...TXT.axis}>
+          <text x="64" y={cy + 8.5} textAnchor="middle" {...T.axis}>
             {centerLabel}
           </text>
         )}
         <g data-part="legend">
           {items.map((slice, i) => {
-            const y = legendTop + i * rowStep;
+            const y = rowMid(i, rowH, legendTop);
             return (
               <g key={slice.label}>
                 <circle cx="126" cy={y} r="2.4" fill={cat(i)} />
-                <text x="132" y={y} dominantBaseline="central" {...TXT.label}>
+                <text x="132" y={y} dominantBaseline="central" {...T.label}>
                   {slice.label}
                 </text>
                 <text
@@ -91,7 +100,7 @@ export const Pie = forwardRef<SVGSVGElement, PieProps>(
                   y={y}
                   textAnchor="end"
                   dominantBaseline="central"
-                  {...TXT.value}
+                  {...T.value}
                 >
                   {fmt(slice.value)}
                 </text>

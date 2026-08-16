@@ -6,6 +6,7 @@ export type {
   Matrix,
   Pt,
   Series,
+  Tick,
   TreeNode,
 } from "./core/types";
 export { formatCompact } from "./core/types";

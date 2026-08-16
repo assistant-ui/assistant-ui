@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { polar, round } from "../../core/geometry";
 import { ACCENT, NEG, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type GaugeProps = BaseProps & {
   value: number;
@@ -49,11 +49,13 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
       needle,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
+    const T = typeScale(density);
     const vh =
       vbHeight(aspect, 5 / 3) + (ticks?.some((tick) => tick.label) ? 14 : 0);
     const cy = vh - 26;
@@ -61,7 +63,14 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
     const share = Math.max(0, Math.min(1, value));
     const inRed = (at: number) => redline !== undefined && at >= redline;
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <path
           d={semiArc(100, cy, r, 0, 1)}
           fill="none"
@@ -123,7 +132,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
                   x={round(pl.x)}
                   y={round(atEnd ? pl.y : pl.y + 1.4)}
                   textAnchor="middle"
-                  {...TXT.axis}
+                  {...T.axis}
                   fontSize={4.8}
                   fill={inRed(tick.at) ? NEG : undefined}
                 >
@@ -166,7 +175,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
           textAnchor="middle"
           fontSize={needle ? 12 : 15}
           fill={ink(0.85)}
-          fontFamily={TXT.value.fontFamily}
+          fontFamily={T.value.fontFamily}
         >
           {display ?? `${Math.round(share * 100)}%`}
         </text>
@@ -176,7 +185,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
             y={needle ? cy - 6 : cy + 4}
             textAnchor="middle"
             data-part="axis"
-            {...TXT.label}
+            {...T.label}
             fontSize={needle ? 5.6 : 7.5}
           >
             {label}
@@ -188,7 +197,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
             y={cy + 13}
             textAnchor="middle"
             data-part="axis"
-            {...TXT.axis}
+            {...T.axis}
             fontSize={5}
           >
             {min}
@@ -200,7 +209,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
             y={cy + 13}
             textAnchor="middle"
             data-part="axis"
-            {...TXT.axis}
+            {...T.axis}
             fontSize={5}
           >
             {max}

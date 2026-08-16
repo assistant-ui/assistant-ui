@@ -1,7 +1,13 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Series } from "../../core/types";
-import { bandPath, linePath, scalePoints, stroke } from "../../core/geometry";
+import type { Series, Tick } from "../../core/types";
+import {
+  bandPath,
+  linePath,
+  linear,
+  scalePoints,
+  stroke,
+} from "../../core/geometry";
 import { SURFACE, cat } from "../../core/theme";
 import { stack } from "../../core/layout";
 import {
@@ -10,13 +16,14 @@ import {
   ColumnHits,
   Legend,
   TickGrid,
+  plotFrame,
   typeScale,
   vbHeight,
 } from "../svg";
 
 export type StackedAreaProps = BaseProps & {
   series: Series[];
-  yTicks?: readonly { at: number; label: string }[];
+  yTicks?: readonly Tick[];
 };
 
 export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
@@ -37,17 +44,20 @@ export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
     const vh = vbHeight(aspect, 5 / 3);
     const T = typeScale(density);
     const showLegend = legend ?? series.length > 1;
-    const top = showLegend ? 24 : 12;
-    const bottom = labels ? vh - 16 : vh - 8;
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      legend: showLegend,
+      labels: Boolean(labels),
+      ticks: Boolean(yTicks?.length),
+    });
     const { totals, levels } = stack(series.map((s) => s.data));
     const max = Math.max(
       ...totals,
       ...(yTicks?.map((tick) => tick.at) ?? []),
       1,
     );
-    const Y = (v: number) => bottom - (v / max) * (bottom - top);
+    const Y = linear(0, max, bottom, top);
     const scaled = levels.map((level) =>
-      scalePoints(level, 14, 186, bottom, top, 0, max),
+      scalePoints(level, left, right, bottom, top, 0, max),
     );
     return (
       <ChartSvg
@@ -58,11 +68,11 @@ export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
         density={density}
         className={className}
       >
-        <TickGrid ticks={yTicks} at={Y} from={14} to={186} type={T.axis} />
+        <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
         <ColumnHits
           count={series[0]?.data.length ?? 0}
-          x0={14}
-          x1={186}
+          x0={left}
+          x1={right}
           top={top}
           bottom={bottom}
         />
@@ -96,7 +106,7 @@ export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
           <AxisLabels
             labels={labels}
             xs={scaled[0]!.map((p) => p.x)}
-            y={vh - (density === "figure" ? 6 : 4)}
+            y={axisY}
             type={T.axis}
           />
         )}

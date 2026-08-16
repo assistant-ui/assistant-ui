@@ -1,9 +1,10 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Series } from "../../core/types";
+import type { Series, Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import {
   linePath,
+  linear,
   round,
   scalePoints,
   stepPath,
@@ -31,7 +32,7 @@ export type LineProps = BaseProps & {
   data?: number[];
   series?: Series[];
   yMax?: number;
-  yTicks?: readonly { at: number; label: string }[];
+  yTicks?: readonly Tick[];
   step?: boolean;
   regions?: { from: number; to: number; label?: string }[];
   marks?: readonly LineMark[];
@@ -63,9 +64,10 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
     const multi = all.length > 1;
     const showLegend = legend ?? multi;
     const T = typeScale(density);
-    const { left, right, top, bottom } = plotFrame(vh, density, {
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
       legend: showLegend,
       labels: Boolean(labels),
+      ticks: Boolean(yTicks?.length),
     });
     const max =
       yMax ??
@@ -74,7 +76,7 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
         ...(yTicks?.map((tick) => tick.at) ?? []),
         1,
       );
-    const Y = (v: number) => bottom - (v / max) * (bottom - top);
+    const Y = linear(0, max, bottom, top);
     const grids = all.map((s) =>
       scalePoints(s.data, left, right, bottom, top, 0, max),
     );
@@ -213,7 +215,7 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
               first.map((p) => p.x),
               labels.length,
             )}
-            y={vh - (density === "figure" ? 6 : 4)}
+            y={axisY}
             type={T.axis}
           />
         )}

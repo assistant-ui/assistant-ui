@@ -8,6 +8,7 @@ import {
   ChartSvg,
   ColumnHits,
   labelXs,
+  plotFrame,
   typeScale,
   vbHeight,
 } from "../svg";
@@ -18,11 +19,14 @@ export const MirroredArea = forwardRef<SVGSVGElement, MirroredAreaProps>(
   ({ down, up, labels, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
     const T = typeScale(density);
-    const bottom = labels ? vh - 18 : vh - 10;
-    const mid = (12 + bottom) / 2;
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: Boolean(labels),
+      legend: true,
+    });
+    const mid = (top + bottom) / 2;
     const max = Math.max(...down.data, ...up.data, 1);
-    const topPts = scalePoints(down.data, 14, 186, mid - 2, 12, 0, max);
-    const upPts = scalePoints(up.data, 14, 186, mid + 2, bottom, 0, max);
+    const topPts = scalePoints(down.data, left, right, mid - 2, top, 0, max);
+    const upPts = scalePoints(up.data, left, right, mid + 2, bottom, 0, max);
     return (
       <ChartSvg
         ref={ref}
@@ -34,9 +38,9 @@ export const MirroredArea = forwardRef<SVGSVGElement, MirroredAreaProps>(
       >
         <ColumnHits
           count={down.data.length}
-          x0={14}
-          x1={186}
-          top={12}
+          x0={left}
+          x1={right}
+          top={top}
           bottom={bottom}
         />
         <path
@@ -65,24 +69,24 @@ export const MirroredArea = forwardRef<SVGSVGElement, MirroredAreaProps>(
           {...stroke.medium}
         />
         <line
-          x1="10"
+          x1={left}
           y1={mid}
-          x2="190"
+          x2={right}
           y2={mid}
           stroke={ink(0.2)}
           data-part="grid"
           {...stroke.hair}
         />
         <text
-          x="14"
-          y="9"
+          x={left}
+          y={top - 3}
           fontSize={T.axis.fontSize}
           fill={ACCENT}
           fontFamily={T.axis.fontFamily}
         >
           ↓ {down.name}
         </text>
-        <text x="14" y={bottom - 2} {...T.axis}>
+        <text x={left} y={bottom - 2} {...T.axis}>
           ↑ {up.name}
         </text>
         {labels && (
@@ -92,7 +96,7 @@ export const MirroredArea = forwardRef<SVGSVGElement, MirroredAreaProps>(
               topPts.map((p) => p.x),
               labels.length,
             )}
-            y={vh - (density === "figure" ? 6 : 4)}
+            y={axisY}
             type={T.axis}
           />
         )}

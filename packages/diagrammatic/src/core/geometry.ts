@@ -8,6 +8,24 @@ export function clamp01(n: number): number {
   return Math.max(0, Math.min(1, n));
 }
 
+export function linear(
+  domain0: number,
+  domain1: number,
+  range0: number,
+  range1: number,
+) {
+  const span = domain1 - domain0 || 1;
+  return (v: number) => range0 + ((v - domain0) / span) * (range1 - range0);
+}
+
+export function rowMid(index: number, rowH: number, top: number): number {
+  return top + (index + 0.5) * rowH;
+}
+
+export function rowMarkH(rowH: number, ratio = 0.42): number {
+  return Math.max(2.4, Math.min(rowH * ratio, rowH - 1.4));
+}
+
 export function extent(values: number[]): [number, number] {
   let lo = Infinity;
   let hi = -Infinity;

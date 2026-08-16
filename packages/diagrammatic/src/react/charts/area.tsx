@@ -1,9 +1,11 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
+import type { Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import {
   areaPath,
   linePath,
+  linear,
   round,
   scalePoints,
   stroke,
@@ -22,7 +24,7 @@ import {
 export type AreaProps = BaseProps & {
   data: number[];
   yMax?: number;
-  yTicks?: readonly { at: number; label: string }[];
+  yTicks?: readonly Tick[];
   regions?: { from: number; to: number; label?: string }[];
 };
 
@@ -45,12 +47,13 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const T = typeScale(density);
-    const { left, right, top, bottom } = plotFrame(vh, density, {
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
       labels: Boolean(labels),
+      ticks: Boolean(yTicks?.length),
     });
     const max =
       yMax ?? Math.max(...data, ...(yTicks?.map((tick) => tick.at) ?? []), 1);
-    const Y = (v: number) => bottom - (v / max) * (bottom - top);
+    const Y = linear(0, max, bottom, top);
     const pts = scalePoints(data, left, right, bottom, top, 0, max);
     const last = pts[pts.length - 1];
     const count = Math.max(1, data.length - 1);
@@ -131,7 +134,7 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
               pts.map((p) => p.x),
               labels.length,
             )}
-            y={vh - (density === "figure" ? 6 : 4)}
+            y={axisY}
             type={T.axis}
           />
         )}

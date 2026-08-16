@@ -1,17 +1,17 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Item } from "../../core/types";
+import type { Item, Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
-import { round, stroke } from "../../core/geometry";
+import { linear, round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, cat, ink } from "../../core/theme";
-import { ChartSvg, TickGrid, TXT, vbHeight } from "../svg";
+import { ChartSvg, TickGrid, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type ColumnProps = BaseProps & {
   items: Item[];
   highlight?: "max" | "last" | string;
   categorical?: boolean;
   values?: boolean;
-  yTicks?: readonly { at: number; label: string }[];
+  yTicks?: readonly Tick[];
   target?: { at: number; label?: string };
 };
 
@@ -31,42 +31,53 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
       format = formatCompact,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
-    const bottom = vh - 16;
-    const leftEdge = 14;
+    const T = typeScale(density);
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: true,
+      ticks: Boolean(yTicks?.length),
+    });
     const max = Math.max(
       ...items.map((r) => r.value),
       ...(yTicks?.map((tick) => tick.at) ?? []),
       ...(target ? [target.at] : []),
       1,
     );
-    const Y = (v: number) => bottom - (v / max) * (bottom - 20);
+    const Y = linear(0, max, bottom, top);
     const highest = Math.max(...items.map((r) => r.value));
-    const step = 176 / Math.max(1, items.length);
+    const step = (right - left) / Math.max(1, items.length);
     const width = Math.min(16, step * 0.62);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <line
-          x1="10"
+          x1={left}
           y1={bottom}
-          x2="190"
+          x2={right}
           y2={bottom}
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
         />
-        <TickGrid ticks={yTicks} at={Y} from={leftEdge} to={190} />
+        <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
         {target && (
           <g data-part="grid">
             <line
-              x1={leftEdge}
+              x1={left}
               y1={round(Y(target.at))}
-              x2="190"
+              x2={right}
               y2={round(Y(target.at))}
               stroke={ink(0.45)}
               strokeDasharray="2.5 3"
@@ -74,10 +85,10 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
             />
             {target.label && (
               <text
-                x="190"
+                x={right}
                 y={round(Y(target.at)) - 2}
                 textAnchor="end"
-                {...TXT.axis}
+                {...T.axis}
                 fill={ink(0.8)}
               >
                 {target.label}
@@ -88,17 +99,17 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
         {items.map((_, i) => (
           <rect
             key={`hit-${i}`}
-            x={round(14 + step * i)}
-            y={10}
+            x={round(left + step * i)}
+            y={top}
             width={round(step)}
-            height={bottom - 10}
+            height={bottom - top}
             fill="transparent"
             data-part="mark"
             data-i={i}
           />
         ))}
         {items.map((row, i) => {
-          const x = 14 + step * (i + 0.5) - width / 2;
+          const x = left + step * (i + 0.5) - width / 2;
           const h = bottom - Y(row.value);
           const accent =
             highlight === "last"
@@ -121,17 +132,12 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
                   x={x + width / 2}
                   y={bottom - h - 4}
                   textAnchor="middle"
-                  {...TXT.value}
+                  {...T.value}
                 >
                   {format(row.value)}
                 </text>
               )}
-              <text
-                x={x + width / 2}
-                y={vh - 4}
-                textAnchor="middle"
-                {...TXT.axis}
-              >
+              <text x={x + width / 2} y={axisY} textAnchor="middle" {...T.axis}>
                 {row.label}
               </text>
             </g>

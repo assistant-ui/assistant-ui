@@ -1,10 +1,10 @@
 import type { BaseProps } from "../svg";
-import { round } from "../../core/geometry";
+import { round, rowMarkH, rowMid } from "../../core/geometry";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { ACCENT, ink } from "../../core/theme";
-import { ChartSvg, TXT, rowMarkH, vbHeight } from "../svg";
+import { ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type LeaderboardProps = BaseProps & {
   items: Item[];
@@ -19,42 +19,53 @@ export const Leaderboard = forwardRef<SVGSVGElement, LeaderboardProps>(
       format = formatCompact,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
+    const { left, right, top, bottom } = plotFrame(vh, density, {
+      left: density === "figure" ? 52 : 48,
+    });
     const max = Math.max(...items.map((r) => r.value), 1);
-    const rowH = Math.min(21, (vh - 16) / Math.max(1, items.length));
-    const trackW = showValues ? 112 : 138;
+    const rowH = (bottom - top) / Math.max(1, items.length);
+    const barH = Math.min(8.5, rowMarkH(rowH, 0.5));
+    const valuePad = showValues ? 18 : 0;
+    const trackW = right - left - valuePad;
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {items.map((row, i) => {
-          const y = 10 + i * rowH;
-          const mid = y + rowH / 2;
-          const barH = Math.min(8.5, rowMarkH(rowH, 0.5));
+          const mid = rowMid(i, rowH, top);
           return (
             <g key={row.label} data-part="mark" data-i={i}>
               <text
-                x="14"
+                x={left - 4}
                 y={mid}
+                textAnchor="end"
                 dominantBaseline="central"
-                fontSize="4.2"
-                fill={ink(0.6)}
-                fontFamily={TXT.axis.fontFamily}
+                {...T.label}
               >
                 {row.label}
               </text>
               <rect
-                x="48"
+                x={left}
                 y={round(mid - barH / 2)}
                 width={trackW}
                 height={barH}
                 fill={ink(0.08)}
               />
               <rect
-                x="48"
+                x={left}
                 y={round(mid - barH / 2)}
                 width={round(Math.max((row.value / max) * trackW, 4))}
                 height={barH}
@@ -62,13 +73,11 @@ export const Leaderboard = forwardRef<SVGSVGElement, LeaderboardProps>(
               />
               {showValues && (
                 <text
-                  x="186"
+                  x={right}
                   y={mid}
                   dominantBaseline="central"
-                  fontSize="4.2"
                   textAnchor="end"
-                  fill={ink(0.4)}
-                  fontFamily={TXT.axis.fontFamily}
+                  {...T.axis}
                 >
                   {format(row.value)}
                 </text>

@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { linePath, round } from "../../core/geometry";
 import { ACCENT, cat, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type ViolinProps = BaseProps & {
   groups: {
@@ -20,32 +20,44 @@ function jitter(value: number, index: number): number {
 }
 
 export const Violin = forwardRef<SVGSVGElement, ViolinProps>(
-  ({ groups, categorical, title, aspect, className, ...rest }, ref) => {
+  (
+    { groups, categorical, title, aspect, density, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
-    const bottom = vh - 16;
-    const step = 176 / Math.max(1, groups.length);
+    const T = typeScale(density);
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: true,
+    });
+    const step = (right - left) / Math.max(1, groups.length);
     const maxWidth = Math.max(...groups.flatMap((g) => g.widths), 1);
     const halfMax = Math.min(16, step * 0.32);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {groups.map((shape, i) => {
-          const cx = 14 + step * (i + 0.5);
+          const cx = left + step * (i + 0.5);
           const rows = shape.widths.length;
-          const rowStep = (bottom - 12 - 2) / Math.max(1, rows - 1);
-          const top = 12;
-          const spanBottom = 12 + (rows - 1) * rowStep;
-          const right = shape.widths.map((w, k) => ({
+          const rowStep = (bottom - top) / Math.max(1, rows - 1);
+          const spanBottom = top + (rows - 1) * rowStep;
+          const rightPts = shape.widths.map((w, k) => ({
             x: cx + (w / maxWidth) * halfMax,
             y: spanBottom - k * rowStep,
           }));
-          const left = shape.widths
+          const leftPts = shape.widths
             .map((w, k) => ({
               x: cx - (w / maxWidth) * halfMax,
               y: spanBottom - k * rowStep,
             }))
             .reverse();
-          const d = `${linePath(right)} L${linePath(left).slice(1)} Z`;
-          const medianY = bottom - shape.median * (bottom - 12);
+          const d = `${linePath(rightPts)} L${linePath(leftPts).slice(1)} Z`;
+          const medianY = bottom - shape.median * (bottom - top);
           const fill = categorical ? cat(i) : ink(0.12);
           const pts = shape.points;
           const pMin = pts && pts.length ? Math.min(...pts) : 0;
@@ -86,7 +98,7 @@ export const Violin = forwardRef<SVGSVGElement, ViolinProps>(
                 );
               })}
               <circle cx={cx} cy={round(medianY)} r="2.6" fill={ACCENT} />
-              <text x={cx} y={vh - 4} textAnchor="middle" {...TXT.axis}>
+              <text x={cx} y={axisY} textAnchor="middle" {...T.axis}>
                 {shape.label}
               </text>
             </g>

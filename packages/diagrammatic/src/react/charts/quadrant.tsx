@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { extent, round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type QuadrantProps = BaseProps & {
   points: { x: number; y: number; label?: string }[];
@@ -13,10 +13,21 @@ export type QuadrantProps = BaseProps & {
 
 export const Quadrant = forwardRef<SVGSVGElement, QuadrantProps>(
   (
-    { points, xLabel, yLabel, quadrants, title, aspect, className, ...rest },
+    {
+      points,
+      xLabel,
+      yLabel,
+      quadrants,
+      title,
+      aspect,
+      density,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const bottom = vh - 14;
     const [xLo, xHi] = extent(points.map((p) => p.x));
     const [yLo, yHi] = extent(points.map((p) => p.y));
@@ -28,7 +39,14 @@ export const Quadrant = forwardRef<SVGSVGElement, QuadrantProps>(
     const midX = X(xMid);
     const midY = Y(yMid);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <rect
           x="14"
           y="8"
@@ -59,16 +77,16 @@ export const Quadrant = forwardRef<SVGSVGElement, QuadrantProps>(
         />
         {quadrants && (
           <g data-part="label">
-            <text x="18" y="15" {...TXT.axis}>
+            <text x="18" y="15" {...T.axis}>
               {quadrants[0]}
             </text>
-            <text x="182" y="15" textAnchor="end" {...TXT.axis}>
+            <text x="182" y="15" textAnchor="end" {...T.axis}>
               {quadrants[1]}
             </text>
-            <text x="18" y={bottom - 8} {...TXT.axis}>
+            <text x="18" y={bottom - 8} {...T.axis}>
               {quadrants[2]}
             </text>
-            <text x="182" y={bottom - 8} textAnchor="end" {...TXT.axis}>
+            <text x="182" y={bottom - 8} textAnchor="end" {...T.axis}>
               {quadrants[3]}
             </text>
           </g>
@@ -87,7 +105,7 @@ export const Quadrant = forwardRef<SVGSVGElement, QuadrantProps>(
             />
           );
         })}
-        <text x="186" y={vh - 4} textAnchor="end" {...TXT.axis}>
+        <text x="186" y={vh - 4} textAnchor="end" {...T.axis}>
           {xLabel} → · {yLabel} ↑
         </text>
       </ChartSvg>

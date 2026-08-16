@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import type { Graph } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type ArcDiagramProps = BaseProps & {
   graph: Graph;
@@ -12,8 +12,9 @@ export type ArcDiagramProps = BaseProps & {
 
 /** Nodes stay in the given order; sort them upstream on purpose. */
 export const ArcDiagram = forwardRef<SVGSVGElement, ArcDiagramProps>(
-  ({ graph, highlight, title, aspect, className, ...rest }, ref) => {
+  ({ graph, highlight, title, aspect, density, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const baseline = vh - 28;
     const xs = new Map(
       graph.nodes.map((node, i) => [
@@ -30,7 +31,14 @@ export const ArcDiagram = forwardRef<SVGSVGElement, ArcDiagramProps>(
       highlight !== undefined &&
       (link.source === highlight || link.target === highlight);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         <line
           x1="14"
           y1={baseline}
@@ -80,7 +88,7 @@ export const ArcDiagram = forwardRef<SVGSVGElement, ArcDiagramProps>(
                 x={round(x)}
                 y={baseline + 12}
                 textAnchor="middle"
-                {...TXT.axis}
+                {...T.axis}
               >
                 {node.label ?? node.id}
               </text>

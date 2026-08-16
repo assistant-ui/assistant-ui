@@ -2,9 +2,9 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Item } from "../../core/types";
 import { formatCompact } from "../../core/types";
-import { stroke } from "../../core/geometry";
+import { linear, rowMid, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type DotPlotProps = BaseProps & {
   items: Item[];
@@ -21,49 +21,68 @@ export const DotPlot = forwardRef<SVGSVGElement, DotPlotProps>(
       format = formatCompact,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: Boolean(ticks?.length),
+      left: density === "figure" ? 50 : 44,
+    });
     const max = Math.max(...items.map((r) => r.value), ...(ticks ?? []), 1);
     const highest = Math.max(...items.map((r) => r.value));
-    const X = (v: number) => 44 + (v / max) * 142;
-    const rowH = (vh - (ticks ? 24 : 12)) / Math.max(1, items.length);
+    const X = linear(0, max, left, right);
+    const rowH = (bottom - top) / Math.max(1, items.length);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {ticks?.map((tick) => (
           <g key={tick}>
             <line
               x1={X(tick)}
-              y1="8"
+              y1={top}
               x2={X(tick)}
-              y2={vh - 18}
+              y2={bottom}
               stroke={GRID}
               data-part="grid"
               {...stroke.hair}
             />
-            <text x={X(tick)} y={vh - 6} textAnchor="middle" {...TXT.axis}>
+            <text x={X(tick)} y={axisY} textAnchor="middle" {...T.axis}>
               {format(tick)}
             </text>
           </g>
         ))}
         {items.map((row, i) => {
-          const y = 12 + rowH * i;
+          const y = rowMid(i, rowH, top);
           const accent =
             highlight === "max"
               ? row.value === highest
               : row.label === highlight;
           return (
             <g key={row.label} data-part="mark" data-i={i}>
-              <text x="8" y={y} dominantBaseline="central" {...TXT.axis}>
+              <text
+                x={left - 4}
+                y={y}
+                textAnchor="end"
+                dominantBaseline="central"
+                {...T.axis}
+              >
                 {row.label}
               </text>
               <line
-                x1="44"
+                x1={left}
                 y1={y}
-                x2="186"
+                x2={right}
                 y2={y}
                 stroke={GRID}
                 {...stroke.hair}

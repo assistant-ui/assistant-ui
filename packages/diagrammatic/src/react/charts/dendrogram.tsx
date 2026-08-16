@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import { round, stroke } from "../../core/geometry";
 import { dendrogram } from "../../core/layout";
 import { ACCENT, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type DendrogramProps = BaseProps & {
   leaves: string[];
@@ -17,8 +17,12 @@ export type DendrogramProps = BaseProps & {
  * one merge and everything below it.
  */
 export const Dendrogram = forwardRef<SVGSVGElement, DendrogramProps>(
-  ({ leaves, merges, highlight, title, aspect, className, ...rest }, ref) => {
+  (
+    { leaves, merges, highlight, title, aspect, density, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const baseline = vh - 24;
     const { brackets } = dendrogram(leaves.length, merges);
     const X = (slot: number) =>
@@ -39,7 +43,14 @@ export const Dendrogram = forwardRef<SVGSVGElement, DendrogramProps>(
       walk(leaves.length + highlight);
     }
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {brackets.map((bracket, i) => {
           const accent = inHighlight.has(leaves.length + i);
           return (
@@ -67,7 +78,7 @@ export const Dendrogram = forwardRef<SVGSVGElement, DendrogramProps>(
               x={round(X(i))}
               y={baseline + 10}
               textAnchor="middle"
-              {...TXT.axis}
+              {...T.axis}
             >
               {leaf}
             </text>

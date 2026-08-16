@@ -4,7 +4,7 @@ import type { Pt } from "../../core/types";
 import { extent, round, stroke } from "../../core/geometry";
 import { ACCENT } from "../../core/theme";
 import { densityEllipse } from "../../core/layout";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type ContourProps = BaseProps & {
   points: Pt[];
@@ -21,8 +21,12 @@ const LEVELS = [
 
 /** Density contours drawn as covariance ellipses at fixed sigma levels. */
 export const Contour = forwardRef<SVGSVGElement, ContourProps>(
-  ({ points, xLabel, yLabel, title, aspect, className, ...rest }, ref) => {
+  (
+    { points, xLabel, yLabel, title, aspect, density, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
     const [xLo, xHi] = extent(points.map((p) => p.x));
     const [yLo, yHi] = extent(points.map((p) => p.y));
     const projected = points.map((p) => ({
@@ -31,7 +35,14 @@ export const Contour = forwardRef<SVGSVGElement, ContourProps>(
     }));
     const ellipse = densityEllipse(projected);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {LEVELS.map((level, i) => (
           <ellipse
             key={i}
@@ -55,13 +66,13 @@ export const Contour = forwardRef<SVGSVGElement, ContourProps>(
             y={vh / 2 - 6}
             transform={`rotate(-90 4 ${vh / 2 - 6})`}
             textAnchor="middle"
-            {...TXT.axis}
+            {...T.axis}
           >
             {yLabel}
           </text>
         )}
         {xLabel && (
-          <text x="100" y={vh - 3} textAnchor="middle" {...TXT.axis}>
+          <text x="100" y={vh - 3} textAnchor="middle" {...T.axis}>
             {xLabel} →
           </text>
         )}

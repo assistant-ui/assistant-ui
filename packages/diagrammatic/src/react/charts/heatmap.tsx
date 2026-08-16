@@ -1,8 +1,9 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { formatCompact, type Matrix } from "../../core/types";
+import { rowMid } from "../../core/geometry";
 import { ACCENT, seqOpacity } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
 
 export type HeatmapProps = BaseProps & {
   matrix: Matrix;
@@ -20,18 +21,24 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
       format = formatCompact,
       title,
       aspect,
+      density,
       className,
       ...rest
     },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
+    const T = typeScale(density);
+    const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
+      labels: true,
+      left: density === "figure" ? 36 : 32,
+    });
     const cols = matrix.cols.length;
     const rows = matrix.rows.length;
     const max = Math.max(...matrix.values.flat(), 1);
     if (mark === "dot") {
-      const stepX = 156 / Math.max(1, cols - 1);
-      const stepY = (vh - 34) / Math.max(1, rows - 1);
+      const stepX = (right - left) / Math.max(1, cols - 1);
+      const stepY = (bottom - top) / Math.max(1, rows - 1);
       const maxR = Math.min(stepX, stepY) * 0.42;
       return (
         <ChartSvg
@@ -39,15 +46,17 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
           {...rest}
           vh={vh}
           title={title}
+          density={density}
           className={className}
         >
           {matrix.rows.map((row, r) => (
             <text
               key={row}
-              x="8"
-              y={12 + r * stepY}
+              x={left - 4}
+              y={rowMid(r, stepY, top)}
+              textAnchor="end"
               dominantBaseline="central"
-              {...TXT.axis}
+              {...T.axis}
             >
               {row}
             </text>
@@ -56,10 +65,10 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
             col ? (
               <text
                 key={`${col}-${c}`}
-                x={32 + c * stepX}
-                y={vh - 4}
+                x={left + c * stepX}
+                y={axisY}
                 textAnchor="middle"
-                {...TXT.axis}
+                {...T.axis}
               >
                 {col}
               </text>
@@ -71,8 +80,8 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
               return (
                 <circle
                   key={`${r}-${c}`}
-                  cx={32 + c * stepX}
-                  cy={12 + r * stepY}
+                  cx={left + c * stepX}
+                  cy={rowMid(r, stepY, top)}
                   r={0.6 + t * maxR}
                   fill={ACCENT}
                   opacity={0.25 + 0.6 * t}
@@ -86,17 +95,25 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
         </ChartSvg>
       );
     }
-    const cellW = 160 / Math.max(1, cols);
-    const cellH = (vh - 24) / Math.max(1, rows);
+    const cellW = (right - left) / Math.max(1, cols);
+    const cellH = (bottom - top) / Math.max(1, rows);
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {matrix.rows.map((row, r) => (
           <text
             key={row}
-            x="8"
-            y={8 + r * cellH + cellH / 2}
+            x={left - 4}
+            y={rowMid(r, cellH, top)}
+            textAnchor="end"
             dominantBaseline="central"
-            {...TXT.axis}
+            {...T.axis}
           >
             {row}
           </text>
@@ -105,10 +122,10 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
           col ? (
             <text
               key={`${col}-${c}`}
-              x={30 + c * cellW + (cellW - 2) / 2}
-              y={vh - 5}
+              x={left + c * cellW + (cellW - 2) / 2}
+              y={axisY}
               textAnchor="middle"
-              {...TXT.axis}
+              {...T.axis}
             >
               {col}
             </text>
@@ -116,8 +133,8 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
         )}
         {matrix.values.flatMap((rowValues, r) =>
           rowValues.map((v, c) => {
-            const x = 30 + c * cellW;
-            const y = 8 + r * cellH;
+            const x = left + c * cellW;
+            const y = top + r * cellH;
             const width = Math.max(cellW - 2, 0.5);
             const height = Math.max(cellH - 2, 0.5);
             const share = v / max;
@@ -139,10 +156,10 @@ export const Heatmap = forwardRef<SVGSVGElement, HeatmapProps>(
                     x={x + width / 2}
                     y={y + height / 2 + 1}
                     textAnchor="middle"
-                    fontSize={3}
+                    fontSize={T.onSeries.fontSize}
                     fill="#fff"
                     opacity={0.9}
-                    fontFamily={TXT.axis.fontFamily}
+                    fontFamily={T.onSeries.fontFamily}
                   >
                     {format(v)}
                   </text>

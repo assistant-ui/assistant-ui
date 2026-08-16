@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { round, stroke } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
-import { ChartSvg, TXT, vbHeight } from "../svg";
+import { ChartSvg, typeScale, vbHeight } from "../svg";
 
 export type BulletProps = BaseProps & {
   value: number;
@@ -13,16 +13,27 @@ export type BulletProps = BaseProps & {
 
 /** One measure against a target line and three qualitative bands. */
 export const Bullet = forwardRef<SVGSVGElement, BulletProps>(
-  ({ value, target, bands, label, title, aspect, className, ...rest }, ref) => {
+  (
+    { value, target, bands, label, title, aspect, density, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 25 / 4);
+    const T = typeScale(density);
     const max = Math.max(bands[2], value, target, 1);
     const X = (v: number) => (label ? 34 : 4) + (v / max) * (label ? 156 : 188);
     const x0 = label ? 34 : 4;
     const mid = vh / 2;
     return (
-      <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
+      <ChartSvg
+        ref={ref}
+        {...rest}
+        vh={vh}
+        title={title}
+        density={density}
+        className={className}
+      >
         {label && (
-          <text x="4" y={mid} dominantBaseline="central" {...TXT.axis}>
+          <text x="4" y={mid} dominantBaseline="central" {...T.axis}>
             {label}
           </text>
         )}
