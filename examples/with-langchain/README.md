@@ -2,7 +2,7 @@
 
 Demonstrates `@assistant-ui/react-langchain`, which wraps `useStream` from `@langchain/react` and exposes it as an assistant-ui runtime.
 
-> assistant-ui also ships `@assistant-ui/react-langgraph`, which integrates with `@langchain/langgraph-sdk` directly and currently has a broader feature set. Pick the adapter that matches your upstream choice. See [the comparison](https://www.assistant-ui.com/docs/runtimes/langchain).
+> assistant-ui also ships `@assistant-ui/react-langgraph`, which integrates with `@langchain/langgraph-sdk` directly and currently has a broader feature set. Pick the adapter that matches your upstream choice. See [the comparison](https://www.assistant-ui.com/docs/runtimes/langchain#comparison-with-react-langgraph).
 
 ## Quick Start
 
@@ -44,4 +44,4 @@ Open [http://localhost:3000](http://localhost:3000).
 
 - [assistant-ui Documentation](https://www.assistant-ui.com/docs)
 - [LangChain useStream Integration](https://www.assistant-ui.com/docs/runtimes/langchain)
-- [react-langgraph vs react-langchain](https://www.assistant-ui.com/docs/runtimes/langchain)
+- [react-langgraph vs react-langchain](https://www.assistant-ui.com/docs/runtimes/langchain#comparison-with-react-langgraph)
