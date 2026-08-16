@@ -675,6 +675,57 @@ describe("LocalThreadRuntimeCore optimistic attachment sends", () => {
     expect(runs).toHaveLength(1);
   });
 
+  it("completes a send whose upload settles after the run was cancelled", async () => {
+    const { thread, runs, appended, uploads } = createOptimisticThread({
+      history: {},
+    });
+
+    thread.composer.setText("with attachment");
+    await thread.composer.addAttachment(textFile());
+    const sendPromise = thread.composer.send();
+    await flush();
+
+    thread.cancelRun();
+    await flush();
+
+    uploads[0]!.resolve();
+    await sendPromise;
+    await flush();
+
+    expect(thread.messages[0]?.attachments?.[0]?.status).toEqual({
+      type: "complete",
+    });
+    expect(appended).toHaveLength(2);
+    expect(runs).toHaveLength(1);
+  });
+
+  it("frees a send queued behind a stalled upload when the run is cancelled", async () => {
+    const { thread, runs, uploads } = createOptimisticThread();
+
+    thread.composer.setText("first hangs");
+    await thread.composer.addAttachment(textFile());
+    void thread.composer.send().catch(() => {});
+    await flush();
+
+    thread.composer.setText("second");
+    await thread.composer.addAttachment(textFile());
+    const secondSend = thread.composer.send();
+    await flush();
+
+    thread.cancelRun();
+    await flush();
+
+    uploads[1]!.resolve();
+    await secondSend;
+    await flush();
+
+    const second = thread.messages.find(
+      (m) => m.attachments?.[0]?.status.type === "complete",
+    );
+    expect(second).toBeDefined();
+    expect(runs).toHaveLength(1);
+  });
+
   it("returns the uploaded draft to the composer when the thread is reset mid-upload", async () => {
     const { thread, runs, uploads } = createOptimisticThread();
 

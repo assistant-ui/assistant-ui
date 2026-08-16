@@ -2343,7 +2343,6 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   private _runGeneration;
   private _historyWrites;
   private _pendingAttachmentSend;
-  private _attachmentSendGeneration;
   private _attachmentSendReleased;
   private _releaseAttachmentSend;
   private _awaitAttachmentSend;

@@ -88,15 +88,15 @@ export class LocalThreadRuntimeCore
   private _historyWrites = new Map<string, Promise<void>>();
 
   private _pendingAttachmentSend: Promise<void> | null = null;
-  private _attachmentSendGeneration = 0;
   private _attachmentSendReleased: Promise<void> | null = null;
   private _releaseAttachmentSend: (() => void) | null = null;
 
   // `AttachmentAdapter.send` takes no abort signal, so an upload that never
   // settles cannot be cancelled — but the ordering it holds must stay
-  // releasable, or every later append waits on it with no way out. Waiters
-  // race the chain against this signal; the generation tells work that resumes
-  // after a release that it no longer owns the tail.
+  // releasable, or every append behind it waits with no way out. A release
+  // only unblocks waiters and queued sends; the stalled send itself is not
+  // invalidated, matching the lock path where a send that settles after a
+  // cancelled run still appends and starts its run.
   private _awaitAttachmentSend(pending: Promise<void>): Promise<void> {
     this._attachmentSendReleased ??= new Promise<void>((resolve) => {
       this._releaseAttachmentSend = resolve;
@@ -106,7 +106,6 @@ export class LocalThreadRuntimeCore
 
   private _releasePendingAttachmentSend(): void {
     if (!this._pendingAttachmentSend) return;
-    this._attachmentSendGeneration++;
     this._pendingAttachmentSend = null;
     this._releaseAttachmentSend?.();
     this._attachmentSendReleased = null;
@@ -117,7 +116,9 @@ export class LocalThreadRuntimeCore
   // settles: a message sent meanwhile is appended immediately but must not
   // persist or run ahead of the parent it was appended under.
   private _chainAttachmentSend(work: () => Promise<void>): Promise<void> {
-    const previous = this._pendingAttachmentSend ?? Promise.resolve();
+    const previous = this._pendingAttachmentSend
+      ? this._awaitAttachmentSend(this._pendingAttachmentSend)
+      : Promise.resolve();
     const next = previous.then(work, work);
     const stored = next.then(
       () => {},
@@ -451,7 +452,6 @@ export class LocalThreadRuntimeCore
     // `_runAppend`.
     const message = this.enrichAppendMetadata(rawMessage);
     const generation = captureThreadRuntimeGeneration(this);
-    const sendGeneration = this._attachmentSendGeneration;
     this.ensureInitialized();
     const initPromise = this._getInitializePromise?.();
 
@@ -493,7 +493,6 @@ export class LocalThreadRuntimeCore
         throw e;
       }
       if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
-      if (sendGeneration !== this._attachmentSendGeneration) return;
 
       // A message removed mid-upload (deleteMessage, a thread reset or import
       // that cleared the repository) has nowhere to land. The composer was
@@ -539,8 +538,6 @@ export class LocalThreadRuntimeCore
 
     await this._waitForAttachmentSendChain();
     if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
-    // A cancel released this send's ordering; it must not then start a run.
-    if (sendGeneration !== this._attachmentSendGeneration) return;
 
     if (this.repository.headId !== optimisticMessage.id) {
       // A message sent during the upload already sits below this one and owns
