@@ -448,24 +448,29 @@ describe("createAdkStream - SSE parsing", () => {
     expect(collected[1]!.id).toBe("e2");
   });
 
-  it("rejects empty stream events", async () => {
-    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("data: {}\n\n")));
-
-    const stream = createAdkStream({ api: "/api/adk" });
-    const consume = async () => {
-      const gen = await stream(
-        [{ id: "m1", type: "human", content: "Hi" }],
-        makeConfig(),
+  it.each(["{}", "null", "[]", '["event"]', '"event"'])(
+    "rejects empty or non-object stream events: %s",
+    async (payload) => {
+      mockFetch.mockResolvedValueOnce(
+        sseResponse(sseBody(`data: ${payload}\n\n`)),
       );
-      for await (const _event of gen) {
-        void _event;
-      }
-    };
 
-    await expect(consume()).rejects.toThrow(
-      "Invalid ADK stream event: expected a non-empty object.",
-    );
-  });
+      const stream = createAdkStream({ api: "/api/adk" });
+      const consume = async () => {
+        const gen = await stream(
+          [{ id: "m1", type: "human", content: "Hi" }],
+          makeConfig(),
+        );
+        for await (const _event of gen) {
+          void _event;
+        }
+      };
+
+      await expect(consume()).rejects.toThrow(
+        "Invalid ADK stream event: expected a non-empty object.",
+      );
+    },
+  );
 
   it("reports invalid JSON as an ADK stream event error", async () => {
     mockFetch.mockResolvedValueOnce(sseResponse(sseBody("data: not-json\n\n")));
