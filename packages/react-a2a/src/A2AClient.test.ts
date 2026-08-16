@@ -1511,6 +1511,112 @@ describe("A2AClient", () => {
       expect(url).toBe("https://agent.test/tasks/t1/pushNotificationConfigs");
     });
 
+    it.each([
+      [
+        "pushNotificationConfigs:create",
+        () =>
+          client.createTaskPushNotificationConfig({
+            taskId: "t1",
+            url: "https://hook.test",
+          }),
+      ],
+      [
+        "pushNotificationConfigs:get",
+        () => client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ],
+    ])("rejects malformed %s responses", async (operation, request) => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(request()).rejects.toThrow(
+        `Invalid A2A ${operation} response`,
+      );
+    });
+
+    it.each([
+      { configs: {} },
+      { configs: [{}] },
+      { configs: [], nextPageToken: 42 },
+    ])("rejects malformed list responses", async (response) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(response));
+
+      await expect(
+        client.listTaskPushNotificationConfigs("t1"),
+      ).rejects.toThrow("Invalid A2A pushNotificationConfigs:list response");
+    });
+
+    it.each([{}, { configs: null, nextPageToken: null }])(
+      "normalizes omitted ProtoJSON list defaults",
+      async (response) => {
+        fetchMock.mockResolvedValue(mockFetchResponse(response));
+
+        await expect(
+          client.listTaskPushNotificationConfigs("t1"),
+        ).resolves.toEqual({
+          configs: [],
+        });
+      },
+    );
+
+    it("normalizes an omitted authentication scheme", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          url: "https://hook.test",
+          authentication: { credentials: "secret" },
+        }),
+      );
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).resolves.toEqual({
+        url: "https://hook.test",
+        authentication: { scheme: "", credentials: "secret" },
+      });
+    });
+
+    it("rejects malformed nested authentication responses", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          url: "https://hook.test",
+          authentication: { scheme: 42 },
+        }),
+      );
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).rejects.toThrow("Invalid A2A pushNotificationConfigs:get response");
+    });
+
+    it("accepts valid nested authentication responses", async () => {
+      const config = {
+        url: "https://hook.test",
+        authentication: { scheme: "Bearer", credentials: "secret" },
+      };
+      fetchMock.mockResolvedValue(mockFetchResponse(config));
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).resolves.toEqual(config);
+    });
+
+    it("normalizes nullable optional config fields", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          tenant: null,
+          id: null,
+          taskId: null,
+          url: "https://hook.test",
+          token: null,
+          authentication: null,
+        }),
+      );
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).resolves.toEqual({
+        url: "https://hook.test",
+      });
+    });
+
     it("deleteTaskPushNotificationConfig sends DELETE", async () => {
       fetchMock.mockResolvedValue({
         ok: true,

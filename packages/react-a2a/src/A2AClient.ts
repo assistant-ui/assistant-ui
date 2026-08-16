@@ -318,6 +318,96 @@ const parseListTasksResponse = (value: unknown): A2AListTasksResponse => {
   };
 };
 
+const invalidPushNotificationConfigResponse =
+  (
+    operation: "pushNotificationConfigs:create" | "pushNotificationConfigs:get",
+  ) =>
+  (): never => {
+    throw new Error(
+      `Invalid A2A ${operation} response: expected a valid push notification config payload.`,
+    );
+  };
+
+const invalidListPushNotificationConfigsResponse = (): never => {
+  throw new Error(
+    "Invalid A2A pushNotificationConfigs:list response: expected a valid push notification config list payload.",
+  );
+};
+
+const parseOptionalString = (
+  value: unknown,
+  invalid: () => never,
+): string | undefined =>
+  value == null ? undefined : typeof value === "string" ? value : invalid();
+
+const parseTaskPushNotificationConfigResponse = (
+  value: unknown,
+  invalid: () => never,
+): A2ATaskPushNotificationConfig => {
+  if (
+    !isRecord(value) ||
+    typeof value.url !== "string" ||
+    value.url.length === 0
+  ) {
+    return invalid();
+  }
+
+  const { tenant, id, taskId, url, token, authentication, ...extra } = value;
+  let normalizedAuthentication: A2ATaskPushNotificationConfig["authentication"];
+  if (authentication != null) {
+    if (!isRecord(authentication)) return invalid();
+    const { scheme, credentials, ...authenticationExtra } = authentication;
+    normalizedAuthentication = {
+      ...authenticationExtra,
+      scheme: parseOptionalString(scheme, invalid) ?? "",
+      ...(credentials == null
+        ? {}
+        : { credentials: parseOptionalString(credentials, invalid) }),
+    };
+  }
+
+  return {
+    ...extra,
+    ...(tenant == null ? {} : { tenant: parseOptionalString(tenant, invalid) }),
+    ...(id == null ? {} : { id: parseOptionalString(id, invalid) }),
+    ...(taskId == null ? {} : { taskId: parseOptionalString(taskId, invalid) }),
+    url,
+    ...(token == null ? {} : { token: parseOptionalString(token, invalid) }),
+    ...(normalizedAuthentication === undefined
+      ? {}
+      : { authentication: normalizedAuthentication }),
+  };
+};
+
+const parseListTaskPushNotificationConfigsResponse = (
+  value: unknown,
+): A2AListTaskPushNotificationConfigsResponse => {
+  if (!isRecord(value)) return invalidListPushNotificationConfigsResponse();
+
+  const { configs: rawConfigs, nextPageToken, ...extra } = value;
+  if (rawConfigs != null && !Array.isArray(rawConfigs)) {
+    return invalidListPushNotificationConfigsResponse();
+  }
+
+  return {
+    ...extra,
+    configs: (rawConfigs ?? []).map((config) =>
+      parseTaskPushNotificationConfigResponse(
+        config,
+        invalidListPushNotificationConfigsResponse,
+      ),
+    ),
+    ...(nextPageToken == null
+      ? {}
+      : {
+          nextPageToken: parseOptionalString(
+            nextPageToken,
+            invalidListPushNotificationConfigsResponse,
+          ),
+        }),
+  };
+};
+
 function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
@@ -598,13 +688,17 @@ export class A2AClient {
   ): Promise<A2ATaskPushNotificationConfig> {
     const taskId = config.taskId;
     if (!taskId) throw new Error("taskId is required");
-    return this.fetchJSON<A2ATaskPushNotificationConfig>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs`,
       {
         method: "POST",
         body: JSON.stringify(config),
         ...signalInit(signal),
       },
+    );
+    return parseTaskPushNotificationConfigResponse(
+      result,
+      invalidPushNotificationConfigResponse("pushNotificationConfigs:create"),
     );
   }
 
@@ -613,9 +707,13 @@ export class A2AClient {
     configId: string,
     signal?: AbortSignal,
   ): Promise<A2ATaskPushNotificationConfig> {
-    return this.fetchJSON<A2ATaskPushNotificationConfig>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs/${encodeURIComponent(configId)}`,
       signalInit(signal),
+    );
+    return parseTaskPushNotificationConfigResponse(
+      result,
+      invalidPushNotificationConfigResponse("pushNotificationConfigs:get"),
     );
   }
 
@@ -629,10 +727,11 @@ export class A2AClient {
       params.set("page_size", String(options.pageSize));
     if (options?.pageToken) params.set("page_token", options.pageToken);
     const qs = params.toString();
-    return this.fetchJSON<A2AListTaskPushNotificationConfigsResponse>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs${qs ? `?${qs}` : ""}`,
       signalInit(signal),
     );
+    return parseListTaskPushNotificationConfigsResponse(result);
   }
 
   async deleteTaskPushNotificationConfig(

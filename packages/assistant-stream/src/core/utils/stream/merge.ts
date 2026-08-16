@@ -20,8 +20,12 @@ export const createMergeStream = () => {
     // Repeated cancellation must wait for cleanup already in progress.
     cleanupPromise ??= Promise.all(
       list.splice(0).map(async (item) => {
-        await item.reader.cancel().catch(() => undefined);
-        await item.pipeTask;
+        try {
+          await item.reader.cancel().catch(() => undefined);
+          await item.pipeTask;
+        } finally {
+          item.reader.releaseLock();
+        }
       }),
     ).then(() => undefined);
     return cleanupPromise;
@@ -42,6 +46,7 @@ export const createMergeStream = () => {
 
           if (done) {
             list.splice(list.indexOf(item), 1);
+            item.reader.releaseLock();
             if (sealed && list.length === 0) {
               controller.close();
             }

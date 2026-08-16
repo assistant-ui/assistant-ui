@@ -6,22 +6,23 @@ import { notifySubscribers as notifyStateSubscribers } from "../subscribable/sub
 import type { Unsubscribe } from "../types/unsubscribe";
 
 export class CompositeContextProvider implements ModelContextProvider {
-  private _providers = new Set<ModelContextProvider>();
+  private _providers = new Map<symbol, ModelContextProvider>();
+  private _providerUnsubscribes = new Map<symbol, Unsubscribe | undefined>();
 
   getModelContext() {
-    return mergeModelContexts(this._providers);
+    return mergeModelContexts(new Set(this._providers.values()));
   }
 
   registerModelContextProvider(provider: ModelContextProvider) {
-    const wasRegistered = this._providers.has(provider);
-    this._providers.add(provider);
+    const id = Symbol();
+    this._providers.set(id, provider);
     let unsubscribe: Unsubscribe | undefined;
     try {
       unsubscribe = provider.subscribe?.(() => {
         this.notifySubscribers();
       });
     } catch (error) {
-      if (!wasRegistered) this._providers.delete(provider);
+      this._providers.delete(id);
       try {
         this.notifySubscribers();
       } catch (notifyError) {
@@ -29,10 +30,13 @@ export class CompositeContextProvider implements ModelContextProvider {
       }
       throw error;
     }
+    this._providerUnsubscribes.set(id, unsubscribe);
     this.notifySubscribers();
     return () => {
-      this._providers.delete(provider);
+      this._providers.delete(id);
+      const unsubscribe = this._providerUnsubscribes.get(id);
       unsubscribe?.();
+      this._providerUnsubscribes.delete(id);
       this.notifySubscribers();
     };
   }
