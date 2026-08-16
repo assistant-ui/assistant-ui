@@ -19,16 +19,37 @@ export const examples: DemoExample[] = [
     title: "Grid generation mix across one day",
     setup:
       "A grid operator's dashboard shows the day's generation stacked by source, because demand must always equal the top edge. This is a sunny weekday in spring.",
-    read: "Solar swells through midday and gas fills the morning and evening shoulders around it; the famous duck-curve shape is the gas band's waistline. Wind hums along flat underneath, indifferent to the sun.",
+    read: "Solar swells through midday and gas fills the morning and evening shoulders around it; the famous duck-curve shape is the gas band's waistline. Nuclear runs dead flat at the bottom — the baseload doing exactly what the word means — and wind hums along above it, indifferent to the sun.",
     chart: (
       <Terminal title="grid mix — live">
         <StackedArea
           title="Generation mix"
-          labels={["00", "04", "08", "12", "16", "20", "24"]}
+          labels={[
+            "00",
+            "",
+            "",
+            "06",
+            "",
+            "",
+            "12",
+            "",
+            "",
+            "18",
+            "",
+            "",
+            "24",
+          ]}
           series={[
-            { name: "gas", data: [14, 13, 10, 6, 8, 15, 16] },
-            { name: "wind", data: [9, 10, 8, 7, 8, 9, 10] },
-            { name: "solar", data: [0, 0, 6, 16, 12, 2, 0] },
+            {
+              name: "gas",
+              data: [14, 13, 12, 10, 7, 5, 6, 8, 10, 13, 15, 16, 15],
+            },
+            { name: "nuclear", data: [8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8, 8] },
+            { name: "wind", data: [9, 10, 9, 8, 7, 7, 8, 7, 8, 8, 9, 10, 10] },
+            {
+              name: "solar",
+              data: [0, 0, 0, 2, 8, 14, 17, 16, 12, 6, 1, 0, 0],
+            },
           ]}
         />
       </Terminal>

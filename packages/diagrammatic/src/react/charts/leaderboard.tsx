@@ -27,7 +27,7 @@ export const Leaderboard = forwardRef<SVGSVGElement, LeaderboardProps>(
     const vh = vbHeight(aspect, 5 / 3);
     const max = Math.max(...items.map((r) => r.value), 1);
     const rowH = Math.min(21, (vh - 16) / Math.max(1, items.length));
-    const trackW = showValues ? 122 : 138;
+    const trackW = showValues ? 112 : 138;
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
         {items.map((row, i) => {

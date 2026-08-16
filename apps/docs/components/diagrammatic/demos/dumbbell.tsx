@@ -37,6 +37,10 @@ export const examples: DemoExample[] = [
             { label: "checkout", from: 66, to: 58 },
             { label: "profile", from: 30, to: 54 },
             { label: "api docs", from: 44, to: 92 },
+            { label: "pricing", from: 48, to: 71 },
+            { label: "blog", from: 61, to: 78 },
+            { label: "dashboard", from: 35, to: 62 },
+            { label: "settings", from: 57, to: 66 },
           ]}
           fromLabel="before"
           toLabel="after"

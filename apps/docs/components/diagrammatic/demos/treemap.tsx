@@ -52,15 +52,31 @@ export const examples: DemoExample[] = [
                 children: [
                   { label: "pensions", value: 310 },
                   { label: "welfare", value: 140 },
+                  { label: "housing", value: 45 },
                 ],
               },
-              { label: "health", value: 280 },
-              { label: "education", value: 130 },
+              {
+                label: "health",
+                children: [
+                  { label: "hospitals", value: 165 },
+                  { label: "primary", value: 75 },
+                  { label: "pharma", value: 40 },
+                ],
+              },
+              {
+                label: "education",
+                children: [
+                  { label: "schools", value: 90 },
+                  { label: "higher", value: 40 },
+                ],
+              },
               {
                 label: "other",
                 children: [
                   { label: "defense", value: 90 },
                   { label: "transport", value: 60 },
+                  { label: "debt", value: 55 },
+                  { label: "culture", value: 15 },
                 ],
               },
             ],

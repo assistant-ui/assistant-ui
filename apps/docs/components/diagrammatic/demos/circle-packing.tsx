@@ -43,7 +43,7 @@ export const examples: DemoExample[] = [
       "A new executive asks for the org 'at a glance', and the chief of staff draws it as nested circles: groups contain teams, area is headcount, containment does the explaining.",
     read: "Platform is the big continent and core is its capital; labs floats small and separate, which is both its budget and its culture. Packing wastes space by design — that softness is why it reads as territory instead of spreadsheet.",
     chart: (
-      <AppCard title="Org, at a glance" meta="71 people">
+      <AppCard title="Org, at a glance" meta="83 people">
         <CirclePacking
           title="Org clusters"
           root={{
@@ -55,6 +55,7 @@ export const examples: DemoExample[] = [
                   { label: "core", value: 20 },
                   { label: "infra", value: 9 },
                   { label: "tools", value: 6 },
+                  { label: "sre", value: 5 },
                 ],
               },
               {
@@ -63,6 +64,7 @@ export const examples: DemoExample[] = [
                   { label: "web", value: 12 },
                   { label: "data", value: 7 },
                   { label: "ads", value: 4 },
+                  { label: "lifecycle", value: 3 },
                 ],
               },
               {
@@ -70,6 +72,14 @@ export const examples: DemoExample[] = [
                 children: [
                   { label: "ai", value: 5 },
                   { label: "research", value: 3 },
+                  { label: "robotics", value: 2 },
+                ],
+              },
+              {
+                label: "design",
+                children: [
+                  { label: "brand", value: 4 },
+                  { label: "systems", value: 3 },
                 ],
               },
             ],

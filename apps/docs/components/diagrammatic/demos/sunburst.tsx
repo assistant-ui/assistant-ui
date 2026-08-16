@@ -39,7 +39,7 @@ export const examples: DemoExample[] = [
     title: "Budget by department, then team",
     setup:
       "A finance partner presents the annual budget in two rings: departments inside, their teams outside. The inner ring is the org chart; the outer ring is where the money actually lands.",
-    read: "Engineering's inner arc is the widest, and its two outer teams split it 26 to 19 — platform eats more than product, a fact the department-level number hid. Every outer arc sums exactly into its parent; the geometry audits the spreadsheet.",
+    read: "Engineering's inner arc is the widest, and its three outer teams split it 26–19–12 — platform eats more than product and infra combined trails it, facts the department-level number hid. Every outer arc sums exactly into its parent; ten teams, four departments, and the geometry audits the spreadsheet.",
     chart: (
       <Report title="Budget by department" chip="2 rings">
         <Sunburst
@@ -52,6 +52,7 @@ export const examples: DemoExample[] = [
                 children: [
                   { label: "platform", value: 26 },
                   { label: "product", value: 19 },
+                  { label: "infra", value: 12 },
                 ],
               },
               {
@@ -59,6 +60,7 @@ export const examples: DemoExample[] = [
                 children: [
                   { label: "sales", value: 18 },
                   { label: "marketing", value: 15 },
+                  { label: "partners", value: 6 },
                 ],
               },
               {
@@ -66,6 +68,13 @@ export const examples: DemoExample[] = [
                 children: [
                   { label: "people", value: 13 },
                   { label: "finance", value: 9 },
+                ],
+              },
+              {
+                label: "design",
+                children: [
+                  { label: "brand", value: 8 },
+                  { label: "systems", value: 5 },
                 ],
               },
             ],

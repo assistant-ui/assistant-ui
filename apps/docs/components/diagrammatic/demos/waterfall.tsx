@@ -35,10 +35,12 @@ export const examples: DemoExample[] = [
             { label: "gross", value: 40, total: true },
             { label: "subs", value: 18 },
             { label: "addons", value: 14 },
+            { label: "service", value: 20 },
+            { label: "expand", value: 9 },
             { label: "refunds", value: -22 },
-            { label: "services", value: 20 },
             { label: "credits", value: -10 },
-            { label: "net", value: 60, total: true },
+            { label: "churn", value: -11 },
+            { label: "net", value: 58, total: true },
           ]}
         />
       </Report>

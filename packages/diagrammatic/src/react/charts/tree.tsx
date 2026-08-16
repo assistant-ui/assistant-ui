@@ -15,6 +15,12 @@ export const Tree = forwardRef<SVGSVGElement, TreeProps>(
     const maxDepth = Math.max(...points.map((p) => p.depth), 1);
     const X = (t: number) => 24 + t * 152;
     const Y = (d: number) => 16 + (d / maxDepth) * (vh - 36);
+    const leafRank = new Map(
+      points
+        .filter((p) => p.depth >= 2)
+        .sort((a, b) => a.x - b.x)
+        .map((p, rank) => [p, rank] as const),
+    );
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
         {points.map((point, i) => {
@@ -59,7 +65,7 @@ export const Tree = forwardRef<SVGSVGElement, TreeProps>(
               ) : (
                 <text
                   x={round(x)}
-                  y={round(y + r + 6)}
+                  y={round(y + r + 6 + ((leafRank.get(point) ?? 0) % 2) * 6)}
                   textAnchor="middle"
                   {...TXT.axis}
                 >

@@ -29,13 +29,13 @@ export const examples: DemoExample[] = [
           title="Actual revenue against forecast"
           actual={{
             name: "actual",
-            data: [30, 44, 56, 48, 40, 34, 46, 62, 74, 84],
+            data: [30, 38, 44, 41, 36, 34, 53, 60, 68, 76, 84, 92],
           }}
           reference={{
             name: "forecast",
-            data: [40, 42, 44, 46, 48, 50, 52, 54, 56, 58],
+            data: [40, 42, 44, 46, 48, 50, 52, 54, 56, 58, 60, 62],
           }}
-          labels={["Jan", "Apr", "Jul", "Oct"]}
+          labels={["Jan", "", "", "Apr", "", "", "Jul", "", "", "Oct", "", ""]}
         />
       </AppCard>
     ),

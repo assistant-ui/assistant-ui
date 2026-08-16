@@ -44,18 +44,27 @@ export const examples: DemoExample[] = [
               {
                 label: "db",
                 children: [
-                  { label: "query", value: 48 },
-                  { label: "serialize", value: 14 },
+                  { label: "query", value: 38 },
+                  { label: "pool", value: 6 },
+                  { label: "serialize", value: 10 },
                 ],
               },
               {
                 label: "render",
                 children: [
-                  { label: "template", value: 20 },
-                  { label: "markdown", value: 10 },
+                  { label: "template", value: 16 },
+                  { label: "partials", value: 7 },
+                  { label: "markdown", value: 8 },
                 ],
               },
-              { label: "auth", value: 8 },
+              {
+                label: "auth",
+                children: [
+                  { label: "session", value: 5 },
+                  { label: "token", value: 3 },
+                ],
+              },
+              { label: "cache", value: 7 },
             ],
           }}
         />

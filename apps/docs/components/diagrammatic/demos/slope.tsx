@@ -8,7 +8,7 @@ export const glyph = (
     items={[
       { label: "video", from: 30, to: 68 },
       { label: "social", from: 60, to: 50 },
-      { label: "music", from: 45, to: 40 },
+      { label: "music", from: 45, to: 41 },
       { label: "tv", from: 70, to: 30 },
     ]}
     highlight="video"
@@ -21,7 +21,7 @@ export const examples: DemoExample[] = [
     title: "Share of media time, 2020 against 2025",
     setup:
       "A media researcher has two surveys, five years apart, and one slide to show what happened between them. Two columns, one line per medium: the slope chart strips the story to its verbs.",
-    read: "Video more than doubles while TV halves, and their lines cross mid-chart — the handover, drawn. Social and music barely tilt, which is its own finding: the revolution took time from television, not from everything.",
+    read: "Video more than doubles while TV halves, and their lines cross mid-chart — the handover, drawn. Podcasts nearly triple from a low base, print quietly collapses, and social and music barely tilt — which is its own finding: the revolution took time from television and paper, not from everything.",
     chart: (
       <Paper
         kicker="Media"
@@ -33,8 +33,11 @@ export const examples: DemoExample[] = [
           items={[
             { label: "video", from: 30, to: 68 },
             { label: "social", from: 60, to: 50 },
-            { label: "music", from: 45, to: 40 },
+            { label: "music", from: 45, to: 41 },
             { label: "tv", from: 70, to: 30 },
+            { label: "gaming", from: 25, to: 35 },
+            { label: "podcasts", from: 8, to: 21 },
+            { label: "print", from: 20, to: 8 },
           ]}
           highlight="video"
           labels={["2020", "2025"]}

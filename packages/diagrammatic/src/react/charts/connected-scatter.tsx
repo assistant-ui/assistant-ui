@@ -1,6 +1,6 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import { round, stroke } from "../../core/geometry";
+import { hexPath, round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, SURFACE, cat, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 import { scatterFrame } from "./scatter";
@@ -17,7 +17,7 @@ export type ConnectedScatterProps = BaseProps & {
 /**
  * Marker shape is the per-series identity channel, cycled alongside the
  * palette so series stay tellable in print and under CVD: circle, diamond,
- * square, triangle.
+ * square, triangle, hexagon, inverted triangle.
  */
 function Marker({
   shape,
@@ -33,7 +33,7 @@ function Marker({
 } & Record<string, unknown>) {
   const r = 3.1;
   const common = { fill, stroke: SURFACE, strokeWidth: 1, ...rest };
-  switch (shape % 4) {
+  switch (shape % 6) {
     case 1:
       return (
         <path
@@ -55,6 +55,15 @@ function Marker({
       return (
         <path
           d={`M${round(x)} ${round(y - r * 1.15)} L${round(x + r)} ${round(y + r * 0.75)} L${round(x - r)} ${round(y + r * 0.75)} Z`}
+          {...common}
+        />
+      );
+    case 4:
+      return <path d={hexPath(x, y, r * 1.08)} {...common} />;
+    case 5:
+      return (
+        <path
+          d={`M${round(x)} ${round(y + r * 1.15)} L${round(x + r)} ${round(y - r * 0.75)} L${round(x - r)} ${round(y - r * 0.75)} Z`}
           {...common}
         />
       );
@@ -175,15 +184,27 @@ export const ConnectedScatter = forwardRef<
                   </text>
                 ) : null,
               )}
-              {multi && run.name && last && (
-                <text
-                  x={round(last.x) + 5}
-                  y={round(last.y) + 1.6}
-                  {...TXT.label}
-                >
-                  {run.name}
-                </text>
-              )}
+              {multi &&
+                run.name &&
+                last &&
+                (last.x + 5 + run.name.length * 2.7 > 186 ? (
+                  <text
+                    x={round(last.x) - 5}
+                    y={round(last.y) + 1.6}
+                    textAnchor="end"
+                    {...TXT.label}
+                  >
+                    {run.name}
+                  </text>
+                ) : (
+                  <text
+                    x={round(last.x) + 5}
+                    y={round(last.y) + 1.6}
+                    {...TXT.label}
+                  >
+                    {run.name}
+                  </text>
+                ))}
             </g>
           );
         })}

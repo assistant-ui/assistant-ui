@@ -25,9 +25,36 @@ export const examples: DemoExample[] = [
       >
         <MirroredArea
           title="Reservoir inflow and release"
-          down={{ name: "inflow", data: [22, 38, 54, 62, 48, 30, 18, 12] }}
-          up={{ name: "release", data: [14, 16, 24, 38, 46, 40, 28, 18] }}
-          labels={["Nov", "Dec", "Jan", "Feb", "Mar", "Apr", "May", "Jun"]}
+          down={{
+            name: "inflow",
+            data: [
+              18, 24, 34, 46, 56, 62, 58, 50, 40, 32, 24, 18, 14, 11, 10, 9,
+            ],
+          }}
+          up={{
+            name: "release",
+            data: [
+              12, 14, 15, 18, 24, 32, 40, 46, 44, 40, 34, 28, 22, 18, 15, 13,
+            ],
+          }}
+          labels={[
+            "Nov",
+            "",
+            "Dec",
+            "",
+            "Jan",
+            "",
+            "Feb",
+            "",
+            "Mar",
+            "",
+            "Apr",
+            "",
+            "May",
+            "",
+            "Jun",
+            "",
+          ]}
         />
       </Paper>
     ),

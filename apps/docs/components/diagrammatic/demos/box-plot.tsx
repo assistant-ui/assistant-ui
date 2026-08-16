@@ -18,7 +18,7 @@ export const examples: DemoExample[] = [
     title: "Wheat yield by farming practice",
     setup:
       "An agronomy trial reports three seasons of plot yields by practice. The boxes carry what the headline averages drop: risk.",
-    read: "No-till matches conventional's median with a visibly tighter box — same expected output, less variance, which for a farmer is the difference between a bad year and a lost one. Organic yields less and swings more; its case rests on price premium, and this chart says so plainly.",
+    read: "No-till matches conventional's median with a visibly tighter box — same expected output, less variance, which for a farmer is the difference between a bad year and a lost one. The six boxes rank cleanly by median but not by spread: agroforestry's whiskers are the widest on the chart at the lowest median, and organic's case rests on price premium. Risk is the column headline averages drop; here it is the picture.",
     chart: (
       <Paper
         kicker="Agronomy"
@@ -45,12 +45,36 @@ export const examples: DemoExample[] = [
               high: 6.2,
             },
             {
+              label: "cover crop",
+              low: 3.5,
+              q1: 4.3,
+              median: 4.8,
+              q3: 5.4,
+              high: 6.1,
+            },
+            {
+              label: "mixed",
+              low: 3,
+              q1: 3.9,
+              median: 4.6,
+              q3: 5.3,
+              high: 6.4,
+            },
+            {
               label: "organic",
               low: 2.6,
               q1: 3.4,
               median: 4,
               q3: 4.7,
               high: 5.6,
+            },
+            {
+              label: "agroforestry",
+              low: 2.2,
+              q1: 3.1,
+              median: 3.9,
+              q3: 4.9,
+              high: 6,
             },
           ]}
         />

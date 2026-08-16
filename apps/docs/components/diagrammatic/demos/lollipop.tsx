@@ -32,11 +32,15 @@ export const examples: DemoExample[] = [
           title="Caffeine per serving"
           items={[
             { label: "drip", value: 145 },
+            { label: "cold brew", value: 128 },
             { label: "energy", value: 110 },
+            { label: "latte", value: 77 },
+            { label: "matcha", value: 70 },
             { label: "espresso", value: 63 },
             { label: "black tea", value: 47 },
             { label: "cola", value: 34 },
             { label: "cocoa", value: 12 },
+            { label: "decaf", value: 5 },
           ]}
           format={(v) => `${v}mg`}
         />

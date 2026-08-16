@@ -25,10 +25,24 @@ export const examples: DemoExample[] = [
         <Streamgraph
           title="Listening hours by genre"
           series={[
-            { name: "pop", data: [8, 12, 16, 20, 24, 20, 16, 14, 12] },
-            { name: "hip-hop", data: [6, 10, 14, 12, 16, 18, 14, 12, 10] },
-            { name: "rock", data: [10, 8, 10, 14, 12, 16, 18, 16, 12] },
-            { name: "lo-fi", data: [4, 6, 8, 8, 10, 12, 10, 12, 14] },
+            {
+              name: "pop",
+              data: [8, 10, 12, 16, 20, 24, 22, 18, 16, 14, 12, 11],
+            },
+            {
+              name: "hip-hop",
+              data: [6, 8, 10, 14, 12, 16, 18, 16, 14, 12, 10, 9],
+            },
+            {
+              name: "rock",
+              data: [10, 9, 8, 10, 14, 12, 14, 16, 18, 16, 12, 11],
+            },
+            {
+              name: "electronic",
+              data: [3, 4, 6, 7, 9, 11, 12, 10, 8, 7, 6, 5],
+            },
+            { name: "lo-fi", data: [4, 5, 6, 8, 8, 9, 10, 10, 12, 13, 14, 15] },
+            { name: "jazz", data: [3, 3, 4, 4, 5, 4, 4, 5, 6, 7, 8, 8] },
           ]}
         />
       </Slide>

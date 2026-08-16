@@ -10,6 +10,9 @@ export const C = [
   "var(--dg-c2, #059669)",
   "var(--dg-c3, #8b5cf6)",
   "var(--dg-c4, #0891b2)",
+  "var(--dg-c5, #d97706)",
+  "var(--dg-c6, #db2777)",
+  "var(--dg-c7, #65a30d)",
 ] as const;
 
 export const POS = "var(--dg-pos, #3b82f6)";

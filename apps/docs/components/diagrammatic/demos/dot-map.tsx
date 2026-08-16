@@ -33,7 +33,7 @@ export const examples: DemoExample[] = [
             Math.max(
               0,
               Math.round(
-                3.2 *
+                4.6 *
                   (Math.sin(tile.col * 0.9 + tile.row * 1.4) +
                     Math.cos(tile.col * 0.4 - tile.row * 0.7)),
               ),

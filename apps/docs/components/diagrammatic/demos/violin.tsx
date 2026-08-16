@@ -18,18 +18,31 @@ export const examples: DemoExample[] = [
     title: "Salaries by department",
     setup:
       "A compensation analyst plots salary distributions per department before the equity review, because averages have been hiding a structural story for years.",
-    read: "Sales is pinched in the middle with a bulge at the top: a commission structure, drawn. Support is bottom-heavy with a long thin neck — many people at entry pay, few paths up. Engineering's symmetric bulge is what a leveled ladder looks like.",
+    read: "Sales is pinched in the middle with bulges at both ends: a commission structure, drawn. Support is bottom-heavy with a long thin neck — many people at entry pay, few paths up. Engineering and product share the same symmetric bulge, which is what leveled ladders look like; the equity review is really about the other two shapes.",
     chart: (
       <Report title="Salaries by department" chip="equity review">
         <Violin
           title="Salaries by department"
           groups={[
-            { label: "eng", widths: [1, 5, 11, 14, 11, 5, 1], median: 0.5 },
-            { label: "sales", widths: [6, 10, 7, 4, 5, 8, 6], median: 0.42 },
+            {
+              label: "eng",
+              widths: [0.5, 2, 5, 9, 13, 14, 13, 9, 5, 2, 0.5],
+              median: 0.5,
+            },
+            {
+              label: "sales",
+              widths: [3, 6, 9, 7, 5, 4, 5, 7, 9, 7, 3],
+              median: 0.42,
+            },
             {
               label: "support",
-              widths: [8, 13, 10, 5, 2, 1, 0.5],
+              widths: [6, 10, 13, 11, 8, 5, 3, 2, 1, 0.5, 0.5],
               median: 0.28,
+            },
+            {
+              label: "product",
+              widths: [0.5, 1, 3, 6, 10, 12, 10, 7, 4, 2, 1],
+              median: 0.52,
             },
           ]}
         />

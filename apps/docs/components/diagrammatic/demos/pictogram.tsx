@@ -22,13 +22,16 @@ export const examples: DemoExample[] = [
       "An internal all-hands slide shows where the company actually sits. One mark per ten people, because 'Berlin: 85' lands differently when you can count it.",
     read: "Berlin's rows dwarf Austin's — and the half-mark at the end of each row is the honest remainder, not decoration. Unit charts trade precision for feel; at town-hall scale, feel wins.",
     chart: (
-      <AppCard title="Headcount by office" meta="185 people">
+      <AppCard title="Headcount by office" meta="295 people">
         <Pictogram
           title="Headcount by office"
           items={[
             { label: "berlin", value: 85 },
             { label: "tokyo", value: 60 },
+            { label: "london", value: 50 },
+            { label: "nyc", value: 45 },
             { label: "austin", value: 35 },
+            { label: "remote", value: 20 },
           ]}
           unit={10}
           unitLabel="people"

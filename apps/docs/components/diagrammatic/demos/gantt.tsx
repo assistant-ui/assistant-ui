@@ -30,10 +30,14 @@ export const examples: DemoExample[] = [
           title="Release plan"
           rows={[
             { label: "design", from: 0, to: 26, state: "done" },
+            { label: "infra", from: 4, to: 22, state: "done" },
             { label: "api", from: 20, to: 48, state: "done" },
-            { label: "frontend", from: 40, to: 78, state: "active" },
             { label: "qa", from: 8, to: 34, state: "done" },
+            { label: "frontend", from: 40, to: 78, state: "active" },
+            { label: "security", from: 44, to: 58, state: "active" },
+            { label: "docs", from: 50, to: 72, state: "planned" },
             { label: "beta", from: 32, to: 62, state: "planned" },
+            { label: "marketing", from: 60, to: 86, state: "planned" },
             { label: "launch", from: 74, to: 90, state: "planned" },
           ]}
           today={52}
