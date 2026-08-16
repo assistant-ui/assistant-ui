@@ -26,17 +26,17 @@ const resumedEvents = [
   {
     type: "turn.started",
     data: { sequence: 1, turnId: TURN },
-    meta: { at: "2026-01-02T10:00:00.000Z" },
+    meta: { at: "2026-01-02T10:00:00.000Z", id: "evt_001" },
   },
   {
     type: "message.received",
     data: { message: "hi", sequence: 2, turnId: TURN },
-    meta: { at: USER_AT },
+    meta: { at: USER_AT, id: "evt_101" },
   },
   {
     type: "step.started",
-    data: { sequence: 3, stepIndex: 0, turnId: TURN },
-    meta: { at: ASSISTANT_AT },
+    data: { modelId: "test-model", sequence: 3, stepIndex: 0, turnId: TURN },
+    meta: { at: ASSISTANT_AT, id: "evt_102" },
   },
   {
     type: "message.appended",
@@ -47,7 +47,7 @@ const resumedEvents = [
       stepIndex: 0,
       turnId: TURN,
     },
-    meta: { at: "2026-01-02T10:02:05.000Z" },
+    meta: { at: "2026-01-02T10:02:05.000Z", id: "evt_002" },
   },
   {
     type: "message.completed",
@@ -58,12 +58,12 @@ const resumedEvents = [
       stepIndex: 0,
       turnId: TURN,
     },
-    meta: { at: "2026-01-02T10:02:06.000Z" },
+    meta: { at: "2026-01-02T10:02:06.000Z", id: "evt_003" },
   },
   {
     type: "turn.completed",
     data: { sequence: 6, turnId: TURN },
-    meta: { at: "2026-01-02T10:02:07.000Z" },
+    meta: { at: "2026-01-02T10:02:07.000Z", id: "evt_004" },
   },
 ] as const satisfies readonly HandleMessageStreamEvent[];
 

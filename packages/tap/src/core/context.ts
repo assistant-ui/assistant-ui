@@ -54,9 +54,7 @@ export const attachDefaultValueToContext = <T>(
   (context as TapContext<T>)[defaultContextValue] = defaultValue;
 };
 
-export const isTapContext = (
-  context: unknown,
-): context is TapContext<unknown> =>
+const isTapContext = (context: unknown): context is TapContext<unknown> =>
   typeof context === "object" &&
   context !== null &&
   defaultContextValue in context;
@@ -151,7 +149,7 @@ const withChangedContext = <T>(
   }
 };
 
-export const useTapContext = <T>(context: ReactContext<T>) => {
+export const useContext = <T>(context: ReactContext<T>) => {
   assertTapContext(context);
 
   const key = context as object;

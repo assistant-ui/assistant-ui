@@ -51,6 +51,22 @@ const finalizingAgent = (text: string) =>
     }),
   }) as unknown as HttpAgent;
 
+const emitAssistantText = (
+  subscriber: any,
+  messageId: string,
+  delta: string,
+) => {
+  subscriber.onTextMessageStartEvent?.({
+    event: { type: "TEXT_MESSAGE_START", messageId },
+  });
+  subscriber.onTextMessageContentEvent?.({
+    event: { type: "TEXT_MESSAGE_CONTENT", messageId, delta },
+  });
+  subscriber.onTextMessageEndEvent?.({
+    event: { type: "TEXT_MESSAGE_END", messageId },
+  });
+};
+
 describe("AgUiThreadRuntimeCore branch flows", () => {
   it("append: records the visible pair and persists user then assistant with correct parents", async () => {
     const agent = finalizingAgent("Hello");
@@ -165,6 +181,364 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
       parentId: userId,
       message: { id: newAssistant.id, role: "assistant" },
     });
+  });
+
+  it("reload: preserves branch parents and snapshot-delivered assistant ids", async () => {
+    let runCount = 0;
+    let userId = "";
+    let previousAssistantId = "";
+    const regeneratedAssistantId = "assistant-regenerated";
+    const snapshotAssistantId = "assistant-from-snapshot";
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", delta: "first" },
+          });
+          subscriber.onRunFinalized?.();
+          return;
+        }
+
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: userId, role: "user", content: "hi" },
+              {
+                id: runCount === 2 ? previousAssistantId : snapshotAssistantId,
+                role: "assistant",
+                content: runCount === 2 ? "first" : "snapshot",
+              },
+            ],
+          },
+        });
+        emitAssistantText(
+          subscriber,
+          runCount === 2 ? regeneratedAssistantId : snapshotAssistantId,
+          runCount === 2 ? "second" : "continued",
+        );
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const append = vi.fn().mockResolvedValue(undefined);
+    const update = vi.fn().mockResolvedValue(undefined);
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+      update,
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.append(createAppendMessage());
+    const initialMessages = core.getMessages();
+    userId = initialMessages[0]!.id;
+    previousAssistantId = initialMessages[1]!.id;
+    append.mockClear();
+
+    await core.reload(userId);
+
+    expect
+      .soft(core.getMessages().map(({ id }) => id))
+      .toEqual([userId, regeneratedAssistantId]);
+    expect.soft(append.mock.calls.at(-1)?.[0]).toMatchObject({
+      parentId: userId,
+      message: { id: regeneratedAssistantId, role: "assistant" },
+    });
+
+    await core.reload(userId);
+
+    const messages = core.getMessages();
+    expect(messages.map(({ id }) => id)).toEqual([userId, snapshotAssistantId]);
+    expect((messages[1] as ThreadAssistantMessage).content[0]).toMatchObject({
+      type: "text",
+      text: "continued",
+    });
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update.mock.calls[0]?.[0]).toMatchObject({
+      parentId: userId,
+      message: {
+        id: snapshotAssistantId,
+        role: "assistant",
+        content: [{ type: "text", text: "continued" }],
+      },
+    });
+  });
+
+  it("reload: follows a snapshot head introduced during a branch run", async () => {
+    let runCount = 0;
+    let userId = "";
+    const snapshotStepId = "assistant-snapshot-step";
+    const followupAssistantId = "assistant-followup";
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", delta: "first" },
+          });
+          subscriber.onRunFinalized?.();
+          return;
+        }
+
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: userId, role: "user", content: "hi" },
+              {
+                id: snapshotStepId,
+                role: "assistant",
+                content: "snapshot step",
+              },
+            ],
+          },
+        });
+        emitAssistantText(subscriber, followupAssistantId, "continued");
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const core = createCore(agent);
+
+    await core.append(createAppendMessage());
+    userId = core.getMessages()[0]!.id;
+
+    await core.reload(userId);
+
+    expect(core.getMessages().map(({ id }) => id)).toEqual([
+      userId,
+      snapshotStepId,
+      followupAssistantId,
+    ]);
+    expect(
+      core
+        .getMessageRepository()
+        .messages.find(({ message }) => message.id === followupAssistantId),
+    ).toMatchObject({ parentId: snapshotStepId });
+  });
+
+  it("updates history when a snapshot refreshes the active server assistant", async () => {
+    const serverAssistantId = "assistant-server";
+    const update = vi.fn().mockResolvedValue(undefined);
+    const append = vi.fn().mockResolvedValue(undefined);
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        const userId = input.messages.find(
+          ({ role }: { role: string }) => role === "user",
+        ).id;
+        subscriber.onTextMessageStartEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_START",
+            messageId: serverAssistantId,
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: serverAssistantId,
+            delta: "before",
+          },
+        });
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: userId, role: "user", content: "hi" },
+              {
+                id: serverAssistantId,
+                role: "assistant",
+                content: "snapshot",
+              },
+            ],
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: serverAssistantId,
+            delta: " after",
+          },
+        });
+        subscriber.onTextMessageEndEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_END",
+            messageId: serverAssistantId,
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+      update,
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.append(createAppendMessage());
+
+    const messages = core.getMessages();
+    const assistant = messages[1] as ThreadAssistantMessage;
+    expect(update).toHaveBeenCalledTimes(1);
+    expect(update.mock.calls[0]?.[0]).toMatchObject({
+      parentId: messages[0]!.id,
+      message: { id: serverAssistantId, role: "assistant" },
+    });
+    expect(update.mock.calls[0]?.[0].message.content).toEqual(
+      assistant.content,
+    );
+    expect(
+      append.mock.calls.some(([item]) => item.message.id === serverAssistantId),
+    ).toBe(false);
+  });
+
+  it("does not rewrite a previous assistant when regeneration reuses its id", async () => {
+    let runCount = 0;
+    let userId = "";
+    let previousAssistantId = "";
+    const update = vi.fn().mockResolvedValue(undefined);
+    const append = vi.fn().mockResolvedValue(undefined);
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onTextMessageContentEvent?.({
+            event: { type: "TEXT_MESSAGE_CONTENT", delta: "first" },
+          });
+          subscriber.onRunFinalized?.();
+          return;
+        }
+
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: userId, role: "user", content: "hi" },
+              {
+                id: previousAssistantId,
+                role: "assistant",
+                content: "first",
+              },
+            ],
+          },
+        });
+        emitAssistantText(subscriber, previousAssistantId, "replacement");
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+      update,
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.append(createAppendMessage());
+    const initialMessages = core.getMessages();
+    userId = initialMessages[0]!.id;
+    previousAssistantId = initialMessages[1]!.id;
+    append.mockClear();
+
+    await core.reload(userId);
+
+    const messages = core.getMessages();
+    expect(messages.map(({ id }) => id)).toEqual([userId, previousAssistantId]);
+    expect((messages[1] as ThreadAssistantMessage).content).toEqual([
+      { type: "text", text: "first" },
+    ]);
+    expect(update).not.toHaveBeenCalled();
+    expect(append).not.toHaveBeenCalled();
+  });
+
+  it("does not duplicate snapshot assistants with append-only history", async () => {
+    const serverAssistantId = "assistant-server";
+    const append = vi.fn().mockResolvedValue(undefined);
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        const userId = input.messages.find(
+          ({ role }: { role: string }) => role === "user",
+        ).id;
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: userId, role: "user", content: "hi" },
+              {
+                id: serverAssistantId,
+                role: "assistant",
+                content: "snapshot",
+              },
+            ],
+          },
+        });
+        emitAssistantText(subscriber, serverAssistantId, " after");
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.append(createAppendMessage());
+
+    expect(
+      append.mock.calls.some(([item]) => item.message.id === serverAssistantId),
+    ).toBe(false);
+  });
+
+  it("keeps a recreated stable assistant after switching branches", async () => {
+    const serverAssistantId = "server-assistant";
+    let core: AgUiThreadRuntimeCore;
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_START",
+            messageId: serverAssistantId,
+          },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: serverAssistantId,
+            delta: "Hello",
+          },
+        });
+
+        const userMessage = core
+          .getMessages()
+          .find(({ role }) => role === "user");
+        core.applyExternalMessages([userMessage!]);
+
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: serverAssistantId,
+            delta: " world",
+          },
+        });
+        subscriber.onTextMessageEndEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_END",
+            messageId: serverAssistantId,
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    core = createCore(agent);
+
+    await core.append(createAppendMessage());
+
+    const assistant = core.getMessages().at(-1) as ThreadAssistantMessage;
+    expect(assistant.id).toBe(serverAssistantId);
+    expect(assistant.metadata.isOptimistic).not.toBe(true);
+    await core.append(createAppendMessage({ parentId: null, startRun: false }));
+    expect(
+      core.getMessageRepository().messages.map(({ message }) => message.id),
+    ).toContain(serverAssistantId);
   });
 
   it("reload: runAgent input reflects only the visible message path", async () => {

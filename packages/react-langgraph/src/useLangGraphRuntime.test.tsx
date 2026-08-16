@@ -427,6 +427,12 @@ describe("useLangGraphRuntime", () => {
         mimeType: "application/pdf",
       },
     ]);
+
+    expect(userMessage?.content).toHaveLength(1);
+    expect(userMessage?.content?.[0]).toMatchObject({
+      type: "text",
+      text: " ",
+    });
   });
 
   it("should use unstable_threadListAdapter in place of the cloud adapter", async () => {

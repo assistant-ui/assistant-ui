@@ -99,21 +99,23 @@ export function unstable_useLiveCompletionAdapter(
       setIsLoading(true);
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
-        fetcherRef.current(query).then(
-          (items) => {
-            if (token !== tokenRef.current) return;
-            pendingRetryQueryRef.current = null;
-            setState({ query, items, failed: false });
-            setIsLoading(false);
-          },
-          () => {
-            if (token !== tokenRef.current) return;
-            pendingQueryRef.current = null;
-            pendingRetryQueryRef.current = null;
-            setState({ query, items: [], failed: true });
-            setIsLoading(false);
-          },
-        );
+        Promise.resolve()
+          .then(() => fetcherRef.current(query))
+          .then(
+            (items) => {
+              if (token !== tokenRef.current) return;
+              pendingRetryQueryRef.current = null;
+              setState({ query, items, failed: false });
+              setIsLoading(false);
+            },
+            () => {
+              if (token !== tokenRef.current) return;
+              pendingQueryRef.current = null;
+              pendingRetryQueryRef.current = null;
+              setState({ query, items: [], failed: true });
+              setIsLoading(false);
+            },
+          );
       }, debounceMs);
     },
     [enabled, debounceMs, cancelTimer, rearmPendingRetry],

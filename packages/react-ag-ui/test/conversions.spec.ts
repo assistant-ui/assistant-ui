@@ -1791,6 +1791,21 @@ describe("adapter conversions", () => {
     expect(() => UserMessageSchema.parse(result[0])).not.toThrow();
   });
 
+  it("omits assistant data parts from subsequent AG-UI input", () => {
+    const result = toAgUiMessages([
+      {
+        id: "a-1",
+        role: "assistant",
+        content: [
+          { type: "text", text: "hi" },
+          { type: "data", name: "sources", data: { id: "s-1" } },
+        ],
+      },
+    ] as any);
+
+    expect(result).toEqual([{ id: "a-1", role: "assistant", content: "hi" }]);
+  });
+
   it("round-trips a native audio part through the attachment channel back to a wire audio block", () => {
     const sent = toAgUiMessages([
       {

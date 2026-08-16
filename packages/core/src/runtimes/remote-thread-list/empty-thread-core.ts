@@ -91,6 +91,10 @@ export const EMPTY_THREAD_CORE: ThreadRuntimeCore = {
     throw EMPTY_THREAD_ERROR;
   },
 
+  unstable_notifySessionReset() {
+    throw EMPTY_THREAD_ERROR;
+  },
+
   composer: {
     attachments: [],
     attachmentAccept: "*",
