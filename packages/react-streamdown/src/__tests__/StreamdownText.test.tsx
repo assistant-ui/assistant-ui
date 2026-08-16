@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
+import type { ReactNode } from "react";
+import { defaultRehypePlugins } from "streamdown";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
   StreamdownTextComponents,
+  StreamdownProps,
   SyntaxHighlighterProps,
   CodeHeaderProps,
 } from "../types";
@@ -111,6 +114,169 @@ describe("StreamdownTextPrimitive", () => {
     expect(
       container.querySelector("[data-status]")?.getAttribute("data-status"),
     ).toBe("complete");
+  });
+
+  describe("security and user rehypePlugins", () => {
+    type HastNode = {
+      tagName?: string;
+      properties?: Record<string, unknown>;
+      children?: HastNode[];
+    };
+
+    const stampAnchors = () => (tree: HastNode) => {
+      const walk = (node: HastNode) => {
+        if (node.tagName === "a") {
+          node.properties = { ...node.properties, dataUserPlugin: "true" };
+        }
+        node.children?.forEach(walk);
+      };
+      walk(tree);
+    };
+    const userRehypePlugins = [stampAnchors] as unknown as NonNullable<
+      StreamdownProps["rehypePlugins"]
+    >;
+
+    const markdown =
+      "[good](https://trusted.example.com/page) and [evil](https://evil.example.com)";
+    const security = {
+      allowedLinkPrefixes: ["https://trusted.example.com"],
+      defaultOrigin: "https://trusted.example.com",
+      blockedLinkClass: "blocked-link",
+    };
+
+    it("applies both the hardening pipeline and user rehypePlugins", async () => {
+      const { container } = render(
+        <TextMessagePartProvider text={markdown} isRunning={false}>
+          <StreamdownTextPrimitive
+            security={security}
+            rehypePlugins={userRehypePlugins}
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(await screen.findByText(/\[blocked\]/)).toBeTruthy();
+      expect(
+        container.querySelector('a[href^="https://evil.example.com"]'),
+      ).toBeNull();
+
+      const goodAnchor = container.querySelector(
+        'a[href="https://trusted.example.com/page"]',
+      );
+      expect(goodAnchor).not.toBeNull();
+      expect(goodAnchor!.getAttribute("data-user-plugin")).toBe("true");
+    });
+
+    it("hardens URLs when only security is set", async () => {
+      const { container } = render(
+        <TextMessagePartProvider text={markdown} isRunning={false}>
+          <StreamdownTextPrimitive
+            security={security}
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      expect(await screen.findByText(/\[blocked\]/)).toBeTruthy();
+      expect(
+        container.querySelector('a[href^="https://evil.example.com"]'),
+      ).toBeNull();
+      expect(
+        container.querySelector('a[href="https://trusted.example.com/page"]'),
+      ).not.toBeNull();
+    });
+
+    it("passes user rehypePlugins through when security is not set", async () => {
+      const { container } = render(
+        <TextMessagePartProvider text={markdown} isRunning={false}>
+          <StreamdownTextPrimitive
+            rehypePlugins={userRehypePlugins}
+            linkSafety={{ enabled: false }}
+          />
+        </TextMessagePartProvider>,
+      );
+
+      const evilAnchor = container.querySelector(
+        'a[href^="https://evil.example.com"]',
+      );
+      expect(evilAnchor).not.toBeNull();
+      expect(evilAnchor!.getAttribute("data-user-plugin")).toBe("true");
+    });
+  });
+
+  it("reads Streamdown's sanitize schema off its default plugin set", () => {
+    const entry = defaultRehypePlugins["sanitize"];
+    expect(Array.isArray(entry)).toBe(true);
+
+    const [, schema] = entry as [unknown, { protocols?: { href?: string[] } }];
+    expect(schema.protocols?.href).toContain("tel");
+  });
+
+  it("preserves Streamdown's sanitize extensions with security", () => {
+    const Link = vi.fn(
+      ({
+        children,
+        node,
+      }: {
+        children?: ReactNode;
+        node?: { properties?: { href?: unknown } };
+      }) => (
+        <a data-testid="link" href={node?.properties?.href as string}>
+          {children}
+        </a>
+      ),
+    );
+    const Code = vi.fn(
+      ({
+        children,
+        node,
+      }: {
+        children?: ReactNode;
+        node?: { properties?: { metastring?: unknown } };
+      }) => (
+        <code
+          data-testid="code"
+          data-meta={node?.properties?.metastring as string}
+        >
+          {children}
+        </code>
+      ),
+    );
+
+    render(
+      <TextMessagePartProvider
+        text={
+          '<a href="tel:123">call</a>\n\n```ts {1} title="demo"\nconst x = 1\n```'
+        }
+        isRunning={false}
+      >
+        <StreamdownTextPrimitive
+          mode="static"
+          linkSafety={{ enabled: false }}
+          security={{ allowedProtocols: ["tel:"] }}
+          components={{ a: Link, code: Code } as StreamdownTextComponents}
+        />
+      </TextMessagePartProvider>,
+    );
+
+    expect(screen.getByTestId("link").getAttribute("href")).toBe("tel:123");
+    expect(screen.getByTestId("code").getAttribute("data-meta")).toBe(
+      '{1} title="demo"',
+    );
+  });
+
+  it("applies allowedTags when security is enabled", () => {
+    const { container } = render(
+      <TextMessagePartProvider text="<mark>keep</mark>" isRunning={false}>
+        <StreamdownTextPrimitive
+          mode="static"
+          allowedTags={{ mark: [] }}
+          security={{}}
+        />
+      </TextMessagePartProvider>,
+    );
+
+    expect(container.querySelector("mark")?.textContent).toBe("keep");
   });
 
   describe("code adapter with custom components", () => {

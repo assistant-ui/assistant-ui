@@ -7,6 +7,9 @@ platforms: ["react"]
 import { AttachmentSample } from "@/components/docs/samples/attachment";
 import * as AttachmentRadixSamples from "@/components/docs/samples/attachment.radix";
 import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { AttachmentComposerSample } from "@/components/docs/samples/attachment/composer-attachments";
+import * as AttachmentComposerRadixSample from "@/components/docs/samples/attachment/composer-attachments.radix";
 
 <FlavorSwitcher />
 
@@ -35,6 +38,8 @@ This adds a `/components/assistant-ui/attachment.tsx` file to your project, whic
 
 ### Use in your application
 
+Add `ComposerAttachments` and `ComposerAddAttachment` to your composer:
+
 ```tsx title="/components/assistant-ui/thread.tsx" {1-4,9-10}
 import {
   ComposerAttachments,
@@ -59,6 +64,8 @@ const Composer: FC = () => {
 };
 ```
 
+Add `UserMessageAttachments` to your user message:
+
 ```tsx title="/components/assistant-ui/thread.tsx" {1,8}
 import { UserMessageAttachments } from "@/components/assistant-ui/attachment";
 
@@ -81,6 +88,16 @@ const UserMessage: FC = () => {
 
   </Step>
 </Steps>
+
+## Examples
+
+### Composer
+
+In the composer, each attachment tile shows a remove button that deletes the attachment from the composer. Use the plus button to add your own files.
+
+<PreviewCode file="components/docs/samples/attachment/composer-attachments" name="ComposerWithAttachments" base={<AttachmentComposerSample />}>
+  <AttachmentComposerRadixSample.AttachmentComposerSample />
+</PreviewCode>
 
 ## API Reference
 

@@ -72,6 +72,36 @@ const convertAppendMessageToCommand = (
   };
 };
 
+const readResumeState = async <T>(
+  response: Response,
+): Promise<{ runId: string; state: T } | null> => {
+  if (response.status === 204) return null;
+  if (!response.ok) {
+    throw new Error(
+      `Resume state request failed with status ${response.status}: ${await response.text()}`,
+    );
+  }
+
+  let value: unknown;
+  try {
+    value = await response.json();
+  } catch {
+    throw new Error("Resume state response was not valid JSON");
+  }
+
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    !("state" in value) ||
+    !("runId" in value) ||
+    typeof value.runId !== "string"
+  ) {
+    throw new Error("Resume state response must contain state and runId");
+  }
+
+  return { runId: value.runId, state: value.state as T };
+};
+
 const symbolAssistantTransportExtras = Symbol("assistant-transport-extras");
 type AssistantTransportExtras = {
   [symbolAssistantTransportExtras]: true;
@@ -160,6 +190,24 @@ const useAssistantTransportThreadRuntime = <T>(
       if (!isResume) parentIdRef.current = undefined;
 
       const headers = await createRequestHeaders(options.headers);
+      let resumeState: { runId: string; state: T } | undefined;
+      if (isResume && options.resumeStateApi) {
+        const resumeStateResponse = await fetch(options.resumeStateApi, {
+          method: "POST",
+          headers,
+          body: JSON.stringify({ threadId }),
+          signal,
+        });
+        const retained = await readResumeState<T>(resumeStateResponse);
+        if (retained === null) {
+          if (commandQueue.state.queued.length > 0) {
+            runManager.schedule();
+          }
+          return;
+        }
+        resumeState = retained;
+      }
+
       const bodyValue =
         typeof options.body === "function"
           ? await options.body()
@@ -168,7 +216,7 @@ const useAssistantTransportThreadRuntime = <T>(
 
       let requestBody: Record<string, unknown> = {
         commands,
-        state: agentStateRef.current,
+        ...(resumeState === undefined && { state: agentStateRef.current }),
         system: context.system,
         tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
         threadId,
@@ -190,6 +238,14 @@ const useAssistantTransportThreadRuntime = <T>(
         );
       }
 
+      if (resumeState !== undefined) {
+        // The server replays a resume from the snapshot it retained for this
+        // runId. Body overrides and prepare hooks can neither substitute a
+        // state nor drop the ID the server validates against.
+        requestBody = { ...requestBody, runId: resumeState.runId };
+        delete requestBody["state"];
+      }
+
       const response = await fetch(
         isResume ? options.resumeApi! : options.api,
         {
@@ -208,6 +264,11 @@ const useAssistantTransportThreadRuntime = <T>(
 
       if (!response.body) {
         throw new Error("Response body is null");
+      }
+
+      if (resumeState !== undefined) {
+        agentStateRef.current = resumeState.state;
+        rerender((prev) => prev + 1);
       }
 
       const body = await createReplayBoundaryStream(response, {
@@ -287,6 +348,7 @@ const useAssistantTransportThreadRuntime = <T>(
       });
     },
     onError: async (error) => {
+      resumeFlagRef.current = false;
       setIsReplaying(false);
       const inTransitCmds = [...commandQueue.state.inTransit];
       const queuedCmds = [...commandQueue.state.queued];
@@ -361,6 +423,7 @@ const useAssistantTransportThreadRuntime = <T>(
       },
     }),
     onCancel: async () => {
+      resumeFlagRef.current = false;
       runManager.cancel();
     },
     onResume: async () => {

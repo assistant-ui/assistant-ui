@@ -17,6 +17,7 @@ import type {
   ThreadComposerRuntimeCore,
 } from "./composer-runtime-core";
 import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 
 export type RuntimeCapabilities = {
   readonly switchToBranch: boolean;
@@ -155,6 +156,7 @@ export type ThreadRuntimeCore = Readonly<{
   startRun: (config: StartRunConfig) => void;
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;
+  unstable_notifySessionReset: () => void;
 
   addToolResult: (options: AddToolResultOptions) => void;
   resumeToolCall: (options: ResumeToolCallOptions) => void;
@@ -177,7 +179,8 @@ export type ThreadRuntimeCore = Readonly<{
   beginEdit: (messageId: string) => void;
 
   getQueueItems?: () => readonly QueueItemState[];
-  steerQueueItem?: (queueItemId: string) => void;
+  getSteerQueueItems?: () => readonly QueueItemState[];
+  moveQueueItem?: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem?: (queueItemId: string) => void;
 
   speech: SpeechState | undefined;

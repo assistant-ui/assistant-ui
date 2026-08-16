@@ -20,8 +20,15 @@ import type { Logger } from "../logger";
 
 export const AG_UI_METADATA_NAMESPACE = "agui";
 
+export type AgUiOpaqueReasoning = {
+  id: string;
+  encryptedValue: string;
+  after?: boolean;
+};
+
 export type AgUiCustomMetadata = {
   interrupts?: AgUiInterrupt[];
+  opaqueReasoning?: AgUiOpaqueReasoning[];
 };
 
 type Emit = (update: ChatModelRunResult) => void;
@@ -61,7 +68,11 @@ export type RunAggregatorOptions = {
  * Collects AG-UI events into assistant-ui run snapshots that can be yielded from a ChatModelAdapter.
  *
  * The aggregator keeps a single assistant message worth of parts. Each incoming event updates the parts and
- * emits a fresh snapshot through the provided `emit` callback.
+ * emits a fresh snapshot through the provided `emit` callback. `CUSTOM` events
+ * become canonical data parts; integration plumbing names such as
+ * `on_interrupt`, `PredictState`, `Exit`, `hook_error`, `state_update_error`,
+ * `system:*`, and `MultiAgentHandoff` are forwarded the same way, so apps only
+ * need data renderers for names they own.
  */
 export class RunAggregator {
   private readonly emitUpdate: Emit;
@@ -77,6 +88,9 @@ export class RunAggregator {
   >();
   private activeTextMessageId: string | undefined;
   private readonly reasoningParts = new Map<string, string>(); // key → buffer
+  private readonly reasoningSignatures = new Map<string, string>();
+  private readonly reasoningMessageIds = new Map<string, string>();
+  private readonly anonymousReasoningKeys = new Set<string>();
   private activeReasoningKey: string | undefined;
   private reasoningPartCounter = 0;
   private readonly toolCalls = new Map<string, ToolCallState>();
@@ -87,6 +101,7 @@ export class RunAggregator {
     | { kind: "text"; key: string }
     | { kind: "reasoning"; key: string }
     | { kind: "tool-call"; toolCallId: string }
+    | { kind: "data"; name: string; value: unknown }
   )[] = [];
   private textPartCounter = 0;
   private serverMessageIdReported = false;
@@ -111,6 +126,9 @@ export class RunAggregator {
       case "RUN_STARTED": {
         this.clearTextParts();
         this.reasoningParts.clear();
+        this.reasoningSignatures.clear();
+        this.reasoningMessageIds.clear();
+        this.anonymousReasoningKeys.clear();
         this.activeReasoningKey = undefined;
         this.reasoningPartCounter = 0;
         this.toolCalls.clear();
@@ -194,13 +212,41 @@ export class RunAggregator {
         break;
       }
 
+      case "CUSTOM": {
+        this.activeTextMessageId = undefined;
+        this.partOrder.push({
+          kind: "data",
+          name: event.name,
+          value: event.value,
+        });
+        this.emit();
+        break;
+      }
+
       case "THINKING_START":
       case "THINKING_TEXT_MESSAGE_START":
       case "REASONING_START":
       case "REASONING_MESSAGE_START":
         this.handleReasoningStart(
           "messageId" in event ? event.messageId : undefined,
+          event.type === "REASONING_MESSAGE_START",
         );
+        break;
+      case "REASONING_ENCRYPTED_VALUE":
+        if (event.subtype === "message") {
+          // entityId names any message, not necessarily a reasoning one, so an
+          // unmatched id may only claim a block that has no id to contradict it.
+          const active = this.activeReasoningKey;
+          const key = this.reasoningParts.has(event.entityId)
+            ? event.entityId
+            : active !== undefined && this.anonymousReasoningKeys.has(active)
+              ? active
+              : undefined;
+          if (key !== undefined) {
+            this.reasoningSignatures.set(key, event.encryptedValue);
+            this.emit();
+          }
+        }
         break;
       case "THINKING_TEXT_MESSAGE_CONTENT":
         this.handleReasoningContent(event.delta);
@@ -211,6 +257,7 @@ export class RunAggregator {
         this.handleReasoningContent(
           event.delta,
           "messageId" in event ? event.messageId : undefined,
+          true,
         );
         this.totalChunks++;
         this.recordFirstToken();
@@ -589,7 +636,19 @@ export class RunAggregator {
         if (this.showThinking) {
           const buffer = this.reasoningParts.get(part.key) ?? "";
           if (buffer.length > 0 || this.activeReasoningKey === part.key) {
-            snapshot.push({ type: "reasoning", text: buffer } as const);
+            const encryptedValue = this.reasoningSignatures.get(part.key);
+            const reasoningId = this.reasoningMessageIds.get(part.key);
+            const meta = {
+              ...(reasoningId !== undefined ? { reasoningId } : {}),
+              ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+            };
+            snapshot.push({
+              type: "reasoning",
+              text: buffer,
+              ...(Object.keys(meta).length > 0
+                ? { providerMetadata: { [AG_UI_METADATA_NAMESPACE]: meta } }
+                : {}),
+            } as const);
           }
         }
         continue;
@@ -600,6 +659,15 @@ export class RunAggregator {
         if (entry?.touched) {
           snapshot.push({ type: "text", text: entry.buffer } as const);
         }
+        continue;
+      }
+
+      if (part.kind === "data") {
+        snapshot.push({
+          type: "data",
+          name: part.name,
+          data: part.value,
+        });
         continue;
       }
 
@@ -698,12 +766,20 @@ export class RunAggregator {
     };
   }
 
-  private handleReasoningStart(messageId?: string): void {
+  private handleReasoningStart(messageId?: string, isMessageId = false): void {
     if (!this.showThinking) return;
     // A reasoning block acts as a boundary: anonymous text arriving after it
     // should be a new part, not appended to any pre-reasoning text.
     this.activeTextMessageId = undefined;
     const key = messageId ?? `__auto-reasoning-${++this.reasoningPartCounter}`;
+    // Two different questions: which id may be replayed as a ReasoningMessage.id
+    // (only the message-scoped aliases carry one), and which block an unmatched
+    // signature may claim (any block opened without an id at all).
+    if (messageId === undefined) {
+      this.anonymousReasoningKeys.add(key);
+    } else if (isMessageId) {
+      this.reasoningMessageIds.set(key, messageId);
+    }
     if (!this.reasoningParts.has(key)) {
       this.reasoningParts.set(key, "");
       this.partOrder.push({ kind: "reasoning", key });
@@ -712,11 +788,15 @@ export class RunAggregator {
     this.emit();
   }
 
-  private handleReasoningContent(delta: string, messageId?: string): void {
+  private handleReasoningContent(
+    delta: string,
+    messageId?: string,
+    isMessageId = false,
+  ): void {
     if (!this.showThinking || !delta) return;
     if (!this.activeReasoningKey) {
       // Content arrived without a preceding START — create the slot lazily.
-      this.handleReasoningStart(messageId);
+      this.handleReasoningStart(messageId, isMessageId);
     }
     const key = this.activeReasoningKey;
     if (!key) return;

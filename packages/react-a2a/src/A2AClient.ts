@@ -171,6 +171,17 @@ const TASK_STATES: ReadonlySet<string> = new Set(
 const isTaskState = (value: unknown): value is A2ATaskState =>
   typeof value === "string" && TASK_STATES.has(value);
 
+const ROLES: ReadonlySet<string> = new Set(
+  Object.keys({
+    unspecified: true,
+    user: true,
+    agent: true,
+  } satisfies Record<A2ARole, true>),
+);
+
+const isRole = (value: unknown): value is A2ARole =>
+  typeof value === "string" && ROLES.has(value);
+
 const isTask = (value: unknown): value is A2ATask =>
   isRecord(value) &&
   typeof value.id === "string" &&
@@ -182,8 +193,7 @@ const isMessage = (value: unknown): value is A2AMessage =>
   isRecord(value) &&
   typeof value.messageId === "string" &&
   value.messageId.length > 0 &&
-  typeof value.role === "string" &&
-  value.role.length > 0 &&
+  isRole(value.role) &&
   Array.isArray(value.parts) &&
   value.parts.every(isRecord);
 
@@ -260,6 +270,52 @@ const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
   throw new Error(
     "Invalid A2A message:send response: expected a valid task or message payload.",
   );
+};
+
+const parseTaskResponse = (
+  value: unknown,
+  operation: "tasks:get" | "tasks:cancel",
+): A2ATask => {
+  if (isTask(value)) return value;
+
+  throw new Error(
+    `Invalid A2A ${operation} response: expected a valid task payload.`,
+  );
+};
+
+const isNonNegativeInteger = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0;
+
+const invalidListTasksResponse = (): never => {
+  throw new Error(
+    "Invalid A2A tasks:list response: expected a valid task list payload.",
+  );
+};
+
+const parseListTasksResponse = (value: unknown): A2AListTasksResponse => {
+  if (!isRecord(value)) return invalidListTasksResponse();
+
+  const tasks = value.tasks ?? [];
+  if (!Array.isArray(tasks) || !tasks.every(isTask)) {
+    return invalidListTasksResponse();
+  }
+
+  const { nextPageToken, pageSize, totalSize } = value;
+  if (
+    (nextPageToken != null && typeof nextPageToken !== "string") ||
+    (pageSize != null && !isNonNegativeInteger(pageSize)) ||
+    (totalSize != null && !isNonNegativeInteger(totalSize))
+  ) {
+    return invalidListTasksResponse();
+  }
+
+  return {
+    ...value,
+    tasks,
+    nextPageToken: nextPageToken ?? "",
+    pageSize: pageSize ?? 0,
+    totalSize: totalSize ?? 0,
+  };
 };
 
 function signalInit(signal?: AbortSignal): RequestInit {
@@ -464,10 +520,11 @@ export class A2AClient {
       params.set("history_length", String(historyLength));
     }
     const qs = params.toString();
-    return this.fetchJSON<A2ATask>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}${qs ? `?${qs}` : ""}`,
       signalInit(signal),
     );
+    return parseTaskResponse(result, "tasks:get");
   }
 
   async listTasks(
@@ -487,10 +544,11 @@ export class A2AClient {
     if (request?.includeArtifacts !== undefined)
       params.set("include_artifacts", String(request.includeArtifacts));
     const qs = params.toString();
-    return this.fetchJSON<A2AListTasksResponse>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks${qs ? `?${qs}` : ""}`,
       signalInit(signal),
     );
+    return parseListTasksResponse(result);
   }
 
   async cancelTask(
@@ -499,7 +557,7 @@ export class A2AClient {
     signal?: AbortSignal,
   ): Promise<A2ATask> {
     const body = metadata ? { metadata } : {};
-    return this.fetchJSON<A2ATask>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}:cancel`,
       {
         method: "POST",
@@ -507,6 +565,7 @@ export class A2AClient {
         ...signalInit(signal),
       },
     );
+    return parseTaskResponse(result, "tasks:cancel");
   }
 
   async *subscribeToTask(
@@ -606,6 +665,7 @@ export class A2AClient {
       const received = contentType
         ? `"${contentType}"`
         : "no Content-Type header";
+      void response.body?.cancel().catch(() => undefined);
       throw new Error(
         `Expected A2A stream response Content-Type "text/event-stream", received ${received}`,
       );

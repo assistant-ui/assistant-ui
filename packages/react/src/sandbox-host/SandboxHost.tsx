@@ -147,6 +147,8 @@ export function SandboxHost({
         window.addEventListener("message", onMessage);
       })
       .catch((err) => {
+        frame?.dispose();
+        frame = null;
         liveRef.current.onError?.(
           err instanceof Error ? err : new Error(String(err)),
         );

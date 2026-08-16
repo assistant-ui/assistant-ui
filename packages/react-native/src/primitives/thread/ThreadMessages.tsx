@@ -348,7 +348,7 @@ const useThreadMessagesFlatListAutoScroll = ({
     scrollToBottom(true);
   });
 
-  useAuiEvent("threadListItem.switchedTo", () => {
+  useAuiEvent("threads.selectionChanged", () => {
     if (!scrollToBottomOnThreadSwitch) return;
     initializeScrollRequestedRef.current = false;
     lastScrollEventYRef.current = 0;

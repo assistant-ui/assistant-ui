@@ -1,3 +1,5 @@
+import { isAiPlaygroundEnabled } from "./feature-flags";
+
 export const BASE_URL = "https://www.assistant-ui.com";
 export const CLOUD_URL = "https://cloud.assistant-ui.com";
 
@@ -82,6 +84,17 @@ export const PRODUCTS: Product[] = [
 
 /** Internal products/pages that have sub-project routes (used by SubProjectLayout switcher). */
 export const SUB_PROJECTS: (Product & { slug: string })[] = [
+  ...(isAiPlaygroundEnabled
+    ? [
+        {
+          slug: "learn",
+          label: "Learn",
+          href: "/learn",
+          description: "Guided assistant-ui courses",
+          external: false,
+        },
+      ]
+    : []),
   {
     slug: "playground",
     label: "Playground",
@@ -110,6 +123,7 @@ export type NavItem =
 
 export const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Docs", href: "/docs" },
+  { type: "link", label: "Elements", href: "/elements" },
   {
     type: "mega",
     label: "Resources",
@@ -117,6 +131,16 @@ export const NAV_ITEMS: NavItem[] = [
       {
         label: "Learn",
         items: [
+          ...(isAiPlaygroundEnabled
+            ? [
+                {
+                  label: "Interactive course",
+                  href: "/learn",
+                  description: "Build your first AI app, step by step",
+                  external: false,
+                },
+              ]
+            : []),
           {
             label: "Examples",
             href: "/examples",
@@ -209,6 +233,5 @@ export const NAV_ITEMS: NavItem[] = [
     ],
   },
   { type: "link", label: "Playground", href: "/playground" },
-  { type: "link", label: "Gallery", href: "/gallery" },
   { type: "link", label: "Pricing", href: "/pricing" },
 ];
