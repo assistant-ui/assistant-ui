@@ -9,7 +9,7 @@ import {
   stroke,
 } from "../../core/geometry";
 import { GRID, ink } from "../../core/theme";
-import { AxisLabels, ChartSvg, TXT, vbHeight } from "../svg";
+import { AxisLabels, ChartSvg, TXT, labelXs, vbHeight } from "../svg";
 
 export type AreaProps = BaseProps & {
   data: number[];
@@ -92,7 +92,14 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
           </text>
         )}
         {labels && (
-          <AxisLabels labels={labels} xs={pts.map((p) => p.x)} y={vh - 4} />
+          <AxisLabels
+            labels={labels}
+            xs={labelXs(
+              pts.map((p) => p.x),
+              labels.length,
+            )}
+            y={vh - 4}
+          />
         )}
       </ChartSvg>
     );

@@ -52,8 +52,17 @@ export const Tree = forwardRef<SVGSVGElement, TreeProps>(
                     : ink(point.depth === 1 ? 0.55 : 0.35)
                 }
               />
-              {point.depth < 2 && (
+              {point.depth < 2 ? (
                 <text x={round(x + r + 3)} y={round(y + 1.8)} {...TXT.axis}>
+                  {point.node.label}
+                </text>
+              ) : (
+                <text
+                  x={round(x)}
+                  y={round(y + r + 6)}
+                  textAnchor="middle"
+                  {...TXT.axis}
+                >
                   {point.node.label}
                 </text>
               )}

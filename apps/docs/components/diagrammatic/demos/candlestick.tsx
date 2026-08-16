@@ -1,6 +1,6 @@
 import { Candlestick } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { Paper, Slide, Terminal } from "./scenes";
+import { Paper } from "./scenes";
 
 export const glyph = (
   <Candlestick
@@ -23,60 +23,6 @@ export const glyph = (
 );
 
 export const examples: DemoExample[] = [
-  {
-    title: "A stock's two trading weeks, daily candles",
-    setup:
-      "A retail trader reviews the fortnight before earnings. Each candle compresses one session into four numbers: the body spans open to close, the wick spans low to high.",
-    read: "Blue bodies outnumber red ones seven to three and the wicks stay short — a steady grind upward, not a squeeze. The one wide-ranging red day (day 5) was the rate announcement, and the market shrugged it off within two sessions.",
-    chart: (
-      <Terminal title="TICKR · daily — 2 weeks">
-        <Candlestick
-          title="Two trading weeks"
-          data={[
-            { open: 138, close: 152, low: 132, high: 156 },
-            { open: 152, close: 146, low: 142, high: 158 },
-            { open: 146, close: 160, low: 144, high: 164 },
-            { open: 160, close: 172, low: 156, high: 176 },
-            { open: 172, close: 164, low: 160, high: 178 },
-            { open: 164, close: 158, low: 152, high: 168 },
-            { open: 158, close: 170, low: 154, high: 174 },
-            { open: 170, close: 182, low: 166, high: 188 },
-            { open: 182, close: 176, low: 170, high: 186 },
-            { open: 176, close: 190, low: 172, high: 196 },
-          ]}
-          labels={["M", "T", "W", "T", "F", "M", "T", "W", "T", "F"]}
-          format={(v) => `$${v}`}
-        />
-      </Terminal>
-    ),
-  },
-  {
-    title: "A crypto unwind, ten sessions",
-    setup:
-      "A newsletter post-mortems a token's bad two weeks. The candles are doing the reporting: who controlled each session, and by how much.",
-    read: "Long red bodies, short wicks: sellers in control with barely a bounce attempted. The two blue sessions close below the prior day's open — relief rallies that fooled nobody — and the sequence ends 25% below where it began.",
-    chart: (
-      <Slide title="Ten sessions of decline" footer="market post-mortem">
-        <Candlestick
-          title="Ten sessions of decline"
-          data={[
-            { open: 3400, close: 3320, low: 3280, high: 3440 },
-            { open: 3320, close: 3180, low: 3140, high: 3350 },
-            { open: 3180, close: 3240, low: 3120, high: 3280 },
-            { open: 3240, close: 3060, low: 3020, high: 3260 },
-            { open: 3060, close: 2900, low: 2860, high: 3090 },
-            { open: 2900, close: 2960, low: 2840, high: 3000 },
-            { open: 2960, close: 2780, low: 2740, high: 2980 },
-            { open: 2780, close: 2620, low: 2560, high: 2800 },
-            { open: 2620, close: 2700, low: 2580, high: 2740 },
-            { open: 2700, close: 2540, low: 2500, high: 2720 },
-          ]}
-          labels={["1", "2", "3", "4", "5", "6", "7", "8", "9", "10"]}
-          format={(v) => `$${v}`}
-        />
-      </Slide>
-    ),
-  },
   {
     title: "Coffee futures around a frost report",
     setup:

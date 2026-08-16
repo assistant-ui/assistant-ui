@@ -1,6 +1,6 @@
 import { Heatmap } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Report, Terminal } from "./scenes";
+import { AppCard, Terminal } from "./scenes";
 
 const CALENDAR = Array.from({ length: 7 }, (_, r) =>
   Array.from({ length: 16 }, (_, c) => {
@@ -53,58 +53,6 @@ export const examples: DemoExample[] = [
           }}
         />
       </Terminal>
-    ),
-  },
-  {
-    title: "Menu orders by dish and day",
-    setup:
-      "A ramen shop's point-of-sale exports a plain table of orders per dish per weekday. Plotted as intensity, a month of receipts becomes something the owner can act on before the next supply run.",
-    read: "The ramen row never cools and peaks Saturday; the salad row exists from Monday to Wednesday and then dies. Order less lettuce for the weekend, more gyoza wrappers for Friday.",
-    chart: (
-      <AppCard title="Orders by dish and day" meta="4 weeks">
-        <Heatmap
-          title="Orders by dish and day"
-          matrix={{
-            rows: ["ramen", "katsu", "salad", "curry", "gyoza"],
-            cols: ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
-            values: [
-              [0.7, 0.72, 0.75, 0.8, 0.9, 1, 0.85],
-              [0.5, 0.52, 0.55, 0.6, 0.7, 0.8, 0.65],
-              [0.6, 0.55, 0.45, 0.25, 0.15, 0.1, 0.1],
-              [0.4, 0.42, 0.48, 0.55, 0.6, 0.68, 0.72],
-              [0.3, 0.32, 0.4, 0.5, 0.75, 0.9, 0.7],
-            ],
-          }}
-        />
-      </AppCard>
-    ),
-  },
-  {
-    title: "Feature adoption by plan tier",
-    setup:
-      "A pricing review starts with one question: which features do paying tiers actually use? Product analytics reduces a quarter of events to a five-by-six grid of adoption rates.",
-    read: "Reading down a column prices the feature: sso is dark only on team and enterprise, so it is holding the upgrade line. Reading across the free row shows a tier that uses the editor and nothing else, which is exactly what free is for.",
-    chart: (
-      <Report
-        title="Adoption by plan tier"
-        chip="quarterly"
-        note="Share of active workspaces using each feature at least weekly."
-      >
-        <Heatmap
-          title="Adoption by plan tier"
-          matrix={{
-            rows: ["free", "starter", "pro", "team", "enterprise"],
-            cols: ["editor", "share", "api", "sso", "audit", "export"],
-            values: [
-              [0.9, 0.4, 0.05, 0, 0, 0.1],
-              [0.95, 0.6, 0.2, 0, 0, 0.3],
-              [0.95, 0.75, 0.55, 0.1, 0.05, 0.5],
-              [0.9, 0.85, 0.7, 0.6, 0.35, 0.65],
-              [0.85, 0.8, 0.85, 0.95, 0.9, 0.8],
-            ],
-          }}
-        />
-      </Report>
     ),
   },
   {

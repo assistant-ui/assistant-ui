@@ -1,6 +1,6 @@
 import { RadialBar } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Report, Slide } from "./scenes";
+import { AppCard } from "./scenes";
 
 export const glyph = (
   <RadialBar
@@ -30,42 +30,6 @@ export const examples: DemoExample[] = [
           ]}
         />
       </AppCard>
-    ),
-  },
-  {
-    title: "Habit tracker, one month in",
-    setup:
-      "A habit app closes each month with three rings — the watch-face grammar its users already speak. Sleep, steps, reading, each against its own monthly target.",
-    read: "Sleep holds at 90%, steps wobble to two-thirds, reading collapses to a quarter — the arcs make the triage obvious before any number is read. Ring charts flatter near-complete arcs and shame short ones, which for a habit app is the feature.",
-    chart: (
-      <Slide title="Habits, one month in" footer="personal review">
-        <RadialBar
-          title="Habit completion"
-          items={[
-            { label: "sleep", value: 0.9 },
-            { label: "steps", value: 0.63 },
-            { label: "reading", value: 0.27 },
-          ]}
-        />
-      </Slide>
-    ),
-  },
-  {
-    title: "Fundraiser progress by cause",
-    setup:
-      "A community foundation's donation page shows three campaigns as rings, each against its own target, so a $5k trail fund and a $50k library drive can share one graphic fairly.",
-    read: "The library ring is closed — funded — while trails sits at 44%, and because each ring is normalized to its own goal, the comparison stays fair across very different asks. The full circle is the celebratory state the design is built around.",
-    chart: (
-      <Report title="Fundraiser progress" chip="3 campaigns">
-        <RadialBar
-          title="Fundraiser progress"
-          items={[
-            { label: "library", value: 1 },
-            { label: "shelter", value: 0.72 },
-            { label: "trails", value: 0.44 },
-          ]}
-        />
-      </Report>
     ),
   },
 ];

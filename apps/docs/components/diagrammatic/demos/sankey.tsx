@@ -1,6 +1,6 @@
 import { Sankey } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Paper, Slide } from "./scenes";
+import { Slide } from "./scenes";
 
 export const glyph = (
   <Sankey
@@ -50,71 +50,6 @@ export const examples: DemoExample[] = [
           }}
         />
       </Slide>
-    ),
-  },
-  {
-    title: "Signups from channel to plan",
-    setup:
-      "A growth lead traces one month's 9.6k signups from acquisition channel to the plan they landed on, because 'search brings the most users' and 'search brings the best users' are different claims.",
-    read: "Search feeds the free tier in bulk, but follow the ribbons into pro: nearly everyone who pays walked in through a referral. Channel budgets allocate by the left column's sizes; this chart argues they should allocate by the ribbons.",
-    chart: (
-      <AppCard title="Signups: channel → plan" meta="one month">
-        <Sankey
-          title="Signups from channel to plan"
-          graph={{
-            nodes: [
-              { id: "search", label: "search 5.2k" },
-              { id: "referral", label: "referral 2.6k" },
-              { id: "social", label: "social 1.8k" },
-              { id: "free", label: "free" },
-              { id: "pro", label: "pro" },
-            ],
-            links: [
-              { source: "search", target: "free", value: 46 },
-              { source: "search", target: "pro", value: 6 },
-              { source: "referral", target: "free", value: 12 },
-              { source: "referral", target: "pro", value: 14 },
-              { source: "social", target: "free", value: 16 },
-              { source: "social", target: "pro", value: 2 },
-            ],
-          }}
-        />
-      </AppCard>
-    ),
-  },
-  {
-    title: "A household budget, income to spending",
-    setup:
-      "A budgeting app draws the month as flows: two income streams fan out into four spending buckets, every dollar in exactly one ribbon.",
-    read: "Housing's ribbon is the one that hurts — over a third of the salary before anything else happens. The side gig flows mostly into savings, which is the household's quiet strategy made visible: the day job lives, the side gig saves.",
-    chart: (
-      <Paper
-        kicker="Money"
-        title="A month, as flows"
-        source="Source: one household's ledger"
-      >
-        <Sankey
-          title="Income to spending"
-          graph={{
-            nodes: [
-              { id: "salary", label: "salary $6.4k" },
-              { id: "side", label: "side gig $1.1k" },
-              { id: "housing", label: "housing" },
-              { id: "living", label: "living" },
-              { id: "savings", label: "savings" },
-              { id: "fun", label: "fun" },
-            ],
-            links: [
-              { source: "salary", target: "housing", value: 26 },
-              { source: "salary", target: "living", value: 20 },
-              { source: "salary", target: "savings", value: 12 },
-              { source: "salary", target: "fun", value: 6 },
-              { source: "side", target: "savings", value: 7 },
-              { source: "side", target: "fun", value: 4 },
-            ],
-          }}
-        />
-      </Paper>
     ),
   },
 ];

@@ -10,7 +10,7 @@ import {
   stroke,
 } from "../../core/geometry";
 import { ACCENT, GRID, cat, ink } from "../../core/theme";
-import { AxisLabels, ChartSvg, Legend, TXT, vbHeight } from "../svg";
+import { AxisLabels, ChartSvg, Legend, TXT, labelXs, vbHeight } from "../svg";
 
 export type LineProps = BaseProps & {
   data?: number[];
@@ -122,7 +122,14 @@ export const Line = forwardRef<SVGSVGElement, LineProps>(
           />
         )}
         {labels && (
-          <AxisLabels labels={labels} xs={first.map((p) => p.x)} y={vh - 4} />
+          <AxisLabels
+            labels={labels}
+            xs={labelXs(
+              first.map((p) => p.x),
+              labels.length,
+            )}
+            y={vh - 4}
+          />
         )}
       </ChartSvg>
     );

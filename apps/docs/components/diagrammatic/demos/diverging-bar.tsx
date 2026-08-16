@@ -1,6 +1,6 @@
 import { DivergingBar } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { Paper, Report, Slide } from "./scenes";
+import { Report } from "./scenes";
 
 export const glyph = (
   <DivergingBar
@@ -44,55 +44,6 @@ export const examples: DemoExample[] = [
           format={(v) => `${v}%`}
         />
       </Report>
-    ),
-  },
-  {
-    title: "Vote swing by district",
-    setup:
-      "The election-night graphics desk shows each district's swing since the last vote. The zero line is the status quo, and every bar is a district changing its mind.",
-    read: "The suburbs moved one way and the city the other — a seven-district story with a single visible fault line. Harbor's +6.4 and hills' −7.8 bracket a realignment that the citywide total, hovering near zero, completely conceals.",
-    chart: (
-      <Paper
-        kicker="Election"
-        title="The swing map"
-        source="Source: district returns"
-      >
-        <DivergingBar
-          title="Swing since last election"
-          items={[
-            { label: "harbor", value: 6.4 },
-            { label: "northside", value: 4.1 },
-            { label: "old town", value: 1.8 },
-            { label: "riverbend", value: -0.9 },
-            { label: "midtown", value: -2.6 },
-            { label: "westgate", value: -5.2 },
-            { label: "hills", value: -7.8 },
-          ]}
-          format={(v) => `${v}pp`}
-        />
-      </Paper>
-    ),
-  },
-  {
-    title: "Trade balance by category",
-    setup:
-      "A trade ministry's annual chart: exports minus imports per category, surpluses above the line, deficits below.",
-    read: "The deficit is visibly a machinery story — its bar below the line is longer than services' bar above it. Food and chemicals barely register either way; the whole national argument is really two bars talking past each other.",
-    chart: (
-      <Slide title="Trade balance" footer="ministry annual">
-        <DivergingBar
-          title="Trade balance by category"
-          items={[
-            { label: "services", value: 42 },
-            { label: "food", value: 18 },
-            { label: "chemicals", value: 9 },
-            { label: "textiles", value: -14 },
-            { label: "energy", value: -26 },
-            { label: "machinery", value: -48 },
-          ]}
-          format={(v) => `$${Math.abs(v)}B`}
-        />
-      </Slide>
     ),
   },
 ];

@@ -1,6 +1,6 @@
 import { Venn } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Report, Slide } from "./scenes";
+import { AppCard } from "./scenes";
 
 export const glyph = (
   <Venn
@@ -26,38 +26,6 @@ export const examples: DemoExample[] = [
           overlap={1300}
         />
       </AppCard>
-    ),
-  },
-  {
-    title: "Dog people and cat people, one office",
-    setup:
-      "The office survey that settles the pet argument: who identifies as a dog person, a cat person, or — the option the argument forgot — both.",
-    read: "The overlap is bigger than either camp expected: seventeen people refuse the binary entirely. The survey ended an argument by revealing the false premise, which is the venn diagram's oldest job.",
-    chart: (
-      <Slide title="Dogs, cats, both" footer="office survey">
-        <Venn
-          title="Pets in the office"
-          a={{ label: "dog people", value: 38 }}
-          b={{ label: "cat people", value: 29 }}
-          overlap={17}
-        />
-      </Slide>
-    ),
-  },
-  {
-    title: "Newsletter and podcast audiences",
-    setup:
-      "A media brand assumed its podcast and newsletter shared one loyal audience, until the subscriber match ran and the circles came back nearly disjoint.",
-    read: "The podcast barely shares readers with the newsletter — 2,100 of 28,000. Two audiences, one brand: cross-promotion is not preaching to the choir here, it is the single cheapest growth lever the company owns.",
-    chart: (
-      <Report title="Audience overlap" chip="subscriber match">
-        <Venn
-          title="Audience overlap"
-          a={{ label: "newsletter", value: 18_400 }}
-          b={{ label: "podcast", value: 9_600 }}
-          overlap={2_100}
-        />
-      </Report>
     ),
   },
 ];

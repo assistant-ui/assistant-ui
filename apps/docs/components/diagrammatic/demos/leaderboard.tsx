@@ -1,6 +1,6 @@
-import { Leaderboard, formatCompact } from "diagrammatic";
+import { Leaderboard } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Slide, Terminal } from "./scenes";
+import { AppCard } from "./scenes";
 
 export const glyph = (
   <Leaderboard
@@ -34,47 +34,6 @@ export const examples: DemoExample[] = [
           ]}
         />
       </AppCard>
-    ),
-  },
-  {
-    title: "Most-streamed artists this week",
-    setup:
-      "A streaming service's editorial page runs the weekly top five. The design constraint is brutal — phone width, five rows — which is exactly the leaderboard's habitat.",
-    read: "First place streams half again as much as second, a gap the bars make visible before the numbers confirm it. Chart position and bar length agree here; the interesting weeks are when a riser's bar crowds the row above.",
-    chart: (
-      <Slide title="Most-streamed this week" footer="editorial · weekly">
-        <Leaderboard
-          title="Streams this week"
-          items={[
-            { label: "houndsong", value: 42_000_000 },
-            { label: "vela", value: 28_500_000 },
-            { label: "north era", value: 24_100_000 },
-            { label: "moth radio", value: 19_800_000 },
-            { label: "koi", value: 17_200_000 },
-          ]}
-          format={(v) => formatCompact(v)}
-        />
-      </Slide>
-    ),
-  },
-  {
-    title: "Deals closed this quarter",
-    setup:
-      "A sales floor's TV shows the quarter's closer board, refreshed hourly. It is equal parts dashboard and motivation, which the ranked form serves unashamedly.",
-    read: "Two reps carry half the board, and the three-deal gap at the top is what the last week of the quarter is about. Below third place the bars flatten — the coaching conversation lives down there, not at the top.",
-    chart: (
-      <Terminal title="deals closed — q3">
-        <Leaderboard
-          title="Deals closed"
-          items={[
-            { label: "priya", value: 34 },
-            { label: "marcus", value: 31 },
-            { label: "lena", value: 22 },
-            { label: "diego", value: 18 },
-            { label: "sam", value: 14 },
-          ]}
-        />
-      </Terminal>
     ),
   },
 ];

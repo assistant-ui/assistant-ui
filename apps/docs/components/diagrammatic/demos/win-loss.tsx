@@ -1,6 +1,6 @@
 import { WinLoss } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Paper, Slide } from "./scenes";
+import { Paper } from "./scenes";
 
 function Rows({
   rows,
@@ -59,54 +59,6 @@ export const examples: DemoExample[] = [
           ]}
         />
       </Paper>
-    ),
-  },
-  {
-    title: "Quota hit or missed, twelve months",
-    setup:
-      "A sales dashboard shows each rep's year as twelve ticks: quota made or missed, month by month, order preserved because trajectory is the conversation.",
-    read: "Two reps, one year, different stories: priya misses twice all year; sam's second half goes two-up-seven-down. Same annual attainment percentage would hide that these need opposite conversations — one about a promotion, one about a territory.",
-    chart: (
-      <AppCard title="Quota, month by month" meta="2 reps">
-        <Rows
-          rows={[
-            {
-              label: "priya",
-              data: [1, 1, 1, -1, 1, 1, 1, 1, -1, 1, 1, 1],
-              title: "priya quota",
-            },
-            {
-              label: "sam",
-              data: [1, -1, 1, 1, -1, -1, 1, -1, -1, -1, 1, -1],
-              title: "sam quota",
-            },
-          ]}
-        />
-      </AppCard>
-    ),
-  },
-  {
-    title: "Two habits, two weeks",
-    setup:
-      "A habit tracker renders each habit as kept-or-broken ticks, day by day, because 'mostly' is a lie the streak view refuses to tell.",
-    read: "The workout survives weekends; the diet does not — its breaks land on Fridays and Saturdays with calendar precision. The pattern, not the totals, is the coaching: this is a weekend problem wearing a willpower costume.",
-    chart: (
-      <Slide title="Two habits, two weeks" footer="coach review">
-        <Rows
-          rows={[
-            {
-              label: "gym",
-              data: [1, 1, -1, 1, 1, 1, 1, 1, 1, -1, 1, 1, 1, 1],
-              title: "gym days",
-            },
-            {
-              label: "no sugar",
-              data: [1, 1, 1, 1, -1, -1, 1, 1, 1, 1, -1, -1, 1, -1],
-              title: "no-sugar days",
-            },
-          ]}
-        />
-      </Slide>
     ),
   },
 ];

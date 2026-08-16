@@ -413,22 +413,25 @@ export function sankeyTwoColumn(
       (b.value ?? 1) - (a.value ?? 1),
   );
   const leftTotal = left.reduce((s, n) => s + (n.y1 - n.y0), 0) || 1;
+  const rightTotal = right.reduce((s, n) => s + (n.y1 - n.y0), 0) || 1;
   const totalValue =
     graph.links.reduce((sum, l) => sum + (l.value ?? 1), 0) || 1;
-  const unit = leftTotal / totalValue;
+  const leftUnit = leftTotal / totalValue;
+  const rightUnit = rightTotal / totalValue;
   for (const link of ordered) {
-    const h = (link.value ?? 1) * unit;
+    const sh = (link.value ?? 1) * leftUnit;
+    const th = (link.value ?? 1) * rightUnit;
     const sy0 = leftCursor.get(link.source) ?? top;
     const ty0 = rightCursor.get(link.target) ?? top;
     ribbons.push({
       sy0,
-      sy1: sy0 + h,
+      sy1: sy0 + sh,
       ty0,
-      ty1: ty0 + h,
+      ty1: ty0 + th,
       sourceIndex: leftIndex.get(link.source) ?? 0,
     });
-    leftCursor.set(link.source, sy0 + h);
-    rightCursor.set(link.target, ty0 + h);
+    leftCursor.set(link.source, sy0 + sh);
+    rightCursor.set(link.target, ty0 + th);
   }
   return { nodes: [...left, ...right], ribbons };
 }

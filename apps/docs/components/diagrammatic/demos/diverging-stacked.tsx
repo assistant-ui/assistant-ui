@@ -1,6 +1,6 @@
 import { DivergingStacked } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Paper, Report } from "./scenes";
+import { AppCard } from "./scenes";
 
 export const glyph = (
   <DivergingStacked
@@ -34,50 +34,6 @@ export const examples: DemoExample[] = [
           endLabels={["disagree", "agree"]}
         />
       </AppCard>
-    ),
-  },
-  {
-    title: "Beta feedback on four features",
-    setup:
-      "A beta wrap-up scores each shipped feature on a five-point love-hate scale. The product decision is which features graduate, and the rows are the evidence.",
-    read: "Dark mode has essentially no critics — ship it. The ai draft splits the room symmetrically, which is a positioning problem, not a quality one. New nav's left-heavy row is the graveyard shape, and it reads as such from across the room.",
-    chart: (
-      <Report
-        title="Feature reception"
-        chip="beta"
-        note="Five-point scale, centered on neutral."
-      >
-        <DivergingStacked
-          title="Feature reception"
-          rows={[
-            { label: "dark mode", values: [1, 4, 10, 35, 50] },
-            { label: "search", values: [6, 12, 20, 38, 24] },
-            { label: "ai draft", values: [18, 20, 18, 26, 18] },
-            { label: "new nav", values: [24, 28, 22, 18, 8] },
-          ]}
-          endLabels={["hate it", "love it"]}
-        />
-      </Report>
-    ),
-  },
-  {
-    title: "Return-to-office sentiment by cohort",
-    setup:
-      "An HR survey splits the return-to-office question by generation, because the leadership team suspects the disagreement is generational and needs to see it.",
-    read: "Every cohort leans against, but the lean deepens with each younger row — gen z's against-block is nearly triple its for-block. The policy question stops being 'if people mind' and becomes 'which decade of hires you mind losing'.",
-    chart: (
-      <Paper kicker="Work" title="The office, divided by decade">
-        <DivergingStacked
-          title="RTO sentiment by cohort"
-          rows={[
-            { label: "boomer", values: [12, 18, 26, 28, 16] },
-            { label: "gen x", values: [18, 24, 24, 22, 12] },
-            { label: "millennial", values: [26, 30, 20, 16, 8] },
-            { label: "gen z", values: [34, 30, 18, 12, 6] },
-          ]}
-          endLabels={["against", "for"]}
-        />
-      </Paper>
     ),
   },
 ];

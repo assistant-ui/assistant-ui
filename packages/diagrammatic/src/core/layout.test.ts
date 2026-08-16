@@ -114,6 +114,29 @@ describe("sankeyTwoColumn", () => {
     expect(totalRibbon).toBeCloseTo(totalNode, 5);
     expect(left[0]!.id).toBe("a");
   });
+
+  it("ribbon ends fill both columns exactly when gaps skew the units", () => {
+    const graph = {
+      nodes: [{ id: "a" }, { id: "b" }, { id: "x" }, { id: "y" }, { id: "z" }],
+      links: [
+        { source: "a", target: "x", value: 30 },
+        { source: "a", target: "y", value: 16 },
+        { source: "b", target: "x", value: 8 },
+        { source: "b", target: "z", value: 24 },
+      ],
+    };
+    const { nodes, ribbons } = sankeyTwoColumn(graph, 12, 108, 8);
+    for (const node of nodes) {
+      const ends = ribbons
+        .map((r) => (node.side === "left" ? [r.sy0, r.sy1] : [r.ty0, r.ty1]))
+        .filter(([e0]) => e0! >= node.y0 - 1e-6 && e0! < node.y1);
+      const covered = ends.reduce((sum, [e0, e1]) => sum + (e1! - e0!), 0);
+      expect(covered).toBeCloseTo(node.y1 - node.y0, 5);
+      for (const [, e1] of ends) {
+        expect(e1!).toBeLessThanOrEqual(node.y1 + 1e-6);
+      }
+    }
+  });
 });
 
 describe("chordLayout", () => {

@@ -1,6 +1,6 @@
 import { SplitBar } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { Paper, Slide, Terminal } from "./scenes";
+import { Terminal } from "./scenes";
 
 function Rows({
   rows,
@@ -78,64 +78,6 @@ export const examples: DemoExample[] = [
           ]}
         />
       </Terminal>
-    ),
-  },
-  {
-    title: "A season split three ways",
-    setup:
-      "A club's season summary compresses three two-sided battles into three split bars: home versus away wins, possession, shots on target.",
-    read: "Home and away tell on the team — 14 wins at home, 6 on the road — while possession and shots both lean our way. A side that dominates the ball everywhere but only wins at home has a traveling problem, and three bars just diagnosed it.",
-    chart: (
-      <Paper kicker="Club" title="The season, split">
-        <Rows
-          rows={[
-            {
-              label: "home / away wins",
-              a: { label: "home", value: 14 },
-              b: { label: "away", value: 6 },
-            },
-            {
-              label: "possession",
-              a: { label: "us", value: 58 },
-              b: { label: "them", value: 42 },
-            },
-            {
-              label: "shots on target",
-              a: { label: "us", value: 61 },
-              b: { label: "them", value: 39 },
-            },
-          ]}
-        />
-      </Paper>
-    ),
-  },
-  {
-    title: "Three ballot measures",
-    setup:
-      "An election-night page tracks three ballot measures as yes/no splits, updated as precincts report. The bar is the tally, live.",
-    read: "Measures A and C are decided — the splits are visibly lopsided — but B's near-even split is inside the recount margin, and everyone watching this page knows which bar they are refreshing for.",
-    chart: (
-      <Slide title="Three measures" footer="election night">
-        <Rows
-          rows={[
-            {
-              label: "measure a",
-              a: { label: "yes", value: 64 },
-              b: { label: "no", value: 36 },
-            },
-            {
-              label: "measure b",
-              a: { label: "yes", value: 51 },
-              b: { label: "no", value: 49 },
-            },
-            {
-              label: "measure c",
-              a: { label: "yes", value: 41 },
-              b: { label: "no", value: 59 },
-            },
-          ]}
-        />
-      </Slide>
     ),
   },
 ];

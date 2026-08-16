@@ -1,6 +1,6 @@
 import { Sunburst } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Report, Slide } from "./scenes";
+import { Report } from "./scenes";
 
 export const glyph = (
   <Sunburst
@@ -72,78 +72,6 @@ export const examples: DemoExample[] = [
           }}
         />
       </Report>
-    ),
-  },
-  {
-    title: "Sessions by device, then browser",
-    setup:
-      "A web analytics review needs device and browser in one picture, because the two questions keep getting asked together. Device takes the inner ring, browser the outer.",
-    read: "Safari's outer arc is almost all of mobile's inner one — that is the App Store's default at work — while desktop splits between Chrome and Edge. The tablet arc has no outer detail because at 10% nobody asked.",
-    chart: (
-      <AppCard title="Sessions by device" meta="then browser">
-        <Sunburst
-          title="Sessions by device and browser"
-          root={{
-            label: "sessions",
-            children: [
-              {
-                label: "mobile",
-                children: [
-                  { label: "safari", value: 34 },
-                  { label: "chrome", value: 22 },
-                ],
-              },
-              {
-                label: "desktop",
-                children: [
-                  { label: "chrome", value: 26 },
-                  { label: "edge", value: 8 },
-                ],
-              },
-              { label: "tablet", value: 10 },
-            ],
-          }}
-        />
-      </AppCard>
-    ),
-  },
-  {
-    title: "A portfolio by asset class, then holding",
-    setup:
-      "An annual rebalancing review starts with the portfolio drawn as rings: asset classes inside, individual holdings outside, every arc a fraction of the whole.",
-    read: "Equity's arc has grown past its 50% target — the US index fund did the growing — while bonds shrank below plan. Rebalancing is literally reading this ring: sell where the arc is too wide, buy where it is too narrow.",
-    chart: (
-      <Slide title="The portfolio" footer="annual rebalance">
-        <Sunburst
-          title="Portfolio by class and holding"
-          root={{
-            label: "portfolio",
-            children: [
-              {
-                label: "equity",
-                children: [
-                  { label: "us index", value: 38 },
-                  { label: "intl", value: 17 },
-                ],
-              },
-              {
-                label: "bonds",
-                children: [
-                  { label: "treasury", value: 18 },
-                  { label: "corp", value: 9 },
-                ],
-              },
-              {
-                label: "alt",
-                children: [
-                  { label: "reit", value: 10 },
-                  { label: "gold", value: 8 },
-                ],
-              },
-            ],
-          }}
-        />
-      </Slide>
     ),
   },
 ];

@@ -1,6 +1,6 @@
 import { StripPlot } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Report, Terminal } from "./scenes";
+import { Report } from "./scenes";
 
 export const glyph = (
   <StripPlot
@@ -18,47 +18,6 @@ export const glyph = (
 );
 
 export const examples: DemoExample[] = [
-  {
-    title: "Test durations by suite",
-    setup:
-      "A CI dashboard shows raw test durations as dots on shared rows — no bars, no averages — because the team is hunting stragglers, not summarizing.",
-    read: "The e2e strip starts where unit tests end; the suites barely overlap, which is the pyramid working as intended. The rightmost unit dot at 2.4s is the one to bisect — a unit test moonlighting as an integration test.",
-    chart: (
-      <Terminal title="test durations — ci">
-        <StripPlot
-          title="Test durations by suite"
-          rows={[
-            {
-              label: "unit",
-              values: [0.4, 0.6, 0.7, 0.9, 1, 1.1, 1.4, 1.8, 2.4],
-            },
-            { label: "int", values: [1.2, 1.6, 1.9, 2.2, 2.5, 2.8, 3.2, 3.8] },
-            { label: "e2e", values: [2.4, 3, 3.4, 3.9, 4.3, 4.8, 5.4, 6] },
-          ]}
-          labels={["0s", "2s", "4s", "6s"]}
-        />
-      </Terminal>
-    ),
-  },
-  {
-    title: "Bottle prices by shelf",
-    setup:
-      "A wine shop owner checks whether the three shelves — budget, mid, reserve — actually occupy distinct price bands, or whether the labels are theater.",
-    read: "The bands barely touch: the reserve shelf's cheapest bottle costs more than the budget shelf's dearest. The empty gap between mid and reserve is the $36-to-$42 no-man's-land where nothing sells, and the pricing strategy is visibly deliberate.",
-    chart: (
-      <AppCard title="Wine list by shelf" meta="3 shelves">
-        <StripPlot
-          title="Wine prices by shelf"
-          rows={[
-            { label: "budget", values: [8, 9, 10, 11, 12, 13, 14, 15, 17] },
-            { label: "mid", values: [18, 20, 22, 24, 26, 29, 32, 36] },
-            { label: "reserve", values: [42, 48, 55, 62, 70, 85, 95] },
-          ]}
-          labels={["$0", "$30", "$60", "$90"]}
-        />
-      </AppCard>
-    ),
-  },
   {
     title: "Delivery times by courier",
     setup:

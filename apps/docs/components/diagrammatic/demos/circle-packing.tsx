@@ -1,6 +1,6 @@
 import { CirclePacking } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Paper, Slide } from "./scenes";
+import { AppCard } from "./scenes";
 
 export const glyph = (
   <CirclePacking
@@ -76,89 +76,6 @@ export const examples: DemoExample[] = [
           }}
         />
       </AppCard>
-    ),
-  },
-  {
-    title: "City parks by district, sized by acres",
-    setup:
-      "A parks department maps its green space as circles within districts for the annual report, because acreage tables never survive a council meeting.",
-    read: "The river district's one big park outweighs the north side's many small ones — different philosophies of green space in one picture. Pocket parks read as the scatter of dots they are; the waterfront reads as the anchor it is.",
-    chart: (
-      <Paper
-        kicker="Parks"
-        title="The city's green space"
-        source="Source: parks department GIS"
-      >
-        <CirclePacking
-          title="Parks by district"
-          root={{
-            label: "city",
-            children: [
-              {
-                label: "river",
-                children: [
-                  { label: "waterfront", value: 28 },
-                  { label: "island", value: 6 },
-                ],
-              },
-              {
-                label: "north",
-                children: [
-                  { label: "elm", value: 7 },
-                  { label: "birch", value: 5 },
-                  { label: "pocket", value: 3 },
-                ],
-              },
-              {
-                label: "old town",
-                children: [
-                  { label: "commons", value: 12 },
-                  { label: "cemetery", value: 8 },
-                ],
-              },
-            ],
-          }}
-        />
-      </Paper>
-    ),
-  },
-  {
-    title: "A fund's portfolio, sized by valuation",
-    setup:
-      "A venture fund's LP letter draws the portfolio as circles inside sectors, sized by current valuation, because the table version lets everyone skim past the concentration risk.",
-    read: "One fintech position is half the fund. Drawn to scale, 'diversified across three sectors' looks like what it is: a planet with moons. The health and climate clusters together barely match ledgerly's single circle.",
-    chart: (
-      <Slide title="Portfolio by sector" footer="LP letter">
-        <CirclePacking
-          title="Portfolio by sector"
-          root={{
-            label: "fund",
-            children: [
-              {
-                label: "fintech",
-                children: [
-                  { label: "ledgerly", value: 34 },
-                  { label: "paynest", value: 8 },
-                ],
-              },
-              {
-                label: "health",
-                children: [
-                  { label: "curon", value: 10 },
-                  { label: "vitalgraph", value: 6 },
-                ],
-              },
-              {
-                label: "climate",
-                children: [
-                  { label: "gridfox", value: 9 },
-                  { label: "soilscan", value: 4 },
-                ],
-              },
-            ],
-          }}
-        />
-      </Slide>
     ),
   },
 ];

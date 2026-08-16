@@ -1,6 +1,6 @@
 import { Slope } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Paper, Report } from "./scenes";
+import { Paper } from "./scenes";
 
 export const glyph = (
   <Slope
@@ -40,48 +40,6 @@ export const examples: DemoExample[] = [
           labels={["2020", "2025"]}
         />
       </Paper>
-    ),
-  },
-  {
-    title: "Commute mode share, 2015 against 2025",
-    setup:
-      "A city's transport office compares the census question 'how do you usually get to work' across a decade. Four modes enter, and one line that did not exist meaningfully in 2015 leaves at the top of the chart.",
-    read: "Remote work triples and every physical mode pays for it — car most in absolute points, transit most in proportion. The steepness ranks the disruption at a glance, which is what slopes are for.",
-    chart: (
-      <Report title="Commute mode share" chip="2015 → 2025">
-        <Slope
-          title="Commute mode share"
-          items={[
-            { label: "car", from: 62, to: 48 },
-            { label: "transit", from: 24, to: 18 },
-            { label: "bike", from: 6, to: 10 },
-            { label: "remote", from: 8, to: 24 },
-          ]}
-          highlight="remote"
-          labels={["2015", "2025"]}
-        />
-      </Report>
-    ),
-  },
-  {
-    title: "Course pass rates before and after the redesign",
-    setup:
-      "A department rebuilt four intro courses around problem sessions and needs to show the dean whether it worked. Pass rates, one line per course, before and after.",
-    read: "Three courses climb and algebra climbs most — fourteen points. Statistics slips, and the slope makes the outlier impossible to bury in an average: the redesign works, except where it doesn't, and now that course has a name.",
-    chart: (
-      <AppCard title="Pass rate by course" meta="before / after">
-        <Slope
-          title="Pass rate by course"
-          items={[
-            { label: "algebra", from: 64, to: 78 },
-            { label: "physics", from: 58, to: 66 },
-            { label: "chemistry", from: 71, to: 74 },
-            { label: "statistics", from: 69, to: 62 },
-          ]}
-          highlight="algebra"
-          labels={["before", "after"]}
-        />
-      </AppCard>
     ),
   },
 ];

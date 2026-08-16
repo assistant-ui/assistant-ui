@@ -1,6 +1,6 @@
 import { Area } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Paper, Terminal } from "./scenes";
+import { Paper } from "./scenes";
 
 export const glyph = (
   <Area
@@ -12,64 +12,24 @@ export const glyph = (
 
 export const examples: DemoExample[] = [
   {
-    title: "Cumulative signups over the year",
+    title: "A monsoon in millimetres, its core annotated",
     setup:
-      "A founder keeps a running total of signups for the monthly investor update. The count only ever goes up, so the question the chart answers is not direction but pace.",
-    read: "The fill makes the accumulated volume readable, not just the rate: the area under the curve is the user base itself. The two flat shelves are the months marketing went dark, visible as missing area, not just missing slope.",
-    chart: (
-      <AppCard title="Cumulative signups" meta="this year">
-        <Area
-          title="Cumulative signups"
-          data={[2200, 4000, 3400, 5200, 6400, 5800, 7400, 7000, 8800]}
-          labels={[
-            "Jan",
-            "Feb",
-            "Mar",
-            "Apr",
-            "May",
-            "Jun",
-            "Jul",
-            "Aug",
-            "Sep",
-          ]}
-        />
-      </AppCard>
-    ),
-  },
-  {
-    title: "Rainfall through the monsoon, June to September",
-    setup:
-      "A reservoir engineer tracks monthly rainfall through the wet season, because the town's water year is decided in these four months. What matters is not any single month but the total that falls.",
-    read: "The area under the curve is the season's water. July and August did their job; the early finish in September is the worry, and it shows up as the missing wedge on the right, which is exactly what next summer will be short by.",
+      "A reservoir engineer's season chart, complete: monthly rainfall as filled area, and a regions band marking the core monsoon — the eight weeks the water year is actually decided in. The area under the curve is the town's supply; the band says which part of it is structural.",
+    read: "July and August did their job inside the band; the early September collapse sits outside it, which is what makes it a warning rather than noise. One area, one annotation, and the argument for the winter rationing plan is complete.",
     chart: (
       <Paper
         kicker="Water"
         title="A monsoon in millimetres"
-        source="Source: reservoir authority"
+        source="Source: reservoir authority gauge, monthly totals"
       >
         <Area
           title="Monthly rainfall"
           data={[85, 210, 340, 310, 265, 180, 95, 40]}
+          regions={[{ from: 1.6, to: 4.4, label: "core monsoon" }]}
           labels={["Jun", "", "Jul", "", "Aug", "", "Sep", ""]}
           format={(v) => `${v}mm`}
         />
       </Paper>
-    ),
-  },
-  {
-    title: "Laptop battery across a workday",
-    setup:
-      "An engineer suspects the new video-call client is the battery villain and logs the charge percentage every hour for one unplugged day.",
-    read: "A declining single quantity, which is exactly the area chart's home ground. The steep drains at 11 and 13 line up with the two long meetings; the gentle slopes are heads-down work. The villain has a calendar entry.",
-    chart: (
-      <Terminal title="battery — one workday">
-        <Area
-          title="Battery level"
-          data={[100, 92, 78, 74, 55, 48, 31, 24, 12]}
-          labels={["9", "10", "11", "12", "13", "14", "15", "16", "17"]}
-          format={(v) => `${v}%`}
-        />
-      </Terminal>
     ),
   },
 ];

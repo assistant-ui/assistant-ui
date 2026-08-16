@@ -167,7 +167,7 @@ export const ConnectedScatter = forwardRef<
                   <text
                     key={`label-${i}`}
                     x={round(X(p.x))}
-                    y={round(Y(p.y)) - 6}
+                    y={round(Y(p.y)) + (!multi && i === 0 ? 10 : -6)}
                     textAnchor="middle"
                     {...TXT.axis}
                   >

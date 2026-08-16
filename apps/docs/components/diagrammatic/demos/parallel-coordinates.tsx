@@ -1,6 +1,6 @@
 import { ParallelCoordinates } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Paper, Report } from "./scenes";
+import { Report } from "./scenes";
 
 export const glyph = (
   <ParallelCoordinates
@@ -32,48 +32,6 @@ export const examples: DemoExample[] = [
           ]}
         />
       </Report>
-    ),
-  },
-  {
-    title: "Three apartments on the shortlist",
-    setup:
-      "A couple scores their apartment shortlist on rent, size, commute, and light, then threads each flat across the axes to make the argument they keep having visible.",
-    read: "The cheap studio loses on every other axis at once — easier to see than to admit. The loft and the garden flat cross twice, which is the actual decision: pay for light and location, or for space and a longer train.",
-    chart: (
-      <AppCard title="The shortlist" meta="3 flats">
-        <ParallelCoordinates
-          title="Apartments on the shortlist"
-          axes={["rent", "size", "commute", "light"]}
-          records={[
-            { name: "loft", values: [78, 66, 30, 88] },
-            { name: "garden", values: [52, 74, 62, 46] },
-            { name: "studio", values: [24, 22, 78, 30] },
-          ]}
-        />
-      </AppCard>
-    ),
-  },
-  {
-    title: "Breakfast cereals, nutrition against price",
-    setup:
-      "A consumer magazine profiles three cereals across sugar, fiber, protein, and price — the axes parents actually read the box for.",
-    read: "The kids' cereal spikes on sugar and collapses on fiber; the lines do not lie to parents. Granola's surprise is the price axis: nutritionally between the other two, it costs nearly double both, and the thread makes the markup visible.",
-    chart: (
-      <Paper
-        kicker="Consumer"
-        title="Cereal, read closely"
-        source="Source: label data, three brands"
-      >
-        <ParallelCoordinates
-          title="Cereals across four axes"
-          axes={["sugar", "fiber", "protein", "price"]}
-          records={[
-            { name: "frosted", values: [88, 12, 18, 34] },
-            { name: "granola", values: [52, 64, 58, 76] },
-            { name: "bran", values: [18, 90, 44, 40] },
-          ]}
-        />
-      </Paper>
     ),
   },
 ];

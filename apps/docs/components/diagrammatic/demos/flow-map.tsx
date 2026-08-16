@@ -1,6 +1,6 @@
 import { FlowMap } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Paper, Slide } from "./scenes";
+import { AppCard } from "./scenes";
 
 export const glyph = (
   <FlowMap
@@ -32,45 +32,6 @@ export const examples: DemoExample[] = [
           ]}
         />
       </AppCard>
-    ),
-  },
-  {
-    title: "Relief supplies out of the port",
-    setup:
-      "A humanitarian logistics cell maps three convoy routes inland from the port, width equal to tonnage moved this week — the map the coordination meeting stands around.",
-    read: "The mountain route carries the least and costs the most, and the flow map states it in one thin stroke. When the southern road reopens, this map is how everyone will see the tonnage shift before the reports say so.",
-    chart: (
-      <Slide title="Convoys inland" footer="logistics cell">
-        <FlowMap
-          title="Relief supplies from the port"
-          origin={{ col: 3, row: 2, label: "port" }}
-          routes={[
-            { col: 9, row: 1, value: 30 },
-            { col: 11, row: 4, value: 20 },
-            { col: 7, row: 6, value: 9 },
-          ]}
-        />
-      </Slide>
-    ),
-  },
-  {
-    title: "A band's tour legs from the home city",
-    setup:
-      "A tour manager wraps the year with a fan-out map: every leg from the home city, stroke width scaled to tickets sold.",
-    read: "The flows fan out by attendance, and the hometown is the origin, not a line — the biggest show never travels. The thin southwestern leg was the experiment; its width says whether the experiment repeats.",
-    chart: (
-      <Paper kicker="Music" title="The tour, drawn">
-        <FlowMap
-          title="Tour legs from home"
-          origin={{ col: 8, row: 4, label: "home" }}
-          routes={[
-            { col: 3, row: 2, value: 22 },
-            { col: 13, row: 2, value: 16 },
-            { col: 14, row: 6, value: 11 },
-            { col: 4, row: 6, value: 8 },
-          ]}
-        />
-      </Paper>
     ),
   },
 ];

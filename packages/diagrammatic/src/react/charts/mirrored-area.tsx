@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import type { Series } from "../../core/types";
 import { areaPath, linePath, scalePoints, stroke } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
-import { AxisLabels, ChartSvg, TXT, vbHeight } from "../svg";
+import { AxisLabels, ChartSvg, TXT, labelXs, vbHeight } from "../svg";
 
 export type MirroredAreaProps = BaseProps & { down: Series; up: Series };
 
@@ -64,7 +64,14 @@ export const MirroredArea = forwardRef<SVGSVGElement, MirroredAreaProps>(
           ↑ {up.name}
         </text>
         {labels && (
-          <AxisLabels labels={labels} xs={topPts.map((p) => p.x)} y={vh - 4} />
+          <AxisLabels
+            labels={labels}
+            xs={labelXs(
+              topPts.map((p) => p.x),
+              labels.length,
+            )}
+            y={vh - 4}
+          />
         )}
       </ChartSvg>
     );

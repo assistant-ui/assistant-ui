@@ -1,6 +1,6 @@
 import { PopulationPyramid } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { Paper, Report, Slide } from "./scenes";
+import { Paper } from "./scenes";
 
 export const glyph = (
   <PopulationPyramid
@@ -30,38 +30,6 @@ export const examples: DemoExample[] = [
           right={{ name: "women", data: [28, 42, 58, 64, 70, 56, 40, 24] }}
         />
       </Paper>
-    ),
-  },
-  {
-    title: "A retirement town",
-    setup:
-      "A county planner charts a coastal retirement town before the school-budget vote, because the argument is demographic and the pyramid makes demography visceral.",
-    read: "Top-heavy and thin at the base: the 60s and 70+ bands dominate while the child bands are slivers. The school district closed for a reason the silhouette states plainly — and the home-care shortage the shape predicts is next decade's agenda item.",
-    chart: (
-      <Report title="A retirement town" chip="census">
-        <PopulationPyramid
-          title="Retirement town"
-          bands={["70+", "60s", "50s", "40s", "30s", "20s", "10s", "0-9"]}
-          left={{ name: "men", data: [58, 72, 54, 30, 20, 14, 10, 8] }}
-          right={{ name: "women", data: [74, 78, 56, 32, 22, 15, 11, 8] }}
-        />
-      </Report>
-    ),
-  },
-  {
-    title: "A college town in term time",
-    setup:
-      "The same census form, pointed at a university town in October. Term-time population counts students where they sleep, and the pyramid shows what that does to a place.",
-    read: "One enormous cohort in the twenties — nearly half the town — then the shape empties in both directions. Everything about the local economy hangs off that bulge, and every landlord already knew.",
-    chart: (
-      <Slide title="A college town in October" footer="planning office">
-        <PopulationPyramid
-          title="College town"
-          bands={["70+", "60s", "50s", "40s", "30s", "20s", "10s", "0-9"]}
-          left={{ name: "men", data: [10, 14, 18, 22, 30, 88, 26, 12] }}
-          right={{ name: "women", data: [12, 16, 20, 24, 32, 94, 28, 12] }}
-        />
-      </Slide>
     ),
   },
 ];

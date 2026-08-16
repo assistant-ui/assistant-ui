@@ -15,7 +15,7 @@ export const ProgressRing = forwardRef<SVGSVGElement, ProgressRingProps>(
   ({ value, display, label, title, aspect, className, ...rest }, ref) => {
     const vh = vbHeight(aspect, 5 / 3);
     const cy = vh / 2 - (label ? 4 : 0);
-    const r = Math.min(cy - 8, 26);
+    const r = cy - 8;
     const share = Math.max(0, Math.min(1, value));
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
@@ -47,7 +47,13 @@ export const ProgressRing = forwardRef<SVGSVGElement, ProgressRingProps>(
           {display ?? `${Math.round(share * 100)}%`}
         </text>
         {label && (
-          <text x="100" y={cy + r + 12} textAnchor="middle" {...TXT.axis}>
+          <text
+            x="100"
+            y={cy + r + 12}
+            textAnchor="middle"
+            {...TXT.axis}
+            fontSize={Math.max(4.5, r * 0.16)}
+          >
             {label}
           </text>
         )}

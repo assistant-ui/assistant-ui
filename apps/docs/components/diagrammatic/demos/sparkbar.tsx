@@ -1,6 +1,6 @@
 import { Sparkbar } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Report, Terminal } from "./scenes";
+import { Terminal } from "./scenes";
 
 function Rows({
   rows,
@@ -73,64 +73,6 @@ export const examples: DemoExample[] = [
           ]}
         />
       </Terminal>
-    ),
-  },
-  {
-    title: "Steps per hour, three mornings",
-    setup:
-      "A fitness app compresses each morning into hourly step bars, and the commute writes its signature into the same column every day.",
-    read: "The 8am spike shows in the same position Tuesday and Wednesday — the walk to the station — and vanishes Thursday, the day it rained and the bus won. One missing bar tells the whole weather story.",
-    chart: (
-      <AppCard title="Steps, three mornings" meta="hourly">
-        <Rows
-          rows={[
-            {
-              label: "tue",
-              data: [1, 2, 9, 3, 2, 4, 3, 5, 2, 3, 4, 6],
-              value: "8.4k",
-            },
-            {
-              label: "wed",
-              data: [1, 1, 10, 2, 3, 3, 4, 4, 3, 2, 5, 5],
-              value: "8.9k",
-            },
-            {
-              label: "thu",
-              data: [1, 1, 2, 2, 3, 4, 3, 5, 4, 3, 4, 5],
-              value: "6.1k",
-            },
-          ]}
-        />
-      </AppCard>
-    ),
-  },
-  {
-    title: "Training volume by week, three lifts",
-    setup:
-      "A strength coach reviews a twelve-week block at a glance: sets per week per lift, one sparkbar row each, deload weeks included.",
-    read: "The deload weeks read as the short bars they are — weeks 4, 8, and 12, right on program. Volume ratchets up between them across all three lifts; if one row's bars stopped growing, that lift's programming would be the conversation.",
-    chart: (
-      <Report title="Training volume" chip="12 weeks">
-        <Rows
-          rows={[
-            {
-              label: "squat",
-              data: [12, 14, 16, 8, 14, 16, 18, 9, 16, 18, 20, 10],
-              value: "171",
-            },
-            {
-              label: "bench",
-              data: [10, 12, 12, 6, 12, 14, 14, 7, 14, 15, 16, 8],
-              value: "140",
-            },
-            {
-              label: "dead",
-              data: [8, 9, 10, 5, 9, 10, 12, 6, 10, 12, 13, 6],
-              value: "110",
-            },
-          ]}
-        />
-      </Report>
     ),
   },
 ];

@@ -200,6 +200,20 @@ export function Legend({
   );
 }
 
+/**
+ * Tick positions for an axis: one per point when counts match, otherwise the
+ * labels spread evenly across the plotted span (sparse-tick convention).
+ */
+export function labelXs(pointXs: number[], count: number): number[] {
+  if (count === pointXs.length) return pointXs;
+  const lo = pointXs[0] ?? 0;
+  const hi = pointXs[pointXs.length - 1] ?? lo;
+  return Array.from(
+    { length: count },
+    (_, i) => lo + ((hi - lo) * i) / Math.max(1, count - 1),
+  );
+}
+
 export function AxisLabels({
   labels,
   xs,

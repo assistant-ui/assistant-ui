@@ -3,7 +3,7 @@ import { forwardRef } from "react";
 import type { Graph } from "../../core/types";
 import { round, stroke } from "../../core/geometry";
 import { radialNetwork } from "../../core/layout";
-import { ACCENT, ink } from "../../core/theme";
+import { ACCENT, SURFACE, ink } from "../../core/theme";
 import { ChartSvg, TXT, vbHeight } from "../svg";
 
 export type NetworkProps = BaseProps & { graph: Graph };
@@ -54,7 +54,15 @@ export const Network = forwardRef<SVGSVGElement, NetworkProps>(
                 fill={isHub ? ACCENT : ink(0.5)}
               />
               {node.label && (
-                <text x={round(p.x + r + 3)} y={round(p.y + 1.8)} {...TXT.axis}>
+                <text
+                  x={round(p.x + r + 3)}
+                  y={round(p.y + 1.8)}
+                  stroke={SURFACE}
+                  strokeWidth="2.5"
+                  strokeLinejoin="round"
+                  paintOrder="stroke"
+                  {...TXT.axis}
+                >
                   {node.label}
                 </text>
               )}

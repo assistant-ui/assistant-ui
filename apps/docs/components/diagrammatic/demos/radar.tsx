@@ -1,6 +1,6 @@
 import { Radar } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Report, Slide } from "./scenes";
+import { Report } from "./scenes";
 
 export const glyph = (
   <Radar
@@ -34,42 +34,6 @@ export const examples: DemoExample[] = [
           ]}
         />
       </Report>
-    ),
-  },
-  {
-    title: "A scouting profile against the league average",
-    setup:
-      "A football scout files a report as the radar every recruitment department speaks: the prospect's five attributes drawn over the league-average pentagon.",
-    read: "The shape bulges on pace and dribbling and dents hard on defending: that is a winger, stated in geometry before the text says a word. Buying him means buying the dent too, and the overlay prices it against average.",
-    chart: (
-      <Slide title="The scouting profile" footer="recruitment">
-        <Radar
-          title="Prospect against league average"
-          axes={["pace", "shot", "pass", "dribble", "defend"]}
-          series={[
-            { name: "prospect", data: [0.92, 0.66, 0.58, 0.88, 0.3] },
-            { name: "league avg", data: [0.6, 0.55, 0.6, 0.55, 0.55] },
-          ]}
-        />
-      </Slide>
-    ),
-  },
-  {
-    title: "Two espresso machines, five traits",
-    setup:
-      "A coffee reviewer scores a manual lever machine and a super-automatic across five traits, then overlays them for the buying-guide verdict.",
-    read: "One is a ritual, the other a workflow: the lever peaks on taste and quiet, the auto on speed and ease. The shapes barely overlap — the radar shows you which machine you are, not which is better.",
-    chart: (
-      <AppCard title="Espresso machines" meta="2 reviews">
-        <Radar
-          title="Espresso machines compared"
-          axes={["taste", "speed", "ease", "quiet", "price"]}
-          series={[
-            { name: "lever", data: [0.95, 0.3, 0.25, 0.8, 0.4] },
-            { name: "auto", data: [0.65, 0.9, 0.95, 0.5, 0.6] },
-          ]}
-        />
-      </AppCard>
     ),
   },
 ];

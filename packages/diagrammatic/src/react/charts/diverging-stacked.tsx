@@ -26,17 +26,22 @@ export const DivergingStacked = forwardRef<
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const rowH = (vh - 22) / Math.max(1, rows.length);
-    const maxTotal = Math.max(
-      ...rows.map((r) => r.values.reduce((a, b) => a + b, 0)),
+    const maxLeft = Math.max(
+      ...rows.map((r) => r.values[0] + r.values[1] + r.values[2] / 2),
       1,
     );
-    const unit = 160 / maxTotal;
+    const maxRight = Math.max(
+      ...rows.map((r) => r.values[2] / 2 + r.values[3] + r.values[4]),
+      1,
+    );
+    const unit = 154 / (maxLeft + maxRight);
+    const center = 34 + maxLeft * unit;
     return (
       <ChartSvg ref={ref} {...rest} vh={vh} title={title} className={className}>
         {rows.map((row, i) => {
           const y = 8 + i * rowH;
           const [strongNeg, neg, neutral, pos, strongPos] = row.values;
-          let x = 110 - (strongNeg + neg + neutral / 2) * unit;
+          let x = center - (strongNeg + neg + neutral / 2) * unit;
           const segments = [
             { w: strongNeg, fill: NEG, opacity: 0.9 },
             { w: neg, fill: NEG, opacity: 0.45 },
@@ -70,7 +75,7 @@ export const DivergingStacked = forwardRef<
           );
         })}
         <text
-          x="30"
+          x="34"
           y={vh - 4}
           fontSize="4.5"
           fill={NEG}
@@ -78,7 +83,7 @@ export const DivergingStacked = forwardRef<
         >
           ← {endLabels[0]}
         </text>
-        <text x="110" y={vh - 4} textAnchor="middle" {...TXT.axis}>
+        <text x={center} y={vh - 4} textAnchor="middle" {...TXT.axis}>
           neutral
         </text>
         <text

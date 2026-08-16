@@ -1,6 +1,6 @@
 import { Horizon } from "diagrammatic";
 import type { DemoExample } from "./types";
-import { AppCard, Paper, Terminal } from "./scenes";
+import { Terminal } from "./scenes";
 
 export const glyph = (
   <Horizon
@@ -31,44 +31,6 @@ export const examples: DemoExample[] = [
           labels={["00", "06", "12", "18", "24"]}
         />
       </Terminal>
-    ),
-  },
-  {
-    title: "River level above normal, one month of readings",
-    setup:
-      "A flood-monitoring page shows thirty gauges at once, one skinny band each. This is the gauge that mattered last month: a river's level above seasonal normal, twice-daily readings.",
-    read: "The flood week is the one dark block; everything else lives in the first fold. The form's economy is the point — an operator scanning thirty of these finds the dark block in seconds, which is the entire job.",
-    chart: (
-      <Paper kicker="Flood watch" title="A month above normal">
-        <Horizon
-          title="River level above normal"
-          data={[
-            0.4, 0.6, 0.5, 0.8, 1.2, 2.6, 3.4, 3.8, 3.2, 2.4, 1.6, 1.1, 0.9,
-            0.7, 0.6, 0.8, 0.7, 0.5,
-          ]}
-          bands={3}
-          labels={["w1", "w2", "w3", "w4"]}
-        />
-      </Paper>
-    ),
-  },
-  {
-    title: "Street noise outside the studio, one day",
-    setup:
-      "A podcast studio logs sound levels to find recordable hours. The producer wants the whole day in a strip above the booking calendar, so the tall daily curve gets folded.",
-    read: "Both rush hours fold twice — those windows are unusable — while the 3am floor barely registers in the first band. The recordable valley from 9 to 11 is visible as the pale gap between dark blocks, and that is when sessions get booked.",
-    chart: (
-      <AppCard title="Studio noise" meta="24h">
-        <Horizon
-          title="Street noise level"
-          data={[
-            1, 0.6, 0.5, 0.8, 2.2, 4.4, 5.2, 4, 3.2, 3.6, 3, 3.4, 3.8, 3.2, 4.6,
-            5.4, 4.2, 2.6,
-          ]}
-          bands={3}
-          labels={["00", "06", "12", "18", "24"]}
-        />
-      </AppCard>
     ),
   },
 ];
