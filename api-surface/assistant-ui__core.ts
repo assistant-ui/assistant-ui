@@ -3456,6 +3456,10 @@ type RemoteThreadInitializeResponse = {
   externalId?: string | undefined;
 };
 
+declare const RemoteThreadList: Resource<ClientOutput<"threads">, [
+  props: RemoteThreadListProps
+]>;
+
 type RemoteThreadListAdapter = {
   list(params?: RemoteThreadListPageOptions): Promise<RemoteThreadListResponse>;
   rename(remoteId: string, newTitle: string): Promise<void>;
@@ -3663,6 +3667,16 @@ type RemoteThreadListOptions = {
 
 type RemoteThreadListPageOptions = {
   after?: string | undefined;
+};
+
+type RemoteThreadListProps = {
+  adapter: RemoteThreadListAdapter;
+  thread: InMemoryThreadListProps["thread"];
+  threadId?: string | undefined;
+  onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
+  onSwitchToThread?: ((threadId: string) => void) | undefined;
+  onSwitchToNewThread?: (() => void) | undefined;
+  onDelete?: ((threadId: string) => void) | undefined;
 };
 
 type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => any) | (new (props: RemoteThreadListProviderProps) => any);
@@ -5924,7 +5938,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_store_exports {
-  export { AttachmentClientSchema, AttachmentMeta, AttachmentMethods, AttachmentState, ChainOfThoughtClient, ChainOfThoughtClientSchema, ChainOfThoughtMeta, ChainOfThoughtMethods, ChainOfThoughtPart, ChainOfThoughtState, ComposerClientSchema, ComposerEvents, ComposerMeta, ComposerMethods, ComposerSendOptions, ComposerState, ExternalThread, ExternalThreadMessage, ExternalThreadProps, InMemoryThreadList, InMemoryThreadListProps, JoinStrategy, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageClientSchema, MessageMeta, MessageMethods, MessageState, ModelContext, ModelContextClientSchema, ModelContextMethods, ModelContextState, NoOpComposerClient, PartClientSchema, PartMeta, PartMethods, PartState, QueueItemClientSchema, QueueItemMeta, QueueItemMethods, QueueItemState, RuntimeAdapter, RuntimeExtrasBrand, SingleThreadList, StreamingTimingAccessors, StreamingTimingOptions, StreamingTimingState, Suggestion, SuggestionClientSchema, SuggestionConfig, SuggestionMeta, SuggestionMethods, SuggestionState, Suggestions, SuggestionsClientSchema, SuggestionsMethods, SuggestionsState, ThreadClientSchema, ThreadEvents, ThreadListItemClientSchema, ThreadListItemEvents, ThreadListItemMeta, ThreadListItemMethods, ThreadListItemState, ThreadMessageClient, ThreadMessageClientProps, ThreadMeta, ThreadMethods, ThreadState$1 as ThreadState, ThreadsClientSchema, ThreadsEvents, ThreadsMethods, ThreadsState, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, convertExternalMessages, createRuntimeExtrasBrand, defineMcpToolkit, defineToolkit, inMemoryThreadListTransformScopes, runtimeAdapterTransformScopes, useExternalMessageConverter, useStreamingTiming };
+  export { AttachmentClientSchema, AttachmentMeta, AttachmentMethods, AttachmentState, ChainOfThoughtClient, ChainOfThoughtClientSchema, ChainOfThoughtMeta, ChainOfThoughtMethods, ChainOfThoughtPart, ChainOfThoughtState, ComposerClientSchema, ComposerEvents, ComposerMeta, ComposerMethods, ComposerSendOptions, ComposerState, ExternalThread, ExternalThreadMessage, ExternalThreadProps, InMemoryThreadList, InMemoryThreadListProps, JoinStrategy, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageClientSchema, MessageMeta, MessageMethods, MessageState, ModelContext, ModelContextClientSchema, ModelContextMethods, ModelContextState, NoOpComposerClient, PartClientSchema, PartMeta, PartMethods, PartState, QueueItemClientSchema, QueueItemMeta, QueueItemMethods, QueueItemState, RemoteThreadList, RemoteThreadListProps, RuntimeAdapter, RuntimeExtrasBrand, SingleThreadList, StreamingTimingAccessors, StreamingTimingOptions, StreamingTimingState, Suggestion, SuggestionClientSchema, SuggestionConfig, SuggestionMeta, SuggestionMethods, SuggestionState, Suggestions, SuggestionsClientSchema, SuggestionsMethods, SuggestionsState, ThreadClientSchema, ThreadEvents, ThreadListItemClientSchema, ThreadListItemEvents, ThreadListItemMeta, ThreadListItemMethods, ThreadListItemState, ThreadMessageClient, ThreadMessageClientProps, ThreadMeta, ThreadMethods, ThreadState$1 as ThreadState, ThreadsClientSchema, ThreadsEvents, ThreadsMethods, ThreadsState, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, convertExternalMessages, createRuntimeExtrasBrand, defineMcpToolkit, defineToolkit, inMemoryThreadListTransformScopes, runtimeAdapterTransformScopes, useExternalMessageConverter, useStreamingTiming };
 }
 
 declare namespace entry_internal_exports {
