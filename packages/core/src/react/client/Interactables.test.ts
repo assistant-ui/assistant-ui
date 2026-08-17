@@ -436,19 +436,24 @@ describe("Interactables persistence save", () => {
       });
     root.getValue().setPersistenceAdapter({ save: secondSave });
 
+    expect(firstSave).toHaveBeenCalledTimes(1);
+    expect(secondSave).not.toHaveBeenCalled();
+
+    saveResolvers[0]!();
+    await flushMicrotasks();
+    expect(flushed).toBe(false);
     expect(firstSave).toHaveBeenCalledTimes(2);
     expect(firstSave.mock.calls[1]![0]).toEqual({
       n1: { name: "note", state: { v: 2 } },
     });
     expect(secondSave).not.toHaveBeenCalled();
 
-    saveResolvers[0]!();
-    await flushMicrotasks();
-    expect(flushed).toBe(false);
-
     saveResolvers[1]!();
     await flush;
     expect(flushed).toBe(true);
+    expect(firstSave.mock.calls.at(-1)?.[0]).toEqual({
+      n1: { name: "note", state: { v: 2 } },
+    });
     expect(secondSave).not.toHaveBeenCalled();
   });
 

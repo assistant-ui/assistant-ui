@@ -6,6 +6,7 @@ import type {
 } from "./scopes";
 
 const clientHolder: { client: unknown } = { client: null };
+const clientListeners = new Set<() => void>();
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
@@ -19,10 +20,49 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   };
 });
 
+vi.mock("@assistant-ui/store/client", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@assistant-ui/store/client")>();
+  const { useEffect } = await import("react");
+  const useScopeEffectShim = (
+    scope: string,
+    effect: () => (() => void) | void,
+    deps: readonly unknown[],
+  ) => {
+    useEffect(() => {
+      let cleanup: (() => void) | undefined;
+      const apply = () => {
+        cleanup?.();
+        cleanup = undefined;
+        const accessor = (
+          clientHolder.client as Record<string, { source?: unknown }> | null
+        )?.[scope];
+        if (accessor?.source == null) return;
+        const result = effect();
+        cleanup = typeof result === "function" ? result : undefined;
+      };
+
+      apply();
+      clientListeners.add(apply);
+      return () => {
+        clientListeners.delete(apply);
+        cleanup?.();
+      };
+      // oxlint-disable-next-line react-hooks/exhaustive-deps -- caller-provided deps, mirrors the real hook
+    }, deps);
+  };
+  return {
+    ...actual,
+    useAssistantScopeEffect: useScopeEffectShim,
+  };
+});
+
 const { Interactables } = await import("./Interactables");
 
 const makeClient = () => ({
-  modelContext: () => ({ register: () => () => {} }),
+  modelContext: Object.assign(() => ({ register: () => () => {} }), {
+    source: "root",
+  }),
 });
 
 const mount = () => {
@@ -51,6 +91,7 @@ beforeEach(() => {
 afterEach(() => {
   root?.unmount();
   root = undefined;
+  clientListeners.clear();
   vi.useRealTimers();
   vi.restoreAllMocks();
 });
@@ -75,6 +116,44 @@ describe("legacy Interactables persistence", () => {
     expect(firstSave).toHaveBeenCalledWith({
       n1: { name: "note", state: { v: 1 } },
     });
+    expect(secondSave).not.toHaveBeenCalled();
+  });
+
+  it("keeps edits queued during an in-flight flush with the outgoing adapter", async () => {
+    const saveResolvers: Array<() => void> = [];
+    const firstSave = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          saveResolvers.push(resolve);
+        }),
+    );
+    const secondSave = vi.fn();
+    root = mount();
+    await flushMicrotasks();
+    root.getValue().setPersistenceAdapter({ save: firstSave });
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("n1", () => ({ v: 2 }));
+    root.getValue().setPersistenceAdapter({ save: secondSave });
+
+    expect(firstSave).toHaveBeenCalledTimes(1);
+    expect(secondSave).not.toHaveBeenCalled();
+
+    saveResolvers[0]!();
+    await flushMicrotasks();
+    expect(firstSave).toHaveBeenCalledTimes(2);
+    expect(firstSave.mock.calls[1]![0]).toEqual({
+      n1: { name: "note", state: { v: 2 } },
+    });
+    expect(firstSave.mock.calls.at(-1)?.[0]).toEqual({
+      n1: { name: "note", state: { v: 2 } },
+    });
+    expect(secondSave).not.toHaveBeenCalled();
+
+    saveResolvers[1]!();
+    await flushMicrotasks();
     expect(secondSave).not.toHaveBeenCalled();
   });
 
