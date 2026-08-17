@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { resource, type ResourceElement } from "@assistant-ui/tap";
 import { useClientResource } from "@assistant-ui/store/client";
 import type { ClientOutput } from "@assistant-ui/store";
@@ -16,7 +17,10 @@ const useAdaptedRemoteThread = ({
 }): ClientOutput<"thread"> => {
   const parent = useRuntimeAdapters();
   const adapters = useAdapters();
-  const merged = adapters == null ? parent : { ...parent, ...adapters };
+  const merged = useMemo(
+    () => (adapters == null ? parent : { ...parent, ...adapters }),
+    [parent, adapters],
+  );
   return useRuntimeAdaptersProvider(merged, function useBoundRemoteThread() {
     return useClientResource(thread).methods;
   });
