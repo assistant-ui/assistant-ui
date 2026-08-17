@@ -112,9 +112,22 @@ const useInteractablesResource = ({
     undefined,
   );
   const syncSeqRef = useRef(0);
-  const hasPendingLocalChangeRef = useRef(false);
+  const latestSyncSeqByIdRef = useRef(new Map<string, number>());
+  const inFlightPersistenceRef = useRef(0);
   const flushResolversRef = useRef<Array<() => void>>([]);
   const dirtyIdsRef = useRef(new Set<string>());
+
+  type PersistenceBatch = {
+    adapter: Unstable_InteractablePersistenceAdapter;
+    payload: Unstable_InteractablePersistedState;
+    dirtyIds: Set<string>;
+    seq: number;
+  };
+
+  const outgoingQueueRef = useRef<PersistenceBatch[]>([]);
+  const runPersistenceRef = useRef<(batch?: PersistenceBatch) => void>(
+    () => {},
+  );
 
   const setStateAndRef = useCallback(
     (
@@ -138,67 +151,127 @@ const useInteractablesResource = ({
     return result;
   }, []);
 
-  const runPersistence = useCallback(async () => {
-    const adapter = adapterRef.current;
-    if (!adapter) {
-      for (const resolve of flushResolversRef.current) resolve();
-      flushResolversRef.current = [];
-      return;
-    }
+  const takeDirtyBatch = useCallback(
+    (
+      adapter: Unstable_InteractablePersistenceAdapter,
+    ): PersistenceBatch | undefined => {
+      if (dirtyIdsRef.current.size === 0) return;
+      const dirtyIds = new Set(dirtyIdsRef.current);
+      dirtyIdsRef.current.clear();
+      const seq = ++syncSeqRef.current;
+      for (const id of dirtyIds) latestSyncSeqByIdRef.current.set(id, seq);
+      return { adapter, payload: exportState(), dirtyIds, seq };
+    },
+    [exportState],
+  );
 
-    const seq = ++syncSeqRef.current;
-    const dirtyIds = new Set(dirtyIdsRef.current);
-    dirtyIdsRef.current.clear();
-    hasPendingLocalChangeRef.current = true;
-
-    // Snapshot before any await so unregistered definitions are still included.
-    const payload = exportState();
-
-    setStateAndRef((prev) => ({
-      ...prev,
-      persistence: {
-        ...prev.persistence,
-        ...Object.fromEntries(
-          [...dirtyIds].map((id) => [
-            id,
-            { isPending: true, error: undefined },
-          ]),
-        ),
-      },
-    }));
-
-    try {
-      await adapter.save(payload);
-      if (syncSeqRef.current === seq) {
-        hasPendingLocalChangeRef.current = false;
-        setStateAndRef((prev) => {
-          const persistence = { ...prev.persistence };
-          for (const id of dirtyIds) delete persistence[id];
-          return { ...prev, persistence };
-        });
-      }
-    } catch (e) {
-      if (syncSeqRef.current === seq) {
-        hasPendingLocalChangeRef.current = false;
-        setStateAndRef((prev) => ({
-          ...prev,
-          persistence: {
-            ...prev.persistence,
-            ...Object.fromEntries(
-              [...dirtyIds].map((id) => [id, { isPending: false, error: e }]),
-            ),
-          },
-        }));
-      }
-    } finally {
-      if (dirtyIdsRef.current.size > 0 && adapterRef.current) {
-        runPersistence();
+  const enqueuePersistence = useCallback(
+    (adapter: Unstable_InteractablePersistenceAdapter) => {
+      const batch = takeDirtyBatch(adapter);
+      if (!batch) return;
+      if (inFlightPersistenceRef.current === 0) {
+        runPersistenceRef.current(batch);
       } else {
-        for (const resolve of flushResolversRef.current) resolve();
-        flushResolversRef.current = [];
+        outgoingQueueRef.current.push(batch);
       }
+    },
+    [takeDirtyBatch],
+  );
+
+  const runPersistence = useCallback(
+    async (batch?: PersistenceBatch) => {
+      const resolved =
+        batch ??
+        (adapterRef.current ? takeDirtyBatch(adapterRef.current) : undefined);
+      if (!resolved) {
+        if (inFlightPersistenceRef.current === 0) {
+          for (const resolve of flushResolversRef.current) resolve();
+          flushResolversRef.current = [];
+        }
+        return;
+      }
+
+      const { adapter, payload, dirtyIds, seq } = resolved;
+      inFlightPersistenceRef.current += 1;
+
+      setStateAndRef((prev) => ({
+        ...prev,
+        persistence: {
+          ...prev.persistence,
+          ...Object.fromEntries(
+            [...dirtyIds].map((id) => [
+              id,
+              { isPending: true, error: undefined },
+            ]),
+          ),
+        },
+      }));
+
+      try {
+        await adapter.save(payload);
+        setStateAndRef((prev) => {
+          let changed = false;
+          const persistence = { ...prev.persistence };
+          for (const id of dirtyIds) {
+            if (
+              latestSyncSeqByIdRef.current.get(id) !== seq ||
+              dirtyIdsRef.current.has(id)
+            )
+              continue;
+            latestSyncSeqByIdRef.current.delete(id);
+            delete persistence[id];
+            changed = true;
+          }
+          return changed ? { ...prev, persistence } : prev;
+        });
+      } catch (e) {
+        setStateAndRef((prev) => {
+          let changed = false;
+          const persistence = { ...prev.persistence };
+          for (const id of dirtyIds) {
+            if (
+              latestSyncSeqByIdRef.current.get(id) !== seq ||
+              dirtyIdsRef.current.has(id)
+            )
+              continue;
+            latestSyncSeqByIdRef.current.delete(id);
+            persistence[id] = { isPending: false, error: e };
+            changed = true;
+          }
+          return changed ? { ...prev, persistence } : prev;
+        });
+      } finally {
+        inFlightPersistenceRef.current -= 1;
+        const next =
+          outgoingQueueRef.current.shift() ??
+          (adapterRef.current && dirtyIdsRef.current.size > 0
+            ? takeDirtyBatch(adapterRef.current)
+            : undefined);
+        if (next) {
+          if (debounceTimerRef.current !== undefined) {
+            clearTimeout(debounceTimerRef.current);
+            debounceTimerRef.current = undefined;
+          }
+          runPersistenceRef.current(next);
+        } else if (inFlightPersistenceRef.current === 0) {
+          for (const resolve of flushResolversRef.current) resolve();
+          flushResolversRef.current = [];
+        }
+      }
+    },
+    [setStateAndRef, takeDirtyBatch],
+  );
+  runPersistenceRef.current = (nextBatch) => {
+    void runPersistence(nextBatch);
+  };
+
+  const flushIfPending = useCallback(() => {
+    if (debounceTimerRef.current !== undefined) {
+      clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = undefined;
     }
-  }, [exportState, setStateAndRef]);
+    if (adapterRef.current) enqueuePersistence(adapterRef.current);
+  }, [enqueuePersistence]);
 
   const schedulePersistence = useCallback(
     (id: string) => {
@@ -209,17 +282,17 @@ const useInteractablesResource = ({
       }
       debounceTimerRef.current = setTimeout(() => {
         debounceTimerRef.current = undefined;
-        if (!hasPendingLocalChangeRef.current) {
-          runPersistence();
+        if (inFlightPersistenceRef.current === 0 && adapterRef.current) {
+          enqueuePersistence(adapterRef.current);
         } else {
           debounceTimerRef.current = setTimeout(() => {
             debounceTimerRef.current = undefined;
-            runPersistence();
+            if (adapterRef.current) enqueuePersistence(adapterRef.current);
           }, PERSISTENCE_DEBOUNCE_MS);
         }
       }, PERSISTENCE_DEBOUNCE_MS);
     },
-    [runPersistence],
+    [enqueuePersistence],
   );
 
   const restorePersistedState = useCallback(
@@ -286,10 +359,11 @@ const useInteractablesResource = ({
 
   const setPersistenceAdapter = useCallback(
     (adapter: Unstable_InteractablePersistenceAdapter | undefined) => {
+      if (adapterRef.current !== adapter) flushIfPending();
       adapterRef.current = adapter;
       if (adapter) void loadFromAdapter(adapter);
     },
-    [loadFromAdapter],
+    [flushIfPending, loadFromAdapter],
   );
 
   const getCurrentThreadId = useCallback((): string | undefined => {
@@ -314,7 +388,7 @@ const useInteractablesResource = ({
     setPersistenceAdapter(persistence);
     return () => {
       if (adapterRef.current === persistence) {
-        adapterRef.current = undefined;
+        setPersistenceAdapter(undefined);
       }
     };
   }, [persistence, setPersistenceAdapter]);
@@ -324,25 +398,17 @@ const useInteractablesResource = ({
       clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = undefined;
     }
-    if (!adapterRef.current) return;
-    if (!hasPendingLocalChangeRef.current && dirtyIdsRef.current.size === 0)
-      return;
+    const hasWork =
+      inFlightPersistenceRef.current > 0 ||
+      dirtyIdsRef.current.size > 0 ||
+      outgoingQueueRef.current.length > 0;
+    if (!hasWork) return;
     const p = new Promise<void>((resolve) => {
       flushResolversRef.current.push(resolve);
     });
-    if (!hasPendingLocalChangeRef.current) {
-      runPersistence();
-    }
+    if (adapterRef.current) enqueuePersistence(adapterRef.current);
     return p;
-  }, [runPersistence]);
-
-  const flushIfPending = useCallback(() => {
-    if (adapterRef.current && debounceTimerRef.current !== undefined) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = undefined;
-      runPersistence();
-    }
-  }, [runPersistence]);
+  }, [enqueuePersistence]);
 
   const setDefState = useCallback(
     (id: string, updater: (prev: unknown) => unknown) => {

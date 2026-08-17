@@ -630,7 +630,7 @@ function MyRuntimeProvider({ children }) {
 
 `load` is called when the adapter is attached and may be async. Loaded state seeds interactables as they register; a local edit made while a slow `load` is still in flight wins over the loaded value. Thread-scoped interactables are not touched by the adapter; they persist via thread history.
 
-For dynamic setups (an adapter that depends on auth), call `aui.interactables.setPersistenceAdapter(adapter)` imperatively instead.
+For dynamic setups (an adapter that depends on auth), call `aui.unstable_interactables.setPersistenceAdapter(adapter)` imperatively instead. Replacing or removing an adapter flushes queued changes through the outgoing adapter before the new persistence context is attached.
 
 ### Sync Status
 

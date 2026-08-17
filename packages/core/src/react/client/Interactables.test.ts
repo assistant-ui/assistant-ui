@@ -392,6 +392,207 @@ describe("Interactables persistence save", () => {
     await p;
     expect(resolved).toBe(true);
   });
+
+  it("saves queued changes with the adapter that observed them", async () => {
+    const firstSave = vi.fn();
+    const secondSave = vi.fn();
+    root = mount({ persistence: { save: firstSave } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    root.getValue().setPersistenceAdapter({ save: secondSave });
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(firstSave).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 1 } },
+    });
+    expect(secondSave).not.toHaveBeenCalled();
+  });
+
+  it("keeps edits queued during an in-flight flush with the outgoing adapter", async () => {
+    const saveResolvers: Array<() => void> = [];
+    const firstSave = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          saveResolvers.push(resolve);
+        }),
+    );
+    const secondSave = vi.fn();
+    root = mount({ persistence: { save: firstSave } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("n1", () => ({ v: 2 }));
+
+    let flushed = false;
+    const flush = root
+      .getValue()
+      .flush()
+      .then(() => {
+        flushed = true;
+      });
+    root.getValue().setPersistenceAdapter({ save: secondSave });
+
+    expect(firstSave).toHaveBeenCalledTimes(1);
+    expect(secondSave).not.toHaveBeenCalled();
+
+    saveResolvers[0]!();
+    await flushMicrotasks();
+    expect(flushed).toBe(false);
+    expect(firstSave).toHaveBeenCalledTimes(2);
+    expect(firstSave.mock.calls[1]![0]).toEqual({
+      n1: { name: "note", state: { v: 2 } },
+    });
+    expect(secondSave).not.toHaveBeenCalled();
+
+    saveResolvers[1]!();
+    await flush;
+    expect(flushed).toBe(true);
+    expect(firstSave.mock.calls.at(-1)?.[0]).toEqual({
+      n1: { name: "note", state: { v: 2 } },
+    });
+    expect(secondSave).not.toHaveBeenCalled();
+  });
+
+  it("cancels an empty retry timer when replacing the adapter", async () => {
+    let resolveFirstSave!: () => void;
+    const firstSave = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSave = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    const secondSave = vi.fn();
+    root = mount({ persistence: { save: firstSave } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("n1", () => ({ v: 2 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    resolveFirstSave();
+    await flushMicrotasks();
+    expect(firstSave).toHaveBeenCalledTimes(2);
+
+    root.getValue().setPersistenceAdapter({ save: secondSave });
+    await vi.advanceTimersByTimeAsync(500);
+
+    expect(firstSave).toHaveBeenCalledTimes(2);
+    expect(secondSave).not.toHaveBeenCalled();
+  });
+
+  it("cancels the retry timer after starting the queued batch", async () => {
+    let resolveFirstSave!: () => void;
+    const save = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSave = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("n1", () => ({ v: 2 }));
+    await vi.advanceTimersByTimeAsync(500);
+
+    resolveFirstSave();
+    await flushMicrotasks();
+    expect(save).toHaveBeenCalledTimes(2);
+
+    await vi.advanceTimersByTimeAsync(500);
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  it("settles overlapping persistence batches per interactable", async () => {
+    let resolveFirstSave!: () => void;
+    const firstSave = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSave = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    root = mount({ persistence: { save: firstSave } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().register(reg("n2"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("n2", () => ({ v: 2 }));
+    root.getValue().setPersistenceAdapter({ save: vi.fn() });
+    await flushMicrotasks();
+
+    expect(root.getValue().getState().persistence["n1"]?.isPending).toBe(true);
+    expect(root.getValue().getState().persistence["n2"]).toBeUndefined();
+
+    resolveFirstSave();
+    await flushMicrotasks();
+    expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
+  });
+
+  it("keeps an interactable pending while its newer edit is queued", async () => {
+    const saveResolvers: Array<() => void> = [];
+    const firstSave = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          saveResolvers.push(resolve);
+        }),
+    );
+    const secondSave = vi.fn();
+    root = mount({ persistence: { save: firstSave } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().register(reg("n2"));
+
+    root.getValue().setState("n1", () => ({ v: 1 }));
+    await vi.advanceTimersByTimeAsync(500);
+    root.getValue().setState("n2", () => ({ v: 2 }));
+    root.getValue().setPersistenceAdapter({ save: secondSave });
+    root.getValue().setState("n1", () => ({ v: 3 }));
+
+    saveResolvers[0]!();
+    await flushMicrotasks();
+    expect(root.getValue().getState().persistence["n1"]?.isPending).toBe(true);
+    expect(secondSave).not.toHaveBeenCalled();
+
+    saveResolvers[1]!();
+    await flushMicrotasks();
+    expect(secondSave).toHaveBeenCalledTimes(1);
+    expect(root.getValue().getState().persistence["n1"]).toBeUndefined();
+  });
+
+  it("flushes queued changes through the declarative adapter on unmount", async () => {
+    const save = vi.fn();
+    root = mount({ persistence: { save } });
+    await flushMicrotasks();
+    root.getValue().register(reg("n1"));
+    root.getValue().setState("n1", () => ({ v: 1 }));
+
+    root.unmount();
+    root = undefined;
+    await flushMicrotasks();
+
+    expect(save).toHaveBeenCalledWith({
+      n1: { name: "note", state: { v: 1 } },
+    });
+  });
 });
 
 describe("Interactables persistence load", () => {
