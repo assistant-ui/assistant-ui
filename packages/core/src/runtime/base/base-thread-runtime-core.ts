@@ -36,6 +36,7 @@ import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
+import { notifySubscribers } from "../../subscribable/subscribable";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;
@@ -214,7 +215,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   }
 
   protected _notifySubscribers() {
-    for (const callback of this._subscriptions) callback();
+    notifySubscribers(this._subscriptions);
   }
 
   public _notifyEventSubscribers<E extends ThreadRuntimeEventType>(

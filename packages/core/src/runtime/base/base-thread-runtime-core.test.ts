@@ -112,6 +112,25 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("BaseThreadRuntimeCore state subscriptions", () => {
+  it("notifies later subscribers when one throws", () => {
+    const runtime = new TestRuntime(createVoiceAdapter());
+    runtime.connectVoice();
+
+    const listenerError = new Error("listener failed");
+    const laterListener = vi.fn();
+
+    runtime.subscribe(() => {
+      throw listenerError;
+    });
+    runtime.subscribe(laterListener);
+
+    expect(() => runtime.muteVoice()).toThrow(listenerError);
+    expect(runtime.voice?.isMuted).toBe(true);
+    expect(laterListener).toHaveBeenCalledOnce();
+  });
+});
+
 describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
   it("continues notifying subscribers when one throws", () => {
     const consoleError = vi
