@@ -137,7 +137,7 @@ surface instead of inline. See the
 
 ## Slack, Teams, and A2UI
 
-The same tree is plain JSON, so it is not tied to the browser. Three React-free subpaths convert it for Slack Block Kit, Microsoft Teams Adaptive Cards, and inbound [A2UI](https://a2ui.org/) surfaces. They run in server actions, queue workers, and webhook handlers. What each target does with a component, and how unsupported content degrades, is documented on [Generative UI on Slack](https://www.assistant-ui.com/docs/tools/generative-ui-slack), [Generative UI on Microsoft Teams](https://www.assistant-ui.com/docs/tools/generative-ui-teams), and [A2UI over AG-UI](https://www.assistant-ui.com/docs/tools/a2ui).
+The same tree is plain JSON, so it is not tied to the browser. Three React-free subpaths convert it for Slack Block Kit, Microsoft Teams Adaptive Cards, and inbound [A2UI](https://a2ui.org/) surfaces. They run in server actions, queue workers, and webhook handlers. Conversion is over the built-in vocabulary; a `$type` outside it is dropped with a warning. What each target does with a component, and how unsupported content degrades, is documented on [Generative UI on Slack](https://www.assistant-ui.com/docs/tools/generative-ui-slack), [Generative UI on Microsoft Teams](https://www.assistant-ui.com/docs/tools/generative-ui-teams), and [A2UI over AG-UI](https://www.assistant-ui.com/docs/tools/a2ui).
 
 ### `@assistant-ui/react-generative-ui/slack`
 
@@ -172,9 +172,14 @@ const { card, warnings } = toAdaptiveCard({
 The inbound direction: applies A2UI surface operations (`applyA2uiOperations`) and converts a surface into a vocabulary tree (`convertSurfaceToUISpec`) that renders through the same `present` path.
 
 ```ts
-import { convertSurfaceToUISpec } from "@assistant-ui/react-generative-ui/a2ui";
+import {
+  applyA2uiOperations,
+  convertSurfaceToUISpec,
+} from "@assistant-ui/react-generative-ui/a2ui";
 
-const { spec, warnings } = convertSurfaceToUISpec(surface);
+const { state } = applyA2uiOperations(new Map(), operations);
+const surface = state.get("s1");
+const { spec, warnings } = convertSurfaceToUISpec(surface!);
 ```
 
 ## License
