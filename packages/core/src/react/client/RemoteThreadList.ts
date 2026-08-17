@@ -842,13 +842,18 @@ const useRemoteThreadList = (
       }
       return store.optimisticUpdate({
         execute: async () => {
-          const { remoteId } = await data.initializeTask;
-          return session.adapter.unarchive(remoteId);
+          try {
+            const { remoteId } = await data.initializeTask;
+            return await session.adapter.unarchive(remoteId);
+          } catch (error) {
+            await ensureNotMain(data.id);
+            throw error;
+          }
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "regular"),
       });
     },
-    [session, store],
+    [ensureNotMain, session, store],
   );
 
   const deleteThread = useCallback(

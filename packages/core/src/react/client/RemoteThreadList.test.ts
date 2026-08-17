@@ -112,6 +112,42 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("switches away when unarchiving the main thread fails", async () => {
+    const error = new Error("unarchive failed");
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "archived" as const, remoteId: "t1", title: "One" },
+        ],
+      })),
+      unarchive: vi.fn(async () => {
+        throw error;
+      }),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().archivedThreadIds).toEqual(["t1"]);
+    });
+
+    flushTapSync(() =>
+      aui.threads.item({ id: "t1" }).switchTo({ unarchive: false }),
+    );
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    await expect(aui.threads.item({ id: "t1" }).unarchive()).rejects.toBe(
+      error,
+    );
+    expect(aui.threads.item({ id: "t1" }).getState().status).toBe("archived");
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).not.toBe("t1");
+    });
+    handle.destroy();
+  });
+
   it("switches to a listed thread and back to a new thread", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
