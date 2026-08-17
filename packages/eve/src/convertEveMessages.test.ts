@@ -1766,6 +1766,25 @@ describe("toEveInputResponse", () => {
     ).toEqual({ requestId: "req_1", optionId: "cancel", text: "not now" });
   });
 
+  it("still requires a declared option when a tool-approval carries its own", () => {
+    const inputRequest = withInputRequest({
+      kind: "tool-approval",
+      display: "confirmation",
+      options: [{ id: "schedule-later", label: "Schedule later" }],
+    });
+
+    expect(() =>
+      toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
+    ).toThrow(/respond with one of: schedule-later/);
+
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, optionId: "schedule-later" },
+        inputRequest,
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "schedule-later" });
+  });
+
   it("never answers an optionless confirmation as free-form text", () => {
     const inputRequest = withInputRequest({ display: "confirmation" });
 
