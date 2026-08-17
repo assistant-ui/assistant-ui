@@ -7,7 +7,7 @@ import type {
 } from "@assistant-ui/core";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { parseAdkEventValue } from "./parseAdkEvent";
-import type { AdkMessage, AdkThreadSnapshot } from "./types";
+import type { AdkEvent, AdkMessage, AdkThreadSnapshot } from "./types";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
 
 export type AdkSessionAdapterOptions = {
@@ -86,6 +86,34 @@ const parseAdkSessionResponse = (
     );
   }
   return value;
+};
+
+const parseAdkHistoryEvents = (events: unknown[]): AdkEvent[] => {
+  const parsed: AdkEvent[] = [];
+  const invalid: unknown[] = [];
+
+  for (const [index, event] of events.entries()) {
+    try {
+      parsed.push(
+        parseAdkEventValue(
+          event,
+          `Invalid ADK session event at index ${index}`,
+        ),
+      );
+    } catch (error) {
+      invalid.push(error);
+    }
+  }
+
+  if (parsed.length === 0 && invalid.length > 0) {
+    throw invalid[0];
+  }
+
+  for (const error of invalid) {
+    console.warn("[assistant-ui] Skipping malformed ADK session event:", error);
+  }
+
+  return parsed;
 };
 
 const parseAdkSessionListResponse = (value: unknown): AdkSessionResponse[] => {
@@ -324,9 +352,9 @@ export function createAdkSessionAdapter(
       );
     }
 
-    const events = session.events?.map((event, index) =>
-      parseAdkEventValue(event, `Invalid ADK session event at index ${index}`),
-    );
+    const events = session.events
+      ? parseAdkHistoryEvents(session.events)
+      : undefined;
 
     if (!events?.length) {
       return { messages: [] };

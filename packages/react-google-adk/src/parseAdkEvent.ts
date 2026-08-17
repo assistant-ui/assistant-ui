@@ -15,7 +15,7 @@ export function parseAdkEventValue(
 
   const { id: rawId, ...event } = value as Record<string, unknown>;
   if (
-    rawId !== undefined &&
+    rawId != null &&
     typeof rawId !== "string" &&
     (typeof rawId !== "number" || !Number.isFinite(rawId))
   ) {
@@ -30,7 +30,7 @@ export function parseAdkEventValue(
       : undefined;
   return {
     ...event,
-    ...(rawId !== undefined && { id: String(rawId) }),
+    ...(rawId != null && { id: String(rawId) }),
     ...(errorMessage !== undefined &&
       !("errorMessage" in event) &&
       !("error_message" in event) && {
