@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdkSessionAdapter } from "./AdkSessionAdapter";
 import { projectAdkToolApprovals } from "./adkToolApproval";
 
@@ -10,10 +10,6 @@ const mockFetch =
 beforeEach(() => {
   vi.stubGlobal("fetch", mockFetch);
   mockFetch.mockReset();
-});
-
-afterEach(() => {
-  vi.restoreAllMocks();
 });
 
 const baseOptions = {
@@ -429,37 +425,28 @@ describe("createAdkSessionAdapter - load", () => {
     );
   });
 
-  it("skips malformed events when valid history remains", async () => {
+  it("rejects partial replay when a history event is malformed", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response(
         JSON.stringify({
           id: "s1",
           events: [
-            {},
             {
               id: "e1",
               author: "user",
               content: { role: "user", parts: [{ text: "Hello" }] },
             },
+            {},
           ],
         }),
         { status: 200 },
       ),
     );
-    const consoleWarn = vi
-      .spyOn(console, "warn")
-      .mockImplementation(() => undefined);
 
     const { load } = createAdkSessionAdapter(baseOptions);
-    const result = await load("s1");
 
-    expect(result.messages).toHaveLength(1);
-    expect(consoleWarn).toHaveBeenCalledWith(
-      "[assistant-ui] Skipping malformed ADK session event:",
-      expect.objectContaining({
-        message:
-          "Invalid ADK session event at index 0: expected a non-empty object.",
-      }),
+    await expect(load("s1")).rejects.toThrow(
+      "Invalid ADK session event at index 1: expected a non-empty object.",
     );
   });
 
