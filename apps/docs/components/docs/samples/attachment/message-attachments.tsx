@@ -1,26 +1,22 @@
 "use client";
 
-import { MessagePrimitive, ThreadPrimitive } from "@assistant-ui/react";
+import { MessagePrimitive } from "@assistant-ui/react";
 // Separate statement: the Code tab keeps an import whenever any one of its
-// names is used, so grouping this with the primitives would show a fixture type
-// the extracted snippet never uses.
-import type { ThreadMessageLike } from "@assistant-ui/react";
+// names is used, so grouping these with MessagePrimitive would show a list
+// wrapper and a fixture type the extracted snippet never uses.
+import { ThreadPrimitive, type ThreadMessageLike } from "@assistant-ui/react";
 import { UserMessageAttachments } from "@/components/assistant-ui/attachment";
 import { SampleFrame } from "../sample-frame";
 import { SampleRuntimeProvider } from "../sample-runtime-provider";
 
 export function UserMessageWithAttachments() {
   return (
-    <ThreadPrimitive.Messages>
-      {() => (
-        <MessagePrimitive.Root className="flex w-full max-w-lg flex-col items-end gap-2">
-          <UserMessageAttachments />
-          <div className="bg-muted rounded-xl px-4 py-2 text-sm">
-            <MessagePrimitive.Parts />
-          </div>
-        </MessagePrimitive.Root>
-      )}
-    </ThreadPrimitive.Messages>
+    <MessagePrimitive.Root className="flex w-full max-w-lg flex-col items-end gap-2">
+      <UserMessageAttachments />
+      <div className="bg-muted rounded-xl px-4 py-2 text-sm">
+        <MessagePrimitive.Parts />
+      </div>
+    </MessagePrimitive.Root>
   );
 }
 
@@ -43,9 +39,13 @@ export function AttachmentMessageContextSample() {
   ];
 
   return (
-    <SampleFrame className="bg-background flex h-auto min-h-48 items-center justify-center p-6 [--composer-padding:8px] [--composer-radius:1.5rem]">
+    <SampleFrame className="bg-background flex h-auto min-h-48 items-center justify-center p-6">
       <SampleRuntimeProvider messages={messages}>
-        <UserMessageWithAttachments />
+        <ThreadPrimitive.Messages>
+          {({ message }) =>
+            message.role === "user" ? <UserMessageWithAttachments /> : null
+          }
+        </ThreadPrimitive.Messages>
       </SampleRuntimeProvider>
     </SampleFrame>
   );
