@@ -85,18 +85,21 @@ const useRemoteThreadBinder = ({
     const initPromise = itemRuntime.initialize();
     initPromiseRef.current = initPromise;
 
-    const dispose = runtime.thread.unstable_on("runEnd", () => {
-      dispose();
-      void itemRuntime.generateTitle();
-    });
-
-    void initPromise.catch(() => {
-      dispose();
-      if (initPromiseRef.current === initPromise) {
-        initPromiseRef.current = undefined;
-        hasInitializedRef.current = false;
-      }
-    });
+    // The title only needs the thread to exist, so it fires when
+    // initialization resolves rather than at the first runEnd; waiting for
+    // the run would leave the thread on "New Chat" for the whole response,
+    // and forever when the run never completes.
+    void initPromise.then(
+      () => {
+        void itemRuntime.generateTitle().catch(() => {});
+      },
+      () => {
+        if (initPromiseRef.current === initPromise) {
+          initPromiseRef.current = undefined;
+          hasInitializedRef.current = false;
+        }
+      },
+    );
   });
 
   const getInitializePromise = useEffectEvent(() => {
