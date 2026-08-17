@@ -568,9 +568,9 @@ describe("createAdkStream - SSE parsing", () => {
     });
   });
 
-  it("rejects unsupported event id types", async () => {
+  it.each([true, null])("rejects unsupported event id values", async (id) => {
     mockFetch.mockResolvedValueOnce(
-      sseResponse(sseBody('data: {"id":true}\n\n')),
+      sseResponse(sseBody(`data: ${JSON.stringify({ id })}\n\n`)),
     );
 
     const stream = createAdkStream({ api: "/api/adk" });
