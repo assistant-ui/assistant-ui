@@ -1,21 +1,27 @@
 /**
- * Buffer client tool results for a turn and release them only once every
+ * Buffer client tool results for a pending call group and release them only once every
  * pending tool call has one. This lets the LangGraph runtime resume a turn
  * that has parallel tool calls in a single run, instead of resuming once per
  * result (which would resume the graph while sibling tool calls are still
  * executing).
  *
- * Mutates `buffer`. Returns the batch (in pending-tool-call order) when the
- * turn is complete, or `null` while results are still outstanding.
+ * Mutates `buffers`. Returns the batch (in pending-tool-call order) when the
+ * group is complete, or `null` while results are still outstanding.
  *
  * A result whose tool call isn't among the turn's pending calls (a late or
  * duplicate result) is released on its own rather than buffered indefinitely.
  */
 export const bufferToolResult = <T extends { tool_call_id: string }>(
-  buffer: Map<string, T>,
+  buffers: Map<string, Map<string, T>>,
+  groupKey: string,
   pendingToolCalls: readonly { id: string }[],
   result: T,
 ): T[] | null => {
+  let buffer = buffers.get(groupKey);
+  if (!buffer) {
+    buffer = new Map();
+    buffers.set(groupKey, buffer);
+  }
   buffer.set(result.tool_call_id, result);
 
   const pendingIds = pendingToolCalls.map((toolCall) => toolCall.id);
@@ -27,5 +33,6 @@ export const bufferToolResult = <T extends { tool_call_id: string }>(
 
   const batch = expected.map((id) => buffer.get(id)!);
   for (const id of expected) buffer.delete(id);
+  if (buffer.size === 0) buffers.delete(groupKey);
   return batch;
 };

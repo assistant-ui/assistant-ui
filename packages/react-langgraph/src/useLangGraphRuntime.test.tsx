@@ -1759,22 +1759,30 @@ describe("useLangGraphRuntime", () => {
       ],
     };
 
-    const waitForToolCallPart = async (aui: ReturnType<typeof useAui>) => {
+    const waitForToolCallPart = async (
+      aui: ReturnType<typeof useAui>,
+      toolCallId = "tc-1",
+    ) => {
       await waitFor(() => {
         const parts = aui.thread
           .getState()
           .messages.flatMap((m): readonly unknown[] => m.content);
         expect(parts).toContainEqual(
-          expect.objectContaining({ type: "tool-call", toolCallId: "tc-1" }),
+          expect.objectContaining({ type: "tool-call", toolCallId }),
         );
       });
     };
 
-    const addToolResult = (runtime: AssistantRuntime, result: unknown) => {
+    const addToolResult = (
+      runtime: AssistantRuntime,
+      result: unknown,
+      messageId = "ai-1",
+      toolCallId = "tc-1",
+    ) => {
       act(() => {
         runtime.thread
-          .getMessageById("ai-1")
-          .getMessagePartByToolCallId("tc-1")
+          .getMessageById(messageId)
+          .getMessagePartByToolCallId(toolCallId)
           .addToolResult(result);
       });
     };
@@ -2516,6 +2524,103 @@ describe("useLangGraphRuntime", () => {
         await waitFor(() =>
           expect(auiResult.current.thread.getState().isRunning).toBe(false),
         );
+      });
+
+      it("keeps pending tool resumes and run configs separated by turn", async () => {
+        const firstAiMessage = {
+          event: "messages/complete",
+          data: [
+            {
+              id: "ai-1",
+              type: "ai" as const,
+              content: "",
+              tool_calls: [{ id: "tc-1", name: "my_tool", args: {} }],
+            },
+          ],
+        };
+        const secondAiMessage = {
+          event: "messages/complete",
+          data: [
+            {
+              id: "ai-2",
+              type: "ai" as const,
+              content: "",
+              tool_calls: [{ id: "tc-2", name: "my_tool", args: {} }],
+            },
+          ],
+        };
+        const runConfigA = { configurable: { model_name: "model-a" } };
+        const runConfigB = { configurable: { model_name: "model-b" } };
+        const streamMock = vi.fn(async function* (
+          _messages: LangChainMessage[],
+          _config: { runConfig?: unknown },
+        ) {
+          if (streamMock.mock.calls.length === 1) yield firstAiMessage;
+          if (streamMock.mock.calls.length === 2) yield secondAiMessage;
+        });
+        const execute = vi.fn(async () => ({ ok: true }));
+
+        const { result: runtimeResult } = renderHook(() =>
+          useLangGraphRuntime({
+            stream: streamMock,
+            autoCancelPendingToolCalls: false,
+          }),
+        );
+        const wrapper = wrapperWithTool(runtimeResult.current, execute);
+        const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+        const { result: sendResult } = renderHook(() => useLangGraphSend(), {
+          wrapper,
+        });
+
+        await new Promise((resolve) => setTimeout(resolve, 0));
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        await act(async () => {
+          await sendResult.current([{ type: "human", content: "first" }], {
+            runConfig: runConfigA,
+          });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+        await waitForToolCallPart(auiResult.current, "tc-1");
+        await waitFor(() =>
+          expect(auiResult.current.thread.getState().isRunning).toBe(false),
+        );
+
+        await act(async () => {
+          await sendResult.current([{ type: "human", content: "second" }], {
+            runConfig: runConfigB,
+          });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+        await waitForToolCallPart(auiResult.current, "tc-2");
+        await waitFor(() =>
+          expect(auiResult.current.thread.getState().isRunning).toBe(false),
+        );
+
+        await act(async () => {
+          runtimeResult.current.thread
+            .getMessageById("ai-1")
+            .getMessagePartByToolCallId("tc-1")
+            .addToolResult({ result: "first" });
+          runtimeResult.current.thread
+            .getMessageById("ai-2")
+            .getMessagePartByToolCallId("tc-2")
+            .addToolResult({ result: "second" });
+        });
+
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(4));
+        expect(streamMock.mock.calls[2]?.[0]).toMatchObject([
+          { type: "tool", tool_call_id: "tc-1" },
+        ]);
+        expect(streamMock.mock.calls[2]?.[1]).toMatchObject({
+          runConfig: runConfigA,
+        });
+        expect(streamMock.mock.calls[3]?.[0]).toMatchObject([
+          { type: "tool", tool_call_id: "tc-2" },
+        ]);
+        expect(streamMock.mock.calls[3]?.[1]).toMatchObject({
+          runConfig: runConfigB,
+        });
       });
     });
 
