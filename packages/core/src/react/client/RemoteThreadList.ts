@@ -327,6 +327,7 @@ const useRemoteThreadList = (
         loadMorePromise: undefined as Promise<void> | undefined,
         lastNotifiedRemoteId: undefined as string | undefined,
         lastControlledThreadId: undefined as string | undefined,
+        switchTask: undefined as Promise<void> | undefined,
         mainThreadId: seeded.id,
         isFirstThreadIdEffect: true,
         onThreadIdChange,
@@ -343,6 +344,13 @@ const useRemoteThreadList = (
   );
 
   const [mainThreadId, setMainThreadId] = useState(initialMainId);
+  const assignMainThreadId = useCallback(
+    (id: string) => {
+      session.mainThreadId = id;
+      setMainThreadId(id);
+    },
+    [session],
+  );
   useThreadSelectionEvents(mainThreadId);
   useEffect(() => {
     session.adapter = adapter;
@@ -480,122 +488,150 @@ const useRemoteThreadList = (
   }, [session, store]);
 
   const switchToThread = useCallback(
-    async (
+    (
       threadIdOrRemoteId: string,
       options?: { unarchive?: boolean },
       emitThreadIdChange = true,
     ) => {
       const generation = ++session.switchGeneration;
-      let data = getThreadData(store.value, threadIdOrRemoteId);
-      if (!data) {
-        const remoteMetadata = await session.adapter.fetch(threadIdOrRemoteId);
-        if (generation !== session.switchGeneration) return;
-        const state = store.value;
-        const mappingId = createThreadMappingId(remoteMetadata.remoteId);
-        const wasInTarget =
-          remoteMetadata.status === "regular"
-            ? state.threadIds.includes(remoteMetadata.remoteId)
-            : state.archivedThreadIds.includes(remoteMetadata.remoteId);
-        const threadIdsWithoutRemote = state.threadIds.filter(
-          (id) => id !== remoteMetadata.remoteId,
-        );
-        const archivedThreadIdsWithoutRemote = state.archivedThreadIds.filter(
-          (id) => id !== remoteMetadata.remoteId,
-        );
-        store.update({
-          ...state,
-          threadIds:
+      const task = (async () => {
+        let data = getThreadData(store.value, threadIdOrRemoteId);
+        if (!data) {
+          const remoteMetadata =
+            await session.adapter.fetch(threadIdOrRemoteId);
+          if (generation !== session.switchGeneration) return;
+          const state = store.value;
+          const mappingId = createThreadMappingId(remoteMetadata.remoteId);
+          const wasInTarget =
             remoteMetadata.status === "regular"
-              ? wasInTarget
-                ? state.threadIds
-                : [...threadIdsWithoutRemote, remoteMetadata.remoteId]
-              : threadIdsWithoutRemote,
-          archivedThreadIds:
-            remoteMetadata.status === "archived"
-              ? wasInTarget
-                ? state.archivedThreadIds
-                : [...archivedThreadIdsWithoutRemote, remoteMetadata.remoteId]
-              : archivedThreadIdsWithoutRemote,
-          threadIdMap: {
-            ...state.threadIdMap,
-            [remoteMetadata.remoteId]: mappingId,
-          },
-          threadData: {
-            ...state.threadData,
-            [mappingId]: {
-              id: mappingId,
-              initializeTask: Promise.resolve({
+              ? state.threadIds.includes(remoteMetadata.remoteId)
+              : state.archivedThreadIds.includes(remoteMetadata.remoteId);
+          const threadIdsWithoutRemote = state.threadIds.filter(
+            (id) => id !== remoteMetadata.remoteId,
+          );
+          const archivedThreadIdsWithoutRemote = state.archivedThreadIds.filter(
+            (id) => id !== remoteMetadata.remoteId,
+          );
+          store.update({
+            ...state,
+            threadIds:
+              remoteMetadata.status === "regular"
+                ? wasInTarget
+                  ? state.threadIds
+                  : [...threadIdsWithoutRemote, remoteMetadata.remoteId]
+                : threadIdsWithoutRemote,
+            archivedThreadIds:
+              remoteMetadata.status === "archived"
+                ? wasInTarget
+                  ? state.archivedThreadIds
+                  : [...archivedThreadIdsWithoutRemote, remoteMetadata.remoteId]
+                : archivedThreadIdsWithoutRemote,
+            threadIdMap: {
+              ...state.threadIdMap,
+              [remoteMetadata.remoteId]: mappingId,
+            },
+            threadData: {
+              ...state.threadData,
+              [mappingId]: {
+                id: mappingId,
+                initializeTask: Promise.resolve({
+                  remoteId: remoteMetadata.remoteId,
+                  externalId: remoteMetadata.externalId,
+                }),
                 remoteId: remoteMetadata.remoteId,
                 externalId: remoteMetadata.externalId,
-              }),
-              remoteId: remoteMetadata.remoteId,
-              externalId: remoteMetadata.externalId,
-              status: remoteMetadata.status,
-              title: remoteMetadata.title,
-              lastMessageAt: remoteMetadata.lastMessageAt,
-              custom: remoteMetadata.custom,
+                status: remoteMetadata.status,
+                title: remoteMetadata.title,
+                lastMessageAt: remoteMetadata.lastMessageAt,
+                custom: remoteMetadata.custom,
+              },
             },
-          },
-        });
-        data = getThreadData(store.value, threadIdOrRemoteId);
-      }
-      if (!data) {
-        throw threadNotFoundError(threadIdOrRemoteId, "switching to it");
-      }
-      if (data.id === session.mainThreadId) return;
-      if (data.status === "archived" && options?.unarchive !== false) {
-        const current = data;
-        const { remoteId } = await current.initializeTask;
+          });
+          data = getThreadData(store.value, threadIdOrRemoteId);
+        }
+        if (!data) {
+          throw threadNotFoundError(threadIdOrRemoteId, "switching to it");
+        }
+        if (data.id === session.mainThreadId) return;
+        if (data.status === "archived" && options?.unarchive !== false) {
+          const current = data;
+          const { remoteId } = await current.initializeTask;
+          if (generation !== session.switchGeneration) return;
+          await store.optimisticUpdate({
+            execute: () => session.adapter.unarchive(remoteId),
+            optimistic: (state) =>
+              updateStatusReducer(state, current.id, "regular"),
+          });
+          if (generation !== session.switchGeneration) return;
+          data = getThreadData(store.value, current.id) ?? current;
+        }
         if (generation !== session.switchGeneration) return;
-        await store.optimisticUpdate({
-          execute: () => session.adapter.unarchive(remoteId),
-          optimistic: (state) =>
-            updateStatusReducer(state, current.id, "regular"),
-        });
-        if (generation !== session.switchGeneration) return;
-        data = getThreadData(store.value, current.id) ?? current;
-      }
-      if (generation !== session.switchGeneration) return;
-      setMainThreadId(data.id);
-      notifyRemoteId(data.remoteId, emitThreadIdChange);
-      session.onSwitchToThread?.(data.id);
+        assignMainThreadId(data.id);
+        notifyRemoteId(data.remoteId, emitThreadIdChange);
+        session.onSwitchToThread?.(data.id);
+      })();
+      session.switchTask = task;
+      return task;
     },
-    [notifyRemoteId, session, store],
+    [assignMainThreadId, notifyRemoteId, session, store],
   );
 
   const switchToNewThread = useCallback(
-    async (emitThreadIdChange = true) => {
+    (emitThreadIdChange = true) => {
       const generation = ++session.switchGeneration;
-      while (
-        store.baseValue.newThreadId !== undefined &&
-        store.value.newThreadId === undefined
-      ) {
-        await store.waitForUpdate();
+      const task = (async () => {
+        while (
+          store.baseValue.newThreadId !== undefined &&
+          store.value.newThreadId === undefined
+        ) {
+          await store.waitForUpdate();
+          if (generation !== session.switchGeneration) return;
+        }
+        const existing = store.value.newThreadId;
+        if (existing !== undefined) {
+          assignMainThreadId(
+            getThreadData(store.value, existing)?.id ?? existing,
+          );
+          notifyRemoteId(undefined, emitThreadIdChange);
+          session.onSwitchToNewThread?.();
+          return;
+        }
+        const seeded = seedNewThread(store.value);
+        store.update(seeded.state);
         if (generation !== session.switchGeneration) return;
-      }
-      const existing = store.value.newThreadId;
-      if (existing !== undefined) {
-        setMainThreadId(getThreadData(store.value, existing)?.id ?? existing);
+        assignMainThreadId(seeded.id);
         notifyRemoteId(undefined, emitThreadIdChange);
         session.onSwitchToNewThread?.();
-        return;
-      }
-      const seeded = seedNewThread(store.value);
-      store.update(seeded.state);
-      if (generation !== session.switchGeneration) return;
-      setMainThreadId(seeded.id);
-      notifyRemoteId(undefined, emitThreadIdChange);
-      session.onSwitchToNewThread?.();
+      })();
+      session.switchTask = task;
+      return task;
     },
-    [notifyRemoteId, session, store],
+    [assignMainThreadId, notifyRemoteId, session, store],
   );
 
   const ensureNotMain = useCallback(
     async (threadId: string) => {
-      if (threadId !== session.mainThreadId) return;
-      await switchToNewThread();
+      if (threadId === store.value.newThreadId) {
+        throw new Error("Cannot ensure new thread is not main");
+      }
+      let lastAwaitedTask: Promise<void> | undefined;
+      while (threadId === session.mainThreadId) {
+        let switchTask = session.switchTask;
+        const startedFallback = !switchTask || switchTask === lastAwaitedTask;
+        if (startedFallback) {
+          switchTask = switchToNewThread();
+        }
+        lastAwaitedTask = switchTask;
+        try {
+          await switchTask;
+        } catch (error) {
+          if (startedFallback && session.switchTask === switchTask) {
+            throw error;
+          }
+        }
+      }
     },
-    [session, switchToNewThread],
+    [session, store, switchToNewThread],
   );
 
   const initialize = useCallback(

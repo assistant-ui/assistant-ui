@@ -382,6 +382,34 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("keeps item(main) resolvable after a same-tick switch then delete", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().threadIds).toEqual(["t1"]);
+    });
+    flushTapSync(() => {
+      handle.getClient().threads.switchToThread("t1");
+      handle.getClient().threads.item({ id: "t1" }).delete();
+    });
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().threadIds).not.toContain(
+        "t1",
+      );
+    });
+    expect(handle.getClient().threads.getState().mainThreadId).not.toBe("t1");
+    expect(() =>
+      handle.getClient().threads.item("main").getState(),
+    ).not.toThrow();
+    handle.destroy();
+  });
+
   it("keeps item(main) resolvable when deleting a thread mid-initialize", async () => {
     const initialize = deferred<{
       remoteId: string;
