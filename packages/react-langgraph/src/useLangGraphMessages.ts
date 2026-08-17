@@ -211,7 +211,7 @@ type LangGraphMessagesInternalOptions<TMessage> =
     ) => void;
   };
 
-const useLangGraphMessagesImpl = <TMessage extends { id?: string }>({
+const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
   stream,
   appendMessage = DEFAULT_APPEND_MESSAGE,
   onMessages,
@@ -622,7 +622,7 @@ const useLangGraphMessagesImpl = <TMessage extends { id?: string }>({
       interruptAtLoadStart: LangGraphInterruptState | undefined,
     ) => {
       if (interruptRef.current !== interruptAtLoadStart) return;
-      onInterrupt?.(serverInterrupt, undefined);
+      if (serverInterrupt === undefined) onInterrupt?.(undefined, undefined);
       setInterrupt(serverInterrupt);
     },
     [onInterrupt],
@@ -695,28 +695,12 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   appendMessage,
   eventHandlers,
   uiStateKey,
-}: {
-  stream: LangGraphStreamCallback<TMessage>;
-  appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
-  uiStateKey?: string;
-  eventHandlers?: {
-    onMessageChunk?: OnMessageChunkCallback;
-    onValues?: OnValuesEventCallback;
-    onUpdates?: OnUpdatesEventCallback;
-    onSubgraphValues?: OnSubgraphValuesEventCallback;
-    onSubgraphUpdates?: OnSubgraphUpdatesEventCallback;
-    onMetadata?: OnMetadataEventCallback;
-    onInfo?: OnInfoEventCallback;
-    onError?: OnErrorEventCallback;
-    onSubgraphError?: OnSubgraphErrorEventCallback;
-    onCustomEvent?: OnCustomEventCallback;
-  };
-}) =>
-  useLangGraphMessagesImpl({
+}: LangGraphMessagesOptions<TMessage>) =>
+  useLangGraphMessagesInternal({
     stream,
     ...(appendMessage !== undefined && { appendMessage }),
     ...(eventHandlers !== undefined && { eventHandlers }),
     ...(uiStateKey !== undefined && { uiStateKey }),
   });
 
-export const useLangGraphMessagesInternal = useLangGraphMessagesImpl;
+export { useLangGraphMessagesInternal };

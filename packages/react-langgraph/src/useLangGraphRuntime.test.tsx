@@ -2703,6 +2703,75 @@ describe("useLangGraphRuntime", () => {
           runConfig: { configurable: { model_name: "configured-model" } },
         });
       });
+
+      it("does not inherit a prior interrupt runConfig onto an unconfigured send", async () => {
+        const streamMock = vi.fn(async function* (
+          _messages: LangChainMessage[],
+          _config: { runConfig?: unknown },
+        ) {
+          yield {
+            event: "updates",
+            data: {
+              __interrupt__: [
+                { value: `approval-${streamMock.mock.calls.length}` },
+              ],
+            },
+          };
+        });
+
+        const { result: runtimeResult } = renderHook(() =>
+          useLangGraphRuntime({ stream: streamMock }),
+        );
+        const wrapper = wrapperWithTool(runtimeResult.current, async () => ({
+          ok: true,
+        }));
+        const { result: controls } = renderHook(
+          () => ({
+            send: useLangGraphSend(),
+            command: useLangGraphSendCommand(),
+          }),
+          { wrapper },
+        );
+
+        await act(async () => {
+          controls.current.send([{ type: "human", content: "first" }], {
+            runConfig: { configurable: { model_name: "model-a" } },
+          });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+        await waitFor(() =>
+          expect(
+            (
+              runtimeResult.current.thread.getState().extras as {
+                interrupt?: unknown;
+              }
+            ).interrupt,
+          ).toEqual({ value: "approval-1" }),
+        );
+
+        await act(async () => {
+          controls.current.send([{ type: "human", content: "second" }], {});
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+        await waitFor(() =>
+          expect(
+            (
+              runtimeResult.current.thread.getState().extras as {
+                interrupt?: unknown;
+              }
+            ).interrupt,
+          ).toEqual({ value: "approval-2" }),
+        );
+
+        await act(async () => {
+          controls.current.command({ resume: "approved" });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+        expect(streamMock.mock.calls[2]?.[1]).toMatchObject({
+          command: { resume: "approved" },
+        });
+        expect(streamMock.mock.calls[2]?.[1].runConfig).toBeUndefined();
+      });
     });
 
     it("keeps a delayed tool result on the run that produced it", async () => {
