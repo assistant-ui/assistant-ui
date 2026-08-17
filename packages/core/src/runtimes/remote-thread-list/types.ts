@@ -36,7 +36,7 @@ export type RemoteThreadListPageOptions = {
   after?: string | undefined;
 };
 
-export type RemoteThreadListAdapters = {
+export type RuntimeAdapters = {
   modelContext?: ModelContextProvider | undefined;
   history?: ThreadHistoryAdapter | undefined;
   attachments?: AttachmentAdapter | undefined;
@@ -76,15 +76,14 @@ export type RemoteThreadListAdapter = {
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 
   /**
-   * Tap-hosted dual of `unstable_Provider`. The
-   * `RemoteThreadList` store entry calls this hook inside the client tree and
-   * provides the returned adapters to the `thread` factory. Keep the hook
-   * identity stable; a recreated function with a different hook count remounts
-   * the thread.
+   * Hook the `RemoteThreadList` store entry calls once for the main-thread
+   * slot, then provides to the `thread` factory. This is not mounted per
+   * listed thread. Resolve `threadListItem` lazily on each adapter call; do
+   * not capture it at hook mount. The hook must keep a stable hook count
+   * across adapter swaps; a different count throws. Memoize the returned
+   * object.
    */
-  unstable_useAdapters?:
-    | (() => RemoteThreadListAdapters | null | undefined)
-    | undefined;
+  unstable_useAdapters?: (() => RuntimeAdapters | null | undefined) | undefined;
 };
 
 export type RemoteThreadListOptions = {

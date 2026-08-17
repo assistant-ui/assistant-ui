@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { resource, type ResourceElement } from "@assistant-ui/tap";
 import { useClientResource } from "@assistant-ui/store/client";
 import type { ClientOutput } from "@assistant-ui/store";
-import type { RemoteThreadListAdapters } from "../../runtimes/remote-thread-list/types";
+import type { RuntimeAdapters } from "../../runtimes/remote-thread-list/types";
 import {
   useRuntimeAdapters,
   useRuntimeAdaptersProvider,
@@ -12,7 +12,7 @@ const useAdaptedRemoteThread = ({
   useAdapters,
   thread,
 }: {
-  useAdapters: () => RemoteThreadListAdapters | null | undefined;
+  useAdapters: () => RuntimeAdapters | null | undefined;
   thread: ResourceElement<ClientOutput<"thread">>;
 }): ClientOutput<"thread"> => {
   const parent = useRuntimeAdapters();

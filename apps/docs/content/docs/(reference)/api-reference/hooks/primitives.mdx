@@ -57,13 +57,19 @@ const useMessageTiming: () => MessageTiming | undefined;
 ### useRuntimeAdapters
 
 ```ts
-type RemoteThreadListAdapters = {
+type RuntimeAdapters = {
   modelContext?: ModelContextProvider | undefined;
   history?: ThreadHistoryAdapter | undefined;
   attachments?: AttachmentAdapter | undefined;
 };
 
-const useRuntimeAdapters: () => RemoteThreadListAdapters | null;
+type RuntimeAdapters = {
+  modelContext?: ModelContextProvider | undefined;
+  history?: ThreadHistoryAdapter | undefined;
+  attachments?: AttachmentAdapter | undefined;
+};
+
+const useRuntimeAdapters: () => RuntimeAdapters | null;
 ```
 
 ### useScrollLock

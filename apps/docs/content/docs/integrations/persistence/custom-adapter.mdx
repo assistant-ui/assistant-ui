@@ -342,8 +342,9 @@ export const threadListAdapter: RemoteThreadListAdapter = {
   },
   unstable_useAdapters: useThreadListAdapters,
   unstable_Provider({ children }) {
+    const adapters = useThreadListAdapters();
     return (
-      <RuntimeAdapterProvider adapters={useThreadListAdapters()}>
+      <RuntimeAdapterProvider adapters={adapters}>
         {children}
       </RuntimeAdapterProvider>
     );
@@ -464,8 +465,9 @@ export const threadListAdapter: RemoteThreadListAdapter = {
   },
   unstable_useAdapters: useThreadListAdapters,
   unstable_Provider({ children }) {
+    const adapters = useThreadListAdapters();
     return (
-      <RuntimeAdapterProvider adapters={useThreadListAdapters()}>
+      <RuntimeAdapterProvider adapters={adapters}>
         {children}
       </RuntimeAdapterProvider>
     );
@@ -588,8 +590,9 @@ export const threadListAdapter: RemoteThreadListAdapter = {
   },
   unstable_useAdapters: useThreadListAdapters,
   unstable_Provider({ children }) {
+    const adapters = useThreadListAdapters();
     return (
-      <RuntimeAdapterProvider adapters={useThreadListAdapters()}>
+      <RuntimeAdapterProvider adapters={adapters}>
         {children}
       </RuntimeAdapterProvider>
     );

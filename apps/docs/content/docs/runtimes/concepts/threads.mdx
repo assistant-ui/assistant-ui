@@ -177,8 +177,9 @@ const adapterWithHistory: RemoteThreadListAdapter = {
   // ...metadata methods above...
   unstable_useAdapters: useThreadListAdapters,
   unstable_Provider({ children }) {
+    const adapters = useThreadListAdapters();
     return (
-      <RuntimeAdapterProvider adapters={useThreadListAdapters()}>
+      <RuntimeAdapterProvider adapters={adapters}>
         {children}
       </RuntimeAdapterProvider>
     );
@@ -382,7 +383,7 @@ A few invariants worth knowing when wiring a custom UI on top of `loadMore()`:
     },
     {
       name: "unstable_useAdapters",
-      type: "() => RemoteThreadListAdapters | null | undefined",
+      type: "() => RuntimeAdapters | null | undefined",
       description:
         "Optional hook called by the RemoteThreadList store entry. Return the same adapters the Provider injects.",
     },

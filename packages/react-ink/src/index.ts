@@ -59,7 +59,6 @@ export type {
 // Re-export core remote thread list types
 export type {
   RemoteThreadListAdapter,
-  RemoteThreadListAdapters,
   RemoteThreadListOptions,
   RemoteThreadListProviderComponent,
 } from "@assistant-ui/core";

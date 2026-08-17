@@ -1,8 +1,8 @@
 import { createContext, useContext } from "react";
 import { useContextProvider } from "@assistant-ui/tap";
-import type { RemoteThreadListAdapters } from "../../runtimes/remote-thread-list/types";
+import type { RuntimeAdapters } from "../../runtimes/remote-thread-list/types";
 
-export type RuntimeAdapters = RemoteThreadListAdapters;
+export type { RuntimeAdapters };
 
 const RuntimeAdaptersContext = createContext<RuntimeAdapters | null>(null);
 
