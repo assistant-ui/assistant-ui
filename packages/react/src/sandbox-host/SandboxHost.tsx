@@ -151,9 +151,9 @@ export function SandboxHost({
         if (cancelled) return;
         frame?.dispose();
         frame = null;
+        const error = err instanceof Error ? err : new Error(String(err));
         invokeCallbackSafely(
-          liveRef.current.onError,
-          err instanceof Error ? err : new Error(String(err)),
+          () => liveRef.current.onError?.(error),
           "SandboxHost onError",
         );
       });

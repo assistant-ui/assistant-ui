@@ -125,7 +125,7 @@ export function createMcpAppBridge(
   };
 
   const reportError = (error: Error) => {
-    invokeCallbackSafely(handlers.onError, error, "MCP App onError");
+    invokeCallbackSafely(() => handlers.onError?.(error), "MCP App onError");
   };
 
   const handleRequest = async (req: McpAppJsonRpcRequest) => {
