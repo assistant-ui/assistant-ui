@@ -1,11 +1,11 @@
 import { describe, expectTypeOf, it } from "vitest";
+import type { UserCommands, UserExternalState } from "../augmentations";
 import type {
   AssistantTransportCommand,
   useAssistantTransportRuntime,
   useAssistantTransportSendCommand,
   useAssistantTransportState,
-} from "../assistant-transport";
-import type { UserCommands, UserExternalState } from "../augmentations";
+} from "../index";
 
 declare module "../augmentations" {
   namespace Assistant {
