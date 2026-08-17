@@ -1,9 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeImpl } from "../../runtime/api/assistant-runtime";
 import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
 import { LocalRuntimeCore } from "../../runtimes/local/local-runtime-core";
 import type { AppendMessage } from "../../types/message";
 import { subscribeToTitleGeneration } from "./RemoteThreadResource";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("subscribeToTitleGeneration", () => {
   it("reports title generation failures through the runtime event boundary", async () => {
