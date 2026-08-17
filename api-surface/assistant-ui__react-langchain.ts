@@ -1404,13 +1404,7 @@ type RemoteThreadListAdapter = {
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
-  unstable_useAdapters?: (() => RemoteThreadListAdapters | null | undefined) | undefined;
-};
-
-type RemoteThreadListAdapters = {
-  modelContext?: ModelContextProvider | undefined;
-  history?: ThreadHistoryAdapter | undefined;
-  attachments?: AttachmentAdapter | undefined;
+  unstable_useAdapters?: (() => RuntimeAdapters | null | undefined) | undefined;
 };
 
 type RemoteThreadListPageOptions = {
@@ -1466,6 +1460,12 @@ type ResumeRunConfig = StartRunConfig & {
 
 type RunConfig = {
   readonly custom?: Record<string, unknown>;
+};
+
+type RuntimeAdapters = {
+  modelContext?: ModelContextProvider | undefined;
+  history?: ThreadHistoryAdapter | undefined;
+  attachments?: AttachmentAdapter | undefined;
 };
 
 type RuntimeCapabilities = {
