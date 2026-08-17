@@ -1,4 +1,7 @@
-import type { ReadonlyJSONObject, ReadonlyJSONValue } from "@assistant-ui/core";
+import type {
+  ReadonlyJSONObject,
+  ReadonlyJSONValue,
+} from "assistant-stream/utils";
 
 /** ACP v1 protocol version. */
 export const ACP_PROTOCOL_VERSION = 1;
