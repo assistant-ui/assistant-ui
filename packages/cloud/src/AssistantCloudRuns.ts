@@ -1,6 +1,11 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import type { SamplingCallData } from "./instrumentMcpSampling";
 import { AssistantStream, PlainTextDecoder } from "assistant-stream";
+import {
+  CloudResponseError,
+  readCloudRecord,
+  readCloudString,
+} from "./cloudResponse";
 
 type AssistantCloudRunsStreamBody = {
   thread_id: string;
@@ -83,12 +88,40 @@ export class AssistantCloudRuns {
       },
       body,
     });
+
+    if (!response.body) {
+      throw new CloudResponseError(
+        'Invalid Assistant Cloud response for "run stream": expected a response body',
+      );
+    }
+
+    const receivedContentType = response.headers.get("content-type");
+    const contentType = receivedContentType
+      ?.split(";", 1)[0]
+      ?.trim()
+      .toLowerCase();
+    if (contentType !== "text/plain") {
+      await response.body.cancel().catch(() => undefined);
+      throw new CloudResponseError(
+        `Invalid Assistant Cloud response for "run stream": expected a "text/plain" content type, received ${
+          receivedContentType
+            ? `"${receivedContentType}"`
+            : "no Content-Type header"
+        }`,
+      );
+    }
+
     return AssistantStream.fromResponse(response, new PlainTextDecoder());
   }
 
   public async report(
     body: AssistantCloudRunReport,
   ): Promise<{ run_id: string }> {
-    return this.cloud.makeRequest("/runs", { method: "POST", body });
+    const response = readCloudRecord(
+      await this.cloud.makeRequest("/runs", { method: "POST", body }),
+      "run report response",
+    );
+
+    return { run_id: readCloudString(response.run_id, "run_id") };
   }
 }

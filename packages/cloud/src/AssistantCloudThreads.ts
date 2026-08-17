@@ -117,7 +117,12 @@ export class AssistantCloudThreads {
   public async create(
     body: AssistantCloudThreadsCreateBody,
   ): Promise<AssistantCloudThreadsCreateResponse> {
-    return this.cloud.makeRequest("/threads", { method: "POST", body });
+    const response = readCloudRecord(
+      await this.cloud.makeRequest("/threads", { method: "POST", body }),
+      "thread create response",
+    );
+
+    return { thread_id: readCloudString(response.thread_id, "thread_id") };
   }
 
   public async update(

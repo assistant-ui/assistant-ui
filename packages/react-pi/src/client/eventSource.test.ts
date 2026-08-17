@@ -435,6 +435,55 @@ describe("openPiEventStream", () => {
     },
   );
 
+  it.each(["throws", "rejects"] as const)(
+    "continues without reconnecting when the event callback %s",
+    async (failureMode) => {
+      const callbackError = new Error("consumer failed");
+      const fetchImpl = vi.fn(async () =>
+        sseResponse([
+          sseFrame({ type: "agent_start", threadId: "t1", seq: 1 }),
+          sseFrame({ type: "agent_end", threadId: "t1", seq: 2 }),
+        ]),
+      ) as unknown as typeof fetch;
+      const onError = vi.fn();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+      let events = 0;
+
+      try {
+        await new Promise<void>((resolve) => {
+          const close = openPiEventStream({
+            url: "/events",
+            fetchImpl,
+            reconnectDelay: () => Promise.resolve(),
+            onError,
+            onEvent: () => {
+              events += 1;
+              if (events === 1) {
+                if (failureMode === "throws") throw callbackError;
+                return Promise.reject(callbackError);
+              }
+              close();
+              resolve();
+            },
+          });
+        });
+        await Promise.resolve();
+
+        expect(events).toBe(2);
+        expect(fetchImpl).toHaveBeenCalledOnce();
+        expect(onError).not.toHaveBeenCalled();
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-pi] onEvent callback threw an error",
+          callbackError,
+        );
+      } finally {
+        consoleError.mockRestore();
+      }
+    },
+  );
+
   it("reconnects when the reconnect delay rejects", async () => {
     vi.useFakeTimers();
     let calls = 0;

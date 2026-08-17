@@ -356,7 +356,11 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     unsubs.push(
       session.onVolumeChange((volume) => {
         this._voiceVolume = volume;
-        for (const cb of this._voiceVolumeSubscribers) cb();
+        notifyEventListeners(
+          this._voiceVolumeSubscribers,
+          undefined,
+          "Voice volume",
+        );
       }),
     );
 
@@ -455,7 +459,11 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     this._voiceSession = undefined;
     this.voice = undefined;
     this._voiceVolume = 0;
-    for (const cb of this._voiceVolumeSubscribers) cb();
+    notifyEventListeners(
+      this._voiceVolumeSubscribers,
+      undefined,
+      "Voice volume",
+    );
     this._voiceMessages = [];
     this._markVoiceMessagesDirty();
     this._notifySubscribers();

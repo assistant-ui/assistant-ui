@@ -228,6 +228,13 @@ describe("a2aPartsToContent", () => {
   it("handles empty parts array", () => {
     expect(a2aPartsToContent([])).toEqual([]);
   });
+
+  it.each([undefined, null, {}, "not-an-array"])(
+    "treats %j parts as empty content",
+    (parts) => {
+      expect(a2aPartsToContent(parts as unknown as A2APart[])).toEqual([]);
+    },
+  );
 });
 
 describe("a2aMessageToContent", () => {
@@ -242,6 +249,15 @@ describe("a2aMessageToContent", () => {
     expect(result[0]).toEqual({ type: "text", text: "Hello" });
     expect(result[1]).toEqual({ type: "text", text: " world" });
   });
+
+  it.each([undefined, null, {}, "not-an-array"])(
+    "treats a message with %j parts as empty content",
+    (parts) => {
+      expect(a2aMessageToContent({ parts } as unknown as A2AMessage)).toEqual(
+        [],
+      );
+    },
+  );
 });
 
 describe("taskStateToMessageStatus", () => {

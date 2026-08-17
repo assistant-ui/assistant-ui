@@ -3,14 +3,22 @@
     composerCancel,
     composerInput,
     composerSend,
+    threadList,
+    threadListNew,
     threadMessages,
     threadScrollToBottom,
     threadViewport,
     useAuiState,
   } from "@assistant-ui/svelte";
-  import { ArrowDownIcon, ArrowUpIcon, SquareIcon } from "@lucide/svelte";
+  import {
+    ArrowDownIcon,
+    ArrowUpIcon,
+    PlusIcon,
+    SquareIcon,
+  } from "@lucide/svelte";
   import Message from "./Message.svelte";
   import Suggestion from "./Suggestion.svelte";
+  import ThreadItem from "./ThreadItem.svelte";
 
   const messages = threadMessages();
   const isRunning = useAuiState((s) => s.thread.isRunning);
@@ -20,9 +28,27 @@
   const cancel = composerCancel();
   const viewport = threadViewport();
   const scrollDown = threadScrollToBottom({ viewport });
+  const threads = threadList();
+  const newThread = threadListNew();
 </script>
 
-<div class="bg-background flex h-full flex-col">
+<div class="bg-background flex h-full">
+  <aside
+    class="border-border/60 flex w-64 shrink-0 flex-col gap-2 border-r p-3"
+  >
+    <button
+      {...newThread.props}
+      class="border-border/60 hover:bg-muted flex items-center gap-2 rounded-lg border px-3 py-2 text-sm transition-colors"
+    >
+      <PlusIcon class="size-4" /> New chat
+    </button>
+    <div class="flex flex-col gap-1 overflow-y-auto">
+      {#each threads.ids as _, index}
+        <ThreadItem item={threads.item(index)} />
+      {/each}
+    </div>
+  </aside>
+  <div class="flex min-w-0 flex-1 flex-col">
   <div
     {@attach viewport.attach}
     class="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
@@ -83,5 +109,6 @@
         {/if}
       </div>
     </div>
+  </div>
   </div>
 </div>

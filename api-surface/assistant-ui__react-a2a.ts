@@ -85,17 +85,8 @@ type A2AAuthorizationCodeOAuthFlow = {
 };
 
 declare class A2AClient {
-  private baseUrl;
-  private basePath;
-  private tenant;
-  private extensionUris;
-  private fetchOptions;
-  private headersFn;
+  #private;
   constructor(options: A2AClientOptions);
-  private getBasePath;
-  private getHeaders;
-  private throwResponseError;
-  private fetchJSON;
   getAgentCard(signal?: AbortSignal): Promise<A2AAgentCard>;
   getExtendedAgentCard(signal?: AbortSignal): Promise<A2AAgentCard>;
   sendMessage(message: A2AMessage, configuration?: A2ASendMessageConfiguration, metadata?: Record<string, unknown>, signal?: AbortSignal): Promise<A2ATask | A2AMessage>;
@@ -111,7 +102,6 @@ declare class A2AClient {
     pageToken?: string;
   }, signal?: AbortSignal): Promise<A2AListTaskPushNotificationConfigsResponse>;
   deleteTaskPushNotificationConfig(taskId: string, configId: string, signal?: AbortSignal): Promise<void>;
-  private parseSSE;
 }
 
 type A2AClientCredentialsOAuthFlow = {

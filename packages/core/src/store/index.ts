@@ -85,6 +85,11 @@ export {
   runtimeAdapterTransformScopes,
 } from "../react/RuntimeAdapter";
 export {
+  InMemoryThreadList,
+  inMemoryThreadListTransformScopes,
+  type InMemoryThreadListProps,
+} from "../react/client/InMemoryThreadList";
+export {
   useExternalMessageConverter,
   convertExternalMessages,
   type JoinStrategy,

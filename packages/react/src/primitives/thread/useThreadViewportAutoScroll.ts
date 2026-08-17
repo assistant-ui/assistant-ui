@@ -3,6 +3,7 @@
 import { useComposedRefs } from "@radix-ui/react-compose-refs";
 import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
 import { useAuiEvent, useAuiState } from "@assistant-ui/store";
+import { isUserScrollUp } from "@assistant-ui/store/client";
 import { useOnResizeContent } from "../../utils/hooks/useOnResizeContent";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
@@ -68,37 +69,36 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
   // triggers, cleared when handleScroll confirms we reached bottom, or when the
   // user actively scrolls up while content size is stable.
   const scrollingToBottomBehaviorRef = useRef<ScrollBehavior | null>(null);
+  const followBottomRef = useRef(autoScroll);
 
   const scrollToBottom = useCallback((behavior: ScrollBehavior) => {
     const div = divRef.current;
     if (!div) return;
 
+    followBottomRef.current = true;
     scrollingToBottomBehaviorRef.current = behavior;
     div.scrollTo({ top: div.scrollHeight, behavior });
+  }, []);
+
+  const cancelScheduledFrame = useCallback(() => {
+    if (scheduledFrameRef.current === null) return;
+    cancelAnimationFrame(scheduledFrameRef.current);
+    scheduledFrameRef.current = null;
   }, []);
 
   const scheduleScrollToBottom = useCallback(
     (behavior: ScrollBehavior) => {
       scrollingToBottomBehaviorRef.current = behavior;
-      if (scheduledFrameRef.current !== null) {
-        cancelAnimationFrame(scheduledFrameRef.current);
-      }
+      cancelScheduledFrame();
       scheduledFrameRef.current = requestAnimationFrame(() => {
         scheduledFrameRef.current = null;
         scrollToBottom(behavior);
       });
     },
-    [scrollToBottom],
+    [cancelScheduledFrame, scrollToBottom],
   );
 
-  useLayoutEffect(
-    () => () => {
-      if (scheduledFrameRef.current !== null) {
-        cancelAnimationFrame(scheduledFrameRef.current);
-      }
-    },
-    [],
-  );
+  useLayoutEffect(() => () => cancelScheduledFrame(), [cancelScheduledFrame]);
 
   const hasActiveTopAnchor = useCallback(() => {
     const state = threadViewportStore.getState();
@@ -124,6 +124,14 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
       // no-op: a smooth scroll-to-bottom fires many midpoint scroll events
       // before landing, don't flicker isAtBottom or clear intent mid-animation
     } else {
+      const userScrolledUp = isUserScrollUp(
+        {
+          scrollTop: lastScrollTop.current,
+          scrollHeight: lastScrollHeight.current,
+        },
+        div,
+      );
+
       if (newIsAtBottom) {
         // newIsAtBottom is ambiguous when the viewport doesn't overflow —
         // keep intent alive until content can actually scroll
@@ -131,12 +139,11 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
         if (viewportOverflows) {
           scrollingToBottomBehaviorRef.current = null;
         }
-      } else if (
-        lastScrollTop.current > div.scrollTop &&
-        lastScrollHeight.current === div.scrollHeight
-      ) {
-        // scrollHeight equality rules out content-driven shifts being misread as user scroll-up
+        if (autoScroll) followBottomRef.current = true;
+      } else if (userScrolledUp) {
+        cancelScheduledFrame();
         scrollingToBottomBehaviorRef.current = null;
+        followBottomRef.current = false;
       }
 
       const shouldUpdate =
@@ -176,7 +183,7 @@ export const useThreadViewportAutoScroll = <TElement extends HTMLElement>({
     } else if (
       autoScroll &&
       !(isRunning && hasActiveTopAnchor()) &&
-      threadViewportStore.getState().isAtBottom
+      followBottomRef.current
     ) {
       scrollToBottom("instant");
     }

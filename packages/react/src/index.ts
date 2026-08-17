@@ -430,7 +430,7 @@ export {
 export {
   InMemoryThreadList,
   type InMemoryThreadListProps,
-} from "./client/InMemoryThreadList";
+} from "@assistant-ui/core/store";
 export { SingleThreadList } from "@assistant-ui/core/store";
 
 export * as INTERNAL from "./internal";

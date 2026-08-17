@@ -391,7 +391,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       runtimeRef.current.thread.import(exportedRepo);
     },
     onCancel: async () => {
-      chatHelpers.stop();
+      try {
+        await chatHelpers.stop();
+      } catch (error) {
+        if (!(error instanceof Error && error.name === "AbortError")) {
+          throw error;
+        }
+      }
     },
     onNew: async (message) => {
       const createMessage = (

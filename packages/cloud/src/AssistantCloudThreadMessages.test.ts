@@ -12,6 +12,26 @@ const createCloudThreadMessages = () => {
 };
 
 describe("AssistantCloudThreadMessages responses", () => {
+  it("validates created message IDs", async () => {
+    const { messages, makeRequest } = createCloudThreadMessages();
+    const body = {
+      parent_id: null,
+      format: "aui/v0",
+      content: {},
+    };
+    makeRequest.mockResolvedValueOnce({ message_id: "message-1" });
+
+    await expect(messages.create("thread-1", body)).resolves.toEqual({
+      message_id: "message-1",
+    });
+
+    makeRequest.mockResolvedValueOnce({});
+
+    await expect(messages.create("thread-1", body)).rejects.toThrow(
+      'Invalid Assistant Cloud response for "message_id": expected a string',
+    );
+  });
+
   it("decodes canonical message responses without changing content", async () => {
     const { messages, makeRequest } = createCloudThreadMessages();
     makeRequest.mockResolvedValue({
