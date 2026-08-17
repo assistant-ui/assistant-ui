@@ -456,18 +456,15 @@ type ImageMessagePart = {
 type ImageSize = (typeof IMAGE_SIZE_TOKENS)[number] | number;
 
 declare class JSONGenerativeUI {
-  private readonly parameters;
+  #private;
   constructor(options: JSONGenerativeUIOptions);
   present(options?: PresentToolOptions): PresentTool;
   promptUser(): PromptUserTool;
 }
 
 declare class JSONGenerativeUI$1 {
-  private readonly library;
-  private readonly parameters;
-  private readonly actions;
+  #private;
   constructor(options: JSONGenerativeUIOptions);
-  private readonly render;
   present(options?: PresentToolOptions): PresentTool;
   promptUser(): PromptUserTool;
 }

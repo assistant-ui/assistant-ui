@@ -9,11 +9,26 @@ export type RunManager = Readonly<{
 
 const disposeReason = Symbol("assistant-transport-dispose");
 
-const reportFinishError = (error: unknown) => {
+type LifecycleCallbackName = "onCancel" | "onError" | "onFinish";
+
+const reportCallbackError = (name: LifecycleCallbackName, error: unknown) => {
   console.error(
-    "[assistant-ui] Assistant transport onFinish callback threw an error",
+    `[assistant-ui] Assistant transport ${name} callback threw an error`,
     error,
   );
+};
+
+const invokeCallback = async (
+  name: LifecycleCallbackName,
+  callback: (() => unknown) | undefined,
+): Promise<void> => {
+  try {
+    await callback?.();
+  } catch (error) {
+    try {
+      reportCallbackError(name, error);
+    } catch {}
+  }
 };
 
 export function useRunManager(config: {
@@ -52,20 +67,16 @@ export function useRunManager(config: {
         if (!disposeAborted() && !stateRef.current.disposed) {
           stateRef.current.pending = false;
           if (ac.signal.aborted) {
-            onCancelRef.current?.();
+            void invokeCallback("onCancel", onCancelRef.current);
           } else {
-            await onErrorRef.current?.(error as Error);
+            await invokeCallback("onError", () =>
+              onErrorRef.current?.(error as Error),
+            );
           }
         }
       } finally {
         if (!disposeAborted() && !stateRef.current.disposed) {
-          try {
-            void Promise.resolve(onFinishRef.current?.()).catch(
-              reportFinishError,
-            );
-          } catch (error) {
-            reportFinishError(error);
-          }
+          void invokeCallback("onFinish", onFinishRef.current);
         }
         if (!stateRef.current.disposed && stateRef.current.pending) {
           startRun();

@@ -47,7 +47,12 @@ export const createTrackedThread = () => {
   return { TrackedThread: resource(useTracked), counters };
 };
 
-type EchoMessage = { id: string; role: "user" | "assistant"; text: string };
+type EchoMessage = {
+  id: string;
+  role: "user" | "assistant";
+  text: string;
+  parts?: readonly Record<string, unknown>[];
+};
 
 export const createEchoRuntime = () => {
   let nextId = 0;
@@ -80,8 +85,11 @@ export const createEchoRuntime = () => {
   const convertMessage = (message: EchoMessage) => ({
     id: message.id,
     role: message.role,
-    content: [{ type: "text" as const, text: message.text }],
+    content: message.parts ?? [{ type: "text" as const, text: message.text }],
   });
+  const onAddToolResult = vi.fn();
+  const onResumeToolCall = vi.fn();
+  const onRespondToToolApproval = vi.fn();
   const onReload = vi.fn(async (parentId: string | null) => {
     let parentIndex = 0;
     if (parentId) {
@@ -133,6 +141,9 @@ export const createEchoRuntime = () => {
     onEdit,
     onCancel,
     onReload,
+    onAddToolResult,
+    onResumeToolCall,
+    onRespondToToolApproval,
   });
   const core = new ExternalStoreRuntimeCore(makeAdapter() as never);
   const sync = () => core.setAdapter(makeAdapter() as never);
@@ -143,6 +154,9 @@ export const createEchoRuntime = () => {
     onEdit,
     onCancel,
     onReload,
+    onAddToolResult,
+    onResumeToolCall,
+    onRespondToToolApproval,
     onSwitchToThread,
     onSwitchToNewThread,
     setMessages: (next: EchoMessage[]) => {

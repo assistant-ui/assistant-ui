@@ -97,3 +97,52 @@ describe("InMemoryThreadList selection events", () => {
     });
   });
 });
+
+describe("InMemoryThreadList delete", () => {
+  it("notifies onDelete with the removed thread id", async () => {
+    const onDelete = vi.fn();
+    let aui!: ReturnType<typeof useAui>;
+    const Harness = () => {
+      aui = useAui({
+        threads: InMemoryThreadList({
+          thread: (threadId) => StubThread({ threadId }) as never,
+          onDelete,
+        }),
+      } as never);
+      return <AuiProvider value={aui}>{null}</AuiProvider>;
+    };
+    render(<Harness />);
+    await act(async () => {});
+
+    await act(async () => {
+      aui.threads.switchToNewThread();
+    });
+    const doomed = aui.threads.getState().mainThreadId;
+    await act(async () => {
+      aui.threads.item({ id: doomed }).delete();
+    });
+    expect(onDelete).toHaveBeenCalledExactlyOnceWith(doomed);
+  });
+
+  it("starts a fresh thread when the last one is deleted", async () => {
+    let aui!: ReturnType<typeof useAui>;
+    const Harness = () => {
+      aui = useAui({
+        threads: InMemoryThreadList({
+          thread: (threadId) => StubThread({ threadId }) as never,
+        }),
+      } as never);
+      return <AuiProvider value={aui}>{null}</AuiProvider>;
+    };
+    render(<Harness />);
+    await act(async () => {});
+
+    await act(async () => {
+      aui.threads.item({ id: "main" }).delete();
+    });
+    const state = aui.threads.getState();
+    expect(state.threadIds).toHaveLength(1);
+    expect(state.mainThreadId).toBe(state.threadIds[0]);
+    expect(state.mainThreadId).not.toBe("main");
+  });
+});

@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
@@ -54,10 +55,11 @@ export const useCloudThreadListAdapter = (
           return adapterRef.current.cloud ?? autoCloud!;
         },
       });
-      const cloudInstance = adapterRef.current.cloud ?? autoCloud!;
-      const attachments = useMemo(
-        () => new CloudFileAttachmentAdapter(cloudInstance),
-        [cloudInstance],
+      const [attachments] = useState(
+        () =>
+          new CloudFileAttachmentAdapter(
+            () => adapterRef.current.cloud ?? autoCloud!,
+          ),
       );
 
       const adapters = useMemo(

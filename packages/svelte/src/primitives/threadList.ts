@@ -1,20 +1,15 @@
-import { tick } from "svelte";
 import type {
   ThreadListItemMethods,
   ThreadsState,
 } from "@assistant-ui/core/store";
 import {
-  AuiConfig,
-  createAssistantClient,
-  createClientFacade,
   createLastValidCache,
   createStaleReporter,
   Derived,
 } from "@assistant-ui/store/client";
 import { getAuiContext, type AuiContext, type ScopeTarget } from "../context";
 import { useAuiState } from "../useAuiState";
-
-const scheduleExpiry = (callback: () => void) => void tick().then(callback);
+import { createObservedItem, scheduleExpiry } from "./observedItem";
 
 /**
  * A per-index handle over one thread-list item: through it, `useAuiState` and
@@ -29,23 +24,21 @@ const createThreadListItem = (
   context: AuiContext,
   index: number,
   archived: boolean,
-): ThreadListItem => {
-  const idsOf = (state: ThreadsState) =>
-    archived ? state.archivedThreadIds : state.threadIds;
-  let observers = 0;
-  const cache = createLastValidCache<ThreadListItemMethods>(
-    createStaleReporter({
-      name: "threadList.item",
-      index,
-      isCurrent: () => observers > 0,
-      isValid: () =>
-        index < idsOf(context.source.getClient().threads.getState()).length,
-    }),
-    scheduleExpiry,
-  );
-
-  const handle = createAssistantClient(
-    AuiConfig({
+): ThreadListItem =>
+  createObservedItem(context, (isObserved) => {
+    const idsOf = (state: ThreadsState) =>
+      archived ? state.archivedThreadIds : state.threadIds;
+    const cache = createLastValidCache<ThreadListItemMethods>(
+      createStaleReporter({
+        name: "threadList.item",
+        index,
+        isCurrent: isObserved,
+        isValid: () =>
+          index < idsOf(context.source.getClient().threads.getState()).length,
+      }),
+      scheduleExpiry,
+    );
+    return {
       threadListItem: Derived({
         source: "threads",
         query: { type: "index", index, archived },
@@ -54,29 +47,8 @@ const createThreadListItem = (
             aui.threads.item({ index, archived }),
           ),
       }),
-    }),
-    { parent: context.source },
-  );
-
-  const source = {
-    getClient: handle.getClient,
-    subscribe: (listener: () => void) => {
-      const release = handle.subscribe(listener);
-      observers++;
-      let subscribed = true;
-      return () => {
-        if (!subscribed) return;
-        subscribed = false;
-        observers--;
-        release();
-      };
-    },
-  };
-  return {
-    source,
-    aui: createClientFacade(source),
-  };
-};
+    };
+  });
 
 /**
  * Builder for the thread list. Call during component initialization; iterate

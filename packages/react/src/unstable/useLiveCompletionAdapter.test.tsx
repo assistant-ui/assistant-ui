@@ -129,6 +129,80 @@ describe("unstable_useLiveCompletionAdapter", () => {
     expect(result.current.adapter.search!("ab")).toEqual([item("ab")]);
   });
 
+  it("refreshes cached results when the fetcher cache key changes", async () => {
+    const fetcherA = vi.fn(async () => [item("workspace-a")]);
+    const fetcherB = vi.fn(async () => [item("workspace-b")]);
+    const { result, rerender } = renderHook(
+      ({ fetcher, cacheKey }) =>
+        unstable_useLiveCompletionAdapter({
+          fetcher,
+          cacheKey,
+          debounceMs: 0,
+        }),
+      { initialProps: { fetcher: fetcherA, cacheKey: "workspace-a" } },
+    );
+
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.adapter.search!("alice")).toEqual([
+      item("workspace-a"),
+    ]);
+
+    await act(async () => {
+      rerender({ fetcher: fetcherB, cacheKey: "workspace-b" });
+    });
+    expect(result.current.adapter.search!("alice")).toEqual([]);
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcherB).toHaveBeenCalledWith("alice");
+    expect(result.current.adapter.search!("alice")).toEqual([
+      item("workspace-b"),
+    ]);
+  });
+
+  it("drops pending results after the fetcher cache key changes", async () => {
+    let resolveA!: (items: readonly Unstable_TriggerItem[]) => void;
+    const fetcherA = vi.fn(
+      () =>
+        new Promise<readonly Unstable_TriggerItem[]>((resolve) => {
+          resolveA = resolve;
+        }),
+    );
+    const fetcherB = vi.fn(async () => [item("workspace-b")]);
+    const { result, rerender } = renderHook(
+      ({ fetcher, cacheKey }) =>
+        unstable_useLiveCompletionAdapter({
+          fetcher,
+          cacheKey,
+          debounceMs: 0,
+        }),
+      { initialProps: { fetcher: fetcherA, cacheKey: "workspace-a" } },
+    );
+
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      rerender({ fetcher: fetcherB, cacheKey: "workspace-b" });
+    });
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    await act(async () => {
+      resolveA([item("workspace-a")]);
+    });
+
+    expect(result.current.adapter.search!("alice")).toEqual([
+      item("workspace-b"),
+    ]);
+  });
+
   it("allows a failed query to be retried", async () => {
     const fetcher = vi
       .fn<(query: string) => Promise<readonly Unstable_TriggerItem[]>>()

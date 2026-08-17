@@ -25,11 +25,26 @@ const createDeferred = () => {
   return { promise, resolve };
 };
 
+const captureUnhandledRejections = async (
+  callback: () => Promise<void>,
+): Promise<unknown[]> => {
+  const reasons: unknown[] = [];
+  const listener = (reason: unknown) => reasons.push(reason);
+  process.on("unhandledRejection", listener);
+  try {
+    await callback();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    return reasons;
+  } finally {
+    process.off("unhandledRejection", listener);
+  }
+};
+
 const useTransportSchedulingHarness = (
   opts: {
     onRun?: (signal: AbortSignal) => Promise<void> | void;
     onCancel?: (commands: AssistantTransportCommand[]) => void;
-    onError?: (commands: AssistantTransportCommand[]) => void;
+    onError?: (commands: AssistantTransportCommand[]) => void | Promise<void>;
     onFinish?: () => void;
   } = {},
 ) => {
@@ -52,7 +67,7 @@ const useTransportSchedulingHarness = (
     },
     onError: async () => {
       const queue = commandQueueRef.current!;
-      opts.onError?.([...queue.state.inTransit]);
+      await opts.onError?.([...queue.state.inTransit]);
     },
     onFinish: () => opts.onFinish?.(),
   });
@@ -179,6 +194,98 @@ describe("assistant transport scheduling contracts", () => {
         "[assistant-ui] Assistant transport onFinish callback threw an error",
         error,
       );
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("contains rejected onError callbacks", async () => {
+    const callbackError = new Error("error telemetry failed");
+    const onError = vi.fn().mockRejectedValue(callbackError);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation((message) => {
+        if (
+          message ===
+          "[assistant-ui] Assistant transport onError callback threw an error"
+        ) {
+          throw new Error("console unavailable");
+        }
+      });
+
+    try {
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        const { result } = renderHook(() =>
+          useTransportSchedulingHarness({
+            onRun: () => Promise.reject(new Error("network failed")),
+            onError,
+          }),
+        );
+
+        act(() => {
+          result.current.commandQueue.enqueue(createMessageCommand("m1"));
+        });
+
+        await waitFor(() => {
+          expect(result.current.runManager.isRunning).toBe(false);
+        });
+      });
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Assistant transport onError callback threw an error",
+        callbackError,
+      );
+      expect(unhandledRejections).toEqual([]);
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("contains throwing onCancel callbacks", async () => {
+    const callbackError = new Error("cancel telemetry failed");
+    const onCancel = vi.fn().mockImplementation(() => {
+      throw callbackError;
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const unhandledRejections = await captureUnhandledRejections(async () => {
+        const { result } = renderHook(() =>
+          useTransportSchedulingHarness({
+            onRun: (signal) =>
+              new Promise<void>((_resolve, reject) => {
+                signal.addEventListener(
+                  "abort",
+                  () => reject(new Error("aborted")),
+                  { once: true },
+                );
+              }),
+            onCancel,
+          }),
+        );
+
+        act(() => {
+          result.current.commandQueue.enqueue(createMessageCommand("m1"));
+        });
+        await waitFor(() => {
+          expect(result.current.runBatchesRef.current).toHaveLength(1);
+        });
+
+        act(() => result.current.runManager.cancel());
+        await waitFor(() => {
+          expect(result.current.runManager.isRunning).toBe(false);
+        });
+      });
+
+      expect(onCancel).toHaveBeenCalledTimes(1);
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Assistant transport onCancel callback threw an error",
+        callbackError,
+      );
+      expect(unhandledRejections).toEqual([]);
     } finally {
       consoleError.mockRestore();
     }
