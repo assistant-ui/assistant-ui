@@ -3,7 +3,7 @@ title: Persistence Adapters
 description: Persistence adapters for saving assistant-ui message history, remote thread lists, and long-running chat sessions across browser reloads.
 ---
 
-import { ExportedMessageRepository, GenericThreadHistoryAdapter, InMemoryThreadListAdapter, MessageFormatAdapter, RemoteThreadListAdapter, ThreadHistoryAdapter } from "@/generated/typeDocs";
+import { ExportedMessageRepository, GenericThreadHistoryAdapter, InMemoryThreadListAdapter, MessageFormatAdapter, RemoteThreadListAdapter, RemoteThreadListAdapters, ThreadHistoryAdapter } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -42,6 +42,10 @@ const runtime = useRemoteThreadListRuntime({
 {/* api-example:RemoteThreadListAdapter:end */}
 
 <ParametersTable {...RemoteThreadListAdapter} />
+
+### RemoteThreadListAdapters
+
+<ParametersTable {...RemoteThreadListAdapters} />
 
 ### ThreadHistoryAdapter
 

@@ -6,15 +6,9 @@ import {
   useMemo,
 } from "react";
 import { useContextProvider } from "@assistant-ui/tap";
-import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
-import type { AttachmentAdapter } from "../../adapters/attachment";
-import type { ModelContextProvider } from "../../model-context/types";
+import type { RemoteThreadListAdapters } from "../../runtimes/remote-thread-list/types";
 
-export type RuntimeAdapters = {
-  modelContext?: ModelContextProvider | undefined;
-  history?: ThreadHistoryAdapter | undefined;
-  attachments?: AttachmentAdapter | undefined;
-};
+export type RuntimeAdapters = RemoteThreadListAdapters;
 
 const RuntimeAdaptersContext = createContext<RuntimeAdapters | null>(null);
 

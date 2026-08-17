@@ -130,44 +130,55 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-### Persisting messages with `unstable_Provider`
+### Persisting messages
 
-`RemoteThreadListAdapter` only manages thread metadata. To persist messages within each thread, expose a thread-scoped history adapter via the optional `unstable_Provider`. `useRemoteThreadListRuntime` honors it. The `RemoteThreadList` store entry ignores it, so per-thread history will not load or persist there until that surface supports it.
+`RemoteThreadListAdapter` only manages thread metadata. Per-thread history and attachments are a separate seam with two faces:
+
+- `unstable_useAdapters` is a hook. The `RemoteThreadList` store entry calls it inside the client tree, so Vue and Svelte hosts that mount through `createAssistantClient` get the same adapters as a React hook host.
+- `unstable_Provider` is a React component. `useRemoteThreadListRuntime` renders it. The store entry ignores it.
+
+Share one hook between both faces:
 
 ```tsx
 import {
   RuntimeAdapterProvider,
   useAui,
+  type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
 } from "@assistant-ui/react";
 import { useMemo } from "react";
 
+function useThreadListAdapters() {
+  const aui = useAui();
+  const history = useMemo<ThreadHistoryAdapter>(
+    () => ({
+      async load() {
+        const { remoteId } = aui.threadListItem.getState();
+        if (!remoteId) return { messages: [] };
+        const rows = await fetch(
+          `/api/threads/${remoteId}/messages`,
+        ).then((r) => r.json());
+        return { messages: rows.map(toThreadMessage) };
+      },
+      async append({ message, parentId }) {
+        const { remoteId } = await aui.threadListItem.initialize();
+        await fetch(`/api/threads/${remoteId}/messages`, {
+          method: "POST",
+          body: JSON.stringify({ message, parentId }),
+        });
+      },
+    }),
+    [aui],
+  );
+  return { history };
+}
+
 const adapterWithHistory: RemoteThreadListAdapter = {
   // ...metadata methods above...
+  unstable_useAdapters: useThreadListAdapters,
   unstable_Provider({ children }) {
-    const aui = useAui();
-    const history = useMemo<ThreadHistoryAdapter>(
-      () => ({
-        async load() {
-          const { remoteId } = aui.threadListItem.getState();
-          if (!remoteId) return { messages: [] };
-          const rows = await fetch(
-            `/api/threads/${remoteId}/messages`,
-          ).then((r) => r.json());
-          return { messages: rows.map(toThreadMessage) };
-        },
-        async append({ message, parentId }) {
-          const { remoteId } = await aui.threadListItem.initialize();
-          await fetch(`/api/threads/${remoteId}/messages`, {
-            method: "POST",
-            body: JSON.stringify({ message, parentId }),
-          });
-        },
-      }),
-      [aui],
-    );
     return (
-      <RuntimeAdapterProvider adapters={{ history }}>
+      <RuntimeAdapterProvider adapters={useThreadListAdapters()}>
         {children}
       </RuntimeAdapterProvider>
     );
@@ -367,7 +378,13 @@ A few invariants worth knowing when wiring a custom UI on top of `loadMore()`:
       name: "unstable_Provider",
       type: "RemoteThreadListProviderComponent",
       description:
-        "Optional wrapper rendered around each active thread. Inject thread-scoped adapters (history, attachments) here.",
+        "Optional React wrapper rendered around each active thread by useRemoteThreadListRuntime. Inject thread-scoped adapters (history, attachments) here.",
+    },
+    {
+      name: "unstable_useAdapters",
+      type: "() => RemoteThreadListAdapters | null | undefined",
+      description:
+        "Optional hook called by the RemoteThreadList store entry. Return the same adapters the Provider injects.",
     },
   ]}
 />

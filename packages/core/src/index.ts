@@ -347,6 +347,7 @@ export {
 // Remote Thread List (user-facing)
 export type {
   RemoteThreadListAdapter,
+  RemoteThreadListAdapters,
   RemoteThreadListOptions,
   RemoteThreadListProviderComponent,
   RemoteThreadInitializeResponse,

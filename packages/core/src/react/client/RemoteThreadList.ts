@@ -35,6 +35,7 @@ import {
   inMemoryThreadListTransformScopes,
   type InMemoryThreadListProps,
 } from "./InMemoryThreadList";
+import { AdaptedRemoteThread } from "./AdaptedRemoteThread";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -236,6 +237,7 @@ const useRemoteThreadListView = ({
   listState,
   mainThreadId,
   threadFactory,
+  useAdapters,
   onSwitchTo,
   onRename,
   onUpdateCustom,
@@ -249,6 +251,7 @@ const useRemoteThreadListView = ({
   listState: RemoteThreadState;
   mainThreadId: string;
   threadFactory: RemoteThreadListProps["thread"];
+  useAdapters: RemoteThreadListAdapter["unstable_useAdapters"];
   onSwitchTo: (
     threadId: string,
     options?: { unarchive?: boolean },
@@ -271,7 +274,14 @@ const useRemoteThreadListView = ({
   }>;
   onDetach: (threadId: string) => Promise<void>;
 }) => {
-  const mainThreadClient = useClientResource(threadFactory(mainThreadId));
+  const mainThreadClient = useClientResource(
+    useAdapters === undefined
+      ? threadFactory(mainThreadId)
+      : AdaptedRemoteThread({
+          useAdapters,
+          thread: threadFactory(mainThreadId),
+        }),
+  );
   const itemOrder = useMemo(
     () => collectItemOrder(listState, mainThreadId),
     [listState, mainThreadId],
@@ -456,9 +466,11 @@ const useRemoteThreadList = (
   }, [getLoadThreadsPromise]);
 
   useEffect(() => {
-    if (!isDevelopment || adapter.unstable_Provider === undefined) return;
+    if (!isDevelopment) return;
+    if (adapter.unstable_useAdapters !== undefined) return;
+    if (adapter.unstable_Provider === undefined) return;
     console.warn(
-      "[assistant-ui] RemoteThreadList ignores RemoteThreadListAdapter.unstable_Provider, so per-thread message history will not load or persist. Use useRemoteThreadListRuntime until this is supported.",
+      "[assistant-ui] RemoteThreadList ignores RemoteThreadListAdapter.unstable_Provider. Expose unstable_useAdapters so per-thread history loads on this entry. useRemoteThreadListRuntime still honors unstable_Provider.",
     );
   }, [adapter]);
 
@@ -915,6 +927,7 @@ const useRemoteThreadList = (
       listState,
       mainThreadId,
       threadFactory,
+      useAdapters: adapter.unstable_useAdapters,
       onSwitchTo: (id, options) => switchToThread(id, options),
       onRename: (id, title) => rename(id, title),
       onUpdateCustom: (id, custom) => updateCustom(id, custom),
@@ -1030,8 +1043,9 @@ const useRemoteThreadList = (
 /**
  * `AuiConfig` `threads` entry backed by a `RemoteThreadListAdapter`. Thread
  * bodies are born from the `thread` factory inside the client tree, so any
- * `AssistantClient` host can run a remote or cloud list. `unstable_Provider`
- * is ignored; cloud history still goes through `useRemoteThreadListRuntime`.
+ * `AssistantClient` host can run a remote or cloud list. Per-thread history
+ * and attachments come from `unstable_useAdapters`; `unstable_Provider` stays
+ * the React face for `useRemoteThreadListRuntime`.
  */
 export const RemoteThreadList = resource(useRemoteThreadList);
 

@@ -1,6 +1,9 @@
 import type { ThreadMessage } from "../../types/message";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AssistantStream } from "assistant-stream";
+import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
+import type { AttachmentAdapter } from "../../adapters/attachment";
+import type { ModelContextProvider } from "../../model-context/types";
 
 /* oxlint-disable typescript/no-explicit-any -- structural stand-in for ComponentType without depending on react types */
 type RemoteThreadListProviderProps = { children?: any };
@@ -33,6 +36,12 @@ export type RemoteThreadListPageOptions = {
   after?: string | undefined;
 };
 
+export type RemoteThreadListAdapters = {
+  modelContext?: ModelContextProvider | undefined;
+  history?: ThreadHistoryAdapter | undefined;
+  attachments?: AttachmentAdapter | undefined;
+};
+
 export type RemoteThreadListAdapter = {
   list(params?: RemoteThreadListPageOptions): Promise<RemoteThreadListResponse>;
 
@@ -56,12 +65,26 @@ export type RemoteThreadListAdapter = {
    * inject per-thread context such as a history or attachments adapter (see
    * `useCloudThreadListAdapter` for the canonical shape).
    *
+   * `useRemoteThreadListRuntime` renders this component. The `RemoteThreadList`
+   * store entry ignores it; expose `unstable_useAdapters` for that host.
+   *
    * The Provider must render `children` on its first commit; deferring them
    * behind a loading state, a Suspense boundary, or a `useEffect`-gated render
    * is unsupported and leaves thread context unavailable to downstream
    * consumers. Load data inside an always-mounted child instead.
    */
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
+
+  /**
+   * Tap-hosted dual of `unstable_Provider`. The
+   * `RemoteThreadList` store entry calls this hook inside the client tree and
+   * provides the returned adapters to the `thread` factory. Keep the hook
+   * identity stable; a recreated function with a different hook count remounts
+   * the thread.
+   */
+  unstable_useAdapters?:
+    | (() => RemoteThreadListAdapters | null | undefined)
+    | undefined;
 };
 
 export type RemoteThreadListOptions = {
