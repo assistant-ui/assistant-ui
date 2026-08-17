@@ -266,25 +266,28 @@ describe("SandboxHost", () => {
       .spyOn(console, "error")
       .mockImplementation(() => {});
 
-    await act(async () => {
-      root.render(
-        <SandboxHost
-          content={{ html: "" }}
-          contentKey="k"
-          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
-          onError={() => {
-            throw callbackError;
-          }}
-        />,
-      );
-    });
-    await flush();
+    try {
+      await act(async () => {
+        root.render(
+          <SandboxHost
+            content={{ html: "" }}
+            contentKey="k"
+            createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+            onError={() => {
+              throw callbackError;
+            }}
+          />,
+        );
+      });
+      await flush();
 
-    expect(consoleError).toHaveBeenCalledWith(
-      "[assistant-ui] SandboxHost onError callback threw an error",
-      callbackError,
-    );
-    consoleError.mockRestore();
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] SandboxHost onError callback threw an error",
+        callbackError,
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("disposes the rendered frame when bridge creation fails", async () => {

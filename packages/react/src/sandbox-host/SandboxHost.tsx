@@ -6,6 +6,7 @@ import {
   SafeContentFrame,
   type SandboxOption,
 } from "safe-content-frame";
+import { invokeCallbackSafely } from "../utils/invokeCallbackSafely";
 
 const DEFAULT_PRODUCT = "assistant-ui-sandbox";
 const DEFAULT_MAX_HEIGHT = 800;
@@ -64,25 +65,6 @@ type LiveSnapshot = {
   sandbox: SandboxHostConfig | undefined;
   createBridge: SandboxHostProps["createBridge"];
   onError: SandboxHostProps["onError"];
-};
-
-const reportErrorCallbackFailure = (error: unknown) => {
-  console.error(
-    "[assistant-ui] SandboxHost onError callback threw an error",
-    error,
-  );
-};
-
-const invokeErrorCallback = (
-  callback: SandboxHostProps["onError"],
-  error: Error,
-) => {
-  if (!callback) return;
-  try {
-    void Promise.resolve(callback(error)).catch(reportErrorCallbackFailure);
-  } catch (callbackError) {
-    reportErrorCallbackFailure(callbackError);
-  }
 };
 
 export function SandboxHost({
@@ -169,9 +151,10 @@ export function SandboxHost({
         if (cancelled) return;
         frame?.dispose();
         frame = null;
-        invokeErrorCallback(
+        invokeCallbackSafely(
           liveRef.current.onError,
           err instanceof Error ? err : new Error(String(err)),
+          "SandboxHost onError",
         );
       });
 
