@@ -699,10 +699,16 @@ type AssistantToolUIProps<TArgs, TResult> = {
   display?: "inline" | "standalone";
 };
 
-type AssistantTransportCommand = AddMessageCommand | AddToolResultCommand | UserCommands;
+type AssistantTransportCommand = Exclude<AssistantTransportCommand$1, UserCommands$1> | UserCommands;
 
-type AssistantTransportConnectionMetadata = {
+type AssistantTransportCommand$1 = AddMessageCommand | AddToolResultCommand | UserCommands$1;
+
+type AssistantTransportConnectionMetadata = Omit<AssistantTransportConnectionMetadata$1, "pendingCommands"> & {
   pendingCommands: AssistantTransportCommand[];
+};
+
+type AssistantTransportConnectionMetadata$1 = {
+  pendingCommands: AssistantTransportCommand$1[];
   isSending: boolean;
   toolStatuses: Record<string, ToolExecutionStatus>;
 };
@@ -721,11 +727,11 @@ type AssistantTransportOptions<T> = {
   onResponse?: (response: Response) => void;
   onFinish?: () => void;
   onError?: (error: Error, params: {
-    commands: AssistantTransportCommand[];
+    commands: AssistantTransportCommand$1[];
     updateState: (updater: (state: T) => T) => void;
   }) => void | Promise<void>;
   onCancel?: (params: {
-    commands: AssistantTransportCommand[];
+    commands: AssistantTransportCommand$1[];
     updateState: (updater: (state: T) => T) => void;
     error?: Error;
   }) => void;
@@ -746,7 +752,7 @@ type AssistantTransportState = {
   readonly isRunning: boolean;
 };
 
-type AssistantTransportStateConverter<T> = (state: T, connectionMetadata: AssistantTransportConnectionMetadata) => AssistantTransportState;
+type AssistantTransportStateConverter<T> = (state: T, connectionMetadata: AssistantTransportConnectionMetadata$1) => AssistantTransportState;
 
 type AssistantTransportStateOperation = {
   readonly type: "set";
@@ -3522,7 +3528,7 @@ type QueuePlacement = {
   readonly insertBefore?: string | null;
 };
 
-type QueuedCommand = AssistantTransportCommand;
+type QueuedCommand = AssistantTransportCommand$1;
 
 type QuoteInfo = {
   readonly text: string;
@@ -5701,9 +5707,11 @@ type UseMessageIfProps = RequireAtLeastOne<MessageIfFilters>;
 
 type UseThreadIfProps = RequireAtLeastOne<ThreadIfFilters>;
 
-type UserCommands = Assistant$1.Commands[keyof Assistant$1.Commands];
+type UserCommands = Assistant.Commands[keyof Assistant.Commands];
 
-type UserExternalState = keyof Assistant$1.ExternalState extends never ? Record<string, unknown> : Assistant$1.ExternalState[keyof Assistant$1.ExternalState];
+type UserCommands$1 = Assistant$1.Commands[keyof Assistant$1.Commands];
+
+type UserExternalState = keyof Assistant.ExternalState extends never ? Record<string, unknown> : Assistant.ExternalState[keyof Assistant.ExternalState];
 
 type UserMessage = {
   readonly role: "user";

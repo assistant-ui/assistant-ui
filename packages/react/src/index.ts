@@ -103,17 +103,17 @@ export type {
 } from "@assistant-ui/core";
 
 // --- assistant-transport ---
+export { useAssistantTransportRuntime } from "@assistant-ui/core/react";
 export {
-  useAssistantTransportRuntime,
   useAssistantTransportSendCommand,
   useAssistantTransportState,
-} from "@assistant-ui/core/react";
+} from "./assistant-transport";
 export type {
   AssistantTransportConnectionMetadata,
   AssistantTransportCommand,
   AssistantTransportProtocol,
   SendCommandsRequestBody,
-} from "@assistant-ui/core/react";
+} from "./assistant-transport";
 
 // --- core ---
 export type {
