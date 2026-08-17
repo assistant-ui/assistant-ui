@@ -73,6 +73,16 @@ const useCountingThread = (props: {
 };
 const CountingThread = resource(useCountingThread);
 
+const useHistoryLoadingThread = (props: { threadId: string }) => {
+  const adapters = useRuntimeAdapters();
+  useState(() => {
+    void adapters?.history?.load();
+    return true;
+  });
+  return useStubThread(props);
+};
+const HistoryLoadingThread = resource(useHistoryLoadingThread);
+
 const makeAdapter = (
   overrides: Partial<RemoteThreadListAdapter> = {},
 ): RemoteThreadListAdapter => ({
@@ -664,6 +674,48 @@ describe("RemoteThreadList", () => {
     await run(withHook, useHistoryAdapters(dummyHistory()));
     expect(withHook.n).toBe(withoutHook.n);
     expect(withHook.n).toBeGreaterThan(1);
+  });
+
+  it("loads history for the second thread when the factory is keyed", async () => {
+    const load = vi.fn(async () => ({ messages: [] }));
+    const history: ThreadHistoryAdapter = {
+      load,
+      append: async () => {},
+    };
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "t1", title: "One" },
+          { status: "regular" as const, remoteId: "t2", title: "Two" },
+        ],
+      })),
+      unstable_useAdapters: useHistoryAdapters(history),
+    });
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          thread: (id) =>
+            withKey(id, HistoryLoadingThread({ threadId: id }) as never),
+          threadId: "t1",
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(load).toHaveBeenCalled();
+    });
+    const afterFirst = load.mock.calls.length;
+    flushTapSync(() => aui.threads.switchToThread("t2"));
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe("t2");
+    });
+    await vi.waitFor(() => {
+      expect(load.mock.calls.length).toBeGreaterThan(afterFirst);
+    });
+    handle.destroy();
   });
 
   it("does not re-emit onSwitchToNewThread when the draft is already main", async () => {

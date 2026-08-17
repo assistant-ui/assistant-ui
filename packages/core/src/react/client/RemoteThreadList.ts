@@ -55,6 +55,12 @@ export type RemoteThreadListProps = {
    * Swapping this to a different backing store does not reload the list. Call `reload()` after a genuine swap. A recreated object for the same store is a no-op.
    */
   adapter: RemoteThreadListAdapter;
+  /**
+   * Factory for the visible thread. Per-thread history reload requires a
+   * resource keyed by thread id (`withKey(id, thread(...))`). An unkeyed
+   * factory keeps one instance across switches, so a mount-once history
+   * loader will not fetch the next thread.
+   */
   thread: InMemoryThreadListProps["thread"];
   threadId?: string | undefined;
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
@@ -1048,7 +1054,8 @@ const useRemoteThreadList = (
  * bodies are born from the `thread` factory inside the client tree, so any
  * `AssistantClient` host can run a remote or cloud list. Per-thread history
  * and attachments come from `unstable_useAdapters`; `unstable_Provider` stays
- * the React face for `useRemoteThreadListRuntime`.
+ * the React face for `useRemoteThreadListRuntime`. Key the factory with
+ * `withKey` so history reloads when the visible thread changes.
  */
 export const RemoteThreadList = resource(useRemoteThreadList);
 

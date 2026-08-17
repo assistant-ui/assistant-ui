@@ -137,6 +137,18 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 - `unstable_useAdapters` is a hook. The `RemoteThreadList` store entry calls it inside the client tree, so Vue and Svelte hosts that mount through `createAssistantClient` get the same adapters as a React hook host.
 - `unstable_Provider` is a React component. `useRemoteThreadListRuntime` renders it. The store entry ignores it.
 
+On the store entry, wrap the thread factory with `withKey` so the thread remounts on a switch. History adapters load once per mount. An unkeyed factory keeps one instance, and the next thread's messages never appear.
+
+```tsx
+import { withKey } from "@assistant-ui/tap";
+import { RemoteThreadList } from "@assistant-ui/react";
+
+threads: RemoteThreadList({
+  adapter,
+  thread: (id) => withKey(id, MyThread({ threadId: id })),
+}),
+```
+
 Share one hook between both faces:
 
 ```tsx
@@ -385,7 +397,7 @@ A few invariants worth knowing when wiring a custom UI on top of `loadMore()`:
       name: "unstable_useAdapters",
       type: "() => RuntimeAdapters | null | undefined",
       description:
-        "Optional hook called by the RemoteThreadList store entry. Return the same adapters the Provider injects.",
+        "Optional hook called by the RemoteThreadList store entry. Return the same adapters the Provider injects. Per-thread history requires the thread factory to be keyed with withKey.",
     },
   ]}
 />

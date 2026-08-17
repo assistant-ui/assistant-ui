@@ -82,7 +82,8 @@ restored.
 bodies are born from the `thread` factory inside the client tree, so any
 `AssistantClient` host can run a remote or cloud list. Per-thread history
 and attachments come from `unstable_useAdapters`; `unstable_Provider` stays
-the React face for `useRemoteThreadListRuntime`.
+the React face for `useRemoteThreadListRuntime`. Key the factory with
+`withKey` so history reloads when the visible thread changes.
 
 <ParametersTable {...RemoteThreadList} />
 

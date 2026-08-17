@@ -82,6 +82,11 @@ export type RemoteThreadListAdapter = {
    * not capture it at hook mount. The hook must keep a stable hook count
    * across adapter swaps; a different count throws. Memoize the returned
    * object.
+   *
+   * Per-thread history also requires the `thread` factory to be keyed by
+   * thread id (`withKey(id, thread(...))`). History loaders such as
+   * `useExternalHistory` run once per mount; an unkeyed factory keeps one
+   * instance across switches and the next thread's messages never load.
    */
   unstable_useAdapters?: (() => RuntimeAdapters | null | undefined) | undefined;
 };
