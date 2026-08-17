@@ -529,26 +529,36 @@ export class ExternalStoreThreadRuntimeCore
         ? rawMessage
         : this.enrichAppendMetadata(rawMessage);
 
-    // The queue driver dispatches through the host adapter, outside this
-    // core, so the initialization barrier must run before a message can
-    // enter the queue.
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();
 
+    // The getter call is what starts thread initialization.
     const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      await initPromise;
-    }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
-    // Buffering does not start a run, so the tool-abort below must wait until
-    // the queue flushes. By then the prior run (and its tools) has settled.
+    // The queue driver dispatches through the host adapter, outside this
+    // core, so the initialization barrier must run before a message can
+    // enter the queue.
     if (!isEdit && this._store.queue) {
+      if (initPromise) {
+        await initPromise;
+      }
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+
+      // Buffering does not start a run, so the tool-abort below must wait
+      // until the queue flushes. By then the prior run (and its tools) has
+      // settled.
       if (message.steer ?? this._store.isRunning ?? false)
         this._store.queue.steer(message);
       else this._store.queue.enqueue(message);
       return;
     }
+
+    // The optimistic insert lives inside the adapter's dispatch, so holding
+    // `onNew` on initialization would keep the message off screen for the
+    // whole roundtrip. Seams that need the remote identity await
+    // `threadListItem.initialize()` themselves, and a rejection surfaces
+    // there.
+    void initPromise?.catch(() => {});
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn

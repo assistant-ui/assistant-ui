@@ -336,6 +336,15 @@ export class LocalThreadRuntimeCore
     this._queue?.adapter.remove(queueItemId);
   }
 
+  private _rollbackAppend(messageId: string) {
+    try {
+      this.repository.deleteMessage(messageId);
+    } catch {
+      return;
+    }
+    this._notifySubscribers();
+  }
+
   private async _runAppend(rawMessage: AppendMessage): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
@@ -343,17 +352,29 @@ export class LocalThreadRuntimeCore
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
-    const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      await initPromise;
-    }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
-
     const newMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
       reason: "unknown",
     });
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
+    this._notifySubscribers();
+
+    // Initialization only gates the history write and the run; the message
+    // is already on screen. A rejected barrier or a thread invalidated
+    // mid-wait rolls the optimistic message back.
+    const initPromise = this._getInitializePromise?.();
+    if (initPromise) {
+      try {
+        await initPromise;
+      } catch (error) {
+        this._rollbackAppend(newMessage.id);
+        throw error;
+      }
+    }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+      this._rollbackAppend(newMessage.id);
+      return;
+    }
     const historyWrite = this._options.adapters.history?.append({
       parentId: message.parentId,
       message: newMessage,

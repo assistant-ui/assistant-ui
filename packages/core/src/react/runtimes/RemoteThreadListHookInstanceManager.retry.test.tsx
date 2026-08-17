@@ -68,20 +68,30 @@ const testInitializationRetry = async (
   const localId = item.getState().id;
   const thread = getThreadCore(runtimeRef.current!);
 
-  await expect(thread.append(userMessage("first"))).rejects.toBe(
-    initializationError,
-  );
+  if (onNew) {
+    // The external-store core dispatches without holding the append on the
+    // initialization barrier; the failure surfaces at the dispatch seam.
+    await expect(thread.append(userMessage("first"))).resolves.toBeUndefined();
+    await Promise.resolve();
+    await Promise.resolve();
+  } else {
+    await expect(thread.append(userMessage("first"))).rejects.toBe(
+      initializationError,
+    );
+  }
   expect(item.getState().status).toBe("new");
 
   await expect(thread.append(userMessage("second"))).resolves.toBeUndefined();
   expect(adapter.initialize).toHaveBeenCalledTimes(2);
   expect(adapter.initialize).toHaveBeenLastCalledWith(localId);
-  expect(item.getState()).toMatchObject({
-    id: localId,
-    status: "regular",
-    remoteId: `remote-${localId}`,
+  await waitFor(() => {
+    expect(item.getState()).toMatchObject({
+      id: localId,
+      status: "regular",
+      remoteId: `remote-${localId}`,
+    });
   });
-  if (onNew) expect(onNew).toHaveBeenCalledOnce();
+  if (onNew) expect(onNew).toHaveBeenCalledTimes(2);
 };
 
 describe("RemoteThreadListHookInstanceManager initialization retry", () => {
