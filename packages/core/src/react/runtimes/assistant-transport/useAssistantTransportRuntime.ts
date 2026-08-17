@@ -256,7 +256,12 @@ const useAssistantTransportThreadRuntime = <T>(
         },
       );
 
-      options.onResponse?.(response);
+      try {
+        await options.onResponse?.(response);
+      } catch (error) {
+        void response.body?.cancel().catch(() => {});
+        throw error;
+      }
 
       if (!response.ok) {
         throw new Error(`Status ${response.status}: ${await response.text()}`);

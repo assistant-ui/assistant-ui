@@ -138,7 +138,7 @@ export type AssistantTransportOptions<T> = {
   prepareSendCommandsRequest?: (
     body: SendCommandsRequestBody,
   ) => Record<string, unknown> | Promise<Record<string, unknown>>;
-  onResponse?: (response: Response) => void;
+  onResponse?: (response: Response) => void | Promise<void>;
   onFinish?: () => void;
   onError?: (
     error: Error,
