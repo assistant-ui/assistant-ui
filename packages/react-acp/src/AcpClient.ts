@@ -140,7 +140,7 @@ export class AcpClient {
     const sessionId = await this.ensureSession();
     const result = await this.request<{ stopReason?: AcpStopReason }>(
       "session/prompt",
-      { sessionId, content },
+      { sessionId, prompt: content },
     );
     return result.stopReason ?? "end_turn";
   }
@@ -148,11 +148,8 @@ export class AcpClient {
   /** Ask the agent to cancel the current turn. */
   async cancel(): Promise<void> {
     if (!this._sessionId || this._connectionState !== "connected") return;
-    try {
-      await this.request("session/cancel", { sessionId: this._sessionId });
-    } catch {
-      // best effort — the caller already aborted locally
-    }
+    // session/cancel is a notification in ACP v1 — no response expected.
+    this.sendNotification("session/cancel", { sessionId: this._sessionId });
   }
 
   /** Answer a pending `session/request_permission` server request. */
@@ -214,7 +211,6 @@ export class AcpClient {
               },
             );
             this.initializeResult = result;
-            this.sendNotification("notifications/initialized", {});
             if (settled) return;
             settled = true;
             this.setConnectionState("connected");

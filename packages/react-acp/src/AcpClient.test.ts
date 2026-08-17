@@ -116,7 +116,7 @@ describe("AcpClient", () => {
     expect(client.connectionState).toBe("connected");
     expect(client.agentInfo?.name).toBe("crow");
     expect(ws.sent.some((f) => f.method === "notifications/initialized")).toBe(
-      true,
+      false,
     );
   });
 
@@ -186,7 +186,7 @@ describe("AcpClient", () => {
     );
     expect(prompt.params).toEqual({
       sessionId: "s1",
-      content: [{ type: "text", text: "hi" }],
+      prompt: [{ type: "text", text: "hi" }],
     });
 
     const updates: Array<{ sessionId: string; update: AcpSessionUpdate }> = [];
@@ -336,7 +336,7 @@ describe("AcpClient", () => {
       ws.sent.find((f) => f.method === "session/cancel"),
     );
     expect(cancel.params).toEqual({ sessionId: "s1" });
-    ws.receive({ jsonrpc: "2.0", id: cancel.id!, result: null });
+    expect(cancel.id).toBeUndefined(); // notification — no response expected
 
     const states: string[] = [];
     client.onConnectionChange = (state) => states.push(state);

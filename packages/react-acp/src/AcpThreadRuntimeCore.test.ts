@@ -137,7 +137,7 @@ describe("AcpThreadRuntimeCore", () => {
     const { ws, prompt } = await driveHandshake();
     expect(prompt.params).toEqual({
       sessionId: "s1",
-      content: [{ type: "text", text: "plan dinner" }],
+      prompt: [{ type: "text", text: "plan dinner" }],
     });
 
     ws.receive(
@@ -363,7 +363,7 @@ describe("AcpThreadRuntimeCore", () => {
       ws.sent.find((f) => f.method === "session/cancel"),
     );
     expect(cancelFrame.params).toEqual({ sessionId: "s1" });
-    ws.receive({ jsonrpc: "2.0", id: cancelFrame.id!, result: null });
+    expect(cancelFrame.id).toBeUndefined();
 
     ws.receive({
       jsonrpc: "2.0",
@@ -406,7 +406,7 @@ describe("AcpThreadRuntimeCore", () => {
     const cancelFrame = await until(() =>
       ws.sent.find((f) => f.method === "session/cancel"),
     );
-    ws.receive({ jsonrpc: "2.0", id: cancelFrame.id!, result: null });
+    expect(cancelFrame.id).toBeUndefined();
     ws.receive({
       jsonrpc: "2.0",
       id: prompt.id!,
