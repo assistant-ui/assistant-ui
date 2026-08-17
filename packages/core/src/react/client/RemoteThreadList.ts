@@ -12,7 +12,7 @@ import {
   useClientLookup,
   useClientResource,
 } from "@assistant-ui/store/client";
-import { useThreadSelectionEvents } from "../../store/internal";
+import { isDevelopment, useThreadSelectionEvents } from "../../store/internal";
 import { generateId } from "../../utils/id";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import {
@@ -451,6 +451,13 @@ const useRemoteThreadList = (
   useEffect(() => {
     void getLoadThreadsPromise();
   }, [getLoadThreadsPromise]);
+
+  useEffect(() => {
+    if (!isDevelopment || adapter.unstable_Provider === undefined) return;
+    console.warn(
+      "[assistant-ui] RemoteThreadList ignores RemoteThreadListAdapter.unstable_Provider, so per-thread message history will not load or persist. Use useRemoteThreadListRuntime until this is supported.",
+    );
+  }, [adapter]);
 
   const loadMore = useCallback(() => {
     if (session.loadMorePromise) return session.loadMorePromise;

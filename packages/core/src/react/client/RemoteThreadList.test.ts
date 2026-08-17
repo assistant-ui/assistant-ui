@@ -420,6 +420,20 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("warns when the adapter supplies unstable_Provider", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const adapter = makeAdapter({
+      unstable_Provider: () => null,
+    });
+    const { handle } = mountList(adapter);
+    await handle.getClient().threads.getLoadThreadsPromise();
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("unstable_Provider"),
+    );
+    warn.mockRestore();
+    handle.destroy();
+  });
+
   it("does not refetch a draft from reloadMainThread", async () => {
     const refetch = vi.fn(async () => {});
     const { handle } = mountList(makeAdapter(), undefined, refetch);
