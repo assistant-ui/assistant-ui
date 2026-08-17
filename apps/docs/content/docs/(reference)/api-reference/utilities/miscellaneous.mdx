@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, MessageNotSentError, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
+import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, MessageNotSentError, RemoteThreadList, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -75,6 +75,15 @@ since. An edit composer closes at dispatch, so a rejected edit is not
 restored.
 
 <ParametersTable {...MessageNotSentError} />
+
+### RemoteThreadList
+
+`AuiConfig` `threads` entry backed by a `RemoteThreadListAdapter`. Thread
+bodies are born from the `thread` factory inside the client tree, so any
+`AssistantClient` host can run a remote or cloud list. `unstable_Provider`
+is ignored; cloud history still goes through `useRemoteThreadListRuntime`.
+
+<ParametersTable {...RemoteThreadList} />
 
 ### SingleThreadList
 

@@ -90,6 +90,10 @@ export {
   type InMemoryThreadListProps,
 } from "../react/client/InMemoryThreadList";
 export {
+  RemoteThreadList,
+  type RemoteThreadListProps,
+} from "../react/client/RemoteThreadList";
+export {
   useExternalMessageConverter,
   convertExternalMessages,
   type JoinStrategy,

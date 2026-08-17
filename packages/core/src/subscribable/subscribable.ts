@@ -223,7 +223,9 @@ export class LazyMemoizeSubject<TState extends object, TPath>
       this.notifySubscribers();
     };
 
-    return this.binding.subscribe(callback);
+    const unsubscribe = this.binding.subscribe(callback);
+    this._previousStateDirty = true;
+    return unsubscribe;
   }
 }
 

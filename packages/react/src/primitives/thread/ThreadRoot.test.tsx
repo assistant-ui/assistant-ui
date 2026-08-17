@@ -226,4 +226,26 @@ describe("ThreadPrimitiveRoot", () => {
     expect(speech.cancel).not.toHaveBeenCalled();
     expect(event.defaultPrevented).toBe(true);
   });
+
+  it("lets an idle composer fall through so Escape still stops speech", async () => {
+    const speech = createSpeechAdapter();
+    const runtimeRef: RuntimeRef = { current: null };
+    render(
+      <RuntimeProvider runtimeRef={runtimeRef} speech={speech.adapter}>
+        <ThreadPrimitiveRoot>
+          <ComposerPrimitiveInput data-testid="composer" />
+        </ThreadPrimitiveRoot>
+      </RuntimeProvider>,
+    );
+    startSpeaking(runtimeRef);
+    await waitFor(() => {
+      expect(runtimeRef.current!.thread.getState().speech).toBeDefined();
+    });
+
+    const event = dispatchEscape(screen.getByTestId("composer"));
+
+    expect(speech.cancel).toHaveBeenCalledOnce();
+    expect(event.defaultPrevented).toBe(true);
+    expect(runtimeRef.current!.thread.getState().isRunning).toBe(false);
+  });
 });

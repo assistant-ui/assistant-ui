@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SubscribableWithState } from "./subscribable";
-import { ShallowMemoizeSubject } from "./subscribable";
+import { LazyMemoizeSubject, ShallowMemoizeSubject } from "./subscribable";
 
 type TestState = {
   status: string;
@@ -25,6 +25,9 @@ const createBinding = (initialState: TestState) => {
     update(nextState: TestState) {
       state = nextState;
       for (const callback of subscribers) callback();
+    },
+    replace(nextState: TestState) {
+      state = nextState;
     },
   };
 };
@@ -67,5 +70,35 @@ describe("ShallowMemoizeSubject", () => {
 
     expect(subject.getState()).toEqual({ status: "ready" });
     expect(subscriber).not.toHaveBeenCalled();
+  });
+});
+
+describe("LazyMemoizeSubject", () => {
+  it("reads a value replaced before connecting", () => {
+    const source = createBinding({ status: "empty" });
+    const subject = new LazyMemoizeSubject(source.binding);
+    expect(subject.getState()).toEqual({ status: "empty" });
+
+    source.replace({ status: "ready" });
+    const subscriber = vi.fn();
+    const unsubscribe = subject.subscribe(subscriber);
+
+    expect(subject.getState()).toEqual({ status: "ready" });
+    expect(subscriber).not.toHaveBeenCalled();
+    unsubscribe();
+  });
+
+  it("resynchronizes after reconnecting", () => {
+    const source = createBinding({ status: "empty" });
+    const subject = new LazyMemoizeSubject(source.binding);
+    expect(subject.getState()).toEqual({ status: "empty" });
+
+    const unsubscribe = subject.subscribe(() => {});
+    unsubscribe();
+    source.replace({ status: "ready" });
+    const reconnect = subject.subscribe(() => {});
+
+    expect(subject.getState()).toEqual({ status: "ready" });
+    reconnect();
   });
 });

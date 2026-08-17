@@ -1572,3 +1572,42 @@ describe("LocalThreadRuntimeCore runs", () => {
     );
   });
 });
+
+describe("LocalRuntimeCore composer.canCancel", () => {
+  it("is true after append when the thread was created with initial messages", async () => {
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async *run({ abortSignal }) {
+              await new Promise<void>((resolve) => {
+                if (abortSignal.aborted) {
+                  resolve();
+                  return;
+                }
+                abortSignal.addEventListener("abort", () => resolve(), {
+                  once: true,
+                });
+              });
+            },
+          },
+        },
+      },
+      [
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "Hello" }],
+          status: { type: "complete", reason: "stop" },
+        },
+      ],
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+    expect(thread.composer.canCancel).toBe(false);
+
+    void thread.append(userMessage("Run"));
+    await flush();
+
+    expect(thread.composer.canCancel).toBe(true);
+    thread.cancelRun();
+  });
+});

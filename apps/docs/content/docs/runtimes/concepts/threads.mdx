@@ -132,7 +132,7 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 
 ### Persisting messages with `unstable_Provider`
 
-`RemoteThreadListAdapter` only manages thread metadata. To persist messages within each thread, expose a thread-scoped history adapter via the optional `unstable_Provider`:
+`RemoteThreadListAdapter` only manages thread metadata. To persist messages within each thread, expose a thread-scoped history adapter via the optional `unstable_Provider`. `useRemoteThreadListRuntime` honors it. The `RemoteThreadList` store entry ignores it, so per-thread history will not load or persist there until that surface supports it.
 
 ```tsx
 import {
