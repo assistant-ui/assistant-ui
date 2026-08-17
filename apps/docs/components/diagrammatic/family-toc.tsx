@@ -52,7 +52,7 @@ export function FamilyToc({ sections }: { sections: TocSection[] }) {
   return (
     <nav
       aria-label="Families"
-      className="sticky top-13 z-30 border-b border-(--da-line) bg-(--da-paper)"
+      className="sticky top-13 z-30 border-y border-(--da-line) bg-(--da-paper)"
     >
       <div
         ref={containerRef}
