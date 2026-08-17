@@ -16,6 +16,7 @@ import type {
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
 import { buildInteractableModelContext } from "./interactable-model-context";
+import { notifyEventListeners } from "../../utils/notify-event-listeners";
 
 const PERSISTENCE_DEBOUNCE_MS = 500;
 
@@ -321,7 +322,11 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   );
 
   useEffect(() => {
-    for (const cb of subscribersRef.current) cb();
+    notifyEventListeners(
+      subscribersRef.current,
+      undefined,
+      "Interactables model context",
+    );
   }, [state]);
 
   useAssistantScopeEffect(

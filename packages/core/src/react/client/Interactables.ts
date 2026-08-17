@@ -23,6 +23,7 @@ import {
   findModelKnownState,
   interactableToolName,
 } from "../../model-context/interactable-composer-metadata";
+import { notifyEventListeners } from "../../utils/notify-event-listeners";
 
 const PERSISTENCE_DEBOUNCE_MS = 500;
 
@@ -455,7 +456,11 @@ const useInteractablesResource = ({
   );
 
   useEffect(() => {
-    for (const cb of subscribersRef.current) cb();
+    notifyEventListeners(
+      subscribersRef.current,
+      undefined,
+      "Interactables model context",
+    );
   }, [state]);
 
   useAssistantScopeEffect(

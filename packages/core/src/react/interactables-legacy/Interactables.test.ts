@@ -7,6 +7,9 @@ import type {
 
 const clientHolder: { client: unknown } = { client: null };
 const clientListeners = new Set<() => void>();
+let registeredModelContextProvider:
+  | { subscribe?: (callback: () => void) => () => void }
+  | undefined;
 
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
@@ -60,9 +63,19 @@ vi.mock("@assistant-ui/store/client", async (importOriginal) => {
 const { Interactables } = await import("./Interactables");
 
 const makeClient = () => ({
-  modelContext: Object.assign(() => ({ register: () => () => {} }), {
-    source: "root",
-  }),
+  modelContext: Object.assign(
+    () => ({
+      register: (
+        provider: NonNullable<typeof registeredModelContextProvider>,
+      ) => {
+        registeredModelContextProvider = provider;
+        return () => {
+          registeredModelContextProvider = undefined;
+        };
+      },
+    }),
+    { source: "root" },
+  ),
 });
 
 const mount = () => {
@@ -86,6 +99,7 @@ let root: ReturnType<typeof mount> | undefined;
 
 beforeEach(() => {
   vi.useFakeTimers();
+  registeredModelContextProvider = undefined;
 });
 
 afterEach(() => {
@@ -97,6 +111,31 @@ afterEach(() => {
 });
 
 describe("legacy Interactables persistence", () => {
+  it("notifies every model-context subscriber when one throws", async () => {
+    root = mount();
+    await flushMicrotasks();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const listenerError = new Error("listener failed");
+    const laterListener = vi.fn();
+
+    const provider = registeredModelContextProvider;
+    expect(provider).toBeDefined();
+    provider?.subscribe?.(() => {
+      throw listenerError;
+    });
+    provider?.subscribe?.(laterListener);
+
+    root.getValue().register(reg("n1"));
+    await flushMicrotasks();
+    expect(laterListener).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Interactables model context listener threw an error",
+      listenerError,
+    );
+  });
+
   it("saves queued changes with the adapter that observed them", async () => {
     const firstSave = vi.fn();
     const secondSave = vi.fn();

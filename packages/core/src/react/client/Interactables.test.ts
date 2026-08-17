@@ -9,6 +9,9 @@ import type { ThreadMessage } from "../../types/message";
 
 const clientHolder: { client: unknown } = { client: null };
 const clientListeners = new Set<() => void>();
+let registeredModelContextProvider:
+  | { subscribe?: (callback: () => void) => () => void }
+  | undefined;
 
 const replaceClient = (client: unknown) => {
   clientHolder.client = client;
@@ -75,9 +78,19 @@ const makeClient = (
   setToolUI?: (...args: unknown[]) => () => void,
   threadId?: string,
 ) => ({
-  modelContext: Object.assign(() => ({ register: () => () => {} }), {
-    source: "root",
-  }),
+  modelContext: Object.assign(
+    () => ({
+      register: (
+        provider: NonNullable<typeof registeredModelContextProvider>,
+      ) => {
+        registeredModelContextProvider = provider;
+        return () => {
+          registeredModelContextProvider = undefined;
+        };
+      },
+    }),
+    { source: "root" },
+  ),
   thread: threadMessages
     ? Object.assign(
         () => ({ getState: () => ({ messages: threadMessages }) }),
@@ -161,6 +174,7 @@ let root: ReturnType<typeof mount> | undefined;
 
 beforeEach(() => {
   vi.useFakeTimers();
+  registeredModelContextProvider = undefined;
 });
 
 afterEach(() => {
@@ -171,6 +185,31 @@ afterEach(() => {
 });
 
 describe("Interactables registration", () => {
+  it("notifies every model-context subscriber when one throws", async () => {
+    root = mount();
+    await flushMicrotasks();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const listenerError = new Error("listener failed");
+    const laterListener = vi.fn();
+
+    const provider = registeredModelContextProvider;
+    expect(provider).toBeDefined();
+    provider?.subscribe?.(() => {
+      throw listenerError;
+    });
+    provider?.subscribe?.(laterListener);
+
+    root.getValue().register(reg("n1"));
+    await flushMicrotasks();
+    expect(laterListener).toHaveBeenCalledOnce();
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] Interactables model context listener threw an error",
+      listenerError,
+    );
+  });
+
   it("seeds a new registration with initialState", () => {
     root = mount();
     root.getValue().register(reg("n1", { initialState: { v: 7 } }));
