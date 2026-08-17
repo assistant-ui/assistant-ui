@@ -61,7 +61,7 @@ describe("RemoteThreadListHookInstanceManager", () => {
     resolveInitialization();
 
     await appendPromise;
-    expect(onNew).not.toHaveBeenCalled();
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 });
 

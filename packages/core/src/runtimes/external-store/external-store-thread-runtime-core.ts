@@ -529,16 +529,12 @@ export class ExternalStoreThreadRuntimeCore
         ? rawMessage
         : this.enrichAppendMetadata(rawMessage);
 
-    // The queue driver dispatches through the host adapter, outside this
-    // core, so the initialization barrier must run before a message can
-    // enter the queue.
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();
-
+    // Start remote initialization for run-side consumers without delaying the
+    // optimistic insertion or queue entry owned by those consumers.
     const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      await initPromise;
-    }
+    void initPromise?.catch(() => {});
     if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
     // Buffering does not start a run, so the tool-abort below must wait until

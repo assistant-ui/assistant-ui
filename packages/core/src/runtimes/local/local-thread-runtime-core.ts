@@ -343,17 +343,29 @@ export class LocalThreadRuntimeCore
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
-    const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      await initPromise;
-    }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
-
     const newMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
       reason: "unknown",
     });
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
+    this._notifySubscribers();
+
+    const initPromise = this._getInitializePromise?.();
+    try {
+      if (initPromise) {
+        await initPromise;
+      }
+    } catch (error) {
+      this.repository.deleteMessage(newMessage.id);
+      this._notifySubscribers();
+      throw error;
+    }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+      this.repository.deleteMessage(newMessage.id);
+      this._notifySubscribers();
+      return;
+    }
+
     const historyWrite = this._options.adapters.history?.append({
       parentId: message.parentId,
       message: newMessage,

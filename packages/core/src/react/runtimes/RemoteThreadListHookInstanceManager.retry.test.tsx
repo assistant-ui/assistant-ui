@@ -34,6 +34,7 @@ const getThreadCore = (runtime: AssistantRuntime) =>
 const testInitializationRetry = async (
   runtimeHook: () => AssistantRuntime,
   onNew?: ReturnType<typeof vi.fn>,
+  expectInitialReject = true,
 ) => {
   const initializationError = new Error("initialization failed");
   let initializeCount = 0;
@@ -68,9 +69,12 @@ const testInitializationRetry = async (
   const localId = item.getState().id;
   const thread = getThreadCore(runtimeRef.current!);
 
-  await expect(thread.append(userMessage("first"))).rejects.toBe(
-    initializationError,
-  );
+  const firstAppend = thread.append(userMessage("first"));
+  if (expectInitialReject) {
+    await expect(firstAppend).rejects.toBe(initializationError);
+  } else {
+    await expect(firstAppend).resolves.toBeUndefined();
+  }
   expect(item.getState().status).toBe("new");
 
   await expect(thread.append(userMessage("second"))).resolves.toBeUndefined();
@@ -81,7 +85,7 @@ const testInitializationRetry = async (
     status: "regular",
     remoteId: `remote-${localId}`,
   });
-  if (onNew) expect(onNew).toHaveBeenCalledOnce();
+  if (onNew) expect(onNew).toHaveBeenCalledTimes(expectInitialReject ? 1 : 2);
 };
 
 describe("RemoteThreadListHookInstanceManager initialization retry", () => {
@@ -98,6 +102,7 @@ describe("RemoteThreadListHookInstanceManager initialization retry", () => {
     await testInitializationRetry(
       () => useExternalStoreRuntime({ messages: [], onNew }),
       onNew,
+      false,
     );
   });
 });

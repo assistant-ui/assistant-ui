@@ -238,6 +238,9 @@ describe("LocalThreadRuntimeCore - detach", () => {
 
     const appendPromise = thread.append(userMessage("hello"));
     await Promise.resolve();
+    expect(thread.messages).toHaveLength(1);
+    expect(thread.messages[0]?.role).toBe("user");
+    expect(run).not.toHaveBeenCalled();
     thread.detach();
     resolveInitialization();
 

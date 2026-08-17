@@ -869,7 +869,7 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(withoutQueue.capabilities.queue).toBe(false);
   });
 
-  it("waits for thread initialization before enqueueing into the queue adapter", async () => {
+  it("enqueues before thread initialization resolves", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {
       resolveInitialization = resolve;
@@ -885,7 +885,7 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     const appendPromise = runtime.append(appendMessage());
     await Promise.resolve();
 
-    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.enqueue).toHaveBeenCalledTimes(1);
 
     resolveInitialization();
     await appendPromise;
@@ -894,29 +894,22 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(onNew).not.toHaveBeenCalled();
   });
 
-  it("does not enqueue when the thread is invalidated during initialization", async () => {
-    let resolveInitialization!: () => void;
-    const initialization = new Promise<void>((resolve) => {
-      resolveInitialization = resolve;
-    });
+  it("keeps an immediate queue entry after invalidation", async () => {
     const queue = makeQueue();
     const runtime = new ExternalStoreThreadRuntimeCore(
       mockContextProvider,
       makeStore({ onNew: vi.fn(), queue }),
     );
-    runtime.__internal_setGetInitializePromise(() => initialization);
-
     const appendPromise = runtime.append(appendMessage());
     await Promise.resolve();
     invalidateThreadRuntime(runtime);
-    resolveInitialization();
 
     await appendPromise;
-    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.enqueue).toHaveBeenCalledTimes(1);
     expect(queue.steer).not.toHaveBeenCalled();
   });
 
-  it("waits for thread initialization before dispatching an append", async () => {
+  it("dispatches an append before thread initialization resolves", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {
       resolveInitialization = resolve;
@@ -931,7 +924,7 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     const appendPromise = runtime.append(appendMessage());
     await Promise.resolve();
 
-    expect(onNew).not.toHaveBeenCalled();
+    expect(onNew).toHaveBeenCalledTimes(1);
 
     resolveInitialization();
     await appendPromise;
@@ -955,7 +948,7 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     const secondAppend = runtime.append(appendMessage());
     await Promise.resolve();
 
-    expect(onNew).not.toHaveBeenCalled();
+    expect(onNew).toHaveBeenCalledTimes(2);
 
     resolveInitialization();
     await Promise.all([firstAppend, secondAppend]);
@@ -963,7 +956,7 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(onNew).toHaveBeenCalledTimes(2);
   });
 
-  it("does not dispatch when thread initialization rejects", async () => {
+  it("does not use the core append as the initialization barrier", async () => {
     const initialization = Promise.reject(new Error("initialization failed"));
     const onNew = vi.fn(async () => {});
     const runtime = new ExternalStoreThreadRuntimeCore(
@@ -972,10 +965,8 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     );
     runtime.__internal_setGetInitializePromise(() => initialization);
 
-    await expect(runtime.append(appendMessage())).rejects.toThrow(
-      "initialization failed",
-    );
-    expect(onNew).not.toHaveBeenCalled();
+    await expect(runtime.append(appendMessage())).resolves.toBeUndefined();
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 
   it("drops an append disposed while aborting client-side tools", async () => {

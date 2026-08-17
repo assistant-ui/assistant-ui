@@ -194,7 +194,7 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     ]);
   });
 
-  it("drops a pending append from the previous thread after a switch", async () => {
+  it("keeps an append dispatched before a thread switch", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {
       resolveInitialization = resolve;
@@ -224,7 +224,7 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     resolveInitialization();
 
     await appendPromise;
-    expect(onNew).not.toHaveBeenCalled();
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 });
 

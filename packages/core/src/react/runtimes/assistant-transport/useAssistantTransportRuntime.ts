@@ -155,6 +155,7 @@ const useAssistantTransportThreadRuntime = <T>(
   const [isReplaying, setIsReplaying] = useState(false);
   const waitForReplayRender = useReplayRenderWait();
   const parentIdRef = useRef<string | null | undefined>(undefined);
+  const aui = useAui();
   const commandQueue = useCommandQueue({
     onQueue: () => runManager.schedule(),
   });
@@ -173,8 +174,6 @@ const useAssistantTransportThreadRuntime = <T>(
     });
   };
 
-  const threadId = useAuiState((s) => s.threadListItem.remoteId);
-
   const runManager = useRunManager({
     onRun: async (signal: AbortSignal) => {
       const isResume = resumeFlagRef.current;
@@ -189,13 +188,15 @@ const useAssistantTransportThreadRuntime = <T>(
       const parentId = isResume ? undefined : parentIdRef.current;
       if (!isResume) parentIdRef.current = undefined;
 
+      const { remoteId: initializedThreadId } =
+        await aui.threadListItem.initialize();
       const headers = await createRequestHeaders(options.headers);
       let resumeState: { runId: string; state: T } | undefined;
       if (isResume && options.resumeStateApi) {
         const resumeStateResponse = await fetch(options.resumeStateApi, {
           method: "POST",
           headers,
-          body: JSON.stringify({ threadId }),
+          body: JSON.stringify({ threadId: initializedThreadId }),
           signal,
         });
         const retained = await readResumeState<T>(resumeStateResponse);
@@ -219,7 +220,7 @@ const useAssistantTransportThreadRuntime = <T>(
         ...(resumeState === undefined && { state: agentStateRef.current }),
         system: context.system,
         tools: context.tools ? toToolsJSONSchema(context.tools) : undefined,
-        threadId,
+        threadId: initializedThreadId,
         ...(parentId !== undefined && {
           parentId,
         }),
