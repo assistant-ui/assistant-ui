@@ -630,7 +630,8 @@ describe("AGUIThreadRuntimeCore", () => {
       abortRun: vi.fn(),
     } as unknown as HttpAgent;
 
-    const core = createCore(agent);
+    const onCancel = vi.fn();
+    const core = createCore(agent, { onCancel });
     const appendPromise = core.append(createAppendMessage());
 
     await vi.waitFor(() => expect(runSignal).toBeDefined());
@@ -638,6 +639,7 @@ describe("AGUIThreadRuntimeCore", () => {
 
     expect(agent.abortRun).toHaveBeenCalledTimes(1);
     expect(runSignal?.aborted).toBe(true);
+    expect(onCancel).toHaveBeenCalledTimes(1);
     await expect(appendPromise).resolves.toBeUndefined();
     expect(core.isRunning()).toBe(false);
   });
