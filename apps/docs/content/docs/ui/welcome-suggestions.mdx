@@ -1,0 +1,571 @@
+---
+title: Welcome Suggestions
+description: Grouped starter prompts for the welcome screen, as a pill row with a picker or a stacked layout.
+platforms: ["react"]
+---
+
+import { WelcomeSuggestionsSample } from "@/components/docs/samples/welcome-suggestions";
+
+`ThreadWelcomeSuggestions` renders starter prompts next to the composer of a new thread. Flat entries send their prompt on click; a group opens its items in place, navigated from the composer with a live prompt preview; <Kbd>→</Kbd> accepts the preview into the composer for editing. Two layouts ship: a [pill row with a picker panel](#pills--picker) and a [stacked vertical list](#stacked) (ChatGPT-style). By default the layout follows the entries: the pill row when any entry is a group, the stacked layout when every entry is flat.
+
+<WelcomeSuggestionsSample />
+
+<Callout type="info">
+  For runtime-generated prompts that appear after an assistant response, use
+  [Follow-Up Suggestions](/docs/ui/follow-up-suggestions) instead.
+</Callout>
+
+## Getting Started
+
+<Steps>
+  <Step>
+
+### Add `welcome-suggestions`
+
+<InstallCommand shadcn={["welcome-suggestions"]} />
+
+This adds a `/components/assistant-ui/welcome-suggestions.tsx` file to your project.
+
+The default [Thread](/docs/ui/thread) renders `ThreadWelcomeSuggestions` next to its composer out of the box, so a fresh install needs no wiring. If your `thread.tsx` predates this and still has inline `ThreadSuggestions` pills, remove them so the two don't render side by side.
+
+  </Step>
+  <Step>
+
+### Provide suggestions
+
+Pass entries through the `suggestions` prop:
+
+- A **flat item** is `{ label, prompt?, icon? }`, where `prompt` is the message that gets sent and defaults to `label`.
+- A **group** is `{ label, icon?, suggestions }`, whose items open in a second level instead of sending directly.
+
+Any entry's `icon` renders leading on its pill or row.
+
+```tsx title="/components/assistant-ui/thread.tsx"
+import {
+  ThreadWelcomeSuggestions,
+  type SuggestionEntry,
+} from "@/components/assistant-ui/welcome-suggestions";
+
+const WELCOME_SUGGESTIONS: SuggestionEntry[] = [
+  {
+    label: "Weather",
+    icon: <CloudSunIcon />,
+    suggestions: [
+      {
+        label: "in San Francisco",
+        prompt: "What's the weather in San Francisco?",
+      },
+      { label: "in Tokyo", prompt: "What's the weather in Tokyo?" },
+    ],
+  },
+  { label: "Compare React and Vue" }, // flat item; label doubles as prompt
+];
+```
+
+When the prop is omitted, the component falls back to the flat welcome prompts configured with `Suggestions(...)` (see the [Suggestions guide](/docs/guides/suggestions)). Grouped entries always come from the prop. Dynamic follow-up prompts on `thread.suggestions` are never rendered here.
+
+  </Step>
+  <Step>
+
+### Render next to the composer
+
+Wrap it in `AuiIf` so the suggestions leave once the conversation starts:
+
+```tsx title="/components/assistant-ui/thread.tsx" {4-6}
+<ThreadPrimitive.ViewportFooter>
+  <ThreadPrimitive.ScrollToBottom />
+  <Composer />
+  <AuiIf condition={(s) => s.thread.isEmpty}>
+    <ThreadWelcomeSuggestions suggestions={WELCOME_SUGGESTIONS} />
+  </AuiIf>
+</ThreadPrimitive.ViewportFooter>
+```
+
+Rendering it before `<Composer />` places it above the composer instead; see [Above the composer](#above-the-composer).
+
+  </Step>
+</Steps>
+
+## Anatomy
+
+`ThreadWelcomeSuggestions` is `Root` plus the layout picked by the shape of the entries; compose `Root` yourself to pin a layout or set any of the props:
+
+```tsx
+import {
+  ThreadWelcomeSuggestions,
+  WelcomeSuggestionsPicker,
+  WelcomeSuggestionsPickerItem,
+  WelcomeSuggestionsPills,
+  WelcomeSuggestionsRoot,
+  WelcomeSuggestionsStack,
+} from "@/components/assistant-ui/welcome-suggestions";
+
+// Drop-in: renders the pill row and picker when any entry is a group,
+// otherwise the stacked layout
+<ThreadWelcomeSuggestions
+  suggestions={WELCOME_SUGGESTIONS}
+  send // set to false to insert into the composer instead of sending
+/>;
+
+// Pills + picker, composed explicitly
+<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS} send>
+  <WelcomeSuggestionsPills />
+  <WelcomeSuggestionsPicker
+    itemIcon="always" // ↵ icon on rows: "always" | "hover" | "off"
+    highlight="ghost" // highlighted-row style: "ghost" | "text"
+    density="comfortable" // "comfortable" | "compact"
+    separators // hairline dividers between rows
+  />
+</WelcomeSuggestionsRoot>;
+
+// Stacked list, composed explicitly
+<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS} send>
+  <WelcomeSuggestionsStack
+    groupIcon="always" // chevron on group rows: "always" | "hover" | "off"
+    itemIcon="hover"
+    density="compact"
+    separators={false}
+    className="mx-auto w-[90%]"
+  />
+</WelcomeSuggestionsRoot>;
+
+// Custom rows: Picker children replace the default rows of the open group
+<WelcomeSuggestionsPicker>
+  <WelcomeSuggestionsPickerItem prompt="What's the weather in Tokyo?">
+    <CloudSunIcon /> Tokyo weather
+  </WelcomeSuggestionsPickerItem>
+</WelcomeSuggestionsPicker>;
+```
+
+## Layouts
+
+Both layouts compose the same `WelcomeSuggestionsRoot` and render the same entries; only the presentation differs. `ThreadWelcomeSuggestions` picks one automatically: the pill row when any group is present, the stacked layout when every entry is flat. Compose the pieces yourself to pin a layout.
+
+Flat items send their prompt on click in either layout. Groups drill in: the stacked layout shows the group's items where the list was, while the pill row opens a picker panel above it. Flat items and groups can be mixed; with only flat entries, no second level ever opens.
+
+### Pills + picker
+
+A horizontal pill row; opening a group replaces the row with a picker panel until it is dismissed. This is the default when any entry is a group.
+
+```tsx
+import {
+  WelcomeSuggestionsPicker,
+  WelcomeSuggestionsPills,
+  WelcomeSuggestionsRoot,
+} from "@/components/assistant-ui/welcome-suggestions";
+
+<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
+  <WelcomeSuggestionsPills />
+  <WelcomeSuggestionsPicker />
+</WelcomeSuggestionsRoot>;
+```
+
+### Stacked
+
+A vertical list. Opening a group drills into its items in place. This is the default when every entry is flat.
+
+```tsx
+import {
+  WelcomeSuggestionsRoot,
+  WelcomeSuggestionsStack,
+} from "@/components/assistant-ui/welcome-suggestions";
+
+<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
+  <WelcomeSuggestionsStack />
+</WelcomeSuggestionsRoot>;
+```
+
+### Above the composer
+
+Render the component before the composer to place it above. The layout and the vertical arrow directions flip automatically based on DOM order. The suggestions and the composer must render as siblings.
+
+## Insert Instead of Send
+
+Selecting a suggestion goes through `ThreadPrimitive.Suggestion`: by default it sends the prompt immediately. Pass `send={false}` on the root to place the prompt in the composer for editing instead:
+
+```tsx
+<ThreadWelcomeSuggestions suggestions={WELCOME_SUGGESTIONS} send={false} />
+```
+
+The same prop exists on `WelcomeSuggestionsRoot` when composing a layout yourself.
+
+## Trailing Icons
+
+Rows carry two trailing icons: a chevron on group rows and a ↵ enter icon on action rows (flat rows and an open group's items). Both flip in RTL. `groupIcon` and `itemIcon` set each one's visibility independently:
+
+```tsx
+<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
+  <WelcomeSuggestionsStack groupIcon="always" itemIcon="hover" />
+</WelcomeSuggestionsRoot>
+```
+
+| Value      | Behavior                                                                                        |
+| ---------- | ----------------------------------------------------------------------------------------------- |
+| `"always"` | Icon is always visible (default)                                                                |
+| `"hover"`  | Shown on the highlighted row (hover or arrow keys)                                              |
+| `"off"`    | Icon is not rendered                                                                            |
+
+The picker panel has no group rows, so `WelcomeSuggestionsPicker` takes only `itemIcon`.
+
+To change the icons themselves, swap the two constants at the top of the file:
+
+```tsx title="/components/assistant-ui/welcome-suggestions.tsx"
+// The trailing row icons; swap these to customize.
+const GroupIcon = ChevronRightIcon;
+const ItemIcon = CornerDownLeftIcon;
+```
+
+## Row Styling
+
+Each layout takes three row styling props:
+
+```tsx
+<WelcomeSuggestionsStack highlight="text" density="compact" separators={false} />
+```
+
+| Prop         | Values                                        |
+| ------------ | --------------------------------------------- |
+| `highlight`  | `"ghost"` (default) or `"text"`               |
+| `density`    | `"comfortable"` (default) or `"compact"`      |
+| `separators` | `true` (default) or `false`                   |
+
+`ghost` gives the highlighted row a muted background. `text` brightens the label and trailing icon.
+
+The sub-level rows inherit `highlight`, `density`, `separators`, and `itemIcon` from the `Stack` or `Picker` that renders them.
+
+## Keyboard & Behavior
+
+Clicking an item and pressing <Kbd>Enter</Kbd> on the highlighted item are the same action. The tables below assume the suggestions sit below the composer; [rendered above it](#above-the-composer), the vertical directions mirror (<Kbd>↑</Kbd> enters where <Kbd>↓</Kbd> did, and vice versa).
+
+### Pill row
+
+Each pill is its own tab stop:
+
+| Key                           | Action                                                                             |
+| ----------------------------- | ---------------------------------------------------------------------------------- |
+| <Kbd>←</Kbd> / <Kbd>→</Kbd>   | Move focus between pills                                                           |
+| <Kbd>↓</Kbd>                  | Open the focused group pill; at the end of the composer text, focus the first pill |
+| <Kbd>Enter</Kbd>              | Activate the pill (opens a group, sends a flat one)                                |
+| <Kbd>↑</Kbd> / <Kbd>Esc</Kbd> | Return focus to the composer                                                       |
+
+### Stacked list
+
+The list is a single tab stop with one highlight shared by hover and the arrow keys. <Kbd>↓</Kbd> at the end of the composer text enters the list; the composer keeps focus throughout, so typing at any point resumes composing:
+
+| Key                             | Action                                                                                                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| <Kbd>↓</Kbd> / <Kbd>↑</Kbd>     | Move the highlight, ghost-previewing flat rows in the composer's placeholder; <Kbd>↓</Kbd> at the end of the composer text enters the list, and <Kbd>↑</Kbd> on the first row exits back into the composer |
+| <Kbd>→</Kbd> / <Kbd>Enter</Kbd> | Open the highlighted group; on a flat row, <Kbd>→</Kbd> accepts the previewed prompt into the composer for editing and <Kbd>Enter</Kbd> sends it                                           |
+| <Kbd>Esc</Kbd>                  | Clear the highlight and the preview                                                                                                                                                        |
+
+Horizontal arrow keys flip in right-to-left locales, in both layouts.
+
+### While a group is open
+
+In either layout, the composer keeps focus and drives the panel:
+
+| Key                         | Action                                                                                                                                                       |
+| --------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| <Kbd>↑</Kbd> / <Kbd>↓</Kbd> | Move the highlight (wrapping) and ghost-preview the prompt in the composer's placeholder; in the pills picker, <Kbd>↑</Kbd> on the top item exits to its pill |
+| <Kbd>→</Kbd>                | Accept the previewed prompt into the composer for editing                                                                                                    |
+| <Kbd>Enter</Kbd>            | Select the highlighted item (plain composer submit when nothing is highlighted)                                                                              |
+| <Kbd>Esc</Kbd>              | Close the group; the stacked layout re-highlights the group's row and the composer keeps driving the arrows                                                           |
+| <Kbd>Tab</Kbd>              | Close the group and return to the suggestions (the stacked layout's list or the group's pill)                                                                         |
+| Characters                  | Type into the composer; the group closes and the typed text stays                                                                                            |
+
+### Ghost previews
+
+A preview is ghost text in the composer's native placeholder, never the draft: only arrow-key navigation previews, and only while the composer is empty. Selecting commits through the regular suggestion action; <Kbd>→</Kbd> (<Kbd>←</Kbd> in RTL) accepts the preview as an editable draft.
+
+### Dismissal
+
+An open panel dismisses on outside pointer-down; an outside control can call `event.preventDefault()` on its pointer-down to keep the panel open. <Kbd>Esc</Kbd> closes the panel without propagating, so an enclosing dialog stays open.
+
+## Composition
+
+Every building block is exported for your own arrangements:
+
+| Export                        | Description                                                                  |
+| ----------------------------- | ---------------------------------------------------------------------------- |
+| `ThreadWelcomeSuggestions`    | Drop-in default: `Root` plus the layout picked by the shape of the entries                |
+| `WelcomeSuggestionsRoot`      | Context provider owning entries, the open group, and composer coupling      |
+| `WelcomeSuggestionsPills`     | Horizontal pill row (one pill per entry)                                     |
+| `WelcomeSuggestionsPicker`    | Panel above the pill row showing the open group's items                      |
+| `WelcomeSuggestionsPickerItem`| A single selectable row inside the picker panel or the stacked layout's sub-level                   |
+| `WelcomeSuggestionsStack`     | Vertical list with in-place drill-in                                         |
+| `useWelcomeSuggestions`       | Hook for custom parts: reads the entries and open group, drives open/close   |
+
+### Custom picker rows
+
+`WelcomeSuggestionsPicker` renders one `WelcomeSuggestionsPickerItem` per item of the open group by default. Pass children to take over the rows: read the open group from `useWelcomeSuggestions` and give each item a `prompt` (its children replace the default label):
+
+```tsx
+import {
+  useWelcomeSuggestions,
+  WelcomeSuggestionsPicker,
+  WelcomeSuggestionsPickerItem,
+  WelcomeSuggestionsPills,
+  WelcomeSuggestionsRoot,
+} from "@/components/assistant-ui/welcome-suggestions";
+
+const CustomPicker = () => {
+  const { group } = useWelcomeSuggestions();
+  return (
+    <WelcomeSuggestionsPicker>
+      {group?.suggestions.map((item) => (
+        <WelcomeSuggestionsPickerItem
+          key={item.label}
+          prompt={item.prompt ?? item.label}
+        >
+          <SparklesIcon className="text-muted-foreground" />
+          {item.label}
+        </WelcomeSuggestionsPickerItem>
+      ))}
+    </WelcomeSuggestionsPicker>
+  );
+};
+
+<WelcomeSuggestionsRoot suggestions={WELCOME_SUGGESTIONS}>
+  <WelcomeSuggestionsPills />
+  <CustomPicker />
+</WelcomeSuggestionsRoot>;
+```
+
+### Sizing
+
+The root matches the composer's width. To size it, wrap the composer and the suggestions together; the two must stay siblings:
+
+```tsx
+<div className="mx-auto w-[90%]">
+  <Composer />
+  <ThreadWelcomeSuggestions suggestions={WELCOME_SUGGESTIONS} />
+</div>
+```
+
+### Styling hooks
+
+Each part carries a stable `data-slot` attribute for CSS targeting from outside the file: `aui_thread-welcome-suggestions` (root, with `data-open` while a group is open), `aui_thread-welcome-stack`, `aui_thread-welcome-stack-row`, `aui_thread-welcome-picker`, `aui_thread-welcome-picker-header`, and `aui_thread-welcome-picker-item`. The highlighted row carries `data-highlighted`.
+
+## Accessibility
+
+Each layout renders a single-tab-stop listbox and reports the highlighted row through `aria-activedescendant`. While a group is open, DOM focus stays in the composer input, which advertises the panel via the editable-combobox ARIA pattern, so screen readers track the highlight without focus ever leaving the text field.
+
+## API Reference
+
+### ThreadWelcomeSuggestions / WelcomeSuggestionsRoot
+
+<ParametersTable
+  type="ThreadWelcomeSuggestionsProps"
+  parameters={[
+    {
+      name: "suggestions",
+      type: "SuggestionEntry[]",
+      description:
+        "Entries to render. Falls back to the static Suggestions(...) scope when omitted; grouped entries always come from the prop.",
+    },
+    {
+      name: "send",
+      type: "boolean",
+      default: "true",
+      description:
+        "Whether selecting an item sends the prompt immediately or only places it in the composer.",
+    },
+    {
+      name: "children",
+      type: "ReactNode",
+      required: true,
+      description:
+        "Root only: the layout to render (pills + picker, the stacked layout, or a custom arrangement).",
+    },
+  ]}
+/>
+
+### SuggestionEntry
+
+A flat item or a group:
+
+<ParametersTable
+  type="SuggestionEntry"
+  parameters={[
+    {
+      name: "label",
+      type: "string",
+      required: true,
+      description: "Display text of the pill or row.",
+    },
+    {
+      name: "prompt",
+      type: "string",
+      description:
+        "Flat items only: the message that gets sent. Defaults to label.",
+    },
+    {
+      name: "icon",
+      type: "ReactNode",
+      description: "Leading icon shown on the pill or row.",
+    },
+    {
+      name: "suggestions",
+      type: "SuggestionItem[]",
+      description:
+        "Groups only: the items opened in the second level. Presence of this field is what makes an entry a group.",
+    },
+  ]}
+/>
+
+### WelcomeSuggestionsStack
+
+<ParametersTable
+  type="WelcomeSuggestionsStackProps"
+  parameters={[
+    {
+      name: "groupIcon",
+      type: '"always" | "hover" | "off"',
+      default: '"always"',
+      description: "Visibility of the trailing chevron on group rows.",
+    },
+    {
+      name: "itemIcon",
+      type: '"always" | "hover" | "off"',
+      default: '"always"',
+      description:
+        "Visibility of the trailing enter icon on action rows.",
+    },
+    {
+      name: "highlight",
+      type: '"ghost" | "text"',
+      default: '"ghost"',
+      description: "Row highlight style.",
+    },
+    {
+      name: "density",
+      type: '"comfortable" | "compact"',
+      default: '"comfortable"',
+      description: "Row spacing.",
+    },
+    {
+      name: "separators",
+      type: "boolean",
+      default: "true",
+      description:
+        "Hairline dividers between rows.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Merged onto the listbox container.",
+    },
+  ]}
+/>
+
+### WelcomeSuggestionsPicker
+
+<ParametersTable
+  type="WelcomeSuggestionsPickerProps"
+  parameters={[
+    {
+      name: "itemIcon",
+      type: '"always" | "hover" | "off"',
+      default: '"always"',
+      description:
+        "Visibility of the trailing enter icon on the panel rows.",
+    },
+    {
+      name: "highlight",
+      type: '"ghost" | "text"',
+      default: '"ghost"',
+      description: "Row highlight style.",
+    },
+    {
+      name: "density",
+      type: '"comfortable" | "compact"',
+      default: '"comfortable"',
+      description: "Row spacing.",
+    },
+    {
+      name: "separators",
+      type: "boolean",
+      default: "true",
+      description: "Hairline dividers between rows.",
+    },
+    {
+      name: "children",
+      type: "ReactNode",
+      description:
+        "Custom rows; defaults to one WelcomeSuggestionsPickerItem per item of the open group.",
+    },
+  ]}
+/>
+
+### WelcomeSuggestionsPickerItem
+
+Accepts all `<button>` props except `onClick`, plus:
+
+<ParametersTable
+  type="WelcomeSuggestionsPickerItemProps"
+  parameters={[
+    {
+      name: "prompt",
+      type: "string",
+      required: true,
+      description: "The message sent (or inserted) when the row is selected.",
+    },
+    {
+      name: "label",
+      type: "ReactNode",
+      description: "Row content; children take precedence when provided.",
+    },
+    {
+      name: "icon",
+      type: "ReactNode",
+      description: "Leading icon shown before the row content.",
+    },
+    {
+      name: "itemIcon",
+      type: '"always" | "hover" | "off"',
+      default: '"always"',
+      description: "Visibility of the trailing enter icon.",
+    },
+    {
+      name: "highlight",
+      type: '"ghost" | "text"',
+      default: '"ghost"',
+      description: "Row highlight style.",
+    },
+    {
+      name: "density",
+      type: '"comfortable" | "compact"',
+      default: '"comfortable"',
+      description: "Row spacing.",
+    },
+    {
+      name: "separators",
+      type: "boolean",
+      default: "true",
+      description: "Hairline divider below the row.",
+    },
+  ]}
+/>
+
+### `useWelcomeSuggestions`
+
+Reads the shared context from `WelcomeSuggestionsRoot`: the entry list and the currently open group. Only needed when replacing a shipped part with custom UI:
+
+```tsx
+const { entries, group, openGroup, close } = useWelcomeSuggestions();
+```
+
+| Field              | Meaning                                                                                 |
+| ------------------ | --------------------------------------------------------------------------------------- |
+| `entries`          | The suggestion list, normalized (strings and legacy shapes become `{ label, prompt }`)  |
+| `group`            | The group the user has opened, or `undefined` while at the top level                    |
+| `openGroup(group)` | Open a group's second level (pass an entry from `entries`)                              |
+| `close()`          | Close the open group and return to the top level                                        |
+
+Must be called inside `WelcomeSuggestionsRoot`; throws otherwise.
+
+## Related
+
+- [Thread](/docs/ui/thread) - Complete chat interface with message list and composer
+- [Follow-Up Suggestions](/docs/ui/follow-up-suggestions) - Runtime follow-up prompt chips after a response
+- [Suggestions guide](/docs/guides/suggestions) - Runtime and static suggestion patterns

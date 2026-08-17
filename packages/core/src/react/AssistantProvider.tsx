@@ -12,6 +12,7 @@ import {
 import type { AssistantRuntime } from "../runtime/api/assistant-runtime";
 import type { AssistantRuntimeCore } from "../runtime/interfaces/assistant-runtime-core";
 import { RuntimeAdapter } from "./RuntimeAdapter";
+import { ComposerInputPluginProvider } from "./primitives/composer/ComposerInputPluginContext";
 
 export const getRenderComponent = (runtime: AssistantRuntime) => {
   return (runtime as { _core?: AssistantRuntimeCore })._core
@@ -51,7 +52,7 @@ const AssistantProviderInner: FC<
 export const AssistantProviderBase: FC<AssistantProviderBaseProps> = memo(
   ({ runtime, aui = null, config, children }) => (
     <AssistantProviderInner runtime={runtime} aui={aui} config={config}>
-      {children}
+      <ComposerInputPluginProvider>{children}</ComposerInputPluginProvider>
     </AssistantProviderInner>
   ),
 );

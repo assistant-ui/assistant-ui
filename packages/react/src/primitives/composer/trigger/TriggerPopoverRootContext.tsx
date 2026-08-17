@@ -12,7 +12,9 @@ import {
 } from "react";
 import {
   ComposerInputPluginProvider,
+  useComposerInputPluginRegistry,
   useComposerInputPluginRegistryOptional,
+  type ComposerActiveDescendant,
 } from "../ComposerInputPluginContext";
 import type { TriggerPopoverResourceOutput } from "./TriggerPopoverResource";
 import type { TriggerBehavior } from "./triggerSelectionResource";
@@ -34,10 +36,7 @@ export type TriggerPopoverLifecycleListener = {
  * focused element (typically the composer textarea) so it can advertise the
  * combobox relationship per the WAI-ARIA editable combobox pattern.
  */
-export type TriggerPopoverActiveAria = {
-  popoverId: string;
-  highlightedItemId: string | undefined;
-};
+export type TriggerPopoverActiveAria = ComposerActiveDescendant;
 
 export type TriggerPopoverRootContextValue = {
   register(trigger: RegisteredTrigger): () => void;
@@ -139,8 +138,7 @@ export namespace ComposerPrimitiveTriggerPopoverRoot {
 
 /**
  * Local helper for the simple "notify-all listeners" subscribable pattern.
- * Used twice in this file (trigger registry, active ARIA); kept inline to
- * avoid pulling a single-use abstraction into the wider tree.
+ * Kept inline to avoid pulling a single-use abstraction into the wider tree.
  */
 function useSimpleSubscribable() {
   const listenersRef = useRef<Set<() => void>>(new Set());
@@ -218,39 +216,17 @@ const TriggerPopoverRootInner: FC<
     };
   }, []);
 
-  const activeAriaRef = useRef<TriggerPopoverActiveAria | null>(null);
-  const activeAriaCharRef = useRef<string | null>(null);
-  const { notify: notifyAria, subscribe: subscribeAria } =
-    useSimpleSubscribable();
+  // The ARIA descriptor lives on the composer input plugin registry so any
+  // composer-coupled popup, not just trigger popovers, can publish it.
+  const pluginRegistry = useComposerInputPluginRegistry();
 
   const setActiveAria = useCallback<TriggerPopoverAriaPublish["setActiveAria"]>(
-    (char, aria) => {
-      if (aria === null) {
-        if (activeAriaCharRef.current !== char) return;
-        activeAriaRef.current = null;
-        activeAriaCharRef.current = null;
-        notifyAria();
-        return;
-      }
-      const prev = activeAriaRef.current;
-      if (
-        activeAriaCharRef.current === char &&
-        prev !== null &&
-        prev.popoverId === aria.popoverId &&
-        prev.highlightedItemId === aria.highlightedItemId
-      ) {
-        return;
-      }
-      activeAriaRef.current = aria;
-      activeAriaCharRef.current = char;
-      notifyAria();
-    },
-    [notifyAria],
+    (char, aria) => pluginRegistry.setActiveDescendant(char, aria),
+    [pluginRegistry],
   );
 
-  const getActiveAria = useCallback<
-    TriggerPopoverRootContextValue["getActiveAria"]
-  >(() => activeAriaRef.current, []);
+  const getActiveAria = pluginRegistry.getActiveDescendant;
+  const subscribeAria = pluginRegistry.subscribeActiveDescendant;
 
   const value = useMemo<TriggerPopoverRootContextValue>(
     () => ({

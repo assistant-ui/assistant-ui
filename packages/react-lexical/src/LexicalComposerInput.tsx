@@ -22,6 +22,8 @@ import {
   $isTextNode,
   COMMAND_PRIORITY_HIGH,
   KEY_ARROW_DOWN_COMMAND,
+  KEY_ARROW_LEFT_COMMAND,
+  KEY_ARROW_RIGHT_COMMAND,
   KEY_ARROW_UP_COMMAND,
   KEY_BACKSPACE_COMMAND,
   KEY_ENTER_COMMAND,
@@ -153,6 +155,26 @@ function KeyboardPlugin({
         COMMAND_PRIORITY_HIGH,
       ),
 
+      // The textarea input delegates every key to plugins; horizontal arrows
+      // must reach them here too.
+      editor.registerCommand(
+        KEY_ARROW_RIGHT_COMMAND,
+        (event) => {
+          if (event && delegateToPlugins(event)) return true;
+          return false;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+
+      editor.registerCommand(
+        KEY_ARROW_LEFT_COMMAND,
+        (event) => {
+          if (event && delegateToPlugins(event)) return true;
+          return false;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+
       editor.registerCommand(
         KEY_BACKSPACE_COMMAND,
         (event) => {
@@ -253,6 +275,7 @@ function CursorPlugin() {
 function FocusPlugin({ autoFocus }: { autoFocus: boolean }) {
   const [editor] = useLexicalComposerContext();
   const aui = useAui();
+  const pluginRegistry = INTERNAL.useComposerInputPluginRegistryOptional();
 
   useEffect(() => {
     if (autoFocus) editor.focus();
@@ -263,6 +286,11 @@ function FocusPlugin({ autoFocus }: { autoFocus: boolean }) {
       editor.focus();
     });
   }, [editor, aui]);
+
+  useEffect(() => {
+    if (!pluginRegistry) return undefined;
+    return pluginRegistry.registerInput({ focus: () => editor.focus() });
+  }, [editor, pluginRegistry]);
 
   return null;
 }
@@ -290,6 +318,7 @@ export const LexicalComposerInput = forwardRef<
     const isDisabled = useAuiState(
       (s) => s.thread.isDisabled || s.composer.dictation?.inputDisabled,
     );
+    const ariaProps = INTERNAL.useComposerAriaProps();
     const resolvedFormatter =
       formatterProp ?? unstable_defaultDirectiveFormatter;
 
@@ -319,7 +348,7 @@ export const LexicalComposerInput = forwardRef<
           >
             <PlainTextPlugin
               contentEditable={
-                <ContentEditable className="aui-lexical-input" />
+                <ContentEditable className="aui-lexical-input" {...ariaProps} />
               }
               placeholder={
                 placeholder ? (

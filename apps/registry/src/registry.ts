@@ -1015,6 +1015,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/tooltip-icon-button.json",
       "https://r.assistant-ui.com/tool-fallback.json",
       "https://r.assistant-ui.com/tool-group.json",
+      "https://r.assistant-ui.com/welcome-suggestions.json",
     ],
   },
   {
@@ -1210,6 +1211,26 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [],
     dependencies: ["@assistant-ui/react"],
+  },
+  {
+    name: "welcome-suggestions",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/welcome-suggestions.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/welcome-suggestions.tsx",
+      },
+    ],
+    registryDependencies: [],
+    dependencies: [
+      "@assistant-ui/react",
+      "lucide-react",
+      "class-variance-authority",
+    ],
+    radixDependencies: ["radix-ui"],
+    baseDependencies: ["@base-ui/react"],
   },
   {
     name: "tooltip-icon-button",

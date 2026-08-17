@@ -305,6 +305,11 @@ export {
   ComposerPrimitiveIf,
   type UseComposerIfProps,
 } from "./primitives/composer/ComposerIf";
+export {
+  /** @deprecated Unstable / Experimental — may change in any release. */
+  useComposerInputPluginRegistryOptional as unstable_useComposerInputPluginRegistry,
+  type ComposerInputPlugin as Unstable_ComposerInputPlugin,
+} from "./primitives/composer/ComposerInputPluginContext";
 export { getMessageQuote } from "./utils/getMessageQuote";
 
 // Primitive hooks (shared behavior logic)

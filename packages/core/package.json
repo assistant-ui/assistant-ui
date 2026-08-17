@@ -32,6 +32,10 @@
     "./react": {
       "types": "./dist/react/index.d.ts",
       "default": "./dist/react/index.js"
+    },
+    "./react/internal": {
+      "types": "./dist/react/internal.d.ts",
+      "default": "./dist/react/internal.js"
     }
   },
   "main": "./dist/index.js",
@@ -40,6 +44,9 @@
     "*": {
       "react": [
         "./dist/react/index.d.ts"
+      ],
+      "react/internal": [
+        "./dist/react/internal.d.ts"
       ],
       "internal": [
         "./dist/internal.d.ts"

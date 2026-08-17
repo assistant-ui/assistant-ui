@@ -32,6 +32,10 @@ import {
   SelectionToolbar,
 } from "@/components/assistant-ui/quote";
 import { ComposerTriggerPopover } from "@/components/assistant-ui/composer-trigger-popover";
+import {
+  ThreadWelcomeSuggestions,
+  type SuggestionEntry,
+} from "@/components/assistant-ui/welcome-suggestions";
 import { DirectiveText } from "@/components/assistant-ui/directive-text";
 import {
   ActionBarMorePrimitive,
@@ -46,7 +50,6 @@ import {
   ThreadPrimitive,
   unstable_useMentionAdapter,
   unstable_useSlashCommandAdapter,
-  useAui,
   useAuiState,
   type Unstable_SlashCommand,
 } from "@assistant-ui/react";
@@ -83,7 +86,7 @@ import {
   type DirectiveChipProps,
 } from "@assistant-ui/react-lexical";
 import Image from "next/image";
-import { useState, type FC, type ReactNode } from "react";
+import { useState, type FC } from "react";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { docsModelOptions } from "@/components/docs/assistant/docs-model-options";
 import { DEFAULT_MODEL_ID } from "@/constants/model";
@@ -224,9 +227,7 @@ const Thread: FC = () => {
           <Composer />
           <AuiIf condition={isNewChatView}>
             <div className="aui-thread-welcome-suggestions-shell min-h-19">
-              <AuiIf condition={(s) => s.composer.isEmpty}>
-                <ThreadSuggestions />
-              </AuiIf>
+              <ThreadSuggestions />
             </div>
           </AuiIf>
         </ThreadPrimitive.ViewportFooter>
@@ -261,17 +262,11 @@ const ThreadWelcome: FC = () => {
   );
 };
 
-type SuggestionGroup = {
-  label: string;
-  icon: ReactNode;
-  options: { label: string; prompt: string }[];
-};
-
-const SUGGESTION_GROUPS: SuggestionGroup[] = [
+const WELCOME_SUGGESTIONS: SuggestionEntry[] = [
   {
     label: "Weather",
     icon: <CloudSunIcon />,
-    options: [
+    suggestions: [
       {
         label: "in San Francisco",
         prompt: "What's the weather in San Francisco?",
@@ -284,17 +279,17 @@ const SUGGESTION_GROUPS: SuggestionGroup[] = [
   {
     label: "Code",
     icon: <CodeXmlIcon />,
-    options: [
+    suggestions: [
       {
-        label: "explain React hooks",
+        label: "Explain React hooks",
         prompt: "Explain React hooks like useState and useEffect",
       },
       {
-        label: "write a debounce function",
+        label: "Write a debounce function",
         prompt: "Write a debounce function in TypeScript",
       },
       {
-        label: "review a useEffect cleanup",
+        label: "Review a useEffect cleanup",
         prompt: "Show me the right way to clean up a subscription in useEffect",
       },
     ],
@@ -302,23 +297,23 @@ const SUGGESTION_GROUPS: SuggestionGroup[] = [
   {
     label: "Write",
     icon: <PencilLineIcon />,
-    options: [
+    suggestions: [
       {
-        label: "a birthday card message",
+        label: "A birthday card message",
         prompt:
           "Help me write a birthday card message for a friend in the notepad",
       },
       {
-        label: "a product announcement",
+        label: "A product announcement",
         prompt: "Draft a short product announcement for a new dark mode",
       },
       {
-        label: "release notes",
+        label: "Release notes",
         prompt:
           "Write release notes for a bugfix release of a React component library",
       },
       {
-        label: "a PR description",
+        label: "A PR description",
         prompt:
           "Write a pull request description for a change that adds keyboard shortcuts",
       },
@@ -327,7 +322,7 @@ const SUGGESTION_GROUPS: SuggestionGroup[] = [
   {
     label: "Analyze",
     icon: <ChartColumnIcon />,
-    options: [
+    suggestions: [
       {
         label: "React vs Vue vs Svelte",
         prompt: "Compare React, Vue, and Svelte in a table",
@@ -338,7 +333,7 @@ const SUGGESTION_GROUPS: SuggestionGroup[] = [
           "Compare the GDP of the United States, China, and Japan in a table",
       },
       {
-        label: "pros and cons of SSR",
+        label: "Pros and cons of SSR",
         prompt: "What are the pros and cons of server-side rendering?",
       },
     ],
@@ -346,87 +341,26 @@ const SUGGESTION_GROUPS: SuggestionGroup[] = [
   {
     label: "Brainstorm",
     icon: <LightbulbIcon />,
-    options: [
+    suggestions: [
       {
-        label: "side project ideas",
+        label: "Side project ideas",
         prompt: "Brainstorm five side project ideas for a React developer",
       },
       {
-        label: "names for a dev tool",
+        label: "Names for a dev tool",
         prompt: "Brainstorm names for a developer tools startup",
       },
       {
-        label: "talk topics",
+        label: "Talk topics",
         prompt: "Brainstorm talk topics for a React meetup",
       },
     ],
   },
 ];
 
-const suggestionChipClass =
-  "aui-thread-welcome-suggestion text-foreground hover:bg-muted border-border/60 h-auto gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap transition-colors [&_svg]:size-4";
-
-const ThreadSuggestions: FC = () => {
-  const aui = useAui();
-  const [expandedLabel, setExpandedLabel] = useState<string | null>(null);
-  const expandedGroup = SUGGESTION_GROUPS.find(
-    (group) => group.label === expandedLabel,
-  );
-
-  const sendPrompt = (prompt: string) => {
-    if (aui.thread.getState().isRunning) return;
-    aui.thread.append({
-      content: [{ type: "text", text: prompt }],
-      runConfig: aui.composer.getState().runConfig,
-    });
-  };
-
-  return (
-    <div className="aui-thread-welcome-suggestions flex w-full flex-col gap-2 px-4">
-      <div className="w-full scrollbar-none overflow-x-auto">
-        <div className="mx-auto flex w-max items-center gap-2">
-          {SUGGESTION_GROUPS.map((group) => (
-            <Button
-              key={group.label}
-              variant="ghost"
-              className={cn(
-                suggestionChipClass,
-                group.label === expandedLabel && "bg-muted",
-              )}
-              onClick={() =>
-                setExpandedLabel(
-                  group.label === expandedLabel ? null : group.label,
-                )
-              }
-            >
-              {group.icon}
-              {group.label}
-            </Button>
-          ))}
-        </div>
-      </div>
-      {expandedGroup && (
-        <div
-          key={expandedGroup.label}
-          className="fade-in slide-in-from-top-1 animate-in w-full scrollbar-none overflow-x-auto duration-200"
-        >
-          <div className="mx-auto flex w-max items-center gap-2">
-            {expandedGroup.options.map((option) => (
-              <Button
-                key={option.label}
-                variant="ghost"
-                className={suggestionChipClass}
-                onClick={() => sendPrompt(option.prompt)}
-              >
-                {option.label}
-              </Button>
-            ))}
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
+const ThreadSuggestions: FC = () => (
+  <ThreadWelcomeSuggestions suggestions={WELCOME_SUGGESTIONS} />
+);
 
 const slashCommands: readonly Unstable_SlashCommand[] = [
   {

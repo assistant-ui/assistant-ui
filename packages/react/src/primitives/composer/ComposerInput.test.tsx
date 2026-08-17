@@ -33,7 +33,37 @@ const plugin = {
   setCursorPosition,
 };
 
-let pluginRegistry: { getPlugins: () => (typeof plugin)[] } | null = null;
+type MockRegistry = {
+  getPlugins: () => (typeof plugin)[];
+  getActiveDescendant: () => {
+    popoverId: string;
+    highlightedItemId: string | undefined;
+  } | null;
+  subscribeActiveDescendant: (listener: () => void) => () => void;
+  registerInput: (input: { focus(): void }) => () => void;
+  requestFocus: () => void;
+};
+
+const makeRegistry = (overrides: Partial<MockRegistry> = {}): MockRegistry => {
+  const inputs = new Set<{ focus(): void }>();
+  return {
+    getPlugins: () => [],
+    getActiveDescendant: () => null,
+    subscribeActiveDescendant: () => () => {},
+    registerInput: (input) => {
+      inputs.add(input);
+      return () => {
+        inputs.delete(input);
+      };
+    },
+    requestFocus: () => {
+      Array.from(inputs).at(-1)?.focus();
+    },
+    ...overrides,
+  };
+};
+
+let pluginRegistry: MockRegistry | null = null;
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -70,13 +100,8 @@ vi.mock("./ComposerInputPluginContext", () => ({
   useComposerInputPluginRegistryOptional: () => pluginRegistry,
 }));
 
-let activeAria: {
-  popoverId: string;
-  highlightedItemId: string | undefined;
-} | null = null;
-
 vi.mock("./trigger/TriggerPopoverRootContext", () => ({
-  useTriggerPopoverActiveAriaOptional: () => activeAria,
+  useTriggerPopoverActiveAriaOptional: () => null,
 }));
 
 let escapeKeydownHandler: ((event: KeyboardEvent) => void) | null = null;
@@ -197,7 +222,6 @@ describe("ComposerPrimitiveInput", () => {
     threadState.isRunning = false;
     threadState.capabilities = { queue: false, attachments: false };
     pluginRegistry = null;
-    activeAria = null;
     escapeKeydownHandler = null;
     setMatchMedia(false);
 
@@ -286,7 +310,7 @@ describe("ComposerPrimitiveInput", () => {
   });
 
   it("skips plugin cursor tracking during composition but resumes after", async () => {
-    pluginRegistry = { getPlugins: () => [plugin] };
+    pluginRegistry = makeRegistry({ getPlugins: () => [plugin] });
     const textarea = await mount();
 
     await act(async () => {
@@ -303,7 +327,7 @@ describe("ComposerPrimitiveInput", () => {
   });
 
   it("tracks plugin cursor for non-composition input", async () => {
-    pluginRegistry = { getPlugins: () => [plugin] };
+    pluginRegistry = makeRegistry({ getPlugins: () => [plugin] });
     const textarea = await mount();
 
     await act(async () => {
@@ -325,8 +349,8 @@ describe("ComposerPrimitiveInput", () => {
     expect(setText).not.toHaveBeenCalled();
   });
 
-  it("does not apply ARIA combobox attributes when no trigger popover is open", async () => {
-    activeAria = null;
+  it("does not apply ARIA combobox attributes when no popup is open", async () => {
+    pluginRegistry = makeRegistry();
     const textarea = await mount();
 
     expect(textarea.getAttribute("aria-controls")).toBeNull();
@@ -335,11 +359,12 @@ describe("ComposerPrimitiveInput", () => {
     expect(textarea.getAttribute("aria-activedescendant")).toBeNull();
   });
 
-  it("applies ARIA combobox attributes when a trigger popover is open", async () => {
-    activeAria = {
+  it("applies ARIA combobox attributes from the registry's active descendant", async () => {
+    const descendant = {
       popoverId: "popover-1",
       highlightedItemId: "popover-1-option-foo",
     };
+    pluginRegistry = makeRegistry({ getActiveDescendant: () => descendant });
     const textarea = await mount();
 
     expect(textarea.getAttribute("aria-controls")).toBe("popover-1");
@@ -351,16 +376,28 @@ describe("ComposerPrimitiveInput", () => {
   });
 
   it("omits aria-activedescendant when no item is highlighted", async () => {
-    activeAria = {
+    const descendant = {
       popoverId: "popover-1",
       highlightedItemId: undefined,
     };
+    pluginRegistry = makeRegistry({ getActiveDescendant: () => descendant });
     const textarea = await mount();
 
     expect(textarea.getAttribute("aria-controls")).toBe("popover-1");
     expect(textarea.getAttribute("aria-expanded")).toBe("true");
     expect(textarea.getAttribute("aria-haspopup")).toBe("listbox");
     expect(textarea.getAttribute("aria-activedescendant")).toBeNull();
+  });
+
+  it("registers its focus callback so requestFocus reaches the textarea", async () => {
+    pluginRegistry = makeRegistry();
+    const textarea = await mount();
+
+    expect(document.activeElement).not.toBe(textarea);
+    await act(async () => {
+      pluginRegistry!.requestFocus();
+    });
+    expect(document.activeElement).toBe(textarea);
   });
 
   describe("submit behavior", () => {
