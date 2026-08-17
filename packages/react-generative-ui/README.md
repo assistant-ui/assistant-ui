@@ -178,8 +178,9 @@ import {
 } from "@assistant-ui/react-generative-ui/a2ui";
 
 const { state } = applyA2uiOperations(new Map(), operations);
-const surface = state.get("s1");
-const { spec, warnings } = convertSurfaceToUISpec(surface!);
+for (const surface of state.values()) {
+  const { spec, warnings } = convertSurfaceToUISpec(surface);
+}
 ```
 
 ## License
