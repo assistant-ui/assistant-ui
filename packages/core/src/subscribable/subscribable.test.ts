@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { SubscribableWithState } from "./subscribable";
-import { ShallowMemoizeSubject } from "./subscribable";
+import { LazyMemoizeSubject, ShallowMemoizeSubject } from "./subscribable";
 
 type TestState = {
   status: string;
@@ -67,5 +67,18 @@ describe("ShallowMemoizeSubject", () => {
 
     expect(subject.getState()).toEqual({ status: "ready" });
     expect(subscriber).not.toHaveBeenCalled();
+  });
+});
+
+describe("LazyMemoizeSubject", () => {
+  it("reads a value that landed before the first subscription", () => {
+    const source = createBinding({ status: "empty" });
+    const subject = new LazyMemoizeSubject(source.binding);
+    expect(subject.getState()).toEqual({ status: "empty" });
+
+    source.update({ status: "ready" });
+    subject.subscribe(vi.fn());
+
+    expect(subject.getState()).toEqual({ status: "ready" });
   });
 });

@@ -218,6 +218,7 @@ describe("ThreadPrimitiveRoot", () => {
     });
 
     view.rerender(<App showComposer />);
+    expect(runtimeRef.current!.thread.composer.getState().canCancel).toBe(true);
     const event = dispatchEscape(screen.getByTestId("composer"));
 
     await waitFor(() => {

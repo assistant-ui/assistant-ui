@@ -218,6 +218,7 @@ export class LazyMemoizeSubject<TState extends object, TPath>
   };
 
   protected _connect() {
+    this._previousStateDirty = true;
     const callback = () => {
       this._previousStateDirty = true;
       this.notifySubscribers();
