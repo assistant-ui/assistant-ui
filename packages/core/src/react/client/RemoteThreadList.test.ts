@@ -6,14 +6,28 @@ import { RemoteThreadList } from "./RemoteThreadList";
 
 const stubComposer = { getState: () => ({}) };
 const stubSuggestions = { getState: () => ({ suggestions: [] }) };
-const useStubThread = (_props: { threadId: string }) => ({
+
+const deferred = <T>() => {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+};
+
+const useStubThread = (props: {
+  threadId: string;
+  refetch?: (() => Promise<void>) | undefined;
+}) => ({
   getState: () => ({
     isRunning: false,
     messages: [],
   }),
   composer: () => stubComposer,
   suggestions: () => stubSuggestions,
-  unstable_refetchThread: undefined,
+  unstable_refetchThread: props.refetch,
 });
 const StubThread = resource(useStubThread);
 
@@ -46,13 +60,17 @@ const makeAdapter = (
   ...overrides,
 });
 
-const mountList = (adapter: RemoteThreadListAdapter, threadId?: string) => {
+const mountList = (
+  adapter: RemoteThreadListAdapter,
+  threadId?: string,
+  refetch?: () => Promise<void>,
+) => {
   const onThreadIdChange = vi.fn();
   const handle = createAssistantClient(
     AuiConfig({
       threads: RemoteThreadList({
         adapter,
-        thread: (id) => StubThread({ threadId: id }) as never,
+        thread: (id) => StubThread({ threadId: id, refetch }) as never,
         threadId,
         onThreadIdChange,
       }),
@@ -196,6 +214,100 @@ describe("RemoteThreadList", () => {
       expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
     });
     expect(onThreadIdChange).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
+  it("keeps the latest switch when an earlier fetch resolves last", async () => {
+    const fetchB = deferred<{
+      status: "regular";
+      remoteId: string;
+      externalId: undefined;
+      title: string;
+    }>();
+    const fetchC = deferred<{
+      status: "regular";
+      remoteId: string;
+      externalId: undefined;
+      title: string;
+    }>();
+    const adapter = makeAdapter({
+      fetch: vi.fn((id: string) =>
+        id === "thread-b" ? fetchB.promise : fetchC.promise,
+      ),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+
+    flushTapSync(() => aui.threads.switchToThread("thread-b"));
+    flushTapSync(() => aui.threads.switchToThread("thread-c"));
+    fetchC.resolve({
+      status: "regular",
+      remoteId: "thread-c",
+      externalId: undefined,
+      title: "thread-c",
+    });
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe(
+        "thread-c",
+      );
+    });
+    fetchB.resolve({
+      status: "regular",
+      remoteId: "thread-b",
+      externalId: undefined,
+      title: "thread-b",
+    });
+    await vi.waitFor(() => {
+      expect(adapter.fetch).toHaveBeenCalledWith("thread-b");
+    });
+    expect(handle.getClient().threads.getState().mainThreadId).toBe("thread-c");
+    handle.destroy();
+  });
+
+  it("resolves item(main) after reload without aliasing another thread", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [] })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+    await aui.threads.item("main").initialize();
+    adapter.list = vi.fn(async () => ({
+      threads: [
+        { status: "regular" as const, remoteId: "other", title: "Other" },
+        {
+          status: "regular" as const,
+          remoteId: `remote-${localId}`,
+          title: "Mine",
+        },
+      ],
+    }));
+    await handle.getClient().threads.reload();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().threadIds).toEqual([
+        "other",
+        `remote-${localId}`,
+      ]);
+    });
+    expect(handle.getClient().threads.item("main").getState().remoteId).toBe(
+      `remote-${localId}`,
+    );
+    expect(handle.getClient().threads.item("main").getState().title).toBe(
+      "Mine",
+    );
+    handle.destroy();
+  });
+
+  it("does not refetch a draft from reloadMainThread", async () => {
+    const refetch = vi.fn(async () => {});
+    const { handle } = mountList(makeAdapter(), undefined, refetch);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    expect(aui.threads.item("main").getState().status).toBe("new");
+    await aui.threads.reloadMainThread();
+    expect(refetch).not.toHaveBeenCalled();
     handle.destroy();
   });
 
