@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import type {
   Unstable_InteractablePersistedState,
   Unstable_InteractablePersistenceAdapter,
@@ -188,9 +188,6 @@ describe("Interactables registration", () => {
   it("notifies every model-context subscriber when one throws", async () => {
     root = mount();
     await flushMicrotasks();
-    const consoleError = vi
-      .spyOn(console, "error")
-      .mockImplementation(() => {});
     const listenerError = new Error("listener failed");
     const laterListener = vi.fn();
 
@@ -201,13 +198,10 @@ describe("Interactables registration", () => {
     });
     provider?.subscribe?.(laterListener);
 
-    root.getValue().register(reg("n1"));
-    await flushMicrotasks();
+    expect(() =>
+      flushTapSync(() => root?.getValue().register(reg("n1"))),
+    ).toThrow(listenerError);
     expect(laterListener).toHaveBeenCalledOnce();
-    expect(consoleError).toHaveBeenCalledWith(
-      "[assistant-ui] Interactables model context listener threw an error",
-      listenerError,
-    );
   });
 
   it("seeds a new registration with initialState", () => {
