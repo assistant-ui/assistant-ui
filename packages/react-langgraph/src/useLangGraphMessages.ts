@@ -695,7 +695,23 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
   appendMessage,
   eventHandlers,
   uiStateKey,
-}: LangGraphMessagesOptions<TMessage>) =>
+}: {
+  stream: LangGraphStreamCallback<TMessage>;
+  appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
+  uiStateKey?: string;
+  eventHandlers?: {
+    onMessageChunk?: OnMessageChunkCallback;
+    onValues?: OnValuesEventCallback;
+    onUpdates?: OnUpdatesEventCallback;
+    onSubgraphValues?: OnSubgraphValuesEventCallback;
+    onSubgraphUpdates?: OnSubgraphUpdatesEventCallback;
+    onMetadata?: OnMetadataEventCallback;
+    onInfo?: OnInfoEventCallback;
+    onError?: OnErrorEventCallback;
+    onSubgraphError?: OnSubgraphErrorEventCallback;
+    onCustomEvent?: OnCustomEventCallback;
+  };
+}) =>
   useLangGraphMessagesInternal({
     stream,
     ...(appendMessage !== undefined && { appendMessage }),
