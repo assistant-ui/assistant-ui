@@ -569,6 +569,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     };
   }, [runLoad]);
 
+  useEffect(() => cancelActiveRun, [cancelActiveRun]);
+
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     isRunning: effectiveIsRunning,
