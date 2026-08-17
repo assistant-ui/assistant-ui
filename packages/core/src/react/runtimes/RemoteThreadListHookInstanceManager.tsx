@@ -219,13 +219,16 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     );
   }
 
-  public setDefaultAdapters(adapters: RuntimeAdapters | null) {
+  public __internal_setDefaultAdapters(adapters: RuntimeAdapters | null) {
     const current = this.adapterStore.getState();
     if (current.defaultAdapters === adapters) return;
     this.adapterStore.setState({ ...current, defaultAdapters: adapters }, true);
   }
 
-  public setThreadAdapters(threadId: string, adapters: RuntimeAdapters | null) {
+  public __internal_setThreadAdapters(
+    threadId: string,
+    adapters: RuntimeAdapters | null,
+  ) {
     const current = this.adapterStore.getState();
     const next = new Map(current.threadAdapters);
     if (adapters === null) next.delete(threadId);
@@ -233,7 +236,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     this.adapterStore.setState({ ...current, threadAdapters: next }, true);
   }
 
-  public dispose() {
+  public __internal_dispose() {
     for (const threadId of [...this.instances.keys()]) {
       this.stopThreadRuntime(threadId);
     }
@@ -251,7 +254,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     );
   }
 
-  public useHost(parentClient: AssistantClient) {
+  public __internal_useHost(parentClient: AssistantClient) {
     const { threads, hookEpoch } = this.hostStore();
     const adapters = this.adapterStore();
     const runtimeHook = this.runtimeHook;
@@ -295,7 +298,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public __internal_Host: FC<{ parentClient: AssistantClient }> = ({
     parentClient,
   }) => {
-    this.useHost(parentClient);
+    this.__internal_useHost(parentClient);
     return null;
   };
 
@@ -341,12 +344,12 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const adapters = useRuntimeAdapters();
     this.pendingThreadAdapters.set(threadId, adapters);
     useLayoutEffect(() => {
-      this.setThreadAdapters(threadId, adapters);
+      this.__internal_setThreadAdapters(threadId, adapters);
       return () => {
         if (this.pendingThreadAdapters.get(threadId) === adapters) {
           this.pendingThreadAdapters.delete(threadId);
         }
-        this.setThreadAdapters(threadId, null);
+        this.__internal_setThreadAdapters(threadId, null);
       };
     }, [threadId, adapters]);
     return <ProviderRenderDetector detectorRef={detectorRef} />;

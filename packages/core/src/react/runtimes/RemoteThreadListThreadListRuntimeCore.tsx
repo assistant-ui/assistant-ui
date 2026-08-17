@@ -200,7 +200,7 @@ export class RemoteThreadListThreadListRuntimeCore
       options.runtimeHook,
       this,
     );
-    this._hookManager.setDefaultAdapters(this._runtimeAdapters);
+    this._hookManager.__internal_setDefaultAdapters(this._runtimeAdapters);
     this._hookManager.__internal_subscribeRunningChanged(() =>
       this._notifySubscribers(),
     );
@@ -825,7 +825,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public __internal_dispose() {
-    this._hookManager.dispose();
+    this._hookManager.__internal_dispose();
   }
 
   public async detach(threadIdOrRemoteId: string): Promise<void> {
