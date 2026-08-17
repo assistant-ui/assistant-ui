@@ -82,7 +82,15 @@ export function toolCallContentToText(
   const pieces: string[] = [];
   for (const item of content) {
     if (item.type === "content") {
-      for (const block of item.content) {
+      // The spec says ContentBlock[], but some agents (e.g. crow-cli) send a
+      // single block object instead — accept both rather than throwing.
+      const raw = item.content as unknown;
+      const blocks: readonly AcpContentBlock[] = Array.isArray(raw)
+        ? (raw as readonly AcpContentBlock[])
+        : raw
+          ? [raw as AcpContentBlock]
+          : [];
+      for (const block of blocks) {
         if (block.type === "text") pieces.push(block.text);
         else if (block.type === "resource" && block.resource.text != null)
           pieces.push(block.resource.text);

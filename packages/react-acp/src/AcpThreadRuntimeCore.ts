@@ -117,6 +117,14 @@ export class AcpThreadRuntimeCore {
   private readonly assistantHistoryParents = new Map<string, string | null>();
   private readonly recordedHistoryIds = new Set<string>();
 
+  private readonly boundOnSessionUpdate = (
+    _sessionId: string,
+    update: AcpSessionUpdate,
+  ) => this.handleSessionUpdate(update);
+  private readonly boundOnConnectionChange = () => this.notifyUpdate();
+  private readonly boundPermissionHandler = (request: AcpPermissionRequest) =>
+    this.handlePermissionRequest(request);
+
   constructor(options: AcpThreadRuntimeCoreOptions) {
     this.client = options.client;
     this.permissions = options.permissions ?? "ask";
@@ -125,23 +133,33 @@ export class AcpThreadRuntimeCore {
     this.onCancel = options.onCancel;
     this.history = options.history;
     this.notifyUpdate = options.notifyUpdate;
+    // NOTE: deliberately does NOT touch client callbacks here. Cores are
+    // constructed inside useMemo factories, which React may run for render
+    // passes it later discards (StrictMode double-invocation, interrupted
+    // concurrent renders) — a discarded core must not be able to steal the
+    // client's event handlers from the committed one. attachClient() is the
+    // single subscription point; call it from an effect.
+  }
 
-    this.client.onSessionUpdate = (_sessionId, update) =>
-      this.handleSessionUpdate(update);
-    this.client.onConnectionChange = () => this.notifyUpdate();
-    this.client.permissionHandler = (request) =>
-      this.handlePermissionRequest(request);
+  /** Subscribe this core to its client's event streams. Idempotent. */
+  attachClient(): void {
+    this.client.onSessionUpdate = this.boundOnSessionUpdate;
+    this.client.onConnectionChange = this.boundOnConnectionChange;
+    this.client.permissionHandler = this.boundPermissionHandler;
+  }
+
+  /** Inverse of attachClient; only clears callbacks this core still owns. */
+  detachClient(): void {
+    if (this.client.onSessionUpdate === this.boundOnSessionUpdate)
+      this.client.onSessionUpdate = undefined;
+    if (this.client.onConnectionChange === this.boundOnConnectionChange)
+      this.client.onConnectionChange = undefined;
+    if (this.client.permissionHandler === this.boundPermissionHandler)
+      this.client.permissionHandler = autoAllowPermissionHandler;
   }
 
   updateOptions(options: Omit<AcpThreadRuntimeCoreOptions, "notifyUpdate">) {
-    if (this.client !== options.client) {
-      this.client = options.client;
-      this.client.onSessionUpdate = (_sessionId, update) =>
-        this.handleSessionUpdate(update);
-      this.client.onConnectionChange = () => this.notifyUpdate();
-      this.client.permissionHandler = (request) =>
-        this.handlePermissionRequest(request);
-    }
+    this.client = options.client;
     this.permissions = options.permissions ?? "ask";
     this.autoConnect = options.autoConnect ?? true;
     this.onError = options.onError;

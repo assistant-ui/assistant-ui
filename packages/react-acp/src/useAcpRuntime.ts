@@ -168,6 +168,19 @@ export function useAcpRuntime(options: UseAcpRuntimeOptions): AssistantRuntime {
 
   const runtime = useExternalStoreRuntime(store);
 
+  // Subscribe the committed core to the client. This must run in an effect
+  // (not in the core's constructor): React runs useMemo factories for render
+  // passes it may later discard (StrictMode double-invocation, interrupted
+  // renders), and a discarded core must never steal the client's callbacks
+  // from the committed one — that silently drops every session/update
+  // notification (assistant messages complete with empty content).
+  useEffect(() => {
+    core.attachClient();
+    return () => {
+      core.detachClient();
+    };
+  }, [core]);
+
   useEffect(() => {
     core.attachRuntime(runtime);
     return () => {
