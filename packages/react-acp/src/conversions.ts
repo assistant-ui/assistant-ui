@@ -1,6 +1,7 @@
 "use client";
 
 import type {
+  MessagePartStatus,
   MessageStatus,
   ThreadAssistantMessage,
   ThreadUserMessage,
@@ -114,7 +115,7 @@ export function stopReasonToMessageStatus(
 
 export function acpToolStatusToPartStatus(
   status: AcpToolCallStatus,
-): ToolCallMessagePart["status"] {
+): MessagePartStatus {
   switch (status) {
     case "completed":
       return { type: "complete" };
