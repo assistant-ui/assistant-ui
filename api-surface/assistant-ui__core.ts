@@ -546,7 +546,7 @@ type AssistantTransportOptions<T> = {
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | (() => Promise<object | undefined>);
   prepareSendCommandsRequest?: (body: SendCommandsRequestBody) => Record<string, unknown> | Promise<Record<string, unknown>>;
-  onResponse?: (response: Response) => void;
+  onResponse?: (response: Response) => void | Promise<void>;
   onFinish?: () => void;
   onError?: (error: Error, params: {
     commands: AssistantTransportCommand[];
