@@ -1,21 +1,13 @@
+import { type FC, type ReactNode, useContext, useMemo } from "react";
 import {
-  createContext,
-  type FC,
-  type ReactNode,
-  useContext,
-  useMemo,
-} from "react";
-import { useContextProvider } from "@assistant-ui/tap";
-import type { RemoteThreadListAdapters } from "../../runtimes/remote-thread-list/types";
+  RuntimeAdaptersContext,
+  type RuntimeAdapters,
+  useRuntimeAdapters,
+  useRuntimeAdaptersProvider,
+} from "./useRuntimeAdapters";
 
-export type RuntimeAdapters = RemoteThreadListAdapters;
-
-const RuntimeAdaptersContext = createContext<RuntimeAdapters | null>(null);
-
-export const useRuntimeAdaptersProvider = <T,>(
-  adapters: RuntimeAdapters | null,
-  fn: () => T,
-): T => useContextProvider(RuntimeAdaptersContext, adapters, fn);
+export type { RuntimeAdapters };
+export { useRuntimeAdapters, useRuntimeAdaptersProvider };
 
 export namespace RuntimeAdapterProvider {
   export type Props = {
@@ -38,8 +30,4 @@ export const RuntimeAdapterProvider: FC<RuntimeAdapterProvider.Props> = ({
       {children}
     </RuntimeAdaptersContext.Provider>
   );
-};
-
-export const useRuntimeAdapters = () => {
-  return useContext(RuntimeAdaptersContext);
 };

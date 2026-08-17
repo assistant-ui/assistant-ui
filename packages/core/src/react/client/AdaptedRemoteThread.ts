@@ -5,7 +5,7 @@ import type { RemoteThreadListAdapters } from "../../runtimes/remote-thread-list
 import {
   useRuntimeAdapters,
   useRuntimeAdaptersProvider,
-} from "../runtimes/RuntimeAdapterProvider";
+} from "../runtimes/useRuntimeAdapters";
 
 const useAdaptedRemoteThread = ({
   useAdapters,
