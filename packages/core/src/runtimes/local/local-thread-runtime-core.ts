@@ -245,9 +245,15 @@ export class LocalThreadRuntimeCore
       this._loadRequested &&
       !this._loadPromise &&
       !previousHistory &&
-      options.adapters.history
+      options.adapters.history &&
+      this.messages.length === 0
     ) {
-      void this.__internal_load();
+      void this.__internal_load().catch((error: unknown) => {
+        console.error(
+          "[assistant-ui] local thread history load failed:",
+          error,
+        );
+      });
     }
   }
 

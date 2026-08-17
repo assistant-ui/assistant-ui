@@ -1502,4 +1502,73 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(load).toHaveBeenCalledOnce();
     expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
   });
+
+  it("does not load late history over a thread that already has messages", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const thread = createPlainThread(adapter);
+    const load = vi.fn(async () => ({
+      headId: "restored",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "restored",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "hello" }],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    }));
+
+    thread.__internal_load();
+    await thread.append({ ...userMessage("typed"), startRun: false });
+    expect(thread.messages).toHaveLength(1);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: { load, append: async () => {} },
+      },
+    });
+    await flush();
+
+    expect(load).not.toHaveBeenCalled();
+    expect(thread.messages.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "typed" }],
+    ]);
+  });
+
+  it("logs a rejected late history load", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const thread = createPlainThread(adapter);
+    const error = new Error("history unavailable");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          load: async () => {
+            throw error;
+          },
+          append: async () => {},
+        },
+      },
+    });
+    await flush();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] local thread history load failed:",
+      error,
+    );
+  });
 });
