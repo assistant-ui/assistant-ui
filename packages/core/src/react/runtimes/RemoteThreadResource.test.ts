@@ -12,21 +12,20 @@ afterEach(() => {
 describe("subscribeToTitleGeneration", () => {
   it("reports title generation failures through the runtime event boundary", async () => {
     const error = new Error("title unavailable");
-    const runtime = new AssistantRuntimeImpl(
-      new LocalRuntimeCore(
-        {
-          adapters: {
-            chatModel: {
-              async run() {
-                return { content: [{ type: "text", text: "done" }] };
-              },
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run() {
+              return { content: [{ type: "text", text: "done" }] };
             },
           },
-          unstable_humanToolNames: [],
         },
-        undefined,
-      ),
+        unstable_humanToolNames: [],
+      },
+      undefined,
     );
+    const runtime = new AssistantRuntimeImpl(core);
     const itemRuntime = {
       generateTitle: vi.fn(async () => {
         throw error;
@@ -48,7 +47,9 @@ describe("subscribeToTitleGeneration", () => {
       createdAt: new Date(),
     };
 
-    runtime.thread.append(message);
+    await expect(
+      core.threads.getMainThreadRuntimeCore().append(message),
+    ).resolves.toBeUndefined();
 
     await vi.waitFor(() => {
       expect(itemRuntime.generateTitle).toHaveBeenCalledOnce();
