@@ -2,7 +2,7 @@ import { Client, StreamMode } from "@langchain/langgraph-sdk";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
-import { ComponentType, PropsWithChildren } from "react";
+import { ComponentType } from "react";
 
 type AddToolResultOptions = {
   messageId: string;
@@ -52,7 +52,7 @@ type AssistantCloudAuthStrategy = {
 };
 
 declare class AssistantCloudAuthTokens {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   create(): Promise<AssistantCloudAuthTokensCreateResponse>;
 }
@@ -77,7 +77,7 @@ type AssistantCloudConfig = ({
 };
 
 declare class AssistantCloudFiles {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   pdfToImages(body: PdfToImagesRequestBody): Promise<PdfToImagesResponse>;
   generatePresignedUploadUrl(body: GeneratePresignedUploadUrlRequestBody): Promise<GeneratePresignedUploadUrlResponse>;
@@ -98,14 +98,14 @@ type AssistantCloudProjectThreadMessageListResponse = {
 };
 
 declare class AssistantCloudProjectThreadMessages {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   list(threadId: string, query?: AssistantCloudProjectThreadMessageListQuery): Promise<AssistantCloudProjectThreadMessageListResponse>;
 }
 
 declare class AssistantCloudProjectThreads {
+  #private;
   readonly messages: AssistantCloudProjectThreadMessages;
-  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudProjectThreadsListQuery): Promise<AssistantCloudProjectThreadsListResponse>;
 }
@@ -151,7 +151,7 @@ type AssistantCloudRunReport = {
 };
 
 declare class AssistantCloudRuns {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   __internal_getAssistantOptions(assistantId: string): {
     api: string;
@@ -200,7 +200,7 @@ type AssistantCloudThreadMessageUpdateBody = {
 };
 
 declare class AssistantCloudThreadMessages {
-  private cloud;
+  #private;
   constructor(cloud: AssistantCloudAPI);
   list(threadId: string, query?: AssistantCloudThreadMessageListQuery): Promise<AssistantCloudThreadMessageListResponse>;
   create(threadId: string, body: AssistantCloudThreadMessageCreateBody): Promise<AssistantCloudMessageCreateResponse>;
@@ -208,8 +208,8 @@ declare class AssistantCloudThreadMessages {
 }
 
 declare class AssistantCloudThreads {
+  #private;
   readonly messages: AssistantCloudThreadMessages;
-  private cloud;
   constructor(cloud: AssistantCloudAPI);
   list(query?: AssistantCloudThreadsListQuery): Promise<AssistantCloudThreadsListResponse>;
   get(threadId: string): Promise<CloudThread>;
@@ -508,6 +508,7 @@ type ComposerRuntime = {
   send(options?: SendOptions): void;
   cancel(): void;
   steerQueueItem(queueItemId: string): void;
+  moveQueueItem(queueItemId: string, placement: QueuePlacement): void;
   removeQueueItem(queueItemId: string): void;
   subscribe(callback: () => void): Unsubscribe;
   getAttachmentByIndex(idx: number): AttachmentRuntime;
@@ -755,12 +756,14 @@ type ExternalStoreThreadListAdapter = {
 
 type ExternalThreadQueueAdapter = {
   items: readonly QueueItemState[];
-  enqueue: (message: AppendMessage, options: {
-    steer: boolean;
-  }) => void;
-  steer: (queueItemId: string) => void;
+  steerItems: readonly QueueItemState[];
+  enqueue: (message: AppendMessage) => void;
+  steer: (message: AppendMessage) => void;
+  move: (queueItemId: string, placement: QueuePlacement) => void;
+  edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
-  clear: (reason: "cancel-run" | "edit" | "reload") => void;
+  __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
+  __internal_notifyCancelled?: (() => void) | undefined;
 };
 
 type FeedbackAdapter = {
@@ -778,6 +781,7 @@ type FileMessagePart = {
   readonly data: string;
   readonly mimeType: string;
   readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -837,6 +841,7 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 interface JSONSchema7 {
@@ -940,6 +945,12 @@ type LangChainMessage = {
   artifact?: any;
   status: "error" | "success";
 } | {
+  id: string;
+  type: "remove";
+  content: string | [
+  ];
+  additional_kwargs?: Record<string, unknown>;
+} | {
   id?: string;
   type: "ai";
   content: AssistantMessageContent;
@@ -1009,14 +1020,8 @@ type LangGraphKnownEventTypes = (typeof LangGraphKnownEventTypes)[keyof typeof L
 declare class LangGraphMessageAccumulator<TMessage extends {
   id?: string;
 }> {
-  private messagesMap;
-  private metadataMap;
-  private uiMessages;
-  private appendMessage;
+  #private;
   constructor(_param0?: LangGraphStateAccumulatorConfig<TMessage>);
-  private ensureMessageId;
-  private upsertMessage;
-  private applyRemove;
   addMessages(newMessages: TMessage[]): TMessage[];
   addMessageWithMetadata(message: TMessage, metadata: LangGraphTupleMetadata): TMessage[];
   getMessages(): TMessage[];
@@ -1352,7 +1357,11 @@ type OnUpdatesEventCallback = (updates: unknown) => void | Promise<void>;
 type OnValuesEventCallback = (values: unknown) => void | Promise<void>;
 
 type PartInit = {
-  readonly type: "reasoning" | "text";
+  readonly type: "text";
+  readonly parentId?: string;
+} | {
+  readonly type: "reasoning";
+  readonly unstable_summary?: string;
   readonly parentId?: string;
 } | {
   readonly type: "tool-call";
@@ -1430,6 +1439,13 @@ type ProviderTool<TArgs extends Record<string, unknown> = Record<string, unknown
 type QueueItemState = {
   readonly id: string;
   readonly prompt: string;
+  readonly parts: readonly (FileMessagePart | TextMessagePart)[];
+};
+
+type QueuePlacement = {
+  readonly lane?: "queue" | "steer";
+  readonly insertAfter?: string | null;
+  readonly insertBefore?: string | null;
 };
 
 type QuoteInfo = {
@@ -1482,6 +1498,7 @@ type ReasoningMessagePart = {
   readonly type: "reasoning";
   readonly text: string;
   readonly status?: MessagePartStreamStatus;
+  readonly unstable_summary?: string;
   readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
@@ -1505,11 +1522,17 @@ type RemoteThreadListAdapter = {
   initialize(threadId: string): Promise<RemoteThreadInitializeResponse>;
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
-  unstable_Provider?: ComponentType<PropsWithChildren> | undefined;
+  unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 };
 
 type RemoteThreadListPageOptions = {
   after?: string | undefined;
+};
+
+type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => any) | (new (props: RemoteThreadListProviderProps) => any);
+
+type RemoteThreadListProviderProps = {
+  children?: any;
 };
 
 type RemoteThreadListResponse = {
@@ -1858,6 +1881,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
@@ -1919,6 +1943,8 @@ type ThreadStep = {
 };
 
 type ThreadSuggestion = {
+  title?: string;
+  label?: string;
   prompt: string;
 };
 
@@ -2297,7 +2323,7 @@ declare const useLangGraphMessages: <TMessage extends {
   messages: TMessage[];
   messageMetadata: Map<string, LangGraphTupleMetadata>;
   uiMessages: UIMessage[];
-  sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: () => void) => Promise<void>;
+  sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: (() => void) | undefined) => Promise<void>;
   cancel: () => void;
   setInterrupt: import("react").Dispatch<import("react").SetStateAction<LangGraphInterruptState | undefined>>;
   setValues: import("react").Dispatch<import("react").SetStateAction<Record<string, unknown> | undefined>>;

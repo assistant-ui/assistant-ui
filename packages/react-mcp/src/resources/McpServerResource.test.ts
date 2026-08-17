@@ -147,9 +147,14 @@ const resetMocks = () => {
 const mount = (
   props?: {
     auth?: MCPAuthConfig | undefined;
+    storage?: MCPStorage | undefined;
+    autoConnect?: boolean | undefined;
     connectionTimeout?: number | undefined;
     cache?: { readonly defaultTtlMs?: number } | undefined;
     elicitation?: boolean | undefined;
+    kind?: "connector" | "custom" | undefined;
+    storage?: MCPStorage | undefined;
+    onRemove?: (() => Promise<void>) | undefined;
   },
   onMount?: (server: ClientOutput<"mcpServer">) => void,
 ) => {
@@ -160,19 +165,19 @@ const mount = (
     const server = useResource(
       McpServerResource({
         id: "docs",
-        kind: "connector",
+        kind: props?.kind ?? "connector",
         name: "Docs",
         url: "https://example.com/mcp",
         auth: props?.auth ?? { type: "none" },
-        storage: createStorage(),
+        storage: props?.storage ?? createStorage(),
         redirectUri: "https://example.com/callback",
-        autoConnect: false,
+        autoConnect: props?.autoConnect ?? false,
         connectionTimeout,
         cache: props?.cache,
         ...(props?.elicitation !== undefined
           ? { elicitation: props.elicitation }
           : {}),
-        onRemove: vi.fn(async () => {}),
+        onRemove: props?.onRemove ?? vi.fn(async () => {}),
       }),
     );
     useEffect(() => {
@@ -181,6 +186,144 @@ const mount = (
     return server;
   });
 };
+
+describe("McpServerResource automatic authentication", () => {
+  beforeEach(resetMocks);
+
+  it("reports auth storage load failures", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockRejectedValue(
+      new Error("auth storage unavailable"),
+    );
+    const root = mount({
+      auth: { type: "oauth" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "error",
+      );
+
+      expect(storage.loadAuthState).toHaveBeenCalledWith("docs");
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "error",
+        tools: [],
+        lastError: {
+          message:
+            'MCP server "docs" failed to load saved authentication: auth storage unavailable',
+        },
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores auth storage failures from the cancelled StrictMode setup", async () => {
+    let rejectCancelledLoad!: (error: Error) => void;
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState)
+      .mockImplementationOnce(
+        () =>
+          new Promise((_, reject) => {
+            rejectCancelledLoad = reject;
+          }),
+      )
+      .mockResolvedValueOnce(null);
+    const root = mount({
+      auth: { type: "oauth" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 1,
+      );
+      rejectCancelledLoad(new Error("cancelled auth storage failure"));
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: null,
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores auth storage failures superseded by a manual connection", async () => {
+    let rejectLoad!: (error: Error) => void;
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockImplementation(
+      () =>
+        new Promise((_, reject) => {
+          rejectLoad = reject;
+        }),
+    );
+    const root = mount({
+      auth: { type: "oauth" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 0,
+      );
+      await root.getValue().connect();
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "connected",
+      );
+
+      rejectLoad(new Error("superseded auth storage failure"));
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        lastError: null,
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("ignores successful auth storage loads superseded by disconnect", async () => {
+    let resolveLoad!: (value: { token: string }) => void;
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const root = mount({
+      auth: { type: "bearer" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(
+        () => vi.mocked(storage.loadAuthState).mock.calls.length > 0,
+      );
+      await root.getValue().disconnect();
+      resolveLoad({ token: "secret" });
+      await flushMacrotask();
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: null,
+      });
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
+});
 
 describe("McpServerResource connectionTimeout", () => {
   beforeEach(() => {
@@ -1194,6 +1337,37 @@ describe("McpServerResource tools listChanged", () => {
 
       const options = mocks.Client.mock.calls[0]?.[1];
       expect(options).not.toHaveProperty("defaultCacheTtlMs");
+    } finally {
+      root.unmount();
+    }
+  });
+});
+
+describe("McpServerResource removal", () => {
+  beforeEach(() => {
+    resetMocks();
+  });
+
+  it("exposes auth storage failures and preserves the server", async () => {
+    const error = new Error("storage unavailable");
+    const storage = createStorage();
+    vi.mocked(storage.clearAuthState).mockRejectedValueOnce(error);
+    const onRemove = vi.fn(async () => {});
+    const root = mount({ kind: "custom", storage, onRemove });
+
+    try {
+      await expect(root.getValue().remove()).rejects.toBe(error);
+      await waitForResourceUpdate(
+        () =>
+          root.getValue().getState().lastError?.message ===
+          "storage unavailable",
+      );
+
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: { message: "storage unavailable" },
+      });
+      expect(onRemove).not.toHaveBeenCalled();
     } finally {
       root.unmount();
     }

@@ -100,6 +100,15 @@ describe("useExternalMessageConverter", () => {
     });
   });
 
+  it("throws the descriptive converter error when the callback returns an invalid message", () => {
+    const bad = (() =>
+      undefined) as unknown as useExternalMessageConverter.Callback<TestMessage>;
+
+    expect(() => renderConverter({ callback: bad })).toThrowError(
+      /External message converter: the converter callback returned an invalid message \(undefined\) for input \{"id":"u1"/,
+    );
+  });
+
   it.each([
     ["false", false],
     ["zero", 0],

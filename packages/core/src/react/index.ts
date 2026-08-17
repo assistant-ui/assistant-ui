@@ -228,12 +228,26 @@ export {
 } from "./runtimes/useStreamingTiming";
 export {
   createRuntimeExtras,
+  unstable_createRuntimeExtrasFromBrand,
   type RuntimeExtras,
 } from "./runtimes/createRuntimeExtras";
 export { RemoteThreadListHookInstanceManager } from "./runtimes/RemoteThreadListHookInstanceManager";
 export { RemoteThreadListThreadListRuntimeCore } from "./runtimes/RemoteThreadListThreadListRuntimeCore";
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
 export { useCloudThreadListAdapter } from "./runtimes/cloud/useCloudThreadListAdapter";
+export { useCloudThreadListRuntime } from "./runtimes/cloud/useCloudThreadListRuntime";
+export {
+  useAssistantTransportRuntime,
+  useAssistantTransportSendCommand,
+  useAssistantTransportState,
+} from "./runtimes/assistant-transport/useAssistantTransportRuntime";
+export type {
+  AssistantTransportConnectionMetadata,
+  AssistantTransportCommand,
+  AssistantTransportOptions,
+  AssistantTransportProtocol,
+  SendCommandsRequestBody,
+} from "./runtimes/assistant-transport/types";
 export { useAssistantCloudThreadHistoryAdapter } from "./runtimes/cloud/AssistantCloudThreadHistoryAdapter";
 export { CloudFileAttachmentAdapter } from "./runtimes/cloud/CloudFileAttachmentAdapter";
 export {

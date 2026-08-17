@@ -13,8 +13,10 @@ import type { QueueItemState, QueueItemMethods } from "./queue-item";
 
 export type ComposerSendOptions = SendOptions & {
   /**
-   * Whether to steer (interrupt the current run and process this message immediately).
-   * When false (default), the message is queued and processed in order.
+   * Whether to steer (process this message next, interrupting the current run
+   * when the runtime supports it). Defaults to true while a queued run is in
+   * flight and false when idle. Pass false to queue behind the pending
+   * messages.
    */
   steer?: boolean;
 };
@@ -25,6 +27,11 @@ export type ComposerState = {
   readonly attachments: readonly Attachment[];
   readonly runConfig: RunConfig;
   readonly isEditing: boolean;
+  /**
+   * Whether the composer can cancel the current run. `true` when the runtime
+   * supports cancel and a run is in flight, not merely when cancel is a
+   * capability.
+   */
   readonly canCancel: boolean;
   /**
    * Whether the composer is currently willing to send. `true` when the
@@ -88,9 +95,9 @@ export type ComposerMethods = {
   setQuote(quote: QuoteInfo | undefined): void;
 
   /**
-   * Access a queue item by index.
+   * Access a queue item by index or id.
    */
-  queueItem(selector: { index: number }): QueueItemMethods;
+  queueItem(selector: { index: number } | { id: string }): QueueItemMethods;
 
   __internal_getRuntime?(): ComposerRuntime;
 };
@@ -102,13 +109,13 @@ export type ComposerMeta = {
 
 export type ComposerEvents = {
   /**
-   * @deprecated State-derivable. Observe composer `text` clearing via
-   * `useAuiState` instead. Kept for backward compatibility.
+   * The user sent the composer contents. `messageId` is set when the send
+   * came from an edit composer.
    */
   "composer.send": { threadId: string; messageId?: string };
   /**
-   * @deprecated State-derivable. Observe composer `attachments` via
-   * `useAuiState` instead. Kept for backward compatibility.
+   * An attachment was added to the composer. `messageId` is set when the
+   * attachment was added to an edit composer.
    */
   "composer.attachmentAdd": { threadId: string; messageId?: string };
   "composer.attachmentAddError": {

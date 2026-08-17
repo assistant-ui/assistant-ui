@@ -19,6 +19,7 @@ import { useShallow } from "zustand/shallow";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/radix/tooltip";
 import {
@@ -124,7 +125,7 @@ const AttachmentThumb: FC = () => {
       <AvatarImage
         src={src}
         alt="Attachment preview"
-        className="aui-attachment-tile-image object-cover"
+        className="aui-attachment-tile-image rounded-none object-cover"
       />
       <AvatarFallback>
         <FileText className="aui-attachment-tile-fallback-icon text-muted-foreground/80 size-6 stroke-[1.5]" />
@@ -171,71 +172,73 @@ const AttachmentUI: FC = () => {
   );
 
   return (
-    <Tooltip>
-      <AttachmentPrimitive.Root
-        className={cn(
-          "aui-attachment-root relative",
-          isComposer &&
-            "animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none",
-          isImage &&
-            !isComposer &&
-            "aui-attachment-root-message only:*:first:size-24",
-        )}
-      >
-        <AttachmentPreviewDialog>
-          <TooltipTrigger asChild>
-            <div
-              className={cn(
-                "aui-attachment-tile bg-muted hover:after:bg-foreground/10 focus-visible:ring-ring/50 relative size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius)-var(--composer-padding))] transition-transform outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:transition-colors after:ring-inset focus-visible:ring-3 active:scale-[0.96] motion-reduce:transition-none dark:after:ring-white/10",
-                isError &&
-                  "after:ring-destructive/60 dark:after:ring-destructive/60",
-              )}
-              role="button"
-              tabIndex={0}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  e.currentTarget.click();
-                } else if (e.key === " ") {
-                  e.preventDefault();
-                }
-              }}
-              onKeyUp={(e) => {
-                if (e.key === " ") e.currentTarget.click();
-              }}
-              aria-label={`${typeLabel} attachment${
-                isError ? ", upload failed" : isUploading ? ", uploading" : ""
-              }`}
-            >
-              <AttachmentThumb />
-              {isUploading && (
-                <div
-                  aria-hidden="true"
-                  className="aui-attachment-tile-uploading bg-background/60 animate-in fade-in-0 absolute inset-0 flex items-center justify-center backdrop-blur-[2px] motion-reduce:animate-none"
-                >
-                  <Loader2Icon className="text-muted-foreground size-4 animate-spin" />
-                </div>
-              )}
-              {isError && (
-                <div
-                  aria-hidden="true"
-                  className="aui-attachment-tile-error bg-background/70 animate-in fade-in-0 absolute inset-0 flex items-center justify-center backdrop-blur-[2px] motion-reduce:animate-none"
-                >
-                  <AlertCircleIcon className="text-destructive size-4" />
-                </div>
-              )}
-            </div>
-          </TooltipTrigger>
-        </AttachmentPreviewDialog>
-        {isComposer && <AttachmentRemove />}
-      </AttachmentPrimitive.Root>
-      <TooltipContent side="top">
-        <AttachmentPrimitive.Name />
-        {errorMessage && (
-          <p className="aui-attachment-error-message">{errorMessage}</p>
-        )}
-      </TooltipContent>
-    </Tooltip>
+    <TooltipProvider>
+      <Tooltip>
+        <AttachmentPrimitive.Root
+          className={cn(
+            "aui-attachment-root relative",
+            isComposer &&
+              "animate-in fade-in-0 zoom-in-95 duration-200 motion-reduce:animate-none",
+            isImage &&
+              !isComposer &&
+              "aui-attachment-root-message only:*:first:size-24",
+          )}
+        >
+          <AttachmentPreviewDialog>
+            <TooltipTrigger asChild>
+              <div
+                className={cn(
+                  "aui-attachment-tile bg-muted hover:after:bg-foreground/10 focus-visible:ring-ring/50 relative size-14 cursor-pointer overflow-hidden rounded-[calc(var(--composer-radius,1.5rem)-var(--composer-padding,8px))] transition-transform outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:transition-colors after:ring-inset focus-visible:ring-3 active:scale-[0.96] motion-reduce:transition-none dark:after:ring-white/10",
+                  isError &&
+                    "after:ring-destructive/60 dark:after:ring-destructive/60",
+                )}
+                role="button"
+                tabIndex={0}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.currentTarget.click();
+                  } else if (e.key === " ") {
+                    e.preventDefault();
+                  }
+                }}
+                onKeyUp={(e) => {
+                  if (e.key === " ") e.currentTarget.click();
+                }}
+                aria-label={`${typeLabel} attachment${
+                  isError ? ", upload failed" : isUploading ? ", uploading" : ""
+                }`}
+              >
+                <AttachmentThumb />
+                {isUploading && (
+                  <div
+                    aria-hidden="true"
+                    className="aui-attachment-tile-uploading bg-background/60 animate-in fade-in-0 absolute inset-0 flex items-center justify-center backdrop-blur-[2px] motion-reduce:animate-none"
+                  >
+                    <Loader2Icon className="text-muted-foreground size-4 animate-spin" />
+                  </div>
+                )}
+                {isError && (
+                  <div
+                    aria-hidden="true"
+                    className="aui-attachment-tile-error bg-background/70 animate-in fade-in-0 absolute inset-0 flex items-center justify-center backdrop-blur-[2px] motion-reduce:animate-none"
+                  >
+                    <AlertCircleIcon className="text-destructive size-4" />
+                  </div>
+                )}
+              </div>
+            </TooltipTrigger>
+          </AttachmentPreviewDialog>
+          {isComposer && <AttachmentRemove />}
+        </AttachmentPrimitive.Root>
+        <TooltipContent side="top">
+          <AttachmentPrimitive.Name />
+          {errorMessage && (
+            <p className="aui-attachment-error-message">{errorMessage}</p>
+          )}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 
@@ -281,10 +284,10 @@ export const ComposerAddAttachment: FC = () => {
         side="bottom"
         variant="ghost"
         size="icon"
-        className="aui-composer-add-attachment hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-7 rounded-full p-1 text-xs font-semibold active:scale-[0.96] motion-reduce:transition-none"
+        className="aui-composer-add-attachment text-muted-foreground hover:text-foreground hover:bg-muted-foreground/15 dark:border-muted-foreground/15 dark:hover:bg-muted-foreground/30 size-7 rounded-full active:scale-[0.96] motion-reduce:transition-none"
         aria-label="Add Attachment"
       >
-        <PlusIcon className="aui-attachment-add-icon size-4.5 stroke-[1.5px]" />
+        <PlusIcon className="aui-attachment-add-icon size-4" />
       </TooltipIconButton>
     </ComposerPrimitive.AddAttachment>
   );

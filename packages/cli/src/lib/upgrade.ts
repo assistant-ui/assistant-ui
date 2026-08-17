@@ -2,13 +2,11 @@ import debug from "debug";
 import { transform, type TransformErrors, getRelevantFiles } from "./transform";
 import type { TransformOptions } from "./transform-options";
 import { SingleBar, Presets } from "cli-progress";
-import installReactUILib from "./install-ui-lib";
 import installEdgeLib from "./install-edge-lib";
 import installAiSdkLib from "./install-ai-sdk-lib";
 import { logger } from "./utils/logger";
 
 const bundle = [
-  "v0-8/ui-package-split",
   "v0-9/edge-package-split",
   "v0-11/content-part-to-message-part",
   "v0-12/assistant-api-to-aui",
@@ -83,7 +81,6 @@ export async function upgrade(options: TransformOptions) {
 
   // After codemods run, check if files import from the new packages and prompt for install.
   logger.info("Checking for package dependencies...");
-  await installReactUILib();
   await installEdgeLib();
   await installAiSdkLib();
 

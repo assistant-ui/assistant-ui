@@ -474,8 +474,20 @@ const useMcpServerResource = (
         void doConnect();
         return;
       }
-      const persisted = await props.storage.loadAuthState(props.id);
-      if (signal.cancelled) return;
+      const generation = connectionGenerationRef.current;
+      let persisted: Awaited<ReturnType<MCPStorage["loadAuthState"]>>;
+      try {
+        persisted = await props.storage.loadAuthState(props.id);
+      } catch (error) {
+        if (signal.cancelled || !isCurrentConnection(generation)) return;
+        const message = error instanceof Error ? error.message : String(error);
+        setLastError({
+          message: `MCP server "${props.id}" failed to load saved authentication: ${message}`,
+        });
+        setConnectionState("error");
+        return;
+      }
+      if (signal.cancelled || !isCurrentConnection(generation)) return;
       if (props.auth.type === "oauth") {
         if (!persisted?.tokens) return;
       } else if (!persisted?.token) {
@@ -539,8 +551,15 @@ const useMcpServerResource = (
     disconnect: doDisconnect,
     remove: async () => {
       await doDisconnect();
-      await props.storage.clearAuthState(props.id);
-      await props.onRemove();
+      try {
+        await props.storage.clearAuthState(props.id);
+        await props.onRemove();
+      } catch (err) {
+        setLastError({
+          message: err instanceof Error ? err.message : String(err),
+        });
+        throw err;
+      }
     },
     callTool: async (name, args) => {
       const client = clientRef.current;

@@ -4,7 +4,14 @@ export {
   convertEveMessage,
   convertEveMessages,
   getEveMessageContent,
+  toEveInputResponse,
 } from "./convertEveMessages";
-export type { ConvertEveMessagesOptions } from "./convertEveMessages";
+export type {
+  ConvertEveMessagesOptions,
+  EveAuthorizationData,
+  EveMessageContent,
+} from "./convertEveMessages";
 export { useEveAgentRuntime } from "./useEveAgentRuntime";
 export type { UseEveAgentRuntimeOptions } from "./useEveAgentRuntime";
+export { useEveError, useEveEvents, useEveReset, useEveSession } from "./hooks";
+export type { EveRuntimeExtras } from "./eveExtras";

@@ -12,14 +12,14 @@ export function IconGlyphGrid() {
       {ICON_NAMES.map((name) => (
         <div
           key={name}
-          className="border-border/60 flex flex-col items-center gap-2 rounded-lg border px-2 py-3"
+          className="bg-foreground/[0.03] dark:bg-foreground/[0.05] flex flex-col items-center gap-2 rounded-xl px-2 py-3"
         >
           {renderGenerativeUI(
             { $type: "Icon", name, size: "md" },
             styledGenerativeUILibrary,
             { status: "done" },
           )}
-          <span className="text-muted-foreground font-mono text-[11px]">
+          <span className="text-foreground/45 font-mono text-[11px] tracking-tight">
             {name}
           </span>
         </div>

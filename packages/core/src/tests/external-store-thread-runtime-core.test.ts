@@ -4,6 +4,7 @@ import type { ExternalStoreAdapter } from "../runtimes/external-store/external-s
 import type { ModelContextProvider } from "../model-context/types";
 import type { ThreadMessageLike } from "../runtime/utils/thread-message-like";
 import type { AppendMessage } from "../types/message";
+import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
 
 const mockContextProvider: ModelContextProvider = {
   getModelContext: () => ({}),
@@ -832,10 +833,12 @@ describe("ExternalStoreThreadRuntimeCore - initialize event replay", () => {
 describe("ExternalStoreThreadRuntimeCore - message queue", () => {
   const makeQueue = () => ({
     items: [] as never[],
+    steerItems: [] as never[],
     enqueue: vi.fn(),
     steer: vi.fn(),
+    move: vi.fn(),
+    edit: vi.fn(),
     remove: vi.fn(),
-    clear: vi.fn(),
   });
 
   const appendMessage = (
@@ -866,7 +869,130 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(withoutQueue.capabilities.queue).toBe(false);
   });
 
-  it("routes a tail append through queue.enqueue instead of onNew", async () => {
+  it("waits for thread initialization before enqueueing into the queue adapter", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = makeQueue();
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew, queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+
+    expect(queue.enqueue).not.toHaveBeenCalled();
+
+    resolveInitialization();
+    await appendPromise;
+
+    expect(queue.enqueue).toHaveBeenCalledTimes(1);
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("does not enqueue when the thread is invalidated during initialization", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew: vi.fn(), queue }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+    invalidateThreadRuntime(runtime);
+    resolveInitialization();
+
+    await appendPromise;
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.steer).not.toHaveBeenCalled();
+  });
+
+  it("dispatches an append without waiting for thread initialization", async () => {
+    const initialization = new Promise<void>(() => {});
+    const getInitializePromise = vi.fn(() => initialization);
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(getInitializePromise);
+
+    await runtime.append(appendMessage());
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(getInitializePromise).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispatches concurrent appends without waiting for initialization", async () => {
+    const initialization = new Promise<void>(() => {});
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    await Promise.all([
+      runtime.append(appendMessage()),
+      runtime.append(appendMessage()),
+    ]);
+
+    expect(onNew).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not fail the append when thread initialization rejects", async () => {
+    const initialization = Promise.reject(new Error("initialization failed"));
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    await runtime.append(appendMessage());
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops an append disposed while aborting client-side tools", async () => {
+    let resolveAbort!: () => void;
+    const abortPromise = new Promise<void>((resolve) => {
+      resolveAbort = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => Promise.resolve());
+    const abort = vi.fn(() => abortPromise);
+    (
+      runtime as unknown as { _toolInvocations: { abort: typeof abort } }
+    )._toolInvocations = {
+      abort,
+    };
+
+    const appendPromise = runtime.append(appendMessage());
+    await Promise.resolve();
+    expect(abort).toHaveBeenCalledOnce();
+
+    invalidateThreadRuntime(runtime);
+    resolveAbort();
+
+    await appendPromise;
+    expect(onNew).not.toHaveBeenCalled();
+  });
+
+  it("routes a tail append through the queue adapter instead of onNew", async () => {
     const queue = makeQueue();
     const onNew = vi.fn();
     const runtime = new ExternalStoreThreadRuntimeCore(
@@ -877,8 +1003,84 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     await runtime.append(appendMessage({ steer: true }));
 
     expect(onNew).not.toHaveBeenCalled();
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.steer).toHaveBeenCalledTimes(1);
+  });
+
+  it("routes an edit send to onEdit even when anchored at the head", async () => {
+    const queue = makeQueue();
+    const onNew = vi.fn();
+    const onEdit = vi.fn();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue, onNew, onEdit }),
+    );
+
+    await runtime.append(appendMessage({ sourceId: "u1" }));
+
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit.mock.calls[0]![0]).toMatchObject({
+      sourceId: "u1",
+      parentId: null,
+    });
+    expect(onNew).not.toHaveBeenCalled();
+    expect(queue.enqueue).not.toHaveBeenCalled();
+    expect(queue.steer).not.toHaveBeenCalled();
+  });
+
+  it("throws the edit capability error for an edit send instead of queueing it", async () => {
+    const queue = makeQueue();
+    const onNew = vi.fn();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue, onNew }),
+    );
+
+    await expect(
+      runtime.append(appendMessage({ sourceId: "u1" })),
+    ).rejects.toThrow("Runtime does not support editing messages.");
+    expect(onNew).not.toHaveBeenCalled();
+    expect(queue.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("defaults a mid-run send to steer and an idle send to enqueue", async () => {
+    const queue = makeQueue();
+    const running = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue, onNew: vi.fn(), isRunning: true }),
+    );
+    await running.append(
+      appendMessage({ parentId: running.messages.at(-1)?.id ?? null }),
+    );
+    expect(queue.steer).toHaveBeenCalledTimes(1);
+    expect(queue.enqueue).not.toHaveBeenCalled();
+
+    const idleQueue = makeQueue();
+    const idle = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue: idleQueue, onNew: vi.fn(), isRunning: false }),
+    );
+    await idle.append(
+      appendMessage({ parentId: idle.messages.at(-1)?.id ?? null }),
+    );
+    expect(idleQueue.enqueue).toHaveBeenCalledTimes(1);
+    expect(idleQueue.steer).not.toHaveBeenCalled();
+  });
+
+  it("queues behind pending items when steer is explicitly false mid-run", async () => {
+    const queue = makeQueue();
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ queue, onNew: vi.fn(), isRunning: true }),
+    );
+    await runtime.append(
+      appendMessage({
+        steer: false,
+        parentId: runtime.messages.at(-1)?.id ?? null,
+      }),
+    );
     expect(queue.enqueue).toHaveBeenCalledTimes(1);
-    expect(queue.enqueue.mock.calls[0]![1]).toEqual({ steer: true });
+    expect(queue.steer).not.toHaveBeenCalled();
   });
 
   it("does not abort in-flight tools when buffering a queued send", async () => {
@@ -913,7 +1115,7 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(abort).toHaveBeenCalledTimes(1);
   });
 
-  it("clears the queue on cancel, reload, and edit", async () => {
+  it("keeps the queue on cancel, reload, and edit", async () => {
     const queue = makeQueue();
     const runtime = new ExternalStoreThreadRuntimeCore(
       mockContextProvider,
@@ -926,29 +1128,30 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     );
 
     runtime.cancelRun();
-    expect(queue.clear).toHaveBeenCalledWith("cancel-run");
-
     await runtime.startRun({ parentId: null, sourceId: null, runConfig: {} });
-    expect(queue.clear).toHaveBeenCalledWith("reload");
-
     // a non-tail parentId routes to the edit branch
     await runtime.append(appendMessage({ parentId: "not-the-tail" }));
-    expect(queue.clear).toHaveBeenCalledWith("edit");
+
+    expect(queue.remove).not.toHaveBeenCalled();
+    expect(queue.move).not.toHaveBeenCalled();
   });
 
-  it("delegates getQueueItems / steer / remove to the adapter", () => {
+  it("delegates queue reads / move / remove to the adapter", () => {
     const queue = makeQueue();
-    const items = [{ id: "q1", prompt: "queued" }];
+    const items = [{ id: "q1", prompt: "queued", parts: [] }];
+    const steerItems = [{ id: "s1", prompt: "steered", parts: [] }];
     queue.items = items as never;
+    queue.steerItems = steerItems as never;
     const runtime = new ExternalStoreThreadRuntimeCore(
       mockContextProvider,
       makeStore({ queue }),
     );
 
     expect(runtime.getQueueItems()).toBe(items);
-    runtime.steerQueueItem("q1");
+    expect(runtime.getSteerQueueItems()).toBe(steerItems);
+    runtime.moveQueueItem("q1", { lane: "steer" });
     runtime.removeQueueItem("q1");
-    expect(queue.steer).toHaveBeenCalledWith("q1");
+    expect(queue.move).toHaveBeenCalledWith("q1", { lane: "steer" });
     expect(queue.remove).toHaveBeenCalledWith("q1");
   });
 });

@@ -1,9 +1,11 @@
 /// <reference path="./scope-registration.ts" />
+/// <reference path="../react/types/store-augmentation.ts" />
 
 // scopes
 export type {
   ThreadsState,
   ThreadsMethods,
+  ThreadsEvents,
   ThreadsClientSchema,
 } from "./scopes/threads";
 export type {
@@ -77,7 +79,55 @@ export type {
   ChainOfThoughtPart,
 } from "./scopes/chain-of-thought";
 
+// runtime wiring
+export {
+  RuntimeAdapter,
+  runtimeAdapterTransformScopes,
+} from "../react/RuntimeAdapter";
+export {
+  InMemoryThreadList,
+  inMemoryThreadListTransformScopes,
+  type InMemoryThreadListProps,
+} from "../react/client/InMemoryThreadList";
+export {
+  RemoteThreadList,
+  type RemoteThreadListProps,
+} from "../react/client/RemoteThreadList";
+export {
+  useExternalMessageConverter,
+  convertExternalMessages,
+  type JoinStrategy,
+} from "../react/runtimes/external-message-converter";
+export {
+  useStreamingTiming,
+  type StreamingTimingAccessors,
+  type StreamingTimingOptions,
+  type StreamingTimingState,
+} from "../react/runtimes/useStreamingTiming";
+export {
+  createRuntimeExtrasBrand,
+  type RuntimeExtrasBrand,
+} from "../runtime/utils/runtime-extras-brand";
+export { defineToolkit } from "../react/model-context/define-toolkit";
+export {
+  defineMcpToolkit,
+  type McpToolkitDefinition,
+  type McpToolkitEntry,
+  type McpToolkitToolConfig,
+} from "../react/model-context/define-mcp-toolkit";
+export type {
+  Toolkit,
+  ToolkitDefinition,
+  ToolkitDefinitionEntry,
+} from "../react/model-context/toolbox";
+
 // clients
+export {
+  ExternalThread,
+  type ExternalThreadProps,
+  type ExternalThreadMessage,
+} from "./clients/external-thread";
+export { SingleThreadList } from "./clients/single-thread-list";
 export { NoOpComposerClient } from "./clients/no-op-composer-client";
 export { Suggestions, type SuggestionConfig } from "./clients/suggestions";
 export { ChainOfThoughtClient } from "./clients/chain-of-thought-client";

@@ -41,7 +41,7 @@ Interactables allow both agents and users to read and edit tool UIs and componen
 
 ```tsx
 import {
-  useAui,
+  AuiConfig,
   unstable_Interactables,
   AssistantRuntimeProvider,
   Tools,
@@ -50,13 +50,15 @@ import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
-
-  const aui = useAui({
+  const config = AuiConfig({
     unstable_interactables: unstable_Interactables(), // [!code ++]
   });
 
   return (
-    <AssistantRuntimeProvider aui={aui} runtime={runtime}>
+    <AssistantRuntimeProvider
+      runtime={runtime}
+      config={config}
+    >
       {children}
     </AssistantRuntimeProvider>
   );
@@ -64,9 +66,10 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 ```
 
 <Callout type="idea">
-  The legacy `interactables: Interactables()` scope and the new
-  `unstable_interactables: unstable_Interactables()` scope are mutually
-  exclusive. Mount only one interactables API in a single `useAui` provider.
+  The deprecated [`interactables:
+  Interactables()`](/docs/api-reference/tools/interactables-legacy) scope and the
+  new `unstable_interactables: unstable_Interactables()` scope are mutually
+  exclusive. Mount only one interactables API in a single provider config.
 </Callout>
 
 This scope is needed for both kinds of interactable. Thread-scoped interactables also live in a toolkit, which you register with `Tools` (shown below).
@@ -166,7 +169,7 @@ const toolkit = defineToolkit({
 Register the toolkit alongside the `unstable_Interactables` scope:
 
 ```tsx
-const aui = useAui({
+AuiConfig({
   unstable_interactables: unstable_Interactables(),
   tools: Tools({ toolkit }), // [!code ++]
 });
@@ -592,7 +595,12 @@ An app-scoped item's history covers the current conversation, not its full cross
 By default, app-scoped interactable state is in-memory and lost on page refresh. You can add persistence by passing an adapter to `unstable_Interactables`:
 
 ```tsx
-import { useAui, unstable_Interactables } from "@assistant-ui/react";
+import {
+  AuiConfig,
+  AuiProvider,
+  useAui,
+  unstable_Interactables,
+} from "@assistant-ui/react";
 
 // Module-level (or memoized) so the adapter identity is stable across renders.
 const persistenceAdapter = {
@@ -606,13 +614,17 @@ const persistenceAdapter = {
 };
 
 function MyRuntimeProvider({ children }) {
-  const aui = useAui({
+  const aui = useAui();
+  const config = AuiConfig({
     unstable_interactables: unstable_Interactables({
       persistence: persistenceAdapter,
     }),
   });
-
-  return /* ... */;
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 }
 ```
 
@@ -700,7 +712,7 @@ Inside a thread-scoped `render`, `streaming: true` carries the same live state: 
 
 ## Multiple Instances
 
-A `name` can have many live instances at once. They all share one `update_{name}` tool: the model addresses an instance with the tool's `id` parameter, which it reads from the state snapshots in the conversation. The tool's name, schema, and description never change as instances mount and unmount, so the model's tool list (and provider prompt caches) stay stable. While exactly one instance exists, the model may omit `id`; a call with an unknown `id` returns an error listing the valid ids, so the model can recover.
+A `name` can have many live instances at once. They all share one `update_{name}` tool: the model addresses an instance with the tool's `id` parameter, which it reads from the state snapshots in the conversation. The tool's name, schema, and description never change as instances mount and unmount, so the model's tool list (and provider prompt caches) stay stable. The schema marks `id` as required, so the model is expected to send it on every call; the runtime still resolves an id-less call while exactly one instance exists. A call with an unknown `id` returns an error listing the valid ids, so the model can recover.
 
 How instances come into being differs by scope.
 
@@ -1040,10 +1052,10 @@ Every version of an interactable recorded in the current thread, oldest first. E
 
 ### `unstable_Interactables`
 
-The scope resource that manages all interactables. Register it via `useAui`, optionally with a [persistence adapter](#persistence):
+The scope resource that manages all interactables. Register it via your provider's `config`, optionally with a [persistence adapter](#persistence):
 
 ```tsx
-const aui = useAui({
+AuiConfig({
   unstable_interactables: unstable_Interactables({ persistence: myAdapter }),
 });
 ```

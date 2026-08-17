@@ -16,11 +16,18 @@ export function a2aPartToContent(
   }
   if (part.url !== undefined) {
     if (isImageMediaType(part.mediaType)) {
-      return { type: "image", image: part.url };
+      return {
+        type: "image",
+        image: part.url,
+        ...(part.filename && { filename: part.filename }),
+      };
     }
     return {
-      type: "text",
-      text: part.filename ? `[${part.filename}](${part.url})` : part.url,
+      type: "file",
+      data: part.url,
+      mimeType: part.mediaType ?? "application/octet-stream",
+      sourceType: "url",
+      ...(part.filename && { filename: part.filename }),
     };
   }
   if (part.raw !== undefined) {
@@ -28,11 +35,14 @@ export function a2aPartToContent(
       return {
         type: "image",
         image: `data:${part.mediaType};base64,${part.raw}`,
+        ...(part.filename && { filename: part.filename }),
       };
     }
     return {
-      type: "text",
-      text: `[File: ${part.filename ?? "download"}]`,
+      type: "file",
+      data: part.raw,
+      mimeType: part.mediaType ?? "application/octet-stream",
+      ...(part.filename && { filename: part.filename }),
     };
   }
   if (part.data !== undefined) {
@@ -44,7 +54,7 @@ export function a2aPartToContent(
 export function a2aPartsToContent(
   parts: A2APart[],
 ): ThreadAssistantMessage["content"] {
-  return parts.map(a2aPartToContent);
+  return (Array.isArray(parts) ? parts : []).map(a2aPartToContent);
 }
 
 const TERMINAL_STATES = new Set<A2ATaskState>([
@@ -173,5 +183,5 @@ export function contentPartsToA2AParts(
 export function a2aMessageToContent(
   message: A2AMessage,
 ): ThreadAssistantMessage["content"] {
-  return a2aPartsToContent(message.parts);
+  return a2aPartsToContent(message?.parts ?? []);
 }

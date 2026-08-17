@@ -36,14 +36,17 @@ Compose `McpAppRenderer({...})` into your `Tools` resource. Provide `host.url` p
 
 ```tsx
 import {
-  useAui,
+  AuiConfig,
+  AuiProvider,
   Tools,
   McpAppRenderer,
   McpAppsRemoteHost,
+  useAui,
 } from "@assistant-ui/react";
 
-function MyAssistant() {
-  useAui({
+function MyAssistant({ children }) {
+  const aui = useAui();
+  const config = AuiConfig({
     tools: Tools({
       toolkit: myToolkit,
       mcpApp: McpAppRenderer({
@@ -53,7 +56,11 @@ function MyAssistant() {
       }),
     }),
   });
-  // ...
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
 }
 ```
 

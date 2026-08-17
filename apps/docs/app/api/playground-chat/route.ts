@@ -2,7 +2,7 @@ import { checkRateLimit } from "@/lib/rate-limit";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { NextResponse } from "next/server";
 import {
   convertToModelMessages,
