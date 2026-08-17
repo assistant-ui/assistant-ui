@@ -15,8 +15,10 @@ import {
   updateStatusReducer,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type {
+  RemoteThreadListAdapter,
   RemoteThreadListOptions,
   RemoteThreadListProviderComponent,
+  RuntimeAdapters,
 } from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import {
@@ -33,10 +35,35 @@ import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
 
+const synthesizedProviders = new WeakMap<
+  () => RuntimeAdapters | null | undefined,
+  ComponentType<PropsWithChildren>
+>();
+
 const asProviderComponent = (
   provider: RemoteThreadListProviderComponent | undefined,
-): ComponentType<PropsWithChildren> =>
-  (provider ?? Fragment) as ComponentType<PropsWithChildren>;
+  useAdapters: RemoteThreadListAdapter["unstable_useAdapters"],
+): ComponentType<PropsWithChildren> => {
+  if (provider !== undefined) {
+    return provider as ComponentType<PropsWithChildren>;
+  }
+  if (useAdapters === undefined) return Fragment;
+  const cached = synthesizedProviders.get(useAdapters);
+  if (cached) return cached;
+  const AdapterProvider: FC<PropsWithChildren> = function AdapterProvider({
+    children,
+  }) {
+    const adapters = useAdapters();
+    if (adapters == null) return children;
+    return (
+      <RuntimeAdapterProvider adapters={adapters}>
+        {children}
+      </RuntimeAdapterProvider>
+    );
+  };
+  synthesizedProviders.set(useAdapters, AdapterProvider);
+  return AdapterProvider;
+};
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -205,7 +232,10 @@ export class RemoteThreadListThreadListRuntimeCore
       this._notifySubscribers(),
     );
     this.useProvider = create(() => ({
-      Provider: asProviderComponent(options.adapter.unstable_Provider),
+      Provider: asProviderComponent(
+        options.adapter.unstable_Provider,
+        options.adapter.unstable_useAdapters,
+      ),
     }));
     this.__internal_setOptions(options);
     this.switchToNewThread();
@@ -226,7 +256,10 @@ export class RemoteThreadListThreadListRuntimeCore
 
     this._options = options;
 
-    const Provider = asProviderComponent(options.adapter.unstable_Provider);
+    const Provider = asProviderComponent(
+      options.adapter.unstable_Provider,
+      options.adapter.unstable_useAdapters,
+    );
     if (Provider !== this.useProvider.getState().Provider) {
       this.useProvider.setState({ Provider }, true);
     }

@@ -19,7 +19,13 @@ const useAdaptedRemoteThread = ({
   const adapters = useAdapters();
   const merged = useMemo(
     () => (adapters == null ? parent : { ...parent, ...adapters }),
-    [parent, adapters],
+    [
+      parent,
+      adapters == null,
+      adapters?.modelContext,
+      adapters?.history,
+      adapters?.attachments,
+    ],
   );
   return useRuntimeAdaptersProvider(merged, function useBoundRemoteThread() {
     return useClientResource(thread).methods;

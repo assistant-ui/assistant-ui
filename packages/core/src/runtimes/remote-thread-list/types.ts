@@ -65,8 +65,10 @@ export type RemoteThreadListAdapter = {
    * inject per-thread context such as a history or attachments adapter (see
    * `useCloudThreadListAdapter` for the canonical shape).
    *
-   * `useRemoteThreadListRuntime` renders this component. The `RemoteThreadList`
-   * store entry ignores it; expose `unstable_useAdapters` for that host.
+   * `useRemoteThreadListRuntime` renders this component when present. If it
+   * is omitted, that host synthesizes a `RuntimeAdapterProvider` from
+   * `unstable_useAdapters`. The `RemoteThreadList` store entry ignores it;
+   * expose `unstable_useAdapters` for that host.
    *
    * The Provider must render `children` on its first commit; deferring them
    * behind a loading state, a Suspense boundary, or a `useEffect`-gated render
@@ -78,10 +80,11 @@ export type RemoteThreadListAdapter = {
   /**
    * Hook the `RemoteThreadList` store entry calls once for the main-thread
    * slot, then provides to the `thread` factory. This is not mounted per
-   * listed thread. Resolve `threadListItem` lazily on each adapter call; do
-   * not capture it at hook mount. The hook must keep a stable hook count
-   * across adapter swaps; a different count throws. Memoize the returned
-   * object.
+   * listed thread. `useRemoteThreadListRuntime` also calls it when
+   * `unstable_Provider` is omitted. Resolve `threadListItem` lazily on each
+   * adapter call; do not capture it at hook mount. The hook must keep a
+   * stable hook count across adapter swaps; a different count throws.
+   * Memoize the returned object.
    *
    * Per-thread history also requires the `thread` factory to be keyed by
    * thread id (`withKey(id, thread(...))`). History loaders such as

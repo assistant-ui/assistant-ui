@@ -227,7 +227,7 @@ export async function POST(
 
 ### Implement `RemoteThreadListAdapter`
 
-The adapter calls your endpoints. `unstable_useAdapters` injects the per-thread history adapter on the `RemoteThreadList` store entry. `unstable_Provider` is the same adapters for `useRemoteThreadListRuntime`.
+The adapter calls your endpoints. `unstable_useAdapters` injects the per-thread history adapter on the `RemoteThreadList` store entry and on `useRemoteThreadListRuntime` when `unstable_Provider` is omitted. `unstable_Provider` is an optional React face for that runtime.
 
 <PlatformTabs>
 <Tab value="React">
