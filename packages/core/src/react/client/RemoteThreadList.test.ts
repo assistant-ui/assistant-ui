@@ -24,9 +24,10 @@ const deferred = <T>() => {
 const useStubThread = (props: {
   threadId: string;
   refetch?: (() => Promise<void>) | undefined;
+  isRunning?: boolean | undefined;
 }) => ({
   getState: () => ({
-    isRunning: false,
+    isRunning: props.isRunning === true,
     messages: [],
   }),
   composer: () => stubComposer,
@@ -303,6 +304,119 @@ describe("RemoteThreadList", () => {
     expect(handle.getClient().threads.item("main").getState().title).toBe(
       "Mine",
     );
+    handle.destroy();
+  });
+
+  it("keeps item(main) isRunning after reload remaps the local id", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [] })),
+    });
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: RemoteThreadList({
+          adapter,
+          thread: (id) =>
+            StubThread({ threadId: id, isRunning: true }) as never,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    await handle.getClient().threads.getLoadThreadsPromise();
+    const localId = handle.getClient().threads.getState().mainThreadId;
+    await handle.getClient().threads.item("main").initialize();
+    adapter.list = vi.fn(async () => ({
+      threads: [
+        {
+          status: "regular" as const,
+          remoteId: `remote-${localId}`,
+          title: "Mine",
+        },
+      ],
+    }));
+    await handle.getClient().threads.reload();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.item("main").getState().remoteId).toBe(
+        `remote-${localId}`,
+      );
+    });
+    expect(handle.getClient().threads.item("main").getState().isRunning).toBe(
+      true,
+    );
+    handle.destroy();
+  });
+
+  it("switches away when deleting the remapped main thread by remote id", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: [] })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+    await aui.threads.item("main").initialize();
+    const remoteId = `remote-${localId}`;
+    adapter.list = vi.fn(async () => ({
+      threads: [{ status: "regular" as const, remoteId, title: "Mine" }],
+    }));
+    await handle.getClient().threads.reload();
+    await vi.waitFor(() => {
+      expect(
+        handle.getClient().threads.item({ id: remoteId }).getState().remoteId,
+      ).toBe(remoteId);
+    });
+    flushTapSync(() =>
+      handle.getClient().threads.item({ id: remoteId }).delete(),
+    );
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).not.toBe(
+        localId,
+      );
+      expect(handle.getClient().threads.getState().threadIds).not.toContain(
+        remoteId,
+      );
+    });
+    expect(() =>
+      handle.getClient().threads.item("main").getState(),
+    ).not.toThrow();
+    handle.destroy();
+  });
+
+  it("does not reload when the adapter object is recreated", async () => {
+    const methods = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+    });
+    let adapter: RemoteThreadListAdapter = { ...methods };
+    const listeners = new Set<() => void>();
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    await handle.getClient().threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().threadIds).toEqual(["t1"]);
+    });
+    expect(methods.list).toHaveBeenCalledTimes(1);
+    adapter = { ...methods };
+    for (const listener of listeners) listener();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().threadIds).toEqual(["t1"]);
+    });
+    expect(methods.list).toHaveBeenCalledTimes(1);
     handle.destroy();
   });
 
