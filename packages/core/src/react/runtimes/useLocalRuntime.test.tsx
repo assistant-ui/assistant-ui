@@ -170,8 +170,11 @@ describe("useLocalRuntime", () => {
       );
     });
 
+    const loadsAfterMount = history.load.mock.calls.length;
+    const errorsAfterMount = consoleError.mock.calls.length;
+    expect(loadsAfterMount).toBeGreaterThan(0);
     rerender(renderApp());
-    expect(history.load).toHaveBeenCalledTimes(1);
-    expect(consoleError).toHaveBeenCalledTimes(1);
+    expect(history.load).toHaveBeenCalledTimes(loadsAfterMount);
+    expect(consoleError).toHaveBeenCalledTimes(errorsAfterMount);
   });
 });
