@@ -226,9 +226,9 @@ const useStreamThreadRuntime = (
     const messages = stream.messages as readonly LangChainBaseMessage[];
     const owned = runConfigByMessageIdRef.current;
     for (let i = messages.length - 1; i >= 0; i--) {
-      const message = messages[i];
+      const message = messages.at(i);
       if (
-        !message.id ||
+        !message?.id ||
         getMessageType(message) !== "ai" ||
         !message.tool_calls?.length
       ) {
