@@ -96,6 +96,7 @@ const useRemoteThreadBinder = ({
 
   const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
   const hasInitializedRef = useRef(false);
+  const titleDisposeRef = useRef<(() => void) | undefined>(undefined);
 
   const handleInitialize = useEffectEvent(() => {
     if (hasInitializedRef.current) return;
@@ -113,7 +114,11 @@ const useRemoteThreadBinder = ({
     // response, and forever when the run never completes.
     void initPromise.then(
       () => {
-        subscribeToTitleGeneration(runtime.thread, itemRuntime);
+        titleDisposeRef.current?.();
+        titleDisposeRef.current = subscribeToTitleGeneration(
+          runtime.thread,
+          itemRuntime,
+        );
       },
       () => {
         if (initPromiseRef.current === initPromise) {
@@ -141,7 +146,15 @@ const useRemoteThreadBinder = ({
   useEffect(() => {
     if (!runtime?.threads?.main) return undefined;
     hasInitializedRef.current = false;
-    return runtime.threads.main.unstable_on("initialize", handleInitialize);
+    const unsubscribe = runtime.threads.main.unstable_on(
+      "initialize",
+      handleInitialize,
+    );
+    return () => {
+      unsubscribe();
+      titleDisposeRef.current?.();
+      titleDisposeRef.current = undefined;
+    };
   }, [runtime]);
 
   return runtime;

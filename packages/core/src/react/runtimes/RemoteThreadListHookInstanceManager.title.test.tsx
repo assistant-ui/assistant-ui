@@ -90,6 +90,59 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     ]);
   });
 
+  it("excludes the in-flight assistant message from the title payload", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const generateTitle = vi.fn(async () => new ReadableStream());
+    const adapter = makeAdapter({
+      initialize: vi.fn(() => initialization.promise),
+      generateTitle,
+    });
+    const runtimeRef: { current: AssistantRuntime | null } = { current: null };
+
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: () =>
+          useLocalRuntime({ run: () => new Promise<never>(() => {}) }),
+      });
+      runtimeRef.current = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(runtimeRef.current?.threads.mainItem.getState().id).toBeDefined();
+    });
+    const localId = runtimeRef.current!.threads.mainItem.getState().id;
+
+    void getThreadCore(runtimeRef.current!).append({
+      ...userMessage("hello"),
+      startRun: true,
+    });
+    await act(async () => {});
+
+    initialization.resolve({
+      remoteId: `remote-${localId}`,
+      externalId: `external-${localId}`,
+    });
+
+    await waitFor(() => {
+      expect(generateTitle).toHaveBeenCalledTimes(1);
+    });
+    const [, titledMessages] = generateTitle.mock.calls[0] as [
+      string,
+      readonly { role: string }[],
+    ];
+    expect(titledMessages.map((message) => message.role)).toEqual(["user"]);
+  });
+
   it("waits for the first message when initialization resolves before the store lands it", async () => {
     const generateTitle = vi.fn(async () => new ReadableStream());
     const adapter = makeAdapter({ generateTitle });
