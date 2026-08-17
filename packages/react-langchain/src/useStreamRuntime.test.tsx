@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type {
   AssistantRuntime,
+  AppendMessage,
   RemoteThreadListAdapter,
 } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
@@ -156,10 +157,12 @@ const makeThreadListAdapter = (): RemoteThreadListAdapter => ({
 
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
-  const promise = new Promise<T>((res) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 };
 
 describe("useStreamRuntime thread options", () => {
@@ -202,7 +205,7 @@ describe("useStreamRuntime thread options", () => {
     view.unmount();
   });
 
-  it("submits with the initialized thread id when initialization resolves before rerender", async () => {
+  it("renders before initialization and submits with the initialized thread id", async () => {
     const stream = createMockStream();
     mockUseStream.mockReturnValue(stream);
     const initialization = deferred<{
@@ -213,18 +216,29 @@ describe("useStreamRuntime thread options", () => {
     threadListAdapter.list = vi.fn(async () => ({ threads: [] }));
     threadListAdapter.initialize = vi.fn(() => initialization.promise);
 
-    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const capture: {
+      runtime: AssistantRuntime | null;
+      aui?: ReturnType<typeof useAui>;
+    } = { runtime: null };
+    const Capture = () => {
+      capture.aui = useAui();
+      return null;
+    };
     const TestRuntime = () => {
       const runtime = useStreamRuntime({
         apiUrl: "/api",
         unstable_threadListAdapter: threadListAdapter,
       } as never);
       capture.runtime = runtime;
-      return <AssistantRuntimeProvider runtime={runtime} />;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Capture />
+        </AssistantRuntimeProvider>
+      );
     };
 
     const view = render(<TestRuntime />);
-    await waitFor(() => expect(capture.runtime).not.toBeNull());
+    await waitFor(() => expect(capture.aui).toBeDefined());
 
     await act(async () => {
       capture.runtime!.thread.append({
@@ -235,6 +249,7 @@ describe("useStreamRuntime thread options", () => {
     });
 
     expect(stream.submit).not.toHaveBeenCalled();
+    expect(getText(capture.aui!)).toEqual(["hello"]);
 
     await act(async () => {
       initialization.resolve({ remoteId: "thread-b", externalId: "thread-b" });
@@ -242,10 +257,22 @@ describe("useStreamRuntime thread options", () => {
 
     await waitFor(() =>
       expect(stream.submit).toHaveBeenCalledWith(
-        { messages: [{ type: "human", content: "hello" }] },
+        {
+          messages: [
+            expect.objectContaining({
+              id: expect.any(String),
+              type: "human",
+              content: "hello",
+            }),
+          ],
+        },
         { threadId: "thread-b" },
       ),
     );
+
+    stream.messages = [message("echo-hello", "human", "hello")];
+    view.rerender(<TestRuntime />);
+    await waitFor(() => expect(getText(capture.aui!)).toEqual(["hello"]));
     view.unmount();
   });
 
@@ -278,6 +305,79 @@ describe("useStreamRuntime thread options", () => {
     for (const call of stream.submit.mock.calls) {
       expect(call[1]).not.toHaveProperty("threadId");
     }
+    view.unmount();
+  });
+
+  it("removes the staged message when initialization fails", async () => {
+    const stream = createMockStream();
+    mockUseStream.mockReturnValue(stream);
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const threadListAdapter = makeThreadListAdapter();
+    threadListAdapter.list = vi.fn(async () => ({ threads: [] }));
+    threadListAdapter.initialize = vi.fn(() => initialization.promise);
+
+    const capture: {
+      runtime: AssistantRuntime | null;
+      aui?: ReturnType<typeof useAui>;
+    } = { runtime: null };
+    const Capture = () => {
+      capture.aui = useAui();
+      return null;
+    };
+    const TestRuntime = () => {
+      const runtime = useStreamRuntime({
+        apiUrl: "/api",
+        unstable_threadListAdapter: threadListAdapter,
+      } as never);
+      capture.runtime = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Capture />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const view = render(<TestRuntime />);
+    await waitFor(() => expect(capture.aui).toBeDefined());
+
+    const core = (
+      capture.runtime!.thread as unknown as {
+        __internal_threadBinding: {
+          getState(): { append(message: AppendMessage): Promise<void> };
+        };
+      }
+    ).__internal_threadBinding.getState();
+    let appendPromise!: Promise<void>;
+    await act(async () => {
+      appendPromise = core.append({
+        parentId: null,
+        sourceId: null,
+        runConfig: undefined,
+        role: "user",
+        content: [{ type: "text", text: "failed" }],
+        attachments: [],
+        metadata: { custom: {} },
+        createdAt: new Date(0),
+      });
+      await Promise.resolve();
+    });
+    const appendResult = appendPromise.then(
+      () => undefined,
+      (error: unknown) => error,
+    );
+    expect(getText(capture.aui!)).toEqual(["failed"]);
+
+    await act(async () => {
+      initialization.reject(new Error("initialize failed"));
+    });
+    await expect(appendResult).resolves.toMatchObject({
+      message: "initialize failed",
+    });
+    await waitFor(() => expect(getText(capture.aui!)).toEqual([]));
+    expect(stream.submit).not.toHaveBeenCalled();
     view.unmount();
   });
 });
@@ -331,7 +431,9 @@ describe("useStreamRuntime run configuration", () => {
     expect(stream.submit).toHaveBeenNthCalledWith(
       1,
       {
-        messages: [{ type: "human", content: "hello" }],
+        messages: [
+          expect.objectContaining({ type: "human", content: "hello" }),
+        ],
       },
       config,
     );

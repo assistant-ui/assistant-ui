@@ -2,7 +2,11 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { AppendMessage, ToolExecutionStatus } from "@assistant-ui/core";
+import type {
+  AppendMessage,
+  ExternalStoreAdapter,
+  ToolExecutionStatus,
+} from "@assistant-ui/core";
 import {
   generateId,
   getExternalStoreMessages,
@@ -15,6 +19,7 @@ import {
   useExternalMessageConverter,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
+import { EXTERNAL_STORE_ON_NEW_BEFORE_INITIALIZE } from "@assistant-ui/core/internal";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { STREAM_CONTROLLER, useChannel, useStream } from "@langchain/react";
 import type { Channel } from "@langchain/react";
@@ -94,6 +99,11 @@ const toStagedHumanMessage = (
   _getType: () => "human",
   content: getMessageContent(msg),
 });
+
+const hasSameMessageContent = (
+  a: LangChainBaseMessage,
+  b: LangChainBaseMessage,
+) => JSON.stringify(a.content) === JSON.stringify(b.content);
 
 const truncateLangChainBaseMessages = (
   threadMessages: readonly ThreadMessage[],
@@ -262,10 +272,15 @@ const useStreamThreadRuntime = (
       {
         message: LangChainBaseMessage & { id: string };
         runConfig: AppendMessage["runConfig"];
+        reconcileOnEcho: boolean;
+        baseMessageCount: number;
       }
     >(),
   );
   const stagedBaseMessagesRef = useRef<LangChainBaseMessage[] | null>(null);
+  const stagedMessageIdsByAppendMessageRef = useRef(
+    new WeakMap<AppendMessage, string>(),
+  );
 
   useEffect(() => {
     if (stagedMessagesRef.current.size === 0) return;
@@ -274,18 +289,28 @@ const useStreamThreadRuntime = (
     const baseMessages =
       stagedBaseMessagesRef.current ??
       (stream.messages as LangChainBaseMessage[]);
-    const baseMessageIds = new Set(
-      baseMessages.flatMap((message) => (message.id ? [message.id] : [])),
-    );
     const remainingStagedMessages: LangChainBaseMessage[] = [];
-    const seenStagedIds = new Set<string>();
-    for (const message of visibleMessagesRef.current) {
-      if (!message.id || seenStagedIds.has(message.id)) continue;
-      if (baseMessageIds.has(message.id)) continue;
-      const staged = stagedMessagesRef.current.get(message.id);
-      if (!staged) continue;
-      remainingStagedMessages.push(staged.message);
-      seenStagedIds.add(message.id);
+    const matchedBaseMessageIndexes = new Set<number>();
+    for (const [id, staged] of stagedMessagesRef.current) {
+      const echoed = baseMessages.some((message, index) => {
+        if (matchedBaseMessageIndexes.has(index)) return false;
+        if (message.id === id) {
+          matchedBaseMessageIndexes.add(index);
+          return true;
+        }
+        if (
+          !staged.reconcileOnEcho ||
+          index < staged.baseMessageCount ||
+          getMessageType(message) !== "human" ||
+          !hasSameMessageContent(message, staged.message)
+        ) {
+          return false;
+        }
+        matchedBaseMessageIndexes.add(index);
+        return true;
+      });
+      if (echoed) stagedMessagesRef.current.delete(id);
+      else remainingStagedMessages.push(staged.message);
     }
 
     if (remainingStagedMessages.length === 0) {
@@ -317,15 +342,42 @@ const useStreamThreadRuntime = (
     };
   };
 
-  const stageUserMessage = (msg: AppendMessage) => {
+  const stageUserMessage = (msg: AppendMessage, reconcileOnEcho = false) => {
     const stagedMessage = toStagedHumanMessage(msg);
     stagedMessagesRef.current.set(stagedMessage.id, {
       message: stagedMessage,
       runConfig: msg.runConfig,
+      reconcileOnEcho,
+      baseMessageCount: streamRef.current.messages.length,
     });
     const nextMessages = [...visibleMessagesRef.current, stagedMessage];
     visibleMessagesRef.current = nextMessages;
     setStagedMessages(nextMessages);
+    return stagedMessage;
+  };
+
+  const removeStagedMessage = (id: string) => {
+    if (!stagedMessagesRef.current.delete(id)) return;
+    const nextMessages = visibleMessagesRef.current.filter(
+      (message) => message.id !== id,
+    );
+    visibleMessagesRef.current = nextMessages;
+    if (stagedMessagesRef.current.size === 0) {
+      stagedBaseMessagesRef.current = null;
+      setStagedMessages(null);
+    } else {
+      setStagedMessages(nextMessages);
+    }
+  };
+
+  const onNewBeforeInitialize = (msg: AppendMessage) => {
+    if (!(msg.startRun ?? msg.role === "user")) return;
+    const stagedMessage = stageUserMessage(msg, true);
+    stagedMessageIdsByAppendMessageRef.current.set(msg, stagedMessage.id);
+    return () => {
+      stagedMessageIdsByAppendMessageRef.current.delete(msg);
+      removeStagedMessage(stagedMessage.id);
+    };
   };
 
   const extras = useMemo(
@@ -362,6 +414,7 @@ const useStreamThreadRuntime = (
     messages: threadMessages,
     adapters,
     extras,
+    [EXTERNAL_STORE_ON_NEW_BEFORE_INITIALIZE]: onNewBeforeInitialize,
     unstable_enableToolInvocations: true,
     setToolStatuses,
     onNew: async (msg) => {
@@ -388,13 +441,31 @@ const useStreamThreadRuntime = (
       // away from its self-created thread and forces a fresh one, so the
       // override is only passed once initialization produced an identity.
       const externalId = aui.threadListItem.getState().externalId;
-      await streamRef.current.submit(
-        { [messagesKey]: [...cancellations, { type: "human", content }] },
-        {
-          ...runConfigToSubmitOptions(msg.runConfig),
-          ...(externalId != null ? { threadId: externalId } : {}),
-        },
-      );
+      const stagedMessageId =
+        stagedMessageIdsByAppendMessageRef.current.get(msg);
+      try {
+        await streamRef.current.submit(
+          {
+            [messagesKey]: [
+              ...cancellations,
+              {
+                ...(stagedMessageId ? { id: stagedMessageId } : {}),
+                type: "human",
+                content,
+              },
+            ],
+          },
+          {
+            ...runConfigToSubmitOptions(msg.runConfig),
+            ...(externalId != null ? { threadId: externalId } : {}),
+          },
+        );
+      } catch (error) {
+        if (stagedMessageId) removeStagedMessage(stagedMessageId);
+        throw error;
+      } finally {
+        stagedMessageIdsByAppendMessageRef.current.delete(msg);
+      }
     },
     onAddToolResult: async ({
       messageId,
@@ -486,6 +557,8 @@ const useStreamThreadRuntime = (
         stagedMessagesRef.current.set(stagedMessage.id, {
           message: stagedMessage,
           runConfig: message.runConfig,
+          reconcileOnEcho: false,
+          baseMessageCount: 0,
         });
         stagedBaseMessagesRef.current = truncated;
         const nextMessages = [...truncated, stagedMessage];
@@ -524,6 +597,8 @@ const useStreamThreadRuntime = (
             await stream.stop();
           }
         : undefined,
+  } as ExternalStoreAdapter<ThreadMessage> & {
+    [EXTERNAL_STORE_ON_NEW_BEFORE_INITIALIZE]: typeof onNewBeforeInitialize;
   });
 
   return runtime;
