@@ -72,12 +72,15 @@ const testInitializationRetry = async (
     // The external-store core dispatches without holding the append on the
     // initialization barrier; the failure surfaces at the dispatch seam.
     await expect(thread.append(userMessage("first"))).resolves.toBeUndefined();
-    await Promise.resolve();
-    await Promise.resolve();
+    // Drain the rejection through RemoteThreadResource's catch so the retry
+    // re-arms before the second append; the exact chain depth is not
+    // load-bearing.
+    for (let i = 0; i < 20; i++) await Promise.resolve();
   } else {
-    await expect(thread.append(userMessage("first"))).rejects.toBe(
-      initializationError,
-    );
+    await expect(thread.append(userMessage("first"))).rejects.toMatchObject({
+      name: "MessageNotSentError",
+      cause: initializationError,
+    });
   }
   expect(item.getState().status).toBe("new");
 

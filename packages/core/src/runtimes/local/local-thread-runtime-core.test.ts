@@ -9,6 +9,7 @@ import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import type { ExportedMessageRepositoryItem } from "../../runtime/utils/message-repository";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
+import { isMessageNotSentError } from "../../types/error";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -275,17 +276,23 @@ describe("LocalThreadRuntimeCore optimistic append", () => {
   });
 
   it("rolls the optimistic message back when initialization rejects", async () => {
+    const initializationError = new Error("initialization failed");
     const run = vi.fn(async () => ({
       content: [{ type: "text" as const, text: "done" }],
     }));
     const thread = createThread({ run });
     thread.__internal_setGetInitializePromise(() =>
-      Promise.reject(new Error("initialization failed")),
+      Promise.reject(initializationError),
     );
 
-    await expect(thread.append(userMessage("hello"))).rejects.toThrow(
-      "initialization failed",
+    const error = await thread.append(userMessage("hello")).then(
+      () => {
+        throw new Error("expected the append to reject");
+      },
+      (e: unknown) => e,
     );
+    expect(isMessageNotSentError(error)).toBe(true);
+    expect((error as Error).cause).toBe(initializationError);
     expect(thread.messages).toEqual([]);
     expect(run).not.toHaveBeenCalled();
   });

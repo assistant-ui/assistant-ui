@@ -22,7 +22,7 @@ import type {
   ThreadAssistantMessage,
 } from "../../types/message";
 import type { RunConfig } from "../../types/message";
-import { toAssistantError } from "../../types/error";
+import { MessageNotSentError, toAssistantError } from "../../types/error";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
   createMessageQueue,
@@ -360,16 +360,19 @@ export class LocalThreadRuntimeCore
     this._notifySubscribers();
 
     // Initialization only gates the history write and the run; the message
-    // is already on screen. A rejected barrier or a thread invalidated
-    // mid-wait rolls the optimistic message back.
-    const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      try {
+    // is already on screen. A failed barrier rolls the optimistic message
+    // back and rejects as an unsent message so the composer restores the
+    // draft; a thread invalidated mid-wait rolls back silently.
+    try {
+      const initPromise = this._getInitializePromise?.();
+      if (initPromise) {
         await initPromise;
-      } catch (error) {
-        this._rollbackAppend(newMessage.id);
-        throw error;
       }
+    } catch (error) {
+      this._rollbackAppend(newMessage.id);
+      const notSent = new MessageNotSentError();
+      notSent.cause = error;
+      throw notSent;
     }
     if (!isThreadRuntimeGenerationCurrent(this, generation)) {
       this._rollbackAppend(newMessage.id);

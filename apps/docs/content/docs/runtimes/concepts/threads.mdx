@@ -192,6 +192,15 @@ async append({ message, parentId }) {
 
 `initialize()` is safe to call multiple times. It always resolves to the same `remoteId` for the active thread.
 
+The same rule applies to a custom external store's dispatch. The runtime does not hold `onNew` or `onEdit` until the thread record exists (that would keep the user's message off screen for the whole roundtrip), so a handler that talks to a backend keyed by the remote identity must await `initialize()` itself:
+
+```ts
+onNew: async (message) => {
+  const { remoteId } = await aui.threadListItem.initialize();
+  await sendToBackend(remoteId, message);
+},
+```
+
 ### Reloading after async authentication
 
 If your adapter depends on a user that resolves asynchronously (oidc, `next-auth`, `better-auth`), the initial `list()` may run before the user is available. Call `aui.threads.reload()` after auth completes:
