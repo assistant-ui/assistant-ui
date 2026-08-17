@@ -370,6 +370,7 @@ export class LocalThreadRuntimeCore
       }
     } catch (error) {
       this._rollbackAppend(newMessage.id);
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
       const notSent = new MessageNotSentError();
       notSent.cause = error;
       throw notSent;

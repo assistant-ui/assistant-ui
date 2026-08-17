@@ -275,6 +275,27 @@ describe("LocalThreadRuntimeCore optimistic append", () => {
     expect(run).toHaveBeenCalledTimes(1);
   });
 
+  it("silently drops a detached append even when initialization rejects", async () => {
+    let rejectInitialization!: (error: unknown) => void;
+    const initialization = new Promise<void>((_, reject) => {
+      rejectInitialization = reject;
+    });
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const thread = createThread({ run });
+    thread.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = thread.append(userMessage("hello"));
+    await Promise.resolve();
+    thread.detach();
+    rejectInitialization(new Error("initialization failed"));
+
+    await expect(appendPromise).resolves.toBeUndefined();
+    expect(thread.messages).toEqual([]);
+    expect(run).not.toHaveBeenCalled();
+  });
+
   it("rolls the optimistic message back when initialization rejects", async () => {
     const initializationError = new Error("initialization failed");
     const run = vi.fn(async () => ({
