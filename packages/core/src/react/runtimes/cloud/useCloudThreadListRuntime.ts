@@ -1,9 +1,9 @@
 "use client";
 
 import type { AssistantCloud } from "assistant-cloud";
-import type { AssistantRuntime } from "@assistant-ui/core";
-import { useRemoteThreadListRuntime } from "../runtime-cores/remote-thread-list/useRemoteThreadListRuntime";
-import { useCloudThreadListAdapter } from "../runtime-cores/remote-thread-list/adapter/cloud";
+import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
+import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
+import { useCloudThreadListAdapter } from "./useCloudThreadListAdapter";
 
 type ThreadData = {
   externalId: string;

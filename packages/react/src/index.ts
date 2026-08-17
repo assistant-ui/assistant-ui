@@ -43,7 +43,7 @@ export type {
   ThreadListItemState,
 } from "@assistant-ui/core";
 
-export { useCloudThreadListRuntime } from "./legacy-runtime/cloud/useCloudThreadListRuntime";
+export { useCloudThreadListRuntime } from "@assistant-ui/core/react";
 export { AssistantCloud } from "assistant-cloud";
 
 // --- adapters/attachment ---
