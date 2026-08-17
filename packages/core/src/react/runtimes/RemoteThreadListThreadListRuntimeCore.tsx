@@ -185,14 +185,11 @@ export class RemoteThreadListThreadListRuntimeCore
     return dedup;
   }
 
-  private readonly contextProvider: ModelContextProvider;
-
   constructor(
     options: RemoteThreadListOptions,
     contextProvider: ModelContextProvider,
   ) {
     super();
-    this.contextProvider = contextProvider;
 
     this._state.subscribe(() => {
       this._notifySubscribers();
