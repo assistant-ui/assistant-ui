@@ -284,6 +284,7 @@ describe("SandboxHost", () => {
       "[assistant-ui] SandboxHost onError callback threw an error",
       callbackError,
     );
+    consoleError.mockRestore();
   });
 
   it("disposes the rendered frame when bridge creation fails", async () => {
