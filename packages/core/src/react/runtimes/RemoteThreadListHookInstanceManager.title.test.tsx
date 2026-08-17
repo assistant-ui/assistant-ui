@@ -1,12 +1,14 @@
 // @vitest-environment jsdom
 
-import { render, waitFor } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
+import { useSyncExternalStore } from "react";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
+import { useExternalStoreRuntime } from "./useExternalStoreRuntime";
 import { useLocalRuntime } from "./useLocalRuntime";
 import { useRemoteThreadListRuntime } from "./useRemoteThreadListRuntime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
-import type { AppendMessage } from "../../types/message";
+import type { AppendMessage, ThreadMessageLike } from "../../types/message";
 import {
   deferred,
   makeAdapter,
@@ -80,9 +82,79 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     await waitFor(() => {
       expect(generateTitle).toHaveBeenCalledTimes(1);
     });
-    expect(generateTitle).toHaveBeenCalledWith(
-      `remote-${localId}`,
-      expect.any(Array),
-    );
+    expect(generateTitle).toHaveBeenCalledWith(`remote-${localId}`, [
+      expect.objectContaining({
+        role: "user",
+        content: [expect.objectContaining({ type: "text", text: "hello" })],
+      }),
+    ]);
+  });
+
+  it("waits for the first message when initialization resolves before the store lands it", async () => {
+    const generateTitle = vi.fn(async () => new ReadableStream());
+    const adapter = makeAdapter({ generateTitle });
+    const store = {
+      messages: [] as readonly ThreadMessageLike[],
+      listeners: new Set<() => void>(),
+      subscribe(callback: () => void) {
+        store.listeners.add(callback);
+        return () => store.listeners.delete(callback);
+      },
+      set(messages: readonly ThreadMessageLike[]) {
+        store.messages = messages;
+        for (const listener of store.listeners) listener();
+      },
+    };
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: () => {
+          const messages = useSyncExternalStore(
+            store.subscribe,
+            () => store.messages,
+          );
+          return useExternalStoreRuntime({
+            messages,
+            convertMessage: (message: ThreadMessageLike) => message,
+            onNew: async () => {},
+          });
+        },
+      });
+      capture.runtime = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(capture.runtime?.threads.mainItem.getState().id).toBeDefined();
+    });
+
+    void getThreadCore(capture.runtime!).append(userMessage("hello"));
+    await waitFor(() => {
+      expect(adapter.initialize).toHaveBeenCalledTimes(1);
+    });
+
+    await act(async () => {});
+    expect(generateTitle).not.toHaveBeenCalled();
+
+    await act(async () => {
+      store.set([{ role: "user", content: [{ type: "text", text: "hello" }] }]);
+    });
+
+    await waitFor(() => {
+      expect(generateTitle).toHaveBeenCalledTimes(1);
+    });
+    const [, titledMessages] = generateTitle.mock.calls[0] as [
+      string,
+      readonly { role: string }[],
+    ];
+    expect(titledMessages).toHaveLength(1);
+    expect(titledMessages[0]).toMatchObject({ role: "user" });
   });
 });
