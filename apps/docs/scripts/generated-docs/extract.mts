@@ -626,10 +626,19 @@ function getLocalTypeDeclarations(
 
   const declarationsByName = new Map<string, TsNode[]>();
   const addDeclarations = (name: string, declarations: TsNode[]) => {
-    declarationsByName.set(name, [
-      ...(declarationsByName.get(name) ?? []),
-      ...declarations,
-    ]);
+    const existing = declarationsByName.get(name) ?? [];
+    // #6043: a file that both imports a type and re-exports it hits this
+    // path twice (once from getExportedDeclarations, once from the named
+    // import), which inlined the same declaration in the emitted signature.
+    // Deduplicate by node identity so import-plus-re-export emits once.
+    const seen = new Set(existing);
+    for (const decl of declarations) {
+      if (!seen.has(decl)) {
+        seen.add(decl);
+        existing.push(decl);
+      }
+    }
+    declarationsByName.set(name, existing);
   };
 
   for (const [name, declarations] of sourceFile.getExportedDeclarations()) {
