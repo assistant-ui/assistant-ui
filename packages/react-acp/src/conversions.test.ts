@@ -155,6 +155,18 @@ describe("toolCallContentToText", () => {
     ).toBe("line 1\nline 2");
   });
 
+  it("accepts a single content block object where the spec says array", () => {
+    // crow-cli sends {type:"content", content: <one block>} — must not throw
+    expect(
+      toolCallContentToText([
+        {
+          type: "content",
+          content: { type: "text", text: "solo block" } as any,
+        },
+      ]),
+    ).toBe("solo block");
+  });
+
   it("renders diffs", () => {
     expect(
       toolCallContentToText([{ type: "diff", path: "a.md", newText: "new" }]),

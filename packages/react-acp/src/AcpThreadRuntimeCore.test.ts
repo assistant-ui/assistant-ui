@@ -4,7 +4,7 @@ import type {
   ThreadAssistantMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import { AcpClient } from "./AcpClient";
+import { AcpClient, autoAllowPermissionHandler } from "./AcpClient";
 import { AcpThreadRuntimeCore } from "./AcpThreadRuntimeCore";
 
 type JsonRpcFrame = {
@@ -77,6 +77,7 @@ function setup() {
   });
   const notifyUpdate = vi.fn();
   const core = new AcpThreadRuntimeCore({ client, notifyUpdate });
+  core.attachClient();
   return { client, core, notifyUpdate };
 }
 
@@ -170,6 +171,58 @@ describe("AcpThreadRuntimeCore", () => {
     expect(core.isRunning()).toBe(false);
     expect(core.getExtras().sessionId).toBe("s1");
     expect(core.getExtras().agentInfo?.name).toBe("menu-agent");
+  });
+
+  it("does not let a later-constructed core steal the client's callbacks (discarded React render regression)", async () => {
+    const { client, core } = setup();
+    // React may construct cores in render passes it later discards
+    // (StrictMode double-invocation, interrupted concurrent renders). A
+    // discarded twin sharing the same client must not steal the committed
+    // core's subscriptions — that dropped every session/update notification
+    // and assistant messages completed with empty content.
+    const ghost = new AcpThreadRuntimeCore({
+      client,
+      notifyUpdate: vi.fn(),
+    });
+    void ghost;
+    expect(client.onSessionUpdate).toBeDefined();
+
+    const runPromise = core.append(createUserAppendMessage("hello"));
+    const { ws, prompt } = await driveHandshake();
+    ws.receive(
+      sessionUpdate({
+        sessionUpdate: "agent_message_chunk",
+        content: { type: "text", text: "still here" },
+      }),
+    );
+    expect(lastAssistant(core).content).toEqual([
+      { type: "text", text: "still here" },
+    ]);
+
+    ws.receive({
+      jsonrpc: "2.0",
+      id: prompt.id!,
+      result: { stopReason: "end_turn" },
+    });
+    await runPromise;
+  });
+
+  it("detachClient only clears callbacks owned by the detaching core", () => {
+    const { client, core } = setup();
+    const other = new AcpThreadRuntimeCore({
+      client,
+      notifyUpdate: vi.fn(),
+    });
+    other.attachClient();
+    // detaching the superseded core must not clobber the current one
+    core.detachClient();
+    expect(client.onSessionUpdate).toBeDefined();
+    expect(client.permissionHandler).toBeDefined();
+    other.detachClient();
+    expect(client.onSessionUpdate).toBeUndefined();
+    expect(client.onConnectionChange).toBeUndefined();
+    // permission handling falls back to the client's auto-allow default
+    expect(client.permissionHandler).toBe(autoAllowPermissionHandler);
   });
 
   it("renders tool calls and their updates as tool-call parts", async () => {
