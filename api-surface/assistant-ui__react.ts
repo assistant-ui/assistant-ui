@@ -713,8 +713,9 @@ type AssistantTransportConnectionMetadata$1 = {
   toolStatuses: Record<string, ToolExecutionStatus>;
 };
 
-type AssistantTransportOptions<T> = Omit<AssistantTransportOptions$1<T>, "converter" | "onCancel" | "onError"> & {
+type AssistantTransportOptions<T> = Omit<AssistantTransportOptions$1<T>, "converter" | "onCancel" | "onError" | "prepareSendCommandsRequest"> & {
   converter: AssistantTransportStateConverter<T>;
+  prepareSendCommandsRequest?: (body: SendCommandsRequestBody) => Record<string, unknown> | Promise<Record<string, unknown>>;
   onError?: (error: Error, params: {
     commands: AssistantTransportCommand[];
     updateState: (updater: (state: T) => T) => void;
@@ -736,7 +737,7 @@ type AssistantTransportOptions$1<T> = {
   converter: AssistantTransportStateConverter$1<T>;
   headers: HeadersValue | (() => Promise<HeadersValue>);
   body?: object | (() => Promise<object | undefined>);
-  prepareSendCommandsRequest?: (body: SendCommandsRequestBody) => Record<string, unknown> | Promise<Record<string, unknown>>;
+  prepareSendCommandsRequest?: (body: SendCommandsRequestBody$1) => Record<string, unknown> | Promise<Record<string, unknown>>;
   onResponse?: (response: Response) => void | Promise<void>;
   onFinish?: () => void;
   onError?: (error: Error, params: {
@@ -3826,7 +3827,11 @@ declare const SelectionToolbarPrimitiveRoot: import("react").ForwardRefExoticCom
   render?: import("react").ReactElement | undefined;
 } & import("react").RefAttributes<HTMLDivElement>, "ref"> & import("react").RefAttributes<HTMLDivElement>>;
 
-type SendCommandsRequestBody = {
+type SendCommandsRequestBody = Omit<SendCommandsRequestBody$1, "commands"> & {
+  commands: AssistantTransportCommand[];
+};
+
+type SendCommandsRequestBody$1 = {
   commands: QueuedCommand[];
   state?: unknown;
   runId?: string;
