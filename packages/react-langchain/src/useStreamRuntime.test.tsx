@@ -308,78 +308,99 @@ describe("useStreamRuntime thread options", () => {
     view.unmount();
   });
 
-  it("removes the staged message when initialization fails", async () => {
-    const stream = createMockStream();
-    mockUseStream.mockReturnValue(stream);
-    const initialization = deferred<{
-      remoteId: string;
-      externalId: string;
-    }>();
-    const threadListAdapter = makeThreadListAdapter();
-    threadListAdapter.list = vi.fn(async () => ({ threads: [] }));
-    threadListAdapter.initialize = vi.fn(() => initialization.promise);
+  it.each(["initialization", "submit"] as const)(
+    "removes the staged message when %s fails",
+    async (failurePoint) => {
+      const stream = createMockStream();
+      mockUseStream.mockReturnValue(stream);
+      const initialization = deferred<{
+        remoteId: string;
+        externalId: string;
+      }>();
+      const threadListAdapter = makeThreadListAdapter();
+      threadListAdapter.list = vi.fn(async () => ({ threads: [] }));
+      threadListAdapter.initialize = vi.fn(() => initialization.promise);
 
-    const capture: {
-      runtime: AssistantRuntime | null;
-      aui?: ReturnType<typeof useAui>;
-    } = { runtime: null };
-    const Capture = () => {
-      capture.aui = useAui();
-      return null;
-    };
-    const TestRuntime = () => {
-      const runtime = useStreamRuntime({
-        apiUrl: "/api",
-        unstable_threadListAdapter: threadListAdapter,
-      } as never);
-      capture.runtime = runtime;
-      return (
-        <AssistantRuntimeProvider runtime={runtime}>
-          <Capture />
-        </AssistantRuntimeProvider>
-      );
-    };
+      const capture: {
+        runtime: AssistantRuntime | null;
+        aui?: ReturnType<typeof useAui>;
+      } = { runtime: null };
+      const Capture = () => {
+        capture.aui = useAui();
+        return null;
+      };
+      const TestRuntime = () => {
+        const runtime = useStreamRuntime({
+          apiUrl: "/api",
+          unstable_threadListAdapter: threadListAdapter,
+        } as never);
+        capture.runtime = runtime;
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <Capture />
+          </AssistantRuntimeProvider>
+        );
+      };
 
-    const view = render(<TestRuntime />);
-    await waitFor(() => expect(capture.aui).toBeDefined());
+      const view = render(<TestRuntime />);
+      await waitFor(() => expect(capture.aui).toBeDefined());
 
-    const core = (
-      capture.runtime!.thread as unknown as {
-        __internal_threadBinding: {
-          getState(): { append(message: AppendMessage): Promise<void> };
-        };
+      if (failurePoint === "submit") {
+        stream.submit.mockRejectedValueOnce(new Error("submit failed"));
       }
-    ).__internal_threadBinding.getState();
-    let appendPromise!: Promise<void>;
-    await act(async () => {
-      appendPromise = core.append({
-        parentId: null,
-        sourceId: null,
-        runConfig: undefined,
-        role: "user",
-        content: [{ type: "text", text: "failed" }],
-        attachments: [],
-        metadata: { custom: {} },
-        createdAt: new Date(0),
-      });
-      await Promise.resolve();
-    });
-    const appendResult = appendPromise.then(
-      () => undefined,
-      (error: unknown) => error,
-    );
-    expect(getText(capture.aui!)).toEqual(["failed"]);
 
-    await act(async () => {
-      initialization.reject(new Error("initialize failed"));
-    });
-    await expect(appendResult).resolves.toMatchObject({
-      message: "initialize failed",
-    });
-    await waitFor(() => expect(getText(capture.aui!)).toEqual([]));
-    expect(stream.submit).not.toHaveBeenCalled();
-    view.unmount();
-  });
+      const core = (
+        capture.runtime!.thread as unknown as {
+          __internal_threadBinding: {
+            getState(): { append(message: AppendMessage): Promise<void> };
+          };
+        }
+      ).__internal_threadBinding.getState();
+      let appendPromise!: Promise<void>;
+      await act(async () => {
+        appendPromise = core.append({
+          role: "user",
+          content: [{ type: "text", text: "failed" }],
+          parentId: null,
+          sourceId: null,
+          runConfig: undefined,
+          attachments: [],
+          metadata: { custom: {} },
+          createdAt: new Date(0),
+        });
+        await Promise.resolve();
+      });
+      const appendResult = appendPromise.then(
+        () => undefined,
+        (error: unknown) => error,
+      );
+      expect(getText(capture.aui!)).toEqual(["failed"]);
+
+      await act(async () => {
+        if (failurePoint === "initialization") {
+          initialization.reject(new Error("initialize failed"));
+        } else {
+          initialization.resolve({
+            remoteId: "thread-failed",
+            externalId: "thread-failed",
+          });
+        }
+      });
+      await expect(appendResult).resolves.toMatchObject({
+        message:
+          failurePoint === "initialization"
+            ? "initialize failed"
+            : "submit failed",
+      });
+      await waitFor(() => expect(getText(capture.aui!)).toEqual([]));
+      if (failurePoint === "initialization") {
+        expect(stream.submit).not.toHaveBeenCalled();
+      } else {
+        expect(stream.submit).toHaveBeenCalledTimes(1);
+      }
+      view.unmount();
+    },
+  );
 });
 
 describe("useStreamRuntime run configuration", () => {

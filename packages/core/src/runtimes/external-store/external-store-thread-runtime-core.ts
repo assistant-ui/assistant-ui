@@ -12,13 +12,11 @@ import type {
 import type {
   ExternalStoreAdapter,
   ExternalStoreBranchChange,
-  ExternalStoreOnNewBeforeInitialize,
 } from "./external-store-adapter";
 import {
   getExternalStoreMessages,
   bindExternalStoreMessage,
 } from "../../runtime/utils/external-store-message";
-import { EXTERNAL_STORE_ON_NEW_BEFORE_INITIALIZE } from "./external-store-adapter";
 import { ThreadMessageConverter } from "./thread-message-converter";
 import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
 import {
@@ -50,12 +48,6 @@ import {
 } from "../../runtime/utils/thread-runtime-lifecycle";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
-
-type InternalExternalStoreAdapter = ExternalStoreAdapter<any> & {
-  [EXTERNAL_STORE_ON_NEW_BEFORE_INITIALIZE]?:
-    | ExternalStoreOnNewBeforeInitialize
-    | undefined;
-};
 
 const observeAdapterCallback = (
   name: "onAddToolResult" | "onRespondToToolApproval" | "onCancel",
@@ -537,62 +529,53 @@ export class ExternalStoreThreadRuntimeCore
         ? rawMessage
         : this.enrichAppendMetadata(rawMessage);
 
-    // The queue driver dispatches through the host adapter, outside this
-    // core, so the initialization barrier must run before a message can
-    // enter the queue.
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();
 
+    // The getter call is what starts thread initialization.
     const initPromise = this._getInitializePromise?.();
-    const rollback =
-      initPromise && !isEdit && !this._store.queue
-        ? (this._store as InternalExternalStoreAdapter)[
-            EXTERNAL_STORE_ON_NEW_BEFORE_INITIALIZE
-          ]?.(message)
-        : undefined;
 
-    try {
+    // The queue driver dispatches through the host adapter, outside this
+    // core, so the initialization barrier must run before a message can
+    // enter the queue.
+    if (!isEdit && this._store.queue) {
       if (initPromise) {
         await initPromise;
       }
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) {
-        rollback?.();
-        return;
-      }
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
       // Buffering does not start a run, so the tool-abort below must wait until
       // the queue flushes. By then the prior run (and its tools) has settled.
-      if (!isEdit && this._store.queue) {
-        if (message.steer ?? this._store.isRunning ?? false)
-          this._store.queue.steer(message);
-        else this._store.queue.enqueue(message);
-        return;
-      }
+      if (message.steer ?? this._store.isRunning ?? false)
+        this._store.queue.steer(message);
+      else this._store.queue.enqueue(message);
+      return;
+    }
 
-      // Auto-abort in-flight client-side tool executions when a new run is
-      // about to start. Without this, a tool that finishes after the new turn
-      // begins would feed a stale result into `onAddToolResult`, racing with
-      // the new turn the user just initiated. `startRun` defaults to true for
-      // user messages — matches the satellites' historical opt-in cancel
-      // behavior, which is now built in.
-      if (message.startRun ?? message.role === "user") {
-        await this._toolInvocations?.abort();
-      }
-      if (!isThreadRuntimeGenerationCurrent(this, generation)) {
-        rollback?.();
-        return;
-      }
+    // The optimistic insert lives inside the adapter's dispatch, so holding
+    // `onNew` on initialization would keep the message off screen for the
+    // whole roundtrip. Seams that need the remote identity await
+    // `threadListItem.initialize()` themselves, and a rejection surfaces
+    // there.
+    void initPromise?.catch(() => {});
 
-      if (isEdit) {
-        if (!this._store.onEdit)
-          throw new Error("Runtime does not support editing messages.");
-        await this._store.onEdit(message);
-      } else {
-        await this._store.onNew(message);
-      }
-    } catch (error) {
-      rollback?.();
-      throw error;
+    // Auto-abort in-flight client-side tool executions when a new run is
+    // about to start. Without this, a tool that finishes after the new turn
+    // begins would feed a stale result into `onAddToolResult`, racing with
+    // the new turn the user just initiated. `startRun` defaults to true for
+    // user messages — matches the satellites' historical opt-in cancel
+    // behavior, which is now built in.
+    if (message.startRun ?? message.role === "user") {
+      await this._toolInvocations?.abort();
+    }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+
+    if (isEdit) {
+      if (!this._store.onEdit)
+        throw new Error("Runtime does not support editing messages.");
+      await this._store.onEdit(message);
+    } else {
+      await this._store.onNew(message);
     }
   }
 

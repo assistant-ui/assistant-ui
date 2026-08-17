@@ -36,11 +36,6 @@ export { toMessagePartStatus } from "./utils/normalizePartStatus";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
 export { consumeSuggestionResult } from "./adapters/suggestion";
 
-export {
-  EXTERNAL_STORE_ON_NEW_BEFORE_INITIALIZE,
-  type ExternalStoreOnNewBeforeInitialize,
-} from "./runtimes/external-store/external-store-adapter";
-
 // Composite context provider
 export { CompositeContextProvider } from "./utils/composite-context-provider";
 

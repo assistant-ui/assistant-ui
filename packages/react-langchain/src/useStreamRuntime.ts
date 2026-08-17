@@ -2,11 +2,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type {
-  AppendMessage,
-  ExternalStoreAdapter,
-  ToolExecutionStatus,
-} from "@assistant-ui/core";
+import type { AppendMessage, ToolExecutionStatus } from "@assistant-ui/core";
 import {
   generateId,
   getExternalStoreMessages,
@@ -19,7 +15,6 @@ import {
   useExternalMessageConverter,
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
-import { EXTERNAL_STORE_ON_NEW_BEFORE_INITIALIZE } from "@assistant-ui/core/internal";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { STREAM_CONTROLLER, useChannel, useStream } from "@langchain/react";
 import type { Channel } from "@langchain/react";
@@ -278,10 +273,6 @@ const useStreamThreadRuntime = (
     >(),
   );
   const stagedBaseMessagesRef = useRef<LangChainBaseMessage[] | null>(null);
-  const stagedMessageIdsByAppendMessageRef = useRef(
-    new WeakMap<AppendMessage, string>(),
-  );
-
   useEffect(() => {
     if (stagedMessagesRef.current.size === 0) return;
 
@@ -370,16 +361,6 @@ const useStreamThreadRuntime = (
     }
   };
 
-  const onNewBeforeInitialize = (msg: AppendMessage) => {
-    if (!(msg.startRun ?? msg.role === "user")) return;
-    const stagedMessage = stageUserMessage(msg, true);
-    stagedMessageIdsByAppendMessageRef.current.set(msg, stagedMessage.id);
-    return () => {
-      stagedMessageIdsByAppendMessageRef.current.delete(msg);
-      removeStagedMessage(stagedMessage.id);
-    };
-  };
-
   const extras = useMemo(
     () =>
       langChainExtras.provide({
@@ -414,7 +395,6 @@ const useStreamThreadRuntime = (
     messages: threadMessages,
     adapters,
     extras,
-    [EXTERNAL_STORE_ON_NEW_BEFORE_INITIALIZE]: onNewBeforeInitialize,
     unstable_enableToolInvocations: true,
     setToolStatuses,
     onNew: async (msg) => {
@@ -423,6 +403,8 @@ const useStreamThreadRuntime = (
         return;
       }
 
+      const stagedMessage = stageUserMessage(msg, true);
+      const stagedMessageId = stagedMessage.id;
       setActiveRunConfig(msg.runConfig);
       const content = getMessageContent(msg);
       const cancellations =
@@ -437,13 +419,8 @@ const useStreamThreadRuntime = (
               status: "error" as const,
             }))
           : [];
-      // A null threadId is not a no-op for the SDK: it rebinds the controller
-      // away from its self-created thread and forces a fresh one, so the
-      // override is only passed once initialization produced an identity.
-      const externalId = aui.threadListItem.getState().externalId;
-      const stagedMessageId =
-        stagedMessageIdsByAppendMessageRef.current.get(msg);
       try {
+        const { externalId } = await aui.threadListItem.initialize();
         await streamRef.current.submit(
           {
             [messagesKey]: [
@@ -463,8 +440,6 @@ const useStreamThreadRuntime = (
       } catch (error) {
         if (stagedMessageId) removeStagedMessage(stagedMessageId);
         throw error;
-      } finally {
-        stagedMessageIdsByAppendMessageRef.current.delete(msg);
       }
     },
     onAddToolResult: async ({
@@ -597,8 +572,6 @@ const useStreamThreadRuntime = (
             await stream.stop();
           }
         : undefined,
-  } as ExternalStoreAdapter<ThreadMessage> & {
-    [EXTERNAL_STORE_ON_NEW_BEFORE_INITIALIZE]: typeof onNewBeforeInitialize;
   });
 
   return runtime;

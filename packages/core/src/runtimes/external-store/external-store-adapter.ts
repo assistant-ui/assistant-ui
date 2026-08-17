@@ -19,14 +19,6 @@ import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { ToolExecutionStatus } from "../tool-invocations/ToolInvocationTracker";
 import type { ExternalThreadQueueAdapter } from "../../runtime/queue/external-thread-queue-adapter";
 
-export const EXTERNAL_STORE_ON_NEW_BEFORE_INITIALIZE = Symbol(
-  "assistant-ui.external-store.onNewBeforeInitialize",
-);
-
-export type ExternalStoreOnNewBeforeInitialize = (
-  message: AppendMessage,
-) => (() => void) | void;
-
 export type ExternalStoreThreadData<TState extends "regular" | "archived"> = {
   status: TState;
   id: string;
