@@ -3,6 +3,17 @@ import type { ClientOutput } from "@assistant-ui/store";
 import type { AttachmentRuntime } from "../../runtime/api/attachment-runtime";
 import { useSubscribable } from "./useSubscribable";
 
+export const handleAttachmentRemove = (
+  remove: () => Promise<void>,
+): Promise<void> => {
+  const task = remove();
+
+  void task.catch((error: unknown) => {
+    console.error("[assistant-ui] attachment remove failed:", error);
+  });
+  return task;
+};
+
 const useAttachmentRuntimeClient = ({
   runtime,
 }: {
@@ -12,7 +23,7 @@ const useAttachmentRuntimeClient = ({
 
   return {
     getState: () => state,
-    remove: runtime.remove,
+    remove: () => handleAttachmentRemove(runtime.remove),
     __internal_getRuntime: () => runtime,
   };
 };
