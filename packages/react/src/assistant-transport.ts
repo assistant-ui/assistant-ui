@@ -1,14 +1,19 @@
 "use client";
 
-import type { UserCommands as CoreUserCommands } from "@assistant-ui/core";
-import type { UserExternalState as CoreUserExternalState } from "@assistant-ui/core";
+import type {
+  AssistantRuntime,
+  UserCommands as CoreUserCommands,
+  UserExternalState as CoreUserExternalState,
+} from "@assistant-ui/core";
 import {
+  useAssistantTransportRuntime as useCoreAssistantTransportRuntime,
   useAssistantTransportSendCommand as useCoreAssistantTransportSendCommand,
   useAssistantTransportState as useCoreAssistantTransportState,
 } from "@assistant-ui/core/react";
 import type {
   AssistantTransportCommand as CoreAssistantTransportCommand,
   AssistantTransportConnectionMetadata as CoreAssistantTransportConnectionMetadata,
+  AssistantTransportOptions as CoreAssistantTransportOptions,
   AssistantTransportProtocol,
   SendCommandsRequestBody,
 } from "@assistant-ui/core/react";
@@ -25,6 +30,38 @@ export type AssistantTransportConnectionMetadata = Omit<
   "pendingCommands"
 > & {
   pendingCommands: AssistantTransportCommand[];
+};
+
+export type AssistantTransportStateConverter<T> = (
+  state: T,
+  connectionMetadata: AssistantTransportConnectionMetadata,
+) => ReturnType<CoreAssistantTransportOptions<T>["converter"]>;
+
+export type AssistantTransportOptions<T> = Omit<
+  CoreAssistantTransportOptions<T>,
+  "converter" | "onError" | "onCancel"
+> & {
+  converter: AssistantTransportStateConverter<T>;
+  onError?: (
+    error: Error,
+    params: {
+      commands: AssistantTransportCommand[];
+      updateState: (updater: (state: T) => T) => void;
+    },
+  ) => void | Promise<void>;
+  onCancel?: (params: {
+    commands: AssistantTransportCommand[];
+    updateState: (updater: (state: T) => T) => void;
+    error?: Error;
+  }) => void;
+};
+
+export const useAssistantTransportRuntime = <T>(
+  options: AssistantTransportOptions<T>,
+): AssistantRuntime => {
+  return useCoreAssistantTransportRuntime(
+    options as CoreAssistantTransportOptions<T>,
+  );
 };
 
 export const useAssistantTransportSendCommand = () => {

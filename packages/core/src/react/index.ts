@@ -244,6 +244,7 @@ export {
 export type {
   AssistantTransportConnectionMetadata,
   AssistantTransportCommand,
+  AssistantTransportOptions,
   AssistantTransportProtocol,
   SendCommandsRequestBody,
 } from "./runtimes/assistant-transport/types";

@@ -103,8 +103,8 @@ export type {
 } from "@assistant-ui/core";
 
 // --- assistant-transport ---
-export { useAssistantTransportRuntime } from "@assistant-ui/core/react";
 export {
+  useAssistantTransportRuntime,
   useAssistantTransportSendCommand,
   useAssistantTransportState,
 } from "./assistant-transport";

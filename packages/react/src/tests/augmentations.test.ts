@@ -1,6 +1,7 @@
 import { describe, expectTypeOf, it } from "vitest";
 import type {
   AssistantTransportCommand,
+  useAssistantTransportRuntime,
   useAssistantTransportSendCommand,
   useAssistantTransportState,
 } from "../assistant-transport";
@@ -55,6 +56,25 @@ describe("Assistant augmentations", () => {
       data: number;
     }>().toExtend<
       Parameters<ReturnType<typeof useAssistantTransportSendCommand>>[0]
+    >();
+    type RuntimeOptions = Parameters<typeof useAssistantTransportRuntime>[0];
+    expectTypeOf<{
+      type: "react-command";
+      data: number;
+    }>().toExtend<
+      Parameters<RuntimeOptions["converter"]>[1]["pendingCommands"][number]
+    >();
+    expectTypeOf<{
+      type: "react-command";
+      data: number;
+    }>().toExtend<
+      Parameters<NonNullable<RuntimeOptions["onError"]>>[1]["commands"][number]
+    >();
+    expectTypeOf<{
+      type: "react-command";
+      data: number;
+    }>().toExtend<
+      Parameters<NonNullable<RuntimeOptions["onCancel"]>>[0]["commands"][number]
     >();
   });
 });
