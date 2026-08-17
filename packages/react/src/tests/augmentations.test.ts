@@ -76,5 +76,13 @@ describe("Assistant augmentations", () => {
     }>().toExtend<
       Parameters<NonNullable<RuntimeOptions["onCancel"]>>[0]["commands"][number]
     >();
+    expectTypeOf<{
+      type: "react-command";
+      data: number;
+    }>().toExtend<
+      Parameters<
+        NonNullable<RuntimeOptions["prepareSendCommandsRequest"]>
+      >[0]["commands"][number]
+    >();
   });
 });

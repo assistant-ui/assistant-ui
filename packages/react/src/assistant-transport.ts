@@ -15,11 +15,18 @@ import type {
   AssistantTransportConnectionMetadata as CoreAssistantTransportConnectionMetadata,
   AssistantTransportOptions as CoreAssistantTransportOptions,
   AssistantTransportProtocol,
-  SendCommandsRequestBody,
+  SendCommandsRequestBody as CoreSendCommandsRequestBody,
 } from "@assistant-ui/core/react";
 import type { UserCommands, UserExternalState } from "./augmentations";
 
-export type { AssistantTransportProtocol, SendCommandsRequestBody };
+export type { AssistantTransportProtocol };
+
+export type SendCommandsRequestBody = Omit<
+  CoreSendCommandsRequestBody,
+  "commands"
+> & {
+  commands: AssistantTransportCommand[];
+};
 
 export type AssistantTransportCommand =
   | Exclude<CoreAssistantTransportCommand, CoreUserCommands>
@@ -39,9 +46,12 @@ export type AssistantTransportStateConverter<T> = (
 
 export type AssistantTransportOptions<T> = Omit<
   CoreAssistantTransportOptions<T>,
-  "converter" | "onError" | "onCancel"
+  "converter" | "prepareSendCommandsRequest" | "onError" | "onCancel"
 > & {
   converter: AssistantTransportStateConverter<T>;
+  prepareSendCommandsRequest?: (
+    body: SendCommandsRequestBody,
+  ) => Record<string, unknown> | Promise<Record<string, unknown>>;
   onError?: (
     error: Error,
     params: {
