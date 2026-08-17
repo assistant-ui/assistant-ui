@@ -64,7 +64,9 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   };
 
   const outgoingQueueRef = useRef<PersistenceBatch[]>([]);
-  const runPersistenceRef = useRef<(batch?: PersistenceBatch) => void>(() => {});
+  const runPersistenceRef = useRef<(batch?: PersistenceBatch) => void>(
+    () => {},
+  );
 
   const exportState = useCallback((): InteractablePersistedState => {
     const result: InteractablePersistedState = {};

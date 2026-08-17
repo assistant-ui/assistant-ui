@@ -125,7 +125,9 @@ const useInteractablesResource = ({
   };
 
   const outgoingQueueRef = useRef<PersistenceBatch[]>([]);
-  const runPersistenceRef = useRef<(batch?: PersistenceBatch) => void>(() => {});
+  const runPersistenceRef = useRef<(batch?: PersistenceBatch) => void>(
+    () => {},
+  );
 
   const setStateAndRef = useCallback(
     (
