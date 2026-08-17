@@ -100,7 +100,7 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public connect() {
-    let lastCanCancel = this.canCancel;
+    let lastCanCancel = false;
     let lastIsSendDisabled = this.runtime.isSendDisabled;
     let lastQueue = this.queue;
     return this.runtime.subscribe(() => {
