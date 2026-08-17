@@ -177,4 +177,49 @@ describe("useLocalRuntime", () => {
     expect(history.load).toHaveBeenCalledTimes(loadsAfterMount);
     expect(consoleError).toHaveBeenCalledTimes(errorsAfterMount);
   });
+
+  it("exposes composer.canCancel while a run started after initial messages is in flight", async () => {
+    const hangingModel: ChatModelAdapter = {
+      async *run({ abortSignal }) {
+        await new Promise<void>((resolve) => {
+          if (abortSignal.aborted) {
+            resolve();
+            return;
+          }
+          abortSignal.addEventListener("abort", () => resolve(), {
+            once: true,
+          });
+        });
+      },
+    };
+    let runtime: ReturnType<typeof useLocalRuntime> | null = null;
+    const App = () => {
+      runtime = useLocalRuntime(hangingModel, {
+        initialMessages: [
+          {
+            role: "assistant",
+            content: [{ type: "text", text: "Hello" }],
+            status: { type: "complete", reason: "stop" },
+          },
+        ],
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <div />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    act(() => {
+      runtime!.thread.append("Run");
+    });
+    await waitFor(() => {
+      expect(runtime!.thread.getState().isRunning).toBe(true);
+      expect(runtime!.thread.composer.getState().canCancel).toBe(true);
+    });
+    act(() => {
+      runtime!.thread.cancelRun();
+    });
+  });
 });

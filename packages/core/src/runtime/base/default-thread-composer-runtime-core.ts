@@ -13,13 +13,21 @@ import {
 } from "../../store/scopes/queue-item";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
 
+const isCancelable = (runtime: Omit<ThreadRuntimeCore, "composer">) => {
+  if (!runtime.capabilities?.cancel) return false;
+  if (runtime.isRunning !== undefined) return runtime.isRunning;
+  const lastMessage = runtime.messages?.at(-1);
+  return (
+    lastMessage?.role === "assistant" && lastMessage.status.type === "running"
+  );
+};
+
 export class DefaultThreadComposerRuntimeCore
   extends BaseComposerRuntimeCore
   implements ThreadComposerRuntimeCore
 {
-  private _canCancel = false;
   public get canCancel() {
-    return this._canCancel;
+    return isCancelable(this.runtime);
   }
 
   public get canSend() {
@@ -94,12 +102,14 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public connect() {
+    let lastCanCancel = this.canCancel;
     let lastIsSendDisabled = this.runtime.isSendDisabled;
     let lastQueue = this.queue;
     return this.runtime.subscribe(() => {
       let changed = false;
-      if (this.canCancel !== this.runtime.capabilities.cancel) {
-        this._canCancel = this.runtime.capabilities.cancel;
+      const nextCanCancel = this.canCancel;
+      if (lastCanCancel !== nextCanCancel) {
+        lastCanCancel = nextCanCancel;
         changed = true;
       }
       if (lastIsSendDisabled !== this.runtime.isSendDisabled) {
