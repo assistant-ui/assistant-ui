@@ -431,6 +431,10 @@ export {
   InMemoryThreadList,
   type InMemoryThreadListProps,
 } from "@assistant-ui/core/store";
+export {
+  RemoteThreadList,
+  type RemoteThreadListProps,
+} from "@assistant-ui/core/store";
 export { SingleThreadList } from "@assistant-ui/core/store";
 
 export * as INTERNAL from "./internal";
