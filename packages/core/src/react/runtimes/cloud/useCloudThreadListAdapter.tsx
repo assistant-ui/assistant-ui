@@ -7,6 +7,7 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
@@ -37,6 +38,8 @@ const autoCloud = baseUrl
   ? new AssistantCloud({ baseUrl, anonymous: true })
   : undefined;
 
+const CLOUD_THREAD_PAGE_SIZE = 20;
+
 export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
 ): RemoteThreadListAdapter => {
@@ -52,10 +55,11 @@ export const useCloudThreadListAdapter = (
           return adapterRef.current.cloud ?? autoCloud!;
         },
       });
-      const cloudInstance = adapterRef.current.cloud ?? autoCloud!;
-      const attachments = useMemo(
-        () => new CloudFileAttachmentAdapter(cloudInstance),
-        [cloudInstance],
+      const [attachments] = useState(
+        () =>
+          new CloudFileAttachmentAdapter(
+            () => adapterRef.current.cloud ?? autoCloud!,
+          ),
       );
 
       const adapters = useMemo(
@@ -88,8 +92,11 @@ export const useCloudThreadListAdapter = (
     }
 
     return {
-      list: async () => {
-        const { threads } = await cloud.threads.list();
+      list: async ({ after } = {}) => {
+        const { threads } = await cloud.threads.list({
+          limit: CLOUD_THREAD_PAGE_SIZE,
+          ...(after ? { after } : {}),
+        });
         return {
           threads: threads.map((t) => ({
             status: t.is_archived ? "archived" : "regular",
@@ -101,6 +108,10 @@ export const useCloudThreadListAdapter = (
             externalId: t.external_id ?? undefined,
             custom: toCustom(t.metadata),
           })),
+          nextCursor:
+            threads.length === CLOUD_THREAD_PAGE_SIZE
+              ? threads.at(-1)?.id
+              : undefined,
         };
       },
 

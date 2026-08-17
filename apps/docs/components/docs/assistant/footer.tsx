@@ -5,13 +5,14 @@ import { PlusIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { analytics } from "@/lib/analytics";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
-import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+import { useThreadTokenUsage } from "@assistant-ui/ai-sdk";
 import { ContextDisplay } from "@assistant-ui/ui/components/assistant-ui/context-display";
 import { useSharedDocsModelSelection } from "./composer";
 import { getContextWindow } from "@/constants/model";
 
 type AssistantFooterProps = {
   onNewThread?: () => void;
+  showNewThread?: boolean;
   contextWindow?: number;
   centerContent?: ReactNode;
 };
@@ -38,6 +39,7 @@ function DefaultAssistantFooter(props: AssistantFooterProps): ReactNode {
 
 function AssistantFooterContent({
   onNewThread,
+  showNewThread = true,
   contextWindow,
   centerContent,
 }: AssistantFooterProps & { contextWindow: number }): ReactNode {
@@ -58,29 +60,33 @@ function AssistantFooterContent({
           : "flex items-center justify-between px-3 py-1.5"
       }
     >
-      <button
-        type="button"
-        onClick={() => {
-          const modelName = aui.thread.getModelContext()?.config?.modelName;
-          analytics.assistant.newThreadClicked({
-            threadId,
-            previous_message_count: messages.length,
-            context_total_tokens: contextTokens,
-            context_usage_percent: usagePercent,
-            ...(pathname ? { pathname } : {}),
-            ...(modelName ? { model_name: modelName } : {}),
-          });
-          if (onNewThread) {
-            onNewThread();
-          } else {
-            aui.threads.switchToNewThread();
-          }
-        }}
-        className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors"
-      >
-        <PlusIcon className="size-3.5" />
-        <span>New thread</span>
-      </button>
+      {showNewThread ? (
+        <button
+          type="button"
+          onClick={() => {
+            const modelName = aui.thread.getModelContext()?.config?.modelName;
+            analytics.assistant.newThreadClicked({
+              threadId,
+              previous_message_count: messages.length,
+              context_total_tokens: contextTokens,
+              context_usage_percent: usagePercent,
+              ...(pathname ? { pathname } : {}),
+              ...(modelName ? { model_name: modelName } : {}),
+            });
+            if (onNewThread) {
+              onNewThread();
+            } else {
+              aui.threads.switchToNewThread();
+            }
+          }}
+          className="text-muted-foreground hover:bg-muted hover:text-foreground flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors"
+        >
+          <PlusIcon className="size-3.5" />
+          <span>New thread</span>
+        </button>
+      ) : (
+        <div aria-hidden />
+      )}
       {centerContent ? (
         <>
           <div className="min-w-0 px-1">{centerContent}</div>

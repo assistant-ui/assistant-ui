@@ -131,6 +131,49 @@ function validateEventStreamContentType(response: Response): void {
   }
 }
 
+function parseAdkEvent(data: string): AdkEvent {
+  let value: unknown;
+  try {
+    value = JSON.parse(data);
+  } catch {
+    throw new Error("Invalid ADK stream event: expected valid JSON.");
+  }
+
+  if (
+    typeof value !== "object" ||
+    value === null ||
+    Array.isArray(value) ||
+    Object.keys(value).length === 0
+  ) {
+    throw new Error("Invalid ADK stream event: expected a non-empty object.");
+  }
+
+  const { id: rawId, ...event } = value as Record<string, unknown>;
+  if (
+    rawId != null &&
+    typeof rawId !== "string" &&
+    (typeof rawId !== "number" || !Number.isFinite(rawId))
+  ) {
+    throw new Error(
+      'Invalid ADK stream event: expected "id" to be a string or finite number when present.',
+    );
+  }
+
+  const errorMessage =
+    "error" in event && typeof event.error === "string"
+      ? event.error
+      : undefined;
+  return {
+    ...event,
+    ...(rawId != null && { id: String(rawId) }),
+    ...(errorMessage !== undefined &&
+      !("errorMessage" in event) &&
+      !("error_message" in event) && {
+        errorMessage,
+      }),
+  } as AdkEvent;
+}
+
 async function resolveHeaders(
   headers:
     | Record<string, string>
@@ -258,7 +301,7 @@ async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
       if (done) {
         shouldCancel = false;
         for (const event of sseDecoder.push(decoder.decode())) {
-          yield JSON.parse(event.data) as AdkEvent;
+          yield parseAdkEvent(event.data);
         }
         break;
       }
@@ -266,12 +309,12 @@ async function* parseSSEResponse(response: Response): AsyncGenerator<AdkEvent> {
       for (const event of sseDecoder.push(
         decoder.decode(value, { stream: true }),
       )) {
-        yield JSON.parse(event.data) as AdkEvent;
+        yield parseAdkEvent(event.data);
       }
     }
 
     const trailing = sseDecoder.flush();
-    if (trailing !== null) yield JSON.parse(trailing.data) as AdkEvent;
+    if (trailing !== null) yield parseAdkEvent(trailing.data);
   } finally {
     try {
       if (shouldCancel) await reader.cancel().catch(() => undefined);

@@ -1,13 +1,14 @@
-import { getDistinctId, posthogServer } from "@/lib/posthog-server";
+import { getDistinctId } from "@/lib/posthog-server";
 import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import {
   injectQuoteContext,
   unstable_injectInteractableContext as injectInteractableContext,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateGeneralChatInput } from "@/lib/validate-input";
-import { getModel, withTracing } from "@/lib/ai/provider";
-import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { getModel } from "@/lib/ai/provider";
+import { posthogTelemetry } from "@/lib/ai/telemetry";
+import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import docsToolkit from "@/lib/docs-toolkit";
 import {
   convertToModelMessages,
@@ -68,19 +69,8 @@ export async function POST(req: Request) {
     const distinctId = getDistinctId(req);
     const prismTracer = createPrismTracer();
 
-    const posthogModel = posthogServer
-      ? withTracing(baseModel, posthogServer, {
-          posthogDistinctId: distinctId,
-          posthogPrivacyMode: false,
-          posthogProperties: {
-            $ai_span_name: "general_chat",
-            source: "general_chat",
-          },
-        })
-      : baseModel;
-
     const prism = prismTracer
-      ? prismAISDK(prismTracer, posthogModel, {
+      ? prismAISDK(prismTracer, baseModel, {
           name: "general_chat",
           endUserId: distinctId,
         })
@@ -94,12 +84,17 @@ export async function POST(req: Request) {
     });
 
     const result = streamText({
-      model: prism?.model ?? posthogModel,
+      model: prism?.model ?? baseModel,
       ...(system ? { system } : {}),
       messages: prunedMessages,
       maxOutputTokens: 4096,
       stopWhen: stepCountIs(10),
       tools: await aiToolkit.tools({ frontend: tools }),
+      ...posthogTelemetry({
+        distinctId,
+        spanName: "general_chat",
+        source: "general_chat",
+      }),
       onFinish: async () => {
         await prism?.end();
       },

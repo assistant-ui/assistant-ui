@@ -55,6 +55,42 @@ describe("createAgUiSubscriber", () => {
     expect(events[0]).toMatchObject({ type: "RUN_ERROR", message: "boom" });
   });
 
+  it("keeps streamed RUN_ERROR terminal when RUN_FINISHED follows", () => {
+    const events: AgUiEvent[] = [];
+    const onRunFailed = vi.fn();
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => events.push(evt),
+      runId: "run",
+      onRunFailed,
+    });
+
+    subscriber.onRunErrorEvent?.({
+      event: {
+        type: "RUN_ERROR",
+        message: "model unavailable",
+        code: "model_disabled",
+      },
+    });
+    subscriber.onRunFinishedEvent?.({
+      event: { type: "RUN_FINISHED", runId: "run" },
+    });
+    subscriber.onRunFinalized?.();
+
+    expect(onRunFailed).toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: "model unavailable",
+        code: "model_disabled",
+      }),
+    );
+    expect(events).toEqual([
+      {
+        type: "RUN_ERROR",
+        message: "model unavailable",
+        code: "model_disabled",
+      },
+    ]);
+  });
+
   it.each([
     [
       "AbortError name",

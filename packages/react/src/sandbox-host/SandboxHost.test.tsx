@@ -228,4 +228,33 @@ describe("SandboxHost", () => {
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError.mock.calls[0]![0].message).toBe("boom");
   });
+
+  it("disposes the rendered frame when bridge creation fails", async () => {
+    const rendered = fakeRendered();
+    renderHtmlMock.mockResolvedValue(rendered);
+    const error = new Error("bridge failed");
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => {
+            throw error;
+          }}
+          onError={onError}
+        />,
+      );
+    });
+    await flush();
+
+    expect(onError).toHaveBeenCalledWith(error);
+    expect(rendered.dispose).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.unmount();
+    });
+    expect(rendered.dispose).toHaveBeenCalledTimes(1);
+  });
 });

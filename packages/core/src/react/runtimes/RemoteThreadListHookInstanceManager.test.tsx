@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
+import { ExternalStoreThreadRuntimeCore } from "../../runtimes/external-store/external-store-thread-runtime-core";
+import type { ExternalStoreAdapter } from "../../runtimes/external-store/external-store-adapter";
+import type { ModelContextProvider } from "../../model-context/types";
 
 describe("RemoteThreadListHookInstanceManager", () => {
   it("rejects a pending start when the thread runtime is stopped", async () => {
@@ -15,6 +18,54 @@ describe("RemoteThreadListHookInstanceManager", () => {
       "Thread was deleted before runtime was started",
     );
   });
+
+  it("dispatches an append before the thread runtime stops", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      { getModelContext: () => ({}) } satisfies ModelContextProvider,
+      { messages: [], onNew } as ExternalStoreAdapter,
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+    const manager = new RemoteThreadListHookInstanceManager(
+      () => ({}) as never,
+      {} as ThreadListRuntimeCore,
+    );
+    const internals = manager as unknown as {
+      instances: Map<
+        string,
+        { runtime: typeof runtime; generation: number; isRunning: boolean }
+      >;
+    };
+    internals.instances.set("thread-1", {
+      runtime,
+      generation: 0,
+      isRunning: false,
+    });
+
+    const appendPromise = runtime.append({
+      parentId: null,
+      sourceId: null,
+      runConfig: {},
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+      attachments: [],
+      metadata: { custom: {} },
+      createdAt: new Date(0),
+    });
+    await Promise.resolve();
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+
+    manager.stopThreadRuntime("thread-1");
+    resolveInitialization();
+
+    await appendPromise;
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
 });
 
 describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", () => {
@@ -24,7 +75,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
       {} as ThreadListRuntimeCore,
     );
 
-  // no React binder attaches a runtime in these tests, so the returned promises
+  // no AdapterSink attaches a runtime in these tests, so the returned promises
   // stay pending or reject on stop; neither is what is under test here
   const start = (manager: RemoteThreadListHookInstanceManager, id: string) => {
     manager.startThreadRuntime(id).catch(() => {});
@@ -55,7 +106,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
       ([id, { generation }]) => `${id}:${generation}`,
     );
 
-  it("changes the binder key so React remounts the runtime hook", () => {
+  it("changes the resource key so the tap host remounts the runtime hook", () => {
     const manager = makeManager();
     start(manager, "thread-1");
     const before = renderedKeys(manager);
@@ -87,7 +138,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     expect(renderedKeys(manager)).toEqual(["thread-1:0"]);
   });
 
-  it("stop then start in one tick yields a fresh key, so the old still-mounted binder cannot satisfy the new start", () => {
+  it("stop then start in one tick yields a fresh key, so the old still-mounted resource cannot satisfy the new start", () => {
     const manager = makeManager();
     start(manager, "thread-1");
     const before = renderedKeys(manager);
@@ -99,7 +150,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     expect(renderedKeys(manager)).toEqual(["thread-1:1"]);
   });
 
-  // simulates the binder's updateRuntime: publish a runtime for the
+  // simulates the resource publish: attach a runtime for the
   // instance's current generation (or an explicit stale one)
   const publish = (
     manager: RemoteThreadListHookInstanceManager,
@@ -160,7 +211,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
       settled = true;
     });
 
-    // an outgoing binder re-publishing for its old generation (e.g. a late
+    // an outgoing resource re-publishing for its old generation (e.g. a late
     // outerSubscribe callback) must not count as the new attachment
     const staleGeneration =
       internalsOf(manager).instances.get("thread-1")!.generation - 1;

@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/store",
-  "version": "0.3.3",
+  "version": "0.3.9",
   "description": "Tap-based state management for @assistant-ui",
   "keywords": [
     "state-management",
@@ -16,6 +16,14 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./dist/client.d.ts",
+      "default": "./dist/client.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
     }
   },
   "main": "./dist/index.js",
@@ -33,12 +41,15 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "@assistant-ui/tap": "^0.9.0",
+    "@assistant-ui/tap": "^0.9.12",
     "@types/react": "*",
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
     "@types/react": {
+      "optional": true
+    },
+    "react": {
       "optional": true
     }
   },
@@ -46,9 +57,9 @@
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/react": "^16.3.2",
-    "@types/react": "^19.2.17",
-    "@types/react-dom": "^19.2.3",
-    "jsdom": "^29.1.1",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.4",
+    "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "vitest": "^4.1.10"
   },

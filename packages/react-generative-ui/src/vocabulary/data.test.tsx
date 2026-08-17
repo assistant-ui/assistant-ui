@@ -333,7 +333,7 @@ describe("dataVocabulary Chart stacking", () => {
 });
 
 describe("dataVocabulary Chart area variant", () => {
-  it("renders a closed filled polygon with fill-opacity and a stroke on top", () => {
+  it("renders an unstroked filled polygon plus a top-edge polyline", () => {
     const html = render({
       $type: "Chart",
       variant: "area",
@@ -342,9 +342,14 @@ describe("dataVocabulary Chart area variant", () => {
     expect(html).toContain("<polygon");
     expect(html).toContain('fill="currentColor"');
     expect(html).toContain('fill-opacity="0.25"');
-    expect(html).toContain('stroke="currentColor"');
-    // top line 0,40 -> 100,0 then closed back down to the baseline in reverse.
+    expect(html).not.toMatch(/<polygon[^>]*stroke=/);
+    // fill polygon: top line 0,40 -> 100,0 then closed back down to the baseline in reverse.
     expect(html).toContain('points="0,40 100,0 100,40 0,40"');
+    // the visible edge is a separate polyline over the top points only.
+    expect(html).toMatch(
+      /<polyline[^>]*points="0,40 100,0"[^>]*stroke="currentColor"/,
+    );
+    expect(html).toMatch(/<polyline[^>]*vector-effect="non-scaling-stroke"/);
   });
 
   it("renders a circle instead of a degenerate polygon for a single point", () => {
@@ -483,7 +488,9 @@ describe("dataVocabulary Chart legend and x-labels", () => {
         { data: [{ value: 30 }, { value: 40 }] },
       ],
     });
-    const points = [...html.matchAll(/points="([^"]+)"/g)].map((m) => m[1]!);
+    const points = [...html.matchAll(/<polygon[^>]*points="([^"]+)"/g)].map(
+      (m) => m[1]!,
+    );
     expect(points).toHaveLength(2);
     for (const polygon of points) {
       expect(polygon).toContain("100,40");
@@ -502,7 +509,9 @@ describe("dataVocabulary Chart legend and x-labels", () => {
         { data: [{ value: 30 }, { value: 40 }] },
       ],
     });
-    const points = [...html.matchAll(/points="([^"]+)"/g)].map((m) => m[1]!);
+    const points = [...html.matchAll(/<polygon[^>]*points="([^"]+)"/g)].map(
+      (m) => m[1]!,
+    );
     expect(points).toHaveLength(2);
     expect(points[1]).toContain("100,0");
     expect(points[1]).not.toContain("100,40");

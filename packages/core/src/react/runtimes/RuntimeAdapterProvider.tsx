@@ -5,6 +5,7 @@ import {
   useContext,
   useMemo,
 } from "react";
+import { useContextProvider } from "@assistant-ui/tap";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 import type { AttachmentAdapter } from "../../adapters/attachment";
 import type { ModelContextProvider } from "../../model-context/types";
@@ -16,6 +17,11 @@ export type RuntimeAdapters = {
 };
 
 const RuntimeAdaptersContext = createContext<RuntimeAdapters | null>(null);
+
+export const useRuntimeAdaptersProvider = <T,>(
+  adapters: RuntimeAdapters | null,
+  fn: () => T,
+): T => useContextProvider(RuntimeAdaptersContext, adapters, fn);
 
 export namespace RuntimeAdapterProvider {
   export type Props = {

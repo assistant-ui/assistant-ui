@@ -32,6 +32,28 @@ export type EventSubscribable<TEvent extends string> = {
   >;
 };
 
+export const notifySubscribers = (subscribers: Iterable<() => void>): void => {
+  const errors: unknown[] = [];
+  for (const callback of subscribers) {
+    try {
+      callback();
+    } catch (error) {
+      errors.push(error);
+    }
+  }
+
+  if (errors.length === 1) {
+    throw errors[0];
+  }
+
+  if (errors.length > 1) {
+    for (const error of errors) {
+      console.error(error);
+    }
+    throw new AggregateError(errors);
+  }
+};
+
 function shallowEqual<T extends object>(
   objA: T | undefined,
   objB: T | undefined,
@@ -70,25 +92,7 @@ export class BaseSubscribable {
   }
 
   protected _notifySubscribers() {
-    const errors = [];
-    for (const callback of this._subscribers) {
-      try {
-        callback();
-      } catch (error) {
-        errors.push(error);
-      }
-    }
-
-    if (errors.length > 0) {
-      if (errors.length === 1) {
-        throw errors[0];
-      } else {
-        for (const error of errors) {
-          console.error(error);
-        }
-        throw new AggregateError(errors);
-      }
-    }
+    notifySubscribers(this._subscribers);
   }
 }
 
@@ -173,7 +177,9 @@ export class ShallowMemoizeSubject<TState extends object, TPath>
       }
     };
 
-    return this.binding.subscribe(callback);
+    const unsubscribe = this.binding.subscribe(callback);
+    this._syncState();
+    return unsubscribe;
   }
 }
 
@@ -197,7 +203,11 @@ export class LazyMemoizeSubject<TState extends object, TPath>
   public getState = () => {
     if (!this.isConnected || this._previousStateDirty) {
       const newState = this.binding.getState();
-      if (newState !== SKIP_UPDATE) {
+      if (
+        newState !== SKIP_UPDATE &&
+        (this._previousState === undefined ||
+          !shallowEqual(newState, this._previousState))
+      ) {
         this._previousState = newState;
       }
       this._previousStateDirty = false;
@@ -213,7 +223,9 @@ export class LazyMemoizeSubject<TState extends object, TPath>
       this.notifySubscribers();
     };
 
-    return this.binding.subscribe(callback);
+    const unsubscribe = this.binding.subscribe(callback);
+    this._previousStateDirty = true;
+    return unsubscribe;
   }
 }
 

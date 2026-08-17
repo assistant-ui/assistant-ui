@@ -16,7 +16,7 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | `showThinking` | `boolean` | Whether to render `THINKING_*` and `REASONING_*` events as visible reasoning. Defaults to `true`. |
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
 | `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors. |
-| `onCancel` | `() => void` | Cancellation callback fired when the user cancels a run. |
+| `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel and runtime teardown. |
 | `adapters` | `UseAgUiRuntimeAdapters` | Standard adapter slots (see below). |
 
 ## Adapter slots
@@ -64,8 +64,20 @@ messages are gone on the next page load.
 
 `fromAgUiMessages` accepts an optional second argument: pass
 `{ showThinking: false }` to match a runtime configured with
-`showThinking: false`, so imported reasoning messages are dropped at conversion
-time, the same way a live run never stores them.
+`showThinking: false`, so the readable text of an imported reasoning message is
+dropped at conversion time, the same way a live run never stores it. An
+`encryptedValue` on that message is kept, because it is opaque state the agent
+needs back rather than something the option hides.
+
+Reasoning makes the round trip in the shape it arrived in. `fromAgUiMessages` imports a `reasoning` record as an assistant message holding a reasoning part, and the run input converts that part back into a standalone `reasoning` record instead of dropping it, so a reloaded thread keeps its reasoning history on the next run. A reasoning part on an assistant message that also has text or tool calls leaves as its own `reasoning` record placed ahead of that assistant record; the AG-UI message body carries no run identity, so the original position of reasoning within a run is not recoverable.
+
+The encrypted value survives with it. AG-UI describes it as an opaque chain-of-thought blob the client stores and forwards for state continuity, not as a signature computed over the text. An imported `ReasoningMessage` carrying `encryptedValue` keeps it at `providerMetadata.agui.encryptedValue` on the part, and a live run picks the same value up from the `REASONING_ENCRYPTED_VALUE` event (`subtype: "message"`, keyed by `entityId`), so reasoning from either source is re-emitted with the value intact and an agent that needs it back can replay it. A record whose readable `content` is empty and whose payload lives entirely in `encryptedValue`, the zero-data-retention shape AG-UI describes when an agent advertises `capabilities.reasoning.encrypted`, is preserved on the import path only. It has nothing to render by construction, so it never becomes a message or a part; it rides on `metadata.custom.agui.opaqueReasoning` of the message it sat next to on the wire and is replayed into the run input adjacent to that message. `showThinking` does not discard it. That option hides reasoning from the UI, and the encrypted value is opaque state the agent needs back rather than something rendered, so a hidden record keeps it and loses only the readable text. This is an import-path guarantee: a live run with `showThinking: false` opens no reasoning block, so a `REASONING_ENCRYPTED_VALUE` arriving during it resolves no slot and is not retained. The same thread therefore carries the value after a reload but not within the live session that produced it. A consumer calling `fromAgUiMessages` directly sees the metadata rather than a part.
+
+Three limits apply to that record. A live stream that emits no readable content produces no reasoning part, so the runtime has nothing to attach the value to; only `fromAgUiMessages` preserves it, whether you call it yourself or the runtime calls it for you while importing a `MESSAGES_SNAPSHOT`. A record that sat between an assistant message and its own tool result is replayed after that tool result rather than between the two, because the import folds the result into the assistant message and the boundary is gone by export. A record in a snapshot that contains no other message has nothing to anchor to and is dropped.
+
+Sending reasoning back is what the protocol asks for, and the inbound side has to handle it. `ag-ui-langgraph` is worth pinning for that reason: below 0.0.36 it raises `ValueError: Unsupported message role: reasoning` on the second turn of any thread that produced reasoning, because its converter recognised only the user, assistant, system, and tool roles. 0.0.36 skips inbound `reasoning` and `developer` records instead of raising, so the turn succeeds but the reasoning is discarded. 0.0.42 re-attaches an inbound `reasoning` record as a content block on the assistant message that follows it, encrypted content included, so the replay actually reaches the model; a record that no assistant message follows is still discarded there, which is what becomes of one replayed after the last message of a thread. Keep it at 0.0.36 or newer to avoid the error, and at 0.0.42 or newer for the replay to be worth anything.
+
+What a server does with a replayed record remains its own choice, so treat continuity as best effort rather than guaranteed. `ag-ui-langgraph` covers all three behaviours across those three versions, and another integration may pick any of them; an `encryptedValue` reaches the provider only where the server forwards it.
 
 `fromAgUiMessages` reconstructs the text, reasoning, and tool calls of each message. Multimodal user input (`image`, `audio`, `video`, and `document` parts, as well as legacy `binary` parts) is restored as attachments on the user message, so a backend that persists multimodal messages shows them again on reload and re-sends them on the next run. Legacy `binary` parts that only reference a file id are not restored.
 
@@ -183,8 +195,25 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 | `STATE_SNAPSHOT` | Replaces the agent's external state. |
 | `STATE_DELTA` | Applies a JSON-patch-style delta to the agent's state. |
 | `MESSAGES_SNAPSHOT` | Replaces the full message list (used for thread restore). |
-| `CUSTOM` | Forwarded to your custom event handling. |
-| `RAW` | Untyped passthrough for unrecognized events. |
+| `CUSTOM` | Appended to the in-flight assistant message as a `data` part. |
+| `RAW` | Parsed and ignored; unrecognized wire event types are normalized into `RAW`. |
+
+### Custom events
+
+`CUSTOM` events are the protocol's extension mechanism for application-defined data. Each event is appended to the in-flight assistant message as a canonical `data` part in arrival order: `CUSTOM { name: "sources", value: {...} }` becomes `{ type: "data", name: "sources", data: {...} }`. Repeated names append separate parts, the `value` is passed through verbatim, and data parts reset with each run. Tool calls that carry a `parentMessageId` are anchored under that message rather than at their wire position, so a data part can render after a tool call that arrived later. A run that delivers its assistant message only through `MESSAGES_SNAPSHOT`, with no streamed text or tool calls, drops that run's data parts when the snapshot supersedes the in-flight message.
+
+Render them by registering a per-name renderer; parts without a registered renderer are not displayed, unless a `Data` fallback component is registered, in which case the fallback receives every custom event name, including the framework plumbing listed below.
+
+```tsx
+import { useAssistantDataUI } from "@assistant-ui/react";
+
+useAssistantDataUI({
+  name: "sources",
+  render: ({ data }) => <SourceList sources={data.sources} />,
+});
+```
+
+Data parts stay in the assistant-ui message but are not sent back to the agent, since the AG-UI assistant record has no field for them. History adapters, including the assistant-cloud one, persist them as part of the message JSON. Framework integrations emit their own plumbing over this channel (`on_interrupt`, `PredictState`, `Exit`, `hook_error`, `state_update_error`, `system:*`, `MultiAgentHandoff`), and those names surface as data parts like any other, so only register renderers for names your backend owns.
 
 ## Feature support
 
@@ -195,6 +224,7 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 | Tool calls and results | Yes |
 | Tool result handoff (client-side execution) | Yes |
 | State snapshots and deltas | Yes |
+| Custom events (as `data` parts) | Yes |
 | Cancellation | Yes |
 | Message editing | Yes |
 | Message reload | Yes |

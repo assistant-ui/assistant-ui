@@ -1,6 +1,7 @@
 "use client";
 
 import { Thread } from "@/components/assistant-ui/thread";
+import { EveAuthorization } from "@/components/eve-authorization";
 import {
   AssistantRuntimeProvider,
   AuiConfig,
@@ -29,6 +30,7 @@ export default function Home() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <EveAuthorization />
       <div className="h-full">
         <Thread />
       </div>

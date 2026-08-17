@@ -26,8 +26,8 @@ export type Unstable_ComposerInput = {
   value: string;
   /**
    * Writes `text` into the composer, mirroring `ComposerPrimitive.Input`:
-   * a no-op unless the composer is editing, committed via `flushTapSync` so the
-   * controlled value stays in sync within the same tick.
+   * a no-op unless the composer is editing; the controlled value stays in
+   * sync within the same tick.
    */
   setText(text: string): void;
   /**

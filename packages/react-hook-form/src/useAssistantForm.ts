@@ -6,11 +6,13 @@ import { type ToolCallMessagePartComponent } from "@assistant-ui/core/react";
 import { useAui } from "@assistant-ui/store";
 import { useEffect } from "react";
 import {
+  type Field,
   type FieldValues,
   type Path,
   type PathValue,
   type UseFormProps,
   type UseFormReturn,
+  get,
   useForm,
 } from "react-hook-form";
 import type { z } from "zod";
@@ -106,8 +108,8 @@ export const useAssistantForm = <
             }
             const { _names, _fields } = control;
             for (const name of _names.mount) {
-              const field = _fields[name];
-              if (field?._f && "refs" in field._f) {
+              const field: Field | undefined = get(_fields, name);
+              if (field?._f) {
                 const fieldReference = Array.isArray(field._f.refs)
                   ? field._f.refs[0]
                   : field._f.ref;

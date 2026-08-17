@@ -227,6 +227,42 @@ describe("openPiEventStream", () => {
     ]);
   });
 
+  it("cancels a failed response body before reconnecting", async () => {
+    let calls = 0;
+    const cancelBody = vi.fn();
+    const fetchImpl = (async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(
+          new ReadableStream<Uint8Array>({ start() {}, cancel: cancelBody }),
+          { status: 503 },
+        );
+      }
+      expect(cancelBody).toHaveBeenCalledOnce();
+      return sseResponse([
+        sseFrame({ type: "agent_start", threadId: "t1", seq: 1 }),
+      ]);
+    }) as unknown as typeof fetch;
+
+    const errors: unknown[] = [];
+    await new Promise<void>((resolve) => {
+      const close = openPiEventStream({
+        url: "/events",
+        fetchImpl,
+        reconnectDelay: () => Promise.resolve(),
+        onError: (error) => errors.push(error),
+        onEvent: () => {
+          close();
+          resolve();
+        },
+      });
+    });
+
+    expect(calls).toBe(2);
+    expect(cancelBody).toHaveBeenCalledOnce();
+    expect(errors).toEqual([new Error("Pi event stream failed: HTTP 503")]);
+  });
+
   it("uses the controlled fetch stream even when native EventSource exists", async () => {
     const EventSource = vi.fn();
     const fetchImpl = vi.fn(async () =>
@@ -321,6 +357,37 @@ describe("openPiEventStream", () => {
     expect(errors).toHaveLength(1);
   });
 
+  it("releases a completed response body before reconnecting", async () => {
+    const body = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.close();
+      },
+    });
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(body, {
+          headers: { "content-type": "text/event-stream" },
+        }),
+    ) as unknown as typeof fetch;
+
+    await new Promise<void>((resolve) => {
+      let close!: () => void;
+      close = openPiEventStream({
+        url: "/events",
+        fetchImpl,
+        onEvent: vi.fn(),
+        reconnectDelay: () => {
+          expect(body.locked).toBe(false);
+          close();
+          resolve();
+          return Promise.resolve();
+        },
+      });
+    });
+
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
   it.each(["throws", "rejects"] as const)(
     "reconnects when the error callback %s",
     async (failureMode) => {
@@ -360,6 +427,55 @@ describe("openPiEventStream", () => {
         expect(onError).toHaveBeenCalledWith(networkError);
         expect(consoleError).toHaveBeenCalledWith(
           "[react-pi] onError callback threw an error",
+          callbackError,
+        );
+      } finally {
+        consoleError.mockRestore();
+      }
+    },
+  );
+
+  it.each(["throws", "rejects"] as const)(
+    "continues without reconnecting when the event callback %s",
+    async (failureMode) => {
+      const callbackError = new Error("consumer failed");
+      const fetchImpl = vi.fn(async () =>
+        sseResponse([
+          sseFrame({ type: "agent_start", threadId: "t1", seq: 1 }),
+          sseFrame({ type: "agent_end", threadId: "t1", seq: 2 }),
+        ]),
+      ) as unknown as typeof fetch;
+      const onError = vi.fn();
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => undefined);
+      let events = 0;
+
+      try {
+        await new Promise<void>((resolve) => {
+          const close = openPiEventStream({
+            url: "/events",
+            fetchImpl,
+            reconnectDelay: () => Promise.resolve(),
+            onError,
+            onEvent: () => {
+              events += 1;
+              if (events === 1) {
+                if (failureMode === "throws") throw callbackError;
+                return Promise.reject(callbackError);
+              }
+              close();
+              resolve();
+            },
+          });
+        });
+        await Promise.resolve();
+
+        expect(events).toBe(2);
+        expect(fetchImpl).toHaveBeenCalledOnce();
+        expect(onError).not.toHaveBeenCalled();
+        expect(consoleError).toHaveBeenCalledWith(
+          "[react-pi] onEvent callback threw an error",
           callbackError,
         );
       } finally {
@@ -440,12 +556,13 @@ describe("openPiEventStream", () => {
   it("stops and does not surface abort as an error after close()", async () => {
     const onError = vi.fn();
     const onEvent = vi.fn();
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({ start() {}, cancel });
     const fetchImpl = (async () =>
-      new Response(
-        // A body that never enqueues — only an abort can end the read.
-        new ReadableStream<Uint8Array>({ start() {} }),
-        { status: 200, headers: { "content-type": "text/event-stream" } },
-      )) as unknown as typeof fetch;
+      new Response(body, {
+        status: 200,
+        headers: { "content-type": "text/event-stream" },
+      })) as unknown as typeof fetch;
 
     const close = openPiEventStream({
       url: "/events",
@@ -458,10 +575,12 @@ describe("openPiEventStream", () => {
     // Let the fetch resolve and the reader park on read(), then close.
     await Promise.resolve();
     await Promise.resolve();
+    expect(body.locked).toBe(true);
     close();
-    await Promise.resolve();
+    await vi.waitFor(() => expect(body.locked).toBe(false));
 
     expect(onEvent).not.toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledOnce();
   });
 });

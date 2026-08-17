@@ -354,7 +354,7 @@ describe("ThreadMessages", () => {
       props.onContentSizeChange?.(0, 140);
     });
     await emit("thread.runStart");
-    await emit("threadListItem.switchedTo");
+    await emit("threads.selectionChanged");
 
     expect(h.scrollToEnd).not.toHaveBeenCalled();
   });
@@ -442,7 +442,7 @@ describe("ThreadMessages", () => {
       const props = getFlatListProps();
       h.scrollToEnd.mockClear();
 
-      await emit("threadListItem.switchedTo");
+      await emit("threads.selectionChanged");
       expect(h.scrollToEnd).toHaveBeenCalledTimes(1);
 
       await act(async () => {
@@ -560,7 +560,7 @@ describe("ThreadMessages", () => {
       await mountFlatList({ components: messageComponents });
       h.scrollToEnd.mockClear();
 
-      await emit("threadListItem.switchedTo");
+      await emit("threads.selectionChanged");
 
       expect(h.scrollToEnd).toHaveBeenCalledWith({ animated: false });
     });
@@ -573,7 +573,7 @@ describe("ThreadMessages", () => {
       });
       h.scrollToEnd.mockClear();
 
-      await emit("threadListItem.switchedTo");
+      await emit("threads.selectionChanged");
 
       h.state.thread.messages = [
         { id: "2", role: "user" },
