@@ -66,6 +66,25 @@ type LiveSnapshot = {
   onError: SandboxHostProps["onError"];
 };
 
+const reportErrorCallbackFailure = (error: unknown) => {
+  console.error(
+    "[assistant-ui] SandboxHost onError callback threw an error",
+    error,
+  );
+};
+
+const invokeErrorCallback = (
+  callback: SandboxHostProps["onError"],
+  error: Error,
+) => {
+  if (!callback) return;
+  try {
+    void Promise.resolve(callback(error)).catch(reportErrorCallbackFailure);
+  } catch (callbackError) {
+    reportErrorCallbackFailure(callbackError);
+  }
+};
+
 export function SandboxHost({
   content,
   contentKey,
@@ -147,9 +166,11 @@ export function SandboxHost({
         window.addEventListener("message", onMessage);
       })
       .catch((err) => {
+        if (cancelled) return;
         frame?.dispose();
         frame = null;
-        liveRef.current.onError?.(
+        invokeErrorCallback(
+          liveRef.current.onError,
           err instanceof Error ? err : new Error(String(err)),
         );
       });
