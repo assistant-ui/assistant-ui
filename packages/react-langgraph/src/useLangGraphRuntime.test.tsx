@@ -2632,6 +2632,77 @@ describe("useLangGraphRuntime", () => {
           configurable: { model_name: "configured-model" },
         });
       });
+
+      it("keeps interrupt runConfig through a thread refetch", async () => {
+        const load = vi.fn(async (): Promise<LoadResult> => ({
+          messages: [],
+          interrupts: [{ value: "approval-needed" }],
+        }));
+        const streamMock = vi.fn(async function* (
+          _messages: LangChainMessage[],
+          _config: { runConfig?: unknown },
+        ) {
+          if (streamMock.mock.calls.length === 1) {
+            yield {
+              event: "updates",
+              data: { __interrupt__: [{ value: "approval-needed" }] },
+            };
+          }
+        });
+
+        const { result: runtimeResult } = renderHook(() =>
+          useLangGraphRuntime({
+            stream: streamMock,
+            load,
+            unstable_threadListAdapter: makeThreadListAdapter(),
+          }),
+        );
+        const wrapper = wrapperWithTool(runtimeResult.current, async () => ({
+          ok: true,
+        }));
+        const { result: controls } = renderHook(
+          () => ({
+            send: useLangGraphSend(),
+            command: useLangGraphSendCommand(),
+          }),
+          { wrapper },
+        );
+
+        await act(async () => {
+          await runtimeResult.current.threads.switchToThread("lg-thread-1");
+        });
+        await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+          controls.current.send([{ type: "human", content: "hello" }], {
+            runConfig: { configurable: { model_name: "configured-model" } },
+          });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+        await waitFor(() =>
+          expect(
+            (
+              runtimeResult.current.thread.getState().extras as {
+                interrupt?: unknown;
+              }
+            ).interrupt,
+          ).toEqual({ value: "approval-needed" }),
+        );
+
+        await act(async () => {
+          await runtimeResult.current.threads.reloadMainThread();
+        });
+        await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+
+        await act(async () => {
+          controls.current.command({ resume: "approved" });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+        expect(streamMock.mock.calls[1]?.[1]).toMatchObject({
+          command: { resume: "approved" },
+          runConfig: { configurable: { model_name: "configured-model" } },
+        });
+      });
     });
 
     it("keeps a delayed tool result on the run that produced it", async () => {

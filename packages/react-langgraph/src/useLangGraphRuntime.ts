@@ -247,8 +247,13 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       nextInterrupt: LangGraphInterruptState | undefined,
       runConfig: unknown,
     ) => {
-      interruptRunConfigRef.current =
-        nextInterrupt === undefined ? undefined : runConfig;
+      if (nextInterrupt === undefined) {
+        interruptRunConfigRef.current = undefined;
+        return;
+      }
+      if (runConfig !== undefined) {
+        interruptRunConfigRef.current = runConfig;
+      }
     },
     [],
   );
