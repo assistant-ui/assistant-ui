@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
 import { act, render, waitFor } from "@testing-library/react";
-import { StrictMode } from "react";
+import { type FC, StrictMode } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { AssistantCloud } from "assistant-cloud";
+import { useAui, useAuiState } from "@assistant-ui/store";
 import type { ChatModelAdapter } from "../../runtime/utils/chat-model-adapter";
 import { AssistantRuntimeProvider } from "../AssistantRuntimeProvider";
 import { useLocalRuntime } from "./useLocalRuntime";
@@ -31,6 +32,35 @@ afterEach(() => {
 });
 
 describe("useLocalRuntime", () => {
+  it("surfaces the live thread after mount without user input", async () => {
+    const auiRef: { current: ReturnType<typeof useAui> | null } = {
+      current: null,
+    };
+    const loadingRef = { current: true };
+    const Capture: FC = () => {
+      auiRef.current = useAui();
+      loadingRef.current = useAuiState((s) => s.thread.isLoading);
+      return null;
+    };
+
+    const App = () => {
+      const runtime = useLocalRuntime(chatModel, {
+        unstable_enableMessageQueue: true,
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Capture />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(loadingRef.current).toBe(false);
+      expect(auiRef.current!.thread.getState().capabilities.queue).toBe(true);
+    });
+  });
+
   it("keeps the Cloud thread list loaded across unrelated rerenders", async () => {
     const firstCloud = makeCloud();
     const secondCloud = makeCloud();

@@ -177,7 +177,9 @@ export class ShallowMemoizeSubject<TState extends object, TPath>
       }
     };
 
-    return this.binding.subscribe(callback);
+    const unsubscribe = this.binding.subscribe(callback);
+    this._syncState();
+    return unsubscribe;
   }
 }
 

@@ -55,4 +55,17 @@ describe("ShallowMemoizeSubject", () => {
 
     expect(subscriber).not.toHaveBeenCalled();
   });
+
+  it("reads a value that landed while nobody was subscribed", () => {
+    const source = createBinding({ status: "empty" });
+    const subject = new ShallowMemoizeSubject(source.binding);
+    expect(subject.getState()).toEqual({ status: "empty" });
+
+    source.update({ status: "ready" });
+    const subscriber = vi.fn();
+    subject.subscribe(subscriber);
+
+    expect(subject.getState()).toEqual({ status: "ready" });
+    expect(subscriber).not.toHaveBeenCalled();
+  });
 });

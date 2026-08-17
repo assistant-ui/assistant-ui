@@ -482,12 +482,12 @@ describe("local runtime message queue", () => {
     await act(async () => {
       await flush();
     });
-    expect(captured.aui!.thread().getState().capabilities.queue).toBe(true);
+    expect(captured.aui!.thread.getState().capabilities.queue).toBe(true);
 
     await act(async () => {
       rerender(<App enabled={false} />);
       await flush();
     });
-    expect(captured.aui!.thread().getState().capabilities.queue).toBe(false);
+    expect(captured.aui!.thread.getState().capabilities.queue).toBe(false);
   });
 });
