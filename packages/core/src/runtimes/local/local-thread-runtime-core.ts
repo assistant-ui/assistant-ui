@@ -167,6 +167,7 @@ export class LocalThreadRuntimeCore
   public __internal_setOptions(options: LocalRuntimeOptionsBase) {
     if (this._options === options) return;
 
+    const previousHistory = this._options?.adapters.history;
     this._options = options;
 
     let hasUpdates = false;
@@ -239,13 +240,25 @@ export class LocalThreadRuntimeCore
     }
 
     if (hasUpdates) this._notifySubscribers();
+
+    if (
+      this._loadRequested &&
+      !this._loadPromise &&
+      !previousHistory &&
+      options.adapters.history
+    ) {
+      void this.__internal_load();
+    }
   }
 
   private _loadPromise: Promise<void> | undefined;
+  private _loadRequested = false;
   public __internal_load() {
+    this._loadRequested = true;
     if (this._loadPromise) return this._loadPromise;
+    if (!this.adapters.history) return Promise.resolve();
 
-    const promise = this.adapters.history?.load() ?? Promise.resolve(null);
+    const promise = this.adapters.history.load();
 
     this._isLoading = true;
     this._notifySubscribers();

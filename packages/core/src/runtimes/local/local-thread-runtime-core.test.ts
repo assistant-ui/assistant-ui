@@ -1465,4 +1465,41 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(thread.capabilities.attachments).toBe(false);
     expect(thread.capabilities.feedback).toBe(false);
   });
+
+  it("loads history when the adapter arrives after the first load", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const thread = createPlainThread(adapter);
+    const load = vi.fn(async () => ({
+      headId: "restored",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "restored",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "hello" }],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    }));
+
+    thread.__internal_load();
+    expect(load).not.toHaveBeenCalled();
+    expect(thread.messages).toHaveLength(0);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: { load, append: async () => {} },
+      },
+    });
+    await flush();
+
+    expect(load).toHaveBeenCalledOnce();
+    expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
+  });
 });
