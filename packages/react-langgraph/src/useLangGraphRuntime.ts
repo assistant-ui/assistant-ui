@@ -397,15 +397,18 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     cancel();
   }, [runQueue, cancel]);
 
+  const langGraphMessagesRef = useRef(messages);
+  langGraphMessagesRef.current = messages;
+
   const handleSendMessage = (
-    messages: LangChainMessage[],
+    outgoing: LangChainMessage[],
     config: LangGraphSendMessageConfig,
   ) => {
     // Only a refetch: its landing snapshot would erase the message just sent.
     if (loadControllerRef.current?.purpose === "reload") {
       loadControllerRef.current.controller.abort();
     }
-    seedMessageOwnership(messages);
+    seedMessageOwnership(langGraphMessagesRef.current);
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
     const runConfig =
@@ -417,7 +420,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     const resolvedConfig =
       runConfig === config.runConfig ? config : { ...config, runConfig };
     return runQueue.enqueue({
-      messages,
+      messages: outgoing,
       config: state ? { ...resolvedConfig, state } : resolvedConfig,
     });
   };
@@ -470,9 +473,6 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       runConfig: msg.runConfig,
     });
   };
-
-  const langGraphMessagesRef = useRef(messages);
-  langGraphMessagesRef.current = messages;
 
   const stagedMessagesRef = useRef(
     new Map<
