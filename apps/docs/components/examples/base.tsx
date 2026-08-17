@@ -382,7 +382,7 @@ const ThreadSuggestions: FC = () => {
 
   return (
     <div className="aui-thread-welcome-suggestions flex w-full flex-col gap-2 px-4">
-      <div className="scrollbar-none w-full overflow-x-auto">
+      <div className="w-full scrollbar-none overflow-x-auto">
         <div className="mx-auto flex w-max items-center gap-2">
           {SUGGESTION_GROUPS.map((group) => (
             <Button
@@ -407,7 +407,7 @@ const ThreadSuggestions: FC = () => {
       {expandedGroup && (
         <div
           key={expandedGroup.label}
-          className="fade-in slide-in-from-top-1 animate-in scrollbar-none w-full overflow-x-auto duration-200"
+          className="fade-in slide-in-from-top-1 animate-in w-full scrollbar-none overflow-x-auto duration-200"
         >
           <div className="mx-auto flex w-max items-center gap-2">
             {expandedGroup.options.map((option) => (
