@@ -6,7 +6,8 @@ import type {
   RemoteThreadMetadata,
 } from "@assistant-ui/core";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
-import type { AdkEvent, AdkMessage, AdkThreadSnapshot } from "./types";
+import { parseAdkEventValue } from "./parseAdkEvent";
+import type { AdkMessage, AdkThreadSnapshot } from "./types";
 import { trimTrailingSlashes } from "./trimTrailingSlashes";
 
 export type AdkSessionAdapterOptions = {
@@ -323,7 +324,9 @@ export function createAdkSessionAdapter(
       );
     }
 
-    const events = session.events as AdkEvent[] | undefined;
+    const events = session.events?.map((event) =>
+      parseAdkEventValue(event, "Invalid ADK session event"),
+    );
 
     if (!events?.length) {
       return { messages: [] };

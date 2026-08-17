@@ -411,6 +411,20 @@ describe("createAdkSessionAdapter - load", () => {
     );
   });
 
+  it("rejects malformed events inside a session history", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "s1", events: [{}] }), {
+        status: 200,
+      }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+
+    await expect(load("s1")).rejects.toThrow(
+      "Invalid ADK session event: expected a non-empty object.",
+    );
+  });
+
   it("throws when session fetch fails", async () => {
     mockFetch.mockResolvedValueOnce(
       new Response("Server error", { status: 500 }),
