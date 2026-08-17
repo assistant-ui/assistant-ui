@@ -6,6 +6,7 @@ import type {
   ThreadComposerRuntimeCore,
 } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
+import { getThreadRuntimeCoreIsRunning } from "../api/thread-runtime";
 import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 import {
   EMPTY_QUEUE_ITEMS,
@@ -14,12 +15,9 @@ import {
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
 
 const isCancelable = (runtime: Omit<ThreadRuntimeCore, "composer">) => {
+  // capabilities is a subclass field assigned after this composer is constructed
   if (!runtime.capabilities?.cancel) return false;
-  if (runtime.isRunning !== undefined) return runtime.isRunning;
-  const lastMessage = runtime.messages?.at(-1);
-  return (
-    lastMessage?.role === "assistant" && lastMessage.status.type === "running"
-  );
+  return getThreadRuntimeCoreIsRunning(runtime);
 };
 
 export class DefaultThreadComposerRuntimeCore
