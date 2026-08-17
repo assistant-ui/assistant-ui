@@ -9,6 +9,7 @@ import { useSubscribable } from "./useSubscribable";
 import { ThreadListItemClient } from "./thread-list-item-runtime-client";
 import { ThreadClient } from "./thread-runtime-client";
 import type { ThreadsState } from "../scopes/threads";
+import { handleThreadListAction } from "./handle-thread-list-action";
 
 const useThreadListItemClientById = ({
   runtime,
@@ -95,12 +96,12 @@ const useThreadListClient = ({
         : state.threadIds[index]!;
       return threadItems.get({ key: id });
     },
-    switchToThread: async (threadId, options) => {
-      await runtime.switchToThread(threadId, options);
-    },
-    switchToNewThread: async () => {
-      await runtime.switchToNewThread();
-    },
+    switchToThread: (threadId, options) =>
+      handleThreadListAction("switch", () =>
+        runtime.switchToThread(threadId, options),
+      ),
+    switchToNewThread: () =>
+      handleThreadListAction("create", () => runtime.switchToNewThread()),
     getLoadThreadsPromise: () => runtime.getLoadThreadsPromise(),
     reload: () => runtime.reload(),
     reloadMainThread: () => runtime.reloadMainThread(),

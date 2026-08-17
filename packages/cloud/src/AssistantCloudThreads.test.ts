@@ -22,6 +22,23 @@ const threadResponse = {
 };
 
 describe("AssistantCloudThreads responses", () => {
+  it("validates created thread IDs", async () => {
+    const { threads, makeRequest } = createCloudThreads();
+    makeRequest.mockResolvedValueOnce({ thread_id: "thread-1" });
+
+    await expect(
+      threads.create({ last_message_at: new Date() }),
+    ).resolves.toEqual({ thread_id: "thread-1" });
+
+    makeRequest.mockResolvedValueOnce({});
+
+    await expect(
+      threads.create({ last_message_at: new Date() }),
+    ).rejects.toThrow(
+      'Invalid Assistant Cloud response for "thread_id": expected a string',
+    );
+  });
+
   it("forwards both archive filter values", async () => {
     const { threads, makeRequest } = createCloudThreads();
     makeRequest.mockResolvedValue({ threads: [] });

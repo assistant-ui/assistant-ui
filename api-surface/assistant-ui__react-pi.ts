@@ -1376,23 +1376,7 @@ interface PiThinkingContent {
 type PiThinkingLevel = "high" | "low" | "medium" | "minimal" | "off" | "xhigh";
 
 declare class PiThreadController implements PiThreadControllerLike {
-  private state;
-  private projectedMessages;
-  private messageRepository;
-  private version;
-  private readonly allListeners;
-  private readonly metadataListeners;
-  private readonly messageListeners;
-  private connectionRetainers;
-  private readonly optimisticUserMessages;
-  private unsubscribeFromEvents;
-  private disconnectTimer;
-  private loadPromise;
-  private messageFlushScheduled;
-  private readonly localSnapshotSeq;
-  private readonly client;
-  private readonly threadId;
-  private readonly options;
+  #private;
   constructor(client: PiClient, threadId: string, options?: {
     scheduleNotify?: PiNotificationScheduler;
   });
@@ -1405,15 +1389,9 @@ declare class PiThreadController implements PiThreadControllerLike {
   subscribeMetadata(listener: () => void): () => void;
   subscribeMessages(listener: () => void): () => void;
   dispose(): void;
-  private ensureEventSubscription;
-  private hasConsumers;
-  private maybeDisconnectFromEvents;
-  private clearDisconnectTimer;
   load(force?: boolean): Promise<void>;
   refresh(): Promise<void>;
-  private refreshInBackground;
   sendMessage(message: AppendMessage, options?: PiSendOptions): Promise<void>;
-  private sendQueued;
   clearQueue(): Promise<{
     steering: string[];
     followUp: string[];
@@ -1427,18 +1405,6 @@ declare class PiThreadController implements PiThreadControllerLike {
   respondToToolApproval(approvalId: string, approved: boolean): Promise<void>;
   resumeToolCall(toolCallId: string, payload: unknown): Promise<void>;
   respondToHostUiRequest(response: PiHostUiResponse): Promise<void>;
-  private respond;
-  private applySnapshot;
-  private dispatch;
-  private setState;
-  private projectedInputMessages;
-  private reconcileOptimisticUserMessages;
-  private projectMessages;
-  private recomputeProjectedMessagesAndNotify;
-  private scheduleProjectedMessageFlush;
-  private bumpVersion;
-  private notifyMetadataListeners;
-  private notifyMessageListeners;
 }
 
 interface PiThreadControllerLike {
@@ -1528,16 +1494,7 @@ interface PiThreadState {
 type PiThreadStatus = "failed" | "idle" | "running";
 
 declare class PiThreadSupervisor {
-  private readonly records;
-  private readonly pendingOpens;
-  private readonly recordsBySessionFile;
-  private readonly workspacePath;
-  private readonly agentDir;
-  private readonly model;
-  private modelRuntimePromise;
-  private readonly archivedSessionFiles;
-  private readonly catalogCache;
-  private readonly catalogInfoByThreadId;
+  #private;
   constructor(options?: PiThreadSupervisorOptions);
   listThreads(input?: {
     workspacePath?: string;
@@ -1570,26 +1527,6 @@ declare class PiThreadSupervisor {
     includeSnapshot?: boolean;
   }): () => void;
   dispose(): Promise<void>;
-  private getModelRuntime;
-  private openSession;
-  private ensureOpen;
-  private openCold;
-  private listSessionInfos;
-  private invalidateCatalog;
-  private findSessionInfo;
-  private rememberSessionInfos;
-  private send;
-  private onSessionEvent;
-  private emitContextUsage;
-  private emit;
-  private notifyListener;
-  private liveStatusFor;
-  private runStatus;
-  private readinessOf;
-  private queuedMessagesOf;
-  private metadataOf;
-  private snapshotOf;
-  private snapshotFromSessionFile;
 }
 
 interface PiThreadSupervisorOptions {

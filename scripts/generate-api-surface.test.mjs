@@ -118,3 +118,97 @@ test("an unrecognized composer attachment union shape throws", () => {
   );
   assert.throws(() => normalizeBundledDeclaration(bad), /unsupported shape/);
 });
+
+test("private instance members collapse to a single #private identity marker", () => {
+  const disposed = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
+      "  private disposed;",
+      "  constructor(options?: Options);",
+      "  listThreads(): void;",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
+  const generation = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
+      "  #private;",
+      "  private generation;",
+      "  constructor(options?: Options);",
+      "  listThreads(): void;",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
+
+  assert.equal(disposed, generation);
+  assert.match(disposed, /#private;/);
+  assert.equal(disposed.includes("disposed"), false);
+  assert.equal(disposed.includes("generation"), false);
+  assert.match(disposed, /constructor\(options\?: Options\)/);
+  assert.match(disposed, /listThreads\(\): void/);
+});
+
+test("a class with no private members does not gain a #private marker", () => {
+  const output = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
+      "  constructor();",
+      "  listThreads(): void;",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
+  assert.equal(output.includes("#private"), false);
+});
+
+test("private constructors stay in the surface", () => {
+  const output = normalizeBundledDeclaration(
+    "declare class Foo {\n  private constructor();\n}\nexport { Foo };\n",
+  );
+  assert.match(output, /private constructor\(\)/);
+});
+
+test("private constructor parameter fields become ordinary parameters", () => {
+  const output = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
+      "  constructor(private readonly name: string);",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
+  assert.match(output, /constructor\(name: string\)/);
+  assert.equal(output.includes("private name"), false);
+});
+
+test("private static members do not add an instance #private brand", () => {
+  const output = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
+      "  private static notifyListeners(): void;",
+      "  static get(): Foo;",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
+  assert.equal(output.includes("#private"), false);
+  assert.equal(output.includes("notifyListeners"), false);
+  assert.match(output, /static get\(\): Foo/);
+});
+
+test("protected members stay in the surface", () => {
+  const output = normalizeBundledDeclaration(
+    [
+      "declare class Foo {",
+      "  protected render(): void;",
+      "  private hide(): void;",
+      "}",
+      "export { Foo };",
+    ].join("\n"),
+  );
+  assert.match(output, /protected render\(\): void/);
+  assert.match(output, /#private;/);
+  assert.equal(output.includes("hide"), false);
+});

@@ -43,7 +43,7 @@ export type {
   ThreadListItemState,
 } from "@assistant-ui/core";
 
-export { useCloudThreadListRuntime } from "./legacy-runtime/cloud/useCloudThreadListRuntime";
+export { useCloudThreadListRuntime } from "@assistant-ui/core/react";
 export { AssistantCloud } from "assistant-cloud";
 
 // --- adapters/attachment ---
@@ -430,7 +430,7 @@ export {
 export {
   InMemoryThreadList,
   type InMemoryThreadListProps,
-} from "./client/InMemoryThreadList";
+} from "@assistant-ui/core/store";
 export { SingleThreadList } from "@assistant-ui/core/store";
 
 export * as INTERNAL from "./internal";

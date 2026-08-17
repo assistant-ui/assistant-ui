@@ -1840,6 +1840,49 @@ describe("useLangGraphRuntime", () => {
       expect(transitions).toEqual([false, true, false]);
     });
 
+    it("drops the queued resume when the runtime unmounts", async () => {
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        config: { abortSignal: AbortSignal },
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+          await new Promise<void>((resolve) => {
+            config.abortSignal.addEventListener("abort", () => resolve(), {
+              once: true,
+            });
+          });
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult, unmount } = renderHook(() => useAui(), {
+        wrapper,
+      });
+
+      await act(async () => {
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(1);
+
+      unmount();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(1);
+    });
+
     it("sends a tool result immediately when no run is in flight", async () => {
       const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
         if (streamMock.mock.calls.length === 1) {
