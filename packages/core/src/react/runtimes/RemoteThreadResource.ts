@@ -38,6 +38,17 @@ export type RemoteThreadResourceProps = {
   ) => void;
 };
 
+export const subscribeToTitleGeneration = (
+  threadRuntime: AssistantRuntime["thread"],
+  itemRuntime: ThreadListItemRuntime,
+) => {
+  const dispose = threadRuntime.unstable_on("runEnd", () => {
+    dispose();
+    return itemRuntime.generateTitle();
+  });
+  return dispose;
+};
+
 const useRemoteThreadBinder = ({
   threadId,
   generation,
@@ -85,10 +96,7 @@ const useRemoteThreadBinder = ({
     const initPromise = itemRuntime.initialize();
     initPromiseRef.current = initPromise;
 
-    const dispose = runtime.thread.unstable_on("runEnd", () => {
-      dispose();
-      void itemRuntime.generateTitle();
-    });
+    const dispose = subscribeToTitleGeneration(runtime.thread, itemRuntime);
 
     void initPromise.catch(() => {
       dispose();
