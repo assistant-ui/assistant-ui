@@ -167,6 +167,26 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(callback).toHaveBeenCalled();
   });
 
+  it("notifies later subscribers when an earlier subscriber throws", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      makeFactory(),
+    );
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+
+    core.subscribe(() => {
+      throw error;
+    });
+    core.subscribe(laterSubscriber);
+
+    expect(() =>
+      core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" })),
+    ).toThrow(error);
+    expect(core.mainThreadId).toBe("thread-beta");
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+  });
+
   it("synthesizes mainThreadId entry after a switch to a threadId not in the threads list", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha" }),
