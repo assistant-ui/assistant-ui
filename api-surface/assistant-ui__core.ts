@@ -3640,8 +3640,15 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   __internal_subscribeRunningChanged(callback: () => void): Unsubscribe$1;
   stopThreadRuntime(threadId: string): void;
   setRuntimeHook(newRuntimeHook: RemoteThreadListHook): void;
+  setDefaultAdapters(adapters: RuntimeAdapters | null): void;
+  setThreadAdapters(threadId: string, adapters: RuntimeAdapters | null): void;
+  dispose(): void;
+  useHost(parentClient: AssistantClient): AssistantRuntime[];
   __internal_RenderThreadRuntimes: FC<{
     provider: ComponentType<PropsWithChildren>;
+  }>;
+  __internal_Host: FC<{
+    parentClient: AssistantClient;
   }>;
 }
 
@@ -3810,6 +3817,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   archive(threadIdOrRemoteId: string): Promise<void>;
   unarchive(threadIdOrRemoteId: string): Promise<void>;
   delete(threadIdOrRemoteId: string): Promise<void>;
+  __internal_dispose(): void;
   detach(threadIdOrRemoteId: string): Promise<void>;
   __internal_RenderComponent: FC;
 }
