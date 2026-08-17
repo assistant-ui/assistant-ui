@@ -1,14 +1,14 @@
 import type { ToolModelContentPart } from "assistant-stream";
-import type { ThreadMessage } from "@assistant-ui/core";
+import type { ThreadMessage } from "../../../types/message";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type { AttachmentAdapter } from "../../../adapters/attachment";
+import type { ThreadHistoryAdapter } from "../../../adapters/thread-history";
 import type {
-  AttachmentAdapter,
-  ThreadHistoryAdapter,
   LanguageModelV1CallSettings,
   LanguageModelConfig,
-} from "@assistant-ui/core";
-import type { UserCommands } from "../../../augmentations";
-import type { ToolExecutionStatus } from "@assistant-ui/core";
+} from "../../../model-context/types";
+import type { UserCommands } from "../../../types/augmentations";
+import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 
 // Message part types
 export type TextPart = {

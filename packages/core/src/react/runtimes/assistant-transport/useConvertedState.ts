@@ -4,7 +4,7 @@ import type {
   AssistantTransportState,
   AssistantTransportStateConverter,
 } from "./types";
-import type { ToolExecutionStatus } from "@assistant-ui/core";
+import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
 
 export function useConvertedState<T>(
   converter: AssistantTransportStateConverter<T>,

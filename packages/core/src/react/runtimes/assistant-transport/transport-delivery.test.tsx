@@ -4,8 +4,8 @@ import { act, render, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { FC } from "react";
 import { useAssistantTransportRuntime } from "./useAssistantTransportRuntime";
-import type { AssistantRuntime } from "../../runtime/AssistantRuntime";
-import { AssistantRuntimeProvider } from "../../../context";
+import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
+import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import type {
   AssistantTransportCommand,
   AssistantTransportStateConverter,

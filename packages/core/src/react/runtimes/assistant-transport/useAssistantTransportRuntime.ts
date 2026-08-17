@@ -1,14 +1,14 @@
 "use client";
 
-import type { AppendMessage } from "@assistant-ui/core";
+import type { AppendMessage } from "../../../types/message";
 import {
   type ReadonlyJSONObject,
   type ReadonlyJSONValue,
   asAsyncIterableStream,
 } from "assistant-stream/utils";
-import { useExternalStoreRuntime } from "../external-store/useExternalStoreRuntime";
-import type { AssistantRuntime } from "../../runtime/AssistantRuntime";
-import type { AddToolResultOptions } from "@assistant-ui/core";
+import { useExternalStoreRuntime } from "../useExternalStoreRuntime";
+import type { AssistantRuntime } from "../../../runtime/api/assistant-runtime";
+import type { AddToolResultOptions } from "../../../runtime/interfaces/thread-runtime-core";
 import { useMemo, useRef, useState } from "react";
 import {
   AssistantMessageAccumulator,
@@ -33,12 +33,12 @@ import {
 } from "./replayBoundaryStream";
 import { useRunManager } from "./runManager";
 import { useConvertedState } from "./useConvertedState";
-import type { ToolExecutionStatus } from "@assistant-ui/core";
-import { createRequestHeaders } from "@assistant-ui/core";
-import { useRemoteThreadListRuntime } from "../remote-thread-list/useRemoteThreadListRuntime";
-import { InMemoryThreadListAdapter } from "@assistant-ui/core";
+import type { ToolExecutionStatus } from "../../../runtimes/tool-invocations/ToolInvocationTracker";
+import { createRequestHeaders } from "../../../runtimes/assistant-transport/utils";
+import { useRemoteThreadListRuntime } from "../useRemoteThreadListRuntime";
+import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import { useAui, useAuiState } from "@assistant-ui/store";
-import type { UserExternalState } from "../../../augmentations";
+import type { UserExternalState } from "../../../types/augmentations";
 
 const convertAppendMessageToCommand = (
   message: AppendMessage,

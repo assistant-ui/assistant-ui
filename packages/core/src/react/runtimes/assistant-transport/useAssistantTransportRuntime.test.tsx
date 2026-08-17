@@ -4,7 +4,7 @@ import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui } from "@assistant-ui/store";
-import { AssistantRuntimeProvider } from "../../../context";
+import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import {
   useAssistantTransportRuntime,
   useAssistantTransportSendCommand,

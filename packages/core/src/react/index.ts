@@ -236,6 +236,17 @@ export { RemoteThreadListThreadListRuntimeCore } from "./runtimes/RemoteThreadLi
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
 export { useCloudThreadListAdapter } from "./runtimes/cloud/useCloudThreadListAdapter";
 export { useCloudThreadListRuntime } from "./runtimes/cloud/useCloudThreadListRuntime";
+export {
+  useAssistantTransportRuntime,
+  useAssistantTransportSendCommand,
+  useAssistantTransportState,
+} from "./runtimes/assistant-transport/useAssistantTransportRuntime";
+export type {
+  AssistantTransportConnectionMetadata,
+  AssistantTransportCommand,
+  AssistantTransportProtocol,
+  SendCommandsRequestBody,
+} from "./runtimes/assistant-transport/types";
 export { useAssistantCloudThreadHistoryAdapter } from "./runtimes/cloud/AssistantCloudThreadHistoryAdapter";
 export { CloudFileAttachmentAdapter } from "./runtimes/cloud/CloudFileAttachmentAdapter";
 export {

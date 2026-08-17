@@ -5701,9 +5701,9 @@ type UseMessageIfProps = RequireAtLeastOne<MessageIfFilters>;
 
 type UseThreadIfProps = RequireAtLeastOne<ThreadIfFilters>;
 
-type UserCommands = Assistant.Commands[keyof Assistant.Commands];
+type UserCommands = Assistant$1.Commands[keyof Assistant$1.Commands];
 
-type UserExternalState = keyof Assistant.ExternalState extends never ? Record<string, unknown> : Assistant.ExternalState[keyof Assistant.ExternalState];
+type UserExternalState = keyof Assistant$1.ExternalState extends never ? Record<string, unknown> : Assistant$1.ExternalState[keyof Assistant$1.ExternalState];
 
 type UserMessage = {
   readonly role: "user";
