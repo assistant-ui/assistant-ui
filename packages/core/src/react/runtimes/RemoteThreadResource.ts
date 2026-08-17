@@ -38,6 +38,28 @@ export type RemoteThreadResourceProps = {
   ) => void;
 };
 
+export const subscribeToTitleGeneration = (
+  threadRuntime: AssistantRuntime["thread"],
+  itemRuntime: ThreadListItemRuntime,
+) => {
+  const generate = () =>
+    void itemRuntime.generateTitle().catch((error: unknown) => {
+      console.error("[assistant-ui] Thread title generation failed", error);
+    });
+
+  if (threadRuntime.getState().messages.length > 0) {
+    generate();
+    return () => {};
+  }
+
+  const unsubscribe = threadRuntime.subscribe(() => {
+    if (threadRuntime.getState().messages.length === 0) return;
+    unsubscribe();
+    generate();
+  });
+  return unsubscribe;
+};
+
 const useRemoteThreadBinder = ({
   threadId,
   generation,
@@ -85,13 +107,13 @@ const useRemoteThreadBinder = ({
     const initPromise = itemRuntime.initialize();
     initPromiseRef.current = initPromise;
 
-    // The title only needs the thread to exist, so it fires when
-    // initialization resolves rather than at the first runEnd; waiting for
-    // the run would leave the thread on "New Chat" for the whole response,
-    // and forever when the run never completes.
+    // The title needs the thread to exist and its first message, so it arms
+    // when initialization resolves rather than at the first runEnd; waiting
+    // for the run would leave the thread on "New Chat" for the whole
+    // response, and forever when the run never completes.
     void initPromise.then(
       () => {
-        void itemRuntime.generateTitle().catch(() => {});
+        subscribeToTitleGeneration(runtime.thread, itemRuntime);
       },
       () => {
         if (initPromiseRef.current === initPromise) {

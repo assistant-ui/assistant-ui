@@ -636,18 +636,6 @@ export class RemoteThreadListThreadListRuntimeCore
     const runtimeCore = this._hookManager.getThreadRuntimeCore(data.id);
     if (!runtimeCore) return; // thread is no longer running
 
-    // External stores land the appended message a render after initialize
-    // can resolve, so the title waits for the first message to exist.
-    if (runtimeCore.messages.length === 0) {
-      await new Promise<void>((resolve) => {
-        const unsubscribe = runtimeCore.subscribe(() => {
-          if (runtimeCore.messages.length === 0) return;
-          unsubscribe();
-          resolve();
-        });
-      });
-    }
-
     const messages = runtimeCore.messages;
     const stream = await this._options.adapter.generateTitle(
       remoteId,
