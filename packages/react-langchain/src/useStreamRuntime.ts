@@ -204,11 +204,7 @@ const useStreamThreadRuntime = (
   );
   const withActiveRunConfig = useCallback(
     (submitOptions?: Record<string, unknown>) => {
-      if (submitOptions?.config !== undefined) {
-        activeRunConfigRef.current =
-          submitOptions.config as NormalizedRunConfigOptions["config"];
-        return submitOptions;
-      }
+      if (submitOptions && "config" in submitOptions) return submitOptions;
       if (activeRunConfigRef.current === undefined) return submitOptions;
       return { ...submitOptions, config: activeRunConfigRef.current };
     },
@@ -227,7 +223,10 @@ const useStreamThreadRuntime = (
   }, [externalId]);
 
   useEffect(() => {
-    for (const message of stream.messages as readonly LangChainBaseMessage[]) {
+    const messages = stream.messages as readonly LangChainBaseMessage[];
+    const owned = runConfigByMessageIdRef.current;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages[i];
       if (
         !message.id ||
         getMessageType(message) !== "ai" ||
@@ -235,12 +234,19 @@ const useStreamThreadRuntime = (
       ) {
         continue;
       }
-      if (!runConfigByMessageIdRef.current.has(message.id)) {
-        runConfigByMessageIdRef.current.set(
-          message.id,
-          activeRunConfigRef.current,
-        );
+      if (owned.has(message.id)) return;
+      break;
+    }
+    for (const message of messages) {
+      if (
+        !message.id ||
+        getMessageType(message) !== "ai" ||
+        !message.tool_calls?.length ||
+        owned.has(message.id)
+      ) {
+        continue;
       }
+      owned.set(message.id, activeRunConfigRef.current);
     }
   }, [stream.messages]);
 
@@ -332,8 +338,13 @@ const useStreamThreadRuntime = (
         subgraphs: stream.subgraphs,
         stream,
         error: stream.error,
-        submit: (values, submitOptions) =>
-          stream.submit(values, withActiveRunConfig(submitOptions)),
+        submit: (values, submitOptions) => {
+          const isResume = values == null || submitOptions?.command != null;
+          return stream.submit(
+            values,
+            isResume ? withActiveRunConfig(submitOptions) : submitOptions,
+          );
+        },
         respond: (response, respondOptions) =>
           stream.respond(response, withActiveRunConfig(respondOptions)),
         respondAll: (responsesById, respondOptions) =>
