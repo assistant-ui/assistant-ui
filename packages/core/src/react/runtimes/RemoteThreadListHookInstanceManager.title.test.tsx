@@ -143,6 +143,65 @@ describe("RemoteThreadListHookInstanceManager title generation", () => {
     expect(titledMessages.map((message) => message.role)).toEqual(["user"]);
   });
 
+  it("waits for a settled message on an agent-initiated first turn", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: string;
+    }>();
+    const run = deferred<{ content: { type: "text"; text: string }[] }>();
+    const generateTitle = vi.fn(async () => new ReadableStream());
+    const adapter = makeAdapter({
+      initialize: vi.fn(() => initialization.promise),
+      generateTitle,
+    });
+    const runtimeRef: { current: AssistantRuntime | null } = { current: null };
+
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        runtimeHook: () => useLocalRuntime({ run: () => run.promise }),
+      });
+      runtimeRef.current = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(runtimeRef.current?.threads.mainItem.getState().id).toBeDefined();
+    });
+    const localId = runtimeRef.current!.threads.mainItem.getState().id;
+
+    act(() => {
+      runtimeRef.current!.thread.startRun({ parentId: null });
+    });
+    await act(async () => {});
+
+    initialization.resolve({
+      remoteId: `remote-${localId}`,
+      externalId: `external-${localId}`,
+    });
+    await act(async () => {});
+
+    expect(generateTitle).not.toHaveBeenCalled();
+
+    run.resolve({ content: [{ type: "text", text: "hi there" }] });
+
+    await waitFor(() => {
+      expect(generateTitle).toHaveBeenCalledTimes(1);
+    });
+    const [, titledMessages] = generateTitle.mock.calls[0] as [
+      string,
+      readonly { role: string }[],
+    ];
+    expect(titledMessages.map((message) => message.role)).toEqual([
+      "assistant",
+    ]);
+  });
+
   it("waits for the first message when initialization resolves before the store lands it", async () => {
     const generateTitle = vi.fn(async () => new ReadableStream());
     const adapter = makeAdapter({ generateTitle });

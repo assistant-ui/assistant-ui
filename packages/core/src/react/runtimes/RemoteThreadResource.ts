@@ -38,6 +38,10 @@ export type RemoteThreadResourceProps = {
   ) => void;
 };
 
+export const isTitleSourceMessage = (message: {
+  status?: { type: string } | undefined;
+}) => message.status?.type !== "running";
+
 export const subscribeToTitleGeneration = (
   threadRuntime: AssistantRuntime["thread"],
   itemRuntime: ThreadListItemRuntime,
@@ -47,13 +51,16 @@ export const subscribeToTitleGeneration = (
       console.error("[assistant-ui] Thread title generation failed", error);
     });
 
-  if (threadRuntime.getState().messages.length > 0) {
+  const hasTitleSource = () =>
+    threadRuntime.getState().messages.some(isTitleSourceMessage);
+
+  if (hasTitleSource()) {
     generate();
     return () => {};
   }
 
   const unsubscribe = threadRuntime.subscribe(() => {
-    if (threadRuntime.getState().messages.length === 0) return;
+    if (!hasTitleSource()) return;
     unsubscribe();
     generate();
   });
@@ -97,6 +104,7 @@ const useRemoteThreadBinder = ({
   const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
   const hasInitializedRef = useRef(false);
   const titleDisposeRef = useRef<(() => void) | undefined>(undefined);
+  const titleAliveRef = useRef(false);
 
   const handleInitialize = useEffectEvent(() => {
     if (hasInitializedRef.current) return;
@@ -114,6 +122,7 @@ const useRemoteThreadBinder = ({
     // response, and forever when the run never completes.
     void initPromise.then(
       () => {
+        if (!titleAliveRef.current) return;
         titleDisposeRef.current?.();
         titleDisposeRef.current = subscribeToTitleGeneration(
           runtime.thread,
@@ -146,11 +155,13 @@ const useRemoteThreadBinder = ({
   useEffect(() => {
     if (!runtime?.threads?.main) return undefined;
     hasInitializedRef.current = false;
+    titleAliveRef.current = true;
     const unsubscribe = runtime.threads.main.unstable_on(
       "initialize",
       handleInitialize,
     );
     return () => {
+      titleAliveRef.current = false;
       unsubscribe();
       titleDisposeRef.current?.();
       titleDisposeRef.current = undefined;
