@@ -2323,7 +2323,7 @@ declare const useLangGraphMessages: <TMessage extends {
   messages: TMessage[];
   messageMetadata: Map<string, LangGraphTupleMetadata>;
   uiMessages: UIMessage[];
-  sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: () => void) => Promise<void>;
+  sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: (() => void) | undefined) => Promise<void>;
   cancel: () => void;
   setInterrupt: import("react").Dispatch<import("react").SetStateAction<LangGraphInterruptState | undefined>>;
   setValues: import("react").Dispatch<import("react").SetStateAction<Record<string, unknown> | undefined>>;
