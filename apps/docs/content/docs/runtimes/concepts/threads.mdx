@@ -170,7 +170,7 @@ function useThreadListAdapters() {
     }),
     [aui],
   );
-  return { history };
+  return useMemo(() => ({ history }), [history]);
 }
 
 const adapterWithHistory: RemoteThreadListAdapter = {

@@ -286,7 +286,7 @@ function useThreadListAdapters() {
     }),
     [aui],
   );
-  return { history };
+  return useMemo(() => ({ history }), [history]);
 }
 
 export const threadListAdapter: RemoteThreadListAdapter = {
@@ -407,7 +407,7 @@ function useThreadListAdapters() {
     }),
     [aui],
   );
-  return { history };
+  return useMemo(() => ({ history }), [history]);
 }
 
 export const threadListAdapter: RemoteThreadListAdapter = {
@@ -532,7 +532,7 @@ function useThreadListAdapters() {
     }),
     [aui],
   );
-  return { history };
+  return useMemo(() => ({ history }), [history]);
 }
 
 export const threadListAdapter: RemoteThreadListAdapter = {

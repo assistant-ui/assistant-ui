@@ -275,16 +275,15 @@ const useRemoteThreadListView = ({
   onDetach: (threadId: string) => Promise<void>;
 }) => {
   const thread = threadFactory(mainThreadId);
-  const mainThreadClient = useClientResource(
+  const wrapped =
     useAdapters === undefined
       ? thread
-      : withKey(
-          thread.key ?? mainThreadId,
-          AdaptedRemoteThread({
-            useAdapters,
-            thread,
-          }),
-        ),
+      : AdaptedRemoteThread({
+          useAdapters,
+          thread,
+        });
+  const mainThreadClient = useClientResource(
+    thread.key === undefined ? wrapped : withKey(thread.key, wrapped),
   );
   const itemOrder = useMemo(
     () => collectItemOrder(listState, mainThreadId),

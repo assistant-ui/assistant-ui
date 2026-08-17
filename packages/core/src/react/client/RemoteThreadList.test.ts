@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
-import { flushTapSync, resource } from "@assistant-ui/tap";
+import { flushTapSync, resource, withKey } from "@assistant-ui/tap";
 import { useAui } from "@assistant-ui/store";
 import {
   AuiConfig,
@@ -59,6 +60,18 @@ const useCapturingThread = (props: {
   return useStubThread(props);
 };
 const CapturingThread = resource(useCapturingThread);
+
+const useCountingThread = (props: {
+  threadId: string;
+  mounts: { n: number };
+}) => {
+  useState(() => {
+    props.mounts.n += 1;
+    return props.mounts.n;
+  });
+  return useStubThread(props);
+};
+const CountingThread = resource(useCountingThread);
 
 const makeAdapter = (
   overrides: Partial<RemoteThreadListAdapter> = {},
@@ -548,6 +561,109 @@ describe("RemoteThreadList", () => {
       handle.getClient().threads.getState().mainThreadId,
     );
     handle.destroy();
+  });
+
+  it("does not remount useAdapters when switching an unkeyed thread", async () => {
+    let mounts = 0;
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+      unstable_useAdapters: function useAdapters() {
+        useState(() => {
+          mounts += 1;
+          return mounts;
+        });
+        return { history: dummyHistory() };
+      },
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const afterLoad = mounts;
+    expect(afterLoad).toBeGreaterThan(0);
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+    });
+    expect(mounts).toBe(afterLoad);
+    handle.destroy();
+  });
+
+  it("keeps unkeyed thread mount count independent of useAdapters", async () => {
+    const run = async (
+      mounts: { n: number },
+      useAdapters?: RemoteThreadListAdapter["unstable_useAdapters"],
+    ) => {
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            { status: "regular" as const, remoteId: "t1", title: "One" },
+          ],
+        })),
+        unstable_useAdapters: useAdapters,
+      });
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => CountingThread({ threadId: id, mounts }) as never,
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      await aui.threads.getLoadThreadsPromise();
+      flushTapSync(() => aui.threads.switchToThread("t1"));
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+      });
+      handle.destroy();
+    };
+    const withoutHook = { n: 0 };
+    const withHook = { n: 0 };
+    await run(withoutHook);
+    await run(withHook, useHistoryAdapters(dummyHistory()));
+    expect(withHook.n).toBe(withoutHook.n);
+  });
+
+  it("forwards a caller key onto the useAdapters wrapper", async () => {
+    const run = async (
+      mounts: { n: number },
+      useAdapters?: RemoteThreadListAdapter["unstable_useAdapters"],
+    ) => {
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            { status: "regular" as const, remoteId: "t1", title: "One" },
+          ],
+        })),
+        unstable_useAdapters: useAdapters,
+      });
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) =>
+              withKey(id, CountingThread({ threadId: id, mounts }) as never),
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      const aui = handle.getClient();
+      await aui.threads.getLoadThreadsPromise();
+      flushTapSync(() => aui.threads.switchToThread("t1"));
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+      });
+      handle.destroy();
+    };
+    const withoutHook = { n: 0 };
+    const withHook = { n: 0 };
+    await run(withoutHook);
+    await run(withHook, useHistoryAdapters(dummyHistory()));
+    expect(withHook.n).toBe(withoutHook.n);
+    expect(withHook.n).toBeGreaterThan(1);
   });
 
   it("does not re-emit onSwitchToNewThread when the draft is already main", async () => {
