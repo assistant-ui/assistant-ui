@@ -10,6 +10,11 @@ import type {
 import { useAui } from "@assistant-ui/store";
 import type { LangChainBaseMessage } from "./types";
 import type { ReactNode } from "react";
+import {
+  useLangChainRespond,
+  useLangChainRespondAll,
+  useLangChainSendCommand,
+} from "./hooks";
 
 const { mockUseChannel, mockUseStream, streamController } = vi.hoisted(() => ({
   mockUseChannel: vi.fn(() => []),
@@ -271,6 +276,136 @@ describe("useStreamRuntime thread options", () => {
     for (const call of stream.submit.mock.calls) {
       expect(call[1]).not.toHaveProperty("threadId");
     }
+    view.unmount();
+  });
+});
+
+describe("useStreamRuntime run configuration", () => {
+  it("preserves custom configuration for automatic tool-result resumes", async () => {
+    const stream = createMockStream();
+    const { auiResult, rerender } = renderAui(stream);
+
+    await act(async () => {
+      await auiResult.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        runConfig: { custom: { model_name: "gpt-5.4-nano" } },
+      });
+    });
+
+    stream.messages = [
+      {
+        id: "assistant-1",
+        _getType: () => "ai",
+        content: "",
+        tool_calls: [{ id: "tool-1", name: "lookup", args: {} }],
+      },
+    ];
+    rerender();
+
+    await waitFor(() => {
+      expect(auiResult.current.thread.getState().messages).toContainEqual(
+        expect.objectContaining({
+          id: "assistant-1",
+          content: expect.arrayContaining([
+            expect.objectContaining({
+              type: "tool-call",
+              toolCallId: "tool-1",
+            }),
+          ]),
+        }),
+      );
+    });
+
+    act(() => {
+      auiResult.current.thread
+        .message({ id: "assistant-1" })
+        .part({ toolCallId: "tool-1" })
+        .addToolResult({ answer: 42 });
+    });
+    await waitFor(() => expect(stream.submit).toHaveBeenCalledTimes(2));
+
+    const config = { config: { configurable: { model_name: "gpt-5.4-nano" } } };
+    expect(stream.submit).toHaveBeenNthCalledWith(
+      1,
+      {
+        messages: [{ type: "human", content: "hello" }],
+      },
+      config,
+    );
+    expect(stream.submit).toHaveBeenNthCalledWith(
+      2,
+      {
+        messages: [
+          {
+            type: "tool",
+            name: "lookup",
+            tool_call_id: "tool-1",
+            content: JSON.stringify({ answer: 42 }),
+            status: "success",
+          },
+        ],
+      },
+      config,
+    );
+  });
+
+  it("inherits custom configuration through exposed resume helpers", async () => {
+    const stream = createMockStream();
+    mockUseStream.mockReturnValue(stream);
+    const capture: {
+      runtime: AssistantRuntime | null;
+      respond?: ReturnType<typeof useLangChainRespond>;
+      respondAll?: ReturnType<typeof useLangChainRespondAll>;
+      sendCommand?: ReturnType<typeof useLangChainSendCommand>;
+    } = { runtime: null };
+
+    const Capture = () => {
+      capture.respond = useLangChainRespond();
+      capture.respondAll = useLangChainRespondAll();
+      capture.sendCommand = useLangChainSendCommand();
+      return null;
+    };
+    Capture.displayName = "Capture";
+
+    const TestRuntime = () => {
+      const runtime = useStreamRuntime({ apiUrl: "/api" } as never);
+      capture.runtime = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Capture />
+        </AssistantRuntimeProvider>
+      );
+    };
+    TestRuntime.displayName = "TestRuntime";
+
+    const view = render(<TestRuntime />);
+    await waitFor(() => expect(capture.respond).toBeDefined());
+
+    await act(async () => {
+      await capture.runtime!.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+        runConfig: { custom: { model_name: "gpt-5.4-nano" } },
+      });
+    });
+
+    const config = { config: { configurable: { model_name: "gpt-5.4-nano" } } };
+    await act(async () => {
+      await capture.respond!({ approved: true });
+      await capture.respondAll!({ "interrupt-1": { approved: true } });
+      await capture.sendCommand!({ resume: "continue" });
+    });
+
+    expect(stream.respond).toHaveBeenCalledWith({ approved: true }, config);
+    expect(stream.respondAll).toHaveBeenCalledWith(
+      { "interrupt-1": { approved: true } },
+      config,
+    );
+    expect(stream.submit).toHaveBeenLastCalledWith(null, {
+      command: { resume: "continue" },
+      ...config,
+    });
     view.unmount();
   });
 });
