@@ -112,6 +112,10 @@ export class ReadonlyThreadRuntimeCore
     throw READONLY_THREAD_ERROR;
   }
 
+  unstable_notifySessionReset(): void {
+    throw READONLY_THREAD_ERROR;
+  }
+
   composer = {
     attachments: [] as never[],
     attachmentAccept: "*",

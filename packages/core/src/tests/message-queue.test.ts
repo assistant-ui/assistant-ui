@@ -612,6 +612,34 @@ describe("createMessageQueue", () => {
     expect(cb).toHaveBeenCalled();
   });
 
+  it("isolates subscriber errors while enqueueing", () => {
+    const run = vi.fn();
+    const { adapter, subscribe } = createMessageQueue({ run });
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    subscribe(() => {
+      throw error;
+    });
+    subscribe(laterSubscriber);
+
+    try {
+      expect(() => adapter.enqueue(msg("a"), { steer: false })).not.toThrow();
+      expect(run).toHaveBeenCalledTimes(1);
+      expect(adapter.items).toHaveLength(0);
+      expect(laterSubscriber).toHaveBeenCalledTimes(2);
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] Message queue listener threw an error",
+        error,
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("buffers when a run started outside the queue is marked busy", () => {
     const run = vi.fn();
     const { adapter, notifyBusy, notifyIdle } = createMessageQueue({ run });
@@ -624,5 +652,31 @@ describe("createMessageQueue", () => {
     notifyIdle(); // that run settled
     expect(run).toHaveBeenCalledTimes(1);
     expect(adapter.items).toHaveLength(0);
+  });
+});
+
+describe("createMessageQueue interrupt with a runtime-routed cancel", () => {
+  it("keeps draining when the driver's cancel notifies back", () => {
+    const runs: string[] = [];
+    const controller = createMessageQueue({
+      run: (message) => {
+        runs.push(
+          message.content[0]!.type === "text" ? message.content[0].text : "",
+        );
+      },
+      cancel: () => controller.notifyCancelled(),
+    });
+
+    controller.adapter.enqueue(msg("first"));
+    controller.adapter.enqueue(msg("second"));
+    controller.adapter.steer(msg("steered"));
+
+    expect(runs).toEqual(["first", "steered"]);
+
+    // the interrupted run and the steer run each settle once
+    controller.notifyIdle();
+    controller.notifyIdle();
+
+    expect(runs).toEqual(["first", "steered", "second"]);
   });
 });

@@ -1119,7 +1119,7 @@ describe("useLangGraphMessages", {}, () => {
       result.current.sendMessage([{ type: "human", content: "test" }], {
         checkpointId: "cp-456",
         command: { resume: "yes" },
-        runConfig: { model: "gpt-5.4-nano" },
+        runConfig: { model: "gpt-5.6-luna" },
       });
     });
 
@@ -1128,10 +1128,51 @@ describe("useLangGraphMessages", {}, () => {
       const config = streamSpy.mock.calls[0]![1];
       expect(config.checkpointId).toBe("cp-456");
       expect(config.command).toEqual({ resume: "yes" });
-      expect(config.runConfig).toEqual({ model: "gpt-5.4-nano" });
+      expect(config.runConfig).toEqual({ model: "gpt-5.6-luna" });
       expect(config.abortSignal).toBeInstanceOf(AbortSignal);
       expect(typeof config.initialize).toBe("function");
     });
+  });
+
+  it("aborts the active stream when the hook unmounts", async () => {
+    let runSignal: AbortSignal | undefined;
+    let resolveStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      resolveStarted = resolve;
+    });
+    const streamSpy = vi.fn().mockImplementation(async (_messages, config) => {
+      runSignal = config.abortSignal;
+      resolveStarted();
+      async function* streamResponse() {
+        await new Promise<void>((resolve) => {
+          config.abortSignal.addEventListener("abort", resolve, {
+            once: true,
+          });
+        });
+      }
+      return streamResponse();
+    });
+
+    const { result, unmount } = renderHook(() =>
+      useLangGraphMessages({
+        stream: streamSpy,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    let sendMessagePromise!: Promise<void>;
+    act(() => {
+      sendMessagePromise = result.current.sendMessage(
+        [{ type: "human", content: "unmount me" }],
+        {},
+      );
+    });
+    await started;
+
+    unmount();
+
+    expect(runSignal?.aborted).toBe(true);
+    await expect(sendMessagePromise).resolves.toBeUndefined();
   });
 
   it("swallows AbortError when stream is cancelled", async () => {

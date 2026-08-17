@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import { abortableIterable, whenAborted } from "./abortableIterable";
@@ -647,6 +647,8 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       abortControllerRef.current.abort();
     }
   }, []);
+
+  useEffect(() => cancel, [cancel]);
 
   return {
     interrupt,

@@ -95,6 +95,13 @@ export type ExternalThreadProps = {
   onStartRun?: () => void;
   onCancel?: () => void;
   onResume?: (() => void) | undefined;
+  /**
+   * Handler for re-fetching this thread's state in place, driving
+   * `threads.reloadMainThread()`. Unrelated to `onReload`, which re-generates
+   * an assistant message. Presence enables the `refetchThread` capability;
+   * rejections propagate to the caller.
+   */
+  onRefetchThread?: (() => Promise<void>) | undefined;
   onAddToolResult?: ((options: AddToolResultOptions) => void) | undefined;
   /** Callback for resuming a tool call that is waiting for human input. */
   onResumeToolCall?: ((options: ResumeToolCallOptions) => void) | undefined;
@@ -403,6 +410,7 @@ const AttachmentResource = resource(useAttachmentResource);
 type ComposerClientResourceProps = {
   type: "thread" | "edit";
   canCancel: boolean;
+  isRunning?: boolean;
   isSendDisabled?: boolean;
   onCancel?: () => void;
   onBeginEdit?: () => void;
@@ -509,6 +517,7 @@ const useLiveState = <T>(initial: T) => {
 const useComposerClientResource = ({
   type,
   canCancel,
+  isRunning = false,
   isSendDisabled = false,
   onCancel,
   onBeginEdit,
@@ -755,7 +764,7 @@ const useComposerClientResource = ({
         };
         // edit sends carry a sourceId contract; only thread sends queue
         if (queue && type === "thread") {
-          if (opts?.steer ?? canCancel) queue.steer(composedMessage);
+          if (opts?.steer ?? isRunning) queue.steer(composedMessage);
           else queue.enqueue(composedMessage);
         } else {
           onSend?.(composedMessage);
@@ -900,6 +909,7 @@ const useExternalThread = ({
   onStartRun,
   onCancel,
   onResume,
+  onRefetchThread,
   onAddToolResult,
   onResumeToolCall,
   onLoadExternalState,
@@ -1013,7 +1023,15 @@ const useExternalThread = ({
   );
 
   const handleCancelRun = () => {
-    onCancel?.();
+    // Nothing is aborted without a handler, so pausing the queue would hold
+    // the pending items against a run that keeps going.
+    if (!onCancel) return;
+
+    // Before the run is aborted, so the settle it produces keeps the pending
+    // items instead of dispatching the next one at the moment the user
+    // stopped.
+    queue?.__internal_notifyCancelled?.();
+    onCancel();
   };
 
   const handleSendNew = (message: AppendMessage) => {
@@ -1023,6 +1041,8 @@ const useExternalThread = ({
   };
 
   const headId = messages.at(-1)?.id ?? null;
+  const hasCancel = !!onCancel;
+  const hasRefetchThread = !!onRefetchThread;
   const composerQueue = useMemo(
     (): ExternalThreadQueueAdapter | undefined =>
       queue && {
@@ -1038,7 +1058,8 @@ const useExternalThread = ({
   const composerClient = useClientResource(
     ComposerClientResource({
       type: "thread",
-      canCancel: isRunning,
+      canCancel: isRunning && hasCancel,
+      isRunning,
       isSendDisabled,
       onCancel: handleCancelRun,
       onSend: handleSendNew,
@@ -1072,8 +1093,8 @@ const useExternalThread = ({
         edit: hasEdit,
         delete: false,
         reload: hasReload,
-        refetchThread: false,
-        cancel: isRunning,
+        refetchThread: hasRefetchThread,
+        cancel: hasCancel,
         speech: hasSpeech,
         attachments: hasAttachments,
         feedback: hasFeedback,
@@ -1102,6 +1123,8 @@ const useExternalThread = ({
     hasBranches,
     hasEdit,
     hasReload,
+    hasCancel,
+    hasRefetchThread,
     hasAttachments,
     hasFeedback,
     hasSpeech,
@@ -1156,6 +1179,7 @@ const useExternalThread = ({
       onResume();
     },
     cancelRun: handleCancelRun,
+    ...(onRefetchThread && { unstable_refetchThread: onRefetchThread }),
     importExternalState: (state: unknown) => {
       if (!onLoadExternalState)
         throw new Error(

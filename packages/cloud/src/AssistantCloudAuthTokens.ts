@@ -1,4 +1,5 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
+import { readCloudRecord, readCloudString } from "./cloudResponse";
 
 type AssistantCloudAuthTokensCreateResponse = {
   token: string;
@@ -12,6 +13,11 @@ export class AssistantCloudAuthTokens {
   }
 
   public async create(): Promise<AssistantCloudAuthTokensCreateResponse> {
-    return this.cloud.makeRequest("/auth/tokens", { method: "POST" });
+    const response = readCloudRecord(
+      await this.cloud.makeRequest("/auth/tokens", { method: "POST" }),
+      "auth token response",
+    );
+
+    return { token: readCloudString(response.token, "token") };
   }
 }

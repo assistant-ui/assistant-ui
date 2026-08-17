@@ -5,6 +5,7 @@ import {
   type ClientOutput,
   attachTransformScopes,
 } from "@assistant-ui/store";
+import { useAssistantScopeEffect } from "@assistant-ui/store/client";
 import type {
   InteractablesState,
   InteractableRegistration,
@@ -251,9 +252,11 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     for (const cb of subscribersRef.current) cb();
   }, [state]);
 
-  useEffect(() => {
-    return clientRef.current!.modelContext().register(provider);
-  }, [clientRef, provider]);
+  useAssistantScopeEffect(
+    "modelContext",
+    () => clientRef.current!.modelContext().register(provider),
+    [provider],
+  );
 
   const register = useCallback(
     (def: InteractableRegistration) => {

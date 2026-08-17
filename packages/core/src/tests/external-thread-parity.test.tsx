@@ -279,6 +279,60 @@ describe("ExternalThread composer", () => {
     expect(enqueue).not.toHaveBeenCalled();
   });
 
+  it("pauses the queue on cancel", async () => {
+    const notifyCancelled = vi.fn();
+    const onCancel = vi.fn();
+    const { aui } = renderThread({
+      messages: [],
+      isRunning: true,
+      onCancel,
+      queue: {
+        items: [],
+        steerItems: [],
+        enqueue: vi.fn(),
+        steer: vi.fn(),
+        move: vi.fn(),
+        edit: vi.fn(),
+        remove: vi.fn(),
+        __internal_notifyCancelled: notifyCancelled,
+      },
+    });
+
+    aui().thread.cancelRun();
+
+    expect(notifyCancelled).toHaveBeenCalledTimes(1);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    expect(notifyCancelled.mock.invocationCallOrder[0]!).toBeLessThan(
+      onCancel.mock.invocationCallOrder[0]!,
+    );
+    expect(aui().thread.getState().capabilities.cancel).toBe(true);
+    expect(aui().thread.composer().getState().canCancel).toBe(true);
+  });
+
+  it("leaves the queue alone when the host cannot cancel", async () => {
+    const notifyCancelled = vi.fn();
+    const { aui } = renderThread({
+      messages: [],
+      isRunning: true,
+      queue: {
+        items: [],
+        steerItems: [],
+        enqueue: vi.fn(),
+        steer: vi.fn(),
+        move: vi.fn(),
+        edit: vi.fn(),
+        remove: vi.fn(),
+        __internal_notifyCancelled: notifyCancelled,
+      },
+    });
+
+    aui().thread.cancelRun();
+
+    expect(notifyCancelled).not.toHaveBeenCalled();
+    expect(aui().thread.getState().capabilities.cancel).toBe(false);
+    expect(aui().thread.composer().getState().canCancel).toBe(false);
+  });
+
   it("routes edit-composer sends to onEdit with sourceId, bypassing the queue", async () => {
     const onEdit = vi.fn();
     const enqueue = vi.fn();

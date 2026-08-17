@@ -32,9 +32,10 @@ type AppendMessage = Omit<ThreadMessage, "id"> & {
 
 type AsNumber<K> = K extends `${infer N extends number}` ? N | K : never;
 
-type AssistantClient = {
-  [K in ClientNames]: AssistantClientAccessor<K>;
-} & {
+type AssistantClient = ClientScopes & {
+  readonly optional: {
+    readonly [K in keyof ClientScopes]: ClientScopes[K] | undefined;
+  };
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe;
 };
@@ -237,6 +238,10 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
 } : {
   [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
+};
+
+type ClientScopes = {
+  [K in ClientNames]: AssistantClientAccessor<K>;
 };
 
 type CompleteAttachment = BaseAttachment & {
@@ -520,6 +525,7 @@ type ExternalThreadQueueAdapter = {
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
   __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
+  __internal_notifyCancelled?: (() => void) | undefined;
 };
 
 type FeedbackAdapter = {
@@ -537,6 +543,7 @@ type FileMessagePart = {
   readonly data: string;
   readonly mimeType: string;
   readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -585,6 +592,7 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 interface JSONSchema7 {
@@ -873,24 +881,10 @@ type OpenCodeAttachmentAdapterOptions = {
 };
 
 declare class OpenCodeEventSource {
-  private readonly listeners;
-  private readonly reconnectDelayMs;
-  private readonly maxReconnectDelayMs;
-  private abortController;
-  private connectionPromise;
-  private interruptReconnectWait;
-  private stopped;
-  private nextReconnectDelayMs;
-  private hadConnection;
-  private readonly client;
+  #private;
   constructor(client: OpencodeClient);
   subscribe(listener: Listener): () => void;
   dispose(): void;
-  private emit;
-  private connect;
-  private disconnect;
-  private waitForReconnect;
-  private run;
 }
 
 type OpenCodeEventSourceProvider = () => Pick<OpenCodeEventSource, "subscribe">;
@@ -974,7 +968,7 @@ type OpenCodeRuntimeOptions = ExternalStoreSharedOptions & {
     modelID: string;
   } | undefined;
   defaultAgent?: string | undefined;
-  onError?: (error: unknown) => void;
+  onError?: (error: unknown) => void | Promise<void>;
   adapters?: {
     attachments?: AttachmentAdapter;
     speech?: SpeechSynthesisAdapter;
@@ -1082,39 +1076,13 @@ type OpenCodeStateEvent = {
 };
 
 declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
-  private state;
-  private readonly listeners;
-  private readonly getEventSource;
-  private unsubscribeFromEvents;
-  private loadPromise;
-  private reconnectSyncToken;
-  private readonly childControllersById;
-  private readonly childSessionIdByPartId;
-  private ancestorSessionIds;
-  private isChildSession;
-  private readonly stagedMessages;
-  private readonly client;
-  private readonly sessionId;
+  #private;
   constructor(client: OpencodeClient, getEventSource: OpenCodeEventSourceProvider, sessionId: string);
-  private notifyListeners;
-  private updateChildSnapshot;
-  private attachChildController;
-  private detachChildControllers;
-  private discard;
-  private rebuildChildSessionIndex;
-  private updateChildSessionIndex;
-  private removeFromChildSessionIndex;
-  private syncChildControllers;
-  private syncChildSessionIndex;
-  private ensureEventSubscription;
-  private handleStreamReconnect;
   dispose(): void;
   getState: () => OpenCodeThreadState;
   subscribe: (listener: () => void) => () => void;
   load(force?: boolean): Promise<void>;
   refresh(): Promise<void>;
-  private createPendingMessage;
-  private promptMessage;
   sendMessage(message: AppendMessage, options?: OpenCodeUserMessageOptions): Promise<void>;
   stageMessage(message: AppendMessage, options?: OpenCodeUserMessageOptions): Promise<void>;
   sendStagedMessage(parentId: string, options?: OpenCodeUserMessageOptions): Promise<boolean>;
@@ -1125,9 +1093,6 @@ declare class OpenCodeThreadController implements OpenCodeThreadControllerLike {
   replyToPermission(permissionId: string, response: OpenCodePermissionResponse): Promise<void>;
   replyToQuestion(questionId: string, answers: readonly QuestionAnswer$1[]): Promise<void>;
   rejectQuestion(questionId: string): Promise<void>;
-  private refreshInBackground;
-  private handleServerEvent;
-  private dispatch;
 }
 
 type OpenCodeThreadControllerLike = {
@@ -1648,6 +1613,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe$1;
   cancelRun(): void;
+  unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;

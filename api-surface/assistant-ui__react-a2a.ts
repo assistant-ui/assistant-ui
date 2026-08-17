@@ -85,17 +85,8 @@ type A2AAuthorizationCodeOAuthFlow = {
 };
 
 declare class A2AClient {
-  private baseUrl;
-  private basePath;
-  private tenant;
-  private extensionUris;
-  private fetchOptions;
-  private headersFn;
+  #private;
   constructor(options: A2AClientOptions);
-  private getBasePath;
-  private getHeaders;
-  private throwResponseError;
-  private fetchJSON;
   getAgentCard(signal?: AbortSignal): Promise<A2AAgentCard>;
   getExtendedAgentCard(signal?: AbortSignal): Promise<A2AAgentCard>;
   sendMessage(message: A2AMessage, configuration?: A2ASendMessageConfiguration, metadata?: Record<string, unknown>, signal?: AbortSignal): Promise<A2ATask | A2AMessage>;
@@ -111,7 +102,6 @@ declare class A2AClient {
     pageToken?: string;
   }, signal?: AbortSignal): Promise<A2AListTaskPushNotificationConfigsResponse>;
   deleteTaskPushNotificationConfig(taskId: string, configId: string, signal?: AbortSignal): Promise<void>;
-  private parseSSE;
 }
 
 type A2AClientCredentialsOAuthFlow = {
@@ -740,6 +730,7 @@ type ExternalThreadQueueAdapter = {
   edit: (queueItemId: string, message: AppendMessage) => void;
   remove: (queueItemId: string) => void;
   __internal_setDispatchTransform?: ((transform: (message: AppendMessage) => AppendMessage) => void) | undefined;
+  __internal_notifyCancelled?: (() => void) | undefined;
 };
 
 type FeedbackAdapter = {
@@ -757,6 +748,7 @@ type FileMessagePart = {
   readonly data: string;
   readonly mimeType: string;
   readonly sourceType?: "id" | "url";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 
@@ -819,6 +811,7 @@ type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 interface JSONSchema7 {
@@ -1535,6 +1528,7 @@ type ThreadRuntime = {
   importExternalState(state: any): void;
   subscribe(callback: () => void): Unsubscribe;
   cancelRun(): void;
+  unstable_notifySessionReset(): void;
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;

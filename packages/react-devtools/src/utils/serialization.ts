@@ -15,6 +15,9 @@ export const sanitizeForMessage = (
   ) {
     return value;
   }
+  if (typeof value === "bigint" || typeof value === "symbol") {
+    return String(value);
+  }
   if (typeof value === "function") {
     return "[Function]";
   }
@@ -22,14 +25,23 @@ export const sanitizeForMessage = (
     return value.toISOString();
   }
   if (value instanceof Map) {
+    if (seen.has(value)) return "[Circular]";
+    seen.add(value);
     const result: Record<string, unknown> = {};
     for (const [key, entry] of value.entries()) {
       result[String(key)] = sanitizeForMessage(entry, seen);
     }
+    seen.delete(value);
     return result;
   }
   if (value instanceof Set) {
-    return Array.from(value).map((entry) => sanitizeForMessage(entry, seen));
+    if (seen.has(value)) return "[Circular]";
+    seen.add(value);
+    const result = Array.from(value).map((entry) =>
+      sanitizeForMessage(entry, seen),
+    );
+    seen.delete(value);
+    return result;
   }
   if (Array.isArray(value)) {
     if (seen.has(value as unknown as object)) return "[Circular]";

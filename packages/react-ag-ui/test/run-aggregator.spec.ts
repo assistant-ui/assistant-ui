@@ -50,6 +50,76 @@ describe("RunAggregator", () => {
     expect((textPart as any).text).toBe("Hello world");
   });
 
+  it("emits custom events as ordered data parts and separates anonymous text", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "before",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "CUSTOM",
+      name: "sources",
+      value: { id: "source-1" },
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool-1",
+      toolCallName: "lookup",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_ARGS",
+      toolCallId: "tool-1",
+      delta: "{}",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "CUSTOM",
+      name: "sources",
+      value: undefined,
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "after",
+    } as AgUiEvent);
+
+    expect(results.at(-1)?.content).toEqual([
+      { type: "text", text: "before" },
+      { type: "data", name: "sources", data: { id: "source-1" } },
+      {
+        type: "tool-call",
+        toolCallId: "tool-1",
+        toolName: "lookup",
+        args: {},
+        argsText: "{}",
+      },
+      { type: "data", name: "sources", data: undefined },
+      { type: "text", text: "after" },
+    ]);
+  });
+
+  it("clears custom data parts when a new run starts", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "CUSTOM",
+      name: "old",
+      value: 1,
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "RUN_STARTED", runId: "r2" } as AgUiEvent);
+    aggregator.handle({
+      type: "CUSTOM",
+      name: "new",
+      value: 2,
+    } as AgUiEvent);
+
+    expect(results.at(-1)?.content).toEqual([
+      { type: "data", name: "new", data: 2 },
+    ]);
+  });
+
   it("maps thinking events to reasoning part when enabled", () => {
     const aggregator = createAggregator(true);
 

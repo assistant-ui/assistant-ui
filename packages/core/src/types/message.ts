@@ -56,6 +56,7 @@ export type ImageMessagePart = {
   readonly type: "image";
   readonly image: string;
   readonly filename?: string;
+  readonly providerMetadata?: PartProviderMetadata;
 };
 
 export type FileMessagePart = {
@@ -65,6 +66,7 @@ export type FileMessagePart = {
   readonly mimeType: string;
   /** How `data` goes on the wire: a url or id reference; omitted = inferred (http(s) → url, else base64). "url" is honored by the LangChain-family, A2A, AG-UI, and Google ADK runtimes; "id" by the LangChain family only. */
   readonly sourceType?: "url" | "id";
+  readonly providerMetadata?: PartProviderMetadata;
   readonly parentId?: string;
 };
 

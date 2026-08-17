@@ -10,7 +10,7 @@ import {
   useLayoutEffect,
   useMemo,
 } from "react";
-import { useAuiEvent, useAuiState } from "@assistant-ui/store";
+import { useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
 import { useThreadViewportAutoScroll } from "./useThreadViewportAutoScroll";
 import { ThreadPrimitiveViewportProvider } from "../../context/providers/ThreadViewportProvider";
@@ -144,13 +144,6 @@ const useTopAnchorTurn = (enabled: boolean) => {
 
     state.setTopAnchorTurn(activeTurn);
   }, [activeTurn, threadViewportStore]);
-
-  const clearTopAnchorTurn = useCallback(() => {
-    threadViewportStore.getState().setTopAnchorTurn(null);
-  }, [threadViewportStore]);
-
-  useAuiEvent("thread.initialize", clearTopAnchorTurn);
-  useAuiEvent("threadListItem.switchedTo", clearTopAnchorTurn);
 };
 
 const ThreadPrimitiveViewportScrollable = forwardRef<

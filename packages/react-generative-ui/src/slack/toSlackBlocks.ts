@@ -74,6 +74,14 @@ const INTERACTIVE_TYPES = new Set([
   "RadioGroup",
 ]);
 
+/**
+ * Types whose control disappears when a card is reshaped to text. `Input` and
+ * `Form` are not in {@link INTERACTIVE_TYPES} because they emit their own
+ * block rather than an actions element, but a reshape loses them the same way,
+ * and a `Form` gets a Submit button whether or not it carries an action.
+ */
+const CONTROL_TYPES = new Set([...INTERACTIVE_TYPES, "Input", "Form"]);
+
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
@@ -611,10 +619,54 @@ const convertCard = (
   return [card];
 };
 
+/** The content kinds a reshaped carousel card cannot carry, in report order. */
+const LOST_CONTENT_KINDS = ["images", "tables", "charts", "controls"] as const;
+
+const listPhrase = (items: readonly string[]): string =>
+  items.length <= 1
+    ? (items[0] ?? "")
+    : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+
+/**
+ * Collects the kinds of content a reshape drops, walking the same tree
+ * {@link collectText} does so a node nested below the top level counts too.
+ * These are exactly the pieces text cannot represent: an image has no text, a
+ * table and a chart carry theirs in array props, and a control is behavior,
+ * whether or not it carries an action of its own. An `$action` counts only on
+ * a node that renders a control from it, since a `Box` or a `Row` carrying one
+ * renders no control on the clean path either.
+ */
+const scanLostContent = (
+  node: NormalizedUINode | undefined,
+  into: Set<string>,
+  depth: number,
+): void => {
+  if (depth > MAX_TRAVERSAL_DEPTH) return;
+  if (Array.isArray(node)) {
+    for (const child of node) scanLostContent(child, into, depth + 1);
+    return;
+  }
+  if (node === undefined || !isElement(node)) return;
+  if (
+    CONTROL_TYPES.has(node.type) ||
+    (node.type === "ListViewItem" && isRecord(node.action)) ||
+    (node.type === "Card" &&
+      (isRecord(node.props["confirm"]) || isRecord(node.props["cancel"])))
+  ) {
+    into.add("controls");
+  }
+  if (node.type === "Image") into.add("images");
+  if (node.type === "Table") into.add("tables");
+  if (node.type === "Chart") into.add("charts");
+  scanLostContent(node.children, into, depth + 1);
+};
+
 /**
  * Degrades a card that cannot map cleanly into a title-and-body card block.
- * A carousel cannot fall back to a block sequence like a standalone card
- * can, so its content is clamped down to fit the card shape instead.
+ * A carousel cannot fall back to a block sequence like a standalone card can,
+ * so the card is reshaped to the two text fields the block has. Text reachable
+ * by {@link collectText} survives at any depth; an image, a table, a chart,
+ * and a control do not, and are reported separately from the reshape itself.
  */
 const degradeCard = (
   element: NormalizedUIElement,
@@ -625,14 +677,40 @@ const degradeCard = (
   const textChunks = collectText(element.children, depth + 1);
   const titleSource = rawTitle || textChunks[0] || "";
   const bodyChunks = rawTitle ? textChunks : textChunks.slice(1);
-  const titleText = titleSource.slice(0, CARD_TITLE_CAP);
-  const bodyText = bodyChunks.join("\n").slice(0, CARD_BODY_CAP);
+  const titleText = clampText(
+    titleSource,
+    CARD_TITLE_CAP,
+    "Card",
+    "title",
+    context,
+  );
+  const bodyText = clampText(
+    bodyChunks.join("\n"),
+    CARD_BODY_CAP,
+    "Card",
+    "body",
+    context,
+  );
   warn(
     context,
-    "clamped",
+    "fallback",
     "Card",
-    "A card inside a carousel was degraded to title and body.",
+    "A card inside a carousel was reshaped to title and body.",
   );
+  const lostKinds = new Set<string>();
+  if (isRecord(element.props["confirm"]) || isRecord(element.props["cancel"])) {
+    lostKinds.add("controls");
+  }
+  scanLostContent(element.children, lostKinds, depth + 1);
+  const lost = LOST_CONTENT_KINDS.filter((kind) => lostKinds.has(kind));
+  if (lost.length > 0) {
+    warn(
+      context,
+      "dropped",
+      "Card",
+      `A reshaped carousel card's ${listPhrase(lost)} were dropped.`,
+    );
+  }
   return buildCardBlock({
     ...(titleText ? { title: { type: "mrkdwn", text: titleText } } : {}),
     ...(bodyText ? { body: { type: "mrkdwn", text: bodyText } } : {}),

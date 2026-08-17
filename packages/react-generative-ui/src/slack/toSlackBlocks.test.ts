@@ -1176,9 +1176,214 @@ describe("toSlackBlocks", () => {
         },
       ]);
       expect(warnings).toContainEqual({
+        code: "fallback",
+        component: "Card",
+        detail: "A card inside a carousel was reshaped to title and body.",
+      });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
+    it("does not report a Caption as lost, since its text reaches the body", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              { $type: "Text", value: "body" },
+              { $type: "Caption", value: "fine print" },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      const card = (blocks[0] as SlackCarouselBlock).elements[0];
+      expect(card?.body).toEqual({ type: "mrkdwn", text: "body\nfine print" });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
+    it("reports the images and controls a reshaped card really loses", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            confirm: { label: "Buy", $action: { type: "buy" } },
+            children: [
+              { $type: "Image", src: "hero.png", alt: "hero" },
+              { $type: "Text", value: "body" },
+              { $type: "Caption", value: "fine print" },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      const card = (blocks[0] as SlackCarouselBlock).elements[0];
+      expect(card?.hero_image).toBeUndefined();
+      expect(card?.actions).toBeUndefined();
+      expect(card?.body).toEqual({ type: "mrkdwn", text: "body\nfine print" });
+      expect(warnings).toContainEqual({
+        code: "fallback",
+        component: "Card",
+        detail: "A card inside a carousel was reshaped to title and body.",
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Card",
+        detail: "A reshaped carousel card's images and controls were dropped.",
+      });
+    });
+
+    it.each([
+      ["tables", { $type: "Table", columns: [{ label: "A" }], rows: [["1"]] }],
+      ["charts", { $type: "Chart", series: [] }],
+      [
+        "images",
+        { $type: "ListViewItem", children: [{ $type: "Image", src: "x.png" }] },
+      ],
+      [
+        "controls",
+        {
+          $type: "ListViewItem",
+          children: [{ $type: "Button", label: "Go", $action: { type: "go" } }],
+        },
+      ],
+      ["controls", { $type: "Select", options: [{ label: "A", value: "a" }] }],
+      ["controls", { $type: "Input", name: "email", label: "Email" }],
+      [
+        "controls",
+        { $type: "Form", children: [{ $type: "Text", value: "inner" }] },
+      ],
+      [
+        "controls",
+        {
+          $type: "Card",
+          title: "nested",
+          confirm: { label: "Buy", $action: { type: "buy" } },
+        },
+      ],
+    ])(
+      "reports %s that a reshape cannot carry, however deep",
+      (kind, child) => {
+        const { warnings } = toSlackBlocks({
+          $type: "Carousel",
+          children: [
+            {
+              $type: "Card",
+              title: "Plan",
+              children: [
+                { $type: "Text", value: "b" },
+                child,
+                { $type: "Divider" },
+              ],
+            },
+          ],
+        });
+        expect(warnings).toContainEqual({
+          code: "dropped",
+          component: "Card",
+          detail: `A reshaped carousel card's ${kind} were dropped.`,
+        });
+      },
+    );
+
+    it("scans below a child whose text the reshape consumes", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              {
+                $type: "Text",
+                value: "body",
+                children: [{ $type: "Image", src: "x.png" }],
+              },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Card",
+        detail: "A reshaped carousel card's images were dropped.",
+      });
+    });
+
+    it("does not report a ListViewItem whose action renders no accessory", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              { $type: "Text", value: "body" },
+              { $type: "ListViewItem", title: "row", $action: "open" },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
+    it("does not report an action on a node that renders no control", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              {
+                $type: "Box",
+                $action: { type: "open" },
+                children: [{ $type: "Text", value: "body" }],
+              },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
+    it("clamps a reshaped card's title and body instead of slicing them silently", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "t".repeat(CARD_TITLE_CAP + 10),
+            children: [
+              { $type: "Text", value: "b".repeat(CARD_BODY_CAP + 10) },
+              { $type: "Fact", label: "L", value: "V" },
+            ],
+          },
+        ],
+      });
+      expect(warnings).toContainEqual({
         code: "clamped",
         component: "Card",
-        detail: "A card inside a carousel was degraded to title and body.",
+        detail: `title was clamped to ${CARD_TITLE_CAP} characters.`,
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Card",
+        detail: `body was clamped to ${CARD_BODY_CAP} characters.`,
       });
     });
 
