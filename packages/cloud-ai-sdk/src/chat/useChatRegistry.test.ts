@@ -142,4 +142,32 @@ describe("useChatRegistry", () => {
 
     expect(stop).not.toHaveBeenCalled();
   });
+
+  it("stops chats on unmount without stopping during Strict Mode replay", async () => {
+    const scope = {};
+    const stop = vi.fn().mockResolvedValue(undefined);
+    const createChat = vi.fn().mockImplementation((chatKey: string) => ({
+      id: chatKey,
+      messages: [],
+      stop,
+    }));
+
+    const { unmount } = renderHook(
+      () =>
+        useChatRegistry({
+          scope,
+          threadId: "thread-1",
+          createChat: createChat as never,
+        }),
+      { reactStrictMode: true },
+    );
+    await Promise.resolve();
+
+    expect(stop).not.toHaveBeenCalled();
+
+    unmount();
+    await Promise.resolve();
+
+    expect(stop).toHaveBeenCalledOnce();
+  });
 });

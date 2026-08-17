@@ -70,12 +70,23 @@ export function useChatRegistry({
   const activeChat = registry.getOrCreate(activeChatKey, threadId);
 
   const committedRegistryRef = useRef(registry);
+  const lifecycleRef = useRef({ version: 0 });
   useEffect(() => {
+    const lifecycle = lifecycleRef.current;
+    const lifecycleVersion = ++lifecycle.version;
     const previousRegistry = committedRegistryRef.current;
     committedRegistryRef.current = registry;
     if (previousRegistry !== registry) {
       void previousRegistry.stopAll();
     }
+
+    return () => {
+      queueMicrotask(() => {
+        if (lifecycle.version === lifecycleVersion) {
+          void registry.stopAll();
+        }
+      });
+    };
   }, [registry]);
 
   return { registry, activeChat };
