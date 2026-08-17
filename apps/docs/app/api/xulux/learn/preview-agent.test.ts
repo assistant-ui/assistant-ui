@@ -1,4 +1,4 @@
-import type { FrontendTools } from "@assistant-ui/react-ai-sdk";
+import type { FrontendTools } from "@assistant-ui/ai-sdk";
 import {
   createLearnPreviewTools,
   getLearnPreviewStageId,

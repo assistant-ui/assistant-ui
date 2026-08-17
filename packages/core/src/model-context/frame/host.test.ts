@@ -144,4 +144,27 @@ describe("AssistantFrameHost", () => {
     );
     expect(postMessage).toHaveBeenCalledOnce();
   });
+
+  it("isolates subscriber errors while applying context updates", () => {
+    const { dispatchMessage, host } = createHost();
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+
+    host.subscribe(() => {
+      throw error;
+    });
+    host.subscribe(laterSubscriber);
+
+    expect(() =>
+      dispatchMessage({
+        type: "model-context-update",
+        context: { system: "frame instructions" },
+      }),
+    ).toThrow(error);
+
+    expect(host.getModelContext().system).toBe("frame instructions");
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+
+    host.dispose();
+  });
 });

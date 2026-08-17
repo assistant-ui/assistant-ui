@@ -16,6 +16,8 @@ import {
   isReadableTapContext,
 } from "../core/context";
 import { useReactEffectEvent } from "./useReactEffectEvent";
+import { useId as useTapId } from "../react-hooks/useId";
+import { useImperativeHandle as useTapImperativeHandle } from "../react-hooks/useImperativeHandle";
 
 // @ts-expect-error -- @types/react uses `export =`; this is valid at runtime.
 export * from "react";
@@ -75,6 +77,45 @@ export const useDebugValue = (value: any, format?: any) =>
   inTap()
     ? hooks.useDebugValue(value, format)
     : ReactRuntime.useDebugValue(value, format);
+
+export const useInsertionEffect = (effect: any, deps?: any) =>
+  inTap()
+    ? hooks.useEffect(effect, deps)
+    : ReactRuntime.useInsertionEffect(effect, deps);
+
+export const useId = () => (inTap() ? useTapId() : ReactRuntime.useId());
+
+export const useImperativeHandle = (ref: any, create: any, deps?: any) =>
+  inTap()
+    ? useTapImperativeHandle(ref, create, deps)
+    : ReactRuntime.useImperativeHandle(ref, create, deps);
+
+// Star re-exports of a CommonJS react lose named exports under some dev
+// servers; the names the package dists import are re-exported explicitly.
+export const forwardRef = (render: any) => ReactRuntime.forwardRef(render);
+
+export const memo = (type: any, compare?: any) =>
+  ReactRuntime.memo(type, compare);
+
+export const Fragment = ReactRuntime.Fragment;
+
+export const createElement = (...args: any[]) =>
+  ReactRuntime.createElement(...args);
+
+export const cloneElement = (...args: any[]) =>
+  ReactRuntime.cloneElement(...args);
+
+export const isValidElement = (value: any) =>
+  ReactRuntime.isValidElement(value);
+
+export const lazy = (load: any) => ReactRuntime.lazy(load);
+
+export const Children = ReactRuntime.Children;
+
+export const Suspense = ReactRuntime.Suspense;
+
+export const useDeferredValue = (value: any, initialValue?: any) =>
+  ReactRuntime.useDeferredValue(value, initialValue);
 
 export const createContext = (defaultValue: any) => {
   const context = ReactRuntime.createContext(defaultValue);

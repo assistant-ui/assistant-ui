@@ -382,3 +382,42 @@ describe("fromThreadMessageLike", () => {
     });
   });
 });
+
+describe("fromThreadMessageLike provider metadata", () => {
+  it("keeps it on image and file parts", () => {
+    const result = fromThreadMessageLike(
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            image: "https://example.com/cat.png",
+            providerMetadata: { agui: { file_id: "f_1" } },
+          },
+          {
+            type: "file",
+            data: "https://example.com/spec.pdf",
+            mimeType: "application/pdf",
+            providerMetadata: { agui: { file_id: "f_2" } },
+          },
+        ],
+      },
+      fallbackId,
+      fallbackStatus,
+    );
+
+    expect(result.content).toEqual([
+      {
+        type: "image",
+        image: "https://example.com/cat.png",
+        providerMetadata: { agui: { file_id: "f_1" } },
+      },
+      {
+        type: "file",
+        data: "https://example.com/spec.pdf",
+        mimeType: "application/pdf",
+        providerMetadata: { agui: { file_id: "f_2" } },
+      },
+    ]);
+  });
+});

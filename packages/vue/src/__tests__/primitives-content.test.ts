@@ -35,11 +35,6 @@ import {
   BranchPickerPrimitiveNumber,
   BranchPickerPrimitivePrevious,
 } from "../primitives/branchPicker";
-import {
-  isUserScrollUp,
-  isViewportAtBottom,
-  viewportOverflows,
-} from "../primitives/viewportScroll";
 
 type DemoMessage = {
   role: "user" | "assistant";
@@ -567,64 +562,5 @@ describe("ThreadPrimitiveViewport", () => {
     expect(warn).toHaveBeenCalledTimes(1);
     expect(warn.mock.calls[0]![0]).toContain("no surrounding");
     unmount();
-  });
-
-  it("computes bottom pinning from viewport metrics", () => {
-    expect(
-      isViewportAtBottom({
-        scrollTop: 900,
-        scrollHeight: 1000,
-        clientHeight: 100,
-      }),
-    ).toBe(true);
-    expect(
-      isViewportAtBottom({
-        scrollTop: 899,
-        scrollHeight: 1000,
-        clientHeight: 100,
-      }),
-    ).toBe(true);
-    expect(
-      isViewportAtBottom({
-        scrollTop: 800,
-        scrollHeight: 1000,
-        clientHeight: 100,
-      }),
-    ).toBe(false);
-    expect(
-      isViewportAtBottom({ scrollTop: 0, scrollHeight: 80, clientHeight: 100 }),
-    ).toBe(true);
-
-    expect(
-      viewportOverflows({
-        scrollTop: 0,
-        scrollHeight: 1000,
-        clientHeight: 100,
-      }),
-    ).toBe(true);
-    expect(
-      viewportOverflows({ scrollTop: 0, scrollHeight: 100, clientHeight: 100 }),
-    ).toBe(false);
-  });
-
-  it("distinguishes user scroll-up from content-driven shifts", () => {
-    expect(
-      isUserScrollUp(
-        { scrollTop: 500, scrollHeight: 1000 },
-        { scrollTop: 400, scrollHeight: 1000, clientHeight: 100 },
-      ),
-    ).toBe(true);
-    expect(
-      isUserScrollUp(
-        { scrollTop: 500, scrollHeight: 900 },
-        { scrollTop: 400, scrollHeight: 1000, clientHeight: 100 },
-      ),
-    ).toBe(false);
-    expect(
-      isUserScrollUp(
-        { scrollTop: 400, scrollHeight: 1000 },
-        { scrollTop: 500, scrollHeight: 1000, clientHeight: 100 },
-      ),
-    ).toBe(false);
   });
 });

@@ -5,6 +5,7 @@
 export type {
   ThreadsState,
   ThreadsMethods,
+  ThreadsEvents,
   ThreadsClientSchema,
 } from "./scopes/threads";
 export type {
@@ -79,7 +80,15 @@ export type {
 } from "./scopes/chain-of-thought";
 
 // runtime wiring
-export { RuntimeAdapter } from "../react/RuntimeAdapter";
+export {
+  RuntimeAdapter,
+  runtimeAdapterTransformScopes,
+} from "../react/RuntimeAdapter";
+export {
+  InMemoryThreadList,
+  inMemoryThreadListTransformScopes,
+  type InMemoryThreadListProps,
+} from "../react/client/InMemoryThreadList";
 export {
   useExternalMessageConverter,
   convertExternalMessages,
@@ -109,6 +118,12 @@ export type {
 } from "../react/model-context/toolbox";
 
 // clients
+export {
+  ExternalThread,
+  type ExternalThreadProps,
+  type ExternalThreadMessage,
+} from "./clients/external-thread";
+export { SingleThreadList } from "./clients/single-thread-list";
 export { NoOpComposerClient } from "./clients/no-op-composer-client";
 export { Suggestions, type SuggestionConfig } from "./clients/suggestions";
 export { ChainOfThoughtClient } from "./clients/chain-of-thought-client";

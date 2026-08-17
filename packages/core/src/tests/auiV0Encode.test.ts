@@ -330,6 +330,33 @@ describe("auiV0Encode", () => {
       { type: "data", name: "telemetry", data: { runs: 3 } },
     ]);
   });
+
+  it("preserves data message parts verbatim in the core cloud encoder", () => {
+    const encoded = auiV0Encode({
+      id: "m1",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        { type: "text", text: "planned" },
+        { type: "data", name: "PredictState", data: { steps: ["a"] } },
+        { type: "data", name: "PredictState", data: '{"steps":["a","b"]}' },
+      ],
+    });
+
+    expect(encoded.content).toEqual([
+      { type: "text", text: "planned" },
+      { type: "data", name: "PredictState", data: { steps: ["a"] } },
+      { type: "data", name: "PredictState", data: '{"steps":["a","b"]}' },
+    ]);
+  });
 });
 
 describe("auiV0Decode", () => {
@@ -572,5 +599,44 @@ describe("auiV0Decode", () => {
 
     const toolCall = message.content.find((p) => p.type === "tool-call");
     expect(toolCall).toHaveProperty("result", false);
+  });
+
+  it("round-trips data message parts, keeping repeated names in order", () => {
+    const content = auiV0Encode({
+      id: "local",
+      createdAt: new Date("2026-03-15T00:00:00.000Z"),
+      role: "assistant",
+      status: { type: "complete", reason: "stop" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        { type: "text", text: "planned" },
+        { type: "data", name: "PredictState", data: { steps: ["a"] } },
+        { type: "data", name: "PredictState", data: '{"steps":["a","b"]}' },
+      ],
+    });
+
+    const decoded = auiV0Decode({
+      id: "cloud",
+      parent_id: null,
+      height: 0,
+      created_at: new Date("2026-03-15T00:00:00.000Z"),
+      updated_at: new Date("2026-03-15T00:00:00.000Z"),
+      format: "aui/v0",
+      content: content as never,
+    });
+
+    if (decoded.message.role !== "assistant")
+      throw new Error("expected assistant");
+    expect(decoded.message.content).toEqual([
+      { type: "text", text: "planned" },
+      { type: "data", name: "PredictState", data: { steps: ["a"] } },
+      { type: "data", name: "PredictState", data: '{"steps":["a","b"]}' },
+    ]);
   });
 });

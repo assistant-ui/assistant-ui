@@ -62,8 +62,14 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const activeScopeRef = useRef<typeof scope | null>(scope);
   useLayoutEffect(() => {
-    activeScopeRef.current = scope.cloud === cloud ? scope : null;
-  }, [cloud, scope]);
+    const isActiveScope = scope.cloud === cloud;
+    activeScopeRef.current = isActiveScope ? scope : null;
+    if (!isActiveScope) {
+      setThreads([]);
+      setError(null);
+      setIsLoading(enabled);
+    }
+  }, [cloud, enabled, scope]);
   const isCurrentCloud = useCallback(
     () => scope.cloud === cloud && activeScopeRef.current === scope,
     [cloud, scope],
@@ -71,7 +77,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   if (enabled !== previousEnabled) {
     setPreviousEnabled(enabled);
-    if (enabled) setIsLoading(true);
+    setIsLoading(enabled);
   }
 
   const mountedRef = useRef(true);
@@ -117,10 +123,30 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     try {
       return await withAction(
         async (commit) => {
-          const response = await cloud.threads.list(
-            includeArchived ? undefined : { is_archived: false },
+          // Keep includeArchived refreshes atomic; withAction preserves the
+          // previous complete list and exposes either request's failure.
+          const responses = includeArchived
+            ? await Promise.all([
+                cloud.threads.list({ is_archived: false }),
+                cloud.threads.list({ is_archived: true }),
+              ])
+            : [await cloud.threads.list({ is_archived: false })];
+          const nextThreads = Array.from(
+            new Map(
+              responses
+                .flatMap((response) => response.threads)
+                .map((thread) => [thread.id, thread] as const),
+            ).values(),
+            toCloudThread,
           );
-          commit(() => setThreads(() => response.threads.map(toCloudThread)));
+          if (includeArchived) {
+            nextThreads.sort((a, b) => {
+              const timeDifference =
+                b.lastMessageAt.getTime() - a.lastMessageAt.getTime();
+              return timeDifference || b.id.localeCompare(a.id);
+            });
+          }
+          commit(() => setThreads(nextThreads));
           return true;
         },
         false,

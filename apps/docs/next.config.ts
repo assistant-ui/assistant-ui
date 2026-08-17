@@ -95,6 +95,11 @@ const config: NextConfig = {
       permanent: true,
     },
     {
+      source: "/docs/tools/interactables-legacy",
+      destination: "/docs/tools/interactables#migrating-from-the-previous-api",
+      permanent: true,
+    },
+    {
       source: "/gallery",
       destination: "/elements",
       permanent: true,

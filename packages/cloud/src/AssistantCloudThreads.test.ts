@@ -39,6 +39,21 @@ describe("AssistantCloudThreads responses", () => {
     );
   });
 
+  it("forwards both archive filter values", async () => {
+    const { threads, makeRequest } = createCloudThreads();
+    makeRequest.mockResolvedValue({ threads: [] });
+
+    await threads.list({ is_archived: false });
+    expect(makeRequest).toHaveBeenLastCalledWith("/threads", {
+      query: { is_archived: "false" },
+    });
+
+    await threads.list({ is_archived: true });
+    expect(makeRequest).toHaveBeenLastCalledWith("/threads", {
+      query: { is_archived: "true" },
+    });
+  });
+
   it("decodes canonical thread list responses", async () => {
     const { threads, makeRequest } = createCloudThreads();
     makeRequest.mockResolvedValue({ threads: [threadResponse] });

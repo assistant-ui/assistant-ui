@@ -1119,7 +1119,7 @@ describe("useLangGraphMessages", {}, () => {
       result.current.sendMessage([{ type: "human", content: "test" }], {
         checkpointId: "cp-456",
         command: { resume: "yes" },
-        runConfig: { model: "gpt-5.4-nano" },
+        runConfig: { model: "gpt-5.6-luna" },
       });
     });
 
@@ -1128,7 +1128,7 @@ describe("useLangGraphMessages", {}, () => {
       const config = streamSpy.mock.calls[0]![1];
       expect(config.checkpointId).toBe("cp-456");
       expect(config.command).toEqual({ resume: "yes" });
-      expect(config.runConfig).toEqual({ model: "gpt-5.4-nano" });
+      expect(config.runConfig).toEqual({ model: "gpt-5.6-luna" });
       expect(config.abortSignal).toBeInstanceOf(AbortSignal);
       expect(typeof config.initialize).toBe("function");
     });
@@ -1893,6 +1893,110 @@ describe("useLangGraphMessages", {}, () => {
             ],
           },
         },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    expect(result.current.messages.map((m) => m.id)).toEqual(["sum-1"]);
+  });
+
+  it("removes the referenced message when a messages tuple event carries a RemoveMessage", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "I will be pruned",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            type: "remove",
+            id: "ai-1",
+            content: [],
+            additional_kwargs: {},
+            response_metadata: {},
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage([{ type: "human", content: "hi" }], {});
+    });
+
+    expect(result.current.messages).toHaveLength(1);
+    expect(result.current.messages[0]!.type).toEqual("human");
+    expect(
+      result.current.messages.find((m) => m.id === "ai-1"),
+    ).toBeUndefined();
+  });
+
+  it("clears all messages when a messages tuple event carries the REMOVE_ALL_MESSAGES sentinel", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-1",
+            content: "long history to be summarized",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            type: "remove",
+            id: "__remove_all__",
+            content: [],
+            additional_kwargs: {},
+            response_metadata: {},
+          },
+          { run_attempt: 1 },
+        ],
+      },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "sum-1",
+            content: "summary of the conversation",
+            type: "AIMessageChunk",
+            tool_call_chunks: [],
+          },
+          { run_attempt: 1 },
+        ],
       },
     ]);
 
