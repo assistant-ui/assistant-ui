@@ -422,15 +422,62 @@ describe("RemoteThreadList", () => {
 
   it("warns when the adapter supplies unstable_Provider", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const adapter = makeAdapter({
+        unstable_Provider: () => null,
+      });
+      const { handle } = mountList(adapter);
+      await handle.getClient().threads.getLoadThreadsPromise();
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("unstable_Provider"),
+      );
+      handle.destroy();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("does not re-emit onSwitchToNewThread when the draft is already main", async () => {
     const adapter = makeAdapter({
-      unstable_Provider: () => null,
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
     });
-    const { handle } = mountList(adapter);
+    const listeners = new Set<() => void>();
+    let threadId: string | undefined = "t1";
+    const onSwitchToNewThread = vi.fn();
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+            threadId,
+            onThreadIdChange: (id) => {
+              threadId = id;
+              for (const listener of listeners) listener();
+            },
+            onSwitchToNewThread,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
     await handle.getClient().threads.getLoadThreadsPromise();
-    expect(warn).toHaveBeenCalledWith(
-      expect.stringContaining("unstable_Provider"),
-    );
-    warn.mockRestore();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+    });
+    flushTapSync(() => handle.getClient().threads.switchToNewThread());
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).not.toBe("t1");
+    });
+    expect(onSwitchToNewThread).toHaveBeenCalledTimes(1);
     handle.destroy();
   });
 

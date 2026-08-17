@@ -50,6 +50,9 @@ const EMPTY_LIST: RemoteThreadState = {
 };
 
 export type RemoteThreadListProps = {
+  /**
+   * Swapping this to a different backing store does not reload the list. Call `reload()` after a genuine swap. A recreated object for the same store is a no-op.
+   */
   adapter: RemoteThreadListAdapter;
   thread: InMemoryThreadListProps["thread"];
   threadId?: string | undefined;
@@ -620,9 +623,12 @@ const useRemoteThreadList = (
         }
         const existing = store.value.newThreadId;
         if (existing !== undefined) {
-          assignMainThreadId(
-            getThreadData(store.value, existing)?.id ?? existing,
-          );
+          const existingId =
+            getThreadData(store.value, existing)?.id ?? existing;
+          if (isSameThread(store.value, existingId, session.mainThreadId)) {
+            return;
+          }
+          assignMainThreadId(existingId);
           notifyRemoteId(undefined, emitThreadIdChange);
           session.onSwitchToNewThread?.();
           return;
