@@ -3641,10 +3641,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   stopThreadRuntime(threadId: string): void;
   setRuntimeHook(newRuntimeHook: RemoteThreadListHook): void;
   __internal_setDefaultAdapters(adapters: RuntimeAdapters | null): void;
-  __internal_setThreadAdapters(
-    threadId: string,
-    adapters: RuntimeAdapters | null,
-  ): void;
+  __internal_setThreadAdapters(threadId: string, adapters: RuntimeAdapters | null): void;
   __internal_dispose(): void;
   __internal_useHost(parentClient: AssistantClient): AssistantRuntime[];
   __internal_RenderThreadRuntimes: FC<{
