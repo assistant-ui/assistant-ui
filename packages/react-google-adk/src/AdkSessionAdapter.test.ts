@@ -421,7 +421,7 @@ describe("createAdkSessionAdapter - load", () => {
     const { load } = createAdkSessionAdapter(baseOptions);
 
     await expect(load("s1")).rejects.toThrow(
-      "Invalid ADK session event: expected a non-empty object.",
+      "Invalid ADK session event at index 0: expected a non-empty object.",
     );
   });
 

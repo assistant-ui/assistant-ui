@@ -324,8 +324,8 @@ export function createAdkSessionAdapter(
       );
     }
 
-    const events = session.events?.map((event) =>
-      parseAdkEventValue(event, "Invalid ADK session event"),
+    const events = session.events?.map((event, index) =>
+      parseAdkEventValue(event, `Invalid ADK session event at index ${index}`),
     );
 
     if (!events?.length) {
