@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
-import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
+import {
+  AuiConfig,
+  createAssistantClient,
+  type AssistantConfigSource,
+} from "@assistant-ui/store/client";
 import type { RemoteThreadListAdapter } from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadList } from "./RemoteThreadList";
 
@@ -64,6 +68,7 @@ const mountList = (
   adapter: RemoteThreadListAdapter,
   threadId?: string,
   refetch?: () => Promise<void>,
+  onSwitchToThread?: (id: string) => void,
 ) => {
   const onThreadIdChange = vi.fn();
   const handle = createAssistantClient(
@@ -73,6 +78,7 @@ const mountList = (
         thread: (id) => StubThread({ threadId: id, refetch }) as never,
         threadId,
         onThreadIdChange,
+        onSwitchToThread,
       }),
     }),
   );
@@ -308,6 +314,108 @@ describe("RemoteThreadList", () => {
     expect(aui.threads.item("main").getState().status).toBe("new");
     await aui.threads.reloadMainThread();
     expect(refetch).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
+  it("keeps the selected thread when config callbacks are recreated", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+    });
+    const listeners = new Set<() => void>();
+    let onThreadIdChange = vi.fn();
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+            onThreadIdChange,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    await handle.getClient().threads.getLoadThreadsPromise();
+    flushTapSync(() => handle.getClient().threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+    });
+    onThreadIdChange = vi.fn();
+    for (const listener of listeners) listener();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+    });
+    expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+    handle.destroy();
+  });
+
+  it("does not re-emit onSwitchToThread for the already selected thread", async () => {
+    const onSwitchToThread = vi.fn();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+    });
+    const { handle } = mountList(
+      adapter,
+      undefined,
+      undefined,
+      onSwitchToThread,
+    );
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+    });
+    onSwitchToThread.mockClear();
+    flushTapSync(() => handle.getClient().threads.switchToThread("t1"));
+    expect(onSwitchToThread).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
+  it("keeps item(main) resolvable when deleting a thread mid-initialize", async () => {
+    const initialize = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const adapter = makeAdapter({
+      initialize: vi.fn(() => initialize.promise),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+    const pending = aui.threads.item("main").initialize();
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.item("main").getState().status).toBe(
+        "regular",
+      );
+    });
+    flushTapSync(() =>
+      handle.getClient().threads.item({ id: localId }).delete(),
+    );
+    initialize.resolve({
+      remoteId: `remote-${localId}`,
+      externalId: undefined,
+    });
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.getState().mainThreadId).not.toBe(
+        localId,
+      );
+    });
+    expect(() =>
+      handle.getClient().threads.item("main").getState(),
+    ).not.toThrow();
+    await pending;
     handle.destroy();
   });
 
