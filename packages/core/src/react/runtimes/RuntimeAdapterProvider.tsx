@@ -1,7 +1,7 @@
 import { type FC, type ReactNode, useContext, useMemo } from "react";
+import type { RuntimeAdapters } from "../../runtimes/remote-thread-list/types";
 import {
   RuntimeAdaptersContext,
-  type RuntimeAdapters,
   useRuntimeAdapters,
   useRuntimeAdaptersProvider,
 } from "./useRuntimeAdapters";

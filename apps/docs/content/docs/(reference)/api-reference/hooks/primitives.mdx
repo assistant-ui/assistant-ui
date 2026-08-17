@@ -63,12 +63,6 @@ type RuntimeAdapters = {
   attachments?: AttachmentAdapter | undefined;
 };
 
-type RuntimeAdapters = {
-  modelContext?: ModelContextProvider | undefined;
-  history?: ThreadHistoryAdapter | undefined;
-  attachments?: AttachmentAdapter | undefined;
-};
-
 const useRuntimeAdapters: () => RuntimeAdapters | null;
 ```
 
