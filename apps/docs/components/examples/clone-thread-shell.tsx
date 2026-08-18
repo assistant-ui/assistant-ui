@@ -110,7 +110,7 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({
           sidebarCollapsed ? "w-12" : "w-65",
         )}
       >
-        <div className="flex h-12 shrink-0 items-center px-2">
+        <div className="flex h-12 shrink-0 items-center overflow-hidden px-2">
           {!collapsedControlled && (
             <TooltipIconButton
               variant="ghost"
@@ -184,7 +184,7 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="bg-background/70 size-8 backdrop-blur-sm"
+                  className="bg-background/70 size-8"
                 >
                   <MenuIcon className="size-4" />
                   <span className="sr-only">Open chat history</span>
