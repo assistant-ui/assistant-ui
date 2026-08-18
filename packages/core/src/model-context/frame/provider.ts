@@ -37,6 +37,7 @@ export class AssistantFrameProvider {
     ModelContextProvider,
     Unsubscribe | undefined
   >();
+  private _activeToolCalls = new Map<string, AbortController>();
   private _targetOrigin: string;
   private _strictRegistrations = 0;
 
@@ -91,6 +92,10 @@ export class AssistantFrameProvider {
       case "tool-call":
         this.handleToolCall(message, event);
         break;
+
+      case "tool-cancel":
+        this.cancelToolCall(message.id);
+        break;
     }
   }
 
@@ -99,6 +104,9 @@ export class AssistantFrameProvider {
     event: MessageEvent,
   ) {
     const tool = this.getModelContext().tools?.[message.toolName];
+    const abortController = new AbortController();
+    this._activeToolCalls.get(message.id)?.abort();
+    this._activeToolCalls.set(message.id, abortController);
 
     let result: any;
     let error: string | undefined;
@@ -110,7 +118,7 @@ export class AssistantFrameProvider {
         result = tool.execute
           ? await tool.execute(message.args, {
               toolCallId: message.id,
-              abortSignal: new AbortController().signal,
+              abortSignal: abortController.signal,
               human: async () => {
                 throw new Error(
                   "Tool human input is not supported in frame context",
@@ -123,11 +131,21 @@ export class AssistantFrameProvider {
       }
     }
 
+    if (this._activeToolCalls.get(message.id) !== abortController) return;
+    this._activeToolCalls.delete(message.id);
+
     this.sendMessage(event, {
       type: "tool-result",
       id: message.id,
       ...(error ? { error } : { result }),
     });
+  }
+
+  private cancelToolCall(id: string) {
+    const abortController = this._activeToolCalls.get(id);
+    if (!abortController) return;
+    this._activeToolCalls.delete(id);
+    abortController.abort();
   }
 
   private sendMessage(event: MessageEvent, message: FrameMessage) {
@@ -208,6 +226,8 @@ export class AssistantFrameProvider {
       instance._providerUnsubscribes.forEach((unsubscribe) => unsubscribe?.());
       instance._providerUnsubscribes.clear();
       instance._providers.clear();
+      instance._activeToolCalls.forEach((controller) => controller.abort());
+      instance._activeToolCalls.clear();
 
       AssistantFrameProvider._instance = null;
     }

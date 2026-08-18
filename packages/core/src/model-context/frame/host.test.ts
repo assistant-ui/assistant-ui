@@ -77,7 +77,7 @@ describe("AssistantFrameHost", () => {
   });
 
   it("rejects pending tool calls when disposed", async () => {
-    const { execute, host } = createHost();
+    const { execute, host, postMessage } = createHost();
     const result = Promise.resolve(execute({}, executionContext));
 
     host.dispose();
@@ -85,11 +85,18 @@ describe("AssistantFrameHost", () => {
     await expect(result).rejects.toThrow(
       "AssistantFrameHost has been disposed",
     );
+    expect(postMessage).toHaveBeenLastCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "tool-cancel", id: "tool-0" },
+      },
+      "*",
+    );
     expect(vi.getTimerCount()).toBe(0);
   });
 
   it("rejects pending tool calls when execution is aborted", async () => {
-    const { execute, host } = createHost();
+    const { execute, host, postMessage } = createHost();
     const abortController = new AbortController();
     const abortError = new Error("Run cancelled");
     abortError.name = "AbortError";
@@ -109,6 +116,13 @@ describe("AssistantFrameHost", () => {
     await Promise.resolve();
 
     expect(onRejected).toHaveBeenCalledWith(abortError);
+    expect(postMessage).toHaveBeenLastCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "tool-cancel", id: "tool-0" },
+      },
+      "*",
+    );
     expect(vi.getTimerCount()).toBe(0);
     host.dispose();
   });

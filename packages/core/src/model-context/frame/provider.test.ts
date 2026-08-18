@@ -29,6 +29,22 @@ describe("AssistantFrameProvider", () => {
     );
   };
 
+  const dispatchToolCancel = (
+    origin: string,
+    source: Window = parentWindow,
+  ) => {
+    messageHandler?.(
+      new MessageEvent("message", {
+        data: {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: { type: "tool-cancel", id: "tool-call-1" },
+        },
+        origin,
+        source,
+      }),
+    );
+  };
+
   beforeEach(() => {
     parentWindow = {
       postMessage: vi.fn(),
@@ -78,6 +94,41 @@ describe("AssistantFrameProvider", () => {
     dispatchToolCall("https://parent.example");
 
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+  });
+
+  it("aborts in-flight tool calls when the parent cancels them", async () => {
+    let toolSignal: AbortSignal | undefined;
+    const execute = vi.fn(
+      async (_args: unknown, context: { abortSignal: AbortSignal }) => {
+        toolSignal = context.abortSignal;
+        await new Promise<never>((_resolve, reject) => {
+          context.abortSignal.addEventListener(
+            "abort",
+            () => reject(context.abortSignal.reason),
+            { once: true },
+          );
+        });
+      },
+    );
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({
+        tools: { sensitiveTool: { execute } },
+      }),
+    });
+
+    dispatchToolCall("*");
+    await vi.waitFor(() => expect(toolSignal).toBeDefined());
+
+    dispatchToolCancel("*");
+
+    expect(toolSignal?.aborted).toBe(true);
+    await Promise.resolve();
+    expect(parentWindow.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.objectContaining({ type: "tool-result" }),
+      }),
+      expect.anything(),
+    );
   });
 
   it("upgrades a wildcard origin policy when a strict provider registers", async () => {

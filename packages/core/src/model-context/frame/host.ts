@@ -159,6 +159,7 @@ export class AssistantFrameHost implements ModelContextProvider {
         if (!abortSignal) return;
         const pending = this._pendingRequests.get(message.id);
         if (pending) {
+          this.cancelToolCall(message.id);
           pending.reject(getAbortReason(abortSignal));
           this._pendingRequests.delete(message.id);
         }
@@ -182,6 +183,7 @@ export class AssistantFrameHost implements ModelContextProvider {
       timeoutId = setTimeout(() => {
         const pending = this._pendingRequests.get(message.id);
         if (pending) {
+          this.cancelToolCall(message.id);
           pending.reject(new Error(timeoutMessage));
           this._pendingRequests.delete(message.id);
         }
@@ -193,6 +195,16 @@ export class AssistantFrameHost implements ModelContextProvider {
         this._targetOrigin,
       );
     });
+  }
+
+  private cancelToolCall(id: string) {
+    this._iframeWindow.postMessage(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "tool-cancel", id } satisfies FrameMessage,
+      },
+      this._targetOrigin,
+    );
   }
 
   private requestContext() {
@@ -225,7 +237,8 @@ export class AssistantFrameHost implements ModelContextProvider {
     window.removeEventListener("message", this.handleMessage);
     this._subscribers.clear();
     const error = new Error("AssistantFrameHost has been disposed");
-    for (const pending of this._pendingRequests.values()) {
+    for (const [id, pending] of this._pendingRequests) {
+      this.cancelToolCall(id);
       pending.reject(error);
     }
     this._pendingRequests.clear();

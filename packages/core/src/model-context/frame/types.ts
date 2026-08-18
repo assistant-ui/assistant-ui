@@ -14,6 +14,7 @@ export type FrameMessageType =
   | "model-context-request"
   | "model-context-update"
   | "tool-call"
+  | "tool-cancel"
   | "tool-result";
 
 export type FrameMessage =
@@ -29,6 +30,10 @@ export type FrameMessage =
       id: string;
       toolName: string;
       args: unknown;
+    }
+  | {
+      type: "tool-cancel";
+      id: string;
     }
   | {
       type: "tool-result";
