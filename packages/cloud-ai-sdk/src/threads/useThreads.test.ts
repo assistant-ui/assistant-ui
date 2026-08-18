@@ -396,6 +396,48 @@ describe("useThreads", () => {
     expect(result.current.error).toBeNull();
   });
 
+  it("finishes loading before selection verification settles", async () => {
+    const cloud = createCloud("thread-1");
+    const verification =
+      createDeferred<
+        ReturnType<typeof createThreadListResponse>["threads"][number]
+      >();
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    act(() => {
+      result.current.selectThread("thread-1");
+    });
+    cloud.threads.list.mockResolvedValueOnce(
+      createThreadListResponse("Updated", "thread-2"),
+    );
+    cloud.threads.get.mockReturnValueOnce(verification.promise);
+    let refreshSettled = false;
+    let refreshPromise!: Promise<boolean>;
+    act(() => {
+      refreshPromise = result.current.refresh();
+      void refreshPromise.then(() => {
+        refreshSettled = true;
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.threads).toMatchObject([
+        { id: "thread-2", title: "Updated" },
+      ]);
+      expect(result.current.isLoading).toBe(false);
+    });
+    expect(refreshSettled).toBe(false);
+
+    await act(async () => {
+      verification.resolve(
+        createThreadListResponse("Selected", "thread-1").threads[0]!,
+      );
+      expect(await refreshPromise).toBe(true);
+    });
+  });
+
   it("preserves a newer selection while a refresh is pending", async () => {
     const cloud = createCloud("thread-1");
     const refresh =

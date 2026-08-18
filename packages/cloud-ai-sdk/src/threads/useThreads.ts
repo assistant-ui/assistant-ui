@@ -155,7 +155,10 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
             });
           }
           const nextThreadIds = new Set(nextThreads.map((thread) => thread.id));
-          commit(() => setThreads(nextThreads));
+          commit(() => {
+            setThreads(nextThreads);
+            setIsLoading(false);
+          });
 
           if (!isLatest()) return true;
 
