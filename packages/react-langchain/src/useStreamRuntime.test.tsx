@@ -782,6 +782,55 @@ describe("useStreamRuntime staged messages", () => {
     expect(stream.submit).not.toHaveBeenCalled();
   });
 
+  it("does not resurrect a staged draft that an edit already truncated", async () => {
+    const stream = createMockStream([
+      message("u1", "human", "first"),
+      message("a1", "ai", "first answer"),
+      message("u2", "human", "second"),
+    ]);
+    const { auiResult, rerender } = renderAui(stream);
+
+    await act(async () => {
+      auiResult.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "draft" }],
+        startRun: false,
+      });
+    });
+    await waitFor(() => {
+      expect(getText(auiResult.current)).toEqual([
+        "first",
+        "first answer",
+        "second",
+        "draft",
+      ]);
+    });
+
+    await act(async () => {
+      auiResult.current.thread.append({
+        role: "user",
+        parentId: "u1",
+        content: [{ type: "text", text: "edited" }],
+        startRun: false,
+      });
+    });
+    await waitFor(() => {
+      expect(getText(auiResult.current)).toEqual(["first", "edited"]);
+    });
+
+    stream.messages = [
+      message("u1", "human", "first"),
+      message("a1", "ai", "first answer from refresh"),
+      message("u2", "human", "second from refresh"),
+    ];
+    rerender();
+
+    await waitFor(() => {
+      expect(getText(auiResult.current)).toEqual(["first", "edited"]);
+    });
+    expect(stream.submit).not.toHaveBeenCalled();
+  });
+
   it("keeps later staged messages visible after promoting one staged parent", async () => {
     const stream = createMockStream([message("u1", "human", "earlier")]);
     const { auiResult, rerender } = renderAui(stream);

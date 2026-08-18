@@ -282,7 +282,11 @@ const useStreamThreadRuntime = (
       (stream.messages as LangChainBaseMessage[]);
     const remainingStagedMessages: LangChainBaseMessage[] = [];
     const matchedBaseMessageIndexes = new Set<number>();
+    const visibleStagedIds = new Set(
+      visibleMessagesRef.current.flatMap((m) => (m.id ? [m.id] : [])),
+    );
     for (const [id, staged] of stagedMessagesRef.current) {
+      if (!visibleStagedIds.has(id)) continue;
       const echoed = baseMessages.some((message, index) => {
         if (matchedBaseMessageIndexes.has(index)) return false;
         if (message.id === id) {
