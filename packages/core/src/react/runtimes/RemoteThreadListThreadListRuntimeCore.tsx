@@ -227,6 +227,10 @@ export class RemoteThreadListThreadListRuntimeCore
               this._lastNotifiedThreadId = undefined;
               this._mainThreadId = seeded.id;
               nextState = seeded.state;
+              void this._hookManager.startThreadRuntime(seeded.id).then(
+                () => this._notifySubscribers(),
+                () => undefined,
+              );
             }
 
             return nextState;

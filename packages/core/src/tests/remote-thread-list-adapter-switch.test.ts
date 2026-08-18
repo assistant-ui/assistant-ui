@@ -23,6 +23,11 @@ describe("RemoteThreadList adapter changes", () => {
     }));
     const adapterB = makeAdapter({ list: listAdapterB });
     const core = createCore(adapterA);
+    const started: string[] = [];
+    setStartThreadRuntime(core, async (id) => {
+      started.push(id);
+      return {};
+    });
 
     await core.getLoadThreadsPromise();
     await core.switchToThread("thread-a");
@@ -38,6 +43,7 @@ describe("RemoteThreadList adapter changes", () => {
     expect(core.threadIds).toEqual(["thread-b"]);
     expect(core.getItemById("thread-a")).toBeUndefined();
     expect(core.getItemById(core.mainThreadId)?.remoteId).not.toBe("thread-a");
+    expect(started).toContain(core.mainThreadId);
 
     expect(() => core.rename("thread-a", "leaked")).toThrow(
       'Thread "thread-a" not found',
