@@ -45,7 +45,7 @@ describe("RemoteThreadList adapter changes", () => {
     expect(core.getItemById(core.mainThreadId)?.remoteId).not.toBe("thread-a");
     expect(started).toContain(core.mainThreadId);
 
-    expect(() => core.rename("thread-a", "leaked")).toThrow(
+    await expect(core.rename("thread-a", "leaked")).rejects.toThrow(
       'Thread "thread-a" not found',
     );
     expect(adapterB.rename).not.toHaveBeenCalled();
@@ -252,5 +252,36 @@ describe("RemoteThreadList adapter changes", () => {
     expect(
       Object.values(core.threadItems).filter((item) => item.status === "new"),
     ).toHaveLength(1);
+  });
+
+  it("does not send a rename through the replacement adapter while its list is pending", async () => {
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("thread-a")] }),
+    });
+    const listB = deferred<{ threads: ReturnType<typeof thread>[] }>();
+    const adapterB = makeAdapter({
+      list: vi.fn(() => listB.promise),
+    });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("thread-a");
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await expect(core.rename("thread-a", "leaked")).rejects.toThrow(
+      "adapter changed",
+    );
+    await expect(core.switchToThread("thread-a")).rejects.toThrow(
+      "adapter changed",
+    );
+    expect(adapterB.rename).not.toHaveBeenCalled();
+
+    listB.resolve({ threads: [thread("thread-b")] });
+    await core.getLoadThreadsPromise();
+    expect(adapterB.rename).not.toHaveBeenCalled();
+    expect(core.getItemById("thread-a")).toBeUndefined();
   });
 });

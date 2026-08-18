@@ -395,6 +395,12 @@ export class RemoteThreadListThreadListRuntimeCore
     }
   }
 
+  private _requireAdapterSettled() {
+    if (this._replaceListOnNextLoad) {
+      throw new ThreadListAdapterChangedError();
+    }
+  }
+
   public __internal_load() {
     this.getLoadThreadsPromise(); // begin loading on initial bind
     if (this._initialThreadLoaded) return;
@@ -554,6 +560,12 @@ export class RemoteThreadListThreadListRuntimeCore
     generation: number,
     emitThreadIdChange: boolean,
   ): Promise<void> {
+    if (
+      this._replaceListOnNextLoad &&
+      threadIdOrRemoteId !== this._state.value.newThreadId
+    ) {
+      throw new ThreadListAdapterChangedError();
+    }
     let data = this.getItemById(threadIdOrRemoteId);
 
     if (!data) {
@@ -699,6 +711,7 @@ export class RemoteThreadListThreadListRuntimeCore
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
     if (this._state.value.newThreadId !== threadId) {
+      this._requireAdapterSettled();
       const data = this.getItemById(threadId);
       if (!data) throw threadNotFoundError(threadId, "initializing it");
       if (data.status === "new")
@@ -758,6 +771,7 @@ export class RemoteThreadListThreadListRuntimeCore
   };
 
   public generateTitle = async (threadId: string) => {
+    this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadId);
@@ -796,7 +810,11 @@ export class RemoteThreadListThreadListRuntimeCore
     }
   };
 
-  public rename(threadIdOrRemoteId: string, newTitle: string): Promise<void> {
+  public async rename(
+    threadIdOrRemoteId: string,
+    newTitle: string,
+  ): Promise<void> {
+    this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
@@ -828,10 +846,11 @@ export class RemoteThreadListThreadListRuntimeCore
     });
   }
 
-  public updateCustom(
+  public async updateCustom(
     threadIdOrRemoteId: string,
     custom: Record<string, unknown> | undefined,
   ): Promise<void> {
+    this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
@@ -905,6 +924,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public async archive(threadIdOrRemoteId: string) {
+    this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
@@ -927,7 +947,8 @@ export class RemoteThreadListThreadListRuntimeCore
     });
   }
 
-  public unarchive(threadIdOrRemoteId: string): Promise<void> {
+  public async unarchive(threadIdOrRemoteId: string): Promise<void> {
+    this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
@@ -955,6 +976,7 @@ export class RemoteThreadListThreadListRuntimeCore
   }
 
   public async delete(threadIdOrRemoteId: string) {
+    this._requireAdapterSettled();
     const adapter = this._options.adapter;
     const adapterGeneration = this._adapterGeneration;
     const data = this.getItemById(threadIdOrRemoteId);
