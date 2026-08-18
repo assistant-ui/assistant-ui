@@ -139,7 +139,11 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
       id: threadId,
       isMainThread: true,
       getThreadListItem: () =>
-        cloud && aui.threadListItem.source ? aui.threadListItem : fallbackItem,
+        cloud
+          ? aui.threadListItem.source
+            ? aui.threadListItem
+            : undefined
+          : fallbackItem,
       chat,
       stopOnClientDestroy: cloud,
     },
@@ -210,8 +214,9 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
  * Without `cloud`, threads live in memory for the client's lifetime and keep
  * their history across switches; each thread's chat id is its thread id.
  * With `cloud`, the list is a `RemoteThreadList` and the factory is keyed so
- * cloud history reloads on a switch. An in-flight run does not continue in
- * the background. Model context is registered on the visible thread only.
+ * cloud history reloads on a switch. The store entry mounts only the visible
+ * thread, so a switch cancels an in-flight run after persisting ready
+ * messages. Model context is registered on the visible thread only.
  */
 export const AISDKThreads = resource(useAISDKThreads);
 

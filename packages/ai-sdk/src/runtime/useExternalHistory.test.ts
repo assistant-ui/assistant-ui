@@ -18,21 +18,23 @@ const mocks = vi.hoisted(() => ({
   listeners: new Set<() => void>(),
 }));
 
+const auiClient = {
+  threadListItem: {
+    get source() {
+      return mocks.hasThreadListItem ? "threads" : null;
+    },
+    getState: () => ({ remoteId: mocks.remoteId }),
+  },
+  subscribe: (listener: () => void) => {
+    mocks.listeners.add(listener);
+    return () => {
+      mocks.listeners.delete(listener);
+    };
+  },
+};
+
 vi.mock("@assistant-ui/store", () => ({
-  useAui: () => ({
-    threadListItem: {
-      get source() {
-        return mocks.hasThreadListItem ? "threads" : null;
-      },
-      getState: () => ({ remoteId: mocks.remoteId }),
-    },
-    subscribe: (listener: () => void) => {
-      mocks.listeners.add(listener);
-      return () => {
-        mocks.listeners.delete(listener);
-      };
-    },
-  }),
+  useAui: () => auiClient,
 }));
 
 import { MessageRepository } from "@assistant-ui/core/internal";
@@ -200,6 +202,50 @@ describe("useExternalHistory withFormat contract", () => {
     });
 
     await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+  });
+
+  it("does not load history when remoteId appears during an active run", async () => {
+    mocks.hasThreadListItem = true;
+    const load = vi.fn().mockResolvedValue({ headId: null, messages: [] });
+    const adapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue({
+        load,
+        append: vi.fn().mockResolvedValue(undefined),
+      }),
+    };
+    const runningRuntimeRef = {
+      current: {
+        thread: {
+          subscribe: () => () => {},
+          getState: () => ({ isRunning: true, messages: [{ id: "u1" }] }),
+          import: () => {},
+          export: () => ({ headId: null, messages: [] }),
+        },
+      } as unknown as AssistantRuntime,
+    };
+
+    renderHook(() =>
+      useExternalHistory(
+        runningRuntimeRef,
+        adapter,
+        toThreadMessages,
+        storageFormat,
+        onSetMessages,
+      ),
+    );
+
+    await act(async () => {});
+    expect(load).not.toHaveBeenCalled();
+
+    mocks.remoteId = "remote-thread";
+    await act(async () => {
+      for (const listener of mocks.listeners) listener();
+    });
+
+    await act(async () => {});
+    expect(load).not.toHaveBeenCalled();
   });
 
   it("reports loading before an asynchronous history load settles", async () => {

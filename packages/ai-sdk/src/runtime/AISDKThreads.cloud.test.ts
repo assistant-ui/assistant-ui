@@ -8,6 +8,7 @@ import type { RemoteThreadListAdapter } from "@assistant-ui/core";
 import type { ThreadHistoryAdapter } from "@assistant-ui/core";
 
 const load = vi.hoisted(() => vi.fn(async () => ({ messages: [] })));
+const append = vi.hoisted(() => vi.fn(async () => {}));
 
 const mocks = vi.hoisted(() => {
   const history: ThreadHistoryAdapter = {
@@ -15,7 +16,7 @@ const mocks = vi.hoisted(() => {
     append: async () => {},
     withFormat: () => ({
       load,
-      append: async () => {},
+      append,
       delete: async () => {},
       reportTelemetry: () => {},
     }),
@@ -127,6 +128,9 @@ describe("AISDKThreads cloud", () => {
       });
       await vi.waitFor(() => {
         expect(chat.getCancelCount()).toBe(1);
+      });
+      await vi.waitFor(() => {
+        expect(append).toHaveBeenCalled();
       });
     } finally {
       handle.destroy();

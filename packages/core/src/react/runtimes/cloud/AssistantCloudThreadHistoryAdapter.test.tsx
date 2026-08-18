@@ -71,15 +71,10 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
   });
 
   it("resolves formatted persistence against the current threadListItem", async () => {
-    let remoteId = "thread-1";
-    mocks.aui = {
-      threadListItem: {
-        getState: () => ({ remoteId }),
-      },
-    } as unknown as import("@assistant-ui/store").AssistantClient;
+    mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();
     const cloudRef = { current: cloud };
-    const { result } = renderHook(() =>
+    const { result, rerender } = renderHook(() =>
       useAssistantCloudThreadHistoryAdapter(cloudRef),
     );
     const formatted = result.current.withFormat<
@@ -100,7 +95,8 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       format: "test",
     });
 
-    remoteId = "thread-2";
+    mocks.aui = mocks.makeClient("thread-2");
+    rerender();
     await formatted.load();
     expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-2", {
       format: "test",
