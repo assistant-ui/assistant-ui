@@ -9,8 +9,19 @@ export type PendingToolCallGroup = {
   toolCalls: LangChainToolCall[];
 };
 
+export const pendingToolCallGroupKey = (
+  message: Extract<LangChainMessage, { type: "ai" }>,
+): string | undefined => {
+  if (message.id) return `message:${message.id}`;
+  const firstToolCallId = message.tool_calls?.[0]?.id;
+  return firstToolCallId ? `tool:${firstToolCallId}` : undefined;
+};
+
 export const getPendingToolCallGroups = (
   messages: LangChainMessage[],
+  resolveGroupKey: (
+    message: Extract<LangChainMessage, { type: "ai" }>,
+  ) => string | undefined = pendingToolCallGroupKey,
 ): PendingToolCallGroup[] => {
   const pendingToolCalls = new Map<
     string,
@@ -18,12 +29,8 @@ export const getPendingToolCallGroups = (
   >();
   for (const message of messages) {
     if (message.type === "ai") {
-      const firstToolCallId = message.tool_calls?.[0]?.id;
-      const groupKey = message.id
-        ? `message:${message.id}`
-        : firstToolCallId
-          ? `tool:${firstToolCallId}`
-          : undefined;
+      const groupKey =
+        resolveGroupKey(message) ?? pendingToolCallGroupKey(message);
       if (!groupKey) continue;
       for (const toolCall of message.tool_calls ?? []) {
         pendingToolCalls.set(toolCall.id, { toolCall, groupKey });

@@ -51,6 +51,7 @@ import {
   filterUIMessagesBySurvivingIds,
   getPendingToolCallGroups,
   getPendingToolCalls,
+  pendingToolCallGroupKey,
   hasToolResult,
   truncateLangChainMessages,
 } from "./messageHelpers";
@@ -185,12 +186,17 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
   const runConfigByMessageIdRef = useRef(new Map<string, unknown>());
   const runConfigByToolCallIdRef = useRef(new Map<string, unknown>());
+  const runIdByMessageIdRef = useRef(new Map<string, string>());
+  const runIdByToolCallIdRef = useRef(new Map<string, string>());
+  const currentRunIdRef = useRef<string | null>(null);
+  const nextRunIdRef = useRef(0);
   const interruptRunConfigRef = useRef<unknown>(undefined);
 
   const rememberMessageOwnership = useCallback(
     (newMessages: LangChainMessage[], runConfig: unknown) => {
       const messageOwnership = runConfigByMessageIdRef.current;
       const toolOwnership = runConfigByToolCallIdRef.current;
+      const runId = currentRunIdRef.current;
       for (const message of newMessages) {
         if (message.type !== "ai") continue;
         let owner = runConfig;
@@ -198,10 +204,14 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           if (!messageOwnership.has(message.id))
             messageOwnership.set(message.id, runConfig);
           owner = messageOwnership.get(message.id);
+          if (runId && !runIdByMessageIdRef.current.has(message.id))
+            runIdByMessageIdRef.current.set(message.id, runId);
         }
         for (const toolCall of message.tool_calls ?? []) {
           if (!toolOwnership.has(toolCall.id))
             toolOwnership.set(toolCall.id, owner);
+          if (runId && !runIdByToolCallIdRef.current.has(toolCall.id))
+            runIdByToolCallIdRef.current.set(toolCall.id, runId);
         }
       }
     },
@@ -240,6 +250,12 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     }
     for (const id of runConfigByToolCallIdRef.current.keys()) {
       if (!toolCallIds.has(id)) runConfigByToolCallIdRef.current.delete(id);
+    }
+    for (const id of runIdByMessageIdRef.current.keys()) {
+      if (!messageIds.has(id)) runIdByMessageIdRef.current.delete(id);
+    }
+    for (const id of runIdByToolCallIdRef.current.keys()) {
+      if (!toolCallIds.has(id)) runIdByToolCallIdRef.current.delete(id);
     }
   }, []);
 
@@ -375,6 +391,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   }> | null>(null);
   runQueueRef.current ??= createSerialRunQueue({
     run: ({ messages, config }, onComplete) => {
+      currentRunIdRef.current = String(++nextRunIdRef.current);
       for (const [groupKey, batch] of pendingResumeRef.current) {
         if (batch === messages) {
           pendingResumeRef.current.delete(groupKey);
@@ -619,6 +636,8 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         effectiveStateRef.current = undefined;
         runConfigByMessageIdRef.current.clear();
         runConfigByToolCallIdRef.current.clear();
+        runIdByMessageIdRef.current.clear();
+        runIdByToolCallIdRef.current.clear();
         interruptRunConfigRef.current = undefined;
         setOptimisticState(undefined);
         setValues(undefined);
@@ -720,7 +739,17 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       // the graph with a second tool message. A call awaiting human input has
       // no tool message yet and stays on the normal pending path.
       if (hasToolResult(messages, toolCallId)) return;
-      const pendingGroup = getPendingToolCallGroups(messages).find((group) =>
+      const pendingGroup = getPendingToolCallGroups(messages, (message) => {
+        if (message.id) {
+          const runId = runIdByMessageIdRef.current.get(message.id);
+          if (runId) return `run:${runId}`;
+        }
+        for (const toolCall of message.tool_calls ?? []) {
+          const runId = runIdByToolCallIdRef.current.get(toolCall.id);
+          if (runId) return `run:${runId}`;
+        }
+        return pendingToolCallGroupKey(message);
+      }).find((group) =>
         group.toolCalls.some((toolCall) => toolCall.id === toolCallId),
       );
       const groupKey = pendingGroup?.key ?? `late:${toolCallId}`;

@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   getPendingToolCallGroups,
   getPendingToolCalls,
+  pendingToolCallGroupKey,
 } from "./messageHelpers";
 import type { LangChainMessage } from "./types";
 
@@ -76,6 +77,29 @@ describe("getPendingToolCallGroups", () => {
       {
         key: "message:ai-2",
         toolCalls: [{ id: "tc-2", name: "b", args: {} }],
+      },
+    ]);
+  });
+
+  it("uses a custom group key resolver when provided", () => {
+    expect(
+      getPendingToolCallGroups(
+        [
+          ai("ai-1", [{ id: "tc-1", name: "a" }]),
+          ai("ai-2", [{ id: "tc-2", name: "b" }]),
+        ],
+        (message) =>
+          message.id === "ai-1" || message.id === "ai-2"
+            ? "run:shared"
+            : pendingToolCallGroupKey(message),
+      ),
+    ).toEqual([
+      {
+        key: "run:shared",
+        toolCalls: [
+          { id: "tc-1", name: "a", args: {} },
+          { id: "tc-2", name: "b", args: {} },
+        ],
       },
     ]);
   });
