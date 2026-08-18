@@ -3,7 +3,7 @@ import {
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
-import { boundSpec } from "./boundSpec";
+import { boundSpec } from "../convert/boundSpec";
 import {
   CAROUSEL_ATTACHMENT_CAP,
   PAYLOAD_SOFT_CAP,

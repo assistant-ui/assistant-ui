@@ -1,3 +1,4 @@
+import { boundSpec, clampReasonDetail } from "../convert/boundSpec";
 import {
   normalizeSpec,
   type NormalizedUIElement,
@@ -14,7 +15,6 @@ import {
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
   CAROUSEL_CARD_MIN,
-  CHILDREN_CAP,
   CONTEXT_ELEMENT_CAP,
   CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
@@ -26,11 +26,9 @@ import {
   INPUT_LABEL_CAP,
   INTERACTIVE_TEXT_CAP,
   MARKDOWN_TEXT_BUDGET,
-  MAX_ELEMENT_DEPTH,
   MAX_TRAVERSAL_DEPTH,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
-  NODE_BUDGET,
   PLACEHOLDER_TEXT_CAP,
   RADIO_OPTION_CAP,
   SECTION_TEXT_CAP,
@@ -1320,104 +1318,6 @@ function convertSequence(
   return blocks;
 }
 
-interface BoundState {
-  remaining: number;
-  exhausted: boolean;
-}
-
-type ClampReason = "children" | "budget" | "cycle" | "depth";
-
-function boundNode(
-  value: unknown,
-  depth: number,
-  onClamp: (reason: ClampReason) => void,
-  state: BoundState,
-  ancestors: WeakSet<object>,
-): unknown {
-  if (state.remaining <= 0) {
-    if (!state.exhausted) {
-      state.exhausted = true;
-      onClamp("budget");
-    }
-    return null;
-  }
-  state.remaining -= 1;
-  if (depth > MAX_TRAVERSAL_DEPTH) {
-    onClamp("depth");
-    return null;
-  }
-  if (Array.isArray(value)) {
-    if (ancestors.has(value)) {
-      onClamp("cycle");
-      return null;
-    }
-    ancestors.add(value);
-    const bounded = Array.prototype.slice.call(
-      value,
-      0,
-      CHILDREN_CAP,
-    ) as unknown[];
-    if (value.length > CHILDREN_CAP) onClamp("children");
-    const result = bounded.map((item) =>
-      boundNode(item, depth + 1, onClamp, state, ancestors),
-    );
-    ancestors.delete(value);
-    return result;
-  }
-  if (
-    value !== null &&
-    typeof value === "object" &&
-    "children" in (value as Record<string, unknown>)
-  ) {
-    if (ancestors.has(value)) {
-      onClamp("cycle");
-      return null;
-    }
-    ancestors.add(value);
-    const record = value as Record<string, unknown>;
-    const result = {
-      ...record,
-      children: boundNode(
-        record["children"],
-        depth + 1,
-        onClamp,
-        state,
-        ancestors,
-      ),
-    };
-    ancestors.delete(value);
-    return result;
-  }
-  return value;
-}
-
-/**
- * Produces a bounded plain copy of a raw generative-ui spec before it
- * reaches `normalizeSpec`, whose own traversal of the root array or any
- * `children` array walks the full reported length of a hostile proxied
- * array before any per-field cap downstream ever applies. Every array
- * (root, or `children` at any depth) is capped to {@link CHILDREN_CAP}
- * entries via `Array.prototype.slice`, which bounds even a proxy with a
- * fabricated `length`; recursion itself is capped at
- * {@link MAX_TRAVERSAL_DEPTH}. `onClamp` fires once per level that was
- * truncated, receiving the reason for that truncation: `"children"`,
- * `"depth"`, `"budget"`, or `"cycle"`. The walk also spends a total budget of
- * {@link NODE_BUDGET} nodes, so shared references cannot multiply work
- * exponentially, and a node that is its own ancestor is cut to `null`.
- */
-function boundSpec(
-  spec: unknown,
-  onClamp: (reason: ClampReason) => void,
-): unknown {
-  return boundNode(
-    spec,
-    0,
-    onClamp,
-    { remaining: NODE_BUDGET, exhausted: false },
-    new WeakSet(),
-  );
-}
-
 /** Converts a generative-UI tree into Slack Block Kit JSON and downgrade warnings. */
 export function toSlackBlocks(
   node: unknown,
@@ -1433,17 +1333,9 @@ export function toSlackBlocks(
     dataTableCharacters: 0,
   };
   try {
-    const bounded = boundSpec(node, (reason) => {
-      const detail =
-        reason === "budget"
-          ? `the tree was truncated after ${NODE_BUDGET} nodes.`
-          : reason === "cycle"
-            ? "a self-referencing node was dropped."
-            : reason === "depth"
-              ? `nodes deeper than ${MAX_ELEMENT_DEPTH} levels were dropped.`
-              : `children were clamped to ${CHILDREN_CAP} entries.`;
-      warn(context, "clamped", "Root", detail);
-    });
+    const bounded = boundSpec(node, (reason) =>
+      warn(context, "clamped", "Root", clampReasonDetail(reason)),
+    );
     const { root } = normalizeSpec(bounded as never);
     const converted = convertSequence(root, context, 0);
     if (converted.length <= context.blockCap) {
