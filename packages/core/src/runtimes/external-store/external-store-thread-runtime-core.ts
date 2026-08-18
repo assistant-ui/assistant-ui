@@ -49,6 +49,18 @@ import {
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
 
+const observeAdapterCallback = (
+  name: "onAddToolResult" | "onRespondToToolApproval" | "onCancel",
+  result: Promise<void> | void,
+) => {
+  void Promise.resolve(result).catch((error) => {
+    console.error(
+      `[ExternalStoreThreadRuntimeCore] ${name} callback rejected`,
+      error,
+    );
+  });
+};
+
 const shallowEqual = (a: object, b: object): boolean => {
   const aKeys = Object.keys(a);
   if (aKeys.length !== Object.keys(b).length) return false;
@@ -387,19 +399,22 @@ export class ExternalStoreThreadRuntimeCore
                 // rolled back). Drop the result.
                 return;
               }
-              this._store.onAddToolResult?.({
-                messageId,
-                toolCallId: command.toolCallId,
-                toolName: command.toolName,
-                result: command.result,
-                isError: command.isError,
-                ...(command.artifact !== undefined && {
-                  artifact: command.artifact,
+              observeAdapterCallback(
+                "onAddToolResult",
+                this._store.onAddToolResult?.({
+                  messageId,
+                  toolCallId: command.toolCallId,
+                  toolName: command.toolName,
+                  result: command.result,
+                  isError: command.isError,
+                  ...(command.artifact !== undefined && {
+                    artifact: command.artifact,
+                  }),
+                  ...(command.modelContent !== undefined && {
+                    modelContent: command.modelContent,
+                  }),
                 }),
-                ...(command.modelContent !== undefined && {
-                  modelContent: command.modelContent,
-                }),
-              });
+              );
             } catch (err) {
               console.error(
                 "[ExternalStoreThreadRuntimeCore] onAddToolResult dispatch failed",
@@ -514,26 +529,36 @@ export class ExternalStoreThreadRuntimeCore
         ? rawMessage
         : this.enrichAppendMetadata(rawMessage);
 
-    // The queue driver dispatches through the host adapter, outside this
-    // core, so the initialization barrier must run before a message can
-    // enter the queue.
     const generation = captureThreadRuntimeGeneration(this);
     this.ensureInitialized();
 
+    // The getter call is what starts thread initialization.
     const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      await initPromise;
-    }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
-    // Buffering does not start a run, so the tool-abort below must wait until
-    // the queue flushes. By then the prior run (and its tools) has settled.
+    // The queue driver dispatches through the host adapter, outside this
+    // core, so the initialization barrier must run before a message can
+    // enter the queue.
     if (!isEdit && this._store.queue) {
+      if (initPromise) {
+        await initPromise;
+      }
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+
+      // Buffering does not start a run, so the tool-abort below must wait
+      // until the queue flushes. By then the prior run (and its tools) has
+      // settled.
       if (message.steer ?? this._store.isRunning ?? false)
         this._store.queue.steer(message);
       else this._store.queue.enqueue(message);
       return;
     }
+
+    // The optimistic insert lives inside the adapter's dispatch, so holding
+    // `onNew` on initialization would keep the message off screen for the
+    // whole roundtrip. Seams that need the remote identity await
+    // `threadListItem.initialize()` themselves, and a rejection surfaces
+    // there.
+    void initPromise?.catch(() => {});
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn
@@ -659,7 +684,7 @@ export class ExternalStoreThreadRuntimeCore
     // stopped.
     this._store.queue?.__internal_notifyCancelled?.();
 
-    this._store.onCancel();
+    observeAdapterCallback("onCancel", this._store.onCancel());
 
     this.dropEmptyOptimisticHead();
 
@@ -734,7 +759,10 @@ export class ExternalStoreThreadRuntimeCore
   public addToolResult(options: AddToolResultOptions) {
     if (!this._store.onAddToolResult)
       throw new Error("Runtime does not support tool results.");
-    this._store.onAddToolResult?.(options);
+    observeAdapterCallback(
+      "onAddToolResult",
+      this._store.onAddToolResult(options),
+    );
   }
 
   public resumeToolCall(options: ResumeToolCallOptions) {
@@ -760,7 +788,10 @@ export class ExternalStoreThreadRuntimeCore
   public respondToToolApproval(options: RespondToToolApprovalOptions) {
     if (!this._store.onRespondToToolApproval)
       throw new Error("Runtime does not support tool approvals.");
-    this._store.onRespondToToolApproval(options);
+    observeAdapterCallback(
+      "onRespondToToolApproval",
+      this._store.onRespondToToolApproval(options),
+    );
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {

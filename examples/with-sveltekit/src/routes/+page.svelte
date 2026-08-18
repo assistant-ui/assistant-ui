@@ -1,12 +1,12 @@
 <script lang="ts">
   import { AuiConfig, provideAui } from "@assistant-ui/svelte";
   import { Suggestions } from "@assistant-ui/core/store";
-  import { AISDKChat } from "@assistant-ui/ai-sdk";
+  import { AISDKThreads } from "@assistant-ui/ai-sdk";
   import App from "$lib/App.svelte";
 
   provideAui(
     AuiConfig({
-      threads: AISDKChat(),
+      threads: AISDKThreads(),
       suggestions: Suggestions([
         {
           title: "Plan a weekend trip",

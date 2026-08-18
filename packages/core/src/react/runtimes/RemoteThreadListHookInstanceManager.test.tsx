@@ -19,7 +19,7 @@ describe("RemoteThreadListHookInstanceManager", () => {
     );
   });
 
-  it("drops a pending append when a thread runtime is stopped", async () => {
+  it("dispatches an append before the thread runtime stops", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {
       resolveInitialization = resolve;
@@ -57,11 +57,14 @@ describe("RemoteThreadListHookInstanceManager", () => {
       createdAt: new Date(0),
     });
     await Promise.resolve();
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+
     manager.stopThreadRuntime("thread-1");
     resolveInitialization();
 
     await appendPromise;
-    expect(onNew).not.toHaveBeenCalled();
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 });
 
@@ -72,7 +75,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
       {} as ThreadListRuntimeCore,
     );
 
-  // no React binder attaches a runtime in these tests, so the returned promises
+  // no AdapterSink attaches a runtime in these tests, so the returned promises
   // stay pending or reject on stop; neither is what is under test here
   const start = (manager: RemoteThreadListHookInstanceManager, id: string) => {
     manager.startThreadRuntime(id).catch(() => {});
@@ -103,7 +106,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
       ([id, { generation }]) => `${id}:${generation}`,
     );
 
-  it("changes the binder key so React remounts the runtime hook", () => {
+  it("changes the resource key so the tap host remounts the runtime hook", () => {
     const manager = makeManager();
     start(manager, "thread-1");
     const before = renderedKeys(manager);
@@ -135,7 +138,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     expect(renderedKeys(manager)).toEqual(["thread-1:0"]);
   });
 
-  it("stop then start in one tick yields a fresh key, so the old still-mounted binder cannot satisfy the new start", () => {
+  it("stop then start in one tick yields a fresh key, so the old still-mounted resource cannot satisfy the new start", () => {
     const manager = makeManager();
     start(manager, "thread-1");
     const before = renderedKeys(manager);
@@ -147,7 +150,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
     expect(renderedKeys(manager)).toEqual(["thread-1:1"]);
   });
 
-  // simulates the binder's updateRuntime: publish a runtime for the
+  // simulates the resource publish: attach a runtime for the
   // instance's current generation (or an explicit stale one)
   const publish = (
     manager: RemoteThreadListHookInstanceManager,
@@ -208,7 +211,7 @@ describe("RemoteThreadListHookInstanceManager.__internal_restartThreadRuntime", 
       settled = true;
     });
 
-    // an outgoing binder re-publishing for its old generation (e.g. a late
+    // an outgoing resource re-publishing for its old generation (e.g. a late
     // outerSubscribe callback) must not count as the new attachment
     const staleGeneration =
       internalsOf(manager).instances.get("thread-1")!.generation - 1;

@@ -135,6 +135,54 @@ Pass `present({ display: "standalone" })` to render the component on its own
 surface instead of inline. See the
 [`"use generative"` docs](https://www.assistant-ui.com/docs) for the build setup.
 
+## Slack, Teams, and A2UI
+
+The same tree is plain JSON, so it is not tied to the browser. Three React-free subpaths convert it for Slack Block Kit, Microsoft Teams Adaptive Cards, and inbound [A2UI](https://a2ui.org/) surfaces. They run in server actions, queue workers, and webhook handlers. Conversion is over the built-in vocabulary; a `$type` outside it is dropped with a warning. What each target does with a component, and how unsupported content degrades, is documented on [Generative UI on Slack](https://www.assistant-ui.com/docs/tools/generative-ui-slack), [Generative UI on Microsoft Teams](https://www.assistant-ui.com/docs/tools/generative-ui-teams), and [A2UI over AG-UI](https://www.assistant-ui.com/docs/tools/a2ui).
+
+### `@assistant-ui/react-generative-ui/slack`
+
+Converts a tree to Slack Block Kit JSON (`toSlackBlocks`), decodes `block_actions` webhooks back into `$action` payloads (`decodeBlockAction`), and maps Block Kit back into vocabulary nodes (`fromSlackBlocks`).
+
+```ts
+import { toSlackBlocks } from "@assistant-ui/react-generative-ui/slack";
+
+const { blocks, warnings } = toSlackBlocks({
+  $type: "Card",
+  title: "Order #48213",
+  children: [{ $type: "Text", value: "Shipped, arriving Thursday." }],
+});
+```
+
+### `@assistant-ui/react-generative-ui/teams`
+
+Converts a tree to a Microsoft Teams Adaptive Card (`toAdaptiveCard`) or bot-framework attachments with root-carousel support (`toTeamsAttachments`), and decodes an incoming `activity.value` (`decodeSubmitData`).
+
+```ts
+import { toAdaptiveCard } from "@assistant-ui/react-generative-ui/teams";
+
+const { card, warnings } = toAdaptiveCard({
+  $type: "Card",
+  title: "Order #48213",
+  children: [{ $type: "Text", value: "Shipped, arriving Thursday." }],
+});
+```
+
+### `@assistant-ui/react-generative-ui/a2ui`
+
+The inbound direction: applies A2UI surface operations (`applyA2uiOperations`) and converts a surface into a vocabulary tree (`convertSurfaceToUISpec`) that renders through the same `present` path.
+
+```ts
+import {
+  applyA2uiOperations,
+  convertSurfaceToUISpec,
+} from "@assistant-ui/react-generative-ui/a2ui";
+
+const { state } = applyA2uiOperations(new Map(), operations);
+for (const surface of state.values()) {
+  const { spec, warnings } = convertSurfaceToUISpec(surface);
+}
+```
+
 ## License
 
 MIT

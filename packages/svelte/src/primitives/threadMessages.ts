@@ -1,21 +1,16 @@
-import { tick } from "svelte";
 import type {
   ComposerMethods,
   MessageMethods,
   MessageState,
 } from "@assistant-ui/core/store";
 import {
-  AuiConfig,
-  createAssistantClient,
-  createClientFacade,
   createLastValidCache,
   createStaleReporter,
   Derived,
 } from "@assistant-ui/store/client";
 import { getAuiContext, type AuiContext, type ScopeTarget } from "../context";
 import { useAuiState } from "../useAuiState";
-
-const scheduleExpiry = (callback: () => void) => void tick().then(callback);
+import { createObservedItem, scheduleExpiry } from "./observedItem";
 
 /**
  * A per-index handle over one thread message: through it, `useAuiState` and
@@ -35,25 +30,23 @@ export type MessageItem = ScopeTarget;
 // with the row. Known limit: an out-transitioned row is paused, not
 // destroyed, so its observer outlives the expiry and a shrink may report;
 // revisited with the transitions-aware list chunk.
-const createMessageItem = (context: AuiContext, index: number): MessageItem => {
-  let observers = 0;
-  const messageCache = createLastValidCache<MessageMethods>(
-    createStaleReporter({
-      name: "threadMessages.item",
-      index,
-      isCurrent: () => observers > 0,
-      isValid: () =>
-        index < context.source.getClient().thread.getState().messages.length,
-    }),
-    scheduleExpiry,
-  );
-  const composerCache = createLastValidCache<ComposerMethods>(
-    null,
-    scheduleExpiry,
-  );
-
-  const handle = createAssistantClient(
-    AuiConfig({
+const createMessageItem = (context: AuiContext, index: number): MessageItem =>
+  createObservedItem(context, (isObserved) => {
+    const messageCache = createLastValidCache<MessageMethods>(
+      createStaleReporter({
+        name: "threadMessages.item",
+        index,
+        isCurrent: isObserved,
+        isValid: () =>
+          index < context.source.getClient().thread.getState().messages.length,
+      }),
+      scheduleExpiry,
+    );
+    const composerCache = createLastValidCache<ComposerMethods>(
+      null,
+      scheduleExpiry,
+    );
+    return {
       message: Derived({
         source: "thread",
         query: { type: "index", index },
@@ -72,35 +65,8 @@ const createMessageItem = (context: AuiContext, index: number): MessageItem => {
             () => aui.thread.message({ index }).composer(),
           ),
       }),
-    }),
-    { parent: context.source },
-  );
-
-  // No destroy pairing (unlike provideAui's lifetime subscription): the item
-  // deliberately rides observation alone, suspending when its readers release
-  // and resuming with state intact.
-  const source = {
-    getClient: handle.getClient,
-    subscribe: (listener: () => void) => {
-      // Increment only after a successful subscribe: the first one commits the
-      // mount, which throws for a never-valid index and must not latch the
-      // observer count
-      const release = handle.subscribe(listener);
-      observers++;
-      let subscribed = true;
-      return () => {
-        if (!subscribed) return;
-        subscribed = false;
-        observers--;
-        release();
-      };
-    },
-  };
-  return {
-    source,
-    aui: createClientFacade(source),
-  };
-};
+    };
+  });
 
 /**
  * Builder for the thread's message list. Call during component

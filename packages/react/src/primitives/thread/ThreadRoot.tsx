@@ -5,7 +5,9 @@ import {
   type ComponentRef,
   forwardRef,
   type ComponentPropsWithoutRef,
+  useEffect,
 } from "react";
+import { useAui } from "@assistant-ui/store";
 
 export namespace ThreadPrimitiveRoot {
   export type Element = ComponentRef<typeof Primitive.div>;
@@ -37,6 +39,34 @@ export const ThreadPrimitiveRoot = forwardRef<
   ThreadPrimitiveRoot.Element,
   ThreadPrimitiveRoot.Props
 >((props, ref) => {
+  const aui = useAui();
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      if (event.defaultPrevented || aui.thread.source === null) return;
+      if (aui.thread.getState().speech == null) return;
+      event.preventDefault();
+      try {
+        aui.thread.stopSpeaking();
+      } catch (error) {
+        // getState() is the last rendered snapshot, so speech can finish before this call.
+        if (
+          !(error instanceof Error) ||
+          error.message !== "No message is being spoken"
+        ) {
+          throw error;
+        }
+      }
+    };
+
+    // Bubble phase lets capture-phase Escape handlers consume the event first.
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [aui]);
+
   return <Primitive.div {...props} ref={ref} />;
 });
 

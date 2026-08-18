@@ -9,6 +9,7 @@
     composerCancel,
     composerInput,
     composerSend,
+    messageParts,
     useAuiState,
     type MessageItem,
   } from "@assistant-ui/svelte";
@@ -20,15 +21,10 @@
     PencilIcon,
     RefreshCwIcon,
   } from "@lucide/svelte";
+  import ToolPart from "./ToolPart.svelte";
 
   let { message, item }: { message: MessageState; item: MessageItem } =
     $props();
-
-  const text = $derived(
-    message.content
-      .map((part) => (part.type === "text" ? part.text : ""))
-      .join(""),
-  );
 
   // The item handle is index-bound and referentially stable for this
   // position's lifetime under unkeyed iteration, so a one-time capture is
@@ -36,6 +32,7 @@
   // svelte-ignore state_referenced_locally
   const target = { item };
 
+  const parts = messageParts(target);
   const isEditing = useAuiState((s) => s.composer.isEditing, target);
   const branchNumber = useAuiState((s) => s.message.branchNumber, target);
   const branchCount = useAuiState((s) => s.message.branchCount, target);
@@ -110,12 +107,32 @@
           : "text-foreground leading-relaxed",
       ].join(" ")}
     >
-      <p class="whitespace-pre-line">
-        {text}{#if pulsing.current}<span class="animate-pulse">…</span>{/if}
-        {#if error.current}<span class="text-destructive text-sm"
-          >{error.current}</span
+      {#each parts.items as part, index}
+        {#if part.type === "text"}
+          <p class="whitespace-pre-line">
+            {part.text}{#if pulsing.current && index === parts.items.length - 1}<span
+                class="animate-pulse">…</span
+              >{/if}
+          </p>
+        {:else if part.type === "reasoning"}
+          <details class="text-muted-foreground my-1 text-sm">
+            <summary class="cursor-pointer select-none">Reasoning</summary>
+            <p class="whitespace-pre-line border-border/60 mt-1 border-l-2 pl-3">
+              {part.text}
+            </p>
+          </details>
+        {:else if part.type === "tool-call"}
+          <ToolPart item={parts.item(index)} />
+        {:else}
+          <p class="text-muted-foreground text-xs">[{part.type}]</p>
+        {/if}
+      {/each}
+      {#if pulsing.current && parts.items.at(-1)?.type !== "text"}<span
+          class="animate-pulse">…</span
         >{/if}
-      </p>
+      {#if error.current}<span class="text-destructive text-sm"
+        >{error.current}</span
+      >{/if}
     </div>
   {/if}
   <div

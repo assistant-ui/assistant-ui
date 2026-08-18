@@ -15,10 +15,11 @@ import {
   updateStatusReducer,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type {
+  RemoteThreadListAdapter,
   RemoteThreadListOptions,
-  RemoteThreadListProviderComponent,
 } from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
+import { isTitleSourceMessage } from "./RemoteThreadResource";
 import {
   type ComponentType,
   type FC,
@@ -27,15 +28,12 @@ import {
   useEffect,
   useId,
 } from "react";
+import { useAui } from "@assistant-ui/store";
 import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
-
-const asProviderComponent = (
-  provider: RemoteThreadListProviderComponent | undefined,
-): ComponentType<PropsWithChildren> =>
-  (provider ?? Fragment) as ComponentType<PropsWithChildren>;
+import { useStableRuntimeAdapters } from "./useRuntimeAdapters";
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -55,6 +53,7 @@ export class RemoteThreadListThreadListRuntimeCore
 {
   private _options!: RemoteThreadListOptions;
   private readonly _hookManager: RemoteThreadListHookInstanceManager;
+  private readonly _runtimeAdapters: { modelContext: ModelContextProvider };
 
   private _loadThreadsPromise: Promise<void> | undefined;
   private _loadMorePromise: Promise<void> | undefined;
@@ -73,6 +72,42 @@ export class RemoteThreadListThreadListRuntimeCore
     threadIdMap: {},
     threadData: {},
   });
+
+  private readonly _useAdaptersProvider: FC<PropsWithChildren> = ({
+    children,
+  }) => {
+    const useAdapters = this._options.adapter.unstable_useAdapters;
+    if (useAdapters === undefined) return children;
+    return (
+      <this._SynthesizedAdapters useAdapters={useAdapters}>
+        {children}
+      </this._SynthesizedAdapters>
+    );
+  };
+
+  private readonly _SynthesizedAdapters: FC<
+    PropsWithChildren<{
+      useAdapters: NonNullable<RemoteThreadListAdapter["unstable_useAdapters"]>;
+    }>
+  > = ({ useAdapters, children }) => {
+    const adapters = useStableRuntimeAdapters(useAdapters());
+    if (adapters == null) return children;
+    return (
+      <RuntimeAdapterProvider adapters={adapters}>
+        {children}
+      </RuntimeAdapterProvider>
+    );
+  };
+
+  private resolveProvider(
+    adapter: RemoteThreadListAdapter,
+  ): ComponentType<PropsWithChildren> {
+    if (adapter.unstable_Provider !== undefined) {
+      return adapter.unstable_Provider as ComponentType<PropsWithChildren>;
+    }
+    if (adapter.unstable_useAdapters === undefined) return Fragment;
+    return this._useAdaptersProvider;
+  }
 
   public get threadItems() {
     return this._state.value.threadData;
@@ -183,28 +218,27 @@ export class RemoteThreadListThreadListRuntimeCore
     return dedup;
   }
 
-  private readonly contextProvider: ModelContextProvider;
-
   constructor(
     options: RemoteThreadListOptions,
     contextProvider: ModelContextProvider,
   ) {
     super();
-    this.contextProvider = contextProvider;
 
     this._state.subscribe(() => {
       this._notifySubscribers();
       this._notifyThreadIdChange();
     });
+    this._runtimeAdapters = { modelContext: contextProvider };
     this._hookManager = new RemoteThreadListHookInstanceManager(
       options.runtimeHook,
       this,
     );
+    this._hookManager.__internal_setDefaultAdapters(this._runtimeAdapters);
     this._hookManager.__internal_subscribeRunningChanged(() =>
       this._notifySubscribers(),
     );
     this.useProvider = create(() => ({
-      Provider: asProviderComponent(options.adapter.unstable_Provider),
+      Provider: this.resolveProvider(options.adapter),
     }));
     this.__internal_setOptions(options);
     this.switchToNewThread();
@@ -225,7 +259,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     this._options = options;
 
-    const Provider = asProviderComponent(options.adapter.unstable_Provider);
+    const Provider = this.resolveProvider(options.adapter);
     if (Provider !== this.useProvider.getState().Provider) {
       this.useProvider.setState({ Provider }, true);
     }
@@ -536,7 +570,7 @@ export class RemoteThreadListThreadListRuntimeCore
       if (generation !== this._switchGeneration) return;
     }
 
-    const state = this._state.value;
+    const state = this._state.baseValue;
     let id: string | undefined = this._state.value.newThreadId;
     if (id === undefined) {
       do {
@@ -635,7 +669,10 @@ export class RemoteThreadListThreadListRuntimeCore
     const runtimeCore = this._hookManager.getThreadRuntimeCore(data.id);
     if (!runtimeCore) return; // thread is no longer running
 
-    const messages = runtimeCore.messages;
+    // Incomplete assistant turns (running status, possibly empty content)
+    // would make the payload race-dependent; the title reads settled
+    // messages only, matching the trigger's readiness gate.
+    const messages = runtimeCore.messages.filter(isTitleSourceMessage);
     const stream = await this._options.adapter.generateTitle(
       remoteId,
       messages,
@@ -823,6 +860,10 @@ export class RemoteThreadListThreadListRuntimeCore
     });
   }
 
+  public __internal_dispose() {
+    this._hookManager.__internal_dispose();
+  }
+
   public async detach(threadIdOrRemoteId: string): Promise<void> {
     const data = this.getItemById(threadIdOrRemoteId);
     if (!data) throw threadNotFoundError(threadIdOrRemoteId, "detaching it");
@@ -846,18 +887,16 @@ export class RemoteThreadListThreadListRuntimeCore
 
     const boundIds = this.useBoundIds();
     const { Provider } = this.useProvider();
-
-    const adapters = {
-      modelContext: this.contextProvider,
-    };
+    const aui = useAui();
+    const enabled = boundIds.length === 0 || boundIds[0] === id;
 
     return (
-      (boundIds.length === 0 || boundIds[0] === id) && (
-        // only render if the component is the first one mounted
-        <RuntimeAdapterProvider adapters={adapters}>
+      enabled && (
+        <RuntimeAdapterProvider adapters={this._runtimeAdapters}>
           <this._hookManager.__internal_RenderThreadRuntimes
             provider={Provider}
           />
+          <this._hookManager.__internal_Host parentClient={aui} />
         </RuntimeAdapterProvider>
       )
     );

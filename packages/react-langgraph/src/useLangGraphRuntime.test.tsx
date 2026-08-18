@@ -12,7 +12,7 @@ import {
 import { getThreadMessageText } from "@assistant-ui/core/internal";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useLangGraphRuntime } from "./useLangGraphRuntime";
-import { useLangGraphSend } from "./hooks";
+import { useLangGraphSend, useLangGraphSendCommand } from "./hooks";
 import { mockStreamCallbackFactory } from "./testUtils";
 import type { LangChainMessage } from "./types";
 import type { LangGraphInterruptState } from "./useLangGraphMessages";
@@ -1779,6 +1779,28 @@ describe("useLangGraphRuntime", () => {
       });
     };
 
+    const addToolResultById = (
+      runtime: AssistantRuntime,
+      toolCallId: string,
+      result: unknown,
+    ) => {
+      const message = runtime.thread
+        .getState()
+        .messages.find((item) =>
+          item.content.some(
+            (part) =>
+              part.type === "tool-call" && part.toolCallId === toolCallId,
+          ),
+        );
+      if (!message) throw new Error(`missing ${toolCallId}`);
+      act(() => {
+        runtime.thread
+          .getMessageById(message.id)
+          .getMessagePartByToolCallId(toolCallId)
+          .addToolResult(result);
+      });
+    };
+
     it("defers a tool-result resume until the in-flight run drains, without dropping isRunning", async () => {
       const gate = deferred<void>();
       const streamMock = vi.fn(async function* (_messages: LangChainMessage[]) {
@@ -1838,6 +1860,49 @@ describe("useLangGraphRuntime", () => {
         (value, i) => i === 0 || observedIsRunning[i - 1] !== value,
       );
       expect(transitions).toEqual([false, true, false]);
+    });
+
+    it("drops the queued resume when the runtime unmounts", async () => {
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        config: { abortSignal: AbortSignal },
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield toolCallEvent;
+          await new Promise<void>((resolve) => {
+            config.abortSignal.addEventListener("abort", () => resolve(), {
+              once: true,
+            });
+          });
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({ stream: streamMock }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: auiResult, unmount } = renderHook(() => useAui(), {
+        wrapper,
+      });
+
+      await act(async () => {
+        auiResult.current.composer.setText("what's the weather?");
+        auiResult.current.composer.send();
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      await waitForToolCallPart(auiResult.current);
+
+      addToolResult(runtimeResult.current, { temperature: 72 });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(1);
+
+      unmount();
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 10));
+      });
+      expect(streamMock).toHaveBeenCalledTimes(1);
     });
 
     it("sends a tool result immediately when no run is in flight", async () => {
@@ -2426,6 +2491,7 @@ describe("useLangGraphRuntime", () => {
         };
         const streamMock = vi.fn(async function* (
           _messages: LangChainMessage[],
+          _config: { runConfig?: unknown },
         ) {
           if (streamMock.mock.calls.length === 1) {
             yield firstAiMessage;
@@ -2473,6 +2539,586 @@ describe("useLangGraphRuntime", () => {
         await waitFor(() =>
           expect(auiResult.current.thread.getState().isRunning).toBe(false),
         );
+      });
+
+      it("preserves the originating runConfig for an automatic tool resume", async () => {
+        const streamMock = vi.fn(async function* (
+          _messages: LangChainMessage[],
+          _config: { runConfig?: unknown },
+        ) {
+          if (streamMock.mock.calls.length === 1) {
+            yield {
+              event: "messages/complete",
+              data: [
+                {
+                  id: "ai-1",
+                  type: "ai" as const,
+                  content: "",
+                  tool_calls: [{ id: "tc-1", name: "my_tool", args: {} }],
+                },
+              ],
+            };
+          }
+        });
+        const execute = vi.fn(async () => ({ ok: true }));
+
+        const { result: runtimeResult } = renderHook(() =>
+          useLangGraphRuntime({ stream: streamMock }),
+        );
+        const wrapper = wrapperWithTool(runtimeResult.current, execute);
+        const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+        await act(async () => {
+          auiResult.current.composer.setRunConfig({
+            configurable: { model_name: "configured-model" },
+          } as never);
+          auiResult.current.composer.setText("hello");
+          auiResult.current.composer.send();
+        });
+
+        await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+        expect(streamMock.mock.calls[0]?.[1].runConfig).toEqual({
+          configurable: { model_name: "configured-model" },
+        });
+        expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual({
+          configurable: { model_name: "configured-model" },
+        });
+      });
+
+      it("preserves the interrupted runConfig through a command and later tool resume", async () => {
+        const streamMock = vi.fn(async function* (
+          _messages: LangChainMessage[],
+          _config: { runConfig?: unknown },
+        ) {
+          if (streamMock.mock.calls.length === 1) {
+            yield {
+              event: "updates",
+              data: { __interrupt__: [{ value: "approval-needed" }] },
+            };
+          } else if (streamMock.mock.calls.length === 2) {
+            yield {
+              event: "messages/complete",
+              data: [
+                {
+                  id: "ai-1",
+                  type: "ai" as const,
+                  content: "",
+                  tool_calls: [{ id: "tc-1", name: "my_tool", args: {} }],
+                },
+              ],
+            };
+          }
+        });
+        const execute = vi.fn(async () => ({ ok: true }));
+
+        const { result: runtimeResult } = renderHook(() =>
+          useLangGraphRuntime({ stream: streamMock }),
+        );
+        const wrapper = wrapperWithTool(runtimeResult.current, execute);
+        const { result: controls } = renderHook(
+          () => ({
+            send: useLangGraphSend(),
+            command: useLangGraphSendCommand(),
+          }),
+          { wrapper },
+        );
+
+        await act(async () => {
+          controls.current.send([{ type: "human", content: "hello" }], {
+            runConfig: { configurable: { model_name: "configured-model" } },
+          });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+        await waitFor(() =>
+          expect(
+            (
+              runtimeResult.current.thread.getState().extras as {
+                interrupt?: unknown;
+              }
+            ).interrupt,
+          ).toEqual({ value: "approval-needed" }),
+        );
+
+        await act(async () => {
+          controls.current.command({ resume: "approved" });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+        expect(streamMock.mock.calls[1]?.[1]).toMatchObject({
+          command: { resume: "approved" },
+          runConfig: { configurable: { model_name: "configured-model" } },
+        });
+
+        await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+        expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual({
+          configurable: { model_name: "configured-model" },
+        });
+      });
+
+      it("keeps interrupt runConfig through a thread refetch", async () => {
+        const load = vi.fn(async (): Promise<LoadResult> => ({
+          messages: [],
+          interrupts: [{ value: "approval-needed" }],
+        }));
+        const streamMock = vi.fn(async function* (
+          _messages: LangChainMessage[],
+          _config: { runConfig?: unknown },
+        ) {
+          if (streamMock.mock.calls.length === 1) {
+            yield {
+              event: "updates",
+              data: { __interrupt__: [{ value: "approval-needed" }] },
+            };
+          }
+        });
+
+        const { result: runtimeResult } = renderHook(() =>
+          useLangGraphRuntime({
+            stream: streamMock,
+            load,
+            unstable_threadListAdapter: makeThreadListAdapter(),
+          }),
+        );
+        const wrapper = wrapperWithTool(runtimeResult.current, async () => ({
+          ok: true,
+        }));
+        const { result: controls } = renderHook(
+          () => ({
+            send: useLangGraphSend(),
+            command: useLangGraphSendCommand(),
+          }),
+          { wrapper },
+        );
+
+        await act(async () => {
+          await runtimeResult.current.threads.switchToThread("lg-thread-1");
+        });
+        await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+
+        await act(async () => {
+          controls.current.send([{ type: "human", content: "hello" }], {
+            runConfig: { configurable: { model_name: "configured-model" } },
+          });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+        await waitFor(() =>
+          expect(
+            (
+              runtimeResult.current.thread.getState().extras as {
+                interrupt?: unknown;
+              }
+            ).interrupt,
+          ).toEqual({ value: "approval-needed" }),
+        );
+
+        await act(async () => {
+          await runtimeResult.current.threads.reloadMainThread();
+        });
+        await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
+
+        await act(async () => {
+          controls.current.command({ resume: "approved" });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+        expect(streamMock.mock.calls[1]?.[1]).toMatchObject({
+          command: { resume: "approved" },
+          runConfig: { configurable: { model_name: "configured-model" } },
+        });
+      });
+
+      it("does not inherit a prior interrupt runConfig onto an unconfigured send", async () => {
+        const streamMock = vi.fn(async function* (
+          _messages: LangChainMessage[],
+          _config: { runConfig?: unknown },
+        ) {
+          yield {
+            event: "updates",
+            data: {
+              __interrupt__: [
+                { value: `approval-${streamMock.mock.calls.length}` },
+              ],
+            },
+          };
+        });
+
+        const { result: runtimeResult } = renderHook(() =>
+          useLangGraphRuntime({ stream: streamMock }),
+        );
+        const wrapper = wrapperWithTool(runtimeResult.current, async () => ({
+          ok: true,
+        }));
+        const { result: controls } = renderHook(
+          () => ({
+            send: useLangGraphSend(),
+            command: useLangGraphSendCommand(),
+          }),
+          { wrapper },
+        );
+
+        await act(async () => {
+          controls.current.send([{ type: "human", content: "first" }], {
+            runConfig: { configurable: { model_name: "model-a" } },
+          });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+        await waitFor(() =>
+          expect(
+            (
+              runtimeResult.current.thread.getState().extras as {
+                interrupt?: unknown;
+              }
+            ).interrupt,
+          ).toEqual({ value: "approval-1" }),
+        );
+
+        await act(async () => {
+          controls.current.send([{ type: "human", content: "second" }], {});
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+        await waitFor(() =>
+          expect(
+            (
+              runtimeResult.current.thread.getState().extras as {
+                interrupt?: unknown;
+              }
+            ).interrupt,
+          ).toEqual({ value: "approval-2" }),
+        );
+
+        await act(async () => {
+          controls.current.command({ resume: "approved" });
+        });
+        await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+        expect(streamMock.mock.calls[2]?.[1]).toMatchObject({
+          command: { resume: "approved" },
+        });
+        expect(streamMock.mock.calls[2]?.[1].runConfig).toBeUndefined();
+      });
+    });
+
+    it("keeps a delayed tool result on the run that produced it", async () => {
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: { runConfig?: unknown },
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-1",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [{ id: "tc-1", name: "get_weather", args: {} }],
+              },
+            ],
+          };
+        } else if (streamMock.mock.calls.length === 2) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-2",
+                type: "ai" as const,
+                content: "later turn",
+              },
+            ],
+          };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          autoCancelPendingToolCalls: false,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: controls } = renderHook(
+        () => ({
+          send: useLangGraphSend(),
+          aui: useAui(),
+        }),
+        { wrapper },
+      );
+
+      await act(async () => {
+        controls.current.send([{ type: "human", content: "first" }], {
+          runConfig: { configurable: { model_name: "model-a" } },
+        });
+      });
+      await waitForToolCallPart(controls.current.aui);
+      await waitFor(() =>
+        expect(controls.current.aui.thread.getState().isRunning).toBe(false),
+      );
+
+      await act(async () => {
+        controls.current.send([{ type: "human", content: "second" }], {
+          runConfig: { configurable: { model_name: "model-b" } },
+        });
+      });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      await waitFor(() =>
+        expect(controls.current.aui.thread.getState().isRunning).toBe(false),
+      );
+
+      addToolResult(runtimeResult.current, { answer: 42 });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(3));
+      expect(streamMock.mock.calls[0]?.[1].runConfig).toEqual({
+        configurable: { model_name: "model-a" },
+      });
+      expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual({
+        configurable: { model_name: "model-b" },
+      });
+      expect(streamMock.mock.calls[2]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-1", status: "success" },
+      ]);
+      expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual({
+        configurable: { model_name: "model-a" },
+      });
+    });
+
+    it("keeps pending tool resumes and run configs separated by turn", async () => {
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: { runConfig?: unknown },
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-1",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [{ id: "tc-1", name: "my_tool", args: {} }],
+              },
+            ],
+          };
+        } else if (streamMock.mock.calls.length === 2) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-2",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [{ id: "tc-2", name: "my_tool", args: {} }],
+              },
+            ],
+          };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          autoCancelPendingToolCalls: false,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: controls } = renderHook(
+        () => ({
+          send: useLangGraphSend(),
+          aui: useAui(),
+        }),
+        { wrapper },
+      );
+
+      await act(async () => {
+        controls.current.send([{ type: "human", content: "first" }], {
+          runConfig: { configurable: { model_name: "model-a" } },
+        });
+      });
+      await waitFor(() => {
+        const parts = controls.current.aui.thread
+          .getState()
+          .messages.flatMap((m): readonly unknown[] => m.content);
+        expect(parts).toContainEqual(
+          expect.objectContaining({ type: "tool-call", toolCallId: "tc-1" }),
+        );
+      });
+      await waitFor(() =>
+        expect(controls.current.aui.thread.getState().isRunning).toBe(false),
+      );
+
+      await act(async () => {
+        controls.current.send([{ type: "human", content: "second" }], {
+          runConfig: { configurable: { model_name: "model-b" } },
+        });
+      });
+      await waitFor(() => {
+        const parts = controls.current.aui.thread
+          .getState()
+          .messages.flatMap((m): readonly unknown[] => m.content);
+        expect(parts).toContainEqual(
+          expect.objectContaining({ type: "tool-call", toolCallId: "tc-2" }),
+        );
+      });
+      await waitFor(() =>
+        expect(controls.current.aui.thread.getState().isRunning).toBe(false),
+      );
+
+      await act(async () => {
+        runtimeResult.current.thread
+          .getMessageById("ai-1")
+          .getMessagePartByToolCallId("tc-1")
+          .addToolResult({ result: "first" });
+        runtimeResult.current.thread
+          .getMessageById("ai-2")
+          .getMessagePartByToolCallId("tc-2")
+          .addToolResult({ result: "second" });
+      });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(4));
+      expect(streamMock.mock.calls[2]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-1" },
+      ]);
+      expect(streamMock.mock.calls[2]?.[1].runConfig).toEqual({
+        configurable: { model_name: "model-a" },
+      });
+      expect(streamMock.mock.calls[3]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-2" },
+      ]);
+      expect(streamMock.mock.calls[3]?.[1].runConfig).toEqual({
+        configurable: { model_name: "model-b" },
+      });
+    });
+
+    it("keeps unstamped loaded pending tools in one batch", async () => {
+      const streamMock = vi.fn(async function* () {});
+      const load = vi.fn(async () => ({
+        messages: [
+          { id: "h1", type: "human" as const, content: "hi" },
+          {
+            id: "ai-1",
+            type: "ai" as const,
+            content: "",
+            tool_calls: [{ id: "tc-1", name: "my_tool", args: {} }],
+          },
+          {
+            id: "ai-2",
+            type: "ai" as const,
+            content: "",
+            tool_calls: [{ id: "tc-2", name: "my_tool", args: {} }],
+          },
+        ],
+      }));
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          load,
+          autoCancelPendingToolCalls: false,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        await runtimeResult.current.threads.switchToThread("lg-thread-1");
+      });
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+      await waitFor(() => {
+        const parts = runtimeResult.current.thread
+          .getState()
+          .messages.flatMap((m): readonly unknown[] => m.content);
+        expect(parts).toContainEqual(
+          expect.objectContaining({ type: "tool-call", toolCallId: "tc-1" }),
+        );
+        expect(parts).toContainEqual(
+          expect.objectContaining({ type: "tool-call", toolCallId: "tc-2" }),
+        );
+      });
+
+      addToolResultById(runtimeResult.current, "tc-1", { result: "first" });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(streamMock).not.toHaveBeenCalled();
+
+      addToolResultById(runtimeResult.current, "tc-2", { result: "second" });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      expect(streamMock.mock.calls[0]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-1" },
+        { type: "tool", tool_call_id: "tc-2" },
+      ]);
+    });
+
+    it("batches frontend tools from two AI messages in the same run", async () => {
+      const streamMock = vi.fn(async function* (
+        _messages: LangChainMessage[],
+        _config: { runConfig?: unknown },
+      ) {
+        if (streamMock.mock.calls.length === 1) {
+          yield {
+            event: "messages/complete",
+            data: [
+              {
+                id: "ai-1",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [{ id: "tc-1", name: "my_tool", args: {} }],
+              },
+              {
+                id: "ai-2",
+                type: "ai" as const,
+                content: "",
+                tool_calls: [{ id: "tc-2", name: "my_tool", args: {} }],
+              },
+            ],
+          };
+        }
+      });
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          autoCancelPendingToolCalls: false,
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      const { result: controls } = renderHook(
+        () => ({
+          send: useLangGraphSend(),
+          aui: useAui(),
+        }),
+        { wrapper },
+      );
+
+      await act(async () => {
+        controls.current.send([{ type: "human", content: "first" }], {
+          runConfig: { configurable: { model_name: "model-a" } },
+        });
+      });
+      await waitFor(() => {
+        const parts = controls.current.aui.thread
+          .getState()
+          .messages.flatMap((m): readonly unknown[] => m.content);
+        expect(parts).toContainEqual(
+          expect.objectContaining({ type: "tool-call", toolCallId: "tc-1" }),
+        );
+        expect(parts).toContainEqual(
+          expect.objectContaining({ type: "tool-call", toolCallId: "tc-2" }),
+        );
+      });
+      await waitFor(() =>
+        expect(controls.current.aui.thread.getState().isRunning).toBe(false),
+      );
+
+      addToolResultById(runtimeResult.current, "tc-1", { result: "first" });
+      expect(streamMock).toHaveBeenCalledTimes(1);
+
+      addToolResultById(runtimeResult.current, "tc-2", { result: "second" });
+
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(2));
+      expect(streamMock.mock.calls[1]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-1" },
+        { type: "tool", tool_call_id: "tc-2" },
+      ]);
+      expect(streamMock.mock.calls[1]?.[1].runConfig).toEqual({
+        configurable: { model_name: "model-a" },
       });
     });
 

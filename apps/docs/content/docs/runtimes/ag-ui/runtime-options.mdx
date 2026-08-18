@@ -16,7 +16,7 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | `showThinking` | `boolean` | Whether to render `THINKING_*` and `REASONING_*` events as visible reasoning. Defaults to `true`. |
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
 | `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors. |
-| `onCancel` | `() => void` | Cancellation callback fired when the user cancels a run. |
+| `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel and runtime teardown. |
 | `adapters` | `UseAgUiRuntimeAdapters` | Standard adapter slots (see below). |
 
 ## Adapter slots

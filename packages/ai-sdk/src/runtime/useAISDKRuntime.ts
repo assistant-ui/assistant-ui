@@ -391,7 +391,13 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       runtimeRef.current.thread.import(exportedRepo);
     },
     onCancel: async () => {
-      chatHelpers.stop();
+      try {
+        await chatHelpers.stop();
+      } catch (error) {
+        if (!(error instanceof Error && error.name === "AbortError")) {
+          throw error;
+        }
+      }
     },
     onNew: async (message) => {
       const createMessage = (
@@ -467,35 +473,40 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     }) => {
       const options = { metadata: lastRunConfigRef.current };
       if (isError) {
-        chatHelpers.addToolOutput({
-          state: "output-error",
-          tool: toolName ?? toolCallId,
-          toolCallId,
-          errorText:
-            typeof result === "string" ? result : JSON.stringify(result),
-          options,
-        });
+        return Promise.resolve(
+          chatHelpers.addToolOutput({
+            state: "output-error",
+            tool: toolName ?? toolCallId,
+            toolCallId,
+            errorText:
+              typeof result === "string" ? result : JSON.stringify(result),
+            options,
+          }),
+        );
       } else {
         const output =
           modelContent !== undefined
             ? wrapModelContentEnvelope(result, modelContent)
             : result;
-        chatHelpers.addToolOutput({
-          tool: toolName,
-          toolCallId,
-          output,
-          options,
-        });
+        return Promise.resolve(
+          chatHelpers.addToolOutput({
+            tool: toolName,
+            toolCallId,
+            output,
+            options,
+          }),
+        );
       }
     },
-    onRespondToToolApproval: ({ approvalId, approved, reason }) => {
-      void chatHelpers.addToolApprovalResponse({
-        id: approvalId,
-        approved,
-        ...(reason != null && { reason }),
-        options: { metadata: lastRunConfigRef.current },
-      });
-    },
+    onRespondToToolApproval: ({ approvalId, approved, reason }) =>
+      Promise.resolve(
+        chatHelpers.addToolApprovalResponse({
+          id: approvalId,
+          approved,
+          ...(reason != null && { reason }),
+          options: { metadata: lastRunConfigRef.current },
+        }),
+      ),
     ...pickExternalStoreSharedOptions(adapter),
     ...(suggestionAdapter ? { suggestions: generatedSuggestions } : {}),
     ...(onResume && { onResume }),

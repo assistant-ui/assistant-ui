@@ -1,10 +1,6 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  ThreadListPrimitive,
-  ThreadListItemByIndexProvider,
-  useAui,
-} from "@assistant-ui/react-native";
+import { ThreadListPrimitive, useAui } from "@assistant-ui/react-native";
 import type { DrawerContentComponentProps } from "expo-router/build/react-navigation/drawer/types";
 import { ThreadListItem } from "./ThreadListItem";
 import { Icon } from "@/components/ui/icon";
@@ -47,10 +43,8 @@ export function ThreadListDrawer({ navigation }: DrawerContentComponentProps) {
         </Text>
 
         <ThreadListPrimitive.Items
-          renderItem={({ index }) => (
-            <ThreadListItemByIndexProvider index={index} archived={false}>
-              <ThreadListItem onSelect={() => navigation.closeDrawer()} />
-            </ThreadListItemByIndexProvider>
+          renderItem={() => (
+            <ThreadListItem onSelect={() => navigation.closeDrawer()} />
           )}
           style={styles.list}
           contentContainerStyle={styles.listContent}

@@ -262,7 +262,7 @@ Follow the [Ink setup](/docs/ink).
 
 ### Forwarding per-run config
 
-When a message is sent, its `runConfig.custom` (for example a selected mode or model) is forwarded on the underlying `useStream().submit` call as `config.configurable`. Read it in the graph from `config["configurable"]`; on LangGraph v1 the same values are also reachable through the Runtime `context`, which `config.configurable` is aliased to. This lets per-run app config reach the graph without extra wiring.
+When a message is sent, its `runConfig.custom` (for example a selected mode or model) is forwarded on the underlying `useStream().submit` call as `config.configurable`. Automatic tool-result resumes and the interrupt helpers (`useLangChainRespond`, `useLangChainRespondAll`, and `useLangChainSubmit(null, { command })`) reuse that same recorded `configurable` unless the caller passes `config`. Raw `useLangChainSubmit` / `useLangChainSend` calls that start a new run do not inherit it. The recording is session-scoped and does not survive a reload. Read it in the graph from `config["configurable"]`; on LangGraph v1 the same values are also reachable through the Runtime `context`, which `config.configurable` is aliased to. This lets per-run app config reach the graph without extra wiring.
 
 ## Reading custom state keys
 

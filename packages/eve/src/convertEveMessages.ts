@@ -5,6 +5,7 @@ import {
   type CompleteAttachment,
   type DataMessagePart,
   type FileMessagePart,
+  type MessagePartStreamStatus,
   type MessageStatus,
   type RespondToToolApprovalOptions,
   type ThreadAssistantMessagePart,
@@ -287,13 +288,31 @@ const convertFilePart = (
   };
 };
 
+// Eve's `state` is a run marker: the reducer settles a part to "done" only on
+// `reasoning.completed`, `message.completed`, or `turn.cancelled`.
+// `emitStreamContent` does not flush leftover reasoning on a tool-call, so a
+// non-last reasoning part stays `streaming` until the model stream ends and the
+// leftover flush runs. Mapping `streaming` to running would pin that block
+// open. Only `done` is trustworthy; an unsettled part falls back to core's
+// last-part rule.
+const partStateToStatus = (
+  state: "done" | "streaming" | undefined,
+): MessagePartStreamStatus | undefined =>
+  state === "done" ? { type: "complete" } : undefined;
+
 const convertAssistantPart = (
   part: EveMessagePart,
 ): ThreadAssistantMessagePart | null => {
   switch (part.type) {
     case "text":
-    case "reasoning":
-      return { type: part.type, text: part.text };
+    case "reasoning": {
+      const status = partStateToStatus(part.state);
+      return {
+        type: part.type,
+        text: part.text,
+        ...(status && { status }),
+      };
+    }
 
     case "step-start":
       return null;

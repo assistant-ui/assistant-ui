@@ -23,6 +23,7 @@ export {
   threadViewport,
 } from "./primitives/threadViewport";
 export { threadMessages, type MessageItem } from "./primitives/threadMessages";
+export { messageParts, type PartItem } from "./primitives/messageParts";
 export { suggestionTrigger } from "./primitives/suggestions";
 export {
   threadList,
