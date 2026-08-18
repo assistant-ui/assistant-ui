@@ -1343,8 +1343,8 @@ test("install validation resolves a sibling through file.target, not file.path",
 
   assert.equal(findingsFrom([componentItem(files)]), null);
 
-  // Drop only the target mapping: the sibling is no longer installed beside
-  // the importer, so the same import must now be reported.
+  // Without targets both paths fall back to their authored locations, which are
+  // still siblings, so only a mismatched target proves the target is what wins.
   const withoutTargets = files.map(({ path, content }) => ({ path, content }));
   assert.equal(findingsFrom([componentItem(withoutTargets)]), null);
 
