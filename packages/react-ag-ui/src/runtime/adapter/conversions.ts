@@ -41,7 +41,7 @@ type AttachmentLike = {
 };
 
 type ThreadMessageLike = {
-  id: string;
+  id?: string;
   role: string;
   content: unknown;
   metadata?: unknown;
@@ -50,6 +50,8 @@ type ThreadMessageLike = {
   error?: string;
   attachments?: readonly AttachmentLike[];
 };
+
+type NormalizedThreadMessageLike = ThreadMessageLike & { id: string };
 
 type AgUiToolCall = {
   id: string;
@@ -60,10 +62,22 @@ type AgUiToolCall = {
 export type AgUiMessage =
   | {
       id: string;
-      role: string;
+      role: "user";
       content: string | InputContent[];
       name?: string;
+    }
+  | {
+      id: string;
+      role: "assistant";
+      content: string;
+      name?: string;
       toolCalls?: AgUiToolCall[];
+    }
+  | {
+      id: string;
+      role: "system" | "developer";
+      content: string;
+      name?: string;
     }
   | {
       id: string;
@@ -960,7 +974,7 @@ export function fromAgUiMessages(
 }
 
 function convertAssistantMessage(
-  message: ThreadMessageLike,
+  message: NormalizedThreadMessageLike,
   converted: AgUiMessage[],
 ): void {
   const content = extractText(message.content);
@@ -1012,18 +1026,15 @@ function convertAssistantMessage(
     return;
   }
 
-  const assistantMessage: AgUiMessage = {
+  converted.push({
     id: message.id,
     role: "assistant",
     content,
-  };
-  if (message.name) {
-    assistantMessage.name = message.name;
-  }
-  if (toolCalls.length > 0) {
-    assistantMessage.toolCalls = toolCalls.map((entry) => entry.call);
-  }
-  converted.push(assistantMessage);
+    ...(message.name ? { name: message.name } : {}),
+    ...(toolCalls.length > 0
+      ? { toolCalls: toolCalls.map((entry) => entry.call) }
+      : {}),
+  });
 
   for (const { id: toolCallId, part } of toolCalls) {
     if (part.result === undefined) continue;
@@ -1035,36 +1046,30 @@ function convertAssistantMessage(
           ? part.result
           : JSON.stringify(part.result);
 
-    const toolMessage: AgUiMessage = {
+    converted.push({
       id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,
       role: "tool",
       content: resultContent,
       toolCallId,
-    };
-    if (part.isError) {
-      toolMessage.error = resultContent;
-    }
-    converted.push(toolMessage);
+      ...(part.isError ? { error: resultContent } : {}),
+    });
   }
 }
 
 function convertToolMessage(
-  message: ThreadMessageLike,
+  message: NormalizedThreadMessageLike,
   converted: AgUiMessage[],
 ): void {
   const content = extractText(message.content);
   const toolCallId = message.toolCallId ?? generateId();
 
-  const toolMessage: AgUiMessage = {
+  converted.push({
     id: message.id,
     role: "tool",
     content,
     toolCallId,
-  };
-  if (typeof message.error === "string") {
-    toolMessage.error = message.error;
-  }
-  converted.push(toolMessage);
+    ...(typeof message.error === "string" ? { error: message.error } : {}),
+  });
 }
 
 export function toAgUiMessages(
@@ -1072,7 +1077,11 @@ export function toAgUiMessages(
 ): AgUiMessage[] {
   const converted: AgUiMessage[] = [];
 
-  for (const message of messages) {
+  for (const rawMessage of messages) {
+    const message: NormalizedThreadMessageLike = {
+      ...rawMessage,
+      id: rawMessage.id ?? generateId(),
+    };
     const opaqueReasoning = readOpaqueReasoning(message.metadata);
     const toOpaqueRecord = (entry: AgUiOpaqueReasoning): AgUiMessage => ({
       id: entry.id,
@@ -1101,18 +1110,38 @@ export function toAgUiMessages(
       continue;
     }
 
-    const genericMessage: AgUiMessage = {
-      id: message.id,
-      role: message.role,
-      content:
-        message.role === "user"
-          ? buildUserContent(message)
-          : extractText(message.content),
-    };
-    if (message.name) {
-      genericMessage.name = message.name;
+    if (message.role === "user") {
+      converted.push({
+        id: message.id,
+        role: "user",
+        content: buildUserContent(message),
+        ...(message.name ? { name: message.name } : {}),
+      });
+      flushTrailingOpaqueReasoning();
+      continue;
     }
-    converted.push(genericMessage);
+
+    if (message.role === "system" || message.role === "developer") {
+      converted.push({
+        id: message.id,
+        role: message.role,
+        content: extractText(message.content),
+        ...(message.name ? { name: message.name } : {}),
+      });
+      flushTrailingOpaqueReasoning();
+      continue;
+    }
+
+    if (message.role === "reasoning") {
+      converted.push({
+        id: message.id,
+        role: "reasoning",
+        content: extractText(message.content),
+      });
+      flushTrailingOpaqueReasoning();
+      continue;
+    }
+
     flushTrailingOpaqueReasoning();
   }
 

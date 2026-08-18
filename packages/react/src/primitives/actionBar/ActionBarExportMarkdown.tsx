@@ -61,7 +61,9 @@ export const ActionBarPrimitiveExportMarkdown = forwardRef<
       ref={forwardedRef}
       disabled={disabled || !callback}
       onClick={composeEventHandlers(onClick, () => {
-        callback?.();
+        void callback?.().catch((error: unknown) => {
+          console.error("[assistant-ui] markdown export failed:", error);
+        });
       })}
     />
   );

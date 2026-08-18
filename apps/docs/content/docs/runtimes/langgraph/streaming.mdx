@@ -119,6 +119,10 @@ const runtime = useLangGraphRuntime({
 
 Render the pending messages with [`ComposerPrimitive.Queue`](/docs/api-reference/primitives/composer) and [`QueueItemPrimitive`](/docs/api-reference/primitives/queue-item).
 
+## Per-run config
+
+When a message is sent, its `runConfig` is forwarded to `stream` and, if you use `unstable_createLangGraphStream`, posted as the LangGraph SDK run `config`. Automatic frontend tool-result resumes and `useLangGraphSendCommand` reuse the `runConfig` of the run that produced the pending tool call or interrupt. An explicit `runConfig` on `useLangGraphSend` still wins. A thread refetch that still carries the interrupt keeps that owner. History loaded without local ownership stays unconfigured on resume; the recording is session-scoped and does not survive a reload.
+
 ## Next
 
 <Cards>

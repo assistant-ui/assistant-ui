@@ -172,12 +172,22 @@ export const openPiEventStream = (
   const reportCallbackError = (callbackError: unknown) => {
     console.error("[react-pi] onError callback threw an error", callbackError);
   };
+  const reportEventCallbackError = (callbackError: unknown) => {
+    console.error("[react-pi] onEvent callback threw an error", callbackError);
+  };
   const reportError = (error: unknown) => {
     if (!onError) return;
     try {
       void Promise.resolve(onError(error)).catch(reportCallbackError);
     } catch (callbackError) {
       reportCallbackError(callbackError);
+    }
+  };
+  const emitEvent = (event: PiAnyClientEvent) => {
+    try {
+      void Promise.resolve(onEvent(event)).catch(reportEventCallbackError);
+    } catch (callbackError) {
+      reportEventCallbackError(callbackError);
     }
   };
 
@@ -235,7 +245,7 @@ export const openPiEventStream = (
                 reportError(error);
                 continue;
               }
-              if (!closed) onEvent(parsed);
+              if (!closed) emitEvent(parsed);
             }
           }
         } finally {

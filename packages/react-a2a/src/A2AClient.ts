@@ -272,8 +272,155 @@ const parseSendMessageResponse = (value: unknown): A2ATask | A2AMessage => {
   );
 };
 
+const parseTaskResponse = (
+  value: unknown,
+  operation: "tasks:get" | "tasks:cancel",
+): A2ATask => {
+  if (isTask(value)) return value;
+
+  throw new Error(
+    `Invalid A2A ${operation} response: expected a valid task payload.`,
+  );
+};
+
+const isNonNegativeInteger = (value: unknown): value is number =>
+  typeof value === "number" && Number.isInteger(value) && value >= 0;
+
+const invalidListTasksResponse = (): never => {
+  throw new Error(
+    "Invalid A2A tasks:list response: expected a valid task list payload.",
+  );
+};
+
+const parseListTasksResponse = (value: unknown): A2AListTasksResponse => {
+  if (!isRecord(value)) return invalidListTasksResponse();
+
+  const tasks = value.tasks ?? [];
+  if (!Array.isArray(tasks) || !tasks.every(isTask)) {
+    return invalidListTasksResponse();
+  }
+
+  const { nextPageToken, pageSize, totalSize } = value;
+  if (
+    (nextPageToken != null && typeof nextPageToken !== "string") ||
+    (pageSize != null && !isNonNegativeInteger(pageSize)) ||
+    (totalSize != null && !isNonNegativeInteger(totalSize))
+  ) {
+    return invalidListTasksResponse();
+  }
+
+  return {
+    ...value,
+    tasks,
+    nextPageToken: nextPageToken ?? "",
+    pageSize: pageSize ?? 0,
+    totalSize: totalSize ?? 0,
+  };
+};
+
+const invalidPushNotificationConfigResponse =
+  (
+    operation: "pushNotificationConfigs:create" | "pushNotificationConfigs:get",
+  ) =>
+  (): never => {
+    throw new Error(
+      `Invalid A2A ${operation} response: expected a valid push notification config payload.`,
+    );
+  };
+
+const invalidListPushNotificationConfigsResponse = (): never => {
+  throw new Error(
+    "Invalid A2A pushNotificationConfigs:list response: expected a valid push notification config list payload.",
+  );
+};
+
+const parseOptionalString = (
+  value: unknown,
+  invalid: () => never,
+): string | undefined =>
+  value == null ? undefined : typeof value === "string" ? value : invalid();
+
+const parseTaskPushNotificationConfigResponse = (
+  value: unknown,
+  invalid: () => never,
+): A2ATaskPushNotificationConfig => {
+  if (
+    !isRecord(value) ||
+    typeof value.url !== "string" ||
+    value.url.length === 0
+  ) {
+    return invalid();
+  }
+
+  const { tenant, id, taskId, url, token, authentication, ...extra } = value;
+  let normalizedAuthentication: A2ATaskPushNotificationConfig["authentication"];
+  if (authentication != null) {
+    if (!isRecord(authentication)) return invalid();
+    const { scheme, credentials, ...authenticationExtra } = authentication;
+    normalizedAuthentication = {
+      ...authenticationExtra,
+      scheme: parseOptionalString(scheme, invalid) ?? "",
+      ...(credentials == null
+        ? {}
+        : { credentials: parseOptionalString(credentials, invalid) }),
+    };
+  }
+
+  return {
+    ...extra,
+    ...(tenant == null ? {} : { tenant: parseOptionalString(tenant, invalid) }),
+    ...(id == null ? {} : { id: parseOptionalString(id, invalid) }),
+    ...(taskId == null ? {} : { taskId: parseOptionalString(taskId, invalid) }),
+    url,
+    ...(token == null ? {} : { token: parseOptionalString(token, invalid) }),
+    ...(normalizedAuthentication === undefined
+      ? {}
+      : { authentication: normalizedAuthentication }),
+  };
+};
+
+const parseListTaskPushNotificationConfigsResponse = (
+  value: unknown,
+): A2AListTaskPushNotificationConfigsResponse => {
+  if (!isRecord(value)) return invalidListPushNotificationConfigsResponse();
+
+  const { configs: rawConfigs, nextPageToken, ...extra } = value;
+  if (rawConfigs != null && !Array.isArray(rawConfigs)) {
+    return invalidListPushNotificationConfigsResponse();
+  }
+
+  return {
+    ...extra,
+    configs: (rawConfigs ?? []).map((config) =>
+      parseTaskPushNotificationConfigResponse(
+        config,
+        invalidListPushNotificationConfigsResponse,
+      ),
+    ),
+    ...(nextPageToken == null
+      ? {}
+      : {
+          nextPageToken: parseOptionalString(
+            nextPageToken,
+            invalidListPushNotificationConfigsResponse,
+          ),
+        }),
+  };
+};
+
 function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
+}
+
+const SKIPPED_FRAME_SNIPPET_LENGTH = 120;
+
+function describeSkippedFrame(data: string, reason: string): string {
+  const collapsed = data.replace(/\s+/g, " ");
+  const snippet =
+    collapsed.length > SKIPPED_FRAME_SNIPPET_LENGTH
+      ? `${collapsed.slice(0, SKIPPED_FRAME_SNIPPET_LENGTH)}…`
+      : collapsed;
+  return `${reason} (frame: ${snippet})`;
 }
 
 export class A2AClient {
@@ -458,7 +605,7 @@ export class A2AClient {
       await this.throwResponseError(response);
     }
 
-    yield* this.parseSSE(response);
+    return yield* this.parseSSE(response);
   }
 
   // --- Tasks ---
@@ -474,10 +621,11 @@ export class A2AClient {
       params.set("history_length", String(historyLength));
     }
     const qs = params.toString();
-    return this.fetchJSON<A2ATask>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}${qs ? `?${qs}` : ""}`,
       signalInit(signal),
     );
+    return parseTaskResponse(result, "tasks:get");
   }
 
   async listTasks(
@@ -497,10 +645,11 @@ export class A2AClient {
     if (request?.includeArtifacts !== undefined)
       params.set("include_artifacts", String(request.includeArtifacts));
     const qs = params.toString();
-    return this.fetchJSON<A2AListTasksResponse>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks${qs ? `?${qs}` : ""}`,
       signalInit(signal),
     );
+    return parseListTasksResponse(result);
   }
 
   async cancelTask(
@@ -509,7 +658,7 @@ export class A2AClient {
     signal?: AbortSignal,
   ): Promise<A2ATask> {
     const body = metadata ? { metadata } : {};
-    return this.fetchJSON<A2ATask>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}:cancel`,
       {
         method: "POST",
@@ -517,6 +666,7 @@ export class A2AClient {
         ...signalInit(signal),
       },
     );
+    return parseTaskResponse(result, "tasks:cancel");
   }
 
   async *subscribeToTask(
@@ -549,13 +699,17 @@ export class A2AClient {
   ): Promise<A2ATaskPushNotificationConfig> {
     const taskId = config.taskId;
     if (!taskId) throw new Error("taskId is required");
-    return this.fetchJSON<A2ATaskPushNotificationConfig>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs`,
       {
         method: "POST",
         body: JSON.stringify(config),
         ...signalInit(signal),
       },
+    );
+    return parseTaskPushNotificationConfigResponse(
+      result,
+      invalidPushNotificationConfigResponse("pushNotificationConfigs:create"),
     );
   }
 
@@ -564,9 +718,13 @@ export class A2AClient {
     configId: string,
     signal?: AbortSignal,
   ): Promise<A2ATaskPushNotificationConfig> {
-    return this.fetchJSON<A2ATaskPushNotificationConfig>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs/${encodeURIComponent(configId)}`,
       signalInit(signal),
+    );
+    return parseTaskPushNotificationConfigResponse(
+      result,
+      invalidPushNotificationConfigResponse("pushNotificationConfigs:get"),
     );
   }
 
@@ -580,10 +738,11 @@ export class A2AClient {
       params.set("page_size", String(options.pageSize));
     if (options?.pageToken) params.set("page_token", options.pageToken);
     const qs = params.toString();
-    return this.fetchJSON<A2AListTaskPushNotificationConfigsResponse>(
+    const result = await this.fetchJSON<unknown>(
       `${this.getBasePath()}/tasks/${encodeURIComponent(taskId)}/pushNotificationConfigs${qs ? `?${qs}` : ""}`,
       signalInit(signal),
     );
+    return parseListTaskPushNotificationConfigsResponse(result);
   }
 
   async deleteTaskPushNotificationConfig(
@@ -609,13 +768,16 @@ export class A2AClient {
 
   // --- SSE Parsing ---
 
-  private async *parseSSE(response: Response): AsyncGenerator<A2AStreamEvent> {
+  private async *parseSSE(
+    response: Response,
+  ): AsyncGenerator<A2AStreamEvent, string | undefined> {
     const contentType = response.headers.get("Content-Type");
     const mediaType = contentType?.split(";", 1)[0]?.trim().toLowerCase();
     if (mediaType !== "text/event-stream") {
       const received = contentType
         ? `"${contentType}"`
         : "no Content-Type header";
+      void response.body?.cancel().catch(() => undefined);
       throw new Error(
         `Expected A2A stream response Content-Type "text/event-stream", received ${received}`,
       );
@@ -626,6 +788,11 @@ export class A2AClient {
 
     const decoder = new TextDecoder();
     const sseDecoder = new SSEEventDecoder();
+
+    let firstSkipReason: string | undefined;
+    const noteSkip = (data: string, reason: string) => {
+      firstSkipReason ??= describeSkippedFrame(data, reason);
+    };
 
     const readEvent = (event: SSEEvent): A2AStreamEvent | null => {
       try {
@@ -641,8 +808,14 @@ export class A2AClient {
         }
 
         const normalized = normalizeKeys(parsed) as Record<string, unknown>;
-        return discriminateStreamResponse(normalized);
-      } catch {
+        const streamEvent = discriminateStreamResponse(normalized);
+        if (!streamEvent) noteSkip(event.data, "unrecognized event shape");
+        return streamEvent;
+      } catch (error) {
+        noteSkip(
+          event.data,
+          error instanceof Error ? error.message : String(error),
+        );
         return null;
       }
     };
@@ -682,5 +855,7 @@ export class A2AClient {
         reader.releaseLock();
       }
     }
+
+    return firstSkipReason;
   }
 }

@@ -72,8 +72,8 @@ const useThreadSuggestions = (
   const state = useMemo<SuggestionsState>(
     () => ({
       suggestions: suggestions.map((s) => ({
-        title: s.prompt,
-        label: "",
+        title: s.title ?? s.prompt,
+        label: s.label ?? "",
         prompt: s.prompt,
       })),
     }),

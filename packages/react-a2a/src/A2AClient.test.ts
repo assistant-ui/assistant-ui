@@ -734,6 +734,14 @@ describe("A2AClient", () => {
       const [url] = fetchMock.mock.calls[0]!;
       expect(url).toBe("https://agent.test/tasks/t1?history_length=5");
     });
+
+    it("rejects malformed successful responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(client.getTask("t1")).rejects.toThrow(
+        "Invalid A2A tasks:get response: expected a valid task payload.",
+      );
+    });
   });
 
   // --- listTasks ---
@@ -761,6 +769,65 @@ describe("A2AClient", () => {
       expect(url).toContain("status=TASK_STATE_WORKING");
       expect(url).toContain("page_size=10");
     });
+
+    it("rejects malformed successful responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({ tasks: 42 }));
+
+      await expect(client.listTasks()).rejects.toThrow(
+        "Invalid A2A tasks:list response: expected a valid task list payload.",
+      );
+    });
+
+    it("normalizes empty responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(client.listTasks()).resolves.toEqual({
+        tasks: [],
+        nextPageToken: "",
+        pageSize: 0,
+        totalSize: 0,
+      });
+    });
+
+    it("rejects malformed tasks in successful responses", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          tasks: [{}],
+          nextPageToken: "",
+          pageSize: 1,
+          totalSize: 1,
+        }),
+      );
+
+      await expect(client.listTasks()).rejects.toThrow(
+        "Invalid A2A tasks:list response: expected a valid task list payload.",
+      );
+    });
+
+    it("normalizes omitted pagination defaults", async () => {
+      const tasks = [{ id: "t1", status: { state: "completed" } }];
+      fetchMock.mockResolvedValue(mockFetchResponse({ tasks }));
+
+      await expect(client.listTasks()).resolves.toEqual({
+        tasks,
+        nextPageToken: "",
+        pageSize: 0,
+        totalSize: 0,
+      });
+    });
+
+    it("rejects malformed pagination fields", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          tasks: [],
+          nextPageToken: 42,
+        }),
+      );
+
+      await expect(client.listTasks()).rejects.toThrow(
+        "Invalid A2A tasks:list response: expected a valid task list payload.",
+      );
+    });
   });
 
   // --- cancelTask ---
@@ -787,6 +854,14 @@ describe("A2AClient", () => {
 
       const body = JSON.parse(fetchMock.mock.calls[0]![1].body);
       expect(body.metadata).toEqual({ reason: "user requested" });
+    });
+
+    it("rejects malformed successful responses", async () => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(client.cancelTask("t1")).rejects.toThrow(
+        "Invalid A2A tasks:cancel response: expected a valid task payload.",
+      );
     });
   });
 
@@ -1221,12 +1296,13 @@ describe("A2AClient", () => {
       expect(events).toHaveLength(1);
     });
 
-    it("rejects successful responses that are not event streams", async () => {
+    it("rejects and cancels successful responses that are not event streams", async () => {
+      const cancel = vi.fn();
+      const body = new ReadableStream<Uint8Array>({ cancel });
       fetchMock.mockResolvedValue(
-        mockSSETextResponse(
-          "<html><body>Please sign in</body></html>",
-          "text/html; charset=utf-8",
-        ),
+        new Response(body, {
+          headers: { "Content-Type": "text/html; charset=utf-8" },
+        }),
       );
 
       const consumeStream = async () => {
@@ -1238,10 +1314,13 @@ describe("A2AClient", () => {
       await expect(consumeStream()).rejects.toThrow(
         'Expected A2A stream response Content-Type "text/event-stream", received "text/html; charset=utf-8"',
       );
+      expect(cancel).toHaveBeenCalledOnce();
     });
 
     it("rejects task subscriptions without a content type", async () => {
-      fetchMock.mockResolvedValue(mockSSETextResponse("", null));
+      fetchMock.mockResolvedValue(
+        new Response(new ReadableStream<Uint8Array>()),
+      );
 
       const consumeStream = async () => {
         for await (const event of client.subscribeToTask("t1")) {
@@ -1322,9 +1401,34 @@ describe("A2AClient", () => {
       expect((evt.event.status.message as any)?.content).toBeUndefined();
     });
 
-    it("skips malformed SSE events", async () => {
+    it("skips malformed and unrecognized SSE events", async () => {
+      const first = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+      const second = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: "ctx-1",
+          status: { state: "TASK_STATE_COMPLETED" },
+        },
+      });
+
       fetchMock.mockResolvedValue(
-        mockSSEResponse(["data: {invalid json}", "", ""]),
+        mockSSEResponse([
+          `data: ${first}`,
+          "",
+          "data: {invalid json}",
+          "",
+          "data: {}",
+          "",
+          `data: ${second}`,
+          "",
+          "",
+        ]),
       );
 
       const events: A2AStreamEvent[] = [];
@@ -1332,7 +1436,61 @@ describe("A2AClient", () => {
         events.push(event);
       }
 
-      expect(events).toHaveLength(0);
+      expect(events).toHaveLength(2);
+      expect(events.map((event) => event.type)).toEqual([
+        "statusUpdate",
+        "statusUpdate",
+      ]);
+    });
+
+    it("returns the first skip reason when a frame fails to parse", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse(["data: {invalid json}", "", "data: {}", "", ""]),
+      );
+
+      const stream = client.streamMessage(userMessage);
+      const events: A2AStreamEvent[] = [];
+      let result = await stream.next();
+      while (!result.done) {
+        events.push(result.value);
+        result = await stream.next();
+      }
+
+      let parseMessage = "";
+      try {
+        JSON.parse("{invalid json}");
+      } catch (error) {
+        parseMessage = (error as Error).message;
+      }
+
+      expect(events).toEqual([]);
+      expect(result.value).toBe(`${parseMessage} (frame: {invalid json})`);
+    });
+
+    it("returns an unrecognized-shape skip reason with the frame on one line", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse(["data: {", "data: }", "", ""]),
+      );
+
+      const stream = client.streamMessage(userMessage);
+      const result = await stream.next();
+
+      expect(result).toEqual({
+        done: true,
+        value: "unrecognized event shape (frame: { })",
+      });
+    });
+
+    it("truncates an oversized skipped frame", async () => {
+      const frame = `{"nonsense":"${"x".repeat(400)}"}`;
+      fetchMock.mockResolvedValue(mockSSEResponse([`data: ${frame}`, "", ""]));
+
+      const stream = client.streamMessage(userMessage);
+      const result = await stream.next();
+
+      expect(result.value).toBe(
+        `unrecognized event shape (frame: ${frame.slice(0, 120)}…)`,
+      );
     });
   });
 
@@ -1401,6 +1559,112 @@ describe("A2AClient", () => {
 
       const [url] = fetchMock.mock.calls[0]!;
       expect(url).toBe("https://agent.test/tasks/t1/pushNotificationConfigs");
+    });
+
+    it.each([
+      [
+        "pushNotificationConfigs:create",
+        () =>
+          client.createTaskPushNotificationConfig({
+            taskId: "t1",
+            url: "https://hook.test",
+          }),
+      ],
+      [
+        "pushNotificationConfigs:get",
+        () => client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ],
+    ])("rejects malformed %s responses", async (operation, request) => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(request()).rejects.toThrow(
+        `Invalid A2A ${operation} response`,
+      );
+    });
+
+    it.each([
+      { configs: {} },
+      { configs: [{}] },
+      { configs: [], nextPageToken: 42 },
+    ])("rejects malformed list responses", async (response) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(response));
+
+      await expect(
+        client.listTaskPushNotificationConfigs("t1"),
+      ).rejects.toThrow("Invalid A2A pushNotificationConfigs:list response");
+    });
+
+    it.each([{}, { configs: null, nextPageToken: null }])(
+      "normalizes omitted ProtoJSON list defaults",
+      async (response) => {
+        fetchMock.mockResolvedValue(mockFetchResponse(response));
+
+        await expect(
+          client.listTaskPushNotificationConfigs("t1"),
+        ).resolves.toEqual({
+          configs: [],
+        });
+      },
+    );
+
+    it("normalizes an omitted authentication scheme", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          url: "https://hook.test",
+          authentication: { credentials: "secret" },
+        }),
+      );
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).resolves.toEqual({
+        url: "https://hook.test",
+        authentication: { scheme: "", credentials: "secret" },
+      });
+    });
+
+    it("rejects malformed nested authentication responses", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          url: "https://hook.test",
+          authentication: { scheme: 42 },
+        }),
+      );
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).rejects.toThrow("Invalid A2A pushNotificationConfigs:get response");
+    });
+
+    it("accepts valid nested authentication responses", async () => {
+      const config = {
+        url: "https://hook.test",
+        authentication: { scheme: "Bearer", credentials: "secret" },
+      };
+      fetchMock.mockResolvedValue(mockFetchResponse(config));
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).resolves.toEqual(config);
+    });
+
+    it("normalizes nullable optional config fields", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          tenant: null,
+          id: null,
+          taskId: null,
+          url: "https://hook.test",
+          token: null,
+          authentication: null,
+        }),
+      );
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).resolves.toEqual({
+        url: "https://hook.test",
+      });
     });
 
     it("deleteTaskPushNotificationConfig sends DELETE", async () => {

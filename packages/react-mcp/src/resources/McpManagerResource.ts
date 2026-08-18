@@ -6,6 +6,7 @@ import {
   attachTransformScopes,
   type ClientOutput,
 } from "@assistant-ui/store";
+import { useAssistantScopeEffect } from "@assistant-ui/store/client";
 import { ModelContext } from "@assistant-ui/core/store";
 import type { Tool } from "assistant-stream";
 import { McpServerResource } from "./McpServerResource";
@@ -234,13 +235,17 @@ const useMcpManagerResource = (
 
   const clientRef = useAssistantClientRef();
 
-  useEffect(() => {
-    const client = clientRef.current;
-    if (!client) return;
-    return client.modelContext.register({
-      getModelContext: () => ({ tools: toolkit }),
-    });
-  }, [toolkit, clientRef]);
+  useAssistantScopeEffect(
+    "modelContext",
+    () => {
+      const client = clientRef.current;
+      if (!client) return;
+      return client.modelContext.register({
+        getModelContext: () => ({ tools: toolkit }),
+      });
+    },
+    [toolkit],
+  );
 
   const serverByKind = (kind: "connector" | "custom", index: number) => {
     const list = kind === "connector" ? state.connectors : state.customServers;

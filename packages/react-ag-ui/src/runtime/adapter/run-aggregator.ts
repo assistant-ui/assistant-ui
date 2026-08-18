@@ -68,7 +68,11 @@ export type RunAggregatorOptions = {
  * Collects AG-UI events into assistant-ui run snapshots that can be yielded from a ChatModelAdapter.
  *
  * The aggregator keeps a single assistant message worth of parts. Each incoming event updates the parts and
- * emits a fresh snapshot through the provided `emit` callback.
+ * emits a fresh snapshot through the provided `emit` callback. `CUSTOM` events
+ * become canonical data parts; integration plumbing names such as
+ * `on_interrupt`, `PredictState`, `Exit`, `hook_error`, `state_update_error`,
+ * `system:*`, and `MultiAgentHandoff` are forwarded the same way, so apps only
+ * need data renderers for names they own.
  */
 export class RunAggregator {
   private readonly emitUpdate: Emit;
@@ -97,6 +101,7 @@ export class RunAggregator {
     | { kind: "text"; key: string }
     | { kind: "reasoning"; key: string }
     | { kind: "tool-call"; toolCallId: string }
+    | { kind: "data"; name: string; value: unknown }
   )[] = [];
   private textPartCounter = 0;
   private serverMessageIdReported = false;
@@ -203,6 +208,17 @@ export class RunAggregator {
         if (event.messageId && this.activeTextMessageId === event.messageId) {
           this.activeTextMessageId = undefined;
         }
+        this.emit();
+        break;
+      }
+
+      case "CUSTOM": {
+        this.activeTextMessageId = undefined;
+        this.partOrder.push({
+          kind: "data",
+          name: event.name,
+          value: event.value,
+        });
         this.emit();
         break;
       }
@@ -643,6 +659,15 @@ export class RunAggregator {
         if (entry?.touched) {
           snapshot.push({ type: "text", text: entry.buffer } as const);
         }
+        continue;
+      }
+
+      if (part.kind === "data") {
+        snapshot.push({
+          type: "data",
+          name: part.name,
+          data: part.value,
+        });
         continue;
       }
 

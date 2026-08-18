@@ -111,7 +111,8 @@ const getComponent = (
           components.SystemEditComposer ??
           components.EditComposer ??
           components.SystemMessage ??
-          (components.Message as ComponentType)
+          (components.Message as ComponentType) ??
+          DEFAULT_SYSTEM_MESSAGE
         );
       } else {
         return (
@@ -348,7 +349,7 @@ const useThreadMessagesFlatListAutoScroll = ({
     scrollToBottom(true);
   });
 
-  useAuiEvent("threadListItem.switchedTo", () => {
+  useAuiEvent("threads.selectionChanged", () => {
     if (!scrollToBottomOnThreadSwitch) return;
     initializeScrollRequestedRef.current = false;
     lastScrollEventYRef.current = 0;

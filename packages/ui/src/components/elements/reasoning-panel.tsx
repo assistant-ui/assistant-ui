@@ -7,7 +7,7 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { collapsePanel, mono, SwapLabel } from "./surfaces";
+import { collapsePanel, mono, ShimmerLabel, SwapLabel } from "./surfaces";
 import { take } from "./range";
 
 export interface ReasoningStep {
@@ -48,15 +48,12 @@ export function ReasoningPanel({
       <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex items-center gap-1.5 py-1 text-[13.5px] transition-[color,scale] outline-none active:scale-[0.98]">
         <SwapLabel active={streaming ? 0 : 1} className="text-start">
           <>
-            <span className="relative inline-block leading-none">
-              <span>Thinking</span>
-              <span
-                aria-hidden
-                className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-              >
-                Thinking
-              </span>
-            </span>
+            <ShimmerLabel
+              active={streaming}
+              className="relative inline-block leading-none"
+            >
+              Thinking
+            </ShimmerLabel>
             {elapsed !== undefined && (
               <span className={cn(mono, "text-foreground/30 tabular-nums")}>
                 {elapsed}

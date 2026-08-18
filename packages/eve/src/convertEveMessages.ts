@@ -5,6 +5,7 @@ import {
   type CompleteAttachment,
   type DataMessagePart,
   type FileMessagePart,
+  type MessagePartStreamStatus,
   type MessageStatus,
   type RespondToToolApprovalOptions,
   type ThreadAssistantMessagePart,
@@ -24,7 +25,7 @@ import type {
   EveMessageInputRequest,
   EveMessagePart,
 } from "eve/react";
-import type { InputResponse, SendTurnPayload } from "eve/client";
+import type { InputResponse } from "eve/client";
 
 const ASSISTANT_COMPLETE_STATUS = {
   type: "complete",
@@ -148,7 +149,7 @@ const toolApprovalOptionsFromInputRequest = (
     kind:
       option.id === "approve"
         ? "allow-once"
-        : option.id === "deny"
+        : option.id === "cancel"
           ? "reject-once"
           : `_${option.id}`,
     ...(option.label && { label: option.label }),
@@ -287,13 +288,31 @@ const convertFilePart = (
   };
 };
 
+// Eve's `state` is a run marker: the reducer settles a part to "done" only on
+// `reasoning.completed`, `message.completed`, or `turn.cancelled`.
+// `emitStreamContent` does not flush leftover reasoning on a tool-call, so a
+// non-last reasoning part stays `streaming` until the model stream ends and the
+// leftover flush runs. Mapping `streaming` to running would pin that block
+// open. Only `done` is trustworthy; an unsettled part falls back to core's
+// last-part rule.
+const partStateToStatus = (
+  state: "done" | "streaming" | undefined,
+): MessagePartStreamStatus | undefined =>
+  state === "done" ? { type: "complete" } : undefined;
+
 const convertAssistantPart = (
   part: EveMessagePart,
 ): ThreadAssistantMessagePart | null => {
   switch (part.type) {
     case "text":
-    case "reasoning":
-      return { type: part.type, text: part.text };
+    case "reasoning": {
+      const status = partStateToStatus(part.state);
+      return {
+        type: part.type,
+        text: part.text,
+        ...(status && { status }),
+      };
+    }
 
     case "step-start":
       return null;
@@ -419,12 +438,29 @@ export const convertEveMessages = (
   );
 
 /**
+ * Structural subset of the `string | UserContent` message content Eve's `send`
+ * API accepts. The helpers declare the shapes they produce and leave
+ * assignability to the send call site, checked against the installed version.
+ */
+export type EveMessageContent =
+  | string
+  | (
+      | { readonly type: "text"; readonly text: string }
+      | {
+          readonly type: "file";
+          readonly data: string;
+          readonly mediaType: string;
+          readonly filename?: string;
+        }
+    )[];
+
+/**
  * Converts an assistant-ui append message into the message payload accepted by
  * Eve's `send` API.
  */
 export const getEveMessageContent = (
   message: AppendMessage,
-): NonNullable<SendTurnPayload["message"]> => {
+): EveMessageContent => {
   const content = [
     ...message.content,
     ...(message.attachments?.flatMap((attachment) => attachment.content) ?? []),
@@ -496,6 +532,6 @@ export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
 ): InputResponse => ({
   requestId: response.approvalId,
-  optionId: response.optionId ?? (response.approved ? "approve" : "deny"),
+  optionId: response.optionId ?? (response.approved ? "approve" : "cancel"),
   ...(response.reason && { text: response.reason }),
 });

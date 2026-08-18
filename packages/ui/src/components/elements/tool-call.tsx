@@ -7,7 +7,13 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
-import { collapsePanel, field, mono, SwapLabel } from "./surfaces";
+import {
+  collapsePanel,
+  field,
+  mono,
+  ShimmerLabel,
+  SwapLabel,
+} from "./surfaces";
 
 export interface ToolCallProps {
   label: string;
@@ -42,15 +48,12 @@ export function ToolCall({
       <CollapsibleTrigger className="group/trigger text-foreground/55 hover:text-foreground/90 flex items-center gap-2 rounded-md py-1 text-[13.5px] transition-colors outline-none">
         <ChevronRightIcon className="size-3.5 shrink-0 opacity-60 transition-transform duration-200 ease-[cubic-bezier(0.32,0.72,0,1)] group-data-open/trigger:rotate-90 group-data-panel-open/trigger:rotate-90 motion-reduce:transition-none" />
         <SwapLabel active={running ? 0 : 1} className="text-start">
-          <span className="relative inline-block leading-none">
-            <span>{activeLabel}</span>
-            <span
-              aria-hidden
-              className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-            >
-              {activeLabel}
-            </span>
-          </span>
+          <ShimmerLabel
+            active={running}
+            className="relative inline-block leading-none"
+          >
+            {activeLabel}
+          </ShimmerLabel>
           <>{label}</>
         </SwapLabel>
         <span

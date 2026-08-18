@@ -8,6 +8,8 @@ import type {
 import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import type { ExportedMessageRepositoryItem } from "../../runtime/utils/message-repository";
+import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
+import { isMessageNotSentError } from "../../types/error";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -140,6 +142,180 @@ describe("LocalThreadRuntimeCore events", () => {
         listenerError,
       );
     });
+  });
+});
+
+describe("LocalThreadRuntimeCore history persistence", () => {
+  it("surfaces failed user persistence without abandoning the run", async () => {
+    const persistenceError = new Error("history unavailable");
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const append = vi.fn(async (item: ExportedMessageRepositoryItem) => {
+      if (item.message.role === "user") throw persistenceError;
+    });
+    const thread = createThread(
+      { run },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          append,
+        },
+      },
+    );
+
+    await expect(thread.append(userMessage("hello"))).rejects.toBe(
+      persistenceError,
+    );
+
+    expect(append).toHaveBeenCalledTimes(2);
+    expect(run).toHaveBeenCalledOnce();
+  });
+
+  it("surfaces failed persistence for messages that do not start a run", async () => {
+    const persistenceError = new Error("history unavailable");
+    const run = vi.fn();
+    const thread = createThread(
+      { run },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {
+            throw persistenceError;
+          },
+        },
+      },
+    );
+
+    await expect(
+      thread.append({ ...userMessage("hello"), startRun: false }),
+    ).rejects.toBe(persistenceError);
+
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("handles failed persistence before notifying no-run subscribers", async () => {
+    const persistenceError = new Error("history unavailable");
+    const listenerError = new Error("listener unavailable");
+    const thread = createThread(
+      { run: vi.fn() },
+      {
+        history: {
+          async load() {
+            return { messages: [] };
+          },
+          async append() {
+            throw persistenceError;
+          },
+        },
+      },
+    );
+    thread.subscribe(() => {
+      throw listenerError;
+    });
+
+    await expect(
+      thread.append({ ...userMessage("hello"), startRun: false }),
+    ).rejects.toBe(listenerError);
+    await flush();
+  });
+});
+
+describe("LocalThreadRuntimeCore - detach", () => {
+  it("drops a pending append when detached", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const thread = createThread({ run });
+    thread.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = thread.append(userMessage("hello"));
+    await Promise.resolve();
+    thread.detach();
+    resolveInitialization();
+
+    await appendPromise;
+    expect(run).not.toHaveBeenCalled();
+    expect(thread.messages).toEqual([]);
+  });
+});
+
+describe("LocalThreadRuntimeCore optimistic append", () => {
+  it("paints the appended message before initialization resolves", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const thread = createThread({ run });
+    thread.__internal_setGetInitializePromise(() => initialization);
+    const onUpdate = vi.fn();
+    thread.subscribe(onUpdate);
+
+    const appendPromise = thread.append(userMessage("hello"));
+    await Promise.resolve();
+
+    expect(thread.messages).toHaveLength(1);
+    expect(thread.messages[0]?.role).toBe("user");
+    expect(onUpdate).toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+
+    resolveInitialization();
+    await appendPromise;
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("silently drops a detached append even when initialization rejects", async () => {
+    let rejectInitialization!: (error: unknown) => void;
+    const initialization = new Promise<void>((_, reject) => {
+      rejectInitialization = reject;
+    });
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const thread = createThread({ run });
+    thread.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = thread.append(userMessage("hello"));
+    await Promise.resolve();
+    thread.detach();
+    rejectInitialization(new Error("initialization failed"));
+
+    await expect(appendPromise).resolves.toBeUndefined();
+    expect(thread.messages).toEqual([]);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("rolls the optimistic message back when initialization rejects", async () => {
+    const initializationError = new Error("initialization failed");
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const thread = createThread({ run });
+    thread.__internal_setGetInitializePromise(() =>
+      Promise.reject(initializationError),
+    );
+
+    const error = await thread.append(userMessage("hello")).then(
+      () => {
+        throw new Error("expected the append to reject");
+      },
+      (e: unknown) => e,
+    );
+    expect(isMessageNotSentError(error)).toBe(true);
+    expect((error as Error).cause).toBe(initializationError);
+    expect(thread.messages).toEqual([]);
+    expect(run).not.toHaveBeenCalled();
   });
 });
 
@@ -603,6 +779,48 @@ describe("LocalThreadRuntimeCore cancellation", () => {
 });
 
 describe("LocalThreadRuntimeCore suggestions", () => {
+  it("ignores suggestion generation from a superseded run", async () => {
+    let releaseFirst!: () => void;
+    let releaseSecond!: () => void;
+    const firstGate = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const secondGate = new Promise<void>((resolve) => {
+      releaseSecond = resolve;
+    });
+    let runCount = 0;
+    const generate = vi.fn().mockResolvedValue([{ prompt: "follow up" }]);
+    const thread = createThread(
+      {
+        async run() {
+          runCount += 1;
+          await (runCount === 1 ? firstGate : secondGate);
+          return { content: [{ type: "text", text: "done" }] };
+        },
+      },
+      { suggestion: { generate } },
+    );
+
+    const firstAppend = thread.append(userMessage("first"));
+    await flush();
+    const secondAppend = thread.append(userMessage("second"));
+    await flush();
+
+    releaseFirst();
+    await firstAppend;
+    await flush();
+
+    expect(generate).not.toHaveBeenCalled();
+    expect(thread.suggestions).toEqual([]);
+
+    releaseSecond();
+    await secondAppend;
+    await flush();
+
+    expect(generate).toHaveBeenCalledOnce();
+    expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
+  });
+
   it("cancelRun aborts pending suggestion generation", async () => {
     const generate = vi.fn().mockImplementation(
       ({ signal }: { signal?: AbortSignal }) =>
@@ -656,8 +874,8 @@ describe("LocalThreadRuntimeCore suggestions", () => {
   });
 
   it("resolves append before suggestion generation completes", async () => {
-    let resolveSuggestions!: (value: readonly { prompt: string }[]) => void;
-    const suggestionsDeferred = new Promise<readonly { prompt: string }[]>(
+    let resolveSuggestions!: (value: readonly ThreadSuggestion[]) => void;
+    const suggestionsDeferred = new Promise<readonly ThreadSuggestion[]>(
       (resolve) => {
         resolveSuggestions = resolve;
       },
@@ -681,9 +899,15 @@ describe("LocalThreadRuntimeCore suggestions", () => {
     expect(generate).toHaveBeenCalledTimes(1);
     expect(thread.suggestions).toEqual([]);
 
-    resolveSuggestions([{ prompt: "follow up" }]);
+    resolveSuggestions([
+      { title: "Weather", label: "in SF", prompt: "What's the weather?" },
+      { prompt: "follow up" },
+    ]);
     await new Promise((r) => setTimeout(r, 0));
-    expect(thread.suggestions).toEqual([{ prompt: "follow up" }]);
+    expect(thread.suggestions).toEqual([
+      { title: "Weather", label: "in SF", prompt: "What's the weather?" },
+      { prompt: "follow up" },
+    ]);
   });
 });
 
@@ -1312,5 +1536,150 @@ describe("LocalThreadRuntimeCore runs", () => {
     expect(thread.capabilities.dictation).toBe(false);
     expect(thread.capabilities.attachments).toBe(false);
     expect(thread.capabilities.feedback).toBe(false);
+  });
+
+  it("loads history when the adapter arrives after the first load", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const thread = createPlainThread(adapter);
+    const load = vi.fn(async () => ({
+      headId: "restored",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "restored",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "hello" }],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    }));
+
+    thread.__internal_load();
+    expect(load).not.toHaveBeenCalled();
+    expect(thread.messages).toHaveLength(0);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: { load, append: async () => {} },
+      },
+    });
+    await flush();
+
+    expect(load).toHaveBeenCalledOnce();
+    expect(thread.messages.map((message) => message.id)).toEqual(["restored"]);
+  });
+
+  it("does not load late history over a thread that already has messages", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const thread = createPlainThread(adapter);
+    const load = vi.fn(async () => ({
+      headId: "restored",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "restored",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "hello" }],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    }));
+
+    thread.__internal_load();
+    await thread.append({ ...userMessage("typed"), startRun: false });
+    expect(thread.messages).toHaveLength(1);
+
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: { load, append: async () => {} },
+      },
+    });
+    await flush();
+
+    expect(load).not.toHaveBeenCalled();
+    expect(thread.messages.map((message) => message.content)).toEqual([
+      [{ type: "text", text: "typed" }],
+    ]);
+  });
+
+  it("logs a rejected late history load", async () => {
+    const adapter: ChatModelAdapter = {
+      run: async () => ({ content: [] }),
+    };
+    const thread = createPlainThread(adapter);
+    const error = new Error("history unavailable");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    thread.__internal_load();
+    thread.__internal_setOptions({
+      adapters: {
+        chatModel: adapter,
+        history: {
+          load: async () => {
+            throw error;
+          },
+          append: async () => {},
+        },
+      },
+    });
+    await flush();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "[assistant-ui] local thread history load failed:",
+      error,
+    );
+  });
+});
+
+describe("LocalRuntimeCore composer.canCancel", () => {
+  it("is true after append when the thread was created with initial messages", async () => {
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async *run({ abortSignal }) {
+              await new Promise<void>((resolve) => {
+                if (abortSignal.aborted) {
+                  resolve();
+                  return;
+                }
+                abortSignal.addEventListener("abort", () => resolve(), {
+                  once: true,
+                });
+              });
+            },
+          },
+        },
+      },
+      [
+        {
+          role: "assistant",
+          content: [{ type: "text", text: "Hello" }],
+          status: { type: "complete", reason: "stop" },
+        },
+      ],
+    );
+    const thread = core.threads.getMainThreadRuntimeCore();
+    expect(thread.composer.canCancel).toBe(false);
+
+    void thread.append(userMessage("Run"));
+    await flush();
+
+    expect(thread.composer.canCancel).toBe(true);
+    thread.cancelRun();
   });
 });

@@ -1,9 +1,9 @@
 import { getLLMText } from "@/lib/get-llm-text";
-import { getDistinctId, posthogServer } from "@/lib/posthog-server";
+import { getDistinctId } from "@/lib/posthog-server";
 import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { readFileSync } from "node:fs";
 import path from "node:path";
-import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
+import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
 import {
@@ -12,8 +12,9 @@ import {
   tapDocs as tapSource,
   getTapDocsPage,
 } from "@/lib/source";
-import { getModel, withTracing } from "@/lib/ai/provider";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { getModel } from "@/lib/ai/provider";
+import { posthogTelemetry } from "@/lib/ai/telemetry";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { createBashTool } from "bash-tool";
 import {
   convertToModelMessages,
@@ -328,19 +329,8 @@ export async function POST(req: Request): Promise<Response> {
     const distinctId = getDistinctId(req);
     const prismTracer = createPrismTracer();
 
-    const posthogModel = posthogServer
-      ? withTracing(baseModel, posthogServer, {
-          posthogDistinctId: distinctId,
-          posthogPrivacyMode: false,
-          posthogProperties: {
-            $ai_span_name: "docs_assistant_chat",
-            source: "docs_assistant",
-          },
-        })
-      : baseModel;
-
     const prism = prismTracer
-      ? prismAISDK(prismTracer, posthogModel, {
+      ? prismAISDK(prismTracer, baseModel, {
           name: "docs_assistant",
           endUserId: distinctId,
         })
@@ -349,11 +339,16 @@ export async function POST(req: Request): Promise<Response> {
     const repoTools = createRepoTools();
 
     const result = streamText({
-      model: prism?.model ?? posthogModel,
+      model: prism?.model ?? baseModel,
       system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
       messages: prunedMessages,
       maxOutputTokens: 8192,
       stopWhen: stepCountIs(25),
+      ...posthogTelemetry({
+        distinctId,
+        spanName: "docs_assistant_chat",
+        source: "docs_assistant",
+      }),
       tools: {
         ...frontendTools(tools),
         ...repoTools,

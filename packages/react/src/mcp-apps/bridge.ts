@@ -1,4 +1,5 @@
 import type { SandboxHostFrame } from "../sandbox-host/SandboxHost";
+import { invokeCallbackSafely } from "../utils/invokeCallbackSafely";
 import {
   MCP_APP_PROTOCOL_VERSION,
   type McpAppBridgeHandlers,
@@ -121,6 +122,10 @@ export function createMcpAppBridge(
         ...(data !== undefined ? { data } : {}),
       },
     });
+  };
+
+  const reportError = (error: Error) => {
+    invokeCallbackSafely(() => handlers.onError?.(error), "MCP App onError");
   };
 
   const handleRequest = async (req: McpAppJsonRpcRequest) => {
@@ -376,42 +381,49 @@ export function createMcpAppBridge(
       }
     } catch (err) {
       const error = err instanceof Error ? err : new Error(String(err));
-      handlers.onError?.(error);
+      reportError(error);
       errorResponse(req.id, JSONRPC_ERROR.internalError, error.message);
     }
   };
 
   const handleNotification = (note: McpAppJsonRpcNotification) => {
-    switch (normalizeMethod(note.method)) {
-      case "notifications/initialized": {
-        handlers.onInitialized?.();
-        return;
+    try {
+      switch (normalizeMethod(note.method)) {
+        case "notifications/initialized": {
+          handlers.onInitialized?.();
+          return;
+        }
+        case "notifications/size_changed": {
+          const p = (note.params ?? {}) as { width?: number; height?: number };
+          handlers.onSizeChange?.({
+            ...(typeof p.width === "number" ? { width: p.width } : {}),
+            ...(typeof p.height === "number" ? { height: p.height } : {}),
+          });
+          return;
+        }
+        case "notifications/log": {
+          handlers.onLog?.(note.params);
+          return;
+        }
+        case "notifications/request_teardown": {
+          handlers.onRequestTeardown?.(note.params);
+          return;
+        }
+        case "notifications/error": {
+          const p = (note.params ?? {}) as { message?: string };
+          reportError(
+            new Error(
+              typeof p.message === "string" ? p.message : "Widget error",
+            ),
+          );
+          return;
+        }
+        default:
+          return;
       }
-      case "notifications/size_changed": {
-        const p = (note.params ?? {}) as { width?: number; height?: number };
-        handlers.onSizeChange?.({
-          ...(typeof p.width === "number" ? { width: p.width } : {}),
-          ...(typeof p.height === "number" ? { height: p.height } : {}),
-        });
-        return;
-      }
-      case "notifications/log": {
-        handlers.onLog?.(note.params);
-        return;
-      }
-      case "notifications/request_teardown": {
-        handlers.onRequestTeardown?.(note.params);
-        return;
-      }
-      case "notifications/error": {
-        const p = (note.params ?? {}) as { message?: string };
-        handlers.onError?.(
-          new Error(typeof p.message === "string" ? p.message : "Widget error"),
-        );
-        return;
-      }
-      default:
-        return;
+    } catch (err) {
+      const error = err instanceof Error ? err : new Error(String(err));
+      reportError(error);
     }
   };
 

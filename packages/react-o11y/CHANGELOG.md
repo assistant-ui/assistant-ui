@@ -1,5 +1,21 @@
 # @assistant-ui/react-o11y
 
+## 0.0.40
+
+### Patch Changes
+
+- Updated dependencies [[`99c5302`](https://github.com/assistant-ui/assistant-ui/commit/99c530260e625c4c63a06701ef40bda0ef6b41a6), [`ac0c836`](https://github.com/assistant-ui/assistant-ui/commit/ac0c8364a0f25555f693e4354d07c411e65f5489), [`2b0fec7`](https://github.com/assistant-ui/assistant-ui/commit/2b0fec76d8abff2b013aa05eb2a5d62545325da2), [`f44163f`](https://github.com/assistant-ui/assistant-ui/commit/f44163f8030e8a12d33f1412de96ecdda4000f7c), [`d80e988`](https://github.com/assistant-ui/assistant-ui/commit/d80e9882c4ec0a7662df28546ddd92cc1f0b1fcd), [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7), [`1b9c33d`](https://github.com/assistant-ui/assistant-ui/commit/1b9c33d114ab1589f0592fabda58ca63265265c6), [`82e2bde`](https://github.com/assistant-ui/assistant-ui/commit/82e2bde62d0b3b31ec445c939c719ab72cd8ff23), [`52df42d`](https://github.com/assistant-ui/assistant-ui/commit/52df42da5d7c4e9610469f64b8e3fe8fd690d7cd), [`6c9e7dd`](https://github.com/assistant-ui/assistant-ui/commit/6c9e7ddf584394ce63c3bc5f17bafcb28face442), [`5c092ef`](https://github.com/assistant-ui/assistant-ui/commit/5c092efb81aab1afc75acb913ecd95f0c07b7365), [`2f3c638`](https://github.com/assistant-ui/assistant-ui/commit/2f3c638efb70313c6b64721a6edf15bb8d27bac9), [`8e77515`](https://github.com/assistant-ui/assistant-ui/commit/8e77515ce17d91240c5e0877b6a4b4c0a2ed548a), [`d9c355d`](https://github.com/assistant-ui/assistant-ui/commit/d9c355d25c6daf415283edf769b88c4c6786fd13), [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7), [`a14b347`](https://github.com/assistant-ui/assistant-ui/commit/a14b347c67a0a2dee1f77dbf8dc6035036bcd41d), [`e999f5d`](https://github.com/assistant-ui/assistant-ui/commit/e999f5d363731fb87f4890d89a65b75ca64413db), [`44d98d7`](https://github.com/assistant-ui/assistant-ui/commit/44d98d708b85d6f76cd48f923e78a25d9e4b5171), [`4320fc6`](https://github.com/assistant-ui/assistant-ui/commit/4320fc62de06f89370dd074bc19530ab97ddac15), [`d4b8845`](https://github.com/assistant-ui/assistant-ui/commit/d4b884535d60b19f0841e94e8e5ea5cd6e14a852), [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7), [`a279301`](https://github.com/assistant-ui/assistant-ui/commit/a27930133724dd6dafa7f6dcce6998e0bdc759e9), [`d7322c0`](https://github.com/assistant-ui/assistant-ui/commit/d7322c0ca223dd0d34d246e55055928270df60ff), [`8b0a836`](https://github.com/assistant-ui/assistant-ui/commit/8b0a836ec4a05a2b110780e7c325de7aec178af7), [`20efa42`](https://github.com/assistant-ui/assistant-ui/commit/20efa4206a7c08eb8df192305fb1e434d06a4bfc), [`833fbe8`](https://github.com/assistant-ui/assistant-ui/commit/833fbe84f12a23a8caebd121d60a32528e33378d), [`94a39ad`](https://github.com/assistant-ui/assistant-ui/commit/94a39ad218bea1228c3298756122acc312cf7218), [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7), [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7), [`7748e15`](https://github.com/assistant-ui/assistant-ui/commit/7748e15acf9d7d16701296e9ef89e1757ec346b3), [`0d2e23f`](https://github.com/assistant-ui/assistant-ui/commit/0d2e23f5597c2500da03ac417bfee1defd2d808e), [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e)]:
+  - @assistant-ui/tap@0.9.13
+  - @assistant-ui/store@0.3.10
+
+## 0.0.39
+
+### Patch Changes
+
+- Updated dependencies [[`4b75b8f`](https://github.com/assistant-ui/assistant-ui/commit/4b75b8f96729314a369879d26d8e4cd8321eac36), [`00a630a`](https://github.com/assistant-ui/assistant-ui/commit/00a630aa93ce0a5e40f81fbf6ff1886275f72356), [`c98699d`](https://github.com/assistant-ui/assistant-ui/commit/c98699d83b1fcc98511ca00e810e1c3d2ba019ba), [`f59d24b`](https://github.com/assistant-ui/assistant-ui/commit/f59d24b3ee7036c94bce7bc0a38f018574f50a69)]:
+  - @assistant-ui/store@0.3.9
+  - @assistant-ui/tap@0.9.12
+
 ## 0.0.38
 
 ### Patch Changes

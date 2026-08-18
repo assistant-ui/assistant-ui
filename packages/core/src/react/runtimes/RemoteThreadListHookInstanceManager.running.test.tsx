@@ -36,7 +36,7 @@ const makeManager = () =>
     {} as ThreadListRuntimeCore,
   );
 
-// mirrors what the React binder does on every publication
+// mirrors what the tap fiber does on every publication
 const publish = (
   manager: RemoteThreadListHookInstanceManager,
   threadId: string,
