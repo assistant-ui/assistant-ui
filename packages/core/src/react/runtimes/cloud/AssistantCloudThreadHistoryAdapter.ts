@@ -14,6 +14,12 @@ import {
 } from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
 import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
+import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
+
+type CloudThreadListItem = Pick<
+  ThreadListItemMethods,
+  "getState" | "initialize"
+>;
 
 const globalPersistence = new WeakMap<
   getClientId.ClientId,
@@ -23,6 +29,7 @@ const globalPersistence = new WeakMap<
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
   private getAui: () => AssistantClient;
+  private persistenceByThreadId = new Map<string, CloudMessagePersistence>();
 
   constructor(
     cloudRef: RefObject<AssistantCloud>,
@@ -36,33 +43,54 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     return this.getAui();
   }
 
-  private get _persistence(): CloudMessagePersistence {
-    const key = getClientId(this.aui.threadListItem);
+  private getPersistence(
+    threadListItem: CloudThreadListItem = this.aui.threadListItem,
+  ): CloudMessagePersistence {
+    const threadId = threadListItem.getState().id;
+    const existing = this.persistenceByThreadId.get(threadId);
+    if (existing) return existing;
+
+    const key = getClientId(threadListItem);
     if (!globalPersistence.has(key)) {
       globalPersistence.set(
         key,
         new CloudMessagePersistence(() => this.cloudRef.current),
       );
     }
-    return globalPersistence.get(key)!;
+    const persistence = globalPersistence.get(key)!;
+    this.persistenceByThreadId.set(threadId, persistence);
+    return persistence;
+  }
+
+  private get _persistence(): CloudMessagePersistence {
+    return this.getPersistence();
+  }
+
+  private getCurrentThreadListItem() {
+    const threadListItem = this.aui.threadListItem;
+    return this.aui.threads.item({ id: threadListItem.getState().id });
   }
 
   withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
     const adapter = this;
+    const threadListItem = adapter.getCurrentThreadListItem();
+    const persistence = adapter.getPersistence(threadListItem);
     const getFormatted = () =>
       createFormattedPersistence(adapter._persistence, formatAdapter);
+    const getTargetFormatted = () =>
+      createFormattedPersistence(persistence, formatAdapter);
     return {
       // Note: callers must also call reportTelemetry() for run tracking
       async append(item: MessageFormatItem<TMessage>) {
-        const { remoteId } = await adapter.aui.threadListItem.initialize();
-        await getFormatted().append(remoteId, item);
+        const { remoteId } = await threadListItem.initialize();
+        await getTargetFormatted().append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
-        const remoteId = adapter.aui.threadListItem.getState().remoteId;
+        const remoteId = threadListItem.getState().remoteId;
         if (!remoteId) return;
-        await getFormatted().update?.(remoteId, item, localMessageId);
+        await getTargetFormatted().update?.(remoteId, item, localMessageId);
       },
       async delete() {
         throw new Error(
@@ -83,6 +111,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           formatAdapter.format,
           encodedRunMessages,
           options,
+          threadListItem,
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
@@ -151,10 +180,11 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       durationMs?: number;
       stepTimestamps?: StepTimestamp[];
     },
+    threadListItem: CloudThreadListItem = this.aui.threadListItem,
   ) {
     if (!this.cloudRef.current.telemetry.enabled) return;
 
-    const remoteId = this.aui.threadListItem.getState().remoteId;
+    const remoteId = threadListItem.getState().remoteId;
     if (!remoteId) return;
 
     const extracted = extractRunTelemetry(format, runMessages);
