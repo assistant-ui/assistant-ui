@@ -319,13 +319,11 @@ describe("useThreads", () => {
     await act(async () => {
       await result.current.refresh();
     });
-    act(() => {
-      result.current.selectThread("thread-1");
-    });
     cloud.threads.list.mockResolvedValueOnce({ threads: [] });
     cloud.threads.get.mockRejectedValueOnce({ status: 404 });
 
     await act(async () => {
+      result.current.selectThread("thread-1");
       await result.current.refresh();
     });
 
@@ -333,7 +331,7 @@ describe("useThreads", () => {
     expect(result.current.threadId).toBeNull();
   });
 
-  it("uses a selection made immediately before refresh", async () => {
+  it("does not verify a selection that has never appeared in a list", async () => {
     const cloud = createCloud("thread-1");
     const { result } = renderHook(() =>
       useThreads({ cloud: cloud as never, enabled: false }),
@@ -346,8 +344,8 @@ describe("useThreads", () => {
       await result.current.refresh();
     });
 
-    expect(cloud.threads.get).toHaveBeenCalledWith("thread-1");
-    expect(result.current.threadId).toBeNull();
+    expect(cloud.threads.get).not.toHaveBeenCalled();
+    expect(result.current.threadId).toBe("thread-1");
   });
 
   it("preserves a selected thread that is omitted from the list page", async () => {
@@ -356,6 +354,9 @@ describe("useThreads", () => {
       useThreads({ cloud: cloud as never, enabled: false }),
     );
 
+    await act(async () => {
+      await result.current.refresh();
+    });
     act(() => {
       result.current.selectThread("thread-1");
     });
@@ -375,6 +376,9 @@ describe("useThreads", () => {
       useThreads({ cloud: cloud as never, enabled: false }),
     );
 
+    await act(async () => {
+      await result.current.refresh();
+    });
     act(() => {
       result.current.selectThread("thread-1");
     });
@@ -406,6 +410,9 @@ describe("useThreads", () => {
       useThreads({ cloud: cloud as never, enabled: false }),
     );
 
+    await act(async () => {
+      await result.current.refresh();
+    });
     cloud.threads.update.mockRejectedValueOnce(new Error("rename failed"));
     await act(async () => {
       expect(await result.current.rename("thread-1", "New title")).toBe(false);
@@ -453,6 +460,9 @@ describe("useThreads", () => {
       useThreads({ cloud: cloud as never, enabled: false }),
     );
 
+    await act(async () => {
+      await result.current.refresh();
+    });
     act(() => {
       result.current.selectThread("thread-1");
     });

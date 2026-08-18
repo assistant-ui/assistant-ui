@@ -50,6 +50,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     threadId: null as string | null,
   }));
   const selectionRef = useRef(selection);
+  const listedThreadIdsRef = useRef(new Set<string>());
   useLayoutEffect(() => {
     selectionRef.current = selection;
   }, [selection]);
@@ -69,6 +70,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     const isActiveScope = scope.cloud === cloud;
     activeScopeRef.current = isActiveScope ? scope : null;
     if (!isActiveScope) {
+      listedThreadIdsRef.current.clear();
       setThreads([]);
       setError(null);
       setIsLoading(enabled);
@@ -126,6 +128,9 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       selectionRef.current.scope === scope
         ? selectionRef.current.threadId
         : null;
+    const selectedThreadWasListed =
+      selectedThreadId !== null &&
+      listedThreadIdsRef.current.has(selectedThreadId);
     setIsLoading(true);
 
     try {
@@ -156,6 +161,9 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
           }
           const nextThreadIds = new Set(nextThreads.map((thread) => thread.id));
           commit(() => {
+            for (const id of nextThreadIds) {
+              listedThreadIdsRef.current.add(id);
+            }
             setThreads(nextThreads);
             setIsLoading(false);
             setError(null);
@@ -165,6 +173,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
           let selectedThreadDeleted = false;
           if (
+            selectedThreadWasListed &&
             selectedThreadId !== null &&
             !nextThreadIds.has(selectedThreadId)
           ) {
