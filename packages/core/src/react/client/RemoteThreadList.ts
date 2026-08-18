@@ -28,6 +28,7 @@ import type {
   RemoteThreadInitializeResponse,
   RemoteThreadListAdapter,
 } from "../../runtimes/remote-thread-list/types";
+import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import type { ThreadMessage } from "../../types/message";
 import { AssistantMessageStream } from "assistant-stream";
 import { handleThreadListAction } from "../../store/runtime-clients/handle-thread-list-action";
@@ -360,6 +361,7 @@ const useRemoteThreadList = (
       session: {
         adapter,
         adapterAtLoad: adapter,
+        adapterGeneration: 0,
         loadGeneration: 0,
         switchGeneration: 0,
         loadPromise: undefined as Promise<void> | undefined,
@@ -470,6 +472,7 @@ const useRemoteThreadList = (
     session.loadPromise = undefined;
     session.loadMorePromise = undefined;
     if (adapterChanged) {
+      session.adapterGeneration++;
       session.switchGeneration++;
       session.switchTask = undefined;
       const seeded = seedNewThread(EMPTY_LIST);
@@ -711,18 +714,34 @@ const useRemoteThreadList = (
     [session, store, switchToNewThread],
   );
 
+  const requireAdapterGeneration = useCallback(
+    (generation: number) => {
+      if (generation !== session.adapterGeneration) {
+        throw new ThreadListAdapterChangedError();
+      }
+    },
+    [session],
+  );
+
   const initialize = useCallback(
     async (threadId: string) => {
+      const currentAdapter = session.adapter;
+      const adapterGeneration = session.adapterGeneration;
       if (store.value.newThreadId !== threadId) {
         const data = getThreadData(store.value, threadId);
         if (!data) throw threadNotFoundError(threadId, "initializing it");
         if (data.status === "new") {
           throw threadStatusError(threadId, data.status, "be initialized here");
         }
-        return toInitializeResult(await data.initializeTask);
+        const result = toInitializeResult(await data.initializeTask);
+        requireAdapterGeneration(adapterGeneration);
+        return result;
       }
       const result = await store.optimisticUpdate({
-        execute: () => session.adapter.initialize(threadId),
+        execute: () => {
+          requireAdapterGeneration(adapterGeneration);
+          return currentAdapter.initialize(threadId);
+        },
         optimistic: (state) => updateStatusReducer(state, threadId, "regular"),
         loading: (state, task) => {
           const mappingId = createThreadMappingId(threadId);
@@ -764,11 +783,13 @@ const useRemoteThreadList = (
       }
       return toInitializeResult(result);
     },
-    [notifyRemoteId, session, store],
+    [notifyRemoteId, requireAdapterGeneration, session, store],
   );
 
   const rename = useCallback(
     (threadIdOrRemoteId: string, newTitle: string) => {
+      const currentAdapter = session.adapter;
+      const adapterGeneration = session.adapterGeneration;
       const data = getThreadData(store.value, threadIdOrRemoteId);
       if (!data) throw threadNotFoundError(threadIdOrRemoteId, "renaming it");
       if (data.status === "new") {
@@ -777,7 +798,8 @@ const useRemoteThreadList = (
       return store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
-          return session.adapter.rename(remoteId, newTitle);
+          requireAdapterGeneration(adapterGeneration);
+          return currentAdapter.rename(remoteId, newTitle);
         },
         optimistic: (state) => {
           const current = getThreadData(state, threadIdOrRemoteId);
@@ -795,7 +817,7 @@ const useRemoteThreadList = (
         },
       });
     },
-    [session, store],
+    [requireAdapterGeneration, session, store],
   );
 
   const updateCustom = useCallback(
@@ -803,6 +825,8 @@ const useRemoteThreadList = (
       threadIdOrRemoteId: string,
       custom: Record<string, unknown> | undefined,
     ) => {
+      const currentAdapter = session.adapter;
+      const adapterGeneration = session.adapterGeneration;
       const data = getThreadData(store.value, threadIdOrRemoteId);
       if (!data) {
         throw threadNotFoundError(
@@ -817,7 +841,7 @@ const useRemoteThreadList = (
           "update custom metadata",
         );
       }
-      if (!session.adapter.updateCustom) {
+      if (!currentAdapter.updateCustom) {
         throw new Error(
           "Remote thread list adapter does not support updating custom metadata",
         );
@@ -825,7 +849,7 @@ const useRemoteThreadList = (
       return store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
-          const currentAdapter = session.adapter;
+          requireAdapterGeneration(adapterGeneration);
           if (!currentAdapter.updateCustom) {
             throw new Error(
               "Remote thread list adapter does not support updating custom metadata",
@@ -849,30 +873,36 @@ const useRemoteThreadList = (
         },
       });
     },
-    [session, store],
+    [requireAdapterGeneration, session, store],
   );
 
   const archive = useCallback(
     async (threadIdOrRemoteId: string) => {
+      const currentAdapter = session.adapter;
+      const adapterGeneration = session.adapterGeneration;
       const data = getThreadData(store.value, threadIdOrRemoteId);
       if (!data) throw threadNotFoundError(threadIdOrRemoteId, "archiving it");
       if (data.status !== "regular") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be archived");
       }
       await ensureNotMain(data.id);
+      requireAdapterGeneration(adapterGeneration);
       return store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
-          return session.adapter.archive(remoteId);
+          requireAdapterGeneration(adapterGeneration);
+          return currentAdapter.archive(remoteId);
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "archived"),
       });
     },
-    [ensureNotMain, session, store],
+    [ensureNotMain, requireAdapterGeneration, session, store],
   );
 
   const unarchive = useCallback(
     (threadIdOrRemoteId: string) => {
+      const currentAdapter = session.adapter;
+      const adapterGeneration = session.adapterGeneration;
       const data = getThreadData(store.value, threadIdOrRemoteId);
       if (!data)
         throw threadNotFoundError(threadIdOrRemoteId, "unarchiving it");
@@ -887,36 +917,43 @@ const useRemoteThreadList = (
         execute: async () => {
           try {
             const { remoteId } = await data.initializeTask;
-            return await session.adapter.unarchive(remoteId);
+            requireAdapterGeneration(adapterGeneration);
+            return await currentAdapter.unarchive(remoteId);
           } catch (error) {
-            await ensureNotMain(data.id);
+            if (adapterGeneration === session.adapterGeneration) {
+              await ensureNotMain(data.id);
+            }
             throw error;
           }
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "regular"),
       });
     },
-    [ensureNotMain, session, store],
+    [ensureNotMain, requireAdapterGeneration, session, store],
   );
 
   const deleteThread = useCallback(
     async (threadIdOrRemoteId: string) => {
+      const currentAdapter = session.adapter;
+      const adapterGeneration = session.adapterGeneration;
       const data = getThreadData(store.value, threadIdOrRemoteId);
       if (!data) throw threadNotFoundError(threadIdOrRemoteId, "deleting it");
       if (data.status !== "regular" && data.status !== "archived") {
         throw threadStatusError(threadIdOrRemoteId, data.status, "be deleted");
       }
       await ensureNotMain(data.id);
+      requireAdapterGeneration(adapterGeneration);
       onDelete?.(data.id);
       return store.optimisticUpdate({
         execute: async () => {
           const { remoteId } = await data.initializeTask;
-          return session.adapter.delete(remoteId);
+          requireAdapterGeneration(adapterGeneration);
+          return currentAdapter.delete(remoteId);
         },
         optimistic: (state) => updateStatusReducer(state, data.id, "deleted"),
       });
     },
-    [ensureNotMain, onDelete, session, store],
+    [ensureNotMain, onDelete, requireAdapterGeneration, session, store],
   );
 
   const generateTitle = useCallback(
@@ -924,6 +961,8 @@ const useRemoteThreadList = (
       threadIdOrRemoteId: string,
       messages: readonly ThreadMessage[] | undefined,
     ) => {
+      const currentAdapter = session.adapter;
+      const adapterGeneration = session.adapterGeneration;
       const data = getThreadData(store.value, threadIdOrRemoteId);
       if (!data) {
         throw threadNotFoundError(threadIdOrRemoteId, "generating its title");
@@ -936,10 +975,13 @@ const useRemoteThreadList = (
         );
       }
       const { remoteId } = await data.initializeTask;
+      requireAdapterGeneration(adapterGeneration);
       if (!isSameThread(store.value, data.id, session.mainThreadId)) return;
       if (!messages) return;
-      const stream = await session.adapter.generateTitle(remoteId, messages);
+      const stream = await currentAdapter.generateTitle(remoteId, messages);
+      requireAdapterGeneration(adapterGeneration);
       await applyTitleStream(stream, (newTitle) => {
+        if (adapterGeneration !== session.adapterGeneration) return;
         const state = store.baseValue;
         const current = getThreadData(state, data.id);
         if (!current) return;
@@ -955,7 +997,7 @@ const useRemoteThreadList = (
         });
       });
     },
-    [session, store],
+    [requireAdapterGeneration, session, store],
   );
 
   const { mainThreadClient, itemOrder, threadListItems } =
