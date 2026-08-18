@@ -7,6 +7,7 @@ import { CloudflareIcon } from "@/components/icons/cloudflare";
 import { HeliconeIcon } from "@/components/icons/helicone";
 import { MastraIcon } from "@/components/icons/mastra";
 import { LangfuseIcon } from "@/components/icons/langfuse";
+import { BrowserAIIcon } from "@/components/icons/browser-ai";
 import { LangChainIcon } from "@/components/icons/langchain";
 import { McpIcon } from "@/components/icons/mcp";
 import { VercelIcon } from "@/components/icons/vercel";
@@ -22,7 +23,7 @@ flowchart LR
     server -->|"observability proxies (e.g. Helicone, Langfuse)"| provider
 ```
 
-Integrations live on the server. **Agent frameworks** like Mastra take over the API route. **Gateways** swap the upstream provider URL. **Observability** logs or traces every call. **Auth** gates the route and scopes per-user data. **Persistence** and **attachments** are adapter recipes for storing chat data outside the default in-memory path.
+Most integrations live on the server. **Agent frameworks** like Mastra take over the API route. **Gateways** swap the upstream provider URL. **Observability** logs or traces every call. **Auth** gates the route and scopes per-user data. **Persistence** and **attachments** are adapter recipes for storing chat data outside the default in-memory path. **Browser AI** is the exception: it swaps the transport so the model runs in the tab and there is no server hop at all.
 
 ## Frameworks
 
@@ -36,6 +37,12 @@ Framework integrations that pair with assistant-ui at the API-route layer.
     href="/docs/integrations/frameworks/ai-sdk"
   />
   <PlatformOnly platforms={["react"]}>
+    <Card
+      icon={<BrowserAIIcon width={20} height={20} />}
+      title="Browser AI"
+      description="Chrome built-in AI, WebLLM, Transformers.js. Runs in the tab through a client-side AI SDK transport."
+      href="/docs/integrations/frameworks/browser-ai"
+    />
     <Card
       icon={<CloudflareIcon width={20} height={20} />}
       title="Cloudflare Agents"

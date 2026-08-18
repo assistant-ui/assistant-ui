@@ -1,0 +1,221 @@
+---
+title: Browser AI Integration
+description: Run the model inside the browser tab with Browser AI — Chrome and Edge built-in AI, WebLLM, or Transformers.js — wired into assistant-ui through a client-side AI SDK transport.
+---
+
+import { BrowserAIIcon } from "@/components/icons/browser-ai";
+import { VercelIcon } from "@/components/icons/vercel";
+
+[Browser AI](https://browser-ai.dev/) is a set of AI SDK community providers that run the model **inside the browser tab** instead of on a server: the Chrome and Edge built-in Prompt API, open-source models through [WebLLM](https://github.com/mlc-ai/web-llm), and Hugging Face models through [Transformers.js](https://huggingface.co/docs/transformers.js). There is no API route, no provider key, and no prompt data leaving the device.
+
+<Callout type="info">
+This is an integration guide, not a runtime adapter. assistant-ui does not ship a `@assistant-ui/react-browser-ai` package. Browser AI wires into the standard [AI SDK runtime](/docs/runtimes/ai-sdk/v7) — but because inference happens in the tab, you replace the default transport (which POSTs to `/api/chat`) with one that calls `streamText` locally.
+</Callout>
+
+## Pick a package
+
+| Package | Models | Notes |
+| --- | --- | --- |
+| `@browser-ai/core` | Chrome / Edge built-in AI (Prompt API) | Browser-managed model, nothing for you to host. Requires a supporting browser. |
+| `@browser-ai/web-llm` | Open-source models via WebGPU | You choose the model id. First run downloads weights, then they are cached. |
+| `@browser-ai/transformers-js` | Hugging Face models via WebGPU or WASM | Smallest models and the widest browser support; also covers embeddings and transcription. |
+
+All three implement the same AI SDK provider interface, so the transport below is identical apart from the `model` line.
+
+## Requirements
+
+- AI SDK v7 (`ai@^7`) and `@assistant-ui/react-ai-sdk`.
+- A browser with WebGPU for `web-llm` and for WebGPU-backed Transformers.js models.
+- For `@browser-ai/core`, a Chrome or Edge version that ships the built-in AI APIs. See the [Chrome documentation](https://developer.chrome.com/docs/ai/built-in) for current availability.
+- A client component. The providers touch browser-only APIs, so they must not be imported into a server component or a route handler.
+
+## Setup
+
+<Steps>
+<Step>
+
+### Install dependencies
+
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk", "@browser-ai/core", "ai"]} />
+
+Swap `@browser-ai/core` for `@browser-ai/web-llm` or `@browser-ai/transformers-js` to use those engines.
+
+</Step>
+<Step>
+
+### Add the Thread component
+
+```sh
+npx assistant-ui@latest add thread
+```
+
+</Step>
+<Step>
+
+### Write a client-side transport
+
+The transport takes the place of your API route: it converts the UI messages, runs `streamText` against the in-browser model, and returns the UI message stream the runtime consumes.
+
+```ts title="lib/browser-ai-transport.ts"
+import {
+  convertToModelMessages,
+  streamText,
+  toUIMessageStream,
+  type ChatRequestOptions,
+  type ChatTransport,
+  type UIMessage,
+  type UIMessageChunk,
+} from "ai";
+import { browserAI } from "@browser-ai/core";
+
+export class BrowserAIChatTransport implements ChatTransport<UIMessage> {
+  async sendMessages(
+    options: {
+      chatId: string;
+      messages: UIMessage[];
+      abortSignal: AbortSignal | undefined;
+    } & ChatRequestOptions,
+  ): Promise<ReadableStream<UIMessageChunk>> {
+    const result = streamText({
+      model: browserAI(),
+      messages: convertToModelMessages(options.messages),
+      abortSignal: options.abortSignal,
+    });
+
+    return toUIMessageStream({ stream: result.stream });
+  }
+
+  async reconnectToStream(): Promise<ReadableStream<UIMessageChunk> | null> {
+    return null;
+  }
+}
+```
+
+`reconnectToStream` returns `null` because there is no server holding the stream — if the tab closes, the generation is gone.
+
+</Step>
+<Step>
+
+### Pass the transport to the runtime
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { useMemo, type ReactNode } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { BrowserAIChatTransport } from "@/lib/browser-ai-transport";
+
+export function MyRuntimeProvider({ children }: { children: ReactNode }) {
+  const transport = useMemo(() => new BrowserAIChatTransport(), []);
+  const runtime = useChatRuntime({ transport });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Everything the AI SDK runtime normally provides — streaming, branching, editing, regeneration, cancellation, the adapter slots — keeps working, because only the transport changed.
+
+</Step>
+</Steps>
+
+## Reporting model download progress
+
+WebLLM and Transformers.js fetch weights on first use, which can take a while on a cold cache. Both providers accept a progress callback in their model settings, so surface it in your UI rather than leaving the composer looking hung:
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { useMemo, useState, type ReactNode } from "react";
+import { AssistantRuntimeProvider } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { webLLM } from "@browser-ai/web-llm";
+import { WebLLMChatTransport } from "@/lib/web-llm-transport";
+
+export function MyRuntimeProvider({ children }: { children: ReactNode }) {
+  const [progress, setProgress] = useState<number | null>(null);
+
+  const transport = useMemo(
+    () =>
+      new WebLLMChatTransport(
+        webLLM("Llama-3.2-3B-Instruct-q4f16_1-MLC", {
+          initProgressCallback: (report) => {
+            setProgress(report.progress === 1 ? null : report.progress);
+          },
+        }),
+      ),
+    [],
+  );
+
+  const runtime = useChatRuntime({ transport });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime}>
+      {progress !== null && (
+        <div className="px-4 py-2 text-sm">
+          Downloading model... {Math.round(progress * 100)}%
+        </div>
+      )}
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Have the transport take the model as a constructor argument so the callback is wired once and the download is not restarted on every render.
+
+## Falling back to a server model
+
+Browser support is uneven, so treat the in-browser model as an enhancement. Each package exports a capability check — `doesBrowserSupportBrowserAI`, `doesBrowserSupportWebLLM`, `doesBrowserSupportTransformersJS` — that you can use to pick a transport at mount time:
+
+```tsx
+"use client";
+
+import { useMemo } from "react";
+import { DefaultChatTransport } from "ai";
+import { doesBrowserSupportBrowserAI } from "@browser-ai/core";
+import { BrowserAIChatTransport } from "@/lib/browser-ai-transport";
+
+const transport = useMemo(
+  () =>
+    doesBrowserSupportBrowserAI()
+      ? new BrowserAIChatTransport()
+      : new DefaultChatTransport({ api: "/api/chat" }),
+  [],
+);
+```
+
+The server branch is an ordinary [AI SDK route](/docs/runtimes/ai-sdk/v7); the UI is the same either way.
+
+## Things to know
+
+- **Tools.** Tool calling depends on the engine and the model. Check the [Browser AI docs](https://browser-ai.dev/docs) for the package you picked before relying on [tools](/docs/tools/defining-tools).
+- **First-token latency.** A cold model pays for download plus initialization. Warm the engine on page load if the first message should feel instant.
+- **Persistence.** Nothing is stored server-side by default. Use [custom thread persistence](/docs/integrations/persistence/custom-adapter) or [AssistantCloud](/docs/cloud) if threads must outlive the tab.
+- **No resumable streams.** [Resumable streaming](/docs/guides/resumable-streams) needs a server-held stream and does not apply here.
+
+## Related
+
+<Cards>
+  <Card
+    icon={<VercelIcon width={20} height={20} />}
+    title="AI SDK runtime"
+    description="The runtime that handles the client side of this integration."
+    href="/docs/runtimes/ai-sdk/v7"
+  />
+  <Card
+    icon={<BrowserAIIcon width={20} height={20} />}
+    title="Browser AI documentation"
+    description="Provider reference for Chrome built-in AI, WebLLM, and Transformers.js."
+    href="https://browser-ai.dev/docs"
+  />
+  <Card
+    title="LocalRuntime"
+    description="Skip the AI SDK entirely and call the model from a ChatModelAdapter."
+    href="/docs/runtimes/custom/local-runtime"
+  />
+</Cards>

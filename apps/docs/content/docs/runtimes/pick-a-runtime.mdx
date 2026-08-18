@@ -6,6 +6,7 @@ description: Decision guide for choosing the right runtime, by framework or by f
 import { A2AIcon } from "@/components/icons/a2a";
 import { AdkIcon } from "@/components/icons/adk";
 import { AguiIcon } from "@/components/icons/agui";
+import { BrowserAIIcon } from "@/components/icons/browser-ai";
 import { ClaudeIcon } from "@/components/icons/claude";
 import { CloudflareIcon } from "@/components/icons/cloudflare";
 import { LangChainIcon } from "@/components/icons/langchain";
@@ -85,6 +86,12 @@ For frameworks without a dedicated adapter, these wiring guides route through an
 
   <Cards>
     <Card
+      icon={<BrowserAIIcon width={20} height={20} />}
+      title="Browser AI"
+      description="Chrome built-in AI, WebLLM, or Transformers.js running in the tab. Wired through the Vercel AI SDK runtime with a client-side transport."
+      href="/docs/integrations/frameworks/browser-ai"
+    />
+    <Card
       icon={<CloudflareIcon width={20} height={20} />}
       title="Cloudflare Agents"
       description="Stateful agents on Durable Objects with WebSocket streaming. Wired through the Vercel AI SDK runtime."
@@ -116,6 +123,7 @@ If you do not know your framework yet, or your backend is custom, pick by what y
 | Keep messages in redux, zustand, tanstack-query, etc. | [ExternalStoreRuntime](/docs/runtimes/custom/external-store) |
 | Backend that already speaks the data stream protocol | [DataStream](/docs/runtimes/custom/data-stream) |
 | Stream full agent state snapshots (not just messages) | [AssistantTransport](/docs/runtimes/custom/assistant-transport) |
+| Run the model in the browser, no server hop | [Browser AI](/docs/integrations/frameworks/browser-ai) |
 
 If none of the framework adapters fits, start at [custom backend](/docs/runtimes/custom/overview).
 
