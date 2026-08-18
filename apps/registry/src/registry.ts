@@ -1402,6 +1402,7 @@ export const registry: RegistryItem[] = [
       "@assistant-ui/react",
       "@assistant-ui/react-markdown",
     ],
+    registryDependencies: ["dialog"],
   },
   {
     name: "diff-viewer",
@@ -1497,7 +1498,7 @@ export const registry: RegistryItem[] = [
       "lucide-react",
       "class-variance-authority",
     ],
-    registryDependencies: [],
+    registryDependencies: ["dialog"],
   },
   {
     name: "file",

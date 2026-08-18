@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImageMessagePart } from "@assistant-ui/react";
 
-import { ImageActions } from "./image";
+import { ImageActions, ImageZoom } from "./image";
 
 class FakeClipboardItem {
   constructor(public readonly items: Record<string, Blob>) {}
@@ -162,5 +162,62 @@ describe("ImageActions regeneration", () => {
     } finally {
       process.off("unhandledRejection", onUnhandledRejection);
     }
+  });
+});
+
+const renderZoom = () =>
+  render(
+    <ImageZoom src="https://example.com/cat.png" alt="A cat">
+      <img src="https://example.com/cat.png" alt="A cat" />
+    </ImageZoom>,
+  );
+
+const openZoom = () => {
+  fireEvent.click(screen.getByLabelText("Click to zoom image"));
+  return screen.findByRole("dialog");
+};
+
+const zoomedImage = (dialog: HTMLElement) =>
+  dialog.querySelector('[data-slot="image-zoom-content"]')!;
+
+const expectClosed = () =>
+  waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+
+describe("ImageZoom", () => {
+  it("opens a titled dialog holding the full-size image", async () => {
+    renderZoom();
+    const dialog = await openZoom();
+
+    expect(dialog.textContent).toContain("A cat");
+    expect(zoomedImage(dialog).getAttribute("src")).toBe(
+      "https://example.com/cat.png",
+    );
+  });
+
+  it("closes on Escape", async () => {
+    renderZoom();
+    await openZoom();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    await expectClosed();
+  });
+
+  it("closes when the image itself is clicked", async () => {
+    renderZoom();
+    const dialog = await openZoom();
+
+    fireEvent.click(zoomedImage(dialog));
+
+    await expectClosed();
+  });
+
+  it("closes when the area around the image is clicked", async () => {
+    renderZoom();
+    const dialog = await openZoom();
+
+    fireEvent.click(dialog);
+
+    await expectClosed();
   });
 });

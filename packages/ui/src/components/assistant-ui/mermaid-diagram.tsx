@@ -9,12 +9,17 @@ import {
   type ReactNode,
   memo,
   useCallback,
-  useEffect,
   useMemo,
   useRef,
   useState,
 } from "react";
-import { createPortal } from "react-dom";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 
 export type MermaidDiagramProps = SyntaxHighlighterProps & {
@@ -30,12 +35,8 @@ type MermaidZoomProps = {
 };
 
 function MermaidZoom({ svg, children }: MermaidZoomProps) {
-  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const closeRef = useRef<HTMLButtonElement>(null);
-  const overlayRef = useRef<HTMLDivElement>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{
     startX: number;
@@ -55,54 +56,13 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
     [svg],
   );
 
-  useEffect(() => {
-    setIsMounted(true);
+  const onOpenChange = useCallback((nextOpen: boolean) => {
+    setIsOpen(nextOpen);
+    if (!nextOpen) {
+      drag.current = null;
+      setTransform({ x: 0, y: 0, scale: 1 });
+    }
   }, []);
-
-  const handleClose = useCallback(() => {
-    setIsOpen(false);
-    setTransform({ x: 0, y: 0, scale: 1 });
-    triggerRef.current?.focus();
-  }, []);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        handleClose();
-        return;
-      }
-      if (e.key !== "Tab") return;
-      const focusables = overlayRef.current?.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
-      );
-      if (!focusables?.length) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
-      if (e.shiftKey && document.activeElement === first) {
-        e.preventDefault();
-        last.focus();
-      } else if (!e.shiftKey && document.activeElement === last) {
-        e.preventDefault();
-        first.focus();
-      }
-    };
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, handleClose]);
-
-  useEffect(() => {
-    if (!isOpen) return;
-    const originalOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = originalOverflow;
-    };
-  }, [isOpen]);
-
-  useEffect(() => {
-    if (isOpen) closeRef.current?.focus();
-  }, [isOpen]);
 
   const zoomBy = useCallback((factor: number, cx?: number, cy?: number) => {
     setTransform((t) => {
@@ -161,93 +121,86 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
   }, []);
 
   return (
-    <div
-      data-slot="mermaid-zoom-wrap"
-      className="aui-mermaid-zoom-wrap group/mermaid relative"
-    >
-      {children}
-      <button
-        ref={triggerRef}
-        type="button"
-        data-slot="mermaid-zoom-trigger"
-        aria-label="Expand diagram"
-        onClick={() => setIsOpen(true)}
-        className="aui-mermaid-zoom-trigger text-muted-foreground hover:text-foreground hover:border-muted-foreground/70 border-border bg-background absolute top-2 right-2 cursor-pointer rounded-md border p-1.5 opacity-0 transition group-hover/mermaid:opacity-100 focus-visible:opacity-100"
+    <Dialog open={isOpen} onOpenChange={onOpenChange}>
+      <div
+        data-slot="mermaid-zoom-wrap"
+        className="aui-mermaid-zoom-wrap group/mermaid relative"
       >
-        <Maximize2 className="size-3.5" />
-      </button>
-      {isMounted &&
-        isOpen &&
-        createPortal(
+        {children}
+        <DialogTrigger
+          data-slot="mermaid-zoom-trigger"
+          aria-label="Expand diagram"
+          className="aui-mermaid-zoom-trigger text-muted-foreground hover:text-foreground hover:border-muted-foreground/70 border-border bg-background absolute top-2 right-2 cursor-pointer rounded-md border p-1.5 opacity-0 transition group-hover/mermaid:opacity-100 focus-visible:opacity-100"
+        >
+          <Maximize2 className="size-3.5" />
+        </DialogTrigger>
+        <DialogContent
+          showCloseButton={false}
+          className="aui-mermaid-zoom-overlay bg-background fixed inset-0 start-0 top-0 z-50 max-w-none translate-x-0 translate-y-0 rounded-none border-0 p-0 shadow-none sm:max-w-none"
+        >
+          <DialogTitle className="aui-sr-only sr-only">Diagram</DialogTitle>
+          <DialogDescription className="aui-sr-only sr-only">
+            Expanded diagram viewer
+          </DialogDescription>
           <div
-            ref={overlayRef}
-            data-slot="mermaid-zoom-overlay"
-            role="dialog"
-            aria-modal="true"
-            aria-label="Diagram"
-            className="aui-mermaid-zoom-overlay fade-in animate-in bg-background fixed inset-0 z-50 duration-200"
+            ref={viewportRef}
+            className="aui-mermaid-zoom-viewport h-full w-full cursor-grab touch-none overflow-hidden active:cursor-grabbing"
+            onWheel={onWheel}
+            onPointerDown={onPointerDown}
+            onPointerMove={onPointerMove}
+            onPointerUp={onPointerUp}
+            onPointerCancel={onPointerUp}
           >
             <div
-              ref={viewportRef}
-              className="aui-mermaid-zoom-viewport h-full w-full cursor-grab touch-none overflow-hidden active:cursor-grabbing"
-              onWheel={onWheel}
-              onPointerDown={onPointerDown}
-              onPointerMove={onPointerMove}
-              onPointerUp={onPointerUp}
-              onPointerCancel={onPointerUp}
+              data-slot="mermaid-zoom-content"
+              className="aui-mermaid-zoom-content flex h-full w-full items-center justify-center [&_svg]:max-h-[80vh] [&_svg]:max-w-[90vw]"
+              style={{
+                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+                transformOrigin: "0 0",
+              }}
+              dangerouslySetInnerHTML={{ __html: zoomSvg }}
+            />
+          </div>
+          <div
+            data-slot="mermaid-zoom-toolbar"
+            className="aui-mermaid-zoom-toolbar border-border bg-background absolute top-4 right-4 flex items-center gap-1 rounded-lg border p-1"
+          >
+            <button
+              type="button"
+              aria-label="Zoom in"
+              onClick={() => zoomBy(1.25)}
+              className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
             >
-              <div
-                data-slot="mermaid-zoom-content"
-                className="aui-mermaid-zoom-content flex h-full w-full items-center justify-center [&_svg]:max-h-[80vh] [&_svg]:max-w-[90vw]"
-                style={{
-                  transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
-                  transformOrigin: "0 0",
-                }}
-                dangerouslySetInnerHTML={{ __html: zoomSvg }}
-              />
-            </div>
-            <div
-              data-slot="mermaid-zoom-toolbar"
-              className="aui-mermaid-zoom-toolbar border-border bg-background absolute top-4 right-4 flex items-center gap-1 rounded-lg border p-1"
+              <Plus className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Zoom out"
+              onClick={() => zoomBy(0.8)}
+              className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
             >
-              <button
-                type="button"
-                aria-label="Zoom in"
-                onClick={() => zoomBy(1.25)}
-                className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
-              >
-                <Plus className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label="Zoom out"
-                onClick={() => zoomBy(0.8)}
-                className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
-              >
-                <Minus className="size-4" />
-              </button>
-              <button
-                type="button"
-                aria-label="Reset zoom"
-                onClick={() => setTransform({ x: 0, y: 0, scale: 1 })}
-                className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
-              >
-                <RotateCcw className="size-4" />
-              </button>
-              <button
-                ref={closeRef}
-                type="button"
-                aria-label="Close"
-                onClick={handleClose}
-                className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
-              >
-                <X className="size-4" />
-              </button>
-            </div>
-          </div>,
-          document.body,
-        )}
-    </div>
+              <Minus className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Reset zoom"
+              onClick={() => setTransform({ x: 0, y: 0, scale: 1 })}
+              className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
+            >
+              <RotateCcw className="size-4" />
+            </button>
+            <button
+              type="button"
+              aria-label="Close"
+              onClick={() => onOpenChange(false)}
+              className="text-muted-foreground hover:text-foreground cursor-pointer rounded-sm p-1.5"
+            >
+              <X className="size-4" />
+            </button>
+          </div>
+        </DialogContent>
+      </div>
+    </Dialog>
   );
 }
 
