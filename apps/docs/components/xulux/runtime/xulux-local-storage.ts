@@ -12,6 +12,7 @@ import type { SelectedTemplateContext } from "../XuluxApp";
 
 const PREFIX = "xulux:";
 const THREADS_KEY = `${PREFIX}threads`;
+const STORAGE_OWNER_KEY = `${PREFIX}storage-owner`;
 const STORAGE_EVENT = "xulux-storage";
 const EMPTY_THREADS: XuluxStoredThread[] = [];
 
@@ -25,6 +26,27 @@ function isBrowser() {
 function notify() {
   if (!isBrowser()) return;
   window.dispatchEvent(new Event(STORAGE_EVENT));
+}
+
+export function claimXuluxStorage(
+  storage: Pick<
+    Storage,
+    "getItem" | "setItem" | "removeItem" | "length" | "key"
+  >,
+  userId: string,
+) {
+  if (storage.getItem(STORAGE_OWNER_KEY) === userId) return;
+
+  const keys: string[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key?.startsWith(PREFIX) && key !== STORAGE_OWNER_KEY) keys.push(key);
+  }
+  for (const key of keys) storage.removeItem(key);
+  storage.setItem(STORAGE_OWNER_KEY, userId);
+  cachedThreadsRaw = null;
+  cachedThreadsSnapshot = EMPTY_THREADS;
+  notify();
 }
 
 function writeJson<T>(key: string, value: T) {

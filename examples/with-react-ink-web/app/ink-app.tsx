@@ -22,10 +22,46 @@ const CHAT_API =
     : "https://www.assistant-ui.com/api/chat");
 
 const MODEL_NAME = "assistant-ui";
+const ANONYMOUS_SESSION_HEADER = "x-assistant-ui-anonymous-session";
+
+function createAnonymousSessionFetch(chatApi: string): typeof fetch {
+  let tokenPromise: Promise<string> | null = null;
+
+  const getToken = () => {
+    tokenPromise ??= (async () => {
+      const endpoint = new URL(chatApi, window.location.origin);
+      endpoint.pathname = "/api/anonymous-session";
+      endpoint.search = "";
+      const response = await fetch(endpoint);
+      if (!response.ok) throw new Error("Unable to start an anonymous session");
+      const payload = (await response.json()) as { token?: unknown };
+      if (typeof payload.token !== "string") {
+        throw new Error("Invalid anonymous session response");
+      }
+      return payload.token;
+    })();
+    return tokenPromise;
+  };
+
+  return async (input, init) => {
+    const headers = new Headers(init?.headers);
+    headers.set(ANONYMOUS_SESSION_HEADER, await getToken());
+    const response = await fetch(input, { ...init, headers });
+    if (response.status !== 401) return response;
+
+    tokenPromise = null;
+    headers.set(ANONYMOUS_SESSION_HEADER, await getToken());
+    return fetch(input, { ...init, headers });
+  };
+}
 
 export const InkApp = () => {
   const transport = useMemo(
-    () => new AssistantChatTransport({ api: CHAT_API }),
+    () =>
+      new AssistantChatTransport({
+        api: CHAT_API,
+        fetch: createAnonymousSessionFetch(CHAT_API),
+      }),
     [],
   );
   const runtime = useChatRuntime({

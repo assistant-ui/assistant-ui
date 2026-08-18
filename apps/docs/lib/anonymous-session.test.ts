@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ANONYMOUS_SESSION_COOKIE,
+  ANONYMOUS_SESSION_HEADER,
   ANONYMOUS_SESSION_TTL_SECONDS,
   createAnonymousSessionToken,
   getAnonymousSession,
@@ -51,6 +52,16 @@ describe("anonymous session tokens", () => {
     const token = createAnonymousSessionToken({ secret, id, now: Date.now() });
     const request = new Request("https://www.assistant-ui.com/docs", {
       headers: { cookie: `other=value; ${ANONYMOUS_SESSION_COOKIE}=${token}` },
+    });
+
+    expect(getAnonymousSession(request)?.id).toBe(id);
+  });
+
+  it("accepts a signed header token for approved cross-origin clients", () => {
+    vi.stubEnv("AUI_ANONYMOUS_SESSION_SECRET", secret);
+    const token = createAnonymousSessionToken({ secret, id, now: Date.now() });
+    const request = new Request("https://www.assistant-ui.com/api/chat", {
+      headers: { [ANONYMOUS_SESSION_HEADER]: token },
     });
 
     expect(getAnonymousSession(request)?.id).toBe(id);

@@ -1,5 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { createSignInUrl } from "./ai-builder-routes";
+import {
+  createAiBuilderReturnPath,
+  createSignInUrl,
+} from "./ai-builder-routes";
+
+describe("createAiBuilderReturnPath", () => {
+  it("preserves playground state while selecting AI Builder", () => {
+    const searchParams = new URLSearchParams(
+      "template=demo&viewport=mobile&mode=builder",
+    );
+
+    expect(createAiBuilderReturnPath(searchParams)).toBe(
+      "/playground?template=demo&viewport=mobile&mode=agent",
+    );
+  });
+});
 
 describe("createSignInUrl", () => {
   it("preserves the AI Builder destination", () => {

@@ -26,7 +26,7 @@ It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for 
    cp .env.example .env
    ```
 
-   The bundled API route (`app/api/chat+api.ts`) needs `OPENAI_API_KEY`. To point the app at a separately hosted backend instead, set `EXPO_PUBLIC_CHAT_ENDPOINT_URL`.
+   The bundled API route (`app/api/chat+api.ts`) needs `OPENAI_API_KEY`. To point the app at a separately hosted backend instead, set `EXPO_PUBLIC_CHAT_ENDPOINT_URL`. External backends must expose `/api/anonymous-session`; the app obtains a signed anonymous session there before sending chat requests.
 
 3. Start the app:
 

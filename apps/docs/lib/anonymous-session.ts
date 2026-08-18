@@ -1,6 +1,7 @@
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
 
 export const ANONYMOUS_SESSION_COOKIE = "aui_anon_session";
+export const ANONYMOUS_SESSION_HEADER = "x-assistant-ui-anonymous-session";
 export const ANONYMOUS_SESSION_TTL_SECONDS = 7 * 24 * 60 * 60;
 
 type AnonymousSessionPayload = {
@@ -101,9 +102,17 @@ function readCookie(req: Request, name: string): string | null {
   return null;
 }
 
+export function getAnonymousSessionToken(req: Request): string | null {
+  return (
+    readCookie(req, ANONYMOUS_SESSION_COOKIE) ??
+    req.headers.get(ANONYMOUS_SESSION_HEADER)?.trim() ??
+    null
+  );
+}
+
 export function getAnonymousSession(req: Request): AnonymousSession | null {
   const secret = getAnonymousSessionSecret();
-  const token = readCookie(req, ANONYMOUS_SESSION_COOKIE);
+  const token = getAnonymousSessionToken(req);
   if (!secret || !token) return null;
   return verifyAnonymousSessionToken({ token, secret });
 }

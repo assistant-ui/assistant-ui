@@ -5,15 +5,11 @@ import {
   unstable_injectInteractableContext as injectInteractableContext,
 } from "@assistant-ui/ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
-import {
-  getAnonymousSession,
-  requireAnonymousSession,
-} from "@/lib/anonymous-session";
+import { requireAnonymousSession } from "@/lib/anonymous-session";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { AISDKToolkit } from "@assistant-ui/ai-sdk";
-import docsToolkit from "@/lib/docs-toolkit";
 import {
   convertToModelMessages,
   pruneMessages,
@@ -23,7 +19,14 @@ import {
 
 export const maxDuration = 30;
 
-const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });
+let aiToolkitPromise: Promise<AISDKToolkit> | null = null;
+
+function getAiToolkit() {
+  aiToolkitPromise ??= import("@/lib/docs-toolkit").then(
+    ({ default: toolkit }) => new AISDKToolkit({ toolkit }),
+  );
+  return aiToolkitPromise;
+}
 
 const ALLOWED_ORIGINS = [
   "https://assistant-ui-expo.vercel.app",
@@ -37,8 +40,17 @@ function corsHeaders(req: Request) {
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type, User-Agent",
+    "Access-Control-Allow-Headers":
+      "Content-Type, User-Agent, X-Assistant-UI-Anonymous-Session",
+    Vary: "Origin",
   };
+}
+
+function withCors(req: Request, response: Response): Response {
+  for (const [key, value] of Object.entries(corsHeaders(req))) {
+    response.headers.set(key, value);
+  }
+  return response;
 }
 
 export async function OPTIONS(req: Request) {
@@ -47,18 +59,16 @@ export async function OPTIONS(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const origin = req.headers.get("origin") ?? "";
-    const anonymousSession = getAnonymousSession(req);
-    if (!anonymousSession && !ALLOWED_ORIGINS.includes(origin)) {
-      const accessResponse = requireAnonymousSession(req);
-      if (accessResponse instanceof Response) return accessResponse;
+    const anonymousSession = requireAnonymousSession(req);
+    if (anonymousSession instanceof Response) {
+      return withCors(req, anonymousSession);
     }
 
     const rateLimitResponse = await checkRateLimit(
       req,
-      anonymousSession ? `anonymous:${anonymousSession.id}` : undefined,
+      `anonymous:${anonymousSession.id}`,
     );
-    if (rateLimitResponse) return rateLimitResponse;
+    if (rateLimitResponse) return withCors(req, rateLimitResponse);
 
     const body = await req.json();
     const { messages, system: rawSystem, tools, config } = body;
@@ -72,11 +82,7 @@ export async function POST(req: Request) {
 
     const inputError = validateGeneralChatInput(messages);
     if (inputError) {
-      const cors = corsHeaders(req);
-      for (const [key, value] of Object.entries(cors)) {
-        inputError.headers.set(key, value);
-      }
-      return inputError;
+      return withCors(req, inputError);
     }
 
     const baseModel = getModel(config?.modelName);
@@ -103,7 +109,7 @@ export async function POST(req: Request) {
       messages: prunedMessages,
       maxOutputTokens: 4096,
       stopWhen: stepCountIs(10),
-      tools: await aiToolkit.tools({ frontend: tools }),
+      tools: await (await getAiToolkit()).tools({ frontend: tools }),
       ...posthogTelemetry({
         distinctId,
         spanName: "general_chat",
@@ -121,7 +127,6 @@ export async function POST(req: Request) {
       },
     });
 
-    const cors = corsHeaders(req);
     const response = result.toUIMessageStreamResponse({
       // gets usage and modelId for assistant-cloud telemetry reports
       messageMetadata: ({ part }) => {
@@ -139,14 +144,9 @@ export async function POST(req: Request) {
       },
     });
 
-    // Append CORS headers
-    for (const [key, value] of Object.entries(cors)) {
-      response.headers.set(key, value);
-    }
-
-    return response;
+    return withCors(req, response);
   } catch (e) {
     console.error("[api/chat]", e);
-    return new Response("Request failed", { status: 500 });
+    return withCors(req, new Response("Request failed", { status: 500 }));
   }
 }

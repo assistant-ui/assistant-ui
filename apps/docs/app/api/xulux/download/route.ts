@@ -1,7 +1,8 @@
 import { Readable } from "node:stream";
 import { NextResponse } from "next/server";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkDownloadRateLimit } from "@/lib/rate-limit";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
+import { requireAiBuilderUser } from "@/lib/ai-builder-auth";
 import { exportWorkspaceArchive } from "../blaxel-sandbox";
 
 export const maxDuration = 120;
@@ -19,7 +20,13 @@ export async function POST(request: Request) {
   };
 
   try {
-    const rateLimitResponse = await checkRateLimit(request);
+    const access = await requireAiBuilderUser();
+    if (access instanceof Response) return access;
+
+    const rateLimitResponse = await checkDownloadRateLimit(
+      request,
+      `user:${access.userId}`,
+    );
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = (await request.json().catch(() => null)) as {

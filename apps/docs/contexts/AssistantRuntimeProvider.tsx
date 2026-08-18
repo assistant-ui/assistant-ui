@@ -24,6 +24,7 @@ import {
   recordRunStartedAt,
 } from "@/lib/assistant-analytics-helpers";
 import { countToolCalls, getTextLength } from "@/lib/assistant-metrics";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 
 type ThreadMessagePart = { type: string; text?: string };
 
@@ -167,6 +168,7 @@ export function DocsAssistantRuntimeProvider({
   const runtime = useChatRuntime({
     transport: new AssistantChatTransport({
       api: "/api/doc/chat",
+      fetch: anonymousSessionFetch,
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {

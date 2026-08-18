@@ -48,7 +48,7 @@ import {
 } from "@/lib/playground-url-state";
 import { isAiBuilderEnabled, isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { PlaygroundRuntimeProvider } from "@/contexts/PlaygroundRuntimeProvider";
-import { AI_BUILDER_RETURN_PATH } from "@/lib/ai-builder-routes";
+import { createAiBuilderReturnPath } from "@/lib/ai-builder-routes";
 
 const XuluxApp = isAiBuilderEnabled
   ? dynamic(() =>
@@ -397,9 +397,11 @@ function HeaderPortal({ children }: { children: ReactNode }) {
 function AiBuilderModeButton({
   active,
   onSelect,
+  returnPath,
 }: {
   active: boolean;
   onSelect: () => void;
+  returnPath: string;
 }) {
   const { isLoaded, isSignedIn } = useAuth();
   const button = (
@@ -420,7 +422,7 @@ function AiBuilderModeButton({
 
   if (!isLoaded || isSignedIn) return button;
   return (
-    <SignInButton mode="redirect" fallbackRedirectUrl={AI_BUILDER_RETURN_PATH}>
+    <SignInButton mode="redirect" fallbackRedirectUrl={returnPath}>
       {button}
     </SignInButton>
   );
@@ -431,6 +433,9 @@ export default function PlaygroundPage() {
   const searchParams = useSearchParams();
   const requestedAgent =
     isAiBuilderEnabled && searchParams.get("mode") === "agent";
+  const aiBuilderReturnPath = createAiBuilderReturnPath(
+    new URLSearchParams(searchParams.toString()),
+  );
   const [mode, setMode] = useState<"agent" | "builder">(
     requestedAgent ? "agent" : "builder",
   );
@@ -461,6 +466,7 @@ export default function PlaygroundPage() {
             <AiBuilderModeButton
               active={mode === "agent"}
               onSelect={() => handleModeChange("agent")}
+              returnPath={aiBuilderReturnPath}
             />
             <button
               type="button"

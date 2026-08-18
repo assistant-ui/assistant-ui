@@ -10,6 +10,7 @@ import { BASE_URL } from "@/lib/constants";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";
 import { galleryStagingCss } from "@/components/gallery/gallery-staging";
 import { ClerkProvider } from "@clerk/nextjs";
+import { AnonymousSessionBootstrap } from "@/components/anonymous-session-bootstrap";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -74,7 +75,23 @@ export const metadata = {
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
-  const page = (
+  const content = (
+    <>
+      <AnonymousSessionBootstrap />
+      <Provider>{children}</Provider>
+      <Analytics />
+      <SpeedInsights />
+    </>
+  );
+  const body = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim() ? (
+    <ClerkProvider signInUrl="/sign-in" signUpUrl="/sign-up">
+      {content}
+    </ClerkProvider>
+  ) : (
+    content
+  );
+
+  return (
     <html lang="en" suppressHydrationWarning>
       <head>
         <GenerativeUIStyle />
@@ -110,18 +127,8 @@ export default function Layout({ children }: { children: ReactNode }) {
           . Use .md for canonical markdown pages; .mdx is kept as a
           backwards-compatible alias on supported URL paths.
         </div>
-        <Provider>{children}</Provider>
-        <Analytics />
-        <SpeedInsights />
+        {body}
       </body>
     </html>
-  );
-
-  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim()) return page;
-
-  return (
-    <ClerkProvider dynamic signInUrl="/sign-in" signUpUrl="/sign-up">
-      {page}
-    </ClerkProvider>
   );
 }

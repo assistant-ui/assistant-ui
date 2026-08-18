@@ -30,6 +30,7 @@ import {
 import { useAui, AuiProvider } from "@assistant-ui/store";
 import type { BuilderConfig } from "./types";
 import { applyDiff } from "@/lib/playground-url-state";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 
 const PLAYGROUND_SUGGESTIONS = [
   {
@@ -126,6 +127,7 @@ function PlaygroundChatProviderInner({
     () =>
       new AssistantChatTransport({
         api: "/api/playground-chat",
+        fetch: anonymousSessionFetch,
         prepareSendMessagesRequest: async (options) => ({
           body: {
             ...options.body,

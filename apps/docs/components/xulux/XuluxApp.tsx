@@ -37,6 +37,7 @@ import type { LearnProgress } from "@/lib/xulux/learn/types";
 import { toLearnContext } from "@/lib/xulux/learn/context";
 import type { LearnAutoStartSource } from "@/lib/xulux/learn/types";
 import { useAuth } from "@clerk/nextjs";
+import { claimXuluxStorage } from "./runtime/xulux-local-storage";
 
 export type XuluxMode = "playground" | "learn";
 
@@ -65,6 +66,52 @@ export function XuluxApp({
   courseId?: string;
   autoStart?: boolean;
   autoStartSource?: LearnAutoStartSource;
+}) {
+  const { isLoaded, userId } = useAuth();
+  const [storageOwner, setStorageOwner] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!userId) return;
+    claimXuluxStorage(window.localStorage, userId);
+    setStorageOwner(userId);
+  }, [userId]);
+
+  if (!isLoaded) return <XuluxAuthStatus message="Loading your workspace…" />;
+  if (!userId) {
+    return <XuluxAuthStatus message="Sign in to use AI Builder." />;
+  }
+  if (storageOwner !== userId) {
+    return <XuluxAuthStatus message="Loading your workspace…" />;
+  }
+
+  return (
+    <XuluxAppReady
+      mode={mode}
+      courseId={courseId}
+      autoStart={autoStart}
+      autoStartSource={autoStartSource}
+    />
+  );
+}
+
+function XuluxAuthStatus({ message }: { message: string }) {
+  return (
+    <div className="text-muted-foreground flex min-h-[320px] items-center justify-center p-6 text-center text-sm">
+      <p>{message}</p>
+    </div>
+  );
+}
+
+function XuluxAppReady({
+  mode,
+  courseId,
+  autoStart,
+  autoStartSource,
+}: {
+  mode: XuluxMode;
+  courseId: string;
+  autoStart: boolean;
+  autoStartSource: LearnAutoStartSource;
 }) {
   const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
   const [learnProgress, setLearnProgress] = useState<LearnProgress>(() =>
@@ -193,6 +240,8 @@ function XuluxRuntimeProviderInner({
   children: ReactNode;
 }) {
   const { getToken } = useAuth();
+  const getTokenRef = useRef(getToken);
+  getTokenRef.current = getToken;
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
   const selectedTemplateContextRef = useRef(selectedTemplateContext);
@@ -211,11 +260,7 @@ function XuluxRuntimeProviderInner({
     () =>
       new AssistantCloud({
         baseUrl: cloudBaseUrl,
-        authToken: async () => {
-          const token = await getToken({ template: "assistant-ui" });
-          if (!token) throw new Error("Missing Clerk JWT");
-          return token;
-        },
+        authToken: () => getTokenRef.current({ template: "assistant-ui" }),
         telemetry: {
           beforeReport: (report) => ({
             ...report,
@@ -226,7 +271,7 @@ function XuluxRuntimeProviderInner({
           }),
         },
       }),
-    [cloudBaseUrl, getToken],
+    [cloudBaseUrl],
   );
 
   const adapter = useMemo(

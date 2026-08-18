@@ -10,7 +10,12 @@ export async function requireAiBuilderUser(): Promise<
 > {
   if (!isAiBuilderServerAuthConfigured()) {
     return Response.json(
-      { error: "AI Builder authentication is not configured." },
+      {
+        error:
+          process.env.NODE_ENV === "development"
+            ? "AI Builder authentication is not configured. Set NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY and CLERK_SECRET_KEY."
+            : "AI Builder authentication is not configured.",
+      },
       { status: 503 },
     );
   }
