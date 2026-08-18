@@ -31,10 +31,20 @@ type AgUiInterruptReason = "tool_call" | "input_required" | "confirmation" | (st
 
 type AgUiMessage = {
   id: string;
-  role: string;
+  role: "user";
   content: string | InputContent[];
   name?: string;
+} | {
+  id: string;
+  role: "assistant";
+  content: string;
+  name?: string;
   toolCalls?: AgUiToolCall[];
+} | {
+  id: string;
+  role: "developer" | "system";
+  content: string;
+  name?: string;
 } | {
   id: string;
   role: "reasoning";

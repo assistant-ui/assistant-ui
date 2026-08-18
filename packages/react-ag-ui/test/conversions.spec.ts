@@ -2,7 +2,7 @@
 
 import { describe, it, expect, expectTypeOf } from "vitest";
 import { z } from "zod";
-import { UserMessageSchema } from "@ag-ui/client";
+import { UserMessageSchema, type Message } from "@ag-ui/client";
 import {
   ExportedMessageRepository,
   type AppendMessage,
@@ -10,6 +10,7 @@ import {
 import {
   fromAgUiMessages as publicFromAgUiMessages,
   toAgUiMessages as publicToAgUiMessages,
+  type AgUiMessage,
 } from "../src";
 import {
   fromAgUiMessages,
@@ -47,6 +48,19 @@ describe("adapter conversions", () => {
       id: "call-1",
       function: { name: "search", arguments: '{"query":"x"}' },
     });
+  });
+
+  it("keeps system and developer roles and drops unknown ones", () => {
+    const result = toAgUiMessages([
+      { id: "s-1", role: "system", content: "Be brief" },
+      { id: "d-1", role: "developer", content: "Hidden" },
+      { id: "x-1", role: "narrator", content: "Aside" },
+    ]);
+
+    expect(result).toEqual([
+      { id: "s-1", role: "system", content: "Be brief" },
+      { id: "d-1", role: "developer", content: "Hidden" },
+    ]);
   });
 
   it("marks errored tool call results with error content", () => {
@@ -2502,6 +2516,10 @@ describe("package exports", () => {
     expectTypeOf<AppendMessage>().toExtend<
       Parameters<typeof publicToAgUiMessages>[0][number]
     >();
+  });
+
+  it("emits AgUiMessage values assignable to AG-UI Message", () => {
+    expectTypeOf<AgUiMessage>().toExtend<Message>();
   });
 
   it("composes with ExportedMessageRepository.fromArray for history loading", () => {

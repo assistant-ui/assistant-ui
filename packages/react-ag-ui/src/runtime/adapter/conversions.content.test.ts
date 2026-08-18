@@ -1,7 +1,14 @@
-import { describe, expect, it } from "vitest";
-import { UserMessageSchema } from "@ag-ui/client";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import {
+  UserMessageSchema,
+  type Message as AgUiWireMessage,
+} from "@ag-ui/client";
 import type { AppendMessage } from "@assistant-ui/core";
-import { fromAgUiMessages, toAgUiMessages } from "./conversions";
+import {
+  fromAgUiMessages,
+  toAgUiMessages,
+  type AgUiMessage,
+} from "./conversions";
 
 type Message = Parameters<typeof toAgUiMessages>[0][number];
 
@@ -33,6 +40,10 @@ const appendMessage = (): AppendMessage => ({
 });
 
 describe("toAgUiMessages content metadata", () => {
+  it("emits AgUiMessage values assignable to AG-UI Message", () => {
+    expectTypeOf<AgUiMessage>().toExtend<AgUiWireMessage>();
+  });
+
   it("normalizes an AppendMessage without an id", () => {
     const converted = toAgUiMessages([appendMessage()])[0];
     if (!converted) throw new Error("expected a converted message");
