@@ -10,6 +10,7 @@ interface GenerativeLoaderContext {
 }
 
 type NextConfigLike = {
+  aui?: WithAuiOptions | undefined;
   turbopack?: {
     rules?: Record<string, unknown>;
   } | undefined;

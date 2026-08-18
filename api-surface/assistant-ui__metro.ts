@@ -16,6 +16,7 @@ type BabelTransformer = {
 };
 
 type MetroConfigLike = {
+  aui?: WithAuiOptions | undefined;
   transformer?: {
     babelTransformerPath?: string | undefined;
     [key: string]: unknown;
@@ -41,6 +42,6 @@ declare namespace entry_transformer_exports {
   export { getCacheKey, transform };
 }
 
-declare function withAui<T extends MetroConfigLike>(config: T, options?: WithAuiOptions): T;
+declare function withAui<T extends MetroConfigLike>(config: T): T;
 
 export { entry_root_exports as entry_root, entry_transformer_exports as entry_transformer };
