@@ -234,13 +234,13 @@ type AssistantTransformerStartCallback = (controller: AssistantStreamController)
 
 type AssistantTransformerTransformCallback<I> = (chunk: I, controller: AssistantStreamController) => void | PromiseLike<void>;
 
-declare class AssistantTransportDecoder extends PipeableTransformStream<Uint8Array<ArrayBuffer>, AssistantStreamChunk> {
+declare class AssistantTransportDecoder extends SSEMessageDecoder<AssistantStreamChunk> {
   constructor(options?: {
     strict?: boolean | undefined;
   });
 }
 
-declare class AssistantTransportEncoder extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>> implements AssistantStreamEncoder {
+declare class AssistantTransportEncoder extends SSEEncoder<AssistantStreamChunk> implements AssistantStreamEncoder {
   headers: Headers;
   constructor();
 }
@@ -24278,6 +24278,14 @@ interface ResumableStreamStore {
 
 type RetryStrategy = ((times: number) => number | void | null) | null | undefined;
 
+declare class SSEEncoder<T> extends PipeableTransformStream<T, Uint8Array<ArrayBuffer>> {
+  static readonly headers: Headers;
+  headers: Headers;
+  constructor(options?: {
+    doneSentinel?: string | undefined;
+  });
+}
+
 type SSEEvent = {
   event?: string;
   data: string;
@@ -24293,6 +24301,17 @@ declare class SSEEventDecoder {
   push(text: string): SSEEvent[];
   flush(): SSEEvent | null;
 }
+
+declare class SSEMessageDecoder<T> extends PipeableTransformStream<Uint8Array<ArrayBuffer>, T> {
+  constructor(options: SSEMessageDecoderOptions<T>);
+}
+
+type SSEMessageDecoderOptions<T> = {
+  strict?: boolean | undefined;
+  doneSentinel?: string | undefined;
+  onMessage: (data: string, controller: TransformStreamDefaultController<T>) => void;
+  onDone?: ((controller: TransformStreamDefaultController<T>) => void) | undefined;
+};
 
 declare class ScanStream extends Readable {
   #private;

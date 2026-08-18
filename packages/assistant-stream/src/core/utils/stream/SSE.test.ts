@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { SSEDecoder, SSEEncoder } from "./SSE";
+import { SSEDecoder, SSEEncoder, SSEMessageDecoder } from "./SSE";
 
 afterEach(() => {
   vi.restoreAllMocks();
@@ -118,5 +118,101 @@ describe("SSEDecoder", () => {
       "Ignored unknown SSE event type: custom",
     );
     error.mockRestore();
+  });
+});
+
+describe("SSEEncoder doneSentinel", () => {
+  const encodeAll = async <T>(values: T[], encoder: SSEEncoder<T>) => {
+    const source = new ReadableStream<T>({
+      start(controller) {
+        for (const v of values) controller.enqueue(v);
+        controller.close();
+      },
+    });
+    const bytes = await collectChunks(source.pipeThrough(encoder));
+    return new TextDecoder().decode(
+      new Uint8Array(bytes.flatMap((b) => [...b])),
+    );
+  };
+
+  it("writes the sentinel verbatim after the last chunk", async () => {
+    const text = await encodeAll(
+      [{ ok: 1 }],
+      new SSEEncoder<{ ok: number }>({ doneSentinel: "[DONE]" }),
+    );
+    expect(text).toBe('data: {"ok":1}\n\ndata: [DONE]\n\n');
+  });
+
+  it("writes the sentinel on an empty stream", async () => {
+    const text = await encodeAll(
+      [],
+      new SSEEncoder<{ ok: number }>({ doneSentinel: "[DONE]" }),
+    );
+    expect(text).toBe("data: [DONE]\n\n");
+  });
+
+  it("writes no trailer without a sentinel", async () => {
+    const text = await encodeAll([{ ok: 1 }], new SSEEncoder<{ ok: number }>());
+    expect(text).toBe('data: {"ok":1}\n\n');
+  });
+});
+
+describe("SSEMessageDecoder sentinel", () => {
+  const passthrough = (
+    data: string,
+    controller: TransformStreamDefaultController<string>,
+  ) => controller.enqueue(data);
+
+  it("terminates on the sentinel", async () => {
+    const chunks = await collectChunks(
+      createSSEStream(["a", "[DONE]"]).pipeThrough(
+        new SSEMessageDecoder<string>({
+          doneSentinel: "[DONE]",
+          onMessage: passthrough,
+        }),
+      ),
+    );
+    expect(chunks).toEqual(["a"]);
+  });
+
+  it("runs onDone before terminating, so flushed chunks land in the output", async () => {
+    const chunks = await collectChunks(
+      createSSEStream(["a", "[DONE]", "b"]).pipeThrough(
+        new SSEMessageDecoder<string>({
+          doneSentinel: "[DONE]",
+          onMessage: passthrough,
+          onDone(controller) {
+            controller.enqueue("pending-1");
+            controller.enqueue("pending-2");
+          },
+        }),
+      ),
+    );
+    expect(chunks).toEqual(["a", "pending-1", "pending-2"]);
+  });
+
+  it("does not run onDone when the stream ends without the sentinel", async () => {
+    const onDone = vi.fn();
+    await expect(
+      collectChunks(
+        createSSEStream(["a"]).pipeThrough(
+          new SSEMessageDecoder<string>({
+            doneSentinel: "[DONE]",
+            onMessage: passthrough,
+            onDone,
+          }),
+        ),
+      ),
+    ).rejects.toThrow("Stream ended abruptly without receiving [DONE] marker");
+    expect(onDone).not.toHaveBeenCalled();
+  });
+
+  it("treats the sentinel as data when no sentinel is configured", async () => {
+    const chunks = await collectChunks(
+      createSSEStream(["a", "[DONE]"]).pipeThrough(
+        new SSEMessageDecoder<string>({ onMessage: passthrough }),
+      ),
+    );
+    expect(chunks).toEqual(["a", "[DONE]"]);
   });
 });

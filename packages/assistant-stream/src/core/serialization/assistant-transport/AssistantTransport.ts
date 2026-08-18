@@ -1,10 +1,6 @@
 import sjson from "secure-json-parse";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
-import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
-import {
-  SSEEventDecoderStream,
-  type PipelineSSEEvent,
-} from "../../utils/stream/SSEEventDecoderStream";
+import { SSEEncoder, SSEMessageDecoder } from "../../utils/stream/SSE";
 import type { AssistantStreamEncoder } from "../../AssistantStream";
 
 type ChunkFields = Record<string, unknown>;
@@ -71,35 +67,22 @@ const parseChunk = (data: string): AssistantStreamChunk | string => {
   return value as AssistantStreamChunk;
 };
 
+const DONE_SENTINEL = "[DONE]";
+
 /**
  * AssistantTransportEncoder encodes AssistantStreamChunks into SSE format
  * and emits [DONE] when the stream completes.
  */
 export class AssistantTransportEncoder
-  extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>>
+  extends SSEEncoder<AssistantStreamChunk>
   implements AssistantStreamEncoder
 {
-  headers = new Headers({
-    "Content-Type": "text/event-stream",
-    "Cache-Control": "no-cache",
-    Connection: "keep-alive",
-  });
+  // Shadows SSEEncoder's shared static Headers so a caller mutating these does
+  // not reach every other SSE encoder.
+  override headers = new Headers(SSEEncoder.headers);
 
   constructor() {
-    super((readable) => {
-      return readable
-        .pipeThrough(
-          new TransformStream<AssistantStreamChunk, string>({
-            transform(chunk, controller) {
-              controller.enqueue(`data: ${JSON.stringify(chunk)}\n\n`);
-            },
-            flush(controller) {
-              controller.enqueue("data: [DONE]\n\n");
-            },
-          }),
-        )
-        .pipeThrough(new TextEncoderStream());
-    });
+    super({ doneSentinel: DONE_SENTINEL });
   }
 }
 
@@ -107,67 +90,26 @@ export class AssistantTransportEncoder
  * AssistantTransportDecoder decodes SSE format into AssistantStreamChunks.
  * It stops decoding when it encounters [DONE].
  */
-export class AssistantTransportDecoder extends PipeableTransformStream<
-  Uint8Array<ArrayBuffer>,
-  AssistantStreamChunk
-> {
+export class AssistantTransportDecoder extends SSEMessageDecoder<AssistantStreamChunk> {
   constructor(options: { strict?: boolean | undefined } = {}) {
     const strict = options.strict ?? true;
-    super((readable) => {
-      let receivedDone = false;
-      const warnedReasons = new Set<string>();
-
-      return readable
-        .pipeThrough(new TextDecoderStream())
-        .pipeThrough(new SSEEventDecoderStream())
-        .pipeThrough(
-          new TransformStream<PipelineSSEEvent, AssistantStreamChunk>({
-            transform(event, controller) {
-              switch (event.event) {
-                case "message":
-                  if (event.data === "[DONE]") {
-                    // Mark that we received [DONE]
-                    receivedDone = true;
-                    // Stop processing when we encounter [DONE]
-                    controller.terminate();
-                  } else {
-                    const chunk = parseChunk(event.data);
-                    if (typeof chunk === "string") {
-                      if (!warnedReasons.has(chunk)) {
-                        warnedReasons.add(chunk);
-                        console.warn(
-                          `Dropped invalid assistant-transport chunk (${chunk}): ${event.data.slice(0, 200)}`,
-                        );
-                      }
-                    } else {
-                      controller.enqueue(chunk);
-                    }
-                  }
-                  break;
-                default:
-                  if (strict)
-                    throw new Error(`Unknown SSE event type: ${event.event}`);
-                  if (!warnedReasons.has(`event:${event.event}`)) {
-                    warnedReasons.add(`event:${event.event}`);
-                    console.error(
-                      `Ignored unknown SSE event type: ${event.event}`,
-                    );
-                  }
-              }
-            },
-            flush() {
-              if (!receivedDone) {
-                if (strict)
-                  throw new Error(
-                    "Stream ended abruptly without receiving [DONE] marker",
-                  );
-                console.warn(
-                  "Stream ended abruptly without receiving [DONE] marker",
-                );
-              }
-            },
-          }),
-        );
+    const warnedReasons = new Set<string>();
+    super({
+      strict,
+      doneSentinel: DONE_SENTINEL,
+      onMessage(data, controller) {
+        const chunk = parseChunk(data);
+        if (typeof chunk === "string") {
+          if (!warnedReasons.has(chunk)) {
+            warnedReasons.add(chunk);
+            console.warn(
+              `Dropped invalid assistant-transport chunk (${chunk}): ${data.slice(0, 200)}`,
+            );
+          }
+          return;
+        }
+        controller.enqueue(chunk);
+      },
     });
   }
 }
