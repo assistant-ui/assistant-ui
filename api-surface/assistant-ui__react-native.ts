@@ -3059,8 +3059,10 @@ type ThreadListItemsProps = Omit<FlatListProps<string>, "data" | "renderItem"> &
 
 declare const ThreadListNew: (_param39: ThreadListNewProps) => import("react").JSX.Element;
 
-type ThreadListNewProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadListNewProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: ReactNode | ((props: {
+    isActive: boolean;
+  }) => ReactNode);
 };
 
 declare const ThreadListRoot: (_param40: ThreadListRootProps) => import("react").JSX.Element;
