@@ -123,7 +123,20 @@ describe("ComposerSend", () => {
       );
     });
 
-    const el = container.querySelector('[data-testid="send"]');
-    expect(el?.textContent).toBe("idle");
+    expect(container.querySelector('[data-testid="send"]')?.textContent).toBe(
+      "idle",
+    );
+
+    await act(async () => {
+      root.render(
+        <ComposerSend testID="send" testOnly_pressed>
+          {({ pressed }) => (pressed ? "pressed" : "idle")}
+        </ComposerSend>,
+      );
+    });
+
+    expect(container.querySelector('[data-testid="send"]')?.textContent).toBe(
+      "pressed",
+    );
   });
 });
