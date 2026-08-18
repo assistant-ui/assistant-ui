@@ -1,7 +1,33 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { EMPTY_THREAD_CORE } from "../runtimes/remote-thread-list/empty-thread-core";
 
 describe("EMPTY_THREAD_CORE", () => {
+  it("stays a stable singleton", () => {
+    expect(EMPTY_THREAD_CORE).toBe(EMPTY_THREAD_CORE);
+  });
+
+  it("subscribe is inert and never retains a callback on the singleton", () => {
+    const subscribers = (EMPTY_THREAD_CORE as unknown as Record<string, any>)
+      ._subscribers;
+    expect(subscribers).toBeInstanceOf(Set);
+    const before = subscribers.size;
+
+    const callback = vi.fn();
+    const unsubscribe = EMPTY_THREAD_CORE.subscribe(callback);
+    EMPTY_THREAD_CORE.subscribe(vi.fn());
+
+    expect(unsubscribe).toBeInstanceOf(Function);
+    expect(() => unsubscribe()).not.toThrow();
+    expect(callback).not.toHaveBeenCalled();
+    expect(subscribers.size).toBe(before);
+  });
+
+  it("reads no messages, branches, or exported repository", () => {
+    expect(EMPTY_THREAD_CORE.getMessageById("a")).toBeUndefined();
+    expect(EMPTY_THREAD_CORE.getBranches("a")).toEqual([]);
+    expect(EMPTY_THREAD_CORE.export()).toEqual({ messages: [] });
+  });
+
   it("has isLoading=true so it is not mistaken for an empty conversation", () => {
     expect(EMPTY_THREAD_CORE.isLoading).toBe(true);
   });
