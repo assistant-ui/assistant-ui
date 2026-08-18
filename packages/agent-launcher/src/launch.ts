@@ -47,6 +47,11 @@ export function launch(options: LaunchOptions): void {
     throw result.error;
   }
 
+  if (result.signal !== null) {
+    process.kill(process.pid, result.signal);
+    return;
+  }
+
   if (result.status !== null && result.status !== 0) {
     process.exit(result.status);
   }

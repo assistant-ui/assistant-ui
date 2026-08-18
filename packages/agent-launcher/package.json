@@ -27,7 +27,8 @@
   ],
   "sideEffects": false,
   "scripts": {
-    "build": "aui-build"
+    "build": "aui-build",
+    "test": "vitest run"
   },
   "dependencies": {
     "cross-spawn": "^7.0.6"
@@ -35,7 +36,8 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^26.2.0"
+    "@types/node": "^26.2.0",
+    "vitest": "^4.1.10"
   },
   "publishConfig": {
     "access": "public",
