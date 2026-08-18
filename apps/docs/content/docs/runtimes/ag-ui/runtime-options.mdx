@@ -95,7 +95,7 @@ import { toAgUiMessages } from "@assistant-ui/react-ag-ui";
 const [agUiMessage] = toAgUiMessages([message]);
 ```
 
-`AppendMessage` has no `id`. The converter assigns one so the AG-UI message schema is satisfied. A caller-supplied id is kept. A generated id is new on every call, so convert once and send that object.
+`AppendMessage` has no `id`. The converter assigns one so the AG-UI message schema is satisfied. A caller-supplied id is kept. A generated id is new on every call, so convert once and send that object. Only `user`, `assistant`, `system`, `developer`, `tool`, and `reasoning` inputs are converted.
 
 ## Thread list (experimental)
 

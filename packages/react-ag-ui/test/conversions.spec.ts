@@ -2,7 +2,7 @@
 
 import { describe, it, expect, expectTypeOf } from "vitest";
 import { z } from "zod";
-import { UserMessageSchema, type Message } from "@ag-ui/client";
+import { MessageSchema, UserMessageSchema, type Message } from "@ag-ui/client";
 import {
   ExportedMessageRepository,
   type AppendMessage,
@@ -50,17 +50,22 @@ describe("adapter conversions", () => {
     });
   });
 
-  it("keeps system and developer roles and drops unknown ones", () => {
+  it("keeps system, developer, and reasoning roles and drops unknown ones", () => {
     const result = toAgUiMessages([
       { id: "s-1", role: "system", content: "Be brief" },
       { id: "d-1", role: "developer", content: "Hidden" },
+      { id: "r-1", role: "reasoning", content: "hmm" },
       { id: "x-1", role: "narrator", content: "Aside" },
     ]);
 
     expect(result).toEqual([
       { id: "s-1", role: "system", content: "Be brief" },
       { id: "d-1", role: "developer", content: "Hidden" },
+      { id: "r-1", role: "reasoning", content: "hmm" },
     ]);
+    expect(result.map((message) => MessageSchema.parse(message))).toEqual(
+      result,
+    );
   });
 
   it("marks errored tool call results with error content", () => {

@@ -1,5 +1,6 @@
 import { describe, expect, expectTypeOf, it } from "vitest";
 import {
+  MessageSchema,
   UserMessageSchema,
   type Message as AgUiWireMessage,
 } from "@ag-ui/client";
@@ -42,6 +43,20 @@ const appendMessage = (): AppendMessage => ({
 describe("toAgUiMessages content metadata", () => {
   it("emits AgUiMessage values assignable to AG-UI Message", () => {
     expectTypeOf<AgUiMessage>().toExtend<AgUiWireMessage>();
+  });
+
+  it("emits records MessageSchema accepts", () => {
+    const converted = toAgUiMessages([
+      { id: "u-1", role: "user", content: "Hi" },
+      { id: "a-1", role: "assistant", content: "Hello" },
+      { id: "s-1", role: "system", content: "Be brief" },
+      { id: "t-1", role: "tool", content: "ok", toolCallId: "c-1" },
+      { id: "r-1", role: "reasoning", content: "hmm" },
+    ]);
+
+    expect(converted.map((message) => MessageSchema.parse(message))).toEqual(
+      converted,
+    );
   });
 
   it("normalizes an AppendMessage without an id", () => {

@@ -1132,6 +1132,16 @@ export function toAgUiMessages(
       continue;
     }
 
+    if (message.role === "reasoning") {
+      converted.push({
+        id: message.id,
+        role: "reasoning",
+        content: extractText(message.content),
+      });
+      flushTrailingOpaqueReasoning();
+      continue;
+    }
+
     flushTrailingOpaqueReasoning();
   }
 
