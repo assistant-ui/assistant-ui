@@ -236,23 +236,25 @@ export const useSmooth = (
     // would keep the stale cursor and flicker.
     const partChanged = animatorPartRef.current !== part;
     animatorPartRef.current = part;
+    if (state.status.type !== "running") {
+      animatorRef.currentText = text;
+      animatorRef.targetText = text;
+      animatorRef.stop();
+      setText(text);
+      return;
+    }
+
     if (partChanged || !text.startsWith(animatorRef.targetText)) {
-      if (state.status.type === "running") {
-        animatorRef.currentText = "";
-        animatorRef.targetText = text;
-        animatorRef.lastCommitTime = 0;
-        animatorRef.start();
-      } else {
-        animatorRef.currentText = text;
-        animatorRef.targetText = text;
-        animatorRef.stop();
-      }
+      animatorRef.currentText = "";
+      animatorRef.targetText = text;
+      animatorRef.lastCommitTime = 0;
+      animatorRef.start();
       return;
     }
 
     animatorRef.targetText = text;
     animatorRef.start();
-  }, [animatorRef, enabled, text, state.status.type, part]);
+  }, [animatorRef, enabled, text, state.status.type, part, setText]);
 
   useEffect(() => {
     return () => {

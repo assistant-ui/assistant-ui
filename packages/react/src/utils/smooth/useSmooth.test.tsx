@@ -222,4 +222,19 @@ describe("useSmooth", () => {
     frame();
     expect(result.current.text).toBe("z");
   });
+
+  it("drains completed text when a queued frame never runs", () => {
+    vi.spyOn(globalThis, "requestAnimationFrame").mockReturnValue(1);
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+
+    const { result, rerender } = renderHook((state) => useSmooth(state, true), {
+      initialProps: runningState(""),
+    });
+
+    rerender(runningState("hello"));
+    rerender(textState("hello"));
+
+    expect(result.current.text).toBe("hello");
+    expect(result.current.status.type).toBe("complete");
+  });
 });
