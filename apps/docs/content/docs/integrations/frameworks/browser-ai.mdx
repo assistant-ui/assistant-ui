@@ -78,7 +78,7 @@ export class BrowserAIChatTransport implements ChatTransport<UIMessage> {
   ): Promise<ReadableStream<UIMessageChunk>> {
     const result = streamText({
       model: browserAI(),
-      messages: convertToModelMessages(options.messages),
+      messages: await convertToModelMessages(options.messages),
       abortSignal: options.abortSignal,
     });
 
