@@ -223,10 +223,12 @@ export class RemoteThreadListThreadListRuntimeCore
 
             if (replaceList) {
               this._hookManager.__internal_dispose();
-              void this._hookManager.startThreadRuntime(this._mainThreadId).then(
-                () => this._notifySubscribers(),
-                () => undefined,
-              );
+              void this._hookManager
+                .startThreadRuntime(this._mainThreadId)
+                .then(
+                  () => this._notifySubscribers(),
+                  () => undefined,
+                );
             }
 
             return nextState;
