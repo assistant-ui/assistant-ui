@@ -1136,6 +1136,7 @@ interface PiEventStreamOptions {
   fetchImpl?: typeof fetch;
   headers?: Record<string, string>;
   expectedThreadId?: string;
+  snapshotRecoveryUrl?: string;
   reconnectDelay?: () => Promise<void>;
 }
 
