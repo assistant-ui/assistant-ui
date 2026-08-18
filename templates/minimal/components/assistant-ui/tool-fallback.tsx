@@ -540,6 +540,9 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
+  const shouldRenderApproval =
+    status?.type === "requires-action" &&
+    (status.reason !== "interrupt" || approval != null || interrupt != null);
 
   const [open, setOpen] = useState(isRequiresAction);
   const [prevRequiresAction, setPrevRequiresAction] =
@@ -558,7 +561,7 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
           argsText={argsText}
           className={cn(isCancelled && "opacity-60")}
         />
-        {isRequiresAction && (
+        {shouldRenderApproval && (
           <ToolFallbackApproval
             addResult={addResult}
             resume={resume}
