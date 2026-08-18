@@ -185,7 +185,10 @@ export class AssistantFrameProvider {
 
     instance.broadcastUpdate();
 
+    let released = false;
     return () => {
+      if (released) return;
+      released = true;
       instance._providers.delete(provider);
       instance._providerUnsubscribes.get(provider)?.();
       instance._providerUnsubscribes.delete(provider);

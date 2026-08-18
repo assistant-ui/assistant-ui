@@ -179,6 +179,33 @@ describe("AssistantFrameProvider", () => {
     );
   });
 
+  it("treats a second unsubscribe as a no-op", () => {
+    const unsubscribe = AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "https://first.example",
+    );
+
+    unsubscribe();
+    unsubscribe();
+
+    const unsubscribeSecond = AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "https://second.example",
+    );
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "https://second.example",
+    );
+
+    unsubscribeSecond();
+    unsubscribeSecond();
+
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "*",
+    );
+  });
+
   it("recomputes the origin policy from providers that remain", () => {
     AssistantFrameProvider.addModelContextProvider(
       { getModelContext: () => ({}) },
