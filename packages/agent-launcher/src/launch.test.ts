@@ -4,7 +4,8 @@ const mocks = vi.hoisted(() => ({
   sync: vi.fn(),
 }));
 
-vi.mock("cross-spawn", () => ({
+vi.mock("cross-spawn", async (importOriginal) => ({
+  ...(await importOriginal()),
   default: { sync: mocks.sync },
 }));
 
