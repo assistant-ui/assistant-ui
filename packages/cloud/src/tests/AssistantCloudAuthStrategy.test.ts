@@ -478,9 +478,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
   it.each([429, 500, 503])(
     "preserves the anonymous identity after transient status %i",
     async (status) => {
-      const values = new Map([
-        ["aui:refresh_token", JSON.stringify(refreshToken)],
-      ]);
+      const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
       installLocalStorage({
         getItem: (key) => values.get(key) ?? null,
         setItem: (key, value) => {
@@ -499,9 +497,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         `Assistant Cloud token refresh failed with status ${status}`,
       );
       expect(fetchMock).toHaveBeenCalledTimes(1);
-      expect(values.get("aui:refresh_token")).toBe(
-        JSON.stringify(refreshToken),
-      );
+      expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
     },
   );
 
@@ -512,9 +508,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         token: "r2",
         expires_at: "2099-02-01",
       };
-      const values = new Map([
-        ["aui:refresh_token", JSON.stringify(refreshToken)],
-      ]);
+      const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
       installLocalStorage({
         getItem: (key) => values.get(key) ?? null,
         setItem: (key, value) => {
@@ -546,16 +540,14 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         `${baseUrl}/v1/auth/tokens/anonymous`,
         { method: "POST" },
       );
-      expect(values.get("aui:refresh_token")).toBe(
+      expect(values.get(refreshTokenKey)).toBe(
         JSON.stringify(replacementRefreshToken),
       );
     },
   );
 
   it("preserves a rejected refresh token until its replacement succeeds", async () => {
-    const values = new Map([
-      ["aui:refresh_token", JSON.stringify(refreshToken)],
-    ]);
+    const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
     installLocalStorage({
       getItem: (key) => values.get(key) ?? null,
       setItem: (key, value) => {
@@ -576,7 +568,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
 
     await expect(strategy.getAuthHeaders()).resolves.toBe(false);
-    expect(values.get("aui:refresh_token")).toBe(JSON.stringify(refreshToken));
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
   });
 
   it("contextualizes invalid JSON token responses", async () => {
