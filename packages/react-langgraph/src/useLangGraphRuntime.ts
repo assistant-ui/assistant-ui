@@ -199,17 +199,19 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       for (const message of newMessages) {
         if (message.type !== "ai") continue;
         let owner = runConfig;
+        const isNewMessage = Boolean(
+          message.id && !messageOwnership.has(message.id),
+        );
         if (message.id) {
-          if (!messageOwnership.has(message.id))
-            messageOwnership.set(message.id, runConfig);
+          if (isNewMessage) messageOwnership.set(message.id, runConfig);
           owner = messageOwnership.get(message.id);
-          if (runId && !runIdByMessageIdRef.current.has(message.id))
+          if (runId && isNewMessage)
             runIdByMessageIdRef.current.set(message.id, runId);
         }
         for (const toolCall of message.tool_calls ?? []) {
-          if (!toolOwnership.has(toolCall.id))
-            toolOwnership.set(toolCall.id, owner);
-          if (runId && !runIdByToolCallIdRef.current.has(toolCall.id))
+          const isNewTool = !toolOwnership.has(toolCall.id);
+          if (isNewTool) toolOwnership.set(toolCall.id, owner);
+          if (runId && isNewTool)
             runIdByToolCallIdRef.current.set(toolCall.id, runId);
         }
       }
@@ -777,7 +779,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
         }
         return;
       }
-      const runConfig = getToolRunConfig(batch[0]!.tool_call_id, messages);
+      const runConfig = batch
+        .map((message) => getToolRunConfig(message.tool_call_id, messages))
+        .find((config) => config !== undefined);
       pendingResumeRef.current.set(groupKey, batch);
       try {
         await handleSendMessage(batch, { runConfig });
