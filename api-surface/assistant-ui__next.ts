@@ -4,6 +4,7 @@ interface GenerativeLoaderContext {
   sourceMap?: boolean;
   getOptions?(): {
     path?: string;
+    backendless?: boolean;
   } | undefined;
   async(): (err: unknown, code?: string, map?: object | null) => void;
 }
@@ -17,6 +18,7 @@ type NextConfigLike = {
 
 interface WithAuiOptions {
   rules?: string[];
+  backendless?: boolean;
 }
 
 declare function generativeLoader(this: GenerativeLoaderContext, source: string): void;
