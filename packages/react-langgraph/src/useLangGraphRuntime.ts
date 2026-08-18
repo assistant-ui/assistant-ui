@@ -748,7 +748,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           const runId = runIdByToolCallIdRef.current.get(toolCall.id);
           if (runId) return `run:${runId}`;
         }
-        return pendingToolCallGroupKey(message);
+        return "run:unknown";
       }).find((group) =>
         group.toolCalls.some((toolCall) => toolCall.id === toolCallId),
       );

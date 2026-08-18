@@ -12,9 +12,10 @@ export type PendingToolCallGroup = {
 export const pendingToolCallGroupKey = (
   message: Extract<LangChainMessage, { type: "ai" }>,
 ): string | undefined => {
-  if (message.id) return `message:${message.id}`;
+  if (message.id !== undefined) return `message:${message.id}`;
   const firstToolCallId = message.tool_calls?.[0]?.id;
-  return firstToolCallId ? `tool:${firstToolCallId}` : undefined;
+  if (firstToolCallId !== undefined) return `tool:${firstToolCallId}`;
+  return undefined;
 };
 
 export const getPendingToolCallGroups = (
