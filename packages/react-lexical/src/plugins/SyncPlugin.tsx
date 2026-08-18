@@ -10,13 +10,17 @@ import {
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $getRoot,
+  $getSelection,
   $createTextNode,
   $createParagraphNode,
   $isElementNode,
   $isLineBreakNode,
+  $isRangeSelection,
   $isTextNode,
+  HISTORY_MERGE_TAG,
   SKIP_DOM_SELECTION_TAG,
   type LexicalEditor,
+  type LexicalNode,
 } from "lexical";
 import { useAui } from "@assistant-ui/store";
 import type {
@@ -58,10 +62,10 @@ export function collectFormatters(
   propFormatter: Unstable_DirectiveFormatter | undefined,
 ): readonly Unstable_DirectiveFormatter[] {
   const ordered: Unstable_DirectiveFormatter[] = [];
-  const seen = new Set<Unstable_DirectiveFormatter>();
+  const seen = new Set<Unstable_DirectiveFormatter["parse"]>();
   const push = (f: Unstable_DirectiveFormatter | undefined) => {
-    if (!f || seen.has(f)) return;
-    seen.add(f);
+    if (!f || seen.has(f.parse)) return;
+    seen.add(f.parse);
     ordered.push(f);
   };
   push(propFormatter);
@@ -121,14 +125,6 @@ function getParsedLines(
   });
 }
 
-function countParsedMentions(runtimeText: string, parse: CompositeParser) {
-  return getParsedLines(runtimeText, parse).reduce(
-    (count, line) =>
-      count + line.filter((segment) => segment[0] === "mention").length,
-    0,
-  );
-}
-
 function getEditorLines(editor: LexicalEditor): SegmentKey[][] | undefined {
   return editor.getEditorState().read(() => {
     const lines: SegmentKey[][] = [];
@@ -154,17 +150,31 @@ function getEditorLines(editor: LexicalEditor): SegmentKey[][] | undefined {
   });
 }
 
-function countEditorDirectives(editor: LexicalEditor) {
+function collectEditorDirectiveKeys(editor: LexicalEditor) {
   return editor.getEditorState().read(() => {
-    let count = 0;
+    const keys = new Set<string>();
     for (const paragraph of $getRoot().getChildren()) {
       if (!$isElementNode(paragraph)) continue;
       for (const child of paragraph.getChildren()) {
-        if ($isDirectiveNode(child)) count += 1;
+        if (!$isDirectiveNode(child)) continue;
+        const item = child.getDirectiveItem();
+        keys.add(directiveKey(item.id, item.type));
       }
     }
-    return count;
+    return keys;
   });
+}
+
+function collectParsedMentionKeys(runtimeText: string, parse: CompositeParser) {
+  const keys = new Set<string>();
+  for (const line of getParsedLines(runtimeText, parse)) {
+    for (const segment of line) {
+      if (segment[0] === "mention") {
+        keys.add(directiveKey(segment[1], segment[2]));
+      }
+    }
+  }
+  return keys;
 }
 
 function editorMatchesParser(
@@ -185,14 +195,120 @@ function shouldRebuildForParser(
   runtimeText: string,
   parse: CompositeParser,
 ) {
+  if (getEditorLines(editor) === undefined) return false;
   if (editorMatchesParser(editor, runtimeText, parse)) return false;
-  if (
-    countEditorDirectives(editor) > 0 &&
-    countParsedMentions(runtimeText, parse) === 0
-  ) {
-    return false;
+  const parsedKeys = collectParsedMentionKeys(runtimeText, parse);
+  for (const key of collectEditorDirectiveKeys(editor)) {
+    if (!parsedKeys.has(key)) return false;
   }
   return true;
+}
+
+function $getCollapsedRuntimeOffset(): number | undefined {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
+    return undefined;
+  }
+  const anchor = selection.anchor;
+  let offset = 0;
+  const paragraphs = $getRoot().getChildren();
+  for (let i = 0; i < paragraphs.length; i++) {
+    const paragraph = paragraphs[i];
+    if (!$isElementNode(paragraph)) continue;
+    if (anchor.type === "element" && anchor.key === paragraph.getKey()) {
+      const children = paragraph.getChildren();
+      const childIndex = Math.min(anchor.offset, children.length);
+      for (let c = 0; c < childIndex; c++) {
+        offset += children[c]!.getTextContent().length;
+      }
+      return offset;
+    }
+    for (const child of paragraph.getChildren()) {
+      if (anchor.key === child.getKey()) {
+        return offset + (anchor.type === "text" ? anchor.offset : 0);
+      }
+      offset += child.getTextContent().length;
+    }
+    if (i < paragraphs.length - 1) offset += 1;
+  }
+  return undefined;
+}
+
+function $selectAtChild(parent: LexicalNode, index: number) {
+  if (!$isElementNode(parent)) return;
+  parent.select(index, index);
+}
+
+function $selectRuntimeOffset(offset: number) {
+  let remaining = offset;
+  const paragraphs = $getRoot().getChildren();
+  for (let i = 0; i < paragraphs.length; i++) {
+    const paragraph = paragraphs[i];
+    if (!$isElementNode(paragraph)) continue;
+    const children = paragraph.getChildren();
+    if (children.length === 0 && remaining === 0) {
+      paragraph.select(0, 0);
+      return;
+    }
+    for (const child of children) {
+      const length = child.getTextContent().length;
+      if ($isDirectiveNode(child)) {
+        if (remaining === 0) {
+          $selectAtChild(paragraph, child.getIndexWithinParent());
+          return;
+        }
+        if (remaining < length) {
+          const index = child.getIndexWithinParent();
+          $selectAtChild(
+            paragraph,
+            remaining * 2 <= length ? index : index + 1,
+          );
+          return;
+        }
+        remaining -= length;
+        continue;
+      }
+      if ($isTextNode(child)) {
+        if (remaining <= length) {
+          child.select(remaining, remaining);
+          return;
+        }
+        remaining -= length;
+        continue;
+      }
+      if (remaining < length) {
+        $selectAtChild(paragraph, child.getIndexWithinParent());
+        return;
+      }
+      remaining -= length;
+    }
+    if (i < paragraphs.length - 1) {
+      if (remaining === 0) {
+        paragraph.selectEnd();
+        return;
+      }
+      remaining -= 1;
+    } else if (remaining === 0) {
+      paragraph.selectEnd();
+      return;
+    }
+  }
+  $getRoot().selectEnd();
+}
+
+function isEditorFocused(editor: LexicalEditor) {
+  const rootElement = editor.getRootElement();
+  if (rootElement === null) return false;
+  const active = document.activeElement;
+  return (
+    active !== null && (active === rootElement || rootElement.contains(active))
+  );
+}
+
+function parserOnlyTags(editor: LexicalEditor) {
+  const tags = [SYNC_TAG, HISTORY_MERGE_TAG];
+  if (!isEditorFocused(editor)) tags.push(SKIP_DOM_SELECTION_TAG);
+  return tags;
 }
 
 function parsedLabelQueues(runtimeText: string, parse: CompositeParser) {
@@ -253,11 +369,13 @@ function syncRuntimeToLexical(
       const preserved = parserOnly
         ? collectPreservedDirectives(runtimeText, previousParser, parse)
         : undefined;
+      const caretOffset = parserOnly ? $getCollapsedRuntimeOffset() : undefined;
       root.clear();
 
       if (runtimeText.length === 0) {
         root.append($createParagraphNode());
         if (!parserOnly) root.selectEnd();
+        else if (caretOffset !== undefined) $selectRuntimeOffset(caretOffset);
         return;
       }
 
@@ -298,10 +416,11 @@ function syncRuntimeToLexical(
       }
 
       if (!parserOnly) root.selectEnd();
+      else if (caretOffset !== undefined) $selectRuntimeOffset(caretOffset);
     },
     {
       onUpdate: onComplete,
-      tag: parserOnly ? [SYNC_TAG, SKIP_DOM_SELECTION_TAG] : SYNC_TAG,
+      tag: parserOnly ? parserOnlyTags(editor) : SYNC_TAG,
     },
   );
 }
@@ -354,6 +473,7 @@ export function SyncPlugin({
   const textDirtySinceSyncRef = useRef(false);
   const lastSyncedTextRef = useRef("");
   const lastAppliedParserRef = useRef(parser);
+  const applyPendingParserRef = useRef(() => {});
 
   useEffect(() => {
     return editor.registerUpdateListener(({ editorState, tags }) => {
@@ -388,6 +508,8 @@ export function SyncPlugin({
           isSyncingFromLexicalRef.current = false;
         }
       });
+
+      if (!editor.isComposing()) applyPendingParserRef.current();
     });
   }, [editor, aui]);
 
@@ -408,22 +530,27 @@ export function SyncPlugin({
       });
     };
 
+    const tryApplyParserChange = () => {
+      if (parser === lastAppliedParserRef.current) return;
+      if (textDirtySinceSyncRef.current) {
+        lastAppliedParserRef.current = parser;
+        return;
+      }
+      if (editor.isComposing()) return;
+      const runtimeText = lastSyncedTextRef.current;
+      if (!shouldRebuildForParser(editor, runtimeText, parser)) return;
+      applyRuntimeText(runtimeText, lastAppliedParserRef.current);
+    };
+
     const initialText = composerRuntime.getState().text;
     const runtimeTextChanged = initialText !== lastSyncedTextRef.current;
-    const parserChanged = parser !== lastAppliedParserRef.current;
+
+    applyPendingParserRef.current = tryApplyParserChange;
 
     if (runtimeTextChanged) {
       applyRuntimeText(initialText, undefined);
-    } else if (parserChanged) {
-      const previousParser = lastAppliedParserRef.current;
-      lastAppliedParserRef.current = parser;
-      if (
-        !textDirtySinceSyncRef.current &&
-        !editor.isComposing() &&
-        shouldRebuildForParser(editor, initialText, parser)
-      ) {
-        applyRuntimeText(initialText, previousParser);
-      }
+    } else {
+      tryApplyParserChange();
     }
 
     return composerRuntime.subscribe(() => {

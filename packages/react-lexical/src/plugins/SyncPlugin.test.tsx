@@ -9,6 +9,7 @@ import {
   $createTextNode,
   $getRoot,
   $getSelection,
+  $isElementNode,
   $isRangeSelection,
   $isTextNode,
   $setCompositionKey,
@@ -38,15 +39,18 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
 const createAui = (text: string) => {
+  let current = text;
   const runtime = {
-    getState: () => ({ text }),
+    getState: () => ({ text: current }),
     subscribe: () => () => {},
   };
 
   return {
     composer: {
       __internal_getRuntime: () => runtime,
-      setText: vi.fn(),
+      setText: vi.fn((next: string) => {
+        current = next;
+      }),
     },
   };
 };
@@ -218,7 +222,7 @@ describe("SyncPlugin", () => {
         </LexicalComposer>,
       );
 
-    mocks.aui = createAui("[[alice]]");
+    mocks.aui = createAui("hello [[alice]] world");
     await act(async () => {
       render(false);
     });
@@ -226,21 +230,35 @@ describe("SyncPlugin", () => {
       editor.update(() => {
         const textNode = $getParagraph().getFirstChild();
         if (!$isTextNode(textNode)) throw new Error("Expected text");
-        textNode.select(2, 2);
+        textNode.select(3, 3);
       });
     });
-    expect(
-      editor.getEditorState().read(() => $isRangeSelection($getSelection())),
-    ).toBe(true);
 
     await act(async () => {
       render(true);
     });
     expect(
-      editor
-        .getEditorState()
-        .read(() => $isDirectiveNode($getParagraph().getFirstChild())),
-    ).toBe(true);
+      editor.getEditorState().read(() => {
+        const children = $getParagraph().getChildren();
+        return [
+          $isTextNode(children[0]) ? children[0].getTextContent() : null,
+          $isDirectiveNode(children[1]),
+          $isTextNode(children[2]) ? children[2].getTextContent() : null,
+        ];
+      }),
+    ).toEqual(["hello ", true, " world"]);
+    expect(
+      editor.getEditorState().read(() => {
+        const selection = $getSelection();
+        if (!$isRangeSelection(selection) || !selection.isCollapsed()) {
+          return null;
+        }
+        const node = selection.anchor.getNode();
+        return $isTextNode(node)
+          ? [node.getTextContent(), selection.anchor.offset]
+          : null;
+      }),
+    ).toEqual(["hello ", 3]);
   });
 
   it("does not reparse text the user edited before a formatter registers", async () => {
@@ -281,6 +299,7 @@ describe("SyncPlugin", () => {
     await act(async () => {
       render(true);
     });
+    expect(readEditorText(editor)).toBe("[[alice]]");
     expect(
       editor
         .getEditorState()
@@ -329,6 +348,17 @@ describe("SyncPlugin", () => {
         .getEditorState()
         .read(() => $isTextNode($getParagraph().getFirstChild())),
     ).toBe(true);
+
+    await act(async () => {
+      editor.update(() => {
+        $setCompositionKey(null);
+      });
+    });
+    expect(
+      editor
+        .getEditorState()
+        .read(() => $isDirectiveNode($getParagraph().getFirstChild())),
+    ).toBe(true);
   });
 
   it("keeps chips when the formatter that created them is removed", async () => {
@@ -371,6 +401,62 @@ describe("SyncPlugin", () => {
         return node.getKey();
       }),
     ).toBe(before);
+  });
+
+  it("keeps mixed-format chips when one formatter is removed", async () => {
+    const initialConfig = {
+      namespace: "sync-plugin-mixed-remove-test",
+      nodes: [DirectiveNode],
+      onError: (error: Error) => {
+        throw error;
+      },
+    };
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const formatter = createBracketFormatter();
+    const render = (registered: boolean) =>
+      root.render(
+        <LexicalComposer initialConfig={initialConfig}>
+          <SyncPlugin formatter={registered ? formatter : undefined} />
+          <EditorProbe capture={capture} />
+        </LexicalComposer>,
+      );
+
+    mocks.aui = createAui("[[alice]]\n:user[bob]");
+    await act(async () => {
+      render(true);
+    });
+    const before = editor.getEditorState().read(() => {
+      const [first, second] = $getRoot().getChildren();
+      if (!$isElementNode(first) || !$isElementNode(second)) {
+        throw new Error("Expected two paragraphs");
+      }
+      const alice = first.getFirstChild();
+      const bob = second.getFirstChild();
+      if (!$isDirectiveNode(alice) || !$isDirectiveNode(bob)) {
+        throw new Error("Expected mixed-format chips");
+      }
+      return { alice: alice.getKey(), bob: bob.getKey() };
+    });
+
+    await act(async () => {
+      render(false);
+    });
+    expect(
+      editor.getEditorState().read(() => {
+        const [first, second] = $getRoot().getChildren();
+        if (!$isElementNode(first) || !$isElementNode(second)) {
+          throw new Error("Expected two paragraphs");
+        }
+        const alice = first.getFirstChild();
+        const bob = second.getFirstChild();
+        if (!$isDirectiveNode(alice) || !$isDirectiveNode(bob)) {
+          throw new Error("Expected chips to remain");
+        }
+        return { alice: alice.getKey(), bob: bob.getKey() };
+      }),
+    ).toEqual(before);
   });
 
   it("keeps hydrated metadata when a formatter only changes the label", async () => {
