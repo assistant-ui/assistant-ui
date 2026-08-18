@@ -406,6 +406,12 @@ describe("useThreads", () => {
       useThreads({ cloud: cloud as never, enabled: false }),
     );
 
+    cloud.threads.update.mockRejectedValueOnce(new Error("rename failed"));
+    await act(async () => {
+      expect(await result.current.rename("thread-1", "New title")).toBe(false);
+    });
+    expect(result.current.error?.message).toBe("rename failed");
+
     act(() => {
       result.current.selectThread("thread-1");
     });
@@ -427,6 +433,7 @@ describe("useThreads", () => {
         { id: "thread-2", title: "Updated" },
       ]);
       expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
     });
     expect(refreshSettled).toBe(false);
 

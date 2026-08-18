@@ -158,6 +158,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
           commit(() => {
             setThreads(nextThreads);
             setIsLoading(false);
+            setError(null);
           });
 
           if (!isLatest()) return true;
