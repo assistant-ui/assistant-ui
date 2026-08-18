@@ -100,6 +100,33 @@ const isNewChatView = (s: AssistantState) =>
   s.thread.messages.length === 0 &&
   (!s.thread.isLoading || s.threads.isLoading);
 
+// A switched thread that is still fetching its history: skeleton, not welcome.
+const isHistoryLoadingView = (s: AssistantState) =>
+  s.thread.messages.length === 0 && s.thread.isLoading && !s.threads.isLoading;
+
+const ThreadHistorySkeleton: FC = () => (
+  <div
+    data-slot="aui_thread-history-skeleton"
+    role="status"
+    aria-label="Loading conversation"
+    className="animate-in fade-in fill-mode-both flex flex-col [animation-delay:150ms] [animation-duration:200ms]"
+  >
+    <div className="flex animate-pulse flex-col gap-y-6 motion-reduce:animate-none">
+      <div className="bg-muted ml-auto h-9 w-2/5 rounded-xl" />
+      <div className="flex flex-col gap-y-2">
+        <div className="bg-muted h-4 w-11/12 rounded-md" />
+        <div className="bg-muted h-4 w-4/5 rounded-md" />
+        <div className="bg-muted h-4 w-3/5 rounded-md" />
+      </div>
+      <div className="bg-muted ml-auto h-9 w-1/3 rounded-xl" />
+      <div className="flex flex-col gap-y-2">
+        <div className="bg-muted h-4 w-10/12 rounded-md" />
+        <div className="bg-muted h-4 w-2/3 rounded-md" />
+      </div>
+    </div>
+  </div>
+);
+
 export const Thread: FC<ThreadProps> = ({ components = EMPTY_COMPONENTS }) => {
   const isEmpty = useAuiState(isNewChatView);
 
@@ -136,6 +163,9 @@ const ThreadRoot: FC<{ isEmpty: boolean }> = ({ isEmpty }) => {
         >
           <AuiIf condition={isNewChatView}>
             <Welcome />
+          </AuiIf>
+          <AuiIf condition={isHistoryLoadingView}>
+            <ThreadHistorySkeleton />
           </AuiIf>
 
           <div
