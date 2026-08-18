@@ -226,10 +226,7 @@ const unsubscribe = AssistantFrameProvider.addModelContextProvider(
 );
 ```
 
-All providers in a frame share one origin policy. Registering an explicit
-origin tightens an existing wildcard policy, while registering two different
-explicit origins throws an error. Unsubscribing recalculates the policy from
-the remaining providers, and `dispose()` resets it entirely.
+All providers in a frame share one origin policy. Registering an explicit origin tightens an existing wildcard policy, while registering two different explicit origins throws an error. The last unsubscribe resets the policy so a later registration can choose a different origin.
 
 ##### `dispose()`
 

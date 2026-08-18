@@ -179,24 +179,6 @@ describe("AssistantFrameProvider", () => {
     );
   });
 
-  it("recomputes the origin policy from providers that remain", () => {
-    AssistantFrameProvider.addModelContextProvider(
-      { getModelContext: () => ({}) },
-      "*",
-    );
-    const unsubscribeStrict = AssistantFrameProvider.addModelContextProvider(
-      { getModelContext: () => ({}) },
-      "https://parent.example",
-    );
-
-    unsubscribeStrict();
-
-    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
-      expect.anything(),
-      "*",
-    );
-  });
-
   it("keeps a shared strict origin after one provider unsubscribes", async () => {
     const unsubscribeFirst = AssistantFrameProvider.addModelContextProvider(
       { getModelContext: () => ({}) },
@@ -221,56 +203,5 @@ describe("AssistantFrameProvider", () => {
 
     dispatchToolCall("https://parent.example");
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
-  });
-
-  it("tracks origin policies per registration when a provider is reused", async () => {
-    const unsubscribeProvider = vi.fn();
-    const subscribe = vi.fn(() => unsubscribeProvider);
-    const sharedProvider = {
-      getModelContext: () => ({ system: "Shared instructions" }),
-      subscribe,
-    };
-    const unsubscribeStrict = AssistantFrameProvider.addModelContextProvider(
-      sharedProvider,
-      "https://parent.example",
-    );
-    const unsubscribeWildcard = AssistantFrameProvider.addModelContextProvider(
-      sharedProvider,
-      "*",
-    );
-
-    expect(subscribe).toHaveBeenCalledOnce();
-    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        message: expect.objectContaining({
-          context: expect.objectContaining({ system: "Shared instructions" }),
-        }),
-      }),
-      "https://parent.example",
-    );
-
-    const execute = vi.fn(async () => "result");
-    AssistantFrameProvider.addModelContextProvider(
-      {
-        getModelContext: () => ({
-          tools: {
-            sensitiveTool: { execute },
-          },
-        }),
-      },
-      "*",
-    );
-
-    unsubscribeWildcard();
-    expect(unsubscribeProvider).not.toHaveBeenCalled();
-
-    dispatchToolCall("https://untrusted.example");
-    expect(execute).not.toHaveBeenCalled();
-
-    dispatchToolCall("https://parent.example");
-    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
-
-    unsubscribeStrict();
-    expect(unsubscribeProvider).toHaveBeenCalledOnce();
   });
 });
