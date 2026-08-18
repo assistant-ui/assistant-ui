@@ -5,7 +5,7 @@ import {
   compileGenerative,
   isGenerativeModule,
 } from "@assistant-ui/x-generative-compiler";
-import { UPSTREAM_TRANSFORMER_ENV } from "./index";
+import { BACKENDLESS_ENV, UPSTREAM_TRANSFORMER_ENV } from "./index";
 
 const require = createRequire(import.meta.url);
 
@@ -86,6 +86,7 @@ export function transform(
       // resolve; the environment split already keeps a server `execute` out of
       // the client bundle.
       injectServerOnly: false,
+      backendless: process.env[BACKENDLESS_ENV] === "1",
     });
 
     return upstream.transform({ ...props, src: code });
@@ -112,5 +113,7 @@ function selfCacheToken(): string {
 export function getCacheKey(): string {
   const upstream = upstreamTransformer();
   const base = upstream.getCacheKey ? upstream.getCacheKey() : "";
-  return `${base}$aui-metro:${selfCacheToken()}`;
+  const backendless =
+    process.env[BACKENDLESS_ENV] === "1" ? ":backendless" : "";
+  return `${base}$aui-metro:${selfCacheToken()}${backendless}`;
 }

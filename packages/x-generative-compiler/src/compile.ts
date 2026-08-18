@@ -83,6 +83,15 @@ export interface CompileOptions {
    * throw — see the Vite integration.
    */
   injectServerOnly?: boolean;
+  /**
+   * No backend of the app imports this module's server build (e.g. cloud-hosted
+   * runs), so the client is the only place the model can learn the schemas
+   * from. The `client` target then keeps frontend/human tool schemas
+   * uploadable — no `unstable_backendDefault` marker is stamped — and local
+   * `new JSONGenerativeUI({ ... })` instances are constructed with
+   * `backendless: true` so their `present`/`prompt_user` schemas upload too.
+   */
+  backendless?: boolean;
 }
 
 export interface CompileResult {
@@ -249,6 +258,7 @@ export function compileGenerative(
   options: CompileOptions,
 ): CompileResult {
   const { target, filename } = options;
+  const backendless = options.backendless ?? false;
 
   const ast = parse(code, {
     sourceType: "module",
@@ -315,6 +325,7 @@ export function compileGenerative(
           toolkitSpreadNames,
           namespaceImports,
           flags,
+          backendless,
           filename,
         );
         path.replaceWith(object);
@@ -640,6 +651,30 @@ function collectGenerativeInstances(ast: t.File): Set<string> {
     }
   }
   return names;
+}
+
+/**
+ * Wraps a pass-through generative entry (`generative.present()`) so the tool it
+ * returns loses its `unstable_backendDefault` marker. The library stamps the
+ * marker at runtime, out of this compiler's reach, so a backendless client
+ * build strips it post-hoc instead of threading an option into the library.
+ */
+function stripBackendDefaultExpression(expr: t.Expression): t.Expression {
+  return t.callExpression(
+    t.arrowFunctionExpression(
+      [
+        t.objectPattern([
+          t.objectProperty(
+            t.identifier("unstable_backendDefault"),
+            t.identifier("_backendDefault"),
+          ),
+          t.restElement(t.identifier("tool")),
+        ]),
+      ],
+      t.identifier("tool"),
+    ),
+    [expr],
+  );
 }
 
 function collectGenerativeFactoryImports(ast: t.File): Set<string> {
@@ -1358,6 +1393,7 @@ function compileToolkit(
   toolkitSpreadNames: ToolkitSpreadNames,
   namespaceImports: Set<string>,
   flags: TargetFlags,
+  backendless: boolean,
   filename: string | undefined,
 ): void {
   // Split builds compile both targets; emit target-independent warnings from
@@ -1384,6 +1420,9 @@ function compileToolkit(
       // `execute` could reach the client unstripped.
       const raw = entryRawValue(entry);
       if (raw && isGenerativeToolEntry(raw, instances)) {
+        if (backendless && target === "client" && t.isObjectProperty(entry)) {
+          entry.value = stripBackendDefaultExpression(raw);
+        }
         nextProperties.push(entry);
         continue;
       }
@@ -1473,7 +1512,7 @@ function compileToolkit(
     }
 
     setToolType(value, type);
-    setBackendDefault(value, target, type);
+    setBackendDefault(value, target, type, backendless);
     nextProperties.push(entry);
   }
 
@@ -1718,10 +1757,13 @@ function setBackendDefault(
   object: t.ObjectExpression,
   target: Target,
   type: ToolType,
+  backendless: boolean,
 ): void {
   // Always strip any hand-authored marker first; only re-add it for client
-  // frontend/human tools whose schema is already known by the backend.
+  // frontend/human tools whose schema is already known by the backend. A
+  // backendless build has no such backend, so nothing is marked.
   removeMember(object, "unstable_backendDefault");
+  if (backendless) return;
   if (target !== "client" || (type !== "frontend" && type !== "human")) return;
 
   object.properties.push(

@@ -7,8 +7,17 @@ import {
 /** Source modules a `"use generative"` directive can appear in. */
 const SOURCE_RE = /\.[cm]?[jt]sx?($|\?)/;
 
+export interface AuiOptions {
+  /**
+   * The app has no backend importing the server builds of its `"use generative"`
+   * modules (e.g. cloud-hosted runs). Frontend/human tool schemas then stay
+   * uploadable from the client instead of being assumed backend-known.
+   */
+  backendless?: boolean;
+}
+
 /** Compiles `"use generative"` modules per environment. */
-function generativePlugin(): Plugin {
+function generativePlugin(pluginOptions: AuiOptions): Plugin {
   return {
     name: "assistant-ui:use-generative",
     enforce: "pre",
@@ -28,6 +37,7 @@ function generativePlugin(): Plugin {
         // No `react-server` layer here, so `server-only` would throw on import.
         // The environment split already keeps `execute` out of the client.
         injectServerOnly: false,
+        backendless: pluginOptions.backendless ?? false,
       });
       return {
         code: out,
@@ -54,6 +64,6 @@ function generativePlugin(): Plugin {
  * });
  * ```
  */
-export function aui(): Plugin[] {
-  return [generativePlugin()];
+export function aui(options: AuiOptions = {}): Plugin[] {
+  return [generativePlugin(options)];
 }
