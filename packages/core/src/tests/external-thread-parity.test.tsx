@@ -66,6 +66,29 @@ const assistantMessage = (
     },
   ]);
 
+describe("ExternalThread empty state", () => {
+  it("does not report an empty thread while loading", () => {
+    const { aui } = renderThread({ messages: [], isLoading: true });
+
+    expect(aui().thread.getState().isEmpty).toBe(false);
+  });
+
+  it("reports an empty thread when not loading", () => {
+    const { aui } = renderThread({ messages: [], isLoading: false });
+
+    expect(aui().thread.getState().isEmpty).toBe(true);
+  });
+
+  it("does not report a thread with messages as empty while loading", () => {
+    const { aui } = renderThread({
+      messages: [assistantMessage({ type: "complete", reason: "stop" })],
+      isLoading: true,
+    });
+
+    expect(aui().thread.getState().isEmpty).toBe(false);
+  });
+});
+
 describe("ExternalThread part status", () => {
   it("gives an unresolved tool call its message's status", () => {
     const { aui } = renderThread({
