@@ -1,6 +1,8 @@
 ---
-"@assistant-ui/core": patch
-"@assistant-ui/react": patch
+"@assistant-ui/x-generative-compiler": patch
+"@assistant-ui/vite": patch
+"@assistant-ui/next": patch
+"@assistant-ui/metro": patch
 ---
 
-feat: add `uploadBackendDefaults` option to `Tools` so apps without their own backend (e.g. cloud-hosted runs) can upload the full specs of `"use generative"` frontend/human tools and generative UI components instead of assuming the backend already knows them
+feat: add a `backendless` compile option for apps without their own backend (e.g. cloud-hosted runs), keeping `"use generative"` frontend/human tool schemas and `JSONGenerativeUI` component-library schemas uploadable from the client instead of assuming the backend already knows them

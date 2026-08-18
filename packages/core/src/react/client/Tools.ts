@@ -34,20 +34,11 @@ export type { McpAppResourceOutput };
 const useTools = ({
   toolkit,
   mcpApp,
-  uploadBackendDefaults,
 }: {
   /** Tools to expose to the model and optional renderers to install. */
   toolkit?: Toolkit;
   /** Optional MCP app resource whose tools should be merged into context. */
   mcpApp?: ResourceElement<McpAppResourceOutput> | undefined;
-  /**
-   * Upload the full spec of every tool, including those marked
-   * `unstable_backendDefault`. Set this when no backend of yours imports the
-   * toolkit (e.g. cloud-hosted runs), so the model still learns about
-   * `"use generative"` frontend/human tools and generative UI components
-   * whose schemas are otherwise assumed to be known server-side.
-   */
-  uploadBackendDefaults?: boolean | undefined;
 }): ClientOutput<"tools"> => {
   const mcpAppOutputs = useResources(mcpApp ? [withKey("mcpApp", mcpApp)] : []);
   const mcpAppOutput = mcpAppOutputs[0];
@@ -141,13 +132,7 @@ const useTools = ({
             renderText: _renderText,
             ...rest
           } = tool as typeof tool & { renderText?: unknown };
-          if (uploadBackendDefaults) {
-            const { unstable_backendDefault: _backendDefault, ...uploadable } =
-              rest as typeof rest & { unstable_backendDefault?: unknown };
-            acc[name] = uploadable as Tool<any, any>;
-          } else {
-            acc[name] = rest as Tool<any, any>;
-          }
+          acc[name] = rest as Tool<any, any>;
           return acc;
         },
         {} as Record<string, Tool<any, any>>,
@@ -161,7 +146,7 @@ const useTools = ({
 
       return clientRef.current!.modelContext().register(modelContextProvider);
     },
-    [toolkit, uploadBackendDefaults],
+    [toolkit],
   );
 
   return {

@@ -25,6 +25,21 @@ export type MetroConfigLike = {
 export const UPSTREAM_TRANSFORMER_ENV = "AUI_METRO_UPSTREAM_TRANSFORMER";
 
 /**
+ * Env var carrying the `backendless` option to the transformer. Metro forks its
+ * transform workers after `metro.config` is evaluated, so they inherit it.
+ */
+export const BACKENDLESS_ENV = "AUI_METRO_BACKENDLESS";
+
+export interface WithAuiOptions {
+  /**
+   * The app has no backend importing the server builds of its `"use generative"`
+   * modules (e.g. cloud-hosted runs). Frontend/human tool schemas then stay
+   * uploadable from the client instead of being assumed backend-known.
+   */
+  backendless?: boolean;
+}
+
+/**
  * Wraps a Metro (or Expo) config so assistant-ui `"use generative"` modules are
  * compiled. Such a file colocates a tool's schema, its `execute`, and its
  * `render` via {@link https://www.assistant-ui.com/docs/tools/defining-tools | defineToolkit}.
@@ -46,9 +61,14 @@ export const UPSTREAM_TRANSFORMER_ENV = "AUI_METRO_UPSTREAM_TRANSFORMER";
  * Authoring is identical to the web: a `"use generative"` file whose default
  * export is `defineToolkit({ ... })`, registered with `Tools({ toolkit })`.
  */
-export function withAui<T extends MetroConfigLike>(config: T): T {
+export function withAui<T extends MetroConfigLike>(
+  config: T,
+  options: WithAuiOptions = {},
+): T {
   const self = require.resolve("@assistant-ui/metro/transformer");
   const upstream = config.transformer?.babelTransformerPath;
+
+  if (options.backendless) process.env[BACKENDLESS_ENV] = "1";
 
   // Guard against a double-wrap (`withAui(withAui(config))`, or a shared config
   // already wrapped): if it already points at our transformer, keep the real

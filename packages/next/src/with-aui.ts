@@ -25,7 +25,15 @@ function compilerCacheToken(): string {
 }
 
 /** The loader plus the cache-busting token, in the `{ loader, options }` form both bundlers accept. */
-const LOADER_USE = { loader: LOADER, options: { v: compilerCacheToken() } };
+function loaderUse(options: WithAuiOptions) {
+  return {
+    loader: LOADER,
+    options: {
+      v: compilerCacheToken(),
+      ...(options.backendless && { backendless: true }),
+    },
+  };
+}
 
 /**
  * Restricts the rule to modules that carry the directive, matching the loader's
@@ -41,6 +49,12 @@ export interface WithAuiOptions {
    * Narrow it (e.g. `["*.generative.tsx"]`) to limit what passes through the loader.
    */
   rules?: string[];
+  /**
+   * The app has no backend importing the server builds of its `"use generative"`
+   * modules (e.g. cloud-hosted runs). Frontend/human tool schemas then stay
+   * uploadable from the client instead of being assumed backend-known.
+   */
+  backendless?: boolean;
 }
 
 // Loosely typed so this module doesn't need `next` as a dependency.
@@ -65,13 +79,14 @@ export function withAui<T extends NextConfigLike>(
   options: WithAuiOptions = {},
 ): T {
   const globs = options.rules ?? ["*.ts", "*.tsx"];
+  const loader = loaderUse(options);
   // Turbopack runs every rule matching a glob in order, so the `"use generative"`
   // loader rides as its own entry after the user's: theirs keeps its loaders and
   // its own condition, ours keeps a condition that would disable theirs.
   const rules: Record<string, unknown> = { ...nextConfig.turbopack?.rules };
   for (const glob of globs) {
     const existing = rules[glob];
-    const ours = { condition: HAS_DIRECTIVE, loaders: [LOADER_USE] };
+    const ours = { condition: HAS_DIRECTIVE, loaders: [loader] };
     rules[glob] =
       existing === undefined
         ? ours
@@ -92,7 +107,7 @@ export function withAui<T extends NextConfigLike>(
       config.module.rules.push({
         test: /\.[jt]sx?$/,
         exclude: /node_modules/,
-        use: [LOADER_USE],
+        use: [loader],
       });
 
       return userWebpack ? userWebpack(config, context) : config;

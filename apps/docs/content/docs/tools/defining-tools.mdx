@@ -196,13 +196,19 @@ The compiler also enforces, at build time:
 
 ### Running without your own backend
 
-The client skips uploading frontend/human schemas because it assumes your backend imported the same toolkit and already knows them. When no server of yours does — for example, cloud-hosted runs — that assumption breaks and the model never learns about those tools. Set `uploadBackendDefaults` on `Tools` to upload every tool's full spec instead:
+The client build skips uploading frontend/human schemas because it assumes your backend imported the same file's server build and already knows them. When no server of yours does — for example, cloud-hosted runs — that assumption breaks and the model never learns about those tools. Compile with the `backendless` option so the client keeps every schema uploadable, including the `present`/`prompt_user` schema of a `JSONGenerativeUI` component library:
 
-```tsx
-const config = AuiConfig({ tools: Tools({ toolkit, uploadBackendDefaults: true }) });
+```ts title="next.config.ts"
+export default withAui({ ...yourConfig }, { backendless: true });
 ```
 
-This also applies to generative UI component libraries (`JSONGenerativeUI`), whose `present` schema is otherwise assumed to be known server-side.
+```ts title="vite.config.ts"
+plugins: [aui({ backendless: true })];
+```
+
+```js title="metro.config.js"
+module.exports = withAui(getDefaultConfig(__dirname), { backendless: true });
+```
 
 ## Tool kinds
 
