@@ -407,7 +407,9 @@ export class MessageRepository {
         const childId = pending.pop()!;
         const childMessage = this.messages.get(childId);
         if (childMessage) {
-          pending.push(...childMessage.children);
+          for (const descendantId of childMessage.children) {
+            pending.push(descendantId);
+          }
           this.messages.delete(childId);
         }
       }
