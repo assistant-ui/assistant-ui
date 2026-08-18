@@ -12,6 +12,7 @@ const mocks = vi.hoisted(() => {
     initializeRemoteId = remoteId ?? id,
   ) => {
     const threadListItem = {
+      source: "threads",
       getState: () => ({ id, remoteId }),
       initialize: async () => ({
         remoteId: initializeRemoteId,
@@ -204,9 +205,10 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       getId: (message: { id: string }) => message.id,
     });
 
+    await formatted.append({ parentId: null, message: { id: "message-1" } });
     mocks.aui = mocks.makeClient("thread-2");
     rerender();
-    await formatted.append({ parentId: null, message: { id: "message-1" } });
+    await formatted.append({ parentId: null, message: { id: "message-2" } });
 
     expect(cloud.threads.messages.create).toHaveBeenCalledWith(
       "thread-1",

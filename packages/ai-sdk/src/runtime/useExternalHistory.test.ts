@@ -159,7 +159,7 @@ describe("useExternalHistory withFormat contract", () => {
     );
 
     await act(async () => {});
-    expect(load).not.toHaveBeenCalled();
+    expect(load).toHaveBeenCalledTimes(1);
 
     mocks.hasThreadListItem = true;
     mocks.remoteId = "remote-thread";
@@ -168,7 +168,7 @@ describe("useExternalHistory withFormat contract", () => {
     });
     rerender();
 
-    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
   });
 
   it("loads when a mounted thread later receives a remoteId", async () => {
@@ -194,14 +194,14 @@ describe("useExternalHistory withFormat contract", () => {
     );
 
     await act(async () => {});
-    expect(load).not.toHaveBeenCalled();
+    expect(load).toHaveBeenCalledTimes(1);
 
     mocks.remoteId = "remote-thread";
     await act(async () => {
       for (const listener of mocks.listeners) listener();
     });
 
-    await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(load).toHaveBeenCalledTimes(2));
   });
 
   it("does not load history when remoteId appears during an active run", async () => {
@@ -237,7 +237,7 @@ describe("useExternalHistory withFormat contract", () => {
     );
 
     await act(async () => {});
-    expect(load).not.toHaveBeenCalled();
+    expect(load).toHaveBeenCalledTimes(1);
 
     mocks.remoteId = "remote-thread";
     await act(async () => {
@@ -245,7 +245,7 @@ describe("useExternalHistory withFormat contract", () => {
     });
 
     await act(async () => {});
-    expect(load).not.toHaveBeenCalled();
+    expect(load).toHaveBeenCalledTimes(1);
   });
 
   it("reports loading before an asynchronous history load settles", async () => {

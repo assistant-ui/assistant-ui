@@ -29,7 +29,6 @@ const globalPersistence = new WeakMap<
 class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private cloudRef: RefObject<AssistantCloud>;
   private getAui: () => AssistantClient;
-  private persistenceByThreadId = new Map<string, CloudMessagePersistence>();
 
   constructor(
     cloudRef: RefObject<AssistantCloud>,
@@ -46,10 +45,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private getPersistence(
     threadListItem: CloudThreadListItem = this.aui.threadListItem,
   ): CloudMessagePersistence {
-    const threadId = threadListItem.getState().id;
-    const existing = this.persistenceByThreadId.get(threadId);
-    if (existing) return existing;
-
     const key = getClientId(threadListItem);
     if (!globalPersistence.has(key)) {
       globalPersistence.set(
@@ -57,40 +52,58 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         new CloudMessagePersistence(() => this.cloudRef.current),
       );
     }
-    const persistence = globalPersistence.get(key)!;
-    this.persistenceByThreadId.set(threadId, persistence);
-    return persistence;
+    return globalPersistence.get(key)!;
   }
 
   private get _persistence(): CloudMessagePersistence {
     return this.getPersistence();
   }
 
-  private getCurrentThreadListItem() {
-    const threadListItem = this.aui.threadListItem;
-    return this.aui.threads.item({ id: threadListItem.getState().id });
+  private tryGetKeyedThreadListItem(): CloudThreadListItem | undefined {
+    const live = this.aui.threadListItem;
+    if (!live.source) return undefined;
+    try {
+      const id = live.getState().id;
+      if (id === undefined) return undefined;
+      return this.aui.threads.item({ id });
+    } catch {
+      return undefined;
+    }
   }
 
   withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
     formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>,
   ): GenericThreadHistoryAdapter<TMessage> {
     const adapter = this;
-    const threadListItem = adapter.getCurrentThreadListItem();
-    const persistence = adapter.getPersistence(threadListItem);
+    let threadListItem: CloudThreadListItem | undefined;
+    const resolvePinned = () => {
+      if (!threadListItem) {
+        const next = adapter.tryGetKeyedThreadListItem();
+        if (next) threadListItem = next;
+      }
+      return threadListItem;
+    };
     const getFormatted = () =>
       createFormattedPersistence(adapter._persistence, formatAdapter);
-    const getTargetFormatted = () =>
-      createFormattedPersistence(persistence, formatAdapter);
+    const getTargetFormatted = (item: CloudThreadListItem) =>
+      createFormattedPersistence(adapter.getPersistence(item), formatAdapter);
     return {
-      // Note: callers must also call reportTelemetry() for run tracking
       async append(item: MessageFormatItem<TMessage>) {
-        const { remoteId } = await threadListItem.initialize();
-        await getTargetFormatted().append(remoteId, item);
+        const pinned = resolvePinned();
+        if (!pinned) return;
+        const remoteId =
+          pinned.getState().remoteId ?? (await pinned.initialize()).remoteId;
+        await getTargetFormatted(pinned).append(remoteId, item);
       },
       async update(item: MessageFormatItem<TMessage>, localMessageId: string) {
-        const remoteId = threadListItem.getState().remoteId;
-        if (!remoteId) return;
-        await getTargetFormatted().update?.(remoteId, item, localMessageId);
+        const pinned = resolvePinned();
+        const remoteId = pinned?.getState().remoteId;
+        if (!remoteId || !pinned) return;
+        await getTargetFormatted(pinned).update?.(
+          remoteId,
+          item,
+          localMessageId,
+        );
       },
       async delete() {
         throw new Error(
@@ -111,11 +124,16 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
           formatAdapter.format,
           encodedRunMessages,
           options,
-          threadListItem,
+          resolvePinned(),
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
-        const remoteId = adapter.aui.threadListItem.getState().remoteId;
+        const next = adapter.tryGetKeyedThreadListItem();
+        if (next?.getState().remoteId) {
+          threadListItem ??= next;
+        }
+        const live = adapter.aui.threadListItem;
+        const remoteId = live.source ? live.getState().remoteId : undefined;
         if (!remoteId) return { messages: [] };
         return getFormatted().load(remoteId);
       },
@@ -180,11 +198,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       durationMs?: number;
       stepTimestamps?: StepTimestamp[];
     },
-    threadListItem: CloudThreadListItem = this.aui.threadListItem,
+    threadListItem?: CloudThreadListItem,
   ) {
     if (!this.cloudRef.current.telemetry.enabled) return;
 
-    const remoteId = threadListItem.getState().remoteId;
+    const remoteId = (threadListItem ?? this.aui.threadListItem).getState()
+      .remoteId;
     if (!remoteId) return;
 
     const extracted = extractRunTelemetry(format, runMessages);

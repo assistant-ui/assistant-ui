@@ -143,6 +143,7 @@ export const useExternalHistory = <TMessage>(
 
     const remoteId = optionalThreadListItem()?.getState().remoteId;
     if (!remoteId) {
+      void formatAdapter.load();
       setHasLoaded(true);
       return aui.subscribe(() => {
         if (optionalThreadListItem()?.getState().remoteId) {
