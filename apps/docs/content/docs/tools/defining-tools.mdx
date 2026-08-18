@@ -194,6 +194,16 @@ The compiler also enforces, at build time:
 - a **frontend** tool declares a `render` or `renderText`;
 - a **human** tool declares a `render`.
 
+### Running without your own backend
+
+The client skips uploading frontend/human schemas because it assumes your backend imported the same toolkit and already knows them. When no server of yours does — for example, cloud-hosted runs — that assumption breaks and the model never learns about those tools. Set `uploadBackendDefaults` on `Tools` to upload every tool's full spec instead:
+
+```tsx
+const config = AuiConfig({ tools: Tools({ toolkit, uploadBackendDefaults: true }) });
+```
+
+This also applies to generative UI component libraries (`JSONGenerativeUI`), whose `present` schema is otherwise assumed to be known server-side.
+
 ## Tool kinds
 
 ### Backend tools
