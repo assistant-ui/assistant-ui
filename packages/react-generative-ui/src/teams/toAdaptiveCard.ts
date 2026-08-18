@@ -1,3 +1,4 @@
+import { takeRun } from "../convert/takeRun";
 import {
   normalizeSpec,
   type NormalizedUIElement,
@@ -729,32 +730,22 @@ export function convertSequence(
       continue;
     }
     if (isElement(current) && current.type === "Fact") {
-      const facts: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (!candidate || !isElement(candidate) || candidate.type !== "Fact") {
-          break;
-        }
-        facts.push(candidate);
-        index += 1;
-      }
+      const { run: facts, next } = takeRun(
+        nodes,
+        index,
+        (candidate) => candidate.type === "Fact",
+      );
+      index = next;
       emit([convertFacts(facts)]);
       continue;
     }
     if (isElement(current) && current.type === "Button") {
-      const buttons: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (
-          !candidate ||
-          !isElement(candidate) ||
-          candidate.type !== "Button"
-        ) {
-          break;
-        }
-        buttons.push(candidate);
-        index += 1;
-      }
+      const { run: buttons, next } = takeRun(
+        nodes,
+        index,
+        (candidate) => candidate.type === "Button",
+      );
+      index = next;
       emit([convertButtons(buttons, context)]);
       continue;
     }
