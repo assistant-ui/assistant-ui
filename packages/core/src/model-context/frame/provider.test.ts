@@ -125,7 +125,7 @@ describe("AssistantFrameProvider", () => {
     dispatchToolCancel("*");
 
     expect(toolSignal?.aborted).toBe(true);
-    await Promise.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
     expect(parentWindow.postMessage).not.toHaveBeenCalledWith(
       expect.objectContaining({
         message: expect.objectContaining({ type: "tool-result" }),
@@ -216,13 +216,26 @@ describe("AssistantFrameProvider", () => {
     AssistantFrameProvider.dispose();
 
     expect(toolSignal?.aborted).toBe(true);
-    await Promise.resolve();
-    expect(parentWindow.postMessage).not.toHaveBeenCalledWith(
-      expect.objectContaining({
-        message: expect.objectContaining({ type: "tool-result" }),
-      }),
-      expect.anything(),
+    expect(parentWindow.postMessage).toHaveBeenCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: {
+          type: "tool-result",
+          id: "tool-call-1",
+          error: "AssistantFrameProvider has been disposed",
+        },
+      },
+      { targetOrigin: "*" },
     );
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    const toolResults = vi
+      .mocked(parentWindow.postMessage)
+      .mock.calls.filter(
+        ([data]) =>
+          (data as { message?: { type?: string } }).message?.type ===
+          "tool-result",
+      );
+    expect(toolResults).toHaveLength(1);
   });
 
   it("upgrades a wildcard origin policy when a strict provider registers", async () => {

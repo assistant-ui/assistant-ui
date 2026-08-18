@@ -37,7 +37,10 @@ export class AssistantFrameProvider {
     ModelContextProvider,
     Unsubscribe | undefined
   >();
-  private _activeToolCalls = new Map<string, AbortController>();
+  private _activeToolCalls = new Map<
+    string,
+    { abortController: AbortController; event: MessageEvent }
+  >();
   private _targetOrigin: string;
   private _strictRegistrations = 0;
 
@@ -105,8 +108,9 @@ export class AssistantFrameProvider {
   ) {
     const tool = this.getModelContext().tools?.[message.toolName];
     const abortController = new AbortController();
-    this._activeToolCalls.get(message.id)?.abort();
-    this._activeToolCalls.set(message.id, abortController);
+    this._activeToolCalls.get(message.id)?.abortController.abort();
+    const activeCall = { abortController, event };
+    this._activeToolCalls.set(message.id, activeCall);
 
     let result: any;
     let error: string | undefined;
@@ -131,7 +135,7 @@ export class AssistantFrameProvider {
       }
     }
 
-    if (this._activeToolCalls.get(message.id) !== abortController) return;
+    if (this._activeToolCalls.get(message.id) !== activeCall) return;
     this._activeToolCalls.delete(message.id);
 
     this.sendMessage(event, {
@@ -142,10 +146,10 @@ export class AssistantFrameProvider {
   }
 
   private cancelToolCall(id: string) {
-    const abortController = this._activeToolCalls.get(id);
-    if (!abortController) return;
+    const activeCall = this._activeToolCalls.get(id);
+    if (!activeCall) return;
     this._activeToolCalls.delete(id);
-    abortController.abort();
+    activeCall.abortController.abort();
   }
 
   private sendMessage(event: MessageEvent, message: FrameMessage) {
@@ -226,7 +230,14 @@ export class AssistantFrameProvider {
       instance._providerUnsubscribes.forEach((unsubscribe) => unsubscribe?.());
       instance._providerUnsubscribes.clear();
       instance._providers.clear();
-      instance._activeToolCalls.forEach((controller) => controller.abort());
+      instance._activeToolCalls.forEach(({ abortController, event }, id) => {
+        abortController.abort();
+        instance.sendMessage(event, {
+          type: "tool-result",
+          id,
+          error: "AssistantFrameProvider has been disposed",
+        });
+      });
       instance._activeToolCalls.clear();
 
       AssistantFrameProvider._instance = null;
