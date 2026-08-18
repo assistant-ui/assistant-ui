@@ -17,7 +17,7 @@ interface GenerativeLoaderContext {
   resourcePath?: string;
   resourceQuery?: string;
   sourceMap?: boolean;
-  getOptions?(): { path?: string } | undefined;
+  getOptions?(): { path?: string; backendless?: boolean } | undefined;
   async(): (err: unknown, code?: string, map?: object | null) => void;
 }
 
@@ -120,6 +120,7 @@ export default function generativeLoader(
         target,
         filename: resourcePath,
         sourceMaps: this.sourceMap ?? false,
+        backendless: this.getOptions?.()?.backendless ?? false,
       });
       callback(null, code, map);
     } catch (error) {

@@ -194,6 +194,25 @@ The compiler also enforces, at build time:
 - a **frontend** tool declares a `render` or `renderText`;
 - a **human** tool declares a `render`.
 
+### Running without your own backend
+
+The client build skips uploading frontend/human schemas because it assumes your backend imported the same file's server build and already knows them. When no server of yours does — for example, cloud-hosted runs — that assumption breaks and the model never learns about those tools. Compile with the `backendless` option so the client keeps every schema uploadable, including the `present`/`prompt_user` schema of a `JSONGenerativeUI` component library:
+
+```ts title="next.config.ts"
+export default withAui({ ...yourConfig, aui: { backendless: true } });
+```
+
+```ts title="vite.config.ts"
+plugins: [aui({ backendless: true })];
+```
+
+```js title="metro.config.js"
+module.exports = withAui({
+  ...getDefaultConfig(__dirname),
+  aui: { backendless: true },
+});
+```
+
 ## Tool kinds
 
 ### Backend tools

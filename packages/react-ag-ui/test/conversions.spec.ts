@@ -1,10 +1,17 @@
 "use client";
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, expectTypeOf } from "vitest";
 import { z } from "zod";
-import { UserMessageSchema } from "@ag-ui/client";
-import { ExportedMessageRepository } from "@assistant-ui/core";
-import { fromAgUiMessages as publicFromAgUiMessages } from "../src";
+import { MessageSchema, UserMessageSchema, type Message } from "@ag-ui/client";
+import {
+  ExportedMessageRepository,
+  type AppendMessage,
+} from "@assistant-ui/core";
+import {
+  fromAgUiMessages as publicFromAgUiMessages,
+  toAgUiMessages as publicToAgUiMessages,
+  type AgUiMessage,
+} from "../src";
 import {
   fromAgUiMessages,
   toAgUiMessages,
@@ -41,6 +48,24 @@ describe("adapter conversions", () => {
       id: "call-1",
       function: { name: "search", arguments: '{"query":"x"}' },
     });
+  });
+
+  it("keeps system, developer, and reasoning roles and drops unknown ones", () => {
+    const result = toAgUiMessages([
+      { id: "s-1", role: "system", content: "Be brief" },
+      { id: "d-1", role: "developer", content: "Hidden" },
+      { id: "r-1", role: "reasoning", content: "hmm" },
+      { id: "x-1", role: "narrator", content: "Aside" },
+    ]);
+
+    expect(result).toEqual([
+      { id: "s-1", role: "system", content: "Be brief" },
+      { id: "d-1", role: "developer", content: "Hidden" },
+      { id: "r-1", role: "reasoning", content: "hmm" },
+    ]);
+    expect(result.map((message) => MessageSchema.parse(message))).toEqual(
+      result,
+    );
   });
 
   it("marks errored tool call results with error content", () => {
@@ -2486,6 +2511,20 @@ describe("a2ui surface rehydration from restored activity messages", () => {
 describe("package exports", () => {
   it("exposes fromAgUiMessages from the package root", () => {
     expect(publicFromAgUiMessages).toBe(fromAgUiMessages);
+  });
+
+  it("exposes toAgUiMessages from the package root", () => {
+    expect(publicToAgUiMessages).toBe(toAgUiMessages);
+  });
+
+  it("accepts an AppendMessage at the package root", () => {
+    expectTypeOf<AppendMessage>().toExtend<
+      Parameters<typeof publicToAgUiMessages>[0][number]
+    >();
+  });
+
+  it("emits AgUiMessage values assignable to AG-UI Message", () => {
+    expectTypeOf<AgUiMessage>().toExtend<Message>();
   });
 
   it("composes with ExportedMessageRepository.fromArray for history loading", () => {

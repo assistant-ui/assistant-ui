@@ -73,6 +73,25 @@ describe("createVoiceSession", () => {
     expect(controls.mute).not.toHaveBeenCalled();
   });
 
+  it("disconnects immediately when created with an already-aborted signal", async () => {
+    const abortController = new AbortController();
+    abortController.abort();
+    const setup = vi.fn(async () => ({
+      disconnect: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+    }));
+
+    const session = createVoiceSession(
+      { abortSignal: abortController.signal },
+      setup,
+    );
+    await Promise.resolve();
+
+    expect(setup).not.toHaveBeenCalled();
+    expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
+  });
+
   it("removes the abort listener after disconnecting", async () => {
     const abortController = new AbortController();
     const controls = {
