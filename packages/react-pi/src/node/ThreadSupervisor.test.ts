@@ -31,7 +31,8 @@ vi.mock("@earendil-works/pi-coding-agent", () => ({
   },
 }));
 
-vi.mock("node:fs/promises", () => ({
+vi.mock("node:fs/promises", async (importOriginal) => ({
+  ...(await importOriginal()),
   unlink: sdk.unlink,
 }));
 
