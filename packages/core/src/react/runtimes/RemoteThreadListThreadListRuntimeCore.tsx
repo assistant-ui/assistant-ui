@@ -17,8 +17,6 @@ import {
 import type {
   RemoteThreadListAdapter,
   RemoteThreadListOptions,
-  RemoteThreadListProviderComponent,
-  RuntimeAdapters,
 } from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
 import {
@@ -34,36 +32,6 @@ import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
-
-const synthesizedProviders = new WeakMap<
-  () => RuntimeAdapters | null | undefined,
-  ComponentType<PropsWithChildren>
->();
-
-const asProviderComponent = (
-  provider: RemoteThreadListProviderComponent | undefined,
-  useAdapters: RemoteThreadListAdapter["unstable_useAdapters"],
-): ComponentType<PropsWithChildren> => {
-  if (provider !== undefined) {
-    return provider as ComponentType<PropsWithChildren>;
-  }
-  if (useAdapters === undefined) return Fragment;
-  const cached = synthesizedProviders.get(useAdapters);
-  if (cached) return cached;
-  const AdapterProvider: FC<PropsWithChildren> = function AdapterProvider({
-    children,
-  }) {
-    const adapters = useAdapters();
-    if (adapters == null) return children;
-    return (
-      <RuntimeAdapterProvider adapters={adapters}>
-        {children}
-      </RuntimeAdapterProvider>
-    );
-  };
-  synthesizedProviders.set(useAdapters, AdapterProvider);
-  return AdapterProvider;
-};
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -102,6 +70,30 @@ export class RemoteThreadListThreadListRuntimeCore
     threadIdMap: {},
     threadData: {},
   });
+
+  private readonly _useAdaptersProvider: FC<PropsWithChildren> = ({
+    children,
+  }) => {
+    const useAdapters = this._options.adapter.unstable_useAdapters;
+    if (useAdapters === undefined) return children;
+    const adapters = useAdapters();
+    if (adapters == null) return children;
+    return (
+      <RuntimeAdapterProvider adapters={adapters}>
+        {children}
+      </RuntimeAdapterProvider>
+    );
+  };
+
+  private resolveProvider(
+    adapter: RemoteThreadListAdapter,
+  ): ComponentType<PropsWithChildren> {
+    if (adapter.unstable_Provider !== undefined) {
+      return adapter.unstable_Provider as ComponentType<PropsWithChildren>;
+    }
+    if (adapter.unstable_useAdapters === undefined) return Fragment;
+    return this._useAdaptersProvider;
+  }
 
   public get threadItems() {
     return this._state.value.threadData;
@@ -232,10 +224,7 @@ export class RemoteThreadListThreadListRuntimeCore
       this._notifySubscribers(),
     );
     this.useProvider = create(() => ({
-      Provider: asProviderComponent(
-        options.adapter.unstable_Provider,
-        options.adapter.unstable_useAdapters,
-      ),
+      Provider: this.resolveProvider(options.adapter),
     }));
     this.__internal_setOptions(options);
     this.switchToNewThread();
@@ -256,10 +245,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     this._options = options;
 
-    const Provider = asProviderComponent(
-      options.adapter.unstable_Provider,
-      options.adapter.unstable_useAdapters,
-    );
+    const Provider = this.resolveProvider(options.adapter);
     if (Provider !== this.useProvider.getState().Provider) {
       this.useProvider.setState({ Provider }, true);
     }
