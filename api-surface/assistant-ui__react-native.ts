@@ -790,7 +790,20 @@ declare const ChainOfThoughtByIndicesProvider: FC<PropsWithChildren<{
   endIndex: number;
 }>>;
 
-declare const ChainOfThoughtClient: any;
+declare const ChainOfThoughtClient: Resource<ClientOutput<"chainOfThought">, [
+  {
+    parts: readonly ChainOfThoughtPart[];
+    getMessagePart: (selector: {
+      index: number;
+    }) => PartMethods;
+  }
+]>;
+
+type ChainOfThoughtPart = Extract<PartState, {
+  type: "tool-call";
+} | {
+  type: "reasoning";
+}>;
 
 declare const ChainOfThoughtPartByIndexProvider: FC<PropsWithChildren<{
   index: number;
@@ -1230,7 +1243,8 @@ type DataPrefixedPart = {
   readonly data: any;
 };
 
-declare const DataRenderers: any;
+declare const DataRenderers: Resource<ClientOutput<"dataRenderers">, [
+]>;
 
 type DeepPartial<T> = T extends readonly any[] ? readonly DeepPartial<T[number]>[] : T extends {
   [key: string]: any;
@@ -1537,7 +1551,8 @@ type InteractableStateSchema = NonNullable<Extract<Tool, {
   parameters: unknown;
 }>["parameters"]>;
 
-declare const Interactables: any;
+declare const Interactables: Resource<ClientOutput<"interactables">, [
+]>;
 
 interface JSONSchema7 {
   $id?: string | undefined;
@@ -2213,7 +2228,8 @@ type MessagesContent = {
   components?: never;
 };
 
-declare const ModelContext: any;
+declare const ModelContext: Resource<ClientOutput<"modelContext">, [
+]>;
 
 type ModelContext$1 = {
   priority?: number | undefined;
@@ -2307,6 +2323,14 @@ type PartInit = {
   readonly name: string;
   readonly data: ReadonlyJSONValue;
   readonly parentId?: string;
+};
+
+type PartMethods = {
+  getState(): PartState;
+  addToolResult(result: unknown | ToolResponse<unknown>): void;
+  resumeToolCall(payload: unknown): void;
+  respondToToolApproval(response: ToolApprovalResponse): void;
+  __internal_getRuntime?(): MessagePartRuntime;
 };
 
 type PartProviderMetadata = {
@@ -2544,6 +2568,8 @@ type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<keyo
 type ReservedAccessorProps = "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
+
+type Resource<V, A extends readonly unknown[] = any[]> = (...args: A) => ResourceElement<V>;
 
 type ResourceElement<V> = {
   readonly hook: (...args: any[]) => V;
@@ -2800,7 +2826,9 @@ type SuggestionTriggerProps = Omit<PressableProps, "onPress"> & {
   clearComposer?: boolean | undefined;
 };
 
-declare const Suggestions: any;
+declare const Suggestions: Resource<ClientOutput<"suggestions">, [
+  suggestions?: SuggestionConfig[] | undefined
+]>;
 
 type SuggestionsComponentConfig = {
   Suggestion: ComponentType;
@@ -3839,7 +3867,12 @@ type ToolkitDefinitionInput<TArgs extends Record<string, unknown>, TResult> = Wi
   streamCall?: unknown;
 } ? OverrideToolDeclarationCallbacks<T, TArgs, TResult> : never : never, TArgs, TResult>;
 
-declare const Tools: any;
+declare const Tools: Resource<ClientOutput<"tools">, [
+  {
+    toolkit?: Toolkit;
+    mcpApp?: ResourceElement<McpAppResourceOutput> | undefined;
+  }
+]>;
 
 type ToolsState = {
   toolUIs: Record<string, readonly ToolRegistration[]>;
@@ -4178,7 +4211,9 @@ declare function tool<const TSchema extends StandardSchemaParameters, TResult = 
 
 declare function tool<TArgs extends Record<string, unknown>, TResult = any>(tool: Tool<TArgs, TResult>): Tool<TArgs, TResult>;
 
-declare const unstable_Interactables: any;
+declare const unstable_Interactables: Resource<ClientOutput<"unstable_interactables">, [
+  (Unstable_InteractablesConfig | undefined)?
+]>;
 
 declare function unstable_formatInteractableSnapshot(entry: Unstable_InteractableSnapshotEntry): string;
 
