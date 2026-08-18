@@ -62,6 +62,12 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
     const r = Math.min(cy - 10, 78);
     const share = Math.max(0, Math.min(1, value));
     const inRed = (at: number) => redline !== undefined && at >= redline;
+    const tickSize = Math.round(Math.max(6.6, r * 0.092) * 10) / 10;
+    const plateSize = needle
+      ? Math.round(Math.max(5.6, r * 0.072) * 10) / 10
+      : Math.round(Math.max(7.2, r * 0.096) * 10) / 10;
+    const valueSize = Math.round((needle ? r * 0.154 : r * 0.192) * 10) / 10;
+    const endSize = Math.round(Math.max(4.8, r * 0.064) * 10) / 10;
     return (
       <ChartSvg
         ref={ref}
@@ -133,7 +139,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
                   y={round(atEnd ? pl.y : pl.y + 1.4)}
                   textAnchor="middle"
                   {...T.axis}
-                  fontSize={4.8}
+                  fontSize={tickSize}
                   fill={inRed(tick.at) ? NEG : undefined}
                 >
                   {tick.label}
@@ -173,7 +179,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
           x="100"
           y={needle ? cy - 17 : cy - 9}
           textAnchor="middle"
-          fontSize={needle ? 12 : 15}
+          fontSize={valueSize}
           fill={ink(0.85)}
           fontFamily={T.value.fontFamily}
         >
@@ -186,7 +192,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
             textAnchor="middle"
             data-part="axis"
             {...T.label}
-            fontSize={needle ? 5.6 : 7.5}
+            fontSize={plateSize}
           >
             {label}
           </text>
@@ -198,7 +204,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
             textAnchor="middle"
             data-part="axis"
             {...T.axis}
-            fontSize={5}
+            fontSize={endSize}
           >
             {min}
           </text>
@@ -210,7 +216,7 @@ export const Gauge = forwardRef<SVGSVGElement, GaugeProps>(
             textAnchor="middle"
             data-part="axis"
             {...T.axis}
-            fontSize={5}
+            fontSize={endSize}
           >
             {max}
           </text>

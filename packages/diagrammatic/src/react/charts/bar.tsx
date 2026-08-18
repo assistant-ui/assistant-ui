@@ -1,17 +1,33 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Item, Tick } from "../../core/types";
+import type { Guide, Item, ScaleKind, Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
-import { linear, round, rowMarkH, rowMid, stroke } from "../../core/geometry";
+import {
+  positiveExtent,
+  project,
+  round,
+  rowMarkH,
+  rowMid,
+  stroke,
+} from "../../core/geometry";
 import { ACCENT, GRID, cat, ink } from "../../core/theme";
-import { ChartSvg, TickGrid, plotFrame, typeScale, vbHeight } from "../svg";
+import {
+  ChartSvg,
+  Guides,
+  TickGrid,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
 export type BarProps = BaseProps & {
   items: Item[];
   highlight?: "max" | string;
   categorical?: boolean;
+  xScale?: ScaleKind;
   xTicks?: readonly Tick[];
   target?: { at: number; label?: string };
+  guides?: readonly Guide[];
 };
 
 export const Bar = forwardRef<SVGSVGElement, BarProps>(
@@ -20,8 +36,10 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
       items,
       highlight = "max",
       categorical,
+      xScale = "linear",
       xTicks,
       target,
+      guides,
       format = formatCompact,
       title,
       aspect,
@@ -37,15 +55,19 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
       labels: Boolean(xTicks?.length),
       left: density === "figure" ? 50 : 44,
     });
-    const max = Math.max(
+    const xValues = [
       ...items.map((r) => r.value),
       ...(xTicks?.map((tick) => tick.at) ?? []),
       ...(target ? [target.at] : []),
-      1,
-    );
-    const X = linear(0, max, left, right - 16);
+      ...(guides?.filter((g) => (g.axis ?? "x") === "x").map((g) => g.at) ??
+        []),
+    ];
+    const [xLo, xHi] =
+      xScale === "log" ? positiveExtent(xValues) : [0, Math.max(...xValues, 1)];
+    const X = project(xScale, xLo, xHi, left, right - 16);
     const highest = Math.max(...items.map((r) => r.value));
     const rowH = (bottom - top) / Math.max(1, items.length);
+    const Y = (i: number) => top + (i + 0.5) * rowH;
     const barH = rowMarkH(rowH, 0.55);
     return (
       <ChartSvg
@@ -74,30 +96,31 @@ export const Bar = forwardRef<SVGSVGElement, BarProps>(
           labelAt={axisY}
           type={T.axis}
         />
-        {target && (
-          <g data-part="grid">
-            <line
-              x1={round(X(target.at))}
-              y1={top}
-              x2={round(X(target.at))}
-              y2={bottom}
-              stroke={ink(0.45)}
-              strokeDasharray="2.5 3"
-              {...stroke.hair}
-            />
-            {target.label && (
-              <text
-                x={round(X(target.at))}
-                y={top - 3}
-                textAnchor="middle"
-                {...T.axis}
-                fill={ink(0.8)}
-              >
-                {target.label}
-              </text>
-            )}
-          </g>
-        )}
+        <Guides
+          guides={[
+            ...(target
+              ? [
+                  {
+                    at: target.at,
+                    axis: "x" as const,
+                    ...(target.label ? { label: target.label } : {}),
+                  },
+                ]
+              : []),
+            ...(guides ?? []).map((g) => ({
+              at: g.at,
+              axis: g.axis ?? ("x" as const),
+              ...(g.label ? { label: g.label } : {}),
+            })),
+          ]}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
+        />
         {items.map((_, i) => (
           <rect
             key={`hit-${i}`}

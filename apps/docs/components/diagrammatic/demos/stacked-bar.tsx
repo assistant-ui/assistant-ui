@@ -53,7 +53,7 @@ export const examples: DemoExample[] = [
     title: "Daily tokens by model, seven weeks",
     setup:
       "The public usage page: daily token volume stacked by model, forty-nine thin bars. Totals first, mix second. Hover any day for the ledger.",
-    read: "pico's bottom band doubles in the last three weeks while atlas-0 thins in mirror. That is a migration, not a traffic spike. swift appears from nothing in late July and is already a visible slice by mid-August.",
+    read: "pico's bottom band doubles in the last three weeks while atlas-0 thins in mirror. That is a migration, not a traffic spike. The last five weekdays punch through the 70B cap. swift appears from nothing in late July and is already a visible slice by mid-August.",
     source: "Billed tokens per day, 1 Jul to 18 Aug.",
     chart: (
       <FigTooltip labels={DAYS} series={USAGE} unit="B" total>
@@ -71,6 +71,7 @@ export const examples: DemoExample[] = [
             { at: 40, label: "40" },
             { at: 80, label: "80" },
           ]}
+          guides={[{ at: 70, label: "cap 70B" }]}
         />
       </FigTooltip>
     ),

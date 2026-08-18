@@ -1,20 +1,21 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Tick } from "../../core/types";
+import type { Guide, ScaleKind, Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import {
   areaPath,
   bandPath,
   linePath,
-  linear,
+  positiveExtent,
+  project,
   round,
-  scalePoints,
   stroke,
 } from "../../core/geometry";
 import { GRID, ink } from "../../core/theme";
 import {
   AxisLabels,
   ChartSvg,
+  Guides,
   TickGrid,
   labelXs,
   plotFrame,
@@ -25,9 +26,11 @@ import {
 export type AreaProps = BaseProps & {
   data: number[];
   yMax?: number;
+  yScale?: ScaleKind;
   yTicks?: readonly Tick[];
   regions?: { from: number; to: number; label?: string }[];
   bands?: readonly { lower: number[]; upper: number[] }[];
+  guides?: readonly Guide[];
 };
 
 export const Area = forwardRef<SVGSVGElement, AreaProps>(
@@ -35,9 +38,11 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
     {
       data,
       yMax,
+      yScale = "linear",
       yTicks,
       regions,
       bands,
+      guides,
       labels,
       format = formatCompact,
       title,
@@ -54,16 +59,27 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
       labels: Boolean(labels),
       ticks: Boolean(yTicks?.length),
     });
-    const max =
-      yMax ??
-      Math.max(
-        ...data,
-        ...(bands?.flatMap((band) => [...band.lower, ...band.upper]) ?? []),
-        ...(yTicks?.map((tick) => tick.at) ?? []),
-        1,
-      );
-    const Y = linear(0, max, bottom, top);
-    const pts = scalePoints(data, left, right, bottom, top, 0, max);
+    const yValues = [
+      ...data,
+      ...(bands?.flatMap((band) => [...band.lower, ...band.upper]) ?? []),
+      ...(yTicks?.map((tick) => tick.at) ?? []),
+      ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
+        []),
+    ];
+    const [yLo, yHi0] =
+      yScale === "log" ? positiveExtent(yValues) : [0, Math.max(...yValues, 1)];
+    const yHi = yMax ?? yHi0;
+    const Y = project(yScale, yLo, yHi, bottom, top);
+    const along = (values: number[]) =>
+      values.map((v, i) => ({
+        x:
+          left +
+          (values.length > 1 ? (i / (values.length - 1)) * (right - left) : 0),
+        y: Y(v),
+      }));
+    const pts = along(data);
+    const X = (i: number) =>
+      left + (data.length > 1 ? (i / (data.length - 1)) * (right - left) : 0);
     const last = pts[pts.length - 1];
     const count = Math.max(1, data.length - 1);
     const span = right - left;
@@ -82,14 +98,21 @@ export const Area = forwardRef<SVGSVGElement, AreaProps>(
         {bands?.map((band, i) => (
           <path
             key={`band-${i}`}
-            d={bandPath(
-              scalePoints(band.upper, left, right, bottom, top, 0, max),
-              scalePoints(band.lower, left, right, bottom, top, 0, max),
-            )}
+            d={bandPath(along(band.upper), along(band.lower))}
             fill={ink(0.12 - Math.min(i, 2) * 0.03)}
             data-part="band"
           />
         ))}
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
+        />
         {regions?.map((region) => (
           <g
             key={`${region.from}-${region.to}`}

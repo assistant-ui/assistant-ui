@@ -1,4 +1,5 @@
 import { Sparkline } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 
 const VITALS = [
@@ -41,6 +42,16 @@ export const examples: DemoExample[] = [
       "A hosts list shows three vitals per machine in the width of a table cell: a word, a line, a number. The sparkline exists to fit exactly between them.",
     read: "cpu is trending up and just hit 86%. The shape is a climb, not a spike, which is a capacity plan, not a restart. The line is the verdict; the number is the evidence.",
     source: "Host api-2a, last eight 5-minute samples.",
-    chart: <Rows rows={VITALS} />,
+    chart: (
+      <FigTooltip
+        series={{
+          cpu: VITALS[0]!.data,
+          mem: VITALS[1]!.data,
+          req: VITALS[2]!.data,
+        }}
+      >
+        <Rows rows={VITALS} />
+      </FigTooltip>
+    ),
   },
 ];

@@ -50,6 +50,8 @@ export const examples: DemoExample[] = [
           points={BETS}
           xLabel="weeks of work"
           yLabel="reachable WAU (k)"
+          cutX={6}
+          cutY={50}
           quadrants={["ship now", "staff a bet", "later", "do not"]}
         />
       </FigTooltip>

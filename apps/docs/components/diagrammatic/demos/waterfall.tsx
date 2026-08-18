@@ -18,7 +18,7 @@ export const examples: DemoExample[] = [
     title: "ARR bridge, Q2",
     setup:
       "Start, four signed steps, end. Connectors and sign colors do the reading. $ millions.",
-    read: "New logos add 6.4. Expansion adds 3.1. Contraction and churn take 4.2 back. The quarter still closes 5.3 above where it opened. Churn is the slab the QBR will stay on.",
+    read: "New logos add 6.4. Expansion adds 3.1. Contraction and churn take 4.2 back. The quarter still closes 2.4 above the 45 plan. Churn is the slab the QBR will stay on.",
     source: "ARR roll-forward, Q2 2025. USD millions.",
     chart: (
       <FigTooltip
@@ -30,6 +30,12 @@ export const examples: DemoExample[] = [
           aspect={1.8}
           title="ARR bridge"
           steps={STEPS}
+          yTicks={[
+            { at: 40, label: "40" },
+            { at: 45, label: "45" },
+            { at: 50, label: "50" },
+          ]}
+          guides={[{ at: 45, label: "plan 45" }]}
           format={(v) => `${v < 0 ? "-" : ""}$${Math.abs(v).toFixed(1)}`}
         />
       </FigTooltip>

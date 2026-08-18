@@ -27,7 +27,7 @@ export const examples: DemoExample[] = [
     title: "Coffee futures around a frost report",
     setup:
       "A commodities desk replays the three weeks around Brazil's frost forecast hitting the wire. Seven quiet sessions, then the gap: Wednesday opens far above Tuesday's close, with no trading in between.",
-    read: "The gap up in week two is the news arriving overnight. Price moved while the market slept, and the empty space between Tuesday's close and Wednesday's open is the evidence. Two more green sessions ride the panic to the high; the fade after that is supply chains doing arithmetic.",
+    read: "The gap up in week two is the news arriving overnight, and it clears the 200¢ line the desk had treated as a ceiling. Price moved while the market slept. Two more green sessions ride the panic to the high; the fade after that is supply chains doing arithmetic.",
     source: "Exchange settlement, four weeks around the Brazil frost wire.",
     chart: (
       <FigTooltip
@@ -78,6 +78,7 @@ export const examples: DemoExample[] = [
             { at: 210, label: "210¢" },
             { at: 240, label: "240¢" },
           ]}
+          guides={[{ at: 200, label: "pre-frost 200¢" }]}
           data={[
             { open: 178, close: 180, low: 175, high: 183 },
             { open: 180, close: 179, low: 176, high: 184 },

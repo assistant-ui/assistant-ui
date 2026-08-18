@@ -1,14 +1,23 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
+import type { Guide, ScaleKind } from "../../core/types";
 import {
   areaPath,
   linePath,
+  positiveExtent,
+  project,
   round,
-  scalePoints,
   stroke,
 } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
-import { AxisLabels, ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
+import {
+  AxisLabels,
+  ChartSvg,
+  Guides,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
 export type HistogramProps = BaseProps & {
   bins: number[];
@@ -16,6 +25,8 @@ export type HistogramProps = BaseProps & {
   marker?: { at: number; label?: string };
   smooth?: boolean;
   cumulative?: boolean;
+  yScale?: ScaleKind;
+  guides?: readonly Guide[];
 };
 
 export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
@@ -26,6 +37,8 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
       marker,
       smooth,
       cumulative,
+      yScale = "linear",
+      guides,
       labels,
       title,
       aspect,
@@ -55,6 +68,14 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
         : compare
       : undefined;
     const max = cumulative ? 1 : Math.max(...shown, ...(shownCompare ?? []), 1);
+    const yValues = [
+      ...shown,
+      ...(shownCompare ?? []),
+      ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
+        []),
+    ];
+    const [yLo, yHi] = yScale === "log" ? positiveExtent(yValues) : [0, max];
+    const Y = project(yScale, yLo, yHi, bottom, top);
     const span = right - left;
     const width = span / Math.max(1, shown.length);
     const compareWidth = span / Math.max(1, shownCompare?.length ?? 0);
@@ -62,15 +83,19 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
       ? [
           `M${round(left)} ${round(bottom)}`,
           ...shownCompare.flatMap((value, i) => [
-            `V${round(bottom - (value / max) * (bottom - top))}`,
+            `V${round(Y(value))}`,
             `H${round(left + (i + 1) * compareWidth)}`,
           ]),
           `V${round(bottom)}`,
         ].join(" ")
       : null;
     const curve = smooth
-      ? scalePoints(shown, left, right, bottom, top, 0, max)
+      ? shown.map((v, i) => ({
+          x: left + (shown.length > 1 ? (i / (shown.length - 1)) * span : 0),
+          y: Y(v),
+        }))
       : null;
+    const X = (i: number) => left + (i / Math.max(1, shown.length)) * span;
     return (
       <ChartSvg
         ref={ref}
@@ -88,6 +113,16 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
+        />
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
         />
         {shown.map((_, i) => (
           <rect
@@ -121,9 +156,9 @@ export const Histogram = forwardRef<SVGSVGElement, HistogramProps>(
             <rect
               key={i}
               x={round(left + 2 + i * width)}
-              y={round(bottom - (v / max) * (bottom - top))}
+              y={round(Y(v))}
               width={round(width - 1.4)}
-              height={round((v / max) * (bottom - top))}
+              height={round(Math.max(0, bottom - Y(v)))}
               fill={ink(0.35)}
               data-part="mark"
               data-i={i}

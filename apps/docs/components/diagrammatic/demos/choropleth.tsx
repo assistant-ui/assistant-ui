@@ -1,4 +1,4 @@
-import { ABSTRACT_TILES, Choropleth } from "diagrammatic";
+import { ABSTRACT_TILES, Choropleth, HEX_TILES } from "diagrammatic";
 import type { DemoExample } from "./types";
 
 const RATES = ABSTRACT_TILES.map((tile) => {
@@ -32,6 +32,27 @@ export const examples: DemoExample[] = [
         aspect={1.7}
         title="Checkout errors per 1k sessions"
         values={RATES}
+        legendLabel="errors / 1k sessions"
+      />
+    ),
+  },
+  {
+    title: "Incident rate on a honeycomb map",
+    setup:
+      "Same rate as the square landmass, different cell. One region, one hex. Adjacency is approximate. This is not a hexbin.",
+    read: "The east cluster is still the dark one. Hexes keep the empty interior empty, so the rate does not smear into neighbours the way a choropleth of real coastlines would.",
+    source: "Checkout POST errors per 1k sessions, week of 11 Aug. HEX_TILES.",
+    chart: (
+      <Choropleth
+        density="figure"
+        aspect={1.7}
+        title="Incident rate by region"
+        tiles={HEX_TILES}
+        values={HEX_TILES.map((tile) => {
+          if (tile.col >= 8) return 16 + tile.row * 1.6;
+          if (tile.col <= 2) return 8 + tile.row;
+          return 3 + tile.row * 0.5;
+        })}
         legendLabel="errors / 1k sessions"
       />
     ),

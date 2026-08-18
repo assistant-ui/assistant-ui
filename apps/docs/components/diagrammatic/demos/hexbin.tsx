@@ -51,6 +51,8 @@ export const examples: DemoExample[] = [
         title="Friday-night pickups"
         points={PICKUPS}
         radius={6.4}
+        xLabel="east →"
+        yLabel="north"
       />
     ),
   },

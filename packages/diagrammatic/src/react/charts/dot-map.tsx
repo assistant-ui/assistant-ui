@@ -1,9 +1,10 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Tile } from "../../core/tiles";
-import { ABSTRACT_TILES, TILE_SIZE } from "../../core/tiles";
+import { ABSTRACT_TILES, tileJitter } from "../../core/tiles";
 import { ink } from "../../core/theme";
 import { ChartSvg, typeScale, vbHeight } from "../svg";
+import { TileMark } from "../tile-mark";
 
 export type DotMapProps = BaseProps & {
   counts: number[];
@@ -38,25 +39,21 @@ export const DotMap = forwardRef<SVGSVGElement, DotMapProps>(
         className={className}
       >
         {tiles.map((tile) => (
-          <rect
+          <TileMark
             key={`${tile.col}-${tile.row}`}
-            x={tile.x}
-            y={tile.y}
-            width={TILE_SIZE}
-            height="10.8"
+            tile={tile}
             fill={ink(0.06)}
             data-part="grid"
           />
         ))}
         {tiles.flatMap((tile, i) =>
           Array.from({ length: Math.max(0, counts[i] ?? 0) }, (_, k) => {
-            const jx = ((tile.col * 7 + tile.row * 13 + k * 29) % 8) + 1.2;
-            const jy = ((tile.col * 11 + tile.row * 5 + k * 17) % 7) + 1.6;
+            const at = tileJitter(tile, k);
             return (
               <circle
                 key={`${tile.col}-${tile.row}-${k}`}
-                cx={tile.x + jx}
-                cy={tile.y + jy}
+                cx={at.x}
+                cy={at.y}
                 r="1.1"
                 fill={ink(0.6)}
                 data-part="mark"

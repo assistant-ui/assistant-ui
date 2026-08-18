@@ -1,9 +1,10 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Tile } from "../../core/tiles";
-import { ABSTRACT_TILES, TILE_SIZE } from "../../core/tiles";
+import { ABSTRACT_TILES } from "../../core/tiles";
 import { ACCENT, seqOpacity } from "../../core/theme";
 import { ChartSvg, typeScale, vbHeight } from "../svg";
+import { TileMark } from "../tile-mark";
 
 export type ChoroplethProps = BaseProps & {
   values: number[];
@@ -39,12 +40,9 @@ export const Choropleth = forwardRef<SVGSVGElement, ChoroplethProps>(
         className={className}
       >
         {tiles.map((tile, i) => (
-          <rect
+          <TileMark
             key={`${tile.col}-${tile.row}`}
-            x={tile.x}
-            y={tile.y}
-            width={TILE_SIZE}
-            height="10.8"
+            tile={tile}
             fill={ACCENT}
             opacity={seqOpacity((values[i] ?? 0) / max)}
             data-part="mark"

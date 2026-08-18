@@ -2,8 +2,8 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import { hexPath, round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, SURFACE, cat, ink } from "../../core/theme";
-import { ChartSvg, TickGrid, typeScale, vbHeight } from "../svg";
-import type { Tick } from "../../core/types";
+import { ChartSvg, Guides, TickGrid, typeScale, vbHeight } from "../svg";
+import type { Guide, ScaleKind, Tick } from "../../core/types";
 import { scatterFrame } from "./scatter";
 
 type ConnectedPoint = { x: number; y: number; label?: string };
@@ -15,6 +15,9 @@ export type ConnectedScatterProps = BaseProps & {
   yLabel?: string;
   xTicks?: readonly Tick[];
   yTicks?: readonly Tick[];
+  xScale?: ScaleKind;
+  yScale?: ScaleKind;
+  guides?: readonly Guide[];
   reverseX?: boolean;
   refPoint?: {
     x: number;
@@ -95,6 +98,9 @@ export const ConnectedScatter = forwardRef<
       yLabel,
       xTicks,
       yTicks,
+      xScale,
+      yScale,
+      guides,
       reverseX,
       refPoint,
       title,
@@ -122,11 +128,16 @@ export const ConnectedScatter = forwardRef<
       x: [
         ...(xTicks?.map((tick) => tick.at) ?? []),
         ...(refPoint ? [refPoint.x] : []),
+        ...(guides?.filter((g) => g.axis === "x").map((g) => g.at) ?? []),
       ],
       y: [
         ...(yTicks?.map((tick) => tick.at) ?? []),
         ...(refPoint ? [refPoint.y] : []),
+        ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
+          []),
       ],
+      ...(xScale ? { xScale } : {}),
+      ...(yScale ? { yScale } : {}),
     });
     const X = reverseX ? (v: number) => left + right - XF(v) : XF;
     return (
@@ -165,6 +176,16 @@ export const ConnectedScatter = forwardRef<
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
+        />
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
         />
         {refPoint && (
           <g data-part="grid">

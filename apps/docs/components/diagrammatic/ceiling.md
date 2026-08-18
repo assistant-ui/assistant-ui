@@ -2,6 +2,8 @@
 
 This is the acceptance bar for a published figure on `/diagrammatic`. The wall of plates is a vocabulary. A detail page is a publication. Those are different jobs, and they no longer share one density or one definition of done.
 
+World coverage and the only ways a missing type may enter: [coverage.md](./coverage.md).
+
 A form is lifted when its first figure would sit next to the exemplars in a Cognition or OpenCode post without looking like a component gallery. Coverage (a story paragraph, a tooltip, a `Report` chrome) is not the bar.
 
 ## Exemplars
@@ -16,9 +18,9 @@ These three first figures are the contract. They are not finished publications; 
 
 Known gaps on the exemplars themselves (do not copy these):
 
-- Line still reads as a library card: axis type is too small, the region label is a whisper, there are no callouts on the curves.
-- Column's identity colors still need a printed footnote defining FrontierBench.
-- Gauge's nameplate defaults were sized for the wall, then patched. End tick labels had to be moved off the tick. The cluster is the figure.
+- Line fig 1 has mid-curve callouts and a target guide. Figure type is now 4.2 / 4.4 / 4.6.
+- Column fig 1 prints the FrontierBench definition in the source line.
+- Gauge tick labels size from the dial radius. The cluster no longer needs a CSS rescue.
 
 ## Surfaces
 
@@ -65,14 +67,14 @@ Rescored 2026-08-16 after the remaining sections were rewritten against this fil
 
 | Plate | Form | Verdict | First figure | Note |
 |---:|---|---|---|---|
-| 01 | Line | lifted | Training recipes with a regime band | FIG 1 only. Target envelope via `bands`. |
-| 02 | Area | lifted | Monsoon in millimetres, core banded | Figure density. Paper chrome removed. |
-| 03 | Stacked area | lifted | Grid mix across one day | 25 hourly samples. Terminal chrome removed. |
-| 04 | Streamgraph | lifted | Traffic around the v2 launch | Launch week is the swell. Listening-genre costume replaced. |
-| 05 | Mirrored area | lifted | Reservoir inflow and release | Figure density. Paper chrome removed. |
+| 01 | Line | lifted | Training recipes with a regime band | FIG 1 raised (callouts + target guide). FIG 2 Bode (log x). FIG 3 Kaplan-Meier (step + censor). |
+| 02 | Area | lifted | Monsoon in millimetres, core banded | Fill-stage guide at 200mm. |
+| 03 | Stacked area | lifted | Grid mix across one day | Evening-peak guide at 40 GW. |
+| 04 | Streamgraph | lifted | Traffic around the v2 launch | Launch week is a region band. |
+| 05 | Mirrored area | lifted | Reservoir inflow and release | Channel-rating guide at 40. |
 | 06 | Slope | lifted | Media time, 2020 against 2025 | Figure density. Paper chrome removed. |
 | 07 | Bump | lifted | Premier League table, first ten matchweeks | Framework-rank costume replaced. |
-| 08 | Candlestick | lifted | Coffee futures around a frost | Figure density. Paper chrome removed. |
+| 08 | Candlestick | lifted | Coffee futures around a frost | Pre-frost 200¢ guide. |
 | 09 | Horizon | lifted | Fleet load, eight hosts, one day | `series` rows. Single-band costume replaced. |
 | 10 | Gantt | lifted | Release plan with today | Square bars. AppCard chrome removed. |
 
@@ -81,26 +83,26 @@ Rescored 2026-08-16 after the remaining sections were rewritten against this fil
 | Plate | Form | Verdict | First figure | Note |
 |---:|---|---|---|---|
 | 11 | Bar | lifted | Median minutes to ack, ten rotations | Ranked, SLO at 15m. Library leaderboard gone. |
-| 12 | Column | exemplar | FrontierBench 1.1 | Keep FIG 1. |
-| 13 | Grouped bar | lifted | Incidents by severity, six quarters | Three series, six groups. Medal table gone. |
-| 14 | Stacked bar | lifted | Daily tokens by model, 49 days | Dense calendar. Normalized teach shot gone. |
-| 15 | Lollipop | lifted | Hours to first review, twelve repos | Dense category list. Caffeine gone. |
+| 12 | Column | exemplar | FrontierBench 1.1 | Keep FIG 1. Source line defines the metric. |
+| 13 | Grouped bar | lifted | Incidents by severity, six quarters | SEV-1 budget guide at 8. |
+| 14 | Stacked bar | lifted | Daily tokens by model, 49 days | Cap guide at 70B. |
+| 15 | Lollipop | lifted | Hours to first review, twelve repos | Same-day guide at 8h. |
 | 16 | Dot plot | lifted | Median salary by role, with n | Scale ticks and sample size on the label. |
-| 17 | Range bar | lifted | Closed offer bands | p25–p75 with a median tick. |
+| 17 | Range bar | lifted | Closed offer bands | FIG 2 forest plot uses `guides` at the null. |
 | 18 | Leaderboard | lifted | Top referrers, last 28 days | Ten rows including Other. |
 | — | Pictogram | fold | Off the wall | Waffle already counts units. Package export kept. |
 | — | Radial bar | fold | Off the wall | Progress ring and bar already do this. Package export kept. |
-| 19 | Polar area | lifted | Trauma arrivals by hour | Twenty-four sectors. Nightingale job, not wind rose costume. |
+| 19 | Polar area | lifted | Trauma arrivals by hour | FIG 2 is the wind rose. |
 
 ### Part to whole
 
 | Plate | Form | Verdict | First figure | Note |
 |---:|---|---|---|---|
-| 20 | Pie | lifted | FY25 cloud bill | Five slices, one dominant. No donut teach shot. |
+| 20 | Pie | lifted | FY25 cloud bill | Center total on FIG 1. |
 | 21 | Waffle | lifted | Last 100 production deploys | Countable operational share. |
 | 22 | Treemap | lifted | FY25 opex, three branches | Deep tree, fourteen leaves. |
 | 23 | Sunburst | lifted | Where 10.4k weekly sessions go | Two-ring drill path. |
-| 24 | Icicle | lifted | Checkout p95, 4.82s | Children sum to the handler. |
+| 24 | Icicle | lifted | Checkout p95, 4.82s | Three-deep leaves shown. |
 | 25 | Circle packing | lifted | Pages by service family | Membership plus size. |
 | 26 | Marimekko | lifted | Cloud spend, region by vendor | NA × AWS is the annotated cell. |
 | 27 | Funnel | lifted | Checkout, one Wednesday | Every stage labeled. Signup taper gone. |
@@ -109,8 +111,8 @@ Rescored 2026-08-16 after the remaining sections were rewritten against this fil
 
 | Plate | Form | Verdict | First figure | Note |
 |---:|---|---|---|---|
-| 28 | Histogram | lifted | Checkout POST, one Wednesday | Compare overlay is last week. `cumulative` is the running share. |
-| 29 | Box plot | lifted | Tool calls per run, n=28 | Raw points kept. Three-panel teach shot folded into one job. |
+| 28 | Histogram | lifted | Checkout POST, one Wednesday | Compare overlay is last week. Guides at 200ms and the 800ms SLO. |
+| 29 | Box plot | lifted | Tool calls per run, n=28 | Cost-line guide at 200. Raw points kept. |
 | 30 | Violin | lifted | Hours to first review, four teams | n on the label. Bimodal legacy. |
 | 31 | Ridgeline | lifted | San Francisco daily highs, 2024 | Twelve months. |
 | 32 | Beeswarm | lifted | Every March PR | 78 points, 62h flagged. |
@@ -121,14 +123,14 @@ Rescored 2026-08-16 after the remaining sections were rewritten against this fil
 
 | Plate | Form | Verdict | First figure | Note |
 |---:|---|---|---|---|
-| 34 | Scatter | lifted | SWE-bench against cost, sized by context | Named in the key. GDP costume gone. |
-| 35 | Connected scatter | lifted | Score against cost, families as threads | reverseX and refPoint stay in FIG 1. |
-| 36 | Hexbin | lifted | 3,100 Friday-night pickups | Two cores, empty cells kept. |
+| 34 | Scatter | lifted | SWE-bench against cost, sized by context | FIG 1 on log cost. FIG 2 volcano with cut guides. |
+| 35 | Connected scatter | lifted | Score against cost, families as threads | FIG 1 on log cost. reverseX and refPoint stay. |
+| 36 | Hexbin | lifted | 3,100 Friday-night pickups | Axis titles on the figure. |
 | 37 | Contour | lifted | Review hours against files | Rings labeled as σ levels in the source. |
 | 38 | Heatmap | lifted | Commits by weekday and hour | Punchcard (`mark="dot"`). Calendar is the second job. |
-| 39 | Quadrant | lifted | Q3 roadmap bets | Cuts land on 6 weeks and 50k WAU. |
+| 39 | Quadrant | lifted | Q3 roadmap bets | `cutX={6}` `cutY={50}` are data, not midpoints. |
 | 40 | Parallel coordinates | lifted | Ten on-call weeks | Crossings are the outage. |
-| 41 | Radar | lifted | Primary against secondary | Two profiles, axes ordered by burden. |
+| 41 | Radar | lifted | Primary against secondary | Third series is the designed envelope. |
 
 ### Deviation
 
@@ -136,16 +138,16 @@ Rescored 2026-08-16 after the remaining sections were rewritten against this fil
 |---:|---|---|---|---|
 | 42 | Diverging bar | lifted | Revenue against plan | Sorted by value. |
 | 43 | Diverging stacked | lifted | Would recommend, by team | Likert, n on the row, anchored on neutral. |
-| 44 | Dumbbell | lifted | LCP before and after the image CDN | Checkout is the barbell that points the wrong way. |
-| 45 | Difference area | lifted | Checkout POSTs against the Friday forecast | Shade flips the week of the sale. |
+| 44 | Dumbbell | lifted | LCP before and after the image CDN | 2.5s budget guide. Checkout points the wrong way. |
+| 45 | Difference area | lifted | Checkout POSTs against the Friday forecast | Sale-week region and 18k capacity guide. |
 
 ### Flow
 
 | Plate | Form | Verdict | First figure | Note |
 |---:|---|---|---|---|
-| 46 | Sankey | lifted | 114 TWh, sources to uses | Two columns still. N-column via topology or `group`. |
+| 46 | Sankey | lifted | 114 TWh, sources to uses | Three columns via `group`. |
 | 47 | Chord | lifted | On-call handoffs, one quarter | Circular because the teams page each other. |
-| 48 | Waterfall | lifted | ARR bridge, Q2 | Start, four signed steps, end. |
+| 48 | Waterfall | lifted | ARR bridge, Q2 | Plan guide at 45. |
 
 ### Networks and hierarchy
 
@@ -162,7 +164,7 @@ Rescored 2026-08-16 after the remaining sections were rewritten against this fil
 
 | Plate | Form | Verdict | First figure | Note |
 |---:|---|---|---|---|
-| 55 | Choropleth | lifted | Checkout errors per 1k sessions | Rate, with a usable legend. |
+| 55 | Choropleth | lifted | Checkout errors per 1k sessions | FIG 2 is HEX_TILES, not a new form. |
 | 56 | World map | lifted | Tokens per 1k weekly actives | Rate on real geography. Dotted variant gone. |
 | 57 | Symbol map | lifted | PoPs sized by egress | Size legend on the figure. |
 | 58 | Dot map | lifted | One dot = 50 weekly actives | Unit printed. |
@@ -179,7 +181,7 @@ Judged at word or tile size.
 | 62 | Win-loss | lifted | Arsenal, first eighteen league matches | Two named seasons. |
 | 63 | Bullet | lifted | Revenue and NPS against target | Bands named poor / ok / good. |
 | 64 | Progress ring | lifted | Ship, this quarter | One ring. |
-| 65 | Gauge | exemplar | Instrument cluster | Keep the cluster as FIG 1. |
+| 65 | Gauge | exemplar | Instrument cluster | Tick type follows radius. No CSS rescue. |
 | 66 | Split bar | lifted | Cache hits against origin errors | Three real links. |
 
 ## Counts
@@ -190,4 +192,4 @@ Judged at word or tile size.
 | lifted | 64 |
 | fold (off the wall, still exported) | 3 (pictogram, radial bar, strip plot) |
 
-The wall now holds 66 plates. Line is lifted and still the Change-over-time exemplar in spirit; Column and Gauge remain the pinned bar for comparison and instruments. `SmallMultiples` is a layout export, not a plate.
+The wall now holds 66 plates. Every FIG 1 uses the form's hardest shipped capability. Network, tree, venn, waffle, and the micro row-forms are complete because the projection itself is the hard move. Column and Gauge remain the pinned exemplars. `SmallMultiples` is a layout export, not a plate.

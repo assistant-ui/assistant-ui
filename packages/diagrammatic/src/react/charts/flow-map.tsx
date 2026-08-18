@@ -1,15 +1,11 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Tile } from "../../core/tiles";
-import {
-  ABSTRACT_TILES,
-  TILE_SIZE,
-  tileAt,
-  tileCenter,
-} from "../../core/tiles";
+import { ABSTRACT_TILES, tileAt, tileCenter } from "../../core/tiles";
 import { round } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
 import { ChartSvg, typeScale, vbHeight } from "../svg";
+import { TileMark } from "../tile-mark";
 
 export type FlowMapProps = BaseProps & {
   origin: { col: number; row: number; label?: string };
@@ -45,12 +41,9 @@ export const FlowMap = forwardRef<SVGSVGElement, FlowMapProps>(
         className={className}
       >
         {tiles.map((tile) => (
-          <rect
+          <TileMark
             key={`${tile.col}-${tile.row}`}
-            x={tile.x}
-            y={tile.y}
-            width={TILE_SIZE}
-            height="10.8"
+            tile={tile}
             fill={ink(0.08)}
             data-part="grid"
           />

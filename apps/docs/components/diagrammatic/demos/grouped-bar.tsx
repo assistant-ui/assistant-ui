@@ -24,7 +24,7 @@ export const examples: DemoExample[] = [
     title: "Incidents by severity, six quarters",
     setup:
       "The reliability review compares three severities inside each quarter. Grouping keeps SEV-1 against SEV-1; a stack would hide the only number the board quotes.",
-    read: "Q4 24 is the outage quarter: SEV-1 triples, SEV-2 follows. The next two quarters fall in lockstep, which is the on-call hiring landing, not seasonality. SEV-3 barely moves; the form's job is the tall red cluster, not the grey wall behind it.",
+    read: "Q4 24 is the outage quarter: SEV-1 triples past the budget of eight. The next two quarters fall back under the line, which is the on-call hiring landing, not seasonality. SEV-3 barely moves.",
     source: "Incident bot, production only. n = 486.",
     chart: (
       <FigTooltip
@@ -47,6 +47,7 @@ export const examples: DemoExample[] = [
             { at: 25, label: "25" },
             { at: 50, label: "50" },
           ]}
+          guides={[{ at: 8, label: "SEV-1 budget" }]}
         />
       </FigTooltip>
     ),

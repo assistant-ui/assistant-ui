@@ -69,7 +69,7 @@ export const examples: DemoExample[] = [
     title: "Tool calls per eval run, every point kept",
     setup:
       "Four models, twenty-eight runs each. The box is the summary; the dots are the argument. Small multiples would be a second job. This figure is the call count that decided the cost conversation.",
-    read: "swift's median is 298 and its tail clears 500. atlas-1 and nova finish the same suite with a third of the calls. quill sits in between and still has a 596 run. The dots make the tails countable people, not a whisker.",
+    read: "swift's median is 298 and sits above the 200-call cost line; its tail clears 500. atlas-1 and nova finish the same suite under the line. quill sits in between and still has a 596 run. The dots make the tails countable people, not a whisker.",
     source: "FrontierBench tool-use split. 28 runs per model.",
     chart: (
       <FigTooltip
@@ -92,6 +92,7 @@ export const examples: DemoExample[] = [
             { at: 400, label: "400" },
             { at: 600, label: "600" },
           ]}
+          guides={[{ at: 200, label: "cost line" }]}
           groups={TOOL}
         />
       </FigTooltip>

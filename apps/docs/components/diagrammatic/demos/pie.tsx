@@ -23,7 +23,7 @@ export const examples: DemoExample[] = [
     title: "FY25 cloud bill",
     setup:
       "Five slices, one dominant. The pie exists for a share you can point at, not a ranking of vendors.",
-    read: "Compute is 62% of $6.74m. Storage plus egress is still smaller than that one slice. The meeting is about idle GPU, not the observability line.",
+    read: "The hole says $6.74m. Compute is 62% of it. Storage plus egress is still smaller than that one slice. The meeting is about idle GPU, not the observability line.",
     source: "Cloud invoice rollup, FY25. Total $6.74m.",
     chart: (
       <FigTooltip
@@ -37,6 +37,9 @@ export const examples: DemoExample[] = [
           aspect={1.25}
           title="FY25 cloud spend"
           items={BILL}
+          inner={0.58}
+          center="$6.74m"
+          centerLabel="FY25"
           format={(v) => `$${(v / 1_000_000).toFixed(2)}m`}
         />
       </FigTooltip>

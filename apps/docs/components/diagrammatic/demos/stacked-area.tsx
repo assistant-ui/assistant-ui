@@ -34,7 +34,7 @@ export const examples: DemoExample[] = [
     title: "Grid generation mix across one day",
     setup:
       "A grid operator's dashboard shows the day's generation stacked by source, because demand must always equal the top edge. This is a sunny weekday in spring.",
-    read: "Solar swells through midday and gas fills the morning and evening shoulders around it. The duck-curve is the gas band's waist. Nuclear is a flat floor; wind ignores the sun. Demand is the top edge: it never dips when solar vanishes, so gas has to come back.",
+    read: "Solar swells through midday and gas fills the morning and evening shoulders around it. The 40 GW line is the evening peak: solar is already gone, so gas has to climb back. Nuclear is a flat floor; wind ignores the sun.",
     source: "Spring weekday, one control area. Gigawatts at the hour.",
     chart: (
       <FigTooltip
@@ -52,6 +52,7 @@ export const examples: DemoExample[] = [
             { at: 20, label: "20" },
             { at: 40, label: "40" },
           ]}
+          guides={[{ at: 40, label: "evening peak" }]}
           labels={[
             "00",
             "",

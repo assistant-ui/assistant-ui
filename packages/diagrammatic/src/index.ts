@@ -2,9 +2,11 @@ export type {
   Graph,
   GraphLink,
   GraphNode,
+  Guide,
   Item,
   Matrix,
   Pt,
+  ScaleKind,
   Series,
   Tick,
   TreeNode,
@@ -13,7 +15,7 @@ export { formatCompact } from "./core/types";
 export type { Density } from "./react/svg";
 export type { BaseProps, MicroBaseProps } from "./react/svg";
 export type { Tile } from "./core/tiles";
-export { ABSTRACT_TILES } from "./core/tiles";
+export { ABSTRACT_TILES, HEX_TILES } from "./core/tiles";
 
 export { Line, type LineMark, type LineProps } from "./react/charts/line";
 export { Area, type AreaProps } from "./react/charts/area";

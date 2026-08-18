@@ -8,6 +8,8 @@ export type QuadrantProps = BaseProps & {
   points: { x: number; y: number; label?: string }[];
   xLabel: string;
   yLabel: string;
+  cutX?: number;
+  cutY?: number;
   quadrants?: [string, string, string, string];
 };
 
@@ -17,6 +19,8 @@ export const Quadrant = forwardRef<SVGSVGElement, QuadrantProps>(
       points,
       xLabel,
       yLabel,
+      cutX,
+      cutY,
       quadrants,
       title,
       aspect,
@@ -31,8 +35,8 @@ export const Quadrant = forwardRef<SVGSVGElement, QuadrantProps>(
     const bottom = vh - 14;
     const [xLo, xHi] = extent(points.map((p) => p.x));
     const [yLo, yHi] = extent(points.map((p) => p.y));
-    const xMid = (xLo + xHi) / 2;
-    const yMid = (yLo + yHi) / 2;
+    const xMid = cutX ?? (xLo + xHi) / 2;
+    const yMid = cutY ?? (yLo + yHi) / 2;
     const X = (v: number) => 20 + ((v - xLo) / (xHi - xLo || 1)) * 160;
     const Y = (v: number) =>
       bottom - 8 - ((v - yLo) / (yHi - yLo || 1)) * (bottom - 26);

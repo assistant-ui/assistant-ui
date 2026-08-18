@@ -1,12 +1,13 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Tick } from "../../core/types";
+import type { Guide, Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { extent, linear, stroke } from "../../core/geometry";
 import { GRID, NEG, POS, ink } from "../../core/theme";
 import {
   AxisLabels,
   ChartSvg,
+  Guides,
   TickGrid,
   plotFrame,
   typeScale,
@@ -16,6 +17,7 @@ import {
 export type CandlestickProps = BaseProps & {
   data: { open: number; high: number; low: number; close: number }[];
   yTicks?: readonly Tick[];
+  guides?: readonly Guide[];
 };
 
 export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
@@ -23,6 +25,7 @@ export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
     {
       data,
       yTicks,
+      guides,
       labels,
       format = formatCompact,
       title,
@@ -43,10 +46,12 @@ export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
     const [lo, hi] = extent([
       ...data.flatMap((c) => [c.low, c.high]),
       ...(yTicks?.map((tick) => tick.at) ?? []),
+      ...(guides?.map((g) => g.at) ?? []),
     ]);
     const Y = linear(lo, hi, bottom, top);
     const step = (right - left) / Math.max(1, data.length);
     const xs = data.map((_, i) => left + step * (i + 0.5));
+    const X = (i: number) => left + step * (i + 0.5);
     const body = Math.min(9, step * 0.45);
     return (
       <ChartSvg
@@ -58,6 +63,16 @@ export const Candlestick = forwardRef<SVGSVGElement, CandlestickProps>(
         className={className}
       >
         <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
+        />
         {!yTicks?.length &&
           [lo, hi].map((v) => (
             <g key={v}>

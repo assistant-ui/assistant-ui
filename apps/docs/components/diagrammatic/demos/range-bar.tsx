@@ -47,9 +47,41 @@ export const examples: DemoExample[] = [
             { at: 125_000, label: "125k" },
             { at: 200_000, label: "200k" },
           ]}
+          guides={[{ at: 150_000, label: "staff floor" }]}
           format={(v) => `$${formatCompact(v)}`}
         />
       </FigTooltip>
+    ),
+  },
+  {
+    title: "Hazard ratio, eight trials",
+    setup:
+      "A forest of published estimates. Each row is a trial's hazard ratio with a 95% interval. The tick is the point estimate. The guide is no effect.",
+    read: "Six of eight sit left of 1. The pooled row at the bottom is 0.72, and its interval still clears the null. Trial D is the one that would flip a naive vote.",
+    source: "Investigator-assessed PFS, random-effects pool.",
+    chart: (
+      <RangeBar
+        density="figure"
+        aspect={1.35}
+        title="Hazard ratio vs control"
+        items={[
+          { label: "A", from: 0.48, to: 0.92, at: 0.66 },
+          { label: "B", from: 0.55, to: 1.05, at: 0.76 },
+          { label: "C", from: 0.41, to: 0.84, at: 0.59 },
+          { label: "D", from: 0.88, to: 1.46, at: 1.13 },
+          { label: "E", from: 0.52, to: 0.98, at: 0.71 },
+          { label: "F", from: 0.61, to: 1.12, at: 0.83 },
+          { label: "G", from: 0.44, to: 0.89, at: 0.63 },
+          { label: "pooled", from: 0.58, to: 0.89, at: 0.72 },
+        ]}
+        xTicks={[
+          { at: 0.5, label: "0.5" },
+          { at: 1, label: "1" },
+          { at: 1.5, label: "1.5" },
+        ]}
+        guides={[{ at: 1, label: "null" }]}
+        format={(v) => v.toFixed(2)}
+      />
     ),
   },
 ];

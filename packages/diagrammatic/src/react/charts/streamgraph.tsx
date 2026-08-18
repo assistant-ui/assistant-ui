@@ -2,7 +2,7 @@ import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
 import type { Series } from "../../core/types";
 import { bandPath, scalePoints } from "../../core/geometry";
-import { cat } from "../../core/theme";
+import { cat, ink } from "../../core/theme";
 import { stack } from "../../core/layout";
 import {
   ChartSvg,
@@ -13,10 +13,16 @@ import {
   vbHeight,
 } from "../svg";
 
-export type StreamgraphProps = BaseProps & { series: Series[] };
+export type StreamgraphProps = BaseProps & {
+  series: Series[];
+  regions?: { from: number; to: number; label?: string }[];
+};
 
 export const Streamgraph = forwardRef<SVGSVGElement, StreamgraphProps>(
-  ({ series, legend, title, aspect, density, className, ...rest }, ref) => {
+  (
+    { series, regions, legend, title, aspect, density, className, ...rest },
+    ref,
+  ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const T = typeScale(density);
     const showLegend = legend ?? series.length > 1;
@@ -41,6 +47,9 @@ export const Streamgraph = forwardRef<SVGSVGElement, StreamgraphProps>(
         max / 2,
       ),
     );
+    const n = Math.max(1, (series[0]?.data.length ?? 1) - 1);
+    const X = (i: number) =>
+      left + (Math.max(0, Math.min(n, i)) / n) * (right - left);
     return (
       <ChartSvg
         ref={ref}
@@ -50,6 +59,31 @@ export const Streamgraph = forwardRef<SVGSVGElement, StreamgraphProps>(
         density={density}
         className={className}
       >
+        {regions?.map((region) => (
+          <g
+            key={`${region.from}-${region.to}`}
+            data-part="region"
+            data-series={region.label}
+          >
+            <rect
+              x={X(region.from)}
+              y={mid - half}
+              width={Math.max(0, X(region.to) - X(region.from))}
+              height={half * 2}
+              fill={ink(density === "figure" ? 0.1 : 0.07)}
+            />
+            {region.label ? (
+              <text
+                x={X(region.from) + 2.5}
+                y={mid - half + 8}
+                {...T.axis}
+                fill={ink(0.7)}
+              >
+                {region.label}
+              </text>
+            ) : null}
+          </g>
+        ))}
         <ColumnHits
           count={series[0]?.data.length ?? 0}
           x0={left}

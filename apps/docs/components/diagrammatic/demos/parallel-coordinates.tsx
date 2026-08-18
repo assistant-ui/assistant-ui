@@ -1,4 +1,5 @@
 import { ParallelCoordinates } from "diagrammatic";
+import { FigTooltip } from "../fig-tooltip";
 import type { DemoExample } from "./types";
 
 const AXES = ["pages", "MTTA m", "MTTR h", "SEV-1", "after-hrs %"];
@@ -31,13 +32,24 @@ export const examples: DemoExample[] = [
     read: "W25 and W26 jump together on every axis; that is the checkout outage, not a mood. W32 is the quiet week after the inventory index. MTTA and after-hours move as one line, which is the staffing gap, not the software.",
     source: "On-call weekly rollup, W23 to W32 2025.",
     chart: (
-      <ParallelCoordinates
-        density="figure"
-        aspect={2}
-        title="On-call weeks"
-        axes={AXES}
-        records={WEEKS}
-      />
+      <FigTooltip
+        labels={WEEKS.map((row) => row.name)}
+        series={{
+          pages: WEEKS.map((row) => row.values[0]!),
+          "MTTA m": WEEKS.map((row) => row.values[1]!),
+          "MTTR h": WEEKS.map((row) => row.values[2]!),
+          "SEV-1": WEEKS.map((row) => row.values[3]!),
+          "after-hrs %": WEEKS.map((row) => row.values[4]!),
+        }}
+      >
+        <ParallelCoordinates
+          density="figure"
+          aspect={2}
+          title="On-call weeks"
+          axes={AXES}
+          records={WEEKS}
+        />
+      </FigTooltip>
     ),
   },
 ];

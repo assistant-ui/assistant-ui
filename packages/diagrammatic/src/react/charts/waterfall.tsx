@@ -1,18 +1,30 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
+import type { Guide, Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { linear, round, stroke } from "../../core/geometry";
 import { GRID, NEG, POS, ink } from "../../core/theme";
-import { ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
+import {
+  ChartSvg,
+  Guides,
+  TickGrid,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
 export type WaterfallProps = BaseProps & {
   steps: { label: string; value: number; total?: boolean }[];
+  yTicks?: readonly Tick[];
+  guides?: readonly Guide[];
 };
 
 export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
   (
     {
       steps,
+      yTicks,
+      guides,
       format = formatCompact,
       title,
       aspect,
@@ -26,6 +38,7 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
     const T = typeScale(density);
     const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
       labels: true,
+      ticks: Boolean(yTicks?.length),
     });
     let running = 0;
     const resolved = steps.map((step) => {
@@ -34,9 +47,15 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
       running = to;
       return { ...step, from, to };
     });
-    const max = Math.max(...resolved.flatMap((s) => [s.from, s.to]), 1);
+    const max = Math.max(
+      ...resolved.flatMap((s) => [s.from, s.to]),
+      ...(yTicks?.map((tick) => tick.at) ?? []),
+      ...(guides?.map((g) => g.at) ?? []),
+      1,
+    );
     const Y = linear(0, max, bottom, top);
     const step = (right - left) / Math.max(1, steps.length);
+    const X = (i: number) => left + step * (i + 0.5);
     const width = Math.min(17, step * 0.6);
     return (
       <ChartSvg
@@ -55,6 +74,17 @@ export const Waterfall = forwardRef<SVGSVGElement, WaterfallProps>(
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
+        />
+        <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
         />
         {resolved.map((entry, i) => {
           const x = left + step * (i + 0.5) - width / 2;

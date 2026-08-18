@@ -11,9 +11,11 @@ export const examples: DemoExample[] = [
     setup:
       "A car's dashboard is not one gauge, it is a cluster — so this figure composes three: the tachometer large in the center, speed and oil temperature small at its sides, each with its own ring, minors, and red zone. The dials are all data props (`ticks`, `minorTicks`, `redline`, `needle`); the cluster layout — and even the tick-label size, bumped with one CSS rule on the grid seam — is your own markup, because arranging instruments is composition, not a component.",
     read: "One glance, three readings: 172 on the speedo, the tach needle two major ticks shy of the 7.2k redline, and oil at 94° with headroom before its own red band. Every zone-crossing rule travels with each dial — red ticks past each limit, needles that flip red only when they cross — so the cluster stays readable at speed, which is the whole design brief of a dashboard.",
+    source: "Drivetrain telemetry, one lap. Speed, tach, oil.",
     chart: (
-      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[1.15fr_1.5fr_1.15fr] [&_[data-part=grid]_text]:[font-size:7.2px]">
+      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-[1.15fr_1.5fr_1.15fr]">
         <Gauge
+          density="figure"
           needle
           value={172 / 300}
           display="172"
@@ -29,6 +31,7 @@ export const examples: DemoExample[] = [
           ]}
         />
         <Gauge
+          density="figure"
           needle
           value={0.756}
           display="6.8k"
@@ -51,6 +54,7 @@ export const examples: DemoExample[] = [
           ]}
         />
         <Gauge
+          density="figure"
           needle
           value={0.57}
           display="94°"

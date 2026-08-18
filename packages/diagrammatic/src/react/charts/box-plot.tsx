@@ -1,9 +1,16 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Tick } from "../../core/types";
+import type { Guide, Tick } from "../../core/types";
 import { extent, linear, round, stroke } from "../../core/geometry";
 import { ACCENT, cat, ink } from "../../core/theme";
-import { ChartSvg, TickGrid, plotFrame, typeScale, vbHeight } from "../svg";
+import {
+  ChartSvg,
+  Guides,
+  TickGrid,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
 export type BoxPlotProps = BaseProps & {
   groups: {
@@ -17,6 +24,7 @@ export type BoxPlotProps = BaseProps & {
   }[];
   categorical?: boolean;
   yTicks?: readonly Tick[];
+  guides?: readonly Guide[];
 };
 
 function jitter(value: number, index: number): number {
@@ -26,7 +34,17 @@ function jitter(value: number, index: number): number {
 
 export const BoxPlot = forwardRef<SVGSVGElement, BoxPlotProps>(
   (
-    { groups, categorical, yTicks, title, aspect, density, className, ...rest },
+    {
+      groups,
+      categorical,
+      yTicks,
+      guides,
+      title,
+      aspect,
+      density,
+      className,
+      ...rest
+    },
     ref,
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
@@ -38,9 +56,11 @@ export const BoxPlot = forwardRef<SVGSVGElement, BoxPlotProps>(
     const [lo, hi] = extent([
       ...groups.flatMap((g) => [g.low, g.high, ...(g.points ?? [])]),
       ...(yTicks?.map((t) => t.at) ?? []),
+      ...(guides?.map((g) => g.at) ?? []),
     ]);
     const Y = linear(lo, hi, bottom, top);
     const step = (right - left) / Math.max(1, groups.length);
+    const X = (i: number) => left + step * (i + 0.5);
     const half = Math.min(14, step * 0.28);
     return (
       <ChartSvg
@@ -52,6 +72,16 @@ export const BoxPlot = forwardRef<SVGSVGElement, BoxPlotProps>(
         className={className}
       >
         <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
+        />
         {groups.map((box, i) => {
           const x = left + step * (i + 0.5);
           const color = categorical ? cat(i) : undefined;

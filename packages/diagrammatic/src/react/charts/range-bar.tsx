@@ -1,14 +1,22 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Tick } from "../../core/types";
+import type { Guide, Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { linear, round, rowMarkH, rowMid, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
-import { ChartSvg, TickGrid, plotFrame, typeScale, vbHeight } from "../svg";
+import {
+  ChartSvg,
+  Guides,
+  TickGrid,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
 export type RangeBarProps = BaseProps & {
   items: { label: string; from: number; to: number; at?: number }[];
   xTicks?: readonly Tick[];
+  guides?: readonly Guide[];
 };
 
 export const RangeBar = forwardRef<SVGSVGElement, RangeBarProps>(
@@ -16,6 +24,7 @@ export const RangeBar = forwardRef<SVGSVGElement, RangeBarProps>(
     {
       items,
       xTicks,
+      guides,
       format = formatCompact,
       title,
       aspect,
@@ -40,8 +49,12 @@ export const RangeBar = forwardRef<SVGSVGElement, RangeBarProps>(
       ...(xTicks?.map((tick) => tick.at) ?? []),
       lo + 1,
     );
-    const X = linear(lo, hi, left, right - 28);
+    const guideAts = guides?.map((g) => g.at) ?? [];
+    const xLo = Math.min(lo, ...guideAts);
+    const xHi = Math.max(hi, ...guideAts);
+    const X = linear(xLo, xHi, left, right - 28);
     const rowH = (bottom - top) / Math.max(1, items.length);
+    const Y = (i: number) => top + (i + 0.5) * rowH;
     const barH = rowMarkH(rowH, 0.42);
     return (
       <ChartSvg
@@ -59,6 +72,20 @@ export const RangeBar = forwardRef<SVGSVGElement, RangeBarProps>(
           to={bottom}
           axis="x"
           labelAt={axisY}
+          type={T.axis}
+        />
+        <Guides
+          guides={(guides ?? []).map((g) => ({
+            at: g.at,
+            axis: g.axis ?? ("x" as const),
+            ...(g.label ? { label: g.label } : {}),
+          }))}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
           type={T.axis}
         />
         {items.map((row, i) => {

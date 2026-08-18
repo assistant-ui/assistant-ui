@@ -1,14 +1,23 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Item } from "../../core/types";
+import type { Guide, Item, Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
 import { linear, stroke } from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
-import { ChartSvg, plotFrame, typeScale, vbHeight } from "../svg";
+import {
+  ChartSvg,
+  Guides,
+  TickGrid,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
 export type LollipopProps = BaseProps & {
   items: Item[];
   highlight?: "max" | string;
+  yTicks?: readonly Tick[];
+  guides?: readonly Guide[];
 };
 
 export const Lollipop = forwardRef<SVGSVGElement, LollipopProps>(
@@ -16,6 +25,8 @@ export const Lollipop = forwardRef<SVGSVGElement, LollipopProps>(
     {
       items,
       highlight = "max",
+      yTicks,
+      guides,
       format = formatCompact,
       title,
       aspect,
@@ -29,9 +40,17 @@ export const Lollipop = forwardRef<SVGSVGElement, LollipopProps>(
     const T = typeScale(density);
     const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
       labels: true,
+      ticks: Boolean(yTicks?.length),
     });
-    const max = Math.max(...items.map((r) => r.value), 1);
+    const yValues = [
+      ...items.map((r) => r.value),
+      ...(yTicks?.map((tick) => tick.at) ?? []),
+      ...(guides?.map((g) => g.at) ?? []),
+    ];
+    const max = Math.max(...yValues, 1);
     const Y = linear(0, max, bottom, top);
+    const X = (i: number) =>
+      left + ((right - left) / Math.max(1, items.length)) * (i + 0.5);
     const highest = Math.max(...items.map((r) => r.value));
     const step = (right - left) / Math.max(1, items.length);
     return (
@@ -51,6 +70,17 @@ export const Lollipop = forwardRef<SVGSVGElement, LollipopProps>(
           stroke={GRID}
           data-part="grid"
           {...stroke.hair}
+        />
+        <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
         />
         {items.map((row, i) => {
           const x = left + step * (i + 0.5);

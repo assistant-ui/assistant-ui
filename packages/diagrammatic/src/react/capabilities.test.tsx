@@ -3,18 +3,23 @@ import { describe, expect, it } from "vitest";
 import { Bar } from "./charts/bar";
 import { BoxPlot } from "./charts/box-plot";
 import { Candlestick } from "./charts/candlestick";
+import { Streamgraph } from "./charts/streamgraph";
 import { Column } from "./charts/column";
 import { Funnel } from "./charts/funnel";
 import { Gantt } from "./charts/gantt";
 import { Heatmap } from "./charts/heatmap";
+import { Quadrant } from "./charts/quadrant";
 import { Histogram } from "./charts/histogram";
 import { Horizon } from "./charts/horizon";
 import { Line } from "./charts/line";
+import { Lollipop } from "./charts/lollipop";
 import { RangeBar } from "./charts/range-bar";
 import { Sankey } from "./charts/sankey";
 import { Upset } from "./charts/upset";
 import { Violin } from "./charts/violin";
 import { Waterfall } from "./charts/waterfall";
+import { Choropleth } from "./charts/choropleth";
+import { HEX_TILES } from "../core/tiles";
 
 describe("ceiling capabilities", () => {
   it("Line renders yTicks grid with labels", () => {
@@ -40,7 +45,7 @@ describe("ceiling capabilities", () => {
       <Line density="figure" data={[1, 2, 3]} labels={["a", "b", "c"]} />,
     );
     expect(html).toContain('data-density="figure"');
-    expect(html).toContain('font-size="3.6"');
+    expect(html).toContain('font-size="4.2"');
   });
 
   it("Gantt keeps a usable bar height on a ten-row figure", () => {
@@ -97,7 +102,7 @@ describe("ceiling capabilities", () => {
       />,
     );
     expect(html).toContain('data-density="figure"');
-    expect(html).toContain('font-size="3.6"');
+    expect(html).toContain('font-size="4.2"');
     expect(html).toContain('stroke-dasharray="1.8 2.4"');
   });
 
@@ -292,6 +297,98 @@ describe("ceiling capabilities", () => {
     );
     expect((html.match(/<circle/g) ?? []).length).toBeGreaterThanOrEqual(4);
     expect(html).not.toContain("NaN");
+  });
+
+  it("Line log x places a decade mid-span", () => {
+    const html = renderToStaticMarkup(
+      <Line
+        xs={[10, 100, 1000]}
+        data={[1, 2, 3]}
+        xScale="log"
+        xTicks={[{ at: 100, label: "100Hz" }]}
+      />,
+    );
+    expect(html).toContain(">100Hz</text>");
+    expect(html).not.toContain("NaN");
+  });
+
+  it("Quadrant cuts land on supplied values", () => {
+    const html = renderToStaticMarkup(
+      <Quadrant
+        points={[
+          { x: 2, y: 80, label: "now" },
+          { x: 10, y: 20, label: "no" },
+        ]}
+        xLabel="weeks"
+        yLabel="reach"
+        cutX={6}
+        cutY={50}
+        quadrants={["a", "b", "c", "d"]}
+      />,
+    );
+    expect(html).toContain(">a</text>");
+    expect(html).not.toContain("NaN");
+  });
+
+  it("Candlestick guides stamp a price line", () => {
+    const html = renderToStaticMarkup(
+      <Candlestick
+        data={[{ open: 10, close: 12, low: 8, high: 20 }]}
+        guides={[{ at: 15, label: "cap" }]}
+      />,
+    );
+    expect(html).toContain('data-part="guide"');
+    expect(html).toContain(">cap</text>");
+  });
+
+  it("Streamgraph regions mark a launch window", () => {
+    const html = renderToStaticMarkup(
+      <Streamgraph
+        series={[{ name: "a", data: [1, 2, 3, 4] }]}
+        regions={[{ from: 1, to: 2, label: "launch" }]}
+      />,
+    );
+    expect(html).toContain('data-part="region"');
+    expect(html).toContain(">launch</text>");
+  });
+
+  it("Lollipop guides stamp a same-day line", () => {
+    const html = renderToStaticMarkup(
+      <Lollipop
+        items={[{ label: "a", value: 12 }]}
+        guides={[{ at: 8, label: "same day" }]}
+      />,
+    );
+    expect(html).toContain('data-part="guide"');
+    expect(html).toContain(">same day</text>");
+  });
+
+  it("Line guides stamp data-part=guide", () => {
+    const html = renderToStaticMarkup(
+      <Line data={[10, 20, 30]} guides={[{ at: 15, label: "SLO" }]} />,
+    );
+    expect(html).toContain('data-part="guide"');
+    expect(html).toContain(">SLO</text>");
+  });
+
+  it("Line censor marks are ticks, not labeled dots", () => {
+    const html = renderToStaticMarkup(
+      <Line
+        step
+        data={[1, 0.8, 0.8, 0.5]}
+        marks={[{ at: 2, kind: "censor" }]}
+      />,
+    );
+    expect(html).toContain("<line");
+    expect(html).not.toContain(">censor</text>");
+  });
+
+  it("Choropleth hex tiles draw paths", () => {
+    const html = renderToStaticMarkup(
+      <Choropleth tiles={HEX_TILES} values={HEX_TILES.map((_, i) => i + 1)} />,
+    );
+    expect(html).toContain("<path");
+    expect(html).toContain('data-part="mark"');
   });
 
   it("BoxPlot jitters raw points deterministically", () => {

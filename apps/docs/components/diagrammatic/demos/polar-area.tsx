@@ -39,4 +39,36 @@ export const examples: DemoExample[] = [
       </FigTooltip>
     ),
   },
+  {
+    title: "Wind rose, one harbour year",
+    setup:
+      "Sixteen compass sectors. Radius is hours the wind sat in that sector. This is the same PolarArea as the trauma clock, pointed at a compass.",
+    read: "The south-west arm is the prevailing weather. The north-east notch is the headland. A ranking bar would hide that this is a direction, not a league table.",
+    source: "Harbour anemometer, 2024. Hours per 22.5° sector.",
+    chart: (
+      <PolarArea
+        density="figure"
+        aspect={1.15}
+        title="Wind hours by sector"
+        items={[
+          { label: "N", value: 280 },
+          { label: "NNE", value: 190 },
+          { label: "NE", value: 140 },
+          { label: "ENE", value: 210 },
+          { label: "E", value: 320 },
+          { label: "ESE", value: 410 },
+          { label: "SE", value: 520 },
+          { label: "SSE", value: 610 },
+          { label: "S", value: 740 },
+          { label: "SSW", value: 890 },
+          { label: "SW", value: 980 },
+          { label: "WSW", value: 760 },
+          { label: "W", value: 540 },
+          { label: "WNW", value: 360 },
+          { label: "NW", value: 290 },
+          { label: "NNW", value: 250 },
+        ]}
+      />
+    ),
+  },
 ];

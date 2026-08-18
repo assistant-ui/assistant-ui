@@ -1,4 +1,6 @@
-import type { Pt } from "./types";
+import type { Pt, ScaleKind } from "./types";
+
+export type { ScaleKind };
 
 export function round(n: number): number {
   return Math.round(n * 100) / 100;
@@ -16,6 +18,32 @@ export function linear(
 ) {
   const span = domain1 - domain0 || 1;
   return (v: number) => range0 + ((v - domain0) / span) * (range1 - range0);
+}
+
+/** Maps a value through linear or log paper. Log clamps non-positive input to a tiny positive floor so the scale stays defined. */
+export function project(
+  kind: ScaleKind,
+  domain0: number,
+  domain1: number,
+  range0: number,
+  range1: number,
+) {
+  if (kind === "log") {
+    const d0 = Math.log(Math.max(domain0, Number.EPSILON));
+    const d1 = Math.log(Math.max(domain1, Number.EPSILON));
+    const span = d1 - d0 || 1;
+    return (v: number) =>
+      range0 +
+      ((Math.log(Math.max(v, Number.EPSILON)) - d0) / span) * (range1 - range0);
+  }
+  return linear(domain0, domain1, range0, range1);
+}
+
+/** Extent of strictly positive values; falls back to [1, 10] when none exist. */
+export function positiveExtent(values: number[]): [number, number] {
+  const pos = values.filter((v) => v > 0);
+  if (pos.length === 0) return [1, 10];
+  return extent(pos);
 }
 
 export function rowMid(index: number, rowH: number, top: number): number {

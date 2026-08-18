@@ -93,7 +93,7 @@ export const examples: DemoExample[] = [
           density="figure"
           aspect={1.7}
           title="Checkout p95 by call"
-          depth={2}
+          depth={3}
           root={ROOT}
         />
       </FigTooltip>

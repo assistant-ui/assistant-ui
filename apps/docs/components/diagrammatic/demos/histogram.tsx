@@ -33,6 +33,10 @@ export const examples: DemoExample[] = [
           bins={BINS}
           compare={LAST_WEEK}
           marker={{ at: 6.8, label: "median 392ms" }}
+          guides={[
+            { at: 4, axis: "x", label: "200ms" },
+            { at: 16, axis: "x", label: "SLO 800ms" },
+          ]}
           labels={["0", "200", "400", "600", "800"]}
         />
       </FigTooltip>

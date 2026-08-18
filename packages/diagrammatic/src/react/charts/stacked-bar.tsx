@@ -1,12 +1,13 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Series, Tick } from "../../core/types";
+import type { Guide, Series, Tick } from "../../core/types";
 import { linear, round, stroke } from "../../core/geometry";
 import { GRID, cat } from "../../core/theme";
 import {
   AxisLabels,
   ChartSvg,
   Legend,
+  Guides,
   TickGrid,
   plotFrame,
   typeScale,
@@ -18,6 +19,7 @@ export type StackedBarProps = BaseProps & {
   series: Series[];
   normalize?: boolean;
   yTicks?: readonly Tick[];
+  guides?: readonly Guide[];
 };
 
 export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
@@ -27,6 +29,7 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
       series,
       normalize,
       yTicks,
+      guides,
       legend,
       title,
       aspect,
@@ -52,10 +55,12 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
     const max = Math.max(
       ...totals,
       ...(yTicks?.map((tick) => tick.at) ?? []),
+      ...(guides?.map((g) => g.at) ?? []),
       1,
     );
     const Y = linear(0, max, plotBottom, top);
     const step = (right - left) / Math.max(1, groups.length);
+    const X = (i: number) => left + step * (i + 0.5);
     const width = Math.min(20, step * 0.55);
     const centers = groups.map((_, g) => left + step * (g + 0.5));
     return (
@@ -77,6 +82,16 @@ export const StackedBar = forwardRef<SVGSVGElement, StackedBarProps>(
           {...stroke.hair}
         />
         <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={plotBottom}
+          type={T.axis}
+        />
         {showLegend && (
           <Legend
             names={series.map((s) => s.name)}

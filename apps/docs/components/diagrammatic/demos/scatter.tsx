@@ -17,6 +17,29 @@ const MODELS = [
   { x: 8.2, y: 47.0, size: 400, label: "ridge" },
 ];
 
+const VOLCANO = [
+  { x: -2.4, y: 8.1 },
+  { x: -1.8, y: 4.2 },
+  { x: -1.1, y: 2.1 },
+  { x: -0.6, y: 1.0 },
+  { x: -0.3, y: 0.6 },
+  { x: 0.1, y: 0.4 },
+  { x: 0.4, y: 0.8 },
+  { x: 0.8, y: 1.6 },
+  { x: 1.2, y: 3.4 },
+  { x: 1.7, y: 6.8 },
+  { x: 2.2, y: 9.4 },
+  { x: 2.6, y: 11.2 },
+  { x: -0.9, y: 0.5 },
+  { x: 0.2, y: 1.1 },
+  { x: 1.4, y: 2.0 },
+  { x: -2.1, y: 1.8 },
+  { x: 0.6, y: 0.3 },
+  { x: -0.2, y: 2.4 },
+  { x: 1.9, y: 4.1 },
+  { x: -1.5, y: 3.1 },
+];
+
 export const glyph = (
   <Scatter
     title="Score against cost"
@@ -48,12 +71,13 @@ export const examples: DemoExample[] = [
             aspect={1.7}
             title="SWE-bench against cost"
             points={MODELS}
+            xScale="log"
             xLabel="$ / M output tokens"
             yLabel="SWE-bench Verified"
             xTicks={[
+              { at: 0.3, label: "$0.30" },
               { at: 1, label: "$1" },
               { at: 4, label: "$4" },
-              { at: 8, label: "$8" },
               { at: 12, label: "$12" },
             ]}
             yTicks={[
@@ -71,6 +95,38 @@ export const examples: DemoExample[] = [
           </ul>
         </div>
       </FigTooltip>
+    ),
+  },
+  {
+    title: "Differential expression, one contrast",
+    setup:
+      "A volcano. X is log2 fold change. Y is −log10 p. The guides are the cuts the lab actually used, not decoration.",
+    read: "Two genes clear both cuts on the right. The left arm is quieter. Everything in the grey middle is real biology that this experiment was not powered to name.",
+    source: "RNA-seq, treated vs vehicle. n = 6+6. Wald test.",
+    chart: (
+      <Scatter
+        density="figure"
+        aspect={1.55}
+        title="Treated vs vehicle"
+        points={VOLCANO}
+        xLabel="log2 fold change"
+        yLabel={"−log10 p"}
+        xTicks={[
+          { at: -2, label: "−2" },
+          { at: 0, label: "0" },
+          { at: 2, label: "2" },
+        ]}
+        yTicks={[
+          { at: 1.3, label: "0.05" },
+          { at: 5, label: "1e-5" },
+          { at: 10, label: "1e-10" },
+        ]}
+        guides={[
+          { at: 1.3, label: "p = 0.05" },
+          { at: -1, axis: "x", label: "−2×" },
+          { at: 1, axis: "x", label: "2×" },
+        ]}
+      />
     ),
   },
 ];

@@ -22,7 +22,7 @@ export const examples: DemoExample[] = [
     title: "Actual requests against the Friday forecast",
     setup:
       "Thirty weekdays of checkout POSTs. The interesting number is the gap, not either line.",
-    read: "The shade flips in the third week, the day the sale started. After that the green wedge is capacity we did not buy. The July crossover on the old revenue costume is gone; this is the week the queue backed up.",
+    read: "The shade flips in the sale week and punches through the 18k capacity line. After that the green wedge is queue we did not buy. The forecast never moved; the people did.",
     source:
       "Checkout POST per day versus the Friday forecast. 7 Jul to 15 Aug.",
     chart: (
@@ -64,6 +64,8 @@ export const examples: DemoExample[] = [
             { at: 18, label: "18k" },
             { at: 24, label: "24k" },
           ]}
+          guides={[{ at: 18, label: "capacity 18k" }]}
+          regions={[{ from: 10, to: 15, label: "sale week" }]}
           actual={{
             name: "actual",
             data: [

@@ -1,6 +1,6 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Series, Tick } from "../../core/types";
+import type { Guide, Series, Tick } from "../../core/types";
 import {
   bandPath,
   linePath,
@@ -13,6 +13,7 @@ import {
   AxisLabels,
   ChartSvg,
   ColumnHits,
+  Guides,
   TickGrid,
   plotFrame,
   typeScale,
@@ -23,6 +24,8 @@ export type DifferenceAreaProps = BaseProps & {
   actual: Series;
   reference: Series;
   yTicks?: readonly Tick[];
+  guides?: readonly Guide[];
+  regions?: { from: number; to: number; label?: string }[];
 };
 
 export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
@@ -31,6 +34,8 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
       actual,
       reference,
       yTicks,
+      guides,
+      regions,
       labels,
       title,
       aspect,
@@ -51,9 +56,13 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
       ...actual.data,
       ...reference.data,
       ...(yTicks?.map((tick) => tick.at) ?? []),
+      ...(guides?.map((g) => g.at) ?? []),
       1,
     );
     const Y = linear(0, max, bottom, top);
+    const count = Math.max(1, actual.data.length - 1);
+    const X = (i: number) =>
+      left + (Math.max(0, Math.min(count, i)) / count) * (right - left);
     const a = scalePoints(actual.data, left, right, bottom, top, 0, max);
     const b = scalePoints(reference.data, left, right, bottom, top, 0, max);
     const above = a.map((p, i) => ({ x: p.x, y: Math.min(p.y, b[i]!.y) }));
@@ -68,6 +77,36 @@ export const DifferenceArea = forwardRef<SVGSVGElement, DifferenceAreaProps>(
         className={className}
       >
         <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
+        {regions?.map((region) => (
+          <g
+            key={`${region.from}-${region.to}`}
+            data-part="region"
+            data-series={region.label}
+          >
+            <rect
+              x={X(region.from)}
+              y={top}
+              width={Math.max(0, X(region.to) - X(region.from))}
+              height={bottom - top}
+              fill={ink(density === "figure" ? 0.09 : 0.06)}
+            />
+            {region.label ? (
+              <text x={X(region.from) + 2.5} y={top + 6} {...T.label}>
+                {region.label}
+              </text>
+            ) : null}
+          </g>
+        ))}
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
+        />
         <ColumnHits
           count={actual.data.length}
           x0={left}

@@ -1,17 +1,33 @@
 import type { BaseProps, Density } from "../svg";
 import { forwardRef } from "react";
-import type { Pt, Tick } from "../../core/types";
-import { extent, linear, round, stroke } from "../../core/geometry";
+import type { Guide, Pt, ScaleKind, Tick } from "../../core/types";
+import {
+  extent,
+  positiveExtent,
+  project,
+  round,
+  stroke,
+} from "../../core/geometry";
 import { ACCENT, GRID, ink } from "../../core/theme";
-import { ChartSvg, TickGrid, plotFrame, typeScale, vbHeight } from "../svg";
+import {
+  ChartSvg,
+  Guides,
+  TickGrid,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
 export type ScatterProps = BaseProps & {
   points: { x: number; y: number; size?: number; label?: string }[];
   trend?: boolean;
   xLabel?: string;
   yLabel?: string;
+  xScale?: ScaleKind;
+  yScale?: ScaleKind;
   xTicks?: readonly Tick[];
   yTicks?: readonly Tick[];
+  guides?: readonly Guide[];
 };
 
 export function scatterFrame(
@@ -21,6 +37,8 @@ export function scatterFrame(
   extra?: {
     x?: readonly number[] | undefined;
     y?: readonly number[] | undefined;
+    xScale?: ScaleKind;
+    yScale?: ScaleKind;
   },
 ) {
   const { left, right, top, bottom, axisY } = plotFrame(vh, density, {
@@ -28,16 +46,24 @@ export function scatterFrame(
     ticks: true,
     left: density === "figure" ? 24 : 20,
   });
-  const [xLo, xHi] = extent([...points.map((p) => p.x), ...(extra?.x ?? [])]);
-  const [yLo, yHi] = extent([...points.map((p) => p.y), ...(extra?.y ?? [])]);
+  const xScale = extra?.xScale ?? "linear";
+  const yScale = extra?.yScale ?? "linear";
+  const xValues = [...points.map((p) => p.x), ...(extra?.x ?? [])];
+  const yValues = [...points.map((p) => p.y), ...(extra?.y ?? [])];
+  const [xLo, xHi] =
+    xScale === "log" ? positiveExtent(xValues) : extent(xValues);
+  const [yLo, yHi] =
+    yScale === "log" ? positiveExtent(yValues) : extent(yValues);
   return {
-    X: linear(xLo, xHi, left, right),
-    Y: linear(yLo, yHi, bottom, top),
+    X: project(xScale, xLo, xHi, left, right),
+    Y: project(yScale, yLo, yHi, bottom, top),
     left,
     right,
     top,
     bottom,
     axisY,
+    xScale,
+    yScale,
   };
 }
 
@@ -48,8 +74,11 @@ export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
       trend,
       xLabel,
       yLabel,
+      xScale,
+      yScale,
       xTicks,
       yTicks,
+      guides,
       title,
       aspect,
       density,
@@ -60,15 +89,29 @@ export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
   ) => {
     const vh = vbHeight(aspect, 5 / 3);
     const T = typeScale(density);
-    const { X, Y, left, right, top, bottom, axisY } = scatterFrame(
-      points,
-      vh,
-      density,
-      {
-        x: xTicks?.map((tick) => tick.at),
-        y: yTicks?.map((tick) => tick.at),
-      },
-    );
+    const {
+      X,
+      Y,
+      left,
+      right,
+      top,
+      bottom,
+      axisY,
+      xScale: xs,
+      yScale: ys,
+    } = scatterFrame(points, vh, density, {
+      x: [
+        ...(xTicks?.map((tick) => tick.at) ?? []),
+        ...(guides?.filter((g) => g.axis === "x").map((g) => g.at) ?? []),
+      ],
+      y: [
+        ...(yTicks?.map((tick) => tick.at) ?? []),
+        ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
+          []),
+      ],
+      ...(xScale ? { xScale } : {}),
+      ...(yScale ? { yScale } : {}),
+    });
     const sized = points.some((p) => p.size !== undefined);
     const maxSize = Math.max(...points.map((p) => p.size ?? 0), 1);
     const n = points.length || 1;
@@ -115,7 +158,17 @@ export const Scatter = forwardRef<SVGSVGElement, ScatterProps>(
           data-part="grid"
           {...stroke.hair}
         />
-        {trend && (
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
+        />
+        {trend && xs === "linear" && ys === "linear" && (
           <line
             x1={round(X(xLo))}
             y1={round(Y(my + slope * (xLo - mx)))}

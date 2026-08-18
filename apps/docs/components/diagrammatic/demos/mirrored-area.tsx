@@ -16,7 +16,7 @@ export const examples: DemoExample[] = [
     title: "Reservoir inflow and release through a wet season",
     setup:
       "A dam operator's season chart: river inflow above the axis, controlled releases below, November through June. The mirror form fits because the two flows literally oppose each other.",
-    read: "Inflow peaks two months before releases do. That lag is the stored water doing its job. If the two halves ever peak together, the reservoir has stopped buffering and started passing the river through.",
+    read: "Inflow peaks two months before releases do. Releases kiss the 40 m³/s channel rating in March; that is the valve, not the rain. If the two halves ever peak together, the reservoir has stopped buffering.",
     source: "Dam operator logs, fortnightly means.",
     chart: (
       <FigTooltip
@@ -64,6 +64,7 @@ export const examples: DemoExample[] = [
               12, 14, 15, 18, 24, 32, 40, 46, 44, 40, 34, 28, 22, 18, 15, 13,
             ],
           }}
+          guides={[{ at: 40, label: "channel 40" }]}
           labels={[
             "Nov",
             "",

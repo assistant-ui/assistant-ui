@@ -1,13 +1,22 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
+import type { Guide } from "../../core/types";
 import { extent, linear, round, rowMid, stroke } from "../../core/geometry";
 import { ACCENT, ink } from "../../core/theme";
-import { ChartSvg, Legend, plotFrame, typeScale, vbHeight } from "../svg";
+import {
+  ChartSvg,
+  Guides,
+  Legend,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
 export type DumbbellProps = BaseProps & {
   items: { label: string; from: number; to: number }[];
   fromLabel?: string;
   toLabel?: string;
+  guides?: readonly Guide[];
 };
 
 export const Dumbbell = forwardRef<SVGSVGElement, DumbbellProps>(
@@ -16,6 +25,7 @@ export const Dumbbell = forwardRef<SVGSVGElement, DumbbellProps>(
       items,
       fromLabel = "before",
       toLabel = "after",
+      guides,
       legend,
       title,
       aspect,
@@ -32,9 +42,13 @@ export const Dumbbell = forwardRef<SVGSVGElement, DumbbellProps>(
       legend: showLegend,
       left: density === "figure" ? 50 : 44,
     });
-    const [lo, hi] = extent(items.flatMap((r) => [r.from, r.to]));
+    const [lo, hi] = extent([
+      ...items.flatMap((r) => [r.from, r.to]),
+      ...(guides?.map((g) => g.at) ?? []),
+    ]);
     const X = linear(lo, hi, left, right);
     const rowH = (bottom - top) / Math.max(1, items.length);
+    const Y = (i: number) => top + (i + 0.5) * rowH;
     return (
       <ChartSvg
         ref={ref}
@@ -44,6 +58,20 @@ export const Dumbbell = forwardRef<SVGSVGElement, DumbbellProps>(
         density={density}
         className={className}
       >
+        <Guides
+          guides={(guides ?? []).map((g) => ({
+            at: g.at,
+            axis: g.axis ?? ("x" as const),
+            ...(g.label ? { label: g.label } : {}),
+          }))}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
+        />
         {showLegend && (
           <Legend
             names={[fromLabel, toLabel]}

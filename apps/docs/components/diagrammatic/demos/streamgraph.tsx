@@ -47,6 +47,7 @@ export const examples: DemoExample[] = [
             { name: "discord", data: DISCORD },
             { name: "github", data: GITHUB },
           ]}
+          regions={[{ from: 7.5, to: 9.5, label: "v2 launch" }]}
         />
       </FigTooltip>
     ),

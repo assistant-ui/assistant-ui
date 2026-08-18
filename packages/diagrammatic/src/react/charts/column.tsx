@@ -1,18 +1,27 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Item, Tick } from "../../core/types";
+import type { Guide, Item, ScaleKind, Tick } from "../../core/types";
 import { formatCompact } from "../../core/types";
-import { linear, round, stroke } from "../../core/geometry";
+import { positiveExtent, project, round, stroke } from "../../core/geometry";
 import { ACCENT, GRID, cat, ink } from "../../core/theme";
-import { ChartSvg, TickGrid, plotFrame, typeScale, vbHeight } from "../svg";
+import {
+  ChartSvg,
+  Guides,
+  TickGrid,
+  plotFrame,
+  typeScale,
+  vbHeight,
+} from "../svg";
 
 export type ColumnProps = BaseProps & {
   items: Item[];
   highlight?: "max" | "last" | string;
   categorical?: boolean;
   values?: boolean;
+  yScale?: ScaleKind;
   yTicks?: readonly Tick[];
   target?: { at: number; label?: string };
+  guides?: readonly Guide[];
 };
 
 /**
@@ -26,8 +35,10 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
       highlight = "last",
       categorical,
       values,
+      yScale = "linear",
       yTicks,
       target,
+      guides,
       format = formatCompact,
       title,
       aspect,
@@ -43,15 +54,20 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
       labels: true,
       ticks: Boolean(yTicks?.length),
     });
-    const max = Math.max(
+    const yValues = [
       ...items.map((r) => r.value),
       ...(yTicks?.map((tick) => tick.at) ?? []),
       ...(target ? [target.at] : []),
-      1,
-    );
-    const Y = linear(0, max, bottom, top);
+      ...(guides?.filter((g) => (g.axis ?? "y") === "y").map((g) => g.at) ??
+        []),
+    ];
+    const [yLo, yHi] =
+      yScale === "log" ? positiveExtent(yValues) : [0, Math.max(...yValues, 1)];
+    const Y = project(yScale, yLo, yHi, bottom, top);
+    const stepX = (right - left) / Math.max(1, items.length);
+    const X = (i: number) => left + (i + 0.5) * stepX;
     const highest = Math.max(...items.map((r) => r.value));
-    const step = (right - left) / Math.max(1, items.length);
+    const step = stepX;
     const width = Math.min(16, step * 0.62);
     return (
       <ChartSvg
@@ -72,30 +88,27 @@ export const Column = forwardRef<SVGSVGElement, ColumnProps>(
           {...stroke.hair}
         />
         <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
-        {target && (
-          <g data-part="grid">
-            <line
-              x1={left}
-              y1={round(Y(target.at))}
-              x2={right}
-              y2={round(Y(target.at))}
-              stroke={ink(0.45)}
-              strokeDasharray="2.5 3"
-              {...stroke.hair}
-            />
-            {target.label && (
-              <text
-                x={right}
-                y={round(Y(target.at)) - 2}
-                textAnchor="end"
-                {...T.axis}
-                fill={ink(0.8)}
-              >
-                {target.label}
-              </text>
-            )}
-          </g>
-        )}
+        <Guides
+          guides={[
+            ...(target
+              ? [
+                  {
+                    at: target.at,
+                    axis: "y" as const,
+                    ...(target.label ? { label: target.label } : {}),
+                  },
+                ]
+              : []),
+            ...(guides ?? []),
+          ]}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
+        />
         {items.map((_, i) => (
           <rect
             key={`hit-${i}`}

@@ -57,5 +57,7 @@ export const examples: DemoExample[] = [
         />
       </FigTooltip>
     ),
+    source:
+      "FrontierBench 1.1 Main is the weighted mean of six agent tasks. Higher is better.",
   },
 ];

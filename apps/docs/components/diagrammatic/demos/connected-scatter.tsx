@@ -24,7 +24,7 @@ export const examples: DemoExample[] = [
   {
     title: "Score against cost, families as threads",
     setup:
-      "Family curves in score-versus-cost space. Cheaper sits to the right. The dashed cross pins the value pick to both scales.",
+      "Family curves in score-versus-cost space. Cost is log paper because a dollar and ten dollars are different decades. Cheaper sits to the right. The dashed cross pins the value pick to both scales.",
     read: "swift owns the prize corner at 45.8 for $1.90. atlas-1 holds the crown at 46.6 and pays $9.60. nova's thread beats atlas-0 at every shared price. The crossings are the generations.",
     source: "FrontierBench 1.1 Main. Cost is USD per rollout.",
     chart: (
@@ -69,6 +69,7 @@ export const examples: DemoExample[] = [
           aspect={2.2}
           title="Score against cost per rollout"
           reverseX
+          xScale="log"
           series={[
             {
               name: "atlas-1",
@@ -111,10 +112,9 @@ export const examples: DemoExample[] = [
             { name: "glacier", points: [{ x: 2.9, y: 24.5 }] },
           ]}
           xTicks={[
+            { at: 2, label: "$2" },
             { at: 4, label: "$4" },
-            { at: 6, label: "$6" },
             { at: 8, label: "$8" },
-            { at: 10, label: "$10" },
           ]}
           yTicks={[
             { at: 25, label: "25" },

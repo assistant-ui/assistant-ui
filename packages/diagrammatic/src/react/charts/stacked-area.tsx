@@ -1,6 +1,6 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Series, Tick } from "../../core/types";
+import type { Guide, Series, Tick } from "../../core/types";
 import {
   bandPath,
   linePath,
@@ -15,6 +15,7 @@ import {
   ChartSvg,
   ColumnHits,
   Legend,
+  Guides,
   TickGrid,
   plotFrame,
   typeScale,
@@ -24,6 +25,7 @@ import {
 export type StackedAreaProps = BaseProps & {
   series: Series[];
   yTicks?: readonly Tick[];
+  guides?: readonly Guide[];
 };
 
 export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
@@ -31,6 +33,7 @@ export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
     {
       series,
       yTicks,
+      guides,
       labels,
       legend,
       title,
@@ -53,9 +56,14 @@ export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
     const max = Math.max(
       ...totals,
       ...(yTicks?.map((tick) => tick.at) ?? []),
+      ...(guides?.map((g) => g.at) ?? []),
       1,
     );
     const Y = linear(0, max, bottom, top);
+    const X = (i: number) => {
+      const n = series[0]?.data.length ?? 1;
+      return left + (n > 1 ? (i / (n - 1)) * (right - left) : 0);
+    };
     const scaled = levels.map((level) =>
       scalePoints(level, left, right, bottom, top, 0, max),
     );
@@ -69,6 +77,16 @@ export const StackedArea = forwardRef<SVGSVGElement, StackedAreaProps>(
         className={className}
       >
         <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
+        />
         <ColumnHits
           count={series[0]?.data.length ?? 0}
           x0={left}

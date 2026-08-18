@@ -27,6 +27,19 @@ describe("Gauge", () => {
     expect(ticked).toBeGreaterThan(bare);
   });
 
+  it("sizes tick labels from the dial radius", () => {
+    const html = renderToStaticMarkup(
+      <Gauge
+        value={0.5}
+        ticks={[
+          { at: 0, label: "0" },
+          { at: 0.5, label: "mid" },
+        ]}
+      />,
+    );
+    expect(html).toMatch(/font-size="7.2"[^>]*>mid</);
+  });
+
   it("parks end tick labels below the dial, not on the tick", () => {
     const html = renderToStaticMarkup(
       <Gauge

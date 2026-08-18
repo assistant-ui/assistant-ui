@@ -1,5 +1,5 @@
 import { round, stroke } from "../core/geometry";
-import type { Tick } from "../core/types";
+import type { Guide, Tick } from "../core/types";
 import {
   type ComponentPropsWithoutRef,
   type CSSProperties,
@@ -73,10 +73,10 @@ export const TXT: {
 export function typeScale(density?: Density) {
   if (density === "figure") {
     return {
-      axis: { ...TXT.axis, fontSize: 3.6 },
-      label: { ...TXT.label, fontSize: 3.8 },
-      value: { ...TXT.value, fontSize: 4 },
-      onSeries: { ...TXT.onSeries, fontSize: 3.4 },
+      axis: { ...TXT.axis, fontSize: 4.2 },
+      label: { ...TXT.label, fontSize: 4.4 },
+      value: { ...TXT.value, fontSize: 4.6 },
+      onSeries: { ...TXT.onSeries, fontSize: 3.8 },
     };
   }
   return TXT;
@@ -131,6 +131,10 @@ type FrameProps = SvgAttributes & {
   format?: ((value: number) => string) | undefined;
   aspect?: number | undefined;
   density?: Density | undefined;
+  xScale?: unknown;
+  yScale?: unknown;
+  xs?: unknown;
+  guides?: unknown;
   children: ReactNode;
 };
 
@@ -146,6 +150,10 @@ export const ChartSvg = forwardRef<SVGSVGElement, FrameProps & { vh: number }>(
       format: _format,
       aspect: _aspect,
       density,
+      xScale: _xScale,
+      yScale: _yScale,
+      xs: _xs,
+      guides: _guides,
       ...rest
     },
     ref,
@@ -193,6 +201,10 @@ export const MicroSvg = forwardRef<
       format: _format,
       aspect: _aspect,
       density: _density,
+      xScale: _xScale,
+      yScale: _yScale,
+      xs: _xs,
+      guides: _guides,
       ...rest
     },
     ref,
@@ -379,6 +391,95 @@ export function AxisLabels({
  * continuous paths: one column per data index, split at the midpoints
  * between evenly spaced points, so the pointer always resolves to a datum.
  */
+export function Guides({
+  guides,
+  X,
+  Y,
+  left,
+  right,
+  top,
+  bottom,
+  type = TXT.axis,
+}: {
+  guides?: readonly Guide[] | undefined;
+  X: (value: number) => number;
+  Y: (value: number) => number;
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  type?: TypeStyle;
+}) {
+  if (!guides?.length) return null;
+  return (
+    <g>
+      {guides.map((guide, i) => {
+        const axis = guide.axis ?? "y";
+        if (axis === "y") {
+          const y = round(Y(guide.at));
+          return (
+            <g
+              key={`guide-y-${guide.at}-${i}`}
+              data-part="guide"
+              data-series={guide.label}
+            >
+              <line
+                x1={left}
+                y1={y}
+                x2={right}
+                y2={y}
+                stroke={ink(0.45)}
+                strokeDasharray="2.5 3"
+                {...stroke.hair}
+              />
+              {guide.label ? (
+                <text
+                  x={right}
+                  y={y - 2}
+                  textAnchor="end"
+                  {...type}
+                  fill={ink(0.8)}
+                >
+                  {guide.label}
+                </text>
+              ) : null}
+            </g>
+          );
+        }
+        const x = round(X(guide.at));
+        return (
+          <g
+            key={`guide-x-${guide.at}-${i}`}
+            data-part="guide"
+            data-series={guide.label}
+          >
+            <line
+              x1={x}
+              y1={top}
+              x2={x}
+              y2={bottom}
+              stroke={ink(0.45)}
+              strokeDasharray="2.5 3"
+              {...stroke.hair}
+            />
+            {guide.label ? (
+              <text
+                x={x}
+                y={top - 3}
+                textAnchor="middle"
+                {...type}
+                fill={ink(0.8)}
+              >
+                {guide.label}
+              </text>
+            ) : null}
+          </g>
+        );
+      })}
+    </g>
+  );
+}
+
 export function ColumnHits({
   count,
   x0,

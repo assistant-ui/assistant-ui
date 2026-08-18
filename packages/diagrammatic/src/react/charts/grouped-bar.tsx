@@ -1,12 +1,13 @@
 import type { BaseProps } from "../svg";
 import { forwardRef } from "react";
-import type { Series, Tick } from "../../core/types";
+import type { Guide, Series, Tick } from "../../core/types";
 import { linear, round, stroke } from "../../core/geometry";
 import { GRID, cat } from "../../core/theme";
 import {
   AxisLabels,
   ChartSvg,
   Legend,
+  Guides,
   TickGrid,
   plotFrame,
   typeScale,
@@ -17,6 +18,7 @@ export type GroupedBarProps = BaseProps & {
   groups: string[];
   series: Series[];
   yTicks?: readonly Tick[];
+  guides?: readonly Guide[];
 };
 
 export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
@@ -25,6 +27,7 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
       groups,
       series,
       yTicks,
+      guides,
       legend,
       title,
       aspect,
@@ -45,9 +48,12 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
     const max = Math.max(
       ...series.flatMap((s) => s.data),
       ...(yTicks?.map((tick) => tick.at) ?? []),
+      ...(guides?.map((g) => g.at) ?? []),
       1,
     );
     const Y = linear(0, max, bottom, top);
+    const X = (i: number) =>
+      left + ((right - left) / Math.max(1, groups.length)) * (i + 0.5);
     const groupStep = (right - left) / Math.max(1, groups.length);
     const barW = Math.min(13, (groupStep * 0.7) / Math.max(1, series.length));
     const centers = groups.map((_, g) => left + groupStep * (g + 0.5));
@@ -70,6 +76,16 @@ export const GroupedBar = forwardRef<SVGSVGElement, GroupedBarProps>(
           {...stroke.hair}
         />
         <TickGrid ticks={yTicks} at={Y} from={left} to={right} type={T.axis} />
+        <Guides
+          guides={guides}
+          X={X}
+          Y={Y}
+          left={left}
+          right={right}
+          top={top}
+          bottom={bottom}
+          type={T.axis}
+        />
         {showLegend && (
           <Legend
             names={series.map((s) => s.name)}

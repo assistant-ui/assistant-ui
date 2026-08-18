@@ -15,7 +15,7 @@ export const examples: DemoExample[] = [
     title: "A monsoon in millimetres, its core annotated",
     setup:
       "A reservoir engineer's season chart, complete: sixteen weeks of rainfall as filled area, and a regions band marking the core monsoon — the six weeks the water year is actually decided in. The area under the curve is the town's supply; the band says which part of it is structural.",
-    read: "July and August did their job inside the band. The September collapse sits outside it, which is what makes it a warning rather than weather. The area under the curve is the town's water; the band says which weeks actually filled the reservoir.",
+    read: "July and August sit above the 200mm fill stage, which is why the reservoir made the year. The September collapse drops through the line, which is a warning rather than weather. The band says which weeks actually filled it.",
     source: "Reservoir authority gauge, weekly totals.",
     chart: (
       <FigTooltip
@@ -59,6 +59,7 @@ export const examples: DemoExample[] = [
             60, 25,
           ]}
           regions={[{ from: 5, to: 11, label: "core monsoon" }]}
+          guides={[{ at: 200, label: "fill stage 200mm" }]}
           labels={[
             "Jun",
             "",
