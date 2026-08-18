@@ -46,7 +46,15 @@ const createHost = () => {
   const execute = host.getModelContext().tools?.search?.execute;
   if (!execute) throw new Error("Expected the search tool to be available");
 
-  return { dispatchMessage, execute, host, postMessage };
+  const getToolCallId = () => {
+    const call = postMessage.mock.calls.find(
+      ([data]) => data.message.type === "tool-call",
+    );
+    if (!call) throw new Error("Expected a tool call to be posted");
+    return call[0].message.id as string;
+  };
+
+  return { dispatchMessage, execute, getToolCallId, host, postMessage };
 };
 
 beforeEach(() => {
@@ -60,14 +68,14 @@ afterEach(() => {
 
 describe("AssistantFrameHost", () => {
   it("resolves tool calls from frame results", async () => {
-    const { dispatchMessage, execute, host } = createHost();
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
     const result = Promise.resolve(
       execute({ query: "weather" }, executionContext),
     );
 
     dispatchMessage({
       type: "tool-result",
-      id: "tool-0",
+      id: getToolCallId(),
       result: "sunny",
     });
 
@@ -77,8 +85,9 @@ describe("AssistantFrameHost", () => {
   });
 
   it("rejects pending tool calls when disposed", async () => {
-    const { execute, host, postMessage } = createHost();
+    const { execute, getToolCallId, host, postMessage } = createHost();
     const result = Promise.resolve(execute({}, executionContext));
+    const toolCallId = getToolCallId();
 
     host.dispose();
 
@@ -88,7 +97,7 @@ describe("AssistantFrameHost", () => {
     expect(postMessage).toHaveBeenLastCalledWith(
       {
         channel: FRAME_MESSAGE_CHANNEL,
-        message: { type: "tool-cancel", id: "tool-0" },
+        message: { type: "tool-cancel", id: toolCallId },
       },
       "*",
     );
@@ -96,7 +105,7 @@ describe("AssistantFrameHost", () => {
   });
 
   it("rejects pending tool calls when execution is aborted", async () => {
-    const { execute, host, postMessage } = createHost();
+    const { execute, getToolCallId, host, postMessage } = createHost();
     const abortController = new AbortController();
     const abortError = new Error("Run cancelled");
     abortError.name = "AbortError";
@@ -111,6 +120,7 @@ describe("AssistantFrameHost", () => {
     );
     const onRejected = vi.fn();
     void result.catch(onRejected);
+    const toolCallId = getToolCallId();
 
     abortController.abort(abortError);
     await Promise.resolve();
@@ -119,12 +129,47 @@ describe("AssistantFrameHost", () => {
     expect(postMessage).toHaveBeenLastCalledWith(
       {
         channel: FRAME_MESSAGE_CHANNEL,
-        message: { type: "tool-cancel", id: "tool-0" },
+        message: { type: "tool-cancel", id: toolCallId },
       },
       "*",
     );
     expect(vi.getTimerCount()).toBe(0);
     host.dispose();
+  });
+
+  it("cancels tool calls when they time out", async () => {
+    const { execute, getToolCallId, host, postMessage } = createHost();
+    const result = Promise.resolve(execute({}, executionContext));
+    const toolCallId = getToolCallId();
+    const rejection = expect(result).rejects.toThrow(
+      'Tool call "search" timed out',
+    );
+
+    await vi.advanceTimersByTimeAsync(30000);
+
+    await rejection;
+    expect(postMessage).toHaveBeenLastCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: { type: "tool-cancel", id: toolCallId },
+      },
+      "*",
+    );
+    expect(vi.getTimerCount()).toBe(0);
+    host.dispose();
+  });
+
+  it("uses unique tool IDs across host instances", () => {
+    const first = createHost();
+    const second = createHost();
+
+    void first.execute({}, executionContext).catch(() => undefined);
+    void second.execute({}, executionContext).catch(() => undefined);
+
+    expect(first.getToolCallId()).not.toBe(second.getToolCallId());
+
+    first.host.dispose();
+    second.host.dispose();
   });
 
   it("does not post tool calls when execution is already aborted", async () => {

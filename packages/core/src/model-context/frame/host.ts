@@ -2,6 +2,7 @@ import type { ModelContextProvider, ModelContext } from "../types";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { Tool } from "assistant-stream";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
+import { generateId } from "../../utils/id";
 import {
   type FrameMessage,
   FRAME_MESSAGE_CHANNEL,
@@ -58,7 +59,6 @@ export class AssistantFrameHost implements ModelContextProvider {
       reject: (error: any) => void;
     }
   >();
-  private _requestCounter = 0;
   private _iframeWindow: Window;
   private _targetOrigin: string;
   private _disposed = false;
@@ -130,7 +130,7 @@ export class AssistantFrameHost implements ModelContextProvider {
     return this.sendRequest(
       {
         type: "tool-call",
-        id: `tool-${this._requestCounter++}`,
+        id: `tool-${generateId()}`,
         toolName,
         args,
       },

@@ -9,20 +9,22 @@ describe("AssistantFrameProvider", () => {
   let messageHandler: ((event: MessageEvent) => void) | undefined;
   let parentWindow: Window;
 
-  const toolCall = {
-    channel: FRAME_MESSAGE_CHANNEL,
-    message: {
-      type: "tool-call",
-      id: "tool-call-1",
-      toolName: "sensitiveTool",
-      args: {},
-    },
-  };
-
-  const dispatchToolCall = (origin: string, source: Window = parentWindow) => {
+  const dispatchToolCall = (
+    origin: string,
+    source: Window = parentWindow,
+    id = "tool-call-1",
+  ) => {
     messageHandler?.(
       new MessageEvent("message", {
-        data: toolCall,
+        data: {
+          channel: FRAME_MESSAGE_CHANNEL,
+          message: {
+            type: "tool-call",
+            id,
+            toolName: "sensitiveTool",
+            args: {},
+          },
+        },
         origin,
         source,
       }),
@@ -32,12 +34,13 @@ describe("AssistantFrameProvider", () => {
   const dispatchToolCancel = (
     origin: string,
     source: Window = parentWindow,
+    id = "tool-call-1",
   ) => {
     messageHandler?.(
       new MessageEvent("message", {
         data: {
           channel: FRAME_MESSAGE_CHANNEL,
-          message: { type: "tool-cancel", id: "tool-call-1" },
+          message: { type: "tool-cancel", id },
         },
         origin,
         source,
@@ -120,6 +123,97 @@ describe("AssistantFrameProvider", () => {
     await vi.waitFor(() => expect(toolSignal).toBeDefined());
 
     dispatchToolCancel("*");
+
+    expect(toolSignal?.aborted).toBe(true);
+    await Promise.resolve();
+    expect(parentWindow.postMessage).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        message: expect.objectContaining({ type: "tool-result" }),
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("cancels only the matching in-flight tool call", async () => {
+    const signals = new Map<string, AbortSignal>();
+    const execute = vi.fn(
+      async (
+        _args: unknown,
+        context: { toolCallId: string; abortSignal: AbortSignal },
+      ) => {
+        signals.set(context.toolCallId, context.abortSignal);
+        await new Promise<never>((_resolve, reject) => {
+          context.abortSignal.addEventListener(
+            "abort",
+            () => reject(context.abortSignal.reason),
+            { once: true },
+          );
+        });
+      },
+    );
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
+    });
+
+    dispatchToolCall("*", parentWindow, "tool-a");
+    dispatchToolCall("*", parentWindow, "tool-b");
+    await vi.waitFor(() => expect(signals.size).toBe(2));
+
+    dispatchToolCancel("*", parentWindow, "tool-a");
+
+    expect(signals.get("tool-a")?.aborted).toBe(true);
+    expect(signals.get("tool-b")?.aborted).toBe(false);
+  });
+
+  it("aborts an earlier call when a duplicate ID arrives", async () => {
+    const signals: AbortSignal[] = [];
+    const execute = vi.fn(
+      async (_args: unknown, context: { abortSignal: AbortSignal }) => {
+        signals.push(context.abortSignal);
+        await new Promise<never>((_resolve, reject) => {
+          context.abortSignal.addEventListener(
+            "abort",
+            () => reject(context.abortSignal.reason),
+            { once: true },
+          );
+        });
+      },
+    );
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
+    });
+
+    dispatchToolCall("*", parentWindow, "duplicate");
+    await vi.waitFor(() => expect(signals).toHaveLength(1));
+    dispatchToolCall("*", parentWindow, "duplicate");
+    await vi.waitFor(() => expect(signals).toHaveLength(2));
+
+    expect(signals[0]?.aborted).toBe(true);
+    expect(signals[1]?.aborted).toBe(false);
+  });
+
+  it("aborts in-flight tool calls when the provider is disposed", async () => {
+    let toolSignal: AbortSignal | undefined;
+    const execute = vi.fn(
+      async (_args: unknown, context: { abortSignal: AbortSignal }) => {
+        toolSignal = context.abortSignal;
+        await new Promise<never>((_resolve, reject) => {
+          context.abortSignal.addEventListener(
+            "abort",
+            () => reject(context.abortSignal.reason),
+            { once: true },
+          );
+        });
+      },
+    );
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
+    });
+
+    dispatchToolCall("*");
+    await vi.waitFor(() => expect(toolSignal).toBeDefined());
+
+    AssistantFrameProvider.dispose();
 
     expect(toolSignal?.aborted).toBe(true);
     await Promise.resolve();
