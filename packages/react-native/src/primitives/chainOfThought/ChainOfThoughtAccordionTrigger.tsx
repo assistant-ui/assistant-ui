@@ -21,7 +21,7 @@ export const ChainOfThoughtAccordionTrigger = ({
   }, [aui, collapsed]);
 
   return (
-    <Pressable onPress={onPress} {...pressableProps}>
+    <Pressable onPress={onPress} accessibilityRole="button" {...pressableProps}>
       {children}
     </Pressable>
   );

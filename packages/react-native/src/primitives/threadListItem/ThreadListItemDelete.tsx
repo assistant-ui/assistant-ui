@@ -13,7 +13,11 @@ export const ThreadListItemDelete = ({
   const { delete: deleteThread } = useThreadListItemDelete();
 
   return (
-    <Pressable onPress={deleteThread} {...pressableProps}>
+    <Pressable
+      onPress={deleteThread}
+      accessibilityRole="button"
+      {...pressableProps}
+    >
       {children}
     </Pressable>
   );

@@ -18,7 +18,11 @@ export const AttachmentRemove = ({
   }, [aui]);
 
   return (
-    <Pressable onPress={handleRemove} {...pressableProps}>
+    <Pressable
+      onPress={handleRemove}
+      accessibilityRole="button"
+      {...pressableProps}
+    >
       {children}
     </Pressable>
   );

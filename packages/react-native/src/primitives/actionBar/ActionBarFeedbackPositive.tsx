@@ -16,7 +16,7 @@ export const ActionBarFeedbackPositive = ({
   const { submit, isSubmitted } = useActionBarFeedbackPositive();
 
   return (
-    <Pressable onPress={submit} {...pressableProps}>
+    <Pressable onPress={submit} accessibilityRole="button" {...pressableProps}>
       {typeof children === "function" ? children({ isSubmitted }) : children}
     </Pressable>
   );

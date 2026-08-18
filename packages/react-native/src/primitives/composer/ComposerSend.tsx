@@ -17,6 +17,7 @@ export const ComposerSend = ({
     <Pressable
       onPress={() => send()}
       disabled={disabled ?? hookDisabled}
+      accessibilityRole="button"
       {...pressableProps}
     >
       {children}

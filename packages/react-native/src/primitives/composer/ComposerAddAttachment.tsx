@@ -21,7 +21,11 @@ export const ComposerAddAttachment = ({
   const { disabled } = useComposerAddAttachment();
 
   return (
-    <Pressable disabled={disabledProp ?? disabled} {...pressableProps}>
+    <Pressable
+      disabled={disabledProp ?? disabled}
+      accessibilityRole="button"
+      {...pressableProps}
+    >
       {children}
     </Pressable>
   );

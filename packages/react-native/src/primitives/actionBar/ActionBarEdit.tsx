@@ -17,6 +17,7 @@ export const ActionBarEdit = ({
     <Pressable
       onPress={edit}
       disabled={disabledProp ?? disabled}
+      accessibilityRole="button"
       {...pressableProps}
     >
       {children}

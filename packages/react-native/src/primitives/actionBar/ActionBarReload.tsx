@@ -17,6 +17,7 @@ export const ActionBarReload = ({
     <Pressable
       onPress={reload}
       disabled={disabledProp ?? disabled}
+      accessibilityRole="button"
       {...pressableProps}
     >
       {children}

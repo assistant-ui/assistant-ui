@@ -13,7 +13,11 @@ export const ThreadListItemTrigger = ({
   const { switchTo } = useThreadListItemTrigger();
 
   return (
-    <Pressable onPress={switchTo} {...pressableProps}>
+    <Pressable
+      onPress={switchTo}
+      accessibilityRole="button"
+      {...pressableProps}
+    >
       {children}
     </Pressable>
   );
