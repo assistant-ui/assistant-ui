@@ -128,6 +128,8 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       selectionRef.current.scope === scope
         ? selectionRef.current.threadId
         : null;
+    // A never-listed selection may be a new thread whose list entry is lagging;
+    // probing it could incorrectly deselect an in-flight conversation.
     const selectedThreadWasListed =
       selectedThreadId !== null &&
       listedThreadIdsRef.current.has(selectedThreadId);
