@@ -33,6 +33,7 @@ import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
+import { useStableRuntimeAdapters } from "./useRuntimeAdapters";
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
   new Error(`Thread "${threadIdOrRemoteId}" not found while ${action}.`);
@@ -77,7 +78,19 @@ export class RemoteThreadListThreadListRuntimeCore
   }) => {
     const useAdapters = this._options.adapter.unstable_useAdapters;
     if (useAdapters === undefined) return children;
-    const adapters = useAdapters();
+    return (
+      <this._SynthesizedAdapters useAdapters={useAdapters}>
+        {children}
+      </this._SynthesizedAdapters>
+    );
+  };
+
+  private readonly _SynthesizedAdapters: FC<
+    PropsWithChildren<{
+      useAdapters: NonNullable<RemoteThreadListAdapter["unstable_useAdapters"]>;
+    }>
+  > = ({ useAdapters, children }) => {
+    const adapters = useStableRuntimeAdapters(useAdapters());
     if (adapters == null) return children;
     return (
       <RuntimeAdapterProvider adapters={adapters}>
