@@ -1272,13 +1272,17 @@ test("relative import candidates cover extensions, directory indexes, and .js so
     "components/assistant-ui/badge.jsx",
   ]);
 
+  assert.deepEqual(getRelativeImportCandidates("./icon.svg?url", from), [
+    "components/assistant-ui/icon.svg",
+  ]);
+
   assert.equal(
     getRelativeImportCandidates("../icons/github", from)[0],
     "components/icons/github.tsx",
   );
 
-  assert.deepEqual(
+  assert.equal(
     getRelativeImportCandidates("../../../outside/thing", from),
-    [],
+    null,
   );
 });

@@ -849,20 +849,21 @@ const MODULE_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
 
 /**
  * The install paths a relative specifier may resolve to once the item is
- * installed, ordered most-likely first. A specifier is satisfied when the
- * install closure provides any one of them, which is what a bundler in the
- * user's project will do: an explicit extension, an extensionless module, a
- * directory index, or the TypeScript source behind a `.js` specifier. An empty
- * list means the target escapes the installed tree and cannot be checked.
+ * installed. A specifier is satisfied when the install closure provides any one
+ * of them, which is what a bundler in the user's project will do: an explicit
+ * extension, an extensionless module, a directory index, or the TypeScript
+ * source behind a `.js` specifier. `null` means the specifier points outside
+ * the installed tree, where no closure file can ever satisfy it.
  */
 export function getRelativeImportCandidates(
   specifier: string,
   fromPath: string,
 ) {
+  const modulePath = specifier.replace(/[?#].*$/, "");
   const resolved = path.posix.normalize(
-    path.posix.join(path.posix.dirname(fromPath), specifier),
+    path.posix.join(path.posix.dirname(fromPath), modulePath),
   );
-  if (resolved.startsWith("..")) return [];
+  if (resolved.startsWith("..")) return null;
 
   const extension = path.posix.extname(resolved);
   const candidates = new Set<string>();
@@ -918,7 +919,9 @@ function collectInstallContext(
 
   seen.add(item.name);
 
-  const files = new Set(item.files?.map((file) => file.path) ?? []);
+  const files = new Set(
+    item.files?.map((file) => file.target ?? file.path) ?? [],
+  );
   const packages = new Set([
     ...(item.dependencies ?? []),
     ...(item.devDependencies ?? []),
@@ -981,14 +984,22 @@ function validateRegistryInstallMetadata(payloads: RegistryOutputItem[]) {
         }
 
         if (specifier.startsWith(".")) {
-          const candidates = getRelativeImportCandidates(specifier, file.path);
+          const installedPath = file.target ?? file.path;
+          const candidates = getRelativeImportCandidates(
+            specifier,
+            installedPath,
+          );
 
           if (
-            candidates.length > 0 &&
+            candidates === null ||
             !candidates.some((candidate) => installContext.files.has(candidate))
           ) {
             findings.add(
-              `${item.name}: ${file.path} imports "${specifier}", but no file or registryDependency provides ${candidates[0]}`,
+              `${item.name}: ${installedPath} imports "${specifier}", but no file or registryDependency provides ${
+                candidates === null
+                  ? "a file outside the installed tree"
+                  : candidates.join(" or ")
+              }`,
             );
           }
 
