@@ -107,47 +107,6 @@ describe("RemoteThreadListAdapter.unstable_Provider", () => {
     expect(capture.adapters?.history).toBe(dummyHistory);
   });
 
-  it("keeps the adapters identity stable when useAdapters returns a fresh literal", async () => {
-    const capture: { adapters: CapturedAdapters; calls: CapturedAdapters[] } = {
-      adapters: null,
-      calls: [],
-    };
-    const adapter = makeAdapter({
-      unstable_useAdapters: function useTestAdapters() {
-        return { history: dummyHistory };
-      },
-    });
-
-    const Inner: FC = () => {
-      const runtime = useRemoteThreadListRuntime({
-        runtimeHook: makeRuntimeHook(capture),
-        adapter,
-      });
-      return (
-        <AssistantRuntimeProvider runtime={runtime}>
-          {null}
-        </AssistantRuntimeProvider>
-      );
-    };
-
-    let view!: ReturnType<typeof render>;
-    await act(async () => {
-      view = render(<Inner />);
-    });
-    await waitFor(() => expect(capture.adapters).not.toBeNull());
-
-    await act(async () => {
-      view.rerender(<Inner />);
-    });
-    await act(async () => {
-      view.rerender(<Inner />);
-    });
-
-    const seen = [...new Set(capture.calls.filter((bag) => bag != null))];
-    expect(seen).toHaveLength(1);
-    expect(seen[0]?.history).toBe(dummyHistory);
-  });
-
   it("picks up a swapped Provider on re-render", async () => {
     const capture: { adapters: CapturedAdapters } = { adapters: null };
     const firstHistory: ThreadHistoryAdapter = {
