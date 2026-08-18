@@ -59,6 +59,21 @@ describe("ShallowMemoizeSubject", () => {
     expect(subscriber).not.toHaveBeenCalled();
   });
 
+  it("notifies later subscribers when one throws", () => {
+    const source = createBinding({ status: "empty" });
+    const subject = new ShallowMemoizeSubject(source.binding);
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+    subject.subscribe(() => {
+      throw error;
+    });
+    subject.subscribe(laterSubscriber);
+
+    expect(() => source.update({ status: "ready" })).toThrow(error);
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+    expect(subject.getState()).toEqual({ status: "ready" });
+  });
+
   it("reads a value that landed while nobody was subscribed", () => {
     const source = createBinding({ status: "empty" });
     const subject = new ShallowMemoizeSubject(source.binding);
@@ -74,6 +89,21 @@ describe("ShallowMemoizeSubject", () => {
 });
 
 describe("LazyMemoizeSubject", () => {
+  it("notifies later subscribers when one throws", () => {
+    const source = createBinding({ status: "empty" });
+    const subject = new LazyMemoizeSubject(source.binding);
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+    subject.subscribe(() => {
+      throw error;
+    });
+    subject.subscribe(laterSubscriber);
+
+    expect(() => source.update({ status: "ready" })).toThrow(error);
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+    expect(subject.getState()).toEqual({ status: "ready" });
+  });
+
   it("reads a value replaced before connecting", () => {
     const source = createBinding({ status: "empty" });
     const subject = new LazyMemoizeSubject(source.binding);

@@ -19,6 +19,7 @@ import type {
   RemoteThreadListProviderComponent,
 } from "../../runtimes/remote-thread-list/types";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
+import { isTitleSourceMessage } from "./RemoteThreadResource";
 import {
   type ComponentType,
   type FC,
@@ -636,7 +637,10 @@ export class RemoteThreadListThreadListRuntimeCore
     const runtimeCore = this._hookManager.getThreadRuntimeCore(data.id);
     if (!runtimeCore) return; // thread is no longer running
 
-    const messages = runtimeCore.messages;
+    // Incomplete assistant turns (running status, possibly empty content)
+    // would make the payload race-dependent; the title reads settled
+    // messages only, matching the trigger's readiness gate.
+    const messages = runtimeCore.messages.filter(isTitleSourceMessage);
     const stream = await this._options.adapter.generateTitle(
       remoteId,
       messages,

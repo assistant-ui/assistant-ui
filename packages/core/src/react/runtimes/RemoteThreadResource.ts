@@ -38,6 +38,35 @@ export type RemoteThreadResourceProps = {
   ) => void;
 };
 
+export const isTitleSourceMessage = (message: {
+  status?: { type: string } | undefined;
+}) => message.status?.type !== "running";
+
+export const subscribeToTitleGeneration = (
+  threadRuntime: AssistantRuntime["thread"],
+  itemRuntime: ThreadListItemRuntime,
+) => {
+  const generate = () =>
+    void itemRuntime.generateTitle().catch((error: unknown) => {
+      console.error("[assistant-ui] Thread title generation failed", error);
+    });
+
+  const hasTitleSource = () =>
+    threadRuntime.getState().messages.some(isTitleSourceMessage);
+
+  if (hasTitleSource()) {
+    generate();
+    return () => {};
+  }
+
+  const unsubscribe = threadRuntime.subscribe(() => {
+    if (!hasTitleSource()) return;
+    unsubscribe();
+    generate();
+  });
+  return unsubscribe;
+};
+
 const useRemoteThreadBinder = ({
   threadId,
   generation,
@@ -74,6 +103,8 @@ const useRemoteThreadBinder = ({
 
   const initPromiseRef = useRef<Promise<unknown> | undefined>(undefined);
   const hasInitializedRef = useRef(false);
+  const titleDisposeRef = useRef<(() => void) | undefined>(undefined);
+  const titleAliveRef = useRef(false);
 
   const handleInitialize = useEffectEvent(() => {
     if (hasInitializedRef.current) return;
@@ -85,18 +116,26 @@ const useRemoteThreadBinder = ({
     const initPromise = itemRuntime.initialize();
     initPromiseRef.current = initPromise;
 
-    const dispose = runtime.thread.unstable_on("runEnd", () => {
-      dispose();
-      void itemRuntime.generateTitle();
-    });
-
-    void initPromise.catch(() => {
-      dispose();
-      if (initPromiseRef.current === initPromise) {
-        initPromiseRef.current = undefined;
-        hasInitializedRef.current = false;
-      }
-    });
+    // The title needs the thread to exist and its first message, so it arms
+    // when initialization resolves rather than at the first runEnd; waiting
+    // for the run would leave the thread on "New Chat" for the whole
+    // response, and forever when the run never completes.
+    void initPromise.then(
+      () => {
+        if (!titleAliveRef.current) return;
+        titleDisposeRef.current?.();
+        titleDisposeRef.current = subscribeToTitleGeneration(
+          runtime.thread,
+          itemRuntime,
+        );
+      },
+      () => {
+        if (initPromiseRef.current === initPromise) {
+          initPromiseRef.current = undefined;
+          hasInitializedRef.current = false;
+        }
+      },
+    );
   });
 
   const getInitializePromise = useEffectEvent(() => {
@@ -116,7 +155,17 @@ const useRemoteThreadBinder = ({
   useEffect(() => {
     if (!runtime?.threads?.main) return undefined;
     hasInitializedRef.current = false;
-    return runtime.threads.main.unstable_on("initialize", handleInitialize);
+    titleAliveRef.current = true;
+    const unsubscribe = runtime.threads.main.unstable_on(
+      "initialize",
+      handleInitialize,
+    );
+    return () => {
+      titleAliveRef.current = false;
+      unsubscribe();
+      titleDisposeRef.current?.();
+      titleDisposeRef.current = undefined;
+    };
   }, [runtime]);
 
   return runtime;
