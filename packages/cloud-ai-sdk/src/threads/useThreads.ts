@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { CloudAPIError } from "assistant-cloud";
 import type {
   CloudThread,
   UseThreadsOptions,
@@ -155,12 +156,23 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
             });
           }
           const nextThreadIds = new Set(nextThreads.map((thread) => thread.id));
+          let selectedThreadDeleted = false;
+          if (
+            selectedThreadId !== null &&
+            !nextThreadIds.has(selectedThreadId)
+          ) {
+            try {
+              await cloud.threads.get(selectedThreadId);
+            } catch (error) {
+              if (!(error instanceof CloudAPIError) || error.status !== 404) {
+                throw error;
+              }
+              selectedThreadDeleted = true;
+            }
+          }
           commit(() => {
             setThreads(nextThreads);
-            if (
-              selectedThreadId !== null &&
-              !nextThreadIds.has(selectedThreadId)
-            ) {
+            if (selectedThreadDeleted) {
               setSelection((current) =>
                 current.scope === scope && current.threadId === selectedThreadId
                   ? { scope, threadId: null }

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { CloudAPIError } from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useThreads } from "./useThreads";
 
@@ -310,7 +311,7 @@ describe("useThreads", () => {
     expect(result.current.threads[0]?.title).toBe("Newest");
   });
 
-  it("clears a selected thread that disappears during refresh", async () => {
+  it("clears a selected thread after refresh confirms it was deleted", async () => {
     const cloud = createCloud("thread-1");
     const { result } = renderHook(() =>
       useThreads({ cloud: cloud as never, enabled: false }),
@@ -323,6 +324,9 @@ describe("useThreads", () => {
       result.current.selectThread("thread-1");
     });
     cloud.threads.list.mockResolvedValueOnce({ threads: [] });
+    cloud.threads.get.mockRejectedValueOnce(
+      new CloudAPIError("thread not found", 404),
+    );
 
     await act(async () => {
       await result.current.refresh();
@@ -330,6 +334,25 @@ describe("useThreads", () => {
 
     expect(result.current.threads).toEqual([]);
     expect(result.current.threadId).toBeNull();
+  });
+
+  it("preserves a selected thread that is omitted from the list page", async () => {
+    const cloud = createCloud("thread-1");
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    act(() => {
+      result.current.selectThread("thread-1");
+    });
+    cloud.threads.list.mockResolvedValueOnce({ threads: [] });
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(cloud.threads.get).toHaveBeenCalledWith("thread-1");
+    expect(result.current.threadId).toBe("thread-1");
   });
 
   it("preserves a newer selection while a refresh is pending", async () => {
@@ -344,6 +367,9 @@ describe("useThreads", () => {
       result.current.selectThread("thread-1");
     });
     cloud.threads.list.mockReturnValueOnce(refresh.promise);
+    cloud.threads.get.mockRejectedValueOnce(
+      new CloudAPIError("thread not found", 404),
+    );
     let refreshPromise!: Promise<boolean>;
     act(() => {
       refreshPromise = result.current.refresh();
