@@ -7,7 +7,6 @@ import {
   useRef,
   useState,
 } from "react";
-import { CloudAPIError } from "assistant-cloud";
 import type {
   CloudThread,
   UseThreadsOptions,
@@ -164,10 +163,11 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
             try {
               await cloud.threads.get(selectedThreadId);
             } catch (error) {
-              if (!(error instanceof CloudAPIError) || error.status !== 404) {
-                throw error;
-              }
-              selectedThreadDeleted = true;
+              selectedThreadDeleted =
+                typeof error === "object" &&
+                error !== null &&
+                "status" in error &&
+                error.status === 404;
             }
           }
           commit(() => {
@@ -334,13 +334,15 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const selectThread = useCallback(
     (id: string | null) => {
+      if (!isCurrentCloud()) return;
+
+      const nextSelection = { scope, threadId: id };
+      selectionRef.current = nextSelection;
       setSelection((current) =>
-        scope.cloud === cloud && current.scope === scope
-          ? { scope, threadId: id }
-          : current,
+        current.scope === scope ? nextSelection : current,
       );
     },
-    [cloud, scope],
+    [isCurrentCloud, scope],
   );
 
   const generateTitle = useCallback(

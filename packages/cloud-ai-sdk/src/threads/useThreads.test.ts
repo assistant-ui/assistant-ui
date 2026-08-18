@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { CloudAPIError } from "assistant-cloud";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useThreads } from "./useThreads";
 
@@ -324,15 +323,30 @@ describe("useThreads", () => {
       result.current.selectThread("thread-1");
     });
     cloud.threads.list.mockResolvedValueOnce({ threads: [] });
-    cloud.threads.get.mockRejectedValueOnce(
-      new CloudAPIError("thread not found", 404),
-    );
+    cloud.threads.get.mockRejectedValueOnce({ status: 404 });
 
     await act(async () => {
       await result.current.refresh();
     });
 
     expect(result.current.threads).toEqual([]);
+    expect(result.current.threadId).toBeNull();
+  });
+
+  it("uses a selection made immediately before refresh", async () => {
+    const cloud = createCloud("thread-1");
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+    cloud.threads.list.mockResolvedValueOnce({ threads: [] });
+    cloud.threads.get.mockRejectedValueOnce({ status: 404 });
+
+    await act(async () => {
+      result.current.selectThread("thread-1");
+      await result.current.refresh();
+    });
+
+    expect(cloud.threads.get).toHaveBeenCalledWith("thread-1");
     expect(result.current.threadId).toBeNull();
   });
 
@@ -355,6 +369,33 @@ describe("useThreads", () => {
     expect(result.current.threadId).toBe("thread-1");
   });
 
+  it("commits refreshed threads when selection verification fails", async () => {
+    const cloud = createCloud("thread-1");
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    act(() => {
+      result.current.selectThread("thread-1");
+    });
+    cloud.threads.list.mockResolvedValueOnce(
+      createThreadListResponse("Updated", "thread-2"),
+    );
+    cloud.threads.get.mockRejectedValueOnce(
+      Object.assign(new Error("verification unavailable"), { status: 503 }),
+    );
+
+    await act(async () => {
+      expect(await result.current.refresh()).toBe(true);
+    });
+
+    expect(result.current.threads).toMatchObject([
+      { id: "thread-2", title: "Updated" },
+    ]);
+    expect(result.current.threadId).toBe("thread-1");
+    expect(result.current.error).toBeNull();
+  });
+
   it("preserves a newer selection while a refresh is pending", async () => {
     const cloud = createCloud("thread-1");
     const refresh =
@@ -367,9 +408,7 @@ describe("useThreads", () => {
       result.current.selectThread("thread-1");
     });
     cloud.threads.list.mockReturnValueOnce(refresh.promise);
-    cloud.threads.get.mockRejectedValueOnce(
-      new CloudAPIError("thread not found", 404),
-    );
+    cloud.threads.get.mockRejectedValueOnce({ status: 404 });
     let refreshPromise!: Promise<boolean>;
     act(() => {
       refreshPromise = result.current.refresh();
