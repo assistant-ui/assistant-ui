@@ -1442,6 +1442,56 @@ describe("A2AClient", () => {
         "statusUpdate",
       ]);
     });
+
+    it("returns the first skip reason when a frame fails to parse", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse(["data: {invalid json}", "", "data: {}", "", ""]),
+      );
+
+      const stream = client.streamMessage(userMessage);
+      const events: A2AStreamEvent[] = [];
+      let result = await stream.next();
+      while (!result.done) {
+        events.push(result.value);
+        result = await stream.next();
+      }
+
+      let parseMessage = "";
+      try {
+        JSON.parse("{invalid json}");
+      } catch (error) {
+        parseMessage = (error as Error).message;
+      }
+
+      expect(events).toEqual([]);
+      expect(result.value).toBe(`${parseMessage} (frame: {invalid json})`);
+    });
+
+    it("returns an unrecognized-shape skip reason with the frame on one line", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse(["data: {", "data: }", "", ""]),
+      );
+
+      const stream = client.streamMessage(userMessage);
+      const result = await stream.next();
+
+      expect(result).toEqual({
+        done: true,
+        value: "unrecognized event shape (frame: { })",
+      });
+    });
+
+    it("truncates an oversized skipped frame", async () => {
+      const frame = `{"nonsense":"${"x".repeat(400)}"}`;
+      fetchMock.mockResolvedValue(mockSSEResponse([`data: ${frame}`, "", ""]));
+
+      const stream = client.streamMessage(userMessage);
+      const result = await stream.next();
+
+      expect(result.value).toBe(
+        `unrecognized event shape (frame: ${frame.slice(0, 120)}…)`,
+      );
+    });
   });
 
   // --- Push notification configs ---
