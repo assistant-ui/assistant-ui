@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
 import { useThreadListItemTrigger } from "@assistant-ui/core/react";
 
-export type ThreadListItemTriggerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type ThreadListItemTriggerProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
 };
 
 export const ThreadListItemTrigger = ({

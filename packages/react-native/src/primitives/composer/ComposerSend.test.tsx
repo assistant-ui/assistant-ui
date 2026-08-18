@@ -113,4 +113,17 @@ describe("ComposerSend", () => {
 
     expect(h.send).toHaveBeenCalledTimes(1);
   });
+
+  it("passes the Pressable press state to function children", async () => {
+    await act(async () => {
+      root.render(
+        <ComposerSend testID="send">
+          {({ pressed }) => (pressed ? "pressed" : "idle")}
+        </ComposerSend>,
+      );
+    });
+
+    const el = container.querySelector('[data-testid="send"]');
+    expect(el?.textContent).toBe("idle");
+  });
 });

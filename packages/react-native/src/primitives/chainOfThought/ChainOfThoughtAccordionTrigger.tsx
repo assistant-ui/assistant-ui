@@ -1,12 +1,12 @@
-import { useCallback, type ReactNode } from "react";
+import { useCallback } from "react";
 import { Pressable, type PressableProps } from "react-native";
 import { useAuiState, useAui } from "@assistant-ui/store";
 
 export type ChainOfThoughtAccordionTriggerProps = Omit<
   PressableProps,
-  "onPress"
+  "onPress" | "children"
 > & {
-  children: ReactNode;
+  children: PressableProps["children"];
 };
 
 export const ChainOfThoughtAccordionTrigger = ({

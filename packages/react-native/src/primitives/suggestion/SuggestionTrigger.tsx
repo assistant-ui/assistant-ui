@@ -1,10 +1,12 @@
-import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
 import { useAuiState } from "@assistant-ui/store";
 import { useSuggestionTrigger } from "@assistant-ui/core/react";
 
-export type SuggestionTriggerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type SuggestionTriggerProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
   /**
    * When true, automatically sends the message.
    * When false, replaces or appends the composer text with the suggestion.
