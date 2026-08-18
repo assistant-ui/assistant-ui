@@ -130,6 +130,10 @@ export function createVoiceSession(
       if (disconnected) return;
       disconnected = true;
       detachAbortHandler();
+      if (currentStatus.type !== "ended") {
+        currentStatus = { type: "ended", reason: "cancelled" };
+        notifyEventListeners(statusCbs, currentStatus, "Voice session");
+      }
       try {
         controls?.disconnect();
       } finally {
@@ -165,6 +169,10 @@ export function createVoiceSession(
   if (abortSignal) {
     abortHandler = () => session.disconnect();
     abortSignal.addEventListener("abort", abortHandler, { once: true });
+    if (abortSignal.aborted) {
+      session.disconnect();
+      return session;
+    }
   }
 
   const doSetup = async () => {

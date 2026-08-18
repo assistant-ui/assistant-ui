@@ -96,6 +96,10 @@ export type RemoteThreadListAdapter = {
 
 export type RemoteThreadListOptions = {
   runtimeHook: () => AssistantRuntime;
+
+  /**
+   * The adapter reference should remain stable across renders. Replacing it reloads the list and drops cached threads that are not in the replacement page. In-flight mutations from the previous adapter are cancelled.
+   */
   adapter: RemoteThreadListAdapter;
 
   /**

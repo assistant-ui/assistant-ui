@@ -173,6 +173,73 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
     expect(onThreadIdChange).not.toHaveBeenCalled();
   });
 
+  it("reports the reset when an adapter change makes the runtime uncontrolled", async () => {
+    const adapterA = makeAdapter();
+    const adapterB = makeAdapter();
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+    onThreadIdChange.mockClear();
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapterB}
+        threadId={undefined}
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitFor(() => {
+      const state = runtimeRef.current!.threads.getState();
+      expect(state.mainThreadId).toBeDefined();
+      expect(runtimeRef.current!.threads.mainItem.getState().status).toBe(
+        "new",
+      );
+    });
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+  });
+
+  it("does not echo a controlled target when the adapter changes", async () => {
+    const adapterA = makeAdapter();
+    const adapterB = makeAdapter();
+    const onThreadIdChange = vi.fn();
+    const runtimeRef: RuntimeRef = { current: null };
+
+    const { rerender } = render(
+      <ControlledRuntime
+        adapter={adapterA}
+        threadId="thread-a"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+    await waitForRemoteThread(runtimeRef, "thread-a");
+    onThreadIdChange.mockClear();
+
+    rerender(
+      <ControlledRuntime
+        adapter={adapterB}
+        threadId="thread-b"
+        onThreadIdChange={onThreadIdChange}
+        runtimeRef={runtimeRef}
+      />,
+    );
+
+    await waitForRemoteThread(runtimeRef, "thread-b");
+    expect(adapterB.fetch).toHaveBeenCalledWith("thread-b");
+    expect(onThreadIdChange).not.toHaveBeenCalled();
+  });
+
   it("still emits runtime-initiated thread switches", async () => {
     const adapter = makeAdapter();
     const onThreadIdChange = vi.fn();

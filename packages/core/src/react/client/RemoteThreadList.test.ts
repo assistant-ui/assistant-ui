@@ -195,6 +195,45 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("restores an initialized draft's archived thread when unarchive fails", async () => {
+    const error = new Error("unarchive failed");
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "archived" as const, remoteId: "t1", title: "One" },
+        ],
+      })),
+      unarchive: vi.fn(async () => {
+        throw error;
+      }),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().archivedThreadIds).toContain("t1");
+    });
+    await aui.threads.item("main").initialize();
+
+    flushTapSync(() =>
+      aui.threads.item({ id: "t1" }).switchTo({ unarchive: false }),
+    );
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    await expect(aui.threads.item({ id: "t1" }).unarchive()).rejects.toBe(
+      error,
+    );
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).not.toBe("t1");
+    });
+    expect(aui.threads.item({ id: "t1" }).getState().status).toBe("archived");
+    expect(aui.threads.getState().archivedThreadIds).toContain("t1");
+    expect(aui.threads.getState().threadIds).not.toContain("t1");
+    handle.destroy();
+  });
+
   it("switches to a listed thread and back to a new thread", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
@@ -503,6 +542,202 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("resets selection when reload follows a different adapter instance", async () => {
+    const methodsA = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "thread-a", title: "A" },
+        ],
+      })),
+    });
+    const methodsB = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "thread-b", title: "B" },
+        ],
+      })),
+    });
+    let adapter: RemoteThreadListAdapter = { ...methodsA };
+    const listeners = new Set<() => void>();
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    await handle.getClient().threads.getLoadThreadsPromise();
+    flushTapSync(() => handle.getClient().threads.switchToThread("thread-a"));
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.item("main").getState().remoteId).toBe(
+        "thread-a",
+      );
+    });
+
+    adapter = { ...methodsB };
+    for (const listener of listeners) listener();
+    await vi.waitFor(async () => {
+      flushTapSync(() => {});
+      await handle.getClient().threads.reload();
+      expect(handle.getClient().threads.getState().threadIds).toEqual([
+        "thread-b",
+      ]);
+    });
+    expect(
+      handle.getClient().threads.item("main").getState().remoteId,
+    ).not.toBe("thread-a");
+    expect(handle.getClient().threads.item("main").getState().status).toBe(
+      "new",
+    );
+    expect(methodsB.list).toHaveBeenCalled();
+    handle.destroy();
+  });
+
+  it("does not reset again when retrying a failed replacement load", async () => {
+    const methodsA = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "thread-a", title: "A" },
+        ],
+      })),
+    });
+    const methodsB = makeAdapter({
+      list: vi
+        .fn()
+        .mockRejectedValueOnce(new Error("network"))
+        .mockResolvedValueOnce({
+          threads: [
+            { status: "regular" as const, remoteId: "thread-b", title: "B" },
+          ],
+        }),
+    });
+    let adapter: RemoteThreadListAdapter = { ...methodsA };
+    const listeners = new Set<() => void>();
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    await handle.getClient().threads.getLoadThreadsPromise();
+    flushTapSync(() => handle.getClient().threads.switchToThread("thread-a"));
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.item("main").getState().remoteId).toBe(
+        "thread-a",
+      );
+    });
+
+    adapter = { ...methodsB };
+    for (const listener of listeners) listener();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    try {
+      await vi.waitFor(async () => {
+        flushTapSync(() => {});
+        await handle.getClient().threads.reload();
+        expect(handle.getClient().threads.item("main").getState().status).toBe(
+          "new",
+        );
+      });
+      const mainAfterFailure = handle
+        .getClient()
+        .threads.getState().mainThreadId;
+      await handle.getClient().threads.reload();
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().threadIds).toEqual([
+          "thread-b",
+        ]);
+      });
+      expect(handle.getClient().threads.getState().mainThreadId).toBe(
+        mainAfterFailure,
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
+    handle.destroy();
+  });
+
+  it("does not send a superseded rename through the replacement adapter", async () => {
+    const initializeRequest = deferred<{
+      remoteId: string;
+      externalId: string | undefined;
+    }>();
+    const methodsA = makeAdapter({
+      list: vi.fn(async () => ({ threads: [] })),
+      initialize: vi.fn(() => initializeRequest.promise),
+    });
+    const methodsB = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "thread-b", title: "B" },
+        ],
+      })),
+    });
+    let adapter: RemoteThreadListAdapter = { ...methodsA };
+    const listeners = new Set<() => void>();
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    await handle.getClient().threads.getLoadThreadsPromise();
+    const initializeTask = handle.getClient().threads.item("main").initialize();
+    const renameTask = handle.getClient().threads.item("main").rename("leaked");
+
+    adapter = { ...methodsB };
+    for (const listener of listeners) listener();
+    await vi.waitFor(async () => {
+      flushTapSync(() => {});
+      await handle.getClient().threads.reload();
+      expect(handle.getClient().threads.getState().threadIds).toEqual([
+        "thread-b",
+      ]);
+    });
+    initializeRequest.resolve({
+      remoteId: "leaked",
+      externalId: undefined,
+    });
+    await expect(initializeTask).rejects.toThrow("adapter changed");
+    await expect(renameTask).rejects.toThrow("adapter changed");
+    expect(methodsA.rename).not.toHaveBeenCalled();
+    expect(methodsB.rename).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
   it("exposes useAdapters adapters to the thread factory", async () => {
     const history = dummyHistory();
     const capture: { adapters: RuntimeAdapters | null } = { adapters: null };
@@ -523,15 +758,24 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
-  it("does not warn when useAdapters is supplied", async () => {
+  it("does not warn when useAdapters is supplied and the factory is keyed", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const adapter = makeAdapter({
         unstable_Provider: () => null,
         unstable_useAdapters: useHistoryAdapters(dummyHistory()),
       });
-      const { handle } = mountList(adapter);
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => withKey(id, StubThread({ threadId: id }) as never),
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
       await handle.getClient().threads.getLoadThreadsPromise();
+      flushTapSync(() => {});
       expect(warn).not.toHaveBeenCalled();
       handle.destroy();
     } finally {
@@ -550,6 +794,30 @@ describe("RemoteThreadList", () => {
       expect(warn).toHaveBeenCalledWith(
         expect.stringContaining("unstable_useAdapters"),
       );
+      handle.destroy();
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("warns when a history adapter arrives with an unkeyed thread factory", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const adapter = makeAdapter({
+        unstable_useAdapters: useHistoryAdapters(dummyHistory()),
+      });
+      const handle = createAssistantClient(
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+          }),
+        }),
+      );
+      handle.subscribe(() => {});
+      await handle.getClient().threads.getLoadThreadsPromise();
+      flushTapSync(() => {});
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("unkeyed"));
       handle.destroy();
     } finally {
       warn.mockRestore();

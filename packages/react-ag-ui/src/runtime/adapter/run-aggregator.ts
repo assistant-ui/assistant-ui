@@ -15,6 +15,7 @@ import {
   type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
 import { readMcpAppResourceUri } from "../mcp-tool-result";
+import { projectAgUiToolApprovals } from "./tool-approval";
 import type { AgUiEvent, AgUiInterrupt } from "../types";
 import type { Logger } from "../logger";
 
@@ -630,6 +631,14 @@ export class RunAggregator {
 
   private emit(): void {
     const snapshot: ThreadAssistantMessagePart[] = [];
+    // A run that ended incomplete can no longer be resumed, so a gate left over
+    // from an earlier interrupt outcome is unanswerable and must not stay
+    // projected. The interrupts themselves are kept on the message, since the
+    // bespoke hooks read that payload.
+    const approvals = projectAgUiToolApprovals(
+      this.status?.type === "requires-action" ? this.interrupts : undefined,
+      new Set(this.toolCalls.keys()),
+    );
 
     for (const part of this.partOrder) {
       if (part.kind === "reasoning") {
@@ -673,12 +682,14 @@ export class RunAggregator {
 
       const entry = this.toolCalls.get(part.toolCallId);
       if (!entry) continue;
+      const approval = approvals.get(entry.toolCallId);
       const toolPart: ToolCallMessagePart = {
         type: "tool-call",
         toolCallId: entry.toolCallId,
         toolName: entry.toolCallName,
         args: (entry.parsedArgs ?? {}) as any,
         argsText: entry.argsText,
+        ...(approval ? { approval } : {}),
         ...(entry.result !== undefined ? { result: entry.result } : {}),
         ...(entry.modelContent !== undefined
           ? { modelContent: entry.modelContent }

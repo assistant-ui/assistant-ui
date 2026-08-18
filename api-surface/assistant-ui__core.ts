@@ -2010,6 +2010,7 @@ type GenerativeUISpec = {
 
 type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
+  pin?(): void;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
   update?(item: MessageFormatItem<TMessage>, localMessageId: string): Promise<void>;
   delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
@@ -3038,6 +3039,7 @@ declare class OptimisticState<TState> extends BaseSubscribable {
   get baseValue(): TState;
   get value(): TState;
   update(state: TState): void;
+  reset(state: TState): void;
   optimisticUpdate<TResult>(transform: Transform<TState, TResult>): Promise<TResult>;
 }
 

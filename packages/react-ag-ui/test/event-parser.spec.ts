@@ -2,6 +2,7 @@
 
 import { describe, it, expect, vi } from "vitest";
 import { parseAgUiEvent } from "../src/runtime/event-parser";
+import { readRawResponseSchema } from "../src/runtime/interrupt-internals";
 
 describe("parseAgUiEvent", () => {
   it("parses text content event", () => {
@@ -199,6 +200,23 @@ describe("parseAgUiEvent", () => {
         ],
       },
     });
+  });
+
+  it("carries a non-object responseSchema on the internal carrier instead of normalizing it to absent", () => {
+    const event = parseAgUiEvent({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [
+          { id: "int-1", reason: "tool_call", responseSchema: false },
+        ],
+      },
+    });
+    const [interrupt] = (event as any).outcome.interrupts;
+    expect(interrupt).toMatchObject({ id: "int-1", reason: "tool_call" });
+    expect(readRawResponseSchema(interrupt)).toBe(false);
+    expect(interrupt.responseSchema).toBeUndefined();
   });
 
   it("drops malformed interrupt outcomes (no interrupts)", () => {
