@@ -150,31 +150,38 @@ function getEditorLines(editor: LexicalEditor): SegmentKey[][] | undefined {
   });
 }
 
-function collectEditorDirectiveKeys(editor: LexicalEditor) {
+function incrementCount(counts: Map<string, number>, key: string) {
+  counts.set(key, (counts.get(key) ?? 0) + 1);
+}
+
+function collectEditorDirectiveCounts(editor: LexicalEditor) {
   return editor.getEditorState().read(() => {
-    const keys = new Set<string>();
+    const counts = new Map<string, number>();
     for (const paragraph of $getRoot().getChildren()) {
       if (!$isElementNode(paragraph)) continue;
       for (const child of paragraph.getChildren()) {
         if (!$isDirectiveNode(child)) continue;
         const item = child.getDirectiveItem();
-        keys.add(directiveKey(item.id, item.type));
+        incrementCount(counts, directiveKey(item.id, item.type));
       }
     }
-    return keys;
+    return counts;
   });
 }
 
-function collectParsedMentionKeys(runtimeText: string, parse: CompositeParser) {
-  const keys = new Set<string>();
+function collectParsedMentionCounts(
+  runtimeText: string,
+  parse: CompositeParser,
+) {
+  const counts = new Map<string, number>();
   for (const line of getParsedLines(runtimeText, parse)) {
     for (const segment of line) {
       if (segment[0] === "mention") {
-        keys.add(directiveKey(segment[1], segment[2]));
+        incrementCount(counts, directiveKey(segment[1], segment[2]));
       }
     }
   }
-  return keys;
+  return counts;
 }
 
 function editorMatchesParser(
@@ -197,9 +204,9 @@ function shouldRebuildForParser(
 ) {
   if (getEditorLines(editor) === undefined) return false;
   if (editorMatchesParser(editor, runtimeText, parse)) return false;
-  const parsedKeys = collectParsedMentionKeys(runtimeText, parse);
-  for (const key of collectEditorDirectiveKeys(editor)) {
-    if (!parsedKeys.has(key)) return false;
+  const parsedCounts = collectParsedMentionCounts(runtimeText, parse);
+  for (const [key, count] of collectEditorDirectiveCounts(editor)) {
+    if ((parsedCounts.get(key) ?? 0) < count) return false;
   }
   return true;
 }
@@ -538,6 +545,10 @@ export function SyncPlugin({
       }
       if (editor.isComposing()) return;
       const runtimeText = lastSyncedTextRef.current;
+      if (editorMatchesParser(editor, runtimeText, parser)) {
+        lastAppliedParserRef.current = parser;
+        return;
+      }
       if (!shouldRebuildForParser(editor, runtimeText, parser)) return;
       applyRuntimeText(runtimeText, lastAppliedParserRef.current);
     };

@@ -459,6 +459,62 @@ describe("SyncPlugin", () => {
     ).toEqual(before);
   });
 
+  it("keeps same-key chips when a formatter would drop one occurrence", async () => {
+    const initialConfig = {
+      namespace: "sync-plugin-same-key-remove-test",
+      nodes: [DirectiveNode],
+      onError: (error: Error) => {
+        throw error;
+      },
+    };
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const formatter = createBracketFormatter();
+    const render = (registered: boolean) =>
+      root.render(
+        <LexicalComposer initialConfig={initialConfig}>
+          <SyncPlugin formatter={registered ? formatter : undefined} />
+          <EditorProbe capture={capture} />
+        </LexicalComposer>,
+      );
+
+    mocks.aui = createAui("[[alice]]\n:user[alice]");
+    await act(async () => {
+      render(true);
+    });
+    const before = editor.getEditorState().read(() => {
+      const [first, second] = $getRoot().getChildren();
+      if (!$isElementNode(first) || !$isElementNode(second)) {
+        throw new Error("Expected two paragraphs");
+      }
+      const firstChip = first.getFirstChild();
+      const secondChip = second.getFirstChild();
+      if (!$isDirectiveNode(firstChip) || !$isDirectiveNode(secondChip)) {
+        throw new Error("Expected same-key chips");
+      }
+      return { first: firstChip.getKey(), second: secondChip.getKey() };
+    });
+
+    await act(async () => {
+      render(false);
+    });
+    expect(
+      editor.getEditorState().read(() => {
+        const [first, second] = $getRoot().getChildren();
+        if (!$isElementNode(first) || !$isElementNode(second)) {
+          throw new Error("Expected two paragraphs");
+        }
+        const firstChip = first.getFirstChild();
+        const secondChip = second.getFirstChild();
+        if (!$isDirectiveNode(firstChip) || !$isDirectiveNode(secondChip)) {
+          throw new Error("Expected chips to remain");
+        }
+        return { first: firstChip.getKey(), second: secondChip.getKey() };
+      }),
+    ).toEqual(before);
+  });
+
   it("keeps hydrated metadata when a formatter only changes the label", async () => {
     const initialConfig = {
       namespace: "sync-plugin-metadata-test",
