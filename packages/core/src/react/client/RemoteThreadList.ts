@@ -654,7 +654,7 @@ const useRemoteThreadList = (
           session.onSwitchToNewThread?.();
           return;
         }
-        const seeded = seedNewThread(store.value);
+        const seeded = seedNewThread(store.baseValue);
         store.update(seeded.state);
         if (generation !== session.switchGeneration) return;
         assignMainThreadId(seeded.id);

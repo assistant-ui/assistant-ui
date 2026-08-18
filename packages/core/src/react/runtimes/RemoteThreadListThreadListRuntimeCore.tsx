@@ -570,7 +570,7 @@ export class RemoteThreadListThreadListRuntimeCore
       if (generation !== this._switchGeneration) return;
     }
 
-    const state = this._state.value;
+    const state = this._state.baseValue;
     let id: string | undefined = this._state.value.newThreadId;
     if (id === undefined) {
       do {
