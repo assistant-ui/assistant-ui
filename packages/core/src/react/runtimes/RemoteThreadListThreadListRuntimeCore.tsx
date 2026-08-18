@@ -216,9 +216,10 @@ export class RemoteThreadListThreadListRuntimeCore
         })
         .then(() => {
           if (!replacedList) return;
-          if (this._options.threadId === undefined) return;
-          if (this.getItemById(this._options.threadId) !== undefined) return;
-          this._switchToThreadFromProp(this._options.threadId).catch(() => {});
+          const threadId = this._options.threadId;
+          if (threadId === undefined) return;
+          if (this.getItemById(threadId)?.id === this._mainThreadId) return;
+          this._switchToThreadFromProp(threadId).catch(() => {});
         });
     }
 

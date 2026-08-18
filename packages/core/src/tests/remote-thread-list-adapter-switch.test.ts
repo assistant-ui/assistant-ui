@@ -139,6 +139,29 @@ describe("RemoteThreadList adapter changes", () => {
     });
   });
 
+  it("selects a controlled thread that arrives on the replacement page", async () => {
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("thread-a")] }),
+    });
+    const adapterB = makeAdapter({
+      list: async () => ({ threads: [thread("thread-b")] }),
+    });
+    const core = createCore(adapterA, "thread-a");
+
+    await core.getLoadThreadsPromise();
+    core.__internal_load();
+    await core.switchToThread("thread-a");
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+      threadId: "thread-b",
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(core.getItemById(core.mainThreadId)?.remoteId).toBe("thread-b");
+  });
+
   it("keeps the unsent draft runtime across an empty-list adapter swap", async () => {
     const adapterA = makeAdapter();
     const adapterB = makeAdapter();
