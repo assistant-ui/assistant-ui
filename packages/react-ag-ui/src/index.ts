@@ -15,7 +15,6 @@ export {
 export type {
   AgUiMessage,
   FromAgUiMessagesOptions,
-  ThreadMessageLike,
 } from "./runtime/adapter/conversions";
 export type {
   AgUiInterrupt,

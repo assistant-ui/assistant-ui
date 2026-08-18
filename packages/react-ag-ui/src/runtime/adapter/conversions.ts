@@ -40,7 +40,7 @@ type AttachmentLike = {
   content?: readonly unknown[] | undefined;
 };
 
-export type ThreadMessageLike = {
+type ThreadMessageLike = {
   id?: string;
   role: string;
   content: unknown;
@@ -1014,11 +1014,7 @@ function convertAssistantMessage(
     return;
   }
 
-  const assistantMessage: AgUiMessage & {
-    role: "assistant";
-    name?: string;
-    toolCalls?: AgUiToolCall[];
-  } = {
+  const assistantMessage: AgUiMessage = {
     id: message.id,
     role: "assistant",
     content,
@@ -1061,10 +1057,7 @@ function convertToolMessage(
   const content = extractText(message.content);
   const toolCallId = message.toolCallId ?? generateId();
 
-  const toolMessage: AgUiMessage & {
-    role: "tool";
-    error?: string;
-  } = {
+  const toolMessage: AgUiMessage = {
     id: message.id,
     role: "tool",
     content,

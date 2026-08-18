@@ -21,26 +21,36 @@ const contentOf = (message: Message) => {
   return (converted as { content: unknown }).content;
 };
 
+const appendMessage = (): AppendMessage => ({
+  role: "user",
+  content: [{ type: "text", text: "Hi" }],
+  attachments: [],
+  createdAt: new Date(),
+  parentId: null,
+  sourceId: null,
+  runConfig: undefined,
+  metadata: { custom: {} },
+});
+
 describe("toAgUiMessages content metadata", () => {
   it("normalizes an AppendMessage without an id", () => {
-    const appendMessage: AppendMessage = {
-      role: "user",
-      content: [{ type: "text", text: "Hi" }],
-      attachments: [],
-      createdAt: new Date(),
-      parentId: null,
-      sourceId: null,
-      runConfig: undefined,
-      metadata: { custom: {} },
-    };
+    const converted = toAgUiMessages([appendMessage()])[0];
+    if (!converted) throw new Error("expected a converted message");
 
-    expect(toAgUiMessages([appendMessage])).toEqual([
-      expect.objectContaining({
-        role: "user",
-        content: "Hi",
-        id: expect.any(String),
-      }),
-    ]);
+    expect(UserMessageSchema.parse(converted)).toMatchObject({
+      role: "user",
+      content: "Hi",
+    });
+    expect(converted.id).toEqual(expect.any(String));
+  });
+
+  it("preserves a caller-supplied id", () => {
+    const converted = toAgUiMessages([
+      { ...appendMessage(), id: "stable-user-1" },
+    ])[0];
+    if (!converted) throw new Error("expected a converted message");
+
+    expect(UserMessageSchema.parse(converted).id).toBe("stable-user-1");
   });
 
   it("carries a part's agui provider metadata onto an image item", () => {

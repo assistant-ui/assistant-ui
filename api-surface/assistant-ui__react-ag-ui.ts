@@ -384,9 +384,9 @@ type ExportedMessageRepository = {
 };
 
 declare const ExportedMessageRepository: {
-  fromArray: (messages: readonly ThreadMessageLike$1[]) => ExportedMessageRepository;
+  fromArray: (messages: readonly ThreadMessageLike[]) => ExportedMessageRepository;
   fromBranchableArray: (items: readonly {
-    message: ThreadMessageLike$1;
+    message: ThreadMessageLike;
     parentId: string | null;
   }[], options?: {
     headId?: string | null;
@@ -451,7 +451,7 @@ type ExternalStoreBranchChange = {
   visibleMessageIds: readonly string[];
 };
 
-type ExternalStoreMessageConverter<T> = (message: T, idx: number) => ThreadMessageLike$1;
+type ExternalStoreMessageConverter<T> = (message: T, idx: number) => ThreadMessageLike;
 
 type ExternalStoreMessageConverterAdapter<T> = {
   convertMessage: ExternalStoreMessageConverter<T>;
@@ -1244,17 +1244,6 @@ type ThreadListState = {
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
 
 type ThreadMessageLike = {
-  id?: string;
-  role: string;
-  content: unknown;
-  metadata?: unknown;
-  name?: string;
-  toolCallId?: string;
-  error?: string;
-  attachments?: readonly AttachmentLike[];
-};
-
-type ThreadMessageLike$1 = {
   readonly role: "assistant" | "system" | "user";
   readonly content: string | readonly (TextMessagePart | ReasoningMessagePart | SourceMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | GenerativeUIMessagePart | Unstable_AudioMessagePart | DataPrefixedPart | {
     readonly type: "tool-call";
@@ -1303,6 +1292,17 @@ type ThreadMessageLike$1 = {
   } | undefined;
 };
 
+type ThreadMessageLike$1 = {
+  id?: string;
+  role: string;
+  content: unknown;
+  metadata?: unknown;
+  name?: string;
+  toolCallId?: string;
+  error?: string;
+  attachments?: readonly AttachmentLike[];
+};
+
 type ThreadRuntime = {
   readonly path: ThreadRuntimePath;
   readonly composer: ThreadComposerRuntime;
@@ -1319,7 +1319,7 @@ type ThreadRuntime = {
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
-  reset(initialMessages?: readonly ThreadMessageLike$1[]): void;
+  reset(initialMessages?: readonly ThreadMessageLike[]): void;
   getMessageByIndex(idx: number): MessageRuntime;
   getMessageById(messageId: string): MessageRuntime;
   stopSpeaking(): void;
@@ -1640,7 +1640,7 @@ type VoiceSessionState = {
   readonly mode: RealtimeVoiceAdapter.Mode;
 };
 
-declare function fromAgUiMessages(messages: readonly unknown[], options?: FromAgUiMessagesOptions): ThreadMessageLike$1[];
+declare function fromAgUiMessages(messages: readonly unknown[], options?: FromAgUiMessagesOptions): ThreadMessageLike[];
 
 declare global {
   interface Window {
@@ -1650,10 +1650,10 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiMessage, AgUiResumeEntry, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, ThreadMessageLike, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, toAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
+  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiMessage, AgUiResumeEntry, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, toAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
 }
 
-declare function toAgUiMessages(messages: readonly ThreadMessageLike[]): AgUiMessage[];
+declare function toAgUiMessages(messages: readonly ThreadMessageLike$1[]): AgUiMessage[];
 
 declare const useAgUiInterrupts: () => readonly AgUiInterrupt[];
 

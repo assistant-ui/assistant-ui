@@ -1,9 +1,12 @@
 "use client";
 
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, expectTypeOf } from "vitest";
 import { z } from "zod";
 import { UserMessageSchema } from "@ag-ui/client";
-import { ExportedMessageRepository } from "@assistant-ui/core";
+import {
+  ExportedMessageRepository,
+  type AppendMessage,
+} from "@assistant-ui/core";
 import {
   fromAgUiMessages as publicFromAgUiMessages,
   toAgUiMessages as publicToAgUiMessages,
@@ -2493,6 +2496,12 @@ describe("package exports", () => {
 
   it("exposes toAgUiMessages from the package root", () => {
     expect(publicToAgUiMessages).toBe(toAgUiMessages);
+  });
+
+  it("accepts an AppendMessage at the package root", () => {
+    expectTypeOf<AppendMessage>().toExtend<
+      Parameters<typeof publicToAgUiMessages>[0][number]
+    >();
   });
 
   it("composes with ExportedMessageRepository.fromArray for history loading", () => {
