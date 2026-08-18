@@ -205,6 +205,7 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       getId: (message: { id: string }) => message.id,
     });
 
+    formatted.pin?.();
     await formatted.append({ parentId: null, message: { id: "message-1" } });
     mocks.aui = mocks.makeClient("thread-2");
     rerender();

@@ -141,9 +141,10 @@ export const useExternalHistory = <TMessage>(
       }
     };
 
+    formatAdapter.pin?.();
+
     const remoteId = optionalThreadListItem()?.getState().remoteId;
     if (!remoteId) {
-      void formatAdapter.load();
       setHasLoaded(true);
       return aui.subscribe(() => {
         if (optionalThreadListItem()?.getState().remoteId) {
@@ -208,7 +209,7 @@ export const useExternalHistory = <TMessage>(
           runStartRef.current = Date.now();
           stepBoundariesRef.current = [];
           toolCallCountRef.current = 0;
-          void adapter.load();
+          adapter.pin?.();
         }
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {

@@ -62,13 +62,9 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   private tryGetKeyedThreadListItem(): CloudThreadListItem | undefined {
     const live = this.aui.threadListItem;
     if (!live.source) return undefined;
-    try {
-      const id = live.getState().id;
-      if (id === undefined) return undefined;
-      return this.aui.threads.item({ id });
-    } catch {
-      return undefined;
-    }
+    const id = live.getState().id;
+    if (id === undefined) return undefined;
+    return this.aui.threads.item({ id });
   }
 
   withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
@@ -87,9 +83,16 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     const getTargetFormatted = (item: CloudThreadListItem) =>
       createFormattedPersistence(adapter.getPersistence(item), formatAdapter);
     return {
+      pin() {
+        pinCurrent();
+      },
       async append(item: MessageFormatItem<TMessage>) {
         const pinned = resolvePinned();
-        if (!pinned) return;
+        if (!pinned) {
+          throw new Error(
+            "Cannot persist cloud history without a thread list item.",
+          );
+        }
         const remoteId =
           pinned.getState().remoteId ?? (await pinned.initialize()).remoteId;
         await getTargetFormatted(pinned).append(remoteId, item);
