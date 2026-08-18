@@ -542,6 +542,67 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("resets selection when reload follows a different adapter instance", async () => {
+    const methodsA = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "thread-a", title: "A" },
+        ],
+      })),
+    });
+    const methodsB = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "thread-b", title: "B" },
+        ],
+      })),
+    });
+    let adapter: RemoteThreadListAdapter = { ...methodsA };
+    const listeners = new Set<() => void>();
+    const source: AssistantConfigSource = {
+      getConfig: () =>
+        AuiConfig({
+          threads: RemoteThreadList({
+            adapter,
+            thread: (id) => StubThread({ threadId: id }) as never,
+          }),
+        }),
+      subscribe: (listener) => {
+        listeners.add(listener);
+        return () => {
+          listeners.delete(listener);
+        };
+      },
+    };
+    const handle = createAssistantClient(source);
+    handle.subscribe(() => {});
+    await handle.getClient().threads.getLoadThreadsPromise();
+    flushTapSync(() => handle.getClient().threads.switchToThread("thread-a"));
+    await vi.waitFor(() => {
+      expect(handle.getClient().threads.item("main").getState().remoteId).toBe(
+        "thread-a",
+      );
+    });
+
+    adapter = { ...methodsB };
+    for (const listener of listeners) listener();
+    await vi.waitFor(async () => {
+      flushTapSync(() => {});
+      await handle.getClient().threads.reload();
+      expect(handle.getClient().threads.getState().threadIds).toEqual([
+        "thread-b",
+      ]);
+    });
+    expect(
+      handle.getClient().threads.item("main").getState().remoteId,
+    ).not.toBe("thread-a");
+    expect(handle.getClient().threads.item("main").getState().status).toBe(
+      "new",
+    );
+    expect(methodsB.list).toHaveBeenCalled();
+    handle.destroy();
+  });
+
   it("exposes useAdapters adapters to the thread factory", async () => {
     const history = dummyHistory();
     const capture: { adapters: RuntimeAdapters | null } = { adapters: null };

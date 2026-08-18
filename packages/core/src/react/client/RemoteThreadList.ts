@@ -52,7 +52,7 @@ const EMPTY_LIST: RemoteThreadState = {
 
 export type RemoteThreadListProps = {
   /**
-   * Swapping this to a different backing store does not reload the list. Call `reload()` after a genuine swap. A recreated object for the same store is a no-op.
+   * Swapping this to a different backing store does not reload the list. Call `reload()` after a genuine swap. A recreated object for the same store is a no-op. `reload()` after a different adapter instance resets selection and cached records before loading.
    */
   adapter: RemoteThreadListAdapter;
   /**
@@ -359,6 +359,7 @@ const useRemoteThreadList = (
       initialMainId: seeded.id,
       session: {
         adapter,
+        adapterAtLoad: adapter,
         loadGeneration: 0,
         switchGeneration: 0,
         loadPromise: undefined as Promise<void> | undefined,
@@ -374,6 +375,8 @@ const useRemoteThreadList = (
       },
     };
   });
+
+  session.adapter = adapter;
 
   const listState = useSyncExternalStore(
     (onStoreChange) => store.subscribe(onStoreChange),
@@ -417,12 +420,14 @@ const useRemoteThreadList = (
   const getLoadThreadsPromise = useCallback(() => {
     if (session.loadPromise) return session.loadPromise;
     const generation = session.loadGeneration;
+    const adapter = session.adapter;
     session.loadPromise = store
       .optimisticUpdate({
-        execute: () => session.adapter.list(),
+        execute: () => adapter.list(),
         loading: (state) => ({ ...state, isLoading: true }),
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
+          session.adapterAtLoad = adapter;
           const fresh = classifyThreads(page.threads, {
             threadIds: [],
             archivedThreadIds: [],
@@ -460,15 +465,32 @@ const useRemoteThreadList = (
   }, [session, store]);
 
   const reload = useCallback(() => {
+    const adapterChanged = adapter !== session.adapterAtLoad;
     session.loadGeneration++;
     session.loadPromise = undefined;
     session.loadMorePromise = undefined;
-    store.update({
-      ...store.baseValue,
-      cursor: undefined,
-    });
+    if (adapterChanged) {
+      session.switchGeneration++;
+      session.switchTask = undefined;
+      const seeded = seedNewThread(EMPTY_LIST);
+      store.reset({ ...seeded.state, isLoading: true });
+      assignMainThreadId(seeded.id);
+      notifyRemoteId(undefined, true);
+    } else {
+      store.update({
+        ...store.baseValue,
+        cursor: undefined,
+      });
+    }
     return getLoadThreadsPromise();
-  }, [getLoadThreadsPromise, session, store]);
+  }, [
+    adapter,
+    assignMainThreadId,
+    getLoadThreadsPromise,
+    notifyRemoteId,
+    session,
+    store,
+  ]);
 
   useEffect(() => {
     void getLoadThreadsPromise();

@@ -263,7 +263,8 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     });
 
     expect(core.hasMore).toBe(false);
-    expect(core.threadIds).toEqual(["old"]);
+    expect(core.threadIds).toEqual([]);
+    expect(core.getItemById("old")).toBeUndefined();
 
     await core.getLoadThreadsPromise();
     expect(secondList).toHaveBeenCalledTimes(1);
@@ -289,23 +290,24 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     await core.getLoadThreadsPromise();
     const stale = core.loadMore();
 
-    const secondAdapter = makeAdapter({
-      list: vi.fn<ListFn>(async () => ({
-        threads: [{ status: "regular", remoteId: "ignored", externalId: "x" }],
-      })),
-    });
+    const secondList = vi.fn<ListFn>(async () => ({
+      threads: [{ status: "regular", remoteId: "fresh", externalId: "fresh" }],
+    }));
+    const secondAdapter = makeAdapter({ list: secondList });
     core.__internal_setOptions({
       adapter: secondAdapter,
       runtimeHook: () => ({}) as never,
     });
+    const replacementLoad = core.getLoadThreadsPromise();
 
     slow.resolve({
       threads: [{ status: "regular", remoteId: "stale", externalId: "stale" }],
       nextCursor: "stale-cursor",
     });
     await stale;
+    await replacementLoad;
 
-    expect(core.threadIds).toEqual(["p1"]);
+    expect(core.threadIds).toEqual(["fresh"]);
     expect(core.hasMore).toBe(false);
     expect(core.isLoadingMore).toBe(false);
   });

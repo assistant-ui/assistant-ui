@@ -50,7 +50,7 @@ See the [cloud documentation](/docs/cloud) for setup, auth, and self-host option
 
 ## RemoteThreadListRuntime (custom database)
 
-`useRemoteThreadListRuntime` lets you back the thread list with any database while keeping the per-thread runtime simple. You provide a `RemoteThreadListAdapter` describing how to list, create, rename, archive, and delete threads.
+`useRemoteThreadListRuntime` lets you back the thread list with any database while keeping the per-thread runtime simple. You provide a `RemoteThreadListAdapter` describing how to list, create, rename, archive, and delete threads. Keep that adapter reference stable across renders (module scope or `useMemo`). Replacing it resets the selected thread and cached records, then loads the replacement adapter.
 
 Works with any `LocalRuntime`-based runtime, including framework adapters that build on it (`react-ai-sdk`, `react-google-adk`, `react-a2a`, `useDataStreamRuntime`).
 
@@ -241,11 +241,11 @@ function ReloadOnAuth() {
 }
 ```
 
-`reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition.
+`reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition. On the `RemoteThreadList` store entry, a recreated adapter object is a no-op until you call `reload()`. `reload()` against the same instance refreshes the list and keeps the open thread. `reload()` after a different adapter instance resets selection and cached records, then loads the replacement store.
 
 ### Refetching the open thread
 
-`reload()` re-runs `list()`, which refreshes thread list metadata only. It does not touch the messages of the thread the user is looking at. When the open thread's server state changes out of band, so that nothing arrives over the stream (a human-in-the-loop interrupt raised by another process, a stalled stream, a status change picked up by polling), call `aui.threads.reloadMainThread()`:
+`reload()` against the same adapter instance re-runs `list()`, which refreshes thread list metadata only. It does not touch the messages of the thread the user is looking at. When the open thread's server state changes out of band, so that nothing arrives over the stream (a human-in-the-loop interrupt raised by another process, a stalled stream, a status change picked up by polling), call `aui.threads.reloadMainThread()`:
 
 ```tsx
 function RefetchOnInterrupt({ status }: { status: string }) {
