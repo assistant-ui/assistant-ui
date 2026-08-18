@@ -1151,12 +1151,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/thread-list.tsx",
       },
     ],
-    registryDependencies: [
-      "button",
-      "input",
-      "skeleton",
-      "https://r.assistant-ui.com/tooltip-icon-button.json",
-    ],
+    registryDependencies: ["button", "input", "skeleton"],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {
