@@ -81,6 +81,19 @@ describe("withAui", () => {
     );
   });
 
+  it("reads options from the `aui` config key and strips it", () => {
+    const result = withAui({
+      aui: { rules: ["*.generative.tsx"], backendless: true },
+    });
+
+    expect("aui" in result).toBe(false);
+    const rules = result.turbopack?.rules ?? {};
+    expect(Object.keys(rules)).toEqual(["*.generative.tsx"]);
+    expect(ourRule(rules["*.generative.tsx"]).loaders[0]).toMatchObject({
+      options: { backendless: true },
+    });
+  });
+
   it("delegates to the caller's webpack function", () => {
     const userWebpack = vi.fn((config) => config);
     const config = { module: { rules: [] as unknown[] } };

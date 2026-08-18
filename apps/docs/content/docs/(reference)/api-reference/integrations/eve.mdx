@@ -71,7 +71,7 @@ Read the authoritative Eve server event stream from the runtime extras.
 Defaults to an empty array outside an Eve runtime.
 
 ```ts
-const useEveEvents: () => readonly MessageStreamEvent[];
+const useEveEvents: () => EveRuntimeExtras["events"];
 ```
 
 ### useEveReset
@@ -92,6 +92,6 @@ resume the session later via `initialSession`. `undefined` when no session
 exists yet or outside an Eve runtime.
 
 ```ts
-const useEveSession: () => ClientSessionState | undefined;
+const useEveSession: () => EveRuntimeExtras["session"] | undefined;
 ```
 {/* api-reference:end */}

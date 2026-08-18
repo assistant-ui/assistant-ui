@@ -1,5 +1,135 @@
 # @assistant-ui/core
 
+## 0.3.14
+
+### Patch Changes
+
+- [#6068](https://github.com/assistant-ui/assistant-ui/pull/6068) [`ac0c836`](https://github.com/assistant-ui/assistant-ui/commit/ac0c8364a0f25555f693e4354d07c411e65f5489) - fix: stabilize `unstable_useAdapters` results on both adapter faces and warn on an unkeyed history factory. the React host's synthesized provider now absorbs a fresh but shallow-equal adapters bag the same way the `RemoteThreadList` store entry does, reusing the store's `useShallowStable` primitive through its internal entry, and the store entry warns in development when a history adapter arrives while the thread factory is unkeyed, since switching threads would silently keep the first thread's history. ([@okisdev](https://github.com/okisdev))
+
+- [#6071](https://github.com/assistant-ui/assistant-ui/pull/6071) [`c3fd447`](https://github.com/assistant-ui/assistant-ui/commit/c3fd447f23cbaa36381b2f62058b420bd54cc148) - feat: host assistant-cloud thread lists on AISDKThreads via RemoteThreadList ([@okisdev](https://github.com/okisdev))
+  
+  AISDKThreads({ cloud }) uses RemoteThreadList and remounts each thread like useChatRuntime. Cloud history withFormat resolves persistence per call so one adapter can serve many threads. useExternalHistory waits for threadListItem.remoteId instead of latching on the first empty paint.
+
+- [#5872](https://github.com/assistant-ui/assistant-ui/pull/5872) [`f9529bf`](https://github.com/assistant-ui/assistant-ui/commit/f9529bfdea5018505ef393fe46e93809a0012032) - feat: move useAssistantTransportRuntime into core/react ([@okisdev](https://github.com/okisdev))
+
+- [#5872](https://github.com/assistant-ui/assistant-ui/pull/5872) [`f9529bf`](https://github.com/assistant-ui/assistant-ui/commit/f9529bfdea5018505ef393fe46e93809a0012032) - fix: persist data message parts in aui/v0 cloud history ([@okisdev](https://github.com/okisdev))
+
+- [#5983](https://github.com/assistant-ui/assistant-ui/pull/5983) [`05b94bd`](https://github.com/assistant-ui/assistant-ui/commit/05b94bd5ec879fbf87165385028000eb01e47396) - fix: handle failed LocalRuntime user-message history writes without abandoning the run ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6030](https://github.com/assistant-ui/assistant-ui/pull/6030) [`cef671d`](https://github.com/assistant-ui/assistant-ui/commit/cef671d63d173bd30fcef268b1539f1a64cf5f39) - fix: report automatic thread title generation failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6053](https://github.com/assistant-ui/assistant-ui/pull/6053) [`ef7f70d`](https://github.com/assistant-ui/assistant-ui/commit/ef7f70d4fc05195d6386f8e2d072d3deaef1e56a) - fix: report attachment removal failures without leaking unhandled rejections ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5376](https://github.com/assistant-ui/assistant-ui/pull/5376) [`39db2ff`](https://github.com/assistant-ui/assistant-ui/commit/39db2ff60c6392267d88bbc42d63aa32dd9be0fe) - fix: isolate WebSpeech dictation listener errors and report async listener rejections from speech synthesis and voice sessions ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5619](https://github.com/assistant-ui/assistant-ui/pull/5619) [`a2a753b`](https://github.com/assistant-ui/assistant-ui/commit/a2a753b71cf8e2c531a8006060eb9931a44824d8) - fix: handle rejected external-store callbacks ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6076](https://github.com/assistant-ui/assistant-ui/pull/6076) [`bec0753`](https://github.com/assistant-ui/assistant-ui/commit/bec075348dbdcd377c38074dd179d2751463ba35) - fix: persist cloud history against the departing thread after a switch ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6005](https://github.com/assistant-ui/assistant-ui/pull/6005) [`4326079`](https://github.com/assistant-ui/assistant-ui/commit/4326079bfca7cdaac75497958be39e132343b26c) - feat: move useCloudThreadListRuntime into core/react and drop the unused react copy of the aui/v0 codec ([@okisdev](https://github.com/okisdev))
+
+- [#6023](https://github.com/assistant-ui/assistant-ui/pull/6023) [`3d68b16`](https://github.com/assistant-ui/assistant-ui/commit/3d68b168e23bb0fd63853b41368d46f8199a3874) - fix: derive thread composer canCancel from an in-flight run ([@okisdev](https://github.com/okisdev))
+
+- [#5890](https://github.com/assistant-ui/assistant-ui/pull/5890) [`98795aa`](https://github.com/assistant-ui/assistant-ui/commit/98795aa266f724d512b973d791ce08fe4c21c2c5) - fix: snapshot composer role and run configuration before uploading attachments ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5959](https://github.com/assistant-ui/assistant-ui/pull/5959) [`9d920cc`](https://github.com/assistant-ui/assistant-ui/commit/9d920cc89c25459e602ee0c3037b5f84fd626e01) - feat: expose InMemoryThreadList and its transform scopes from the store entry, with an onDelete callback and a fresh thread after deleting the last one ([@okisdev](https://github.com/okisdev))
+
+- [#5913](https://github.com/assistant-ui/assistant-ui/pull/5913) [`1b9c33d`](https://github.com/assistant-ui/assistant-ui/commit/1b9c33d114ab1589f0592fabda58ca63265265c6) - feat: shared disabled predicates for the primitive layer on @assistant-ui/core/store/internal. the composer, action bar, branch picker, and suggestion disabled selectors previously lived as verbatim copies in each binding's hooks; they are now named exports (composerSendDisabled and friends) consumed by the react hooks and the vue and svelte bridges alike, so disabled semantics cannot drift between frameworks. ([@okisdev](https://github.com/okisdev))
+
+- [#5932](https://github.com/assistant-ui/assistant-ui/pull/5932) [`d68918e`](https://github.com/assistant-ui/assistant-ui/commit/d68918ee5c862ca6a261a01ea0b961e7b2b66af2) - feat: export `runtimeAdapterTransformScopes` from the store entry, so adapter packages can attach `RuntimeAdapter`'s scope defaults to their own config entries. ([@okisdev](https://github.com/okisdev))
+
+- [#5897](https://github.com/assistant-ui/assistant-ui/pull/5897) [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7) - fix: route ThreadRuntime/ThreadListRuntime subscribe through the memoizing state binding, and give LazyMemoizeSubject the same identity guard ShallowMemoizeSubject has, so getState serves a stable identity between notifications. Note: ThreadRuntime.subscribe now only notifies when the shallow-compared ThreadState changed — composer edits no longer wake thread subscribers; observe them via `runtime.composer.subscribe`, matching every other runtime class. ([@Yonom](https://github.com/Yonom))
+
+- [#6040](https://github.com/assistant-ui/assistant-ui/pull/6040) [`87bf950`](https://github.com/assistant-ui/assistant-ui/commit/87bf95093f6b3f38406b5317545ce697e4979e6d) - fix: generate the thread title as soon as the thread exists. the automatic title generation for a new thread fires when initialization resolves, concurrent with the first run, instead of at the first runEnd, so the sidebar stops showing "New Chat" for the whole first response and a thread abandoned mid-run no longer stays untitled forever. the title request carries the messages present at that moment, typically just the user message. ([@okisdev](https://github.com/okisdev))
+
+- [#5937](https://github.com/assistant-ui/assistant-ui/pull/5937) [`5a01343`](https://github.com/assistant-ui/assistant-ui/commit/5a01343f87ba3282004a08ef014dc3d51f3ce3cf) - fix: avoid trailing spaces when appending empty suggestions ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5929](https://github.com/assistant-ui/assistant-ui/pull/5929) [`0f6e9e9`](https://github.com/assistant-ui/assistant-ui/commit/0f6e9e9b56c648249781cef7689f4587209948d0) - chore: replace stale example model ids with gpt-5.6-luna ([@okisdev](https://github.com/okisdev))
+
+- [#6034](https://github.com/assistant-ui/assistant-ui/pull/6034) [`b80a6be`](https://github.com/assistant-ui/assistant-ui/commit/b80a6be3db5b5558792e5e0e267db45c133d248e) - fix: paint the first message of a new thread before initialization resolves. the local core inserts and notifies before awaiting the initialization barrier, rolling the optimistic message back and rejecting with `MessageNotSentError` when the barrier fails, and the external-store core no longer holds `onNew` on it. behavior change for custom external-store adapters under a remote thread list: `onNew` and `onEdit` can now run before the thread record exists, so a dispatch that needs the remote identity must `await threadListItem.initialize()` itself (the ai-sdk transport and langgraph already do, `useStreamRuntime` now does). appends that used to be silently dropped when the thread was stopped, unmounted, or switched away during the initialization wait now dispatch immediately instead; the invalidation guard still covers the tool-abort window. the queue path keeps the pre-enqueue barrier. ([@okisdev](https://github.com/okisdev))
+
+- [#5892](https://github.com/assistant-ui/assistant-ui/pull/5892) [`01580e3`](https://github.com/assistant-ui/assistant-ui/commit/01580e3b8b660542743d63ed79dd02026bb649e4) - fix: retain the message part children props in published declarations ([@charlesverge](https://github.com/charlesverge))
+
+- [#6035](https://github.com/assistant-ui/assistant-ui/pull/6035) [`e8c53e9`](https://github.com/assistant-ui/assistant-ui/commit/e8c53e9ce2b687e0342cbb9158191300827f75e9) - fix: switch away when remote thread unarchive fails ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6044](https://github.com/assistant-ui/assistant-ui/pull/6044) [`53ae80f`](https://github.com/assistant-ui/assistant-ui/commit/53ae80f67f7cd82f5af1751f1d73ade437ba7136) - fix: preserve archived thread state when unarchive fallback reseeds ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5298](https://github.com/assistant-ui/assistant-ui/pull/5298) [`5f4dee5`](https://github.com/assistant-ui/assistant-ui/commit/5f4dee5e233c2918b61719ef1b91397bad856762) - fix: refresh Cloud attachment uploads when the Cloud client changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5405](https://github.com/assistant-ui/assistant-ui/pull/5405) [`2da61a3`](https://github.com/assistant-ui/assistant-ui/commit/2da61a3be3e8e3f61a4d9310b1845325c44d8ac7) - fix: handle rejected dictation shutdowns ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5837](https://github.com/assistant-ui/assistant-ui/pull/5837) [`0131fc7`](https://github.com/assistant-ui/assistant-ui/commit/0131fc741624dad2a0c2a60b4a29eb106e0511aa) - fix: migrate interactables update-tool UIs across tools scope replacements and install pending ones once the scope appears ([@okisdev](https://github.com/okisdev))
+
+- [#5593](https://github.com/assistant-ui/assistant-ui/pull/5593) [`a934d03`](https://github.com/assistant-ui/assistant-ui/commit/a934d03a14fb5e2afa6a7647b82a0018d4a66b1d) - fix: preserve metadata from every joined assistant message ([@serhiizghama](https://github.com/serhiizghama))
+  
+  When consecutive assistant/tool outputs are joined into one message, only the first output's metadata was kept — annotations, data, steps, custom, timing, and feedback on any later assistant message (e.g. the final answer after a tool call) were silently dropped.
+  
+  `unstable_annotations`, `unstable_data`, and `steps` now accumulate across every joined output, and `custom` merges with later keys overwriting earlier ones for the same key. `unstable_state`, `timing`, and `submittedFeedback` are scalar and take the last joined output's value (last-wins) — the joined message's `id`/`createdAt`/`status` are unaffected and still come from the first output.
+
+- [#5864](https://github.com/assistant-ui/assistant-ui/pull/5864) [`b6d7b2b`](https://github.com/assistant-ui/assistant-ui/commit/b6d7b2b1c553433784a5e52ac411c9c544d8d0c1) - fix: wait for remote thread initialization before external-store appends ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6026](https://github.com/assistant-ui/assistant-ui/pull/6026) [`bc337af`](https://github.com/assistant-ui/assistant-ui/commit/bc337af975bb69c0127a7b42ae48790ab8e3440b) - fix: resynchronize lazy memoized state when connecting ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5910](https://github.com/assistant-ui/assistant-ui/pull/5910) [`dc6eb2f`](https://github.com/assistant-ui/assistant-ui/commit/dc6eb2f9098e1fd9de112b44a5dfd46d3bcea249) - style: apply oxfmt 0.63 formatting ([@okisdev](https://github.com/okisdev))
+
+- [#5874](https://github.com/assistant-ui/assistant-ui/pull/5874) [`ce57458`](https://github.com/assistant-ui/assistant-ui/commit/ce574588a32f806ebf37e9c2c4457569b1269348) - fix: discard pending appends when their thread runtime is replaced ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5880](https://github.com/assistant-ui/assistant-ui/pull/5880) [`ab7ead9`](https://github.com/assistant-ui/assistant-ui/commit/ab7ead9dae979daafd5fb423d4e636cb41b8ed26) - fix: gate queued external-store appends on thread initialization ([@okisdev](https://github.com/okisdev))
+
+- [#5859](https://github.com/assistant-ui/assistant-ui/pull/5859) [`067ef52`](https://github.com/assistant-ui/assistant-ui/commit/067ef528f725fb77a892049bd8d6bbc5422baaa4) - fix: ignore suggestions generated by superseded local runtime runs ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5971](https://github.com/assistant-ui/assistant-ui/pull/5971) [`e5bf0ef`](https://github.com/assistant-ui/assistant-ui/commit/e5bf0ef9739be0579bb4fb4bb175dc0cdd3143fc) - fix: keep duplicate model context registrations independent ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5927](https://github.com/assistant-ui/assistant-ui/pull/5927) [`a2ab997`](https://github.com/assistant-ui/assistant-ui/commit/a2ab997dc645923fa8ebbca5e8e050d467a69cf4) - fix: isolate overlapping tool executions that reuse a toolCallId ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6050](https://github.com/assistant-ui/assistant-ui/pull/6050) [`fc9dd90`](https://github.com/assistant-ui/assistant-ui/commit/fc9dd90e25db8635a42e8961f4e371ce09457523) - fix: notify every external thread-list subscriber when one listener throws ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5572](https://github.com/assistant-ui/assistant-ui/pull/5572) [`0e2a230`](https://github.com/assistant-ui/assistant-ui/commit/0e2a23073b3b62ebd2e614858cd910c75886977c) - fix: flush queued interactable writes through the outgoing persistence adapter, one full-state save at a time ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5464](https://github.com/assistant-ui/assistant-ui/pull/5464) [`d800f8b`](https://github.com/assistant-ui/assistant-ui/commit/d800f8bbee28f5fe3693f2ec2c8682f4dad2ae62) - fix: notify every model context subscriber before rethrowing, and roll back a provider registration when its subscribe throws ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6037](https://github.com/assistant-ui/assistant-ui/pull/6037) [`f5b39d4`](https://github.com/assistant-ui/assistant-ui/commit/f5b39d415b447d881bf269d08577d31a9646b0fd) - feat: add `RemoteThreadListAdapter.unstable_useAdapters` so the `RemoteThreadList` store entry can load per-thread history without rendering `unstable_Provider` ([@okisdev](https://github.com/okisdev))
+
+- [#6020](https://github.com/assistant-ui/assistant-ui/pull/6020) [`26f40c1`](https://github.com/assistant-ui/assistant-ui/commit/26f40c1304b5b4dcd081303bd69a5ec95a37334e) - feat: add a `RemoteThreadList` store entry so any `AssistantClient` host can run a remote thread list from a `RemoteThreadListAdapter` and a `thread` factory ([@okisdev](https://github.com/okisdev))
+
+- [#5871](https://github.com/assistant-ui/assistant-ui/pull/5871) [`f618ab6`](https://github.com/assistant-ui/assistant-ui/commit/f618ab692eed3662a60a15d474c1c16715edb012) - fix: retry remote thread initialization after a rejected append ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5834](https://github.com/assistant-ui/assistant-ui/pull/5834) [`d80e988`](https://github.com/assistant-ui/assistant-ui/commit/d80e9882c4ec0a7662df28546ddd92cc1f0b1fcd) - fix: model-context registrations follow the committed scope across structural replacements. The new `useAssistantScopeEffect(scope, effect, deps)` re-runs a registration when the scope's bound client is replaced (cleaning up against the old one first) while ignoring value updates, and the toolkit, runtime-adapter, interactables, and MCP registration sites now use it instead of registering once against a stable client ref. ([@okisdev](https://github.com/okisdev))
+
+- [#5922](https://github.com/assistant-ui/assistant-ui/pull/5922) [`7f944be`](https://github.com/assistant-ui/assistant-ui/commit/7f944be666ab4f59d35e68c721bfb93ca7551522) - feat: add `unstable_notifySessionReset` so adapters with a resettable backing session can clear session-scoped tool-invocation state without run-cancel side effects; the eve reset now uses it instead of composing `cancelRun` with a hand-rolled session filter ([@okisdev](https://github.com/okisdev))
+
+- [#5435](https://github.com/assistant-ui/assistant-ui/pull/5435) [`f37f595`](https://github.com/assistant-ui/assistant-ui/commit/f37f5952171240eb04c1fe3395d4c9afe4b5ccc8) - fix: isolate message queue subscriber errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6058](https://github.com/assistant-ui/assistant-ui/pull/6058) [`837ef1b`](https://github.com/assistant-ui/assistant-ui/commit/837ef1b21fead90a2a4176f209dbb01ed6ccae62) - fix: render system messages safely when editing components are omitted ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6014](https://github.com/assistant-ui/assistant-ui/pull/6014) [`7748e15`](https://github.com/assistant-ui/assistant-ui/commit/7748e15acf9d7d16701296e9ef89e1757ec346b3) - feat: host remote thread runtimeHooks as keyed tap resources on the list hook. `useRemoteThreadListRuntime` mounts one `useResources` host after each thread's `unstable_Provider`, so the first `runtimeHook` call already sees Provider adapters. AdapterSink only publishes those adapters. `@assistant-ui/store/client` exports `useConfiguredAui` and `useAssistantContextProvider` so that host can extend and provide a client the same way `AuiProvider` does in React. ([@okisdev](https://github.com/okisdev))
+
+- [#6013](https://github.com/assistant-ui/assistant-ui/pull/6013) [`72705c3`](https://github.com/assistant-ui/assistant-ui/commit/72705c39b3241a5a61919baeee3996ddbfe4cf48) - fix: resync a memoized thread snapshot when a subscriber connects, and load local history if the adapter arrives after the first load ([@okisdev](https://github.com/okisdev))
+
+- [#5914](https://github.com/assistant-ui/assistant-ui/pull/5914) [`0d2e23f`](https://github.com/assistant-ui/assistant-ui/commit/0d2e23f5597c2500da03ac417bfee1defd2d808e) - feat: new `threads.selectionChanged` event carrying `threadId` and `previousThreadId`; deprecate `threadListItem.switchedTo`/`switchedAway` in its favor. Un-deprecate the semantically meaningful events (`thread.runStart`, `thread.runEnd`, `thread.initialize`, `composer.send`, `composer.attachmentAdd`). ([@Yonom](https://github.com/Yonom))
+  
+  The new event fires in situations where the deprecated pair did not, so the selection-driven defaults (`scrollToBottomOnThreadSwitch`, `unstable_focusOnThreadSwitched`) now engage there too: `InMemoryThreadList` emits on selection changes (it previously emitted no switch events at all), `switchToNewThread()` emits for the newly created thread, and runtimes that resolve a deep-linked `threadId`/`initialThreadId` after mount (`useRemoteThreadListRuntime`) emit when the deep link resolves, with the initial placeholder thread as `previousThreadId`.
+
+- [#6052](https://github.com/assistant-ui/assistant-ui/pull/6052) [`4446d45`](https://github.com/assistant-ui/assistant-ui/commit/4446d458e8fc904b66f306749d4e389cb1c46e60) - fix: notify every interactable model-context subscriber when one throws ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6059](https://github.com/assistant-ui/assistant-ui/pull/6059) [`bfe47b6`](https://github.com/assistant-ui/assistant-ui/commit/bfe47b699ca1ed7e6c222ad1fc5a33b21ec8a4af) - fix: notify every memoized subject subscriber when one throws ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5860](https://github.com/assistant-ui/assistant-ui/pull/5860) [`ceb8c16`](https://github.com/assistant-ui/assistant-ui/commit/ceb8c166fe233fa8235b3ab4cece8f636c77a164) - fix: handle thread list action failures without unhandled rejections ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5631](https://github.com/assistant-ui/assistant-ui/pull/5631) [`7ea9de1`](https://github.com/assistant-ui/assistant-ui/commit/7ea9de1204687585297c62981183015cac0baa99) - feat: runtime suggestions can carry a display title and label ([@samdickson22](https://github.com/samdickson22))
+  
+  `ThreadSuggestion` gains optional `title` and `label`, so an adapter can show a
+  short pill while still sending the full `prompt`. `useThreadSuggestions` now
+  passes them through instead of hardcoding `title: prompt`, falling back to
+  `title ?? prompt` and `label ?? ""` so prompt-only suggestions render exactly as
+  before. `SuggestionConfig` is unchanged; the change is additive.
+
+- [#5519](https://github.com/assistant-ui/assistant-ui/pull/5519) [`51886b2`](https://github.com/assistant-ui/assistant-ui/commit/51886b2ce2e023708c3a07b3241f09181e57b418) - fix: clean up disconnected voice sessions ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5968](https://github.com/assistant-ui/assistant-ui/pull/5968) [`3053195`](https://github.com/assistant-ui/assistant-ui/commit/3053195d8b62b1338335cb5b424f15cd5dda7c83) - fix: isolate voice volume subscriber failures ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`0e91e27`](https://github.com/assistant-ui/assistant-ui/commit/0e91e277ebe218e891d1c318a18eec230ee4f981), [`c5bc8ed`](https://github.com/assistant-ui/assistant-ui/commit/c5bc8ed0c78e8fb66a6c21c596765caeccef3aec), [`f0d1d48`](https://github.com/assistant-ui/assistant-ui/commit/f0d1d48842b61c8f781771375e3893d189321c2d), [`ab7f49f`](https://github.com/assistant-ui/assistant-ui/commit/ab7f49fcb91b8a9d96408426da3259c99f619649), [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e), [`a2ab997`](https://github.com/assistant-ui/assistant-ui/commit/a2ab997dc645923fa8ebbca5e8e050d467a69cf4), [`e8997d9`](https://github.com/assistant-ui/assistant-ui/commit/e8997d922d15d0de0d20558ce0735fa3e844f27f), [`44e574f`](https://github.com/assistant-ui/assistant-ui/commit/44e574f8c17dd5603933ec74821eecd08e94e371), [`14c3b5a`](https://github.com/assistant-ui/assistant-ui/commit/14c3b5a25afe2b2f37760dfe8003818b2e4f72d3)]:
+  - assistant-stream@0.3.38
+
 ## 0.3.13
 
 ### Patch Changes

@@ -80,8 +80,10 @@ restored.
 
 `AuiConfig` `threads` entry backed by a `RemoteThreadListAdapter`. Thread
 bodies are born from the `thread` factory inside the client tree, so any
-`AssistantClient` host can run a remote or cloud list. `unstable_Provider`
-is ignored; cloud history still goes through `useRemoteThreadListRuntime`.
+`AssistantClient` host can run a remote or cloud list. Per-thread history
+and attachments come from `unstable_useAdapters`. `useRemoteThreadListRuntime`
+uses the same hook when `unstable_Provider` is omitted. Key the factory
+with `withKey` so history reloads when the visible thread changes.
 
 <ParametersTable {...RemoteThreadList} />
 
