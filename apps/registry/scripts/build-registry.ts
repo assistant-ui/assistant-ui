@@ -863,7 +863,7 @@ export function getRelativeImportCandidates(
   const resolved = path.posix.normalize(
     path.posix.join(path.posix.dirname(fromPath), modulePath),
   );
-  if (resolved.startsWith("..")) return null;
+  if (resolved === ".." || resolved.startsWith("../")) return null;
 
   const extension = path.posix.extname(resolved);
   const candidates = new Set<string>();
@@ -951,7 +951,9 @@ function collectInstallContext(
   return { files, packages };
 }
 
-function validateRegistryInstallMetadata(payloads: RegistryOutputItem[]) {
+export function validateRegistryInstallMetadata(
+  payloads: RegistryOutputItem[],
+) {
   const itemByName = new Map(payloads.map((item) => [item.name, item]));
   const findings = new Set<string>();
 
