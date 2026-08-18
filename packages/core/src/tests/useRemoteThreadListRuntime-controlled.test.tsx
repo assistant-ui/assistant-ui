@@ -206,7 +206,7 @@ describe("useRemoteThreadListRuntime controlled threadId", () => {
         "new",
       );
     });
-    expect(onThreadIdChange).toHaveBeenCalledExactlyOnceWith(undefined);
+    expect(onThreadIdChange).not.toHaveBeenCalled();
   });
 
   it("does not echo a controlled target when the adapter changes", async () => {

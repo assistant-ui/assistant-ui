@@ -1,4 +1,4 @@
-import { isSilentRuntimeAction } from "../../runtimes/remote-thread-list/adapter-changed";
+import { isSilentRuntimeAction } from "../../utils/silent-runtime-action";
 
 export const handleRuntimeAction = (
   label: string,

@@ -263,12 +263,12 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     });
 
     expect(core.hasMore).toBe(false);
-    expect(core.threadIds).toEqual([]);
-    expect(core.getItemById("old")).toBeUndefined();
+    expect(core.threadIds).toEqual(["old"]);
 
     await core.getLoadThreadsPromise();
     expect(secondList).toHaveBeenCalledTimes(1);
     expect(core.threadIds).toEqual(["new"]);
+    expect(core.getItemById("old")).toBeUndefined();
   });
 
   it("ignores an in-flight loadMore response when the adapter swaps mid-flight", async () => {

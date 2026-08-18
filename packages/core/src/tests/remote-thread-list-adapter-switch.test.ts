@@ -32,9 +32,6 @@ describe("RemoteThreadList adapter changes", () => {
       adapter: adapterB,
       runtimeHook: () => ({}) as never,
     });
-    expect(core.mainThreadId).not.toBe("thread-a");
-    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
-    expect(core.getItemById("thread-a")).toBeUndefined();
 
     await core.getLoadThreadsPromise();
     expect(listAdapterB).toHaveBeenCalledTimes(1);
@@ -123,10 +120,8 @@ describe("RemoteThreadList adapter changes", () => {
       remoteId: "leaked",
       externalId: "leaked",
     });
-    await initializeTask;
-
+    await expect(initializeTask).rejects.toThrow("adapter changed");
     expect(core.getItemById("leaked")).toBeUndefined();
     expect(core.threadIds).not.toContain("leaked");
-    expect(core.getItemById(core.mainThreadId)?.remoteId).toBeUndefined();
   });
 });

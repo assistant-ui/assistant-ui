@@ -378,6 +378,7 @@ const useRemoteThreadList = (
     };
   });
 
+  // Config updates can invoke `reload()` in the same turn as the re-render, before the effect below runs.
   session.adapter = adapter;
 
   const listState = useSyncExternalStore(
@@ -475,6 +476,7 @@ const useRemoteThreadList = (
       session.adapterGeneration++;
       session.switchGeneration++;
       session.switchTask = undefined;
+      session.adapterAtLoad = adapter;
       const seeded = seedNewThread(EMPTY_LIST);
       store.reset({ ...seeded.state, isLoading: true });
       assignMainThreadId(seeded.id);
@@ -541,6 +543,7 @@ const useRemoteThreadList = (
         },
       })
       .catch((error: unknown) => {
+        if (generation !== session.loadGeneration) return;
         console.error("[assistant-ui] thread list loadMore failed:", error);
       })
       .then(() => {
@@ -757,6 +760,7 @@ const useRemoteThreadList = (
           };
         },
         then: (state, { remoteId, externalId }) => {
+          if (adapterGeneration !== session.adapterGeneration) return state;
           const data = getThreadData(state, threadId);
           if (!data) return state;
           const mappingId = createThreadMappingId(threadId);
@@ -778,6 +782,7 @@ const useRemoteThreadList = (
           };
         },
       });
+      requireAdapterGeneration(adapterGeneration);
       if (threadId === session.mainThreadId) {
         notifyRemoteId(result.remoteId, true);
       }
