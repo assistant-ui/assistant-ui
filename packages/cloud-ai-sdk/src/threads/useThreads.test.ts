@@ -310,6 +310,56 @@ describe("useThreads", () => {
     expect(result.current.threads[0]?.title).toBe("Newest");
   });
 
+  it("clears a selected thread that disappears during refresh", async () => {
+    const cloud = createCloud("thread-1");
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+    act(() => {
+      result.current.selectThread("thread-1");
+    });
+    cloud.threads.list.mockResolvedValueOnce({ threads: [] });
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.threads).toEqual([]);
+    expect(result.current.threadId).toBeNull();
+  });
+
+  it("preserves a newer selection while a refresh is pending", async () => {
+    const cloud = createCloud("thread-1");
+    const refresh =
+      createDeferred<ReturnType<typeof createThreadListResponse>>();
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    act(() => {
+      result.current.selectThread("thread-1");
+    });
+    cloud.threads.list.mockReturnValueOnce(refresh.promise);
+    let refreshPromise!: Promise<boolean>;
+    act(() => {
+      refreshPromise = result.current.refresh();
+    });
+    act(() => {
+      result.current.selectThread("thread-2");
+    });
+
+    await act(async () => {
+      refresh.resolve({ threads: [] });
+      await refreshPromise;
+    });
+
+    expect(result.current.threadId).toBe("thread-2");
+  });
+
   it("clears the selected thread when the cloud changes", async () => {
     const cloudA = createCloud("thread-a");
     const cloudB = createCloud("thread-b");

@@ -49,6 +49,10 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     scope: { cloud },
     threadId: null as string | null,
   }));
+  const selectionRef = useRef(selection);
+  useLayoutEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
   const scope = selection.scope;
   const threadId = scope.cloud === cloud ? selection.threadId : null;
 
@@ -118,6 +122,10 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     const requestId = ++refreshRequestRef.current;
     const isLatest = () =>
       requestId === refreshRequestRef.current && isCurrentCloud();
+    const selectedThreadId =
+      selectionRef.current.scope === scope
+        ? selectionRef.current.threadId
+        : null;
     setIsLoading(true);
 
     try {
@@ -146,7 +154,20 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
               return timeDifference || b.id.localeCompare(a.id);
             });
           }
-          commit(() => setThreads(nextThreads));
+          const nextThreadIds = new Set(nextThreads.map((thread) => thread.id));
+          commit(() => {
+            setThreads(nextThreads);
+            if (
+              selectedThreadId !== null &&
+              !nextThreadIds.has(selectedThreadId)
+            ) {
+              setSelection((current) =>
+                current.scope === scope && current.threadId === selectedThreadId
+                  ? { scope, threadId: null }
+                  : current,
+              );
+            }
+          });
           return true;
         },
         false,
@@ -157,7 +178,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         setIsLoading(false);
       }
     }
-  }, [cloud, includeArchived, isCurrentCloud, withAction]);
+  }, [cloud, includeArchived, isCurrentCloud, scope, withAction]);
 
   useEffect(() => {
     if (!enabled) return;
