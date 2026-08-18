@@ -191,18 +191,6 @@ export class RemoteThreadListThreadListRuntimeCore
               }
             }
 
-            const controlledId = this._options.threadId;
-            if (replaceList && controlledId !== undefined) {
-              const mappingId = state.threadIdMap[controlledId];
-              const controlled = mappingId
-                ? state.threadData[mappingId]
-                : undefined;
-              if (controlled !== undefined && mappingId !== undefined) {
-                threadIdMap[controlledId] = mappingId;
-                threadData[mappingId] = controlled;
-              }
-            }
-
             let nextState: RemoteThreadState = {
               ...state,
               isLoading: false,
@@ -224,10 +212,18 @@ export class RemoteThreadListThreadListRuntimeCore
               getThreadData(nextState, this._mainThreadId) === undefined
             ) {
               const seeded = addNewThread(nextState);
-              this._lastNotifiedThreadId = undefined;
               this._mainThreadId = seeded.id;
               nextState = seeded.state;
-              void this._hookManager.startThreadRuntime(seeded.id).then(
+              if (this._options.threadId === undefined) {
+                this._notifyThreadIdChange();
+              } else {
+                this._lastNotifiedThreadId = undefined;
+              }
+            }
+
+            if (replaceList) {
+              this._hookManager.__internal_dispose();
+              void this._hookManager.startThreadRuntime(this._mainThreadId).then(
                 () => this._notifySubscribers(),
                 () => undefined,
               );
@@ -246,12 +242,9 @@ export class RemoteThreadListThreadListRuntimeCore
           });
         })
         .then(() => {
-          if (this.getItemById(this._mainThreadId) !== undefined) return;
-          if (this._options.threadId !== undefined) {
-            void this._switchToThreadFromProp(this._options.threadId);
-            return;
-          }
-          void this.switchToNewThread();
+          if (this._options.threadId === undefined) return;
+          if (this.getItemById(this._options.threadId) !== undefined) return;
+          void this._switchToThreadFromProp(this._options.threadId);
         });
     }
 
@@ -361,6 +354,8 @@ export class RemoteThreadListThreadListRuntimeCore
     if (adapterChanged) {
       this._loadGeneration++;
       this._adapterGeneration++;
+      this._switchGeneration++;
+      this._switchTask = undefined;
       this._loadThreadsPromise = undefined;
       this._loadMorePromise = undefined;
       this._replaceListOnNextLoad = true;
