@@ -1395,27 +1395,50 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
-    name: "threadlist-sidebar",
+    name: "assistant-shell",
     type: "registry:component",
-    title: "Thread List Sidebar",
-    description: "Sidebar shell that hosts the thread list beside a thread.",
+    title: "Assistant Shell",
+    description:
+      "App shell with a collapsible thread list sidebar, header, and mobile drawer.",
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/threadlist-sidebar.tsx",
+        path: "components/assistant-ui/assistant-shell.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/threadlist-sidebar.tsx",
-      },
-      {
-        type: "registry:component",
-        path: "components/icons/github.tsx",
-        sourcePath: "../../packages/ui/src/components/icons/github.tsx",
+          "../../packages/ui/src/components/assistant-ui/assistant-shell.tsx",
       },
     ],
-    dependencies: ["lucide-react"],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
-      "sidebar",
+      "button",
+      "sheet",
+      "tooltip",
       "https://r.assistant-ui.com/thread-list.json",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
+    ],
+  },
+  {
+    // Deprecated alias: keeps the old threadlist-sidebar install URL working after its replacement by assistant-shell.
+    name: "threadlist-sidebar",
+    type: "registry:component",
+    title: "Thread List Sidebar (deprecated)",
+    description:
+      "Replaced by assistant-shell; this item installs the assistant-shell component.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/assistant-shell.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/assistant-shell.tsx",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
+    registryDependencies: [
+      "button",
+      "sheet",
+      "tooltip",
+      "https://r.assistant-ui.com/thread-list.json",
+      "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
   },
   {

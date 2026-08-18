@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ThreadList,
   ThreadListItems,
   ThreadListNew,
   ThreadListRoot,
@@ -25,6 +24,10 @@ import { cn } from "@/lib/utils";
 import { useAuiState } from "@assistant-ui/react";
 import { MenuIcon, PanelLeftIcon } from "lucide-react";
 import { useState, type FC, type MouseEvent, type ReactNode } from "react";
+
+// Mirrors assistant-shell: each fade zone equals the scroll container's padding on that edge (pt-3 / pb-6), so at rest and at either scroll end only padding sits in the fade and no row is dimmed.
+const SCROLL_FADE_CLASS =
+  "[mask-image:linear-gradient(to_bottom,transparent,black_0.75rem,black_calc(100%-1.5rem),transparent)]";
 
 type CloneThreadShellProps = {
   children: ReactNode;
@@ -132,47 +135,65 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({
 
         <ThreadListRoot
           className={cn(
-            "relative flex-1 transition-[padding,width] duration-200",
-            sidebarCollapsed
-              ? "w-12 overflow-hidden px-2 pt-1"
-              : "w-65 overflow-y-auto p-3",
+            "min-h-0 flex-1 overflow-hidden transition-[width] duration-200",
+            sidebarCollapsed ? "w-12" : "w-65",
           )}
         >
-          {wrapNewThreadTooltip ? (
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger render={newThread} />
-                {sidebarCollapsed && (
-                  <TooltipContent side="right">New Thread</TooltipContent>
+          <div
+            className={cn(
+              "shrink-0 transition-[padding] duration-200",
+              sidebarCollapsed ? "px-2 pt-1 pb-2" : "px-3 pt-2 pb-1.5",
+            )}
+          >
+            {wrapNewThreadTooltip ? (
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger render={newThread} />
+                  {sidebarCollapsed && (
+                    <TooltipContent side="right">New Thread</TooltipContent>
+                  )}
+                </Tooltip>
+              </TooltipProvider>
+            ) : (
+              newThread
+            )}
+            {showSearch && hasThreads && (
+              <div
+                aria-hidden={sidebarCollapsed}
+                inert={sidebarCollapsed}
+                className={cn(
+                  "overflow-hidden transition-all duration-200",
+                  sidebarCollapsed
+                    ? "pointer-events-none max-h-0 opacity-0"
+                    : "mt-1 max-h-12 opacity-100",
                 )}
-              </Tooltip>
-            </TooltipProvider>
-          ) : (
-            newThread
-          )}
-          {showSearch && hasThreads && (
-            <div
+              >
+                <ThreadListSearch value={search} onValueChange={setSearch} />
+              </div>
+            )}
+          </div>
+          <div
+            className={cn(
+              // The scrollbar is hidden because classic scrollbars reserve width from the right edge and knock the rows off-center; the edge fades signal overflow instead.
+              "relative flex-1 [scrollbar-width:none] overflow-x-hidden pt-3 pb-6 transition-[padding] duration-200 [&::-webkit-scrollbar]:hidden",
+              sidebarCollapsed
+                ? "overflow-y-hidden px-2"
+                : "overflow-y-auto px-3",
+              SCROLL_FADE_CLASS,
+            )}
+          >
+            <ThreadListItems
+              searchQuery={showSearch && hasThreads ? search : ""}
               aria-hidden={sidebarCollapsed}
               inert={sidebarCollapsed}
               className={cn(
-                "transition-opacity duration-150",
-                sidebarCollapsed && "pointer-events-none opacity-0",
+                "transition-[opacity,transform] duration-150",
+                sidebarCollapsed
+                  ? "pointer-events-none opacity-0"
+                  : "translate-x-0 opacity-100",
               )}
-            >
-              <ThreadListSearch value={search} onValueChange={setSearch} />
-            </div>
-          )}
-          <ThreadListItems
-            searchQuery={showSearch && hasThreads ? search : ""}
-            aria-hidden={sidebarCollapsed}
-            inert={sidebarCollapsed}
-            className={cn(
-              "transition-[opacity,transform] duration-150",
-              sidebarCollapsed
-                ? "pointer-events-none opacity-0"
-                : "translate-x-0 opacity-100",
-            )}
-          />
+            />
+          </div>
         </ThreadListRoot>
       </aside>
 
@@ -197,12 +218,29 @@ export const CloneThreadShell: FC<CloneThreadShellProps> = ({
           <SheetTitle className="flex h-12 shrink-0 items-center px-4 text-sm font-medium">
             {sheetTitle ?? "Chats"}
           </SheetTitle>
-          <div
-            className="relative flex-1 overflow-y-auto p-3"
+          <ThreadListRoot
+            className="min-h-0 flex-1 overflow-hidden"
             onClick={closeMobileSidebarAfterNavigation}
           >
-            <ThreadList />
-          </div>
+            <div className="shrink-0 px-3 pt-2 pb-1.5">
+              <ThreadListNew className="w-full" />
+              {showSearch && hasThreads && (
+                <div className="mt-1">
+                  <ThreadListSearch value={search} onValueChange={setSearch} />
+                </div>
+              )}
+            </div>
+            <div
+              className={cn(
+                "relative flex-1 [scrollbar-width:none] overflow-y-auto px-3 pt-3 pb-6 [&::-webkit-scrollbar]:hidden",
+                SCROLL_FADE_CLASS,
+              )}
+            >
+              <ThreadListItems
+                searchQuery={showSearch && hasThreads ? search : ""}
+              />
+            </div>
+          </ThreadListRoot>
         </SheetContent>
       </Sheet>
 

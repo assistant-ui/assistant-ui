@@ -53,6 +53,7 @@ const COMMON_EXTRA_SOURCE_FILES = [
 ] as const;
 
 const BASE_EXTRA_SOURCE_FILES = [
+  "packages/ui/src/components/assistant-ui/assistant-shell.tsx",
   "packages/ui/src/components/assistant-ui/attachment.tsx",
   "packages/ui/src/components/assistant-ui/badge.tsx",
   "packages/ui/src/components/assistant-ui/composer-trigger-popover.tsx",

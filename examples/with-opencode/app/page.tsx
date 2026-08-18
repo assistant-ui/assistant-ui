@@ -7,12 +7,12 @@ import {
   useAui,
 } from "@assistant-ui/react";
 import {
-  SidebarInset,
-  SidebarProvider,
-  SidebarTrigger,
-} from "@/components/ui/radix/sidebar";
-import { Separator } from "@/components/ui/radix/separator";
-import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar.radix";
+  AssistantShellMain,
+  AssistantShellMobileSidebar,
+  AssistantShellRoot,
+  AssistantShellSidebar,
+  AssistantShellSidebarToggle,
+} from "@/components/assistant-ui/assistant-shell";
 import {
   useOpenCodeRuntime,
   useOpenCodeSession,
@@ -40,6 +40,18 @@ const THREAD_COMPONENTS: ThreadComponents = {
   ReasoningGroup,
 };
 
+// OpenCode streams generated titles through its event stream into the session,
+// not into the core thread list, so the shell's thread-list-backed title would
+// go stale; read the session directly instead.
+const SessionTitle = () => {
+  const session = useOpenCodeSession();
+  return (
+    <span className="min-w-0 truncate text-sm font-medium">
+      {session?.title?.trim() || "New Chat"}
+    </span>
+  );
+};
+
 export default function Home() {
   const runtime = useOpenCodeRuntime({
     baseUrl:
@@ -53,37 +65,19 @@ export default function Home() {
   return (
     <AssistantRuntimeProvider config={config} runtime={runtime}>
       <SetFallbackDataUI />
-      <SidebarProvider>
-        <div className="flex h-dvh w-full overflow-hidden pr-0.5">
-          <ThreadListSidebar />
-          <SidebarInset>
-            <header className="flex h-16 shrink-0 items-center gap-2 border-b px-4">
-              <SidebarTrigger />
-              <Separator orientation="vertical" className="mr-2 h-4" />
-              <div className="min-w-0">
-                <div className="text-sm font-medium">OpenCode</div>
-                <SelectedSessionTitle />
-              </div>
-            </header>
-            <div className="min-h-0 flex-1 overflow-hidden">
-              <Thread components={THREAD_COMPONENTS} />
-            </div>
-          </SidebarInset>
-        </div>
-      </SidebarProvider>
+      <AssistantShellRoot title="OpenCode">
+        <AssistantShellSidebar />
+        <AssistantShellMain>
+          <header className="flex h-12 shrink-0 items-center gap-2 px-4">
+            <AssistantShellMobileSidebar />
+            <AssistantShellSidebarToggle />
+            <SessionTitle />
+          </header>
+          <main className="flex-1 overflow-hidden">
+            <Thread components={THREAD_COMPONENTS} />
+          </main>
+        </AssistantShellMain>
+      </AssistantShellRoot>
     </AssistantRuntimeProvider>
-  );
-}
-
-function SelectedSessionTitle() {
-  const session = useOpenCodeSession();
-  const title = session?.title?.trim();
-
-  if (!title) return null;
-
-  return (
-    <div className="text-muted-foreground truncate text-xs leading-tight">
-      {title}
-    </div>
   );
 }
