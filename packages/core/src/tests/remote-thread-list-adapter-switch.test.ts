@@ -129,6 +129,14 @@ describe("RemoteThreadList adapter changes", () => {
     await expect(initializeTask).rejects.toThrow("adapter changed");
     expect(core.getItemById("leaked")).toBeUndefined();
     expect(core.threadIds).not.toContain("leaked");
+
+    await core.getLoadThreadsPromise();
+    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
+    expect(core.getItemById(core.mainThreadId)?.remoteId).toBeUndefined();
+    await expect(core.initialize(core.mainThreadId)).resolves.toEqual({
+      remoteId: core.mainThreadId,
+      externalId: core.mainThreadId,
+    });
   });
 
   it("keeps the unsent draft runtime across an empty-list adapter swap", async () => {

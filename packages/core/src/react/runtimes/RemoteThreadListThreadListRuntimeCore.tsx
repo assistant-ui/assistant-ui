@@ -390,6 +390,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (stale) {
       for (const item of Object.values(state.threadData)) {
         if (stale.has(item.id)) continue;
+        if (item.status !== "new" && item.remoteId === undefined) continue;
         const mappingId = createThreadMappingId(item.id);
         if (threadData[mappingId]) continue;
         threadIdMap[item.id] = mappingId;
