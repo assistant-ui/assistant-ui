@@ -296,6 +296,57 @@ function DiffViewerHeader({
   );
 }
 
+/**
+ * The three cells every diff row is built from. Only the unified view names
+ * them; a split half is addressed through its own container slot instead.
+ */
+function diffRowCells({
+  type,
+  lineNumber,
+  indicator,
+  content,
+  showLineNumbers,
+  named,
+}: {
+  type: DiffLineType | "empty";
+  lineNumber: string | number | undefined;
+  indicator: string;
+  content: string;
+  showLineNumbers: boolean;
+  named?: boolean;
+}) {
+  return (
+    <>
+      {showLineNumbers && (
+        <span
+          data-slot={named ? "diff-viewer-line-number" : undefined}
+          className="text-muted-foreground w-12 shrink-0 px-2 text-end select-none"
+        >
+          {lineNumber}
+        </span>
+      )}
+      <span
+        data-slot={named ? "diff-viewer-indicator" : undefined}
+        className={cn(
+          "w-4 shrink-0 text-center select-none",
+          diffLineTextVariants({ type }),
+        )}
+      >
+        {indicator}
+      </span>
+      <span
+        data-slot={named ? "diff-viewer-content" : undefined}
+        className={cn(
+          "flex-1 break-all whitespace-pre-wrap",
+          diffLineTextVariants({ type }),
+        )}
+      >
+        {content}
+      </span>
+    </>
+  );
+}
+
 interface DiffViewerLineProps extends ComponentProps<"div"> {
   line: ParsedLine;
   showLineNumbers?: boolean;
@@ -316,36 +367,19 @@ function DiffViewerLine({
       className={cn(diffLineVariants({ type: line.type }), className)}
       {...props}
     >
-      {showLineNumbers && (
-        <span
-          data-slot="diff-viewer-line-number"
-          className="text-muted-foreground w-12 shrink-0 px-2 text-end select-none"
-        >
-          {line.type === "del"
+      {diffRowCells({
+        type: line.type,
+        lineNumber:
+          line.type === "del"
             ? line.oldLineNumber
             : line.type === "add"
               ? line.newLineNumber
-              : line.oldLineNumber}
-        </span>
-      )}
-      <span
-        data-slot="diff-viewer-indicator"
-        className={cn(
-          "w-4 shrink-0 text-center select-none",
-          diffLineTextVariants({ type: line.type }),
-        )}
-      >
-        {indicator}
-      </span>
-      <span
-        data-slot="diff-viewer-content"
-        className={cn(
-          "flex-1 break-all whitespace-pre-wrap",
-          diffLineTextVariants({ type: line.type }),
-        )}
-      >
-        {line.content}
-      </span>
+              : line.oldLineNumber,
+        indicator,
+        content: line.content,
+        showLineNumbers,
+        named: true,
+      })}
     </div>
   );
 }
@@ -377,27 +411,13 @@ function DiffViewerSplitLine({
           diffLineVariants({ type: left?.type ?? "empty" }),
         )}
       >
-        {showLineNumbers && (
-          <span className="text-muted-foreground w-12 shrink-0 px-2 text-end select-none">
-            {left?.oldLineNumber ?? ""}
-          </span>
-        )}
-        <span
-          className={cn(
-            "w-4 shrink-0 text-center select-none",
-            diffLineTextVariants({ type: left?.type ?? "empty" }),
-          )}
-        >
-          {left ? (left.type === "del" ? "-" : " ") : ""}
-        </span>
-        <span
-          className={cn(
-            "flex-1 break-all whitespace-pre-wrap",
-            diffLineTextVariants({ type: left?.type ?? "empty" }),
-          )}
-        >
-          {left?.content ?? ""}
-        </span>
+        {diffRowCells({
+          type: left?.type ?? "empty",
+          lineNumber: left?.oldLineNumber ?? "",
+          indicator: left ? (left.type === "del" ? "-" : " ") : "",
+          content: left?.content ?? "",
+          showLineNumbers,
+        })}
       </div>
       <div
         data-slot="diff-viewer-split-right"
@@ -407,27 +427,13 @@ function DiffViewerSplitLine({
           diffLineVariants({ type: right?.type ?? "empty" }),
         )}
       >
-        {showLineNumbers && (
-          <span className="text-muted-foreground w-12 shrink-0 px-2 text-end select-none">
-            {right?.newLineNumber ?? ""}
-          </span>
-        )}
-        <span
-          className={cn(
-            "w-4 shrink-0 text-center select-none",
-            diffLineTextVariants({ type: right?.type ?? "empty" }),
-          )}
-        >
-          {right ? (right.type === "add" ? "+" : " ") : ""}
-        </span>
-        <span
-          className={cn(
-            "flex-1 break-all whitespace-pre-wrap",
-            diffLineTextVariants({ type: right?.type ?? "empty" }),
-          )}
-        >
-          {right?.content ?? ""}
-        </span>
+        {diffRowCells({
+          type: right?.type ?? "empty",
+          lineNumber: right?.newLineNumber ?? "",
+          indicator: right ? (right.type === "add" ? "+" : " ") : "",
+          content: right?.content ?? "",
+          showLineNumbers,
+        })}
       </div>
     </div>
   );
