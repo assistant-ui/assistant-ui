@@ -1,243 +1,240 @@
 "use client";
 
-import { useState, useRef } from "react";
-import { Play, Trash2, Shield, Code, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { SafeContentFrame, type RenderedFrame } from "safe-content-frame";
+import { CopyCommandButton } from "@/components/home/copy-command-button";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
-const DEFAULT_HTML = `<h1>Hello from Safe Content Frame!</h1>
-<p>This content is rendered in a <strong>sandboxed iframe</strong>.</p>
-<style>
-  body {
-    font-family: system-ui;
-    padding: 20px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    color: white;
-    min-height: 100vh;
-    margin: 0;
-  }
-  h1 { margin-top: 0; }
-</style>
+const ANALYTICS_PAGE = "safe-content-frame" as const;
+
+const HIGHLIGHTS = [
+  {
+    title: "Unique origin",
+    description:
+      "Each render gets a hashed origin on scf.auiusercontent.com, a separate eTLD+1 from your app.",
+  },
+  {
+    title: "Sandboxed iframe",
+    description:
+      "Content runs with allow-scripts. It cannot reach the parent page.",
+  },
+  {
+    title: "No parent storage",
+    description:
+      "Scripts cannot read document.cookie or localStorage on your domain.",
+  },
+  {
+    title: "Vanilla JS",
+    description: "Framework-agnostic. No React or DOM-framework dependency.",
+  },
+] as const;
+
+const DEFAULT_HTML = `<h1>Hello from the sandbox</h1>
+<p>This HTML runs in a sandboxed iframe with its own origin.</p>
 <script>
-  console.log('Script executed in sandbox!');
-  document.body.innerHTML += '<p>JavaScript is working!</p>';
-</script>`;
-
-const XSS_EXAMPLE = `<h1>XSS Attack Demo</h1>
-<p>This demonstrates that malicious scripts are sandboxed:</p>
-<script>
-  // These attacks are contained within the sandbox
-  try {
-    // Try to access parent window
-    window.parent.document.body.innerHTML = 'HACKED!';
-  } catch (e) {
-    document.body.innerHTML += '<p style="color: #4ade80;">Cross-origin blocked: ' + e.message + '</p>';
-  }
-
-  try {
-    // Try to access cookies
-    document.body.innerHTML += '<p style="color: #4ade80;">Cookies: ' + (document.cookie || 'none (sandboxed)') + '</p>';
-  } catch (e) {
-    document.body.innerHTML += '<p style="color: #4ade80;">Cookie access blocked</p>';
-  }
-
-  try {
-    // Try to redirect
-    // window.top.location = 'https://evil.com';
-    document.body.innerHTML += '<p style="color: #4ade80;">Top navigation blocked by sandbox</p>';
-  } catch (e) {
-    document.body.innerHTML += '<p style="color: #4ade80;">Navigation blocked: ' + e.message + '</p>';
-  }
+  document.body.innerHTML += '<p>Scripts run here. They cannot reach the parent page.</p>';
 </script>
 <style>
   body {
-    font-family: system-ui;
-    padding: 20px;
-    background: #1a1a2e;
-    color: #eee;
+    font-family: system-ui, sans-serif;
+    margin: 0;
+    padding: 24px;
+    line-height: 1.5;
   }
-  h1 { color: #f472b6; }
+  h1 { font-size: 1.25rem; font-weight: 560; }
 </style>`;
+
+const XSS_HTML = `<h1>XSS probe</h1>
+<p>These scripts run in the frame. They cannot touch the host page.</p>
+<script>
+  try {
+    window.parent.document.body.innerHTML = 'HACKED!';
+  } catch (e) {
+    document.body.innerHTML += '<p>Parent document blocked: ' + e.message + '</p>';
+  }
+  try {
+    document.body.innerHTML += '<p>Cookies: ' + (document.cookie || 'none') + '</p>';
+  } catch (e) {
+    document.body.innerHTML += '<p>Cookie access blocked</p>';
+  }
+  document.body.innerHTML += '<p>Top navigation blocked by sandbox</p>';
+</script>
+<style>
+  body {
+    font-family: system-ui, sans-serif;
+    margin: 0;
+    padding: 24px;
+    line-height: 1.5;
+  }
+  h1 { font-size: 1.25rem; font-weight: 560; }
+</style>`;
+
+type Preset = "default" | "xss" | "custom";
 
 export default function SafeContentFramePage() {
   const [html, setHtml] = useState(DEFAULT_HTML);
-  const [status, setStatus] = useState<{
-    type: "idle" | "loading" | "success" | "error";
-    message: string;
-  }>({ type: "idle", message: "Ready to render" });
+  const [preset, setPreset] = useState<Preset>("default");
+  const [status, setStatus] = useState("Ready");
   const containerRef = useRef<HTMLDivElement>(null);
   const frameRef = useRef<RenderedFrame | null>(null);
 
-  const renderContent = async () => {
-    if (!containerRef.current) return;
+  const renderSource = useCallback(async (source: string) => {
+    const container = containerRef.current;
+    if (!container) return;
 
-    setStatus({ type: "loading", message: "Rendering..." });
-
-    // Dispose previous frame
-    if (frameRef.current) {
-      frameRef.current.dispose();
-      frameRef.current = null;
-    }
-
-    // Clear container
-    containerRef.current.innerHTML = "";
+    frameRef.current?.dispose();
+    frameRef.current = null;
+    container.replaceChildren();
+    setStatus("Rendering");
 
     try {
       const scf = new SafeContentFrame("assistant-ui-docs", {
         sandbox: ["allow-scripts"],
       });
-
-      const frame = await scf.renderHtml(html, containerRef.current);
+      const frame = await scf.renderHtml(source, container);
       frameRef.current = frame;
-
-      setStatus({
-        type: "success",
-        message: `Rendered! Origin: ${frame.origin}`,
-      });
-
-      // Try to wait for full load
+      setStatus(frame.origin);
       try {
         await frame.fullyLoadedPromiseWithTimeout(5000);
-        setStatus((prev) => ({
-          ...prev,
-          message: `${prev.message} | Content fully loaded`,
-        }));
       } catch {
-        setStatus((prev) => ({
-          ...prev,
-          message: `${prev.message} | Load timeout`,
-        }));
+        setStatus(`${frame.origin} (load timeout)`);
       }
     } catch (error) {
-      setStatus({
-        type: "error",
-        message: `Error: ${error instanceof Error ? error.message : "Unknown error"}`,
-      });
+      setStatus(error instanceof Error ? error.message : "Render failed");
     }
-  };
+  }, []);
 
-  const clearFrame = () => {
-    if (frameRef.current) {
-      frameRef.current.dispose();
+  useEffect(() => {
+    void renderSource(DEFAULT_HTML);
+    return () => {
+      frameRef.current?.dispose();
       frameRef.current = null;
-    }
-    if (containerRef.current) {
-      containerRef.current.innerHTML = "";
-    }
-    setStatus({ type: "idle", message: "Ready to render" });
+    };
+  }, [renderSource]);
+
+  const applyPreset = (next: string, id: Exclude<Preset, "custom">) => {
+    setHtml(next);
+    setPreset(id);
+    void renderSource(next);
   };
 
   return (
-    <div className="container mx-auto max-w-screen-xl space-y-12 px-4 py-12">
-      <div className="flex flex-col items-center space-y-6 text-center">
-        <div className="flex items-center gap-2 rounded-full border px-4 py-1.5 text-sm">
-          <Shield className="size-4" />
-          <span>Secure iframe rendering</span>
-        </div>
-
-        <h1 className="text-5xl font-bold tracking-tight lg:text-6xl">
-          Safe Content Frame
-        </h1>
-
-        <p className="text-muted-foreground max-w-[600px] text-lg text-balance">
-          Render untrusted HTML content securely in sandboxed iframes with
-          unique origins per render.
+    <PageFrame pad="sub" className="flex flex-col gap-20 md:gap-28">
+      <header className="max-w-2xl">
+        <h1 className={typePage}>safe-content-frame</h1>
+        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+          Untrusted HTML in a sandboxed iframe. Unique origin per render. Pure
+          JS.
         </p>
-      </div>
+        <div className="mt-6">
+          <CopyCommandButton
+            command="npm install safe-content-frame"
+            analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
+          />
+        </div>
+      </header>
 
-      <div className="grid gap-6 lg:grid-cols-2">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between">
-            <h2 className="flex items-center gap-2 text-lg font-semibold">
-              <Code className="size-5" />
-              HTML Input
-            </h2>
-            <div className="flex gap-2">
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setHtml(DEFAULT_HTML)}
-              >
-                Default
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => setHtml(XSS_EXAMPLE)}
-              >
-                <AlertTriangle className="mr-1 size-3" />
-                XSS Demo
-              </Button>
+      <dl className="grid gap-x-16 gap-y-10 sm:grid-cols-2">
+        {HIGHLIGHTS.map((item) => (
+          <div key={item.title} className="flex flex-col gap-1.5">
+            <dt className="text-[15px] font-medium">{item.title}</dt>
+            <dd className="text-muted-foreground text-sm leading-relaxed text-pretty">
+              {item.description}
+            </dd>
+          </div>
+        ))}
+      </dl>
+
+      <section className="grid gap-6 lg:grid-cols-2">
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-muted-foreground text-sm">Input</h2>
+            <div className="flex flex-wrap items-center gap-1.5">
+              <PresetChip
+                label="Default"
+                active={preset === "default"}
+                onClick={() => applyPreset(DEFAULT_HTML, "default")}
+              />
+              <PresetChip
+                label="XSS"
+                active={preset === "xss"}
+                onClick={() => applyPreset(XSS_HTML, "xss")}
+              />
             </div>
           </div>
-
           <textarea
             value={html}
-            onChange={(e) => setHtml(e.target.value)}
-            className="bg-muted/50 focus:ring-primary h-[400px] w-full rounded-lg border p-4 font-mono text-sm focus:ring-2 focus:outline-none"
+            onChange={(event) => {
+              setHtml(event.target.value);
+              setPreset("custom");
+            }}
+            className="bg-muted/40 focus-visible:ring-ring/50 h-[28rem] w-full resize-none rounded-2xl p-4 font-mono text-[13px] leading-relaxed outline-none focus-visible:ring-1"
             spellCheck={false}
           />
-
-          <div className="flex gap-2">
-            <Button onClick={renderContent} className="flex-1">
-              <Play className="mr-2 size-4" />
-              Render Content
-            </Button>
-            <Button variant="outline" onClick={clearFrame}>
-              <Trash2 className="mr-2 size-4" />
+          <div className="flex items-center gap-4">
+            <button
+              type="button"
+              onClick={() => void renderSource(html)}
+              className="text-sm transition-colors hover:opacity-80"
+            >
+              Render
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                frameRef.current?.dispose();
+                frameRef.current = null;
+                containerRef.current?.replaceChildren();
+                setStatus("Cleared");
+              }}
+              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+            >
               Clear
-            </Button>
-          </div>
-
-          <div
-            className={cn("rounded-lg p-3 font-mono text-sm", {
-              "bg-destructive/10 text-destructive": status.type === "error",
-              "bg-green-500/10 text-green-600 dark:text-green-400":
-                status.type === "success",
-              "bg-yellow-500/10 text-yellow-600 dark:text-yellow-400":
-                status.type === "loading",
-              "bg-muted text-muted-foreground": status.type === "idle",
-            })}
-          >
-            {status.message}
+            </button>
           </div>
         </div>
 
-        <div className="space-y-4">
-          <h2 className="flex items-center gap-2 text-lg font-semibold">
-            <Shield className="size-5" />
-            Sandboxed Output
-          </h2>
-
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="text-muted-foreground text-sm">Output</h2>
+            <p className="text-muted-foreground min-w-0 truncate font-mono text-xs">
+              {status}
+            </p>
+          </div>
           <div
             ref={containerRef}
-            className="h-[400px] overflow-hidden rounded-lg border bg-white dark:bg-zinc-900"
+            className="bg-muted/40 h-[28rem] overflow-hidden rounded-2xl [&_iframe]:size-full [&_iframe]:border-0"
           />
-
-          <div className="bg-muted/30 rounded-lg border border-dashed p-4 text-sm">
-            <h3 className="mb-2 font-semibold">How it works:</h3>
-            <ul className="text-muted-foreground space-y-1">
-              <li>
-                Each render gets a <strong>unique origin</strong> derived from a
-                hash
-              </li>
-              <li>
-                Content runs in a <strong>sandboxed iframe</strong> with
-                allow-scripts
-              </li>
-              <li>
-                <strong>Cross-origin isolation</strong> prevents access to
-                parent window
-              </li>
-              <li>
-                No cookies, localStorage, or other storage from the parent
-                domain
-              </li>
-            </ul>
-          </div>
         </div>
-      </div>
-    </div>
+      </section>
+    </PageFrame>
+  );
+}
+
+function PresetChip({
+  label,
+  active,
+  onClick,
+}: {
+  label: string;
+  active: boolean;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      aria-pressed={active}
+      className={cn(
+        "focus-visible:ring-ring/50 rounded-md px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-1",
+        active
+          ? "bg-foreground text-background"
+          : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
+      )}
+    >
+      {label}
+    </button>
   );
 }

@@ -70,7 +70,7 @@ export default async function Page(props: {
         enabled: false,
       }}
     >
-      <DocsBody>
+      <DocsBody data-page-content="">
         <header className="not-prose mb-8">
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-xl font-medium tracking-tight md:text-2xl">
@@ -83,7 +83,7 @@ export default async function Page(props: {
             />
           </div>
           {page.data.description && (
-            <p className="text-muted-foreground mt-2 text-sm md:text-base">
+            <p className="text-muted-foreground mt-2 max-w-2xl text-sm md:text-base">
               {page.data.description}
             </p>
           )}

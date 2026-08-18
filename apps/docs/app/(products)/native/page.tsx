@@ -1,197 +1,108 @@
 "use client";
 
-import {
-  ArrowRight,
-  Code2,
-  Globe,
-  Layers,
-  RefreshCw,
-  Smartphone,
-  Zap,
-} from "lucide-react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
 import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { Button, buttonVariants } from "@/components/ui/button";
-
-import "./phone-mockup.css";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typePage } from "@/components/shared/type";
+import { cn } from "@/lib/utils";
 
 const ANALYTICS_PAGE = "native" as const;
 
 const INSTALL_COMMAND = "npx assistant-ui@latest create --native my-app";
 
+const DEMO_SRC = "https://assistant-ui-expo.vercel.app/";
+
 const FEATURES = [
   {
     title: "Built for Expo",
     description:
-      "First-class Expo support. Use Expo Router, EAS Build, and the full Expo ecosystem out of the box.",
-    icon: Zap,
-    iconColor: "text-yellow-400",
+      "Expo Router, EAS Build, and the Expo ecosystem work out of the box.",
   },
   {
-    title: "iOS, Android & Web",
-    description:
-      "Write once, run on every platform. Share UI components and business logic across iOS, Android, and web.",
-    icon: Smartphone,
-    iconColor: "text-green-400",
+    title: "iOS, Android, and web",
+    description: "Share UI and logic across every platform from one codebase.",
   },
   {
-    title: "Battle-Tested Runtime",
+    title: "Shared runtime",
     description:
-      "Powered by the same engine and runtime system behind assistant-ui.com, refined over two years of production use.",
-    icon: RefreshCw,
-    iconColor: "text-blue-400",
+      "The same engine as the web SDK. AI SDK, LangGraph, tools, and adapters carry over.",
   },
   {
-    title: "AI SDK & LangGraph",
+    title: "Native primitives",
     description:
-      "Works with Vercel AI SDK, LangGraph, and other popular frameworks. Plug in your existing backend with zero changes.",
-    icon: Layers,
-    iconColor: "text-purple-400",
-  },
-  {
-    title: "Share Your Runtime Code",
-    description:
-      "Already using assistant-ui on the web? Reuse the same runtime, tools, and adapters in your React Native app.",
-    icon: Code2,
-    iconColor: "text-cyan-400",
-  },
-  {
-    title: "Cross-Platform Primitives",
-    description:
-      "Composable, unstyled primitives — Thread, Composer, Message, and more — designed for native from the ground up.",
-    icon: Globe,
-    iconColor: "text-orange-400",
+      "Composable, unstyled Thread, Composer, Message, and ThreadList primitives built for native.",
   },
 ] as const;
 
 export default function NativePage() {
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pt-14 pb-8 md:space-y-20">
-      {/* Hero */}
-      <div className="flex flex-col items-center gap-6 text-center">
-        <div className="flex flex-col gap-3">
-          <h1 className="mx-auto max-w-2xl text-3xl font-medium tracking-tight md:text-5xl">
-            Get the UX of ChatGPT in your own mobile app
-          </h1>
-          <p className="text-muted-foreground mx-auto max-w-xl text-lg">
-            Beautiful, production-ready AI chat for React Native. Powered by the
-            same runtime as assistant-ui, with full Expo support and
-            cross-platform code sharing.
+    <PageFrame pad="sub" className="flex flex-col gap-20 md:gap-28">
+      <div className="grid items-start gap-12 lg:grid-cols-[minmax(0,1fr)_auto] lg:gap-16">
+        <header className="max-w-2xl">
+          <h1 className={typePage}>React Native</h1>
+          <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+            Native Thread, Composer, and Message primitives. Same runtime as the
+            web SDK. Expo, iOS, Android, and web.
           </p>
-        </div>
-
-        <CopyCommandButton
-          command={INSTALL_COMMAND}
-          analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
-        />
-
-        <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[13px]">
-          <Link
-            href="/docs/react-native"
-            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
-          >
-            Getting Started →
-          </Link>
-          <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
-          <Link
-            href="/docs/react-native/migration"
-            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
-          >
-            Migration from Web →
-          </Link>
-        </div>
-      </div>
-
-      {/* Phone mockup */}
-      <div className="phone-mockup-section relative">
-        <div className="phone-mockup-glow" />
-        <div className="phone-mockup-frame">
-          <div className="phone-mockup-border" />
-          <div className="phone-mockup-notch" />
-          <div className="phone-mockup-screen">
-            <iframe
-              src="https://assistant-ui-expo.vercel.app/"
-              className="size-full"
-              title="assistant-ui React Native demo"
+          <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+            <CopyCommandButton
+              command={INSTALL_COMMAND}
+              analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
             />
+            <Link
+              href="/docs/react-native"
+              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+            >
+              Read the docs
+            </Link>
           </div>
-        </div>
+        </header>
+
+        <NativeDemo />
       </div>
 
-      {/* Features */}
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="text-3xl font-medium tracking-tight">
-            Why assistant-ui for React Native?
-          </h2>
-          <p className="text-muted-foreground max-w-xl">
-            Everything you need to build a world-class AI chat experience on
-            mobile — without starting from scratch.
-          </p>
-        </div>
+      <dl className="grid gap-x-16 gap-y-10 sm:grid-cols-2">
+        {FEATURES.map((feature) => (
+          <div key={feature.title} className="flex flex-col gap-1.5">
+            <dt className="text-[15px] font-medium">{feature.title}</dt>
+            <dd className="text-muted-foreground text-sm leading-relaxed text-pretty">
+              {feature.description}
+            </dd>
+          </div>
+        ))}
+      </dl>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={feature.title}
-                className="border-border/50 bg-muted/30 hover:border-border/80 flex flex-col gap-2 rounded-xl border p-4 transition-colors"
-              >
-                <span className="flex items-center gap-2 font-medium">
-                  <Icon className={cn("size-4", feature.iconColor)} />
-                  {feature.title}
-                </span>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Code sharing callout */}
-      <div className="border-border/50 bg-muted/30 mx-auto flex max-w-3xl flex-col items-center gap-4 rounded-xl border p-8 text-center">
-        <Code2 className="size-8 text-violet-400" />
-        <h3 className="text-xl font-medium tracking-tight">
-          Already using assistant-ui?
-        </h3>
-        <p className="text-muted-foreground max-w-lg">
-          Your existing runtime setup, tool definitions, and model adapters work
-          with the React Native package. Share the same code between your web
-          and mobile apps — only the UI layer changes.
-        </p>
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<Link href="/docs/react-native/migration" />}
+      <footer>
+        <Link
+          href="/docs/react-native/migration"
+          className="text-muted-foreground hover:text-foreground text-sm transition-colors"
         >
-          See the migration guide <ArrowRight />
-        </Button>
-      </div>
+          Migration from web
+        </Link>
+      </footer>
+    </PageFrame>
+  );
+}
 
-      {/* CTA */}
-      <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="text-2xl font-medium tracking-tight">
-          Start building today
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button
-            nativeButton={false}
-            render={<Link href="/docs/react-native" />}
-          >
-            Get Started <ArrowRight />
-          </Button>
-          <Link
-            href="/docs/react-native/migration"
-            className={buttonVariants({ variant: "outline" })}
-          >
-            Migration Guide
-          </Link>
-        </div>
-      </div>
+function NativeDemo() {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSrc(DEMO_SRC);
+  }, []);
+
+  return (
+    <div className="bg-muted/40 mx-auto w-full max-w-[320px] overflow-hidden rounded-3xl lg:mx-0">
+      {src ? (
+        <iframe
+          src={src}
+          title="assistant-ui React Native demo"
+          className="aspect-[9/19.5] w-full border-0"
+        />
+      ) : (
+        <div className="aspect-[9/19.5] w-full" aria-hidden />
+      )}
     </div>
   );
 }
