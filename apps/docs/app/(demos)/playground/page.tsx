@@ -9,6 +9,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
+import { useRouter, useSearchParams } from "next/navigation";
+import { SignInButton, useAuth } from "@clerk/nextjs";
 import {
   CodeIcon,
   XIcon,
@@ -44,10 +46,11 @@ import {
   usePlaygroundState,
   type ViewportPreset,
 } from "@/lib/playground-url-state";
-import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
+import { isAiBuilderEnabled, isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { PlaygroundRuntimeProvider } from "@/contexts/PlaygroundRuntimeProvider";
+import { AI_BUILDER_RETURN_PATH } from "@/lib/ai-builder-routes";
 
-const XuluxApp = isAiPlaygroundEnabled
+const XuluxApp = isAiBuilderEnabled
   ? dynamic(() =>
       import("@/components/xulux/XuluxApp").then((mod) => mod.XuluxApp),
     )
@@ -391,40 +394,74 @@ function HeaderPortal({ children }: { children: ReactNode }) {
   return createPortal(children, container);
 }
 
+function AiBuilderModeButton({
+  active,
+  onSelect,
+}: {
+  active: boolean;
+  onSelect: () => void;
+}) {
+  const { isLoaded, isSignedIn } = useAuth();
+  const button = (
+    <button
+      type="button"
+      onClick={isSignedIn ? onSelect : undefined}
+      disabled={!isLoaded}
+      className={cn(
+        "rounded-sm px-2.5 py-1 font-medium transition-colors disabled:opacity-50",
+        active
+          ? "bg-background text-foreground"
+          : "text-foreground/45 hover:text-foreground/90",
+      )}
+    >
+      AI Builder
+    </button>
+  );
+
+  if (!isLoaded || isSignedIn) return button;
+  return (
+    <SignInButton mode="redirect" fallbackRedirectUrl={AI_BUILDER_RETURN_PATH}>
+      {button}
+    </SignInButton>
+  );
+}
+
 export default function PlaygroundPage() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const requestedAgent =
+    isAiBuilderEnabled && searchParams.get("mode") === "agent";
   const [mode, setMode] = useState<"agent" | "builder">(
-    isAiPlaygroundEnabled ? "agent" : "builder",
+    requestedAgent ? "agent" : "builder",
   );
   const [visitedModes, setVisitedModes] = useState({
-    agent: isAiPlaygroundEnabled,
-    builder: !isAiPlaygroundEnabled,
+    agent: requestedAgent,
+    builder: !requestedAgent,
   });
 
-  const handleModeChange = useCallback((nextMode: "agent" | "builder") => {
-    setMode(nextMode);
-    setVisitedModes((current) => ({
-      ...current,
-      [nextMode]: true,
-    }));
-  }, []);
+  const handleModeChange = useCallback(
+    (nextMode: "agent" | "builder") => {
+      setMode(nextMode);
+      setVisitedModes((current) => ({
+        ...current,
+        [nextMode]: true,
+      }));
+      const nextSearchParams = new URLSearchParams(searchParams.toString());
+      nextSearchParams.set("mode", nextMode);
+      router.replace(`/playground?${nextSearchParams}`, { scroll: false });
+    },
+    [router, searchParams],
+  );
 
   return (
     <>
-      {isAiPlaygroundEnabled && (
+      {isAiBuilderEnabled && (
         <HeaderPortal>
           <div className="bg-muted/70 grid grid-cols-2 rounded-lg p-1 text-xs">
-            <button
-              type="button"
-              onClick={() => handleModeChange("agent")}
-              className={cn(
-                "rounded-sm px-2.5 py-1 font-medium transition-colors",
-                mode === "agent"
-                  ? "bg-background text-foreground"
-                  : "text-foreground/45 hover:text-foreground/90",
-              )}
-            >
-              AI Builder
-            </button>
+            <AiBuilderModeButton
+              active={mode === "agent"}
+              onSelect={() => handleModeChange("agent")}
+            />
             <button
               type="button"
               onClick={() => handleModeChange("builder")}

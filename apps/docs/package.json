@@ -35,6 +35,7 @@
     "@aui-x/prism": "^0.0.5",
     "@base-ui/react": "^1.7.0",
     "@blaxel/core": "^0.3.11",
+    "@clerk/nextjs": "^7.7.4",
     "@hookform/resolvers": "^5.7.1",
     "@langchain/langgraph-sdk": "^1.9.29",
     "@modelcontextprotocol/server": "^2.0.0",

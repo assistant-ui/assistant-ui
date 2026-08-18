@@ -1,4 +1,5 @@
 import { checkRateLimit } from "@/lib/rate-limit";
+import { requireAnonymousSession } from "@/lib/anonymous-session";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
@@ -142,7 +143,13 @@ export async function POST(req: Request) {
   }
 
   try {
-    const rateLimitResponse = await checkRateLimit(req);
+    const session = requireAnonymousSession(req);
+    if (session instanceof Response) return session;
+
+    const rateLimitResponse = await checkRateLimit(
+      req,
+      `anonymous:${session.id}`,
+    );
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await req.json();

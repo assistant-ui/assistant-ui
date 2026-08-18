@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";
 import { galleryStagingCss } from "@/components/gallery/gallery-staging";
+import { ClerkProvider } from "@clerk/nextjs";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -73,7 +74,7 @@ export const metadata = {
 };
 
 export default function Layout({ children }: { children: ReactNode }) {
-  return (
+  const page = (
     <html lang="en" suppressHydrationWarning>
       <head>
         <GenerativeUIStyle />
@@ -114,5 +115,13 @@ export default function Layout({ children }: { children: ReactNode }) {
         <SpeedInsights />
       </body>
     </html>
+  );
+
+  if (!process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim()) return page;
+
+  return (
+    <ClerkProvider dynamic signInUrl="/sign-in" signUpUrl="/sign-up">
+      {page}
+    </ClerkProvider>
   );
 }

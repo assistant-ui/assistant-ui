@@ -5,6 +5,10 @@ import {
   unstable_injectInteractableContext as injectInteractableContext,
 } from "@assistant-ui/ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
+import {
+  getAnonymousSession,
+  requireAnonymousSession,
+} from "@/lib/anonymous-session";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
@@ -43,7 +47,17 @@ export async function OPTIONS(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const rateLimitResponse = await checkRateLimit(req);
+    const origin = req.headers.get("origin") ?? "";
+    const anonymousSession = getAnonymousSession(req);
+    if (!anonymousSession && !ALLOWED_ORIGINS.includes(origin)) {
+      const accessResponse = requireAnonymousSession(req);
+      if (accessResponse instanceof Response) return accessResponse;
+    }
+
+    const rateLimitResponse = await checkRateLimit(
+      req,
+      anonymousSession ? `anonymous:${anonymousSession.id}` : undefined,
+    );
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await req.json();

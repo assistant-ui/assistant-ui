@@ -36,6 +36,7 @@ import { DEFAULT_LEARN_COURSE_ID } from "@/lib/xulux/learn/registry";
 import type { LearnProgress } from "@/lib/xulux/learn/types";
 import { toLearnContext } from "@/lib/xulux/learn/context";
 import type { LearnAutoStartSource } from "@/lib/xulux/learn/types";
+import { useAuth } from "@clerk/nextjs";
 
 export type XuluxMode = "playground" | "learn";
 
@@ -191,6 +192,7 @@ function XuluxRuntimeProviderInner({
   cloudBaseUrl: string;
   children: ReactNode;
 }) {
+  const { getToken } = useAuth();
   const sessionIdRef = useRef(sessionId);
   sessionIdRef.current = sessionId;
   const selectedTemplateContextRef = useRef(selectedTemplateContext);
@@ -209,7 +211,11 @@ function XuluxRuntimeProviderInner({
     () =>
       new AssistantCloud({
         baseUrl: cloudBaseUrl,
-        anonymous: true,
+        authToken: async () => {
+          const token = await getToken({ template: "assistant-ui" });
+          if (!token) throw new Error("Missing Clerk JWT");
+          return token;
+        },
         telemetry: {
           beforeReport: (report) => ({
             ...report,
@@ -220,7 +226,7 @@ function XuluxRuntimeProviderInner({
           }),
         },
       }),
-    [cloudBaseUrl],
+    [cloudBaseUrl, getToken],
   );
 
   const adapter = useMemo(

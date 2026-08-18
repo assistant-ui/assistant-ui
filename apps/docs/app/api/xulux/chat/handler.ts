@@ -1,4 +1,3 @@
-import { getDistinctId } from "@/lib/posthog-server";
 import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { injectQuoteContext, type FrontendTools } from "@assistant-ui/ai-sdk";
 import { checkRateLimit } from "@/lib/rate-limit";
@@ -22,6 +21,7 @@ import {
 } from "@/lib/xulux/turn-outcome";
 import type { XuluxAgentDefinition } from "./agents";
 import { resolveXuluxModel } from "./resolve-model";
+import { requireAiBuilderUser } from "@/lib/ai-builder-auth";
 
 const PRUNE_OPTIONS = {
   toolCalls: "before-last-2-messages",
@@ -172,7 +172,11 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
     }
 
     try {
-      const rateLimitResponse = await checkRateLimit(req);
+      const access = await requireAiBuilderUser();
+      if (access instanceof Response) return access;
+
+      const distinctId = `user:${access.userId}`;
+      const rateLimitResponse = await checkRateLimit(req, distinctId);
       if (rateLimitResponse) return rateLimitResponse;
 
       const body = await req.json().catch(() => null);
@@ -269,7 +273,6 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       if (preparedTools instanceof Response) return preparedTools;
       const xuluxTools: ToolSet = preparedTools;
 
-      const distinctId = getDistinctId(req);
       const budget = await beginTurn(sessionId, distinctId);
       if (budget.denied) {
         const payload = await budget.denied
