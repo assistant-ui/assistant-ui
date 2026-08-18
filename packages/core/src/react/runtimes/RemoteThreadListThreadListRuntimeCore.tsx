@@ -215,9 +215,14 @@ export class RemoteThreadListThreadListRuntimeCore
               replaceList &&
               getThreadData(nextState, this._mainThreadId) === undefined
             ) {
-              const seeded = addNewThread(nextState);
-              this._mainThreadId = seeded.id;
-              nextState = seeded.state;
+              const preservedDraft = nextState.newThreadId;
+              if (preservedDraft !== undefined) {
+                this._mainThreadId = preservedDraft;
+              } else {
+                const seeded = addNewThread(nextState);
+                this._mainThreadId = seeded.id;
+                nextState = seeded.state;
+              }
               if (this._options.threadId === undefined) {
                 this._notifyThreadIdChange();
               } else {

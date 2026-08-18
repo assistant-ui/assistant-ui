@@ -223,4 +223,34 @@ describe("RemoteThreadList adapter changes", () => {
     expect(core.getItemById("thread-a")).toBeUndefined();
     expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
   });
+
+  it("reuses the preserved unsent draft when the selected thread is missing after swap", async () => {
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("thread-a")] }),
+    });
+    const adapterB = makeAdapter({
+      list: async () => ({ threads: [thread("thread-b")] }),
+    });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const draftId = core.newThreadId;
+    expect(draftId).toBeDefined();
+    await core.switchToThread("thread-a");
+    expect(core.mainThreadId).toBe("thread-a");
+    expect(core.newThreadId).toBe(draftId);
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(core.mainThreadId).toBe(draftId);
+    expect(core.newThreadId).toBe(draftId);
+    expect(core.getItemById(draftId!)?.status).toBe("new");
+    expect(
+      Object.values(core.threadItems).filter((item) => item.status === "new"),
+    ).toHaveLength(1);
+  });
 });
