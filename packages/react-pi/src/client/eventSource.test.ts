@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { createSseDecoder, openPiEventStream } from "./eventSource";
-import type { PiAnyClientEvent } from "../types";
+import type {
+  PiAnyClientEvent,
+  PiAssistantMessage,
+  PiClientEventBody,
+} from "../types";
 
 describe("createSseDecoder", () => {
   it("decodes a single data frame", () => {
@@ -102,6 +106,112 @@ const sseFrame = (event: PiAnyClientEvent): string =>
 const rawSseFrame = (event: unknown): string =>
   `data: ${JSON.stringify(event)}\n\n`;
 
+const assistantMessage: PiAssistantMessage = {
+  role: "assistant",
+  content: [{ type: "text", text: "Hello" }],
+  api: "anthropic-messages",
+  provider: "anthropic",
+  model: "claude",
+  usage: {
+    input: 1,
+    output: 1,
+    cacheRead: 0,
+    cacheWrite: 0,
+    totalTokens: 2,
+    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
+  },
+  stopReason: "stop",
+  timestamp: 1,
+};
+
+const knownEventBodies = {
+  snapshot: {
+    type: "snapshot",
+    snapshot: {
+      metadata: { id: "t1", title: "Thread", status: "idle" },
+      messages: [],
+    },
+  },
+  agent_start: { type: "agent_start" },
+  agent_end: { type: "agent_end", willRetry: false },
+  agent_settled: { type: "agent_settled" },
+  turn_start: { type: "turn_start", turnIndex: 1 },
+  turn_end: { type: "turn_end", turnIndex: 1 },
+  message_start: { type: "message_start", message: assistantMessage },
+  message_update: {
+    type: "message_update",
+    message: assistantMessage,
+    assistantMessageEvent: { type: "start", partial: assistantMessage },
+  },
+  message_end: { type: "message_end", message: assistantMessage },
+  tool_execution_start: {
+    type: "tool_execution_start",
+    toolCallId: "tool-1",
+    toolName: "search",
+    args: { query: "assistant-ui" },
+  },
+  tool_execution_update: {
+    type: "tool_execution_update",
+    toolCallId: "tool-1",
+    toolName: "search",
+    partialResult: { content: [] },
+  },
+  tool_execution_end: {
+    type: "tool_execution_end",
+    toolCallId: "tool-1",
+    result: { content: [] },
+    isError: false,
+  },
+  queue_update: {
+    type: "queue_update",
+    steering: ["steer"],
+    followUp: ["follow up"],
+  },
+  compaction_start: { type: "compaction_start", reason: "threshold" },
+  compaction_end: {
+    type: "compaction_end",
+    aborted: false,
+    willRetry: false,
+  },
+  entry_appended: {
+    type: "entry_appended",
+    entry: {
+      id: "entry-1",
+      parentId: null,
+      timestamp: "2026-08-18T00:00:00.000Z",
+      type: "custom",
+      customType: "test",
+    },
+  },
+  auto_retry_start: { type: "auto_retry_start", attempt: 1, delayMs: 100 },
+  auto_retry_end: { type: "auto_retry_end", success: true },
+  session_info_changed: { type: "session_info_changed", name: "Thread" },
+  thinking_level_changed: { type: "thinking_level_changed", level: "high" },
+  context_usage: {
+    type: "context_usage",
+    contextUsage: { tokens: 10, contextWindow: 100, percent: 10 },
+  },
+  extension_ui_request: {
+    type: "extension_ui_request",
+    request: {
+      id: "request-1",
+      kind: "confirm",
+      title: "Continue?",
+      message: "Allow the tool to continue?",
+    },
+  },
+  extension_ui_resolved: {
+    type: "extension_ui_resolved",
+    requestId: "request-1",
+  },
+  error: { type: "error", error: "model unavailable" },
+} satisfies {
+  [Type in PiClientEventBody["type"]]: Extract<
+    PiClientEventBody,
+    { type: Type }
+  >;
+};
+
 describe("openPiEventStream", () => {
   it("delivers parsed events from the stream", async () => {
     const events: PiAnyClientEvent[] = [];
@@ -128,6 +238,39 @@ describe("openPiEventStream", () => {
 
     expect(events.map((e) => e.type)).toEqual(["agent_start", "agent_end"]);
     expect(events[0]).toMatchObject({ threadId: "t1", seq: 1 });
+  });
+
+  it("delivers every known event type", async () => {
+    const bodies = Object.values(knownEventBodies);
+    const events: PiAnyClientEvent[] = [];
+    const errors: unknown[] = [];
+    const fetchImpl = (async () =>
+      sseResponse(
+        bodies.map((body, index) =>
+          rawSseFrame({ ...body, threadId: "t1", seq: index + 1 }),
+        ),
+      )) as unknown as typeof fetch;
+
+    await new Promise<void>((resolve) => {
+      const close = openPiEventStream({
+        url: "/events",
+        fetchImpl,
+        reconnectDelay: () => Promise.resolve(),
+        onError: (error) => errors.push(error),
+        onEvent: (event) => {
+          events.push(event);
+          if (events.length === bodies.length) {
+            close();
+            resolve();
+          }
+        },
+      });
+    });
+
+    expect(errors).toEqual([]);
+    expect(events.map((event) => event.type)).toEqual(
+      bodies.map((body) => body.type),
+    );
   });
 
   it("accepts parameterized event stream content types", async () => {
@@ -570,12 +713,19 @@ describe("openPiEventStream", () => {
     async (malformedEvent, expectedMessage) => {
       const events: PiAnyClientEvent[] = [];
       const errors: unknown[] = [];
-      const fetchImpl = vi.fn(async () =>
-        sseResponse([
-          rawSseFrame(malformedEvent),
-          sseFrame({ type: "agent_end", threadId: "t1", seq: 2 }),
-        ]),
-      ) as unknown as typeof fetch;
+      const fetchImpl = vi
+        .fn()
+        .mockResolvedValueOnce(
+          sseResponse([
+            rawSseFrame(malformedEvent),
+            sseFrame({ type: "agent_end", threadId: "t1", seq: 99 }),
+          ]),
+        )
+        .mockResolvedValueOnce(
+          sseResponse([
+            sseFrame({ type: "agent_end", threadId: "t1", seq: 2 }),
+          ]),
+        ) as unknown as typeof fetch;
 
       await new Promise<void>((resolve) => {
         const close = openPiEventStream({
@@ -597,9 +747,52 @@ describe("openPiEventStream", () => {
         }),
       ]);
       expect(events.map((event) => event.type)).toEqual(["agent_end"]);
-      expect(fetchImpl).toHaveBeenCalledOnce();
+      expect(events[0]?.seq).toBe(2);
+      expect(fetchImpl).toHaveBeenCalledTimes(2);
     },
   );
+
+  it("preserves forward-compatible values in known event types", async () => {
+    const events: PiAnyClientEvent[] = [];
+    const fetchImpl = (async () =>
+      sseResponse([
+        rawSseFrame({
+          type: "compaction_start",
+          threadId: "t1",
+          seq: 1,
+          reason: "future_reason",
+        }),
+        rawSseFrame({
+          type: "extension_ui_request",
+          threadId: "t1",
+          seq: 2,
+          request: {
+            id: "request-1",
+            kind: "future_dialog",
+            title: "Future dialog",
+          },
+        }),
+      ])) as unknown as typeof fetch;
+
+    await new Promise<void>((resolve) => {
+      const close = openPiEventStream({
+        url: "/events",
+        fetchImpl,
+        onEvent: (event) => {
+          events.push(event);
+          if (events.length === 2) {
+            close();
+            resolve();
+          }
+        },
+      });
+    });
+
+    expect(events).toEqual([
+      expect.objectContaining({ type: "compaction_start" }),
+      expect.objectContaining({ type: "extension_ui_request" }),
+    ]);
+  });
 
   it("preserves forward-compatible unknown event types", async () => {
     const event = await new Promise<PiAnyClientEvent>((resolve) => {
