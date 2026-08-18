@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from "vitest";
+import type { AssistantCloud } from "assistant-cloud";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
 import { AISDKThreads } from "./AISDKThreads";
@@ -95,8 +96,6 @@ describe("AISDKThreads", () => {
     flushTapSync(() => aui.threads.switchToNewThread());
     expect(handle.getClient().thread.getState().messages).toHaveLength(0);
 
-    // The detached chat keeps consuming the stream while another thread is
-    // visible
     emit(
       { type: "text-delta", id: "t1", delta: " and finished" },
       { type: "text-end", id: "t1" },
@@ -318,6 +317,75 @@ describe("AISDKThreads", () => {
       handle.destroy();
     } finally {
       vi.unstubAllGlobals();
+    }
+  });
+
+  it("uses assistant-cloud for listing and lifecycle actions", async () => {
+    const cloudThread = (id: string) => ({
+      id,
+      title: id,
+      is_archived: false,
+      last_message_at: null,
+      external_id: null,
+      metadata: null,
+    });
+    const list = vi.fn(async () => ({
+      threads: [cloudThread("cloud-1"), cloudThread("cloud-2")],
+    }));
+    const create = vi.fn(async () => ({ thread_id: "cloud-created" }));
+    const deleteThread = vi.fn(async () => {});
+    const cloud = {
+      threads: {
+        list,
+        create,
+        update: vi.fn(async () => {}),
+        delete: deleteThread,
+        get: vi.fn(async (id: string) => cloudThread(id)),
+        messages: { list: vi.fn(async () => ({ messages: [] })) },
+      },
+      runs: { stream: vi.fn() },
+    } as unknown as AssistantCloud;
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ cloud }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    try {
+      await aui.threads.getLoadThreadsPromise();
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().threadIds).toEqual([
+          "cloud-1",
+          "cloud-2",
+        ]);
+      });
+
+      flushTapSync(() => aui.threads.switchToThread("cloud-1"));
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().mainThreadId).toBe("cloud-1");
+      });
+
+      flushTapSync(() => aui.threads.switchToThread("cloud-2"));
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().mainThreadId).toBe("cloud-2");
+      });
+
+      flushTapSync(() => aui.threads.switchToNewThread());
+      const newThreadId = handle.getClient().threads.getState().mainThreadId;
+      await handle.getClient().threads.item("main").initialize();
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ external_id: undefined }),
+      );
+      await vi.waitFor(() => {
+        expect(
+          handle.getClient().threads.item({ id: newThreadId }).getState()
+            .remoteId,
+        ).toBe("cloud-created");
+      });
+
+      await handle.getClient().threads.item({ id: "cloud-1" }).delete();
+      expect(deleteThread).toHaveBeenCalledWith("cloud-1");
+    } finally {
+      handle.destroy();
     }
   });
 });

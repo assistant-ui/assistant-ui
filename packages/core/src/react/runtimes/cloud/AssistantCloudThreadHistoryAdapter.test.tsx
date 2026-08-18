@@ -70,6 +70,39 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     });
   });
 
+  it("resolves formatted persistence against the current threadListItem", async () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const cloudRef = { current: cloud };
+    const { result, rerender } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    const formatted = result.current.withFormat<
+      { id: string },
+      Record<string, unknown>
+    >({
+      format: "test",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message) => message.id,
+    });
+
+    await formatted.load();
+    expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-1", {
+      format: "test",
+    });
+
+    mocks.aui = mocks.makeClient("thread-2");
+    rerender();
+    await formatted.load();
+    expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-2", {
+      format: "test",
+    });
+  });
+
   it("resolves the aui client at call time instead of capturing it", async () => {
     mocks.aui = mocks.makeClient("thread-1");
     const cloud = makeCloud();

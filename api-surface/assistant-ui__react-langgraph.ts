@@ -671,6 +671,12 @@ declare const ExportedMessageRepository: {
   }) => ExportedMessageRepository;
 };
 
+type ExportedMessageRepositoryItem = {
+  message: ThreadMessage;
+  parentId: string | null;
+  runConfig?: RunConfig;
+};
+
 type ExternalStoreAdapter<T = ThreadMessage> = ExternalStoreAdapterBase<T> & (T extends ThreadMessage ? object : ExternalStoreMessageConverterAdapter<T>);
 
 type ExternalStoreAdapterBase<T> = {
@@ -823,6 +829,20 @@ type GenerativeUINode = string | {
 
 type GenerativeUISpec = {
   readonly root: GenerativeUINode | readonly GenerativeUINode[];
+};
+
+type GenericThreadHistoryAdapter<TMessage> = {
+  load(): Promise<MessageFormatRepository<TMessage>>;
+  append(item: MessageFormatItem<TMessage>): Promise<void>;
+  update?(item: MessageFormatItem<TMessage>, localMessageId: string): Promise<void>;
+  delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
+  reportTelemetry?(items: MessageFormatItem<TMessage>[], options?: {
+    durationMs?: number;
+    stepTimestamps?: {
+      start_ms: number;
+      end_ms: number;
+    }[];
+  }): void;
 };
 
 type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
@@ -1207,6 +1227,23 @@ type MessageContentToolUse = {
   type: "input_json_delta" | "tool_use";
 };
 
+interface MessageFormatAdapter<TMessage, TStorageFormat extends Record<string, unknown>> {
+  format: string;
+  encode(item: MessageFormatItem<TMessage>): TStorageFormat;
+  decode(stored: MessageStorageEntry<TStorageFormat>): MessageFormatItem<TMessage>;
+  getId(message: TMessage): string;
+}
+
+interface MessageFormatItem<TMessage> {
+  parentId: string | null;
+  message: TMessage;
+}
+
+interface MessageFormatRepository<TMessage> {
+  headId?: string | null;
+  messages: MessageFormatItem<TMessage>[];
+}
+
 type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
@@ -1307,6 +1344,13 @@ type MessageStatus = {
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other" | "tool-calls";
   readonly error?: ReadonlyJSONValue;
 };
+
+interface MessageStorageEntry<TPayload> {
+  id: string;
+  parent_id: string | null;
+  format: string;
+  content: TPayload;
+}
 
 type MessageTiming = {
   readonly streamStartTime: number;
@@ -1523,6 +1567,7 @@ type RemoteThreadListAdapter = {
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
+  unstable_useAdapters?: (() => RuntimeAdapters | null | undefined) | undefined;
 };
 
 type RemoteThreadListPageOptions = {
@@ -1578,6 +1623,12 @@ type ResumeRunConfig = StartRunConfig & {
 
 type RunConfig = {
   readonly custom?: Record<string, unknown>;
+};
+
+type RuntimeAdapters = {
+  modelContext?: ModelContextProvider | undefined;
+  history?: ThreadHistoryAdapter | undefined;
+  attachments?: AttachmentAdapter | undefined;
 };
 
 type RuntimeCapabilities = {
@@ -1725,6 +1776,18 @@ type ThreadComposerRuntime = Omit<ComposerRuntime, "getAttachmentByIndex" | "get
 
 type ThreadComposerState = BaseComposerState & {
   readonly type: "thread";
+};
+
+type ThreadHistoryAdapter = {
+  load(): Promise<ExportedMessageRepository & {
+    state?: ReadonlyJSONValue;
+    unstable_resume?: boolean;
+  }>;
+  resume?(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void, unknown>;
+  append(item: ExportedMessageRepositoryItem): Promise<void>;
+  update?(item: ExportedMessageRepositoryItem): Promise<void>;
+  delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
+  withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage>;
 };
 
 type ThreadListItemEventCallback<E extends ThreadListItemEventType> = (payload: ThreadListItemEventPayload[E]) => void;

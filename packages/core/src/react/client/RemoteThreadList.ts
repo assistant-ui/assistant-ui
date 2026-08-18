@@ -35,6 +35,7 @@ import {
   inMemoryThreadListTransformScopes,
   type InMemoryThreadListProps,
 } from "./InMemoryThreadList";
+import { AdaptedRemoteThread } from "./AdaptedRemoteThread";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -54,6 +55,12 @@ export type RemoteThreadListProps = {
    * Swapping this to a different backing store does not reload the list. Call `reload()` after a genuine swap. A recreated object for the same store is a no-op.
    */
   adapter: RemoteThreadListAdapter;
+  /**
+   * Factory for the visible thread. Per-thread history reload requires a
+   * resource keyed by thread id (`withKey(id, thread(...))`). An unkeyed
+   * factory keeps one instance across switches, so a mount-once history
+   * loader will not fetch the next thread.
+   */
   thread: InMemoryThreadListProps["thread"];
   threadId?: string | undefined;
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
@@ -236,6 +243,7 @@ const useRemoteThreadListView = ({
   listState,
   mainThreadId,
   threadFactory,
+  useAdapters,
   onSwitchTo,
   onRename,
   onUpdateCustom,
@@ -249,6 +257,7 @@ const useRemoteThreadListView = ({
   listState: RemoteThreadState;
   mainThreadId: string;
   threadFactory: RemoteThreadListProps["thread"];
+  useAdapters: RemoteThreadListAdapter["unstable_useAdapters"];
   onSwitchTo: (
     threadId: string,
     options?: { unarchive?: boolean },
@@ -271,7 +280,17 @@ const useRemoteThreadListView = ({
   }>;
   onDetach: (threadId: string) => Promise<void>;
 }) => {
-  const mainThreadClient = useClientResource(threadFactory(mainThreadId));
+  const thread = threadFactory(mainThreadId);
+  const wrapped =
+    useAdapters === undefined
+      ? thread
+      : AdaptedRemoteThread({
+          useAdapters,
+          thread,
+        });
+  const mainThreadClient = useClientResource(
+    thread.key === undefined ? wrapped : withKey(thread.key, wrapped),
+  );
   const itemOrder = useMemo(
     () => collectItemOrder(listState, mainThreadId),
     [listState, mainThreadId],
@@ -456,9 +475,11 @@ const useRemoteThreadList = (
   }, [getLoadThreadsPromise]);
 
   useEffect(() => {
-    if (!isDevelopment || adapter.unstable_Provider === undefined) return;
+    if (!isDevelopment) return;
+    if (adapter.unstable_useAdapters !== undefined) return;
+    if (adapter.unstable_Provider === undefined) return;
     console.warn(
-      "[assistant-ui] RemoteThreadList ignores RemoteThreadListAdapter.unstable_Provider, so per-thread message history will not load or persist. Use useRemoteThreadListRuntime until this is supported.",
+      "[assistant-ui] RemoteThreadList ignores RemoteThreadListAdapter.unstable_Provider. Expose unstable_useAdapters so per-thread history loads on this entry. useRemoteThreadListRuntime still honors unstable_Provider.",
     );
   }, [adapter]);
 
@@ -920,6 +941,7 @@ const useRemoteThreadList = (
       listState,
       mainThreadId,
       threadFactory,
+      useAdapters: adapter.unstable_useAdapters,
       onSwitchTo: (id, options) => switchToThread(id, options),
       onRename: (id, title) => rename(id, title),
       onUpdateCustom: (id, custom) => updateCustom(id, custom),
@@ -1035,8 +1057,10 @@ const useRemoteThreadList = (
 /**
  * `AuiConfig` `threads` entry backed by a `RemoteThreadListAdapter`. Thread
  * bodies are born from the `thread` factory inside the client tree, so any
- * `AssistantClient` host can run a remote or cloud list. `unstable_Provider`
- * is ignored; cloud history still goes through `useRemoteThreadListRuntime`.
+ * `AssistantClient` host can run a remote or cloud list. Per-thread history
+ * and attachments come from `unstable_useAdapters`. `useRemoteThreadListRuntime`
+ * uses the same hook when `unstable_Provider` is omitted. Key the factory
+ * with `withKey` so history reloads when the visible thread changes.
  */
 export const RemoteThreadList = resource(useRemoteThreadList);
 

@@ -95,6 +95,18 @@ describe("RemoteThreadListAdapter.unstable_Provider", () => {
     expect(capture.adapters?.history).toBeUndefined();
   });
 
+  it("makes useAdapters context visible when no Provider is supplied", async () => {
+    const capture: { adapters: CapturedAdapters } = { adapters: null };
+    const adapter = makeAdapter({
+      unstable_useAdapters: function useTestAdapters() {
+        return { history: dummyHistory };
+      },
+    });
+    await renderAndWaitForBinder(adapter, capture);
+
+    expect(capture.adapters?.history).toBe(dummyHistory);
+  });
+
   it("picks up a swapped Provider on re-render", async () => {
     const capture: { adapters: CapturedAdapters } = { adapters: null };
     const firstHistory: ThreadHistoryAdapter = {
