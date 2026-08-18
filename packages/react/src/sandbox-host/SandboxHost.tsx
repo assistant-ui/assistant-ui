@@ -6,6 +6,7 @@ import {
   SafeContentFrame,
   type SandboxOption,
 } from "safe-content-frame";
+import { invokeCallbackSafely } from "../utils/invokeCallbackSafely";
 
 const DEFAULT_PRODUCT = "assistant-ui-sandbox";
 const DEFAULT_MAX_HEIGHT = 800;
@@ -147,10 +148,13 @@ export function SandboxHost({
         window.addEventListener("message", onMessage);
       })
       .catch((err) => {
+        if (cancelled) return;
         frame?.dispose();
         frame = null;
-        liveRef.current.onError?.(
-          err instanceof Error ? err : new Error(String(err)),
+        const error = err instanceof Error ? err : new Error(String(err));
+        invokeCallbackSafely(
+          () => liveRef.current.onError?.(error),
+          "SandboxHost onError",
         );
       });
 

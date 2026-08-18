@@ -560,4 +560,25 @@ describe("createMcpAppBridge", () => {
     consoleError.mockRestore();
     bridge.dispose();
   });
+
+  it("preserves the onError receiver", () => {
+    const { frame } = makeFrame();
+    const handlers = {
+      calls: 0,
+      onError() {
+        expect(this).toBe(handlers);
+        this.calls += 1;
+      },
+    };
+    const bridge = createMcpAppBridge({ frame, handlers });
+
+    deliver(bridge, {
+      jsonrpc: "2.0",
+      method: "notifications/error",
+      params: { message: "kaboom" },
+    });
+
+    expect(handlers.calls).toBe(1);
+    bridge.dispose();
+  });
 });
