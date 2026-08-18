@@ -212,6 +212,15 @@ describe("ImageZoom", () => {
     await expectClosed();
   });
 
+  it("offers a labelled close control that dismisses the dialog", async () => {
+    renderZoom();
+    await openZoom();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close" }));
+
+    await expectClosed();
+  });
+
   it("closes when the area around the image is clicked", async () => {
     renderZoom();
     const dialog = await openZoom();

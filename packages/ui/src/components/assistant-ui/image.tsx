@@ -276,8 +276,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
         {children}
       </div>
       <DialogContent
-        showCloseButton={false}
-        className="aui-image-zoom-overlay fixed inset-0 start-0 top-0 z-50 flex max-w-none translate-x-0 translate-y-0 items-center justify-center rounded-none border-0 bg-black/80 p-0 shadow-none sm:max-w-none"
+        className="aui-image-zoom-overlay fixed inset-0 start-0 top-0 z-50 flex max-w-none translate-x-0 translate-y-0 items-center justify-center rounded-none border-0 bg-black/80 p-0 text-white shadow-none sm:max-w-none"
         onClick={() => setIsOpen(false)}
       >
         <DialogTitle className="aui-sr-only sr-only">{alt}</DialogTitle>
