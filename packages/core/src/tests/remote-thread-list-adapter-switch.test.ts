@@ -195,4 +195,32 @@ describe("RemoteThreadList adapter changes", () => {
     expect(stopped).toContain("thread-a");
     expect(stopped).not.toContain(core.mainThreadId);
   });
+
+  it("does not reject when a controlled thread is missing from the replacement adapter", async () => {
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("thread-a")] }),
+    });
+    const adapterB = makeAdapter({
+      list: async () => ({ threads: [thread("thread-b")] }),
+      fetch: vi.fn(async () => {
+        throw new Error("not found");
+      }),
+    });
+    const core = createCore(adapterA, "thread-a");
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("thread-a");
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+      threadId: "thread-a",
+    });
+    await expect(core.getLoadThreadsPromise()).resolves.toBeUndefined();
+    await vi.waitFor(() => {
+      expect(adapterB.fetch).toHaveBeenCalledWith("thread-a");
+    });
+    expect(core.getItemById("thread-a")).toBeUndefined();
+    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
+  });
 });

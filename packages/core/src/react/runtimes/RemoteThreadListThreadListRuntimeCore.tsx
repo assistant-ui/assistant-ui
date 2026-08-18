@@ -155,6 +155,7 @@ export class RemoteThreadListThreadListRuntimeCore
     // TODO this needs to be cached in case this promise is loaded during suspense
     if (!this._loadThreadsPromise) {
       const generation = this._loadGeneration;
+      let replacedList = false;
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
           execute: () => this._options.adapter.list(),
@@ -173,7 +174,10 @@ export class RemoteThreadListThreadListRuntimeCore
               threadData: {},
             });
             const replaceList = this._replaceListOnNextLoad;
-            if (replaceList) this._replaceListOnNextLoad = false;
+            if (replaceList) {
+              this._replaceListOnNextLoad = false;
+              replacedList = true;
+            }
 
             const threadIdMap = replaceList
               ? { ...fresh.threadIdMap }
@@ -251,9 +255,10 @@ export class RemoteThreadListThreadListRuntimeCore
           });
         })
         .then(() => {
+          if (!replacedList) return;
           if (this._options.threadId === undefined) return;
           if (this.getItemById(this._options.threadId) !== undefined) return;
-          void this._switchToThreadFromProp(this._options.threadId);
+          this._switchToThreadFromProp(this._options.threadId).catch(() => {});
         });
     }
 
