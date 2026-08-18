@@ -45,7 +45,7 @@ const useAdaptedRemoteThread = ({
       stableAdapters.current == null
         ? parent
         : { ...parent, ...stableAdapters.current },
-    [parent, stableAdapters.current],
+    [parent],
   );
   return useRuntimeAdaptersProvider(merged, function useBoundRemoteThread() {
     return useClientResource(thread).methods;
