@@ -49,6 +49,33 @@ describe("parseAdkRequest", () => {
     expect(result.parts).toHaveLength(2);
   });
 
+  it("parses each supported ADK part shape", async () => {
+    const parts = [
+      { text: "Hello", thought: true },
+      { functionCall: { name: "search", id: "call-1", args: {} } },
+      {
+        functionResponse: {
+          name: "search",
+          id: "call-1",
+          response: null,
+        },
+      },
+      { executableCode: { code: "print('hello')", language: "python" } },
+      { codeExecutionResult: { output: "hello", outcome: "ok" } },
+      { inlineData: { mimeType: "image/png", data: "abc" } },
+      {
+        fileData: {
+          fileUri: "https://example.com/file",
+          mimeType: "text/plain",
+        },
+      },
+    ];
+
+    await expect(
+      parseAdkRequest(makeRequest({ parts })),
+    ).resolves.toMatchObject({ parts });
+  });
+
   it("parses a tool-result request", async () => {
     const result = await parseAdkRequest(
       makeRequest({
@@ -73,6 +100,7 @@ describe("parseAdkRequest", () => {
       makeRequest({
         type: "tool-result",
         toolCallId: "tc-1",
+        toolName: "search",
         result: {},
       }),
     );
@@ -94,6 +122,119 @@ describe("parseAdkRequest", () => {
     await expect(parseAdkRequest(makeRequest([1, 2, 3]))).rejects.toThrow(
       "Google ADK proxy request body must be a JSON object",
     );
+  });
+
+  it.each([
+    [{ message: 42 }, 'field "message"'],
+    [{ parts: {} }, 'field "parts"'],
+    [{ parts: [null] }, 'field "parts"'],
+    [{ type: "unknown", message: "hello" }, 'field "type"'],
+    [{ message: "hello", checkpointId: 42 }, 'field "checkpointId"'],
+    [{ message: "hello", stateDelta: [] }, 'field "stateDelta"'],
+  ])("rejects malformed message requests %#", async (body, error) => {
+    await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);
+  });
+
+  it.each([
+    [{ parts: [{}] }, 'field "parts[0]"'],
+    [{ parts: [{ text: 42 }] }, 'field "parts[0].text"'],
+    [
+      { parts: [{ inlineData: { mimeType: "image/png", data: 42 } }] },
+      'field "parts[0].inlineData.data"',
+    ],
+    [
+      { parts: [{ functionCall: { name: "search", args: [] } }] },
+      'field "parts[0].functionCall.args"',
+    ],
+    [
+      { parts: [{ functionResponse: { name: 42 } }] },
+      'field "parts[0].functionResponse.name"',
+    ],
+  ])("rejects malformed nested ADK parts %#", async (body, error) => {
+    await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);
+  });
+
+  it("accepts exclude_none and unknown part shapes", async () => {
+    const parts = [
+      { functionCall: { name: "get_time", id: "call-1" } },
+      { functionResponse: { name: "search", id: "call-1" } },
+      { text: "hi", inlineData: { mimeType: "image/png", data: "abc" } },
+      { videoMetadata: { fps: 1 } },
+      { text: "hello", thoughtSignature: "sig" },
+    ];
+
+    await expect(
+      parseAdkRequest(makeRequest({ parts })),
+    ).resolves.toMatchObject({ parts });
+  });
+
+  it("requires message content", async () => {
+    await expect(parseAdkRequest(makeRequest({}))).rejects.toThrow(
+      'expected a "message" string or a "parts" array',
+    );
+  });
+
+  it.each([
+    [
+      { type: "message", message: "hello" },
+      { type: "message", text: "hello", config: {} },
+    ],
+    [{ parts: [] }, { type: "message", text: "", parts: [], config: {} }],
+  ])(
+    "preserves supported empty and explicit message shapes %#",
+    async (body, expected) => {
+      await expect(parseAdkRequest(makeRequest(body))).resolves.toEqual(
+        expected,
+      );
+    },
+  );
+
+  it("accepts empty tool identifiers emitted by id-less ADK calls", async () => {
+    await expect(
+      parseAdkRequest(
+        makeRequest({
+          type: "tool-result",
+          toolCallId: "",
+          toolName: "",
+          result: {},
+        }),
+      ),
+    ).resolves.toMatchObject({
+      type: "tool-result",
+      toolCallId: "",
+      toolName: "",
+    });
+  });
+
+  it.each([
+    [
+      { type: "tool-result", toolName: "search", result: {} },
+      'field "toolCallId"',
+    ],
+    [
+      { type: "tool-result", toolCallId: "tc-1", result: {} },
+      'field "toolName"',
+    ],
+    [
+      { type: "tool-result", toolCallId: 42, toolName: "search", result: {} },
+      'field "toolCallId"',
+    ],
+    [
+      {
+        type: "tool-result",
+        toolCallId: "tc-1",
+        toolName: "search",
+        result: {},
+        isError: "false",
+      },
+      'field "isError"',
+    ],
+    [
+      { type: "tool-result", toolCallId: "tc-1", toolName: "search" },
+      'field "result"',
+    ],
+  ])("rejects malformed tool-result requests %#", async (body, error) => {
+    await expect(parseAdkRequest(makeRequest(body))).rejects.toThrow(error);
   });
 });
 

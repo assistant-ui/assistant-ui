@@ -158,6 +158,36 @@ describe("BaseComposerRuntimeCore.send restore-on-failure", () => {
     expect(append).toHaveBeenCalledTimes(1);
   });
 
+  it("snapshots role and run config before uploading attachments", async () => {
+    let resolveSend!: () => void;
+    const adapter = makeAdapter({
+      send: (a) =>
+        new Promise((resolve) => {
+          resolveSend = () =>
+            resolve({ ...a, status: { type: "complete" }, content: [] });
+        }),
+    });
+    const { composer, append } = makeComposer(adapter);
+
+    composer.setText("hello");
+    composer.setRole("assistant");
+    composer.setRunConfig({ custom: { modelName: "model-a" } });
+    await composer.addAttachment(textFile());
+
+    const sendPromise = composer.send();
+    composer.setRole("system");
+    composer.setRunConfig({ custom: { modelName: "model-b" } });
+    resolveSend();
+    await sendPromise;
+
+    expect(append).toHaveBeenCalledWith(
+      expect.objectContaining({
+        role: "assistant",
+        runConfig: { custom: { modelName: "model-a" } },
+      }),
+    );
+  });
+
   it("keeps an attachment added while the upload was in flight", async () => {
     let resolveSend!: () => void;
     const adapter = makeAdapter({

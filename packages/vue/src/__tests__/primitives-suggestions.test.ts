@@ -80,6 +80,11 @@ const mountSuggestions = (
                   label: "small talk",
                   prompt: "What time is it?",
                 },
+                {
+                  title: "Empty",
+                  label: "no prompt",
+                  prompt: "",
+                },
               ]),
             }),
           },
@@ -99,16 +104,18 @@ describe("suggestions primitives", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
     });
     const chips = [...el.querySelectorAll("button.chip")];
     expect(chips.map((chip) => chip.querySelector("b")!.textContent)).toEqual([
       "Say hello",
       "Ask the time",
+      "Empty",
     ]);
     expect(chips.map((chip) => chip.querySelector("i")!.textContent)).toEqual([
       "a friendly opener",
       "small talk",
+      "no prompt",
     ]);
 
     unmount();
@@ -120,7 +127,7 @@ describe("suggestions primitives", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
     });
     el.querySelectorAll<HTMLButtonElement>("button.chip")[1]!.click();
 
@@ -140,7 +147,7 @@ describe("suggestions primitives", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
     });
     el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.click();
     await vi.waitFor(() => {
@@ -155,7 +162,7 @@ describe("suggestions primitives", () => {
     });
     await vi.waitFor(async () => {
       await nextTick();
-      expect(mounted.el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(mounted.el.querySelectorAll("button.chip")).toHaveLength(3);
     });
     flushTapSync(() =>
       appending.runtime.thread.composer.setText("Existing draft"),
@@ -164,6 +171,16 @@ describe("suggestions primitives", () => {
     await vi.waitFor(() => {
       expect(appending.runtime.thread.composer.getState().text).toBe(
         "Existing draft Hello there!",
+      );
+    });
+
+    flushTapSync(() =>
+      appending.runtime.thread.composer.setText("Existing draft"),
+    );
+    mounted.el.querySelectorAll<HTMLButtonElement>("button.chip")[2]!.click();
+    await vi.waitFor(() => {
+      expect(appending.runtime.thread.composer.getState().text).toBe(
+        "Existing draft",
       );
     });
 
@@ -203,7 +220,7 @@ describe("suggestions primitives", () => {
     const { el, unmount } = mountSuggestions(runtime, { send: true });
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
     });
 
     flushTapSync(() => {
@@ -238,7 +255,7 @@ describe("suggestions primitives", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelectorAll("button.chip")).toHaveLength(2);
+      expect(el.querySelectorAll("button.chip")).toHaveLength(3);
     });
     expect(
       el.querySelectorAll<HTMLButtonElement>("button.chip")[0]!.disabled,

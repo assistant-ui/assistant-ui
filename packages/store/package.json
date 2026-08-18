@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/store",
-  "version": "0.3.8",
+  "version": "0.3.9",
   "description": "Tap-based state management for @assistant-ui",
   "keywords": [
     "state-management",
@@ -20,6 +20,10 @@
     "./client": {
       "types": "./dist/client.d.ts",
       "default": "./dist/client.js"
+    },
+    "./internal": {
+      "types": "./dist/internal.d.ts",
+      "default": "./dist/internal.js"
     }
   },
   "main": "./dist/index.js",
@@ -37,7 +41,7 @@
     "test:watch": "vitest"
   },
   "peerDependencies": {
-    "@assistant-ui/tap": "^0.9.0",
+    "@assistant-ui/tap": "^0.9.12",
     "@types/react": "*",
     "react": "^18 || ^19"
   },

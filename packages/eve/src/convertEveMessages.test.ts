@@ -8,6 +8,11 @@ import {
 } from "./convertEveMessages";
 import type { AppendMessage } from "@assistant-ui/core";
 
+const eventMeta = (sequence: number) => ({
+  at: "2026-01-01T00:00:00.000Z",
+  id: `evt_${sequence}`,
+});
+
 describe("convertEveMessages", () => {
   it("converts text and reasoning parts", () => {
     const data = {
@@ -137,11 +142,12 @@ describe("convertEveMessages", () => {
                   name: "send_email",
                   inputRequest: {
                     requestId: "req_1",
+                    kind: "tool-approval",
                     prompt: "Send the email?",
                     display: "confirmation",
                     options: [
                       { id: "approve", label: "Approve" },
-                      { id: "deny", label: "Deny", style: "danger" },
+                      { id: "cancel", label: "Cancel", style: "danger" },
                       { id: "escalate", label: "Escalate" },
                     ],
                   },
@@ -167,7 +173,7 @@ describe("convertEveMessages", () => {
             id: "req_1",
             options: [
               { id: "approve", kind: "allow-once", label: "Approve" },
-              { id: "deny", kind: "reject-once", label: "Deny" },
+              { id: "cancel", kind: "reject-once", label: "Cancel" },
               { id: "escalate", kind: "_escalate", label: "Escalate" },
             ],
           },
@@ -915,6 +921,7 @@ describe("convertEveMessages", () => {
       const events: readonly EveAgentReducerEvent[] = [
         {
           type: "authorization.required",
+          meta: eventMeta(0),
           data: {
             turnId: "turn_1",
             stepIndex: 0,
@@ -925,6 +932,7 @@ describe("convertEveMessages", () => {
         },
         {
           type: "turn.cancelled",
+          meta: eventMeta(1),
           data: { turnId: "turn_1", sequence: 1 },
         },
       ];
@@ -1079,14 +1087,22 @@ describe("convertEveMessages", () => {
         },
         {
           type: "turn.started",
+          meta: eventMeta(0),
           data: { turnId: "turn_1", sequence: 0 },
         },
         {
           type: "step.started",
-          data: { turnId: "turn_1", stepIndex: 0, sequence: 1 },
+          meta: eventMeta(1),
+          data: {
+            turnId: "turn_1",
+            stepIndex: 0,
+            sequence: 1,
+            modelId: "test-model",
+          },
         },
         {
           type: "message.appended",
+          meta: eventMeta(2),
           data: {
             turnId: "turn_1",
             stepIndex: 0,
@@ -1102,6 +1118,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1142,6 +1159,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1152,6 +1170,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.completed",
+            meta: eventMeta(4),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1181,6 +1200,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "authorization.required",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1191,6 +1211,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.required",
+            meta: eventMeta(4),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1201,6 +1222,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "authorization.completed",
+            meta: eventMeta(5),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1361,6 +1383,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "session.failed",
+            meta: eventMeta(3),
             data: { sessionId: "session_1", code: "internal", message: "boom" },
           },
         ]);
@@ -1384,6 +1407,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "turn.failed",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               sequence: 3,
@@ -1405,6 +1429,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents,
           {
             type: "message.completed",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1415,6 +1440,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "turn.completed",
+            meta: eventMeta(4),
             data: { turnId: "turn_1", sequence: 4 },
           },
         ]);
@@ -1637,7 +1663,7 @@ describe("toEveInputResponse", () => {
       }),
     ).toEqual({
       requestId: "req_1",
-      optionId: "deny",
+      optionId: "cancel",
       text: "Not yet",
     });
   });

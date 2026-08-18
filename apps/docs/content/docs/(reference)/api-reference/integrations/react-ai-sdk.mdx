@@ -3,7 +3,7 @@ title: "@assistant-ui/react-ai-sdk"
 description: Vercel AI SDK runtime hooks, chat transports, and message conversion utilities for assistant-ui React applications.
 ---
 
-import { reactAiSdk_AISDKToolkit, reactAiSdk_AssistantChatTransport, reactAiSdk_createResumableSessionStorage, reactAiSdk_getThreadMessageTokenUsage, reactAiSdk_injectQuoteContext, reactAiSdk_unstable_injectInteractableContext, reactAiSdk_useAISDKRuntime, reactAiSdk_useChatRuntime } from "@/generated/integrationTypeDocs";
+import { reactAiSdk_AISDKChat, reactAiSdk_AISDKThreads, reactAiSdk_AISDKToolkit, reactAiSdk_AssistantChatTransport, reactAiSdk_createResumableSessionStorage, reactAiSdk_getThreadMessageTokenUsage, reactAiSdk_injectQuoteContext, reactAiSdk_unstable_injectInteractableContext, reactAiSdk_useAISDKRuntime, reactAiSdk_useChatRuntime } from "@/generated/integrationTypeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -13,6 +13,31 @@ import { reactAiSdk_AISDKToolkit, reactAiSdk_AssistantChatTransport, reactAiSdk_
 {/* Do not edit this block manually. */}
 
 ## API Reference
+
+### AISDKChat
+
+`AuiConfig` entry that runs the AI SDK chat as the `threads` scope. Hosts the
+same orchestration as `useChatRuntime` inside the client's own resource tree,
+so it works with any `AssistantClient` host, React or not. Single thread; the
+multi-thread and assistant-cloud surface is [AISDKThreads](/docs/api-reference/integrations/react-ai-sdk#aisdkthreads). The chat
+id is captured when the entry mounts, so a later `id` change in the options
+has no effect.
+
+<ParametersTable {...reactAiSdk_AISDKChat} />
+
+### AISDKThreads
+
+`AuiConfig` entry that runs one AI SDK chat per thread. Hosts the same
+per-thread orchestration as [AISDKChat](/docs/api-reference/integrations/react-ai-sdk#aisdkchat) inside the client's own
+resource tree, so it works with any `AssistantClient` host, React or not.
+Without `cloud`, threads live in memory for the client's lifetime and keep
+their history across switches; each thread's chat id is its thread id.
+With `cloud`, the list is a `RemoteThreadList` and the factory is keyed so
+cloud history reloads on a switch. The store entry mounts only the visible
+thread, so a switch cancels an in-flight run. Model context is
+registered on the visible thread only.
+
+<ParametersTable {...reactAiSdk_AISDKThreads} />
 
 ### AISDKToolkit
 
@@ -109,7 +134,7 @@ runtime hook. `undefined` when the current thread is not backed by the AI
 SDK runtime.
 
 ```ts
-const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage<unknown, UIDataTypes, UITools>>() => UseChatHelpers<UI_MESSAGE>;
+const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage<unknown, UIDataTypes, UITools>>() => UseChatHelpers<UI_MESSAGE> | undefined;
 ```
 
 ### useAISDKError
@@ -119,7 +144,7 @@ Read the last AI SDK chat error object from the runtime extras.
 the AI SDK runtime.
 
 ```ts
-const useAISDKError: () => Error;
+const useAISDKError: () => Error | undefined;
 ```
 
 ### useAISDKRuntime
@@ -133,7 +158,7 @@ const useAISDKError: () => Error;
 ### useThreadTokenUsage
 
 ```ts
-function useThreadTokenUsage(): ThreadTokenUsage;
+function useThreadTokenUsage(): ThreadTokenUsage | undefined;
 ```
 
 ### generativeTools

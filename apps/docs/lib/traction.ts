@@ -153,8 +153,13 @@ export const PACKAGES: PackageInfo[] = [
     category: "cloud",
   },
   {
-    name: "@assistant-ui/react-ai-sdk",
+    name: "@assistant-ui/ai-sdk",
     description: "Vercel AI SDK adapter.",
+    category: "frameworks",
+  },
+  {
+    name: "@assistant-ui/react-ai-sdk",
+    description: "Re-export of @assistant-ui/ai-sdk.",
     category: "frameworks",
   },
   {

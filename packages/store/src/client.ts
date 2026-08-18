@@ -9,11 +9,16 @@ export {
   type AssistantConfigSource,
 } from "./createAssistantClient";
 
-export { DefaultAssistantClient } from "./utils/react-assistant-context";
+export {
+  DefaultAssistantClient,
+  useAssistantContextProvider,
+} from "./utils/react-assistant-context";
+export { useConfiguredAui } from "./useAui";
 export { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 export {
   useAssistantClientRef,
   useAssistantEmit,
+  useAssistantScopeEffect,
 } from "./utils/tap-assistant-context";
 export { useClientResource } from "./useClientResource";
 export { useClientLookup } from "./useClientLookup";
@@ -48,3 +53,16 @@ export type {
   ScopeRegistry,
   Unsubscribe,
 } from "./types/client";
+
+export { createClientFacade } from "./utils/client-facade";
+export {
+  createLastValidCache,
+  createStaleReporter,
+} from "./utils/last-valid-cache";
+export {
+  isUserScrollUp,
+  isViewportAtBottom,
+  observeContentResize,
+  viewportOverflows,
+  type ViewportMetrics,
+} from "./utils/viewport-scroll";

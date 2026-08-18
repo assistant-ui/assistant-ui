@@ -6,6 +6,7 @@ import type {
   ThreadComposerRuntimeCore,
 } from "../interfaces/composer-runtime-core";
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
+import { getThreadRuntimeCoreIsRunning } from "../api/thread-runtime";
 import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 import {
   EMPTY_QUEUE_ITEMS,
@@ -13,13 +14,18 @@ import {
 } from "../../store/scopes/queue-item";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
 
+const isCancelable = (runtime: Omit<ThreadRuntimeCore, "composer">) => {
+  // capabilities is a subclass field assigned after this composer is constructed
+  if (!runtime.capabilities?.cancel) return false;
+  return getThreadRuntimeCoreIsRunning(runtime);
+};
+
 export class DefaultThreadComposerRuntimeCore
   extends BaseComposerRuntimeCore
   implements ThreadComposerRuntimeCore
 {
-  private _canCancel = false;
   public get canCancel() {
-    return this._canCancel;
+    return isCancelable(this.runtime);
   }
 
   public get canSend() {
@@ -94,12 +100,14 @@ export class DefaultThreadComposerRuntimeCore
   }
 
   public connect() {
+    let lastCanCancel = false;
     let lastIsSendDisabled = this.runtime.isSendDisabled;
     let lastQueue = this.queue;
     return this.runtime.subscribe(() => {
       let changed = false;
-      if (this.canCancel !== this.runtime.capabilities.cancel) {
-        this._canCancel = this.runtime.capabilities.cancel;
+      const nextCanCancel = this.canCancel;
+      if (lastCanCancel !== nextCanCancel) {
+        lastCanCancel = nextCanCancel;
         changed = true;
       }
       if (lastIsSendDisabled !== this.runtime.isSendDisabled) {

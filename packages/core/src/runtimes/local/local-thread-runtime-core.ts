@@ -22,7 +22,7 @@ import type {
   ThreadAssistantMessage,
 } from "../../types/message";
 import type { RunConfig } from "../../types/message";
-import { toAssistantError } from "../../types/error";
+import { MessageNotSentError, toAssistantError } from "../../types/error";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
   createMessageQueue,
@@ -33,6 +33,11 @@ import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
 } from "../../store/scopes/queue-item";
+import {
+  captureThreadRuntimeGeneration,
+  invalidateThreadRuntime,
+  isThreadRuntimeGenerationCurrent,
+} from "../../runtime/utils/thread-runtime-lifecycle";
 
 class AbortError extends Error {
   override name = "AbortError";
@@ -162,6 +167,7 @@ export class LocalThreadRuntimeCore
   public __internal_setOptions(options: LocalRuntimeOptionsBase) {
     if (this._options === options) return;
 
+    const previousHistory = this._options?.adapters.history;
     this._options = options;
 
     let hasUpdates = false;
@@ -234,13 +240,31 @@ export class LocalThreadRuntimeCore
     }
 
     if (hasUpdates) this._notifySubscribers();
+
+    if (
+      this._loadRequested &&
+      !this._loadPromise &&
+      !previousHistory &&
+      options.adapters.history &&
+      this.messages.length === 0
+    ) {
+      void this.__internal_load().catch((error: unknown) => {
+        console.error(
+          "[assistant-ui] local thread history load failed:",
+          error,
+        );
+      });
+    }
   }
 
   private _loadPromise: Promise<void> | undefined;
+  private _loadRequested = false;
   public __internal_load() {
+    this._loadRequested = true;
     if (this._loadPromise) return this._loadPromise;
+    if (!this.adapters.history) return Promise.resolve();
 
-    const promise = this.adapters.history?.load() ?? Promise.resolve(null);
+    const promise = this.adapters.history.load();
 
     this._isLoading = true;
     this._notifySubscribers();
@@ -312,38 +336,72 @@ export class LocalThreadRuntimeCore
     this._queue?.adapter.remove(queueItemId);
   }
 
+  private _rollbackAppend(messageId: string) {
+    try {
+      this.repository.deleteMessage(messageId);
+    } catch {
+      return;
+    }
+    this._notifySubscribers();
+  }
+
   private async _runAppend(rawMessage: AppendMessage): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
+    const generation = captureThreadRuntimeGeneration(this);
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
-
-    const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      await initPromise;
-    }
 
     const newMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
       reason: "unknown",
     });
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
-    this._options.adapters.history?.append({
+    this._notifySubscribers();
+
+    // Initialization only gates the history write and the run; the message
+    // is already on screen. A failed barrier rolls the optimistic message
+    // back and rejects as an unsent message so the composer restores the
+    // draft; a thread invalidated mid-wait rolls back silently.
+    try {
+      const initPromise = this._getInitializePromise?.();
+      if (initPromise) {
+        await initPromise;
+      }
+    } catch (error) {
+      this._rollbackAppend(newMessage.id);
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      const notSent = new MessageNotSentError();
+      notSent.cause = error;
+      throw notSent;
+    }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+      this._rollbackAppend(newMessage.id);
+      return;
+    }
+    const historyWrite = this._options.adapters.history?.append({
       parentId: message.parentId,
       message: newMessage,
       ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
     });
+    void historyWrite?.catch(() => {});
 
     const startRun = message.startRun ?? message.role === "user";
     if (startRun) {
-      await this.startRun({
-        parentId: newMessage.id,
-        sourceId: message.sourceId,
-        runConfig: message.runConfig ?? {},
-      });
+      const [runResult, historyResult] = await Promise.allSettled([
+        this.startRun({
+          parentId: newMessage.id,
+          sourceId: message.sourceId,
+          runConfig: message.runConfig ?? {},
+        }),
+        historyWrite,
+      ]);
+      if (runResult.status === "rejected") throw runResult.reason;
+      if (historyResult.status === "rejected") throw historyResult.reason;
     } else {
       this.repository.resetHead(newMessage.id);
       this._notifySubscribers();
+      await historyWrite;
     }
   }
 
@@ -378,6 +436,10 @@ export class LocalThreadRuntimeCore
 
   public importExternalState(): void {
     throw new Error("Runtime does not support importing external states.");
+  }
+
+  public unstable_notifySessionReset(): void {
+    throw new Error("Runtime does not support resetting sessions.");
   }
 
   public async startRun(
@@ -424,6 +486,7 @@ export class LocalThreadRuntimeCore
     this._activeRun = run;
     this._runGeneration++;
 
+    let active = false;
     try {
       // mark busy for runs not started through the queue (regenerate, resume)
       this._queue?.notifyBusy();
@@ -447,7 +510,7 @@ export class LocalThreadRuntimeCore
       // the settle belongs to this run only while it is still the active run
       // or was cancelled (the engine expects a cancelled run's settle); a run
       // superseded by a newer one stays silent
-      const active = this._activeRun === run;
+      active = this._activeRun === run;
       if (active) this._activeRun = null;
       if (active || run.cancelled) {
         queueMicrotask(() => this._queue?.notifyIdle());
@@ -455,6 +518,7 @@ export class LocalThreadRuntimeCore
     }
 
     if (
+      active &&
       this.adapters.suggestion &&
       message.status?.type !== "requires-action"
     ) {
@@ -674,6 +738,7 @@ export class LocalThreadRuntimeCore
   }
 
   public detach() {
+    invalidateThreadRuntime(this);
     // drop the queue so pending items cannot dispatch on a detached thread
     this._queue = null;
     const error = new AbortError(true);

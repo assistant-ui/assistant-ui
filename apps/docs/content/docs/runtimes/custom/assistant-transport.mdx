@@ -308,7 +308,7 @@ aui-state:[{"type":"set","path":["status"],"value":"completed"}]
   prepareSendCommandsRequest?: (body: SendCommandsRequestBody) => Record<string, unknown> | Promise<Record<string, unknown>>,
   capabilities?: { edit?: boolean },
   adapters?: { attachments?: AttachmentAdapter; history?: ThreadHistoryAdapter },
-  onResponse?: (response: Response) => void,
+  onResponse?: (response: Response) => void | Promise<void>,
   onFinish?: () => void,
   onError?: (error: Error, params: { commands: AssistantTransportCommand[]; updateState: (updater: (state: T) => T) => void }) => void | Promise<void>,
   onCancel?: (params: { commands: AssistantTransportCommand[]; updateState: (updater: (state: T) => T) => void; error?: Error }) => void

@@ -76,6 +76,13 @@ const invokeRuntimeCallback = <TArgs extends unknown[]>(
   }
 };
 
+function normalizeArtifact(artifact: A2AArtifact): A2AArtifact {
+  return {
+    ...artifact,
+    parts: Array.isArray(artifact.parts) ? artifact.parts : [],
+  };
+}
+
 export class A2AThreadRuntimeCore {
   private client: A2AClient;
   private contextId: string | undefined;
@@ -526,12 +533,18 @@ export class A2AThreadRuntimeCore {
       abortController.signal,
     );
 
+    let receivedEvent = false;
     for await (const event of stream) {
       if (abortController.signal.aborted) break;
+      receivedEvent = true;
       this.handleStreamEvent(assistantId, event);
     }
 
     if (!abortController.signal.aborted) {
+      if (!receivedEvent) {
+        throw new Error("A2A message stream ended without any events.");
+      }
+
       const lastStatus = this.getAssistantStatus(assistantId);
       if (lastStatus?.type === "running") {
         this.updateAssistantStatus(assistantId, {
@@ -617,7 +630,8 @@ export class A2AThreadRuntimeCore {
   }
 
   private handleArtifactUpdate(event: A2ATaskArtifactUpdateEvent) {
-    const { artifact, append, lastChunk } = event;
+    const { append, lastChunk } = event;
+    const artifact = normalizeArtifact(event.artifact);
     const existingIdx = this.currentArtifacts.findIndex(
       (a) => a.artifactId === artifact.artifactId,
     );
@@ -666,13 +680,29 @@ export class A2AThreadRuntimeCore {
   }
 
   private handleTaskSnapshot(assistantId: string, task: A2ATask) {
-    this.currentTask = task;
+    const artifacts =
+      task.artifacts === undefined
+        ? undefined
+        : Array.isArray(task.artifacts)
+          ? task.artifacts.map(normalizeArtifact)
+          : [];
+    const history =
+      task.history === undefined
+        ? undefined
+        : Array.isArray(task.history)
+          ? task.history
+          : [];
+    this.currentTask = {
+      ...task,
+      ...(artifacts === undefined ? {} : { artifacts }),
+      ...(history === undefined ? {} : { history }),
+    };
 
     if (task.contextId) {
       this.contextId = task.contextId;
     }
-    if (task.artifacts) {
-      this.currentArtifacts = task.artifacts;
+    if (artifacts) {
+      this.currentArtifacts = artifacts;
     }
 
     if (task.status.message) {

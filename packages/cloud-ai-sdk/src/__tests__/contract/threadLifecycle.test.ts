@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CloudChatCore } from "../../core/CloudChatCore";
 
 const { persistMock, loadMessagesMock, MessagePersistenceMock } = vi.hoisted(
@@ -56,6 +56,10 @@ describe("Contract: Thread lifecycle", () => {
     vi.clearAllMocks();
     persistMock.mockResolvedValue(undefined);
     loadMessagesMock.mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("deduplicates concurrent thread creation for same chatKey", async () => {
@@ -132,6 +136,44 @@ describe("Contract: Thread lifecycle", () => {
     });
 
     expect(onSyncError).toHaveBeenCalledWith(failure);
+    expect(meta.loading).toBeNull();
+  });
+
+  it("settles a failed load when onSyncError throws", async () => {
+    const callbackFailure = new Error("telemetry failed");
+    const onSyncError = vi.fn(() => {
+      throw callbackFailure;
+    });
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const { core } = createCore();
+    core.options.onSyncError = onSyncError;
+
+    const loadFailure = new Error("network error");
+    loadMessagesMock.mockRejectedValue(loadFailure);
+
+    const meta = {
+      threadId: "thread-1",
+      loading: Promise.resolve() as Promise<void> | null,
+      loaded: false,
+    };
+    const registry = {
+      getOrCreateMeta: vi.fn().mockReturnValue(meta),
+      getOrCreate: vi.fn().mockReturnValue({ messages: [] }),
+    } as never;
+
+    await expect(
+      core.loadThreadMessages("thread-1", "chat-1", registry, {
+        cancelled: false,
+      }),
+    ).resolves.toBeUndefined();
+
+    expect(onSyncError).toHaveBeenCalledWith(loadFailure);
+    expect(consoleError).toHaveBeenCalledWith(
+      "[cloud-ai-sdk] onSyncError callback threw an error",
+      callbackFailure,
+    );
     expect(meta.loading).toBeNull();
   });
 
