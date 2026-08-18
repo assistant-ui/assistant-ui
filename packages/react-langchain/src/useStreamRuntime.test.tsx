@@ -272,7 +272,10 @@ describe("useStreamRuntime thread options", () => {
 
     stream.messages = [message("echo-hello", "human", "hello")];
     view.rerender(<TestRuntime />);
-    await waitFor(() => expect(getText(capture.aui!)).toEqual(["hello"]));
+    await waitFor(() => {
+      expect(getText(capture.aui!)).toEqual(["hello"]);
+      expect(capture.aui!.thread.getState().messages).toHaveLength(1);
+    });
     view.unmount();
   });
 

@@ -95,10 +95,25 @@ const toStagedHumanMessage = (
   content: getMessageContent(msg),
 });
 
+const humanContentText = (content: LangChainBaseMessage["content"]) => {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .filter(
+      (part): part is { type: "text"; text: string } =>
+        typeof part === "object" &&
+        part !== null &&
+        part.type === "text" &&
+        typeof part.text === "string",
+    )
+    .map((part) => part.text)
+    .join("");
+};
+
 const hasSameMessageContent = (
   a: LangChainBaseMessage,
   b: LangChainBaseMessage,
-) => JSON.stringify(a.content) === JSON.stringify(b.content);
+) => humanContentText(a.content) === humanContentText(b.content);
 
 const truncateLangChainBaseMessages = (
   threadMessages: readonly ThreadMessage[],
@@ -434,7 +449,7 @@ const useStreamThreadRuntime = (
             [messagesKey]: [
               ...cancellations,
               {
-                ...(stagedMessageId ? { id: stagedMessageId } : {}),
+                id: stagedMessageId,
                 type: "human",
                 content,
               },
@@ -446,7 +461,7 @@ const useStreamThreadRuntime = (
           },
         );
       } catch (error) {
-        if (stagedMessageId) removeStagedMessage(stagedMessageId);
+        removeStagedMessage(stagedMessageId);
         throw error;
       }
     },
