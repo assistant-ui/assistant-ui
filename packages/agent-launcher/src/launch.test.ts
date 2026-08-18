@@ -27,7 +27,7 @@ describe("launch", () => {
     }
   });
 
-  it("propagates child process termination signals", () => {
+  it("falls back to a signal exit code if re-raising does not terminate", () => {
     mocks.sync.mockReturnValue({
       pid: 123,
       output: [],
@@ -40,14 +40,20 @@ describe("launch", () => {
     const removeAllListeners = vi
       .spyOn(process, "removeAllListeners")
       .mockReturnValue(process);
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
 
-    launch({ pluginDir: "/tmp/plugin", prompt: "test" });
+    expect(() => launch({ pluginDir: "/tmp/plugin", prompt: "test" })).toThrow(
+      "process.exit",
+    );
 
     expect(removeAllListeners).toHaveBeenCalledWith("SIGTERM");
     expect(kill).toHaveBeenCalledWith(process.pid, "SIGTERM");
     expect(removeAllListeners.mock.invocationCallOrder[0]).toBeLessThan(
       kill.mock.invocationCallOrder[0]!,
     );
+    expect(exit).toHaveBeenCalledWith(143);
   });
 
   it.skipIf(process.platform === "win32")(
