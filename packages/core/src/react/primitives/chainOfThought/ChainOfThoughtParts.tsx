@@ -5,9 +5,10 @@ import {
   type ReactNode,
   useMemo,
 } from "react";
-import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { useAuiState } from "@assistant-ui/store";
 import type { PartState } from "../../../store/scopes/part";
 import { ChainOfThoughtPartByIndexProvider } from "../../providers/ChainOfThoughtPartByIndexProvider";
+import { createIndexedItems } from "../utils/createIndexedItems";
 import { MessagePartComponent } from "../message/MessageParts";
 import type {
   ReasoningMessagePartComponent,
@@ -41,31 +42,16 @@ export namespace ChainOfThoughtPrimitiveParts {
       };
 }
 
-const ChainOfThoughtPrimitivePartsInner: FC<{
-  children: (value: { part: PartState }) => ReactNode;
-}> = ({ children }) => {
-  const partsLength = useAuiState((s) => s.chainOfThought.parts.length);
-
-  return useMemo(
-    () =>
-      Array.from({ length: partsLength }, (_, index) => (
-        <ChainOfThoughtPartByIndexProvider key={index} index={index}>
-          <RenderChildrenWithAccessor
-            getItemState={(aui) => aui.part.getState()}
-          >
-            {(getItem) =>
-              children({
-                get part() {
-                  return getItem();
-                },
-              })
-            }
-          </RenderChildrenWithAccessor>
-        </ChainOfThoughtPartByIndexProvider>
-      )),
-    [partsLength, children],
-  );
-};
+const ChainOfThoughtPrimitivePartsInner = createIndexedItems({
+  useLength: () => useAuiState((s) => s.chainOfThought.parts.length),
+  Provider: ChainOfThoughtPartByIndexProvider,
+  getItemState: (aui) => aui.part.getState(),
+  getValue: (getItem) => ({
+    get part(): PartState {
+      return getItem();
+    },
+  }),
+});
 
 /**
  * Renders the parts within a chain of thought, with support for collapsed/expanded states.

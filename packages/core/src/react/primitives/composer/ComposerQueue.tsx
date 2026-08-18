@@ -1,7 +1,8 @@
-import { type FC, type ReactNode, memo, useMemo } from "react";
-import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { type ReactNode, memo } from "react";
+import { useAuiState } from "@assistant-ui/store";
 import type { QueueItemState } from "../../../store/scopes/queue-item";
 import { QueueItemByIndexProvider } from "../../providers/QueueItemByIndexProvider";
+import { createIndexedItems } from "../utils/createIndexedItems";
 
 export namespace ComposerPrimitiveQueue {
   export type Props = {
@@ -10,31 +11,16 @@ export namespace ComposerPrimitiveQueue {
   };
 }
 
-const ComposerPrimitiveQueueInner: FC<{
-  children: (value: { queueItem: QueueItemState }) => ReactNode;
-}> = ({ children }) => {
-  const queue = useAuiState((s) => s.composer.queue.length);
-
-  return useMemo(
-    () =>
-      Array.from({ length: queue }, (_, index) => (
-        <QueueItemByIndexProvider key={index} index={index}>
-          <RenderChildrenWithAccessor
-            getItemState={(aui) => aui.composer.queueItem({ index }).getState()}
-          >
-            {(getItem) =>
-              children({
-                get queueItem() {
-                  return getItem();
-                },
-              })
-            }
-          </RenderChildrenWithAccessor>
-        </QueueItemByIndexProvider>
-      )),
-    [queue, children],
-  );
-};
+const ComposerPrimitiveQueueInner = createIndexedItems({
+  useLength: () => useAuiState((s) => s.composer.queue.length),
+  Provider: QueueItemByIndexProvider,
+  getItemState: (aui, index) => aui.composer.queueItem({ index }).getState(),
+  getValue: (getItem): { queueItem: QueueItemState } => ({
+    get queueItem() {
+      return getItem();
+    },
+  }),
+});
 
 /**
  * Renders all queue items in the composer.

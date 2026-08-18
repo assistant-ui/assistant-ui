@@ -1,13 +1,8 @@
 import type { CompleteAttachment } from "../../../types/attachment";
-import {
-  type ComponentType,
-  type FC,
-  type ReactNode,
-  memo,
-  useMemo,
-} from "react";
-import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { type ComponentType, type FC, type ReactNode, memo } from "react";
+import { useAuiState } from "@assistant-ui/store";
 import { MessageAttachmentByIndexProvider } from "../../providers/AttachmentByIndexProvider";
+import { createIndexedItems } from "../utils/createIndexedItems";
 
 type MessageAttachmentsComponentConfig = {
   Image?: ComponentType | undefined;
@@ -88,34 +83,20 @@ export const MessagePrimitiveAttachmentByIndex: FC<MessagePrimitiveAttachmentByI
 MessagePrimitiveAttachmentByIndex.displayName =
   "MessagePrimitive.AttachmentByIndex";
 
-const MessagePrimitiveAttachmentsInner: FC<{
-  children: (value: { attachment: CompleteAttachment }) => ReactNode;
-}> = ({ children }) => {
-  const attachmentsCount = useAuiState((s) => {
-    if (s.message.role !== "user") return 0;
-    return (s.message.attachments ?? []).length;
-  });
-
-  return useMemo(
-    () =>
-      Array.from({ length: attachmentsCount }, (_, index) => (
-        <MessageAttachmentByIndexProvider key={index} index={index}>
-          <RenderChildrenWithAccessor
-            getItemState={(aui) => aui.message.attachment({ index }).getState()}
-          >
-            {(getItem) =>
-              children({
-                get attachment() {
-                  return getItem() as CompleteAttachment;
-                },
-              })
-            }
-          </RenderChildrenWithAccessor>
-        </MessageAttachmentByIndexProvider>
-      )),
-    [attachmentsCount, children],
-  );
-};
+const MessagePrimitiveAttachmentsInner = createIndexedItems({
+  useLength: () =>
+    useAuiState((s) => {
+      if (s.message.role !== "user") return 0;
+      return (s.message.attachments ?? []).length;
+    }),
+  Provider: MessageAttachmentByIndexProvider,
+  getItemState: (aui, index) => aui.message.attachment({ index }).getState(),
+  getValue: (getItem) => ({
+    get attachment(): CompleteAttachment {
+      return getItem() as CompleteAttachment;
+    },
+  }),
+});
 
 export const MessagePrimitiveAttachments: FC<
   MessagePrimitiveAttachments.Props

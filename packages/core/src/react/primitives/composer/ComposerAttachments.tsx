@@ -1,13 +1,8 @@
 import type { Attachment } from "../../../types/attachment";
-import {
-  type ComponentType,
-  type FC,
-  type ReactNode,
-  memo,
-  useMemo,
-} from "react";
-import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { type ComponentType, type FC, type ReactNode, memo } from "react";
+import { useAuiState } from "@assistant-ui/store";
 import { ComposerAttachmentByIndexProvider } from "../../providers/AttachmentByIndexProvider";
+import { createIndexedItems } from "../utils/createIndexedItems";
 
 type ComposerAttachmentsComponentConfig = {
   Image?: ComponentType | undefined;
@@ -88,33 +83,16 @@ export const ComposerPrimitiveAttachmentByIndex: FC<ComposerPrimitiveAttachmentB
 ComposerPrimitiveAttachmentByIndex.displayName =
   "ComposerPrimitive.AttachmentByIndex";
 
-const ComposerPrimitiveAttachmentsInner: FC<{
-  children: (value: { attachment: Attachment }) => ReactNode;
-}> = ({ children }) => {
-  const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
-
-  return useMemo(
-    () =>
-      Array.from({ length: attachmentsCount }, (_, index) => (
-        <ComposerAttachmentByIndexProvider key={index} index={index}>
-          <RenderChildrenWithAccessor
-            getItemState={(aui) =>
-              aui.composer.attachment({ index }).getState()
-            }
-          >
-            {(getItem) =>
-              children({
-                get attachment() {
-                  return getItem();
-                },
-              })
-            }
-          </RenderChildrenWithAccessor>
-        </ComposerAttachmentByIndexProvider>
-      )),
-    [attachmentsCount, children],
-  );
-};
+const ComposerPrimitiveAttachmentsInner = createIndexedItems({
+  useLength: () => useAuiState((s) => s.composer.attachments.length),
+  Provider: ComposerAttachmentByIndexProvider,
+  getItemState: (aui, index) => aui.composer.attachment({ index }).getState(),
+  getValue: (getItem) => ({
+    get attachment(): Attachment {
+      return getItem();
+    },
+  }),
+});
 
 export const ComposerPrimitiveAttachments: FC<
   ComposerPrimitiveAttachments.Props
