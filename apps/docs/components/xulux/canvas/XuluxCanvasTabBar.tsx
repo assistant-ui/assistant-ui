@@ -19,11 +19,10 @@ type Props = {
 };
 
 const triggerClassName = cn(
-  "group/tab-trigger h-8 max-w-[min(220px,40vw)] min-w-[90px] !flex-none shrink-0 grow-0 basis-auto gap-1.5 rounded-t-[10px] rounded-b-none px-3 text-xs transition-colors duration-200",
+  "group/tab-trigger !h-8 max-w-[min(220px,40vw)] min-w-[90px] !flex-none shrink-0 grow-0 basis-auto gap-1.5 !rounded-t-[10px] !rounded-b-none px-3 text-xs transition-colors duration-200",
   "border-border/60 border border-b-0",
-  "data-[state=inactive]:text-muted-foreground data-[state=inactive]:bg-[#f1f3f4]/90",
-  "dark:data-[state=inactive]:bg-[#2a2a2d]/90",
-  "data-[state=active]:bg-background data-[state=active]:text-foreground data-[state=active]:shadow-sm",
+  "text-muted-foreground bg-[#f1f3f4]/90 dark:bg-[#2a2a2d]/90",
+  "data-active:bg-background data-active:text-foreground dark:data-active:bg-background dark:data-active:text-foreground data-active:shadow-sm",
 );
 
 export function XuluxCanvasTabBar({ tabs, isLoading = false, actions }: Props) {
@@ -51,7 +50,7 @@ export function XuluxCanvasTabBar({ tabs, isLoading = false, actions }: Props) {
               <Icon className="size-3.5 shrink-0" />
               <span className="min-w-0 flex-1 truncate">{tab.label}</span>
               {isLoading ? (
-                <Loader2 className="text-muted-foreground hidden size-3 shrink-0 animate-spin group-data-[state=active]/tab-trigger:inline-block" />
+                <Loader2 className="text-muted-foreground hidden size-3 shrink-0 animate-spin group-data-active/tab-trigger:inline-block" />
               ) : null}
             </TabsTrigger>
           );
