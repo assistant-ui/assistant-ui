@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
-import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { createTapRoot, flushTapSync, useResource } from "@assistant-ui/tap";
 import type {
   Unstable_DirectiveFormatter,
   Unstable_TriggerItem,
 } from "@assistant-ui/core";
 import type { AssistantClient } from "@assistant-ui/store";
+import { TriggerDetectionResource } from "./triggerDetectionResource";
 import {
   TriggerSelectionResource,
   type TriggerBehavior,
@@ -41,12 +42,10 @@ const render = ({
   behavior,
   text,
   trigger,
-  cursorPosition,
 }: {
   behavior: TriggerBehavior;
   text: string;
   trigger: { offset: number; query: string };
-  cursorPosition: number;
 }) => {
   const textRef = { value: text };
   const { aui, setText } = makeAui(textRef);
@@ -59,7 +58,6 @@ const render = ({
         trigger,
         aui,
         triggerChar: "@",
-        cursorPosition,
         setCursorPosition,
         onSelected,
       }),
@@ -75,7 +73,6 @@ describe("TriggerSelectionResource", () => {
       behavior: { kind: "directive", formatter },
       text: "@file tail",
       trigger: { offset: 0, query: "file" },
-      cursorPosition: 5,
     });
 
     root.getValue().selectItem(item);
@@ -95,7 +92,6 @@ describe("TriggerSelectionResource", () => {
       },
       text: "before @file tail",
       trigger: { offset: 7, query: "file" },
-      cursorPosition: 12,
     });
 
     root.getValue().selectItem(item);
@@ -104,17 +100,36 @@ describe("TriggerSelectionResource", () => {
     expect(setCursorPosition).toHaveBeenCalledWith(7);
   });
 
-  it("does not use a trigger snapshot when the live cursor has moved past it", () => {
-    const { root, setText, onSelected } = render({
-      behavior: { kind: "directive", formatter },
-      text: "@file.txt ",
-      trigger: { offset: 0, query: "file" },
-      cursorPosition: 10,
+  it("does not rewrite composer text on a second select after insertion", () => {
+    const textRef = { value: "@fil" };
+    const { aui, setText } = makeAui(textRef);
+    const onSelected = vi.fn();
+    const root = createTapRoot(function Root() {
+      const detection = useResource(
+        TriggerDetectionResource({
+          text: textRef.value,
+          triggerChar: "@",
+        }),
+      );
+      return useResource(
+        TriggerSelectionResource({
+          behavior: { kind: "directive", formatter },
+          trigger: detection.trigger,
+          aui,
+          triggerChar: "@",
+          setCursorPosition: detection.setCursorPosition,
+          onSelected,
+        }),
+      );
     });
 
+    flushTapSync(() => {
+      root.getValue().selectItem(item);
+    });
     root.getValue().selectItem(item);
 
-    expect(setText).not.toHaveBeenCalled();
-    expect(onSelected).not.toHaveBeenCalled();
+    expect(setText).toHaveBeenCalledOnce();
+    expect(setText).toHaveBeenCalledWith("@file.txt ");
+    expect(textRef.value).toBe("@file.txt ");
   });
 });

@@ -13,8 +13,6 @@ export type TriggerDetectionResourceOutput = {
   readonly trigger: DetectedTrigger | null;
   /** Current query string (empty when no trigger active). */
   readonly query: string;
-  /** Current tracked cursor position. */
-  readonly cursorPosition: number;
   /** Update the tracked cursor position (wired to composer input). */
   setCursorPosition(pos: number): void;
 };
@@ -39,7 +37,6 @@ const useTriggerDetectionResource = ({
   return {
     trigger,
     query,
-    cursorPosition,
     setCursorPosition,
   };
 };
