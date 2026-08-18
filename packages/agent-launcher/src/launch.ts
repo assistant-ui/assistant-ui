@@ -48,6 +48,7 @@ export function launch(options: LaunchOptions): void {
   }
 
   if (result.signal !== null) {
+    process.removeAllListeners(result.signal);
     process.kill(process.pid, result.signal);
     return;
   }

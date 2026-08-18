@@ -25,4 +25,4 @@ launch({
 });
 ```
 
-The child process inherits `stdio`, so output streams directly to the parent terminal. `launch` exits the parent with the child's status code on non-zero exit.
+The child process inherits `stdio`, so output streams directly to the parent terminal. `launch` exits the parent with the child's status code on non-zero exit and re-raises the child's termination signal on the parent when the child is killed by a signal.

@@ -1,3 +1,7 @@
+import { spawnSync } from "node:child_process";
+import { chmodSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { delimiter, join } from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -12,9 +16,15 @@ vi.mock("cross-spawn", async (importOriginal) => ({
 import { launch } from "./launch";
 
 describe("launch", () => {
+  const temporaryDirectories: string[] = [];
+
   afterEach(() => {
     vi.restoreAllMocks();
     vi.clearAllMocks();
+
+    for (const directory of temporaryDirectories.splice(0)) {
+      rmSync(directory, { recursive: true, force: true });
+    }
   });
 
   it("propagates child process termination signals", () => {
@@ -27,9 +37,52 @@ describe("launch", () => {
       signal: "SIGTERM",
     });
     const kill = vi.spyOn(process, "kill").mockReturnValue(true);
+    const removeAllListeners = vi
+      .spyOn(process, "removeAllListeners")
+      .mockReturnValue(process);
 
     launch({ pluginDir: "/tmp/plugin", prompt: "test" });
 
+    expect(removeAllListeners).toHaveBeenCalledWith("SIGTERM");
     expect(kill).toHaveBeenCalledWith(process.pid, "SIGTERM");
+    expect(removeAllListeners.mock.invocationCallOrder[0]).toBeLessThan(
+      kill.mock.invocationCallOrder[0]!,
+    );
   });
+
+  it.skipIf(process.platform === "win32")(
+    "preserves signal termination when the parent has a signal handler",
+    () => {
+      const directory = mkdtempSync(join(tmpdir(), "aui-agent-launcher-"));
+      temporaryDirectories.push(directory);
+
+      const executable = join(directory, "claude");
+      writeFileSync(
+        executable,
+        '#!/usr/bin/env node\nprocess.kill(process.pid, "SIGTERM");\n',
+      );
+      chmodSync(executable, 0o755);
+
+      const launchUrl = new URL("./launch.ts", import.meta.url).href;
+      const script = `
+        process.on("SIGTERM", () => process.exit(0));
+        const { launch } = await import(${JSON.stringify(launchUrl)});
+        launch({ pluginDir: "/tmp/plugin", prompt: "test" });
+      `;
+      const result = spawnSync(
+        process.execPath,
+        ["--input-type=module", "--eval", script],
+        {
+          env: {
+            ...process.env,
+            NODE_NO_WARNINGS: "1",
+            PATH: `${directory}${delimiter}${process.env.PATH ?? ""}`,
+          },
+        },
+      );
+
+      expect(result.status).toBeNull();
+      expect(result.signal).toBe("SIGTERM");
+    },
+  );
 });
