@@ -288,7 +288,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { useAssistantClientDestroySignal };
+  export { useAssistantClientDestroySignal, useShallowStable };
 }
 
 declare const isUserScrollUp: (previous: {
@@ -371,6 +371,8 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
 };
 
 declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Input) => ScopedAuiClient;
+
+declare const useShallowStable: <T extends object>(value: T) => T;
 
 declare const viewportOverflows: (metrics: ViewportMetrics) => boolean;
 
