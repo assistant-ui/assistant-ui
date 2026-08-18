@@ -287,7 +287,6 @@ const useRemoteThreadListView = ({
       : AdaptedRemoteThread({
           useAdapters,
           thread,
-          threadId: mainThreadId,
         });
   const mainThreadClient = useClientResource(
     thread.key === undefined ? wrapped : withKey(thread.key, wrapped),

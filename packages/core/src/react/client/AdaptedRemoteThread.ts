@@ -13,21 +13,19 @@ import {
 const useAdaptedRemoteThread = ({
   useAdapters,
   thread,
-  threadId,
 }: {
   useAdapters: () => RuntimeAdapters | null | undefined;
   thread: ResourceElement<ClientOutput<"thread">>;
-  threadId: string;
 }): ClientOutput<"thread"> => {
   const parent = useRuntimeAdapters();
   const stableAdapters = useStableRuntimeAdapters(useAdapters());
 
   const unkeyedHistory =
-    stableAdapters?.history != null && thread.key !== threadId;
+    stableAdapters?.history != null && thread.key === undefined;
   useEffect(() => {
     if (!isDevelopment || !unkeyedHistory) return;
     console.warn(
-      "[assistant-ui] RemoteThreadList received a history adapter, but the thread factory is not keyed by thread id. Key the thread resource (withKey(threadId, ...)) so switching threads reloads history.",
+      "[assistant-ui] RemoteThreadList received a history adapter, but the thread factory is unkeyed. Key the thread resource by thread id (withKey) so switching threads reloads history.",
     );
   }, [unkeyedHistory]);
 

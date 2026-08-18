@@ -22,7 +22,7 @@ export const useStableRuntimeAdapters = (
   adapters: RuntimeAdapters | null | undefined,
 ): RuntimeAdapters | null => {
   const stable = useShallowStable(adapters ?? NO_ADAPTERS);
-  return stable === NO_ADAPTERS ? null : stable;
+  return adapters == null ? null : stable;
 };
 
 export { RuntimeAdaptersContext };
