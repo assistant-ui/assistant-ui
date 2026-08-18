@@ -708,6 +708,103 @@ describe("openPiEventStream", () => {
       { type: "message_start", threadId: "t1", seq: 1 },
       'event "message_start" has an invalid payload',
     ],
+    [
+      {
+        type: "message_start",
+        threadId: "t1",
+        seq: 1,
+        message: { role: "assistant", content: [] },
+      },
+      'event "message_start" has an invalid payload',
+    ],
+    [
+      {
+        type: "message_update",
+        threadId: "t1",
+        seq: 1,
+        message: assistantMessage,
+        assistantMessageEvent: { type: "text_delta" },
+      },
+      'event "message_update" has an invalid payload',
+    ],
+    [
+      {
+        type: "tool_execution_start",
+        threadId: "t1",
+        seq: 1,
+        toolCallId: "tool-1",
+        toolName: "search",
+      },
+      'event "tool_execution_start" has an invalid payload',
+    ],
+    [
+      {
+        type: "tool_execution_update",
+        threadId: "t1",
+        seq: 1,
+        toolCallId: "tool-1",
+      },
+      'event "tool_execution_update" has an invalid payload',
+    ],
+    [
+      {
+        type: "tool_execution_end",
+        threadId: "t1",
+        seq: 1,
+        toolCallId: "tool-1",
+        isError: false,
+      },
+      'event "tool_execution_end" has an invalid payload',
+    ],
+    [
+      {
+        type: "snapshot",
+        threadId: "t1",
+        seq: 1,
+        snapshot: {
+          metadata: { id: "t1", status: "idle" },
+          messages: [{ role: "assistant" }],
+        },
+      },
+      'event "snapshot" has an invalid payload',
+    ],
+    [
+      {
+        type: "queue_update",
+        threadId: "t1",
+        seq: 1,
+        steering: "steer",
+        followUp: [],
+      },
+      'event "queue_update" has an invalid payload',
+    ],
+    [
+      {
+        type: "context_usage",
+        threadId: "t1",
+        seq: 1,
+        contextUsage: { tokens: 1, contextWindow: "large", percent: 1 },
+      },
+      'event "context_usage" has an invalid payload',
+    ],
+    [
+      {
+        type: "extension_ui_request",
+        threadId: "t1",
+        seq: 1,
+        request: { id: "request-1", kind: "confirm", title: "Continue?" },
+      },
+      'event "extension_ui_request" has an invalid payload',
+    ],
+    [
+      {
+        type: "compaction_start",
+        threadId: "t1",
+        seq: 1,
+        reason: 1,
+      },
+      'event "compaction_start" has an invalid payload',
+    ],
   ])(
     "reports malformed event payloads without delivering them",
     async (malformedEvent, expectedMessage) => {
@@ -751,6 +848,48 @@ describe("openPiEventStream", () => {
       expect(fetchImpl).toHaveBeenCalledTimes(2);
     },
   );
+
+  it("reconnects when an event belongs to another thread", async () => {
+    const events: PiAnyClientEvent[] = [];
+    const errors: unknown[] = [];
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        sseResponse([
+          sseFrame({ type: "agent_start", threadId: "t2", seq: 1 }),
+        ]),
+      )
+      .mockResolvedValueOnce(
+        sseResponse([
+          sseFrame({ type: "agent_start", threadId: "t1", seq: 2 }),
+        ]),
+      ) as unknown as typeof fetch;
+
+    await new Promise<void>((resolve) => {
+      const close = openPiEventStream({
+        url: "/events",
+        expectedThreadId: "t1",
+        fetchImpl,
+        reconnectDelay: () => Promise.resolve(),
+        onError: (error) => errors.push(error),
+        onEvent: (event) => {
+          events.push(event);
+          close();
+          resolve();
+        },
+      });
+    });
+
+    expect(errors).toEqual([
+      expect.objectContaining({
+        message: expect.stringContaining('expected thread "t1", received "t2"'),
+      }),
+    ]);
+    expect(events).toEqual([
+      expect.objectContaining({ type: "agent_start", threadId: "t1", seq: 2 }),
+    ]);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
 
   it("preserves forward-compatible values in known event types", async () => {
     const events: PiAnyClientEvent[] = [];
