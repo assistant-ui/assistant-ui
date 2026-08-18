@@ -64,6 +64,57 @@ const getMutationQueue = (storage: AsyncStorageLike): KeyedMutationQueue => {
   return queue;
 };
 
+type ThreadDeletionState = {
+  pending: number;
+  deleted: boolean;
+};
+
+class ThreadDeletionTracker {
+  private readonly states = new Map<string, ThreadDeletionState>();
+
+  isDeletingOrDeleted(threadId: string): boolean {
+    const state = this.states.get(threadId);
+    return state !== undefined && (state.pending > 0 || state.deleted);
+  }
+
+  begin(threadId: string): (succeeded: boolean) => void {
+    const state = this.states.get(threadId) ?? { pending: 0, deleted: false };
+    state.pending += 1;
+    this.states.set(threadId, state);
+
+    return (succeeded) => {
+      state.pending -= 1;
+      state.deleted ||= succeeded;
+      if (state.pending === 0 && !state.deleted) {
+        this.states.delete(threadId);
+      }
+    };
+  }
+}
+
+const deletionTrackers = new WeakMap<
+  AsyncStorageLike,
+  Map<string, ThreadDeletionTracker>
+>();
+
+const getDeletionTracker = (
+  storage: AsyncStorageLike,
+  prefix: string,
+): ThreadDeletionTracker => {
+  let trackers = deletionTrackers.get(storage);
+  if (!trackers) {
+    trackers = new Map();
+    deletionTrackers.set(storage, trackers);
+  }
+
+  let tracker = trackers.get(prefix);
+  if (!tracker) {
+    tracker = new ThreadDeletionTracker();
+    trackers.set(prefix, tracker);
+  }
+  return tracker;
+};
+
 type LocalStorageAdapterOptions = {
   storage: AsyncStorageLike;
   prefix?: string | undefined;
@@ -289,17 +340,20 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   private getAui: () => ReturnType<typeof useAui>;
   private prefix: string;
   private mutationQueue: KeyedMutationQueue;
+  private deletionTracker: ThreadDeletionTracker;
 
   constructor(
     storage: AsyncStorageLike,
     getAui: () => ReturnType<typeof useAui>,
     prefix: string,
     mutationQueue: KeyedMutationQueue,
+    deletionTracker: ThreadDeletionTracker,
   ) {
     this.storage = storage;
     this.getAui = getAui;
     this.prefix = prefix;
     this.mutationQueue = mutationQueue;
+    this.deletionTracker = deletionTracker;
   }
 
   private get aui(): ReturnType<typeof useAui> {
@@ -319,7 +373,11 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 
   async append(item: ExportedMessageRepositoryItem): Promise<void> {
+    const threadId = this.aui.threadListItem.getState().id;
+    if (this.deletionTracker.isDeletingOrDeleted(threadId)) return;
+
     const { remoteId } = await this.aui.threadListItem.initialize();
+    if (this.deletionTracker.isDeletingOrDeleted(threadId)) return;
 
     const key = this._messagesKey(remoteId);
     await this.mutationQueue.run(key, async () => {
@@ -345,6 +403,7 @@ const useLocalStorageThreadAdapters = (
   storage: AsyncStorageLike,
   prefix: string,
   mutationQueue: KeyedMutationQueue,
+  deletionTracker: ThreadDeletionTracker,
 ): RuntimeAdapters => {
   const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
@@ -359,6 +418,7 @@ const useLocalStorageThreadAdapters = (
         () => auiRef.current,
         prefix,
         mutationQueue,
+        deletionTracker,
       ),
   );
   return useMemo(() => ({ history }), [history]);
@@ -368,12 +428,14 @@ const createHistoryProvider = (
   storage: AsyncStorageLike,
   prefix: string,
   mutationQueue: KeyedMutationQueue,
+  deletionTracker: ThreadDeletionTracker,
 ): FC<PropsWithChildren> => {
   const Provider: FC<PropsWithChildren> = ({ children }) => {
     const adapters = useLocalStorageThreadAdapters(
       storage,
       prefix,
       mutationQueue,
+      deletionTracker,
     );
     return (
       <RuntimeAdapterProvider adapters={adapters}>
@@ -392,6 +454,7 @@ export const createLocalStorageAdapter = (
   const threadsKey = `${prefix}threads`;
   const messagesKey = (threadId: string) => `${prefix}messages:${threadId}`;
   const mutationQueue = getMutationQueue(storage);
+  const deletionTracker = getDeletionTracker(storage, prefix);
 
   const loadThreadMetadata = async (): Promise<StoredThreadMetadata[]> => {
     const raw = await storage.getItem(threadsKey);
@@ -419,9 +482,19 @@ export const createLocalStorageAdapter = (
   };
 
   const adapter: RemoteThreadListAdapter = {
-    unstable_Provider: createHistoryProvider(storage, prefix, mutationQueue),
+    unstable_Provider: createHistoryProvider(
+      storage,
+      prefix,
+      mutationQueue,
+      deletionTracker,
+    ),
     unstable_useAdapters: function useLocalStorageAdapters() {
-      return useLocalStorageThreadAdapters(storage, prefix, mutationQueue);
+      return useLocalStorageThreadAdapters(
+        storage,
+        prefix,
+        mutationQueue,
+        deletionTracker,
+      );
     },
 
     async list(): Promise<RemoteThreadListResponse> {
@@ -485,13 +558,20 @@ export const createLocalStorageAdapter = (
     },
 
     async delete(remoteId: string): Promise<void> {
-      await mutationQueue.run(threadsKey, async () => {
-        const threads = await loadThreadMetadata();
-        const filtered = threads.filter((t) => t.remoteId !== remoteId);
-        await saveThreadMetadata(filtered);
-      });
-      const key = messagesKey(remoteId);
-      await mutationQueue.run(key, () => storage.removeItem(key));
+      const finishDeletion = deletionTracker.begin(remoteId);
+      let metadataDeleted = false;
+      try {
+        await mutationQueue.run(threadsKey, async () => {
+          const threads = await loadThreadMetadata();
+          const filtered = threads.filter((t) => t.remoteId !== remoteId);
+          await saveThreadMetadata(filtered);
+        });
+        metadataDeleted = true;
+        const key = messagesKey(remoteId);
+        await mutationQueue.run(key, () => storage.removeItem(key));
+      } finally {
+        finishDeletion(metadataDeleted);
+      }
     },
 
     async fetch(threadId: string): Promise<RemoteThreadMetadata> {
