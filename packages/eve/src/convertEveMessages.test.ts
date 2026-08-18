@@ -1287,6 +1287,66 @@ describe("convertEveMessages", () => {
         expect(content?.[0]).not.toHaveProperty("status");
       });
 
+      it("settles leftover reasoning after the model stream completes a tool call", () => {
+        const state = replay([
+          ...midStreamEvents.slice(0, 3),
+          {
+            type: "reasoning.appended",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 2,
+              reasoningDelta: "Think",
+              reasoningSoFar: "Think",
+            },
+          },
+          {
+            type: "actions.requested",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              actions: [
+                {
+                  kind: "tool-call",
+                  callId: "call_1",
+                  toolName: "search",
+                  input: {},
+                },
+              ],
+            },
+          },
+          {
+            type: "reasoning.completed",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 4,
+              reasoning: "Think",
+            },
+          },
+        ]);
+
+        const message = state.messages.find((m) => m.role === "assistant");
+        expect(message?.parts).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ type: "reasoning", state: "done" }),
+            expect.objectContaining({ type: "dynamic-tool" }),
+          ]),
+        );
+
+        const content = convertEveMessages(state, { isRunning: true }).at(
+          -1,
+        )?.content;
+        expect(content).toEqual([
+          expect.objectContaining({
+            type: "reasoning",
+            status: { type: "complete" },
+          }),
+          expect.objectContaining({ type: "tool-call" }),
+        ]);
+      });
+
       it("keeps a later step's live text part unsettled after an earlier step completed", () => {
         const state = replay([
           ...midStreamEvents.slice(0, 3),

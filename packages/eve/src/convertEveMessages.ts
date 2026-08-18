@@ -288,14 +288,13 @@ const convertFilePart = (
   };
 };
 
-// Eve's `state` is a run marker, not a liveness signal: the reducer only settles
-// a part to "done" on `reasoning.completed`, `message.completed`, or
-// `turn.cancelled`, and eve's harness emits `reasoning.completed` only when text
-// follows non-whitespace reasoning. Reasoning followed by a tool call therefore
-// keeps `state: "streaming"` on a part that is no longer last, so mapping
-// "streaming" to running would pin a finished reasoning block open for the whole
-// tool call. Only "done" is trustworthy; an unsettled part falls back to core's
-// last-part rule, which already reports the live part as running.
+// Eve's `state` is a run marker: the reducer settles a part to "done" only on
+// `reasoning.completed`, `message.completed`, or `turn.cancelled`.
+// `emitStreamContent` does not flush leftover reasoning on a tool-call, so a
+// non-last reasoning part stays `streaming` until the model stream ends and the
+// leftover flush runs. Mapping `streaming` to running would pin that block
+// open. Only `done` is trustworthy; an unsettled part falls back to core's
+// last-part rule.
 const partStateToStatus = (
   state: "done" | "streaming" | undefined,
 ): MessagePartStreamStatus | undefined =>
