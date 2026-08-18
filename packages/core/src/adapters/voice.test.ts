@@ -89,7 +89,7 @@ describe("createVoiceSession", () => {
     await Promise.resolve();
 
     expect(setup).not.toHaveBeenCalled();
-    expect(session.status).toEqual({ type: "starting" });
+    expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
   });
 
   it("removes the abort listener after disconnecting", async () => {
