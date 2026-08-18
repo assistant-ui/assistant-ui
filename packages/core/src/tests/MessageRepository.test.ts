@@ -240,8 +240,8 @@ describe("MessageRepository", () => {
       expect(messages2.map((m) => m.id)).toEqual(["parent-id", "branch2-id"]);
     });
 
-    it("should switch to a branch with a long message history", () => {
-      const messageCount = 12_000;
+    it("should operate on a long message history without overflowing the stack", () => {
+      const messageCount = 30_000;
       const messages = createLongBranchMessages(messageCount);
 
       messages.push({
@@ -253,14 +253,6 @@ describe("MessageRepository", () => {
       repository.switchToBranch("branch-0");
 
       expect(repository.headId).toBe(`branch-${messageCount - 1}`);
-    });
-
-    it("should reparent a branch with a long message history", () => {
-      const messageCount = 12_000;
-      repository.import({
-        headId: `branch-${messageCount - 1}`,
-        messages: createLongBranchMessages(messageCount),
-      });
 
       repository.deleteMessage("branch-0", "root");
 
@@ -269,21 +261,14 @@ describe("MessageRepository", () => {
         index: 1,
       });
       expect(repository.headId).toBe(`branch-${messageCount - 1}`);
-    });
 
-    it("should reset a branch with a long message history", () => {
-      const messageCount = 12_000;
-
-      repository.import({
-        headId: "root",
-        messages: createLongBranchMessages(messageCount),
-      });
+      repository.resetHead("root");
 
       expect(repository.getMessages().map((message) => message.id)).toEqual([
         "root",
       ]);
-      expect(() => repository.getMessage("branch-0")).toThrow();
-    });
+      expect(() => repository.getMessage("branch-1")).toThrow();
+    }, 20_000);
 
     it("should throw error when switching to a non-existent branch", () => {
       expect(() => {
