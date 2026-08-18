@@ -845,6 +845,48 @@ function getLocalComponentPath(specifier: string) {
   return `${componentPath}.tsx`;
 }
 
+const MODULE_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
+
+/**
+ * The install paths a relative specifier may resolve to once the item is
+ * installed, ordered most-likely first. A specifier is satisfied when the
+ * install closure provides any one of them, which is what a bundler in the
+ * user's project will do: an explicit extension, an extensionless module, a
+ * directory index, or the TypeScript source behind a `.js` specifier. An empty
+ * list means the target escapes the installed tree and cannot be checked.
+ */
+export function getRelativeImportCandidates(
+  specifier: string,
+  fromPath: string,
+) {
+  const resolved = path.posix.normalize(
+    path.posix.join(path.posix.dirname(fromPath), specifier),
+  );
+  if (resolved.startsWith("..")) return [];
+
+  const extension = path.posix.extname(resolved);
+  const candidates = new Set<string>();
+
+  if (extension) {
+    candidates.add(resolved);
+    if (extension === ".js" || extension === ".jsx") {
+      const base = resolved.slice(0, -extension.length);
+      for (const moduleExtension of MODULE_EXTENSIONS) {
+        candidates.add(`${base}${moduleExtension}`);
+      }
+    }
+  } else {
+    for (const moduleExtension of MODULE_EXTENSIONS) {
+      candidates.add(`${resolved}${moduleExtension}`);
+    }
+    for (const moduleExtension of MODULE_EXTENSIONS) {
+      candidates.add(`${resolved}/index${moduleExtension}`);
+    }
+  }
+
+  return [...candidates];
+}
+
 function collectCssPackageImports(value: unknown, imports = new Set<string>()) {
   if (typeof value === "string") {
     for (const match of value.matchAll(
@@ -938,7 +980,22 @@ function validateRegistryInstallMetadata(payloads: RegistryOutputItem[]) {
           continue;
         }
 
-        if (specifier.startsWith(".") || specifier.startsWith("@/")) {
+        if (specifier.startsWith(".")) {
+          const candidates = getRelativeImportCandidates(specifier, file.path);
+
+          if (
+            candidates.length > 0 &&
+            !candidates.some((candidate) => installContext.files.has(candidate))
+          ) {
+            findings.add(
+              `${item.name}: ${file.path} imports "${specifier}", but no file or registryDependency provides ${candidates[0]}`,
+            );
+          }
+
+          continue;
+        }
+
+        if (specifier.startsWith("@/")) {
           continue;
         }
 

@@ -8,6 +8,7 @@ const {
   createRadixRegistryItem,
   expandBundledRegistryDependencies,
   getRadixVariantSourcePath,
+  getRelativeImportCandidates,
   validateBasePassDidNotReadRadixSources,
   validateBaseTreeRadixImports,
   validateBaseVariantContent,
@@ -1240,4 +1241,44 @@ test("every element's sibling imports are declared as registry dependencies", as
       );
     }
   }
+});
+
+test("relative import candidates cover extensions, directory indexes, and .js sources", () => {
+  const from = "components/assistant-ui/sources.tsx";
+
+  assert.deepEqual(getRelativeImportCandidates("./badge", from), [
+    "components/assistant-ui/badge.tsx",
+    "components/assistant-ui/badge.ts",
+    "components/assistant-ui/badge.jsx",
+    "components/assistant-ui/badge.js",
+    "components/assistant-ui/badge/index.tsx",
+    "components/assistant-ui/badge/index.ts",
+    "components/assistant-ui/badge/index.jsx",
+    "components/assistant-ui/badge/index.js",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./badge.tsx", from), [
+    "components/assistant-ui/badge.tsx",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./styles.css", from), [
+    "components/assistant-ui/styles.css",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./badge.js", from), [
+    "components/assistant-ui/badge.js",
+    "components/assistant-ui/badge.tsx",
+    "components/assistant-ui/badge.ts",
+    "components/assistant-ui/badge.jsx",
+  ]);
+
+  assert.equal(
+    getRelativeImportCandidates("../icons/github", from)[0],
+    "components/icons/github.tsx",
+  );
+
+  assert.deepEqual(
+    getRelativeImportCandidates("../../../outside/thing", from),
+    [],
+  );
 });
