@@ -17,7 +17,7 @@
  *
  * Browser-safe: imports no `@earendil-works/pi-*`.
  */
-import type { PiAnyClientEvent } from "../types";
+import type { PiAnyClientEvent, PiClientEventBody } from "../types";
 
 /** A decoded SSE frame. `data` is the concatenation of every `data:` line in the
  * frame (joined by `\n`, per the SSE spec); `event`/`id` are the last-seen field
@@ -148,6 +148,247 @@ const validateEventStreamContentType = (response: Response): void => {
   }
 };
 
+const KNOWN_EVENT_TYPES = {
+  snapshot: true,
+  agent_start: true,
+  agent_end: true,
+  agent_settled: true,
+  turn_start: true,
+  turn_end: true,
+  message_start: true,
+  message_update: true,
+  message_end: true,
+  tool_execution_start: true,
+  tool_execution_update: true,
+  tool_execution_end: true,
+  queue_update: true,
+  compaction_start: true,
+  compaction_end: true,
+  entry_appended: true,
+  auto_retry_start: true,
+  auto_retry_end: true,
+  session_info_changed: true,
+  thinking_level_changed: true,
+  context_usage: true,
+  extension_ui_request: true,
+  extension_ui_resolved: true,
+  error: true,
+} satisfies Record<PiClientEventBody["type"], true>;
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const hasOwn = (value: Record<string, unknown>, key: string): boolean =>
+  Object.prototype.hasOwnProperty.call(value, key);
+
+const isOptionalString = (value: unknown): boolean =>
+  value === undefined || typeof value === "string";
+
+const isOptionalBoolean = (value: unknown): boolean =>
+  value === undefined || typeof value === "boolean";
+
+const isStringArray = (value: unknown): boolean =>
+  Array.isArray(value) && value.every((item) => typeof item === "string");
+
+const isUserContentPart = (value: unknown): boolean => {
+  if (!isRecord(value) || typeof value.type !== "string") return false;
+  if (value.type === "text") return typeof value.text === "string";
+  if (value.type === "image") {
+    return typeof value.data === "string" && typeof value.mimeType === "string";
+  }
+  return true;
+};
+
+const isUserContent = (value: unknown): boolean =>
+  typeof value === "string" ||
+  (Array.isArray(value) && value.every(isUserContentPart));
+
+const isAssistantContentPart = (value: unknown): boolean => {
+  if (!isRecord(value) || typeof value.type !== "string") return false;
+  if (value.type === "text") return typeof value.text === "string";
+  if (value.type === "thinking") return typeof value.thinking === "string";
+  if (value.type === "toolCall") {
+    return (
+      typeof value.id === "string" &&
+      typeof value.name === "string" &&
+      (value.arguments == null || isRecord(value.arguments))
+    );
+  }
+  return true;
+};
+
+const isMessage = (value: unknown): boolean => {
+  if (!isRecord(value) || typeof value.role !== "string") return false;
+  if (value.role === "user" || value.role === "custom") {
+    return isUserContent(value.content);
+  }
+  if (value.role === "assistant") {
+    return (
+      Array.isArray(value.content) &&
+      value.content.every(isAssistantContentPart)
+    );
+  }
+  if (value.role === "toolResult") {
+    return (
+      typeof value.toolCallId === "string" &&
+      Array.isArray(value.content) &&
+      value.content.every(isUserContentPart)
+    );
+  }
+  return true;
+};
+
+const isContextUsage = (value: unknown): boolean =>
+  isRecord(value) &&
+  (value.tokens === null || typeof value.tokens === "number") &&
+  typeof value.contextWindow === "number" &&
+  (value.percent === null || typeof value.percent === "number");
+
+const isHostUiRequest = (value: unknown): boolean => {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== "string" ||
+    typeof value.kind !== "string" ||
+    !isOptionalString(value.toolCallId) ||
+    (value.timeoutMs !== undefined && typeof value.timeoutMs !== "number")
+  ) {
+    return false;
+  }
+
+  switch (value.kind) {
+    case "confirm":
+      return (
+        typeof value.title === "string" && typeof value.message === "string"
+      );
+    case "select":
+      return typeof value.title === "string" && isStringArray(value.options);
+    case "input":
+      return (
+        typeof value.title === "string" && isOptionalString(value.placeholder)
+      );
+    case "editor":
+      return typeof value.title === "string" && isOptionalString(value.prefill);
+    default:
+      return false;
+  }
+};
+
+const isKnownEventPayload = (event: Record<string, unknown>): boolean => {
+  switch (event.type) {
+    case "snapshot":
+      return (
+        isRecord(event.snapshot) &&
+        isRecord(event.snapshot.metadata) &&
+        typeof event.snapshot.metadata.id === "string" &&
+        event.snapshot.metadata.id.length > 0 &&
+        typeof event.snapshot.metadata.status === "string" &&
+        Array.isArray(event.snapshot.messages) &&
+        event.snapshot.messages.every(isMessage)
+      );
+    case "agent_start":
+    case "agent_settled":
+      return true;
+    case "agent_end":
+      return isOptionalBoolean(event.willRetry);
+    case "turn_start":
+    case "turn_end":
+      return typeof event.turnIndex === "number";
+    case "message_start":
+    case "message_end":
+      return isMessage(event.message);
+    case "message_update":
+      return (
+        isMessage(event.message) &&
+        isRecord(event.assistantMessageEvent) &&
+        typeof event.assistantMessageEvent.type === "string"
+      );
+    case "tool_execution_start":
+      return (
+        typeof event.toolCallId === "string" &&
+        typeof event.toolName === "string"
+      );
+    case "tool_execution_update":
+      return (
+        typeof event.toolCallId === "string" && isOptionalString(event.toolName)
+      );
+    case "tool_execution_end":
+      return (
+        typeof event.toolCallId === "string" &&
+        typeof event.isError === "boolean"
+      );
+    case "queue_update":
+      return isStringArray(event.steering) && isStringArray(event.followUp);
+    case "compaction_start":
+      return (
+        event.reason === "manual" ||
+        event.reason === "threshold" ||
+        event.reason === "overflow"
+      );
+    case "compaction_end":
+      return (
+        typeof event.aborted === "boolean" &&
+        typeof event.willRetry === "boolean"
+      );
+    case "entry_appended":
+      return (
+        isRecord(event.entry) &&
+        typeof event.entry.id === "string" &&
+        (event.entry.parentId === null ||
+          typeof event.entry.parentId === "string") &&
+        typeof event.entry.timestamp === "string" &&
+        typeof event.entry.type === "string"
+      );
+    case "auto_retry_start":
+      return (
+        typeof event.attempt === "number" && typeof event.delayMs === "number"
+      );
+    case "auto_retry_end":
+      return typeof event.success === "boolean";
+    case "session_info_changed":
+      return isOptionalString(event.name);
+    case "thinking_level_changed":
+      return typeof event.level === "string";
+    case "context_usage":
+      return isContextUsage(event.contextUsage);
+    case "extension_ui_request":
+      return isHostUiRequest(event.request);
+    case "extension_ui_resolved":
+      return typeof event.requestId === "string";
+    case "error":
+      return typeof event.error === "string";
+    default:
+      return true;
+  }
+};
+
+const parseEventStreamPayload = (data: string): PiAnyClientEvent => {
+  const event: unknown = JSON.parse(data);
+  if (!isRecord(event)) {
+    throw new Error("Invalid Pi event stream payload: expected an object");
+  }
+  if (typeof event.type !== "string" || event.type.length === 0) {
+    throw new Error(
+      'Invalid Pi event stream payload: expected a non-empty string "type"',
+    );
+  }
+  if (typeof event.threadId !== "string" || event.threadId.length === 0) {
+    throw new Error(
+      'Invalid Pi event stream payload: expected a non-empty string "threadId"',
+    );
+  }
+  if (!Number.isSafeInteger(event.seq) || (event.seq as number) < 0) {
+    throw new Error(
+      'Invalid Pi event stream payload: expected a non-negative safe integer "seq"',
+    );
+  }
+  if (hasOwn(KNOWN_EVENT_TYPES, event.type) && !isKnownEventPayload(event)) {
+    throw new Error(
+      `Invalid Pi event stream payload: event "${event.type}" has an invalid payload`,
+    );
+  }
+  return event as PiAnyClientEvent;
+};
+
 /**
  * Open a reconnecting SSE stream. Returns a synchronous unsubscribe that aborts
  * the in-flight request and stops reconnecting. Frames named `ping` and empty
@@ -240,7 +481,7 @@ export const openPiEventStream = (
               if (frame.event === "ping" || frame.data === "") continue;
               let parsed: PiAnyClientEvent;
               try {
-                parsed = JSON.parse(frame.data) as PiAnyClientEvent;
+                parsed = parseEventStreamPayload(frame.data);
               } catch (error) {
                 reportError(error);
                 continue;

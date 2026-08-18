@@ -99,6 +99,9 @@ const sseResponse = (
 const sseFrame = (event: PiAnyClientEvent): string =>
   `data: ${JSON.stringify(event)}\n\n`;
 
+const rawSseFrame = (event: unknown): string =>
+  `data: ${JSON.stringify(event)}\n\n`;
+
 describe("openPiEventStream", () => {
   it("delivers parsed events from the stream", async () => {
     const events: PiAnyClientEvent[] = [];
@@ -551,6 +554,79 @@ describe("openPiEventStream", () => {
 
     expect(errors).toHaveLength(1);
     expect(events.map((e) => e.type)).toEqual(["agent_end"]);
+  });
+
+  it.each([
+    [
+      { type: "agent_start", threadId: 42, seq: 1 },
+      'expected a non-empty string "threadId"',
+    ],
+    [
+      { type: "message_start", threadId: "t1", seq: 1 },
+      'event "message_start" has an invalid payload',
+    ],
+  ])(
+    "reports malformed event payloads without delivering them",
+    async (malformedEvent, expectedMessage) => {
+      const events: PiAnyClientEvent[] = [];
+      const errors: unknown[] = [];
+      const fetchImpl = vi.fn(async () =>
+        sseResponse([
+          rawSseFrame(malformedEvent),
+          sseFrame({ type: "agent_end", threadId: "t1", seq: 2 }),
+        ]),
+      ) as unknown as typeof fetch;
+
+      await new Promise<void>((resolve) => {
+        const close = openPiEventStream({
+          url: "/events",
+          fetchImpl,
+          reconnectDelay: () => Promise.resolve(),
+          onError: (error) => errors.push(error),
+          onEvent: (event) => {
+            events.push(event);
+            close();
+            resolve();
+          },
+        });
+      });
+
+      expect(errors).toEqual([
+        expect.objectContaining({
+          message: expect.stringContaining(expectedMessage),
+        }),
+      ]);
+      expect(events.map((event) => event.type)).toEqual(["agent_end"]);
+      expect(fetchImpl).toHaveBeenCalledOnce();
+    },
+  );
+
+  it("preserves forward-compatible unknown event types", async () => {
+    const event = await new Promise<PiAnyClientEvent>((resolve) => {
+      const close = openPiEventStream({
+        url: "/events",
+        fetchImpl: (async () =>
+          sseResponse([
+            rawSseFrame({
+              type: "future_event",
+              threadId: "t1",
+              seq: 1,
+              payload: { value: true },
+            }),
+          ])) as unknown as typeof fetch,
+        onEvent: (value) => {
+          close();
+          resolve(value);
+        },
+      });
+    });
+
+    expect(event).toEqual({
+      type: "future_event",
+      threadId: "t1",
+      seq: 1,
+      payload: { value: true },
+    });
   });
 
   it("stops and does not surface abort as an error after close()", async () => {
