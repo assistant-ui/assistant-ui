@@ -59,6 +59,8 @@ export interface WithAuiOptions {
 
 // Loosely typed so this module doesn't need `next` as a dependency.
 type NextConfigLike = {
+  /** assistant-ui options, stripped from the config handed back to Next. */
+  aui?: WithAuiOptions | undefined;
   turbopack?: { rules?: Record<string, unknown> } | undefined;
   webpack?: ((config: any, context: any) => any) | null | undefined;
 };
@@ -71,15 +73,19 @@ type NextConfigLike = {
  * ```ts
  * // next.config.ts
  * import { withAui } from "@assistant-ui/next";
- * export default withAui({ ...yourConfig });
+ * export default withAui({ ...yourConfig, aui: { backendless: true } });
  * ```
  */
 export function withAui<T extends NextConfigLike>(
   nextConfig: T = {} as T,
   options: WithAuiOptions = {},
 ): T {
-  const globs = options.rules ?? ["*.ts", "*.tsx"];
-  const loader = loaderUse(options);
+  // Next warns on config keys it does not recognize, so `aui` must not survive
+  // into the returned config.
+  const { aui, ...baseConfig } = nextConfig;
+  const resolved = { ...options, ...aui };
+  const globs = resolved.rules ?? ["*.ts", "*.tsx"];
+  const loader = loaderUse(resolved);
   // Turbopack runs every rule matching a glob in order, so the `"use generative"`
   // loader rides as its own entry after the user's: theirs keeps its loaders and
   // its own condition, ours keeps a condition that would disable theirs.
@@ -96,7 +102,7 @@ export function withAui<T extends NextConfigLike>(
   const userWebpack = nextConfig.webpack;
 
   return {
-    ...nextConfig,
+    ...baseConfig,
     turbopack: {
       ...nextConfig.turbopack,
       rules,

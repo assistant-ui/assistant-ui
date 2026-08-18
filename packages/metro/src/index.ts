@@ -8,6 +8,8 @@ const require = createRequire(import.meta.url);
  * preserved and only `transformer.babelTransformerPath` is augmented.
  */
 export type MetroConfigLike = {
+  /** assistant-ui options, stripped from the config handed back to Metro. */
+  aui?: WithAuiOptions | undefined;
   transformer?:
     | {
         babelTransformerPath?: string | undefined;
@@ -55,20 +57,23 @@ export interface WithAuiOptions {
  * const { getDefaultConfig } = require("expo/metro-config");
  * const { withAui } = require("@assistant-ui/metro");
  *
- * module.exports = withAui(getDefaultConfig(__dirname));
+ * module.exports = withAui({
+ *   ...getDefaultConfig(__dirname),
+ *   aui: { backendless: true },
+ * });
  * ```
  *
  * Authoring is identical to the web: a `"use generative"` file whose default
  * export is `defineToolkit({ ... })`, registered with `Tools({ toolkit })`.
  */
-export function withAui<T extends MetroConfigLike>(
-  config: T,
-  options: WithAuiOptions = {},
-): T {
+export function withAui<T extends MetroConfigLike>(config: T): T {
   const self = require.resolve("@assistant-ui/metro/transformer");
+  // Metro validates config keys it does not recognize, so `aui` must not
+  // survive into the returned config.
+  const { aui, ...baseConfig } = config;
   const upstream = config.transformer?.babelTransformerPath;
 
-  if (options.backendless) process.env[BACKENDLESS_ENV] = "1";
+  if (aui?.backendless) process.env[BACKENDLESS_ENV] = "1";
 
   // Guard against a double-wrap (`withAui(withAui(config))`, or a shared config
   // already wrapped): if it already points at our transformer, keep the real
@@ -79,10 +84,10 @@ export function withAui<T extends MetroConfigLike>(
   }
 
   return {
-    ...config,
+    ...baseConfig,
     transformer: {
       ...config.transformer,
       babelTransformerPath: self,
     },
-  };
+  } as T;
 }
