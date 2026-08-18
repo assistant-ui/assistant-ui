@@ -43,7 +43,7 @@ export function XuluxLandingPage({
   return (
     <main className="flex flex-1 scrollbar-thin flex-col items-center overflow-y-auto px-6 pb-24">
       <div className="flex w-full max-w-3xl flex-col items-center pt-[16vh]">
-        <h1 className="mb-6 text-center text-3xl font-semibold tracking-tight sm:text-4xl">
+        <h1 className="mb-6 text-center text-3xl font-medium tracking-tight sm:text-4xl">
           {headline}
         </h1>
         <PromptInput
@@ -70,7 +70,7 @@ export function XuluxLandingPage({
           <span className="text-muted-foreground">Not sure what to build?</span>
           <Link
             href={LEARN_SPOTLIGHT_HREF}
-            className="inline-flex items-center gap-1 font-semibold text-[#6557dc] transition-colors hover:text-[#4f43bd] dark:text-violet-400 dark:hover:text-violet-300"
+            className="text-foreground hover:text-foreground/70 inline-flex items-center gap-1 font-medium transition-colors"
           >
             Learn to create your first AI app
             <ArrowRightIcon className="size-3.5" />

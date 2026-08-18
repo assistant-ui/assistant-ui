@@ -1,10 +1,10 @@
-import { DEMO_META } from "@/lib/demos-meta";
 import { GROUPS } from "@/components/docs/landing/quick-links";
 import { RUNTIMES } from "@/components/docs/landing/runtime-grid";
+import { SURFACES } from "@/components/docs/landing/surface-grid";
 
 /**
  * Text equivalents for the landing components. The interactive versions render
- * an iframe and a clipboard button, which carry no meaning once flattened to
+ * a clipboard button or icon grid, which carry no meaning once flattened to
  * markdown for `.md`, `llms.txt` and the MCP docs server.
  */
 
@@ -21,11 +21,11 @@ export const QuickstartLLM = () => (
   </>
 );
 
-export const DemoShowcaseLLM = () => (
+export const SurfaceGridLLM = () => (
   <ul>
-    {DEMO_META.map((demo) => (
-      <li key={demo.slug}>
-        <a href={`/demos/${demo.slug}`}>{demo.name}</a> — {demo.tagline}
+    {SURFACES.map((surface) => (
+      <li key={surface.href}>
+        <a href={surface.href}>{surface.label}</a>: {surface.description}
       </li>
     ))}
   </ul>

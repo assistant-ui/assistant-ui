@@ -60,7 +60,7 @@ export function FeedbackPopover({
       )}
       <Popover.Portal>
         <Popover.Positioner sideOffset={5} align="start">
-          <Popover.Popup className="border-border bg-popover z-50 w-72 rounded-lg border p-4 shadow-md">
+          <Popover.Popup className="border-border bg-popover z-50 w-72 rounded-lg border p-4">
             <div className="space-y-3">
               <p className="text-sm font-medium">What went wrong?</p>
               <div className="space-y-2">
@@ -87,7 +87,7 @@ export function FeedbackPopover({
                 onChange={(e) => setComment(e.target.value)}
                 className={cn(
                   "border-border bg-background w-full resize-none rounded-md border px-3 py-2 text-sm",
-                  "placeholder:text-muted-foreground focus:ring-ring focus:ring-1 focus:outline-none",
+                  "placeholder:text-muted-foreground focus-visible:ring-ring focus:ring-1 focus:outline-none",
                 )}
                 rows={2}
               />

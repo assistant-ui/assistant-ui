@@ -22,6 +22,7 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     },
     { label: "Playground", href: "/playground" },
     { label: "Elements", href: "/elements" },
+    { label: "Standalone", href: "/standalone" },
     { label: "Pricing", href: "/pricing" },
   ],
   Resources: [

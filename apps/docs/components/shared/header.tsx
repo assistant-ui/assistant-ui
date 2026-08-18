@@ -16,6 +16,8 @@ import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
+import { headerBarClassName } from "@/components/shared/header-chrome";
+import { useScrolled } from "@/hooks/use-scrolled";
 
 function SearchButton({ onToggle }: { onToggle: () => void }) {
   useEffect(() => {
@@ -109,12 +111,17 @@ export function Header({ stars }: { stars: number | null }) {
 
   const isHome = pathname === "/";
   const showBanner = mounted && isHome && returningVisitor && !dismissed;
+  const scrolled = useScrolled();
 
   return (
     <header className="sticky top-0 z-50 w-full">
       <NavItemsRoot>
-        <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl transition-opacity duration-200 group-data-[menu-open=true]:opacity-0" />
-        <div className="group-data-[menu-open=true]:bg-background relative mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 transition-colors duration-200">
+        <div
+          className={headerBarClassName(
+            scrolled,
+            "mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4",
+          )}
+        >
           <div className="flex items-center gap-4">
             <HeaderBrandLink />
 

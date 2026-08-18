@@ -362,7 +362,7 @@ const ToolCardIcon = ({
 }) => (
   <div
     className={cn(
-      "bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md shadow-sm",
+      "bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md",
       loading && "animate-pulse",
     )}
   >

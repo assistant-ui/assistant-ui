@@ -1,7 +1,14 @@
 "use client";
 
-import { useEffect, useState, useCallback, useMemo, useRef } from "react";
-import { useRouter } from "next/navigation";
+import {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  useRef,
+  type KeyboardEvent,
+} from "react";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Search,
   CornerDownLeft,
@@ -12,7 +19,6 @@ import {
   Text,
   Sparkles,
 } from "lucide-react";
-import { useDocsSearch } from "fumadocs-core/search/client";
 import {
   Dialog,
   DialogContent,
@@ -23,22 +29,23 @@ import {
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { useGlobalAskAI } from "@/components/docs/assistant/context";
-
-interface HighlightSegment {
-  type: "text";
-  content: string;
-  styles?: {
-    highlight?: boolean;
-  };
-}
-
-interface SearchResult {
-  id: string;
-  url: string;
-  content: string;
-  type: string;
-  contentWithHighlights?: HighlightSegment[];
-}
+import {
+  collectPageEntries,
+  collectPageTextMatches,
+} from "@/lib/search/collect-page";
+import { loadSearchIndex } from "@/lib/search/load-index";
+import {
+  highlightMatches,
+  isCurrentPage,
+  searchEntries,
+  searchOtherPages,
+  tokenize,
+} from "@/lib/search/query";
+import type {
+  HighlightSegment,
+  SearchHit,
+  SearchRecord,
+} from "@/lib/search/types";
 
 interface SearchDialogProps {
   open: boolean;
@@ -49,10 +56,10 @@ function HighlightedText({
   segments,
   fallback,
 }: {
-  segments: HighlightSegment[] | undefined;
+  segments: HighlightSegment[];
   fallback: string;
 }) {
-  if (!segments || segments.length === 0) {
+  if (segments.length === 0) {
     return <>{fallback}</>;
   }
 
@@ -61,10 +68,7 @@ function HighlightedText({
       {segments.map((segment, i) => (
         <span
           key={i}
-          className={cn(
-            segment.styles?.highlight &&
-              "bg-primary/15 text-primary rounded px-0.5",
-          )}
+          className={cn(segment.styles?.highlight && "text-primary")}
         >
           {segment.content}
         </span>
@@ -89,116 +93,141 @@ function formatBreadcrumb(url: string): string {
     .join(" / ");
 }
 
-function getResultTitle(item: SearchResult): string {
-  if (item.type === "page") {
-    const path = item.url.split("#")[0] ?? "";
-    const segments = path.split("/").filter(Boolean);
-    const lastSegment = segments[segments.length - 1] ?? "Home";
-    return lastSegment
-      .split("-")
-      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(" ");
-  }
-  return item.content.replace(/<\/?mark>/g, "");
-}
-
-function parseHighlightedContent(content: string): HighlightSegment[] {
-  const segments: HighlightSegment[] = [];
-  const regex = /<mark>([\s\S]*?)<\/mark>/g;
-  let lastIndex = 0;
-  let match: RegExpExecArray | null;
-
-  while ((match = regex.exec(content)) !== null) {
-    if (match.index > lastIndex) {
-      segments.push({
-        type: "text",
-        content: content.slice(lastIndex, match.index),
-      });
-    }
-    segments.push({
-      type: "text",
-      content: match[1] ?? "",
-      styles: { highlight: true },
-    });
-    lastIndex = regex.lastIndex;
-  }
-
-  if (lastIndex < content.length) {
-    segments.push({ type: "text", content: content.slice(lastIndex) });
-  }
-
-  return segments;
-}
-
-function getResultSegments(item: SearchResult): HighlightSegment[] | undefined {
-  if (item.contentWithHighlights && item.contentWithHighlights.length > 0) {
-    return item.contentWithHighlights;
-  }
-  if (item.type === "page") return undefined;
-  return parseHighlightedContent(item.content);
-}
-
 function ResultIcon({ type }: { type: string }) {
   switch (type) {
     case "page":
-      return <FileText className="size-4" />;
+      return <FileText className="size-3.5" />;
     case "heading":
-      return <Hash className="size-4" />;
+      return <Hash className="size-3.5" />;
     default:
-      return <Text className="size-4" />;
+      return <Text className="size-3.5" />;
   }
 }
 
-function getPageUrl(url: string): string {
-  return url.split("#")[0] ?? "";
+function ResultButton({
+  item,
+  index,
+  selected,
+  nested,
+  showBreadcrumb,
+  tokens,
+  onSelect,
+  onHover,
+}: {
+  item: SearchHit;
+  index: number;
+  selected: boolean;
+  nested: boolean;
+  showBreadcrumb: boolean;
+  tokens: string[];
+  onSelect: (url: string) => void;
+  onHover: (index: number) => void;
+}) {
+  return (
+    <button
+      type="button"
+      id={`search-option-${index}`}
+      role="option"
+      aria-selected={selected}
+      data-index={index}
+      onClick={() => onSelect(item.url)}
+      onMouseEnter={() => onHover(index)}
+      className={cn(
+        "group flex w-full cursor-pointer items-center gap-2.5 rounded-lg py-2 pr-3 text-left transition-colors",
+        selected ? "bg-accent" : "hover:bg-accent/50",
+        nested ? "pl-9" : "pl-3",
+      )}
+    >
+      <div className="text-muted-foreground shrink-0">
+        <ResultIcon type={item.type} />
+      </div>
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="text-foreground truncate text-sm">
+          <HighlightedText
+            segments={highlightMatches(item.content, tokens)}
+            fallback={item.content}
+          />
+        </span>
+        {showBreadcrumb && (
+          <span className="text-muted-foreground truncate text-xs">
+            {formatBreadcrumb(item.url)}
+          </span>
+        )}
+      </div>
+      <CornerDownLeft
+        className={cn(
+          "text-muted-foreground size-3.5 shrink-0 transition-opacity",
+          selected ? "opacity-60" : "opacity-0",
+        )}
+      />
+    </button>
+  );
 }
 
-interface GroupedResult {
-  pageUrl: string;
-  items: SearchResult[];
+function SectionLabel({ children }: { children: string }) {
+  return (
+    <p className="text-muted-foreground px-2.5 pt-2 pb-1 text-xs font-medium">
+      {children}
+    </p>
+  );
 }
 
 export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   const router = useRouter();
-  const { setSearch, query } = useDocsSearch({ type: "fetch" });
+  const pathname = usePathname();
   const [inputValue, setInputValue] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
+  const [index, setIndex] = useState<SearchRecord[] | null>(null);
+  const [indexError, setIndexError] = useState(false);
+  const [pageEntries, setPageEntries] = useState<Omit<SearchHit, "score">[]>(
+    [],
+  );
   const listRef = useRef<HTMLDivElement>(null);
   const askAIFn = useGlobalAskAI();
 
-  const latestResults = useMemo((): SearchResult[] => {
-    if (!query.data || query.data === "empty") return [];
-    return query.data as SearchResult[];
-  }, [query.data]);
-
-  const staleResultsRef = useRef<SearchResult[]>([]);
   useEffect(() => {
-    if (latestResults.length > 0) {
-      staleResultsRef.current = latestResults;
-    }
-  }, [latestResults]);
-  const results =
-    latestResults.length > 0 ? latestResults : staleResultsRef.current;
+    void loadSearchIndex()
+      .then((records) => {
+        setIndex(records);
+        setIndexError(false);
+      })
+      .catch(() => {
+        setIndexError(true);
+      });
+  }, []);
 
-  const groupedResults = useMemo((): GroupedResult[] => {
-    const groups: GroupedResult[] = [];
-    let currentGroup: GroupedResult | null = null;
+  useEffect(() => {
+    if (!open) return;
+    setInputValue("");
+    setSelectedIndex(0);
+    setPageEntries(collectPageEntries(pathname));
+  }, [open, pathname]);
 
-    for (const item of results) {
-      const pageUrl = getPageUrl(item.url);
+  const query = inputValue.trim();
+  const tokens = useMemo(() => tokenize(query), [query]);
+  const hasQuery = tokens.length > 0;
 
-      if (!currentGroup || currentGroup.pageUrl !== pageUrl) {
-        currentGroup = { pageUrl, items: [item] };
-        groups.push(currentGroup);
-      } else {
-        currentGroup.items.push(item);
-      }
-    }
+  const onPageHits = useMemo(() => {
+    if (!hasQuery) return [];
+    return searchEntries(
+      [...pageEntries, ...collectPageTextMatches(pathname, query)],
+      query,
+    );
+  }, [hasQuery, pageEntries, pathname, query]);
 
-    return groups;
-  }, [results]);
+  const otherGroups = useMemo(() => {
+    if (!index || !hasQuery) return [];
+    return searchOtherPages(index, query, pathname);
+  }, [hasQuery, index, pathname, query]);
 
-  const showAskAI = !!askAIFn && inputValue.length > 0;
+  const results = useMemo(
+    () => [...onPageHits, ...otherGroups.flatMap((group) => group.items)],
+    [onPageHits, otherGroups],
+  );
+
+  const showAskAI = !!askAIFn && hasQuery;
+  const indexLoading = index === null && !indexError;
+  const waitingForIndex = hasQuery && indexLoading && onPageHits.length === 0;
 
   const lastTrackedQuery = useRef("");
   const searchTrackingTimeout = useRef<ReturnType<typeof setTimeout> | null>(
@@ -210,30 +239,8 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
   }, [results.length]);
 
   useEffect(() => {
-    if (open) {
-      setInputValue("");
-      setSelectedIndex(0);
-      lastTrackedQuery.current = "";
-      staleResultsRef.current = [];
-    }
-  }, [open]);
-
-  useEffect(() => {
-    if (inputValue.length === 0) {
-      setSearch("");
-      staleResultsRef.current = [];
-      return;
-    }
-    const timer = setTimeout(() => {
-      setSearch(inputValue);
-    }, 150);
-    return () => clearTimeout(timer);
-  }, [inputValue, setSearch]);
-
-  useEffect(() => {
-    void latestResults;
     setSelectedIndex(0);
-  }, [latestResults]);
+  }, [query, onPageHits, otherGroups]);
 
   useEffect(() => {
     if (listRef.current && results.length > 0) {
@@ -255,20 +262,31 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
     (url: string) => {
       if (searchTrackingTimeout.current) {
         clearTimeout(searchTrackingTimeout.current);
-        if (inputValue.length >= 2 && inputValue !== lastTrackedQuery.current) {
-          lastTrackedQuery.current = inputValue;
+        if (query.length >= 2 && query !== lastTrackedQuery.current) {
+          lastTrackedQuery.current = query;
           const resultCount = resultsLengthRef.current;
-          if (resultCount === 0) analytics.search.noResults(inputValue);
-          else analytics.search.querySubmitted(inputValue, resultCount);
+          if (resultCount === 0) analytics.search.noResults(query);
+          else analytics.search.querySubmitted(query, resultCount);
         }
       }
 
-      const position = results.findIndex((r) => r.url === url);
-      analytics.search.resultClicked(inputValue, url, position);
+      const position = results.findIndex((result) => result.url === url);
+      analytics.search.resultClicked(query, url, position);
       onOpenChange(false);
+
+      const hash = url.includes("#") ? (url.split("#")[1] ?? "") : "";
+      if (hash && isCurrentPage(url, pathname)) {
+        const target = document.getElementById(hash);
+        if (target) {
+          target.scrollIntoView({ block: "start" });
+          window.history.replaceState(null, "", url);
+          return;
+        }
+      }
+
       router.push(url);
     },
-    [onOpenChange, router, results, inputValue],
+    [onOpenChange, pathname, query, results, router],
   );
 
   useEffect(() => {
@@ -276,19 +294,15 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
       clearTimeout(searchTrackingTimeout.current);
     }
 
-    if (
-      !inputValue ||
-      inputValue.length < 2 ||
-      query.isLoading ||
-      inputValue === lastTrackedQuery.current
-    )
+    if (!query || query.length < 2 || query === lastTrackedQuery.current) {
       return;
+    }
 
     searchTrackingTimeout.current = setTimeout(() => {
-      lastTrackedQuery.current = inputValue;
+      lastTrackedQuery.current = query;
       const resultCount = resultsLengthRef.current;
-      if (resultCount === 0) analytics.search.noResults(inputValue);
-      else analytics.search.querySubmitted(inputValue, resultCount);
+      if (resultCount === 0) analytics.search.noResults(query);
+      else analytics.search.querySubmitted(query, resultCount);
     }, 500);
 
     return () => {
@@ -296,53 +310,62 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
         clearTimeout(searchTrackingTimeout.current);
       }
     };
-  }, [inputValue, query.isLoading]);
+  }, [query]);
 
   const handleKeyDown = useCallback(
-    (e: React.KeyboardEvent) => {
-      if (e.key === "ArrowDown") {
-        e.preventDefault();
-        setSelectedIndex((i) => Math.min(i + 1, results.length - 1));
-      } else if (e.key === "ArrowUp") {
-        e.preventDefault();
-        setSelectedIndex((i) => Math.max(i - 1, 0));
-      } else if (e.key === "Enter" && results[selectedIndex]) {
-        e.preventDefault();
+    (event: KeyboardEvent) => {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setSelectedIndex((index) => Math.min(index + 1, results.length - 1));
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setSelectedIndex((index) => Math.max(index - 1, 0));
+      } else if (event.key === "Enter" && results[selectedIndex]) {
+        event.preventDefault();
         handleSelect(results[selectedIndex].url);
       }
     },
-    [results, selectedIndex, handleSelect],
+    [handleSelect, results, selectedIndex],
   );
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
-        className="gap-0 overflow-hidden rounded-3xl border-none p-2 sm:max-w-xl"
+        className="gap-0 overflow-hidden rounded-xl p-0 sm:max-w-xl"
         showCloseButton={false}
       >
         <DialogHeader className="sr-only">
           <DialogTitle>Search</DialogTitle>
-          <DialogDescription>Search documentation</DialogDescription>
+          <DialogDescription>Search this page and the docs</DialogDescription>
         </DialogHeader>
-        <div className="overflow-hidden rounded-2xl border">
-          <div className="border-border/50 flex items-center gap-2.5 border-b px-3">
+        <div className="overflow-hidden">
+          <div className="border-border/40 flex items-center gap-2.5 border-b px-4">
             <Search className="text-muted-foreground size-4" />
             <input
               type="text"
-              placeholder="Search documentation..."
+              role="combobox"
+              aria-expanded={results.length > 0}
+              aria-controls="search-results"
+              aria-activedescendant={
+                results[selectedIndex]
+                  ? `search-option-${selectedIndex}`
+                  : undefined
+              }
+              aria-autocomplete="list"
+              placeholder="Search this page or docs..."
               value={inputValue}
-              onChange={(e) => {
-                setInputValue(e.target.value);
+              onChange={(event) => {
+                setInputValue(event.target.value);
               }}
               onKeyDown={handleKeyDown}
-              className="placeholder:text-muted-foreground/60 h-11 flex-1 bg-transparent text-sm outline-none"
+              className="placeholder:text-muted-foreground/60 h-12 flex-1 bg-transparent text-sm outline-none"
               autoFocus
             />
             {showAskAI && (
               <button
                 type="button"
                 onClick={handleAskAI}
-                className="hover:bg-accent hidden shrink-0 items-center gap-1.5 rounded-lg px-2 py-1 text-pink-500 transition-colors sm:flex"
+                className="hover:bg-accent hidden shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1 text-pink-500 transition-colors sm:flex"
               >
                 <Sparkles className="size-3.5" />
                 <span className="text-xs font-medium">Ask AI</span>
@@ -352,9 +375,12 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
 
           <div
             ref={listRef}
+            id="search-results"
+            role="listbox"
+            aria-label="Search results"
             className="h-[min(400px,90vh)] overflow-x-hidden overflow-y-auto overscroll-contain"
           >
-            {inputValue.length === 0 ? (
+            {!hasQuery ? (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-4">
                 <div className="text-muted-foreground/60 flex items-center gap-6">
                   <span className="flex items-center gap-1.5 text-sm">
@@ -368,7 +394,7 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                   </span>
                 </div>
               </div>
-            ) : query.isLoading && results.length === 0 ? (
+            ) : waitingForIndex ? (
               <div className="flex h-full items-center justify-center">
                 <div className="text-muted-foreground/60 flex items-center gap-2">
                   <div className="size-1 animate-pulse rounded-full bg-current" />
@@ -379,63 +405,60 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
             ) : results.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-1 px-4">
                 <p className="text-muted-foreground/60 text-sm">
-                  No results for &ldquo;{inputValue}&rdquo;
+                  {indexError
+                    ? "Unable to search other pages"
+                    : `No results for "${inputValue}"`}
                 </p>
               </div>
             ) : (
-              <div className="p-2">
-                {(() => {
-                  let flatIndex = 0;
-                  return groupedResults.map((group) => (
-                    <div key={group.pageUrl} className="mb-1 last:mb-0">
-                      {group.items.map((item, itemIndex) => {
-                        const currentIndex = flatIndex++;
-                        const isSelected = currentIndex === selectedIndex;
-                        const title = getResultTitle(item);
-                        const isNested = itemIndex > 0 || item.type !== "page";
-                        const showBreadcrumb = itemIndex === 0;
-
-                        return (
-                          <button
-                            type="button"
-                            key={item.id}
-                            data-index={currentIndex}
-                            onClick={() => handleSelect(item.url)}
-                            onMouseEnter={() => setSelectedIndex(currentIndex)}
-                            className={cn(
-                              "group flex w-full cursor-pointer items-center gap-3 rounded-lg py-2 pr-3 text-left transition-colors",
-                              isSelected ? "bg-accent" : "hover:bg-accent/50",
-                              isNested ? "pl-9" : "pl-3",
-                            )}
-                          >
-                            <div className="text-muted-foreground shrink-0">
-                              <ResultIcon type={item.type} />
-                            </div>
-                            <div className="flex min-w-0 flex-1 flex-col">
-                              <span className="text-foreground truncate text-sm font-medium">
-                                <HighlightedText
-                                  segments={getResultSegments(item)}
-                                  fallback={title}
+              <div className="p-1.5">
+                {onPageHits.length > 0 && (
+                  <div>
+                    <SectionLabel>On this page</SectionLabel>
+                    {onPageHits.map((item, itemIndex) => (
+                      <ResultButton
+                        key={item.id}
+                        item={item}
+                        index={itemIndex}
+                        selected={itemIndex === selectedIndex}
+                        nested={false}
+                        showBreadcrumb={false}
+                        tokens={tokens}
+                        onSelect={handleSelect}
+                        onHover={setSelectedIndex}
+                      />
+                    ))}
+                  </div>
+                )}
+                {otherGroups.length > 0 &&
+                  (() => {
+                    let flatIndex = onPageHits.length;
+                    return (
+                      <div>
+                        <SectionLabel>Other pages</SectionLabel>
+                        {otherGroups.map((group) => (
+                          <div key={group.pageUrl} className="mb-1 last:mb-0">
+                            {group.items.map((item, itemIndex) => {
+                              const currentIndex = flatIndex++;
+                              return (
+                                <ResultButton
+                                  key={item.id}
+                                  item={item}
+                                  index={currentIndex}
+                                  selected={currentIndex === selectedIndex}
+                                  nested={itemIndex > 0}
+                                  showBreadcrumb={itemIndex === 0}
+                                  tokens={tokens}
+                                  onSelect={handleSelect}
+                                  onHover={setSelectedIndex}
                                 />
-                              </span>
-                              {showBreadcrumb && (
-                                <span className="text-muted-foreground truncate text-xs">
-                                  {formatBreadcrumb(item.url)}
-                                </span>
-                              )}
-                            </div>
-                            <CornerDownLeft
-                              className={cn(
-                                "text-muted-foreground size-3.5 shrink-0 transition-opacity",
-                                isSelected ? "opacity-60" : "opacity-0",
-                              )}
-                            />
-                          </button>
-                        );
-                      })}
-                    </div>
-                  ));
-                })()}
+                              );
+                            })}
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
               </div>
             )}
           </div>

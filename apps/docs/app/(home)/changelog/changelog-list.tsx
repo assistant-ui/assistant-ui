@@ -298,16 +298,18 @@ function ReleaseEntry({ release }: { release: PackageRelease }) {
 
 function DateSection({ group }: { group: ReleaseGroup }) {
   return (
-    <section>
-      <h2 className="text-lg font-medium tracking-tight">
-        {formatDate(group.date)}
-      </h2>
-      <p className="text-muted-foreground mt-1 text-sm">
-        {group.releases.length}{" "}
-        {group.releases.length === 1 ? "package" : "packages"}
-      </p>
+    <section className="md:grid md:grid-cols-[180px_minmax(0,1fr)] md:gap-12">
+      <div className="mb-4 md:sticky md:top-20 md:mb-0 md:self-start md:pt-1">
+        <h2 className="text-lg font-medium tracking-tight">
+          {formatDate(group.date)}
+        </h2>
+        <p className="text-muted-foreground mt-1 text-sm">
+          {group.releases.length}{" "}
+          {group.releases.length === 1 ? "package" : "packages"}
+        </p>
+      </div>
 
-      <div className="mt-4 space-y-1">
+      <div className="space-y-1">
         {group.releases.map((r) => (
           <ReleaseEntry key={`${r.pkg}@${r.version}`} release={r} />
         ))}

@@ -6,6 +6,9 @@ import {
   ELEMENT_COUNT,
   ELEMENT_SECTIONS,
 } from "@/components/elements/registry";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typePage } from "@/components/shared/type";
+import { cn } from "@/lib/utils";
 
 const sectionId = (label: string) => label.toLowerCase().replace(/\s+/g, "-");
 
@@ -22,7 +25,7 @@ export default function ElementsPage() {
   let runningIndex = 0;
 
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 pt-24 pb-32 md:pt-32">
+    <PageFrame pad="sub">
       <SectionRail
         sections={ELEMENT_SECTIONS.map((section) => ({
           id: sectionId(section.label),
@@ -33,7 +36,7 @@ export default function ElementsPage() {
         <p className="text-foreground/35 font-mono text-[11px] tracking-tight">
           Elements
         </p>
-        <h1 className="mt-4 text-3xl font-medium tracking-tight text-balance md:text-4xl">
+        <h1 className={cn("mt-4", typePage)}>
           Every state an assistant can be in.
         </h1>
         <p className="text-foreground/55 mt-4 max-w-md text-[15px] leading-relaxed">
@@ -79,6 +82,6 @@ export default function ElementsPage() {
           </section>
         ))}
       </div>
-    </main>
+    </PageFrame>
   );
 }

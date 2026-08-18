@@ -13,7 +13,7 @@ export function ElementsSidebar() {
 
   return (
     <aside className="hidden lg:block">
-      <nav className="sticky top-36 -ms-2 max-h-[calc(100vh-10rem)] overflow-y-auto overscroll-contain ps-2 pe-3 pb-8">
+      <nav className="sticky top-32 -ms-2 max-h-[calc(100vh-10rem)] overflow-y-auto overscroll-contain ps-2 pe-3 pb-8">
         <Link
           href="/elements"
           className="hover:text-foreground/70 flex items-baseline justify-between text-[13px] font-medium transition-colors"

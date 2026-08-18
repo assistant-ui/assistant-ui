@@ -9,6 +9,8 @@ import { Select } from "@/components/assistant-ui/select";
 import { SUB_PROJECTS } from "@/lib/constants";
 import { ThemeToggle } from "./theme-toggle";
 import { HeaderBrandLink } from "./header-brand-link";
+import { headerBarClassName } from "./header-chrome";
+import { useScrolled } from "@/hooks/use-scrolled";
 
 interface BreadcrumbItem {
   label: string;
@@ -35,6 +37,7 @@ export function SubProjectLayout({
 }: SubProjectLayoutProps): React.ReactElement {
   const pathname = usePathname();
   const router = useRouter();
+  const scrolled = useScrolled();
 
   const breadcrumbs = useMemo(() => {
     if (breadcrumbsOverride) {
@@ -66,19 +69,17 @@ export function SubProjectLayout({
       <header
         className={cn("z-50 w-full shrink-0", !fullHeight && "sticky top-0")}
       >
-        {!fullHeight && (
-          <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl" />
-        )}
         <div
           className={cn(
             "relative flex h-12 w-full items-center justify-between px-4",
-            !fullHeight && "mx-auto max-w-7xl",
+            !fullHeight && headerBarClassName(scrolled, "mx-auto max-w-7xl"),
           )}
         >
           <div className="flex min-w-0 items-center">
             <HeaderBrandLink labelClassName="hidden sm:inline" />
             <span className="text-muted-foreground/40 ml-3">/</span>
             <Select
+              variant="ghost"
               value={name}
               onValueChange={(value) => router.push(`/${value}`)}
               options={SUB_PROJECTS.toSorted((a, b) =>

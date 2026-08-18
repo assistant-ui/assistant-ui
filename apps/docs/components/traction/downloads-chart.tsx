@@ -54,7 +54,7 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
 
   if (timeline.data.length < 2 || timeline.series.length === 0) {
     return (
-      <div className="border-border text-muted-foreground flex h-[260px] items-center justify-center rounded-lg border border-dashed text-sm md:h-[360px]">
+      <div className="text-muted-foreground flex h-[260px] items-center text-sm md:h-[360px]">
         Download history is currently unavailable.
       </div>
     );
@@ -244,7 +244,7 @@ export function DownloadsChart({ timeline }: { timeline: TimelineSeries }) {
                     type="button"
                     onClick={() => toggle(key)}
                     className={cn(
-                      "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex cursor-pointer items-center gap-1.5 rounded-sm text-xs transition-opacity outline-none focus-visible:ring-2",
+                      "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex cursor-pointer items-center gap-1.5 rounded-sm text-xs transition-opacity outline-none focus-visible:ring-1",
                       isHidden && "opacity-40",
                     )}
                   >

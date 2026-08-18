@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
 import { fetchReleases } from "@/lib/releases";
+import { PageFrame } from "@/components/shared/page-frame";
 import { PackageFilter } from "./package-filter";
 import { ChangelogList } from "./changelog-list";
 
@@ -35,21 +36,22 @@ export default async function ChangelogPage({
     : allGroups;
 
   return (
-    <main className="mx-auto w-full max-w-5xl px-4 py-16 md:py-24">
-      <header className="mb-12">
-        <p className="text-muted-foreground mb-3 text-sm">Changelog</p>
-        <h1 className="text-2xl font-medium tracking-tight">Release history</h1>
-        <p className="text-muted-foreground mt-2">
-          All releases published from the assistant-ui monorepo, grouped by
-          date.
-        </p>
-      </header>
-
-      {allPackages.length > 0 && (
-        <div className="mb-8">
+    <PageFrame pad="sub">
+      <div className="mb-12 flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
+        <header className="max-w-xl">
+          <p className="text-muted-foreground mb-3 text-sm">Changelog</p>
+          <h1 className="text-2xl font-medium tracking-tight">
+            Release history
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            All releases published from the assistant-ui monorepo, grouped by
+            date.
+          </p>
+        </header>
+        {allPackages.length > 0 && (
           <PackageFilter packages={allPackages} value={pkg} />
-        </div>
-      )}
+        )}
+      </div>
 
       {groups.length > 0 ? (
         <ChangelogList groups={groups} />
@@ -60,6 +62,6 @@ export default async function ChangelogPage({
             : "No releases found for this package."}
         </p>
       )}
-    </main>
+    </PageFrame>
   );
 }

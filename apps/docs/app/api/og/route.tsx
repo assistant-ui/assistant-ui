@@ -1,7 +1,6 @@
 import { ImageResponse } from "next/og";
 import type { ImageResponseOptions, NextRequest } from "next/server";
-import { readFile } from "node:fs/promises";
-import { join } from "node:path";
+import { loadOgFonts, OG_FONT_MONO, OG_FONT_SANS } from "@/lib/og-fonts";
 
 export const runtime = "nodejs";
 
@@ -10,25 +9,10 @@ const size = {
   height: 630,
 };
 
-let fontsCache: {
-  geistSemiBold: Buffer;
-  geistRegular: Buffer;
-  geistMedium: Buffer;
-  geistMono: Buffer;
-} | null = null;
+let fontsCache: Awaited<ReturnType<typeof loadOgFonts>> | null = null;
 
 async function loadFonts() {
-  if (fontsCache) return fontsCache;
-
-  const [geistSemiBold, geistRegular, geistMedium, geistMono] =
-    await Promise.all([
-      readFile(join(process.cwd(), "assets/Geist-SemiBold.ttf")),
-      readFile(join(process.cwd(), "assets/Geist-Regular.ttf")),
-      readFile(join(process.cwd(), "assets/Geist-Medium.ttf")),
-      readFile(join(process.cwd(), "assets/GeistMono-Regular.ttf")),
-    ]);
-
-  fontsCache = { geistSemiBold, geistRegular, geistMedium, geistMono };
+  fontsCache ??= await loadOgFonts();
   return fontsCache;
 }
 
@@ -51,8 +35,8 @@ export async function GET(request: NextRequest) {
     console.error("Failed to load fonts for OG image:", error);
   }
 
-  const fontSans = fonts ? "Geist" : "sans-serif";
-  const fontMono = fonts ? "GeistMono" : "monospace";
+  const fontSans = fonts ? OG_FONT_SANS : "sans-serif";
+  const fontMono = fonts ? OG_FONT_MONO : "monospace";
 
   const homeContent = (
     <div
@@ -247,32 +231,7 @@ export async function GET(request: NextRequest) {
     };
 
     if (fonts) {
-      imageOptions.fonts = [
-        {
-          name: "Geist",
-          data: fonts.geistSemiBold,
-          style: "normal",
-          weight: 600,
-        },
-        {
-          name: "Geist",
-          data: fonts.geistRegular,
-          style: "normal",
-          weight: 400,
-        },
-        {
-          name: "Geist",
-          data: fonts.geistMedium,
-          style: "normal",
-          weight: 500,
-        },
-        {
-          name: "GeistMono",
-          data: fonts.geistMono,
-          style: "normal",
-          weight: 400,
-        },
-      ];
+      imageOptions.fonts = fonts;
     }
 
     return new ImageResponse(

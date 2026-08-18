@@ -114,6 +114,27 @@ const config: NextConfig = {
       destination: "/elements/generative-:slug",
       permanent: true,
     },
+    {
+      source:
+        "/docs/ui/:slug(accordion|badge|diff-viewer|dot-matrix|number-roll|select|tabs)",
+      destination: "/standalone/:slug",
+      permanent: true,
+    },
+    {
+      source: "/docs/standalone",
+      destination: "/standalone",
+      permanent: true,
+    },
+    {
+      source: "/docs/standalone/:slug",
+      destination: "/standalone/:slug",
+      permanent: true,
+    },
+    {
+      source: "/docs/integrations/frameworks/cloudflare-agents/overview",
+      destination: "/docs/integrations/frameworks/cloudflare-agents",
+      permanent: true,
+    },
   ],
   rewrites: async () => ({
     beforeFiles: [
@@ -168,6 +189,22 @@ const config: NextConfig = {
         destination: "/llms.mdx/examples/:path*",
       },
       {
+        source: "/standalone.md",
+        destination: "/llms.mdx/standalone",
+      },
+      {
+        source: "/standalone.mdx",
+        destination: "/llms.mdx/standalone",
+      },
+      {
+        source: "/standalone/:path*.md",
+        destination: "/llms.mdx/standalone/:path*",
+      },
+      {
+        source: "/standalone/:path*.mdx",
+        destination: "/llms.mdx/standalone/:path*",
+      },
+      {
         source: "/tap/docs.md",
         destination: "/tap-llms.mdx",
       },
@@ -214,6 +251,13 @@ const config: NextConfig = {
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
         destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/standalone/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/llms.mdx/standalone/:path*",
       },
       {
         source: "/tap/docs/:path*",
