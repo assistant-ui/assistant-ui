@@ -25,6 +25,20 @@ export const MESSAGE_SPACING_CLASS: Record<MessageSpacing, string> = {
   spacious: "py-5",
 };
 
+export const MESSAGE_GAP_CLASS: Record<MessageSpacing, string> = {
+  compact: "gap-y-4",
+  comfortable: "gap-y-6",
+  spacious: "gap-y-8",
+};
+
+export const COMPOSER_RADIUS: Record<BorderRadius, string> = {
+  none: "0",
+  sm: "0.5rem",
+  md: "0.75rem",
+  lg: "1rem",
+  full: "1.5rem",
+};
+
 /**
  * Determines if a hex color is light (should use dark text) or dark (should use light text)
  */

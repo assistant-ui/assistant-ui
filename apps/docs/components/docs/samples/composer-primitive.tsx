@@ -9,7 +9,7 @@ export function ComposerPrimitiveSample() {
     <SampleRuntimeProvider messages={[]}>
       <div className="not-prose border-border/50 bg-muted/40 flex items-end rounded-xl border p-6">
         <div className="mx-auto w-full max-w-lg">
-          <ComposerPrimitive.Root className="border-border bg-muted dark:border-muted-foreground/15 relative flex w-full flex-col rounded-3xl border shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)]">
+          <ComposerPrimitive.Root className="border-border bg-muted dark:border-muted-foreground/15 relative flex w-full flex-col rounded-3xl border">
             <ComposerPrimitive.Input
               placeholder="Ask anything..."
               className="field-sizing-content min-h-10 w-full resize-none bg-transparent px-5 pt-4 pb-3 text-sm leading-relaxed focus:outline-none"

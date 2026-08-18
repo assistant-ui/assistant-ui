@@ -3,9 +3,9 @@ import type { ReactNode } from "react";
 import { SubProjectLayout } from "@/components/shared/sub-project-layout";
 import { createOgMetadata } from "@/lib/og";
 
-const title = "Safe Content Frame";
+const title = "safe-content-frame";
 const description =
-  "Render untrusted HTML content securely in sandboxed iframes with unique origins per render.";
+  "Untrusted HTML in a sandboxed iframe. Unique origin per render. Pure JS.";
 
 export const metadata: Metadata = {
   title,

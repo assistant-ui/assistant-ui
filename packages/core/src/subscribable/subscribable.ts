@@ -32,11 +32,14 @@ export type EventSubscribable<TEvent extends string> = {
   >;
 };
 
-export const notifySubscribers = (subscribers: Iterable<() => void>): void => {
+export const notifySubscribers = <TArgs extends unknown[]>(
+  subscribers: Iterable<(...args: TArgs) => void>,
+  ...args: TArgs
+): void => {
   const errors: unknown[] = [];
   for (const callback of subscribers) {
     try {
-      callback();
+      callback(...args);
     } catch (error) {
       errors.push(error);
     }
@@ -113,7 +116,7 @@ export abstract class BaseSubject {
       return;
     }
 
-    for (const callback of this._subscriptions) callback(payload);
+    notifySubscribers(this._subscriptions, payload);
   }
 
   private _updateConnection() {
@@ -177,7 +180,9 @@ export class ShallowMemoizeSubject<TState extends object, TPath>
       }
     };
 
-    return this.binding.subscribe(callback);
+    const unsubscribe = this.binding.subscribe(callback);
+    this._syncState();
+    return unsubscribe;
   }
 }
 
@@ -221,7 +226,9 @@ export class LazyMemoizeSubject<TState extends object, TPath>
       this.notifySubscribers();
     };
 
-    return this.binding.subscribe(callback);
+    const unsubscribe = this.binding.subscribe(callback);
+    this._previousStateDirty = true;
+    return unsubscribe;
   }
 }
 

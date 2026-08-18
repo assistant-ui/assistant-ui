@@ -159,7 +159,7 @@ export function SelectVariantsSample() {
   return (
     <SampleFrame className="flex h-auto items-center justify-center gap-4 p-6">
       <div className="flex flex-col gap-2">
-        <span className="text-muted-foreground text-xs">Outline (default)</span>
+        <span className="text-muted-foreground text-xs">Quiet fill</span>
         <SelectRoot
           value={outlineValue}
           onValueChange={(value) => value !== null && setOutlineValue(value)}

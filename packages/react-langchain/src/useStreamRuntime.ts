@@ -1,7 +1,7 @@
 /// <reference types="@assistant-ui/core/store" />
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppendMessage, ToolExecutionStatus } from "@assistant-ui/core";
 import {
   generateId,
@@ -42,6 +42,10 @@ export const runConfigToSubmitOptions = (
   runConfig?.custom
     ? { config: { configurable: runConfig.custom } }
     : undefined;
+
+type NormalizedRunConfigOptions = NonNullable<
+  ReturnType<typeof runConfigToSubmitOptions>
+>;
 
 /**
  * Group the graph's accumulated `UIMessage`s by the assistant message they
@@ -90,6 +94,26 @@ const toStagedHumanMessage = (
   _getType: () => "human",
   content: getMessageContent(msg),
 });
+
+const humanContentText = (content: LangChainBaseMessage["content"]) => {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .filter(
+      (part): part is { type: "text"; text: string } =>
+        typeof part === "object" &&
+        part !== null &&
+        part.type === "text" &&
+        typeof part.text === "string",
+    )
+    .map((part) => part.text)
+    .join("");
+};
+
+const hasSameMessageContent = (
+  a: LangChainBaseMessage,
+  b: LangChainBaseMessage,
+) => humanContentText(a.content) === humanContentText(b.content);
 
 const truncateLangChainBaseMessages = (
   threadMessages: readonly ThreadMessage[],
@@ -185,6 +209,67 @@ const useStreamThreadRuntime = (
   const streamRef = useRef(stream);
   streamRef.current = stream;
 
+  const activeRunConfigRef = useRef<
+    NormalizedRunConfigOptions["config"] | undefined
+  >(undefined);
+  const runConfigByMessageIdRef = useRef(
+    new Map<string, NormalizedRunConfigOptions["config"] | undefined>(),
+  );
+  const activeThreadIdRef = useRef(externalId);
+  const setActiveRunConfig = useCallback(
+    (runConfig: AppendMessage["runConfig"]) => {
+      activeRunConfigRef.current = runConfigToSubmitOptions(runConfig)?.config;
+    },
+    [],
+  );
+  const withActiveRunConfig = useCallback(
+    (submitOptions?: Record<string, unknown>) => {
+      if (submitOptions && "config" in submitOptions) return submitOptions;
+      if (activeRunConfigRef.current === undefined) return submitOptions;
+      return { ...submitOptions, config: activeRunConfigRef.current };
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (
+      activeThreadIdRef.current !== null &&
+      activeThreadIdRef.current !== externalId
+    ) {
+      activeRunConfigRef.current = undefined;
+      runConfigByMessageIdRef.current.clear();
+    }
+    activeThreadIdRef.current = externalId;
+  }, [externalId]);
+
+  useEffect(() => {
+    const messages = stream.messages as readonly LangChainBaseMessage[];
+    const owned = runConfigByMessageIdRef.current;
+    for (let i = messages.length - 1; i >= 0; i--) {
+      const message = messages.at(i);
+      if (
+        !message?.id ||
+        getMessageType(message) !== "ai" ||
+        !message.tool_calls?.length
+      ) {
+        continue;
+      }
+      if (owned.has(message.id)) return;
+      break;
+    }
+    for (const message of messages) {
+      if (
+        !message.id ||
+        getMessageType(message) !== "ai" ||
+        !message.tool_calls?.length ||
+        owned.has(message.id)
+      ) {
+        continue;
+      }
+      owned.set(message.id, activeRunConfigRef.current);
+    }
+  }, [stream.messages]);
+
   const visibleMessagesRef = useRef(visibleMessages);
   visibleMessagesRef.current = visibleMessages;
 
@@ -197,11 +282,12 @@ const useStreamThreadRuntime = (
       {
         message: LangChainBaseMessage & { id: string };
         runConfig: AppendMessage["runConfig"];
+        reconcileOnEcho: boolean;
+        baseMessageCount: number;
       }
     >(),
   );
   const stagedBaseMessagesRef = useRef<LangChainBaseMessage[] | null>(null);
-
   useEffect(() => {
     if (stagedMessagesRef.current.size === 0) return;
 
@@ -209,18 +295,32 @@ const useStreamThreadRuntime = (
     const baseMessages =
       stagedBaseMessagesRef.current ??
       (stream.messages as LangChainBaseMessage[]);
-    const baseMessageIds = new Set(
-      baseMessages.flatMap((message) => (message.id ? [message.id] : [])),
-    );
     const remainingStagedMessages: LangChainBaseMessage[] = [];
-    const seenStagedIds = new Set<string>();
-    for (const message of visibleMessagesRef.current) {
-      if (!message.id || seenStagedIds.has(message.id)) continue;
-      if (baseMessageIds.has(message.id)) continue;
-      const staged = stagedMessagesRef.current.get(message.id);
-      if (!staged) continue;
-      remainingStagedMessages.push(staged.message);
-      seenStagedIds.add(message.id);
+    const matchedBaseMessageIndexes = new Set<number>();
+    const visibleStagedIds = new Set(
+      visibleMessagesRef.current.flatMap((m) => (m.id ? [m.id] : [])),
+    );
+    for (const [id, staged] of stagedMessagesRef.current) {
+      if (!visibleStagedIds.has(id)) continue;
+      const echoed = baseMessages.some((message, index) => {
+        if (matchedBaseMessageIndexes.has(index)) return false;
+        if (message.id === id) {
+          matchedBaseMessageIndexes.add(index);
+          return true;
+        }
+        if (
+          !staged.reconcileOnEcho ||
+          index < staged.baseMessageCount ||
+          getMessageType(message) !== "human" ||
+          !hasSameMessageContent(message, staged.message)
+        ) {
+          return false;
+        }
+        matchedBaseMessageIndexes.add(index);
+        return true;
+      });
+      if (echoed) stagedMessagesRef.current.delete(id);
+      else remainingStagedMessages.push(staged.message);
     }
 
     if (remainingStagedMessages.length === 0) {
@@ -252,15 +352,32 @@ const useStreamThreadRuntime = (
     };
   };
 
-  const stageUserMessage = (msg: AppendMessage) => {
+  const stageUserMessage = (msg: AppendMessage, reconcileOnEcho = false) => {
     const stagedMessage = toStagedHumanMessage(msg);
     stagedMessagesRef.current.set(stagedMessage.id, {
       message: stagedMessage,
       runConfig: msg.runConfig,
+      reconcileOnEcho,
+      baseMessageCount: streamRef.current.messages.length,
     });
     const nextMessages = [...visibleMessagesRef.current, stagedMessage];
     visibleMessagesRef.current = nextMessages;
     setStagedMessages(nextMessages);
+    return stagedMessage;
+  };
+
+  const removeStagedMessage = (id: string) => {
+    if (!stagedMessagesRef.current.delete(id)) return;
+    const nextMessages = visibleMessagesRef.current.filter(
+      (message) => message.id !== id,
+    );
+    visibleMessagesRef.current = nextMessages;
+    if (stagedMessagesRef.current.size === 0) {
+      stagedBaseMessagesRef.current = null;
+      setStagedMessages(null);
+    } else {
+      setStagedMessages(nextMessages);
+    }
   };
 
   const extras = useMemo(
@@ -273,13 +390,21 @@ const useStreamThreadRuntime = (
         subgraphs: stream.subgraphs,
         stream,
         error: stream.error,
-        submit: stream.submit,
-        respond: stream.respond,
-        respondAll: stream.respondAll,
+        submit: (values, submitOptions) => {
+          const isResume = values == null || submitOptions?.command != null;
+          return stream.submit(
+            values,
+            isResume ? withActiveRunConfig(submitOptions) : submitOptions,
+          );
+        },
+        respond: (response, respondOptions) =>
+          stream.respond(response, withActiveRunConfig(respondOptions)),
+        respondAll: (responsesById, respondOptions) =>
+          stream.respondAll(responsesById, withActiveRunConfig(respondOptions)),
         values: stream.values,
         messagesKey,
       }),
-    [stream, messagesKey],
+    [stream, messagesKey, withActiveRunConfig],
   );
 
   const runtime = useExternalStoreRuntime({
@@ -297,6 +422,9 @@ const useStreamThreadRuntime = (
         return;
       }
 
+      const stagedMessage = stageUserMessage(msg, true);
+      const stagedMessageId = stagedMessage.id;
+      setActiveRunConfig(msg.runConfig);
       const content = getMessageContent(msg);
       const cancellations =
         autoCancelPendingToolCalls !== false
@@ -312,35 +440,57 @@ const useStreamThreadRuntime = (
           : [];
       // A null threadId is not a no-op for the SDK: it rebinds the controller
       // away from its self-created thread and forces a fresh one, so the
-      // override is only passed once initialization produced an identity.
-      const externalId = aui.threadListItem.getState().externalId;
-      await streamRef.current.submit(
-        { [messagesKey]: [...cancellations, { type: "human", content }] },
-        {
-          ...runConfigToSubmitOptions(msg.runConfig),
-          ...(externalId != null ? { threadId: externalId } : {}),
-        },
-      );
+      // submit waits for initialization to produce an identity; core no
+      // longer holds appends on that barrier.
+      try {
+        const { externalId } = await aui.threadListItem.initialize();
+        await streamRef.current.submit(
+          {
+            [messagesKey]: [
+              ...cancellations,
+              {
+                id: stagedMessageId,
+                type: "human",
+                content,
+              },
+            ],
+          },
+          {
+            ...runConfigToSubmitOptions(msg.runConfig),
+            ...(externalId != null ? { threadId: externalId } : {}),
+          },
+        );
+      } catch (error) {
+        removeStagedMessage(stagedMessageId);
+        throw error;
+      }
     },
     onAddToolResult: async ({
+      messageId,
       toolCallId,
       toolName,
       result,
       isError,
       artifact,
     }) => {
-      await stream.submit({
-        [messagesKey]: [
-          {
-            type: "tool",
-            name: toolName,
-            tool_call_id: toolCallId,
-            content: JSON.stringify(result),
-            ...(artifact !== undefined && { artifact }),
-            status: isError ? "error" : "success",
-          },
-        ],
-      });
+      const runConfig = runConfigByMessageIdRef.current.has(messageId)
+        ? runConfigByMessageIdRef.current.get(messageId)
+        : activeRunConfigRef.current;
+      await stream.submit(
+        {
+          [messagesKey]: [
+            {
+              type: "tool",
+              name: toolName,
+              tool_call_id: toolCallId,
+              content: JSON.stringify(result),
+              ...(artifact !== undefined && { artifact }),
+              status: isError ? "error" : "success",
+            },
+          ],
+        },
+        runConfig === undefined ? undefined : { config: runConfig },
+      );
     },
     onReload: async (parentId, config) => {
       const stagedRun = getStagedRun(parentId);
@@ -361,6 +511,8 @@ const useStreamThreadRuntime = (
         } else {
           setStagedMessages(null);
         }
+        const runConfig = config.runConfig ?? stagedRun.runConfig;
+        setActiveRunConfig(runConfig);
         await stream.submit(
           {
             [messagesKey]: stagedRun.messages.map((message) => ({
@@ -369,7 +521,7 @@ const useStreamThreadRuntime = (
               content: message.content,
             })),
           },
-          runConfigToSubmitOptions(config.runConfig ?? stagedRun.runConfig),
+          runConfigToSubmitOptions(runConfig),
         );
         return;
       }
@@ -387,6 +539,7 @@ const useStreamThreadRuntime = (
         messagesKey,
       );
       if (!checkpointId) return;
+      setActiveRunConfig(config.runConfig);
       await s.submit(null, {
         forkFrom: checkpointId,
         ...runConfigToSubmitOptions(config.runConfig),
@@ -402,6 +555,8 @@ const useStreamThreadRuntime = (
         stagedMessagesRef.current.set(stagedMessage.id, {
           message: stagedMessage,
           runConfig: message.runConfig,
+          reconcileOnEcho: false,
+          baseMessageCount: 0,
         });
         stagedBaseMessagesRef.current = truncated;
         const nextMessages = [...truncated, stagedMessage];
@@ -424,6 +579,7 @@ const useStreamThreadRuntime = (
       );
       if (!checkpointId) return;
       const content = getMessageContent(message);
+      setActiveRunConfig(message.runConfig);
       await s.submit(
         { [messagesKey]: [{ type: "human", content }] },
         {
@@ -435,6 +591,7 @@ const useStreamThreadRuntime = (
     onCancel:
       unstable_allowCancellation !== false
         ? async () => {
+            activeRunConfigRef.current = undefined;
             await stream.stop();
           }
         : undefined,

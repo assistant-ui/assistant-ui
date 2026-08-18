@@ -399,7 +399,7 @@ function DevToolsModalSampleInner() {
             onClick={() => setOpen(true)}
             aria-label="Open assistant-ui DevTools"
             title="Open assistant-ui DevTools"
-            className="bg-foreground text-background absolute right-5 bottom-5 flex size-9 items-center justify-center rounded-full shadow-lg transition-transform duration-150 ease-out hover:scale-105 active:scale-95"
+            className="bg-foreground text-background absolute right-5 bottom-5 flex size-9 items-center justify-center rounded-full transition-transform duration-150 ease-out hover:scale-105 active:scale-95"
           >
             <MessageSquareIcon className="size-4.5" strokeWidth={1.75} />
           </button>
@@ -408,7 +408,7 @@ function DevToolsModalSampleInner() {
           <div
             role="dialog"
             aria-label="assistant-ui DevTools"
-            className="border-border bg-background absolute inset-x-3 top-14 bottom-3 flex flex-col overflow-hidden rounded-xl border shadow-2xl"
+            className="border-border bg-background absolute inset-x-3 top-14 bottom-3 flex flex-col overflow-hidden rounded-xl border"
           >
             <ShadowRoot theme={theme} className="h-full">
               <DevToolsPanel

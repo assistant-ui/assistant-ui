@@ -1,7 +1,11 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
 import type { SamplingCallData } from "./instrumentMcpSampling";
 import { AssistantStream, PlainTextDecoder } from "assistant-stream";
-import { CloudResponseError } from "./cloudResponse";
+import {
+  CloudResponseError,
+  readCloudRecord,
+  readCloudString,
+} from "./cloudResponse";
 
 type AssistantCloudRunsStreamBody = {
   thread_id: string;
@@ -113,6 +117,11 @@ export class AssistantCloudRuns {
   public async report(
     body: AssistantCloudRunReport,
   ): Promise<{ run_id: string }> {
-    return this.cloud.makeRequest("/runs", { method: "POST", body });
+    const response = readCloudRecord(
+      await this.cloud.makeRequest("/runs", { method: "POST", body }),
+      "run report response",
+    );
+
+    return { run_id: readCloudString(response.run_id, "run_id") };
   }
 }

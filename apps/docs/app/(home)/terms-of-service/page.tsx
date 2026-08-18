@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import { createOgMetadata } from "@/lib/og";
+import { PageCopy, PageFrame } from "@/components/shared/page-frame";
 
 const title = "Terms of Service — assistant-ui";
 const description =
@@ -223,48 +224,52 @@ const sections = [
 
 export default function TermsOfServicePage() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
-      <header className="mb-12">
-        <p className="text-muted-foreground mb-3 text-sm">Legal</p>
-        <h1 className="text-3xl font-medium tracking-tight">
-          Terms of Service
-        </h1>
-        <p className="text-muted-foreground mt-3">Last updated July 18, 2024</p>
-        <p className="text-muted-foreground mt-6 leading-relaxed">
-          We are AgentbaseAI Inc. (&quot;Company,&quot; &quot;we,&quot;
-          &quot;us,&quot; or &quot;our&quot;), a company registered in Delaware.
-          We operate the website https://www.assistant-ui.com, as well as any
-          other related products and services that refer or link to these legal
-          terms.
-        </p>
-        <p className="text-muted-foreground mt-4 leading-relaxed">
-          These Legal Terms constitute a legally binding agreement between you
-          and AgentbaseAI Inc. concerning your access to and use of the
-          Services. If you do not agree with all of these Legal Terms, you are
-          prohibited from using the Services and must discontinue use
-          immediately.
-        </p>
-      </header>
+    <PageFrame pad="sub">
+      <PageCopy>
+        <header className="mb-12">
+          <p className="text-muted-foreground mb-3 text-sm">Legal</p>
+          <h1 className="text-3xl font-medium tracking-tight">
+            Terms of Service
+          </h1>
+          <p className="text-muted-foreground mt-3">
+            Last updated July 18, 2024
+          </p>
+          <p className="text-muted-foreground mt-6 leading-relaxed">
+            We are AgentbaseAI Inc. (&quot;Company,&quot; &quot;we,&quot;
+            &quot;us,&quot; or &quot;our&quot;), a company registered in
+            Delaware. We operate the website https://www.assistant-ui.com, as
+            well as any other related products and services that refer or link
+            to these legal terms.
+          </p>
+          <p className="text-muted-foreground mt-4 leading-relaxed">
+            These Legal Terms constitute a legally binding agreement between you
+            and AgentbaseAI Inc. concerning your access to and use of the
+            Services. If you do not agree with all of these Legal Terms, you are
+            prohibited from using the Services and must discontinue use
+            immediately.
+          </p>
+        </header>
 
-      <div className="space-y-10">
-        {sections.map((section) => (
-          <section key={section.title}>
-            <h2 className="text-xl font-medium tracking-tight">
-              {section.title}
-            </h2>
-            <div className="mt-4 space-y-4">
-              {section.body.map((paragraph, index) => (
-                <p
-                  key={index}
-                  className="text-muted-foreground leading-relaxed"
-                >
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    </main>
+        <div className="space-y-10">
+          {sections.map((section) => (
+            <section key={section.title}>
+              <h2 className="text-xl font-medium tracking-tight">
+                {section.title}
+              </h2>
+              <div className="mt-4 space-y-4">
+                {section.body.map((paragraph, index) => (
+                  <p
+                    key={index}
+                    className="text-muted-foreground leading-relaxed"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </PageCopy>
+    </PageFrame>
   );
 }

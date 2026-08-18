@@ -1,7 +1,6 @@
 import "@/styles/globals.css";
 import type { ReactNode } from "react";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
+import { IBM_Plex_Mono, Inter } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -10,6 +9,18 @@ import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";
 import { galleryStagingCss } from "@/components/gallery/gallery-staging";
+
+const inter = Inter({
+  variable: "--font-inter",
+  subsets: ["latin"],
+  axes: ["opsz"],
+});
+
+const ibmPlexMono = IBM_Plex_Mono({
+  variable: "--font-ibm-plex-mono",
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+});
 
 const getMetadataBase = () => {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -85,9 +96,9 @@ export default function Layout({ children }: { children: ReactNode }) {
       </head>
       <body
         className={cn(
-          "flex min-h-screen flex-col antialiased",
-          GeistSans.className,
-          GeistMono.variable,
+          "flex min-h-screen flex-col font-sans antialiased",
+          inter.variable,
+          ibmPlexMono.variable,
         )}
       >
         <div aria-hidden="true" className="sr-only">

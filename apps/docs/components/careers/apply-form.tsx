@@ -75,7 +75,7 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
           name="full_name"
           required
           autoComplete="name"
-          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base shadow-sm ring-0 transition outline-none"
+          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base ring-0 transition outline-none"
           placeholder="Ada Lovelace"
         />
       </label>
@@ -88,7 +88,7 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
           name="urls"
           required
           rows={3}
-          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base shadow-sm ring-0 transition outline-none"
+          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base ring-0 transition outline-none"
           placeholder="Portfolio, GitHub, LinkedIn, blog – one per line"
         ></textarea>
       </label>
@@ -101,7 +101,7 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
         <textarea
           name="notes"
           rows={4}
-          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base shadow-sm ring-0 transition outline-none"
+          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base ring-0 transition outline-none"
           placeholder="Tell us about goals, timelines, or anything you'd like us to know."
         ></textarea>
       </label>

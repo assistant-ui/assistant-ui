@@ -241,7 +241,7 @@ function ModelSelectorRoot({
 }
 
 export const modelSelectorTriggerVariants = cva(
-  "focus-visible:ring-ring/50 flex w-fit items-center justify-between gap-2 overflow-hidden rounded-md text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
+  "focus-visible:ring-ring/50 flex w-fit items-center justify-between gap-2 overflow-hidden rounded-md text-sm whitespace-nowrap transition-colors outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
   {
     variants: {
       variant: {
@@ -450,7 +450,7 @@ function ModelSelectorContent({
       side={renderedSide ?? side ?? "bottom"}
       sideOffset={sideOffset}
       className={cn(
-        "bg-popover/95 w-72 min-w-(--anchor-width) overflow-hidden rounded-xl p-0 shadow-lg backdrop-blur-sm",
+        "bg-popover w-72 min-w-(--anchor-width) overflow-hidden rounded-xl p-0",
         className,
       )}
       {...props}
@@ -683,7 +683,7 @@ function ModelSelectorEffort({
             key={option.id}
             value={option.id}
             className={cn(
-              "focus-visible:ring-ring/50 text-muted-foreground hover:text-foreground rounded-md px-2 py-1 text-xs transition-colors outline-none focus-visible:ring-2",
+              "focus-visible:ring-ring/50 text-muted-foreground hover:text-foreground rounded-md px-2 py-1 text-xs transition-colors outline-none focus-visible:ring-1",
               "data-checked:bg-accent data-checked:text-accent-foreground data-checked:font-medium",
             )}
           >

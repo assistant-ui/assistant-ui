@@ -5,7 +5,7 @@ import { createOgMetadata } from "@/lib/og";
 
 const title = "Cloud AI SDK";
 const description =
-  "Add cloud persistence to any AI SDK app with a single hook change. Zero config, automatic thread management, and full message persistence.";
+  "Cloud persistence and thread management for any Vercel AI SDK app. One import change.";
 
 export const metadata: Metadata = {
   title,

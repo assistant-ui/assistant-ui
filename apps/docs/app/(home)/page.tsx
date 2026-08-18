@@ -10,10 +10,15 @@ import { FeatureHighlights } from "@/components/home/feature-highlights";
 import { TrustedBy } from "@/components/home/trusted-by";
 import { Hero } from "@/components/home/hero";
 import { ExampleShowcase } from "@/components/home/example-showcase";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeSection } from "@/components/shared/type";
 
 export default function HomePage() {
   return (
-    <main className="relative z-2 mx-auto w-full max-w-7xl flex-col space-y-10 px-4 pt-20 pb-8 md:space-y-20 md:pt-28">
+    <PageFrame
+      pad="hero"
+      className="relative z-2 flex-col space-y-10 md:space-y-20"
+    >
       <Hero />
 
       <ExampleShowcase />
@@ -27,11 +32,9 @@ export default function HomePage() {
         className="sm:columns-2 lg:columns-3 xl:columns-4"
       />
 
-      <section className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="max-w-[24ch] text-3xl font-semibold tracking-tight text-balance">
-          The UX of ChatGPT in your own app.
-        </p>
-        <div className="flex items-center gap-6 pb-16">
+      <section className="flex flex-col items-start gap-6 py-16">
+        <p className={typeSection}>The UX of ChatGPT in your own app.</p>
+        <div className="flex items-center gap-6">
           <Button
             nativeButton={false}
             render={
@@ -54,6 +57,6 @@ export default function HomePage() {
           </Link>
         </div>
       </section>
-    </main>
+    </PageFrame>
   );
 }

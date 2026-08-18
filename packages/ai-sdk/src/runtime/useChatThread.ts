@@ -27,6 +27,7 @@ import {
   useRef,
   useSyncExternalStore,
 } from "react";
+import { useResourceCleanup } from "./useResourceCleanup";
 
 export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
@@ -49,6 +50,7 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   id: string;
   isMainThread: boolean;
   getThreadListItem: () => InitializableThreadListItem | undefined;
+  stopOnClientDestroy?: boolean;
   /**
    * An externally owned chat instance. State lives on the instance, so it
    * survives the hosting resource unmounting; construction options are read
@@ -163,7 +165,13 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     chatInit: chatOptions,
   } = splitChatThreadOptions(options);
 
-  const { id, isMainThread, getThreadListItem, chat: externalChat } = env;
+  const {
+    id,
+    isMainThread,
+    getThreadListItem,
+    stopOnClientDestroy = false,
+    chat: externalChat,
+  } = env;
 
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
   const sourceTransport = transportOptions ?? defaultTransport;
@@ -174,6 +182,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     id,
     transport,
     ...(externalChat !== undefined && { chat: externalChat }),
+  });
+
+  useResourceCleanup(stopOnClientDestroy, () => {
+    void chat.stop().catch(() => {});
   });
 
   const runtime = useAISDKRuntime(chat, {

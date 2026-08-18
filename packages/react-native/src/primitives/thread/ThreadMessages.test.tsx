@@ -273,6 +273,20 @@ describe("ThreadMessages", () => {
       expect(container.querySelector('[data-testid="c-message"]')).toBeNull();
     });
 
+    it("renders nothing for an editing system role with no system or Message component", async () => {
+      h.state.thread.messages = [{ id: "1", role: "system" }];
+      h.state.message.role = "system";
+      h.state.message.composer.isEditing = true;
+      const components = makeComponents() as Record<string, unknown>;
+      delete components.SystemEditComposer;
+      delete components.EditComposer;
+      delete components.SystemMessage;
+      delete components.Message;
+      await mount({ components: components as never });
+      expect(container.querySelector('[data-testid="c-system"]')).toBeNull();
+      expect(container.querySelector('[data-testid="c-message"]')).toBeNull();
+    });
+
     it("throws for an unknown role", async () => {
       h.state.thread.messages = [{ id: "1", role: "ghost" }];
       h.state.message.role = "ghost";

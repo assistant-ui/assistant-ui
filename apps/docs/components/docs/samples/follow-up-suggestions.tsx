@@ -67,7 +67,7 @@ const FollowUpSuggestionsRuntimeProvider: FC<PropsWithChildren> = ({
 };
 
 const SampleComposer = () => (
-  <ComposerPrimitive.Root className="border-border bg-background dark:border-muted-foreground/15 relative flex w-full flex-col rounded-3xl border shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)]">
+  <ComposerPrimitive.Root className="border-border bg-background dark:border-muted-foreground/15 relative flex w-full flex-col rounded-3xl border">
     <ComposerPrimitive.Input
       placeholder="Reply..."
       className="field-sizing-content min-h-10 w-full resize-none bg-transparent px-5 pt-3.5 pb-2.5 text-sm leading-relaxed focus:outline-none"
@@ -85,7 +85,7 @@ export const FollowUpSuggestionsSample = () => {
   return (
     <SampleFrame className="bg-muted/40 flex h-auto items-center justify-center p-6">
       <FollowUpSuggestionsRuntimeProvider>
-        <div className="bg-background flex w-full max-w-2xl flex-col rounded-xl border p-4 shadow-sm">
+        <div className="bg-background flex w-full max-w-2xl flex-col rounded-xl border p-4">
           <div className="flex justify-end">
             <div className="bg-muted max-w-[80%] rounded-2xl px-3.5 py-2 text-sm">
               {userMessage.text}

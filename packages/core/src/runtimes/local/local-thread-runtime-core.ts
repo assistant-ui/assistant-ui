@@ -22,7 +22,7 @@ import type {
   ThreadAssistantMessage,
 } from "../../types/message";
 import type { RunConfig } from "../../types/message";
-import { toAssistantError } from "../../types/error";
+import { MessageNotSentError, toAssistantError } from "../../types/error";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
   createMessageQueue,
@@ -167,6 +167,7 @@ export class LocalThreadRuntimeCore
   public __internal_setOptions(options: LocalRuntimeOptionsBase) {
     if (this._options === options) return;
 
+    const previousHistory = this._options?.adapters.history;
     this._options = options;
 
     let hasUpdates = false;
@@ -239,13 +240,31 @@ export class LocalThreadRuntimeCore
     }
 
     if (hasUpdates) this._notifySubscribers();
+
+    if (
+      this._loadRequested &&
+      !this._loadPromise &&
+      !previousHistory &&
+      options.adapters.history &&
+      this.messages.length === 0
+    ) {
+      void this.__internal_load().catch((error: unknown) => {
+        console.error(
+          "[assistant-ui] local thread history load failed:",
+          error,
+        );
+      });
+    }
   }
 
   private _loadPromise: Promise<void> | undefined;
+  private _loadRequested = false;
   public __internal_load() {
+    this._loadRequested = true;
     if (this._loadPromise) return this._loadPromise;
+    if (!this.adapters.history) return Promise.resolve();
 
-    const promise = this.adapters.history?.load() ?? Promise.resolve(null);
+    const promise = this.adapters.history.load();
 
     this._isLoading = true;
     this._notifySubscribers();
@@ -317,6 +336,15 @@ export class LocalThreadRuntimeCore
     this._queue?.adapter.remove(queueItemId);
   }
 
+  private _rollbackAppend(messageId: string) {
+    try {
+      this.repository.deleteMessage(messageId);
+    } catch {
+      return;
+    }
+    this._notifySubscribers();
+  }
+
   private async _runAppend(rawMessage: AppendMessage): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
@@ -324,33 +352,56 @@ export class LocalThreadRuntimeCore
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
-    const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      await initPromise;
-    }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
-
     const newMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
       reason: "unknown",
     });
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
-    this._options.adapters.history?.append({
+    this._notifySubscribers();
+
+    // Initialization only gates the history write and the run; the message
+    // is already on screen. A failed barrier rolls the optimistic message
+    // back and rejects as an unsent message so the composer restores the
+    // draft; a thread invalidated mid-wait rolls back silently.
+    try {
+      const initPromise = this._getInitializePromise?.();
+      if (initPromise) {
+        await initPromise;
+      }
+    } catch (error) {
+      this._rollbackAppend(newMessage.id);
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      const notSent = new MessageNotSentError();
+      notSent.cause = error;
+      throw notSent;
+    }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+      this._rollbackAppend(newMessage.id);
+      return;
+    }
+    const historyWrite = this._options.adapters.history?.append({
       parentId: message.parentId,
       message: newMessage,
       ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
     });
+    void historyWrite?.catch(() => {});
 
     const startRun = message.startRun ?? message.role === "user";
     if (startRun) {
-      await this.startRun({
-        parentId: newMessage.id,
-        sourceId: message.sourceId,
-        runConfig: message.runConfig ?? {},
-      });
+      const [runResult, historyResult] = await Promise.allSettled([
+        this.startRun({
+          parentId: newMessage.id,
+          sourceId: message.sourceId,
+          runConfig: message.runConfig ?? {},
+        }),
+        historyWrite,
+      ]);
+      if (runResult.status === "rejected") throw runResult.reason;
+      if (historyResult.status === "rejected") throw historyResult.reason;
     } else {
       this.repository.resetHead(newMessage.id);
       this._notifySubscribers();
+      await historyWrite;
     }
   }
 

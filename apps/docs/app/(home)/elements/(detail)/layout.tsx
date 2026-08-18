@@ -2,6 +2,7 @@ import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
 import { ElementsSidebar } from "@/components/elements/elements-sidebar";
 import { ScrollReset } from "@/components/elements/scroll-reset";
+import { PageFrame } from "@/components/shared/page-frame";
 
 export default function ElementDetailLayout({
   children,
@@ -9,7 +10,7 @@ export default function ElementDetailLayout({
   children: React.ReactNode;
 }) {
   return (
-    <main className="mx-auto w-full max-w-6xl px-4 pt-20 pb-32 md:pt-24">
+    <PageFrame pad="sub">
       <ScrollReset />
       <div className="lg:grid lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-14">
         <ElementsSidebar />
@@ -24,6 +25,6 @@ export default function ElementDetailLayout({
           {children}
         </article>
       </div>
-    </main>
+    </PageFrame>
   );
 }

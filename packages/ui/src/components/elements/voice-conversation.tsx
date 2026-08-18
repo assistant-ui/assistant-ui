@@ -77,7 +77,7 @@ export function VoiceConversation({
         onClick={onInterrupt}
         disabled={!canInterrupt}
         aria-label="Interrupt the assistant"
-        className="focus-visible:ring-foreground/20 relative flex size-24 items-center justify-center rounded-full outline-none focus-visible:ring-2 disabled:cursor-default"
+        className="focus-visible:ring-foreground/20 relative flex size-24 items-center justify-center rounded-full outline-none focus-visible:ring-1 disabled:cursor-default"
       >
         <span
           aria-hidden

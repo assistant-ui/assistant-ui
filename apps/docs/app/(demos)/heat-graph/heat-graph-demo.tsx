@@ -375,7 +375,7 @@ function GraphShell({
 
         <HeatGraph.Tooltip
           className={cn(
-            "pointer-events-none rounded-md px-3 py-1.5 text-xs whitespace-nowrap shadow-lg ring-1",
+            "pointer-events-none rounded-md px-3 py-1.5 text-xs whitespace-nowrap ring-1",
             tooltipClassName,
           )}
         >
@@ -639,7 +639,7 @@ export function HeatGraphDemo() {
                 className={cn(
                   "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-xs transition-colors",
                   activeTheme === name
-                    ? "bg-background text-foreground font-medium shadow-sm"
+                    ? "bg-background text-foreground font-medium"
                     : "text-muted-foreground hover:text-foreground",
                 )}
               >

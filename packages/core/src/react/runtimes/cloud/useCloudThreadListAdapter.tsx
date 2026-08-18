@@ -3,6 +3,7 @@ declare const process: { env: Record<string, string | undefined> };
 import {
   type FC,
   type PropsWithChildren,
+  type RefObject,
   useCallback,
   useEffect,
   useMemo,
@@ -13,7 +14,10 @@ import { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
-import { RuntimeAdapterProvider } from "../RuntimeAdapterProvider";
+import {
+  RuntimeAdapterProvider,
+  type RuntimeAdapters,
+} from "../RuntimeAdapterProvider";
 import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 import { isRecord } from "../../../utils/json/is-json";
 
@@ -40,6 +44,58 @@ const autoCloud = baseUrl
 
 const CLOUD_THREAD_PAGE_SIZE = 20;
 
+type CloudListCursor = {
+  activeCursor: string | undefined;
+  archivedCursor: string | undefined;
+  activeExhausted: boolean;
+  archivedExhausted: boolean;
+};
+
+const parseListCursor = (after: string | undefined): CloudListCursor => {
+  const fallback: CloudListCursor = {
+    activeCursor: after,
+    archivedCursor: undefined,
+    activeExhausted: false,
+    archivedExhausted: false,
+  };
+  if (!after || !after.startsWith("{")) return fallback;
+  try {
+    const parsed = JSON.parse(after);
+    if (!isRecord(parsed)) return fallback;
+    return {
+      activeCursor: typeof parsed.a === "string" ? parsed.a : undefined,
+      archivedCursor: typeof parsed.r === "string" ? parsed.r : undefined,
+      activeExhausted: parsed.ae === true,
+      archivedExhausted: parsed.re === true,
+    };
+  } catch {
+    return fallback;
+  }
+};
+
+const useCloudThreadListAdapters = (
+  adapterRef: RefObject<CloudThreadListAdapterOptions>,
+): RuntimeAdapters => {
+  const history = useAssistantCloudThreadHistoryAdapter({
+    get current() {
+      return adapterRef.current.cloud ?? autoCloud!;
+    },
+  });
+  const [attachments] = useState(
+    () =>
+      new CloudFileAttachmentAdapter(
+        () => adapterRef.current.cloud ?? autoCloud!,
+      ),
+  );
+  return useMemo(
+    () => ({
+      history,
+      attachments,
+    }),
+    [history, attachments],
+  );
+};
+
 export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
 ): RemoteThreadListAdapter => {
@@ -48,28 +104,13 @@ export const useCloudThreadListAdapter = (
     adapterRef.current = adapter;
   }, [adapter]);
 
+  const unstable_useAdapters = useCallback(function useCloudAdapters() {
+    return useCloudThreadListAdapters(adapterRef);
+  }, []);
+
   const unstable_Provider = useCallback<FC<PropsWithChildren>>(
     function Provider({ children }) {
-      const history = useAssistantCloudThreadHistoryAdapter({
-        get current() {
-          return adapterRef.current.cloud ?? autoCloud!;
-        },
-      });
-      const [attachments] = useState(
-        () =>
-          new CloudFileAttachmentAdapter(
-            () => adapterRef.current.cloud ?? autoCloud!,
-          ),
-      );
-
-      const adapters = useMemo(
-        () => ({
-          history,
-          attachments,
-        }),
-        [history, attachments],
-      );
-
+      const adapters = useCloudThreadListAdapters(adapterRef);
       return (
         <RuntimeAdapterProvider adapters={adapters}>
           {children}
@@ -93,10 +134,38 @@ export const useCloudThreadListAdapter = (
 
     return {
       list: async ({ after } = {}) => {
-        const { threads } = await cloud.threads.list({
-          limit: CLOUD_THREAD_PAGE_SIZE,
-          ...(after ? { after } : {}),
-        });
+        const {
+          activeCursor,
+          archivedCursor,
+          activeExhausted,
+          archivedExhausted,
+        } = parseListCursor(after);
+        const [{ threads: activeThreads }, { threads: archivedThreads }] =
+          await Promise.all([
+            activeExhausted
+              ? Promise.resolve({ threads: [] })
+              : cloud.threads.list({
+                  limit: CLOUD_THREAD_PAGE_SIZE,
+                  ...(activeCursor ? { after: activeCursor } : {}),
+                }),
+            archivedExhausted
+              ? Promise.resolve({ threads: [] })
+              : cloud.threads.list({
+                  is_archived: true,
+                  limit: CLOUD_THREAD_PAGE_SIZE,
+                  ...(archivedCursor ? { after: archivedCursor } : {}),
+                }),
+          ]);
+        const activeNext =
+          !activeExhausted && activeThreads.length === CLOUD_THREAD_PAGE_SIZE
+            ? activeThreads.at(-1)?.id
+            : undefined;
+        const archivedNext =
+          !archivedExhausted &&
+          archivedThreads.length === CLOUD_THREAD_PAGE_SIZE
+            ? archivedThreads.at(-1)?.id
+            : undefined;
+        const threads = [...activeThreads, ...archivedThreads];
         return {
           threads: threads.map((t) => ({
             status: t.is_archived ? "archived" : "regular",
@@ -109,8 +178,13 @@ export const useCloudThreadListAdapter = (
             custom: toCustom(t.metadata),
           })),
           nextCursor:
-            threads.length === CLOUD_THREAD_PAGE_SIZE
-              ? threads.at(-1)?.id
+            activeNext || archivedNext
+              ? JSON.stringify({
+                  a: activeNext,
+                  r: archivedNext,
+                  ...(activeNext === undefined ? { ae: true } : {}),
+                  ...(archivedNext === undefined ? { re: true } : {}),
+                })
               : undefined,
         };
       },
@@ -177,6 +251,7 @@ export const useCloudThreadListAdapter = (
       },
 
       unstable_Provider,
+      unstable_useAdapters,
     };
-  }, [cloud, unstable_Provider]);
+  }, [cloud, unstable_Provider, unstable_useAdapters]);
 };

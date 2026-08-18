@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useAui } from "@assistant-ui/store";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
@@ -244,6 +244,8 @@ export const useAdkMessages = ({
       abortControllerRef.current.abort();
     }
   }, []);
+
+  useEffect(() => cancel, [cancel]);
 
   return {
     messages,

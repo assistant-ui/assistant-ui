@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { createOgMetadata } from "@/lib/og";
+import { PageCopy, PageFrame } from "@/components/shared/page-frame";
 
 const title = "Privacy Policy — assistant-ui";
 const description =
@@ -143,49 +144,55 @@ const sections = [
 
 export default function PrivacyPolicyPage() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
-      <header className="mb-12">
-        <p className="text-muted-foreground mb-3 text-sm">Legal</p>
-        <h1 className="text-3xl font-medium tracking-tight">Privacy Policy</h1>
-        <p className="text-muted-foreground mt-3">Last updated July 18, 2024</p>
-        <p className="text-muted-foreground mt-6 leading-relaxed">
-          This Privacy Notice for AgentbaseAI Inc. (&quot;we,&quot;
-          &quot;us,&quot; or &quot;our&quot;) describes how and why we might
-          access, collect, store, use, and/or share your personal information
-          when you use our services, including when you visit assistant-ui.com
-          or engage with us in other related ways.
-        </p>
-        <p className="text-muted-foreground mt-4 leading-relaxed">
-          If you have questions or concerns, contact us at{" "}
-          <a
-            href="mailto:privacy@assistant-ui.com"
-            className="text-foreground underline underline-offset-4"
-          >
-            privacy@assistant-ui.com
-          </a>
-          .
-        </p>
-      </header>
+    <PageFrame pad="sub">
+      <PageCopy>
+        <header className="mb-12">
+          <p className="text-muted-foreground mb-3 text-sm">Legal</p>
+          <h1 className="text-3xl font-medium tracking-tight">
+            Privacy Policy
+          </h1>
+          <p className="text-muted-foreground mt-3">
+            Last updated July 18, 2024
+          </p>
+          <p className="text-muted-foreground mt-6 leading-relaxed">
+            This Privacy Notice for AgentbaseAI Inc. (&quot;we,&quot;
+            &quot;us,&quot; or &quot;our&quot;) describes how and why we might
+            access, collect, store, use, and/or share your personal information
+            when you use our services, including when you visit assistant-ui.com
+            or engage with us in other related ways.
+          </p>
+          <p className="text-muted-foreground mt-4 leading-relaxed">
+            If you have questions or concerns, contact us at{" "}
+            <a
+              href="mailto:privacy@assistant-ui.com"
+              className="text-foreground underline underline-offset-4"
+            >
+              privacy@assistant-ui.com
+            </a>
+            .
+          </p>
+        </header>
 
-      <div className="space-y-10">
-        {sections.map((section) => (
-          <section key={section.title}>
-            <h2 className="text-xl font-medium tracking-tight">
-              {section.title}
-            </h2>
-            <div className="mt-4 space-y-4">
-              {section.body.map((paragraph, index) => (
-                <p
-                  key={index}
-                  className="text-muted-foreground leading-relaxed"
-                >
-                  {paragraph}
-                </p>
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
-    </main>
+        <div className="space-y-10">
+          {sections.map((section) => (
+            <section key={section.title}>
+              <h2 className="text-xl font-medium tracking-tight">
+                {section.title}
+              </h2>
+              <div className="mt-4 space-y-4">
+                {section.body.map((paragraph, index) => (
+                  <p
+                    key={index}
+                    className="text-muted-foreground leading-relaxed"
+                  >
+                    {paragraph}
+                  </p>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </PageCopy>
+    </PageFrame>
   );
 }

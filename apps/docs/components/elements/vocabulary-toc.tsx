@@ -56,7 +56,7 @@ export function VocabularyToc({
     <aside className="hidden lg:block">
       <nav
         aria-label="Component categories"
-        className="sticky top-36 -ms-2 max-h-[calc(100vh-10rem)] overflow-y-auto overscroll-contain ps-2 pe-3 pb-8"
+        className="sticky top-32 -ms-2 max-h-[calc(100vh-10rem)] overflow-y-auto overscroll-contain ps-2 pe-3 pb-8"
       >
         <p className="flex items-baseline justify-between text-[13px] font-medium">
           Vocabulary

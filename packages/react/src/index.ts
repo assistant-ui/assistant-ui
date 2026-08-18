@@ -43,7 +43,7 @@ export type {
   ThreadListItemState,
 } from "@assistant-ui/core";
 
-export { useCloudThreadListRuntime } from "./legacy-runtime/cloud/useCloudThreadListRuntime";
+export { useCloudThreadListRuntime } from "@assistant-ui/core/react";
 export { AssistantCloud } from "assistant-cloud";
 
 // --- adapters/attachment ---
@@ -107,13 +107,13 @@ export {
   useAssistantTransportRuntime,
   useAssistantTransportSendCommand,
   useAssistantTransportState,
-} from "./legacy-runtime/runtime-cores/assistant-transport/useAssistantTransportRuntime";
+} from "./assistant-transport";
 export type {
   AssistantTransportConnectionMetadata,
   AssistantTransportCommand,
   AssistantTransportProtocol,
   SendCommandsRequestBody,
-} from "./legacy-runtime/runtime-cores/assistant-transport/types";
+} from "./assistant-transport";
 
 // --- core ---
 export type {
@@ -430,6 +430,10 @@ export {
 export {
   InMemoryThreadList,
   type InMemoryThreadListProps,
+} from "@assistant-ui/core/store";
+export {
+  RemoteThreadList,
+  type RemoteThreadListProps,
 } from "@assistant-ui/core/store";
 export { SingleThreadList } from "@assistant-ui/core/store";
 

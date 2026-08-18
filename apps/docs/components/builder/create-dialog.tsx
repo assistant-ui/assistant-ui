@@ -48,7 +48,7 @@ export function CreateDialog({
       )}
       <DialogPrimitive.Portal container={container?.current}>
         <DialogPrimitive.Backdrop className="data-closed:fade-out-0 data-open:fade-in-0 data-closed:animate-out data-open:animate-in absolute inset-0 z-50 bg-black/50" />
-        <DialogPrimitive.Popup className="data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 bg-background data-closed:animate-out data-open:animate-in absolute top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-lg border p-6 shadow-lg duration-200">
+        <DialogPrimitive.Popup className="data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 bg-background data-closed:animate-out data-open:animate-in absolute top-1/2 left-1/2 z-50 grid max-h-[85vh] w-full max-w-lg -translate-x-1/2 -translate-y-1/2 gap-4 overflow-hidden rounded-lg border p-6 duration-200">
           <DialogPrimitive.Title className="text-lg leading-none font-semibold">
             Create your assistant
           </DialogPrimitive.Title>
@@ -112,7 +112,7 @@ export function CreateDialog({
               </div>
             </div>
           </div>
-          <DialogPrimitive.Close className="ring-offset-background focus:ring-ring absolute top-4 right-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:ring-2 focus:ring-offset-2 focus:outline-none">
+          <DialogPrimitive.Close className="focus-visible:ring-ring absolute top-4 right-4 rounded-sm opacity-70 transition-opacity hover:opacity-100 focus:outline-none focus-visible:ring-1">
             <XIcon className="size-4" />
             <span className="sr-only">Close</span>
           </DialogPrimitive.Close>

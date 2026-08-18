@@ -16,6 +16,8 @@ import { useAssistantPanel } from "@/components/docs/assistant/context";
 import { getPanelWidth } from "@/components/docs/layout/docs-layout";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
+import { headerBarClassName } from "@/components/shared/header-chrome";
+import { useScrolled } from "@/hooks/use-scrolled";
 import { analytics } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 import { usePlatform } from "@/components/docs/platform/context";
@@ -61,7 +63,7 @@ function HeaderSearch() {
         analytics.search.opened("header");
         setOpenSearch(true);
       }}
-      className="text-muted-foreground w-full max-w-96 shrink justify-start gap-2 font-normal"
+      className="text-muted-foreground hover:text-foreground w-full max-w-96 shrink justify-start gap-2 font-normal"
     >
       <Search className="size-3.5 shrink-0" />
       <span className="flex-1 text-left">Search...</span>
@@ -137,6 +139,7 @@ export function DocsHeader({
   } = useDocsSidebar();
   const [navMenuOpen, setNavMenuOpen] = useState(false);
   const { open, width, isResizing } = useAssistantPanel();
+  const scrolled = useScrolled();
 
   const sectionFilter = (item: (typeof NAV_ITEMS)[number]) =>
     item.type !== "link" || item.href !== sectionHref;
@@ -173,8 +176,12 @@ export function DocsHeader({
       }
     >
       <NavItemsRoot>
-        <div className="from-background pointer-events-none absolute inset-x-0 top-0 h-14 bg-linear-to-b to-transparent mask-[linear-gradient(to_bottom,black_75%,transparent)] backdrop-blur-xl transition-opacity duration-200 group-data-[menu-open=true]:opacity-0" />
-        <div className="group-data-[menu-open=true]:bg-background relative flex h-12 w-full items-center px-4 transition-colors duration-200">
+        <div
+          className={headerBarClassName(
+            scrolled,
+            "flex h-12 w-full items-center px-4",
+          )}
+        >
           <div className="flex min-w-0 flex-1 items-center">
             <HeaderBrandLink labelClassName="hidden sm:inline" />
             <span className="text-muted-foreground/40 mx-3">/</span>
@@ -250,7 +257,7 @@ export function DocsHeader({
               </button>
             </div>
             <div className="flex shrink-0 items-center">
-              <NavItems items={condensedItems} />
+              <NavItems items={condensedItems} menuAlign="end" />
               {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -277,7 +284,7 @@ export function DocsHeader({
               <AskAIButton />
               <HeaderSearch />
             </div>
-            <NavItems items={filteredItems} />
+            <NavItems items={filteredItems} menuAlign="end" />
             <div className="flex shrink-0 items-center gap-2">
               <Button
                 size="sm"

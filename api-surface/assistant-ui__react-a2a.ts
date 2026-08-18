@@ -783,6 +783,7 @@ type GenerativeUISpec = {
 
 type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
+  pin?(): void;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
   update?(item: MessageFormatItem<TMessage>, localMessageId: string): Promise<void>;
   delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
@@ -1590,6 +1591,8 @@ type ThreadStep = {
 };
 
 type ThreadSuggestion = {
+  title?: string;
+  label?: string;
   prompt: string;
 };
 

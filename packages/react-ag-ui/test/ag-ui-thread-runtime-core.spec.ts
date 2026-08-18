@@ -610,6 +610,40 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(agent.abortRun).toHaveBeenCalledTimes(1);
   });
 
+  it("cancels an active run when the runtime detaches", async () => {
+    let runSignal: AbortSignal | undefined;
+    const agent = {
+      runAgent: vi.fn((_input, _subscriber, { signal }) => {
+        runSignal = signal;
+        return new Promise((_, reject) => {
+          signal.addEventListener(
+            "abort",
+            () => {
+              const error = new Error("aborted");
+              error.name = "AbortError";
+              reject(error);
+            },
+            { once: true },
+          );
+        });
+      }),
+      abortRun: vi.fn(),
+    } as unknown as HttpAgent;
+
+    const onCancel = vi.fn();
+    const core = createCore(agent, { onCancel });
+    const appendPromise = core.append(createAppendMessage());
+
+    await vi.waitFor(() => expect(runSignal).toBeDefined());
+    core.detachRuntime();
+
+    expect(agent.abortRun).toHaveBeenCalledTimes(1);
+    expect(runSignal?.aborted).toBe(true);
+    expect(onCancel).toHaveBeenCalledTimes(1);
+    await expect(appendPromise).resolves.toBeUndefined();
+    expect(core.isRunning()).toBe(false);
+  });
+
   it.each(["throws", "rejects"] as const)(
     "keeps cancellation settled when onCancel %s",
     async (failureMode) => {

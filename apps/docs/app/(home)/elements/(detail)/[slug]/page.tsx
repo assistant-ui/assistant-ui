@@ -114,7 +114,7 @@ export default async function ElementPage({
   return (
     <>
       <header className="mt-8 lg:mt-0">
-        <p className={cn(mono, "text-foreground/35 tabular-nums")}>
+        <p className="text-foreground/35 font-mono text-[11px] tracking-tight tabular-nums">
           {String(element.index).padStart(2, "0")} /{" "}
           {String(ELEMENT_COUNT).padStart(2, "0")} · {element.section}
         </p>

@@ -62,8 +62,8 @@ export function PackageDirectory({
     hovered === TAIL_KEY ? tailNames.has(name) : hovered === name;
 
   return (
-    <>
-      <section className="mb-12">
+    <div className="flex flex-col gap-12 md:gap-14">
+      <section>
         <DownloadConcentration
           {...concentration}
           hovered={hovered}
@@ -73,7 +73,7 @@ export function PackageDirectory({
 
       <nav
         aria-label="Filter by category"
-        className="border-border/60 bg-background/85 sticky top-12 z-10 -mx-4 mb-10 border-b px-4 py-3 backdrop-blur"
+        className="bg-background/85 sticky top-12 z-10 -mx-4 px-4 py-3 backdrop-blur"
       >
         <ul className="flex flex-wrap gap-1.5">
           <li>
@@ -126,7 +126,7 @@ export function PackageDirectory({
           </section>
         ))}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -147,7 +147,7 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors",
+        "focus-visible:ring-ring/50 flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-1",
         active
           ? "bg-foreground text-background"
           : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",

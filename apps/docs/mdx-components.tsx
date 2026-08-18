@@ -21,10 +21,10 @@ import {
 import { PrimitivesTypeTable } from "@/components/docs/primitives-type-table";
 import { SourceLink } from "@/components/docs/source-link";
 import { DemoIframe } from "@/components/docs/demo-iframe";
-import { DemoShowcase } from "@/components/docs/landing/demo-showcase";
 import { QuickLinks } from "@/components/docs/landing/quick-links";
 import { Quickstart } from "@/components/docs/landing/quickstart";
 import { RuntimeGrid } from "@/components/docs/landing/runtime-grid";
+import { SurfaceGrid } from "@/components/docs/landing/surface-grid";
 import { Flow } from "@/components/assistant-ui/flow";
 import { MermaidDiagram } from "@/components/docs/mermaid-diagram";
 import { TapTutorialSlideshow } from "@/components/docs/tap/tutorial-slideshow";
@@ -78,7 +78,7 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
     PrimitivesTypeTable,
     SourceLink,
     DemoIframe,
-    DemoShowcase,
+    SurfaceGrid,
     QuickLinks,
     Quickstart,
     RuntimeGrid,

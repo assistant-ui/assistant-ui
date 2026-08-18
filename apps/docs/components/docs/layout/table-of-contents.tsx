@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 import { Copy, EditIcon, FileText, SparklesIcon } from "lucide-react";
-import { TOCHiringBanner } from "@/components/docs/layout/toc-hiring-banner";
 import { BASE_URL } from "@/lib/constants";
 import { useMarkdownCopy } from "@/hooks/use-markdown-copy";
 import { useAssistantPanel } from "@/components/docs/assistant/context";
@@ -164,8 +163,11 @@ export function TableOfContents({
   if (items.length === 0) return null;
 
   return (
-    <div id="nd-toc" className="w-56 [grid-area:toc] max-xl:hidden">
-      <div className="sticky top-14 flex max-h-[calc(100vh-3.5rem)] flex-col pe-4 pb-2">
+    <div
+      id="nd-toc"
+      className="w-(--fd-toc-width) [grid-area:toc] max-xl:hidden"
+    >
+      <div className="sticky top-14 flex max-h-[calc(100vh-3.5rem)] flex-col pe-4 pt-4 pb-2">
         <p className="text-muted-foreground/70 mb-3 shrink-0 text-xs">
           On this page
         </p>
@@ -200,9 +202,8 @@ export function TableOfContents({
             );
           })}
         </ul>
-        <div className="mt-6 shrink-0 space-y-4">
+        <div className="mt-6 shrink-0">
           <TOCActions markdownUrl={markdownUrl} githubEditUrl={githubEditUrl} />
-          <TOCHiringBanner />
         </div>
       </div>
     </div>

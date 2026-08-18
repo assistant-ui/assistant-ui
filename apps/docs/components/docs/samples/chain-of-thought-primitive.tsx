@@ -111,7 +111,7 @@ function AssistantChainOfThought({ children }: PropsWithChildren) {
   const [open, setOpen] = useState(true);
 
   return (
-    <div className="border-border/80 bg-background/90 overflow-hidden rounded-xl border shadow-sm">
+    <div className="border-border/80 bg-background/90 overflow-hidden rounded-xl border">
       <button
         type="button"
         className="hover:bg-muted/50 flex w-full cursor-pointer items-center gap-2 px-4 py-2.5 text-sm font-medium transition-colors"

@@ -412,6 +412,17 @@ function signalInit(signal?: AbortSignal): RequestInit {
   return signal ? { signal } : {};
 }
 
+const SKIPPED_FRAME_SNIPPET_LENGTH = 120;
+
+function describeSkippedFrame(data: string, reason: string): string {
+  const collapsed = data.replace(/\s+/g, " ");
+  const snippet =
+    collapsed.length > SKIPPED_FRAME_SNIPPET_LENGTH
+      ? `${collapsed.slice(0, SKIPPED_FRAME_SNIPPET_LENGTH)}…`
+      : collapsed;
+  return `${reason} (frame: ${snippet})`;
+}
+
 export class A2AClient {
   private baseUrl: string;
   private basePath: string;
@@ -594,7 +605,7 @@ export class A2AClient {
       await this.throwResponseError(response);
     }
 
-    yield* this.parseSSE(response);
+    return yield* this.parseSSE(response);
   }
 
   // --- Tasks ---
@@ -757,7 +768,9 @@ export class A2AClient {
 
   // --- SSE Parsing ---
 
-  private async *parseSSE(response: Response): AsyncGenerator<A2AStreamEvent> {
+  private async *parseSSE(
+    response: Response,
+  ): AsyncGenerator<A2AStreamEvent, string | undefined> {
     const contentType = response.headers.get("Content-Type");
     const mediaType = contentType?.split(";", 1)[0]?.trim().toLowerCase();
     if (mediaType !== "text/event-stream") {
@@ -776,6 +789,11 @@ export class A2AClient {
     const decoder = new TextDecoder();
     const sseDecoder = new SSEEventDecoder();
 
+    let firstSkipReason: string | undefined;
+    const noteSkip = (data: string, reason: string) => {
+      firstSkipReason ??= describeSkippedFrame(data, reason);
+    };
+
     const readEvent = (event: SSEEvent): A2AStreamEvent | null => {
       try {
         let parsed = JSON.parse(event.data);
@@ -790,8 +808,14 @@ export class A2AClient {
         }
 
         const normalized = normalizeKeys(parsed) as Record<string, unknown>;
-        return discriminateStreamResponse(normalized);
-      } catch {
+        const streamEvent = discriminateStreamResponse(normalized);
+        if (!streamEvent) noteSkip(event.data, "unrecognized event shape");
+        return streamEvent;
+      } catch (error) {
+        noteSkip(
+          event.data,
+          error instanceof Error ? error.message : String(error),
+        );
         return null;
       }
     };
@@ -831,5 +855,7 @@ export class A2AClient {
         reader.releaseLock();
       }
     }
+
+    return firstSkipReason;
   }
 }

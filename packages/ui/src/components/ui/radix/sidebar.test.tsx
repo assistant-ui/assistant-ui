@@ -130,7 +130,7 @@ describe("radix sidebar RTL", () => {
 });
 
 describe("radix sidebar menu buttons", () => {
-  it("uses direct color variables for outline shadows", () => {
+  it("uses direct color variables for outline hairlines", () => {
     setViewportWidth(1024);
     const { getByRole } = render(
       <SidebarProvider>
@@ -145,11 +145,8 @@ describe("radix sidebar menu buttons", () => {
     );
 
     const button = getByRole("button", { name: "Item" });
-    expect(button.className).toContain(
-      "shadow-[0_0_0_1px_var(--sidebar-border)]",
-    );
-    expect(button.className).toContain(
-      "hover:shadow-[0_0_0_1px_var(--sidebar-accent)]",
-    );
+    expect(button.className).toContain("ring-1");
+    expect(button.className).toContain("ring-sidebar-border");
+    expect(button.className).toContain("hover:ring-sidebar-accent");
   });
 });

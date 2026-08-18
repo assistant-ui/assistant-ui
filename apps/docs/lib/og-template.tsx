@@ -39,8 +39,8 @@ export function OgLogo({
 
 /** Shared header with logo on left and URL on right */
 export function OgHeader({
-  fontSans = "Geist",
-  fontMono = "GeistMono",
+  fontSans = "Inter",
+  fontMono = "IBM Plex Mono",
   subtle = false,
 }: {
   fontSans?: string;

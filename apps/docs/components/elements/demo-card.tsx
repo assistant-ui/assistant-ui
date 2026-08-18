@@ -41,35 +41,24 @@ export function DemoCard({
   }, []);
 
   return (
-    <div
-      ref={rootRef}
-      className={cn("group flex flex-col", wide && "md:col-span-2")}
-    >
-      <div className="group/canvas bg-foreground/[0.025] dark:bg-foreground/[0.04] relative flex h-[360px] items-center justify-center overflow-hidden rounded-[20px] p-6 md:p-10">
+    <div ref={rootRef} className={cn("flex flex-col", wide && "md:col-span-2")}>
+      <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] relative flex h-[360px] items-center justify-center overflow-hidden rounded-[20px] p-6 md:p-10">
         {mounted ? (
-          <div className="flex h-full w-full items-center justify-center">
+          <div className="flex h-full min-h-0 w-full items-center justify-center">
             {children}
           </div>
         ) : null}
         <Link
           href={href}
-          aria-hidden
-          tabIndex={-1}
-          className="absolute inset-0 z-[5] pointer-fine:hidden"
-        />
-        <div className="bg-background/55 pointer-events-none absolute inset-0 z-10 flex items-center justify-center opacity-0 backdrop-blur-[2px] transition-opacity duration-200 group-focus-within/canvas:opacity-100 group-hover/canvas:opacity-100 motion-reduce:transition-none">
-          <Link
-            href={href}
-            aria-label={`View ${title}`}
-            className={cn(
-              inkButton,
-              "pointer-events-auto flex h-8 scale-[0.96] items-center gap-1.5 rounded-full px-4 text-[12.5px] font-medium group-hover/canvas:scale-100",
-            )}
-          >
-            View
-            <ArrowUpRightIcon className="size-3.5" />
-          </Link>
-        </div>
+          aria-label={`View ${title}`}
+          className={cn(
+            inkButton,
+            "focus-visible:ring-foreground/20 absolute right-3 bottom-3 z-10 flex h-8 items-center gap-1.5 rounded-full px-3.5 text-[12.5px] font-medium focus-visible:ring-1",
+          )}
+        >
+          View
+          <ArrowUpRightIcon className="size-3.5" />
+        </Link>
       </div>
       <Link href={href} className="group/link mt-4 flex items-baseline gap-2.5">
         <span className={cn(mono, "text-foreground/30 tabular-nums")}>
