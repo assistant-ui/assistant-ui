@@ -222,7 +222,14 @@ export class RemoteThreadListThreadListRuntimeCore
             }
 
             if (replaceList) {
-              this._hookManager.__internal_dispose();
+              const nextIds = new Set(
+                Object.values(nextState.threadData).map((item) => item.id),
+              );
+              for (const item of Object.values(state.threadData)) {
+                if (!nextIds.has(item.id)) {
+                  this._hookManager.stopThreadRuntime(item.id);
+                }
+              }
               void this._hookManager
                 .startThreadRuntime(this._mainThreadId)
                 .then(

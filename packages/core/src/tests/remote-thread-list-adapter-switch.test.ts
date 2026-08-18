@@ -130,4 +130,69 @@ describe("RemoteThreadList adapter changes", () => {
     expect(core.getItemById("leaked")).toBeUndefined();
     expect(core.threadIds).not.toContain("leaked");
   });
+
+  it("keeps the unsent draft runtime across an empty-list adapter swap", async () => {
+    const adapterA = makeAdapter();
+    const adapterB = makeAdapter();
+    const core = createCore(adapterA);
+    const stopped: string[] = [];
+    const hookManager = (
+      core as unknown as {
+        _hookManager: { stopThreadRuntime: (id: string) => void };
+      }
+    )._hookManager;
+    const originalStop = hookManager.stopThreadRuntime.bind(hookManager);
+    hookManager.stopThreadRuntime = (id: string) => {
+      stopped.push(id);
+      originalStop(id);
+    };
+
+    await core.getLoadThreadsPromise();
+    const draftId = core.mainThreadId;
+    expect(core.getItemById(draftId)?.status).toBe("new");
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(core.mainThreadId).toBe(draftId);
+    expect(core.getItemById(draftId)?.status).toBe("new");
+    expect(stopped).not.toContain(draftId);
+  });
+
+  it("stops runtimes for threads missing from the replacement list", async () => {
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("thread-a")] }),
+    });
+    const adapterB = makeAdapter({
+      list: async () => ({ threads: [thread("thread-b")] }),
+    });
+    const core = createCore(adapterA);
+    const stopped: string[] = [];
+    const hookManager = (
+      core as unknown as {
+        _hookManager: { stopThreadRuntime: (id: string) => void };
+      }
+    )._hookManager;
+    const originalStop = hookManager.stopThreadRuntime.bind(hookManager);
+    hookManager.stopThreadRuntime = (id: string) => {
+      stopped.push(id);
+      originalStop(id);
+    };
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("thread-a");
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(core.getItemById("thread-a")).toBeUndefined();
+    expect(stopped).toContain("thread-a");
+    expect(stopped).not.toContain(core.mainThreadId);
+  });
 });
