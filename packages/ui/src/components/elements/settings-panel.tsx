@@ -70,7 +70,7 @@ export function SettingsPanel({
               className={cn(
                 "flex-1 rounded-full py-1 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.97]",
                 option === model
-                  ? "bg-background text-foreground/90 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                  ? "bg-background text-foreground/90"
                   : "text-foreground/45 hover:text-foreground/70",
               )}
             >
@@ -89,7 +89,7 @@ export function SettingsPanel({
           aria-label="System prompt"
           className={cn(
             field,
-            "text-foreground/80 focus-visible:ring-foreground/20 resize-none rounded-xl px-3 py-2 text-xs leading-relaxed outline-none focus-visible:ring-2",
+            "text-foreground/80 focus-visible:ring-foreground/20 resize-none rounded-xl px-3 py-2 text-xs leading-relaxed outline-none focus-visible:ring-1",
           )}
         />
       </div>

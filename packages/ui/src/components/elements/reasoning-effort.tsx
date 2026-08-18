@@ -59,7 +59,7 @@ export function ReasoningEffort({
               className={cn(
                 "flex-1 rounded-full py-1 text-xs font-medium transition-[background-color,color,scale] duration-150 active:scale-[0.97]",
                 active
-                  ? "bg-background text-foreground/90 shadow-[0_1px_2px_rgba(0,0,0,0.06)]"
+                  ? "bg-background text-foreground/90"
                   : "text-foreground/45 hover:text-foreground/70",
               )}
             >

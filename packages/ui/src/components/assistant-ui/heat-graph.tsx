@@ -68,7 +68,7 @@ function CellGrid() {
 
 function CellTooltip() {
   return (
-    <HeatGraphPrimitive.Tooltip className="pointer-events-none rounded-md bg-gray-900 px-3 py-1.5 text-xs whitespace-nowrap text-white shadow-lg">
+    <HeatGraphPrimitive.Tooltip className="pointer-events-none rounded-md bg-gray-900 px-3 py-1.5 text-xs whitespace-nowrap text-white">
       {({ cell }) => (
         <>
           <strong>{cell.count} contributions</strong> on{" "}

@@ -66,7 +66,7 @@ const tabsActiveIndicatorVariants = cva(
     variants: {
       variant: {
         default:
-          "bg-background dark:border-input dark:bg-input/30 inset-y-1 rounded-md shadow-sm dark:border",
+          "bg-background dark:border-input dark:bg-input/30 inset-y-1 rounded-md dark:border",
         line: "bg-foreground bottom-0 h-0.5",
         ghost: "bg-foreground/8 inset-y-1 rounded-md",
         pills: "bg-primary inset-y-0 rounded-full",
@@ -200,6 +200,8 @@ function TabsList({
 function TabsTrigger({
   className,
   value,
+  render,
+  nativeButton,
   ...props
 }: ComponentProps<typeof TabsPrimitive.Tab>) {
   const context = useContext(TabsListContext);
@@ -222,10 +224,12 @@ function TabsTrigger({
     <TabsPrimitive.Tab
       ref={ref}
       value={value}
+      render={render}
+      nativeButton={nativeButton ?? render == null}
       data-slot="tabs-trigger"
       data-value={value}
       className={cn(
-        "text-foreground/60 hover:text-foreground focus-visible:ring-ring/50 data-active:text-foreground dark:text-muted-foreground dark:hover:text-foreground relative z-10 inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 font-medium whitespace-nowrap transition-[color] duration-300 focus-visible:ring-2 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-active:font-medium [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "text-foreground/60 hover:text-foreground focus-visible:ring-ring/50 data-active:text-foreground dark:text-muted-foreground dark:hover:text-foreground relative z-10 inline-flex flex-1 cursor-pointer items-center justify-center gap-1.5 font-medium whitespace-nowrap transition-[color] duration-300 focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50 data-active:font-medium [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         "group-data-[variant=default]/tabs-list:rounded-md",
         "group-data-[variant=line]/tabs-list:rounded-md group-data-[variant=line]/tabs-list:bg-transparent",
         "group-data-[variant=ghost]/tabs-list:rounded-md group-data-[variant=ghost]/tabs-list:bg-transparent",
