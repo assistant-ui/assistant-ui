@@ -1384,6 +1384,7 @@ declare class PiThreadController implements PiThreadControllerLike {
     scheduleNotify?: PiNotificationScheduler;
   });
   getState(): PiThreadState;
+  getStateSnapshot(): PiThreadState;
   getProjectedMessages(): readonly ThreadMessageLike[];
   getMessageRepository(): ExportedMessageRepository;
   getVersion(): number;
@@ -1412,6 +1413,7 @@ declare class PiThreadController implements PiThreadControllerLike {
 
 interface PiThreadControllerLike {
   getState(): PiThreadState;
+  getStateSnapshot?(): PiThreadState;
   getProjectedMessages(): readonly ThreadMessageLike[];
   getMessageRepository(): ExportedMessageRepository;
   getVersion(): number;

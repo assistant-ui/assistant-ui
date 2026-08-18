@@ -142,38 +142,41 @@ export const EMPTY_RUNTIME_EXTRAS = buildExtras(
 // Per-thread runtime.
 // ---------------------------------------------------------------------------
 
-const usePiControllerVersion = (
-  controller: PiThreadControllerLike,
-  kind: "all" | "metadata" | "messages",
-): number => {
-  const subscribe = useCallback(
-    (listener: () => void) => {
-      if (kind === "metadata") return controller.subscribeMetadata(listener);
-      if (kind === "messages") return controller.subscribeMessages(listener);
-      return controller.subscribe(listener);
-    },
-    [controller, kind],
-  );
-  return useSyncExternalStore(
-    subscribe,
-    () => controller.getVersion(),
-    () => 0,
-  );
-};
+const stateSnapshotOf = (controller: PiThreadControllerLike): PiThreadState =>
+  controller.getStateSnapshot?.() ?? controller.getState();
 
 const usePiControllerState = (
   controller: PiThreadControllerLike,
-  kind: "all" | "metadata",
 ): PiThreadState => {
-  usePiControllerVersion(controller, kind);
-  return controller.getState();
+  const getSnapshot = useCallback(
+    () => stateSnapshotOf(controller),
+    [controller],
+  );
+  return useSyncExternalStore(
+    useCallback(
+      (listener: () => void) => controller.subscribe(listener),
+      [controller],
+    ),
+    getSnapshot,
+    getSnapshot,
+  );
 };
 
 const usePiControllerMessageRepository = (
   controller: PiThreadControllerLike,
 ): ExportedMessageRepository => {
-  usePiControllerVersion(controller, "messages");
-  return controller.getMessageRepository();
+  const getSnapshot = useCallback(
+    () => controller.getMessageRepository(),
+    [controller],
+  );
+  return useSyncExternalStore(
+    useCallback(
+      (listener: () => void) => controller.subscribeMessages(listener),
+      [controller],
+    ),
+    getSnapshot,
+    getSnapshot,
+  );
 };
 
 export const usePiControllerStateSelector = <T>(
@@ -182,7 +185,7 @@ export const usePiControllerStateSelector = <T>(
 ): T =>
   useSyncExternalStore(
     useCallback((listener) => controller.subscribe(listener), [controller]),
-    () => selector(controller.getState()),
+    () => selector(stateSnapshotOf(controller)),
     () => selector(EMPTY_THREAD_STATE),
   );
 
@@ -195,7 +198,7 @@ const usePiThreadStore = (
   controller: PiThreadControllerLike,
   options: PiRuntimeOptions,
 ): ExternalStoreAdapter<ThreadMessage> => {
-  const state = usePiControllerState(controller, "metadata");
+  const state = usePiControllerState(controller);
   const messageRepository = usePiControllerMessageRepository(controller);
 
   const {

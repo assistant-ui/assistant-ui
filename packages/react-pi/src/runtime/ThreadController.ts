@@ -50,6 +50,11 @@ export type PiNotificationScheduler = (flush: () => void) => void;
 
 export interface PiThreadControllerLike {
   getState(): PiThreadState;
+  /** The state as of the last listener notification. `getState()` can run
+   * ahead of it while a coalesced message frame is pending, so only this is a
+   * valid `useSyncExternalStore` snapshot. Optional for backwards
+   * compatibility; callers fall back to `getState()`. */
+  getStateSnapshot?(): PiThreadState;
   getProjectedMessages(): readonly ThreadMessageLike[];
   getMessageRepository(): ExportedMessageRepository;
   getVersion(): number;
@@ -228,6 +233,7 @@ const markStateRunning = (state: PiThreadState): PiThreadState => {
 
 export class PiThreadController implements PiThreadControllerLike {
   private state: PiThreadState;
+  private stateSnapshot: PiThreadState;
   private projectedMessages: readonly ThreadMessageLike[] = [];
   private messageRepository = ExportedMessageRepository.fromArray([]);
   private version = 0;
@@ -261,10 +267,15 @@ export class PiThreadController implements PiThreadControllerLike {
     this.threadId = threadId;
     this.options = options;
     this.state = createPiThreadState(threadId);
+    this.stateSnapshot = this.state;
   }
 
   public getState() {
     return this.state;
+  }
+
+  public getStateSnapshot() {
+    return this.stateSnapshot;
   }
 
   public getProjectedMessages() {
@@ -677,12 +688,14 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   private notifyMetadataListeners() {
+    this.stateSnapshot = this.state;
     this.bumpVersion();
     notifyListeners(this.metadataListeners);
     notifyListeners(this.allListeners);
   }
 
   private notifyMessageListeners() {
+    this.stateSnapshot = this.state;
     this.bumpVersion();
     notifyListeners(this.messageListeners);
     notifyListeners(this.allListeners);
