@@ -83,6 +83,7 @@ const getRatelimits = async () => {
 };
 
 const ratelimitsPromise = getRatelimits();
+void ratelimitsPromise.catch(() => {});
 type Ratelimits = NonNullable<Awaited<typeof ratelimitsPromise>>;
 
 async function runRateLimitCheck(

@@ -1,4 +1,27 @@
-import { claimXuluxStorage } from "./xulux-local-storage";
+import {
+  claimXuluxStorage,
+  createXuluxUserStorage,
+} from "./xulux-local-storage";
+
+beforeEach(() => {
+  let queue = Promise.resolve();
+  vi.stubGlobal("navigator", {
+    locks: {
+      request: (_name: string, callback: () => unknown) => {
+        const result = queue.then(callback);
+        queue = result.then(
+          () => undefined,
+          () => undefined,
+        );
+        return result;
+      },
+    },
+  });
+});
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 function createStorage(initial: Record<string, string> = {}): Storage {
   const values = new Map(Object.entries(initial));
@@ -19,20 +42,25 @@ function createStorage(initial: Record<string, string> = {}): Storage {
 }
 
 describe("claimXuluxStorage", () => {
-  it("adopts existing ownerless data for the first authenticated user", () => {
+  it("adopts existing ownerless data for the first authenticated user", async () => {
     const storage = createStorage({
       "xulux:threads": '[{"title":"Existing thread"}]',
       "xulux:learn:course": '{"threadId":"thread_existing"}',
     });
 
-    expect(claimXuluxStorage(storage, "user_current")).toBe(true);
+    await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
+      true,
+    );
 
-    expect(storage.getItem("xulux:threads")).not.toBeNull();
-    expect(storage.getItem("xulux:learn:course")).not.toBeNull();
+    expect(storage.getItem("xulux:threads")).toBeNull();
+    expect(storage.getItem("xulux:user:user_current:threads")).not.toBeNull();
+    expect(
+      storage.getItem("xulux:user:user_current:learn:course"),
+    ).not.toBeNull();
     expect(storage.getItem("xulux:storage-owner")).toBe("user_current");
   });
 
-  it("clears Xulux data when the authenticated user changes", () => {
+  it("migrates legacy data to its existing owner", async () => {
     const storage = createStorage({
       "xulux:storage-owner": "user_previous",
       "xulux:threads": '[{"title":"Private thread"}]',
@@ -40,31 +68,58 @@ describe("claimXuluxStorage", () => {
       unrelated: "keep",
     });
 
-    expect(claimXuluxStorage(storage, "user_current")).toBe(true);
+    await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
+      true,
+    );
 
     expect(storage.getItem("xulux:threads")).toBeNull();
     expect(storage.getItem("xulux:learn:course")).toBeNull();
-    expect(storage.getItem("xulux:storage-owner")).toBe("user_current");
+    expect(storage.getItem("xulux:user:user_previous:threads")).not.toBeNull();
+    expect(storage.getItem("xulux:storage-owner")).toBe("user_previous");
     expect(storage.getItem("unrelated")).toBe("keep");
   });
 
-  it("keeps data for the same authenticated user", () => {
+  it("keeps data for the same authenticated user", async () => {
     const storage = createStorage({
       "xulux:storage-owner": "user_current",
       "xulux:threads": '[{"title":"Current thread"}]',
     });
 
-    expect(claimXuluxStorage(storage, "user_current")).toBe(true);
+    await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
+      true,
+    );
 
-    expect(storage.getItem("xulux:threads")).not.toBeNull();
+    expect(storage.getItem("xulux:user:user_current:threads")).not.toBeNull();
   });
 
-  it("reports unavailable storage without throwing", () => {
+  it("serializes first-use migration across different accounts", async () => {
+    const storage = createStorage({
+      "xulux:threads": '[{"title":"Existing thread"}]',
+    });
+
+    await expect(
+      Promise.all([
+        claimXuluxStorage(storage, "user_first"),
+        claimXuluxStorage(storage, "user_second"),
+      ]),
+    ).resolves.toEqual([true, true]);
+
+    expect(
+      createXuluxUserStorage(storage, "user_first").getItem("xulux:threads"),
+    ).not.toBeNull();
+    expect(
+      createXuluxUserStorage(storage, "user_second").getItem("xulux:threads"),
+    ).toBeNull();
+  });
+
+  it("reports unavailable storage without throwing", async () => {
     const storage = createStorage();
     storage.setItem = () => {
       throw new Error("Storage unavailable");
     };
 
-    expect(claimXuluxStorage(storage, "user_current")).toBe(false);
+    await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
+      false,
+    );
   });
 });

@@ -2,8 +2,8 @@
 
 The docs assistant and UI Builder chat remain public. AI Builder (Xulux), its
 chat routes, guided `/learn` pages, and workspace downloads require a verified
-Clerk user. `/learn/preview/*` remains public because it serves the inert stage
-preview loaded by the authenticated course.
+Clerk user. The `/learn/preview/*` document remains public because it serves the
+inert stage iframe, while its Xulux chat API remains authenticated.
 
 Anonymous access is deliberately bounded rather than treated as proof of a
 human. A signed session is a soft per-session quota: a caller can discard it
@@ -44,11 +44,13 @@ the on-call owner. Missing or unavailable Redis fails closed with a structured
 `rate_limit_unavailable` log and a `503` response.
 
 Direct Vercel deployments use `x-vercel-forwarded-for`, which Vercel supplies
-as a protected client-IP header. If another reverse proxy sits in front of
-Vercel, it must remove caller-provided copies and overwrite a private header
-with the verified client address. Set that header name in
-`AUI_TRUSTED_CLIENT_IP_HEADER`. Do not set the variable without that proxy
-contract. See [Vercel request headers](https://examples.vercel.com/docs/headers/request-headers).
+as the canonical client address and protects from caller spoofing. A proxy in
+front of Vercel does not preserve the external client address by default;
+Vercel overwrites `x-forwarded-for` with the proxy address. Keep
+`AUI_TRUSTED_CLIENT_IP_HEADER` unset unless Vercel Enterprise Trusted Proxy is
+purchased and enabled and the integration is verified to overwrite a private
+header with the client address. See
+[Vercel request headers](https://vercel.com/docs/headers/request-headers).
 
 ## Staging verification
 
@@ -66,9 +68,9 @@ Before production promotion, verify all of the following on the deployment URL:
    complete playground URL, including existing query parameters.
 6. Xulux chat and workspace downloads return `401` without Clerk auth and work
    for a signed-in staging user.
-7. Switching Clerk users in one browser clears the previous Xulux local data.
-   Existing ownerless data is adopted by the first authenticated user during
-   rollout rather than deleted.
+7. Switching Clerk users in one browser cannot expose the previous user's
+   Xulux data, including across open tabs. Existing ownerless data is migrated
+   to the first authenticated user's isolated namespace during rollout.
 8. Assistant Cloud rejects a request without the `assistant-ui` JWT.
 9. Redis counters and provider spend alerts are visible to the on-call owner.
 

@@ -11,11 +11,14 @@ import type {
 import type { SelectedTemplateContext } from "../XuluxApp";
 
 const PREFIX = "xulux:";
+const USER_PREFIX = `${PREFIX}user:`;
 const THREADS_KEY = `${PREFIX}threads`;
-export const XULUX_STORAGE_OWNER_KEY = `${PREFIX}storage-owner`;
+const STORAGE_OWNER_KEY = `${PREFIX}storage-owner`;
+const STORAGE_LOCK_NAME = `${PREFIX}storage-migration`;
 const STORAGE_EVENT = "xulux-storage";
 const EMPTY_THREADS: XuluxStoredThread[] = [];
 
+let activeUserId: string | null = null;
 let cachedThreadsRaw: string | null = null;
 let cachedThreadsSnapshot: XuluxStoredThread[] = EMPTY_THREADS;
 
@@ -28,30 +31,74 @@ function notify() {
   window.dispatchEvent(new Event(STORAGE_EVENT));
 }
 
-export function claimXuluxStorage(
+function userKey(userId: string, key: string): string {
+  return `${USER_PREFIX}${encodeURIComponent(userId)}:${key.slice(PREFIX.length)}`;
+}
+
+function activeKey(key: string): string | null {
+  return activeUserId ? userKey(activeUserId, key) : null;
+}
+
+export function createXuluxUserStorage(
+  storage: Pick<Storage, "getItem" | "setItem">,
+  userId: string,
+): Pick<Storage, "getItem" | "setItem"> {
+  return {
+    getItem: (key) => storage.getItem(userKey(userId, key)),
+    setItem: (key, value) => storage.setItem(userKey(userId, key), value),
+  };
+}
+
+function migrateLegacyStorage(
   storage: Pick<
     Storage,
     "getItem" | "setItem" | "removeItem" | "length" | "key"
   >,
   userId: string,
 ): boolean {
-  try {
-    const currentOwner = storage.getItem(XULUX_STORAGE_OWNER_KEY);
-    if (currentOwner === userId) return true;
-    if (currentOwner === null) {
-      storage.setItem(XULUX_STORAGE_OWNER_KEY, userId);
-      return true;
+  const currentOwner = storage.getItem(STORAGE_OWNER_KEY);
+  const legacyOwner = currentOwner ?? userId;
+  const keys: string[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (
+      key?.startsWith(PREFIX) &&
+      !key.startsWith(USER_PREFIX) &&
+      key !== STORAGE_OWNER_KEY
+    ) {
+      keys.push(key);
     }
+  }
+  for (const key of keys) {
+    const targetKey = userKey(legacyOwner, key);
+    if (storage.getItem(targetKey) === null) {
+      const value = storage.getItem(key);
+      if (value !== null) storage.setItem(targetKey, value);
+    }
+    storage.removeItem(key);
+  }
 
-    const keys: string[] = [];
-    for (let index = 0; index < storage.length; index += 1) {
-      const key = storage.key(index);
-      if (key?.startsWith(PREFIX) && key !== XULUX_STORAGE_OWNER_KEY) {
-        keys.push(key);
-      }
-    }
-    for (const key of keys) storage.removeItem(key);
-    storage.setItem(XULUX_STORAGE_OWNER_KEY, userId);
+  if (currentOwner === null) storage.setItem(STORAGE_OWNER_KEY, userId);
+  const claimKey = userKey(userId, `${PREFIX}claim`);
+  storage.setItem(claimKey, userId);
+  return storage.getItem(claimKey) === userId;
+}
+
+export async function claimXuluxStorage(
+  storage: Pick<
+    Storage,
+    "getItem" | "setItem" | "removeItem" | "length" | "key"
+  >,
+  userId: string,
+): Promise<boolean> {
+  if (typeof navigator === "undefined" || !navigator.locks) return false;
+
+  try {
+    const claimed = await navigator.locks.request(STORAGE_LOCK_NAME, () =>
+      migrateLegacyStorage(storage, userId),
+    );
+    if (!claimed) return false;
+    activeUserId = userId;
     cachedThreadsRaw = null;
     cachedThreadsSnapshot = EMPTY_THREADS;
     notify();
@@ -64,9 +111,11 @@ export function claimXuluxStorage(
 function writeJson<T>(key: string, value: T) {
   if (!isBrowser()) return;
   try {
+    const storageKey = activeKey(key);
+    if (!storageKey) return;
     const nextRaw = JSON.stringify(value);
-    if (window.localStorage.getItem(key) === nextRaw) return;
-    window.localStorage.setItem(key, nextRaw);
+    if (window.localStorage.getItem(storageKey) === nextRaw) return;
+    window.localStorage.setItem(storageKey, nextRaw);
     notify();
   } catch {
     // Ignore quota and private-mode write failures.
@@ -92,7 +141,9 @@ function normalizeThread(thread: XuluxStoredThread): XuluxStoredThread {
 export function readXuluxThreads(): XuluxStoredThread[] {
   if (!isBrowser()) return EMPTY_THREADS;
 
-  const raw = window.localStorage.getItem(THREADS_KEY);
+  const storageKey = activeKey(THREADS_KEY);
+  if (!storageKey) return EMPTY_THREADS;
+  const raw = window.localStorage.getItem(storageKey);
   if (raw === cachedThreadsRaw) {
     return cachedThreadsSnapshot;
   }

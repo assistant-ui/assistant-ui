@@ -451,6 +451,14 @@ export function PlaygroundClient({
     builder: !requestedAgent,
   });
 
+  useEffect(() => {
+    const nextMode = requestedAgent ? "agent" : "builder";
+    setMode(nextMode);
+    setVisitedModes((current) =>
+      current[nextMode] ? current : { ...current, [nextMode]: true },
+    );
+  }, [requestedAgent]);
+
   const handleModeChange = useCallback(
     (nextMode: "agent" | "builder") => {
       setMode(nextMode);

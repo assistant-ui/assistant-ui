@@ -39,7 +39,7 @@ import type { LearnAutoStartSource } from "@/lib/xulux/learn/types";
 import { useAuth } from "@clerk/nextjs";
 import {
   claimXuluxStorage,
-  XULUX_STORAGE_OWNER_KEY,
+  createXuluxUserStorage,
 } from "./runtime/xulux-local-storage";
 
 export type XuluxMode = "playground" | "learn";
@@ -71,51 +71,46 @@ export function XuluxApp({
   autoStartSource?: LearnAutoStartSource;
 }) {
   const { isLoaded, userId } = useAuth();
-  const [storageState, setStorageState] = useState<
-    "loading" | "ready" | "unavailable" | "claimed-elsewhere"
-  >("loading");
+  const [storageState, setStorageState] = useState<{
+    status: "loading" | "ready" | "unavailable";
+    userId: string | null;
+  }>({ status: "loading", userId: null });
 
   useEffect(() => {
+    let active = true;
+    setStorageState({ status: "loading", userId: userId ?? null });
     if (!userId) {
-      setStorageState("loading");
       return;
     }
-    if (!claimXuluxStorage(window.localStorage, userId)) {
-      setStorageState("unavailable");
-      return;
-    }
-    setStorageState("ready");
-
-    const handleStorage = (event: StorageEvent) => {
-      if (event.key !== XULUX_STORAGE_OWNER_KEY) return;
-      setStorageState(
-        event.newValue === userId ? "ready" : "claimed-elsewhere",
-      );
+    void claimXuluxStorage(window.localStorage, userId).then((claimed) => {
+      if (!active) return;
+      setStorageState({
+        status: claimed ? "ready" : "unavailable",
+        userId,
+      });
+    });
+    return () => {
+      active = false;
     };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
   }, [userId]);
 
   if (!isLoaded) return <XuluxAuthStatus message="Loading your workspace…" />;
   if (!userId) {
     return <XuluxAuthStatus message="Sign in to use AI Builder." />;
   }
-  if (storageState === "unavailable") {
-    return (
-      <XuluxAuthStatus message="Local storage is unavailable. Enable it to use AI Builder." />
-    );
-  }
-  if (storageState === "claimed-elsewhere") {
-    return (
-      <XuluxAuthStatus message="This workspace is active under a different account in another tab." />
-    );
-  }
-  if (storageState !== "ready") {
+  if (storageState.userId !== userId || storageState.status === "loading") {
     return <XuluxAuthStatus message="Loading your workspace…" />;
+  }
+  if (storageState.status === "unavailable") {
+    return (
+      <XuluxAuthStatus message="Secure local storage is unavailable in this browser." />
+    );
   }
 
   return (
     <XuluxAppReady
+      key={userId}
+      userId={userId}
       mode={mode}
       courseId={courseId}
       autoStart={autoStart}
@@ -133,11 +128,13 @@ function XuluxAuthStatus({ message }: { message: string }) {
 }
 
 function XuluxAppReady({
+  userId,
   mode,
   courseId,
   autoStart,
   autoStartSource,
 }: {
+  userId: string;
   mode: XuluxMode;
   courseId: string;
   autoStart: boolean;
@@ -160,16 +157,23 @@ function XuluxAppReady({
 
   useEffect(() => {
     if (mode !== "learn") return;
-    const stored = readLearnProgress(window.localStorage, courseId);
+    const storage = createXuluxUserStorage(window.localStorage, userId);
+    const stored = readLearnProgress(storage, courseId);
     setLearnProgress(stored);
     if (stored.threadId) setSessionId(stored.threadId);
     setLearnReady(true);
-  }, [courseId, mode]);
+  }, [courseId, mode, userId]);
 
-  const updateLearnProgress = useCallback((progress: LearnProgress) => {
-    setLearnProgress(progress);
-    writeLearnProgress(window.localStorage, progress);
-  }, []);
+  const updateLearnProgress = useCallback(
+    (progress: LearnProgress) => {
+      setLearnProgress(progress);
+      writeLearnProgress(
+        createXuluxUserStorage(window.localStorage, userId),
+        progress,
+      );
+    },
+    [userId],
+  );
 
   return (
     <XuluxRuntimeProvider
