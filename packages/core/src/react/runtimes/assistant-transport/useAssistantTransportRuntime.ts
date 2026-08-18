@@ -447,7 +447,9 @@ const useAssistantTransportThreadRuntime = <T>(
         result: toolOptions.result as ReadonlyJSONObject,
         toolName: toolOptions.toolName,
         isError: toolOptions.isError,
-        ...(toolOptions.artifact && { artifact: toolOptions.artifact }),
+        ...(toolOptions.artifact !== undefined && {
+          artifact: toolOptions.artifact,
+        }),
         ...(toolOptions.modelContent !== undefined && {
           modelContent: toolOptions.modelContent,
         }),
