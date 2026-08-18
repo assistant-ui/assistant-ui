@@ -1,6 +1,15 @@
-import { describe, expect, it } from "vitest";
-import { UserMessageSchema } from "@ag-ui/client";
-import { fromAgUiMessages, toAgUiMessages } from "./conversions";
+import { describe, expect, expectTypeOf, it } from "vitest";
+import {
+  MessageSchema,
+  UserMessageSchema,
+  type Message as AgUiWireMessage,
+} from "@ag-ui/client";
+import type { AppendMessage } from "@assistant-ui/core";
+import {
+  fromAgUiMessages,
+  toAgUiMessages,
+  type AgUiMessage,
+} from "./conversions";
 
 type Message = Parameters<typeof toAgUiMessages>[0][number];
 
@@ -20,7 +29,56 @@ const contentOf = (message: Message) => {
   return (converted as { content: unknown }).content;
 };
 
+const appendMessage = (): AppendMessage => ({
+  role: "user",
+  content: [{ type: "text", text: "Hi" }],
+  attachments: [],
+  createdAt: new Date(),
+  parentId: null,
+  sourceId: null,
+  runConfig: undefined,
+  metadata: { custom: {} },
+});
+
 describe("toAgUiMessages content metadata", () => {
+  it("emits AgUiMessage values assignable to AG-UI Message", () => {
+    expectTypeOf<AgUiMessage>().toExtend<AgUiWireMessage>();
+  });
+
+  it("emits records MessageSchema accepts", () => {
+    const converted = toAgUiMessages([
+      { id: "u-1", role: "user", content: "Hi" },
+      { id: "a-1", role: "assistant", content: "Hello" },
+      { id: "s-1", role: "system", content: "Be brief" },
+      { id: "t-1", role: "tool", content: "ok", toolCallId: "c-1" },
+      { id: "r-1", role: "reasoning", content: "hmm" },
+    ]);
+
+    expect(converted.map((message) => MessageSchema.parse(message))).toEqual(
+      converted,
+    );
+  });
+
+  it("normalizes an AppendMessage without an id", () => {
+    const converted = toAgUiMessages([appendMessage()])[0];
+    if (!converted) throw new Error("expected a converted message");
+
+    expect(UserMessageSchema.parse(converted)).toMatchObject({
+      role: "user",
+      content: "Hi",
+    });
+    expect(converted.id).toEqual(expect.any(String));
+  });
+
+  it("preserves a caller-supplied id", () => {
+    const converted = toAgUiMessages([
+      { ...appendMessage(), id: "stable-user-1" },
+    ])[0];
+    if (!converted) throw new Error("expected a converted message");
+
+    expect(UserMessageSchema.parse(converted).id).toBe("stable-user-1");
+  });
+
   it("carries a part's agui provider metadata onto an image item", () => {
     expect(
       contentOf(

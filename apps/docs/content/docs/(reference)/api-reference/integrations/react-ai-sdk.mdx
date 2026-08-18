@@ -19,7 +19,7 @@ import { reactAiSdk_AISDKChat, reactAiSdk_AISDKThreads, reactAiSdk_AISDKToolkit,
 `AuiConfig` entry that runs the AI SDK chat as the `threads` scope. Hosts the
 same orchestration as `useChatRuntime` inside the client's own resource tree,
 so it works with any `AssistantClient` host, React or not. Single thread; the
-multi-thread and assistant-cloud surface stays on `useChatRuntime`. The chat
+multi-thread and assistant-cloud surface is [AISDKThreads](/docs/api-reference/integrations/react-ai-sdk#aisdkthreads). The chat
 id is captured when the entry mounts, so a later `id` change in the options
 has no effect.
 
@@ -27,14 +27,15 @@ has no effect.
 
 ### AISDKThreads
 
-`AuiConfig` entry that runs one AI SDK chat per thread behind an in-memory
-thread list. Hosts the same per-thread orchestration as [AISDKChat](/docs/api-reference/integrations/react-ai-sdk#aisdkchat)
-inside the client's own resource tree, so it works with any
-`AssistantClient` host, React or not. Threads live in memory for the
-client's lifetime and keep their history across switches; each thread's
-chat id is its thread id. Model context is registered on the visible
-thread only, so a background send carries no context. The assistant-cloud
-thread list stays on `useChatRuntime`.
+`AuiConfig` entry that runs one AI SDK chat per thread. Hosts the same
+per-thread orchestration as [AISDKChat](/docs/api-reference/integrations/react-ai-sdk#aisdkchat) inside the client's own
+resource tree, so it works with any `AssistantClient` host, React or not.
+Without `cloud`, threads live in memory for the client's lifetime and keep
+their history across switches; each thread's chat id is its thread id.
+With `cloud`, the list is a `RemoteThreadList` and the factory is keyed so
+cloud history reloads on a switch. The store entry mounts only the visible
+thread, so a switch cancels an in-flight run. Model context is
+registered on the visible thread only.
 
 <ParametersTable {...reactAiSdk_AISDKThreads} />
 

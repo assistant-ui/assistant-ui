@@ -1,6 +1,6 @@
 {
   "name": "@assistant-ui/react-markdown",
-  "version": "0.14.10",
+  "version": "0.14.11",
   "description": "Markdown rendering for assistant-ui",
   "keywords": [
     "markdown",

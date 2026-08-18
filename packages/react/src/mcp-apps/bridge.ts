@@ -1,4 +1,5 @@
 import type { SandboxHostFrame } from "../sandbox-host/SandboxHost";
+import { invokeCallbackSafely } from "../utils/invokeCallbackSafely";
 import {
   MCP_APP_PROTOCOL_VERSION,
   type McpAppBridgeHandlers,
@@ -123,21 +124,8 @@ export function createMcpAppBridge(
     });
   };
 
-  const reportErrorCallbackFailure = (error: unknown) => {
-    console.error(
-      "[assistant-ui] MCP App onError callback threw an error",
-      error,
-    );
-  };
-
   const reportError = (error: Error) => {
-    try {
-      void Promise.resolve(handlers.onError?.(error)).catch(
-        reportErrorCallbackFailure,
-      );
-    } catch (callbackError) {
-      reportErrorCallbackFailure(callbackError);
-    }
+    invokeCallbackSafely(() => handlers.onError?.(error), "MCP App onError");
   };
 
   const handleRequest = async (req: McpAppJsonRpcRequest) => {

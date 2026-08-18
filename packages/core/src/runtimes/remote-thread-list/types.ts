@@ -1,6 +1,9 @@
 import type { ThreadMessage } from "../../types/message";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import type { AssistantStream } from "assistant-stream";
+import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
+import type { AttachmentAdapter } from "../../adapters/attachment";
+import type { ModelContextProvider } from "../../model-context/types";
 
 /* oxlint-disable typescript/no-explicit-any -- structural stand-in for ComponentType without depending on react types */
 type RemoteThreadListProviderProps = { children?: any };
@@ -33,6 +36,12 @@ export type RemoteThreadListPageOptions = {
   after?: string | undefined;
 };
 
+export type RuntimeAdapters = {
+  modelContext?: ModelContextProvider | undefined;
+  history?: ThreadHistoryAdapter | undefined;
+  attachments?: AttachmentAdapter | undefined;
+};
+
 export type RemoteThreadListAdapter = {
   list(params?: RemoteThreadListPageOptions): Promise<RemoteThreadListResponse>;
 
@@ -56,12 +65,33 @@ export type RemoteThreadListAdapter = {
    * inject per-thread context such as a history or attachments adapter (see
    * `useCloudThreadListAdapter` for the canonical shape).
    *
+   * `useRemoteThreadListRuntime` renders this component when present. If it
+   * is omitted, that host synthesizes a `RuntimeAdapterProvider` from
+   * `unstable_useAdapters`. The `RemoteThreadList` store entry ignores it;
+   * expose `unstable_useAdapters` for that host.
+   *
    * The Provider must render `children` on its first commit; deferring them
    * behind a loading state, a Suspense boundary, or a `useEffect`-gated render
    * is unsupported and leaves thread context unavailable to downstream
    * consumers. Load data inside an always-mounted child instead.
    */
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
+
+  /**
+   * Hook the `RemoteThreadList` store entry calls once for the main-thread
+   * slot, then provides to the `thread` factory. This is not mounted per
+   * listed thread. `useRemoteThreadListRuntime` also calls it when
+   * `unstable_Provider` is omitted. Resolve `threadListItem` lazily on each
+   * adapter call; do not capture it at hook mount. The hook must keep a
+   * stable hook count across adapter swaps; a different count throws.
+   * Memoize the returned object.
+   *
+   * Per-thread history also requires the `thread` factory to be keyed by
+   * thread id (`withKey(id, thread(...))`). History loaders such as
+   * `useExternalHistory` run once per mount; an unkeyed factory keeps one
+   * instance across switches and the next thread's messages never load.
+   */
+  unstable_useAdapters?: (() => RuntimeAdapters | null | undefined) | undefined;
 };
 
 export type RemoteThreadListOptions = {
