@@ -5479,7 +5479,6 @@ declare const Tools: Resource<ClientOutput<"tools">, [
   {
     toolkit?: Toolkit;
     mcpApp?: ResourceElement<McpAppResourceOutput> | undefined;
-    uploadBackendDefaults?: boolean | undefined;
   }
 ]>;
 
