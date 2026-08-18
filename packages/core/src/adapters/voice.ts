@@ -165,6 +165,10 @@ export function createVoiceSession(
   if (abortSignal) {
     abortHandler = () => session.disconnect();
     abortSignal.addEventListener("abort", abortHandler, { once: true });
+    if (abortSignal.aborted) {
+      session.disconnect();
+      return session;
+    }
   }
 
   const doSetup = async () => {
