@@ -36,16 +36,14 @@ const useAdaptedRemoteThread = ({
 }): ClientOutput<"thread"> => {
   const parent = useRuntimeAdapters();
   const adapters = useAdapters();
-  const stableAdapters = useRef(adapters);
-  if (!adaptersShallowEqual(stableAdapters.current, adapters)) {
-    stableAdapters.current = adapters;
+  const adaptersRef = useRef(adapters);
+  if (!adaptersShallowEqual(adaptersRef.current, adapters)) {
+    adaptersRef.current = adapters;
   }
+  const stableAdapters = adaptersRef.current;
   const merged = useMemo(
-    () =>
-      stableAdapters.current == null
-        ? parent
-        : { ...parent, ...stableAdapters.current },
-    [parent],
+    () => (stableAdapters == null ? parent : { ...parent, ...stableAdapters }),
+    [parent, stableAdapters],
   );
   return useRuntimeAdaptersProvider(merged, function useBoundRemoteThread() {
     return useClientResource(thread).methods;
