@@ -469,4 +469,80 @@ describe("AISDKThreads", () => {
       handle.destroy();
     }
   });
+
+  it("persists a new cloud draft to the departing thread after a switch", async () => {
+    const cloudThread = (id: string) => ({
+      id,
+      title: id,
+      is_archived: false,
+      last_message_at: null,
+      external_id: null,
+      metadata: null,
+    });
+    const createMessage = vi.fn(async () => ({
+      message_id: "remote-message-1",
+    }));
+    const cloud = {
+      threads: {
+        list: vi.fn(async () => ({ threads: [cloudThread("t1")] })),
+        create: vi.fn(async () => ({ thread_id: "cloud-created" })),
+        update: vi.fn(),
+        delete: vi.fn(),
+        get: vi.fn(async (id: string) => cloudThread(id)),
+        messages: {
+          list: vi.fn(async () => ({ messages: [] })),
+          create: createMessage,
+          update: vi.fn(),
+        },
+      },
+      runs: { stream: vi.fn(), report: vi.fn() },
+      telemetry: { enabled: false },
+    } as unknown as AssistantCloud;
+    const { transport, emit, close } = createControlledTransport();
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: AISDKThreads({
+          cloud,
+          transport,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    try {
+      await handle.getClient().threads.getLoadThreadsPromise();
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isLoading).toBe(false);
+      });
+
+      flushTapSync(() => handle.getClient().composer.setText("hello"));
+      flushTapSync(() => handle.getClient().composer.send());
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+      });
+
+      const switched = new Promise<void>((resolve) => {
+        const unsubscribe = handle.subscribe(() => {
+          const thread = handle.getClient().thread.getState();
+          if (thread.isRunning || thread.messages.length < 2) return;
+          unsubscribe();
+          flushTapSync(() => handle.getClient().threads.switchToThread("t1"));
+          resolve();
+        });
+      });
+      emit(...textReply("answer"));
+      close();
+      await switched;
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+      });
+      await vi.waitFor(() => {
+        expect(createMessage).toHaveBeenCalled();
+      });
+      const threadIds = createMessage.mock.calls.map((call) => call[0]);
+      expect(threadIds).toContain("cloud-created");
+      expect(threadIds).not.toContain("t1");
+    } finally {
+      handle.destroy();
+    }
+  });
 });

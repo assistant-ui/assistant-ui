@@ -76,13 +76,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
   ): GenericThreadHistoryAdapter<TMessage> {
     const adapter = this;
     let threadListItem: CloudThreadListItem | undefined;
-    const resolvePinned = () => {
-      if (!threadListItem) {
-        const next = adapter.tryGetKeyedThreadListItem();
-        if (next) threadListItem = next;
-      }
+    const pinCurrent = () => {
+      const next = adapter.tryGetKeyedThreadListItem();
+      if (next) threadListItem = next;
       return threadListItem;
     };
+    const resolvePinned = () => threadListItem ?? pinCurrent();
     const getFormatted = () =>
       createFormattedPersistence(adapter._persistence, formatAdapter);
     const getTargetFormatted = (item: CloudThreadListItem) =>
@@ -128,10 +127,7 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
-        const next = adapter.tryGetKeyedThreadListItem();
-        if (next?.getState().remoteId) {
-          threadListItem ??= next;
-        }
+        pinCurrent();
         const live = adapter.aui.threadListItem;
         const remoteId = live.source ? live.getState().remoteId : undefined;
         if (!remoteId) return { messages: [] };

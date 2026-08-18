@@ -208,6 +208,7 @@ export const useExternalHistory = <TMessage>(
           runStartRef.current = Date.now();
           stepBoundariesRef.current = [];
           toolCallCountRef.current = 0;
+          void adapter.load();
         }
         // Cancel any pending persist — isRunning went back to true
         if (persistTimerRef.current) {
