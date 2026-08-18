@@ -13,11 +13,30 @@ export function getPanelWidth(open: boolean, width: number): string {
   return open ? `${width}px` : COLLAPSED_WIDTH;
 }
 
+export function DocsShell({ children }: { children: ReactNode }): ReactNode {
+  const { open, width } = useAssistantPanel();
+
+  return (
+    <div
+      className="docs-shell"
+      style={
+        {
+          "--chat-panel-width": getPanelWidth(open, width),
+          "--sidebar-width": `${DOCS_SIDEBAR_WIDTH}px`,
+        } as React.CSSProperties
+      }
+    >
+      {children}
+    </div>
+  );
+}
+
 export function DocsContent({ children }: { children: ReactNode }): ReactNode {
   const { open, width, isResizing } = useAssistantPanel();
 
   return (
     <div
+      data-docs-content=""
       className={cn(
         "@container md:mr-(--chat-panel-width) md:ml-(--sidebar-width)",
         !isResizing &&

@@ -6,7 +6,7 @@ import { SampleFrame } from "@/components/docs/samples/sample-frame";
 export function QuoteComposerSample() {
   return (
     <SampleFrame className="relative flex h-auto items-center justify-center p-8 pb-10">
-      <div className="bg-background w-full max-w-xl rounded-2xl border shadow-xs">
+      <div className="bg-background w-full max-w-xl rounded-2xl border">
         {/* Quote preview — matches ComposerQuotePreview styling */}
         <div className="bg-muted/60 mx-3 mt-2 flex items-start gap-2 rounded-lg px-3 py-2">
           <QuoteIcon className="text-muted-foreground/70 mt-0.5 size-3.5 shrink-0" />

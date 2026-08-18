@@ -15,7 +15,7 @@ function AttachmentTileStatic({ name, isImage }: AttachmentTileStaticProps) {
   return (
     <div className="aui-attachment-root animate-in fade-in-0 zoom-in-95 relative duration-200 motion-reduce:animate-none">
       <div
-        className="aui-attachment-tile aui-attachment-tile-composer bg-muted hover:after:bg-foreground/10 focus-visible:ring-ring/50 relative size-14 cursor-pointer overflow-hidden rounded-[14px] transition-transform outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:transition-colors after:ring-inset focus-visible:ring-3 active:scale-[0.96] motion-reduce:transition-none dark:after:ring-white/10"
+        className="aui-attachment-tile aui-attachment-tile-composer bg-muted hover:after:bg-foreground/10 focus-visible:ring-ring/50 relative size-14 cursor-pointer overflow-hidden rounded-[14px] transition-transform outline-none after:pointer-events-none after:absolute after:inset-0 after:rounded-[inherit] after:ring-1 after:ring-black/10 after:transition-colors after:ring-inset focus-visible:ring-1 active:scale-[0.96] motion-reduce:transition-none dark:after:ring-white/10"
         role="button"
         tabIndex={0}
         aria-label={`${attachmentType} attachment: ${name}`}
@@ -30,7 +30,7 @@ function AttachmentTileStatic({ name, isImage }: AttachmentTileStaticProps) {
       </div>
       <TooltipIconButton
         tooltip="Remove file"
-        className="aui-attachment-tile-remove absolute end-1 top-1 size-5 rounded-full bg-black/50! text-white backdrop-blur-sm after:absolute after:-inset-1.5 hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
+        className="aui-attachment-tile-remove absolute end-1 top-1 size-5 rounded-full bg-black/50! text-white after:absolute after:-inset-1.5 hover:bg-black/70! hover:text-white! active:scale-[0.96] motion-reduce:transition-none"
         side="top"
       >
         <XIcon className="aui-attachment-remove-icon size-3 stroke-[2.5]" />
@@ -43,7 +43,7 @@ export function AttachmentSample() {
   return (
     <SampleFrame className="bg-background flex h-auto items-center justify-center p-8">
       <div className="w-full max-w-xl">
-        <div className="aui-composer-root border-border bg-muted dark:border-muted-foreground/15 relative flex w-full flex-col rounded-3xl border px-1 pt-2 shadow-[0_9px_9px_0px_rgba(0,0,0,0.01),0_2px_5px_0px_rgba(0,0,0,0.06)]">
+        <div className="aui-composer-root border-border bg-muted dark:border-muted-foreground/15 relative flex w-full flex-col rounded-3xl border px-1 pt-2">
           <div className="aui-composer-attachments mb-2 flex w-full flex-row items-center gap-2 overflow-x-auto px-1.5 pt-0.5 pb-1">
             <AttachmentTileStatic name="screenshot.png" isImage />
             <AttachmentTileStatic name="document.pdf" />

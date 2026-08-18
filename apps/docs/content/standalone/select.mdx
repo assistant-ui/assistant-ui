@@ -69,9 +69,9 @@ Use the `variant` prop on `SelectTrigger` to change the visual style.
 <Flavored radix={<SelectRadixSamples.SelectVariantsSample />} base={<SelectVariantsSample />} />
 
 ```tsx
-<SelectTrigger variant="outline" /> // Border (default)
-<SelectTrigger variant="ghost" />   // No border
-<SelectTrigger variant="muted" />   // Solid background
+<SelectTrigger variant="outline" /> // Quiet fill (default)
+<SelectTrigger variant="ghost" />   // No fill
+<SelectTrigger variant="muted" />   // Stronger fill
 ```
 
 ### Sizes
@@ -81,8 +81,8 @@ Use the `size` prop on `SelectTrigger` to change the height.
 <Flavored radix={<SelectRadixSamples.SelectSizesSample />} base={<SelectSizesSample />} />
 
 ```tsx
-<SelectTrigger size="default" /> // 36px (default)
-<SelectTrigger size="sm" />      // 32px
+<SelectTrigger size="default" /> // 28px (default)
+<SelectTrigger size="sm" />      // 24px
 ```
 
 ### Scrollable
@@ -168,6 +168,18 @@ A convenience component that renders a complete select with options.
       name: "placeholder",
       type: "string",
       description: "Placeholder text when no value is selected.",
+    },
+    {
+      name: "variant",
+      type: '"outline" | "ghost" | "muted"',
+      default: '"outline"',
+      description: "The visual style of the trigger.",
+    },
+    {
+      name: "size",
+      type: '"sm" | "default" | "lg"',
+      default: '"default"',
+      description: "The size of the trigger.",
     },
     {
       name: "className",
