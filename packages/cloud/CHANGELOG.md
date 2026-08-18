@@ -1,5 +1,25 @@
 # assistant-cloud
 
+## 0.1.41
+
+### Patch Changes
+
+- [#5953](https://github.com/assistant-ui/assistant-ui/pull/5953) [`bd01e8b`](https://github.com/assistant-ui/assistant-ui/commit/bd01e8bd38493565727644326997e1dd0c817d90) - fix: scope anonymous refresh tokens by Cloud backend ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5984](https://github.com/assistant-ui/assistant-ui/pull/5984) [`4a2a76f`](https://github.com/assistant-ui/assistant-ui/commit/4a2a76f8ef3a9bb4d61e84e834bf22868c54b200) - fix: validate file API responses before returning them to consumers ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5941](https://github.com/assistant-ui/assistant-ui/pull/5941) [`04e967c`](https://github.com/assistant-ui/assistant-ui/commit/04e967cb32eaea5c265533d3616845639dfcf3a2) - fix: preserve anonymous identities when token refresh fails transiently ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5997](https://github.com/assistant-ui/assistant-ui/pull/5997) [`d79b87d`](https://github.com/assistant-ui/assistant-ui/commit/d79b87df08d4a7684831e1fa4a2ba8acea3938ff) - fix: validate auth token responses ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5954](https://github.com/assistant-ui/assistant-ui/pull/5954) [`645c56b`](https://github.com/assistant-ui/assistant-ui/commit/645c56bedafc493c022b782724e44872f9b6e4a9) - fix: validate Cloud run stream response bodies and content types ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5738](https://github.com/assistant-ui/assistant-ui/pull/5738) [`72a6272`](https://github.com/assistant-ui/assistant-ui/commit/72a6272434a1e5964047c7158c49db37295e5f4e) - fix: validate thread, message, and run IDs returned by Cloud mutations ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`0e91e27`](https://github.com/assistant-ui/assistant-ui/commit/0e91e277ebe218e891d1c318a18eec230ee4f981), [`c5bc8ed`](https://github.com/assistant-ui/assistant-ui/commit/c5bc8ed0c78e8fb66a6c21c596765caeccef3aec), [`f0d1d48`](https://github.com/assistant-ui/assistant-ui/commit/f0d1d48842b61c8f781771375e3893d189321c2d), [`ab7f49f`](https://github.com/assistant-ui/assistant-ui/commit/ab7f49fcb91b8a9d96408426da3259c99f619649), [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e), [`a2ab997`](https://github.com/assistant-ui/assistant-ui/commit/a2ab997dc645923fa8ebbca5e8e050d467a69cf4), [`e8997d9`](https://github.com/assistant-ui/assistant-ui/commit/e8997d922d15d0de0d20558ce0735fa3e844f27f), [`44e574f`](https://github.com/assistant-ui/assistant-ui/commit/44e574f8c17dd5603933ec74821eecd08e94e371), [`14c3b5a`](https://github.com/assistant-ui/assistant-ui/commit/14c3b5a25afe2b2f37760dfe8003818b2e4f72d3)]:
+  - assistant-stream@0.3.38
+
 ## 0.1.40
 
 ### Patch Changes

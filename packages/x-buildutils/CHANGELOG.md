@@ -1,5 +1,17 @@
 # @assistant-ui/x-buildutils
 
+## 0.0.23
+
+### Patch Changes
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5846](https://github.com/assistant-ui/assistant-ui/pull/5846) [`d54844a`](https://github.com/assistant-ui/assistant-ui/commit/d54844a6e4d499d89f756d43bff20c772309a59f) - fix: remap a package's own bare react imports to the react-free standalone-shim when it depends on tap without a react peer, so a reactless bridge's build output no longer imports React directly ([@Yonom](https://github.com/Yonom))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5855](https://github.com/assistant-ui/assistant-ui/pull/5855) [`e92769d`](https://github.com/assistant-ui/assistant-ui/commit/e92769d7dd2dd796a65ba6844fbf9c6b7e2ce0b1) - fix: count direct react dependencies when selecting the tap shim target ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.22
 
 ### Patch Changes
