@@ -24,6 +24,7 @@ import {
 } from "@/components/assistant-ui/tool-group";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import {
   ActionBarMorePrimitive,
@@ -102,27 +103,28 @@ const isNewChatView = (s: AssistantState) =>
 
 // A switched thread that is still fetching its history: skeleton, not welcome.
 const isHistoryLoadingView = (s: AssistantState) =>
-  s.thread.messages.length === 0 && s.thread.isLoading && !s.threads.isLoading;
+  s.thread.messages.length === 0 &&
+  s.thread.isLoading &&
+  !s.thread.isDisabled &&
+  !s.threads.isLoading;
 
 const ThreadHistorySkeleton: FC = () => (
   <div
     data-slot="aui_thread-history-skeleton"
     role="status"
-    aria-label="Loading conversation"
-    className="animate-in fade-in fill-mode-both flex flex-col [animation-delay:150ms] [animation-duration:200ms]"
+    className="animate-in fade-in fill-mode-both flex flex-col gap-y-6 [animation-delay:150ms] [animation-duration:200ms]"
   >
-    <div className="flex animate-pulse flex-col gap-y-6 motion-reduce:animate-none">
-      <div className="bg-muted ml-auto h-9 w-2/5 rounded-xl" />
-      <div className="flex flex-col gap-y-2">
-        <div className="bg-muted h-4 w-11/12 rounded-md" />
-        <div className="bg-muted h-4 w-4/5 rounded-md" />
-        <div className="bg-muted h-4 w-3/5 rounded-md" />
-      </div>
-      <div className="bg-muted ml-auto h-9 w-1/3 rounded-xl" />
-      <div className="flex flex-col gap-y-2">
-        <div className="bg-muted h-4 w-10/12 rounded-md" />
-        <div className="bg-muted h-4 w-2/3 rounded-md" />
-      </div>
+    <span className="sr-only">Loading conversation</span>
+    <Skeleton className="ml-auto h-9 w-2/5 rounded-xl motion-reduce:animate-none" />
+    <div className="flex flex-col gap-y-2">
+      <Skeleton className="h-4 w-11/12 motion-reduce:animate-none" />
+      <Skeleton className="h-4 w-4/5 motion-reduce:animate-none" />
+      <Skeleton className="h-4 w-3/5 motion-reduce:animate-none" />
+    </div>
+    <Skeleton className="ml-auto h-9 w-1/3 rounded-xl motion-reduce:animate-none" />
+    <div className="flex flex-col gap-y-2">
+      <Skeleton className="h-4 w-10/12 motion-reduce:animate-none" />
+      <Skeleton className="h-4 w-2/3 motion-reduce:animate-none" />
     </div>
   </div>
 );

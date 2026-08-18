@@ -1006,6 +1006,7 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
       "button",
+      "skeleton",
       "https://r.assistant-ui.com/attachment.json",
       "https://r.assistant-ui.com/file.json",
       "https://r.assistant-ui.com/follow-up-suggestions.json",
