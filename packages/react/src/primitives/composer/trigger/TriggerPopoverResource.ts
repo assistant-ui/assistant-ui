@@ -98,6 +98,7 @@ const useTriggerPopoverResource = ({
       trigger: detection.trigger,
       aui,
       triggerChar,
+      cursorPosition: detection.cursorPosition,
       setCursorPosition: detection.setCursorPosition,
       onSelected,
     }),

@@ -5,6 +5,7 @@ import type {
   Unstable_TriggerItem,
 } from "@assistant-ui/core";
 import type { AssistantClient } from "@assistant-ui/store";
+import { detectTrigger } from "./detectTrigger";
 import type { DetectedTrigger } from "./triggerDetectionResource";
 
 /** External override for selection (used by Lexical's DirectivePlugin). */
@@ -38,6 +39,7 @@ const useTriggerSelectionResource = ({
   trigger,
   aui,
   triggerChar,
+  cursorPosition,
   setCursorPosition,
   onSelected,
 }: {
@@ -45,6 +47,7 @@ const useTriggerSelectionResource = ({
   trigger: DetectedTrigger | null;
   aui: AssistantClient;
   triggerChar: string;
+  cursorPosition: number;
   setCursorPosition: (pos: number) => void;
   /** Called after a successful selection so the parent can reset nav state. */
   onSelected: () => void;
@@ -73,9 +76,16 @@ const useTriggerSelectionResource = ({
     }
 
     const currentText = aui.composer.getState().text;
-    const before = currentText.slice(0, trigger.offset);
+    const currentTrigger = detectTrigger(
+      currentText,
+      triggerChar,
+      Math.min(cursorPosition, currentText.length),
+    );
+    if (!currentTrigger) return;
+
+    const before = currentText.slice(0, currentTrigger.offset);
     const after = currentText.slice(
-      trigger.offset + triggerChar.length + trigger.query.length,
+      currentTrigger.offset + triggerChar.length + currentTrigger.query.length,
     );
 
     const insertDirective = () => {
@@ -83,6 +93,7 @@ const useTriggerSelectionResource = ({
       aui.composer.setText(
         before + directive + (after.startsWith(" ") ? after : ` ${after}`),
       );
+      setCursorPosition(before.length + directive.length + 1);
     };
 
     if (behavior.kind === "directive") {
@@ -93,6 +104,7 @@ const useTriggerSelectionResource = ({
         aui.composer.setText(
           before + (after.startsWith(" ") ? after.slice(1) : after),
         );
+        setCursorPosition(before.length);
       } else {
         // Leave directive chip in the composer as an audit trail
         insertDirective();
