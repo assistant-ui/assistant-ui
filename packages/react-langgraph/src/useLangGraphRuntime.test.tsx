@@ -2985,6 +2985,67 @@ describe("useLangGraphRuntime", () => {
       });
     });
 
+    it("keeps unstamped loaded pending tools in one batch", async () => {
+      const streamMock = vi.fn(async function* () {});
+      const load = vi.fn(async () => ({
+        messages: [
+          { id: "h1", type: "human" as const, content: "hi" },
+          {
+            id: "ai-1",
+            type: "ai" as const,
+            content: "",
+            tool_calls: [{ id: "tc-1", name: "my_tool", args: {} }],
+          },
+          {
+            id: "ai-2",
+            type: "ai" as const,
+            content: "",
+            tool_calls: [{ id: "tc-2", name: "my_tool", args: {} }],
+          },
+        ],
+      }));
+
+      const { result: runtimeResult } = renderHook(() =>
+        useLangGraphRuntime({
+          stream: streamMock,
+          load,
+          autoCancelPendingToolCalls: false,
+          unstable_threadListAdapter: makeThreadListAdapter(),
+        }),
+      );
+      const wrapper = wrapperFactory(runtimeResult.current);
+      renderHook(() => useAui(), { wrapper });
+
+      await act(async () => {
+        await runtimeResult.current.threads.switchToThread("lg-thread-1");
+      });
+      await waitFor(() => expect(load).toHaveBeenCalledTimes(1));
+      await waitFor(() => {
+        const parts = runtimeResult.current.thread
+          .getState()
+          .messages.flatMap((m): readonly unknown[] => m.content);
+        expect(parts).toContainEqual(
+          expect.objectContaining({ type: "tool-call", toolCallId: "tc-1" }),
+        );
+        expect(parts).toContainEqual(
+          expect.objectContaining({ type: "tool-call", toolCallId: "tc-2" }),
+        );
+      });
+
+      addToolResultById(runtimeResult.current, "tc-1", { result: "first" });
+      await act(async () => {
+        await new Promise((resolve) => setTimeout(resolve, 0));
+      });
+      expect(streamMock).not.toHaveBeenCalled();
+
+      addToolResultById(runtimeResult.current, "tc-2", { result: "second" });
+      await waitFor(() => expect(streamMock).toHaveBeenCalledTimes(1));
+      expect(streamMock.mock.calls[0]?.[0]).toMatchObject([
+        { type: "tool", tool_call_id: "tc-1" },
+        { type: "tool", tool_call_id: "tc-2" },
+      ]);
+    });
+
     it("batches frontend tools from two AI messages in the same run", async () => {
       const streamMock = vi.fn(async function* (
         _messages: LangChainMessage[],

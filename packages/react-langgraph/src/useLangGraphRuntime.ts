@@ -51,7 +51,6 @@ import {
   filterUIMessagesBySurvivingIds,
   getPendingToolCallGroups,
   getPendingToolCalls,
-  pendingToolCallGroupKey,
   hasToolResult,
   truncateLangChainMessages,
 } from "./messageHelpers";
