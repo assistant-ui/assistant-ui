@@ -54,5 +54,8 @@ describe("useStableRuntimeAdapters", () => {
 
     rerender({ adapters: null });
     expect(result.current).toBeNull();
+
+    rerender({ adapters: {} });
+    expect(result.current).toBeNull();
   });
 });

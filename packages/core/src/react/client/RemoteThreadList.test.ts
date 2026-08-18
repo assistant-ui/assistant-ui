@@ -513,8 +513,7 @@ describe("RemoteThreadList", () => {
       AuiConfig({
         threads: RemoteThreadList({
           adapter,
-          thread: (id) =>
-            withKey(id, CapturingThread({ threadId: id, capture }) as never),
+          thread: (id) => CapturingThread({ threadId: id, capture }) as never,
         }),
       }),
     );
@@ -603,8 +602,7 @@ describe("RemoteThreadList", () => {
         AuiConfig({
           threads: RemoteThreadList({
             adapter,
-            thread: (id) =>
-              withKey(id, CapturingThread({ threadId: id, capture }) as never),
+            thread: (id) => CapturingThread({ threadId: id, capture }) as never,
           }),
         }),
       subscribe: (listener) => {
