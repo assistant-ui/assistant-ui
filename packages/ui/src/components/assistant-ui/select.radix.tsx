@@ -6,12 +6,7 @@ import { cva, type VariantProps } from "class-variance-authority";
 import { CheckIcon, ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-function SelectRoot({
-  modal = false,
-  ...props
-}: ComponentPropsWithoutRef<typeof SelectPrimitive.Root>) {
-  return <SelectPrimitive.Root modal={modal} {...props} />;
-}
+const SelectRoot = SelectPrimitive.Root;
 
 const SelectGroup = SelectPrimitive.Group;
 
