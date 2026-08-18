@@ -284,4 +284,69 @@ describe("RemoteThreadList adapter changes", () => {
     expect(adapterB.rename).not.toHaveBeenCalled();
     expect(core.getItemById("thread-a")).toBeUndefined();
   });
+
+  it("does not freeze mutations when the replacement list fails", async () => {
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("thread-a")] }),
+    });
+    const adapterB = makeAdapter({
+      list: vi.fn(async () => {
+        throw new Error("network");
+      }),
+    });
+    const core = createCore(adapterA);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    await core.getLoadThreadsPromise();
+    await core.switchToThread("thread-a");
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await core.getLoadThreadsPromise();
+
+    expect(core.getItemById("thread-a")).toBeUndefined();
+    expect(core.getItemById(core.mainThreadId)?.status).toBe("new");
+    await expect(core.switchToNewThread()).resolves.toBeUndefined();
+    expect(consoleError).toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+
+  it("keeps a thread initialized while the replacement list is pending", async () => {
+    const adapterA = makeAdapter({
+      list: async () => ({ threads: [thread("thread-a")] }),
+    });
+    const listB = deferred<{ threads: ReturnType<typeof thread>[] }>();
+    const adapterB = makeAdapter({
+      list: vi.fn(() => listB.promise),
+      initialize: vi.fn(async () => ({
+        remoteId: "created-on-b",
+        externalId: "created-on-b",
+      })),
+    });
+    const core = createCore(adapterA);
+
+    await core.getLoadThreadsPromise();
+    const draftId = core.newThreadId;
+    expect(draftId).toBeDefined();
+
+    core.__internal_setOptions({
+      adapter: adapterB,
+      runtimeHook: () => ({}) as never,
+    });
+    await expect(core.initialize(draftId!)).resolves.toEqual({
+      remoteId: "created-on-b",
+      externalId: "created-on-b",
+    });
+
+    listB.resolve({ threads: [thread("thread-b")] });
+    await core.getLoadThreadsPromise();
+
+    expect(core.getItemById(draftId!)?.remoteId).toBe("created-on-b");
+    expect(core.mainThreadId).toBe(draftId);
+    expect(core.threadIds).toContain("created-on-b");
+  });
 });

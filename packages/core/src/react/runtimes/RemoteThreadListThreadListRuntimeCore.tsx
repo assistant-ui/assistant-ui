@@ -17,6 +17,7 @@ import {
 import type {
   RemoteThreadListAdapter,
   RemoteThreadListOptions,
+  RemoteThreadMetadata,
 } from "../../runtimes/remote-thread-list/types";
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
@@ -103,6 +104,7 @@ export class RemoteThreadListThreadListRuntimeCore
   private _loadGeneration = 0;
   private _adapterGeneration = 0;
   private _replaceListOnNextLoad = false;
+  private _staleThreadIdsOnReplace: ReadonlySet<string> | undefined;
   private _switchGeneration = 0;
   private _switchTask: Promise<void> | undefined;
 
@@ -167,97 +169,50 @@ export class RemoteThreadListThreadListRuntimeCore
           },
           then: (state, l) => {
             if (generation !== this._loadGeneration) return state;
+            const replaceList = this._replaceListOnNextLoad;
+            if (replaceList) {
+              this._replaceListOnNextLoad = false;
+              replacedList = true;
+              return this._replaceWithThreads(
+                state,
+                l.threads,
+                normalizeCursor(l.nextCursor),
+              );
+            }
+
             const fresh = classifyThreads(l.threads, {
               threadIds: [],
               archivedThreadIds: [],
               threadIdMap: {},
               threadData: {},
             });
-            const replaceList = this._replaceListOnNextLoad;
-            if (replaceList) {
-              this._replaceListOnNextLoad = false;
-              replacedList = true;
-            }
-
-            const threadIdMap = replaceList
-              ? { ...fresh.threadIdMap }
-              : { ...state.threadIdMap, ...fresh.threadIdMap };
-            const threadData = replaceList
-              ? { ...fresh.threadData }
-              : { ...state.threadData, ...fresh.threadData };
-
-            if (replaceList && state.newThreadId) {
-              const mappingId = state.threadIdMap[state.newThreadId];
-              const draft = mappingId ? state.threadData[mappingId] : undefined;
-              if (draft?.status === "new") {
-                threadIdMap[state.newThreadId] = mappingId!;
-                threadData[mappingId!] = draft;
-              }
-            }
-
-            let nextState: RemoteThreadState = {
+            return {
               ...state,
               isLoading: false,
               cursor: normalizeCursor(l.nextCursor),
               threadIds: fresh.threadIds,
               archivedThreadIds: fresh.archivedThreadIds,
-              threadIdMap,
-              threadData,
-              newThreadId:
-                replaceList &&
-                state.newThreadId !== undefined &&
-                threadIdMap[state.newThreadId] === undefined
-                  ? undefined
-                  : state.newThreadId,
+              threadIdMap: { ...state.threadIdMap, ...fresh.threadIdMap },
+              threadData: { ...state.threadData, ...fresh.threadData },
             };
-
-            if (
-              replaceList &&
-              getThreadData(nextState, this._mainThreadId) === undefined
-            ) {
-              const preservedDraft = nextState.newThreadId;
-              if (preservedDraft !== undefined) {
-                this._mainThreadId = preservedDraft;
-              } else {
-                const seeded = addNewThread(nextState);
-                this._mainThreadId = seeded.id;
-                nextState = seeded.state;
-              }
-              if (this._options.threadId === undefined) {
-                this._notifyThreadIdChange();
-              } else {
-                this._lastNotifiedThreadId = undefined;
-              }
-            }
-
-            if (replaceList) {
-              const nextIds = new Set(
-                Object.values(nextState.threadData).map((item) => item.id),
-              );
-              for (const item of Object.values(state.threadData)) {
-                if (!nextIds.has(item.id)) {
-                  this._hookManager.stopThreadRuntime(item.id);
-                }
-              }
-              void this._hookManager
-                .startThreadRuntime(this._mainThreadId)
-                .then(
-                  () => this._notifySubscribers(),
-                  () => undefined,
-                );
-            }
-
-            return nextState;
           },
         })
         .catch((error: unknown) => {
           if (generation !== this._loadGeneration) return;
           console.error("[assistant-ui] thread list load failed:", error);
           this._loadThreadsPromise = undefined;
-          this._state.update({
-            ...this._state.baseValue,
-            isLoading: false,
-          });
+          if (!this._replaceListOnNextLoad) {
+            this._state.update({
+              ...this._state.baseValue,
+              isLoading: false,
+            });
+            return;
+          }
+          this._replaceListOnNextLoad = false;
+          replacedList = true;
+          this._state.update(
+            this._replaceWithThreads(this._state.baseValue, [], undefined),
+          );
         })
         .then(() => {
           if (!replacedList) return;
@@ -378,6 +333,11 @@ export class RemoteThreadListThreadListRuntimeCore
       this._loadThreadsPromise = undefined;
       this._loadMorePromise = undefined;
       this._replaceListOnNextLoad = true;
+      this._staleThreadIdsOnReplace = new Set(
+        Object.values(this._state.baseValue.threadData)
+          .filter((item) => item.status !== "new")
+          .map((item) => item.id),
+      );
       this._state.update({
         ...this._state.baseValue,
         cursor: undefined,
@@ -399,6 +359,102 @@ export class RemoteThreadListThreadListRuntimeCore
     if (this._replaceListOnNextLoad) {
       throw new ThreadListAdapterChangedError();
     }
+  }
+
+  private _replaceWithThreads(
+    state: RemoteThreadState,
+    threads: readonly RemoteThreadMetadata[],
+    cursor: string | undefined,
+  ): RemoteThreadState {
+    const fresh = classifyThreads(threads, {
+      threadIds: [],
+      archivedThreadIds: [],
+      threadIdMap: {},
+      threadData: {},
+    });
+    const threadIdMap = { ...fresh.threadIdMap };
+    const threadData = { ...fresh.threadData };
+    const threadIds = [...fresh.threadIds];
+    const archivedThreadIds = [...fresh.archivedThreadIds];
+
+    if (state.newThreadId) {
+      const mappingId = state.threadIdMap[state.newThreadId];
+      const draft = mappingId ? state.threadData[mappingId] : undefined;
+      if (draft?.status === "new") {
+        threadIdMap[state.newThreadId] = mappingId!;
+        threadData[mappingId!] = draft;
+      }
+    }
+
+    const stale = this._staleThreadIdsOnReplace;
+    if (stale) {
+      for (const item of Object.values(state.threadData)) {
+        if (stale.has(item.id)) continue;
+        const mappingId = createThreadMappingId(item.id);
+        if (threadData[mappingId]) continue;
+        threadIdMap[item.id] = mappingId;
+        if (item.remoteId !== undefined) {
+          threadIdMap[item.remoteId] = mappingId;
+        }
+        threadData[mappingId] = item;
+        if (item.remoteId === undefined) continue;
+        if (item.status === "regular" && !threadIds.includes(item.remoteId)) {
+          threadIds.push(item.remoteId);
+        } else if (
+          item.status === "archived" &&
+          !archivedThreadIds.includes(item.remoteId)
+        ) {
+          archivedThreadIds.push(item.remoteId);
+        }
+      }
+    }
+    this._staleThreadIdsOnReplace = undefined;
+
+    let nextState: RemoteThreadState = {
+      ...state,
+      isLoading: false,
+      cursor,
+      threadIds,
+      archivedThreadIds,
+      threadIdMap,
+      threadData,
+      newThreadId:
+        state.newThreadId !== undefined &&
+        threadIdMap[state.newThreadId] === undefined
+          ? undefined
+          : state.newThreadId,
+    };
+
+    if (getThreadData(nextState, this._mainThreadId) === undefined) {
+      const preservedDraft = nextState.newThreadId;
+      if (preservedDraft !== undefined) {
+        this._mainThreadId = preservedDraft;
+      } else {
+        const seeded = addNewThread(nextState);
+        this._mainThreadId = seeded.id;
+        nextState = seeded.state;
+      }
+      if (this._options.threadId === undefined) {
+        this._notifyThreadIdChange();
+      } else {
+        this._lastNotifiedThreadId = undefined;
+      }
+    }
+
+    const nextIds = new Set(
+      Object.values(nextState.threadData).map((item) => item.id),
+    );
+    for (const item of Object.values(state.threadData)) {
+      if (!nextIds.has(item.id)) {
+        this._hookManager.stopThreadRuntime(item.id);
+      }
+    }
+    void this._hookManager.startThreadRuntime(this._mainThreadId).then(
+      () => this._notifySubscribers(),
+      () => undefined,
+    );
+
+    return nextState;
   }
 
   public __internal_load() {
