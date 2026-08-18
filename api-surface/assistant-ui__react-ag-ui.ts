@@ -1,4 +1,4 @@
-import { AbstractAgent } from "@ag-ui/client";
+import { AbstractAgent, InputContent } from "@ag-ui/client";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -29,6 +29,25 @@ type AgUiInterrupt = {
 
 type AgUiInterruptReason = "tool_call" | "input_required" | "confirmation" | (string & {});
 
+type AgUiMessage = {
+  id: string;
+  role: string;
+  content: string | InputContent[];
+  name?: string;
+  toolCalls?: AgUiToolCall[];
+} | {
+  id: string;
+  role: "reasoning";
+  content: string;
+  encryptedValue?: string;
+} | {
+  id: string;
+  role: "tool";
+  content: string;
+  toolCallId: string;
+  error?: string;
+};
+
 type AgUiResumeEntry = {
   interruptId: string;
   status: "cancelled" | "resolved";
@@ -40,6 +59,15 @@ type AgUiRunFinishedOutcome = {
 } | {
   type: "interrupt";
   interrupts: AgUiInterrupt[];
+};
+
+type AgUiToolCall = {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
 };
 
 type AppendMessage = Omit<ThreadMessage, "id"> & {
@@ -79,6 +107,12 @@ type AttachmentAddErrorEvent = {
 };
 
 type AttachmentAddErrorReason = "adapter-error" | "no-adapter" | "not-accepted";
+
+type AttachmentLike = {
+  name?: string | undefined;
+  contentType?: string | undefined;
+  content?: readonly unknown[] | undefined;
+};
 
 type AttachmentRuntime<TSource extends AttachmentRuntimeSource = AttachmentRuntimeSource> = {
   readonly path: AttachmentRuntimePath & {
@@ -350,9 +384,9 @@ type ExportedMessageRepository = {
 };
 
 declare const ExportedMessageRepository: {
-  fromArray: (messages: readonly ThreadMessageLike[]) => ExportedMessageRepository;
+  fromArray: (messages: readonly ThreadMessageLike$1[]) => ExportedMessageRepository;
   fromBranchableArray: (items: readonly {
-    message: ThreadMessageLike;
+    message: ThreadMessageLike$1;
     parentId: string | null;
   }[], options?: {
     headId?: string | null;
@@ -417,7 +451,7 @@ type ExternalStoreBranchChange = {
   visibleMessageIds: readonly string[];
 };
 
-type ExternalStoreMessageConverter<T> = (message: T, idx: number) => ThreadMessageLike;
+type ExternalStoreMessageConverter<T> = (message: T, idx: number) => ThreadMessageLike$1;
 
 type ExternalStoreMessageConverterAdapter<T> = {
   convertMessage: ExternalStoreMessageConverter<T>;
@@ -1210,6 +1244,17 @@ type ThreadListState = {
 type ThreadMessage = BaseThreadMessage & (ThreadSystemMessage | ThreadUserMessage | ThreadAssistantMessage);
 
 type ThreadMessageLike = {
+  id?: string;
+  role: string;
+  content: unknown;
+  metadata?: unknown;
+  name?: string;
+  toolCallId?: string;
+  error?: string;
+  attachments?: readonly AttachmentLike[];
+};
+
+type ThreadMessageLike$1 = {
   readonly role: "assistant" | "system" | "user";
   readonly content: string | readonly (TextMessagePart | ReasoningMessagePart | SourceMessagePart | ImageMessagePart | FileMessagePart | DataMessagePart | GenerativeUIMessagePart | Unstable_AudioMessagePart | DataPrefixedPart | {
     readonly type: "tool-call";
@@ -1274,7 +1319,7 @@ type ThreadRuntime = {
   getModelContext(): ModelContext;
   export(): ExportedMessageRepository;
   import(repository: ExportedMessageRepository): void;
-  reset(initialMessages?: readonly ThreadMessageLike[]): void;
+  reset(initialMessages?: readonly ThreadMessageLike$1[]): void;
   getMessageByIndex(idx: number): MessageRuntime;
   getMessageById(messageId: string): MessageRuntime;
   stopSpeaking(): void;
@@ -1595,7 +1640,7 @@ type VoiceSessionState = {
   readonly mode: RealtimeVoiceAdapter.Mode;
 };
 
-declare function fromAgUiMessages(messages: readonly unknown[], options?: FromAgUiMessagesOptions): ThreadMessageLike[];
+declare function fromAgUiMessages(messages: readonly unknown[], options?: FromAgUiMessagesOptions): ThreadMessageLike$1[];
 
 declare global {
   interface Window {
@@ -1605,8 +1650,10 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiResumeEntry, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
+  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiMessage, AgUiResumeEntry, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, ThreadMessageLike, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, toAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
 }
+
+declare function toAgUiMessages(messages: readonly ThreadMessageLike[]): AgUiMessage[];
 
 declare const useAgUiInterrupts: () => readonly AgUiInterrupt[];
 

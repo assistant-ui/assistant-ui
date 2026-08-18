@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { UserMessageSchema } from "@ag-ui/client";
+import type { AppendMessage } from "@assistant-ui/core";
 import { fromAgUiMessages, toAgUiMessages } from "./conversions";
 
 type Message = Parameters<typeof toAgUiMessages>[0][number];
@@ -21,6 +22,27 @@ const contentOf = (message: Message) => {
 };
 
 describe("toAgUiMessages content metadata", () => {
+  it("normalizes an AppendMessage without an id", () => {
+    const appendMessage: AppendMessage = {
+      role: "user",
+      content: [{ type: "text", text: "Hi" }],
+      attachments: [],
+      createdAt: new Date(),
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+      metadata: { custom: {} },
+    };
+
+    expect(toAgUiMessages([appendMessage])).toEqual([
+      expect.objectContaining({
+        role: "user",
+        content: "Hi",
+        id: expect.any(String),
+      }),
+    ]);
+  });
+
   it("carries a part's agui provider metadata onto an image item", () => {
     expect(
       contentOf(

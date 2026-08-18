@@ -40,8 +40,8 @@ type AttachmentLike = {
   content?: readonly unknown[] | undefined;
 };
 
-type ThreadMessageLike = {
-  id: string;
+export type ThreadMessageLike = {
+  id?: string;
   role: string;
   content: unknown;
   metadata?: unknown;
@@ -50,6 +50,8 @@ type ThreadMessageLike = {
   error?: string;
   attachments?: readonly AttachmentLike[];
 };
+
+type NormalizedThreadMessageLike = ThreadMessageLike & { id: string };
 
 type AgUiToolCall = {
   id: string;
@@ -960,7 +962,7 @@ export function fromAgUiMessages(
 }
 
 function convertAssistantMessage(
-  message: ThreadMessageLike,
+  message: NormalizedThreadMessageLike,
   converted: AgUiMessage[],
 ): void {
   const content = extractText(message.content);
@@ -1012,7 +1014,11 @@ function convertAssistantMessage(
     return;
   }
 
-  const assistantMessage: AgUiMessage = {
+  const assistantMessage: AgUiMessage & {
+    role: "assistant";
+    name?: string;
+    toolCalls?: AgUiToolCall[];
+  } = {
     id: message.id,
     role: "assistant",
     content,
@@ -1049,13 +1055,16 @@ function convertAssistantMessage(
 }
 
 function convertToolMessage(
-  message: ThreadMessageLike,
+  message: NormalizedThreadMessageLike,
   converted: AgUiMessage[],
 ): void {
   const content = extractText(message.content);
   const toolCallId = message.toolCallId ?? generateId();
 
-  const toolMessage: AgUiMessage = {
+  const toolMessage: AgUiMessage & {
+    role: "tool";
+    error?: string;
+  } = {
     id: message.id,
     role: "tool",
     content,
@@ -1072,7 +1081,11 @@ export function toAgUiMessages(
 ): AgUiMessage[] {
   const converted: AgUiMessage[] = [];
 
-  for (const message of messages) {
+  for (const rawMessage of messages) {
+    const message: NormalizedThreadMessageLike = {
+      ...rawMessage,
+      id: rawMessage.id ?? generateId(),
+    };
     const opaqueReasoning = readOpaqueReasoning(message.metadata);
     const toOpaqueRecord = (entry: AgUiOpaqueReasoning): AgUiMessage => ({
       id: entry.id,

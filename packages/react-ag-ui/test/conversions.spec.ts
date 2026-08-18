@@ -4,7 +4,10 @@ import { describe, it, expect } from "vitest";
 import { z } from "zod";
 import { UserMessageSchema } from "@ag-ui/client";
 import { ExportedMessageRepository } from "@assistant-ui/core";
-import { fromAgUiMessages as publicFromAgUiMessages } from "../src";
+import {
+  fromAgUiMessages as publicFromAgUiMessages,
+  toAgUiMessages as publicToAgUiMessages,
+} from "../src";
 import {
   fromAgUiMessages,
   toAgUiMessages,
@@ -2486,6 +2489,10 @@ describe("a2ui surface rehydration from restored activity messages", () => {
 describe("package exports", () => {
   it("exposes fromAgUiMessages from the package root", () => {
     expect(publicFromAgUiMessages).toBe(fromAgUiMessages);
+  });
+
+  it("exposes toAgUiMessages from the package root", () => {
+    expect(publicToAgUiMessages).toBe(toAgUiMessages);
   });
 
   it("composes with ExportedMessageRepository.fromArray for history loading", () => {
