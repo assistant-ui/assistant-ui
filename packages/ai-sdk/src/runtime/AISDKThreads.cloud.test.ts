@@ -62,6 +62,7 @@ vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
 }));
 
 import { AISDKThreads } from "./AISDKThreads";
+import { createCancellableTransport } from "./__tests__/controlled-transport";
 
 describe("AISDKThreads cloud", () => {
   it("reloads history when switching a keyed cloud thread", async () => {
@@ -91,5 +92,44 @@ describe("AISDKThreads cloud", () => {
       expect(load.mock.calls.length).toBeGreaterThan(afterFirst);
     });
     handle.destroy();
+  });
+
+  it("stops an in-flight cloud chat when switching away", async () => {
+    const chat = createCancellableTransport();
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: AISDKThreads({
+          cloud: {} as AssistantCloud,
+          threadId: "t1",
+          transport: () => chat.transport,
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    try {
+      await aui.threads.getLoadThreadsPromise();
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t1");
+      });
+      await vi.waitFor(() => expect(load).toHaveBeenCalled());
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isLoading).toBe(false);
+      });
+      flushTapSync(() => handle.getClient().composer.setText("stream me"));
+      flushTapSync(() => handle.getClient().composer.send());
+      await vi.waitFor(() => {
+        expect(handle.getClient().thread.getState().isRunning).toBe(true);
+      });
+      flushTapSync(() => handle.getClient().threads.switchToThread("t2"));
+      await vi.waitFor(() => {
+        expect(handle.getClient().threads.getState().mainThreadId).toBe("t2");
+      });
+      await vi.waitFor(() => {
+        expect(chat.getCancelCount()).toBe(1);
+      });
+    } finally {
+      handle.destroy();
+    }
   });
 });

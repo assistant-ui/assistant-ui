@@ -1,7 +1,7 @@
 "use client";
 
 import { resource, useResource, withKey } from "@assistant-ui/tap";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Chat, type UIMessage } from "@ai-sdk/react";
 import type { ChatTransport } from "ai";
 import type { AssistantCloud } from "assistant-cloud";
@@ -115,6 +115,13 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
   );
   const { chat, transport } =
     owned ?? getOrCreateChatEntry(threadId, options, chats);
+
+  useEffect(() => {
+    if (!cloud) return undefined;
+    return () => {
+      void chat.stop().catch(() => {});
+    };
+  }, [chat, cloud]);
 
   const aui = useAui();
   const fallbackItem = useMemo(
