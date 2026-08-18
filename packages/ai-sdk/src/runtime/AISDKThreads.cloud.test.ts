@@ -129,9 +129,6 @@ describe("AISDKThreads cloud", () => {
       await vi.waitFor(() => {
         expect(chat.getCancelCount()).toBe(1);
       });
-      await vi.waitFor(() => {
-        expect(append).toHaveBeenCalled();
-      });
     } finally {
       handle.destroy();
     }

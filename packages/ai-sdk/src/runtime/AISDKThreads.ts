@@ -215,8 +215,8 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
  * their history across switches; each thread's chat id is its thread id.
  * With `cloud`, the list is a `RemoteThreadList` and the factory is keyed so
  * cloud history reloads on a switch. The store entry mounts only the visible
- * thread, so a switch cancels an in-flight run after persisting ready
- * messages. Model context is registered on the visible thread only.
+ * thread, so a switch cancels an in-flight run. Model context is
+ * registered on the visible thread only.
  */
 export const AISDKThreads = resource(useAISDKThreads);
 

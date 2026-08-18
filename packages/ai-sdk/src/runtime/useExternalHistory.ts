@@ -381,8 +381,8 @@ export const useExternalHistory = <TMessage>(
       if (persistTimerRef.current) {
         clearTimeout(persistTimerRef.current);
         persistTimerRef.current = null;
+        persistSettled(false);
       }
-      persistSettled(true);
     };
   }, [formatAdapter, storageFormatAdapter, runtimeRef]);
 
