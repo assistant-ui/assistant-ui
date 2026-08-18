@@ -9,6 +9,7 @@ import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import type { ExportedMessageRepositoryItem } from "../../runtime/utils/message-repository";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
+import { isMessageNotSentError } from "../../types/error";
 
 const flush = () => new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -244,6 +245,77 @@ describe("LocalThreadRuntimeCore - detach", () => {
     await appendPromise;
     expect(run).not.toHaveBeenCalled();
     expect(thread.messages).toEqual([]);
+  });
+});
+
+describe("LocalThreadRuntimeCore optimistic append", () => {
+  it("paints the appended message before initialization resolves", async () => {
+    let resolveInitialization!: () => void;
+    const initialization = new Promise<void>((resolve) => {
+      resolveInitialization = resolve;
+    });
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const thread = createThread({ run });
+    thread.__internal_setGetInitializePromise(() => initialization);
+    const onUpdate = vi.fn();
+    thread.subscribe(onUpdate);
+
+    const appendPromise = thread.append(userMessage("hello"));
+    await Promise.resolve();
+
+    expect(thread.messages).toHaveLength(1);
+    expect(thread.messages[0]?.role).toBe("user");
+    expect(onUpdate).toHaveBeenCalled();
+    expect(run).not.toHaveBeenCalled();
+
+    resolveInitialization();
+    await appendPromise;
+    expect(run).toHaveBeenCalledTimes(1);
+  });
+
+  it("silently drops a detached append even when initialization rejects", async () => {
+    let rejectInitialization!: (error: unknown) => void;
+    const initialization = new Promise<void>((_, reject) => {
+      rejectInitialization = reject;
+    });
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const thread = createThread({ run });
+    thread.__internal_setGetInitializePromise(() => initialization);
+
+    const appendPromise = thread.append(userMessage("hello"));
+    await Promise.resolve();
+    thread.detach();
+    rejectInitialization(new Error("initialization failed"));
+
+    await expect(appendPromise).resolves.toBeUndefined();
+    expect(thread.messages).toEqual([]);
+    expect(run).not.toHaveBeenCalled();
+  });
+
+  it("rolls the optimistic message back when initialization rejects", async () => {
+    const initializationError = new Error("initialization failed");
+    const run = vi.fn(async () => ({
+      content: [{ type: "text" as const, text: "done" }],
+    }));
+    const thread = createThread({ run });
+    thread.__internal_setGetInitializePromise(() =>
+      Promise.reject(initializationError),
+    );
+
+    const error = await thread.append(userMessage("hello")).then(
+      () => {
+        throw new Error("expected the append to reject");
+      },
+      (e: unknown) => e,
+    );
+    expect(isMessageNotSentError(error)).toBe(true);
+    expect((error as Error).cause).toBe(initializationError);
+    expect(thread.messages).toEqual([]);
+    expect(run).not.toHaveBeenCalled();
   });
 });
 

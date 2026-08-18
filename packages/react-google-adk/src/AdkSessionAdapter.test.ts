@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createAdkSessionAdapter } from "./AdkSessionAdapter";
 import { projectAdkToolApprovals } from "./adkToolApproval";
 
@@ -408,6 +408,45 @@ describe("createAdkSessionAdapter - load", () => {
 
     await expect(load("s1")).rejects.toThrow(
       'Invalid ADK session load response: expected "events" to be an array when present.',
+    );
+  });
+
+  it("rejects malformed events inside a session history", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(JSON.stringify({ id: "s1", events: [{}] }), {
+        status: 200,
+      }),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+
+    await expect(load("s1")).rejects.toThrow(
+      "Invalid ADK session event at index 0: expected a non-empty object.",
+    );
+  });
+
+  it("rejects partial replay when a history event is malformed", async () => {
+    mockFetch.mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          id: "s1",
+          events: [
+            {
+              id: "e1",
+              author: "user",
+              content: { role: "user", parts: [{ text: "Hello" }] },
+            },
+            {},
+          ],
+        }),
+        { status: 200 },
+      ),
+    );
+
+    const { load } = createAdkSessionAdapter(baseOptions);
+
+    await expect(load("s1")).rejects.toThrow(
+      "Invalid ADK session event at index 1: expected a non-empty object.",
     );
   });
 

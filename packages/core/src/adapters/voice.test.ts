@@ -73,6 +73,25 @@ describe("createVoiceSession", () => {
     expect(controls.mute).not.toHaveBeenCalled();
   });
 
+  it("disconnects immediately when created with an already-aborted signal", async () => {
+    const abortController = new AbortController();
+    abortController.abort();
+    const setup = vi.fn(async () => ({
+      disconnect: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+    }));
+
+    const session = createVoiceSession(
+      { abortSignal: abortController.signal },
+      setup,
+    );
+    await Promise.resolve();
+
+    expect(setup).not.toHaveBeenCalled();
+    expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
+  });
+
   it("removes the abort listener after disconnecting", async () => {
     const abortController = new AbortController();
     const controls = {
@@ -85,11 +104,52 @@ describe("createVoiceSession", () => {
       async () => controls,
     );
     await Promise.resolve();
+    const statusListener = vi.fn();
+    session.onStatusChange(statusListener);
 
     session.disconnect();
     session.disconnect();
     abortController.abort();
 
+    expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
+    expect(statusListener).toHaveBeenCalledOnce();
+    expect(statusListener).toHaveBeenCalledWith({
+      type: "ended",
+      reason: "cancelled",
+    });
+    expect(controls.disconnect).toHaveBeenCalledOnce();
+  });
+
+  it("ends a running session when the abort signal fires", async () => {
+    const abortController = new AbortController();
+    const controls = {
+      disconnect: vi.fn(),
+      mute: vi.fn(),
+      unmute: vi.fn(),
+    };
+    let helpers: VoiceSessionHelpers | undefined;
+    const session = createVoiceSession(
+      { abortSignal: abortController.signal },
+      async (sessionHelpers) => {
+        helpers = sessionHelpers;
+        return controls;
+      },
+    );
+    await Promise.resolve();
+    if (!helpers) throw new Error("Voice session setup did not start");
+
+    helpers.setStatus({ type: "running" });
+    const statusListener = vi.fn();
+    session.onStatusChange(statusListener);
+
+    abortController.abort();
+
+    expect(session.status).toEqual({ type: "ended", reason: "cancelled" });
+    expect(statusListener).toHaveBeenCalledOnce();
+    expect(statusListener).toHaveBeenCalledWith({
+      type: "ended",
+      reason: "cancelled",
+    });
     expect(controls.disconnect).toHaveBeenCalledOnce();
   });
 
@@ -101,7 +161,7 @@ describe("createVoiceSession", () => {
       unmute: vi.fn(),
     };
     let helpers: VoiceSessionHelpers | undefined;
-    createVoiceSession(
+    const session = createVoiceSession(
       { abortSignal: abortController.signal },
       async (sessionHelpers) => {
         helpers = sessionHelpers;
@@ -114,6 +174,11 @@ describe("createVoiceSession", () => {
     helpers.end("error");
     abortController.abort();
 
+    expect(session.status).toEqual({
+      type: "ended",
+      reason: "error",
+      error: undefined,
+    });
     expect(controls.disconnect).toHaveBeenCalledOnce();
   });
 

@@ -1214,6 +1214,49 @@ describe("A2AThreadRuntimeCore", () => {
         reason: "error",
       });
     });
+
+    it("appends the first skipped frame reason to the empty-stream error", async () => {
+      const onError = vi.fn();
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            return "unrecognized event shape (frame: {})";
+          }),
+        },
+        { onError },
+      );
+
+      await expect(core.append(createUserAppendMessage("Go"))).rejects.toThrow(
+        "A2A message stream ended without any events. First skipped frame: unrecognized event shape (frame: {})",
+      );
+      expect(onError).toHaveBeenCalledWith(
+        expect.objectContaining({
+          message:
+            "A2A message stream ended without any events. First skipped frame: unrecognized event shape (frame: {})",
+        }),
+      );
+    });
+
+    it("ignores the skipped frame reason when the stream produced events", async () => {
+      const onError = vi.fn();
+      const core = createCore(
+        {
+          streamMessage: vi.fn().mockImplementation(async function* () {
+            yield statusUpdateEvent("completed", "Done");
+            return "unrecognized event shape (frame: {})";
+          }),
+        },
+        { onError },
+      );
+
+      await core.append(createUserAppendMessage("Go"));
+
+      expect(onError).not.toHaveBeenCalled();
+      expect(core.getMessages()[1]!.status).toEqual({
+        type: "complete",
+        reason: "stop",
+      });
+    });
   });
 
   // --- Concurrent run protection ---

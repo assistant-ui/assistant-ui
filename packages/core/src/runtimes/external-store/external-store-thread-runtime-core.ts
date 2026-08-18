@@ -544,8 +544,9 @@ export class ExternalStoreThreadRuntimeCore
       }
       if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
-      // Buffering does not start a run, so the tool-abort below must wait until
-      // the queue flushes. By then the prior run (and its tools) has settled.
+      // Buffering does not start a run, so the tool-abort below must wait
+      // until the queue flushes. By then the prior run (and its tools) has
+      // settled.
       if (message.steer ?? this._store.isRunning ?? false)
         this._store.queue.steer(message);
       else this._store.queue.enqueue(message);

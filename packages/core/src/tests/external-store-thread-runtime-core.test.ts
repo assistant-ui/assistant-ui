@@ -916,6 +916,53 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(queue.steer).not.toHaveBeenCalled();
   });
 
+  it("dispatches an append without waiting for thread initialization", async () => {
+    const initialization = new Promise<void>(() => {});
+    const getInitializePromise = vi.fn(() => initialization);
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(getInitializePromise);
+
+    await runtime.append(appendMessage());
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+    expect(getInitializePromise).toHaveBeenCalledTimes(1);
+  });
+
+  it("dispatches concurrent appends without waiting for initialization", async () => {
+    const initialization = new Promise<void>(() => {});
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    await Promise.all([
+      runtime.append(appendMessage()),
+      runtime.append(appendMessage()),
+    ]);
+
+    expect(onNew).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not fail the append when thread initialization rejects", async () => {
+    const initialization = Promise.reject(new Error("initialization failed"));
+    const onNew = vi.fn(async () => {});
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ onNew }),
+    );
+    runtime.__internal_setGetInitializePromise(() => initialization);
+
+    await runtime.append(appendMessage());
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+  });
+
   it("drops an append disposed while aborting client-side tools", async () => {
     let resolveAbort!: () => void;
     const abortPromise = new Promise<void>((resolve) => {

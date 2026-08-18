@@ -229,6 +229,67 @@ describe("SandboxHost", () => {
     expect(onError.mock.calls[0]![0].message).toBe("boom");
   });
 
+  it("does not report render failures after unmount", async () => {
+    let rejectRender!: (error: Error) => void;
+    renderHtmlMock.mockReturnValue(
+      new Promise((_, reject) => {
+        rejectRender = reject;
+      }),
+    );
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+          onError={onError}
+        />,
+      );
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+    rejectRender(new Error("late failure"));
+    await flush();
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("contains failures thrown by onError", async () => {
+    const renderError = new Error("render failed");
+    const callbackError = new Error("error callback failed");
+    renderHtmlMock.mockRejectedValue(renderError);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      await act(async () => {
+        root.render(
+          <SandboxHost
+            content={{ html: "" }}
+            contentKey="k"
+            createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+            onError={() => {
+              throw callbackError;
+            }}
+          />,
+        );
+      });
+      await flush();
+
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] SandboxHost onError callback threw an error",
+        callbackError,
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("disposes the rendered frame when bridge creation fails", async () => {
     const rendered = fakeRendered();
     renderHtmlMock.mockResolvedValue(rendered);

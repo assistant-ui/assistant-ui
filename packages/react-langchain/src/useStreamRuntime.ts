@@ -419,6 +419,10 @@ const useStreamThreadRuntime = (
               status: "error" as const,
             }))
           : [];
+      // A null threadId is not a no-op for the SDK: it rebinds the controller
+      // away from its self-created thread and forces a fresh one, so the
+      // submit waits for initialization to produce an identity; core no
+      // longer holds appends on that barrier.
       try {
         const { externalId } = await aui.threadListItem.initialize();
         await streamRef.current.submit(

@@ -19,7 +19,7 @@ describe("RemoteThreadListHookInstanceManager", () => {
     );
   });
 
-  it("drops a pending append when a thread runtime is stopped", async () => {
+  it("dispatches an append before the thread runtime stops", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {
       resolveInitialization = resolve;
@@ -57,11 +57,14 @@ describe("RemoteThreadListHookInstanceManager", () => {
       createdAt: new Date(0),
     });
     await Promise.resolve();
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+
     manager.stopThreadRuntime("thread-1");
     resolveInitialization();
 
     await appendPromise;
-    expect(onNew).not.toHaveBeenCalled();
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 });
 

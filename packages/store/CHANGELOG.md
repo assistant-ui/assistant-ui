@@ -1,5 +1,33 @@
 # @assistant-ui/store
 
+## 0.3.10
+
+### Patch Changes
+
+- [#6068](https://github.com/assistant-ui/assistant-ui/pull/6068) [`ac0c836`](https://github.com/assistant-ui/assistant-ui/commit/ac0c8364a0f25555f693e4354d07c411e65f5489) - fix: stabilize `unstable_useAdapters` results on both adapter faces and warn on an unkeyed history factory. the React host's synthesized provider now absorbs a fresh but shallow-equal adapters bag the same way the `RemoteThreadList` store entry does, reusing the store's `useShallowStable` primitive through its internal entry, and the store entry warns in development when a history adapter arrives while the thread factory is unkeyed, since switching threads would silently keep the first thread's history. ([@okisdev](https://github.com/okisdev))
+
+- [#5831](https://github.com/assistant-ui/assistant-ui/pull/5831) [`2b0fec7`](https://github.com/assistant-ui/assistant-ui/commit/2b0fec76d8abff2b013aa05eb2a5d62545325da2) - feat: `aui.optional.<scope>` resolves an unavailable scope to `undefined` instead of a throwing accessor, mirroring `s.optional` on the state side; the documented availability check moves off `source != null` ([@okisdev](https://github.com/okisdev))
+
+- [#5998](https://github.com/assistant-ui/assistant-ui/pull/5998) [`f44163f`](https://github.com/assistant-ui/assistant-ui/commit/f44163f8030e8a12d33f1412de96ecdda4000f7c) - fix: stop active chats only when their standalone client is destroyed ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5834](https://github.com/assistant-ui/assistant-ui/pull/5834) [`d80e988`](https://github.com/assistant-ui/assistant-ui/commit/d80e9882c4ec0a7662df28546ddd92cc1f0b1fcd) - fix: model-context registrations follow the committed scope across structural replacements. The new `useAssistantScopeEffect(scope, effect, deps)` re-runs a registration when the scope's bound client is replaced (cleaning up against the old one first) while ignoring value updates, and the toolkit, runtime-adapter, interactables, and MCP registration sites now use it instead of registering once against a stable client ref. ([@okisdev](https://github.com/okisdev))
+
+- [#5897](https://github.com/assistant-ui/assistant-ui/pull/5897) [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7) - fix: cache live config source reads between notifications so getConfig satisfies the useSyncExternalStore getSnapshot contract ([@Yonom](https://github.com/Yonom))
+
+- [#5913](https://github.com/assistant-ui/assistant-ui/pull/5913) [`1b9c33d`](https://github.com/assistant-ui/assistant-ui/commit/1b9c33d114ab1589f0592fabda58ca63265265c6) - feat: hoist the shared binding utilities to the client entry. createClientFacade (stable client facade over a source) and createLastValidCache/createStaleReporter (by-index shrink guard with an injectable expiry scheduler) were duplicated per framework bridge; they now live on @assistant-ui/store/client so bridges cannot drift. ([@okisdev](https://github.com/okisdev))
+
+- [#5618](https://github.com/assistant-ui/assistant-ui/pull/5618) [`82e2bde`](https://github.com/assistant-ui/assistant-ui/commit/82e2bde62d0b3b31ec445c939c719ab72cd8ff23) - refactor: the config path rides React's scheduler instead of a self-scheduled tap root ([@Yonom](https://github.com/Yonom))
+
+- [#5889](https://github.com/assistant-ui/assistant-ui/pull/5889) [`52df42d`](https://github.com/assistant-ui/assistant-ui/commit/52df42da5d7c4e9610469f64b8e3fe8fd690d7cd) - feat: subscription-owned lifecycle for createAssistantClient. the handle now rides tap's mountOnSubscribe: scopes render lazily on first read, mount when the first subscriber attaches, and soft unmount one task after the last subscriber releases (effects clean up, state is retained, a later subscriber remounts the same scopes). state updates before the first subscriber throw; an imperative consumer without a reactive framework holds a no-op subscription. destroy() remains the permanent teardown: synchronous while subscribers are attached; after the last release it defers to the soft unmount that release already scheduled. requires @assistant-ui/tap ^0.9.12. ([@okisdev](https://github.com/okisdev))
+
+- [#5928](https://github.com/assistant-ui/assistant-ui/pull/5928) [`6c9e7dd`](https://github.com/assistant-ui/assistant-ui/commit/6c9e7ddf584394ce63c3bc5f17bafcb28face442) - feat: hoist the viewport scroll math to the client entry. isViewportAtBottom, viewportOverflows, isUserScrollUp, and observeContentResize were vue-local; they now live on @assistant-ui/store/client so the svelte viewport consumes the same implementation. ([@okisdev](https://github.com/okisdev))
+
+- [#6014](https://github.com/assistant-ui/assistant-ui/pull/6014) [`7748e15`](https://github.com/assistant-ui/assistant-ui/commit/7748e15acf9d7d16701296e9ef89e1757ec346b3) - feat: host remote thread runtimeHooks as keyed tap resources on the list hook. `useRemoteThreadListRuntime` mounts one `useResources` host after each thread's `unstable_Provider`, so the first `runtimeHook` call already sees Provider adapters. AdapterSink only publishes those adapters. `@assistant-ui/store/client` exports `useConfiguredAui` and `useAssistantContextProvider` so that host can extend and provide a client the same way `AuiProvider` does in React. ([@okisdev](https://github.com/okisdev))
+
+- [#5914](https://github.com/assistant-ui/assistant-ui/pull/5914) [`0d2e23f`](https://github.com/assistant-ui/assistant-ui/commit/0d2e23f5597c2500da03ac417bfee1defd2d808e) - feat: new `threads.selectionChanged` event carrying `threadId` and `previousThreadId`; deprecate `threadListItem.switchedTo`/`switchedAway` in its favor. Un-deprecate the semantically meaningful events (`thread.runStart`, `thread.runEnd`, `thread.initialize`, `composer.send`, `composer.attachmentAdd`). ([@Yonom](https://github.com/Yonom))
+  
+  The new event fires in situations where the deprecated pair did not, so the selection-driven defaults (`scrollToBottomOnThreadSwitch`, `unstable_focusOnThreadSwitched`) now engage there too: `InMemoryThreadList` emits on selection changes (it previously emitted no switch events at all), `switchToNewThread()` emits for the newly created thread, and runtimes that resolve a deep-linked `threadId`/`initialThreadId` after mount (`useRemoteThreadListRuntime`) emit when the deep link resolves, with the initial placeholder thread as `previousThreadId`.
+
 ## 0.3.9
 
 ### Patch Changes

@@ -55,6 +55,10 @@ describe("sanitizeForMessage", () => {
     });
     expect(() => JSON.stringify(result)).not.toThrow();
   });
+
+  it("sanitizes invalid dates without throwing", () => {
+    expect(sanitizeForMessage(new Date(Number.NaN))).toBe("Invalid Date");
+  });
 });
 
 describe("redactSensitive", () => {

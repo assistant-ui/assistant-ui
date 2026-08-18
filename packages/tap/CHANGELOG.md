@@ -1,5 +1,52 @@
 # @assistant-ui/tap
 
+## 0.9.13
+
+### Patch Changes
+
+- [#5884](https://github.com/assistant-ui/assistant-ui/pull/5884) [`99c5302`](https://github.com/assistant-ui/assistant-ui/commit/99c530260e625c4c63a06701ef40bda0ef6b41a6) - fix: deduplicate changelog records during StrictMode replay ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5833](https://github.com/assistant-ui/assistant-ui/pull/5833) [`5c092ef`](https://github.com/assistant-ui/assistant-ui/commit/5c092efb81aab1afc75acb913ecd95f0c07b7365) - feat: reconcile effects at commit time so mount, update, and Activity reveal share one mechanism ([@Yonom](https://github.com/Yonom))
+
+- [#5885](https://github.com/assistant-ui/assistant-ui/pull/5885) [`2f3c638`](https://github.com/assistant-ui/assistant-ui/commit/2f3c638efb70313c6b64721a6edf15bb8d27bac9) - fix: rewind reducer cells through committed history so React replays from any mid-chain base reduce from the oracle state ([@okisdev](https://github.com/okisdev))
+
+- [#5857](https://github.com/assistant-ui/assistant-ui/pull/5857) [`8e77515`](https://github.com/assistant-ui/assistant-ui/commit/8e77515ce17d91240c5e0877b6a4b4c0a2ed548a) - refactor: add a shared scheduleTask for one-off deferred work instead of allocating single-purpose UpdateScheduler instances ([@Yonom](https://github.com/Yonom))
+
+- [#5856](https://github.com/assistant-ui/assistant-ui/pull/5856) [`d9c355d`](https://github.com/assistant-ui/assistant-ui/commit/d9c355d25c6daf415283edf769b88c4c6786fd13) - test: wait deterministically for scheduler flushes instead of racing setTimeout against MessageChannel ([@Yonom](https://github.com/Yonom))
+
+- [#5897](https://github.com/assistant-ui/assistant-ui/pull/5897) [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7) - feat: useTapRoot falls through React for Suspense/ErrorBoundary support ([@Yonom](https://github.com/Yonom))
+  feat: useSyncExternalStore now forces a rerender if the getSnapshot throws an error
+
+- [#5850](https://github.com/assistant-ui/assistant-ui/pull/5850) [`a14b347`](https://github.com/assistant-ui/assistant-ui/commit/a14b347c67a0a2dee1f77dbf8dc6035036bcd41d) - feat: hold the committed value when a scheduler-driven update suspends in useTapRoot; createTapRoot now reports initial-render suspension with a clear error ([@Yonom](https://github.com/Yonom))
+
+- [#5873](https://github.com/assistant-ui/assistant-ui/pull/5873) [`e999f5d`](https://github.com/assistant-ui/assistant-ui/commit/e999f5d363731fb87f4890d89a65b75ca64413db) - fix: keep the compiler memo cache across uncommitted render replays so a StrictMode double invoke observes one memoized instance ([@okisdev](https://github.com/okisdev))
+
+- [#5881](https://github.com/assistant-ui/assistant-ui/pull/5881) [`44d98d7`](https://github.com/assistant-ui/assistant-ui/commit/44d98d708b85d6f76cd48f923e78a25d9e4b5171) - fix: roll back compiler memo caches with resource versions ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5858](https://github.com/assistant-ui/assistant-ui/pull/5858) [`4320fc6`](https://github.com/assistant-ui/assistant-ui/commit/4320fc62de06f89370dd074bc19530ab97ddac15) - docs: repitch the README around the hook-dispatch engine and its two use cases ([@Yonom](https://github.com/Yonom))
+
+- [#5867](https://github.com/assistant-ui/assistant-ui/pull/5867) [`d4b8845`](https://github.com/assistant-ui/assistant-ui/commit/d4b884535d60b19f0841e94e8e5ea5cd6e14a852) - fix: preserve reducer state when React replays a chain from a record's committed dispatch floor ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5897](https://github.com/assistant-ui/assistant-ui/pull/5897) [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7) - feat: useReducer overloads for action-less reducers ([@Yonom](https://github.com/Yonom))
+
+- [#5847](https://github.com/assistant-ui/assistant-ui/pull/5847) [`a279301`](https://github.com/assistant-ui/assistant-ui/commit/a27930133724dd6dafa7f6dcce6998e0bdc759e9) - fix: discard the work-in-progress render when a resource render throws ([@Yonom](https://github.com/Yonom))
+
+- [#5886](https://github.com/assistant-ui/assistant-ui/pull/5886) [`d7322c0`](https://github.com/assistant-ui/assistant-ui/commit/d7322c0ca223dd0d34d246e55055928270df60ff) - fix: restore application snapshots when a rewound replay is discarded, stop dispatch-before-mount from stranding replay history retention, and throw in development and test environments when a below-committed replay finds no committed history to rewind ([@okisdev](https://github.com/okisdev))
+
+- [#5876](https://github.com/assistant-ui/assistant-ui/pull/5876) [`8b0a836`](https://github.com/assistant-ui/assistant-ui/commit/8b0a836ec4a05a2b110780e7c325de7aec178af7) - test: wait deterministically for the scheduleTask flush instead of racing setTimeout against MessageChannel ([@okisdev](https://github.com/okisdev))
+
+- [#5943](https://github.com/assistant-ui/assistant-ui/pull/5943) [`20efa42`](https://github.com/assistant-ui/assistant-ui/commit/20efa4206a7c08eb8df192305fb1e434d06a4bfc) - fix: export the full react surface the package dists import from both shims explicitly ([@okisdev](https://github.com/okisdev))
+
+- [#5940](https://github.com/assistant-ui/assistant-ui/pull/5940) [`833fbe8`](https://github.com/assistant-ui/assistant-ui/commit/833fbe84f12a23a8caebd121d60a32528e33378d) - feat: the standalone shim gains `jsx-runtime` and `jsx-dev-runtime` entries plus module-scope `forwardRef` and `memo`, so react-coupled module graphs stay loadable under the react-less alias; rendering their JSX without real React still throws. ([@okisdev](https://github.com/okisdev))
+
+- [#5848](https://github.com/assistant-ui/assistant-ui/pull/5848) [`94a39ad`](https://github.com/assistant-ui/assistant-ui/commit/94a39ad218bea1228c3298756122acc312cf7218) - feat: use(promise) suspends resource renders ([@Yonom](https://github.com/Yonom))
+
+- [#5897](https://github.com/assistant-ui/assistant-ui/pull/5897) [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7) - fix: useSyncExternalStore re-checks the snapshot after commits where the value or getSnapshot changed ([@Yonom](https://github.com/Yonom))
+
+- [#5897](https://github.com/assistant-ui/assistant-ui/pull/5897) [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7) - fix: useSyncExternalStore reads getServerSnapshot for every pre-mount render pass ([@Yonom](https://github.com/Yonom))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 0.9.12
 
 ### Patch Changes
