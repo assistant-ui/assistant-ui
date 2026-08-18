@@ -81,9 +81,9 @@ type RepositoryMessage = RepositoryParent & {
 const findHead = (
   message: RepositoryMessage | RepositoryParent,
 ): RepositoryMessage | null => {
-  if (message.next) return findHead(message.next);
-  if ("current" in message) return message;
-  return null;
+  let current = message;
+  while (current.next) current = current.next;
+  return "current" in current ? current : null;
 };
 
 class CachedValue<T> {

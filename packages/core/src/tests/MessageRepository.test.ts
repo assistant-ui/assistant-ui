@@ -222,6 +222,30 @@ describe("MessageRepository", () => {
       expect(messages2.map((m) => m.id)).toEqual(["parent-id", "branch2-id"]);
     });
 
+    it("should switch to a branch with a long message history", () => {
+      const messageCount = 12_000;
+      const messages = [
+        { message: createTestMessage({ id: "root" }), parentId: null },
+      ];
+
+      for (let index = 0; index < messageCount; index++) {
+        messages.push({
+          message: createTestMessage({ id: `branch-${index}` }),
+          parentId: index === 0 ? "root" : `branch-${index - 1}`,
+        });
+      }
+
+      messages.push({
+        message: createTestMessage({ id: "alternate" }),
+        parentId: "root",
+      });
+
+      repository.import({ headId: "alternate", messages });
+      repository.switchToBranch("branch-0");
+
+      expect(repository.headId).toBe(`branch-${messageCount - 1}`);
+    });
+
     it("should throw error when switching to a non-existent branch", () => {
       expect(() => {
         repository.switchToBranch("non-existent-id");
