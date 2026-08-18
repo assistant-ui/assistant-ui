@@ -38,6 +38,7 @@ export class AssistantFrameProvider {
     Unsubscribe | undefined
   >();
   private _targetOrigin: string;
+  private _strictRegistrations = 0;
 
   private constructor(targetOrigin: string = "*") {
     this._targetOrigin = targetOrigin;
@@ -172,8 +173,10 @@ export class AssistantFrameProvider {
     provider: ModelContextProvider,
     targetOrigin?: string,
   ): Unsubscribe {
-    const instance = AssistantFrameProvider.getInstance(targetOrigin);
+    const origin = targetOrigin ?? "*";
+    const instance = AssistantFrameProvider.getInstance(origin);
     instance._providers.add(provider);
+    if (origin !== "*") instance._strictRegistrations += 1;
 
     const unsubscribe = provider.subscribe?.(() => instance.broadcastUpdate());
     if (unsubscribe) {
@@ -186,8 +189,11 @@ export class AssistantFrameProvider {
       instance._providers.delete(provider);
       instance._providerUnsubscribes.get(provider)?.();
       instance._providerUnsubscribes.delete(provider);
+      if (origin !== "*") {
+        instance._strictRegistrations -= 1;
+        if (instance._strictRegistrations === 0) instance._targetOrigin = "*";
+      }
       instance.broadcastUpdate();
-      if (instance._providers.size === 0) instance._targetOrigin = "*";
     };
   }
 
