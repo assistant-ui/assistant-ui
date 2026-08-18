@@ -28,6 +28,7 @@ import {
   STREAM_RECONNECTED_EVENT_TYPE,
   type OpenCodeEventSource,
 } from "./OpenCodeEventSource";
+import { generateId } from "@assistant-ui/core";
 import {
   resolveFileMediaType,
   resolveImageMediaType,
@@ -43,9 +44,6 @@ type ChildControllerEntry = {
   controller: OpenCodeThreadController;
   unsubscribe: (() => void) | null;
 };
-
-const createLocalId = (prefix: string) =>
-  `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
 
 const getTextContent = (parts: readonly ThreadUserMessagePart[]) =>
   serializeOpenCodeParts(parts).trim();
@@ -561,7 +559,7 @@ export class OpenCodeThreadController implements OpenCodeThreadControllerLike {
     ) as readonly ThreadUserMessagePart[];
 
     return {
-      clientId: createLocalId("local"),
+      clientId: generateId(),
       sessionId: this.sessionId,
       createdAt: Date.now(),
       parentId: message.parentId,

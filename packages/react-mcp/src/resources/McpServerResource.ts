@@ -24,6 +24,7 @@ import type {
   MCPServerState,
   MCPToolInfo,
 } from "../mcp-scope";
+import { createMcpId } from "../utils/createMcpId";
 
 export type McpServerResourceProps = {
   id: string;
@@ -305,10 +306,7 @@ const useMcpServerResource = (
             }
             const { message, requestedSchema } = request.params;
 
-            const id =
-              typeof crypto !== "undefined" && "randomUUID" in crypto
-                ? crypto.randomUUID()
-                : `mcp-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+            const id = createMcpId();
             const promise = new Promise<ElicitResult>((resolve) => {
               const onAbort = () => {
                 resolvePendingElicitation(id, { action: "cancel" });
