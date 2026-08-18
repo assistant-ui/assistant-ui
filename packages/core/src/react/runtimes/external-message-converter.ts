@@ -200,52 +200,52 @@ const joinExternalMessages = (
                 ...output.attachments,
               ];
             }
+          }
 
-            if (output.metadata) {
-              assistantMessage.metadata ??= {};
-              if (output.metadata.unstable_state !== undefined) {
-                assistantMessage.metadata.unstable_state =
-                  output.metadata.unstable_state;
-              }
-              if (output.metadata.unstable_annotations) {
-                assistantMessage.metadata.unstable_annotations = [
-                  ...(assistantMessage.metadata.unstable_annotations ?? []),
-                  ...output.metadata.unstable_annotations,
-                ];
-              }
-              if (output.metadata.unstable_data) {
-                assistantMessage.metadata.unstable_data = [
-                  ...(assistantMessage.metadata.unstable_data ?? []),
-                  ...output.metadata.unstable_data,
-                ];
-              }
-              if (output.metadata.steps) {
-                assistantMessage.metadata.steps = [
-                  ...(assistantMessage.metadata.steps ?? []),
-                  ...output.metadata.steps,
-                ];
-              }
-              if (output.metadata.custom) {
-                assistantMessage.metadata.custom = {
-                  ...(assistantMessage.metadata.custom ?? {}),
-                  ...output.metadata.custom,
-                };
-              }
-
-              if (output.metadata.timing) {
-                assistantMessage.metadata.timing = output.metadata.timing;
-              }
-
-              if (output.metadata.submittedFeedback) {
-                assistantMessage.metadata.submittedFeedback =
-                  output.metadata.submittedFeedback;
-              }
-
-              if (output.metadata.isOptimistic) {
-                assistantMessage.metadata.isOptimistic = true;
-              }
+          if (output.metadata) {
+            assistantMessage.metadata ??= {};
+            if (output.metadata.unstable_state !== undefined) {
+              assistantMessage.metadata.unstable_state =
+                output.metadata.unstable_state;
             }
-            // TODO keep this in sync
+            if (output.metadata.unstable_annotations) {
+              assistantMessage.metadata.unstable_annotations = [
+                ...(assistantMessage.metadata.unstable_annotations ?? []),
+                ...output.metadata.unstable_annotations,
+              ];
+            }
+            if (output.metadata.unstable_data) {
+              assistantMessage.metadata.unstable_data = [
+                ...(assistantMessage.metadata.unstable_data ?? []),
+                ...output.metadata.unstable_data,
+              ];
+            }
+            if (output.metadata.steps) {
+              assistantMessage.metadata.steps = [
+                ...(assistantMessage.metadata.steps ?? []),
+                ...output.metadata.steps,
+              ];
+            }
+            if (output.metadata.custom) {
+              assistantMessage.metadata.custom = {
+                ...(assistantMessage.metadata.custom ?? {}),
+                ...output.metadata.custom,
+              };
+            }
+
+            if (output.metadata.timing) {
+              assistantMessage.metadata.timing = output.metadata.timing;
+            }
+
+            if (output.metadata.submittedFeedback) {
+              assistantMessage.metadata.submittedFeedback =
+                output.metadata.submittedFeedback;
+            }
+
+            if (output.metadata.isOptimistic) {
+              assistantMessage.metadata.isOptimistic = true;
+            }
+            // TODO keep this in sync with ThreadMessageLike["metadata"] / fromThreadMessageLike
           }
 
           // Add content parts, merging reasoning parts with same parentId

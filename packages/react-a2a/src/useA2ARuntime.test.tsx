@@ -3,6 +3,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { A2AClient } from "./A2AClient";
+import type { A2AStreamEvent } from "./types";
 import { useA2ARuntime } from "./useA2ARuntime";
 
 const createMockClient = (waitForAbort = false) => {
@@ -14,11 +15,21 @@ const createMockClient = (waitForAbort = false) => {
       _configuration: unknown,
       _metadata: unknown,
       signal?: AbortSignal,
-    ): AsyncIterable<never> => {
+    ): AsyncIterable<A2AStreamEvent> => {
       streamSignal = signal;
       return {
         async *[Symbol.asyncIterator]() {
-          if (!waitForAbort || !signal) return;
+          if (!waitForAbort || !signal) {
+            yield {
+              type: "message",
+              message: {
+                messageId: "response",
+                role: "agent",
+                parts: [{ text: "Done" }],
+              },
+            };
+            return;
+          }
           await new Promise<void>((resolve) => {
             if (signal.aborted) {
               resolve();
@@ -103,10 +114,13 @@ describe("useA2ARuntime", () => {
             },
           );
         }
-        return new Response("", {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream" },
-        });
+        return new Response(
+          'data: {"message":{"message_id":"response","role":"ROLE_AGENT","parts":[{"text":"Done"}]}}\n\n',
+          {
+            status: 200,
+            headers: { "Content-Type": "text/event-stream" },
+          },
+        );
       },
     );
     vi.stubGlobal("fetch", fetchMock);

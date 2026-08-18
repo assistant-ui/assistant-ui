@@ -288,17 +288,19 @@ export const useAuiRoot = ({
   entries,
   clientRef,
   notifications,
+  destroySignal,
 }: {
   parent: AssistantClient;
   entries: ScopeEntry[];
   clientRef: ClientRef;
   notifications: NotificationManager;
+  destroySignal?: AbortSignal | undefined;
 }): { client: AssistantClient } => {
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
 
   const accessors = useAssistantTapContextProvider(
-    { clientRef, emit: notifications.emit },
+    { clientRef, emit: notifications.emit, destroySignal },
     function WithTapContext() {
       return useAssistantContextProvider(
         building,

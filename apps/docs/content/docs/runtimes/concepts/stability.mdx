@@ -33,7 +33,8 @@ A non-exhaustive list of `unstable_` exports surfaced in the runtime docs.
 | `unstable_humanToolNames` | `@assistant-ui/react` | Tool names that pause the run until a result is added via `addResult`. Only available on LocalRuntime; not supported in DataStream. |
 | `unstable_threadListAdapter` | `@assistant-ui/react-langgraph` | LangGraph thread-list adapter slot on `useLangGraphRuntime`. |
 | `unstable_createLangGraphStream` | `@assistant-ui/react-langgraph` | End-to-end cancellation primitive. |
-| `unstable_Provider` | Various adapters | Thread-scoped provider on `RemoteThreadListAdapter`. Must render children synchronously. |
+| `unstable_Provider` | Various adapters | React-component face on `RemoteThreadListAdapter`. Must render children synchronously. `useRemoteThreadListRuntime` renders it when present; the `RemoteThreadList` store entry ignores it. |
+| `unstable_useAdapters` | Various adapters | Hook face on `RemoteThreadListAdapter`. The `RemoteThreadList` store entry calls it. `useRemoteThreadListRuntime` synthesizes a `RuntimeAdapterProvider` from it when `unstable_Provider` is omitted. |
 | `unstable_capabilities` | `ExternalStoreRuntime` | Toggle copy and other thread capabilities. |
 | `unstable_state`, `unstable_annotations`, `unstable_data` | Message metadata | Runtime-internal fields exposed for advanced use cases. |
 | `unstable_assistantMessageId`, `unstable_threadId`, `unstable_parentId`, `unstable_getMessage` | `ChatModelRunOptions` | Identifiers and accessors passed to your `ChatModelAdapter.run`. |

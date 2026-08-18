@@ -78,6 +78,7 @@ Use `--example` to create a project from one of the monorepo examples with full 
 | `with-chain-of-thought` | Chain-of-thought reasoning, tool calls, and source citations | `npx assistant-ui create my-app -e with-chain-of-thought` |
 | `with-external-store` | External message store | `npx assistant-ui create my-app -e with-external-store` |
 | `with-interactables` | AI-driven interactive UI components | `npx assistant-ui create my-app -e with-interactables` |
+| `with-openui` | [OpenUI](/docs/tools/openui) generative UI integration | `npx assistant-ui create my-app -e with-openui` |
 | `with-custom-thread-list` | Custom thread list UI | `npx assistant-ui create my-app -e with-custom-thread-list` |
 | `with-react-hook-form` | React Hook Form integration | `npx assistant-ui create my-app -e with-react-hook-form` |
 | `with-ffmpeg` | FFmpeg video processing tool | `npx assistant-ui create my-app -e with-ffmpeg` |
@@ -233,10 +234,14 @@ This command:
 - Prompts to install new packages
 
 **What it does:**
-- Applies all available codemods sequentially
+- Applies the current bundled codemods sequentially
 - Shows progress bar with file count
 - Reports any transformation errors
 - Automatically detects and offers to install new dependencies
+
+The latest upgrade excludes the historical v0.8 UI package split because its
+`@assistant-ui/react-ui` destination is incompatible with current runtime versions.
+Do not run `codemod v0-8/ui-package-split` as part of a v0.15 upgrade.
 
 **Example output:**
 

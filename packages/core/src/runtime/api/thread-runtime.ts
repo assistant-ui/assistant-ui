@@ -199,7 +199,7 @@ export type ThreadState = {
  * reports it directly; the rest fall back to the trailing assistant message.
  */
 export const getThreadRuntimeCoreIsRunning = (
-  runtime: ThreadRuntimeCore,
+  runtime: Pick<ThreadRuntimeCore, "isRunning" | "messages">,
 ): boolean => {
   if (runtime.isRunning !== undefined) return runtime.isRunning;
   const lastMessage = runtime.messages.at(-1);

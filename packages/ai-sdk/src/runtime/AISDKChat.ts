@@ -29,6 +29,7 @@ const useAISDKChat = <UI_MESSAGE extends UIMessage = UIMessage>(
     id,
     isMainThread: true,
     getThreadListItem: () => threadListItem,
+    stopOnClientDestroy: true,
   });
   return useResource(RuntimeAdapter(runtime));
 };

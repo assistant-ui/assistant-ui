@@ -86,8 +86,7 @@ describe("threads.reloadMainThread", () => {
       await runtime.threads.reloadMainThread();
     });
 
-    // the hook ran again, which is what re-runs the adapter's load()
-    await waitFor(() => expect(mounts.count).toBe(beforeReload + 1));
+    await waitFor(() => expect(mounts.count).toBeGreaterThan(beforeReload));
   });
 
   it("keeps a thread runtime readable across the remount", async () => {

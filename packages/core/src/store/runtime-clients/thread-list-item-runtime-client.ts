@@ -4,6 +4,7 @@ import type { ClientOutput } from "@assistant-ui/store";
 import { useAssistantEmit } from "@assistant-ui/store/client";
 import type { ThreadListItemRuntime } from "../../runtime/api/thread-list-item-runtime";
 import { useSubscribable } from "./useSubscribable";
+import { handleThreadListAction } from "./handle-thread-list-action";
 
 const useThreadListItemClient = ({
   runtime,
@@ -39,13 +40,20 @@ const useThreadListItemClient = ({
 
   return {
     getState: () => state,
-    switchTo: runtime.switchTo,
-    rename: runtime.rename,
-    updateCustom: runtime.updateCustom,
-    archive: runtime.archive,
-    unarchive: runtime.unarchive,
-    delete: runtime.delete,
-    generateTitle: runtime.generateTitle,
+    switchTo: (options) =>
+      handleThreadListAction("switch", () => runtime.switchTo(options)),
+    rename: (newTitle) =>
+      handleThreadListAction("rename", () => runtime.rename(newTitle)),
+    updateCustom: (custom) =>
+      handleThreadListAction("update custom metadata", () =>
+        runtime.updateCustom(custom),
+      ),
+    archive: () => handleThreadListAction("archive", () => runtime.archive()),
+    unarchive: () =>
+      handleThreadListAction("unarchive", () => runtime.unarchive()),
+    delete: () => handleThreadListAction("delete", () => runtime.delete()),
+    generateTitle: () =>
+      handleThreadListAction("generate title", () => runtime.generateTitle()),
     initialize: runtime.initialize,
     detach: runtime.detach,
     __internal_getRuntime: () => runtime,

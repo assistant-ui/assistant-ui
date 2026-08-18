@@ -1,36 +1,7 @@
 import { type FC, type ReactNode, useEffect, useRef, useState } from "react";
 import { useAui } from "@assistant-ui/store";
 import { decodeServerIdFromState } from "../auth/createOAuthProvider";
-
-type McpOAuthCallbackName = "onComplete" | "onError";
-
-const reportCallbackError = (name: McpOAuthCallbackName, error: unknown) => {
-  console.error(`[react-mcp] ${name} callback threw an error`, error);
-};
-
-const invokeMcpOAuthCallback = <TArgs extends unknown[]>(
-  name: McpOAuthCallbackName,
-  callback: ((...args: TArgs) => void) | undefined,
-  ...args: TArgs
-) => {
-  if (!callback) return;
-
-  try {
-    const result = callback(...args) as unknown;
-    if (
-      result !== null &&
-      (typeof result === "object" || typeof result === "function") &&
-      "then" in result &&
-      typeof result.then === "function"
-    ) {
-      void Promise.resolve(result).catch((error) => {
-        reportCallbackError(name, error);
-      });
-    }
-  } catch (error) {
-    reportCallbackError(name, error);
-  }
-};
+import { invokeMcpCallback } from "../utils/invokeMcpCallback";
 
 export const createMcpOAuthCallbackError = (
   err: unknown,
@@ -104,15 +75,11 @@ export function useMcpOAuthCallback(
       } catch (err) {
         const error = createMcpOAuthCallbackError(err, serverId);
         setResult({ status: "error", serverId, error });
-        invokeMcpOAuthCallback("onError", optsRef.current.onError, error);
+        invokeMcpCallback("onError", optsRef.current.onError, error);
         return;
       }
 
-      invokeMcpOAuthCallback(
-        "onComplete",
-        optsRef.current.onComplete,
-        serverId,
-      );
+      invokeMcpCallback("onComplete", optsRef.current.onComplete, serverId);
     })();
   }, [aui, opts.url]);
 

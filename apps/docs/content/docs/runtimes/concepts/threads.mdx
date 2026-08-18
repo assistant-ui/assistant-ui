@@ -130,44 +130,68 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-### Persisting messages with `unstable_Provider`
+### Persisting messages
 
-`RemoteThreadListAdapter` only manages thread metadata. To persist messages within each thread, expose a thread-scoped history adapter via the optional `unstable_Provider`:
+`RemoteThreadListAdapter` only manages thread metadata. Per-thread history and attachments are a separate seam with two faces:
+
+- `unstable_useAdapters` is a hook. The `RemoteThreadList` store entry calls it inside the client tree, so any `createAssistantClient` host gets the same adapters as a React hook host. `useRemoteThreadListRuntime` also calls it when `unstable_Provider` is omitted.
+- `unstable_Provider` is a React component. `useRemoteThreadListRuntime` renders it when present. The store entry ignores it.
+
+On the store entry, wrap the thread factory with `withKey` so the thread remounts on a switch. History adapters load once per mount. An unkeyed factory keeps one instance, and the next thread's messages never appear.
+
+```tsx
+import { withKey } from "@assistant-ui/tap";
+import { RemoteThreadList } from "@assistant-ui/react";
+
+threads: RemoteThreadList({
+  adapter,
+  thread: (id) => withKey(id, MyThread({ threadId: id })),
+}),
+```
+
+Share one hook between both faces:
 
 ```tsx
 import {
   RuntimeAdapterProvider,
   useAui,
+  type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
 } from "@assistant-ui/react";
 import { useMemo } from "react";
 
+function useThreadListAdapters() {
+  const aui = useAui();
+  const history = useMemo<ThreadHistoryAdapter>(
+    () => ({
+      async load() {
+        const { remoteId } = aui.threadListItem.getState();
+        if (!remoteId) return { messages: [] };
+        const rows = await fetch(
+          `/api/threads/${remoteId}/messages`,
+        ).then((r) => r.json());
+        return { messages: rows.map(toThreadMessage) };
+      },
+      async append({ message, parentId }) {
+        const { remoteId } = await aui.threadListItem.initialize();
+        await fetch(`/api/threads/${remoteId}/messages`, {
+          method: "POST",
+          body: JSON.stringify({ message, parentId }),
+        });
+      },
+    }),
+    [aui],
+  );
+  return useMemo(() => ({ history }), [history]);
+}
+
 const adapterWithHistory: RemoteThreadListAdapter = {
   // ...metadata methods above...
+  unstable_useAdapters: useThreadListAdapters,
   unstable_Provider({ children }) {
-    const aui = useAui();
-    const history = useMemo<ThreadHistoryAdapter>(
-      () => ({
-        async load() {
-          const { remoteId } = aui.threadListItem.getState();
-          if (!remoteId) return { messages: [] };
-          const rows = await fetch(
-            `/api/threads/${remoteId}/messages`,
-          ).then((r) => r.json());
-          return { messages: rows.map(toThreadMessage) };
-        },
-        async append({ message, parentId }) {
-          const { remoteId } = await aui.threadListItem.initialize();
-          await fetch(`/api/threads/${remoteId}/messages`, {
-            method: "POST",
-            body: JSON.stringify({ message, parentId }),
-          });
-        },
-      }),
-      [aui],
-    );
+    const adapters = useThreadListAdapters();
     return (
-      <RuntimeAdapterProvider adapters={{ history }}>
+      <RuntimeAdapterProvider adapters={adapters}>
         {children}
       </RuntimeAdapterProvider>
     );
@@ -191,6 +215,15 @@ async append({ message, parentId }) {
 ```
 
 `initialize()` is safe to call multiple times. It always resolves to the same `remoteId` for the active thread.
+
+The same rule applies to a custom external store's dispatch. The runtime does not hold `onNew` or `onEdit` until the thread record exists (that would keep the user's message off screen for the whole roundtrip), so a handler that talks to a backend keyed by the remote identity must await `initialize()` itself:
+
+```ts
+onNew: async (message) => {
+  const { remoteId } = await aui.threadListItem.initialize();
+  await sendToBackend(remoteId, message);
+},
+```
 
 ### Reloading after async authentication
 
@@ -367,7 +400,13 @@ A few invariants worth knowing when wiring a custom UI on top of `loadMore()`:
       name: "unstable_Provider",
       type: "RemoteThreadListProviderComponent",
       description:
-        "Optional wrapper rendered around each active thread. Inject thread-scoped adapters (history, attachments) here.",
+        "Optional React wrapper rendered around each active thread by useRemoteThreadListRuntime when present. Inject thread-scoped adapters here. Omit it to let that host use unstable_useAdapters.",
+    },
+    {
+      name: "unstable_useAdapters",
+      type: "() => RuntimeAdapters | null | undefined",
+      description:
+        "Optional hook called by the RemoteThreadList store entry, and by useRemoteThreadListRuntime when unstable_Provider is omitted. Per-thread history requires the thread factory to be keyed with withKey.",
     },
   ]}
 />

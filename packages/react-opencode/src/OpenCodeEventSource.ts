@@ -77,6 +77,7 @@ export class OpenCodeEventSource {
   private readonly maxReconnectDelayMs = 30_000;
   private abortController: AbortController | null = null;
   private connectionPromise: Promise<void> | null = null;
+  private interruptReconnectWait: (() => void) | null = null;
   private stopped = false;
   private nextReconnectDelayMs = this.reconnectDelayMs;
   private hadConnection = false;
@@ -130,6 +131,25 @@ export class OpenCodeEventSource {
   private disconnect() {
     this.abortController?.abort();
     this.abortController = null;
+    this.interruptReconnectWait?.();
+  }
+
+  private waitForReconnect(delayMs: number) {
+    return new Promise<void>((resolve) => {
+      let timeout: ReturnType<typeof setTimeout> | null = null;
+      const finish = () => {
+        if (timeout === null) return;
+        clearTimeout(timeout);
+        timeout = null;
+        if (this.interruptReconnectWait === finish) {
+          this.interruptReconnectWait = null;
+        }
+        resolve();
+      };
+
+      timeout = setTimeout(finish, delayMs);
+      this.interruptReconnectWait = finish;
+    });
   }
 
   private async run() {
@@ -192,7 +212,7 @@ export class OpenCodeEventSource {
 
       if (this.listeners.size === 0) return;
 
-      await new Promise((resolve) => setTimeout(resolve, reconnectDelayMs));
+      await this.waitForReconnect(reconnectDelayMs);
     }
   }
 }

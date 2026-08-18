@@ -167,6 +167,26 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     expect(callback).toHaveBeenCalled();
   });
 
+  it("notifies later subscribers when an earlier subscriber throws", () => {
+    const core = new ExternalStoreThreadListRuntimeCore(
+      makeAdapter({ threadId: "thread-alpha" }),
+      makeFactory(),
+    );
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+
+    core.subscribe(() => {
+      throw error;
+    });
+    core.subscribe(laterSubscriber);
+
+    expect(() =>
+      core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" })),
+    ).toThrow(error);
+    expect(core.mainThreadId).toBe("thread-beta");
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+  });
+
   it("synthesizes mainThreadId entry after a switch to a threadId not in the threads list", () => {
     const core = new ExternalStoreThreadListRuntimeCore(
       makeAdapter({ threadId: "thread-alpha" }),
@@ -194,7 +214,7 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
     ]);
   });
 
-  it("drops a pending append from the previous thread after a switch", async () => {
+  it("dispatches an append before a thread switch", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {
       resolveInitialization = resolve;
@@ -220,11 +240,14 @@ describe("ExternalStoreThreadListRuntimeCore - __internal_setAdapter", () => {
 
     const appendPromise = firstRuntime.append(appendMessage());
     await Promise.resolve();
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+
     core.__internal_setAdapter(makeAdapter({ threadId: "thread-beta" }));
     resolveInitialization();
 
     await appendPromise;
-    expect(onNew).not.toHaveBeenCalled();
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 });
 

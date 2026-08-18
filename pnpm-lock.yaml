@@ -2681,17 +2681,17 @@ importers:
         specifier: workspace:*
         version: link:../../packages/ui
       '@openuidev/assistant-ui':
-        specifier: ^0.0.1
-        version: 0.0.1(@assistant-ui/react@packages+react)(@openuidev/react-headless@0.9.7(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@openuidev/react-ui@0.13.6(@openuidev/react-headless@0.9.7(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(ai@7.0.62(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
+        specifier: ^0.0.3
+        version: 0.0.3(@assistant-ui/react@packages+react)(@openuidev/react-headless@0.9.8(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@openuidev/react-ui@0.13.6(@openuidev/react-headless@0.9.8(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(ai@7.0.62(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
       '@openuidev/react-headless':
-        specifier: ^0.9.7
-        version: 0.9.7(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
+        specifier: ^0.9.8
+        version: 0.9.8(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
       '@openuidev/react-lang':
         specifier: ^0.2.11
         version: 0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
       '@openuidev/react-ui':
         specifier: ^0.13.6
-        version: 0.13.6(@openuidev/react-headless@0.9.7(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
+        version: 0.13.6(@openuidev/react-headless@0.9.8(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
       ai:
         specifier: ^7.0.62
         version: 7.0.62(zod@4.4.3)
@@ -8650,12 +8650,12 @@ packages:
     resolution: {integrity: sha512-eSYWTm620tTk45EKSedaUL8MFYI8hW164hIXsgIHyxu3VobUB3fFCu5t0hQby6OoWRPsG1KkKUG2M5UadiLiVg==}
     engines: {node: '>=14'}
 
-  '@openuidev/assistant-ui@0.0.1':
-    resolution: {integrity: sha512-aL1Bk9r/QPO5hoOdh7/IWOgUAPpDNGYu9hj7mkKyGB3BZz9SASHxBXvFh9HzilrjXC7TtzMAVofcgHYUK/G9yQ==}
+  '@openuidev/assistant-ui@0.0.3':
+    resolution: {integrity: sha512-8ORJH7KX1T/DPMRyzh8OFFSz4UjgDV5uOYTqst24qQbJrakLYwe7s66GNxE7MKwDiA1tTIh11Ag/XbgLK6vaCQ==}
     engines: {node: '>=18'}
     peerDependencies:
       '@assistant-ui/react': ^0.15.0
-      '@openuidev/react-headless': ^0.9.7
+      '@openuidev/react-headless': ^0.9.8
       '@openuidev/react-lang': ^0.2.11
       '@openuidev/react-ui': ^0.13.6
       ai: ^6.0.0 || ^7.0.0
@@ -8686,10 +8686,10 @@ packages:
   '@openuidev/observability@0.0.2':
     resolution: {integrity: sha512-uNtO4VGGwcL8Lg1L+9a8JCpee0dOm0djIjItxtGpUPkZNUwzpMQX6mQ4YCtA9Hho4VuqZgHBo1ON8FjsLbNMHg==}
 
-  '@openuidev/react-headless@0.9.7':
-    resolution: {integrity: sha512-iQVOGe0wR9kVezLM2wFFqPaYhj2CMO+nZ/K0megZhDxW8yPRcAib89U8+96j/DYlNnD2WjM5LP9XOIABYtCCBw==}
+  '@openuidev/react-headless@0.9.8':
+    resolution: {integrity: sha512-XPJkQEERLzDv3fhll3fIhwiklMzWhtiTZXtDFRGtEXUkLTqL9saZf3K7e6TjRtxsnvDTdT9ynUhF3cdsL/dCCA==}
     peerDependencies:
-      ai: ^6.0.0
+      ai: ^6.0.0 || ^7.0.0
       react: ^18.3.1 || ^19.0.0
       zustand: ^4.5.5
     peerDependenciesMeta:
@@ -24126,12 +24126,12 @@ snapshots:
 
   '@opentelemetry/semantic-conventions@1.43.0': {}
 
-  '@openuidev/assistant-ui@0.0.1(@assistant-ui/react@packages+react)(@openuidev/react-headless@0.9.7(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@openuidev/react-ui@0.13.6(@openuidev/react-headless@0.9.7(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(ai@7.0.62(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))':
+  '@openuidev/assistant-ui@0.0.3(@assistant-ui/react@packages+react)(@openuidev/react-headless@0.9.8(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@openuidev/react-ui@0.13.6(@openuidev/react-headless@0.9.8(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(ai@7.0.62(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))':
     dependencies:
       '@assistant-ui/react': link:packages/react
-      '@openuidev/react-headless': 0.9.7(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
+      '@openuidev/react-headless': 0.9.8(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
       '@openuidev/react-lang': 0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
-      '@openuidev/react-ui': 0.13.6(@openuidev/react-headless@0.9.7(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
+      '@openuidev/react-ui': 0.13.6(@openuidev/react-headless@0.9.8(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
       react: 19.2.8
       react-dom: 19.2.8(react@19.2.8)
       zod: 4.4.3
@@ -24154,7 +24154,7 @@ snapshots:
 
   '@openuidev/observability@0.0.2': {}
 
-  '@openuidev/react-headless@0.9.7(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))':
+  '@openuidev/react-headless@0.9.8(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))':
     dependencies:
       '@ag-ui/core': 0.0.53
       '@openuidev/observability': 0.0.2
@@ -24174,10 +24174,10 @@ snapshots:
       '@modelcontextprotocol/sdk': 1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3)
       react-dom: 19.2.8(react@19.2.8)
 
-  '@openuidev/react-ui@0.13.6(@openuidev/react-headless@0.9.7(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))':
+  '@openuidev/react-ui@0.13.6(@openuidev/react-headless@0.9.8(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8)))(@openuidev/react-lang@0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3))(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))':
     dependencies:
       '@floating-ui/react-dom': 2.1.9(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@openuidev/react-headless': 0.9.7(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
+      '@openuidev/react-headless': 0.9.8(ai@7.0.62(zod@4.4.3))(react@19.2.8)(zustand@4.5.7(@types/react@19.2.18)(immer@11.1.16)(react@19.2.8))
       '@openuidev/react-lang': 0.2.11(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(zod@4.4.3))(react-dom@19.2.8(react@19.2.8))(react@19.2.8)(zod@4.4.3)
       '@radix-ui/react-accordion': 1.2.20(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       '@radix-ui/react-aspect-ratio': 1.1.15(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)

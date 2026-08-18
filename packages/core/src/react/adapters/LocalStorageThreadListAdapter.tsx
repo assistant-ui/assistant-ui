@@ -21,7 +21,10 @@ import type {
   ExportedMessageRepository,
   ExportedMessageRepositoryItem,
 } from "../../internal";
-import { RuntimeAdapterProvider } from "../runtimes/RuntimeAdapterProvider";
+import {
+  RuntimeAdapterProvider,
+  type RuntimeAdapters,
+} from "../runtimes/RuntimeAdapterProvider";
 import type { TitleGenerationAdapter } from "./TitleGenerationAdapter";
 
 export type AsyncStorageLike = {
@@ -338,29 +341,40 @@ class AsyncStorageHistoryAdapter implements ThreadHistoryAdapter {
   }
 }
 
+const useLocalStorageThreadAdapters = (
+  storage: AsyncStorageLike,
+  prefix: string,
+  mutationQueue: KeyedMutationQueue,
+): RuntimeAdapters => {
+  const aui = useAui();
+  // Not useEffectEvent: history adapter methods run during render (SSR load).
+  const auiRef = useRef(aui);
+  useEffect(() => {
+    auiRef.current = aui;
+  });
+  const [history] = useState(
+    () =>
+      new AsyncStorageHistoryAdapter(
+        storage,
+        () => auiRef.current,
+        prefix,
+        mutationQueue,
+      ),
+  );
+  return useMemo(() => ({ history }), [history]);
+};
+
 const createHistoryProvider = (
   storage: AsyncStorageLike,
   prefix: string,
   mutationQueue: KeyedMutationQueue,
 ): FC<PropsWithChildren> => {
   const Provider: FC<PropsWithChildren> = ({ children }) => {
-    const aui = useAui();
-    // Not useEffectEvent: history adapter methods run during render (SSR load).
-    const auiRef = useRef(aui);
-    useEffect(() => {
-      auiRef.current = aui;
-    });
-    const [history] = useState(
-      () =>
-        new AsyncStorageHistoryAdapter(
-          storage,
-          () => auiRef.current,
-          prefix,
-          mutationQueue,
-        ),
+    const adapters = useLocalStorageThreadAdapters(
+      storage,
+      prefix,
+      mutationQueue,
     );
-    const adapters = useMemo(() => ({ history }), [history]);
-
     return (
       <RuntimeAdapterProvider adapters={adapters}>
         {children}
@@ -406,6 +420,9 @@ export const createLocalStorageAdapter = (
 
   const adapter: RemoteThreadListAdapter = {
     unstable_Provider: createHistoryProvider(storage, prefix, mutationQueue),
+    unstable_useAdapters: function useLocalStorageAdapters() {
+      return useLocalStorageThreadAdapters(storage, prefix, mutationQueue);
+    },
 
     async list(): Promise<RemoteThreadListResponse> {
       const threads = await loadThreadMetadata();

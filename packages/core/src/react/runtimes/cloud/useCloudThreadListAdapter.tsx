@@ -3,16 +3,21 @@ declare const process: { env: Record<string, string | undefined> };
 import {
   type FC,
   type PropsWithChildren,
+  type RefObject,
   useCallback,
   useEffect,
   useMemo,
   useRef,
+  useState,
 } from "react";
 import { AssistantCloud } from "assistant-cloud";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
 import { InMemoryThreadListAdapter } from "../../../runtimes/remote-thread-list/adapter/in-memory";
 import { useAssistantCloudThreadHistoryAdapter } from "./AssistantCloudThreadHistoryAdapter";
-import { RuntimeAdapterProvider } from "../RuntimeAdapterProvider";
+import {
+  RuntimeAdapterProvider,
+  type RuntimeAdapters,
+} from "../RuntimeAdapterProvider";
 import { CloudFileAttachmentAdapter } from "./CloudFileAttachmentAdapter";
 import { isRecord } from "../../../utils/json/is-json";
 
@@ -39,6 +44,29 @@ const autoCloud = baseUrl
 
 const CLOUD_THREAD_PAGE_SIZE = 20;
 
+const useCloudThreadListAdapters = (
+  adapterRef: RefObject<CloudThreadListAdapterOptions>,
+): RuntimeAdapters => {
+  const history = useAssistantCloudThreadHistoryAdapter({
+    get current() {
+      return adapterRef.current.cloud ?? autoCloud!;
+    },
+  });
+  const [attachments] = useState(
+    () =>
+      new CloudFileAttachmentAdapter(
+        () => adapterRef.current.cloud ?? autoCloud!,
+      ),
+  );
+  return useMemo(
+    () => ({
+      history,
+      attachments,
+    }),
+    [history, attachments],
+  );
+};
+
 export const useCloudThreadListAdapter = (
   adapter: CloudThreadListAdapterOptions,
 ): RemoteThreadListAdapter => {
@@ -47,27 +75,13 @@ export const useCloudThreadListAdapter = (
     adapterRef.current = adapter;
   }, [adapter]);
 
+  const unstable_useAdapters = useCallback(function useCloudAdapters() {
+    return useCloudThreadListAdapters(adapterRef);
+  }, []);
+
   const unstable_Provider = useCallback<FC<PropsWithChildren>>(
     function Provider({ children }) {
-      const history = useAssistantCloudThreadHistoryAdapter({
-        get current() {
-          return adapterRef.current.cloud ?? autoCloud!;
-        },
-      });
-      const cloudInstance = adapterRef.current.cloud ?? autoCloud!;
-      const attachments = useMemo(
-        () => new CloudFileAttachmentAdapter(cloudInstance),
-        [cloudInstance],
-      );
-
-      const adapters = useMemo(
-        () => ({
-          history,
-          attachments,
-        }),
-        [history, attachments],
-      );
-
+      const adapters = useCloudThreadListAdapters(adapterRef);
       return (
         <RuntimeAdapterProvider adapters={adapters}>
           {children}
@@ -175,6 +189,7 @@ export const useCloudThreadListAdapter = (
       },
 
       unstable_Provider,
+      unstable_useAdapters,
     };
-  }, [cloud, unstable_Provider]);
+  }, [cloud, unstable_Provider, unstable_useAdapters]);
 };

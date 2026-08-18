@@ -42,6 +42,28 @@ const createChatHelpers = (messages: any[] = []) => {
   return chatHelpers;
 };
 
+const captureUnhandledRejections = async (
+  callback: () => Promise<void> | void,
+) => {
+  const reasons: unknown[] = [];
+  const listener = (reason: unknown) => {
+    reasons.push(reason);
+  };
+  const priorListeners = process.listeners("unhandledRejection");
+  process.removeAllListeners("unhandledRejection");
+  process.on("unhandledRejection", listener);
+  try {
+    await callback();
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    return reasons;
+  } finally {
+    process.removeListener("unhandledRejection", listener);
+    for (const prior of priorListeners) {
+      process.on("unhandledRejection", prior);
+    }
+  }
+};
+
 const textOf = (message: any): string =>
   message.content
     .filter((part: any) => part.type === "text")
@@ -102,6 +124,61 @@ describe("useAISDKRuntime", () => {
         metadata: { custom: { model: "gpt-5.6-luna" } },
       });
     });
+  });
+
+  it("adopts a rejected stop so cancellation is not an unhandled rejection", async () => {
+    const abortError = new Error("signal is aborted without reason");
+    abortError.name = "AbortError";
+    const chat = createChatHelpers();
+    let stopCalls = 0;
+    chat.stop = () => {
+      stopCalls += 1;
+      return new Promise((_, reject) => {
+        setTimeout(() => reject(abortError), 5);
+      });
+    };
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const { result } = renderHook(() => useAISDKRuntime(chat));
+      const unhandledRejections = await captureUnhandledRejections(() => {
+        result.current.thread.cancelRun();
+      });
+
+      expect(stopCalls).toBe(1);
+      expect(unhandledRejections).toEqual([]);
+      expect(consoleError).not.toHaveBeenCalled();
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
+  it("reports non-AbortError cancellation failures", async () => {
+    const stopError = new Error("stop failed");
+    const chat = createChatHelpers();
+    chat.stop = vi.fn().mockRejectedValue(stopError);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      const { result } = renderHook(() => useAISDKRuntime(chat));
+
+      act(() => {
+        result.current.thread.cancelRun();
+      });
+
+      await waitFor(() => {
+        expect(consoleError).toHaveBeenCalledWith(
+          "[ExternalStoreThreadRuntimeCore] onCancel callback rejected",
+          stopError,
+        );
+      });
+    } finally {
+      consoleError.mockRestore();
+    }
   });
 
   it("cancels pending tool calls before sending a new message", async () => {

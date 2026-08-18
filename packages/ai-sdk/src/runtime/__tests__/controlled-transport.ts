@@ -19,3 +19,25 @@ export const createControlledTransport = () => {
     close: () => controller.close(),
   };
 };
+
+export const createCancellableTransport = () => {
+  let cancelCount = 0;
+  let controller!: ReadableStreamDefaultController<UIMessageChunk>;
+  const transport: ChatTransport<UIMessage> = {
+    sendMessages: async () =>
+      new ReadableStream<UIMessageChunk>({
+        start(c) {
+          controller = c;
+        },
+        cancel() {
+          cancelCount++;
+        },
+      }),
+    reconnectToStream: async () => null,
+  };
+  return {
+    transport,
+    getCancelCount: () => cancelCount,
+    close: () => controller.close(),
+  };
+};
