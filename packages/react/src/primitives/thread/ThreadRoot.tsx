@@ -24,6 +24,9 @@ export namespace ThreadPrimitiveRoot {
  * This component serves as the foundational wrapper for all thread-related components.
  * It provides the basic structure and context needed for thread functionality.
  *
+ * While this component is mounted, an unhandled Escape keydown stops active speech, even if
+ * the action bar that started it is no longer mounted.
+ *
  * @example
  * ```tsx
  * <ThreadPrimitive.Root>

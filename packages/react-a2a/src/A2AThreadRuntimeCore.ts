@@ -534,7 +534,13 @@ export class A2AThreadRuntimeCore {
     );
 
     let receivedEvent = false;
-    for await (const event of stream) {
+    let skipReason: string | undefined;
+    const diagnosedStream = (async function* () {
+      const reason = yield* stream;
+      if (typeof reason === "string") skipReason = reason;
+    })();
+
+    for await (const event of diagnosedStream) {
       if (abortController.signal.aborted) break;
       receivedEvent = true;
       this.handleStreamEvent(assistantId, event);
@@ -542,7 +548,11 @@ export class A2AThreadRuntimeCore {
 
     if (!abortController.signal.aborted) {
       if (!receivedEvent) {
-        throw new Error("A2A message stream ended without any events.");
+        throw new Error(
+          skipReason
+            ? `A2A message stream ended without any events. First skipped frame: ${skipReason}`
+            : "A2A message stream ended without any events.",
+        );
       }
 
       const lastStatus = this.getAssistantStatus(assistantId);

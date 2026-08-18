@@ -17,6 +17,7 @@ const sdk = vi.hoisted(() => ({
   })),
   open: vi.fn(),
   create: vi.fn(),
+  unlink: vi.fn(),
 }));
 
 vi.mock("@earendil-works/pi-coding-agent", () => ({
@@ -28,6 +29,11 @@ vi.mock("@earendil-works/pi-coding-agent", () => ({
     listAll: sdk.listAll,
     open: sdk.open,
   },
+}));
+
+vi.mock("node:fs/promises", async (importOriginal) => ({
+  ...(await importOriginal()),
+  unlink: sdk.unlink,
 }));
 
 const SESSION: SessionInfo = {
@@ -113,6 +119,9 @@ describe("PiThreadSupervisor", () => {
     sdk.list.mockResolvedValue([SESSION]);
     sdk.listAll.mockResolvedValue([]);
     sdk.open.mockReturnValue(createReadonlySessionManager());
+    sdk.unlink.mockRejectedValue(
+      Object.assign(new Error("missing session file"), { code: "ENOENT" }),
+    );
   });
 
   it("loads cold thread snapshots from the session file without creating a live AgentSession", async () => {
@@ -168,6 +177,135 @@ describe("PiThreadSupervisor", () => {
 
     expect(sdk.createAgentSession).toHaveBeenCalledTimes(1);
     expect(session.setThinkingLevel).toHaveBeenCalledTimes(2);
+  });
+
+  it("discards a cold session that opens after its thread is deleted", async () => {
+    const session = {
+      sessionId: "t1",
+      sessionFile: SESSION.path,
+      state: { pendingToolCalls: new Set<string>() },
+      bindExtensions: vi.fn(async () => {}),
+      subscribe: vi.fn(() => () => {}),
+      setThinkingLevel: vi.fn(),
+      dispose: vi.fn(),
+    };
+    let resolveSession!: (value: { session: typeof session }) => void;
+    sdk.createAgentSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const opening = supervisor.setThinkingLevel("t1", "high");
+    const openingResult = expect(opening).rejects.toThrow(
+      "Pi session open was cancelled",
+    );
+    await vi.waitFor(() => expect(sdk.createAgentSession).toHaveBeenCalled());
+
+    let resolveUnlink!: () => void;
+    sdk.unlink.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveUnlink = resolve;
+        }),
+    );
+    const deleting = supervisor.deleteThread("t1");
+    await vi.waitFor(() =>
+      expect(sdk.unlink).toHaveBeenCalledWith(SESSION.path),
+    );
+    resolveSession({ session });
+
+    await openingResult;
+    await expect(supervisor.setThinkingLevel("t1", "low")).rejects.toThrow(
+      "Pi session open was cancelled",
+    );
+    expect(sdk.createAgentSession).toHaveBeenCalledOnce();
+
+    resolveUnlink();
+    await deleting;
+    expect(session.dispose).toHaveBeenCalledOnce();
+    expect(session.subscribe).not.toHaveBeenCalled();
+    expect(session.setThinkingLevel).not.toHaveBeenCalled();
+  });
+
+  it("discards a cold session that opens after supervisor disposal", async () => {
+    const session = {
+      sessionId: "t1",
+      sessionFile: SESSION.path,
+      state: { pendingToolCalls: new Set<string>() },
+      bindExtensions: vi.fn(async () => {}),
+      subscribe: vi.fn(() => () => {}),
+      setThinkingLevel: vi.fn(),
+      dispose: vi.fn(),
+    };
+    let resolveSession!: (value: { session: typeof session }) => void;
+    sdk.createAgentSession.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveSession = resolve;
+        }),
+    );
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const opening = supervisor.setThinkingLevel("t1", "high");
+    const openingResult = expect(opening).rejects.toThrow(
+      "Pi session open was cancelled",
+    );
+    await vi.waitFor(() => expect(sdk.createAgentSession).toHaveBeenCalled());
+    await supervisor.dispose();
+
+    const reopenedSession = {
+      ...session,
+      bindExtensions: vi.fn(async () => {}),
+      subscribe: vi.fn(() => () => {}),
+      setThinkingLevel: vi.fn(),
+      dispose: vi.fn(),
+    };
+    sdk.createAgentSession.mockResolvedValue({ session: reopenedSession });
+
+    const reopened = supervisor.setThinkingLevel("t1", "low");
+    resolveSession({ session });
+
+    await Promise.all([openingResult, reopened]);
+    expect(session.dispose).toHaveBeenCalledOnce();
+    expect(session.subscribe).not.toHaveBeenCalled();
+    expect(session.setThinkingLevel).not.toHaveBeenCalled();
+
+    expect(reopenedSession.setThinkingLevel).toHaveBeenCalledWith("low");
+  });
+
+  it("disposes a cold session when extension binding fails during teardown", async () => {
+    const bindingError = new Error("extension binding failed");
+    let rejectBinding!: (reason: Error) => void;
+    const session = {
+      sessionId: "t1",
+      sessionFile: SESSION.path,
+      state: { pendingToolCalls: new Set<string>() },
+      bindExtensions: vi.fn(
+        () =>
+          new Promise<void>((_, reject) => {
+            rejectBinding = reject;
+          }),
+      ),
+      subscribe: vi.fn(() => () => {}),
+      setThinkingLevel: vi.fn(),
+      dispose: vi.fn(),
+    };
+    sdk.createAgentSession.mockResolvedValue({ session });
+    const supervisor = new PiThreadSupervisor({ workspacePath: "/ws" });
+
+    const opening = supervisor.setThinkingLevel("t1", "high");
+    const openingResult = expect(opening).rejects.toBe(bindingError);
+    await vi.waitFor(() => expect(session.bindExtensions).toHaveBeenCalled());
+    await supervisor.dispose();
+    rejectBinding(bindingError);
+
+    await openingResult;
+    expect(session.dispose).toHaveBeenCalledOnce();
+    expect(session.subscribe).not.toHaveBeenCalled();
+    expect(session.setThinkingLevel).not.toHaveBeenCalled();
   });
 
   it("isolates errors from the initial snapshot listener", async () => {

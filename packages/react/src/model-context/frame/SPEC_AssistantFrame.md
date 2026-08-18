@@ -88,7 +88,7 @@ All messages are wrapped with a channel identifier to avoid conflicts with other
 
 #### Security Considerations
 
-1. **Origin Validation**: Both sides can specify `targetOrigin` to restrict message sources
+1. **Origin Validation**: Both sides can specify `targetOrigin` to restrict message sources; providers share a fail-closed origin policy
 2. **Window Reference**: Host (parent) only accepts messages from the specific iframe window it's connected to
 3. **Message Channel**: Using a unique channel identifier prevents cross-talk with other postMessage users
 

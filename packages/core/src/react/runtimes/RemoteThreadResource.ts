@@ -21,6 +21,7 @@ import {
   useRuntimeAdaptersProvider,
   type RuntimeAdapters,
 } from "./RuntimeAdapterProvider";
+import { isSilentRuntimeAction } from "../../utils/silent-runtime-action";
 
 export type RemoteThreadListHook = () => AssistantRuntime;
 
@@ -48,6 +49,7 @@ export const subscribeToTitleGeneration = (
 ) => {
   const generate = () =>
     void itemRuntime.generateTitle().catch((error: unknown) => {
+      if (isSilentRuntimeAction(error)) return;
       console.error("[assistant-ui] Thread title generation failed", error);
     });
 

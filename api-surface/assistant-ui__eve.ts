@@ -1535,10 +1535,10 @@ declare const useEveAgentRuntime: (options?: UseEveAgentRuntimeOptions) => Assis
 
 declare const useEveError: () => Error | undefined;
 
-declare const useEveEvents: () => readonly import("eve/client").MessageStreamEvent[];
+declare const useEveEvents: () => EveRuntimeExtras["events"];
 
 declare const useEveReset: () => () => void;
 
-declare const useEveSession: () => import("eve/client").ClientSessionState | undefined;
+declare const useEveSession: () => EveRuntimeExtras["session"] | undefined;
 
 export { entry_root_exports as entry_root };

@@ -38,7 +38,7 @@ const useAISDKChat = <UI_MESSAGE extends UIMessage = UIMessage>(
  * `AuiConfig` entry that runs the AI SDK chat as the `threads` scope. Hosts the
  * same orchestration as `useChatRuntime` inside the client's own resource tree,
  * so it works with any `AssistantClient` host, React or not. Single thread; the
- * multi-thread and assistant-cloud surface stays on `useChatRuntime`. The chat
+ * multi-thread and assistant-cloud surface is {@link AISDKThreads}. The chat
  * id is captured when the entry mounts, so a later `id` change in the options
  * has no effect.
  */

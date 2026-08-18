@@ -37,10 +37,11 @@ const cloud = new AssistantCloud({
 const runtime = useLocalRuntime(modelAdapter, { cloud });
 ```
 
-Framework adapters take `cloud` directly:
+Framework adapters take `cloud` directly. `AISDKThreads({ cloud })` is the store-entry list for `AuiConfig` hosts. It mounts only the visible thread, so a switch cancels an in-flight run and that exchange is not persisted.
 
 ```tsx
 const runtime = useChatRuntime({ cloud });
+const threads = AISDKThreads({ cloud });
 const runtime = useLangGraphRuntime({ cloud /* stream, load, ... */ });
 const runtime = useAdkRuntime({ cloud, stream });
 ```
@@ -49,7 +50,7 @@ See the [cloud documentation](/docs/cloud) for setup, auth, and self-host option
 
 ## RemoteThreadListRuntime (custom database)
 
-`useRemoteThreadListRuntime` lets you back the thread list with any database while keeping the per-thread runtime simple. You provide a `RemoteThreadListAdapter` describing how to list, create, rename, archive, and delete threads.
+`useRemoteThreadListRuntime` lets you back the thread list with any database while keeping the per-thread runtime simple. You provide a `RemoteThreadListAdapter` describing how to list, create, rename, archive, and delete threads. Keep that adapter reference stable across renders (module scope or `useMemo`). Replacing it reloads the list and drops cached threads that are not in the replacement page.
 
 Works with any `LocalRuntime`-based runtime, including framework adapters that build on it (`react-ai-sdk`, `react-google-adk`, `react-a2a`, `useDataStreamRuntime`).
 
@@ -130,44 +131,68 @@ export function MyProvider({ children }: { children: React.ReactNode }) {
 }
 ```
 
-### Persisting messages with `unstable_Provider`
+### Persisting messages
 
-`RemoteThreadListAdapter` only manages thread metadata. To persist messages within each thread, expose a thread-scoped history adapter via the optional `unstable_Provider`. `useRemoteThreadListRuntime` honors it. The `RemoteThreadList` store entry ignores it, so per-thread history will not load or persist there until that surface supports it.
+`RemoteThreadListAdapter` only manages thread metadata. Per-thread history and attachments are a separate seam with two faces:
+
+- `unstable_useAdapters` is a hook. The `RemoteThreadList` store entry calls it inside the client tree, so any `createAssistantClient` host gets the same adapters as a React hook host. `useRemoteThreadListRuntime` also calls it when `unstable_Provider` is omitted.
+- `unstable_Provider` is a React component. `useRemoteThreadListRuntime` renders it when present. The store entry ignores it.
+
+On the store entry, wrap the thread factory with `withKey` so the thread remounts on a switch. History adapters load once per mount. An unkeyed factory keeps one instance, and the next thread's messages never appear.
+
+```tsx
+import { withKey } from "@assistant-ui/tap";
+import { RemoteThreadList } from "@assistant-ui/react";
+
+threads: RemoteThreadList({
+  adapter,
+  thread: (id) => withKey(id, MyThread({ threadId: id })),
+}),
+```
+
+Share one hook between both faces:
 
 ```tsx
 import {
   RuntimeAdapterProvider,
   useAui,
+  type RemoteThreadListAdapter,
   type ThreadHistoryAdapter,
 } from "@assistant-ui/react";
 import { useMemo } from "react";
 
+function useThreadListAdapters() {
+  const aui = useAui();
+  const history = useMemo<ThreadHistoryAdapter>(
+    () => ({
+      async load() {
+        const { remoteId } = aui.threadListItem.getState();
+        if (!remoteId) return { messages: [] };
+        const rows = await fetch(
+          `/api/threads/${remoteId}/messages`,
+        ).then((r) => r.json());
+        return { messages: rows.map(toThreadMessage) };
+      },
+      async append({ message, parentId }) {
+        const { remoteId } = await aui.threadListItem.initialize();
+        await fetch(`/api/threads/${remoteId}/messages`, {
+          method: "POST",
+          body: JSON.stringify({ message, parentId }),
+        });
+      },
+    }),
+    [aui],
+  );
+  return useMemo(() => ({ history }), [history]);
+}
+
 const adapterWithHistory: RemoteThreadListAdapter = {
   // ...metadata methods above...
+  unstable_useAdapters: useThreadListAdapters,
   unstable_Provider({ children }) {
-    const aui = useAui();
-    const history = useMemo<ThreadHistoryAdapter>(
-      () => ({
-        async load() {
-          const { remoteId } = aui.threadListItem.getState();
-          if (!remoteId) return { messages: [] };
-          const rows = await fetch(
-            `/api/threads/${remoteId}/messages`,
-          ).then((r) => r.json());
-          return { messages: rows.map(toThreadMessage) };
-        },
-        async append({ message, parentId }) {
-          const { remoteId } = await aui.threadListItem.initialize();
-          await fetch(`/api/threads/${remoteId}/messages`, {
-            method: "POST",
-            body: JSON.stringify({ message, parentId }),
-          });
-        },
-      }),
-      [aui],
-    );
+    const adapters = useThreadListAdapters();
     return (
-      <RuntimeAdapterProvider adapters={{ history }}>
+      <RuntimeAdapterProvider adapters={adapters}>
         {children}
       </RuntimeAdapterProvider>
     );
@@ -216,11 +241,11 @@ function ReloadOnAuth() {
 }
 ```
 
-`reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition.
+`reload()` discards in-flight responses from superseded calls, so it is safe to invoke on every auth transition. On the `RemoteThreadList` store entry, a recreated adapter object is a no-op until you call `reload()`. `reload()` against the same instance refreshes the list and keeps the open thread. `reload()` after a different adapter instance resets selection and cached records, then loads the replacement store.
 
 ### Refetching the open thread
 
-`reload()` re-runs `list()`, which refreshes thread list metadata only. It does not touch the messages of the thread the user is looking at. When the open thread's server state changes out of band, so that nothing arrives over the stream (a human-in-the-loop interrupt raised by another process, a stalled stream, a status change picked up by polling), call `aui.threads.reloadMainThread()`:
+`reload()` against the same adapter instance re-runs `list()`, which refreshes thread list metadata only. It does not touch the messages of the thread the user is looking at. When the open thread's server state changes out of band, so that nothing arrives over the stream (a human-in-the-loop interrupt raised by another process, a stalled stream, a status change picked up by polling), call `aui.threads.reloadMainThread()`:
 
 ```tsx
 function RefetchOnInterrupt({ status }: { status: string }) {
@@ -376,7 +401,13 @@ A few invariants worth knowing when wiring a custom UI on top of `loadMore()`:
       name: "unstable_Provider",
       type: "RemoteThreadListProviderComponent",
       description:
-        "Optional wrapper rendered around each active thread. Inject thread-scoped adapters (history, attachments) here.",
+        "Optional React wrapper rendered around each active thread by useRemoteThreadListRuntime when present. Inject thread-scoped adapters here. Omit it to let that host use unstable_useAdapters.",
+    },
+    {
+      name: "unstable_useAdapters",
+      type: "() => RuntimeAdapters | null | undefined",
+      description:
+        "Optional hook called by the RemoteThreadList store entry, and by useRemoteThreadListRuntime when unstable_Provider is omitted. Per-thread history requires the thread factory to be keyed with withKey.",
     },
   ]}
 />
