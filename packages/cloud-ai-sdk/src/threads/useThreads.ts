@@ -155,6 +155,10 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
             });
           }
           const nextThreadIds = new Set(nextThreads.map((thread) => thread.id));
+          commit(() => setThreads(nextThreads));
+
+          if (!isLatest()) return true;
+
           let selectedThreadDeleted = false;
           if (
             selectedThreadId !== null &&
@@ -170,16 +174,15 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
                 error.status === 404;
             }
           }
-          commit(() => {
-            setThreads(nextThreads);
-            if (selectedThreadDeleted) {
+          if (selectedThreadDeleted) {
+            commit(() =>
               setSelection((current) =>
                 current.scope === scope && current.threadId === selectedThreadId
                   ? { scope, threadId: null }
                   : current,
-              );
-            }
-          });
+              ),
+            );
+          }
           return true;
         },
         false,
