@@ -2887,6 +2887,7 @@ type ThreadIfProps = {
   children: ReactNode;
   empty?: boolean | undefined;
   running?: boolean | undefined;
+  disabled?: boolean | undefined;
 };
 
 declare const ThreadListItemArchive: (_param33: ThreadListItemArchiveProps) => import("react").JSX.Element;

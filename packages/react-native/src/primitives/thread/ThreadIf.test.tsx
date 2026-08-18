@@ -5,10 +5,16 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ThreadIf } from "./ThreadIf";
 
 const h = vi.hoisted(() => ({
-  thread: { messages: [] as unknown[], isRunning: false },
+  thread: {
+    messages: [] as unknown[],
+    isEmpty: true,
+    isRunning: false,
+    isDisabled: false,
+  },
 }));
 
-vi.mock("@assistant-ui/store", () => ({
+vi.mock("@assistant-ui/store", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/store")>()),
   useAuiState: <T,>(selector: (s: { thread: typeof h.thread }) => T) =>
     selector({ thread: h.thread }),
 }));
@@ -21,7 +27,9 @@ describe("ThreadIf", () => {
 
   beforeEach(() => {
     h.thread.messages = [];
+    h.thread.isEmpty = true;
     h.thread.isRunning = false;
+    h.thread.isDisabled = false;
 
     container = document.createElement("div");
     document.body.appendChild(container);
@@ -46,34 +54,38 @@ describe("ThreadIf", () => {
     return container.querySelector('[data-testid="child"]');
   };
 
-  const setMessages = (count: number) => {
-    h.thread.messages = Array.from({ length: count }, (_, i) => i);
-  };
-
   it("renders children when no guard is set", async () => {
-    setMessages(2);
+    h.thread.isEmpty = false;
     expect(await mount()).not.toBeNull();
   });
 
   describe("empty guard", () => {
     it("renders children when empty:true matches an empty thread", async () => {
-      setMessages(0);
+      h.thread.isEmpty = true;
       expect(await mount({ empty: true })).not.toBeNull();
     });
 
-    it("hides children when empty:true but the thread has messages", async () => {
-      setMessages(3);
+    it("hides children when empty:true but the thread is not empty", async () => {
+      h.thread.isEmpty = false;
       expect(await mount({ empty: true })).toBeNull();
     });
 
     it("renders children when empty:false matches a non-empty thread", async () => {
-      setMessages(3);
+      h.thread.isEmpty = false;
       expect(await mount({ empty: false })).not.toBeNull();
     });
 
     it("hides children when empty:false but the thread is empty", async () => {
-      setMessages(0);
+      h.thread.isEmpty = true;
       expect(await mount({ empty: false })).toBeNull();
+    });
+
+    it("follows thread.isEmpty rather than the message count", async () => {
+      h.thread.messages = [];
+      h.thread.isEmpty = false;
+
+      expect(await mount({ empty: true })).toBeNull();
+      expect(await mount({ empty: false })).not.toBeNull();
     });
   });
 
@@ -99,21 +111,43 @@ describe("ThreadIf", () => {
     });
   });
 
+  describe("disabled guard", () => {
+    it("renders children when disabled:true matches a disabled thread", async () => {
+      h.thread.isDisabled = true;
+      expect(await mount({ disabled: true })).not.toBeNull();
+    });
+
+    it("hides children when disabled:true but the thread is enabled", async () => {
+      h.thread.isDisabled = false;
+      expect(await mount({ disabled: true })).toBeNull();
+    });
+
+    it("renders children when disabled:false matches an enabled thread", async () => {
+      h.thread.isDisabled = false;
+      expect(await mount({ disabled: false })).not.toBeNull();
+    });
+
+    it("hides children when disabled:false but the thread is disabled", async () => {
+      h.thread.isDisabled = true;
+      expect(await mount({ disabled: false })).toBeNull();
+    });
+  });
+
   describe("combined guards", () => {
     it("renders children only when both empty and running match", async () => {
-      setMessages(0);
+      h.thread.isEmpty = true;
       h.thread.isRunning = true;
       expect(await mount({ empty: true, running: true })).not.toBeNull();
     });
 
     it("hides children when empty matches but running does not", async () => {
-      setMessages(0);
+      h.thread.isEmpty = true;
       h.thread.isRunning = false;
       expect(await mount({ empty: true, running: true })).toBeNull();
     });
 
     it("hides children when running matches but empty does not", async () => {
-      setMessages(2);
+      h.thread.isEmpty = false;
       h.thread.isRunning = true;
       expect(await mount({ empty: true, running: true })).toBeNull();
     });
