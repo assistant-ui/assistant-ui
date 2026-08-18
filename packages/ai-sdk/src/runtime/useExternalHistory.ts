@@ -67,6 +67,7 @@ export const useExternalHistory = <TMessage>(
   onSetMessages: (messages: TMessage[]) => void,
 ) => {
   const loadedRef = useRef(false);
+  const [itemEpoch, setItemEpoch] = useState(0);
 
   const aui = useAui();
   const optionalThreadListItem = useCallback(
@@ -99,7 +100,7 @@ export const useExternalHistory = <TMessage>(
   const isLoading = formatAdapter != null && !hasLoaded;
 
   useEffect(() => {
-    if (!formatAdapter || loadedRef.current) return;
+    if (!formatAdapter || loadedRef.current) return undefined;
 
     const loadHistory = async () => {
       try {
@@ -140,19 +141,26 @@ export const useExternalHistory = <TMessage>(
       }
     };
 
-    loadedRef.current = true;
-
-    if (!optionalThreadListItem()?.getState().remoteId) {
+    const remoteId = optionalThreadListItem()?.getState().remoteId;
+    if (!remoteId) {
       setHasLoaded(true);
-      return;
+      return aui.subscribe(() => {
+        if (optionalThreadListItem()?.getState().remoteId) {
+          setItemEpoch((n) => n + 1);
+        }
+      });
     }
 
-    loadHistory();
+    loadedRef.current = true;
+    void loadHistory();
+    return undefined;
   }, [
     formatAdapter,
     toThreadMessages,
     runtimeRef,
     optionalThreadListItem,
+    aui,
+    itemEpoch,
     storageFormatAdapter,
   ]);
 

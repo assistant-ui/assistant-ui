@@ -37,10 +37,11 @@ const cloud = new AssistantCloud({
 const runtime = useLocalRuntime(modelAdapter, { cloud });
 ```
 
-Framework adapters take `cloud` directly:
+Framework adapters take `cloud` directly. The store-entry dual of `useChatRuntime({ cloud })` is `AISDKThreads({ cloud })`.
 
 ```tsx
 const runtime = useChatRuntime({ cloud });
+const threads = AISDKThreads({ cloud });
 const runtime = useLangGraphRuntime({ cloud /* stream, load, ... */ });
 const runtime = useAdkRuntime({ cloud, stream });
 ```
