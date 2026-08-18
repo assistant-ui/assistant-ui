@@ -10,7 +10,6 @@ import { BASE_URL } from "@/lib/constants";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";
 import { galleryStagingCss } from "@/components/gallery/gallery-staging";
 import { ClerkProvider } from "@clerk/nextjs";
-import { AnonymousSessionBootstrap } from "@/components/anonymous-session-bootstrap";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -77,7 +76,6 @@ export const metadata = {
 export default function Layout({ children }: { children: ReactNode }) {
   const content = (
     <>
-      <AnonymousSessionBootstrap />
       <Provider>{children}</Provider>
       <Analytics />
       <SpeedInsights />

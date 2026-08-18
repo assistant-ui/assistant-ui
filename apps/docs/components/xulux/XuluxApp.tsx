@@ -37,7 +37,10 @@ import type { LearnProgress } from "@/lib/xulux/learn/types";
 import { toLearnContext } from "@/lib/xulux/learn/context";
 import type { LearnAutoStartSource } from "@/lib/xulux/learn/types";
 import { useAuth } from "@clerk/nextjs";
-import { claimXuluxStorage } from "./runtime/xulux-local-storage";
+import {
+  claimXuluxStorage,
+  XULUX_STORAGE_OWNER_KEY,
+} from "./runtime/xulux-local-storage";
 
 export type XuluxMode = "playground" | "learn";
 
@@ -68,19 +71,46 @@ export function XuluxApp({
   autoStartSource?: LearnAutoStartSource;
 }) {
   const { isLoaded, userId } = useAuth();
-  const [storageOwner, setStorageOwner] = useState<string | null>(null);
+  const [storageState, setStorageState] = useState<
+    "loading" | "ready" | "unavailable" | "claimed-elsewhere"
+  >("loading");
 
   useEffect(() => {
-    if (!userId) return;
-    claimXuluxStorage(window.localStorage, userId);
-    setStorageOwner(userId);
+    if (!userId) {
+      setStorageState("loading");
+      return;
+    }
+    if (!claimXuluxStorage(window.localStorage, userId)) {
+      setStorageState("unavailable");
+      return;
+    }
+    setStorageState("ready");
+
+    const handleStorage = (event: StorageEvent) => {
+      if (event.key !== XULUX_STORAGE_OWNER_KEY) return;
+      setStorageState(
+        event.newValue === userId ? "ready" : "claimed-elsewhere",
+      );
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
   }, [userId]);
 
   if (!isLoaded) return <XuluxAuthStatus message="Loading your workspace…" />;
   if (!userId) {
     return <XuluxAuthStatus message="Sign in to use AI Builder." />;
   }
-  if (storageOwner !== userId) {
+  if (storageState === "unavailable") {
+    return (
+      <XuluxAuthStatus message="Local storage is unavailable. Enable it to use AI Builder." />
+    );
+  }
+  if (storageState === "claimed-elsewhere") {
+    return (
+      <XuluxAuthStatus message="This workspace is active under a different account in another tab." />
+    );
+  }
+  if (storageState !== "ready") {
     return <XuluxAuthStatus message="Loading your workspace…" />;
   }
 

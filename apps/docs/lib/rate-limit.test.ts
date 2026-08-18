@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
   results: new Map<string, boolean>(),
+  errors: new Map<string, Error>(),
   calls: [] as Array<{ prefix: string; key: string }>,
 }));
 
@@ -25,6 +26,8 @@ vi.mock("@upstash/ratelimit", async (importOriginal) => ({
 
     async limit(key: string) {
       mocks.calls.push({ prefix: this.prefix, key });
+      const error = mocks.errors.get(this.prefix);
+      if (error) throw error;
       return { success: mocks.results.get(this.prefix) ?? true };
     }
   },
@@ -39,12 +42,15 @@ import {
 } from "./rate-limit";
 
 beforeEach(() => {
+  vi.spyOn(console, "error").mockImplementation(() => {});
   mocks.calls.length = 0;
   mocks.results.clear();
+  mocks.errors.clear();
 });
 
 afterEach(() => {
   vi.unstubAllEnvs();
+  vi.restoreAllMocks();
 });
 
 describe("positiveSafeInteger", () => {
@@ -124,15 +130,41 @@ describe("checkRateLimit", () => {
   });
 
   it.each([
-    "aui:inference:ip:daily",
-    "aui:inference:identity",
-    "aui:inference:global",
-  ])("rejects an exhausted %s bucket", async (prefix) => {
-    mocks.results.set(prefix, false);
+    ["aui:inference:ip:daily", 2],
+    ["aui:inference:identity", 3],
+    ["aui:inference:global", 4],
+  ] as const)(
+    "rejects an exhausted %s bucket without consuming later quotas",
+    async (prefix, expectedCalls) => {
+      mocks.results.set(prefix, false);
+
+      const result = await checkRateLimit(request(), "anonymous:session-1");
+
+      expect(result?.status).toBe(429);
+      expect(mocks.calls).toHaveLength(expectedCalls);
+    },
+  );
+
+  it("logs a global ceiling denial as an incident", async () => {
+    mocks.results.set("aui:inference:global", false);
 
     const result = await checkRateLimit(request(), "anonymous:session-1");
 
     expect(result?.status).toBe(429);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("global_inference_rate_limit_exceeded"),
+    );
+  });
+
+  it("fails closed with a structured log when Redis is unavailable", async () => {
+    mocks.errors.set("aui:inference:ip:burst", new Error("Redis unavailable"));
+
+    const result = await checkRateLimit(request(), "anonymous:session-1");
+
+    expect(result?.status).toBe(503);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("rate_limit_unavailable"),
+    );
   });
 });
 

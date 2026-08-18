@@ -32,14 +32,17 @@ function createAnonymousSessionFetch(chatApi: string): typeof fetch {
       const endpoint = new URL(chatApi, window.location.origin);
       endpoint.pathname = "/api/anonymous-session";
       endpoint.search = "";
-      const response = await fetch(endpoint);
+      const response = await fetch(endpoint, { credentials: "omit" });
       if (!response.ok) throw new Error("Unable to start an anonymous session");
       const payload = (await response.json()) as { token?: unknown };
       if (typeof payload.token !== "string") {
         throw new Error("Invalid anonymous session response");
       }
       return payload.token;
-    })();
+    })().catch((error: unknown) => {
+      tokenPromise = null;
+      throw error;
+    });
     return tokenPromise;
   };
 

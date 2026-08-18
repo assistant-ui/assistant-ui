@@ -12,7 +12,7 @@ import type { SelectedTemplateContext } from "../XuluxApp";
 
 const PREFIX = "xulux:";
 const THREADS_KEY = `${PREFIX}threads`;
-const STORAGE_OWNER_KEY = `${PREFIX}storage-owner`;
+export const XULUX_STORAGE_OWNER_KEY = `${PREFIX}storage-owner`;
 const STORAGE_EVENT = "xulux-storage";
 const EMPTY_THREADS: XuluxStoredThread[] = [];
 
@@ -34,19 +34,31 @@ export function claimXuluxStorage(
     "getItem" | "setItem" | "removeItem" | "length" | "key"
   >,
   userId: string,
-) {
-  if (storage.getItem(STORAGE_OWNER_KEY) === userId) return;
+): boolean {
+  try {
+    const currentOwner = storage.getItem(XULUX_STORAGE_OWNER_KEY);
+    if (currentOwner === userId) return true;
+    if (currentOwner === null) {
+      storage.setItem(XULUX_STORAGE_OWNER_KEY, userId);
+      return true;
+    }
 
-  const keys: string[] = [];
-  for (let index = 0; index < storage.length; index += 1) {
-    const key = storage.key(index);
-    if (key?.startsWith(PREFIX) && key !== STORAGE_OWNER_KEY) keys.push(key);
+    const keys: string[] = [];
+    for (let index = 0; index < storage.length; index += 1) {
+      const key = storage.key(index);
+      if (key?.startsWith(PREFIX) && key !== XULUX_STORAGE_OWNER_KEY) {
+        keys.push(key);
+      }
+    }
+    for (const key of keys) storage.removeItem(key);
+    storage.setItem(XULUX_STORAGE_OWNER_KEY, userId);
+    cachedThreadsRaw = null;
+    cachedThreadsSnapshot = EMPTY_THREADS;
+    notify();
+    return true;
+  } catch {
+    return false;
   }
-  for (const key of keys) storage.removeItem(key);
-  storage.setItem(STORAGE_OWNER_KEY, userId);
-  cachedThreadsRaw = null;
-  cachedThreadsSnapshot = EMPTY_THREADS;
-  notify();
 }
 
 function writeJson<T>(key: string, value: T) {

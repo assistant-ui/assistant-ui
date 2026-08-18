@@ -5,6 +5,14 @@ export function isAiBuilderServerAuthConfigured(): boolean {
   );
 }
 
+function isClerkConfigurationError(error: unknown): boolean {
+  return (
+    error instanceof Error &&
+    (error.message.includes("(code=auth_signature_invalid)") ||
+      error.message.includes("Clerk middleware context"))
+  );
+}
+
 export async function requireAiBuilderUser(): Promise<
   { userId: string } | Response
 > {
@@ -28,10 +36,24 @@ export async function requireAiBuilderUser(): Promise<
     }
     return { userId };
   } catch (error) {
-    console.error("[ai-builder-auth] Failed to verify the user session", error);
+    const configurationError = isClerkConfigurationError(error);
+    console.error(
+      configurationError
+        ? "[ai-builder-auth] Clerk middleware is not configured for this route"
+        : "[ai-builder-auth] Failed to verify the user session",
+      error,
+    );
     return Response.json(
-      { error: "Authentication is temporarily unavailable." },
-      { status: 503 },
+      configurationError
+        ? {
+            code: "AUTH_CONFIGURATION_ERROR",
+            error: "Authentication is not configured correctly.",
+          }
+        : {
+            code: "AUTH_SERVICE_UNAVAILABLE",
+            error: "Authentication is temporarily unavailable.",
+          },
+      { status: configurationError ? 500 : 503 },
     );
   }
 }

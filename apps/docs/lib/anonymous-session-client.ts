@@ -4,12 +4,16 @@ export function ensureAnonymousSession(): Promise<void> {
   sessionPromise ??= fetch("/api/anonymous-session", {
     cache: "no-store",
     credentials: "same-origin",
-  }).then((response) => {
-    if (!response.ok) {
+  })
+    .then((response) => {
+      if (!response.ok) {
+        throw new Error("Unable to start an anonymous session");
+      }
+    })
+    .catch((error: unknown) => {
       sessionPromise = null;
-      throw new Error("Unable to start an anonymous session");
-    }
-  });
+      throw error;
+    });
   return sessionPromise;
 }
 

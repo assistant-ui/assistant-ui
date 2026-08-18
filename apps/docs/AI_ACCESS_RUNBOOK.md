@@ -1,7 +1,9 @@
 # Hosted AI access controls
 
 The docs assistant and UI Builder chat remain public. AI Builder (Xulux), its
-chat routes, and workspace downloads require a verified Clerk user.
+chat routes, guided `/learn` pages, and workspace downloads require a verified
+Clerk user. `/learn/preview/*` remains public because it serves the inert stage
+preview loaded by the authenticated course.
 
 Anonymous access is deliberately bounded rather than treated as proof of a
 human. A signed session is a soft per-session quota: a caller can discard it
@@ -10,7 +12,8 @@ issuance limit, and provider spend controls are the durable cost backstops.
 
 ## Deployment prerequisites
 
-Configure these values before promoting the application:
+Configure these values for both Preview and Production before merging or
+promoting the application:
 
 - `AUI_ANONYMOUS_SESSION_SECRET`: at least 32 random bytes, generated with a
   secret manager or `openssl rand -base64 32`.
@@ -24,13 +27,21 @@ Configure these values before promoting the application:
 - Provider-side spend alerts and a hard spend ceiling. The application global
   request limit is not an exact dollar budget.
 
-Set deliberate production values for:
+Set deliberate Preview and Production values for:
 
 - `AUI_IP_REQUESTS_PER_DAY`
 - `AUI_IDENTITY_REQUESTS_PER_DAY`
 - `AUI_GLOBAL_REQUESTS_PER_DAY`
 - `AUI_ANONYMOUS_SESSIONS_PER_IP_PER_DAY`
 - `AUI_DOWNLOAD_REQUESTS_PER_DAY`
+
+`AUI_GLOBAL_REQUESTS_PER_DAY` has no deployment default. Measure peak daily
+requests across `/api/doc/chat`, `/api/playground-chat`, and `/api/chat`,
+including automatic tool-result follow-up requests. Set the ceiling above the
+observed peak and below the provider hard-spend backstop. A global denial emits
+the structured `global_inference_rate_limit_exceeded` error log and should page
+the on-call owner. Missing or unavailable Redis fails closed with a structured
+`rate_limit_unavailable` log and a `503` response.
 
 Direct Vercel deployments use `x-vercel-forwarded-for`, which Vercel supplies
 as a protected client-IP header. If another reverse proxy sits in front of
@@ -56,6 +67,8 @@ Before production promotion, verify all of the following on the deployment URL:
 6. Xulux chat and workspace downloads return `401` without Clerk auth and work
    for a signed-in staging user.
 7. Switching Clerk users in one browser clears the previous Xulux local data.
+   Existing ownerless data is adopted by the first authenticated user during
+   rollout rather than deleted.
 8. Assistant Cloud rejects a request without the `assistant-ui` JWT.
 9. Redis counters and provider spend alerts are visible to the on-call owner.
 

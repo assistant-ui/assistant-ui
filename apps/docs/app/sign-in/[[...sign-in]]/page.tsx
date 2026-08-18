@@ -1,5 +1,3 @@
-"use client";
-
 import { SignIn } from "@clerk/nextjs";
 import { AI_BUILDER_RETURN_PATH } from "@/lib/ai-builder-routes";
 

@@ -19,6 +19,19 @@ function createStorage(initial: Record<string, string> = {}): Storage {
 }
 
 describe("claimXuluxStorage", () => {
+  it("adopts existing ownerless data for the first authenticated user", () => {
+    const storage = createStorage({
+      "xulux:threads": '[{"title":"Existing thread"}]',
+      "xulux:learn:course": '{"threadId":"thread_existing"}',
+    });
+
+    expect(claimXuluxStorage(storage, "user_current")).toBe(true);
+
+    expect(storage.getItem("xulux:threads")).not.toBeNull();
+    expect(storage.getItem("xulux:learn:course")).not.toBeNull();
+    expect(storage.getItem("xulux:storage-owner")).toBe("user_current");
+  });
+
   it("clears Xulux data when the authenticated user changes", () => {
     const storage = createStorage({
       "xulux:storage-owner": "user_previous",
@@ -27,7 +40,7 @@ describe("claimXuluxStorage", () => {
       unrelated: "keep",
     });
 
-    claimXuluxStorage(storage, "user_current");
+    expect(claimXuluxStorage(storage, "user_current")).toBe(true);
 
     expect(storage.getItem("xulux:threads")).toBeNull();
     expect(storage.getItem("xulux:learn:course")).toBeNull();
@@ -41,8 +54,17 @@ describe("claimXuluxStorage", () => {
       "xulux:threads": '[{"title":"Current thread"}]',
     });
 
-    claimXuluxStorage(storage, "user_current");
+    expect(claimXuluxStorage(storage, "user_current")).toBe(true);
 
     expect(storage.getItem("xulux:threads")).not.toBeNull();
+  });
+
+  it("reports unavailable storage without throwing", () => {
+    const storage = createStorage();
+    storage.setItem = () => {
+      throw new Error("Storage unavailable");
+    };
+
+    expect(claimXuluxStorage(storage, "user_current")).toBe(false);
   });
 });

@@ -14,6 +14,7 @@ import { requireAiBuilderUser } from "./ai-builder-auth";
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.clearAllMocks();
+  vi.restoreAllMocks();
 });
 
 describe("requireAiBuilderUser", () => {
@@ -62,10 +63,12 @@ describe("requireAiBuilderUser", () => {
     });
   });
 
-  it("fails closed and logs when Clerk session verification throws", async () => {
+  it("distinguishes a missing Clerk middleware context", async () => {
     vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test");
     vi.stubEnv("CLERK_SECRET_KEY", "sk_test");
-    const error = new Error("Clerk middleware context missing");
+    const error = new Error(
+      "Clerk middleware context missing (code=auth_signature_invalid)",
+    );
     mocks.auth.mockRejectedValue(error);
     const consoleError = vi
       .spyOn(console, "error")
@@ -74,10 +77,30 @@ describe("requireAiBuilderUser", () => {
     const result = await requireAiBuilderUser();
 
     expect(result).toBeInstanceOf(Response);
-    expect((result as Response).status).toBe(503);
+    expect((result as Response).status).toBe(500);
+    await expect((result as Response).json()).resolves.toEqual({
+      code: "AUTH_CONFIGURATION_ERROR",
+      error: "Authentication is not configured correctly.",
+    });
     expect(consoleError).toHaveBeenCalledWith(
-      "[ai-builder-auth] Failed to verify the user session",
+      "[ai-builder-auth] Clerk middleware is not configured for this route",
       error,
     );
+  });
+
+  it("reports a temporary Clerk verification outage", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test");
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test");
+    const error = new Error("Clerk request timed out");
+    mocks.auth.mockRejectedValue(error);
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const result = (await requireAiBuilderUser()) as Response;
+
+    expect(result.status).toBe(503);
+    await expect(result.json()).resolves.toEqual({
+      code: "AUTH_SERVICE_UNAVAILABLE",
+      error: "Authentication is temporarily unavailable.",
+    });
   });
 });

@@ -25,9 +25,11 @@ function isUmamiRead(request: NextRequest): boolean {
 
 function isProtectedAiBuilderPage(request: NextRequest): boolean {
   const { pathname, searchParams } = request.nextUrl;
+  const isLearnPreview =
+    pathname === "/learn/preview" || pathname.startsWith("/learn/preview/");
   return (
-    pathname === "/learn" ||
-    pathname.startsWith("/learn/") ||
+    ((pathname === "/learn" || pathname.startsWith("/learn/")) &&
+      !isLearnPreview) ||
     (pathname === "/playground" && searchParams.get("mode") === "agent")
   );
 }
@@ -61,9 +63,9 @@ export default function proxy(request: NextRequest, event: NextFetchEvent) {
 
   if (isProtectedAiBuilderPage(request)) {
     if (request.nextUrl.pathname === "/playground") {
-      return NextResponse.redirect(
-        new URL("/playground?mode=builder", request.url),
-      );
+      const fallbackUrl = request.nextUrl.clone();
+      fallbackUrl.searchParams.set("mode", "builder");
+      return NextResponse.redirect(fallbackUrl);
     }
     return NextResponse.rewrite(new URL("/_not-found", request.url), {
       status: 404,
