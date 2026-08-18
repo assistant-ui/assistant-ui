@@ -91,4 +91,47 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
       format: "aui/v0",
     });
   });
+
+  it("uses the active main item when the derived thread item is stale", async () => {
+    const cloud = makeCloud();
+    const active = mocks.makeClient("thread-1");
+    const stale = mocks.makeClient("draft");
+    mocks.aui = {
+      ...stale,
+      optional: {
+        threadListItem: stale.threadListItem,
+        threads: { item: () => active.threadListItem },
+      },
+    } as unknown as import("@assistant-ui/store").AssistantClient;
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+
+    await result.current.load();
+
+    expect(cloud.threads.messages.list).toHaveBeenCalledWith("thread-1", {
+      format: "aui/v0",
+    });
+  });
+
+  it("defers the client lookup until formatted persistence is used", () => {
+    mocks.aui = {} as unknown as import("@assistant-ui/store").AssistantClient;
+    const cloudRef = { current: makeCloud() };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+
+    expect(() =>
+      result.current.withFormat<{ id: string }, Record<string, unknown>>({
+        format: "test",
+        encode: ({ message }) => message,
+        decode: ({ parent_id, content }) => ({
+          parentId: parent_id,
+          message: content as { id: string },
+        }),
+        getId: (message) => message.id,
+      }),
+    ).not.toThrow();
+  });
 });

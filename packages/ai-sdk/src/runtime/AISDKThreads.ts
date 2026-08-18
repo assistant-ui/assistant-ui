@@ -1,13 +1,16 @@
 "use client";
 
-import { resource, useResource } from "@assistant-ui/tap";
+import { resource, useResource, withKey } from "@assistant-ui/tap";
 import { useMemo, useState } from "react";
 import { Chat, type UIMessage } from "@ai-sdk/react";
 import type { ChatTransport } from "ai";
+import type { AssistantCloud } from "assistant-cloud";
 import {
   InMemoryThreadList,
   inMemoryThreadListTransformScopes,
+  RemoteThreadList,
 } from "@assistant-ui/core/store";
+import { useCloudThreadListAdapter } from "@assistant-ui/core/react";
 import { ThreadClient } from "@assistant-ui/core/store/internal";
 import {
   attachTransformScopes,
@@ -35,6 +38,7 @@ export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       | ChatTransport<UI_MESSAGE>
       | (() => ChatTransport<UI_MESSAGE>)
       | undefined;
+    cloud?: AssistantCloud | undefined;
   };
 
 const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
@@ -43,7 +47,7 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
   chats,
 }: {
   threadId: string;
-  options: AISDKThreadsOptions<UI_MESSAGE> | undefined;
+  options: Omit<AISDKThreadsOptions<UI_MESSAGE>, "cloud"> | undefined;
   chats: Map<
     string,
     { chat: Chat<UI_MESSAGE>; transport: ChatTransport<UI_MESSAGE> }
@@ -116,6 +120,7 @@ const AISDKChatThread = resource(useAISDKChatThread);
 const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: AISDKThreadsOptions<UI_MESSAGE>,
 ) => {
+  const { cloud, ...threadOptions } = options ?? {};
   const [chats] = useState(
     () =>
       new Map<
@@ -130,29 +135,44 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
     }
   });
 
+  const onDelete = (threadId: string) => {
+    void chats
+      .get(threadId)
+      ?.chat.stop()
+      .catch(() => {});
+    chats.delete(threadId);
+  };
+  const cloudAdapter = useCloudThreadListAdapter({ cloud });
+
+  const thread = cloud
+    ? (threadId: string) =>
+        withKey(
+          threadId,
+          AISDKChatThread({
+            threadId,
+            options: threadOptions,
+            chats,
+          }),
+        )
+    : (threadId: string) =>
+        AISDKChatThread({ threadId, options: threadOptions, chats });
+
   return useResource(
-    InMemoryThreadList({
-      thread: (threadId) => AISDKChatThread({ threadId, options, chats }),
-      onDelete: (threadId) => {
-        void chats
-          .get(threadId)
-          ?.chat.stop()
-          .catch(() => {});
-        chats.delete(threadId);
-      },
-    }),
+    cloud
+      ? RemoteThreadList({ adapter: cloudAdapter, thread, onDelete })
+      : InMemoryThreadList({ thread, onDelete }),
   );
 };
 
 /**
- * `AuiConfig` entry that runs one AI SDK chat per thread behind an in-memory
- * thread list. Hosts the same per-thread orchestration as {@link AISDKChat}
- * inside the client's own resource tree, so it works with any
- * `AssistantClient` host, React or not. Threads live in memory for the
- * client's lifetime and keep their history across switches; each thread's
- * chat id is its thread id. Model context is registered on the visible
- * thread only, so a background send carries no context. The assistant-cloud
- * thread list stays on `useChatRuntime`.
+ * `AuiConfig` entry that runs one AI SDK chat per thread behind an in-memory or
+ * Assistant Cloud-backed thread list. Hosts the same per-thread orchestration
+ * as {@link AISDKChat} inside the client's own resource tree, so it works with
+ * any `AssistantClient` host, React or not. Pass `cloud` to list and persist
+ * threads through Assistant Cloud; without it, threads live in memory for the
+ * client's lifetime and keep their history across switches. Each thread's
+ * chat id is its thread id. Model context is registered on the visible thread
+ * only, so a background send carries no context.
  */
 export const AISDKThreads = resource(useAISDKThreads);
 

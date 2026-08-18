@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { describe, expect, it, vi } from "vitest";
+import type { AssistantCloud } from "assistant-cloud";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
 import { AISDKThreads } from "./AISDKThreads";
@@ -27,7 +28,79 @@ const threadText = (aui: ReturnType<typeof createAssistantClient>) =>
       m.content.map((part) => (part.type === "text" ? part.text : "")).join(""),
     );
 
+const cloudThread = (id: string) => ({
+  id,
+  title: id,
+  is_archived: false,
+  external_id: null,
+  metadata: null,
+  last_message_at: new Date(0),
+  created_at: new Date(0),
+  updated_at: new Date(0),
+  project_id: "project-1",
+  workspace_id: "workspace-1",
+});
+
 describe("AISDKThreads", () => {
+  it("uses Assistant Cloud for listing and lifecycle actions", async () => {
+    const list = vi.fn(async () => ({
+      threads: [cloudThread("cloud-1"), cloudThread("cloud-2")],
+    }));
+    const create = vi.fn(async () => ({ thread_id: "cloud-created" }));
+    const deleteThread = vi.fn(async () => {});
+    const listMessages = vi.fn(async () => ({ messages: [] }));
+    const cloud = {
+      threads: {
+        list,
+        create,
+        delete: deleteThread,
+        messages: { list: listMessages },
+      },
+    } as unknown as AssistantCloud;
+    const handle = createAssistantClient(
+      AuiConfig({ threads: AISDKThreads({ cloud }) }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    try {
+      await aui.threads.getLoadThreadsPromise();
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().threadIds).toEqual([
+          "cloud-1",
+          "cloud-2",
+        ]);
+      });
+
+      flushTapSync(() => aui.threads.switchToThread("cloud-1"));
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().mainThreadId).toBe("cloud-1");
+      });
+
+      flushTapSync(() => aui.threads.switchToThread("cloud-2"));
+      await vi.waitFor(() => {
+        expect(aui.threads.getState().mainThreadId).toBe("cloud-2");
+      });
+
+      flushTapSync(() => aui.threads.switchToNewThread());
+      const newThreadId = aui.threads.getState().mainThreadId;
+      await aui.threads.item("main").initialize();
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({ external_id: undefined }),
+      );
+      await vi.waitFor(() => {
+        expect(aui.threads.item({ id: newThreadId }).getState().remoteId).toBe(
+          "cloud-created",
+        );
+      });
+
+      await aui.threads.item({ id: "cloud-1" }).delete();
+      expect(deleteThread).toHaveBeenCalledWith("cloud-1");
+    } finally {
+      handle.destroy();
+    }
+  });
+
   it("runs one chat per thread and keeps histories isolated across switches", async () => {
     const { transport, emit, close } = createControlledTransport();
     const handle = createAssistantClient(
