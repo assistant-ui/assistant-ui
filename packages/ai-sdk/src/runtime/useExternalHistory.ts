@@ -180,6 +180,7 @@ export const useExternalHistory = <TMessage>(
 
   useEffect(() => {
     if (!formatAdapter) return;
+    const adapter = formatAdapter;
 
     const unsubscribe = runtimeRef.current.thread.subscribe(() => {
       const threadState = runtimeRef.current.thread.getState();
@@ -318,7 +319,7 @@ export const useExternalHistory = <TMessage>(
             // A paused message's later content can only reach storage via update, so it is persisted early only when the adapter supports update.
             const isReady =
               isTerminal ||
-              (isAwaitingToolCalls && formatAdapter.update !== undefined);
+              (isAwaitingToolCalls && adapter.update !== undefined);
 
             if (!isReady) {
               lastInnerMessageId =
@@ -341,11 +342,11 @@ export const useExternalHistory = <TMessage>(
             for (const item of batchItems) {
               const innerId = storageFormatAdapter.getId(item.message);
               if (!persistedInnerIds.current.has(innerId)) {
-                await formatAdapter.append(item);
+                await adapter.append(item);
                 persistedInnerIds.current.add(innerId);
               } else if (durationMs !== undefined) {
                 try {
-                  await formatAdapter.update?.(item, innerId);
+                  await adapter.update?.(item, innerId);
                 } catch {
                   // A failed update drops the message from the refreshed baseline so it retries on the next run stop.
                   failedUpdateIds.add(message.id);
@@ -358,7 +359,7 @@ export const useExternalHistory = <TMessage>(
 
             if (deferredTelemetryIds.current.has(message.id) && isTerminal) {
               deferredTelemetryIds.current.delete(message.id);
-              formatAdapter.reportTelemetry?.(batchItems, telemetryOptions);
+              adapter.reportTelemetry?.(batchItems, telemetryOptions);
             }
           }
 
