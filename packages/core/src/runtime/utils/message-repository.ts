@@ -116,11 +116,17 @@ export class MessageRepository {
   };
 
   private updateLevels(message: RepositoryMessage, newLevel: number) {
-    message.level = newLevel;
-    for (const childId of message.children) {
-      const childMessage = this.messages.get(childId);
-      if (childMessage) {
-        this.updateLevels(childMessage, newLevel + 1);
+    const pending = [{ message, level: newLevel }];
+
+    while (pending.length > 0) {
+      const current = pending.pop()!;
+      current.message.level = current.level;
+
+      for (const childId of current.message.children) {
+        const childMessage = this.messages.get(childId);
+        if (childMessage) {
+          pending.push({ message: childMessage, level: current.level + 1 });
+        }
       }
     }
   }
@@ -396,16 +402,15 @@ export class MessageRepository {
     const previousHead = this.head;
 
     if (message.children.length > 0) {
-      const deleteDescendants = (msg: RepositoryMessage) => {
-        for (const childId of msg.children) {
-          const childMessage = this.messages.get(childId);
-          if (childMessage) {
-            deleteDescendants(childMessage);
-            this.messages.delete(childId);
-          }
+      const pending = [...message.children];
+      while (pending.length > 0) {
+        const childId = pending.pop()!;
+        const childMessage = this.messages.get(childId);
+        if (childMessage) {
+          pending.push(...childMessage.children);
+          this.messages.delete(childId);
         }
-      };
-      deleteDescendants(message);
+      }
 
       message.children = [];
       message.next = null;

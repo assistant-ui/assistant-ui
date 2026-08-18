@@ -180,6 +180,24 @@ describe("MessageRepository", () => {
   });
 
   describe("Branch management", () => {
+    const createLongBranchMessages = (
+      messageCount: number,
+    ): Array<{ message: ThreadMessage; parentId: string | null }> => {
+      const messages: Array<{
+        message: ThreadMessage;
+        parentId: string | null;
+      }> = [{ message: createTestMessage({ id: "root" }), parentId: null }];
+
+      for (let index = 0; index < messageCount; index++) {
+        messages.push({
+          message: createTestMessage({ id: `branch-${index}` }),
+          parentId: index === 0 ? "root" : `branch-${index - 1}`,
+        });
+      }
+
+      return messages;
+    };
+
     it("should create multiple branches from a parent message", () => {
       const parent = createTestMessage({ id: "parent-id" });
       const branch1 = createTestMessage({ id: "branch1-id" });
@@ -224,16 +242,7 @@ describe("MessageRepository", () => {
 
     it("should switch to a branch with a long message history", () => {
       const messageCount = 12_000;
-      const messages = [
-        { message: createTestMessage({ id: "root" }), parentId: null },
-      ];
-
-      for (let index = 0; index < messageCount; index++) {
-        messages.push({
-          message: createTestMessage({ id: `branch-${index}` }),
-          parentId: index === 0 ? "root" : `branch-${index - 1}`,
-        });
-      }
+      const messages = createLongBranchMessages(messageCount);
 
       messages.push({
         message: createTestMessage({ id: "alternate" }),
@@ -244,6 +253,36 @@ describe("MessageRepository", () => {
       repository.switchToBranch("branch-0");
 
       expect(repository.headId).toBe(`branch-${messageCount - 1}`);
+    });
+
+    it("should reparent a branch with a long message history", () => {
+      const messageCount = 12_000;
+      repository.import({
+        headId: `branch-${messageCount - 1}`,
+        messages: createLongBranchMessages(messageCount),
+      });
+
+      repository.deleteMessage("branch-0", "root");
+
+      expect(repository.getMessage("branch-1")).toMatchObject({
+        parentId: "root",
+        index: 1,
+      });
+      expect(repository.headId).toBe(`branch-${messageCount - 1}`);
+    });
+
+    it("should reset a branch with a long message history", () => {
+      const messageCount = 12_000;
+
+      repository.import({
+        headId: "root",
+        messages: createLongBranchMessages(messageCount),
+      });
+
+      expect(repository.getMessages().map((message) => message.id)).toEqual([
+        "root",
+      ]);
+      expect(() => repository.getMessage("branch-0")).toThrow();
     });
 
     it("should throw error when switching to a non-existent branch", () => {
