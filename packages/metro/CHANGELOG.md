@@ -1,5 +1,11 @@
 # @assistant-ui/metro
 
+## 0.0.10
+
+### Patch Changes
+
+- [#6079](https://github.com/assistant-ui/assistant-ui/pull/6079) [`ce68614`](https://github.com/assistant-ui/assistant-ui/commit/ce68614d62215757ef485705353d0ddfe9b715e7) - feat: add a `backendless` compile option for apps without their own backend (e.g. cloud-hosted runs), keeping `"use generative"` frontend/human tool schemas and `JSONGenerativeUI` component-library schemas uploadable from the client instead of assuming the backend already knows them ([@Yonom](https://github.com/Yonom))
+
 ## 0.0.9
 
 ### Patch Changes
