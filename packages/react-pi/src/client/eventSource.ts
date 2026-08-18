@@ -137,6 +137,8 @@ export interface PiEventStreamOptions {
   headers?: Record<string, string>;
   /** Thread ID expected in every event envelope. */
   expectedThreadId?: string;
+  /** Snapshot-enabled URL used to recover after a malformed known event. */
+  snapshotRecoveryUrl?: string;
   /** Reconnect backoff between a dropped stream and the next attempt. Rejections
    * are reported via `onError`, then followed by the default ~1s backoff. */
   reconnectDelay?: () => Promise<void>;
@@ -307,10 +309,12 @@ export const openPiEventStream = (
     fetchImpl = fetch,
     headers,
     expectedThreadId,
+    snapshotRecoveryUrl,
     reconnectDelay = defaultReconnectDelay,
   } = options;
 
   let closed = false;
+  let needsSnapshotRecovery = false;
   let cancelActiveReader: (() => void) | undefined;
   const abort = new AbortController();
   const reportCallbackError = (callbackError: unknown) => {
@@ -338,7 +342,11 @@ export const openPiEventStream = (
   const run = async () => {
     while (!closed) {
       try {
-        const response = await fetchImpl(url, {
+        const requestUrl =
+          needsSnapshotRecovery && snapshotRecoveryUrl
+            ? snapshotRecoveryUrl
+            : url;
+        const response = await fetchImpl(requestUrl, {
           method: "GET",
           signal: abort.signal,
           headers: { Accept: "text/event-stream", ...headers },
@@ -387,10 +395,17 @@ export const openPiEventStream = (
                 parsed = parseEventStreamPayload(frame.data, expectedThreadId);
               } catch (error) {
                 if (error instanceof InvalidKnownEventStreamPayloadError) {
+                  needsSnapshotRecovery = true;
                   throw error;
                 }
                 reportError(error);
                 continue;
+              }
+              if (
+                requestUrl === snapshotRecoveryUrl &&
+                parsed.type === "snapshot"
+              ) {
+                needsSnapshotRecovery = false;
               }
               if (!closed) emitEvent(parsed);
             }

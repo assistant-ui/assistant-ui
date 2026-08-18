@@ -309,6 +309,9 @@ export const createPiHttpClient = (
           close: openPiEventStream({
             url: eventsUrl,
             expectedThreadId: threadId,
+            ...(!includeSnapshot && {
+              snapshotRecoveryUrl: `${threadUrl(threadId)}/events`,
+            }),
             fetchImpl,
             ...(headers ? { headers } : {}),
             ...(reconnectDelay ? { reconnectDelay } : {}),
