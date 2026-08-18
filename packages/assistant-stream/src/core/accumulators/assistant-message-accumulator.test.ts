@@ -1,5 +1,8 @@
 import { describe, it, expect, vi } from "vitest";
-import { AssistantMessageAccumulator } from "./assistant-message-accumulator";
+import {
+  AssistantMessageAccumulator,
+  createInitialMessage,
+} from "./assistant-message-accumulator";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
 import type { AssistantMessage } from "../utils/types";
 
@@ -695,5 +698,151 @@ describe("AssistantMessageAccumulator warn dedup key independence", () => {
 
     expect(warn).toHaveBeenCalledTimes(16);
     warn.mockRestore();
+  });
+});
+
+describe("AssistantMessageAccumulator content alias", () => {
+  const contentIsAccessor = (message: AssistantMessage) =>
+    Object.getOwnPropertyDescriptor(message, "content")?.get !== undefined;
+
+  it("aliases content to parts on every message it emits", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const messages = await collectStream([
+        { type: "part-start", path: [0], part: { type: "text" } },
+        { type: "text-delta", path: [0], textDelta: "hi" },
+        {
+          type: "part-start",
+          path: [1],
+          part: { type: "tool-call", toolCallId: "tc-1", toolName: "search" },
+        },
+        {
+          type: "part-start",
+          path: [2],
+          part: {
+            type: "source",
+            sourceType: "url",
+            id: "s-1",
+            url: "https://example.com",
+          },
+        },
+        {
+          type: "part-start",
+          path: [3],
+          part: { type: "file", mimeType: "image/png", data: "AAAA" },
+        },
+        {
+          type: "part-start",
+          path: [4],
+          part: { type: "data", name: "chart", data: { a: 1 } },
+        },
+        {
+          type: "part-start",
+          path: [5],
+          part: { type: "totally-unknown" },
+        },
+      ] as AssistantStreamChunk[]);
+
+      expect(messages.at(-1)?.parts).toHaveLength(6);
+      for (const message of messages) {
+        expect(message.content).toBe(message.parts);
+      }
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("aliases content to parts on the initial message", () => {
+    const message = createInitialMessage();
+    expect(contentIsAccessor(message)).toBe(true);
+    expect(message.content).toBe(message.parts);
+    // Published as unstable_createInitialMessage, so key order is observable
+    // through Object.keys and JSON serialization.
+    expect(Object.keys(message)).toEqual([
+      "role",
+      "status",
+      "parts",
+      "content",
+      "metadata",
+    ]);
+  });
+
+  it("keeps content pointing at parts across status and metadata updates", async () => {
+    const messages = await collectStream([
+      { type: "part-start", path: [0], part: { type: "text" } },
+      { type: "text-delta", path: [0], textDelta: "hi" },
+      { type: "annotations", path: [], annotations: ["a"] },
+      { type: "step-start", path: [], messageId: "m-1" },
+      {
+        type: "message-finish",
+        path: [],
+        finishReason: "stop",
+        usage: { inputTokens: 1, outputTokens: 1 },
+      },
+    ] as AssistantStreamChunk[]);
+
+    for (const message of messages) {
+      expect(message.content).toBe(message.parts);
+    }
+  });
+});
+
+describe("AssistantMessageAccumulator initialMessage evaluation order", () => {
+  it("reads parts of a caller-supplied message after spreading it", async () => {
+    const stale: AssistantMessage["parts"] = [];
+    const current: AssistantMessage["parts"] = [
+      {
+        type: "text",
+        text: "seeded",
+        status: { type: "complete", reason: "stop" },
+      },
+    ];
+    let reads = 0;
+    const initialMessage = {
+      role: "assistant",
+      status: { type: "running" },
+      get parts() {
+        reads += 1;
+        return reads === 1 ? stale : current;
+      },
+      get content() {
+        return this.parts;
+      },
+      metadata: {
+        unstable_state: null,
+        unstable_data: [],
+        unstable_annotations: [],
+        steps: [],
+        custom: {},
+      },
+    } as AssistantMessage;
+
+    const accumulator = new AssistantMessageAccumulator({ initialMessage });
+    const source = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        controller.enqueue({
+          type: "part-start",
+          path: [1],
+          part: { type: "text" },
+        } as AssistantStreamChunk);
+        controller.close();
+      },
+    });
+
+    const messages: AssistantMessage[] = [];
+    await source.pipeThrough(accumulator).pipeTo(
+      new WritableStream({
+        write(message) {
+          messages.push(message);
+        },
+      }),
+    );
+
+    // Spreading the message consumes the first read, so the append must build
+    // on what a later read returns, not on what the call site would have seen.
+    expect(messages.at(-1)?.parts).toEqual([
+      expect.objectContaining({ text: "seeded" }),
+      expect.objectContaining({ type: "text", text: "" }),
+    ]);
   });
 });
