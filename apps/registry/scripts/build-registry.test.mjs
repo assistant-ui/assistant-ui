@@ -1441,6 +1441,7 @@ test("install validation resolves a dotted alias basename to its shipped source"
   for (const providerPath of [
     "components/assistant-ui/tool.config.tsx",
     "components/assistant-ui/tool.config.ts",
+    "components/assistant-ui/tool.config/index.tsx",
   ]) {
     assert.equal(
       findingsFrom([
@@ -1456,6 +1457,28 @@ test("install validation resolves a dotted alias basename to its shipped source"
   assert.match(
     findingsFrom([componentItem([importer])]),
     /provides components\/assistant-ui\/tool\.config or components\/assistant-ui\/tool\.config\.tsx/,
+  );
+});
+
+test("install validation resolves an alias asset import behind a query suffix", () => {
+  const importer = {
+    path: "components/assistant-ui/thread.tsx",
+    content: 'import logoUrl from "@/components/assistant-ui/logo.svg?url";\n',
+  };
+
+  assert.equal(
+    findingsFrom([
+      componentItem([
+        importer,
+        { path: "components/assistant-ui/logo.svg", content: "<svg />\n" },
+      ]),
+    ]),
+    null,
+  );
+
+  assert.match(
+    findingsFrom([componentItem([importer])]),
+    /provides components\/assistant-ui\/logo\.svg/,
   );
 });
 
