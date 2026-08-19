@@ -46,7 +46,7 @@ function createStorage(initial: Record<string, string> = {}): Storage {
 }
 
 describe("claimXuluxStorage", () => {
-  it("migrates legacy thread and Learn IDs together", async () => {
+  it("drops legacy Cloud threads and migrates Learn sessions", async () => {
     const legacySessionId = "123e4567-e89b-42d3-a456-426614174000";
     const storage = createStorage({
       "xulux:threads": JSON.stringify([
@@ -76,11 +76,10 @@ describe("claimXuluxStorage", () => {
     );
 
     const expectedSessionId = `user_current.${legacySessionId}`;
-    expect(readXuluxThreads("user_current")[0]).toMatchObject({
-      remoteId: "thread_existing",
-      externalId: expectedSessionId,
-      custom: { sessionId: expectedSessionId },
-    });
+    expect(readXuluxThreads("user_current")).toEqual([]);
+    expect(
+      createXuluxUserStorage(storage, "user_current").getItem("xulux:threads"),
+    ).toBe("[]");
     expect(
       JSON.parse(
         createXuluxUserStorage(storage, "user_current").getItem(
@@ -90,23 +89,11 @@ describe("claimXuluxStorage", () => {
     ).toMatchObject({ threadId: expectedSessionId });
   });
 
-  it("retries a partial migration with the same persisted session ID", async () => {
+  it("retries a failed Learn session migration", async () => {
     const legacySessionId = "legacy-session";
-    const threadsKey = "xulux:user:user_current:threads";
     const learnKey = "xulux:user:user_current:learn:course";
     const storage = createStorage({
       "xulux:storage-owner": "user_current",
-      [threadsKey]: JSON.stringify([
-        {
-          remoteId: "thread_existing",
-          status: "regular",
-          custom: {
-            sessionId: legacySessionId,
-            xuluxStatus: "idle",
-            updatedAt: 1,
-          },
-        },
-      ]),
       [learnKey]: JSON.stringify({
         courseId: "course",
         threadId: legacySessionId,
@@ -125,14 +112,12 @@ describe("claimXuluxStorage", () => {
     await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
       false,
     );
-    const migratedThreadId = JSON.parse(storage.getItem(threadsKey)!)[0].custom
-      .sessionId as string;
 
     await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
       true,
     );
-    expect(JSON.parse(storage.getItem(learnKey)!).threadId).toBe(
-      migratedThreadId,
+    expect(JSON.parse(storage.getItem(learnKey)!).threadId).toMatch(
+      /^user_current\.[0-9a-f]{8}-[0-9a-f-]{27}$/,
     );
   });
 

@@ -79,10 +79,11 @@ Before production promotion, verify all of the following on the deployment URL:
 7. Switching Clerk users in one browser cannot expose the previous user's
    Xulux data, including across open tabs. Session identifiers are namespaced
    to the verified Clerk user, and sandbox names hash the complete identifier.
-   Legacy browser thread and Learn IDs are user-namespaced together. Assistant
-   Cloud chat history remains visible, but local-only pre-init thread state and
-   old unnamespaced sandbox contents cannot be restored.
-   Existing ownerless browser data is migrated under Web Locks; browsers
+   Legacy Learn progress is moved to a user-owned session. Pre-existing
+   anonymous Assistant Cloud chat history, local-only pre-init thread state,
+   and old unnamespaced sandbox contents are not carried into the signed-in
+   experience.
+   Existing ownerless browser storage is claimed under Web Locks; browsers
    without Web Locks quarantine it instead.
 8. Assistant Cloud rejects a request without the `assistant-ui` JWT.
 9. Redis counters and provider spend alerts are visible to the on-call owner.
