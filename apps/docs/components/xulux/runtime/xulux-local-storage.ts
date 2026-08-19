@@ -9,7 +9,10 @@ import type {
   XuluxThreadStatus,
 } from "./types";
 import type { SelectedTemplateContext } from "../XuluxApp";
-import { isXuluxSessionOwnedByUser } from "@/lib/xulux/session-owner";
+import {
+  isXuluxSessionOwnedByUser,
+  migrateLegacyXuluxSessionId,
+} from "@/lib/xulux/session-owner";
 
 const PREFIX = "xulux:";
 const USER_PREFIX = `${PREFIX}user:`;
@@ -75,6 +78,79 @@ function claimUserStorage(
   return storage.getItem(claimKey) === userId;
 }
 
+function migrateUserSessionData(
+  storage: Pick<
+    Storage,
+    "getItem" | "setItem" | "removeItem" | "length" | "key"
+  >,
+  userId: string,
+) {
+  const migratedSessions = new Map<string, string>();
+  const migrateSession = (sessionId: string) => {
+    const existing = migratedSessions.get(sessionId);
+    if (existing) return existing;
+    const migrated = migrateLegacyXuluxSessionId(sessionId, userId);
+    migratedSessions.set(sessionId, migrated);
+    return migrated;
+  };
+
+  const threadsKey = userKey(userId, THREADS_KEY);
+  const rawThreads = storage.getItem(threadsKey);
+  if (rawThreads) {
+    try {
+      const parsed = JSON.parse(rawThreads) as unknown;
+      if (Array.isArray(parsed)) {
+        const threads = parsed.flatMap((value) => {
+          if (!value || typeof value !== "object") return [];
+          const thread = value as XuluxStoredThread;
+          const oldSessionId = thread.custom?.sessionId;
+          if (
+            typeof thread.remoteId !== "string" ||
+            typeof oldSessionId !== "string"
+          ) {
+            return [];
+          }
+          const sessionId = migrateSession(oldSessionId);
+          const isCloudThread = isAssistantCloudThreadId(thread.remoteId);
+          return [
+            {
+              ...thread,
+              remoteId: isCloudThread ? thread.remoteId : sessionId,
+              ...(isCloudThread || thread.externalId
+                ? { externalId: sessionId }
+                : {}),
+              custom: { ...thread.custom, sessionId },
+            },
+          ];
+        });
+        const nextRaw = JSON.stringify(threads);
+        if (nextRaw !== rawThreads) storage.setItem(threadsKey, nextRaw);
+      }
+    } catch {}
+  }
+
+  const learnPrefix = userKey(userId, `${PREFIX}learn:`);
+  const learnKeys: string[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (key?.startsWith(learnPrefix)) learnKeys.push(key);
+  }
+  for (const key of learnKeys) {
+    const raw = storage.getItem(key);
+    if (!raw) continue;
+    try {
+      const progress = JSON.parse(raw) as { threadId?: unknown };
+      if (typeof progress.threadId !== "string" || !progress.threadId) {
+        continue;
+      }
+      const threadId = migrateSession(progress.threadId);
+      if (threadId !== progress.threadId) {
+        storage.setItem(key, JSON.stringify({ ...progress, threadId }));
+      }
+    } catch {}
+  }
+}
+
 function migrateLegacyStorage(
   storage: Pick<
     Storage,
@@ -98,7 +174,9 @@ function migrateLegacyStorage(
 
     if (currentOwner === null) storage.setItem(STORAGE_OWNER_KEY, userId);
   }
-  return claimUserStorage(storage, userId);
+  const claimed = claimUserStorage(storage, userId);
+  if (claimed) migrateUserSessionData(storage, userId);
+  return claimed;
 }
 
 export async function claimXuluxStorage(
@@ -120,6 +198,7 @@ export async function claimXuluxStorage(
         storage.setItem(STORAGE_LEGACY_QUARANTINE_KEY, "1");
       }
       claimed = claimUserStorage(storage, userId);
+      if (claimed) migrateUserSessionData(storage, userId);
     }
     if (!claimed) return false;
     cachedThreads.delete(userId);

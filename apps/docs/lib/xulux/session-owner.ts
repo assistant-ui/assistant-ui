@@ -7,6 +7,15 @@ export function createXuluxSessionId(userId: string): string {
   return `${userId}.${crypto.randomUUID()}`;
 }
 
+export function migrateLegacyXuluxSessionId(
+  sessionId: string,
+  userId: string,
+): string {
+  if (isXuluxSessionOwnedByUser(sessionId, userId)) return sessionId;
+  if (UUID_PATTERN.test(sessionId)) return `${userId}.${sessionId}`;
+  return createXuluxSessionId(userId);
+}
+
 export function isXuluxSessionOwnedByUser(
   sessionId: unknown,
   userId: string,

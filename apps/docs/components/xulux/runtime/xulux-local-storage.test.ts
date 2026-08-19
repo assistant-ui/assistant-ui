@@ -46,6 +46,50 @@ function createStorage(initial: Record<string, string> = {}): Storage {
 }
 
 describe("claimXuluxStorage", () => {
+  it("migrates legacy thread and Learn IDs together", async () => {
+    const legacySessionId = "123e4567-e89b-42d3-a456-426614174000";
+    const storage = createStorage({
+      "xulux:threads": JSON.stringify([
+        {
+          remoteId: "thread_existing",
+          externalId: legacySessionId,
+          status: "regular",
+          custom: {
+            sessionId: legacySessionId,
+            xuluxStatus: "idle",
+            updatedAt: 1,
+          },
+        },
+      ]),
+      "xulux:learn:course": JSON.stringify({
+        courseId: "course",
+        threadId: legacySessionId,
+      }),
+    });
+    vi.stubGlobal("window", {
+      localStorage: storage,
+      dispatchEvent: vi.fn(),
+    });
+
+    await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
+      true,
+    );
+
+    const expectedSessionId = `user_current.${legacySessionId}`;
+    expect(readXuluxThreads("user_current")[0]).toMatchObject({
+      remoteId: "thread_existing",
+      externalId: expectedSessionId,
+      custom: { sessionId: expectedSessionId },
+    });
+    expect(
+      JSON.parse(
+        createXuluxUserStorage(storage, "user_current").getItem(
+          "xulux:learn:course",
+        )!,
+      ),
+    ).toMatchObject({ threadId: expectedSessionId });
+  });
+
   it("adopts existing ownerless data for the first authenticated user", async () => {
     const storage = createStorage({
       "xulux:threads": '[{"title":"Existing thread"}]',

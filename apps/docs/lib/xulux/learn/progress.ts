@@ -2,8 +2,8 @@ import { z } from "zod";
 import type { LearnCourseStepResult, LearnProgress } from "./types";
 import { getLearnCourse } from "./registry";
 import {
-  createXuluxSessionId,
   isXuluxSessionOwnedByUser,
+  migrateLegacyXuluxSessionId,
 } from "../session-owner";
 
 const learnProgressSchema = z.object({
@@ -109,7 +109,7 @@ export function rotateLegacyLearnProgressSession(
   }
   return {
     ...progress,
-    threadId: createXuluxSessionId(userId),
+    threadId: migrateLegacyXuluxSessionId(progress.threadId, userId),
     updatedAt: now,
   };
 }

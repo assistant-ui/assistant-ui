@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   createXuluxSessionId,
   isXuluxSessionOwnedByUser,
+  migrateLegacyXuluxSessionId,
   requireXuluxSessionOwner,
 } from "./session-owner";
 
@@ -29,6 +30,14 @@ describe("Xulux session ownership", () => {
     ).toBe(403);
     expect(isXuluxSessionOwnedByUser(`user_456.${randomId}`, "user_456")).toBe(
       true,
+    );
+  });
+
+  it("deterministically namespaces a legacy UUID", () => {
+    const randomId = "123e4567-e89b-42d3-a456-426614174000";
+
+    expect(migrateLegacyXuluxSessionId(randomId, "user_123")).toBe(
+      `user_123.${randomId}`,
     );
   });
 
