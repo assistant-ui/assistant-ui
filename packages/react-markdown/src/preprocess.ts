@@ -72,9 +72,40 @@ function runLength(text: string, start: number, char: string): number {
  * text.
  */
 function codeSpanEnd(text: string, start: number): number {
-  const fence = "`".repeat(runLength(text, start, "`"));
-  const closed = text.indexOf(fence, start + fence.length);
-  return closed === -1 ? -1 : closed + fence.length;
+  const delimiterLength = runLength(text, start, "`");
+  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
+  const openingIndent = text.slice(lineStart, start);
+  const openingLineEnd = text.indexOf("\n", start + delimiterLength);
+  const openingInfo = text.slice(
+    start + delimiterLength,
+    openingLineEnd === -1 ? text.length : openingLineEnd,
+  );
+  const isFence =
+    delimiterLength >= 3 &&
+    /^ {0,3}$/.test(openingIndent) &&
+    !openingInfo.includes("`");
+
+  if (isFence) {
+    if (openingLineEnd === -1) return -1;
+    const closingFence = new RegExp(
+      "^ {0,3}(`{" + delimiterLength + ",})[\\t ]*\\r?$",
+      "gm",
+    );
+    closingFence.lastIndex = openingLineEnd + 1;
+    const match = closingFence.exec(text);
+    if (!match) return -1;
+    return match.index + match[0].indexOf("`") + match[1]!.length;
+  }
+
+  let index = start + delimiterLength;
+  while (index < text.length) {
+    const next = text.indexOf("`", index);
+    if (next === -1) return -1;
+    const nextLength = runLength(text, next, "`");
+    if (nextLength === delimiterLength) return next + nextLength;
+    index = next + nextLength;
+  }
+  return -1;
 }
 
 /**

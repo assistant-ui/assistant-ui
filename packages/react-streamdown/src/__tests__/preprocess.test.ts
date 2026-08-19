@@ -132,6 +132,26 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it("does not rewrite currency inside a code span containing a longer backtick run", () => {
+    expect(escapeCurrencyDollars("`value ``` costs $5 ` after $7")).toBe(
+      "`value ``` costs $5 ` after \\$7",
+    );
+  });
+
+  it("does not close a fenced block on a backtick run inside its content", () => {
+    expect(
+      escapeCurrencyDollars(
+        "```\nconst marker = ```;\nconst price = $5;\n```\nafter $7",
+      ),
+    ).toBe("```\nconst marker = ```;\nconst price = $5;\n```\nafter \\$7");
+  });
+
+  it("accepts a closing fence longer than the opening fence", () => {
+    expect(escapeCurrencyDollars("```\n$5\n````\nafter $7")).toBe(
+      "```\n$5\n````\nafter \\$7",
+    );
+  });
+
   it("escapes an amount when the prose before the next span carries latex syntax", () => {
     expect(
       escapeCurrencyDollars("Pay $20 when x_1 rises, then $n$ holds"),
