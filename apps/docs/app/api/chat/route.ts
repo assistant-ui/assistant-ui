@@ -5,7 +5,10 @@ import {
   unstable_injectInteractableContext as injectInteractableContext,
 } from "@assistant-ui/ai-sdk";
 import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
-import { requirePublicAssistantSession } from "@/lib/anonymous-session";
+import {
+  PUBLIC_ASSISTANT_CROSS_ORIGINS,
+  requirePublicAssistantSession,
+} from "@/lib/anonymous-session";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
@@ -22,15 +25,9 @@ export const maxDuration = 30;
 
 const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });
 
-const ALLOWED_ORIGINS = [
-  "https://assistant-ui-expo.vercel.app",
-  "https://assistant-ui-ink.vercel.app",
-  "http://localhost:8081",
-];
-
 function corsHeaders(req: Request) {
   const origin = req.headers.get("origin") ?? "";
-  if (!ALLOWED_ORIGINS.includes(origin)) return {};
+  if (!PUBLIC_ASSISTANT_CROSS_ORIGINS.has(origin)) return {};
   return {
     "Access-Control-Allow-Origin": origin,
     "Access-Control-Allow-Methods": "POST, OPTIONS",

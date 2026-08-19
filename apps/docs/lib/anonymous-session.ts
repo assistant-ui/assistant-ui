@@ -4,7 +4,7 @@ export const ANONYMOUS_SESSION_COOKIE = "aui_anon_session";
 export const ANONYMOUS_SESSION_HEADER = "x-assistant-ui-anonymous-session";
 export const ANONYMOUS_SESSION_TTL_SECONDS = 24 * 60 * 60;
 
-const ALLOWED_CROSS_ORIGINS = new Set([
+export const PUBLIC_ASSISTANT_CROSS_ORIGINS: ReadonlySet<string> = new Set([
   "https://assistant-ui-expo.vercel.app",
   "https://assistant-ui-ink.vercel.app",
   "http://localhost:8081",
@@ -119,7 +119,7 @@ function headerOrigin(request: Request): string | null {
 }
 
 export function isAllowedPublicAssistantOrigin(origin: string): boolean {
-  return ALLOWED_CROSS_ORIGINS.has(origin);
+  return PUBLIC_ASSISTANT_CROSS_ORIGINS.has(origin);
 }
 
 export function isPublicAssistantBrowserRequest(request: Request): boolean {

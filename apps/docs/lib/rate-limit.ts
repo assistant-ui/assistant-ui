@@ -77,7 +77,7 @@ const getPublicAssistantRateLimits = async () => {
       limiter: Ratelimit.fixedWindow(
         positiveSafeInteger(
           process.env.AUI_ANONYMOUS_SESSIONS_PER_IP_PER_DAY,
-          100,
+          1_000,
         ),
         "1d",
       ),

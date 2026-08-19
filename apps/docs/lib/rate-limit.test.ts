@@ -88,6 +88,12 @@ describe("public assistant rate limits", () => {
       limit: 20_000,
       window: "1d",
     });
+    expect(
+      mocks.configs.get("aui:public-assistant:session-issuance:daily"),
+    ).toEqual({
+      limit: 1_000,
+      window: "1d",
+    });
   });
 
   it("enforces IP, signed-session, and global ceilings", async () => {
