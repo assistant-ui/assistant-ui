@@ -21,11 +21,11 @@ describe("Expo anonymous session fetch", () => {
     expect(shouldUseAnonymousSessionFetch("/api/chat", "web")).toBe(false);
   });
 
-  it("falls back to a plain request and retries bootstrap after a 401", async () => {
+  it("retries bootstrap on the next request after issuance fails", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
+      .mockRejectedValueOnce(new Error("temporary network failure"))
       .mockResolvedValueOnce(new Response(null, { status: 403 }))
-      .mockResolvedValueOnce(new Response(null, { status: 401 }))
       .mockResolvedValueOnce(Response.json({ token: "signed-session" }))
       .mockResolvedValueOnce(new Response("ok"));
     const sessionFetch = createAnonymousSessionFetch(
@@ -33,12 +33,17 @@ describe("Expo anonymous session fetch", () => {
       fetchMock,
     );
 
-    const response = await sessionFetch(
+    const failedResponse = await sessionFetch(
+      "https://www.assistant-ui.com/api/chat",
+      { method: "POST" },
+    );
+    const recoveredResponse = await sessionFetch(
       "https://www.assistant-ui.com/api/chat",
       { method: "POST" },
     );
 
-    expect(response.status).toBe(200);
+    expect(failedResponse.status).toBe(403);
+    expect(recoveredResponse.status).toBe(200);
     expect(fetchMock).toHaveBeenCalledTimes(4);
     expect(
       new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get(
