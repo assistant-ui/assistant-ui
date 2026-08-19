@@ -53,6 +53,13 @@ export function ActiveThreadList() {
           setThreads(remaining);
           if (activeId === id) setActiveId(remaining[0]?.id ?? "new");
         },
+        onRename: (id, title) => {
+          setThreads((current) =>
+            current.map((thread) =>
+              thread.id === id ? { ...thread, title } : thread,
+            ),
+          );
+        },
       },
     },
   });
