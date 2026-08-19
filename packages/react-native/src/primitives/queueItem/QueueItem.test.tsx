@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Text } from "react-native";
@@ -7,7 +7,7 @@ import { QueueItemSteer } from "./QueueItemSteer";
 import { QueueItemText } from "./QueueItemText";
 
 const h = vi.hoisted(() => ({
-  parts: [] as Array<{ type: "text" | "file"; text?: string }>,
+  parts: [] as Array<{ type: "text" | "file"; text?: string }> | undefined,
   remove: vi.fn<() => void>(),
   steer: vi.fn<() => void>(),
 }));
@@ -40,7 +40,7 @@ describe("Queue item primitives", () => {
     container.remove();
   });
 
-  const render = async (element: React.ReactElement) => {
+  const render = async (element: ReactElement) => {
     await act(async () => {
       root.render(element);
     });
@@ -87,5 +87,42 @@ describe("Queue item primitives", () => {
     await render(<QueueItemSteer testID="steer">steer</QueueItemSteer>);
     await press("steer");
     expect(h.steer).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders nothing extra when queue item parts are missing", async () => {
+    h.parts = undefined;
+    await render(<QueueItemText testID="text" />);
+    expect(container.querySelector('[data-testid="text"]')?.textContent).toBe(
+      "",
+    );
+  });
+
+  it("passes the Pressable press state to function children", async () => {
+    await render(
+      <QueueItemRemove testID="remove">
+        {({ pressed }) => (pressed ? "pressed" : "idle")}
+      </QueueItemRemove>,
+    );
+    expect(container.querySelector('[data-testid="remove"]')?.textContent).toBe(
+      "idle",
+    );
+
+    await render(
+      <QueueItemRemove testID="remove" testOnly_pressed>
+        {({ pressed }) => (pressed ? "pressed" : "idle")}
+      </QueueItemRemove>,
+    );
+    expect(container.querySelector('[data-testid="remove"]')?.textContent).toBe(
+      "pressed",
+    );
+
+    await render(
+      <QueueItemSteer testID="steer" testOnly_pressed>
+        {({ pressed }) => (pressed ? "pressed" : "idle")}
+      </QueueItemSteer>,
+    );
+    expect(container.querySelector('[data-testid="steer"]')?.textContent).toBe(
+      "pressed",
+    );
   });
 });

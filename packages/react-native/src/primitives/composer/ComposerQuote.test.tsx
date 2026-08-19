@@ -1,4 +1,4 @@
-import { act } from "react";
+import { act, type ReactElement } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Text } from "react-native";
@@ -38,9 +38,19 @@ describe("Composer quote primitives", () => {
     container.remove();
   });
 
-  const render = async (element: React.ReactElement) => {
+  const render = async (element: ReactElement) => {
     await act(async () => {
       root.render(element);
+    });
+  };
+
+  const press = async (testID: string) => {
+    const element = container.querySelector(`[data-testid="${testID}"]`);
+    expect(element).not.toBeNull();
+    await act(async () => {
+      element!.dispatchEvent(
+        new MouseEvent("click", { bubbles: true, cancelable: true }),
+      );
     });
   };
 
@@ -78,20 +88,72 @@ describe("Composer quote primitives", () => {
     );
   });
 
+  it("renders nothing when there is no quote text, even with children", async () => {
+    await render(
+      <ComposerQuoteText testID="text">
+        <Text>fallback</Text>
+      </ComposerQuoteText>,
+    );
+    expect(container.querySelector('[data-testid="text"]')).toBeNull();
+  });
+
+  it("renders children override when quote text is an empty string", async () => {
+    h.quote = { text: "" };
+    await render(
+      <ComposerQuoteText testID="text">
+        <Text>override</Text>
+      </ComposerQuoteText>,
+    );
+    expect(container.querySelector('[data-testid="text"]')?.textContent).toBe(
+      "override",
+    );
+  });
+
+  it("renders an empty Text when quote text is an empty string and no children are provided", async () => {
+    h.quote = { text: "" };
+    await render(<ComposerQuoteText testID="text" />);
+    expect(container.querySelector('[data-testid="text"]')?.textContent).toBe(
+      "",
+    );
+  });
+
   it("clears the quote when dismissed", async () => {
     await render(
       <ComposerQuoteDismiss testID="dismiss">
         <Text>dismiss</Text>
       </ComposerQuoteDismiss>,
     );
-    const dismiss = container.querySelector('[data-testid="dismiss"]');
-    expect(dismiss).not.toBeNull();
-
-    await act(async () => {
-      dismiss!.dispatchEvent(
-        new MouseEvent("click", { bubbles: true, cancelable: true }),
-      );
-    });
+    await press("dismiss");
     expect(h.setQuote).toHaveBeenCalledWith(undefined);
+  });
+
+  it("does not clear the quote when dismiss is disabled", async () => {
+    await render(
+      <ComposerQuoteDismiss testID="dismiss" disabled>
+        <Text>dismiss</Text>
+      </ComposerQuoteDismiss>,
+    );
+    await press("dismiss");
+    expect(h.setQuote).not.toHaveBeenCalled();
+  });
+
+  it("passes the Pressable press state to function children", async () => {
+    await render(
+      <ComposerQuoteDismiss testID="dismiss">
+        {({ pressed }) => (pressed ? "pressed" : "idle")}
+      </ComposerQuoteDismiss>,
+    );
+    expect(
+      container.querySelector('[data-testid="dismiss"]')?.textContent,
+    ).toBe("idle");
+
+    await render(
+      <ComposerQuoteDismiss testID="dismiss" testOnly_pressed>
+        {({ pressed }) => (pressed ? "pressed" : "idle")}
+      </ComposerQuoteDismiss>,
+    );
+    expect(
+      container.querySelector('[data-testid="dismiss"]')?.textContent,
+    ).toBe("pressed");
   });
 });

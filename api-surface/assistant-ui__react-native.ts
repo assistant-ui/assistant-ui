@@ -1036,8 +1036,8 @@ declare const ComposerQuote: (_param15: ComposerQuoteProps) => import("react").J
 
 declare const ComposerQuoteDismiss: (_param16: ComposerQuoteDismissProps) => import("react").JSX.Element;
 
-type ComposerQuoteDismissProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ComposerQuoteDismissProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type ComposerQuoteProps = ViewProps & {
@@ -2396,8 +2396,8 @@ type ProviderToolDefinition<TArgs extends Record<string, unknown>> = Extract<Too
 
 declare const QueueItemRemove: (_param31: QueueItemRemoveProps) => import("react").JSX.Element;
 
-type QueueItemRemoveProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type QueueItemRemoveProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type QueueItemState = {
@@ -2408,8 +2408,8 @@ type QueueItemState = {
 
 declare const QueueItemSteer: (_param32: QueueItemSteerProps) => import("react").JSX.Element;
 
-type QueueItemSteerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type QueueItemSteerProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const QueueItemText: (_param33: QueueItemTextProps) => import("react").JSX.Element;
