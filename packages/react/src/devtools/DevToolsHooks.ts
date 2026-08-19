@@ -54,6 +54,17 @@ const getHook = (): DevToolsHook => {
   return newHook;
 };
 
+const notifyListeners = (apiId: number): void => {
+  const hook = getHook();
+  for (const listener of hook.listeners) {
+    try {
+      listener(apiId);
+    } catch (error) {
+      console.error("[assistant-ui] DevTools listener threw an error", error);
+    }
+  }
+};
+
 export class DevToolsHooks {
   static subscribe(listener: () => void): Unsubscribe {
     const hook = getHook();
@@ -69,16 +80,11 @@ export class DevToolsHooks {
     if (!entry) return;
 
     entry.logs = [];
-    DevToolsHooks.notifyListeners(apiId);
+    notifyListeners(apiId);
   }
 
   static getApis(): Map<number, DevToolsApiEntry> {
     return getHook().apis;
-  }
-
-  private static notifyListeners(apiId: number): void {
-    const hook = getHook();
-    hook.listeners.forEach((listener) => listener(apiId));
   }
 }
 
@@ -116,15 +122,15 @@ export class DevToolsProviderApi {
         );
       }
 
-      DevToolsProviderApi.notifyListeners(apiId);
+      notifyListeners(apiId);
     });
 
     const stateUnsubscribe = aui.subscribe?.(() => {
-      DevToolsProviderApi.notifyListeners(apiId);
+      notifyListeners(apiId);
     });
 
     hook.apis.set(apiId, entry);
-    DevToolsProviderApi.notifyListeners(apiId);
+    notifyListeners(apiId);
 
     return () => {
       const hook = getHook();
@@ -136,12 +142,7 @@ export class DevToolsProviderApi {
 
       hook.apis.delete(apiId);
 
-      DevToolsProviderApi.notifyListeners(apiId);
+      notifyListeners(apiId);
     };
-  }
-
-  private static notifyListeners(apiId: number): void {
-    const hook = getHook();
-    hook.listeners.forEach((listener) => listener(apiId));
   }
 }
