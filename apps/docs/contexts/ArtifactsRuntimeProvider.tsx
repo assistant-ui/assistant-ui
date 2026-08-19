@@ -9,13 +9,14 @@ import {
   Tools,
   type Toolkit,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { ModelContextClient as ModelContext } from "@assistant-ui/react";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { TerminalIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 
 const artifactsToolkit: Toolkit = {
   render_html: {
@@ -53,6 +54,9 @@ export function ArtifactsRuntimeProvider({
   );
 
   const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      fetch: anonymousSessionFetch,
+    }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {
       speech: new WebSpeechSynthesisAdapter(),

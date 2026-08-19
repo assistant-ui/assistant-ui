@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { ThreadListSample } from "@/components/docs/samples/threadlist";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { ThreadListActiveSample } from "@/components/docs/samples/thread-list/active-threads";
 
 <ThreadListSample />
 
@@ -103,6 +105,16 @@ import { ThreadListPrimitive, ThreadListItemPrimitive } from "@assistant-ui/reac
   </ThreadListPrimitive.Items>
 </ThreadListPrimitive.Root>
 ```
+
+## Examples
+
+### Active Threads
+
+Select a different seeded conversation, or use the search field to filter the threads by title.
+
+<PreviewCode file="components/docs/samples/thread-list/active-threads" name="ActiveThreadList">
+  <ThreadListActiveSample />
+</PreviewCode>
 
 ## API Reference
 

@@ -15,9 +15,20 @@ export function ThreadRunningSample() {
 
 function RunningResponseChat() {
   const runtime = useLocalRuntime({
-    // Yields a partial response, then stays running until the user clicks
-    // stop, so the send/cancel toggle is driven by a real cancellable run.
-    async *run({ abortSignal }) {
+    // First run yields a partial response and stays running until the user
+    // clicks stop; follow-up prompts finish with a short reply.
+    async *run({ messages, abortSignal }) {
+      if (messages.length > 1) {
+        yield {
+          content: [
+            {
+              type: "text",
+              text: "This is a demo. Typed APIs catch integration mistakes earlier and improve editor support.",
+            },
+          ],
+        };
+        return;
+      }
       yield {
         content: [
           {
@@ -32,15 +43,17 @@ function RunningResponseChat() {
     },
   });
 
-  // Defer the append one tick so React strict mode's mount/unmount cycle
-  // cannot abort the run before the first yield lands.
+  // Defer the append one tick so strict mode's mount/unmount cycle cannot
+  // abort the run before the first yield; the cleanup cancels the timer if
+  // the sample unmounts first.
   const startRun = useCallback(
     (node: HTMLDivElement | null) => {
       if (!node) return;
-      setTimeout(() => {
+      const timeout = setTimeout(() => {
         if (runtime.thread.getState().messages.length > 0) return;
         runtime.thread.append("Summarize the benefits of typed APIs.");
       }, 0);
+      return () => clearTimeout(timeout);
     },
     [runtime],
   );

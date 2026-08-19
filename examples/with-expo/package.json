@@ -7,7 +7,8 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "export:web": "expo export --platform web && node scripts/flatten-assets.mjs"
+    "export:web": "expo export --platform web && node scripts/flatten-assets.mjs",
+    "test": "vitest run"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.42",
@@ -48,7 +49,8 @@
     "@babel/core": "^7.29.7",
     "@types/react": "~19.2.18",
     "typescript": "npm:@typescript/typescript6@^6.0.2",
-    "typescript-7": "npm:typescript@~7.0.2"
+    "typescript-7": "npm:typescript@~7.0.2",
+    "vitest": "^4.1.10"
   },
   "private": true
 }
