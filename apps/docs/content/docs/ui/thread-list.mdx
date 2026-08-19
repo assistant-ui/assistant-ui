@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { ThreadListSample } from "@/components/docs/samples/threadlist";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { ThreadListArchiveSample } from "@/components/docs/samples/thread-list/archive-thread";
 
 <ThreadListSample />
 
@@ -103,6 +105,14 @@ import { ThreadListPrimitive, ThreadListItemPrimitive } from "@assistant-ui/reac
   </ThreadListPrimitive.Items>
 </ThreadListPrimitive.Root>
 ```
+
+### Archive a Thread
+
+Open the More menu of the active thread, then select Archive. The `onArchive` callback moves the thread out of the regular list.
+
+<PreviewCode file="components/docs/samples/thread-list/archive-thread" name="ArchivableThreadList">
+  <ThreadListArchiveSample />
+</PreviewCode>
 
 ## API Reference
 
