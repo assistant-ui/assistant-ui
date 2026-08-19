@@ -2,6 +2,12 @@ import { describe, it, expect } from "vitest";
 import { EMPTY_THREAD_CORE } from "../runtimes/remote-thread-list/empty-thread-core";
 
 describe("EMPTY_THREAD_CORE", () => {
+  it("reads no messages, branches, or exported repository", () => {
+    expect(EMPTY_THREAD_CORE.getMessageById("a")).toBeUndefined();
+    expect(EMPTY_THREAD_CORE.getBranches("a")).toEqual([]);
+    expect(EMPTY_THREAD_CORE.export()).toEqual({ messages: [] });
+  });
+
   it("has isLoading=true so it is not mistaken for an empty conversation", () => {
     expect(EMPTY_THREAD_CORE.isLoading).toBe(true);
   });

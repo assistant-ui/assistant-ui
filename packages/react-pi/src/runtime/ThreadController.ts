@@ -21,6 +21,7 @@ import {
   type PiThreadState,
 } from "./threadState";
 import { errorText } from "../utils";
+import { isKnownPiClientEventType } from "../eventTypes";
 import { projectPiThreadMessagesShared } from "./messageProjection";
 import {
   responseForApproval,
@@ -127,18 +128,6 @@ const METADATA_DIRTY_EVENT_TYPES: ReadonlySet<string> = new Set([
   "extension_ui_request",
   "extension_ui_resolved",
   "error",
-]);
-
-/** Everything the reducer understands: the two dirty sets plus the event types
- * it deliberately absorbs without marking anything dirty. */
-const KNOWN_EVENT_TYPES: ReadonlySet<string> = new Set([
-  ...MESSAGE_DIRTY_EVENT_TYPES,
-  ...METADATA_DIRTY_EVENT_TYPES,
-  "turn_start",
-  "turn_end",
-  "tool_execution_start",
-  "agent_settled",
-  "entry_appended",
 ]);
 
 /** Parse a `data:<mime>;base64,<data>` URL into Pi `ImageContent`. Non-data-URL
@@ -616,7 +605,7 @@ export class PiThreadController implements PiThreadControllerLike {
     // Pi 0.80.7 emits entry_appended only for custom extension entries. Keep
     // snapshot reconciliation for other variants if Pi broadens that event.
     const needsSnapshotRefresh =
-      !KNOWN_EVENT_TYPES.has(event.type) ||
+      !isKnownPiClientEventType(event.type) ||
       (event.type === "entry_appended" && event.entry?.type !== "custom");
     if (needsSnapshotRefresh) this.refreshInBackground();
   }

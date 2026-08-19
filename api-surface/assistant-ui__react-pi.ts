@@ -1135,6 +1135,8 @@ interface PiEventStreamOptions {
   onError?: (error: unknown) => void;
   fetchImpl?: typeof fetch;
   headers?: Record<string, string>;
+  expectedThreadId?: string;
+  snapshotRecoveryUrl?: string;
   reconnectDelay?: () => Promise<void>;
 }
 

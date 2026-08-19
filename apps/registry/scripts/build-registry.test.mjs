@@ -8,6 +8,8 @@ const {
   createRadixRegistryItem,
   expandBundledRegistryDependencies,
   getRadixVariantSourcePath,
+  getRelativeImportCandidates,
+  validateRegistryInstallMetadata,
   validateBasePassDidNotReadRadixSources,
   validateBaseTreeRadixImports,
   validateBaseVariantContent,
@@ -1240,4 +1242,147 @@ test("every element's sibling imports are declared as registry dependencies", as
       );
     }
   }
+});
+
+test("relative import candidates cover extensions, directory indexes, and .js sources", () => {
+  const from = "components/assistant-ui/sources.tsx";
+
+  assert.deepEqual(getRelativeImportCandidates("./badge", from), [
+    "components/assistant-ui/badge.tsx",
+    "components/assistant-ui/badge.ts",
+    "components/assistant-ui/badge.jsx",
+    "components/assistant-ui/badge.js",
+    "components/assistant-ui/badge/index.tsx",
+    "components/assistant-ui/badge/index.ts",
+    "components/assistant-ui/badge/index.jsx",
+    "components/assistant-ui/badge/index.js",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./badge.tsx", from), [
+    "components/assistant-ui/badge.tsx",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./styles.css", from), [
+    "components/assistant-ui/styles.css",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./badge.js", from), [
+    "components/assistant-ui/badge.js",
+    "components/assistant-ui/badge.tsx",
+    "components/assistant-ui/badge.ts",
+    "components/assistant-ui/badge.jsx",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./icon.svg?url", from), [
+    "components/assistant-ui/icon.svg",
+  ]);
+
+  assert.equal(
+    getRelativeImportCandidates("../icons/github", from)[0],
+    "components/icons/github.tsx",
+  );
+
+  assert.equal(
+    getRelativeImportCandidates("../../../outside/thing", from),
+    null,
+  );
+});
+
+test("a sibling whose name begins with dots stays inside the installed tree", () => {
+  assert.deepEqual(getRelativeImportCandidates("./..rc.json", "config.tsx"), [
+    "..rc.json",
+  ]);
+
+  assert.equal(getRelativeImportCandidates("..", "config.tsx"), null);
+  assert.equal(getRelativeImportCandidates("../outside", "config.tsx"), null);
+});
+
+const componentItem = (files, extra = {}) => ({
+  name: "demo",
+  type: "registry:component",
+  files,
+  ...extra,
+});
+
+const findingsFrom = (payloads) => {
+  try {
+    validateRegistryInstallMetadata(payloads);
+  } catch (error) {
+    return error.message;
+  }
+  return null;
+};
+
+test("install validation flags a relative import with no providing file", () => {
+  const findings = findingsFrom([
+    componentItem([
+      {
+        path: "components/assistant-ui/thread.tsx",
+        content: 'import { Badge } from "./badge";\n',
+      },
+    ]),
+  ]);
+
+  assert.match(findings, /thread\.tsx imports "\.\/badge"/);
+  assert.match(findings, /components\/assistant-ui\/badge\.tsx/);
+});
+
+test("install validation resolves a sibling through file.target, not file.path", () => {
+  const files = [
+    {
+      path: "packages/ui/src/components/assistant-ui/thread.tsx",
+      target: "components/assistant-ui/thread.tsx",
+      content: 'import { Badge } from "./badge";\n',
+    },
+    {
+      path: "packages/ui/src/components/assistant-ui/badge.tsx",
+      target: "components/assistant-ui/badge.tsx",
+      content: "export const Badge = () => null;\n",
+    },
+  ];
+
+  assert.equal(findingsFrom([componentItem(files)]), null);
+
+  // Without targets both paths fall back to their authored locations, which are
+  // still siblings, so only a mismatched target proves the target is what wins.
+  const withoutTargets = files.map(({ path, content }) => ({ path, content }));
+  assert.equal(findingsFrom([componentItem(withoutTargets)]), null);
+
+  const targetMismatch = [
+    files[0],
+    { ...files[1], target: "components/elsewhere/badge.tsx" },
+  ];
+  assert.match(
+    findingsFrom([componentItem(targetMismatch)]),
+    /imports "\.\/badge"/,
+  );
+});
+
+test("install validation reports an import that escapes the installed tree", () => {
+  const findings = findingsFrom([
+    componentItem([
+      {
+        path: "components/assistant-ui/thread.tsx",
+        content: 'import { helper } from "../../../outside/helper";\n',
+      },
+    ]),
+  ]);
+
+  assert.match(findings, /a file outside the installed tree/);
+});
+
+test("install validation resolves a sibling against the registryDependency install path", () => {
+  // A shadcn registryDependency installs to components/ui/<name>.tsx, so it
+  // satisfies a sibling import only from inside that directory.
+  const importing = (path) =>
+    componentItem([{ path, content: 'import { Badge } from "./badge";\n' }], {
+      registryDependencies: ["badge"],
+    });
+
+  assert.equal(findingsFrom([importing("components/ui/menu.tsx")]), null);
+
+  assert.match(
+    findingsFrom([importing("components/assistant-ui/thread.tsx")]),
+    /imports "\.\/badge", but no file or registryDependency provides/,
+  );
 });
