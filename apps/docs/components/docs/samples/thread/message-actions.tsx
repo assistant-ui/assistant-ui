@@ -19,7 +19,7 @@ export function ThreadActionsSample() {
           {
             role: "assistant",
             content:
-              "The last response always shows its actions; earlier responses reveal them on hover.",
+              "While the thread is idle, the last response shows its actions; earlier responses reveal them on hover.",
           },
         ]}
       >
