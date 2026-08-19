@@ -31,6 +31,7 @@ function NewChatButton() {
 
   return (
     <Pressable
+      accessibilityRole="button"
       accessibilityLabel="New chat"
       hitSlop={8}
       onPress={() => {

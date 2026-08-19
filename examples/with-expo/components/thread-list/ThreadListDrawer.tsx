@@ -22,6 +22,7 @@ export function ThreadListDrawer({ navigation }: DrawerContentComponentProps) {
     >
       <ThreadListPrimitive.Root style={styles.root}>
         <Pressable
+          accessibilityRole="button"
           onPressIn={haptics.selection}
           onPress={() => {
             aui.threads.switchToNewThread();
