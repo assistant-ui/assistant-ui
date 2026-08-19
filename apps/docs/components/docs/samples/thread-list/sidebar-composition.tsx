@@ -89,8 +89,8 @@ export function ThreadListSidebarDemo() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <SidebarProvider defaultOpen>
-        <ThreadListSidebar collapsible="none" className="h-full" />
+      <SidebarProvider>
+        <ThreadListSidebar collapsible="none" />
       </SidebarProvider>
     </AssistantRuntimeProvider>
   );
