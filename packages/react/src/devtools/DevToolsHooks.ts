@@ -1,4 +1,5 @@
 import type { Unsubscribe } from "@assistant-ui/core";
+import { notifyEventListeners } from "@assistant-ui/core/internal";
 import type { AssistantClient } from "@assistant-ui/store";
 
 export interface EventLog {
@@ -55,14 +56,7 @@ const getHook = (): DevToolsHook => {
 };
 
 const notifyListeners = (apiId: number): void => {
-  const hook = getHook();
-  for (const listener of hook.listeners) {
-    try {
-      listener(apiId);
-    } catch (error) {
-      console.error("[assistant-ui] DevTools listener threw an error", error);
-    }
-  }
+  notifyEventListeners(getHook().listeners, apiId, "DevTools");
 };
 
 export class DevToolsHooks {
