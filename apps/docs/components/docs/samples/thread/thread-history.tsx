@@ -20,7 +20,7 @@ const MESSAGES: ThreadMessageLike[] = [
   },
 ];
 
-export function ThreadConversationSample() {
+export function ThreadHistorySample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
       <SampleRuntimeProvider messages={MESSAGES}>
