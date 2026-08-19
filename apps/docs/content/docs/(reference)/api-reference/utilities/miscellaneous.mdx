@@ -112,9 +112,10 @@ Animates streamed message part text with a typewriter-style reveal.
 Takes the current part state and a `smooth` argument: `false` disables,
 `true` uses the default rate, and a SmoothOptions object tunes
 the reveal. Returns the part state with `text` replaced by the revealed
-prefix. While the source part is running, `status` stays `running` until
-the reveal catches up. Once the source settles, remaining text is committed
-immediately so completion never depends on a pending animation frame.
+prefix and `status` reporting `running` until the reveal catches up.
+If the source settles before any character has been revealed, the text
+is committed immediately so a missed animation frame cannot leave an
+empty bubble.
 
 The reveal auto-disables under `prefers-reduced-motion: reduce`,
 committing the full text immediately; this takes precedence over an

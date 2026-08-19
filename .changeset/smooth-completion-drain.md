@@ -2,4 +2,4 @@
 "@assistant-ui/react": patch
 ---
 
-fix: commit remaining smooth text when the source part settles
+fix: drain unrevealed smooth text when a message completes before any frame

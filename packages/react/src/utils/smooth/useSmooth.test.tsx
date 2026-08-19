@@ -238,7 +238,7 @@ describe("useSmooth", () => {
     expect(result.current.status.type).toBe("complete");
   });
 
-  it("commits remaining text as soon as the source part settles", () => {
+  it("keeps draining after the source settles when frames are flowing", () => {
     const raf: FrameRequestCallback[] = [];
     vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
       raf.push(cb);
@@ -268,11 +268,23 @@ describe("useSmooth", () => {
     );
 
     frame();
-    expect(result.current.text.length).toBeGreaterThan(0);
-    expect(result.current.text.length).toBeLessThan("hello".length);
+    const mid = result.current.text;
+    expect(mid.length).toBeGreaterThan(0);
+    expect(mid.length).toBeLessThan("hello".length);
     expect(result.current.status.type).toBe("running");
 
     rerender(textState("hello"));
+    expect(result.current.text).toBe(mid);
+    expect(result.current.status.type).toBe("running");
+
+    frame();
+    expect(result.current.text.length).toBeGreaterThan(mid.length);
+
+    let guard = 0;
+    while (result.current.text !== "hello" && guard < 20) {
+      guard++;
+      frame();
+    }
     expect(result.current.text).toBe("hello");
     expect(result.current.status.type).toBe("complete");
   });
