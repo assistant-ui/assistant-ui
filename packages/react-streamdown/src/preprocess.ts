@@ -66,35 +66,101 @@ function runLength(text: string, start: number, char: string): number {
   return length;
 }
 
+/** Start index of the line containing start. */
+function lineStart(text: string, start: number): number {
+  return (
+    Math.max(
+      text.lastIndexOf("\r", start - 1),
+      text.lastIndexOf("\n", start - 1),
+    ) + 1
+  );
+}
+
+/** End index of the line containing start, excluding its line ending. */
+function lineEnd(text: string, start: number): number {
+  const carriageReturn = text.indexOf("\r", start);
+  const lineFeed = text.indexOf("\n", start);
+  if (carriageReturn === -1) return lineFeed === -1 ? text.length : lineFeed;
+  if (lineFeed === -1) return carriageReturn;
+  return Math.min(carriageReturn, lineFeed);
+}
+
+/** Start index of the line after end, accounting for CRLF. */
+function nextLineStart(text: string, end: number): number {
+  if (end >= text.length) return text.length;
+  return text[end] === "\r" && text[end + 1] === "\n" ? end + 2 : end + 1;
+}
+
+/** Whether a line prefix permits a fenced code block at this position. */
+function isFencePrefix(prefix: string): boolean {
+  let remaining = prefix;
+  while (remaining.length > 0) {
+    const blockquote = remaining.match(/^ {0,3}>[ \t]?/);
+    if (blockquote) {
+      remaining = remaining.slice(blockquote[0].length);
+      continue;
+    }
+
+    const listItem = remaining.match(/^ {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+/);
+    if (listItem) {
+      remaining = remaining.slice(listItem[0].length);
+      continue;
+    }
+    break;
+  }
+  return /^ {0,3}$/.test(remaining);
+}
+
+/** Closing-fence end on one line, or -1 when the line is not a closer. */
+function closingFenceEnd(
+  text: string,
+  start: number,
+  end: number,
+  minimumLength: number,
+): number {
+  const line = text.slice(start, end);
+  const runStart = line.indexOf("`");
+  if (runStart === -1 || !isFencePrefix(line.slice(0, runStart))) return -1;
+
+  const length = runLength(line, runStart, "`");
+  if (length < minimumLength) return -1;
+  if (!/^[ \t]*$/.test(line.slice(runStart + length))) return -1;
+  return start + runStart + length;
+}
+
 /**
  * End index (exclusive) of the code span or fence whose backtick run starts at
- * `start`, or -1 when that run is never closed and its backticks read as literal
- * text.
+ * `start`. An unclosed fence extends through the end of the text; -1 means an
+ * inline code span is unclosed and its backticks read as literal text.
  */
 function codeSpanEnd(text: string, start: number): number {
   const delimiterLength = runLength(text, start, "`");
-  const lineStart = text.lastIndexOf("\n", start - 1) + 1;
-  const openingIndent = text.slice(lineStart, start);
-  const openingLineEnd = text.indexOf("\n", start + delimiterLength);
-  const openingInfo = text.slice(
-    start + delimiterLength,
-    openingLineEnd === -1 ? text.length : openingLineEnd,
-  );
+  const openingLineStart = lineStart(text, start);
+  const openingPrefix = text.slice(openingLineStart, start);
+  const openingLineEnd = lineEnd(text, start + delimiterLength);
+  const openingInfo = text.slice(start + delimiterLength, openingLineEnd);
   const isFence =
     delimiterLength >= 3 &&
-    /^ {0,3}$/.test(openingIndent) &&
+    isFencePrefix(openingPrefix) &&
     !openingInfo.includes("`");
 
   if (isFence) {
-    if (openingLineEnd === -1) return -1;
-    const closingFence = new RegExp(
-      "^ {0,3}(`{" + delimiterLength + ",})[\\t ]*\\r?$",
-      "gm",
-    );
-    closingFence.lastIndex = openingLineEnd + 1;
-    const match = closingFence.exec(text);
-    if (!match) return -1;
-    return match.index + match[0].indexOf("`") + match[1]!.length;
+    if (openingLineEnd === text.length) return text.length;
+
+    let closingLineStart = nextLineStart(text, openingLineEnd);
+    while (closingLineStart <= text.length) {
+      const closingLineEnd = lineEnd(text, closingLineStart);
+      const close = closingFenceEnd(
+        text,
+        closingLineStart,
+        closingLineEnd,
+        delimiterLength,
+      );
+      if (close !== -1) return close;
+      if (closingLineEnd === text.length) break;
+      closingLineStart = nextLineStart(text, closingLineEnd);
+    }
+    return text.length;
   }
 
   let index = start + delimiterLength;

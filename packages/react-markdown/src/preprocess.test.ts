@@ -147,8 +147,42 @@ describe("escapeCurrencyDollars", () => {
   });
 
   it("accepts a closing fence longer than the opening fence", () => {
-    expect(escapeCurrencyDollars("```\n$5\n````\nafter $7")).toBe(
-      "```\n$5\n````\nafter \\$7",
+    expect(escapeCurrencyDollars("```\n$5\n````\nafter `code $7` and $9")).toBe(
+      "```\n$5\n````\nafter `code $7` and \\$9",
+    );
+  });
+
+  it("does not rewrite currency inside an unclosed fenced block", () => {
+    expect(escapeCurrencyDollars("```js\nconst price = $5;")).toBe(
+      "```js\nconst price = $5;",
+    );
+  });
+
+  it("recognizes fenced blocks with carriage-return line endings", () => {
+    expect(
+      escapeCurrencyDollars(
+        "```\rconst marker = ```;\rconst price = $5;\r```\rafter $7",
+      ),
+    ).toBe("```\rconst marker = ```;\rconst price = $5;\r```\rafter \\$7");
+  });
+
+  it("recognizes fenced blocks inside blockquotes", () => {
+    expect(
+      escapeCurrencyDollars(
+        "> ```\n> const marker = ```;\n> const price = $5;\n> ```\nafter $7",
+      ),
+    ).toBe(
+      "> ```\n> const marker = ```;\n> const price = $5;\n> ```\nafter \\$7",
+    );
+  });
+
+  it("recognizes fenced blocks inside list items", () => {
+    expect(
+      escapeCurrencyDollars(
+        "- ```\n  const marker = ```;\n  const price = $5;\n  ```\nafter $7",
+      ),
+    ).toBe(
+      "- ```\n  const marker = ```;\n  const price = $5;\n  ```\nafter \\$7",
     );
   });
 
