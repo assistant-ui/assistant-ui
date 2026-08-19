@@ -90,7 +90,7 @@ export function ThreadListSidebarDemo() {
   return (
     <AssistantRuntimeProvider runtime={runtime}>
       <SidebarProvider defaultOpen>
-        <ThreadListSidebar />
+        <ThreadListSidebar collapsible="none" className="h-full" />
       </SidebarProvider>
     </AssistantRuntimeProvider>
   );
@@ -99,7 +99,7 @@ export function ThreadListSidebarDemo() {
 export function ThreadListSidebarSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
-      <div className="relative h-120 overflow-hidden rounded-xl [&_[data-slot='sidebar-container']]:!absolute [&_[data-slot='sidebar-container']]:!h-full [&_[data-slot='sidebar-wrapper']]:!h-full [&_[data-slot='sidebar-wrapper']]:!min-h-full [&_a]:!no-underline">
+      <div className="relative h-120 overflow-hidden rounded-xl [&_[data-slot='sidebar-wrapper']]:!h-full [&_[data-slot='sidebar-wrapper']]:!min-h-full [&_a]:!no-underline">
         <ThreadListSidebarDemo />
       </div>
     </SampleFrame>
