@@ -40,6 +40,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
     super((readable) => {
       const toolCallControllers = new Map<string, ToolCallStreamController>();
       const streamedArgsToolCallIds = new Set<string>();
+      const settledArgsToolCallIds = new Set<string>();
       let activeToolCallArgsText: TextStreamController | undefined;
       let currentMessageId: string | undefined;
       let receivedDone = false;
@@ -114,8 +115,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               });
               break;
 
-            case "tool-call-start":
-            case "tool-input-start": {
+            case "tool-call-start": {
               activeToolCallArgsText?.close();
               activeToolCallArgsText = undefined;
 
@@ -134,11 +134,30 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
             }
 
+            case "tool-input-start": {
+              if (toolCallControllers.has(chunk.toolCallId)) {
+                throw new Error(
+                  `Encountered duplicate tool call id: ${chunk.toolCallId}`,
+                );
+              }
+
+              toolCallControllers.set(
+                chunk.toolCallId,
+                controller.addToolCallPart({
+                  toolCallId: chunk.toolCallId,
+                  toolName: chunk.toolName,
+                }),
+              );
+              break;
+            }
+
             case "tool-call-delta":
               activeToolCallArgsText?.append(chunk.argsText);
               break;
 
             case "tool-input-delta": {
+              if (settledArgsToolCallIds.has(chunk.toolCallId)) break;
+
               const argsText = toolCallControllers.get(
                 chunk.toolCallId,
               )?.argsText;
@@ -172,10 +191,8 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               ) {
                 toolCallController.argsText.append(JSON.stringify(chunk.input));
               }
-              if (toolCallController.argsText === activeToolCallArgsText) {
-                activeToolCallArgsText = undefined;
-              }
               toolCallController.argsText.close();
+              settledArgsToolCallIds.add(chunk.toolCallId);
               if (chunk.type === "tool-input-error") {
                 toolCallController.setResponse({
                   result: chunk.errorText,
@@ -223,6 +240,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               if (toolCallController.argsText === activeToolCallArgsText) {
                 activeToolCallArgsText = undefined;
               }
+              settledArgsToolCallIds.add(chunk.toolCallId);
               toolCallController.setResponse(
                 chunk.type === "tool-output-error"
                   ? { result: chunk.errorText, isError: true }
