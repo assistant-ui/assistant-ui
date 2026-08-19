@@ -10,13 +10,12 @@ import {
 } from "@assistant-ui/react";
 import { SampleFrame } from "../sample-frame";
 
-const adapter: ChatModelAdapter = {
-  async *run() {
-    yield { content: [{ type: "text", text: "This is a demo." }] };
-  },
-};
-
 export function ChatWithSuggestions() {
+  const adapter: ChatModelAdapter = {
+    async *run() {
+      yield { content: [{ type: "text", text: "This is a demo." }] };
+    },
+  };
   const runtime = useLocalRuntime(adapter);
   const config = AuiConfig({
     suggestions: Suggestions([
