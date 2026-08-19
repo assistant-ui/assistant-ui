@@ -86,6 +86,7 @@ export type {
   ComposerState,
   AttachmentState,
   ThreadListItemState,
+  QueueItemState,
 } from "@assistant-ui/core/store";
 
 // Store hooks and components
