@@ -28,12 +28,20 @@ export function ensureAnonymousSession(): Promise<void> {
 }
 
 export const anonymousSessionFetch: typeof fetch = async (input, init) => {
+  const requestTemplate =
+    input instanceof Request ? new Request(input, init) : null;
+
   const send = () => {
-    if (!sessionToken) return fetch(input, init);
-    const headers = new Headers(
-      init?.headers ?? (input instanceof Request ? input.headers : undefined),
-    );
+    if (!sessionToken) {
+      return requestTemplate
+        ? fetch(requestTemplate.clone())
+        : fetch(input, init);
+    }
+    const headers = new Headers(requestTemplate?.headers ?? init?.headers);
     headers.set(ANONYMOUS_SESSION_HEADER, sessionToken);
+    if (requestTemplate) {
+      return fetch(requestTemplate.clone(), { headers });
+    }
     return fetch(input, { ...init, headers });
   };
 

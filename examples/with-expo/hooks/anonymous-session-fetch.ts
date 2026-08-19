@@ -17,9 +17,10 @@ export function createAnonymousSessionFetch(
     tokenPromise ??= (async () => {
       const endpoint = new URL("/api/anonymous-session", chatApi);
       const response = await fetchImplementation(endpoint, {
-        credentials: "omit",
+        credentials: "same-origin",
       });
       if (!response.ok) return null;
+      if (response.status === 204) return null;
       const payload = (await response.json()) as { token?: unknown };
       return typeof payload.token === "string" && payload.token
         ? payload.token
@@ -29,12 +30,16 @@ export function createAnonymousSessionFetch(
   };
 
   return async (input, init) => {
+    const requestTemplate =
+      input instanceof Request ? new Request(input, init) : null;
+
     const send = async () => {
-      const headers = new Headers(
-        init?.headers ?? (input instanceof Request ? input.headers : undefined),
-      );
+      const headers = new Headers(requestTemplate?.headers ?? init?.headers);
       const token = await getToken();
       if (token) headers.set(ANONYMOUS_SESSION_HEADER, token);
+      if (requestTemplate) {
+        return fetchImplementation(requestTemplate.clone(), { headers });
+      }
       return fetchImplementation(input, { ...init, headers });
     };
 

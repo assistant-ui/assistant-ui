@@ -51,4 +51,27 @@ describe("Expo anonymous session fetch", () => {
       ),
     ).toBe("signed-session");
   });
+
+  it("accepts a same-origin 204 cookie bootstrap", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(new Response("ok"));
+    const sessionFetch = createAnonymousSessionFetch(
+      "https://example.com/api/chat",
+      fetchMock,
+    );
+
+    const response = await sessionFetch("https://example.com/api/chat", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(200);
+    expect(fetchMock.mock.calls[0]?.[1]?.credentials).toBe("same-origin");
+    expect(
+      new Headers(fetchMock.mock.calls[1]?.[1]?.headers).get(
+        "x-assistant-ui-anonymous-session",
+      ),
+    ).toBeNull();
+  });
 });

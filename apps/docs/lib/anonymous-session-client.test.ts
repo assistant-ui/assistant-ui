@@ -63,4 +63,32 @@ describe("anonymous session client", () => {
       new Headers(requestInit?.headers).get("x-assistant-ui-anonymous-session"),
     ).toBe("signed-session");
   });
+
+  it("clones a body-bearing Request before a 401 retry", async () => {
+    const bodies: string[] = [];
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockImplementationOnce(async (input) => {
+        bodies.push(await (input as Request).text());
+        return new Response(null, { status: 401 });
+      })
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockImplementationOnce(async (input) => {
+        bodies.push(await (input as Request).text());
+        return new Response("ok");
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const { anonymousSessionFetch } =
+      await import("./anonymous-session-client");
+    const request = new Request("https://www.assistant-ui.com/api/chat", {
+      method: "POST",
+      body: "request body",
+    });
+
+    const response = await anonymousSessionFetch(request);
+
+    expect(response.status).toBe(200);
+    expect(bodies).toEqual(["request body", "request body"]);
+  });
 });

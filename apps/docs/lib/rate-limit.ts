@@ -66,6 +66,11 @@ const getPublicAssistantRateLimits = async () => {
         "1d",
       ),
     }),
+    globalAlert: new Ratelimit({
+      redis,
+      prefix: "aui:public-assistant:global:alert",
+      limiter: Ratelimit.fixedWindow(1, "10m"),
+    }),
     sessionIssuanceBurst: new Ratelimit({
       redis,
       prefix: "aui:public-assistant:session-issuance:burst",
@@ -97,10 +102,15 @@ function firstIp(value: string | null): string | null {
 }
 
 function getClientIp(request: Request): string | null {
-  return (
-    firstIp(request.headers.get("x-vercel-forwarded-for")) ??
-    firstIp(request.headers.get("x-forwarded-for"))
-  );
+  const vercelIp = firstIp(request.headers.get("x-vercel-forwarded-for"));
+  if (vercelIp) return vercelIp;
+  if (
+    process.env.NODE_ENV !== "production" ||
+    process.env.AUI_TRUST_X_FORWARDED_FOR === "1"
+  ) {
+    return firstIp(request.headers.get("x-forwarded-for"));
+  }
+  return null;
 }
 
 async function runPublicAssistantRateLimit(
@@ -175,13 +185,16 @@ export async function checkPublicAssistantRateLimit(
 
     const globalDaily = await limits.globalDaily.limit("all");
     if (!globalDaily.success) {
-      console.error(
-        JSON.stringify({
-          level: "error",
-          message: "public_assistant_global_limit_exceeded",
-          requestId: request.headers.get("x-vercel-id"),
-        }),
-      );
+      const alert = await limits.globalAlert.limit("all").catch(() => null);
+      if (alert?.success) {
+        console.error(
+          JSON.stringify({
+            level: "error",
+            message: "public_assistant_global_limit_exceeded",
+            requestId: request.headers.get("x-vercel-id"),
+          }),
+        );
+      }
       return limitResponse(
         "Public assistant usage limit exceeded",
         globalDaily.reset,

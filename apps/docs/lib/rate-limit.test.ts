@@ -57,6 +57,7 @@ beforeEach(() => {
 });
 
 afterEach(() => {
+  vi.unstubAllEnvs();
   vi.restoreAllMocks();
 });
 
@@ -87,6 +88,10 @@ describe("public assistant rate limits", () => {
     expect(mocks.configs.get("aui:public-assistant:global:daily")).toEqual({
       limit: 20_000,
       window: "1d",
+    });
+    expect(mocks.configs.get("aui:public-assistant:global:alert")).toEqual({
+      limit: 1,
+      window: "10m",
     });
     expect(
       mocks.configs.get("aui:public-assistant:session-issuance:daily"),
@@ -122,7 +127,7 @@ describe("public assistant rate limits", () => {
     ["aui:public-assistant:ip:burst", 1],
     ["aui:public-assistant:ip:daily", 2],
     ["aui:public-assistant:session:daily", 3],
-    ["aui:public-assistant:global:daily", 4],
+    ["aui:public-assistant:global:daily", 5],
   ] as const)(
     "stops after an exhausted %s limit",
     async (prefix, expectedCalls) => {
@@ -169,6 +174,35 @@ describe("public assistant rate limits", () => {
     });
   });
 
+  it("ignores an untrusted forwarded IP in production", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    const forwardedRequest = new Request(
+      "https://www.assistant-ui.com/api/chat",
+      { headers: { "x-forwarded-for": "198.51.100.4" } },
+    );
+
+    const response = await checkPublicAssistantRateLimit(
+      forwardedRequest,
+      "session_1234567890",
+    );
+
+    expect(response?.status).toBe(503);
+    expect(mocks.calls).toHaveLength(0);
+  });
+
+  it("accepts a forwarded IP from an explicitly trusted proxy", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("AUI_TRUST_X_FORWARDED_FOR", "1");
+    const forwardedRequest = new Request(
+      "https://www.assistant-ui.com/api/chat",
+      { headers: { "x-forwarded-for": "198.51.100.4" } },
+    );
+
+    await checkPublicAssistantRateLimit(forwardedRequest, "session_1234567890");
+
+    expect(mocks.calls[0]?.key).toBe("198.51.100.4");
+  });
+
   it("fails closed and logs when no client IP is available", async () => {
     const response = await checkPublicAssistantRateLimit(
       new Request("https://www.assistant-ui.com/api/chat"),
@@ -191,6 +225,19 @@ describe("public assistant rate limits", () => {
     );
 
     expect(response?.headers.get("retry-after")).toBe("30");
+  });
+
+  it("rate limits the global ceiling alert", async () => {
+    mocks.results.set("aui:public-assistant:global:daily", false);
+    mocks.results.set("aui:public-assistant:global:alert", false);
+
+    const response = await checkPublicAssistantRateLimit(
+      request(),
+      "session_1234567890",
+    );
+
+    expect(response?.status).toBe(429);
+    expect(console.error).not.toHaveBeenCalled();
   });
 
   it("limits anonymous-session rotation by IP", async () => {

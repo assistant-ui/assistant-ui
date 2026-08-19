@@ -4,6 +4,7 @@ const mocks = vi.hoisted(() => ({
   requireSession: vi.fn(),
   checkRateLimit: vi.fn(),
   getModel: vi.fn(),
+  docsToolkit: {},
 }));
 
 vi.mock("@/lib/anonymous-session", async (importOriginal) => ({
@@ -21,7 +22,7 @@ vi.mock("@/lib/ai/provider", async (importOriginal) => ({
   getModel: mocks.getModel,
 }));
 
-vi.mock("@/lib/docs-toolkit", () => ({ default: {} }));
+vi.mock("@/lib/docs-toolkit", () => ({ default: mocks.docsToolkit }));
 
 import { POST } from "./route";
 
