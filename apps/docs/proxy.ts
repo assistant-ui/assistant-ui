@@ -13,6 +13,7 @@ export const config = {
     "/sign-in/:path*",
     "/sign-up/:path*",
     "/playground",
+    "/api/playground-chat",
     "/learn/:path*",
     "/api/xulux/:path*",
   ],

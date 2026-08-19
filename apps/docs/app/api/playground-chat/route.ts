@@ -3,6 +3,7 @@ import { requireAnonymousSession } from "@/lib/anonymous-session";
 import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
+import { getOptionalAiBuilderUserId } from "@/lib/ai-builder-auth";
 import { frontendTools } from "@assistant-ui/ai-sdk";
 import { NextResponse } from "next/server";
 import {
@@ -143,13 +144,17 @@ export async function POST(req: Request) {
   }
 
   try {
-    const session = requireAnonymousSession(req);
-    if (session instanceof Response) return session;
+    const userId = await getOptionalAiBuilderUserId();
+    let identity: string;
+    if (userId) {
+      identity = `user:${userId}`;
+    } else {
+      const session = requireAnonymousSession(req);
+      if (session instanceof Response) return session;
+      identity = `anonymous:${session.id}`;
+    }
 
-    const rateLimitResponse = await checkRateLimit(
-      req,
-      `anonymous:${session.id}`,
-    );
+    const rateLimitResponse = await checkRateLimit(req, identity);
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await req.json();

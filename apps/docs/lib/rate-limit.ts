@@ -1,3 +1,9 @@
+import {
+  RATE_LIMIT_REASON_HEADER,
+  RATE_LIMIT_REASONS,
+  type RateLimitReason,
+} from "./rate-limit-reason";
+
 const isDev = process.env.NODE_ENV === "development";
 
 export function positiveSafeInteger(
@@ -153,6 +159,13 @@ export function getClientIp(req: Request): string {
 
 type InferenceLimiter = Ratelimits["inferenceIpBurst"];
 
+function rateLimitResponse(message: string, reason: RateLimitReason) {
+  return new Response(message, {
+    status: 429,
+    headers: { [RATE_LIMIT_REASON_HEADER]: reason },
+  });
+}
+
 async function checkInferenceLimits(
   req: Request,
   identity: string | undefined,
@@ -167,19 +180,25 @@ async function checkInferenceLimits(
   const ip = getClientIp(req);
   const burstResult = await limiters.ipBurst.limit(ip);
   if (!burstResult.success) {
-    return new Response("Rate limit exceeded", { status: 429 });
+    return rateLimitResponse("Rate limit exceeded", RATE_LIMIT_REASONS.ipBurst);
   }
 
   const dailyIpResult = await limiters.ipDaily.limit(ip);
   if (!dailyIpResult.success) {
-    return new Response("Daily IP usage limit exceeded", { status: 429 });
+    return rateLimitResponse(
+      "Daily IP usage limit exceeded",
+      RATE_LIMIT_REASONS.ipDaily,
+    );
   }
 
   const identityResult = identity
     ? await limiters.identity.limit(identity)
     : null;
   if (identityResult && !identityResult.success) {
-    return new Response(identityDenialMessage, { status: 429 });
+    return rateLimitResponse(
+      identityDenialMessage,
+      RATE_LIMIT_REASONS.identityDaily,
+    );
   }
 
   const globalResult = await limiters.global.limit("all");
@@ -191,7 +210,10 @@ async function checkInferenceLimits(
         requestId: req.headers.get("x-vercel-id"),
       }),
     );
-    return new Response("Service usage limit exceeded", { status: 429 });
+    return rateLimitResponse(
+      "Service usage limit exceeded",
+      RATE_LIMIT_REASONS.globalDaily,
+    );
   }
 
   return null;
@@ -245,7 +267,10 @@ export async function checkAnonymousSessionIssuanceRateLimit(
       ratelimits.sessionIssuanceDaily.limit(ip),
     ]);
     if (!burstResult.success || !dailyResult.success) {
-      return new Response("Anonymous session limit exceeded", { status: 429 });
+      return rateLimitResponse(
+        "Anonymous session limit exceeded",
+        RATE_LIMIT_REASONS.anonymousSessionIssuance,
+      );
     }
     return null;
   });

@@ -13,6 +13,21 @@ function isClerkConfigurationError(error: unknown): boolean {
   );
 }
 
+export async function getOptionalAiBuilderUserId(): Promise<string | null> {
+  if (!isAiBuilderServerAuthConfigured()) return null;
+
+  try {
+    const { auth } = await import("@clerk/nextjs/server");
+    return (await auth()).userId;
+  } catch (error) {
+    console.error(
+      "[ai-builder-auth] Failed to check the optional user session",
+      error,
+    );
+    return null;
+  }
+}
+
 export async function requireAiBuilderUser(): Promise<
   { userId: string } | Response
 > {

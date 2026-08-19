@@ -1,9 +1,11 @@
 # Hosted AI access controls
 
-The docs assistant and UI Builder chat remain public. AI Builder (Xulux), its
-chat routes, guided `/learn` pages, and workspace downloads require a verified
-Clerk user. The `/learn/preview/*` document remains public because it serves the
-inert stage iframe, while its Xulux chat API remains authenticated.
+The docs assistant and UI Builder chat remain public. When the UI Builder's
+anonymous identity quota is exhausted, it offers sign-up or sign-in and retries
+the interrupted request with the verified user's separate quota. AI Builder
+(Xulux), its chat routes, guided `/learn` pages, and workspace downloads require
+a verified Clerk user. The `/learn/preview/*` document remains public because it
+serves the inert stage iframe, while its Xulux chat API remains authenticated.
 
 Requiring sign-in for the guided `/learn` experience is an intentional product
 boundary, not only an API implementation detail. It must receive maintainer
@@ -71,12 +73,17 @@ Before production promotion, verify all of the following on the deployment URL:
    `401`; a forged allowed `Origin` does not change the result.
 4. Valid public sessions reach input validation, and burst, daily IP, session,
    and global rejections return `429` before model selection.
-5. Signed-out AI Builder navigation redirects to sign-in and returns to the
+5. UI Builder stays anonymous until its identity quota is exhausted. That
+   specific rejection offers sign-up and sign-in, preserves the complete
+   playground URL, and retries the interrupted request after authentication.
+   Burst, daily IP, and global rejections do not offer authentication as a
+   bypass.
+6. Signed-out AI Builder navigation redirects to sign-in and returns to the
    complete playground URL, including existing query parameters.
-6. Xulux chat and workspace downloads return `401` without Clerk auth. A full
+7. Xulux chat and workspace downloads return `401` without Clerk auth. A full
    signed-in agent turn, including tool follow-ups, completes without hitting
    the Builder burst limit.
-7. Switching Clerk users in one browser cannot expose the previous user's
+8. Switching Clerk users in one browser cannot expose the previous user's
    Xulux data, including across open tabs. Session identifiers are namespaced
    to the verified Clerk user, and sandbox names hash the complete identifier.
    Legacy Learn progress is moved to a user-owned session. Pre-existing
@@ -85,8 +92,8 @@ Before production promotion, verify all of the following on the deployment URL:
    experience.
    Existing ownerless browser storage is claimed under Web Locks; browsers
    without Web Locks quarantine it instead.
-8. Assistant Cloud rejects a request without the `assistant-ui` JWT.
-9. Redis counters and provider spend alerts are visible to the on-call owner.
+9. Assistant Cloud rejects a request without the `assistant-ui` JWT.
+10. Redis counters and provider spend alerts are visible to the on-call owner.
 
 ## Rollback
 

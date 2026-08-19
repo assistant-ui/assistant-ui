@@ -7,8 +7,11 @@ import {
   useEffect,
   useMemo,
   useRef,
+  useState,
   type ReactNode,
 } from "react";
+import { SignInButton, SignUpButton, useAuth } from "@clerk/nextjs";
+import { usePathname, useSearchParams } from "next/navigation";
 import {
   AssistantRuntimeProvider,
   ThreadPrimitive,
@@ -31,6 +34,7 @@ import { useAui, AuiProvider } from "@assistant-ui/store";
 import type { BuilderConfig } from "./types";
 import { applyDiff } from "@/lib/playground-url-state";
 import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
+import { createPlaygroundChatFetch } from "@/lib/playground-chat-fetch";
 
 const PLAYGROUND_SUGGESTIONS = [
   {
@@ -55,6 +59,8 @@ const PLAYGROUND_SUGGESTIONS = [
 type PlaygroundChatContextValue = {
   runtime: ReturnType<typeof useChatRuntime>;
   aui: ReturnType<typeof useAui>;
+  anonymousLimitReached: boolean;
+  authenticationAvailable: boolean;
 };
 
 const PlaygroundChatContext = createContext<PlaygroundChatContextValue | null>(
@@ -80,15 +86,50 @@ interface PlaygroundChatProviderProps {
 
 interface PlaygroundChatProviderInnerProps extends PlaygroundChatProviderProps {
   parentAui: ReturnType<typeof useAui>;
+  authenticationAvailable: boolean;
+  isAuthLoaded: boolean;
+  isSignedIn: boolean;
 }
 
 export function PlaygroundChatProvider(props: PlaygroundChatProviderProps) {
   const parentAui = useAui();
+  const authenticationAvailable = Boolean(
+    process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim(),
+  );
 
   return (
     <AuiProvider value={null}>
-      <PlaygroundChatProviderInner {...props} parentAui={parentAui} />
+      {authenticationAvailable ? (
+        <AuthenticatedPlaygroundChatProviderInner
+          {...props}
+          parentAui={parentAui}
+        />
+      ) : (
+        <PlaygroundChatProviderInner
+          {...props}
+          parentAui={parentAui}
+          authenticationAvailable={false}
+          isAuthLoaded
+          isSignedIn={false}
+        />
+      )}
     </AuiProvider>
+  );
+}
+
+function AuthenticatedPlaygroundChatProviderInner(
+  props: PlaygroundChatProviderProps & {
+    parentAui: ReturnType<typeof useAui>;
+  },
+) {
+  const { isLoaded, isSignedIn } = useAuth();
+  return (
+    <PlaygroundChatProviderInner
+      {...props}
+      authenticationAvailable
+      isAuthLoaded={isLoaded}
+      isSignedIn={Boolean(isSignedIn)}
+    />
   );
 }
 
@@ -97,7 +138,15 @@ function PlaygroundChatProviderInner({
   setConfig,
   children,
   parentAui,
+  authenticationAvailable,
+  isAuthLoaded,
+  isSignedIn,
 }: PlaygroundChatProviderInnerProps) {
+  const [anonymousLimitReached, setAnonymousLimitReached] = useState(false);
+  const isSignedInRef = useRef(false);
+  const retriedAfterAuthRef = useRef(false);
+  isSignedInRef.current = isAuthLoaded && isSignedIn;
+
   const configRef = useRef(config);
   configRef.current = config;
 
@@ -123,11 +172,24 @@ function PlaygroundChatProviderInner({
     [onConfigUpdate],
   );
 
+  const playgroundFetch = useMemo(
+    () =>
+      createPlaygroundChatFetch({
+        isSignedIn: () => isSignedInRef.current,
+        onAnonymousLimit: () => {
+          retriedAfterAuthRef.current = false;
+          setAnonymousLimitReached(true);
+        },
+        anonymousFetch: anonymousSessionFetch,
+      }),
+    [],
+  );
+
   const transport = useMemo(
     () =>
       new AssistantChatTransport({
         api: "/api/playground-chat",
-        fetch: anonymousSessionFetch,
+        fetch: playgroundFetch,
         prepareSendMessagesRequest: async (options) => ({
           body: {
             ...options.body,
@@ -136,7 +198,7 @@ function PlaygroundChatProviderInner({
           },
         }),
       }),
-    [],
+    [playgroundFetch],
   );
 
   const runtime = useChatRuntime({
@@ -149,7 +211,37 @@ function PlaygroundChatProviderInner({
     suggestions: Suggestions(PLAYGROUND_SUGGESTIONS),
   });
 
-  const value = useMemo(() => ({ runtime, aui }), [runtime, aui]);
+  useEffect(() => {
+    if (
+      !isAuthLoaded ||
+      !isSignedIn ||
+      !anonymousLimitReached ||
+      retriedAfterAuthRef.current
+    ) {
+      return;
+    }
+
+    retriedAfterAuthRef.current = true;
+    setAnonymousLimitReached(false);
+    const messages = runtime.thread.getState().messages;
+    const lastMessage = messages.at(-1);
+    if (
+      lastMessage?.role === "assistant" &&
+      lastMessage.status?.type === "incomplete"
+    ) {
+      runtime.thread.getMessageById(lastMessage.id).reload();
+    }
+  }, [anonymousLimitReached, isAuthLoaded, isSignedIn, runtime]);
+
+  const value = useMemo(
+    () => ({
+      runtime,
+      aui,
+      anonymousLimitReached,
+      authenticationAvailable,
+    }),
+    [anonymousLimitReached, authenticationAvailable, runtime, aui],
+  );
 
   return (
     <PlaygroundChatContext.Provider value={value}>
@@ -165,7 +257,8 @@ export function PlaygroundChatThread({
 }: {
   onRunningChange?: (isRunning: boolean) => void;
 }) {
-  const { runtime, aui } = usePlaygroundChat();
+  const { runtime, aui, anonymousLimitReached, authenticationAvailable } =
+    usePlaygroundChat();
 
   return (
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
@@ -204,7 +297,12 @@ export function PlaygroundChatThread({
           />
 
           <ThreadPrimitive.ViewportFooter className="bg-background sticky bottom-0 mt-auto">
-            <Composer />
+            {anonymousLimitReached && (
+              <AnonymousLimitBanner
+                authenticationAvailable={authenticationAvailable}
+              />
+            )}
+            <Composer disabled={anonymousLimitReached} />
           </ThreadPrimitive.ViewportFooter>
         </ThreadPrimitive.Viewport>
       </ThreadPrimitive.Root>
@@ -226,7 +324,52 @@ function RunningObserver({
   return null;
 }
 
-function Composer() {
+function AnonymousLimitBanner({
+  authenticationAvailable,
+}: {
+  authenticationAvailable: boolean;
+}) {
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const query = searchParams.toString();
+  const returnPath = `${pathname}${query ? `?${query}` : ""}`;
+
+  return (
+    <div
+      role="alert"
+      className="border-border bg-muted/60 mx-2 rounded-lg border p-3 text-xs"
+    >
+      <p className="font-medium">You reached the anonymous Playground limit.</p>
+      <p className="text-muted-foreground mt-1">
+        {authenticationAvailable
+          ? "Create a free account or sign in to continue this request."
+          : "Please try again after the daily limit resets."}
+      </p>
+      {authenticationAvailable && (
+        <div className="mt-3 flex gap-2">
+          <SignUpButton mode="modal" fallbackRedirectUrl={returnPath}>
+            <button
+              type="button"
+              className="bg-foreground text-background rounded-md px-2.5 py-1.5 font-medium"
+            >
+              Create account
+            </button>
+          </SignUpButton>
+          <SignInButton mode="modal" fallbackRedirectUrl={returnPath}>
+            <button
+              type="button"
+              className="border-border bg-background rounded-md border px-2.5 py-1.5 font-medium"
+            >
+              Sign in
+            </button>
+          </SignInButton>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Composer({ disabled }: { disabled: boolean }) {
   return (
     <ComposerPrimitive.Root className="py-2">
       <div className="border-border bg-background focus-within:border-foreground/60 rounded-lg border transition-colors">
@@ -235,11 +378,15 @@ function Composer() {
             placeholder="Describe a change..."
             className="placeholder:text-muted-foreground field-sizing-content max-h-32 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 focus:outline-none"
             rows={1}
+            disabled={disabled}
           />
         </ComposerPrimitive.Input>
         <div className="flex items-center justify-end px-1.5 pb-1.5">
           <AuiIf condition={(s) => !s.thread.isRunning}>
-            <ComposerPrimitive.Send className="text-muted-foreground hover:text-foreground rounded-md p-1 transition-colors disabled:opacity-30">
+            <ComposerPrimitive.Send
+              disabled={disabled}
+              className="text-muted-foreground hover:text-foreground rounded-md p-1 transition-colors disabled:opacity-30"
+            >
               <SendHorizontal className="size-4" />
             </ComposerPrimitive.Send>
           </AuiIf>

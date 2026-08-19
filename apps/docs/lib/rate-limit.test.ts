@@ -41,6 +41,10 @@ import {
   getClientIp,
   positiveSafeInteger,
 } from "./rate-limit";
+import {
+  RATE_LIMIT_REASON_HEADER,
+  RATE_LIMIT_REASONS,
+} from "./rate-limit-reason";
 
 beforeEach(() => {
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -131,6 +135,9 @@ describe("checkRateLimit", () => {
     const result = await checkRateLimit(request(), "anonymous:session-1");
 
     expect(result?.status).toBe(429);
+    expect(result?.headers.get(RATE_LIMIT_REASON_HEADER)).toBe(
+      RATE_LIMIT_REASONS.ipBurst,
+    );
     expect(mocks.calls).toHaveLength(1);
   });
 
@@ -149,6 +156,16 @@ describe("checkRateLimit", () => {
       expect(mocks.calls).toHaveLength(expectedCalls);
     },
   );
+
+  it("identifies the soft identity limit for progressive sign-in", async () => {
+    mocks.results.set("aui:inference:identity", false);
+
+    const result = await checkRateLimit(request(), "anonymous:session-1");
+
+    expect(result?.headers.get(RATE_LIMIT_REASON_HEADER)).toBe(
+      RATE_LIMIT_REASONS.identityDaily,
+    );
+  });
 
   it("logs a global ceiling denial as an incident", async () => {
     mocks.results.set("aui:inference:global", false);

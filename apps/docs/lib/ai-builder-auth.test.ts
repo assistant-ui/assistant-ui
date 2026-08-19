@@ -9,7 +9,10 @@ vi.mock("@clerk/nextjs/server", async (importOriginal) => ({
   auth: mocks.auth,
 }));
 
-import { requireAiBuilderUser } from "./ai-builder-auth";
+import {
+  getOptionalAiBuilderUserId,
+  requireAiBuilderUser,
+} from "./ai-builder-auth";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -102,5 +105,32 @@ describe("requireAiBuilderUser", () => {
       code: "AUTH_SERVICE_UNAVAILABLE",
       error: "Authentication is temporarily unavailable.",
     });
+  });
+});
+
+describe("getOptionalAiBuilderUserId", () => {
+  it("keeps public routes anonymous when Clerk is not configured", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "");
+    vi.stubEnv("CLERK_SECRET_KEY", "");
+
+    await expect(getOptionalAiBuilderUserId()).resolves.toBeNull();
+    expect(mocks.auth).not.toHaveBeenCalled();
+  });
+
+  it("returns the verified user without requiring authentication", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test");
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test");
+    mocks.auth.mockResolvedValue({ userId: "user_123" });
+
+    await expect(getOptionalAiBuilderUserId()).resolves.toBe("user_123");
+  });
+
+  it("falls back to anonymous access when optional verification fails", async () => {
+    vi.stubEnv("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", "pk_test");
+    vi.stubEnv("CLERK_SECRET_KEY", "sk_test");
+    mocks.auth.mockRejectedValue(new Error("Clerk unavailable"));
+    vi.spyOn(console, "error").mockImplementation(() => {});
+
+    await expect(getOptionalAiBuilderUserId()).resolves.toBeNull();
   });
 });
