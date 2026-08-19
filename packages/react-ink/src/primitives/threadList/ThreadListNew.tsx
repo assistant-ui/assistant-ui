@@ -1,13 +1,19 @@
 import type { ReactNode } from "react";
 import { useAuiState } from "@assistant-ui/store";
 import { useThreadListNew } from "@assistant-ui/core/react";
-import { Pressable, type PressableProps } from "../internal/Pressable";
+import {
+  Pressable,
+  type PressableProps,
+  type PressableState,
+} from "../internal/Pressable";
 
 export type ThreadListNewProps = Omit<
   PressableProps,
   "onPress" | "children"
 > & {
-  children: ReactNode | ((props: { isActive: boolean }) => ReactNode);
+  children:
+    | ReactNode
+    | ((state: PressableState & { isActive: boolean }) => ReactNode);
 };
 
 export const ThreadListNew = ({
@@ -21,7 +27,9 @@ export const ThreadListNew = ({
 
   return (
     <Pressable onPress={switchToNewThread} {...pressableProps}>
-      {typeof children === "function" ? children({ isActive }) : children}
+      {typeof children === "function"
+        ? (state) => children({ ...state, isActive })
+        : children}
     </Pressable>
   );
 };

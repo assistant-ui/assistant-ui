@@ -9,13 +9,22 @@ const h = vi.hoisted(() => ({
   pressableProps: null as Record<string, unknown> | null,
 }));
 
-vi.mock("@assistant-ui/core/react", () => ({
-  useThreadListNew: () => ({ switchToNewThread: h.switchToNewThread }),
-}));
+vi.mock("@assistant-ui/core/react", async (importOriginal) => {
+  const actual =
+    await importOriginal<typeof import("@assistant-ui/core/react")>();
+  return {
+    ...actual,
+    useThreadListNew: () => ({ switchToNewThread: h.switchToNewThread }),
+  };
+});
 
-vi.mock("@assistant-ui/store", () => ({
-  useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
-}));
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
+  return {
+    ...actual,
+    useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
+  };
+});
 
 vi.mock("react-native", async (importOriginal) => {
   const actual = await importOriginal<typeof import("react-native")>();
@@ -137,19 +146,24 @@ describe("ThreadListNew", () => {
     expect(accessibilityState()).toMatchObject({ selected: true });
   });
 
-  it("passes the active state to render children", async () => {
+  it("passes isActive alongside press state to render children", async () => {
     h.state.threads = { newThreadId: "new", mainThreadId: "new" };
+    let renderState: unknown = null;
 
     await act(async () => {
       root.render(
         <ThreadListNew testID="t">
-          {({ isActive }) => (isActive ? "current" : "not current")}
+          {(state) => {
+            renderState = state;
+            return state.isActive ? "current" : "not current";
+          }}
         </ThreadListNew>,
       );
     });
 
     const el = container.querySelector('[data-testid="t"]') as HTMLElement;
     expect(el.textContent).toBe("current");
+    expect(renderState).toMatchObject({ pressed: false, isActive: true });
   });
 
   it("reports an inactive render state while another thread is current", async () => {
@@ -168,6 +182,6 @@ describe("ThreadListNew", () => {
 
     const el = container.querySelector('[data-testid="t"]') as HTMLElement;
     expect(el.textContent).toBe("not current");
-    expect(renderState).toEqual({ isActive: false });
+    expect(renderState).toMatchObject({ pressed: false, isActive: false });
   });
 });

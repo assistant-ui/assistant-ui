@@ -1,5 +1,9 @@
 import type { ReactNode } from "react";
-import { Pressable, type PressableProps } from "react-native";
+import {
+  Pressable,
+  type PressableProps,
+  type PressableStateCallbackType,
+} from "react-native";
 import { useAuiState } from "@assistant-ui/store";
 import { useThreadListNew } from "@assistant-ui/core/react";
 
@@ -7,7 +11,11 @@ export type ThreadListNewProps = Omit<
   PressableProps,
   "onPress" | "children"
 > & {
-  children: ReactNode | ((props: { isActive: boolean }) => ReactNode);
+  children:
+    | ReactNode
+    | ((
+        state: PressableStateCallbackType & { isActive: boolean },
+      ) => ReactNode);
 };
 
 export const ThreadListNew = ({
@@ -23,10 +31,13 @@ export const ThreadListNew = ({
   return (
     <Pressable
       onPress={switchToNewThread}
+      accessibilityRole="button"
       accessibilityState={{ selected: isActive, ...accessibilityState }}
       {...pressableProps}
     >
-      {typeof children === "function" ? children({ isActive }) : children}
+      {typeof children === "function"
+        ? (state) => children({ ...state, isActive })
+        : children}
     </Pressable>
   );
 };

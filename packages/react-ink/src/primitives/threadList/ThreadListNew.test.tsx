@@ -1,7 +1,7 @@
-import type { ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Text } from "ink";
-import { cleanup, render } from "ink-testing-library";
+import { cleanup } from "ink-testing-library";
+import { renderFrame } from "../../tests/helpers";
 import { ThreadListNew } from "./ThreadListNew";
 
 const h = vi.hoisted(() => ({
@@ -27,12 +27,6 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   };
 });
 
-const renderFrame = async (node: ReactElement) => {
-  const instance = render(node);
-  await new Promise((resolve) => setTimeout(resolve, 0));
-  return instance.lastFrame() ?? "";
-};
-
 beforeEach(() => {
   h.switchToNewThread.mockReset();
   h.state.threads = { newThreadId: "new", mainThreadId: "other" };
@@ -44,17 +38,25 @@ afterEach(() => {
 });
 
 describe("ThreadListNew", () => {
-  it("passes the active state to render children when the new thread is current", async () => {
+  it("passes isActive alongside pressable state when the new thread is current", async () => {
     h.state.threads = { newThreadId: "new", mainThreadId: "new" };
 
     const frame = await renderFrame(
       <ThreadListNew>
-        {({ isActive }) => <Text>{isActive ? "current" : "not current"}</Text>}
+        {(state) => {
+          h.renderState = state;
+          return <Text>{state.isActive ? "current" : "not current"}</Text>;
+        }}
       </ThreadListNew>,
     );
 
     expect(frame).toContain("current");
     expect(frame).not.toContain("not current");
+    expect(h.renderState).toMatchObject({
+      isActive: true,
+      disabled: false,
+    });
+    expect(h.renderState).toHaveProperty("isFocused");
   });
 
   it("reports an inactive render state while another thread is current", async () => {
@@ -68,7 +70,11 @@ describe("ThreadListNew", () => {
     );
 
     expect(frame).toContain("not current");
-    expect(h.renderState).toEqual({ isActive: false });
+    expect(h.renderState).toMatchObject({
+      isActive: false,
+      disabled: false,
+    });
+    expect(h.renderState).toHaveProperty("isFocused");
   });
 
   it("still renders plain children", async () => {
