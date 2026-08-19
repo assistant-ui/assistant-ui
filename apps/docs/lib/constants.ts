@@ -105,11 +105,20 @@ export const SUB_PROJECTS: (Product & { slug: string })[] = [
   ...PRODUCTS.filter((p): p is Product & { slug: string } => !!p.slug),
 ];
 
+export type NavGlyphKind =
+  | "elements"
+  | "react"
+  | "native"
+  | "ink"
+  | "cloud"
+  | "playground";
+
 export type DropdownItem = {
   label: string;
   href: string;
   description: string;
   external: boolean;
+  glyph?: NavGlyphKind;
 };
 
 export type NavGroup = {
@@ -135,6 +144,7 @@ export const NAV_ITEMS: NavItem[] = [
             href: "/elements",
             description: "Multimodal UI. An extension, not a replacement.",
             external: false,
+            glyph: "elements",
           },
         ],
       },
@@ -146,18 +156,21 @@ export const NAV_ITEMS: NavItem[] = [
             href: "/docs",
             description: "The web distribution",
             external: false,
+            glyph: "react",
           },
           {
             label: "React Native",
             href: "/native",
             description: "Mobile apps on the same runtime",
             external: false,
+            glyph: "native",
           },
           {
             label: "Ink",
             href: "/ink",
             description: "Terminal UIs on the same runtime",
             external: false,
+            glyph: "ink",
           },
         ],
       },
@@ -169,12 +182,14 @@ export const NAV_ITEMS: NavItem[] = [
             href: CLOUD_URL,
             description: "Hosted threads and persistence",
             external: true,
+            glyph: "cloud",
           },
           {
             label: "Playground",
             href: "/playground",
             description: "Try the library in the browser",
             external: false,
+            glyph: "playground",
           },
         ],
       },

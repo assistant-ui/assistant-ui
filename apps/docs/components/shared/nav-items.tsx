@@ -16,11 +16,30 @@ import {
   NavigationMenuViewport,
 } from "@/components/ui/navigation-menu";
 import { cn } from "@/lib/utils";
+import { NavGlyph } from "@/components/shared/nav-glyph";
 import type { DropdownItem, NavItem } from "@/lib/constants";
 
 function DropdownLink({ link }: { link: DropdownItem }) {
-  const className =
-    "hover:bg-muted flex flex-col rounded-md px-2 py-1.5 transition-colors";
+  const className = link.glyph
+    ? "group/navlink hover:bg-muted flex items-center gap-3 rounded-md px-2 py-2 transition-colors"
+    : "group/navlink hover:bg-muted flex flex-col rounded-md px-2 py-1.5 transition-colors";
+
+  const text = (
+    <span className="flex min-w-0 flex-col">
+      <span className="flex items-center gap-1.5 text-sm">
+        {link.label}
+        {link.external ? <ArrowUpRight className="size-3 opacity-40" /> : null}
+      </span>
+      <span className="text-muted-foreground text-xs">{link.description}</span>
+    </span>
+  );
+
+  const body = (
+    <>
+      {link.glyph ? <NavGlyph kind={link.glyph} /> : null}
+      {text}
+    </>
+  );
 
   return (
     <NavigationMenuLink
@@ -32,20 +51,11 @@ function DropdownLink({ link }: { link: DropdownItem }) {
             rel="noopener noreferrer"
             className={className}
           >
-            <span className="flex items-center gap-1.5 text-sm">
-              {link.label}
-              <ArrowUpRight className="size-3 opacity-40" />
-            </span>
-            <span className="text-muted-foreground text-xs">
-              {link.description}
-            </span>
+            {body}
           </a>
         ) : (
           <Link href={link.href} className={className}>
-            <span className="text-sm">{link.label}</span>
-            <span className="text-muted-foreground text-xs">
-              {link.description}
-            </span>
+            {body}
           </Link>
         )
       }

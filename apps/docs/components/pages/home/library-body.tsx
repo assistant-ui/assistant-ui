@@ -28,10 +28,10 @@ const HOME_QUOTES = HOME_QUOTE_USERNAMES.flatMap((username) => {
 });
 
 export function LibraryBody({
-  installHtml,
+  setupTabs,
   reactVersion,
 }: {
-  installHtml: string;
+  setupTabs: { id: string; label: string; html: string }[];
   reactVersion: string | null;
 }) {
   return (
@@ -51,7 +51,7 @@ export function LibraryBody({
           </p>
         </div>
 
-        <LibraryShowcase installHtml={installHtml} />
+        <LibraryShowcase setupTabs={setupTabs} />
       </section>
 
       <section aria-label="Used by">

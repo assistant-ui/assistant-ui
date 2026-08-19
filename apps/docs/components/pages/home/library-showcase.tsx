@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type ComponentType } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ComponentType,
+  type SVGProps,
+} from "react";
 import Link from "next/link";
 import { ApprovalCardDemo } from "@/components/demo/elements/approval-card";
 import { ChartDemo } from "@/components/demo/elements/chart";
@@ -12,6 +18,10 @@ import { SourcesDemo } from "@/components/demo/elements/sources";
 import { StreamingTextDemo } from "@/components/demo/elements/streaming-text";
 import { SuggestionsDemo } from "@/components/demo/elements/suggestions";
 import { ToolCallDemo } from "@/components/demo/elements/tool-call";
+import { LangChainIcon } from "@/components/icons/langchain";
+import { LangGraphIcon } from "@/components/icons/langgraph";
+import { MastraIcon } from "@/components/icons/mastra";
+import { VercelIcon } from "@/components/icons/vercel";
 import { PrimitivesAnatomy } from "@/components/pages/home/primitives-anatomy";
 import { typeEyebrow } from "@/components/shared/type";
 import { CLOUD_URL } from "@/lib/constants";
@@ -32,10 +42,30 @@ const ACTS: { label: string; Component: ComponentType; maxWidth?: string }[] = [
   { label: "Generative UI", Component: ChartDemo },
 ];
 
-function Stage() {
+const SETUP_BRANDS: Record<
+  string,
+  | {
+      Icon: ComponentType<SVGProps<SVGSVGElement>>;
+      className: string;
+    }
+  | undefined
+> = {
+  "ai-sdk": { Icon: VercelIcon, className: "text-foreground/[0.09]" },
+  langgraph: {
+    Icon: LangGraphIcon,
+    className: "text-[#1C3C3C]/20 dark:text-[#5b9595]/25",
+  },
+  langchain: {
+    Icon: LangChainIcon,
+    className: "text-[#7FC8FF]/35 dark:text-[#7FC8FF]/20",
+  },
+  mastra: { Icon: MastraIcon, className: "text-foreground/[0.09]" },
+};
+
+function useAutoCycle(count: number) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [visible, setVisible] = useState(false);
-  const [active, setActive] = useState(0);
+  const [index, setIndex] = useState(0);
   const [epoch, setEpoch] = useState(0);
   const [hovered, setHovered] = useState(false);
   const [pageHidden, setPageHidden] = useState(false);
@@ -72,33 +102,72 @@ function Stage() {
   useEffect(() => {
     if (frozen) return;
     const id = window.setTimeout(() => {
-      setActive((index) => (index + 1) % ACTS.length);
-      setEpoch((count) => count + 1);
+      setIndex((current) => (current + 1) % count);
+      setEpoch((current) => current + 1);
     }, SLOT_MS);
     return () => window.clearTimeout(id);
-  }, [frozen, active, epoch]);
+  }, [frozen, index, epoch, count]);
 
-  const act = ACTS[active]!;
+  const jump = (next: number) => {
+    setIndex(next);
+    setEpoch((current) => current + 1);
+  };
+
+  return {
+    rootRef,
+    index,
+    epoch,
+    frozen,
+    visible,
+    jump,
+    hold: {
+      onMouseEnter: () => setHovered(true),
+      onMouseLeave: () => setHovered(false),
+    },
+  };
+}
+
+function CycleProgress({
+  playKey,
+  frozen,
+}: {
+  playKey: string;
+  frozen: boolean;
+}) {
+  return (
+    <span className="bg-foreground/10 absolute inset-x-0 bottom-0 h-px overflow-hidden">
+      <span
+        key={playKey}
+        className="block h-full origin-left bg-blue-500"
+        style={
+          frozen
+            ? { transform: "scaleX(0)" }
+            : { animation: `stage-progress ${SLOT_MS}ms linear forwards` }
+        }
+      />
+    </span>
+  );
+}
+
+function Stage() {
+  const cycle = useAutoCycle(ACTS.length);
+  const act = ACTS[cycle.index]!;
   const Act = act.Component;
 
   return (
     <div
-      ref={rootRef}
+      ref={cycle.rootRef}
       className="grid gap-6 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12"
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
+      {...cycle.hold}
     >
       <ol className="flex flex-wrap gap-x-5 gap-y-2 md:flex-col md:gap-y-3">
-        {ACTS.map((act, index) => {
-          const current = index === active;
+        {ACTS.map((item, index) => {
+          const current = index === cycle.index;
           return (
-            <li key={act.label}>
+            <li key={item.label}>
               <button
                 type="button"
-                onClick={() => {
-                  setActive(index);
-                  setEpoch((count) => count + 1);
-                }}
+                onClick={() => cycle.jump(index)}
                 className={cn(
                   "relative flex items-baseline gap-2.5 pb-1.5 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors",
                   current
@@ -109,21 +178,12 @@ function Stage() {
                 <span className="tabular-nums">
                   {String(index + 1).padStart(2, "0")}
                 </span>
-                {act.label}
+                {item.label}
                 {current ? (
-                  <span className="bg-foreground/10 absolute inset-x-0 bottom-0 h-px overflow-hidden">
-                    <span
-                      key={`${active}-${epoch}-${String(frozen)}`}
-                      className="block h-full origin-left bg-blue-500"
-                      style={
-                        frozen
-                          ? { transform: "scaleX(0)" }
-                          : {
-                              animation: `stage-progress ${SLOT_MS}ms linear forwards`,
-                            }
-                      }
-                    />
-                  </span>
+                  <CycleProgress
+                    playKey={`${cycle.index}-${cycle.epoch}-${String(cycle.frozen)}`}
+                    frozen={cycle.frozen}
+                  />
                 ) : null}
               </button>
             </li>
@@ -132,9 +192,9 @@ function Stage() {
       </ol>
 
       <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] flex min-h-[340px] items-center justify-center overflow-hidden px-6 py-10 md:min-h-[380px] md:px-12">
-        {visible ? (
+        {cycle.visible ? (
           <div
-            key={`${active}-${epoch}`}
+            key={`${cycle.index}-${cycle.epoch}`}
             className="animate-in fade-in-0 w-full duration-500"
             style={{ maxWidth: act.maxWidth ?? "30rem" }}
           >
@@ -146,25 +206,94 @@ function Stage() {
   );
 }
 
-export function LibraryShowcase({ installHtml }: { installHtml: string }) {
+type SetupTab = { id: string; label: string; caption: string; html: string };
+
+function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
+  const cycle = useAutoCycle(tabs.length);
+  const activeTab = tabs[cycle.index] ?? tabs[0];
+  const brand = activeTab ? SETUP_BRANDS[activeTab.id] : undefined;
+
   return (
-    <div className="flex flex-col gap-10 md:gap-14">
-      <div className="border-foreground/10 grid gap-6 border-t pt-8 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12">
-        <div className="flex flex-col gap-2.5">
+    <div ref={cycle.rootRef} className="flex flex-col gap-5" {...cycle.hold}>
+      <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-3">
+        <div className="flex max-w-[44rem] flex-col gap-2">
           <p className={typeEyebrow}>The setup</p>
           <p className="text-[15px] font-medium">
-            A provider, a hook, one component.
-          </p>
-          <p className="text-muted-foreground max-w-[36ch] text-[14px] leading-relaxed">
-            The complete client. Your model stays behind your own route.
+            A provider, a hook, one component.{" "}
+            <span className="text-muted-foreground font-normal">
+              The complete client, whatever runs behind it.
+            </span>
           </p>
         </div>
-        <div className="min-w-0">
+        <div role="tablist" className="flex flex-wrap gap-x-5 gap-y-1">
+          {tabs.map((tab, index) => {
+            const current = index === cycle.index;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={current}
+                onClick={() => cycle.jump(index)}
+                className={cn(
+                  "relative pb-1.5 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors",
+                  current
+                    ? "text-foreground"
+                    : "text-foreground/35 hover:text-foreground/70",
+                )}
+              >
+                {tab.label}
+                {current ? (
+                  <CycleProgress
+                    playKey={`${cycle.index}-${cycle.epoch}-${String(cycle.frozen)}`}
+                    frozen={cycle.frozen}
+                  />
+                ) : null}
+              </button>
+            );
+          })}
+          <Link
+            href="/docs/runtimes/pick-a-runtime"
+            className="text-foreground/35 hover:text-foreground/70 pb-1.5 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors"
+          >
+            All runtimes →
+          </Link>
+        </div>
+      </div>
+
+      <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] relative min-h-[22.5rem] overflow-hidden">
+        {brand && activeTab ? (
           <div
-            className="bg-foreground/[0.025] dark:bg-foreground/[0.04] overflow-x-auto px-6 py-6 font-mono text-[13px] leading-relaxed md:px-10 [&_.line]:px-0! [&_code]:[font-variant-ligatures:none] [&_pre]:m-0 [&_pre]:bg-transparent! [&_pre]:whitespace-pre"
-            dangerouslySetInnerHTML={{ __html: installHtml }}
-          />
-        </div>
+            key={activeTab.id}
+            className={cn(
+              "animate-in fade-in-0 pointer-events-none absolute right-6 bottom-6 [mask-image:radial-gradient(circle,#000_40%,transparent_44%)] [mask-size:5px_5px] duration-700 md:right-10 md:bottom-8",
+              brand.className,
+            )}
+          >
+            <brand.Icon className="size-40 md:size-52" />
+          </div>
+        ) : null}
+        <div
+          key={`code-${activeTab?.id ?? "none"}`}
+          className="code-cascade relative min-w-0 overflow-x-auto px-6 pt-6 font-mono text-[13px] leading-relaxed md:px-10 [&_.line]:px-0! [&_code]:[font-variant-ligatures:none] [&_pre]:m-0 [&_pre]:bg-transparent! [&_pre]:whitespace-pre"
+          dangerouslySetInnerHTML={{ __html: activeTab?.html ?? "" }}
+        />
+        <p
+          key={`caption-${activeTab?.id ?? "none"}`}
+          className="animate-in fade-in-0 text-muted-foreground relative px-6 pt-4 pb-6 font-mono text-[11px] tracking-wide duration-500 md:px-10"
+        >
+          {activeTab?.caption}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export function LibraryShowcase({ setupTabs }: { setupTabs: SetupTab[] }) {
+  return (
+    <div className="flex flex-col gap-10 md:gap-14">
+      <div className="border-foreground/10 border-t pt-8">
+        <SetupPanel tabs={setupTabs} />
       </div>
 
       <div className="border-foreground/10 flex flex-col gap-6 border-t pt-8">
@@ -172,18 +301,18 @@ export function LibraryShowcase({ installHtml }: { installHtml: string }) {
         <Stage />
       </div>
 
-      <div className="border-foreground/10 grid gap-6 border-t pt-8 md:grid-cols-[minmax(0,20rem)_1fr] md:gap-12">
-        <div className="flex flex-col gap-2.5">
+      <div className="border-foreground/10 flex flex-col gap-5 border-t pt-8">
+        <div className="flex max-w-[44rem] flex-col gap-2">
           <p className={typeEyebrow}>The primitives</p>
-          <p className="text-[15px] font-medium">Yours to reshape.</p>
-          <p className="text-muted-foreground max-w-[36ch] text-[14px] leading-relaxed">
-            Every part is a component you compose. The CLI copies the UI source
-            into your repo, and you style it like the rest of your app.
+          <p className="text-[15px] font-medium">
+            Yours to reshape.{" "}
+            <span className="text-muted-foreground font-normal">
+              Every part is a component you compose; the CLI copies the UI
+              source into your repo.
+            </span>
           </p>
         </div>
-        <div className="min-w-0">
-          <PrimitivesAnatomy />
-        </div>
+        <PrimitivesAnatomy />
       </div>
 
       <p className="text-muted-foreground max-w-[64ch] text-[13px] leading-relaxed">
