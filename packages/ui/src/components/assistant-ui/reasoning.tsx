@@ -239,8 +239,7 @@ function ReasoningContent({
         "data-open:animate-collapsible-down",
         "data-closed:fill-mode-forwards",
         "data-closed:pointer-events-none",
-        "data-open:animation-duration-(--animation-duration)",
-        "data-closed:animation-duration-(--animation-duration)",
+        "[--tw-duration:var(--animation-duration)]",
         className,
       )}
       {...props}
