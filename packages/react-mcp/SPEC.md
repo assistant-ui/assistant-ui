@@ -75,7 +75,7 @@ After the v0.1 simplification, the package's runtime surface is:
 | `McpServerByIdProvider` | Scope a subtree to one server (used by iteration primitives; useful standalone) |
 | `useMcpOAuthCallback`, `McpOAuthCallback` | OAuth callback page handlers |
 
-There is no `MCPProvider` (mount the resource directly with `useAui`), no `useMcpManager` (`useAui().mcp()` in callbacks per the [tap skill](/.claude/skills/tap/SKILL.md)), no `useMcpTools` (auto-registered via `modelContext`), no `canAddCustom` (hide the add-UI to disable), no `mcpRuntimeToolsToAiSdkTools` (the runtime sees tools through `modelContext`).
+There is no `MCPProvider` (mount the resource directly with `useAui`), no `useMcpManager` (`useAui().mcp()` in callbacks per the [tap methods guide](../../apps/docs/content/tap-docs/store/methods.mdx)), no `useMcpTools` (auto-registered via `modelContext`), no `canAddCustom` (hide the add-UI to disable), no `mcpRuntimeToolsToAiSdkTools` (the runtime sees tools through `modelContext`).
 
 ## 1. Types
 
@@ -202,6 +202,7 @@ type MCPPersistedAuthState = {
   tokens?: OAuthTokens;
   clientInformation?: OAuthClientInformationFull;
   codeVerifier?: string;
+  discoveryState?: OAuthDiscoveryState;
   token?: string;   // bearer
 };
 
@@ -361,6 +362,8 @@ mount McpManagerResource
   → on connect: state = connecting → connected; listTools()
   → toolkit memo recomputes; modelContext.register(toolkit) (re-registers on change)
 ```
+
+During auto-connect, a rejected `storage.loadAuthState()` sets `lastError` and transitions the server to `"error"` without creating a transport; failures from cancelled or superseded attempts are ignored.
 
 `McpServerResource.connect()`:
 

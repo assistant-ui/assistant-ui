@@ -132,15 +132,15 @@ export function AssistantComposer({
       onSubmit={handleSubmit}
       className={cn("pb-2.5", className)}
     >
-      <div className="border-border bg-background focus-within:border-foreground/60 rounded-xl border transition-colors">
+      <div className="bg-muted/55 focus-within:bg-muted/75 rounded-3xl border border-transparent transition-colors">
         <ComposerPrimitive.Input asChild>
           <textarea
             placeholder={placeholder}
-            className="placeholder:text-muted-foreground field-sizing-content max-h-32 w-full resize-none bg-transparent px-3 pt-2.5 pb-2 text-sm leading-5 focus:outline-none"
+            className="placeholder:text-muted-foreground field-sizing-content max-h-32 w-full resize-none bg-transparent px-3.5 pt-3 pb-2 text-sm leading-5 focus:outline-none"
             rows={1}
           />
         </ComposerPrimitive.Input>
-        <div className="flex items-center justify-between px-1.5 pb-1.5">
+        <div className="flex items-center justify-between px-2 pb-2">
           {modelSelector ?? <DefaultDocsModelSelector />}
           <AssistantComposerAction />
         </div>
@@ -168,7 +168,7 @@ export function AssistantComposerAction(): ReactNode {
     <>
       <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
-          <Button size="icon" className="size-7 rounded-lg">
+          <Button size="icon" className="size-7 rounded-full">
             <ArrowUpIcon className="size-4" />
           </Button>
         </ComposerPrimitive.Send>
@@ -180,7 +180,7 @@ export function AssistantComposerAction(): ReactNode {
             type="button"
             variant="secondary"
             size="icon"
-            className="size-7 rounded-lg"
+            className="size-7 rounded-full"
           >
             <SquareIcon className="size-3 fill-current" />
           </Button>

@@ -49,6 +49,11 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     scope: { cloud },
     threadId: null as string | null,
   }));
+  const selectionRef = useRef(selection);
+  const listedThreadIdsRef = useRef(new Set<string>());
+  useLayoutEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
   const scope = selection.scope;
   const threadId = scope.cloud === cloud ? selection.threadId : null;
 
@@ -65,6 +70,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     const isActiveScope = scope.cloud === cloud;
     activeScopeRef.current = isActiveScope ? scope : null;
     if (!isActiveScope) {
+      listedThreadIdsRef.current.clear();
       setThreads([]);
       setError(null);
       setIsLoading(enabled);
@@ -118,6 +124,15 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     const requestId = ++refreshRequestRef.current;
     const isLatest = () =>
       requestId === refreshRequestRef.current && isCurrentCloud();
+    const selectedThreadId =
+      selectionRef.current.scope === scope
+        ? selectionRef.current.threadId
+        : null;
+    // A never-listed selection may be a new thread whose list entry is lagging;
+    // probing it could incorrectly deselect an in-flight conversation.
+    const selectedThreadWasListed =
+      selectedThreadId !== null &&
+      listedThreadIdsRef.current.has(selectedThreadId);
     setIsLoading(true);
 
     try {
@@ -146,7 +161,43 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
               return timeDifference || b.id.localeCompare(a.id);
             });
           }
-          commit(() => setThreads(nextThreads));
+          const nextThreadIds = new Set(nextThreads.map((thread) => thread.id));
+          commit(() => {
+            for (const id of nextThreadIds) {
+              listedThreadIdsRef.current.add(id);
+            }
+            setThreads(nextThreads);
+            setIsLoading(false);
+            setError(null);
+          });
+
+          if (!isLatest()) return true;
+
+          let selectedThreadDeleted = false;
+          if (
+            selectedThreadWasListed &&
+            selectedThreadId !== null &&
+            !nextThreadIds.has(selectedThreadId)
+          ) {
+            try {
+              await cloud.threads.get(selectedThreadId);
+            } catch (error) {
+              selectedThreadDeleted =
+                typeof error === "object" &&
+                error !== null &&
+                "status" in error &&
+                error.status === 404;
+            }
+          }
+          if (selectedThreadDeleted) {
+            commit(() =>
+              setSelection((current) =>
+                current.scope === scope && current.threadId === selectedThreadId
+                  ? { scope, threadId: null }
+                  : current,
+              ),
+            );
+          }
           return true;
         },
         false,
@@ -157,7 +208,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         setIsLoading(false);
       }
     }
-  }, [cloud, includeArchived, isCurrentCloud, withAction]);
+  }, [cloud, includeArchived, isCurrentCloud, scope, withAction]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -301,13 +352,15 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const selectThread = useCallback(
     (id: string | null) => {
+      if (!isCurrentCloud()) return;
+
+      const nextSelection = { scope, threadId: id };
+      selectionRef.current = nextSelection;
       setSelection((current) =>
-        scope.cloud === cloud && current.scope === scope
-          ? { scope, threadId: id }
-          : current,
+        current.scope === scope ? nextSelection : current,
       );
     },
-    [cloud, scope],
+    [isCurrentCloud, scope],
   );
 
   const generateTitle = useCallback(

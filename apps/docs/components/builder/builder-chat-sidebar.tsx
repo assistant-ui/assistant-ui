@@ -20,10 +20,7 @@ import {
   Tools,
   Suggestions,
 } from "@assistant-ui/react";
-import {
-  useChatRuntime,
-  AssistantChatTransport,
-} from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { SendHorizontal, SquareIcon } from "lucide-react";
 import {

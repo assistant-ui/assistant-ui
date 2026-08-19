@@ -22,7 +22,7 @@ import { ImageSample } from "@/components/docs/samples/image";
 
 ### Use in your application
 
-Pass `Image` to `MessagePrimitive.Parts`:
+The shipped `Thread` component renders `image` parts through `Image` by default, in both assistant and user messages. In a custom thread, pass `Image` to `MessagePrimitive.Parts`:
 
 ```tsx title="/components/assistant-ui/thread.tsx" {1,8}
 import { Image } from "@/components/assistant-ui/image";

@@ -6,7 +6,11 @@ import {
   type SlotsType,
 } from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
-import type {} from "@assistant-ui/core/store";
+import {
+  actionBarCopyDisabled,
+  actionBarEditDisabled,
+  actionBarReloadDisabled,
+} from "@assistant-ui/core/store/internal";
 import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
@@ -18,7 +22,7 @@ export const ActionBarPrimitiveEdit = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(_, { attrs, slots }) {
     const aui = useAui();
-    const disabled = useAuiState((s) => s.composer.isEditing);
+    const disabled = useAuiState(actionBarEditDisabled);
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || disabled.value || isAttrDisabled(attrs))
         return;
@@ -48,12 +52,7 @@ export const ActionBarPrimitiveReload = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(_, { attrs, slots }) {
     const aui = useAui();
-    const disabled = useAuiState(
-      (s) =>
-        s.thread.isRunning ||
-        s.thread.isDisabled ||
-        s.message.role !== "assistant",
-    );
+    const disabled = useAuiState(actionBarReloadDisabled);
     const onClick = (event: MouseEvent) => {
       if (event.defaultPrevented || disabled.value || isAttrDisabled(attrs))
         return;
@@ -97,16 +96,7 @@ export const ActionBarPrimitiveCopy = defineComponent({
   slots: Object as SlotsType<{ default?: () => unknown }>,
   setup(props, { attrs, slots }) {
     const aui = useAui();
-    const disabled = useAuiState(
-      (s) =>
-        !(
-          (s.message.role !== "assistant" ||
-            s.message.status?.type !== "running") &&
-          s.message.parts.some(
-            (part) => part.type === "text" && part.text.length > 0,
-          )
-        ),
-    );
+    const disabled = useAuiState(actionBarCopyDisabled);
     const isCopied = useAuiState((s) => s.message.isCopied);
     const isEditing = useAuiState((s) => s.composer.isEditing);
     const composerText = useAuiState((s) => s.composer.text);

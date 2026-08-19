@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { field, mono } from "./surfaces";
+import { field, mono, ShimmerLabel } from "./surfaces";
 import { take } from "./range";
 
 export interface WebSearchResult {
@@ -47,15 +47,9 @@ export function WebSearch({
       </span>
       <div className="text-foreground/45 text-xs">
         {searching ? (
-          <span className="relative inline-block leading-none">
-            <span>Searching</span>
-            <span
-              aria-hidden
-              className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-            >
-              Searching
-            </span>
-          </span>
+          <ShimmerLabel className="relative inline-block leading-none">
+            Searching
+          </ShimmerLabel>
         ) : (
           <span className="fade-in animate-in duration-300">
             Read 3 sources

@@ -57,6 +57,21 @@ const createTestClient = (
     "getClient"
   > & { getClient(): AnyClient };
 
+const createTrackedThread = () => {
+  const counters = { mounts: 0, cleanups: 0 };
+  const useTracked = () => {
+    const [selected, setSelected] = useState(0);
+    useEffect(() => {
+      counters.mounts++;
+      return () => {
+        counters.cleanups++;
+      };
+    }, []);
+    return { getState: () => ({ selected }), setSelected };
+  };
+  return { TrackedThread: resource(useTracked), counters };
+};
+
 describe("createAssistantClient", () => {
   it("re-reads a config source, updating args in place and reconciling scopes", () => {
     let config: Record<string, unknown> = {
@@ -71,6 +86,7 @@ describe("createAssistantClient", () => {
         return () => listeners.delete(listener);
       },
     });
+    handle.subscribe(() => {});
 
     const aui = handle.getClient() as AnyClient;
     flushTapSync(() => aui.message.setText("draft"));
@@ -94,6 +110,7 @@ describe("createAssistantClient", () => {
 
   it("hosts scopes without any React renderer", () => {
     const handle = createTestClient({ thread: ThreadClient() });
+    handle.subscribe(() => {});
     const aui = handle.getClient();
 
     expect(aui.thread.getState()).toEqual({ selected: 0 });
@@ -123,6 +140,7 @@ describe("createAssistantClient", () => {
       thread: ThreadClient(),
       message: messageDerived(),
     });
+    handle.subscribe(() => {});
 
     const before = handle.getClient();
     expect(before.message.getState().id).toBe("m0");
@@ -173,6 +191,7 @@ describe("createAssistantClient", () => {
       { message: messageDerived() },
       { parent: parent as never },
     );
+    child.subscribe(() => {});
 
     expect(child.getClient().message.getState().id).toBe("m0");
     expect(child.getClient().thread.getState()).toEqual({ selected: 0 });
@@ -208,10 +227,136 @@ describe("createAssistantClient", () => {
     const TrackedClient = resource(useTrackedClient);
 
     const handle = createTestClient({ thread: TrackedClient() });
-    handle.getClient();
+    handle.subscribe(() => {});
 
-    const afterCreate = cleanups;
+    const afterMount = cleanups;
     handle.destroy();
-    expect(cleanups).toBe(afterCreate + 1);
+    expect(cleanups).toBe(afterMount + 1);
+  });
+
+  it("renders lazily and mounts on the first subscriber", () => {
+    const { TrackedThread, counters } = createTrackedThread();
+    const getConfig = vi.fn(() => ({ thread: TrackedThread() }) as never);
+
+    const handle = createAssistantClient({
+      getConfig,
+      subscribe: () => () => {},
+    });
+    expect(getConfig).not.toHaveBeenCalled();
+
+    expect((handle.getClient() as AnyClient).thread.getState()).toEqual({
+      selected: 0,
+    });
+    expect(getConfig).toHaveBeenCalled();
+    expect(counters.mounts).toBe(0);
+
+    handle.subscribe(() => {});
+    expect(counters.mounts).toBeGreaterThan(0);
+
+    handle.destroy();
+  });
+
+  it("throws on state updates before the first subscriber", () => {
+    const handle = createTestClient({ thread: ThreadClient() });
+    const aui = handle.getClient();
+
+    expect(() => aui.thread.setSelected(1)).toThrow(
+      "Resource updated before mount",
+    );
+
+    handle.destroy();
+  });
+
+  it("soft unmounts after the last unsubscribe and remounts preserving state", async () => {
+    const { TrackedThread, counters } = createTrackedThread();
+    const handle = createTestClient({ thread: TrackedThread() });
+
+    const release = handle.subscribe(() => {});
+    flushTapSync(() => handle.getClient().thread.setSelected(3));
+
+    const mounted = counters.cleanups;
+    release();
+    expect(counters.cleanups).toBe(mounted);
+    await vi.waitFor(() => expect(counters.cleanups).toBeGreaterThan(mounted));
+
+    const remounted = counters.mounts;
+    handle.subscribe(() => {});
+    expect(counters.mounts).toBeGreaterThan(remounted);
+    expect(handle.getClient().thread.getState()).toEqual({ selected: 3 });
+
+    handle.destroy();
+  });
+
+  it("absorbs an unsubscribe and resubscribe within the same tick", async () => {
+    const { TrackedThread, counters } = createTrackedThread();
+    const handle = createTestClient({ thread: TrackedThread() });
+
+    const release = handle.subscribe(() => {});
+    const mounted = counters.cleanups;
+
+    release();
+    handle.subscribe(() => {});
+    await flushEvents();
+    await flushEvents();
+    expect(counters.cleanups).toBe(mounted);
+
+    handle.destroy();
+  });
+
+  it("mounts a parent handle through the child's subscription", () => {
+    const { TrackedThread, counters } = createTrackedThread();
+    const parent = createTestClient({
+      thread: ThreadClient(),
+      tracked: TrackedThread(),
+    });
+    const child = createTestClient(
+      { message: messageDerived() },
+      { parent: parent as never },
+    );
+    expect(counters.mounts).toBe(0);
+
+    const release = child.subscribe(() => {});
+    expect(counters.mounts).toBeGreaterThan(0);
+    expect(child.getClient().message.getState().id).toBe("m0");
+
+    release();
+    child.destroy();
+    parent.destroy();
+  });
+
+  it("subscribing after destroy is inert", () => {
+    const handle = createTestClient({ thread: ThreadClient() });
+    handle.subscribe(() => {});
+    handle.destroy();
+    handle.destroy();
+
+    const listener = vi.fn();
+    const release = handle.subscribe(listener);
+    release();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it("completes a destroy issued from the first mount notification", () => {
+    const { TrackedThread, counters } = createTrackedThread();
+    const useMountPinger = () => {
+      const [, setTick] = useState(0);
+      useEffect(() => {
+        setTick(1);
+      }, []);
+      return { getState: () => ({}) };
+    };
+    const MountPinger = resource(useMountPinger);
+    const handle = createTestClient({
+      thread: TrackedThread(),
+      pinger: MountPinger(),
+    });
+
+    handle.subscribe(() => handle.destroy());
+    expect(counters.mounts).toBeGreaterThan(0);
+    expect(counters.cleanups).toBe(counters.mounts);
+
+    const listener = vi.fn();
+    handle.subscribe(listener);
+    expect(listener).not.toHaveBeenCalled();
   });
 });

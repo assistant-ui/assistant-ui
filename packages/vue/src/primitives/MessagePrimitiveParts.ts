@@ -1,6 +1,6 @@
 import { defineComponent, h, type SlotsType } from "vue";
 import type {} from "@assistant-ui/core/store";
-import { isDevelopment } from "../isDevelopment";
+import { isDevelopment } from "@assistant-ui/core/store/internal";
 import { useAuiState } from "../useAuiState";
 import { PartByIndexProvider } from "./PartByIndexProvider";
 

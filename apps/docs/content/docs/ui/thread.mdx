@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { ThreadSample } from "@/components/docs/samples/thread";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { ThreadBranchSample } from "@/components/docs/samples/thread/branching-response";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
 attachments, and conditional UI states. Fully customizable and composable.
@@ -151,6 +153,17 @@ const SuggestionItem = () => (
   </SuggestionPrimitive.Trigger>
 );
 ```
+
+### Branching Response
+
+Select the refresh action below the assistant response to make an alternate branch. The built-in branch picker then shows `2 / 2` with arrows that switch between the two branches.
+
+<PreviewCode
+  file="components/docs/samples/thread/branching-response"
+  name="Chat"
+>
+  <ThreadBranchSample />
+</PreviewCode>
 
 ## Component Overrides
 

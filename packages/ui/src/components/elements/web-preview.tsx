@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { ExternalLinkIcon, RotateCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { field, ghostButton, mono, paper } from "./surfaces";
+import { field, ghostButton, mono, paper, ShimmerLabel } from "./surfaces";
 
 /**
  * Chrome around a preview: a URL bar, reload, and open-in-new. It renders
@@ -87,15 +87,9 @@ export function WebPreview({
         </div>
         {loading && (
           <div className="absolute inset-0 flex items-center justify-center">
-            <span className="text-foreground/40 relative inline-block text-xs leading-none">
-              <span>Loading preview</span>
-              <span
-                aria-hidden
-                className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-              >
-                Loading preview
-              </span>
-            </span>
+            <ShimmerLabel className="text-foreground/40 relative inline-block text-xs leading-none">
+              Loading preview
+            </ShimmerLabel>
           </div>
         )}
       </div>

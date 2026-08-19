@@ -1,6 +1,8 @@
 # `@assistant-ui/react-ai-sdk`
 
-[Vercel AI SDK](https://sdk.vercel.ai) v6 integration for `@assistant-ui/react`. Wraps the AI SDK chat in an assistant-ui runtime and forwards system messages and frontend tools through `AssistantChatTransport`.
+This package re-exports [`@assistant-ui/ai-sdk`](https://www.npmjs.com/package/@assistant-ui/ai-sdk), the framework-neutral home of the assistant-ui integration for the Vercel AI SDK. Existing imports keep working unchanged; new code should depend on `@assistant-ui/ai-sdk` directly.
+
+[Vercel AI SDK](https://sdk.vercel.ai) integration for `@assistant-ui/react`. Wraps the AI SDK chat in an assistant-ui runtime and forwards system messages and frontend tools through `AssistantChatTransport`. Each release line targets the AI SDK major pinned in its dependencies.
 
 ## Installation
 

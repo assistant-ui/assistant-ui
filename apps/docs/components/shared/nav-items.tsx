@@ -56,6 +56,7 @@ function DropdownLink({ link }: { link: DropdownItem }) {
 export function NavItemsRoot({ children }: { children: ReactNode }) {
   const [value, setValue] = useState<string | null>(null);
   const rootRef = useRef<HTMLElement>(null);
+  const open = value !== null;
 
   return (
     <NavigationMenu
@@ -63,13 +64,18 @@ export function NavItemsRoot({ children }: { children: ReactNode }) {
       value={value}
       onValueChange={(next) => setValue(next as string | null)}
       delay={100}
-      data-menu-open={value !== null}
+      data-menu-open={open}
       className="group relative w-full"
     >
+      <div
+        aria-hidden
+        className={cn(
+          "bg-background/70 pointer-events-none fixed inset-0 transition-opacity duration-200",
+          open ? "opacity-100" : "opacity-0",
+        )}
+      />
       {children}
       <NavigationMenuPortal>
-        {/* Anchored to the root rather than the active trigger, so the panel
-            spans the header edge to edge the way the backdrop behind it does. */}
         <NavigationMenuPositioner
           anchor={rootRef}
           side="bottom"
@@ -78,7 +84,7 @@ export function NavItemsRoot({ children }: { children: ReactNode }) {
           collisionAvoidance={{ side: "none", align: "none" }}
           className="z-[60] hidden w-[var(--anchor-width)] md:block"
         >
-          <NavigationMenuPopup className="bg-background border-border/60 h-[var(--popup-height)] w-full overflow-hidden border-b transition-[height,opacity] duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none">
+          <NavigationMenuPopup className="bg-background h-[var(--popup-height)] w-full overflow-hidden transition-[height,opacity] duration-200 data-[ending-style]:opacity-0 data-[starting-style]:opacity-0 motion-reduce:transition-none">
             <NavigationMenuViewport />
           </NavigationMenuPopup>
         </NavigationMenuPositioner>
@@ -91,11 +97,12 @@ export function NavItems({
   items,
   className,
   contentClassName,
+  menuAlign = "spread",
 }: {
   items: NavItem[];
   className?: string;
-  /** Container of the dropdown body. Match the host header's own container so the panel lines up with it. */
   contentClassName?: string;
+  menuAlign?: "spread" | "end";
 }) {
   // Headers render this list twice for responsive breakpoints. Both stay
   // mounted, so item values must not collide or every copy opens at once.
@@ -134,10 +141,27 @@ export function NavItems({
               <ChevronDown className="size-3 opacity-60 transition-[rotate] duration-200 group-data-[popup-open]/trigger:rotate-180 motion-reduce:transition-none" />
             </NavigationMenuTrigger>
             <NavigationMenuContent className="w-full">
-              <div className={cn("w-full px-4 py-8", contentClassName)}>
-                <div className="grid grid-cols-4 gap-x-6 lg:gap-x-8">
+              <div
+                className={cn(
+                  "w-full px-4 py-8",
+                  menuAlign === "end" && "flex justify-end",
+                  contentClassName,
+                )}
+              >
+                <div
+                  className={cn(
+                    "grid grid-cols-4",
+                    menuAlign === "end" ? "gap-x-12" : "gap-x-6 lg:gap-x-8",
+                  )}
+                >
                   {item.groups.map((group) => (
-                    <div key={group.label} className="flex flex-col gap-1">
+                    <div
+                      key={group.label}
+                      className={cn(
+                        "flex flex-col gap-1",
+                        menuAlign === "end" && "w-48",
+                      )}
+                    >
                       <span className="text-muted-foreground px-2 pb-2 text-xs font-medium">
                         {group.label}
                       </span>

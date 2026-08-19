@@ -51,8 +51,8 @@ type TeamsConversionWarning = {
 
 | Component | Adaptive Card output | Fidelity |
 |---|---|---|
-| `Header` | `TextBlock` with heading style | Faithful |
-| `Text` | `TextBlock` | Six text sizes collapse to four, four weights to bold or not, and every non-default color to `isSubtle` |
+| `Header` | `TextBlock` with heading style | `size` is ignored; the heading always emits `large` |
+| `Text` | `TextBlock` | Six text sizes collapse to five rendered sizes, four weights to bold or not, and the five subtle color tokens to `isSubtle` while `emphasis` is dropped |
 | `Markdown` | `TextBlock`, passed through verbatim | Teams renders [a markdown subset](https://learn.microsoft.com/en-us/microsoftteams/platform/task-modules-and-cards/cards/cards-format); headings, tables, images, and blockquotes render literally |
 | `Caption`, `Badge` | Small subtle `TextBlock` | The two become identical output |
 | `Image` | `Image` | A numeric `size` is dropped with a warning; `round` is dropped silently |
@@ -77,6 +77,10 @@ type TeamsConversionWarning = {
 | `Chart` | Replaced by a subtle note | Always warns |
 | `Icon` | Dropped | Silently |
 
+`Text`'s size collapse is narrower than it looks: `sm`, `lg`, `xl`, `2xl`, and `3xl` map to `small`, `medium`, `large`, `extraLarge`, and `extraLarge`, while `md` emits no `size` at all and renders at the card's default. So six tokens reach five rendered sizes, and only `2xl` and `3xl` become indistinguishable. Color splits rather than collapses: `secondary`, `alpha-70`, `white`, `white-70`, and `white-50` all set `isSubtle: true`, while `emphasis` maps to nothing the converter emits and is dropped outright, so emphasized text renders identically to unstyled text.
+
+Presentation props the converter does not map are dropped silently, without a warning, because the node itself still renders. That covers `Box`'s `width`, `height`, `radius`, and `background`; `Card`'s `padding` and `background`; `gap` on `Row`, `Col`, and `Form`, `align` on `Row` and `Col`, and `justify` on `Row`; `Badge`'s `variant`; `Carousel`'s `label`; `Divider`'s `flush`; and `Button`'s `block`. `Card`'s `asForm` and `Button`'s `submit` are dropped for a different reason: every input on an Adaptive Card submits together, so a submit button and a click button both convert to the same `Action.Submit`, and a card marked `asForm` converts exactly like one that is not.
+
 ## Layout differences
 
 Two vocabulary components behave differently here than anywhere else, because Adaptive Cards models separation as a property of an element rather than as an element:
@@ -92,7 +96,7 @@ Two consolidations also apply, both run-based rather than global: consecutive `F
 
 Adaptive Cards merges every input's current value into one submit object keyed by the input's `id`, which has two consequences worth knowing.
 
-**Ids come from `name`.** Each control's `id` is its `name` prop, falling back to a per-type default. Two controls that share a name on the same card would collide, so the converter renames the later one and warns. The key `aui` is reserved for the action envelope; a control named `aui` is renamed too.
+**Ids come from `name`.** Each control's `id` is its `name` prop, falling back to a per-type default (`"select"`, `"radiogroup"`, `"input"`, `"datepicker"`). `Checkbox` is the exception: it falls back to its `label` first and only then to `"checkbox"`, so an unnamed checkbox keys the submit object by its visible label. Two controls that share a name on the same card would collide, so the converter renames the later one and warns. The key `aui` is reserved for the action envelope; a control named `aui` is renamed too.
 
 **There is no change event.** Adaptive Cards has no way to dispatch when a control's value changes, so a standalone control carrying `$action` gets a companion "Submit" `ActionSet` appended, plus a `fallback` warning. Five such controls produce five separate submit buttons. The idiomatic shape is to put `$action` on a `Form` or a `Card` footer and leave the controls actionless, which yields one submit for the whole card.
 

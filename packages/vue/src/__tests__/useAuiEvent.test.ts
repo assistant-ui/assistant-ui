@@ -1,5 +1,12 @@
-import { describe, expect, it, vi } from "vitest";
-import { createApp, defineComponent, h, type Component } from "vue";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  computed,
+  createApp,
+  defineComponent,
+  h,
+  ref,
+  type Component,
+} from "vue";
 import { flushTapSync } from "@assistant-ui/tap";
 import { AuiConfig } from "@assistant-ui/store/client";
 import { AuiProvider } from "../AuiProvider";
@@ -39,6 +46,10 @@ const mountWithProvider = (setup: () => void) => {
 };
 
 describe("useAuiEvent", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("delivers scope-filtered events on a microtask", async () => {
     let aui!: AnyClient;
     const cb = vi.fn();
@@ -90,5 +101,59 @@ describe("useAuiEvent", () => {
     flushTapSync(() => aui.thread.message({ index: 0 }).ping("late"));
     await flushEvents();
     expect(cb).not.toHaveBeenCalled();
+  });
+  it("binds once its scope appears in a live config, without detaching", async () => {
+    let aui!: AnyClient;
+    const cb = vi.fn();
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    const present = ref(false);
+    const Probe = defineComponent({
+      setup() {
+        aui = useAui() as AnyClient;
+        useAuiEvent("message.pinged" as never, cb as never);
+        return () => null;
+      },
+    });
+    const app = createApp(
+      defineComponent({
+        setup: () => {
+          const config = computed(() =>
+            present.value
+              ? (AuiConfig({
+                  thread: ThreadClient(),
+                  message: messageDerived(),
+                } as never) as never)
+              : (AuiConfig({ thread: ThreadClient() } as never) as never),
+          );
+          return () =>
+            h(
+              AuiProvider,
+              { config: config.value },
+              { default: () => h(Probe) },
+            );
+        },
+      }) as Component,
+    );
+    app.mount(document.createElement("div"));
+
+    try {
+      expect(warnSpy).toHaveBeenCalled();
+      expect(cb).not.toHaveBeenCalled();
+
+      present.value = true;
+      await vi.waitFor(() =>
+        expect((aui.message as AnyClient).getState().id).toBe("m0"),
+      );
+
+      flushTapSync(() => aui.message.ping("hello"));
+      await flushEvents();
+      expect(cb).toHaveBeenCalledWith({ id: "m0", value: "hello" });
+      expect(errorSpy).not.toHaveBeenCalled();
+    } finally {
+      warnSpy.mockRestore();
+      errorSpy.mockRestore();
+      app.unmount();
+    }
   });
 });

@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useMemo } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import { abortableIterable, whenAborted } from "./abortableIterable";
@@ -179,12 +179,7 @@ const DEFAULT_APPEND_MESSAGE = <TMessage>(
   curr: TMessage,
 ) => curr;
 
-export const useLangGraphMessages = <TMessage extends { id?: string }>({
-  stream,
-  appendMessage = DEFAULT_APPEND_MESSAGE,
-  eventHandlers,
-  uiStateKey = DEFAULT_UI_STATE_KEY,
-}: {
+type LangGraphMessagesOptions<TMessage> = {
   stream: LangGraphStreamCallback<TMessage>;
   appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
   /**
@@ -205,7 +200,25 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     onSubgraphError?: OnSubgraphErrorEventCallback;
     onCustomEvent?: OnCustomEventCallback;
   };
-}) => {
+};
+
+type LangGraphMessagesInternalOptions<TMessage> =
+  LangGraphMessagesOptions<TMessage> & {
+    onMessages?: (messages: TMessage[], runConfig: unknown) => void;
+    onInterrupt?: (
+      interrupt: LangGraphInterruptState | undefined,
+      runConfig: unknown,
+    ) => void;
+  };
+
+const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
+  stream,
+  appendMessage = DEFAULT_APPEND_MESSAGE,
+  onMessages,
+  onInterrupt,
+  eventHandlers,
+  uiStateKey = DEFAULT_UI_STATE_KEY,
+}: LangGraphMessagesInternalOptions<TMessage>) => {
   const interruptRef = useRef<LangGraphInterruptState | undefined>(undefined);
   const [interrupt, setInterrupt] = useState<
     LangGraphInterruptState | undefined
@@ -315,6 +328,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
           switch (eventType) {
             case LangGraphKnownEventTypes.MessagesPartial:
             case LangGraphKnownEventTypes.MessagesComplete:
+              onMessages?.(chunk.data, config.runConfig);
               setMessagesImmediate(accumulator.addMessages(chunk.data));
               break;
             case LangGraphKnownEventTypes.Updates: {
@@ -332,11 +346,13 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                 chunk.data,
               );
               if (extracted.length > 0) {
+                onMessages?.(extracted, config.runConfig);
                 setMessagesImmediate(accumulator.addMessages(extracted));
               }
               // A subgraph update may set an interrupt but never clear one; the parent's top-level update clears it when the subgraph ends.
               const updateInterrupt = chunk.data.__interrupt__?.[0];
               if (!eventNamespace || updateInterrupt !== undefined) {
+                onInterrupt?.(updateInterrupt, config.runConfig);
                 setInterrupt(updateInterrupt);
               }
               break;
@@ -361,9 +377,11 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                     accumulator,
                   );
                   if (newMessages.length > 0) {
+                    onMessages?.(newMessages, config.runConfig);
                     setMessagesImmediate(accumulator.addMessages(newMessages));
                   }
                 } else {
+                  onMessages?.(chunk.data.messages, config.runConfig);
                   setMessagesImmediate(
                     accumulator.replaceMessages(chunk.data.messages),
                   );
@@ -421,6 +439,7 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
                   )
                 : accumulator.addMessages([normalizedMessage]);
 
+              onMessages?.([normalizedMessage], config.runConfig);
               setMessagesImmediate(updatedMessages);
               setMessageMetadata(new Map(accumulator.getMetadataMap()));
               break;
@@ -524,6 +543,8 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       appendMessage,
       stream,
       uiStateKey,
+      onMessages,
+      onInterrupt,
       onMessageChunk,
       onValues,
       onUpdates,
@@ -601,9 +622,10 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
       interruptAtLoadStart: LangGraphInterruptState | undefined,
     ) => {
       if (interruptRef.current !== interruptAtLoadStart) return;
+      if (serverInterrupt === undefined) onInterrupt?.(undefined, undefined);
       setInterrupt(serverInterrupt);
     },
-    [],
+    [onInterrupt],
   );
 
   const reconcileUIMessages = useCallback(
@@ -648,6 +670,8 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     }
   }, []);
 
+  useEffect(() => cancel, [cancel]);
+
   return {
     interrupt,
     values,
@@ -665,3 +689,34 @@ export const useLangGraphMessages = <TMessage extends { id?: string }>({
     reconcileInterrupt,
   };
 };
+
+export const useLangGraphMessages = <TMessage extends { id?: string }>({
+  stream,
+  appendMessage,
+  eventHandlers,
+  uiStateKey,
+}: {
+  stream: LangGraphStreamCallback<TMessage>;
+  appendMessage?: (prev: TMessage | undefined, curr: TMessage) => TMessage;
+  uiStateKey?: string;
+  eventHandlers?: {
+    onMessageChunk?: OnMessageChunkCallback;
+    onValues?: OnValuesEventCallback;
+    onUpdates?: OnUpdatesEventCallback;
+    onSubgraphValues?: OnSubgraphValuesEventCallback;
+    onSubgraphUpdates?: OnSubgraphUpdatesEventCallback;
+    onMetadata?: OnMetadataEventCallback;
+    onInfo?: OnInfoEventCallback;
+    onError?: OnErrorEventCallback;
+    onSubgraphError?: OnSubgraphErrorEventCallback;
+    onCustomEvent?: OnCustomEventCallback;
+  };
+}) =>
+  useLangGraphMessagesInternal({
+    stream,
+    ...(appendMessage !== undefined && { appendMessage }),
+    ...(eventHandlers !== undefined && { eventHandlers }),
+    ...(uiStateKey !== undefined && { uiStateKey }),
+  });
+
+export { useLangGraphMessagesInternal };

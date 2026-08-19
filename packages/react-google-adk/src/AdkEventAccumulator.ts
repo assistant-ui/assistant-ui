@@ -331,7 +331,8 @@ export class AdkEventAccumulator {
     if (event.author === "user") {
       this.finalizeCurrentMessage();
       const humanParts: AdkMessageContentPart[] = [];
-      for (const part of parts) {
+      const toolMessages: AdkMessage[] = [];
+      for (const [index, part] of parts.entries()) {
         if (part.text != null && !part.thought) {
           humanParts.push({ type: "text", text: part.text });
         } else if (part.inlineData) {
@@ -342,7 +343,29 @@ export class AdkEventAccumulator {
           humanParts.push(
             fileDataToPart(part.fileData.fileUri, part.fileData.mimeType),
           );
+        } else if (part.functionResponse?.id) {
+          // ADK records tool confirmation and other client-supplied tool
+          // results as user-authored function responses, and its request
+          // confirmation processors search user events for them. Dropping
+          // them here would replay a settled gate as pending. A response
+          // carrying no id answers no call: core drops it as an orphan, and
+          // keeping it would let it settle the batch it was grouped into.
+          toolMessages.push({
+            id: toolMessageId(event, index),
+            type: "tool",
+            tool_call_id: part.functionResponse.id,
+            name: part.functionResponse.name,
+            content: JSON.stringify(part.functionResponse.response),
+            status: "success",
+          });
         }
+      }
+      // The replies answer the preceding assistant turn, so they are emitted
+      // before any user content in the same event. A human message between the
+      // tool call and its reply splits them into separate converted messages,
+      // orphaning the reply and leaving its gate unsettled.
+      for (const toolMsg of toolMessages) {
+        this.messagesMap.set(toolMsg.id, toolMsg);
       }
       if (humanParts.length > 0) {
         const id = event.id ?? uuidv4();

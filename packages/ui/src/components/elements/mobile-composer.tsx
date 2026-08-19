@@ -47,7 +47,7 @@ export function MobileComposer({
     <div
       data-slot="mobile-composer"
       className={cn(
-        "bg-background border-foreground/[0.07] flex w-full max-w-[19rem] flex-col gap-2.5 rounded-t-[20px] border-t px-3 pt-3 shadow-[0_-8px_24px_-16px_rgba(0,0,0,0.25)]",
+        "bg-background border-foreground/[0.07] flex w-full max-w-[19rem] flex-col gap-2.5 rounded-t-[20px] border-t px-3 pt-3",
         keyboardOpen ? "pb-3" : "pb-6",
         className,
       )}

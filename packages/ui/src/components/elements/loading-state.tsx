@@ -2,6 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
+import { ShimmerLabel } from "./surfaces";
 
 export type GenerationLoaderVariant = "dots" | "squares" | "rounded";
 
@@ -52,15 +53,9 @@ export function GenerationLoader({
           );
         })}
       </div>
-      <span className="text-foreground/55 relative inline-block text-sm">
-        <span>{label}</span>
-        <span
-          aria-hidden
-          className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-        >
-          {label}
-        </span>
-      </span>
+      <ShimmerLabel className="text-foreground/55 relative inline-block text-sm">
+        {label}
+      </ShimmerLabel>
     </div>
   );
 }

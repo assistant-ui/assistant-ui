@@ -22,7 +22,7 @@ import { useCurrentPage } from "@/components/docs/contexts/current-page";
 import {
   getThreadMessageTokenUsage,
   type ThreadTokenUsage,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 import { getContextWindow } from "@/constants/model";
 import { Button } from "@/components/ui/button";
 import {

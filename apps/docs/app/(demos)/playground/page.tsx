@@ -136,18 +136,25 @@ function BuilderPlayground() {
     [viewportWidth, setViewportWidth],
   );
 
+  const toolBtn =
+    "flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs font-medium transition-colors";
+  const toolBtnOn = "bg-foreground/6 text-foreground";
+  const toolBtnOff = "text-foreground/45 hover:text-foreground/90";
+
   const content = (
-    <div className="bg-background flex h-full w-full gap-4 overflow-hidden p-2 md:p-4">
-      <div className="hidden w-72 shrink-0 overflow-hidden md:block lg:w-80">
-        <BuilderControls config={config} onChange={setConfig} />
+    <div className="flex h-full w-full overflow-hidden">
+      <div className="border-foreground/10 hidden w-72 shrink-0 overflow-hidden border-r md:block lg:w-80">
+        <div className="h-full overflow-y-auto px-4 py-4">
+          <BuilderControls config={config} onChange={setConfig} />
+        </div>
       </div>
 
       <div
         ref={containerRef}
-        className="bg-muted/30 relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border"
+        className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden"
       >
-        <div className="bg-background/50 flex shrink-0 items-center justify-between border-b px-2 py-2 md:px-3">
-          <div className="hidden items-center gap-1 md:flex">
+        <div className="border-foreground/10 flex h-12 shrink-0 items-center justify-between border-b px-4">
+          <div className="hidden items-center gap-0.5 md:flex">
             {(Object.keys(VIEWPORT_PRESETS) as ViewportPreset[]).map((key) => {
               const preset = VIEWPORT_PRESETS[key];
               const Icon = preset.icon;
@@ -157,10 +164,8 @@ function BuilderPlayground() {
                   key={key}
                   onClick={() => handlePresetChange(key)}
                   className={cn(
-                    "flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors",
-                    viewportPreset === key
-                      ? "bg-foreground/10 text-foreground"
-                      : "text-muted-foreground hover:text-foreground",
+                    toolBtn,
+                    viewportPreset === key ? toolBtnOn : toolBtnOff,
                   )}
                 >
                   <Icon className="size-3.5" />
@@ -168,9 +173,9 @@ function BuilderPlayground() {
                 </button>
               );
             })}
-            <code className="bg-muted text-muted-foreground ml-1.5 rounded-sm px-1.5 py-0.5 font-mono text-[11px] ring-1 ring-black/5 ring-inset dark:ring-white/10">
+            <span className="text-foreground/30 ml-1.5 font-mono text-[11px] tabular-nums">
               {viewportWidth === "100%" ? "100%" : `${viewportWidth}px`}
-            </code>
+            </span>
           </div>
 
           <Sheet open={controlsOpen} onOpenChange={setControlsOpen}>
@@ -201,26 +206,25 @@ function BuilderPlayground() {
             </SheetContent>
           </Sheet>
 
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-0.5">
             <ThreadListPrimitive.New
-              className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors"
+              className={cn(toolBtn, toolBtnOff)}
               aria-label="New thread"
             >
               <Plus className="size-3.5" />
               <span className="hidden sm:inline">New Thread</span>
             </ThreadListPrimitive.New>
 
-            <ShareButton />
+            <ShareButton className={toolBtn} />
 
             {isAiPlaygroundEnabled && (
               <button
                 type="button"
                 onClick={() => setShowChat(!showChat)}
                 className={cn(
-                  "hidden items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors md:flex",
-                  showChat
-                    ? "bg-foreground/10 text-foreground"
-                    : "text-muted-foreground hover:text-foreground",
+                  toolBtn,
+                  "hidden md:flex",
+                  showChat ? toolBtnOn : toolBtnOff,
                 )}
               >
                 <Sparkles className="size-3.5" />
@@ -234,7 +238,7 @@ function BuilderPlayground() {
                   render={
                     <button
                       type="button"
-                      className="text-muted-foreground hover:text-foreground flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors md:hidden"
+                      className={cn(toolBtn, toolBtnOff, "md:hidden")}
                       aria-label="Open AI chat"
                     >
                       <Sparkles className="size-3.5" />
@@ -256,12 +260,7 @@ function BuilderPlayground() {
             <button
               type="button"
               onClick={() => setShowCode(!showCode)}
-              className={cn(
-                "flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
-                showCode
-                  ? "bg-foreground/10 text-foreground"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
+              className={cn(toolBtn, showCode ? toolBtnOn : toolBtnOff)}
             >
               {showCode ? (
                 <>
@@ -281,7 +280,7 @@ function BuilderPlayground() {
               container={previewContainerRef}
               onOpenCodeView={() => setShowCode(true)}
             >
-              <Button type="button" size="sm">
+              <Button type="button" variant="outline" size="sm">
                 <SquareTerminal className="size-3.5" />
                 <span className="hidden sm:inline">Create Project</span>
               </Button>
@@ -291,20 +290,28 @@ function BuilderPlayground() {
 
         <div
           ref={previewContainerRef}
-          className="relative min-h-0 flex-1 overflow-hidden"
+          className={cn(
+            "relative min-h-0 flex-1 overflow-hidden",
+            viewportWidth !== "100%" && "bg-foreground/[0.025] px-4 py-4",
+          )}
         >
-          <div className="flex h-full items-stretch justify-center p-2 md:p-4">
+          <div className="flex h-full items-stretch justify-center">
             {viewportWidth !== "100%" && (
               <div
                 onMouseDown={(e) => handleResizeStart(e, "left")}
                 className="group hidden w-4 shrink-0 cursor-ew-resize items-center justify-center md:flex"
               >
-                <div className="bg-border group-hover:bg-foreground/30 h-12 w-1 rounded-full transition-colors" />
+                <div className="bg-foreground/15 group-hover:bg-foreground/30 h-12 w-px transition-colors" />
               </div>
             )}
 
             <div
-              className="bg-background relative h-full overflow-hidden rounded-lg border shadow-sm max-md:!w-full"
+              className={cn(
+                "bg-background relative h-full overflow-hidden max-md:!w-full",
+                viewportWidth === "100%"
+                  ? "w-full"
+                  : "border-foreground/10 rounded-[20px] border",
+              )}
               style={{
                 width: viewportWidth === "100%" ? "100%" : viewportWidth,
                 maxWidth: "100%",
@@ -316,18 +323,16 @@ function BuilderPlayground() {
                 aiRunning &&
                 !showCode &&
                 !mobileSheetOpen && (
-                  <div className="bg-background/90 absolute inset-0 z-4 flex items-center justify-center backdrop-blur-[2px]">
-                    <div className="bg-background ring-border flex items-center gap-2 rounded-lg px-4 py-2.5 shadow-lg ring-1">
-                      <Loader2 className="text-muted-foreground size-4 animate-spin" />
-                      <span className="text-muted-foreground text-sm font-medium">
-                        Applying changes
-                      </span>
+                  <div className="bg-background/80 absolute inset-0 z-4 flex items-center justify-center backdrop-blur-md">
+                    <div className="text-foreground/55 flex items-center gap-2 text-sm">
+                      <Loader2 className="size-4 animate-spin" />
+                      Applying changes
                     </div>
                   </div>
                 )}
 
               {showCode && (
-                <div className="bg-card absolute inset-0 z-5 overflow-hidden">
+                <div className="bg-background absolute inset-0 z-5 overflow-hidden">
                   <BuilderCodeOutput config={config} />
                 </div>
               )}
@@ -338,7 +343,7 @@ function BuilderPlayground() {
                 onMouseDown={(e) => handleResizeStart(e, "right")}
                 className="group hidden w-4 shrink-0 cursor-ew-resize items-center justify-center md:flex"
               >
-                <div className="bg-border group-hover:bg-foreground/30 h-12 w-1 rounded-full transition-colors" />
+                <div className="bg-foreground/15 group-hover:bg-foreground/30 h-12 w-px transition-colors" />
               </div>
             )}
           </div>
@@ -346,13 +351,13 @@ function BuilderPlayground() {
       </div>
 
       {isAiPlaygroundEnabled && showChat && (
-        <div className="bg-background hidden h-full shrink-0 flex-col overflow-hidden rounded-xl border md:flex md:w-80">
-          <div className="flex items-center justify-between border-b px-3 py-2">
+        <div className="border-foreground/10 hidden h-full w-80 shrink-0 flex-col overflow-hidden border-l md:flex">
+          <div className="border-foreground/10 flex h-12 items-center justify-between border-b px-4">
             <span className="text-sm font-medium">AI Assistant</span>
             <button
               type="button"
               onClick={() => setShowChat(false)}
-              className="text-muted-foreground hover:text-foreground rounded-md p-1 transition-colors"
+              className="text-foreground/45 hover:text-foreground/90 flex size-8 items-center justify-center transition-colors"
               aria-label="Close chat"
             >
               <XIcon className="size-4" />
@@ -407,15 +412,15 @@ export default function PlaygroundPage() {
     <>
       {isAiPlaygroundEnabled && (
         <HeaderPortal>
-          <div className="bg-muted/40 grid grid-cols-2 rounded-md border p-0.5 text-xs">
+          <div className="bg-muted/70 grid grid-cols-2 rounded-lg p-1 text-xs">
             <button
               type="button"
               onClick={() => handleModeChange("agent")}
               className={cn(
-                "rounded px-2.5 py-1 font-medium transition-colors",
+                "rounded-sm px-2.5 py-1 font-medium transition-colors",
                 mode === "agent"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "bg-background text-foreground"
+                  : "text-foreground/45 hover:text-foreground/90",
               )}
             >
               AI Builder
@@ -424,10 +429,10 @@ export default function PlaygroundPage() {
               type="button"
               onClick={() => handleModeChange("builder")}
               className={cn(
-                "rounded px-2.5 py-1 font-medium transition-colors",
+                "rounded-sm px-2.5 py-1 font-medium transition-colors",
                 mode === "builder"
-                  ? "bg-background text-foreground shadow-sm"
-                  : "text-muted-foreground hover:text-foreground",
+                  ? "bg-background text-foreground"
+                  : "text-foreground/45 hover:text-foreground/90",
               )}
             >
               UI Builder

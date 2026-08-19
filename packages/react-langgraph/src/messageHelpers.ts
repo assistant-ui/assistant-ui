@@ -4,12 +4,37 @@ import {
 } from "@assistant-ui/core";
 import type { LangChainMessage, LangChainToolCall, UIMessage } from "./types";
 
-export const getPendingToolCalls = (messages: LangChainMessage[]) => {
-  const pendingToolCalls = new Map<string, LangChainToolCall>();
+export type PendingToolCallGroup = {
+  key: string;
+  toolCalls: LangChainToolCall[];
+};
+
+export const pendingToolCallGroupKey = (
+  message: Extract<LangChainMessage, { type: "ai" }>,
+): string | undefined => {
+  if (message.id !== undefined) return `message:${message.id}`;
+  const firstToolCallId = message.tool_calls?.[0]?.id;
+  if (firstToolCallId !== undefined) return `tool:${firstToolCallId}`;
+  return undefined;
+};
+
+export const getPendingToolCallGroups = (
+  messages: LangChainMessage[],
+  resolveGroupKey: (
+    message: Extract<LangChainMessage, { type: "ai" }>,
+  ) => string | undefined = pendingToolCallGroupKey,
+): PendingToolCallGroup[] => {
+  const pendingToolCalls = new Map<
+    string,
+    { toolCall: LangChainToolCall; groupKey: string }
+  >();
   for (const message of messages) {
     if (message.type === "ai") {
+      const groupKey =
+        resolveGroupKey(message) ?? pendingToolCallGroupKey(message);
+      if (!groupKey) continue;
       for (const toolCall of message.tool_calls ?? []) {
-        pendingToolCalls.set(toolCall.id, toolCall);
+        pendingToolCalls.set(toolCall.id, { toolCall, groupKey });
       }
     }
     if (message.type === "tool") {
@@ -17,8 +42,17 @@ export const getPendingToolCalls = (messages: LangChainMessage[]) => {
     }
   }
 
-  return [...pendingToolCalls.values()];
+  const groups = new Map<string, LangChainToolCall[]>();
+  for (const { toolCall, groupKey } of pendingToolCalls.values()) {
+    const group = groups.get(groupKey);
+    if (group) group.push(toolCall);
+    else groups.set(groupKey, [toolCall]);
+  }
+  return [...groups].map(([key, toolCalls]) => ({ key, toolCalls }));
 };
+
+export const getPendingToolCalls = (messages: LangChainMessage[]) =>
+  getPendingToolCallGroups(messages).flatMap((group) => group.toolCalls);
 
 export const hasToolResult = (
   messages: LangChainMessage[],

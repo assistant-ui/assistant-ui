@@ -26,6 +26,7 @@ export const ActionBarCopy = ({
     <Pressable
       onPress={copy}
       disabled={disabledProp ?? disabled}
+      accessibilityRole="button"
       {...pressableProps}
     >
       {typeof children === "function" ? children({ isCopied }) : children}

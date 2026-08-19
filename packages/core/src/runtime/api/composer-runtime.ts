@@ -42,6 +42,11 @@ export type {
 };
 
 type BaseComposerState = {
+  /**
+   * Whether the composer can cancel the current run. `true` when the runtime
+   * supports cancel and a run is in flight, not merely when cancel is a
+   * capability.
+   */
   readonly canCancel: boolean;
   readonly canSend: boolean;
   readonly isEditing: boolean;

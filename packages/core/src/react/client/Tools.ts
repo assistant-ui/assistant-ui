@@ -9,6 +9,7 @@ import type { ClientOutput } from "@assistant-ui/store";
 import {
   attachTransformScopes,
   useAssistantClientRef,
+  useAssistantScopeEffect,
 } from "@assistant-ui/store/client";
 import type { McpAppResourceOutput, ToolsState } from "../types/scopes/tools";
 import type { Tool } from "assistant-stream";
@@ -109,38 +110,44 @@ const useTools = ({
       }
     }
 
-    // Register tools with model context (exclude symbols). `render`,
-    // `renderText`, and `display` are client-only presentation concerns and
-    // never reach the model.
-    const toolsWithoutRender = Object.entries(toolkit).reduce(
-      (acc, [name, tool]) => {
-        if (tool.type === "mcp") return acc;
-        const {
-          display: _display,
-          render: _render,
-          renderText: _renderText,
-          ...rest
-        } = tool as typeof tool & { renderText?: unknown };
-        acc[name] = rest as Tool<any, any>;
-        return acc;
-      },
-      {} as Record<string, Tool<any, any>>,
-    );
-
-    const modelContextProvider = {
-      getModelContext: () => ({
-        tools: toolsWithoutRender,
-      }),
-    };
-
-    unsubscribes.push(
-      clientRef.current!.modelContext().register(modelContextProvider),
-    );
-
     return () => {
       unsubscribes.forEach((fn) => fn());
     };
-  }, [toolkit, setToolUI, clientRef]);
+  }, [toolkit, setToolUI]);
+
+  useAssistantScopeEffect(
+    "modelContext",
+    () => {
+      if (!toolkit) return;
+
+      // Register tools with model context (exclude symbols). `render`,
+      // `renderText`, and `display` are client-only presentation concerns and
+      // never reach the model.
+      const toolsWithoutRender = Object.entries(toolkit).reduce(
+        (acc, [name, tool]) => {
+          if (tool.type === "mcp") return acc;
+          const {
+            display: _display,
+            render: _render,
+            renderText: _renderText,
+            ...rest
+          } = tool as typeof tool & { renderText?: unknown };
+          acc[name] = rest as Tool<any, any>;
+          return acc;
+        },
+        {} as Record<string, Tool<any, any>>,
+      );
+
+      const modelContextProvider = {
+        getModelContext: () => ({
+          tools: toolsWithoutRender,
+        }),
+      };
+
+      return clientRef.current!.modelContext().register(modelContextProvider);
+    },
+    [toolkit],
+  );
 
   return {
     getState: () => state,

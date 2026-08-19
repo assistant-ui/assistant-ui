@@ -20,7 +20,7 @@ export function ComposerTriggerPopoverSample() {
           <AtSignIcon className="size-3.5" />
           Mention — directive behavior
         </span>
-        <div className="bg-popover text-popover-foreground w-64 overflow-hidden rounded-xl border shadow-lg">
+        <div className="bg-popover text-popover-foreground w-64 overflow-hidden rounded-xl border">
           <div className="flex flex-col py-1">
             <button
               type="button"
@@ -52,7 +52,7 @@ export function ComposerTriggerPopoverSample() {
           <SlashIcon className="size-3.5" />
           Slash — action behavior
         </span>
-        <div className="bg-popover text-popover-foreground w-64 overflow-hidden rounded-xl border shadow-lg">
+        <div className="bg-popover text-popover-foreground w-64 overflow-hidden rounded-xl border">
           <div className="flex flex-col">
             <div className="text-muted-foreground flex items-center gap-1.5 border-b px-3 py-2 text-xs tracking-wide uppercase">
               <ChevronLeftIcon className="size-3.5" />

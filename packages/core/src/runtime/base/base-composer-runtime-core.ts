@@ -240,6 +240,8 @@ export abstract class BaseComposerRuntimeCore
     const originalAttachments = this.attachments;
     const text = this.text;
     const quote = this._quote;
+    const role = this.role;
+    const runConfig = this.runConfig;
     this._quote = undefined;
     this._text = "";
     this._isSending = true;
@@ -291,10 +293,10 @@ export abstract class BaseComposerRuntimeCore
 
     const message: Omit<AppendMessage, "parentId" | "sourceId"> = {
       createdAt: new Date(),
-      role: this.role,
+      role,
       content: text ? [{ type: "text", text }] : [],
       attachments: finalAttachments,
-      runConfig: this.runConfig,
+      runConfig,
       metadata: { custom: { ...(quote ? { quote } : {}) } },
     };
 
@@ -339,6 +341,34 @@ export abstract class BaseComposerRuntimeCore
     this._attachments = draft.attachments ?? [];
     this._notifySubscribers();
     return true;
+  }
+
+  /**
+   * Inverse of `restoreDraft`: clears the composer while it still holds
+   * exactly the given draft. A draft the user has edited since is left
+   * untouched.
+   */
+  public retractDraft(draft: {
+    text: string;
+    quote?: QuoteInfo | undefined;
+    attachments?: readonly Attachment[] | undefined;
+  }): void {
+    const attachmentsUntouched =
+      draft.attachments !== undefined
+        ? this._attachments === draft.attachments
+        : this._attachments.length === 0;
+    if (
+      this._text !== draft.text ||
+      this._quote !== draft.quote ||
+      !attachmentsUntouched
+    )
+      return;
+
+    this._text = "";
+    this._rebaseDictation("");
+    this._quote = undefined;
+    this._attachments = [];
+    this._notifySubscribers();
   }
 
   // The generation check is what a reset and a later send use to invalidate a
@@ -690,9 +720,8 @@ export abstract class BaseComposerRuntimeCore
 
     const session = this._dictationSession;
     const sessionId = this._activeDictationSessionId;
-    session.stop().finally(() => {
-      this._cleanupDictation({ sessionId });
-    });
+    const cleanup = () => this._cleanupDictation({ sessionId });
+    void session.stop().then(cleanup, cleanup);
   }
 
   private _cleanupDictation(options?: { sessionId: number | undefined }): void {

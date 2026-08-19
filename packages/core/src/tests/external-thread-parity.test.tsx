@@ -305,6 +305,8 @@ describe("ExternalThread composer", () => {
     expect(notifyCancelled.mock.invocationCallOrder[0]!).toBeLessThan(
       onCancel.mock.invocationCallOrder[0]!,
     );
+    expect(aui().thread.getState().capabilities.cancel).toBe(true);
+    expect(aui().thread.composer().getState().canCancel).toBe(true);
   });
 
   it("leaves the queue alone when the host cannot cancel", async () => {
@@ -327,6 +329,8 @@ describe("ExternalThread composer", () => {
     aui().thread.cancelRun();
 
     expect(notifyCancelled).not.toHaveBeenCalled();
+    expect(aui().thread.getState().capabilities.cancel).toBe(false);
+    expect(aui().thread.composer().getState().canCancel).toBe(false);
   });
 
   it("routes edit-composer sends to onEdit with sourceId, bypassing the queue", async () => {

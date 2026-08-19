@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from "react";
-import { useState } from "react";
+import { Suspense, startTransition, useLayoutEffect, useState } from "react";
 import { act, cleanup, render, renderHook } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource } from "@assistant-ui/tap";
 import { AuiProvider } from "../AuiProvider";
+import { AuiConfig } from "../AuiConfig";
 import { useAui } from "../useAui";
 import { useAuiEvent } from "../useAuiEvent";
 import { useAuiState } from "../useAuiState";
@@ -138,6 +139,33 @@ describe("scope-filtered on", () => {
     expect(() => getAui().on("composer.pinged" as never, vi.fn())).toThrow(
       'Scope "composer" is not available',
     );
+  });
+
+  it("on forwards to a hand-built parent when the scope is absent from the chain", () => {
+    const parentUnsub = vi.fn();
+    const parentOn = vi.fn(() => parentUnsub);
+    const handBuilt = {
+      subscribe: () => () => {},
+      on: parentOn,
+    };
+
+    let child!: AnyClient;
+    const Child = () => {
+      child = useAui({ thread: ThreadClient() } as unknown as useAui.Props);
+      return null;
+    };
+    render(
+      <AuiProvider value={handBuilt as never}>
+        <Child />
+      </AuiProvider>,
+    );
+
+    const cb = vi.fn();
+    const unsub = child.on("composer.pinged", cb);
+    expect(parentOn).toHaveBeenCalledExactlyOnceWith("composer.pinged", cb);
+
+    unsub();
+    expect(parentUnsub).toHaveBeenCalledOnce();
   });
 
   it("scoped listeners follow the scope's binding at delivery time", async () => {
@@ -366,6 +394,121 @@ describe("microtask delivery (live-set semantics)", () => {
 });
 
 describe("Derived scopes", () => {
+  it("delivers a layout-effect event after a derived rebind", () => {
+    const cb = vi.fn();
+    const queued: VoidFunction[] = [];
+    const queueMicrotaskSpy = vi
+      .spyOn(globalThis, "queueMicrotask")
+      .mockImplementation((callback) => queued.push(callback));
+
+    const Consumer = ({ index }: { index: number }) => {
+      const client = useAui();
+      const message = client.message as AnyClient;
+      useAuiEvent("message.pinged" as never, cb as never);
+      useLayoutEffect(() => {
+        if (index === 1 && message.getState().id === "m1") {
+          message.ping("layout");
+          for (const callback of queued.splice(0)) callback();
+        }
+      }, [index, message]);
+      return null;
+    };
+    const Harness = ({ index }: { index: number }) => {
+      return (
+        <AuiProvider
+          config={AuiConfig({
+            thread: ThreadClient(),
+            message: Derived({
+              source: "thread",
+              query: { index },
+              get: (root: AnyClient) => root.thread.message({ index }),
+            } as never),
+          } as never)}
+        >
+          <Consumer index={index} />
+        </AuiProvider>
+      );
+    };
+
+    try {
+      const view = render(<Harness index={0} />);
+      view.rerender(<Harness index={1} />);
+
+      expect(cb).toHaveBeenCalledExactlyOnceWith({
+        id: "m1",
+        value: "layout",
+      });
+    } finally {
+      queueMicrotaskSpy.mockRestore();
+    }
+  });
+
+  it("does not publish a speculative binding during an interrupted render", async () => {
+    let resolveGate!: () => void;
+    let gateOpen = false;
+    const gate = new Promise<void>((resolve) => {
+      resolveGate = resolve;
+    });
+    let setIndex!: (index: number) => void;
+    let committed!: AnyClient;
+    let attempted = false;
+    const cb = vi.fn();
+
+    const Consumer = ({ index }: { index: number }) => {
+      const client = useAui();
+      useAuiEvent("message.pinged" as never, cb as never);
+      useLayoutEffect(() => {
+        if (index === 0) committed = client;
+      }, [client, index]);
+      if (index === 1) {
+        attempted = true;
+        if (!gateOpen) throw gate;
+      }
+      return null;
+    };
+    const App = () => {
+      const [index, updateIndex] = useState(0);
+      setIndex = updateIndex;
+      return (
+        <Suspense fallback={null}>
+          <AuiProvider
+            config={AuiConfig({
+              thread: ThreadClient(),
+              message: Derived({
+                source: "thread",
+                query: { index },
+                get: (root: AnyClient) => root.thread.message({ index }),
+              } as never),
+            } as never)}
+          >
+            <Consumer index={index} />
+          </AuiProvider>
+        </Suspense>
+      );
+    };
+
+    render(<App />);
+    expect(committed.message.getState().id).toBe("m0");
+
+    act(() => {
+      startTransition(() => setIndex(1));
+    });
+    expect(attempted).toBe(true);
+
+    committed.thread.message({ index: 0 }).ping("committed");
+    await flushEvents();
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "m0",
+      value: "committed",
+    });
+
+    gateOpen = true;
+    await act(async () => {
+      resolveGate();
+      await gate;
+    });
+  });
+
   it("useAuiEvent tracks the derived selection across structural swaps", async () => {
     let aui!: AnyClient;
     const cb = vi.fn();
@@ -422,5 +565,212 @@ describe("Derived scopes", () => {
 
     act(() => flushTapSync(() => aui.thread.setSelected(1)));
     expect(result.current).toBe("");
+  });
+});
+
+describe("derived-only providers", () => {
+  const useAnchorClient = () => ({ getState: () => ({}) });
+  const AnchorClient = resource(useAnchorClient);
+
+  const messageByIndex = (index: number) =>
+    Derived({
+      source: "thread",
+      query: { index },
+      get: (aui: AnyClient) => aui.thread.message({ index }),
+    } as never);
+
+  const Listener = ({ cb }: { cb: (payload: unknown) => void }) => {
+    useAuiEvent("message.pinged" as never, cb as never);
+    return null;
+  };
+
+  const DerivedChild = ({
+    index,
+    children,
+    capture,
+  }: {
+    index: number;
+    children?: ReactNode;
+    capture?: (aui: AnyClient) => void;
+  }) => {
+    const aui = useAui({ message: messageByIndex(index) } as never);
+    capture?.(aui);
+    return <AuiProvider value={aui as never}>{children}</AuiProvider>;
+  };
+
+  const mountRoot = (
+    rootConfig: Record<string, unknown>,
+    children: ReactNode,
+  ) => {
+    let root!: AnyClient;
+    const Root = () => {
+      root = useAui(rootConfig as never);
+      return <AuiProvider value={root as never}>{children}</AuiProvider>;
+    };
+    render(<Root />);
+    return { root: () => root };
+  };
+
+  it("delivers the child binding's event when the parent lacks the scope", async () => {
+    const cb = vi.fn();
+    const { root } = mountRoot(
+      { thread: ThreadClient() },
+      <DerivedChild index={1}>
+        <Listener cb={cb} />
+      </DerivedChild>,
+    );
+
+    root().thread.message({ index: 1 }).ping("hit");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "hit" });
+  });
+
+  it("filters both directions when the parent holds a different instance", async () => {
+    const cb = vi.fn();
+    const { root } = mountRoot(
+      { thread: ThreadClient(), message: messageByIndex(0) },
+      <DerivedChild index={1}>
+        <Listener cb={cb} />
+      </DerivedChild>,
+    );
+
+    root().thread.message({ index: 0 }).ping("parent");
+    await flushEvents();
+    expect(cb).not.toHaveBeenCalled();
+
+    root().thread.message({ index: 1 }).ping("child");
+    await flushEvents();
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "child" });
+  });
+
+  it("reaches the child listener through a scope-less intermediate host", async () => {
+    const cb = vi.fn();
+    let intermediate!: AnyClient;
+    const Intermediate = ({ children }: { children: ReactNode }) => {
+      intermediate = useAui({} as never);
+      return (
+        <AuiProvider value={intermediate as never}>{children}</AuiProvider>
+      );
+    };
+    const { root } = mountRoot(
+      { thread: ThreadClient() },
+      <Intermediate>
+        <DerivedChild index={1}>
+          <Listener cb={cb} />
+        </DerivedChild>
+      </Intermediate>,
+    );
+
+    root().thread.message({ index: 1 }).ping("deep");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "deep" });
+  });
+
+  it("follows the committed selection across a structural swap", async () => {
+    const cb = vi.fn();
+    let setIndex!: (index: number) => void;
+    const Swapping = () => {
+      const [index, updateIndex] = useState(0);
+      setIndex = updateIndex;
+      return (
+        <DerivedChild index={index}>
+          <Listener cb={cb} />
+        </DerivedChild>
+      );
+    };
+    const { root } = mountRoot({ thread: ThreadClient() }, <Swapping />);
+
+    act(() => setIndex(1));
+
+    root().thread.message({ index: 0 }).ping("stale");
+    await flushEvents();
+    expect(cb).not.toHaveBeenCalled();
+
+    root().thread.message({ index: 1 }).ping("fresh");
+    await flushEvents();
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "fresh" });
+  });
+
+  it("delivers to a hosted child inheriting the scope from a derived-only provider", async () => {
+    const cb = vi.fn();
+    const HostedChild = ({ children }: { children?: ReactNode }) => {
+      const aui = useAui({ anchor: AnchorClient() } as never);
+      return <AuiProvider value={aui as never}>{children}</AuiProvider>;
+    };
+    const { root } = mountRoot(
+      { thread: ThreadClient() },
+      <DerivedChild index={1}>
+        <HostedChild>
+          <Listener cb={cb} />
+        </HostedChild>
+      </DerivedChild>,
+    );
+
+    root().thread.message({ index: 1 }).ping("inherited");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "inherited",
+    });
+  });
+
+  it("routes a shadowing hosted descendant through the derived-only ancestor's binding", async () => {
+    const cb = vi.fn();
+    const ShadowingChild = ({ children }: { children?: ReactNode }) => {
+      const aui = useAui({
+        anchor: AnchorClient(),
+        message: messageByIndex(0),
+      } as never);
+      return <AuiProvider value={aui as never}>{children}</AuiProvider>;
+    };
+    const { root } = mountRoot(
+      { thread: ThreadClient() },
+      <DerivedChild index={1}>
+        <ShadowingChild>
+          <Listener cb={cb} />
+        </ShadowingChild>
+      </DerivedChild>,
+    );
+
+    // A forwarded subscription crossing a derived-only level filters with
+    // that level's ref above it, so the leaking ancestor is now the
+    // derived-only level (previously the root, and only when it bound the
+    // scope); the descendant's own shadowed binding stays unreachable above
+    // its own notification manager.
+    root().thread.message({ index: 0 }).ping("shadowed");
+    root().thread.message({ index: 1 }).ping("ancestor");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({
+      id: "m1",
+      value: "ancestor",
+    });
+  });
+
+  it("filters a direct aui.on subscription by the child binding", async () => {
+    const cb = vi.fn();
+    let child!: AnyClient;
+    const { root } = mountRoot(
+      { thread: ThreadClient(), message: messageByIndex(0) },
+      <DerivedChild
+        index={1}
+        capture={(aui) => {
+          child = aui;
+        }}
+      />,
+    );
+
+    act(() => {
+      child.on("message.pinged", cb);
+    });
+
+    root().thread.message({ index: 0 }).ping("parent");
+    root().thread.message({ index: 1 }).ping("child");
+    await flushEvents();
+
+    expect(cb).toHaveBeenCalledExactlyOnceWith({ id: "m1", value: "child" });
   });
 });

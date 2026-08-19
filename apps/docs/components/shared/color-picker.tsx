@@ -36,7 +36,7 @@ export function ColorPicker({
   return (
     <label className="relative cursor-pointer">
       <div
-        className="size-5 rounded-md shadow-sm ring-1 ring-black/10 ring-inset"
+        className="size-5 rounded-md ring-1 ring-black/10 ring-inset"
         style={{ backgroundColor: localValue }}
       />
       <input
@@ -87,7 +87,7 @@ export function OptionalThemeColorPicker({
       <label className="relative cursor-pointer">
         <div
           className={cn(
-            "size-5 rounded-md shadow-sm ring-1 ring-inset",
+            "size-5 rounded-md ring-1 ring-inset",
             isCustom ? "ring-black/10" : "opacity-50 ring-black/5",
           )}
           style={{ backgroundColor: displayValue.light }}
@@ -102,7 +102,7 @@ export function OptionalThemeColorPicker({
       <label className="relative cursor-pointer">
         <div
           className={cn(
-            "size-5 rounded-md shadow-sm ring-1 ring-inset",
+            "size-5 rounded-md ring-1 ring-inset",
             isCustom ? "ring-black/10" : "opacity-50 ring-black/5",
           )}
           style={{ backgroundColor: displayValue.dark }}

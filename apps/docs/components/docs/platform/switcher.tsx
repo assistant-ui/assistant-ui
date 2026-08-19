@@ -4,17 +4,17 @@ import { useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "fumadocs-ui/components/ui/popover";
-import {
   Check,
-  ChevronsUpDown,
+  ChevronDown,
   Monitor,
   Smartphone,
   Terminal,
 } from "lucide-react";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   getPlatformSwitchHref,
   PLATFORM_DOC_BASE_PATHS,
@@ -30,23 +30,19 @@ const PLATFORM_OPTIONS: Record<
   Platform,
   {
     label: string;
-    description: string;
     Icon: typeof Monitor;
   }
 > = {
   react: {
     label: PLATFORM_LABELS.react,
-    description: "For React web apps",
     Icon: Monitor,
   },
   rn: {
     label: PLATFORM_LABELS.rn,
-    description: "For React Native apps",
     Icon: Smartphone,
   },
   ink: {
     label: PLATFORM_LABELS.ink,
-    description: "For Ink CLI apps",
     Icon: Terminal,
   },
 };
@@ -87,21 +83,27 @@ export function PlatformSwitcher({
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger
         className={cn(
-          "bg-fd-secondary/50 text-fd-secondary-foreground hover:bg-fd-accent data-[state=open]:bg-fd-accent data-[state=open]:text-fd-accent-foreground mb-3 flex w-full items-center gap-2 rounded-lg border p-2 text-start transition-colors",
+          "mb-3 flex h-8 w-full items-center gap-2 rounded-lg px-2.5 text-[13px] font-medium tracking-tight transition-colors outline-none",
+          "bg-muted/70 text-foreground hover:bg-muted data-open:bg-muted",
+          "focus-visible:ring-foreground/20 focus-visible:ring-1",
         )}
       >
-        <div className="size-9 shrink-0 empty:hidden md:size-5">
-          <selected.Icon className="text-muted-foreground size-4 translate-y-0.5" />
-        </div>
-        <div>
-          <p className="text-sm font-medium">{selected.label}</p>
-          <p className="text-fd-muted-foreground text-sm empty:hidden md:hidden">
-            {selected.description}
-          </p>
-        </div>
-        <ChevronsUpDown className="text-fd-muted-foreground ms-auto size-4 shrink-0" />
+        <selected.Icon className="text-muted-foreground size-4 shrink-0" />
+        <span className="min-w-0 flex-1 truncate text-left">
+          {selected.label}
+        </span>
+        <ChevronDown
+          className={cn(
+            "text-muted-foreground/70 size-3.5 shrink-0 transition-transform duration-150 ease-out",
+            open && "rotate-180",
+          )}
+        />
       </PopoverTrigger>
-      <PopoverContent className="fd-scroll-container flex w-(--radix-popover-trigger-width) flex-col gap-1 p-1">
+      <PopoverContent
+        align="start"
+        sideOffset={6}
+        className="w-(--anchor-width) gap-0.5 rounded-lg p-1"
+      >
         {PLATFORMS.map((p) => {
           const item = PLATFORM_OPTIONS[p];
           const isActive = p === platform;
@@ -119,20 +121,19 @@ export function PlatformSwitcher({
                 setPlatform(p);
                 setOpen(false);
               }}
-              className="hover:bg-fd-accent hover:text-fd-accent-foreground flex items-center gap-2 rounded-lg p-1.5 text-start"
+              className={cn(
+                "flex h-8 w-full items-center gap-2 rounded-sm px-2 text-[13px] tracking-tight transition-colors",
+                "hover:bg-foreground/5",
+                isActive && "bg-foreground/6 font-medium",
+              )}
             >
-              <div className="size-9 shrink-0 empty:hidden md:mb-auto md:size-5">
-                <item.Icon className="text-muted-foreground size-4 translate-y-0.5" />
-              </div>
-              <div>
-                <p className="text-sm leading-none font-medium">{item.label}</p>
-                <p className="text-fd-muted-foreground mt-1 text-[0.8125rem] empty:hidden">
-                  {item.description}
-                </p>
-              </div>
+              <item.Icon className="text-muted-foreground size-4 shrink-0" />
+              <span className="min-w-0 flex-1 truncate text-left">
+                {item.label}
+              </span>
               <Check
                 className={cn(
-                  "text-fd-primary ms-auto size-3.5 shrink-0",
+                  "text-foreground size-3.5 shrink-0",
                   !isActive && "invisible",
                 )}
               />

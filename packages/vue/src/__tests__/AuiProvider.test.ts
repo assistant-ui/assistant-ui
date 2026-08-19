@@ -224,7 +224,7 @@ describe("AuiProvider", () => {
     unmount();
   });
 
-  it("destroys the client on unmount", () => {
+  it("releases the client on unmount, soft unmounting its scopes", async () => {
     const before = trackers.threadCleanups;
     const { Probe } = captureAui();
     const { unmount } = mountApp(
@@ -240,7 +240,9 @@ describe("AuiProvider", () => {
 
     const afterMount = trackers.threadCleanups;
     unmount();
-    expect(trackers.threadCleanups).toBe(afterMount + 1);
+    await vi.waitFor(() =>
+      expect(trackers.threadCleanups).toBe(afterMount + 1),
+    );
     expect(afterMount).toBeGreaterThanOrEqual(before);
   });
 

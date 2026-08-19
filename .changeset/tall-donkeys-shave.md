@@ -1,5 +1,0 @@
----
-"@assistant-ui/core": patch
----
-
-fix: stamp interactable state snapshots on every send, not just composer sends. the gate ran in the thread and edit composer cores, so a send that skipped the composer carried `metadata.custom = {}`: a `Suggestions` entry with `send` goes through `thread.append()`, as does user code calling `assistant.thread.append(...)`. the model then saw an `update_{name}` tool whose required `id` is documented as coming from a state snapshot, found no snapshot in the conversation, and could not call the tool at all. gating now runs in `BaseThreadRuntimeCore.enrichAppendMetadata`, applied by both thread runtime cores on append, deriving the branch prefix from the message's `parentId` so the previous composer behavior is reproduced exactly (the thread tail for an ordinary send, the edited message's parent for an edit). the `remove` operation's item id description in generated array-update schemas no longer reuses the instance-addressing wording that told the model each removable list item was an interactable instance.

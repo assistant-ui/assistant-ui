@@ -124,15 +124,26 @@ describe("useDataStreamRuntime request errors", () => {
 
   it("keeps response callback failures separate from request errors", async () => {
     const error = new Error("response callback failed");
+    const cancel = vi.fn().mockRejectedValue(new Error("cancel failed"));
     const onResponse = vi.fn().mockRejectedValue(error);
     const onError = vi.fn();
-    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(new Response()));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(
+        new Response(
+          new ReadableStream({
+            cancel,
+          }),
+        ),
+      ),
+    );
 
     const adapter = createAdapter({ api: "/api/chat", onResponse, onError });
 
     await expect(runOnce(adapter, createRunOptions())).rejects.toBe(error);
     expect(onResponse).toHaveBeenCalledOnce();
     expect(onError).not.toHaveBeenCalled();
+    expect(cancel).toHaveBeenCalledOnce();
   });
 
   it.each(["throws", "rejects"] as const)(

@@ -79,6 +79,11 @@ type AuiV0MessagePart =
       readonly mimeType: string;
       readonly filename?: string;
       readonly sourceType?: "url" | "id";
+    }
+  | {
+      readonly type: "data";
+      readonly name: string;
+      readonly data: ReadonlyJSONValue;
     };
 
 type AuiV0AttachmentPart =
@@ -296,8 +301,19 @@ export function auiV0Encode(message: ThreadMessage): AuiV0Message {
             ...(part.sourceType ? { sourceType: part.sourceType } : undefined),
           };
 
+        case "data": {
+          if (!isJSONValue(part.data)) {
+            console.warn(`data part is not JSON! ${JSON.stringify(part)}`);
+          }
+          return {
+            type: "data",
+            name: part.name,
+            data: part.data as ReadonlyJSONValue,
+          };
+        }
+
         default: {
-          const unhandledType: "audio" | "data" | "generative-ui" = type;
+          const unhandledType: "audio" | "generative-ui" = type;
           throw new Error(
             `Message part type not supported by aui/v0: ${unhandledType}`,
           );

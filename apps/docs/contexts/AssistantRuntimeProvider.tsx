@@ -12,7 +12,7 @@ import {
   useChatRuntime,
   AssistantChatTransport,
   getThreadMessageTokenUsage,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useEffect, useRef, type ReactNode } from "react";
 import { useCurrentPage } from "@/components/docs/contexts/current-page";
@@ -24,6 +24,7 @@ import {
   recordRunStartedAt,
 } from "@/lib/assistant-analytics-helpers";
 import { countToolCalls, getTextLength } from "@/lib/assistant-metrics";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 
 type ThreadMessagePart = { type: string; text?: string };
 
@@ -167,6 +168,7 @@ export function DocsAssistantRuntimeProvider({
   const runtime = useChatRuntime({
     transport: new AssistantChatTransport({
       api: "/api/doc/chat",
+      fetch: anonymousSessionFetch,
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {

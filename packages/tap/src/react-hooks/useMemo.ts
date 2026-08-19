@@ -1,7 +1,6 @@
 import { isDevelopment } from "../core/helpers/env";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
 import { addCommit, addRollback } from "../core/helpers/root";
-import { CommitPriority } from "../core/helpers/commit";
 import type { MemoCell, ResourceFiber } from "../core/types";
 import { depsShallowEqual } from "../hooks/utils/depsShallowEqual";
 import {
@@ -10,7 +9,7 @@ import {
 } from "./utils/hookErrors";
 
 const addMemoCommit = <T>(fiber: ResourceFiber<any>, cell: MemoCell<T>) => {
-  addCommit(fiber, CommitPriority.HookState, () => {
+  addCommit(fiber, () => {
     cell.current = cell.wip;
     cell.currentDeps = cell.wipDeps;
     cell.isDirty = false;
@@ -23,7 +22,7 @@ export const useMemo = <T>(fn: () => T, deps: readonly unknown[]): T => {
   let cell = fiber.cells[index];
 
   if (cell === undefined) {
-    if (!fiber.isFirstRender && index >= fiber.cells.length) {
+    if (!fiber.isFirstRender) {
       throwRenderedMoreHooks();
     }
 

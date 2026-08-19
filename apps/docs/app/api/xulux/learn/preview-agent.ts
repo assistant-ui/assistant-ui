@@ -2,7 +2,7 @@ import {
   frontendTools,
   unstable_injectInteractableContext as injectInteractableContext,
   type FrontendTools,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 import { NextResponse } from "next/server";
 import { tool, zodSchema, type ToolSet } from "ai";
 import { z } from "zod";
@@ -191,7 +191,7 @@ export const learnPreviewAgent: XuluxAgentDefinition = {
     "You are a concise, helpful assistant. Use only the tools available in this course stage.",
   maxSteps: 5,
   maxOutputTokens: 4_096,
-  modelName: "gpt-5.4-mini",
+  modelName: "gpt-5.6-luna",
   traceName: "xulux_learn_preview",
   getTraceMetadata: ({ routeUrl }) => ({
     course_id: "build-generative-ui-assistant",

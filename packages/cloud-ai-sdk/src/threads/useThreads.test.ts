@@ -310,6 +310,180 @@ describe("useThreads", () => {
     expect(result.current.threads[0]?.title).toBe("Newest");
   });
 
+  it("clears a selected thread after refresh confirms it was deleted", async () => {
+    const cloud = createCloud("thread-1");
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+    cloud.threads.list.mockResolvedValueOnce({ threads: [] });
+    cloud.threads.get.mockRejectedValueOnce({ status: 404 });
+
+    await act(async () => {
+      result.current.selectThread("thread-1");
+      await result.current.refresh();
+    });
+
+    expect(result.current.threads).toEqual([]);
+    expect(result.current.threadId).toBeNull();
+  });
+
+  it("does not verify a selection that has never appeared in a list", async () => {
+    const cloud = createCloud("thread-1");
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+    cloud.threads.list.mockResolvedValueOnce({ threads: [] });
+    cloud.threads.get.mockRejectedValueOnce({ status: 404 });
+
+    await act(async () => {
+      result.current.selectThread("thread-1");
+      await result.current.refresh();
+    });
+
+    expect(cloud.threads.get).not.toHaveBeenCalled();
+    expect(result.current.threadId).toBe("thread-1");
+  });
+
+  it("preserves a selected thread that is omitted from the list page", async () => {
+    const cloud = createCloud("thread-1");
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+    act(() => {
+      result.current.selectThread("thread-1");
+    });
+    cloud.threads.list.mockResolvedValueOnce({ threads: [] });
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(cloud.threads.get).toHaveBeenCalledWith("thread-1");
+    expect(result.current.threadId).toBe("thread-1");
+  });
+
+  it("commits refreshed threads when selection verification fails", async () => {
+    const cloud = createCloud("thread-1");
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+    act(() => {
+      result.current.selectThread("thread-1");
+    });
+    cloud.threads.list.mockResolvedValueOnce(
+      createThreadListResponse("Updated", "thread-2"),
+    );
+    cloud.threads.get.mockRejectedValueOnce(
+      Object.assign(new Error("verification unavailable"), { status: 503 }),
+    );
+
+    await act(async () => {
+      expect(await result.current.refresh()).toBe(true);
+    });
+
+    expect(result.current.threads).toMatchObject([
+      { id: "thread-2", title: "Updated" },
+    ]);
+    expect(result.current.threadId).toBe("thread-1");
+    expect(result.current.error).toBeNull();
+  });
+
+  it("finishes loading before selection verification settles", async () => {
+    const cloud = createCloud("thread-1");
+    const verification =
+      createDeferred<
+        ReturnType<typeof createThreadListResponse>["threads"][number]
+      >();
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+    cloud.threads.update.mockRejectedValueOnce(new Error("rename failed"));
+    await act(async () => {
+      expect(await result.current.rename("thread-1", "New title")).toBe(false);
+    });
+    expect(result.current.error?.message).toBe("rename failed");
+
+    act(() => {
+      result.current.selectThread("thread-1");
+    });
+    cloud.threads.list.mockResolvedValueOnce(
+      createThreadListResponse("Updated", "thread-2"),
+    );
+    cloud.threads.get.mockReturnValueOnce(verification.promise);
+    let refreshSettled = false;
+    let refreshPromise!: Promise<boolean>;
+    act(() => {
+      refreshPromise = result.current.refresh();
+      void refreshPromise.then(() => {
+        refreshSettled = true;
+      });
+    });
+
+    await waitFor(() => {
+      expect(result.current.threads).toMatchObject([
+        { id: "thread-2", title: "Updated" },
+      ]);
+      expect(result.current.isLoading).toBe(false);
+      expect(result.current.error).toBeNull();
+    });
+    expect(refreshSettled).toBe(false);
+
+    await act(async () => {
+      verification.resolve(
+        createThreadListResponse("Selected", "thread-1").threads[0]!,
+      );
+      expect(await refreshPromise).toBe(true);
+    });
+  });
+
+  it("preserves a newer selection while a refresh is pending", async () => {
+    const cloud = createCloud("thread-1");
+    const refresh =
+      createDeferred<ReturnType<typeof createThreadListResponse>>();
+    const { result } = renderHook(() =>
+      useThreads({ cloud: cloud as never, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+    act(() => {
+      result.current.selectThread("thread-1");
+    });
+    cloud.threads.list.mockReturnValueOnce(refresh.promise);
+    cloud.threads.get.mockRejectedValueOnce({ status: 404 });
+    let refreshPromise!: Promise<boolean>;
+    act(() => {
+      refreshPromise = result.current.refresh();
+    });
+    act(() => {
+      result.current.selectThread("thread-2");
+    });
+
+    await act(async () => {
+      refresh.resolve({ threads: [] });
+      await refreshPromise;
+    });
+
+    expect(result.current.threadId).toBe("thread-2");
+  });
+
   it("clears the selected thread when the cloud changes", async () => {
     const cloudA = createCloud("thread-a");
     const cloudB = createCloud("thread-b");

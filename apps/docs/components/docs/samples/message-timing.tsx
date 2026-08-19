@@ -19,7 +19,7 @@ export function MessageTimingSample() {
       {/* Tooltip content as it appears on hover */}
       <div className="flex flex-col items-center gap-3">
         <span className="text-muted-foreground text-xs">On hover</span>
-        <div className="bg-popover text-popover-foreground grid min-w-35 gap-1.5 rounded-lg border px-3 py-2 text-xs shadow-md">
+        <div className="bg-popover text-popover-foreground grid min-w-35 gap-1.5 rounded-lg border px-3 py-2 text-xs">
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">First token</span>
             <span className="font-mono tabular-nums">312ms</span>

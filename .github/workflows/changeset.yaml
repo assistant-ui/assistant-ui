@@ -40,17 +40,16 @@ jobs:
 
       - name: Create version PR
         id: changesets
-        uses: changesets/action@a45c4d594aa4e2c509dc14a9f2b3b67ba3780d0d # v1.9.0
+        uses: changesets/action@198f833dd7d863100ea6e28967bc9a9fdefadb0a # v2.1.0
         with:
-          commit: "chore: update versions"
-          title: "chore: update versions"
-          version: pnpm ci:version
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore: update versions"
+          pr-title: "chore: update versions"
+          version-script: pnpm ci:version
+          github-token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Detect release packages
         id: release_plan
-        if: steps.changesets.outputs.hasChangesets == 'false'
+        if: steps.changesets.outputs.has-changesets == 'false'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |
@@ -125,7 +124,7 @@ jobs:
             core.setOutput("hasReleasePackages", hasReleasePackages ? "true" : "false");
 
       - name: Trigger npm publish
-        if: steps.changesets.outputs.hasChangesets == 'false' && steps.release_plan.outputs.hasReleasePackages == 'true'
+        if: steps.changesets.outputs.has-changesets == 'false' && steps.release_plan.outputs.hasReleasePackages == 'true'
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
         with:
           script: |

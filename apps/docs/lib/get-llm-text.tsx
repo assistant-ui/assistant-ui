@@ -12,7 +12,7 @@ import remarkStringify from "remark-stringify";
 import { unified } from "unified";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { LLM_COMPONENTS } from "@/lib/llm-components";
-import type { examples, source, tapDocs } from "@/lib/source";
+import type { examples, source, standalone, tapDocs } from "@/lib/source";
 import type { InferPageType } from "fumadocs-core/source";
 
 const processor = unified()
@@ -336,6 +336,7 @@ async function resolveStaticReactNode(
 type LLMPage =
   | InferPageType<typeof source>
   | InferPageType<typeof examples>
+  | InferPageType<typeof standalone>
   | InferPageType<typeof tapDocs>;
 
 export async function getLLMText(

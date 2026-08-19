@@ -197,7 +197,10 @@ import { AuiIf } from "@assistant-ui/react-native";
 ## Composer
 
 ```tsx
-import { ComposerPrimitive } from "@assistant-ui/react-native";
+import {
+  ComposerPrimitive,
+  QueueItemPrimitive,
+} from "@assistant-ui/react-native";
 ```
 
 ### ComposerPrimitive.Root
@@ -274,6 +277,79 @@ Renders composer attachments using the provided component configuration.
   <Text>Attach</Text>
 </ComposerPrimitive.AddAttachment>
 ```
+
+### ComposerPrimitive.Queue
+
+Renders all queued composer items. Each item is wrapped in a `QueueItemByIndexProvider`, so `QueueItemPrimitive.*` can read item state and call queue actions inside the render prop. Backed by the shared `ComposerPrimitiveQueue` from `@assistant-ui/core/react`.
+
+```tsx
+<ComposerPrimitive.Queue>
+  {({ queueItem }) => (
+    <View>
+      <QueueItemPrimitive.Text />
+      <QueueItemPrimitive.Steer>
+        <Text>Run now</Text>
+      </QueueItemPrimitive.Steer>
+      <QueueItemPrimitive.Remove>
+        <Text>Remove</Text>
+      </QueueItemPrimitive.Remove>
+    </View>
+  )}
+</ComposerPrimitive.Queue>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `(value: { queueItem: QueueItemState }) => ReactNode` | Render function called for each queue item |
+
+### ComposerPrimitive.Quote
+
+Renders the active composer quote preview. Children are only rendered while `s.composer.quote` is set, so this acts as both a container and a gate.
+
+```tsx
+<ComposerPrimitive.Quote>
+  <View>
+    <Text>Quoting:</Text>
+    <ComposerPrimitive.QuoteText />
+    <ComposerPrimitive.QuoteDismiss>
+      <Text>Clear</Text>
+    </ComposerPrimitive.QuoteDismiss>
+  </View>
+</ComposerPrimitive.Quote>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Quote preview content; only rendered when a quote is set |
+| `...rest` | `ViewProps` | Standard React Native View props |
+
+### ComposerPrimitive.QuoteText
+
+Renders the quoted text from `s.composer.quote?.text`. Pass `children` to override the displayed value.
+
+```tsx
+<ComposerPrimitive.QuoteText />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Override content; defaults to `s.composer.quote?.text` |
+| `...rest` | `TextProps` | Standard React Native Text props |
+
+### ComposerPrimitive.QuoteDismiss
+
+`Pressable` that clears the active quote by calling `aui.composer.setQuote(undefined)`.
+
+```tsx
+<ComposerPrimitive.QuoteDismiss>
+  <Text>Clear</Text>
+</ComposerPrimitive.QuoteDismiss>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `PressableProps["children"]` | Button content, including Pressable render-function children |
+| `...rest` | `Omit<PressableProps, "onPress">` | Standard React Native Pressable props except `onPress` |
 
 ### ComposerPrimitive.AttachmentByIndex
 
@@ -556,6 +632,57 @@ Container `View` for an attachment.
   <Text>Remove</Text>
 </AttachmentPrimitive.Remove>
 ```
+
+## QueueItem
+
+```tsx
+import { QueueItemPrimitive } from "@assistant-ui/react-native";
+```
+
+Primitives for rendering individual queued composer items. Use inside a `ComposerPrimitive.Queue` render prop, where the queue item context is set up by `QueueItemByIndexProvider`.
+
+### QueueItemPrimitive.Text
+
+Renders the queue item's text with React Native `<Text>`. Pass `children` to override the displayed value.
+
+```tsx
+<QueueItemPrimitive.Text />
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `ReactNode` | Override content; defaults to the text parts of `s.queueItem.parts` |
+| `...rest` | `TextProps` | Standard React Native Text props |
+
+### QueueItemPrimitive.Remove
+
+`Pressable` that removes the queue item by calling `aui.queueItem.remove()`.
+
+```tsx
+<QueueItemPrimitive.Remove>
+  <Text>Remove</Text>
+</QueueItemPrimitive.Remove>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `PressableProps["children"]` | Button content, including Pressable render-function children |
+| `...rest` | `Omit<PressableProps, "onPress">` | Standard React Native Pressable props except `onPress` |
+
+### QueueItemPrimitive.Steer
+
+`Pressable` that promotes the queue item to run next by calling `aui.queueItem.steer()`.
+
+```tsx
+<QueueItemPrimitive.Steer>
+  <Text>Run now</Text>
+</QueueItemPrimitive.Steer>
+```
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `children` | `PressableProps["children"]` | Button content, including Pressable render-function children |
+| `...rest` | `Omit<PressableProps, "onPress">` | Standard React Native Pressable props except `onPress` |
 
 ## ActionBar
 

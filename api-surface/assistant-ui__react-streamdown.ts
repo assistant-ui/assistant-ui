@@ -20,9 +20,10 @@ type AllowedTags = Record<string, string[]>;
 
 type AncestorsOf<K extends ClientNames, Seen extends ClientNames = never> = K extends Seen ? never : ParentOf<K> extends never ? never : ParentOf<K> | AncestorsOf<ParentOf<K>, Seen | K>;
 
-type AssistantClient = {
-  [K in ClientNames]: AssistantClientAccessor<K>;
-} & {
+type AssistantClient = ClientScopes & {
+  readonly optional: {
+    readonly [K in keyof ClientScopes]: ClientScopes[K] | undefined;
+  };
   subscribe(listener: () => void): Unsubscribe;
   on<TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>): Unsubscribe;
 };
@@ -100,6 +101,10 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
   "ERROR: No clients were defined": ClientError<"ERROR: No clients were defined">;
 } : {
   [K in keyof ScopeRegistry]: ValidateClient<K & string, ScopeRegistry[K]>;
+};
+
+type ClientScopes = {
+  [K in ClientNames]: AssistantClientAccessor<K>;
 };
 
 type CodeHeaderProps = {

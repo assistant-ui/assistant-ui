@@ -133,7 +133,7 @@ export const DEFAULT_CONFIG: BuilderConfig = {
     colors: {
       accent: DEFAULT_COLORS.accent,
     },
-    borderRadius: "lg",
+    borderRadius: "full",
     maxWidth: "44rem",
     fontFamily: "system-ui",
     fontSize: "14px",
@@ -146,7 +146,6 @@ export const DEFAULT_CONFIG: BuilderConfig = {
 export const FONT_FAMILIES = [
   { label: "System", value: "system-ui" },
   { label: "Inter", value: "Inter, sans-serif" },
-  { label: "Geist", value: "GeistSans, sans-serif" },
   { label: "Serif", value: "Georgia, serif" },
   { label: "Mono", value: "ui-monospace, monospace" },
 ] as const;

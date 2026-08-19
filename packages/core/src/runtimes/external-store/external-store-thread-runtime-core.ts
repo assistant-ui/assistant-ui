@@ -1,4 +1,5 @@
 import type { AppendMessage, ThreadMessage } from "../../types/message";
+import type { Attachment } from "../../types/attachment";
 import type {
   AddToolResultOptions,
   ResumeRunConfig,
@@ -41,8 +42,24 @@ import { generateId } from "../../utils/id";
 import { ToolInvocationTracker } from "../tool-invocations/ToolInvocationTracker";
 import { EMPTY_QUEUE_ITEMS } from "../../store/scopes/queue-item";
 import type { QuoteInfo } from "../../types/quote";
+import {
+  captureThreadRuntimeGeneration,
+  isThreadRuntimeGenerationCurrent,
+} from "../../runtime/utils/thread-runtime-lifecycle";
 
 const EMPTY_ARRAY: readonly ThreadSuggestion[] = Object.freeze([]);
+
+const observeAdapterCallback = (
+  name: "onAddToolResult" | "onRespondToToolApproval" | "onCancel",
+  result: Promise<void> | void,
+) => {
+  void Promise.resolve(result).catch((error) => {
+    console.error(
+      `[ExternalStoreThreadRuntimeCore] ${name} callback rejected`,
+      error,
+    );
+  });
+};
 
 const shallowEqual = (a: object, b: object): boolean => {
   const aKeys = Object.keys(a);
@@ -120,6 +137,14 @@ export class ExternalStoreThreadRuntimeCore
   private _converter = new ThreadMessageConverter();
 
   private _store!: ExternalStoreAdapter<any>;
+
+  private _getInitializePromise?: () => Promise<unknown> | undefined;
+
+  public __internal_setGetInitializePromise(
+    getPromise: () => Promise<unknown> | undefined,
+  ) {
+    this._getInitializePromise = getPromise;
+  }
 
   private _transformedQueue: ExternalThreadQueueAdapter | undefined;
 
@@ -374,19 +399,22 @@ export class ExternalStoreThreadRuntimeCore
                 // rolled back). Drop the result.
                 return;
               }
-              this._store.onAddToolResult?.({
-                messageId,
-                toolCallId: command.toolCallId,
-                toolName: command.toolName,
-                result: command.result,
-                isError: command.isError,
-                ...(command.artifact !== undefined && {
-                  artifact: command.artifact,
+              observeAdapterCallback(
+                "onAddToolResult",
+                this._store.onAddToolResult?.({
+                  messageId,
+                  toolCallId: command.toolCallId,
+                  toolName: command.toolName,
+                  result: command.result,
+                  isError: command.isError,
+                  ...(command.artifact !== undefined && {
+                    artifact: command.artifact,
+                  }),
+                  ...(command.modelContent !== undefined && {
+                    modelContent: command.modelContent,
+                  }),
                 }),
-                ...(command.modelContent !== undefined && {
-                  modelContent: command.modelContent,
-                }),
-              });
+              );
             } catch (err) {
               console.error(
                 "[ExternalStoreThreadRuntimeCore] onAddToolResult dispatch failed",
@@ -491,22 +519,46 @@ export class ExternalStoreThreadRuntimeCore
       rawMessage.sourceId != null ||
       rawMessage.parentId !== (this.messages.at(-1)?.id ?? null);
 
-    // Buffering does not start a run, so the tool-abort below must wait until
-    // the queue flushes. By then the prior run (and its tools) has settled.
+    // A transformed-queue send is stamped at flush; any other queue's
+    // transform would gate against its own thread's messages, so those stamp
+    // at send.
+    const message =
+      !isEdit &&
+      this._store.queue &&
+      this._store.queue === this._transformedQueue
+        ? rawMessage
+        : this.enrichAppendMetadata(rawMessage);
+
+    const generation = captureThreadRuntimeGeneration(this);
+    this.ensureInitialized();
+
+    // The getter call is what starts thread initialization.
+    const initPromise = this._getInitializePromise?.();
+
+    // The queue driver dispatches through the host adapter, outside this
+    // core, so the initialization barrier must run before a message can
+    // enter the queue.
     if (!isEdit && this._store.queue) {
-      // Skip only for the queue this core actually installed on: another
-      // core's transform would gate against its own thread's messages.
-      const queued =
-        this._store.queue === this._transformedQueue
-          ? rawMessage
-          : this.enrichAppendMetadata(rawMessage);
-      if (queued.steer ?? this._store.isRunning ?? false)
-        this._store.queue.steer(queued);
-      else this._store.queue.enqueue(queued);
+      if (initPromise) {
+        await initPromise;
+      }
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+
+      // Buffering does not start a run, so the tool-abort below must wait
+      // until the queue flushes. By then the prior run (and its tools) has
+      // settled.
+      if (message.steer ?? this._store.isRunning ?? false)
+        this._store.queue.steer(message);
+      else this._store.queue.enqueue(message);
       return;
     }
 
-    const message = this.enrichAppendMetadata(rawMessage);
+    // The optimistic insert lives inside the adapter's dispatch, so holding
+    // `onNew` on initialization would keep the message off screen for the
+    // whole roundtrip. Seams that need the remote identity await
+    // `threadListItem.initialize()` themselves, and a rejection surfaces
+    // there.
+    void initPromise?.catch(() => {});
 
     // Auto-abort in-flight client-side tool executions when a new run is
     // about to start. Without this, a tool that finishes after the new turn
@@ -517,6 +569,7 @@ export class ExternalStoreThreadRuntimeCore
     if (message.startRun ?? message.role === "user") {
       await this._toolInvocations?.abort();
     }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
     if (isEdit) {
       if (!this._store.onEdit)
@@ -599,15 +652,22 @@ export class ExternalStoreThreadRuntimeCore
     // imported state) is treated as historical — no streamCall/execute
     // fires for the loaded tool calls. The adapter is expected to update
     // its messages in response to onLoadExternalState; that update flows
-    // back here via __internal_setAdapter. We only clear adapter-side
-    // tool statuses when the tracker is the source of truth — otherwise
-    // we'd wipe statuses the adapter is managing on its own.
-    if (this._toolInvocations) {
-      this._toolInvocations.reset();
-      this._store.setToolStatuses?.({});
-    }
+    // back here via __internal_setAdapter. The tracker publishes the
+    // cleared status map itself, so adapter-side statuses reset only when
+    // the tracker is the source of truth.
+    this._toolInvocations?.reset();
 
     this._store.onLoadExternalState(state);
+  }
+
+  /**
+   * Adapter-facing notification that the backing session was discarded.
+   * Clears session-scoped tool-invocation state and parks queued work,
+   * without run-cancel semantics (`onCancel`, composer draft restoration).
+   */
+  public unstable_notifySessionReset(): void {
+    this._toolInvocations?.reset();
+    this._store.queue?.__internal_notifyCancelled?.();
   }
 
   public cancelRun(): void {
@@ -624,16 +684,11 @@ export class ExternalStoreThreadRuntimeCore
     // stopped.
     this._store.queue?.__internal_notifyCancelled?.();
 
-    this._store.onCancel();
+    observeAdapterCallback("onCancel", this._store.onCancel());
 
-    // Drop an empty optimistic head (placeholder or pre-stream message); a
-    // partially-streamed one is kept and re-supplied by the store on resync.
-    const head = this.repository.getMessages().at(-1);
-    if (head && head.metadata.isOptimistic && head.content.length === 0) {
-      this.repository.deleteMessage(head.id);
-    }
+    this.dropEmptyOptimisticHead();
 
-    let messages = this.repository.getMessages();
+    const messages = this.repository.getMessages();
     const previousMessage = messages[messages.length - 1];
     const trailingUserLeaf =
       this._store.setMessages !== undefined &&
@@ -647,30 +702,67 @@ export class ExternalStoreThreadRuntimeCore
     // one move: the composer refuses while the user is writing, and removing
     // the message then would leave it nowhere. A message the composer cannot
     // hold whole, carrying content parts it has no home for, is not moved.
-    if (
-      trailingUserLeaf &&
-      this.composer.restoreDraft({
+    let movedLeaf:
+      | {
+          id: string;
+          draft: {
+            text: string;
+            attachments: readonly Attachment[];
+            quote: QuoteInfo | undefined;
+          };
+        }
+      | undefined;
+    if (trailingUserLeaf) {
+      const draft = {
         text: getThreadMessageText(trailingUserLeaf),
         attachments: trailingUserLeaf.attachments,
         quote: trailingUserLeaf.metadata.custom.quote as QuoteInfo | undefined,
-      })
-    ) {
-      this.repository.deleteMessage(trailingUserLeaf.id);
-      messages = this.repository.getMessages();
-    } else {
-      this._notifySubscribers();
+      };
+      if (this.composer.restoreDraft(draft)) {
+        this.repository.deleteMessage(trailingUserLeaf.id);
+        movedLeaf = { id: trailingUserLeaf.id, draft };
+      }
     }
+    if (!movedLeaf) this._notifySubscribers();
 
-    // resync messages (for reloading, to restore the previous branch)
+    // The resync commits what the cancel left (a kept optimistic message, the
+    // restored branch) back to the store a macrotask later. The store may move
+    // in that gap; a server settling the cancelled turn lands in the same
+    // tick. Read the repository at flush time and re-apply the rollbacks to
+    // it, instead of stamping a snapshot captured above over the newer state.
     setTimeout(() => {
-      this.updateMessages(messages);
+      this.dropEmptyOptimisticHead();
+      if (movedLeaf) {
+        const current = this.repository.getMessages();
+        if (current.at(-1)?.id === movedLeaf.id) {
+          // Unanswered tail: the removal has not reached the store yet.
+          this.repository.deleteMessage(movedLeaf.id);
+        } else if (current.some((m) => m.id === movedLeaf.id)) {
+          // The store kept the turn in the thread; take the untouched draft
+          // back so the same content does not sit in both places.
+          this.composer.retractDraft(movedLeaf.draft);
+        }
+      }
+      this.updateMessages(this.repository.getMessages());
     }, 0);
+  }
+
+  // Placeholder or pre-stream message; a partially-streamed one is kept and
+  // committed to the store by the cancel resync.
+  private dropEmptyOptimisticHead(): void {
+    const head = this.repository.getMessages().at(-1);
+    if (head && head.metadata.isOptimistic && head.content.length === 0) {
+      this.repository.deleteMessage(head.id);
+    }
   }
 
   public addToolResult(options: AddToolResultOptions) {
     if (!this._store.onAddToolResult)
       throw new Error("Runtime does not support tool results.");
-    this._store.onAddToolResult?.(options);
+    observeAdapterCallback(
+      "onAddToolResult",
+      this._store.onAddToolResult(options),
+    );
   }
 
   public resumeToolCall(options: ResumeToolCallOptions) {
@@ -696,7 +788,10 @@ export class ExternalStoreThreadRuntimeCore
   public respondToToolApproval(options: RespondToToolApprovalOptions) {
     if (!this._store.onRespondToToolApproval)
       throw new Error("Runtime does not support tool approvals.");
-    this._store.onRespondToToolApproval(options);
+    observeAdapterCallback(
+      "onRespondToToolApproval",
+      this._store.onRespondToToolApproval(options),
+    );
   }
 
   public override reset(initialMessages?: readonly ThreadMessageLike[]) {

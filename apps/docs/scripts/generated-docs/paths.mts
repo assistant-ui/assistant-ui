@@ -56,7 +56,7 @@ export const INTEGRATION_PACKAGES = [
   {
     slug: "react-ai-sdk",
     packageName: "@assistant-ui/react-ai-sdk",
-    entry: path.join(REPO_ROOT, "packages/react-ai-sdk/src/index.ts"),
+    entry: path.join(REPO_ROOT, "packages/ai-sdk/src/index.ts"),
   },
   {
     slug: "react-data-stream",

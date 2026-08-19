@@ -1,6 +1,7 @@
 import type { AgUiEvent, AgUiInterrupt, AgUiRunFinishedOutcome } from "./types";
 import type { Logger } from "./logger";
 import { parseMcpToolCallResult } from "./mcp-tool-result";
+import { withRawResponseSchema } from "./interrupt-internals";
 
 export type ParseAgUiEventOptions = {
   logger?: Logger;
@@ -37,7 +38,15 @@ const parseInterrupt = (raw: unknown): AgUiInterrupt | null => {
   if (isPlainObject(raw.responseSchema))
     interrupt.responseSchema = raw.responseSchema;
   if (isPlainObject(raw.metadata)) interrupt.metadata = raw.metadata;
-  return interrupt;
+  // A present schema is kept whatever its shape: `false` is a JSON Schema that
+  // rejects every payload, so normalizing it to absent would claim a gate no
+  // decision can answer. Only an object schema fits `responseSchema`; every
+  // other shape travels on the internal carrier. `null` is not a JSON Schema at
+  // all, and it is what a server serializing an unset optional field sends, so
+  // it reads as absent rather than as a schema nothing can satisfy.
+  return raw.responseSchema == null || isPlainObject(raw.responseSchema)
+    ? interrupt
+    : withRawResponseSchema(interrupt, raw.responseSchema);
 };
 
 const parseRunFinishedOutcome = (

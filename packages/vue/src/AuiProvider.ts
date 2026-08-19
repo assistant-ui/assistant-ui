@@ -13,7 +13,7 @@ import {
   type AuiConfig,
 } from "@assistant-ui/store/client";
 import { auiInjectionKey, createClientFacade } from "./context";
-import { isDevelopment } from "./isDevelopment";
+import { isDevelopment } from "@assistant-ui/core/store/internal";
 
 /**
  * Creates an `AssistantClient` from the given config and provides it to the
@@ -70,7 +70,10 @@ export const AuiProvider = defineComponent({
       },
       parent ? { parent } : undefined,
     );
-    onScopeDispose(() => handle.destroy());
+    // The provider holds the lifetime subscription that keeps the client
+    // mounted while descendants come and go
+    const release = handle.subscribe(() => {});
+    onScopeDispose(release);
 
     const source = {
       getClient: handle.getClient,

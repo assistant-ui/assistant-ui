@@ -20,6 +20,7 @@ export const galleryStagingCss = `
 }
 
 .aui-gallery [data-aui="card"] {
+  --aui-card-padding: 1.25rem;
   border-color: transparent;
   border-radius: 16px;
   box-shadow: 0 1px 2px rgb(0 0 0 / 0.05), 0 8px 24px -12px rgb(0 0 0 / 0.12);

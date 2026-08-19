@@ -105,13 +105,30 @@ const isOpenCodeStateRunning = (state: OpenCodeThreadState): boolean =>
   state.sessionStatus?.type === "busy" ||
   state.sessionStatus?.type === "retry";
 
+const reportErrorCallbackFailure = (error: unknown) => {
+  console.error("[react-opencode] onError callback threw an error", error);
+};
+
+const invokeErrorCallback = (
+  callback: ((error: unknown) => void | Promise<void>) | undefined,
+  error: unknown,
+) => {
+  if (!callback) return;
+
+  try {
+    void Promise.resolve(callback(error)).catch(reportErrorCallbackFailure);
+  } catch (callbackError) {
+    reportErrorCallbackFailure(callbackError);
+  }
+};
+
 const useOpenCodeThreadRuntime = (
   controller: OpenCodeThreadControllerLike,
   options: OpenCodeRuntimeOptions,
 ): AssistantRuntime => {
   const state = useOpenCodeControllerState(controller);
   const onLoadError = useEffectEvent((error: unknown) => {
-    options.onError?.(error);
+    invokeErrorCallback(options.onError, error);
   });
 
   useEffect(() => {
@@ -173,7 +190,7 @@ const useOpenCodeThreadRuntime = (
         }
         await controller.sendMessage(message, sendOptions);
       } catch (error) {
-        options.onError?.(error);
+        invokeErrorCallback(options.onError, error);
         throw error;
       }
     },
@@ -181,7 +198,7 @@ const useOpenCodeThreadRuntime = (
       try {
         await controller.cancel();
       } catch (error) {
-        options.onError?.(error);
+        invokeErrorCallback(options.onError, error);
         throw error;
       }
     },
@@ -192,7 +209,7 @@ const useOpenCodeThreadRuntime = (
           toOpenCodePermissionResponse(response),
         );
       } catch (error) {
-        options.onError?.(error);
+        invokeErrorCallback(options.onError, error);
         throw error;
       }
     },
@@ -207,7 +224,7 @@ const useOpenCodeThreadRuntime = (
 
         await controller.revert(parentId);
       } catch (error) {
-        options.onError?.(error);
+        invokeErrorCallback(options.onError, error);
         throw error;
       }
     },

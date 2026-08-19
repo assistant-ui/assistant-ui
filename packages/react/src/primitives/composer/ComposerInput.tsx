@@ -346,7 +346,7 @@ export const ComposerPrimitiveInput = forwardRef<
       )
         return undefined;
 
-      return aui.on("threadListItem.switchedTo", focus);
+      return aui.on("threads.selectionChanged", focus);
     }, [unstable_focusOnThreadSwitched, focus, aui]);
 
     useEffect(() => {

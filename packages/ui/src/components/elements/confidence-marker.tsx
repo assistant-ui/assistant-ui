@@ -61,7 +61,7 @@ export function ConfidenceMarker({
             onFocus={() => onHover?.(claim.id)}
             onBlur={() => onHover?.("")}
             className={cn(
-              "focus-visible:ring-foreground/20 inline cursor-help rounded text-start underline decoration-2 underline-offset-[3px] transition-colors outline-none focus-visible:ring-2",
+              "focus-visible:ring-foreground/20 inline cursor-help rounded text-start underline decoration-2 underline-offset-[3px] transition-colors outline-none focus-visible:ring-1",
               UNDERLINE[claim.confidence],
               hoveredId === claim.id
                 ? "text-foreground/95"

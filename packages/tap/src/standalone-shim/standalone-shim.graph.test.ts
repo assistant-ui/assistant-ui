@@ -7,13 +7,17 @@ const DIST_DIR = resolve(SRC_DIR, "../dist");
 const ENTRY_FILES = [
   resolve(__dirname, "index.ts"),
   resolve(__dirname, "compiler-runtime.ts"),
+  resolve(__dirname, "jsx-runtime.ts"),
+  resolve(__dirname, "jsx-dev-runtime.ts"),
 ];
 const DIST_ENTRY_FILES = [
   resolve(DIST_DIR, "standalone-shim/index.js"),
   resolve(DIST_DIR, "standalone-shim/compiler-runtime.js"),
+  resolve(DIST_DIR, "standalone-shim/jsx-runtime.js"),
+  resolve(DIST_DIR, "standalone-shim/jsx-dev-runtime.js"),
 ];
 const REACT_SHIM_DIR = resolve(SRC_DIR, "react-shim");
-const ALLOWED_REACT_HOOK_NAMES = [
+const ALLOWED_SHIM_EXPORTS = [
   "default",
   "createContext",
   "use",
@@ -22,6 +26,8 @@ const ALLOWED_REACT_HOOK_NAMES = [
   "useDebugValue",
   "useEffect",
   "useEffectEvent",
+  "useId",
+  "useImperativeHandle",
   "useInsertionEffect",
   "useLayoutEffect",
   "useMemo",
@@ -29,6 +35,16 @@ const ALLOWED_REACT_HOOK_NAMES = [
   "useRef",
   "useState",
   "useSyncExternalStore",
+  "forwardRef",
+  "memo",
+  "Fragment",
+  "createElement",
+  "cloneElement",
+  "isValidElement",
+  "lazy",
+  "Children",
+  "Suspense",
+  "useDeferredValue",
 ] as const;
 
 type ModuleReference = {
@@ -145,9 +161,7 @@ describe("@assistant-ui/tap/standalone-shim import graph", () => {
     ].map((match) => match[1]!);
     if (/export default \w+/.test(indexSource)) exportedSurface.push("default");
 
-    expect([...ALLOWED_REACT_HOOK_NAMES].sort()).toEqual(
-      exportedSurface.sort(),
-    );
+    expect([...ALLOWED_SHIM_EXPORTS].sort()).toEqual(exportedSurface.sort());
   });
 
   it("imports React nowhere in the entry files", () => {

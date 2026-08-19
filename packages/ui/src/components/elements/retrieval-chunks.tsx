@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { DatabaseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { field, mono, paper } from "./surfaces";
+import { field, mono, paper, ShimmerLabel } from "./surfaces";
 import { pct, take } from "./range";
 
 export interface RetrievalChunk {
@@ -49,15 +49,9 @@ export function RetrievalChunks({
 
       <div className="text-foreground/45 text-xs">
         {searching ? (
-          <span className="relative inline-block leading-none">
-            <span>Retrieving</span>
-            <span
-              aria-hidden
-              className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-            >
-              Retrieving
-            </span>
-          </span>
+          <ShimmerLabel className="relative inline-block leading-none">
+            Retrieving
+          </ShimmerLabel>
         ) : (
           <span className="fade-in animate-in duration-300">
             {chunks.length} passages above threshold

@@ -38,4 +38,7 @@ jobs:
       - name: Update API surface snapshots
         run: pnpm api-surface
 
+      - name: Update API reference pages
+        run: pnpm -C apps/docs generate:api-reference
+
       - uses: autofix-ci/action@c5b2d67aa2274e7b5a18224e8171550871fc7e4a # v1.3.4

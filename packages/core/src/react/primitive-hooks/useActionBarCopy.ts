@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
+import { actionBarCopyDisabled } from "../../store/primitive-predicates";
 
 export type UseActionBarCopyOptions = {
   copiedDuration?: number | undefined;
@@ -11,13 +12,7 @@ export const useActionBarCopy = ({
   copyToClipboard,
 }: UseActionBarCopyOptions = {}) => {
   const aui = useAui();
-  const disabled = useAuiState((s) => {
-    return !(
-      (s.message.role !== "assistant" ||
-        s.message.status?.type !== "running") &&
-      s.message.parts.some((c) => c.type === "text" && c.text.length > 0)
-    );
-  });
+  const disabled = useAuiState(actionBarCopyDisabled);
   const isCopied = useAuiState((s) => s.message.isCopied);
   const isEditing = useAuiState((s) => s.composer.isEditing);
   const composerValue = useAuiState((s) => s.composer.text);
@@ -45,9 +40,19 @@ export const useActionBarCopy = ({
     if (!valueToCopy) return;
     const scopeGeneration = scopeGenerationRef.current;
 
-    // The rejection handler swallows clipboard write failures (permission denied,
-    // API unavailable) so they don't surface as unhandled promise rejections.
-    Promise.resolve(copyToClipboard(valueToCopy)).then(
+    // The writer runs synchronously inside the press so the user-gesture gating
+    // of navigator.clipboard survives (WebKit scopes it to the stack); the try
+    // contains a synchronously throwing caller-supplied writer, and the rejection
+    // handler swallows clipboard failures (permission denied, API unavailable) so
+    // they don't surface as unhandled rejections.
+    let write: void | Promise<void>;
+    try {
+      write = copyToClipboard(valueToCopy);
+    } catch {
+      return;
+    }
+
+    Promise.resolve(write).then(
       () => {
         if (scopeGeneration !== scopeGenerationRef.current) return;
 

@@ -1,5 +1,6 @@
 import type { ResourceFiber } from "../core/types";
 import { getCurrentResourceFiber } from "../core/helpers/execution-context";
+import { addRollback } from "../core/helpers/root";
 import { isDevelopment } from "../core/helpers/env";
 
 export const MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
@@ -18,6 +19,9 @@ const nextFiberMemoCache = (
     const current = memoCache.current;
     data = current === null ? [] : current.map((array) => array.slice());
     memoCache.workInProgress = data;
+    addRollback(fiber.root, () => {
+      memoCache.workInProgress = null;
+    });
   }
 
   const index = memoCache.index++;

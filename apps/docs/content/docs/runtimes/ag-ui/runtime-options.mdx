@@ -1,6 +1,6 @@
 ---
 title: Runtime options
-description: useAgUiRuntime options, adapters, supported events, thread list.
+description: useAgUiRuntime options, adapters, message conversion, thread list.
 ---
 
 import { AguiIcon } from "@/components/icons/agui";
@@ -16,7 +16,7 @@ Reference for the runtime's API surface. Start with [quickstart](/docs/runtimes/
 | `showThinking` | `boolean` | Whether to render `THINKING_*` and `REASONING_*` events as visible reasoning. Defaults to `true`. |
 | `autoCancelPendingToolCalls` | `boolean` | Cancel unresolved client-side tool calls automatically when the user sends, edits, or reloads a message. Defaults to `true`. See [below](#auto-cancelling-pending-tool-calls). |
 | `onError` | `(e: Error) => void` | Error callback fired on `RUN_ERROR` events and protocol errors. |
-| `onCancel` | `() => void` | Cancellation callback fired when the user cancels a run. |
+| `onCancel` | `() => void` | Cancellation callback fired when a run is cancelled, including user cancel and runtime teardown. |
 | `adapters` | `UseAgUiRuntimeAdapters` | Standard adapter slots (see below). |
 
 ## Adapter slots
@@ -84,6 +84,18 @@ What a server does with a replayed record remains its own choice, so treat conti
 An assistant message whose tool call has no matching tool result is reconstructed with `requires-action` status, the same status the runtime derives for a pending tool call, so a reloaded human-in-the-loop call (for example an `ask_user` tool) is actionable rather than stuck. This matches how every other external-store runtime surfaces a pending tool call on reload. The AG-UI wire snapshot carries no run outcome, so a tool call that a successful run intentionally left without a result is also surfaced as actionable.
 
 Interrupts are restored when your backend persists them on the assistant message. The AG-UI message body has no interrupt field, so persist the runtime's own `metadata.custom.agui.interrupts` array alongside the message; `fromAgUiMessages` reads it back, reconstructs `requires-action` / `interrupt` status, and re-attaches the metadata, so `getPendingInterrupts`, `useAgUiInterrupts`, and `submitInterruptResponses` work on reload. When both a pending tool call and an interrupt are present on the same message, interrupt status wins. Without the persisted array, interrupt state cannot be reconstructed.
+
+## Building AG-UI run input
+
+`toAgUiMessages` is the converter the runtime uses to build `runAgent` input. Use it when you own the transport, for example an AG-UI WebSocket, and need the same conversion from `onNew`'s `AppendMessage`:
+
+```tsx
+import { toAgUiMessages } from "@assistant-ui/react-ag-ui";
+
+const [agUiMessage] = toAgUiMessages([message]);
+```
+
+`AppendMessage` has no `id`. The converter assigns one so the AG-UI message schema is satisfied. A caller-supplied id is kept. A generated id is new on every call, so convert once and send that object. Only `user`, `assistant`, `system`, `developer`, `tool`, and `reasoning` inputs are converted.
 
 ## Thread list (experimental)
 
@@ -195,8 +207,25 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 | `STATE_SNAPSHOT` | Replaces the agent's external state. |
 | `STATE_DELTA` | Applies a JSON-patch-style delta to the agent's state. |
 | `MESSAGES_SNAPSHOT` | Replaces the full message list (used for thread restore). |
-| `CUSTOM` | Forwarded to your custom event handling. |
-| `RAW` | Untyped passthrough for unrecognized events. |
+| `CUSTOM` | Appended to the in-flight assistant message as a `data` part. |
+| `RAW` | Parsed and ignored; unrecognized wire event types are normalized into `RAW`. |
+
+### Custom events
+
+`CUSTOM` events are the protocol's extension mechanism for application-defined data. Each event is appended to the in-flight assistant message as a canonical `data` part in arrival order: `CUSTOM { name: "sources", value: {...} }` becomes `{ type: "data", name: "sources", data: {...} }`. Repeated names append separate parts, the `value` is passed through verbatim, and data parts reset with each run. Tool calls that carry a `parentMessageId` are anchored under that message rather than at their wire position, so a data part can render after a tool call that arrived later. A run that delivers its assistant message only through `MESSAGES_SNAPSHOT`, with no streamed text or tool calls, drops that run's data parts when the snapshot supersedes the in-flight message.
+
+Render them by registering a per-name renderer; parts without a registered renderer are not displayed, unless a `Data` fallback component is registered, in which case the fallback receives every custom event name, including the framework plumbing listed below.
+
+```tsx
+import { useAssistantDataUI } from "@assistant-ui/react";
+
+useAssistantDataUI({
+  name: "sources",
+  render: ({ data }) => <SourceList sources={data.sources} />,
+});
+```
+
+Data parts stay in the assistant-ui message but are not sent back to the agent, since the AG-UI assistant record has no field for them. History adapters, including the assistant-cloud one, persist them as part of the message JSON. Framework integrations emit their own plumbing over this channel (`on_interrupt`, `PredictState`, `Exit`, `hook_error`, `state_update_error`, `system:*`, `MultiAgentHandoff`), and those names surface as data parts like any other, so only register renderers for names your backend owns.
 
 ## Feature support
 
@@ -207,6 +236,7 @@ The runtime parses the AG-UI event stream and maps each event type to assistant-
 | Tool calls and results | Yes |
 | Tool result handoff (client-side execution) | Yes |
 | State snapshots and deltas | Yes |
+| Custom events (as `data` parts) | Yes |
 | Cancellation | Yes |
 | Message editing | Yes |
 | Message reload | Yes |

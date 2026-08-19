@@ -1,12 +1,11 @@
-import { source, getTapDocsPages } from "@/lib/source";
-import { createSearchAPI } from "fumadocs-core/search/server";
+import { buildSearchIndex } from "@/lib/search/pages";
 
-export const { GET } = createSearchAPI("advanced", {
-  indexes: [...source.getPages(), ...getTapDocsPages()].map((page) => ({
-    title: page.data.title,
-    description: page.data.description ?? "",
-    structuredData: page.data.structuredData,
-    id: page.url,
-    url: page.url,
-  })),
-});
+export const revalidate = false;
+
+export function GET() {
+  return Response.json(buildSearchIndex(), {
+    headers: {
+      "X-Robots-Tag": "noindex, follow",
+    },
+  });
+}

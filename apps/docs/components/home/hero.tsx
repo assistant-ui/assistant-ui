@@ -2,17 +2,16 @@
 
 import { CopyCommandButton } from "@/components/home/copy-command-button";
 import { NpmDownloads } from "@/components/home/npm-downloads";
+import { typeDeck, typeHero } from "@/components/shared/type";
 import Image from "next/image";
 
 export function Hero() {
   return (
     <section className="flex flex-col pb-4 md:pb-8">
       <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2 pb-1">
-          <h1 className="max-w-[30ch] text-4xl font-semibold tracking-tight text-balance lg:text-5xl">
-            A frontend for your AI agents
-          </h1>
-          <p className="text-muted-foreground max-w-[48ch] text-lg text-pretty">
+        <div className="flex flex-col gap-3 pb-1">
+          <h1 className={typeHero}>A frontend for your AI agents</h1>
+          <p className={typeDeck}>
             React primitives for building AI chat interfaces.
           </p>
         </div>

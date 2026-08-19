@@ -24,6 +24,10 @@ AuiConfig({ mcp: McpManagerResource({ connectors }) })
 
 The manager is a single resource. Mount it with `AuiProvider` like any other scope. OAuth (PKCE + RFC 7591 dynamic client registration), bearer, and "no auth" are first-class. Token refresh runs inside the MCP SDK on 401; this package mediates persistence and the redirect step.
 
+<Callout type="info">
+The [2026-07-28 spec revision](https://modelcontextprotocol.io/specification/2026-07-28/changelog) deprecates RFC 7591 dynamic client registration in favor of [Client ID Metadata Documents](https://modelcontextprotocol.io/specification/2026-07-28/basic/authorization/client-registration#client-id-metadata-documents), which clients should prefer over DCR when the authorization server advertises `client_id_metadata_document_supported`. Dynamic client registration remains available for backwards compatibility with authorization servers that do not support CIMD, and the spec's deprecation policy sets a minimum twelve-month window before removal, so the flow described here keeps working. Against a CIMD-only authorization server that exposes no `registration_endpoint`, supply a pre-registered [`clientId`](#auth) instead.
+</Callout>
+
 ## Setup
 
 <Steps>
@@ -341,7 +345,7 @@ Three modes, declared per-connector or per-custom-record:
 }
 ```
 
-The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), DCR (RFC 7591), PKCE, token exchange, and refresh; this package mediates `MCPStorage` reads/writes and the redirect step. The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route knows which server to complete.
+The OAuth provider implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery (RFC 8414), DCR (RFC 7591 — [deprecated in favor of CIMD](#how-it-works) but still supported), PKCE, token exchange, and refresh; this package mediates `MCPStorage` reads/writes and the redirect step. The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route knows which server to complete.
 
 ## State & methods
 

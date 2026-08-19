@@ -13,10 +13,10 @@ import { Readable, ReadableOptions } from "stream";
 import { ConnectionOptions, TLSSocket } from "tls";
 
 declare abstract class AbstractConnector {
+  #private;
   firstError?: Error;
   protected connecting: boolean;
   protected stream: NetStream;
-  private disconnectTimeout;
   constructor(disconnectTimeout: number);
   check(info: any): boolean;
   disconnect(): void;
@@ -98,9 +98,7 @@ declare class AssistantMessageStream {
   constructor(readable: ReadableStream<AssistantMessage>);
   static fromAssistantStream(stream: AssistantStream): AssistantMessageStream;
   unstable_result(): Promise<AssistantMessage>;
-  [Symbol.asyncIterator](): {
-    next(): Promise<IteratorResult<AssistantMessage, undefined>>;
-  };
+  [Symbol.asyncIterator](): AsyncIterator<AssistantMessage, any, any>;
   tee(): [
     AssistantMessageStream,
     AssistantMessageStream
@@ -311,6 +309,7 @@ declare class Cluster<ReplyMapping extends ReplyMappingMode = "legacy"> extends 
   type: "default";
   mapping: ReplyMapping extends "resp3" ? "resp3" : "resp2";
 }> {
+  #private;
   options: ClusterOptions;
   slots: NodeKey[][];
   status: ClusterStatus;
@@ -319,23 +318,6 @@ declare class Cluster<ReplyMapping extends ReplyMappingMode = "legacy"> extends 
   };
   _groupsBySlot: number[];
   isCluster: boolean;
-  private startupNodes;
-  private connectionPool;
-  private manuallyClosing;
-  private retryAttempts;
-  private delayQueue;
-  private offlineQueue;
-  private subscriber;
-  private shardedSubscribers;
-  private slotsTimer;
-  private reconnectTimeout;
-  private isRefreshing;
-  private _refreshSlotsCacheCallbacks;
-  private _autoPipelines;
-  private _runningAutoPipelines;
-  private _readyDelayedCallbacks;
-  private subscriberGroupEmitter;
-  private connectionEpoch;
   constructor(startupNodes: ClusterNode[], options?: ClusterOptionsWithReplyMapping<ReplyMapping>);
   connect(): Promise<void>;
   disconnect(reconnect?: boolean): void;
@@ -355,22 +337,6 @@ declare class Cluster<ReplyMapping extends ReplyMappingMode = "legacy"> extends 
   handleError(error: Error, ttl: {
     value?: any;
   }, handlers: any): void;
-  private resetOfflineQueue;
-  private clearNodesRefreshInterval;
-  private resetNodesRefreshInterval;
-  private setStatus;
-  private handleCloseEvent;
-  private flushQueue;
-  private executeOfflineCommands;
-  private natMapper;
-  private getInfoFromNode;
-  private invokeReadyDelayedCallbacks;
-  private readyCheck;
-  private resolveSrv;
-  private dnsLookup;
-  private resolveStartupNodeHostnames;
-  private createScanStream;
-  private createShardedSubscriberGroup;
 }
 
 interface Cluster<ReplyMapping extends "legacy" | "resp3" = "legacy"> extends EventEmitter {
@@ -425,16 +391,14 @@ type ClusterOptionsWithReplyMapping<Mapping extends ReplyMappingMode> = ClusterO
 type ClusterStatus = "close" | "connect" | "connecting" | "disconnecting" | "end" | "ready" | "reconnecting" | "wait";
 
 declare class Command implements Respondable {
+  #private;
   name: string;
   static FLAGS: {
     [key in keyof CommandNameFlags]: CommandNameFlags[key];
   };
-  private static flagMap?;
-  private static _transformer;
   static checkFlag<T extends keyof CommandNameFlags>(flagName: T, commandName: string): commandName is CommandNameFlags[T][number];
   static setArgumentTransformer(name: string, func: ArgumentTransformer): void;
   static setReplyTransformer(name: string, func: ReplyTransformer): void;
-  private static getFlagMap;
   ignore?: boolean;
   isReadOnly?: boolean;
   args: CommandParameter[];
@@ -446,18 +410,6 @@ declare class Command implements Respondable {
   reject: (err: Error) => void;
   resolve: (result: any) => void;
   promise: Promise<any>;
-  private replyEncoding;
-  private protocol;
-  private replyMapping;
-  private errorStack;
-  private bufferMode;
-  private callback;
-  private transformed;
-  private _commandTimeoutTimer?;
-  private _blockingTimeoutTimer?;
-  private _blockingDeadline?;
-  private slot?;
-  private keys?;
   constructor(name: string, args?: Array<ArgumentType>, options?: CommandOptions, callback?: Callback);
   getSlot(): number;
   getKeys(): Array<string | Buffer>;
@@ -468,10 +420,6 @@ declare class Command implements Respondable {
   setTimeout(ms: number): void;
   setBlockingTimeout(ms: number): void;
   extractBlockingTimeout(): number | null | undefined;
-  private _clearTimers;
-  private initPromise;
-  private _iterateKeys;
-  private _convertValue;
 }
 
 interface CommandItem {
@@ -786,9 +734,7 @@ type GorpStreamChunk = {
 };
 
 declare class GorpStreamDeltaTracker {
-  private readonly accumulator;
-  private previousState;
-  private changes;
+  #private;
   constructor(initialValue?: ReadonlyJSONValue);
   get state(): ReadonlyJSONValue;
   append(operations: readonly GorpStreamOperation[]): void;
@@ -1156,9 +1102,9 @@ declare class Redis<ReplyMapping extends ReplyMappingMode = "legacy"> extends Co
   type: "default";
   mapping: ReplyMapping extends "resp3" ? "resp3" : "resp2";
 }> implements DataHandledable {
+  #private;
   static Cluster: typeof Cluster;
   static Command: typeof Command;
-  private static defaultOptions;
   static createClient(...args: ConstructorParameters<typeof Redis>): Redis;
   options: RedisOptions;
   status: RedisStatus;
@@ -1166,16 +1112,6 @@ declare class Redis<ReplyMapping extends ReplyMappingMode = "legacy"> extends Co
   isCluster: boolean;
   condition: Condition | null;
   commandQueue: Deque<CommandItem>;
-  private connector;
-  private reconnectTimeout;
-  private offlineQueue;
-  private connectionEpoch;
-  private retryAttempts;
-  private manuallyClosing;
-  private socketTimeoutTimer;
-  private [hasHimportCoordinator];
-  private _autoPipelines;
-  private _runningAutoPipelines;
   constructor(port: number, host: string, options: RedisOptions & {
     replyMapping?: ReplyMapping;
   });
@@ -1194,16 +1130,12 @@ declare class Redis<ReplyMapping extends ReplyMappingMode = "legacy"> extends Co
   constructor();
   get autoPipelineQueueSize(): number;
   connect(callback?: Callback<void>): Promise<void>;
-  private _connect;
   disconnect(reconnect?: boolean): void;
   end(): void;
   duplicate<Override extends Partial<RedisOptions> | undefined = undefined>(override?: Override): Redis<ReplyMappingFromOptions<ReplyMapping, Override>>;
   get mode(): "monitor" | "normal" | "subscriber";
   monitor(callback?: Callback<Redis>): Promise<Redis>;
   sendCommand(command: Command, stream?: WriteableStream): unknown;
-  private getBlockingTimeoutInMs;
-  private getConfiguredBlockingTimeout;
-  private setSocketTimeout;
   scanStream(options?: ScanStreamOptions): ScanStream;
   scanBufferStream(options?: ScanStreamOptions): ScanStream;
   sscanStream(key: string, options?: ScanStreamOptions): ScanStream;
@@ -1219,16 +1151,7 @@ declare class Redis<ReplyMapping extends ReplyMappingMode = "legacy"> extends Co
     address: string;
     port: number | undefined;
   };
-  private _buildCommandContext;
   _buildBatchContext(batchSize: number): BatchOperationContext;
-  private _getDescription;
-  private resetCommandQueue;
-  private resetOfflineQueue;
-  private parseOptions;
-  private setStatus;
-  private createScanStream;
-  private flushQueue;
-  private _readyCheck;
 }
 
 interface Redis<ReplyMapping extends "legacy" | "resp3" = "legacy"> extends EventEmitter {
@@ -24363,27 +24286,16 @@ type SSEEvent = {
 };
 
 declare class SSEEventDecoder {
-  private lineBuffer;
-  private dataLines;
-  private eventName;
-  private lastEventId;
-  private retry;
-  private pendingLF;
-  private readonly trailing;
+  #private;
   constructor(options?: {
     trailing?: "dispatch" | "drop";
   });
   push(text: string): SSEEvent[];
   flush(): SSEEvent | null;
-  private processLine;
-  private dispatchEvent;
-  private resetFrame;
 }
 
 declare class ScanStream extends Readable {
-  private opt;
-  private _redisCursor;
-  private _redisDrained;
+  #private;
   constructor(opt: Options);
   _read(): void;
   close(): void;
@@ -24442,7 +24354,7 @@ type StandaloneConnectionOptions = Partial<TcpOptions & IpcOptions> & {
 };
 
 declare class SubscriptionSet {
-  private set;
+  #private;
   add(set: AddSet, channel: string): void;
   del(set: DelSet, channel: string): void;
   channels(set: AddSet | DelSet): string[];

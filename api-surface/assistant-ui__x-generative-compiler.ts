@@ -3,6 +3,7 @@ interface CompileOptions {
   filename?: string;
   sourceMaps?: boolean;
   injectServerOnly?: boolean;
+  backendless?: boolean;
 }
 
 interface CompileResult {

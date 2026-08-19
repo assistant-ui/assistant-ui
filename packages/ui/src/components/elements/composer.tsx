@@ -26,6 +26,7 @@ import {
   inkButton,
   mono,
   paper,
+  ShimmerLabel,
 } from "./surfaces";
 import { clamp, pct } from "./range";
 
@@ -262,7 +263,7 @@ export function ComposerAttachmentChip({
       )}
       {...props}
     >
-      <span className="bg-background text-foreground/45 flex size-8 shrink-0 items-center justify-center rounded-[10px] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-white/10 dark:shadow-none">
+      <span className="bg-background text-foreground/45 flex size-8 shrink-0 items-center justify-center rounded-[10px] dark:bg-white/10">
         <Icon className="size-4" />
       </span>
       <span className="flex flex-col">
@@ -370,15 +371,9 @@ export function ComposerVoice({
           0:{String(seconds).padStart(2, "0")}
         </span>
       ) : (
-        <span className="text-foreground/55 relative text-[13px]">
-          <span>Transcribing</span>
-          <span
-            aria-hidden
-            className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-          >
-            Transcribing
-          </span>
-        </span>
+        <ShimmerLabel className="text-foreground/55 relative text-[13px]">
+          Transcribing
+        </ShimmerLabel>
       )}
     </div>
   );

@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.14.11
+
+### Patch Changes
+
+- [#5674](https://github.com/assistant-ui/assistant-ui/pull/5674) [`3461ab3`](https://github.com/assistant-ui/assistant-ui/commit/3461ab3a81285c3142a83b5c9fa5fcb61abb3333) - fix: pass the raw fence language to custom highlighters instead of "unknown" ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
 ## 0.14.10
 
 ### Patch Changes

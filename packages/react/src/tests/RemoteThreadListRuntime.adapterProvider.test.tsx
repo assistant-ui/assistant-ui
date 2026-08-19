@@ -26,9 +26,14 @@ const dummyHistory: ThreadHistoryAdapter = {
   append: async () => {},
 };
 
-const makeRuntimeHook = (capture: { adapters: CapturedAdapters }) =>
+const makeRuntimeHook = (capture: {
+  adapters: CapturedAdapters;
+  calls?: CapturedAdapters[];
+}) =>
   function useTestRuntimeHook() {
-    capture.adapters = useRuntimeAdapters();
+    const adapters = useRuntimeAdapters();
+    capture.calls?.push(adapters);
+    capture.adapters = adapters;
     return useLocalRuntime(noOpAdapter);
   };
 
@@ -68,12 +73,16 @@ const wrapInRuntimeAdapterProvider = (
 
 describe("RemoteThreadListAdapter.unstable_Provider", () => {
   it("makes Provider context visible to the runtime hook while preserving outer modelContext", async () => {
-    const capture: { adapters: CapturedAdapters } = { adapters: null };
+    const capture: { adapters: CapturedAdapters; calls: CapturedAdapters[] } = {
+      adapters: null,
+      calls: [],
+    };
     const adapter = makeAdapter({
       unstable_Provider: wrapInRuntimeAdapterProvider(dummyHistory),
     });
     await renderAndWaitForBinder(adapter, capture);
 
+    expect(capture.calls[0]?.history).toBe(dummyHistory);
     expect(capture.adapters?.history).toBe(dummyHistory);
     expect(capture.adapters?.modelContext).toBeDefined();
   });
@@ -84,6 +93,18 @@ describe("RemoteThreadListAdapter.unstable_Provider", () => {
     await renderAndWaitForBinder(adapter, capture);
 
     expect(capture.adapters?.history).toBeUndefined();
+  });
+
+  it("makes useAdapters context visible when no Provider is supplied", async () => {
+    const capture: { adapters: CapturedAdapters } = { adapters: null };
+    const adapter = makeAdapter({
+      unstable_useAdapters: function useTestAdapters() {
+        return { history: dummyHistory };
+      },
+    });
+    await renderAndWaitForBinder(adapter, capture);
+
+    expect(capture.adapters?.history).toBe(dummyHistory);
   });
 
   it("picks up a swapped Provider on re-render", async () => {

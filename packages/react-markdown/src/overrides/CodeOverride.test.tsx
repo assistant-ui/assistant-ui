@@ -5,6 +5,7 @@ import { CodeOverride } from "./CodeOverride";
 import { PreContext } from "./PreOverride";
 import type {
   CodeComponent,
+  CodeHeaderProps,
   PreComponent,
   SyntaxHighlighterProps,
 } from "./types";
@@ -29,6 +30,7 @@ const render = (
     string,
     { SyntaxHighlighter?: FC<SyntaxHighlighterProps> }
   >,
+  CodeHeader: FC<CodeHeaderProps> = () => null,
 ) =>
   renderToStaticMarkup(
     <PreContext.Provider value={{}}>
@@ -36,7 +38,7 @@ const render = (
         components={{
           Pre,
           Code,
-          CodeHeader: () => null,
+          CodeHeader,
           SyntaxHighlighter: FallbackHighlighter,
         }}
         componentsByLanguage={componentsByLanguage}
@@ -73,9 +75,17 @@ describe("CodeOverride language extraction", () => {
     expect(html).toContain(`data-language="c++"`);
   });
 
-  it("falls back to unknown when no language class is present", () => {
+  it("passes an empty language to the fallback highlighter when no language class is present", () => {
     const html = render("");
     expect(html).toContain(`data-testid="fallback"`);
-    expect(html).toContain(`data-language="unknown"`);
+    expect(html).toContain(`data-language=""`);
+  });
+
+  it("passes an empty language to the code header when no language class is present", () => {
+    const CodeHeader: FC<CodeHeaderProps> = ({ language }) => (
+      <div data-testid="header" data-language={language} />
+    );
+    const html = render("", undefined, CodeHeader);
+    expect(html).toContain(`data-testid="header" data-language=""`);
   });
 });

@@ -1,5 +1,0 @@
----
-"@assistant-ui/core": patch
----
-
-fix: gate interactable state snapshots at dispatch instead of at enqueue. a message sent while a run is in flight waits in a queue lane but carried the snapshot taken when the user sent it, so a run that landed its own `update_{name}` in the meantime was folded over by a stale `user-edit` version: a full snapshot replaced the model's edit outright, and a partial one merged the older diff on top of it, producing a state that never existed. every send path now stamps exactly once, when the message is dispatched rather than when it is queued. `LocalThreadRuntimeCore` stamps in `_runAppend`, the point both the direct send and the queue flush pass through, and `ExternalThreadQueueAdapter` gained an optional `__internal_setDispatchTransform` that `createMessageQueue` implements and `ExternalStoreThreadRuntimeCore` installs, so a queued message is re-gated against the thread tail it actually lands on. an adapter that does not implement the transform is stamped at enqueue as before.

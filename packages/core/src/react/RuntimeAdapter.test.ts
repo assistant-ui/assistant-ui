@@ -54,6 +54,7 @@ describe("RuntimeAdapter via the neutral store entry", () => {
     const handle = createAssistantClient(
       AuiConfig({ threads: RuntimeAdapter(runtime) }),
     );
+    handle.subscribe(() => {});
     const aui = handle.getClient();
 
     flushTapSync(() => aui.composer.setText("hello"));
@@ -75,6 +76,7 @@ describe("RuntimeAdapter via the neutral store entry", () => {
     const handle = createAssistantClient(
       AuiConfig({ threads: RuntimeAdapter(runtime) }),
     );
+    handle.subscribe(() => {});
 
     // Dev mode double-mounts the root (StrictMode emulation), so assert
     // presence rather than an exact count

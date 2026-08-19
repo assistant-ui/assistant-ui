@@ -356,6 +356,73 @@ describe("unstable_runPendingTools", () => {
     });
   });
 
+  it("keeps same-id tool executions separate when they overlap", async () => {
+    const executions: Array<{
+      resolve: (value: string) => void;
+      promise: Promise<string>;
+    }> = [];
+    const inputChunks: AssistantStreamChunk[] = [
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "reused", toolName: "tool" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"run":1}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+      { type: "part-finish", path: [0] },
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "reused", toolName: "tool" },
+      },
+      { type: "text-delta", path: [1], textDelta: '{"run":2}' },
+      { type: "tool-call-args-text-finish", path: [1] },
+      { type: "part-finish", path: [1] },
+    ];
+    const input = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        inputChunks.forEach((chunk) => controller.enqueue(chunk));
+        controller.close();
+      },
+    });
+    const output: AssistantStreamChunk[] = [];
+    const finished = input
+      .pipeThrough(
+        unstable_toolResultStream(
+          {
+            tool: {
+              parameters: { type: "object", properties: {} },
+              execute: () => {
+                const execution = promiseWithResolvers<string>();
+                executions.push(execution);
+                return execution.promise;
+              },
+            },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .pipeTo(
+        new WritableStream<AssistantStreamChunk>({
+          write(chunk) {
+            output.push(chunk);
+          },
+        }),
+      );
+
+    await vi.waitFor(() => expect(executions).toHaveLength(2));
+    executions[0]!.resolve("first");
+    executions[1]!.resolve("second");
+    await finished;
+
+    expect(
+      output
+        .filter((chunk) => chunk.type === "result")
+        .map((chunk) => (chunk.type === "result" ? chunk.result : undefined)),
+    ).toEqual(["first", "second"]);
+  });
+
   describe("edge cases", () => {
     it("should return original message when no tool calls exist", async () => {
       const message: AssistantMessage = {

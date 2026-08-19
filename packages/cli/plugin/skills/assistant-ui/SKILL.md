@@ -83,7 +83,7 @@ export async function POST(req: Request) {
   const { messages, config } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
+    model: openai("gpt-5.6-luna"),
     messages,
     ...config,
   });
@@ -125,7 +125,7 @@ import { streamText, tool } from "ai";
 import { z } from "zod";
 
 const result = streamText({
-  model: openai("gpt-5.4-nano"),
+  model: openai("gpt-5.6-luna"),
   messages,
   tools: {
     get_weather: tool({

@@ -1,63 +1,115 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import { useMediaQuery } from "@/hooks/use-media-query";
 import Image from "next/image";
 import Link from "next/link";
 
-const LOGOS = [
+const LOGOS: {
+  src: string;
+  alt: string;
+  href: string;
+  invert?: boolean;
+  darkSrc?: string;
+}[] = [
+  {
+    src: "/icons/cust/anthropic.svg",
+    alt: "Anthropic",
+    href: "https://www.anthropic.com?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/google-cloud.svg",
+    darkSrc: "/icons/cust/google-cloud-white.svg",
+    alt: "Google Cloud",
+    href: "https://cloud.google.com?ref=assistant-ui",
+    invert: false,
+  },
   {
     src: "/icons/cust/langchain.svg",
     alt: "Langchain",
-    height: "h-7",
     href: "https://langchain.com?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/builder.svg",
+    alt: "Builder.io",
+    href: "https://www.builder.io?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/paperclip.svg",
+    alt: "Paperclip",
+    href: "https://paperclip.ing?ref=assistant-ui",
+  },
+  {
+    src: "/icons/cust/unsloth.png",
+    darkSrc: "/icons/cust/unsloth-white.png",
+    alt: "Unsloth",
+    href: "https://unsloth.ai?ref=assistant-ui",
+    invert: false,
+  },
+  {
+    src: "/icons/cust/hermes.png",
+    alt: "Hermes Agent",
+    href: "https://hermes-agent.nousresearch.com?ref=assistant-ui",
+    invert: false,
   },
   {
     src: "/icons/cust/athenaintel.png",
     alt: "Athena Intelligence",
-    height: "h-11",
     href: "https://athenaintelligence.ai?ref=assistant-ui",
   },
   {
     src: "/icons/cust/browseruse.svg",
     alt: "Browseruse",
-    height: "h-6",
     href: "https://browser-use.com/?ref=assistant-ui",
   },
   {
     src: "/icons/cust/stack.svg",
     alt: "Stack",
-    height: "h-5",
     href: "https://stack-ai.com?ref=assistant-ui",
   },
   {
     src: "/icons/cust/mastra.svg",
     alt: "Mastra",
-    height: "h-7",
     href: "https://mastra.ai?ref=assistant-ui",
   },
-] as const;
+];
 
-function LogoList() {
+const COPIES = 3;
+
+function LogoList({ copy }: { copy: number }) {
   return (
     <>
       {LOGOS.map((logo) => (
         <Link
-          key={logo.alt}
+          key={`${copy}-${logo.alt}`}
           href={logo.href}
           target="_blank"
           rel="noopener noreferrer"
+          tabIndex={copy === 0 ? undefined : -1}
+          className="inline-flex h-8 shrink-0 items-center"
         >
           <Image
             src={logo.src}
-            alt={logo.alt}
-            width={100}
-            height={44}
+            alt={copy === 0 ? logo.alt : ""}
+            width={120}
+            height={24}
             className={cn(
-              "w-auto shrink-0 opacity-40 invert transition-opacity hover:opacity-100 dark:invert-0",
-              logo.height,
+              "h-6 w-auto shrink-0 object-contain opacity-40 transition-opacity hover:opacity-100",
+              logo.darkSrc
+                ? "dark:hidden"
+                : logo.invert === false
+                  ? undefined
+                  : "invert dark:invert-0",
             )}
           />
+          {logo.darkSrc ? (
+            <Image
+              src={logo.darkSrc}
+              alt=""
+              width={120}
+              height={24}
+              className="hidden h-6 w-auto shrink-0 object-contain opacity-40 transition-opacity hover:opacity-100 dark:block"
+            />
+          ) : null}
         </Link>
       ))}
     </>
@@ -65,26 +117,22 @@ function LogoList() {
 }
 
 export function TrustedBy() {
-  const isMobile = useMediaQuery("(max-width: 1080px)");
-
   return (
     <section className="flex flex-col items-center gap-4">
-      {isMobile ? (
-        <div className="flex w-full gap-(--gap) overflow-hidden [--duration:20s] [--gap:3rem]">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="animate-marquee flex shrink-0 items-center justify-around gap-(--gap)"
-            >
-              <LogoList />
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="flex w-full items-center justify-around">
-          <LogoList />
-        </div>
-      )}
+      <div className="hidden w-full flex-wrap items-center justify-center gap-x-12 gap-y-8 motion-reduce:flex">
+        <LogoList copy={0} />
+      </div>
+      <div className="group flex w-full gap-(--gap) overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_6%,black_94%,transparent)] [--duration:48s] [--gap:3rem] motion-reduce:hidden">
+        {Array.from({ length: COPIES }).map((_, copy) => (
+          <div
+            key={copy}
+            aria-hidden={copy === 0 ? undefined : true}
+            className="animate-marquee flex shrink-0 items-center gap-(--gap) group-hover:[animation-play-state:paused]"
+          >
+            <LogoList copy={copy} />
+          </div>
+        ))}
+      </div>
       <p className="text-muted-foreground text-sm">and teams everywhere</p>
     </section>
   );

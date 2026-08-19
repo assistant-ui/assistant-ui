@@ -1162,7 +1162,7 @@ describe("toAdaptiveCard", () => {
       ["success", "good"],
       ["warning", "warning"],
       ["danger", "attention"],
-      [undefined, "default"],
+      [undefined, "accent"],
     ] as const)("maps tone %s to style %s", (tone, style) => {
       const { card } = toAdaptiveCard({
         $type: "Alert",

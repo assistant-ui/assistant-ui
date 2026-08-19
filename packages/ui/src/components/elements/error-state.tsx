@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { CircleAlertIcon, RefreshCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ShimmerLabel } from "./surfaces";
 
 export interface ErrorStateProps extends Omit<
   ComponentProps<"div">,
@@ -36,15 +37,9 @@ export function ErrorState({
         {...props}
       >
         <RefreshCwIcon className="text-foreground/45 size-3.5 shrink-0 animate-spin motion-reduce:animate-none" />
-        <span className="text-foreground/55 relative inline-block">
-          <span>Retrying</span>
-          <span
-            aria-hidden
-            className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-          >
-            Retrying
-          </span>
-        </span>
+        <ShimmerLabel className="text-foreground/55 relative inline-block">
+          Retrying
+        </ShimmerLabel>
       </div>
     );
   }

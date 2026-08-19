@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, relative, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
@@ -20,7 +21,7 @@ describe("@assistant-ui/vue dist graph", () => {
 
         const source = readFileSync(file, "utf8");
         for (const match of source.matchAll(
-          /(?:from\s+|import\s+)["']([^"']+)["']/g,
+          /(?:from\s+|import\s+|import\s*\(\s*)["']([^"']+)["']/g,
         )) {
           const specifier = match[1]!;
           if (

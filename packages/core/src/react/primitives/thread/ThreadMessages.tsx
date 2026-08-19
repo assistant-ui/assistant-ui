@@ -130,7 +130,8 @@ const getComponent = (
           components.SystemEditComposer ??
           components.EditComposer ??
           components.SystemMessage ??
-          (components.Message as ComponentType)
+          (components.Message as ComponentType) ??
+          DEFAULT_SYSTEM_MESSAGE
         );
       } else {
         return (

@@ -1,194 +1,121 @@
-import {
-  ArrowRight,
-  Cloud,
-  FileText,
-  Layers,
-  RefreshCw,
-  Settings,
-  Zap,
-} from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
-import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { ArrowUpRight } from "lucide-react";
 import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
+import { CopyCommandButton } from "@/components/home/copy-command-button";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typePage } from "@/components/shared/type";
+import { CLOUD_URL } from "@/lib/constants";
+import { cn } from "@/lib/utils";
 
 const ANALYTICS_PAGE = "cloud-ai-sdk" as const;
 
-const INSTALL_COMMAND =
-  "npm install @assistant-ui/cloud-ai-sdk @ai-sdk/react ai";
+const CODE_THEMES = {
+  light: "catppuccin-latte",
+  dark: "catppuccin-mocha",
+} as const;
+
+const EXAMPLE_HREF =
+  "https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud-standalone";
 
 const FEATURES = [
   {
-    title: "Zero Config",
+    title: "Zero config",
     description:
-      "Set one environment variable. No providers, no context wrappers, no runtime objects. It just works.",
-    icon: Settings,
-    iconColor: "text-emerald-400",
+      "Set one environment variable. No providers, no context wrappers, no runtime objects.",
   },
   {
-    title: "Thread Management",
+    title: "Thread management",
     description:
-      "Built-in thread list, selection, creation, deletion, archiving, and renaming. Everything you need for a ChatGPT-style sidebar.",
-    icon: Layers,
-    iconColor: "text-blue-400",
+      "List, select, create, delete, archive, and rename threads. Enough for a ChatGPT-style sidebar.",
   },
   {
-    title: "Auto Persistence",
+    title: "Auto persistence",
     description:
-      "Messages persist automatically as they stream in. Users pick up where they left off, even after a full page refresh.",
-    icon: Cloud,
-    iconColor: "text-purple-400",
+      "Messages persist as they stream in. Users pick up where they left off after a refresh.",
   },
   {
-    title: "Auto Titles",
+    title: "Auto titles",
     description:
-      "Every thread gets an AI-generated title after the first response. No extra code required.",
-    icon: FileText,
-    iconColor: "text-yellow-400",
+      "Every thread gets an AI-generated title after the first response.",
   },
-  {
-    title: "Works With Any UI",
-    description:
-      "useCloudChat returns the same interface as useChat. Keep your existing components — only the import changes.",
-    icon: Zap,
-    iconColor: "text-cyan-400",
-  },
-  {
-    title: "Full AI SDK Compatibility",
-    description:
-      "All useChat options pass through. Streaming, tool calls, message metadata — everything works as expected.",
-    icon: RefreshCw,
-    iconColor: "text-orange-400",
-  },
+] as const;
+
+const DASHBOARD_ITEMS = [
+  "Analytics and cost tracking",
+  "Thread browser with conversation replay",
+  "Per-user metrics and activity",
+  "Run waterfall traces",
+  "Auth rules for Clerk, Auth0, Supabase, and Firebase",
+  "API key management",
 ] as const;
 
 export default function CloudAiSdkPage() {
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pt-14 pb-8 md:space-y-20">
-      {/* Hero */}
-      <div className="flex flex-col items-center gap-6 text-center">
-        <div className="flex flex-col gap-3">
-          <h1 className="mx-auto max-w-3xl text-3xl font-medium tracking-tight md:text-5xl">
-            <span className="font-mono">useChat</span>
-            <span className="text-muted-foreground/40 mx-3">{"\u2192"}</span>
-            <span className="font-mono">useCloudChat</span>
-          </h1>
-          <p className="text-muted-foreground mx-auto max-w-xl text-lg">
-            Cloud persistence and thread management for any Vercel AI SDK app.
-            One import change. Zero config.
-          </p>
-        </div>
-
-        <CopyCommandButton
-          command={INSTALL_COMMAND}
-          analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
-        />
-
-        <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[13px]">
+    <PageFrame pad="sub" className="flex flex-col gap-20 md:gap-28">
+      <header className="max-w-2xl">
+        <h1 className={typePage}>
+          <span className="font-mono">useChat</span>
+          <span className="text-muted-foreground/40 mx-3">{"\u2192"}</span>
+          <span className="font-mono">useCloudChat</span>
+        </h1>
+        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+          Cloud persistence and thread management for any Vercel AI SDK app. One
+          import change.
+        </p>
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+          <CopyCommandButton
+            command="npm install @assistant-ui/cloud-ai-sdk"
+            analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
+          />
           <Link
             href="/docs/cloud/ai-sdk"
-            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
+            className="text-muted-foreground hover:text-foreground text-sm transition-colors"
           >
-            Getting Started {"\u2192"}
-          </Link>
-          <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
-          <Link
-            href="/docs/cloud/ai-sdk#api-reference"
-            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
-          >
-            API Reference {"\u2192"}
+            Read the docs
           </Link>
         </div>
-      </div>
+      </header>
 
-      {/* Code comparison */}
-      <div className="mx-auto grid max-w-5xl gap-4 md:grid-cols-2">
-        <DynamicCodeBlock
-          lang="tsx"
+      <div className="grid gap-4 md:grid-cols-2 [&_figure]:my-0!">
+        <Snippet
+          title="Before"
           code={`import { useChat } from "@ai-sdk/react"
 
 const { messages, sendMessage } = useChat()`}
-          options={{
-            themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" },
-          }}
-          codeblock={{
-            title: "Before",
-            keepBackground: true,
-            className: "my-0 bg-neutral-900!",
-          }}
         />
-        <DynamicCodeBlock
-          lang="tsx"
+        <Snippet
+          title="After"
           code={`import { useCloudChat } from "@assistant-ui/cloud-ai-sdk"
 
 const { messages, sendMessage, threads } = useCloudChat()`}
-          options={{
-            themes: { light: "catppuccin-latte", dark: "catppuccin-mocha" },
-          }}
-          codeblock={{
-            title: "After",
-            keepBackground: true,
-            className: "border! my-0 border-blue-600! bg-neutral-900!",
-          }}
         />
       </div>
 
-      {/* Features */}
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="text-3xl font-medium tracking-tight">
-            Everything you need, nothing you don't
-          </h2>
-          <p className="text-muted-foreground max-w-xl">
-            Two hooks. Four types. Full cloud persistence and thread management
-            for any AI SDK app.
-          </p>
-        </div>
+      <dl className="grid gap-x-16 gap-y-10 sm:grid-cols-2">
+        {FEATURES.map((feature) => (
+          <div key={feature.title} className="flex flex-col gap-1.5">
+            <dt className="text-[15px] font-medium">{feature.title}</dt>
+            <dd className="text-muted-foreground text-sm leading-relaxed text-pretty">
+              {feature.description}
+            </dd>
+          </div>
+        ))}
+      </dl>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={feature.title}
-                className="border-border/50 bg-muted/30 hover:border-border/80 flex flex-col gap-2 rounded-xl border p-4 transition-colors"
-              >
-                <span className="flex items-center gap-2 font-medium">
-                  <Icon className={cn("size-4", feature.iconColor)} />
-                  {feature.title}
-                </span>
-                <p className="text-muted-foreground text-sm leading-relaxed">
-                  {feature.description}
-                </p>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Dashboard */}
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="text-3xl font-medium tracking-tight">
-            Manage everything from the dashboard
-          </h2>
-          <p className="text-muted-foreground max-w-xl">
-            Analytics, thread browser, run tracking, user insights, auth rules —
-            all from{" "}
-            <a
-              href="https://cloud.assistant-ui.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-foreground/80 hover:text-foreground underline underline-offset-4 transition-colors"
-            >
-              cloud.assistant-ui.com
-            </a>
-          </p>
-        </div>
-
-        <div className="border-border/50 mx-auto w-full max-w-4xl overflow-hidden rounded-xl border shadow-lg">
+      <section className="flex flex-col gap-6">
+        <p className={cn(typeDeck, "max-w-[52ch]")}>
+          The same threads show up in the{" "}
+          <a
+            href={CLOUD_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-foreground/80 hover:text-foreground underline underline-offset-4"
+          >
+            Cloud dashboard.
+          </a>
+        </p>
+        <div className="overflow-hidden rounded-2xl">
           <Image
             src="/images/cloud-dashboard.png"
             alt="Assistant Cloud dashboard showing analytics, threads, and run tracking"
@@ -197,70 +124,43 @@ const { messages, sendMessage, threads } = useCloudChat()`}
             className="w-full"
           />
         </div>
-
-        <div className="mx-auto grid max-w-3xl gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-          {[
-            "Analytics & cost tracking",
-            "Thread browser with conversation replay",
-            "Per-user metrics & activity",
-            "Run waterfall traces",
-            "Auth rules (Clerk, Auth0, Supabase, Firebase)",
-            "API key management",
-          ].map((item) => (
-            <div
+        <ul className="grid gap-x-16 gap-y-2 sm:grid-cols-2">
+          {DASHBOARD_ITEMS.map((item) => (
+            <li
               key={item}
-              className="text-muted-foreground flex items-center gap-2"
+              className="text-muted-foreground text-sm leading-relaxed"
             >
-              <span className="size-1 shrink-0 rounded-full bg-blue-400" />
               {item}
-            </div>
+            </li>
           ))}
-        </div>
-      </div>
+        </ul>
+      </section>
 
-      {/* Callout */}
-      <div className="border-border/50 bg-muted/30 mx-auto flex max-w-3xl flex-col items-center gap-4 rounded-xl border p-8 text-center">
-        <Cloud className="size-8 text-blue-400" />
-        <h3 className="text-xl font-medium tracking-tight">
-          Already using AI SDK?
-        </h3>
-        <p className="text-muted-foreground max-w-lg">
-          If you're using <code className="text-foreground/80">useChat</code>{" "}
-          from <code className="text-foreground/80">@ai-sdk/react</code> today,
-          switching is a one-line change. Your components, your route handlers,
-          your tool definitions — they all stay the same.
-        </p>
-        <Button
-          variant="outline"
-          nativeButton={false}
-          render={<Link href="/docs/cloud/ai-sdk" />}
+      <footer>
+        <a
+          href={EXAMPLE_HREF}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
         >
-          Read the docs <ArrowRight />
-        </Button>
-      </div>
+          View the standalone example
+          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </a>
+      </footer>
+    </PageFrame>
+  );
+}
 
-      {/* CTA */}
-      <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="text-2xl font-medium tracking-tight">
-          Start building today
-        </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button
-            nativeButton={false}
-            render={<Link href="/docs/cloud/ai-sdk" />}
-          >
-            Get Started <ArrowRight />
-          </Button>
-          <a
-            href="https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-cloud-standalone"
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonVariants({ variant: "outline" })}
-          >
-            View Example
-          </a>
-        </div>
-      </div>
-    </div>
+function Snippet({ title, code }: { title: string; code: string }) {
+  return (
+    <DynamicCodeBlock
+      lang="tsx"
+      code={code}
+      options={{ themes: CODE_THEMES }}
+      codeblock={{
+        title,
+        className: "my-0",
+      }}
+    />
   );
 }

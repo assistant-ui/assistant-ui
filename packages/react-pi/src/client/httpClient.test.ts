@@ -305,6 +305,52 @@ describe("createPiHttpClient", () => {
     ).resolves.toEqual(response);
   });
 
+  it("accepts tool calls with null arguments", async () => {
+    const response = {
+      ...snapshot,
+      messages: [
+        {
+          role: "assistant",
+          content: [
+            { type: "toolCall", id: "tc1", name: "search", arguments: null },
+          ],
+        },
+      ],
+    };
+    const { fn } = fakeFetch(() => json(response));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).getThread("t1"),
+    ).resolves.toEqual(response);
+  });
+
+  it("rejects bash executions without a command", async () => {
+    const { fn } = fakeFetch(() =>
+      json({
+        ...snapshot,
+        messages: [{ role: "bashExecution", output: "x" }],
+      }),
+    );
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).getThread("t1"),
+    ).rejects.toThrow(
+      'Invalid Pi HTTP response while fetching a thread: expected a thread snapshot with valid "metadata", a "messages" array, and valid host UI requests when present.',
+    );
+  });
+
+  it("accepts renderable bash executions without scalar metadata", async () => {
+    const response = {
+      ...snapshot,
+      messages: [{ role: "bashExecution", command: "ls", output: "x" }],
+    };
+    const { fn } = fakeFetch(() => json(response));
+
+    await expect(
+      createPiHttpClient({ fetchImpl: fn }).getThread("t1"),
+    ).resolves.toEqual(response);
+  });
+
   it("rejects tool results without a tool call id", async () => {
     const { fn } = fakeFetch(() =>
       json({

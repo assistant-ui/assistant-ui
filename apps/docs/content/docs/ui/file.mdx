@@ -22,7 +22,7 @@ import { FileSample } from "@/components/docs/samples/file";
 
 ### Use in your application
 
-Pass `File` to `MessagePrimitive.Parts`:
+The shipped `Thread` component renders `file` parts through `File` by default, in both assistant and user messages. In a custom thread, pass `File` to `MessagePrimitive.Parts`:
 
 ```tsx title="/components/assistant-ui/thread.tsx" {1,8}
 import { File } from "@/components/assistant-ui/file";

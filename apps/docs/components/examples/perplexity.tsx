@@ -93,7 +93,7 @@ const EmptyState: FC = () => {
 
 const Composer: FC<{ placeholder: string }> = ({ placeholder }) => {
   return (
-    <ComposerPrimitive.Root className="group/composer mx-auto flex w-full max-w-(--thread-max-width) flex-col rounded-3xl border border-[#d7d0c5] bg-[#fcfbf8] shadow-[0_2px_4px_-2px_rgba(32,24,18,0.06),0_8px_24px_-12px_rgba(32,24,18,0.12)] transition-colors focus-within:border-[#b8b0a5] dark:border-[#4a433b] dark:bg-[#23211f] dark:shadow-[0_2px_8px_-4px_rgba(0,0,0,0.4),0_12px_32px_-16px_rgba(0,0,0,0.5)] dark:focus-within:border-[#6a6258]">
+    <ComposerPrimitive.Root className="group/composer mx-auto flex w-full max-w-(--thread-max-width) flex-col rounded-3xl border border-[#d7d0c5] bg-[#fcfbf8] transition-colors focus-within:border-[#b8b0a5] dark:border-[#4a433b] dark:bg-[#23211f] dark:focus-within:border-[#6a6258]">
       <AuiIf condition={(s) => s.composer.attachments.length > 0}>
         <div className="flex flex-wrap gap-2 px-4 pt-4">
           <ComposerPrimitive.Attachments>
@@ -314,7 +314,7 @@ const ChatMessage: FC = () => {
               </ActionBarPrimitive.Edit>
             </ActionBarPrimitive.Root>
 
-            <div className="max-w-[85%] rounded-3xl rounded-tr-md border border-[#ddd5c9] bg-[#fcfbf8] px-4 py-3 text-[#2c2721] shadow-[0_1px_0_rgba(31,27,23,0.03)] dark:border-[#38332e] dark:bg-[#23211f] dark:text-[#f1ede7]">
+            <div className="max-w-[85%] rounded-3xl rounded-tr-md border border-[#ddd5c9] bg-[#fcfbf8] px-4 py-3 text-[#2c2721] dark:border-[#38332e] dark:bg-[#23211f] dark:text-[#f1ede7]">
               <div className="prose prose-sm dark:prose-invert prose-p:my-0 wrap-break-word">
                 <MessagePrimitive.Parts components={{ Text: MarkdownText }} />
               </div>

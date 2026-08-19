@@ -152,3 +152,34 @@ const COMMUNITY_EXAMPLES: ExampleItem[] = [
 ];
 
 export { INTERNAL_EXAMPLES, COMMUNITY_EXAMPLES };
+
+export function getExampleSlug(item: ExampleItem): string | undefined {
+  if (item.external) return undefined;
+  const match = /^\/examples\/([^/?#]+)$/.exec(item.link);
+  return match?.[1];
+}
+
+export function getInternalExamplePages(): ExampleItem[] {
+  return INTERNAL_EXAMPLES.filter((item) => getExampleSlug(item) != null);
+}
+
+export function getExampleBySlug(slug: string): ExampleItem | undefined {
+  return getInternalExamplePages().find(
+    (item) => getExampleSlug(item) === slug,
+  );
+}
+
+export function getExampleNeighbors(slug: string): {
+  previous?: ExampleItem;
+  next?: ExampleItem;
+} {
+  const items = getInternalExamplePages();
+  const index = items.findIndex((item) => getExampleSlug(item) === slug);
+  if (index === -1) return {};
+  const previous = items[index - 1];
+  const next = items[index + 1];
+  return {
+    ...(previous && { previous }),
+    ...(next && { next }),
+  };
+}

@@ -4,7 +4,7 @@ import {
   MessagePersistence,
   MESSAGE_FORMAT,
 } from "../../chat/MessagePersistence";
-import { aiSDKV6FormatAdapter } from "../../../../react-ai-sdk/src/ui/adapters/aiSDKFormatAdapter";
+import { aiSDKV6FormatAdapter } from "../../../../ai-sdk/src/adapters/aiSDKFormatAdapter";
 
 // If this fails, update both adapters together or document intentional divergence.
 type CloudMessageStorageEntry = Parameters<
