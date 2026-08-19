@@ -59,9 +59,11 @@ type InitializeResult = {
 };
 
 export function createXuluxLocalThreadListAdapter({
+  userId,
   getCurrentSessionId,
   cloud,
 }: {
+  userId: string;
   getCurrentSessionId: () => string;
   cloud: AssistantCloud;
 }): RemoteThreadListAdapter {
@@ -72,7 +74,7 @@ export function createXuluxLocalThreadListAdapter({
     remoteId: string,
     updater: (thread: XuluxStoredThread | null) => XuluxStoredThread,
   ) => {
-    const threads = readXuluxThreads();
+    const threads = readXuluxThreads(userId);
     const index = threads.findIndex((thread) => thread.remoteId === remoteId);
     const nextThread = updater(index === -1 ? null : threads[index]!);
     const nextThreads =
@@ -81,14 +83,14 @@ export function createXuluxLocalThreadListAdapter({
         : threads.map((thread, threadIndex) =>
             threadIndex === index ? nextThread : thread,
           );
-    writeXuluxThreads(nextThreads);
+    writeXuluxThreads(userId, nextThreads);
   };
 
   const createCloudThread = async (
     sessionId: string,
   ): Promise<InitializeResult> => {
     const now = Date.now();
-    const sessionStub = findXuluxSessionStub(sessionId);
+    const sessionStub = findXuluxSessionStub(userId, sessionId);
     let cloudThreadId: string;
 
     try {
@@ -104,10 +106,11 @@ export function createXuluxLocalThreadListAdapter({
       );
     }
 
-    const latestSessionStub = findXuluxSessionStub(sessionId) ?? sessionStub;
+    const latestSessionStub =
+      findXuluxSessionStub(userId, sessionId) ?? sessionStub;
 
     // Drop pre-init local stubs (remoteId was sessionId) now that we have a cloud id.
-    const threadsWithoutStub = readXuluxThreads().filter(
+    const threadsWithoutStub = readXuluxThreads(userId).filter(
       (thread) =>
         thread.remoteId !== sessionId &&
         !(
@@ -115,7 +118,7 @@ export function createXuluxLocalThreadListAdapter({
           thread.custom.sessionId === sessionId
         ),
     );
-    writeXuluxThreads(threadsWithoutStub);
+    writeXuluxThreads(userId, threadsWithoutStub);
 
     upsertThread(cloudThreadId, (existing) => ({
       remoteId: cloudThreadId,
@@ -170,7 +173,7 @@ export function createXuluxLocalThreadListAdapter({
   return {
     unstable_Provider: Provider,
     async list() {
-      const threads = readXuluxThreads();
+      const threads = readXuluxThreads(userId);
       return {
         threads: threads.map((thread) => ({
           remoteId: thread.remoteId,
@@ -183,7 +186,7 @@ export function createXuluxLocalThreadListAdapter({
     },
     async initialize(_threadId: string) {
       const sessionId = getCurrentSessionId();
-      const existing = findXuluxThreadBySessionId(sessionId);
+      const existing = findXuluxThreadBySessionId(userId, sessionId);
       if (existing?.remoteId) {
         return {
           remoteId: existing.remoteId,
@@ -201,21 +204,21 @@ export function createXuluxLocalThreadListAdapter({
       return task;
     },
     async rename(remoteId, title) {
-      updateXuluxThread(remoteId, (thread) => ({
+      updateXuluxThread(userId, remoteId, (thread) => ({
         ...thread,
         title,
         custom: { ...thread.custom, updatedAt: Date.now() },
       }));
     },
     async archive(remoteId) {
-      updateXuluxThread(remoteId, (thread) => ({
+      updateXuluxThread(userId, remoteId, (thread) => ({
         ...thread,
         status: "archived",
         custom: { ...thread.custom, updatedAt: Date.now() },
       }));
     },
     async unarchive(remoteId) {
-      updateXuluxThread(remoteId, (thread) => ({
+      updateXuluxThread(userId, remoteId, (thread) => ({
         ...thread,
         status: "regular",
         custom: { ...thread.custom, updatedAt: Date.now() },
@@ -223,11 +226,14 @@ export function createXuluxLocalThreadListAdapter({
     },
     async delete(remoteId) {
       writeXuluxThreads(
-        readXuluxThreads().filter((thread) => thread.remoteId !== remoteId),
+        userId,
+        readXuluxThreads(userId).filter(
+          (thread) => thread.remoteId !== remoteId,
+        ),
       );
     },
     async fetch(remoteId) {
-      const thread = findXuluxThread(remoteId);
+      const thread = findXuluxThread(userId, remoteId);
       if (!thread) throw new Error("Thread not found");
       return {
         remoteId: thread.remoteId,
@@ -239,7 +245,7 @@ export function createXuluxLocalThreadListAdapter({
     },
     async generateTitle(remoteId, messages) {
       const title = titleFromMessages(messages);
-      updateXuluxThread(remoteId, (thread) => ({
+      updateXuluxThread(userId, remoteId, (thread) => ({
         ...thread,
         title,
         custom: { ...thread.custom, updatedAt: Date.now() },

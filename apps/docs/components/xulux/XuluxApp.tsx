@@ -177,6 +177,7 @@ function XuluxAppReady({
 
   return (
     <XuluxRuntimeProvider
+      userId={userId}
       mode={mode}
       sessionId={sessionId}
       selectedTemplateContext={selectedTemplateContext}
@@ -185,6 +186,7 @@ function XuluxAppReady({
     >
       <AssistantPanelProvider>
         <XuluxShell
+          userId={userId}
           mode={mode}
           courseId={courseId}
           autoStart={autoStart}
@@ -204,6 +206,7 @@ function XuluxAppReady({
 }
 
 function XuluxRuntimeProvider({
+  userId,
   mode,
   sessionId,
   selectedTemplateContext,
@@ -211,6 +214,7 @@ function XuluxRuntimeProvider({
   learnProgress,
   children,
 }: {
+  userId: string;
   mode: XuluxMode;
   sessionId: string;
   selectedTemplateContext: SelectedTemplateContext | null;
@@ -228,6 +232,7 @@ function XuluxRuntimeProvider({
 
   return (
     <XuluxRuntimeProviderInner
+      userId={userId}
       mode={mode}
       sessionId={sessionId}
       selectedTemplateContext={selectedTemplateContext}
@@ -257,6 +262,7 @@ function XuluxMissingCloudConfig() {
 }
 
 function XuluxRuntimeProviderInner({
+  userId,
   mode,
   sessionId,
   selectedTemplateContext,
@@ -265,6 +271,7 @@ function XuluxRuntimeProviderInner({
   cloudBaseUrl,
   children,
 }: {
+  userId: string;
   mode: XuluxMode;
   sessionId: string;
   selectedTemplateContext: SelectedTemplateContext | null;
@@ -311,10 +318,11 @@ function XuluxRuntimeProviderInner({
   const adapter = useMemo(
     () =>
       createXuluxLocalThreadListAdapter({
+        userId,
         getCurrentSessionId: () => sessionIdRef.current,
         cloud: assistantCloud,
       }),
-    [assistantCloud],
+    [assistantCloud, userId],
   );
 
   const transport = useMemo(() => {
@@ -368,7 +376,7 @@ function XuluxRuntimeProviderInner({
     >
       <AssistantRuntimeProvider runtime={runtime}>
         <XuluxAnalyticsProvider sessionId={sessionId}>
-          <XuluxThreadStatusObserver />
+          <XuluxThreadStatusObserver userId={userId} />
           {children}
         </XuluxAnalyticsProvider>
       </AssistantRuntimeProvider>

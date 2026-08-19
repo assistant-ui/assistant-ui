@@ -37,14 +37,16 @@ function fallbackTitle(thread: XuluxStoredThread): string {
 }
 
 export function XuluxHistoryMenu({
+  userId,
   onRestoreThread,
   onNewChat,
 }: {
+  userId: string;
   onRestoreThread: (thread: XuluxStoredThread) => void;
   onNewChat: () => void;
 }) {
-  useNormalizeInterruptedXuluxThreads();
-  const threads = useXuluxStoredThreads().filter(
+  useNormalizeInterruptedXuluxThreads(userId);
+  const threads = useXuluxStoredThreads(userId).filter(
     (thread) => thread.status === "regular",
   );
   const aui = useAui();

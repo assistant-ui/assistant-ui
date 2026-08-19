@@ -7,7 +7,7 @@ import {
   updateXuluxThreadStatus,
 } from "./xulux-local-storage";
 
-export function XuluxThreadStatusObserver() {
+export function XuluxThreadStatusObserver({ userId }: { userId: string }) {
   const remoteId = useAuiState((state) => state.threadListItem.remoteId);
   const isRunning = useAuiState((state) => state.thread.isRunning);
   const messages = useAuiState((state) => state.thread.messages);
@@ -21,9 +21,9 @@ export function XuluxThreadStatusObserver() {
 
     const latestUserText = getLatestUserText(messages);
     if (latestUserText) {
-      updateXuluxPendingUserMessage(remoteId, latestUserText);
+      updateXuluxPendingUserMessage(userId, remoteId, latestUserText);
     }
-  }, [isRunning, messages, remoteId]);
+  }, [isRunning, messages, remoteId, userId]);
 
   useEffect(() => {
     const prior = previous.current;
@@ -33,15 +33,15 @@ export function XuluxThreadStatusObserver() {
     if (prior.remoteId !== remoteId) return;
 
     if (isRunning && !prior.isRunning) {
-      updateXuluxThreadStatus(remoteId, "running");
+      updateXuluxThreadStatus(userId, remoteId, "running");
       return;
     }
 
     if (!isRunning && prior.isRunning) {
-      updateXuluxThreadStatus(remoteId, "idle");
-      updateXuluxPendingUserMessage(remoteId, null);
+      updateXuluxThreadStatus(userId, remoteId, "idle");
+      updateXuluxPendingUserMessage(userId, remoteId, null);
     }
-  }, [remoteId, isRunning]);
+  }, [remoteId, isRunning, userId]);
 
   return null;
 }

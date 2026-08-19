@@ -95,6 +95,7 @@ type PromptStart = {
 };
 
 export function XuluxShell({
+  userId,
   mode,
   courseId,
   autoStart,
@@ -108,6 +109,7 @@ export function XuluxShell({
   onSetActivePreviewContext,
   onResetSession,
 }: {
+  userId: string;
   mode: XuluxMode;
   courseId: string;
   autoStart: boolean;
@@ -132,7 +134,7 @@ export function XuluxShell({
   const currentRemoteId = useAuiState((state) => state.threadListItem.remoteId);
   const isThreadRunning = useAuiState((state) => state.thread.isRunning);
   const threadMessages = useAuiState((state) => state.thread.messages);
-  const storedThreads = useXuluxStoredThreads();
+  const storedThreads = useXuluxStoredThreads(userId);
   const [viewMode, setViewMode] = useState<XuluxViewMode>("landing");
   const [selectedTemplate, setSelectedTemplate] =
     useState<XuluxTemplate | null>(null);
@@ -209,7 +211,11 @@ export function XuluxShell({
             : {}),
         }),
       );
-      updateXuluxPendingUserMessage(currentRemoteId ?? sessionId, prompt);
+      updateXuluxPendingUserMessage(
+        userId,
+        currentRemoteId ?? sessionId,
+        prompt,
+      );
       setSelectedTemplate(null);
       setSelectedTemplateContext(null);
       setActivePreviewContext(null);
@@ -237,6 +243,7 @@ export function XuluxShell({
       onSetActivePreviewContext,
       onSetSelectedTemplateContext,
       sessionId,
+      userId,
     ],
   );
 
@@ -410,9 +417,15 @@ export function XuluxShell({
 
     const latestUserText = getLatestUserTextFromMessages(runtimeMessages);
     if (latestUserText) {
-      updateXuluxPendingUserMessage(currentRemoteId, latestUserText);
+      updateXuluxPendingUserMessage(userId, currentRemoteId, latestUserText);
     }
-  }, [activeStoredThread, currentRemoteId, isInterrupted, runtimeMessages]);
+  }, [
+    activeStoredThread,
+    currentRemoteId,
+    isInterrupted,
+    runtimeMessages,
+    userId,
+  ]);
 
   const handleRetryInterrupted = useCallback(() => {
     if (!interruptedUserMessage) return;
@@ -423,10 +436,11 @@ export function XuluxShell({
       }),
     );
     updateXuluxPendingUserMessage(
+      userId,
       currentRemoteId ?? sessionId,
       interruptedUserMessage,
     );
-    updateXuluxThreadStatus(currentRemoteId ?? sessionId, "running");
+    updateXuluxThreadStatus(userId, currentRemoteId ?? sessionId, "running");
     setViewMode("chat");
 
     const messages = aui.thread.getState().messages;
@@ -446,11 +460,12 @@ export function XuluxShell({
     currentRemoteId,
     interruptedUserMessage,
     sessionId,
+    userId,
   ]);
 
   useEffect(() => {
     if (!currentRemoteId) return;
-    updateXuluxThreadContext(currentRemoteId, {
+    updateXuluxThreadContext(userId, currentRemoteId, {
       selectedTemplate: selectedTemplateContext,
       activePreviewContext,
       canvas: toCanvasSnapshot(
@@ -464,6 +479,7 @@ export function XuluxShell({
     currentRemoteId,
     selectedTemplate,
     selectedTemplateContext,
+    userId,
   ]);
 
   useEffect(() => {
@@ -584,6 +600,7 @@ export function XuluxShell({
         />
 
         <XuluxHeaderActions
+          userId={userId}
           visible
           showChatActions={viewMode !== "landing"}
           onNewChat={handleNewChat}

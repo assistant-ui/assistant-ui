@@ -440,11 +440,9 @@ export function PlaygroundClient({
   const searchParams = useSearchParams();
   const requestedAgent =
     aiBuilderEnabled && searchParams.get("mode") === "agent";
+  const mode = requestedAgent ? "agent" : "builder";
   const aiBuilderReturnPath = createAiBuilderReturnPath(
     new URLSearchParams(searchParams.toString()),
-  );
-  const [mode, setMode] = useState<"agent" | "builder">(
-    requestedAgent ? "agent" : "builder",
   );
   const [visitedModes, setVisitedModes] = useState({
     agent: requestedAgent,
@@ -452,16 +450,13 @@ export function PlaygroundClient({
   });
 
   useEffect(() => {
-    const nextMode = requestedAgent ? "agent" : "builder";
-    setMode(nextMode);
     setVisitedModes((current) =>
-      current[nextMode] ? current : { ...current, [nextMode]: true },
+      current[mode] ? current : { ...current, [mode]: true },
     );
-  }, [requestedAgent]);
+  }, [mode]);
 
   const handleModeChange = useCallback(
     (nextMode: "agent" | "builder") => {
-      setMode(nextMode);
       setVisitedModes((current) => ({
         ...current,
         [nextMode]: true,
@@ -500,7 +495,7 @@ export function PlaygroundClient({
       )}
 
       <div className="flex h-full min-h-0 w-full flex-col overflow-hidden">
-        {aiBuilderEnabled && visitedModes.agent && (
+        {aiBuilderEnabled && (visitedModes.agent || mode === "agent") && (
           <div
             className={cn(
               "h-full min-h-0 w-full flex-col overflow-hidden",
@@ -511,7 +506,7 @@ export function PlaygroundClient({
             <XuluxApp />
           </div>
         )}
-        {visitedModes.builder && (
+        {(visitedModes.builder || mode === "builder") && (
           <div
             className={cn(
               "h-full min-h-0 w-full flex-col overflow-hidden",

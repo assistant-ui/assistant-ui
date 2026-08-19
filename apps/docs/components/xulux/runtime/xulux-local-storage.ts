@@ -18,9 +18,10 @@ const STORAGE_LOCK_NAME = `${PREFIX}storage-migration`;
 const STORAGE_EVENT = "xulux-storage";
 const EMPTY_THREADS: XuluxStoredThread[] = [];
 
-let activeUserId: string | null = null;
-let cachedThreadsRaw: string | null = null;
-let cachedThreadsSnapshot: XuluxStoredThread[] = EMPTY_THREADS;
+const cachedThreads = new Map<
+  string,
+  { raw: string | null; snapshot: XuluxStoredThread[] }
+>();
 
 function isBrowser() {
   return typeof window !== "undefined";
@@ -33,10 +34,6 @@ function notify() {
 
 function userKey(userId: string, key: string): string {
   return `${USER_PREFIX}${encodeURIComponent(userId)}:${key.slice(PREFIX.length)}`;
-}
-
-function activeKey(key: string): string | null {
-  return activeUserId ? userKey(activeUserId, key) : null;
 }
 
 export function createXuluxUserStorage(
@@ -91,16 +88,15 @@ export async function claimXuluxStorage(
   >,
   userId: string,
 ): Promise<boolean> {
-  if (typeof navigator === "undefined" || !navigator.locks) return false;
-
   try {
-    const claimed = await navigator.locks.request(STORAGE_LOCK_NAME, () =>
-      migrateLegacyStorage(storage, userId),
-    );
+    const claimed =
+      typeof navigator !== "undefined" && navigator.locks
+        ? await navigator.locks.request(STORAGE_LOCK_NAME, () =>
+            migrateLegacyStorage(storage, userId),
+          )
+        : migrateLegacyStorage(storage, userId);
     if (!claimed) return false;
-    activeUserId = userId;
-    cachedThreadsRaw = null;
-    cachedThreadsSnapshot = EMPTY_THREADS;
+    cachedThreads.delete(userId);
     notify();
     return true;
   } catch {
@@ -108,11 +104,10 @@ export async function claimXuluxStorage(
   }
 }
 
-function writeJson<T>(key: string, value: T) {
+function writeJson<T>(userId: string, key: string, value: T) {
   if (!isBrowser()) return;
   try {
-    const storageKey = activeKey(key);
-    if (!storageKey) return;
+    const storageKey = userKey(userId, key);
     const nextRaw = JSON.stringify(value);
     if (window.localStorage.getItem(storageKey) === nextRaw) return;
     window.localStorage.setItem(storageKey, nextRaw);
@@ -138,57 +133,66 @@ function normalizeThread(thread: XuluxStoredThread): XuluxStoredThread {
   };
 }
 
-export function readXuluxThreads(): XuluxStoredThread[] {
+export function readXuluxThreads(userId: string): XuluxStoredThread[] {
   if (!isBrowser()) return EMPTY_THREADS;
 
-  const storageKey = activeKey(THREADS_KEY);
-  if (!storageKey) return EMPTY_THREADS;
+  const storageKey = userKey(userId, THREADS_KEY);
   const raw = window.localStorage.getItem(storageKey);
-  if (raw === cachedThreadsRaw) {
-    return cachedThreadsSnapshot;
+  const cached = cachedThreads.get(userId);
+  if (cached?.raw === raw) {
+    return cached.snapshot;
   }
 
-  cachedThreadsRaw = raw;
   if (!raw) {
-    cachedThreadsSnapshot = EMPTY_THREADS;
-    return cachedThreadsSnapshot;
+    cachedThreads.set(userId, { raw, snapshot: EMPTY_THREADS });
+    return EMPTY_THREADS;
   }
 
+  let snapshot: XuluxStoredThread[];
   try {
-    cachedThreadsSnapshot = JSON.parse(raw) as XuluxStoredThread[];
+    snapshot = JSON.parse(raw) as XuluxStoredThread[];
   } catch {
-    cachedThreadsSnapshot = EMPTY_THREADS;
+    snapshot = EMPTY_THREADS;
   }
-  return cachedThreadsSnapshot;
+  cachedThreads.set(userId, { raw, snapshot });
+  return snapshot;
 }
 
-function normalizePersistedThreads() {
-  const threads = readXuluxThreads();
+function normalizePersistedThreads(userId: string) {
+  const threads = readXuluxThreads(userId);
   const normalized = threads.map(normalizeThread);
   if (JSON.stringify(threads) !== JSON.stringify(normalized)) {
-    writeXuluxThreads(normalized);
+    writeXuluxThreads(userId, normalized);
   }
 }
 
-export function writeXuluxThreads(threads: XuluxStoredThread[]) {
-  writeJson(THREADS_KEY, threads);
+export function writeXuluxThreads(
+  userId: string,
+  threads: XuluxStoredThread[],
+) {
+  writeJson(userId, THREADS_KEY, threads);
 }
 
 export function isAssistantCloudThreadId(remoteId: string): boolean {
   return remoteId.startsWith("thread_");
 }
 
-export function findXuluxThread(remoteId: string): XuluxStoredThread | null {
+export function findXuluxThread(
+  userId: string,
+  remoteId: string,
+): XuluxStoredThread | null {
   return (
-    readXuluxThreads().find((thread) => thread.remoteId === remoteId) ?? null
+    readXuluxThreads(userId).find((thread) => thread.remoteId === remoteId) ??
+    null
   );
 }
 
 export function findXuluxThreadBySessionId(
+  userId: string,
   sessionId: string,
 ): XuluxStoredThread | null {
   return (
-    readXuluxThreads().find(
+    readXuluxThreads(userId).find(
       (thread) =>
         isAssistantCloudThreadId(thread.remoteId) &&
         (thread.custom.sessionId === sessionId ||
@@ -198,10 +202,11 @@ export function findXuluxThreadBySessionId(
 }
 
 export function findXuluxSessionStub(
+  userId: string,
   sessionId: string,
 ): XuluxStoredThread | null {
   return (
-    readXuluxThreads().find(
+    readXuluxThreads(userId).find(
       (thread) =>
         !isAssistantCloudThreadId(thread.remoteId) &&
         thread.custom.sessionId === sessionId,
@@ -210,22 +215,24 @@ export function findXuluxSessionStub(
 }
 
 export function updateXuluxThread(
+  userId: string,
   remoteId: string,
   updater: (thread: XuluxStoredThread) => XuluxStoredThread,
 ) {
-  const threads = readXuluxThreads();
+  const threads = readXuluxThreads(userId);
   const index = threads.findIndex((thread) => thread.remoteId === remoteId);
   if (index === -1) return;
   const nextThreads = [...threads];
   nextThreads[index] = updater(threads[index]!);
-  writeXuluxThreads(nextThreads);
+  writeXuluxThreads(userId, nextThreads);
 }
 
 export function updateXuluxThreadCustom(
+  userId: string,
   remoteId: string,
   patch: Partial<Omit<XuluxThreadCustom, "sessionId">>,
 ) {
-  updateXuluxThread(remoteId, (thread) => ({
+  updateXuluxThread(userId, remoteId, (thread) => ({
     ...thread,
     custom: {
       ...(thread.custom ?? {
@@ -240,20 +247,22 @@ export function updateXuluxThreadCustom(
 }
 
 export function updateXuluxThreadStatus(
+  userId: string,
   remoteId: string,
   status: XuluxThreadStatus,
 ) {
-  updateXuluxThreadCustom(remoteId, { xuluxStatus: status });
+  updateXuluxThreadCustom(userId, remoteId, { xuluxStatus: status });
 }
 
 export function updateXuluxPendingUserMessage(
+  userId: string,
   remoteId: string,
   pendingUserMessage: string | null,
 ) {
-  const threads = readXuluxThreads();
+  const threads = readXuluxThreads(userId);
   const index = threads.findIndex((thread) => thread.remoteId === remoteId);
   if (index === -1) {
-    writeXuluxThreads([
+    writeXuluxThreads(userId, [
       {
         remoteId,
         status: "regular",
@@ -269,10 +278,11 @@ export function updateXuluxPendingUserMessage(
     return;
   }
 
-  updateXuluxThreadCustom(remoteId, { pendingUserMessage });
+  updateXuluxThreadCustom(userId, remoteId, { pendingUserMessage });
 }
 
 export function updateXuluxThreadContext(
+  userId: string,
   remoteId: string,
   context: {
     selectedTemplate?: SelectedTemplateContext | null;
@@ -280,10 +290,10 @@ export function updateXuluxThreadContext(
     activePreviewContext?: XuluxActivePreviewContext | null;
   },
 ) {
-  updateXuluxThreadCustom(remoteId, context);
+  updateXuluxThreadCustom(userId, remoteId, context);
 }
 
-export function useXuluxStoredThreads() {
+export function useXuluxStoredThreads(userId: string) {
   return useSyncExternalStore(
     (listener) => {
       if (!isBrowser()) return () => {};
@@ -294,13 +304,13 @@ export function useXuluxStoredThreads() {
         window.removeEventListener("storage", listener);
       };
     },
-    readXuluxThreads,
+    () => readXuluxThreads(userId),
     () => EMPTY_THREADS,
   );
 }
 
-export function useNormalizeInterruptedXuluxThreads() {
+export function useNormalizeInterruptedXuluxThreads(userId: string) {
   useEffect(() => {
-    normalizePersistedThreads();
-  }, []);
+    normalizePersistedThreads(userId);
+  }, [userId]);
 }

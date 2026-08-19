@@ -21,12 +21,14 @@ function HeaderPortal({ children }: { children: ReactNode }) {
 }
 
 export function XuluxHeaderActions({
+  userId,
   visible,
   showChatActions,
   onNewChat,
   onShowTemplates,
   onRestoreThread,
 }: {
+  userId: string;
   visible: boolean;
   showChatActions: boolean;
   onNewChat: () => void;
@@ -38,6 +40,7 @@ export function XuluxHeaderActions({
   return (
     <HeaderPortal>
       <XuluxHistoryMenu
+        userId={userId}
         onNewChat={onNewChat}
         onRestoreThread={onRestoreThread}
       />

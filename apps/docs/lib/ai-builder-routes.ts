@@ -1,5 +1,3 @@
-export const AI_BUILDER_RETURN_PATH = "/playground?mode=agent";
-
 export function createAiBuilderReturnPath(
   searchParams: URLSearchParams,
 ): string {

@@ -5,6 +5,10 @@ chat routes, guided `/learn` pages, and workspace downloads require a verified
 Clerk user. The `/learn/preview/*` document remains public because it serves the
 inert stage iframe, while its Xulux chat API remains authenticated.
 
+Requiring sign-in for the guided `/learn` experience is an intentional product
+boundary, not only an API implementation detail. It must receive maintainer
+approval before merge.
+
 Anonymous access is deliberately bounded rather than treated as proof of a
 human. A signed session is a soft per-session quota: a caller can discard it
 and request another. The daily trusted-IP limit, global request limit, session
@@ -13,7 +17,8 @@ issuance limit, and provider spend controls are the durable cost backstops.
 ## Deployment prerequisites
 
 Configure these values for both Preview and Production before merging or
-promoting the application:
+promoting the application. Redeploy after changing them because the playground
+availability decision is evaluated by the Next.js server/build:
 
 - `AUI_ANONYMOUS_SESSION_SECRET`: at least 32 random bytes, generated with a
   secret manager or `openssl rand -base64 32`.
@@ -86,3 +91,8 @@ AI playground feature flag and roll back. Do not restore anonymous Assistant
 Cloud access as a recovery step. Rotate `AUI_ANONYMOUS_SESSION_SECRET` only for
 a suspected token-signing compromise because rotation invalidates every public
 session immediately.
+
+Reports that `/learn` now asks for sign-in are expected under the approved
+product boundary. Restoring a public guided course is a separate product change
+and must not be handled by removing authentication from Xulux APIs or Assistant
+Cloud.

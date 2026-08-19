@@ -1,7 +1,11 @@
 import {
   claimXuluxStorage,
   createXuluxUserStorage,
+  readXuluxThreads,
+  updateXuluxPendingUserMessage,
+  writeXuluxThreads,
 } from "./xulux-local-storage";
+import type { XuluxStoredThread } from "./types";
 
 beforeEach(() => {
   let queue = Promise.resolve();
@@ -112,6 +116,20 @@ describe("claimXuluxStorage", () => {
     ).toBeNull();
   });
 
+  it("migrates storage when Web Locks is unavailable", async () => {
+    vi.stubGlobal("navigator", {});
+    const storage = createStorage({
+      "xulux:threads": '[{"title":"Existing thread"}]',
+    });
+
+    await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
+      true,
+    );
+
+    expect(storage.getItem("xulux:threads")).toBeNull();
+    expect(storage.getItem("xulux:user:user_current:threads")).not.toBeNull();
+  });
+
   it("reports unavailable storage without throwing", async () => {
     const storage = createStorage();
     storage.setItem = () => {
@@ -121,5 +139,42 @@ describe("claimXuluxStorage", () => {
     await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
       false,
     );
+  });
+});
+
+describe("user-bound Xulux storage", () => {
+  it("keeps a late write scoped to the user that started it", () => {
+    const storage = createStorage();
+    vi.stubGlobal("window", {
+      localStorage: storage,
+      dispatchEvent: vi.fn(),
+    });
+    const firstThread: XuluxStoredThread = {
+      remoteId: "thread_first",
+      status: "regular",
+      custom: {
+        sessionId: "session_first",
+        xuluxStatus: "idle",
+        updatedAt: 1,
+      },
+    };
+    const secondThread: XuluxStoredThread = {
+      remoteId: "thread_second",
+      status: "regular",
+      custom: {
+        sessionId: "session_second",
+        xuluxStatus: "idle",
+        updatedAt: 2,
+      },
+    };
+
+    writeXuluxThreads("user_first", [firstThread]);
+    writeXuluxThreads("user_second", [secondThread]);
+    updateXuluxPendingUserMessage("user_first", "thread_first", "late result");
+
+    expect(readXuluxThreads("user_first")[0]?.custom.pendingUserMessage).toBe(
+      "late result",
+    );
+    expect(readXuluxThreads("user_second")).toEqual([secondThread]);
   });
 });
