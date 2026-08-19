@@ -150,7 +150,10 @@ export function NavItems({
               >
                 <div
                   className={cn(
-                    "grid grid-cols-4",
+                    "grid",
+                    item.groups.length <= 2 && "grid-cols-2",
+                    item.groups.length === 3 && "grid-cols-3",
+                    item.groups.length >= 4 && "grid-cols-4",
                     menuAlign === "end" ? "gap-x-12" : "gap-x-6 lg:gap-x-8",
                   )}
                 >
@@ -162,7 +165,7 @@ export function NavItems({
                         menuAlign === "end" && "w-48",
                       )}
                     >
-                      <span className="text-muted-foreground px-2 pb-2 text-xs font-medium">
+                      <span className="text-muted-foreground px-2 pb-2 font-mono text-[11px] font-medium tracking-wide uppercase">
                         {group.label}
                       </span>
                       {group.items.map((link) => (

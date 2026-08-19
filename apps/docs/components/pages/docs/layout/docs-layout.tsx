@@ -54,7 +54,11 @@ export function DocsContent({ children }: { children: ReactNode }): ReactNode {
   );
 }
 
-export function DocsAssistantPanel(): ReactNode {
+export function DocsAssistantPanel({
+  hideWhenCollapsed = false,
+}: {
+  hideWhenCollapsed?: boolean;
+} = {}): ReactNode {
   const { open, width, isResizing, toggle } = useAssistantPanel();
 
   useEffect(() => {
@@ -82,7 +86,8 @@ export function DocsAssistantPanel(): ReactNode {
   return (
     <div
       className={cn(
-        "fixed top-0 right-0 bottom-0 z-50 hidden w-(--panel-width) md:block",
+        "fixed top-0 right-0 bottom-0 z-50 w-(--panel-width)",
+        hideWhenCollapsed && !open ? "hidden" : "hidden md:block",
         !isResizing &&
           "transition-[width] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
       )}

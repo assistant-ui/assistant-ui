@@ -1,22 +1,44 @@
 "use client";
 
+import { analytics } from "@/lib/analytics";
+import { Button } from "@/components/ui/button";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
+import { GitHubStars } from "@/components/pages/home/github-stars";
 import { NpmDownloads } from "@/components/pages/home/npm-downloads";
 import { typeDeck, typeHero } from "@/components/shared/type";
 import Image from "next/image";
+import Link from "next/link";
 
-export function Hero() {
+export function Hero({
+  stars,
+  downloads,
+}: {
+  stars: number | null;
+  downloads: number | null;
+}) {
   return (
     <section className="flex flex-col pb-4 md:pb-8">
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-3 pb-1">
-          <h1 className={typeHero}>A frontend for your AI agents</h1>
+          <h1 className={typeHero}>The frontend library for AI chat.</h1>
           <p className={typeDeck}>
-            React primitives for building AI chat interfaces.
+            Primitives and a runtime for production chat. Any backend, through
+            adapters.
           </p>
         </div>
 
-        <div className="flex flex-wrap items-center">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            nativeButton={false}
+            render={
+              <Link
+                href="/docs"
+                onClick={() => analytics.cta.clicked("get_started", "hero")}
+              />
+            }
+          >
+            Read the docs
+          </Button>
           <CopyCommandButton withPromptOption />
         </div>
 
@@ -27,18 +49,18 @@ export function Hero() {
             rel="noopener noreferrer"
             className="hover:text-foreground transition-colors"
           >
-            MIT License
+            <GitHubStars stars={stars} />
           </a>
-          <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
+          <span className="bg-muted-foreground/20 hidden size-1 rounded-(--radius-capsule) sm:block" />
           <a
             href="https://www.npmjs.com/package/@assistant-ui/react"
             target="_blank"
             rel="noopener noreferrer"
             className="hover:text-foreground transition-colors"
           >
-            <NpmDownloads />
+            <NpmDownloads downloads={downloads} />
           </a>
-          <span className="bg-muted-foreground/20 hidden size-1 rounded-full sm:block" />
+          <span className="bg-muted-foreground/20 hidden size-1 rounded-(--radius-capsule) sm:block" />
           <a
             href="https://www.ycombinator.com/companies/assistant-ui"
             target="_blank"

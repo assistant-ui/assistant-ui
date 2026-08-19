@@ -9,10 +9,7 @@ import {
   useAssistantPanel,
 } from "@/components/pages/docs/assistant/context";
 import { DocsAssistantRuntimeProvider } from "@/contexts/AssistantRuntimeProvider";
-import {
-  DocsAssistantPanel,
-  getPanelWidth,
-} from "@/components/pages/docs/layout/docs-layout";
+import { DocsAssistantPanel } from "@/components/pages/docs/layout/docs-layout";
 
 function HomeShift({
   isHome,
@@ -33,7 +30,7 @@ function HomeShift({
       )}
       style={
         {
-          "--chat-panel-width": getPanelWidth(isHome && open, width),
+          "--chat-panel-width": isHome && open ? `${width}px` : "0px",
         } as React.CSSProperties
       }
     >
@@ -51,7 +48,7 @@ export function HomeAssistant({ children }: { children: ReactNode }) {
         <HomeShift isHome={isHome}>{children}</HomeShift>
         {isHome && (
           <DocsAssistantRuntimeProvider>
-            <DocsAssistantPanel />
+            <DocsAssistantPanel hideWhenCollapsed />
           </DocsAssistantRuntimeProvider>
         )}
       </AssistantPanelProvider>

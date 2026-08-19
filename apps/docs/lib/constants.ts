@@ -123,7 +123,63 @@ export type NavItem =
 
 export const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Docs", href: "/docs" },
-  { type: "link", label: "Elements", href: "/elements" },
+  {
+    type: "mega",
+    label: "Products",
+    groups: [
+      {
+        label: "Extend",
+        items: [
+          {
+            label: "Elements",
+            href: "/elements",
+            description: "Multimodal UI. An extension, not a replacement.",
+            external: false,
+          },
+        ],
+      },
+      {
+        label: "Platforms",
+        items: [
+          {
+            label: "React",
+            href: "/docs",
+            description: "The web distribution",
+            external: false,
+          },
+          {
+            label: "React Native",
+            href: "/native",
+            description: "Mobile apps on the same runtime",
+            external: false,
+          },
+          {
+            label: "Ink",
+            href: "/ink",
+            description: "Terminal UIs on the same runtime",
+            external: false,
+          },
+        ],
+      },
+      {
+        label: "Hosted",
+        items: [
+          {
+            label: "Cloud",
+            href: CLOUD_URL,
+            description: "Hosted threads and persistence",
+            external: true,
+          },
+          {
+            label: "Playground",
+            href: "/playground",
+            description: "Try the library in the browser",
+            external: false,
+          },
+        ],
+      },
+    ],
+  },
   {
     type: "mega",
     label: "Resources",
@@ -142,9 +198,9 @@ export const NAV_ITEMS: NavItem[] = [
               ]
             : []),
           {
-            label: "Examples",
-            href: "/examples",
-            description: "Full implementations and demos",
+            label: "Changelog",
+            href: "/changelog",
+            description: "Release notes and updates",
             external: false,
           },
           {
@@ -154,9 +210,9 @@ export const NAV_ITEMS: NavItem[] = [
             external: false,
           },
           {
-            label: "Changelog",
-            href: "/changelog",
-            description: "Release notes and updates",
+            label: "Examples",
+            href: "/examples",
+            description: "Full implementations and demos",
             external: false,
           },
         ],
@@ -168,12 +224,6 @@ export const NAV_ITEMS: NavItem[] = [
             label: "Blog",
             href: "/blog",
             description: "Latest news and updates",
-            external: false,
-          },
-          {
-            label: "Traction",
-            href: "/traction",
-            description: "Stars, downloads, and adoption",
             external: false,
           },
           {
@@ -190,48 +240,7 @@ export const NAV_ITEMS: NavItem[] = [
           },
         ],
       },
-      {
-        label: "Open source",
-        items: [
-          {
-            label: "All projects",
-            href: "/oss",
-            description: "Everything we build in the open",
-            external: false,
-          },
-          {
-            label: "Packages",
-            href: "/packages",
-            description: "Every distribution on npm",
-            external: false,
-          },
-        ],
-      },
-      {
-        label: "Community",
-        items: [
-          {
-            label: "GitHub",
-            href: "https://github.com/assistant-ui/assistant-ui",
-            description: "Star us and open issues",
-            external: true,
-          },
-          {
-            label: "Discord",
-            href: "https://discord.gg/S9dwgCNEFs",
-            description: "Ask questions and share what you build",
-            external: true,
-          },
-          {
-            label: "X",
-            href: "https://x.com/assistantui",
-            description: "Follow along with releases",
-            external: true,
-          },
-        ],
-      },
     ],
   },
-  { type: "link", label: "Playground", href: "/playground" },
   { type: "link", label: "Pricing", href: "/pricing" },
 ];

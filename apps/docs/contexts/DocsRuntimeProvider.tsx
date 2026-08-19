@@ -28,8 +28,10 @@ const feedbackAdapter: FeedbackAdapter = {
 };
 export function DocsRuntimeProvider({
   children,
+  devtools = true,
 }: {
   children: React.ReactNode;
+  devtools?: boolean;
 }) {
   const assistantCloud = useMemo(
     () =>
@@ -87,7 +89,7 @@ export function DocsRuntimeProvider({
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       {children}
 
-      <DevToolsModal />
+      {devtools ? <DevToolsModal /> : null}
     </AssistantRuntimeProvider>
   );
 }
