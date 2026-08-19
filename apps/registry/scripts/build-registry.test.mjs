@@ -1334,6 +1334,10 @@ test("a recognized asset extension resolves to the literal file only", () => {
   assert.deepEqual(getRelativeImportCandidates("./logo.PNG", from), [
     "components/assistant-ui/logo.PNG",
   ]);
+});
+
+test("an uppercase module extension still probes TypeScript sources", () => {
+  const from = "components/assistant-ui/thread.tsx";
 
   assert.deepEqual(getRelativeImportCandidates("./legacy.JS", from), [
     "components/assistant-ui/legacy.JS",
