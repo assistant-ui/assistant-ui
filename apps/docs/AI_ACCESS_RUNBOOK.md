@@ -36,6 +36,7 @@ Set deliberate Preview and Production values for:
 
 - `AUI_IP_REQUESTS_PER_DAY`
 - `AUI_IDENTITY_REQUESTS_PER_DAY`
+- `AUI_BUILDER_IP_REQUESTS_PER_DAY`
 - `AUI_BUILDER_REQUESTS_PER_DAY`
 - `AUI_GLOBAL_REQUESTS_PER_DAY`
 - `AUI_ANONYMOUS_SESSIONS_PER_IP_PER_DAY`
@@ -72,8 +73,9 @@ Before production promotion, verify all of the following on the deployment URL:
    and global rejections return `429` before model selection.
 5. Signed-out AI Builder navigation redirects to sign-in and returns to the
    complete playground URL, including existing query parameters.
-6. Xulux chat and workspace downloads return `401` without Clerk auth and work
-   for a signed-in staging user.
+6. Xulux chat and workspace downloads return `401` without Clerk auth. A full
+   signed-in agent turn, including tool follow-ups, completes without hitting
+   the Builder burst limit.
 7. Switching Clerk users in one browser cannot expose the previous user's
    Xulux data, including across open tabs. Existing ownerless data is migrated
    under Web Locks; browsers without Web Locks quarantine it instead.

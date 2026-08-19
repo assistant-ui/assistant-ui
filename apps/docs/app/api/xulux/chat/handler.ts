@@ -177,7 +177,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       if (access instanceof Response) return access;
 
       const quotaId = `user:${access.userId}`;
-      const distinctId = getDistinctId(req);
+      const analyticsDistinctId = getDistinctId(req);
       const rateLimitResponse = await checkBuilderRateLimit(req, quotaId);
       if (rateLimitResponse) return rateLimitResponse;
 
@@ -294,7 +294,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
             type: "budget_denied",
             requestId,
             sessionId,
-            distinctId,
+            distinctId: quotaId,
             statusCode: budget.denied.status,
             userVisibleMessage,
             ...(userMessageId ? { userMessageId } : {}),
@@ -336,7 +336,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       const prism = prismTracer
         ? prismAISDK(prismTracer, baseModel, {
             name: traceName,
-            endUserId: distinctId,
+            endUserId: quotaId,
             metadata: {
               evalRunId,
               sessionId,
@@ -358,10 +358,13 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         stopWhen: stepCountIs(agent.maxSteps),
         tools: xuluxTools,
         ...posthogTelemetry({
-          distinctId,
+          distinctId: analyticsDistinctId,
           spanName: traceName,
           source: traceName,
-          properties: traceMetadata ?? {},
+          properties: {
+            authenticatedUserId: quotaId,
+            ...(traceMetadata ?? {}),
+          },
         }),
         ...(agent.activeToolsAfterFirstStep
           ? {
@@ -406,7 +409,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
                     type: "assistant_response_completed",
                     requestId,
                     sessionId,
-                    distinctId,
+                    distinctId: quotaId,
                     ...(userMessageId ? { userMessageId } : {}),
                   }),
                   ...(normalizedPreviewContext

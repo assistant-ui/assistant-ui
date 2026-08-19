@@ -10,6 +10,8 @@ import { createSignInUrl } from "@/lib/ai-builder-routes";
 export const config = {
   matcher: [
     "/umami/api/send",
+    "/sign-in/:path*",
+    "/sign-up/:path*",
     "/playground",
     "/learn/:path*",
     "/api/xulux/:path*",

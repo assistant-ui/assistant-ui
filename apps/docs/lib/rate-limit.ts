@@ -45,6 +45,19 @@ const getRatelimits = async () => {
         "1d",
       ),
     }),
+    builderIpBurst: new Ratelimit({
+      redis,
+      prefix: "aui:builder:ip:burst",
+      limiter: Ratelimit.fixedWindow(20, "1m"),
+    }),
+    builderIpDaily: new Ratelimit({
+      redis,
+      prefix: "aui:builder:ip:daily",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(process.env.AUI_BUILDER_IP_REQUESTS_PER_DAY, 5_000),
+        "1d",
+      ),
+    }),
     builderIdentity: new Ratelimit({
       redis,
       prefix: "aui:builder:identity",
@@ -137,84 +150,88 @@ export function getClientIp(req: Request): string {
   return "unknown";
 }
 
+type InferenceLimiter = Ratelimits["inferenceIpBurst"];
+
+async function checkInferenceLimits(
+  req: Request,
+  identity: string | undefined,
+  limiters: {
+    ipBurst: InferenceLimiter;
+    ipDaily: InferenceLimiter;
+    identity: InferenceLimiter;
+    global: InferenceLimiter;
+  },
+  identityDenialMessage: string,
+): Promise<Response | null> {
+  const ip = getClientIp(req);
+  const burstResult = await limiters.ipBurst.limit(ip);
+  if (!burstResult.success) {
+    return new Response("Rate limit exceeded", { status: 429 });
+  }
+
+  const dailyIpResult = await limiters.ipDaily.limit(ip);
+  if (!dailyIpResult.success) {
+    return new Response("Daily IP usage limit exceeded", { status: 429 });
+  }
+
+  const identityResult = identity
+    ? await limiters.identity.limit(identity)
+    : null;
+  if (identityResult && !identityResult.success) {
+    return new Response(identityDenialMessage, { status: 429 });
+  }
+
+  const globalResult = await limiters.global.limit("all");
+  if (!globalResult.success) {
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message: "global_inference_rate_limit_exceeded",
+        requestId: req.headers.get("x-vercel-id"),
+      }),
+    );
+    return new Response("Service usage limit exceeded", { status: 429 });
+  }
+
+  return null;
+}
+
 export async function checkRateLimit(
   req: Request,
   identity?: string,
 ): Promise<Response | null> {
-  return runRateLimitCheck(req, async (ratelimits) => {
-    const ip = getClientIp(req);
-    const burstResult = await ratelimits.inferenceIpBurst.limit(ip);
-    if (!burstResult.success) {
-      return new Response("Rate limit exceeded", { status: 429 });
-    }
-
-    const dailyIpResult = await ratelimits.inferenceIpDaily.limit(ip);
-    if (!dailyIpResult.success) {
-      return new Response("Daily IP usage limit exceeded", { status: 429 });
-    }
-
-    const identityResult = identity
-      ? await ratelimits.inferenceIdentity.limit(identity)
-      : null;
-    if (identityResult && !identityResult.success) {
-      return new Response("Daily session usage limit exceeded", {
-        status: 429,
-      });
-    }
-
-    const globalResult = await ratelimits.inferenceGlobal.limit("all");
-    if (!globalResult.success) {
-      console.error(
-        JSON.stringify({
-          level: "error",
-          message: "global_inference_rate_limit_exceeded",
-          requestId: req.headers.get("x-vercel-id"),
-        }),
-      );
-      return new Response("Service usage limit exceeded", { status: 429 });
-    }
-
-    return null;
-  });
+  return runRateLimitCheck(req, (ratelimits) =>
+    checkInferenceLimits(
+      req,
+      identity,
+      {
+        ipBurst: ratelimits.inferenceIpBurst,
+        ipDaily: ratelimits.inferenceIpDaily,
+        identity: ratelimits.inferenceIdentity,
+        global: ratelimits.inferenceGlobal,
+      },
+      "Daily session usage limit exceeded",
+    ),
+  );
 }
 
 export async function checkBuilderRateLimit(
   req: Request,
   identity: string,
 ): Promise<Response | null> {
-  return runRateLimitCheck(req, async (ratelimits) => {
-    const ip = getClientIp(req);
-    const burstResult = await ratelimits.inferenceIpBurst.limit(ip);
-    if (!burstResult.success) {
-      return new Response("Rate limit exceeded", { status: 429 });
-    }
-
-    const dailyIpResult = await ratelimits.inferenceIpDaily.limit(ip);
-    if (!dailyIpResult.success) {
-      return new Response("Daily IP usage limit exceeded", { status: 429 });
-    }
-
-    const identityResult = await ratelimits.builderIdentity.limit(identity);
-    if (!identityResult.success) {
-      return new Response("Daily AI Builder usage limit exceeded", {
-        status: 429,
-      });
-    }
-
-    const globalResult = await ratelimits.inferenceGlobal.limit("all");
-    if (!globalResult.success) {
-      console.error(
-        JSON.stringify({
-          level: "error",
-          message: "global_inference_rate_limit_exceeded",
-          requestId: req.headers.get("x-vercel-id"),
-        }),
-      );
-      return new Response("Service usage limit exceeded", { status: 429 });
-    }
-
-    return null;
-  });
+  return runRateLimitCheck(req, (ratelimits) =>
+    checkInferenceLimits(
+      req,
+      identity,
+      {
+        ipBurst: ratelimits.builderIpBurst,
+        ipDaily: ratelimits.builderIpDaily,
+        identity: ratelimits.builderIdentity,
+        global: ratelimits.inferenceGlobal,
+      },
+      "Daily AI Builder usage limit exceeded",
+    ),
+  );
 }
 
 export async function checkAnonymousSessionIssuanceRateLimit(

@@ -199,20 +199,38 @@ describe("separate non-inference limits", () => {
 });
 
 describe("checkBuilderRateLimit", () => {
-  it("uses a separate authenticated identity bucket", async () => {
-    const request = new Request("https://www.assistant-ui.com/api/xulux/chat", {
+  const request = () =>
+    new Request("https://www.assistant-ui.com/api/xulux/chat", {
       headers: { "x-vercel-forwarded-for": "203.0.113.10" },
     });
 
+  it("uses a separate authenticated identity bucket", async () => {
     await expect(
-      checkBuilderRateLimit(request, "user:user_123"),
+      checkBuilderRateLimit(request(), "user:user_123"),
     ).resolves.toBeNull();
 
     expect(mocks.calls).toEqual([
-      { prefix: "aui:inference:ip:burst", key: "203.0.113.10" },
-      { prefix: "aui:inference:ip:daily", key: "203.0.113.10" },
+      { prefix: "aui:builder:ip:burst", key: "203.0.113.10" },
+      { prefix: "aui:builder:ip:daily", key: "203.0.113.10" },
       { prefix: "aui:builder:identity", key: "user:user_123" },
       { prefix: "aui:inference:global", key: "all" },
     ]);
   });
+
+  it.each([
+    ["aui:builder:ip:burst", 1],
+    ["aui:builder:ip:daily", 2],
+    ["aui:builder:identity", 3],
+    ["aui:inference:global", 4],
+  ] as const)(
+    "rejects an exhausted %s bucket without consuming later quotas",
+    async (prefix, expectedCalls) => {
+      mocks.results.set(prefix, false);
+
+      const result = await checkBuilderRateLimit(request(), "user:user_123");
+
+      expect(result?.status).toBe(429);
+      expect(mocks.calls).toHaveLength(expectedCalls);
+    },
+  );
 });
