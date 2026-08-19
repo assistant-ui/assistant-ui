@@ -12,6 +12,9 @@ import {
 } from "@/lib/oss";
 import { formatCompact } from "@/lib/format";
 import { createOgMetadata } from "@/lib/og";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typePage } from "@/components/shared/type";
+import { cn } from "@/lib/utils";
 
 const title = "Open source";
 const description =
@@ -32,12 +35,10 @@ export default async function OssPage() {
   ).filter((category) => (grouped[category]?.length ?? 0) > 0);
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 pt-20 pb-32 md:pt-32">
-      <header className="max-w-3xl">
-        <h1 className="text-4xl font-medium tracking-tight text-balance md:text-6xl">
-          Everything we build, in the open.
-        </h1>
-        <p className="text-muted-foreground mt-6 max-w-2xl text-lg leading-relaxed md:text-xl">
+    <PageFrame pad="sub">
+      <header className="max-w-2xl">
+        <h1 className={typePage}>Everything we build, in the open.</h1>
+        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
           {OSS_PROJECTS.length} projects across the assistant-ui organization,
           from the chat runtime to the primitives we extracted along the way.
         </p>
@@ -70,7 +71,7 @@ export default async function OssPage() {
           <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
         </Link>
       </footer>
-    </main>
+    </PageFrame>
   );
 }
 

@@ -43,7 +43,7 @@ export function ThreadListPrimitiveSample() {
 
 function ControlLegend() {
   return (
-    <div className="border-border bg-background/80 absolute end-4 bottom-4 flex flex-col gap-1.5 rounded-lg border p-2.5 text-xs shadow-sm backdrop-blur-sm">
+    <div className="border-border bg-background/80 absolute end-4 bottom-4 flex flex-col gap-1.5 rounded-lg border p-2.5 text-xs">
       <LegendRow glyphs={["Tab"]} label="change focus" />
       <LegendRow glyphs={["↑", "↓"]} label="cycle list" />
       <LegendRow glyphs={["←", "→"]} label="focus, open/close menu" />
@@ -128,7 +128,7 @@ function LiveThreadList() {
 function ThreadListItem() {
   return (
     <ThreadListItemPrimitive.Root className="group hover:bg-muted focus-visible:bg-muted data-active:bg-muted has-focus-visible:bg-muted has-data-[state=open]:bg-muted relative flex h-9 items-center rounded-lg transition-colors focus-visible:outline-none">
-      <ThreadListItemPrimitive.Trigger className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center truncate rounded-lg px-3 text-start text-sm outline-none group-hover:pe-9 group-has-focus-visible:pe-9 group-has-data-[state=open]:pe-9 group-data-active:pe-9 focus-visible:ring-2">
+      <ThreadListItemPrimitive.Trigger className="focus-visible:ring-ring/50 flex h-full min-w-0 flex-1 items-center truncate rounded-lg px-3 text-start text-sm outline-none group-hover:pe-9 group-has-focus-visible:pe-9 group-has-data-[state=open]:pe-9 group-data-active:pe-9 focus-visible:ring-1">
         <ThreadListItemPrimitive.Title fallback="New Chat" />
       </ThreadListItemPrimitive.Trigger>
       <ThreadListItemMore />
@@ -139,7 +139,7 @@ function ThreadListItem() {
 function ThreadListItemMore() {
   return (
     <ThreadListItemMorePrimitive.Root sharedFocusGroup>
-      <ThreadListItemMorePrimitive.Trigger className="text-muted-foreground hover:bg-accent focus-visible:ring-ring/50 data-[state=open]:bg-accent absolute end-1.5 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md opacity-0 transition-opacity outline-none group-hover:opacity-100 group-has-focus-visible:opacity-100 group-data-active:opacity-100 focus-visible:opacity-100 focus-visible:ring-2 data-[state=open]:opacity-100">
+      <ThreadListItemMorePrimitive.Trigger className="text-muted-foreground hover:bg-accent focus-visible:ring-ring/50 data-[state=open]:bg-accent absolute end-1.5 top-1/2 flex size-7 -translate-y-1/2 items-center justify-center rounded-md opacity-0 transition-opacity outline-none group-hover:opacity-100 group-has-focus-visible:opacity-100 group-data-active:opacity-100 focus-visible:opacity-100 focus-visible:ring-1 data-[state=open]:opacity-100">
         <MoreHorizontalIcon className="size-4" />
         <span className="sr-only">More options</span>
       </ThreadListItemMorePrimitive.Trigger>
@@ -147,7 +147,7 @@ function ThreadListItemMore() {
         side="right"
         align="start"
         sideOffset={6}
-        className="bg-popover text-popover-foreground z-50 min-w-36 rounded-lg border p-1 shadow-md"
+        className="bg-popover text-popover-foreground z-50 min-w-36 rounded-lg border p-1"
       >
         <ThreadListItemPrimitive.Archive asChild>
           <ThreadListItemMorePrimitive.Item className="hover:bg-accent focus:bg-accent flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm outline-none">

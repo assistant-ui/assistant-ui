@@ -1085,7 +1085,7 @@ const useExternalThread = ({
     }));
 
     return {
-      isEmpty: messages.length === 0,
+      isEmpty: messages.length === 0 && !isLoading,
       isDisabled: false,
       isLoading,
       isRunning,

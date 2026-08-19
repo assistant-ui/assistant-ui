@@ -52,7 +52,7 @@ const tooltip: AnnotationHandler = {
         <span
           id={id}
           role="tooltip"
-          className="border-fd-border bg-fd-popover text-fd-popover-foreground absolute bottom-full left-0 z-10 mb-1.5 hidden rounded-md border px-2.5 py-1.5 font-mono text-xs whitespace-nowrap shadow-md group-hover/tooltip:block group-focus-visible/tooltip:block"
+          className="border-fd-border bg-fd-popover text-fd-popover-foreground absolute bottom-full left-0 z-10 mb-1.5 hidden rounded-md border px-2.5 py-1.5 font-mono text-xs whitespace-nowrap group-hover/tooltip:block group-focus-visible/tooltip:block"
         >
           {annotation.query}
         </span>

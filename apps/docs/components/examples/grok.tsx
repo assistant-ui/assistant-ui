@@ -76,7 +76,7 @@ const Composer: FC = () => {
       data-empty={isEmpty}
       data-running={isRunning}
     >
-      <div className="overflow-hidden rounded-4xl bg-[#f8f8f8] shadow-xs ring-1 ring-[#e5e5e5] transition-shadow ring-inset focus-within:ring-[#d0d0d0] dark:bg-[#212121] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
+      <div className="overflow-hidden rounded-4xl bg-[#f8f8f8] ring-1 ring-[#e5e5e5] transition-shadow ring-inset focus-within:ring-[#d0d0d0] dark:bg-[#212121] dark:ring-[#2a2a2a] dark:focus-within:ring-[#3a3a3a]">
         <AuiIf condition={(s) => s.composer.attachments.length > 0}>
           <div className="flex flex-row flex-wrap gap-2 px-4 pt-3">
             <ComposerPrimitive.Attachments>
@@ -275,7 +275,7 @@ const MessageTimingDisplay: FC = () => {
       >
         {totalTimeText}
       </button>
-      <div className="pointer-events-none absolute top-1/2 left-full z-10 ml-2 -translate-y-1/2 scale-95 rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 opacity-0 shadow-lg transition-all group-hover/timing:pointer-events-auto group-hover/timing:scale-100 group-hover/timing:opacity-100 before:absolute before:top-0 before:-left-2 before:h-full before:w-2 before:content-[''] dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
+      <div className="pointer-events-none absolute top-1/2 left-full z-10 ml-2 -translate-y-1/2 scale-95 rounded-lg border border-[#e5e5e5] bg-white px-3 py-2 opacity-0 transition-all group-hover/timing:pointer-events-auto group-hover/timing:scale-100 group-hover/timing:opacity-100 before:absolute before:top-0 before:-left-2 before:h-full before:w-2 before:content-[''] dark:border-[#2a2a2a] dark:bg-[#1a1a1a]">
         <div className="grid min-w-[140px] gap-1.5 text-xs">
           {timing.firstTokenTime !== undefined && (
             <div className="flex items-center justify-between gap-4">

@@ -12,6 +12,7 @@ import { AssistantPanelProvider } from "@/components/docs/assistant/context";
 import {
   DocsContent,
   DocsAssistantPanel,
+  DocsShell,
 } from "@/components/docs/layout/docs-layout";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { DocsAssistantRuntimeProvider } from "@/contexts/AssistantRuntimeProvider";
@@ -43,26 +44,28 @@ export function DocsRootLayout({
         <DocsRuntimeProvider>
           <PlatformProvider>
             <DocsSidebarProvider>
-              <DocsHeader
-                section={section}
-                sectionHref={sectionHref}
-                mobileSectionTree={
-                  showMobileSectionBreadcrumb ? tree : undefined
-                }
-              />
-              <DocsContent>
-                <DocsLayout
-                  {...sharedDocsOptions}
-                  tree={tree}
-                  nav={{ enabled: false }}
-                  sidebar={{ enabled: false }}
-                >
-                  {children}
-                </DocsLayout>
-              </DocsContent>
-              <DocsSidebar>
-                <SidebarContent tree={tree} platformAware={platformAware} />
-              </DocsSidebar>
+              <DocsShell>
+                <DocsHeader
+                  section={section}
+                  sectionHref={sectionHref}
+                  mobileSectionTree={
+                    showMobileSectionBreadcrumb ? tree : undefined
+                  }
+                />
+                <DocsContent>
+                  <DocsLayout
+                    {...sharedDocsOptions}
+                    tree={tree}
+                    nav={{ enabled: false }}
+                    sidebar={{ enabled: false }}
+                  >
+                    {children}
+                  </DocsLayout>
+                </DocsContent>
+                <DocsSidebar>
+                  <SidebarContent tree={tree} platformAware={platformAware} />
+                </DocsSidebar>
+              </DocsShell>
             </DocsSidebarProvider>
           </PlatformProvider>
         </DocsRuntimeProvider>

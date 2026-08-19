@@ -112,7 +112,7 @@ export default function NotFound() {
                 onClick={() => router.back()}
                 className="bg-muted/30 hover:bg-muted/50 flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors"
               >
-                <div className="bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md shadow-sm">
+                <div className="bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
                   <ArrowLeft className="size-4" />
                 </div>
                 <div className="flex min-w-0 flex-col gap-0.5 text-left">
@@ -127,7 +127,7 @@ export default function NotFound() {
               href="/"
               className="bg-muted/30 hover:bg-muted/50 flex items-center gap-3 rounded-lg border px-3 py-2.5 transition-colors"
             >
-              <div className="bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md shadow-sm">
+              <div className="bg-background text-muted-foreground flex size-8 shrink-0 items-center justify-center rounded-md">
                 <Home className="size-4" />
               </div>
               <div className="flex min-w-0 flex-col gap-0.5">

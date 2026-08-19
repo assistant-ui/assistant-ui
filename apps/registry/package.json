@@ -11,7 +11,7 @@
     "radix-ui": "^1.6.7"
   },
   "devDependencies": {
-    "@ai-sdk/openai": "^4.0.40",
+    "@ai-sdk/openai": "^4.0.42",
     "@assistant-ui/eve": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-ai-sdk": "workspace:*",
@@ -24,13 +24,13 @@
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.4",
     "@types/react-syntax-highlighter": "^15.5.13",
-    "ai": "^7.0.62",
+    "ai": "^7.0.66",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.31.0",
     "postcss": "^8.5.26",
     "react": "^19.2.8",
-    "react-resizable-panels": "^4.12.2",
+    "react-resizable-panels": "^4.12.3",
     "react-shiki": "^0.11.1",
     "react-syntax-highlighter": "^16.1.1",
     "remark-gfm": "^4.0.1",
@@ -41,6 +41,6 @@
     "typescript": "npm:@typescript/typescript6@^6.0.2",
     "typescript-7": "npm:typescript@^7.0.2",
     "zod": "^4.4.3",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.15"
   }
 }

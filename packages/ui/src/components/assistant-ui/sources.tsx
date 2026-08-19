@@ -100,7 +100,7 @@ function Source({
       data-slot="source"
       className={cn(
         badgeVariants({ variant, size }),
-        "focus-visible:border-ring focus-visible:ring-ring/50 cursor-pointer outline-none focus-visible:ring-[3px]",
+        "focus-visible:border-ring focus-visible:ring-ring/50 cursor-pointer outline-none focus-visible:ring-1",
         className,
       )}
       target={target}
@@ -127,7 +127,7 @@ const SourcesImpl: SourceMessagePartComponent = (part) => {
     return (
       <Badge
         variant="secondary"
-        className="focus-visible:border-ring focus-visible:ring-ring/50 outline-none focus-visible:ring-[3px]"
+        className="focus-visible:border-ring focus-visible:ring-ring/50 outline-none focus-visible:ring-1"
       >
         <span data-slot="source" className="inline-flex items-center gap-1.5">
           <DocumentSourceIcon />

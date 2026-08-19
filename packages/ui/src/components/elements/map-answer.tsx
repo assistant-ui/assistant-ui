@@ -89,7 +89,7 @@ export function MapAnswer({
             aria-label={pin.label}
             aria-current={pin.id === activeId || undefined}
             onClick={() => onSelect?.(pin.id)}
-            className="focus-visible:ring-foreground/30 absolute flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-2"
+            className="focus-visible:ring-foreground/30 absolute flex size-6 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-1"
             style={{ left: `${pin.x}%`, top: `${pin.y}%` }}
           >
             <span

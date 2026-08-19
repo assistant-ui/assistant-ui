@@ -203,6 +203,63 @@ describe("unstable_useLiveCompletionAdapter", () => {
     ]);
   });
 
+  it("keeps cached results when only the fetcher identity changes", async () => {
+    const first = vi.fn(async () => [item("alice")]);
+    const second = vi.fn(async () => [item("bob")]);
+    const { result, rerender } = renderHook(
+      ({ fetcher }) =>
+        unstable_useLiveCompletionAdapter({
+          fetcher,
+          cacheKey: "workspace-a",
+          debounceMs: 0,
+        }),
+      { initialProps: { fetcher: first } },
+    );
+
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(result.current.adapter.search!("alice")).toEqual([item("alice")]);
+
+    await act(async () => {
+      rerender({ fetcher: second });
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(second).not.toHaveBeenCalled();
+    expect(result.current.adapter.search!("alice")).toEqual([item("alice")]);
+  });
+
+  it("drops a pending result when only the cache key changes", async () => {
+    let resolveFirst!: (items: readonly Unstable_TriggerItem[]) => void;
+    const first = new Promise<readonly Unstable_TriggerItem[]>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const fetcher = vi.fn(() => first);
+    const { result, rerender } = renderHook(
+      ({ cacheKey }) =>
+        unstable_useLiveCompletionAdapter({ fetcher, cacheKey, debounceMs: 0 }),
+      { initialProps: { cacheKey: "workspace-a" } },
+    );
+
+    await act(async () => {
+      result.current.adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    expect(fetcher).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      rerender({ cacheKey: "workspace-b" });
+    });
+    await act(async () => {
+      resolveFirst([item("workspace-a")]);
+    });
+
+    expect(result.current.isLoading).toBe(false);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+    expect(result.current.adapter.search!("alice")).toEqual([]);
+  });
+
   it("allows a failed query to be retried", async () => {
     const fetcher = vi
       .fn<(query: string) => Promise<readonly Unstable_TriggerItem[]>>()

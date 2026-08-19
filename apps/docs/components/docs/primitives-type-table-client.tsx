@@ -103,9 +103,7 @@ function Item({
       }}
       className={cn(
         "group scroll-m-20 overflow-hidden rounded-xl border transition-all",
-        open
-          ? "bg-fd-background shadow-sm not-last:mb-2"
-          : "border-transparent",
+        open ? "bg-fd-background not-last:mb-2" : "border-transparent",
       )}
     >
       <Collapsible.Trigger className="not-prose group/trigger hover:bg-fd-accent relative flex w-full flex-row items-center px-3 py-2 text-start">

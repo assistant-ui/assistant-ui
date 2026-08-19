@@ -4,11 +4,12 @@ import { createOgMetadata } from "@/lib/og";
 import { notFound } from "next/navigation";
 import Link from "next/link";
 import { blog, type BlogPage } from "@/lib/source";
-import Image from "next/image";
-import profilePic from "@/components/home/testimonials/profiles/Mc0m3zkD_400x400.jpg";
 import { getMDXComponents } from "@/mdx-components";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, ArrowRight } from "lucide-react";
 import { BlogTOC } from "@/components/blog/blog-toc";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typePage } from "@/components/shared/type";
+import { cn } from "@/lib/utils";
 
 interface Param {
   slug: string;
@@ -22,59 +23,99 @@ function formatDate(date: Date): string {
   });
 }
 
+function getNeighbors(slug: string, pages: BlogPage[]) {
+  const posts = pages
+    .filter((page) => page.data.externalUrl === undefined)
+    .sort(
+      (a, b) => (b.data.date?.getTime() ?? 0) - (a.data.date?.getTime() ?? 0),
+    );
+  const index = posts.findIndex((page) => page.slugs[0] === slug);
+  if (index === -1) {
+    return { older: undefined, newer: undefined };
+  }
+  return {
+    newer: index > 0 ? posts[index - 1] : undefined,
+    older: index < posts.length - 1 ? posts[index + 1] : undefined,
+  };
+}
+
 export default function Page(props: {
   params: Promise<Param>;
 }): React.ReactElement {
   const params = use(props.params);
+  const pages = blog.getPages() as BlogPage[];
   const page = blog.getPage([params.slug]) as BlogPage | undefined;
   const mdxComponents = getMDXComponents({});
 
   if (!page) notFound();
 
-  return (
-    <>
-      <main className="mx-auto w-full max-w-3xl px-4 py-16 md:py-24">
-        <Link
-          href="/blog"
-          className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
-        >
-          <ArrowLeft className="h-3.5 w-3.5" />
-          Blog
-        </Link>
+  const neighbors = getNeighbors(params.slug, pages);
 
-        <header className="mt-8">
-          {page.data.date && (
-            <time className="text-muted-foreground text-sm">
+  return (
+    <PageFrame pad="sub">
+      <Link
+        href="/blog"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
+      >
+        <ArrowLeft className="size-3.5" />
+        Blog
+      </Link>
+
+      <header className="mt-8 max-w-2xl">
+        <p className="text-muted-foreground text-sm">
+          {page.data.date ? (
+            <time dateTime={page.data.date.toISOString()}>
               {formatDate(page.data.date)}
             </time>
-          )}
-          <h1 className="mt-2 text-3xl font-medium tracking-tight">
-            {page.data.title}
-          </h1>
-          {page.data.description && (
-            <p className="text-muted-foreground mt-3 text-lg">
-              {page.data.description}
-            </p>
-          )}
-          <div className="mt-6 flex items-center gap-2.5">
-            <Image
-              src={profilePic}
-              alt="Simon Farshid"
-              width={28}
-              height={28}
-              className="rounded-full"
-            />
-            <span className="text-muted-foreground text-sm">Simon Farshid</span>
-          </div>
-        </header>
+          ) : null}
+          {page.data.date ? (
+            <span className="text-muted-foreground/40"> · </span>
+          ) : null}
+          {page.data.author}
+        </p>
+        <h1 className={cn("mt-3", typePage)}>{page.data.title}</h1>
+        {page.data.description ? (
+          <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+            {page.data.description}
+          </p>
+        ) : null}
+      </header>
 
-        <article className="prose mt-12 max-w-none">
+      <div className="mt-16 flex flex-col gap-16 md:mt-20 lg:flex-row lg:items-start lg:gap-16">
+        <article
+          data-page-content=""
+          className="prose prose-blog w-full max-w-[42rem] min-w-0"
+        >
           <page.data.body components={mdxComponents} />
         </article>
-      </main>
+        <BlogTOC items={page.data.toc} />
+      </div>
 
-      <BlogTOC items={page.data.toc} />
-    </>
+      <nav className="mt-24 flex items-center justify-between gap-8 md:mt-32">
+        {neighbors.older ? (
+          <Link
+            href={neighbors.older.url}
+            className="group text-muted-foreground hover:text-foreground flex min-w-0 items-center gap-2 text-sm transition-colors"
+          >
+            <ArrowLeft className="size-3.5 shrink-0 transition-transform group-hover:-translate-x-0.5" />
+            <span className="truncate">{neighbors.older.data.title}</span>
+          </Link>
+        ) : (
+          <span />
+        )}
+        {neighbors.newer ? (
+          <Link
+            href={neighbors.newer.url}
+            className="group text-muted-foreground hover:text-foreground flex min-w-0 items-center gap-2 text-sm transition-colors"
+          >
+            <span className="truncate">{neighbors.newer.data.title}</span>
+            <ArrowRight className="size-3.5 shrink-0 transition-transform group-hover:translate-x-0.5" />
+          </Link>
+        ) : (
+          <span />
+        )}
+      </nav>
+    </PageFrame>
   );
 }
 

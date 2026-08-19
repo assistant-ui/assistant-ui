@@ -139,10 +139,8 @@ export function FloatingComposer(): ReactNode {
         <ComposerPrimitive.Root onSubmit={handleSubmit}>
           <div
             className={cn(
-              "relative rounded-xl border shadow-lg backdrop-blur-sm transition-all duration-200 ease-out",
-              expanded
-                ? "border-foreground/60 bg-background/90"
-                : "border-border bg-background/80",
+              "relative rounded-3xl border border-transparent transition-all duration-200 ease-out",
+              expanded ? "bg-muted/80" : "bg-muted/65",
             )}
           >
             <div className="relative">

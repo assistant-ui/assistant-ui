@@ -1938,13 +1938,16 @@ type FrameMessage = {
   toolName: string;
   args: unknown;
 } | {
+  type: "tool-cancel";
+  id: string;
+} | {
   type: "tool-result";
   id: string;
   result?: unknown;
   error?: string;
 };
 
-type FrameMessageType = "model-context-request" | "model-context-update" | "tool-call" | "tool-result";
+type FrameMessageType = "model-context-request" | "model-context-update" | "tool-call" | "tool-cancel" | "tool-result";
 
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "frontend";
@@ -2081,6 +2084,70 @@ type InMemoryThreadListProps = {
   onSwitchToNewThread?: () => void;
   onDelete?: (threadId: string) => void;
 };
+
+declare abstract class InertThreadRuntimeCore extends BaseSubscribable implements ThreadRuntimeCore {
+  protected abstract get error(): Error;
+  abstract readonly messages: readonly ThreadMessage[];
+  abstract readonly isLoading: boolean;
+  abstract readonly composer: ThreadRuntimeCore["composer"];
+  abstract getMessageById(messageId: string): {
+    parentId: string | null;
+    message: ThreadMessage;
+    index: number;
+  } | undefined;
+  abstract getBranches(messageId: string): readonly string[];
+  abstract export(): ExportedMessageRepository;
+  switchToBranch(): void;
+  append(): void;
+  deleteMessage(): void;
+  startRun(): void;
+  resumeRun(): void;
+  cancelRun(): void;
+  unstable_notifySessionReset(): void;
+  addToolResult(): void;
+  resumeToolCall(): void;
+  respondToToolApproval(): void;
+  speak(): void;
+  stopSpeaking(): void;
+  connectVoice(): void;
+  disconnectVoice(): void;
+  muteVoice(): void;
+  unmuteVoice(): void;
+  submitFeedback(): void;
+  exportExternalState(): void;
+  importExternalState(): void;
+  beginEdit(): void;
+  import(): void;
+  reset(): void;
+  getModelContext(): {};
+  getEditComposer(): undefined;
+  getVoiceVolume: () => number;
+  subscribeVoiceVolume: () => Unsubscribe$1;
+  speech: undefined;
+  voice: undefined;
+  capabilities: {
+    readonly switchToBranch: false;
+    readonly switchBranchDuringRun: false;
+    readonly edit: false;
+    readonly delete: false;
+    readonly reload: false;
+    readonly refetchThread: false;
+    readonly cancel: false;
+    readonly unstable_copy: false;
+    readonly speech: false;
+    readonly dictation: false;
+    readonly voice: false;
+    readonly attachments: false;
+    readonly feedback: false;
+    readonly queue: false;
+  };
+  isDisabled: boolean;
+  isSendDisabled: boolean;
+  state: null;
+  suggestions: never[];
+  extras: undefined;
+  unstable_on(): Unsubscribe$1;
+}
 
 type InteractableDefinition = {
   id: string;
@@ -3271,8 +3338,9 @@ declare namespace ReadonlyThreadProvider {
 
 declare const ReadonlyThreadProvider: FC<ReadonlyThreadProvider.Props>;
 
-declare class ReadonlyThreadRuntimeCore extends BaseSubscribable implements ThreadRuntimeCore {
+declare class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
   #private;
+  protected get error(): Error;
   get messages(): readonly ThreadMessage[];
   setMessages(messages: readonly ThreadMessage[]): void;
   getMessageById(messageId: string): {
@@ -3281,28 +3349,12 @@ declare class ReadonlyThreadRuntimeCore extends BaseSubscribable implements Thre
     index: number;
   } | undefined;
   getBranches(messageId: string): string[];
-  switchToBranch(): void;
-  append(): void;
-  deleteMessage(): void;
-  startRun(): void;
-  resumeRun(): void;
-  cancelRun(): void;
-  addToolResult(): void;
-  resumeToolCall(): void;
-  respondToToolApproval(): void;
-  speak(): void;
-  stopSpeaking(): void;
-  connectVoice(): void;
-  disconnectVoice(): void;
-  getVoiceVolume: () => number;
-  subscribeVoiceVolume: () => Unsubscribe$1;
-  muteVoice(): void;
-  unmuteVoice(): void;
-  submitFeedback(): void;
-  getModelContext(): {};
-  exportExternalState(): void;
-  importExternalState(): void;
-  unstable_notifySessionReset(): void;
+  export(): {
+    messages: {
+      message: ThreadMessage;
+      parentId: string | null;
+    }[];
+  };
   composer: {
     attachments: never[];
     attachmentAccept: string;
@@ -3333,41 +3385,10 @@ declare class ReadonlyThreadRuntimeCore extends BaseSubscribable implements Thre
     subscribe(): () => void;
     unstable_on(): () => void;
   };
-  getEditComposer(): undefined;
-  beginEdit(): void;
-  speech: undefined;
-  voice: undefined;
-  capabilities: {
-    readonly switchToBranch: false;
-    readonly switchBranchDuringRun: false;
-    readonly edit: false;
-    readonly delete: false;
-    readonly reload: false;
-    readonly refetchThread: false;
-    readonly cancel: false;
-    readonly unstable_copy: false;
-    readonly speech: false;
-    readonly dictation: false;
-    readonly voice: false;
-    readonly attachments: false;
-    readonly feedback: false;
-    readonly queue: false;
-  };
-  isDisabled: boolean;
-  isSendDisabled: boolean;
   isLoading: boolean;
-  state: null;
-  suggestions: never[];
-  extras: undefined;
-  import(): void;
-  export(): {
-    messages: {
-      message: ThreadMessage;
-      parentId: string | null;
-    }[];
-  };
-  reset(): void;
-  unstable_on(): Unsubscribe$1;
+  cancelRun(): void;
+  stopSpeaking(): void;
+  disconnectVoice(): void;
 }
 
 declare namespace RealtimeVoiceAdapter {

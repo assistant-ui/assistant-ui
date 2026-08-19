@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
 import { useBranchPickerNext } from "@assistant-ui/core/react";
 
-export type BranchPickerNextProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type BranchPickerNextProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
 };
 
 export const BranchPickerNext = ({
@@ -17,6 +19,7 @@ export const BranchPickerNext = ({
     <Pressable
       onPress={next}
       disabled={disabledProp ?? disabled}
+      accessibilityRole="button"
       {...pressableProps}
     >
       {children}

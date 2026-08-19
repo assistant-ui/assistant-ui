@@ -27,6 +27,7 @@ import {
   type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
 import type { AgUiInterrupt } from "../types";
+import { projectAgUiToolApprovals } from "./tool-approval";
 import {
   parseMcpToolCallResult,
   readMcpAppResourceUri,
@@ -620,13 +621,27 @@ function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const text = extractText(rawMessage.content);
-  const toolCallParts = extractAssistantToolCalls(rawMessage);
+  const interrupts = readPersistedInterrupts(rawMessage.metadata);
+  const restoredToolCalls = extractAssistantToolCalls(rawMessage);
+  const approvals = projectAgUiToolApprovals(
+    interrupts,
+    new Set(
+      restoredToolCalls
+        .map((part) => part.toolCallId)
+        .filter((id): id is string => !!id),
+    ),
+  );
+  const toolCallParts = restoredToolCalls.map((part) => {
+    const approval = part.toolCallId
+      ? approvals.get(part.toolCallId)
+      : undefined;
+    return approval ? { ...part, approval } : part;
+  });
   const assistantContent = [
     ...(text.length > 0 ? [{ type: "text" as const, text }] : []),
     ...toolCallParts,
   ];
   const messageName = getString(rawMessage, "name");
-  const interrupts = readPersistedInterrupts(rawMessage.metadata);
   return {
     id: getString(rawMessage, "id") ?? generateId(),
     role: "assistant",

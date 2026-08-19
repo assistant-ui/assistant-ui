@@ -845,6 +845,49 @@ function getLocalComponentPath(specifier: string) {
   return `${componentPath}.tsx`;
 }
 
+const MODULE_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
+
+/**
+ * The install paths a relative specifier may resolve to once the item is
+ * installed. A specifier is satisfied when the install closure provides any one
+ * of them, which is what a bundler in the user's project will do: an explicit
+ * extension, an extensionless module, a directory index, or the TypeScript
+ * source behind a `.js` specifier. `null` means the specifier points outside
+ * the installed tree, where no closure file can ever satisfy it.
+ */
+export function getRelativeImportCandidates(
+  specifier: string,
+  fromPath: string,
+) {
+  const modulePath = specifier.replace(/[?#].*$/, "");
+  const resolved = path.posix.normalize(
+    path.posix.join(path.posix.dirname(fromPath), modulePath),
+  );
+  if (resolved === ".." || resolved.startsWith("../")) return null;
+
+  const extension = path.posix.extname(resolved);
+  const candidates = new Set<string>();
+
+  if (extension) {
+    candidates.add(resolved);
+    if (extension === ".js" || extension === ".jsx") {
+      const base = resolved.slice(0, -extension.length);
+      for (const moduleExtension of MODULE_EXTENSIONS) {
+        candidates.add(`${base}${moduleExtension}`);
+      }
+    }
+  } else {
+    for (const moduleExtension of MODULE_EXTENSIONS) {
+      candidates.add(`${resolved}${moduleExtension}`);
+    }
+    for (const moduleExtension of MODULE_EXTENSIONS) {
+      candidates.add(`${resolved}/index${moduleExtension}`);
+    }
+  }
+
+  return [...candidates];
+}
+
 function collectCssPackageImports(value: unknown, imports = new Set<string>()) {
   if (typeof value === "string") {
     for (const match of value.matchAll(
@@ -876,7 +919,9 @@ function collectInstallContext(
 
   seen.add(item.name);
 
-  const files = new Set(item.files?.map((file) => file.path) ?? []);
+  const files = new Set(
+    item.files?.map((file) => file.target ?? file.path) ?? [],
+  );
   const packages = new Set([
     ...(item.dependencies ?? []),
     ...(item.devDependencies ?? []),
@@ -906,7 +951,9 @@ function collectInstallContext(
   return { files, packages };
 }
 
-function validateRegistryInstallMetadata(payloads: RegistryOutputItem[]) {
+export function validateRegistryInstallMetadata(
+  payloads: RegistryOutputItem[],
+) {
   const itemByName = new Map(payloads.map((item) => [item.name, item]));
   const findings = new Set<string>();
 
@@ -938,7 +985,30 @@ function validateRegistryInstallMetadata(payloads: RegistryOutputItem[]) {
           continue;
         }
 
-        if (specifier.startsWith(".") || specifier.startsWith("@/")) {
+        if (specifier.startsWith(".")) {
+          const installedPath = file.target ?? file.path;
+          const candidates = getRelativeImportCandidates(
+            specifier,
+            installedPath,
+          );
+
+          if (
+            candidates === null ||
+            !candidates.some((candidate) => installContext.files.has(candidate))
+          ) {
+            findings.add(
+              `${item.name}: ${installedPath} imports "${specifier}", but no file or registryDependency provides ${
+                candidates === null
+                  ? "a file outside the installed tree"
+                  : candidates.join(" or ")
+              }`,
+            );
+          }
+
+          continue;
+        }
+
+        if (specifier.startsWith("@/")) {
           continue;
         }
 

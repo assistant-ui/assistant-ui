@@ -37,7 +37,7 @@ export const PRESETS: Preset[] = [
         colors: {
           accent: color("#0ea5e9", "#0ea5e9"),
         },
-        borderRadius: "lg",
+        borderRadius: "full",
         maxWidth: "44rem",
         fontFamily: "system-ui",
         fontSize: "14px",

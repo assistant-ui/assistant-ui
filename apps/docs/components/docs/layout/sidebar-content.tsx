@@ -277,11 +277,18 @@ export function SidebarContent({
 
   return (
     <div className="flex h-full flex-col">
+      {platformAware && (
+        <div className="shrink-0 px-3 pt-4">
+          <PlatformSwitcher tree={tree} />
+        </div>
+      )}
       <nav
         ref={navRef}
-        className="sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-y-auto px-3 pt-4 pb-4"
+        className={cn(
+          "sidebar-tree-content flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto px-3 pb-4",
+          platformAware ? "pt-2" : "pt-4",
+        )}
       >
-        {platformAware && <PlatformSwitcher tree={tree} />}
         {sections.map((section) => (
           <SidebarSection
             key={section.$id}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
 type TOCItem = {
@@ -9,24 +9,19 @@ type TOCItem = {
   depth: number;
 };
 
-const MAX_LINE_WIDTH = 36; // h2 active width, used as fixed container width
-
-function getLineWidth(depth: number, isActive: boolean): number {
-  const base = depth <= 2 ? 24 : depth === 3 ? 16 : 10;
-  return isActive ? base + 12 : base;
-}
-
 export function BlogTOC({ items }: { items: TOCItem[] }) {
+  const headings = useMemo(
+    () => items.filter((item) => item.depth <= 2),
+    [items],
+  );
   const [activeId, setActiveId] = useState<string | null>(null);
-  const [isHovered, setIsHovered] = useState(false);
-  const listRef = useRef<HTMLElement>(null);
   const isClickScrolling = useRef(false);
   const clickTimer = useRef<ReturnType<typeof setTimeout>>(null);
 
   useEffect(() => {
-    if (items.length === 0) return;
+    if (headings.length === 0) return;
 
-    const headingIds = items.map((item) => item.url.slice(1));
+    const headingIds = headings.map((item) => item.url.slice(1));
 
     const observer = new IntersectionObserver(
       (entries) => {
@@ -46,13 +41,11 @@ export function BlogTOC({ items }: { items: TOCItem[] }) {
 
     for (const id of headingIds) {
       const element = document.getElementById(id);
-      if (element) {
-        observer.observe(element);
-      }
+      if (element) observer.observe(element);
     }
 
     return () => observer.disconnect();
-  }, [items]);
+  }, [headings]);
 
   const handleClick = (id: string) => {
     setActiveId(id);
@@ -63,55 +56,37 @@ export function BlogTOC({ items }: { items: TOCItem[] }) {
     }, 800);
   };
 
-  if (items.length === 0) return null;
+  if (headings.length < 2) return null;
 
   return (
-    <nav
-      ref={listRef}
-      className="fixed top-1/2 right-6 z-40 -translate-y-1/2 max-lg:hidden"
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-    >
-      <ul className="flex flex-col" style={{ width: MAX_LINE_WIDTH }}>
-        {items.map((item) => {
-          const id = item.url.slice(1);
-          const isActive = activeId === id;
-          const lineWidth = getLineWidth(item.depth, isActive);
+    <nav aria-label="On this page" className="w-64 max-lg:hidden">
+      <div className="lg:sticky lg:top-24">
+        <p className="text-muted-foreground mb-3 text-sm">On this page</p>
+        <ul className="flex flex-col gap-2">
+          {headings.map((item) => {
+            const id = item.url.slice(1);
+            const isActive = activeId === id;
 
-          return (
-            <li key={item.url}>
-              <a
-                href={item.url}
-                onClick={() => handleClick(id)}
-                className="group relative flex h-6 items-center justify-end"
-              >
-                <div
+            return (
+              <li key={item.url}>
+                <a
+                  href={item.url}
+                  onClick={() => handleClick(id)}
+                  aria-current={isActive ? "location" : undefined}
                   className={cn(
-                    "h-px shrink-0 rounded-full transition-all duration-200",
+                    "block text-sm leading-snug text-pretty transition-colors",
                     isActive
-                      ? "bg-foreground"
-                      : "bg-foreground/20 group-hover:bg-foreground/40",
-                  )}
-                  style={{ width: lineWidth }}
-                />
-                <span
-                  className={cn(
-                    "absolute right-full mr-3 text-[12px] leading-none whitespace-nowrap transition-all duration-200",
-                    isHovered
-                      ? "translate-x-0 opacity-100"
-                      : "pointer-events-none -translate-x-2 opacity-0",
-                    isActive
-                      ? "text-foreground font-medium"
-                      : "text-muted-foreground group-hover:text-foreground",
+                      ? "text-foreground"
+                      : "text-muted-foreground hover:text-foreground",
                   )}
                 >
                   {item.title}
-                </span>
-              </a>
-            </li>
-          );
-        })}
-      </ul>
+                </a>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
     </nav>
   );
 }
