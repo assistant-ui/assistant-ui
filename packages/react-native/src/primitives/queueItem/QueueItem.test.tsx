@@ -12,11 +12,15 @@ const h = vi.hoisted(() => ({
   steer: vi.fn<() => void>(),
 }));
 
-vi.mock("@assistant-ui/store", () => ({
-  useAui: () => ({ queueItem: { remove: h.remove, steer: h.steer } }),
-  useAuiState: <T,>(selector: (state: { queueItem: typeof h }) => T) =>
-    selector({ queueItem: h }),
-}));
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
+  return {
+    ...actual,
+    useAui: () => ({ queueItem: { remove: h.remove, steer: h.steer } }),
+    useAuiState: <T,>(selector: (state: { queueItem: typeof h }) => T) =>
+      selector({ queueItem: h }),
+  };
+});
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 

@@ -11,11 +11,15 @@ const h = vi.hoisted(() => ({
   setQuote: vi.fn<(quote: undefined) => void>(),
 }));
 
-vi.mock("@assistant-ui/store", () => ({
-  useAui: () => ({ composer: { setQuote: h.setQuote } }),
-  useAuiState: <T,>(selector: (state: { composer: typeof h }) => T) =>
-    selector({ composer: h }),
-}));
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@assistant-ui/store")>();
+  return {
+    ...actual,
+    useAui: () => ({ composer: { setQuote: h.setQuote } }),
+    useAuiState: <T,>(selector: (state: { composer: typeof h }) => T) =>
+      selector({ composer: h }),
+  };
+});
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
