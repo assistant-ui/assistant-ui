@@ -4,17 +4,20 @@ import { Thread } from "@/components/assistant-ui/thread";
 import {
   AssistantRuntimeProvider,
   AuiConfig,
+  type ChatModelAdapter,
   Suggestions,
   useLocalRuntime,
 } from "@assistant-ui/react";
 import { SampleFrame } from "../sample-frame";
 
+const adapter: ChatModelAdapter = {
+  async *run() {
+    yield { content: [{ type: "text", text: "This is a demo." }] };
+  },
+};
+
 export function ChatWithSuggestions() {
-  const runtime = useLocalRuntime({
-    async *run() {
-      yield { content: [{ type: "text", text: "This is a demo." }] };
-    },
-  });
+  const runtime = useLocalRuntime(adapter);
   const config = AuiConfig({
     suggestions: Suggestions([
       {
@@ -37,7 +40,7 @@ export function ChatWithSuggestions() {
   );
 }
 
-export function ThreadWelcomeSample() {
+export function ThreadWelcomeSuggestionsSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
       <ChatWithSuggestions />

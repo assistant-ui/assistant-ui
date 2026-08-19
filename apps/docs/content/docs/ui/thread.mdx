@@ -6,7 +6,7 @@ platforms: ["react"]
 
 import { ThreadSample } from "@/components/docs/samples/thread";
 import { PreviewCode } from "@/components/docs/preview-code.server";
-import { ThreadWelcomeSample } from "@/components/docs/samples/thread/welcome-with-suggestions";
+import { ThreadWelcomeSuggestionsSample } from "@/components/docs/samples/thread/welcome-with-suggestions";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
 attachments, and conditional UI states. Fully customizable and composable.
@@ -84,15 +84,6 @@ export default function Chat() {
 </AuiIf>
 ```
 
-An empty thread centers the welcome screen and shows the configured suggestion chips. When you select a chip, the thread sends its prompt.
-
-<PreviewCode
-  file="components/docs/samples/thread/welcome-with-suggestions"
-  name="ChatWithSuggestions"
->
-  <ThreadWelcomeSample />
-</PreviewCode>
-
 ### Viewport Spacer
 
 ```tsx
@@ -120,6 +111,15 @@ An empty thread centers the welcome screen and shows the configured suggestion c
 ### Suggestions
 
 Display suggested prompts using the Suggestions API. See the [Suggestions guide](/docs/guides/suggestions) for detailed configuration.
+
+An empty thread centers the welcome screen and shows the configured suggestion chips. When you select a chip, the thread sends its prompt.
+
+<PreviewCode
+  file="components/docs/samples/thread/welcome-with-suggestions"
+  name="ChatWithSuggestions"
+>
+  <ThreadWelcomeSuggestionsSample />
+</PreviewCode>
 
 ```tsx
 import type { ReactNode } from "react";
