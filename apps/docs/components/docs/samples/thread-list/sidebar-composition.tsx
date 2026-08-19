@@ -23,6 +23,12 @@ export function ThreadListSidebarDemo() {
   const [activeId, setActiveId] = useState("launch-plan");
   const nextId = useRef(1);
 
+  const createThread = () => {
+    const id = `new-thread-${nextId.current++}`;
+    setThreads((current) => [{ id, status: "regular" }, ...current]);
+    setActiveId(id);
+  };
+
   const runtime = useExternalStoreRuntime<ThreadMessage>({
     messages: [],
     onNew: async () => {},
@@ -32,11 +38,13 @@ export function ThreadListSidebarDemo() {
         threads,
         archivedThreads: archived,
         onSwitchToThread: setActiveId,
-        onSwitchToNewThread: () => {
-          const id = `new-thread-${nextId.current++}`;
-          setThreads((current) => [{ id, status: "regular" }, ...current]);
-          setActiveId(id);
-        },
+        onSwitchToNewThread: createThread,
+        onRename: (id, title) =>
+          setThreads((current) =>
+            current.map((thread) =>
+              thread.id === id ? { ...thread, title } : thread,
+            ),
+          ),
         onArchive: (id) => {
           const selected = threads.find((thread) => thread.id === id);
           const remaining = threads.filter((thread) => thread.id !== id);
@@ -47,12 +55,33 @@ export function ThreadListSidebarDemo() {
               ...current,
             ]);
           }
-          if (activeId === id) setActiveId(remaining[0]?.id ?? "new");
+          if (activeId === id) {
+            if (remaining[0]) setActiveId(remaining[0].id);
+            else createThread();
+          }
+        },
+        onUnarchive: (id) => {
+          const selected = archived.find((thread) => thread.id === id);
+          setArchived((current) =>
+            current.filter((thread) => thread.id !== id),
+          );
+          if (selected) {
+            setThreads((current) => [
+              { ...selected, status: "regular" as const },
+              ...current,
+            ]);
+          }
         },
         onDelete: (id) => {
           const remaining = threads.filter((thread) => thread.id !== id);
           setThreads(remaining);
-          if (activeId === id) setActiveId(remaining[0]?.id ?? "new");
+          setArchived((current) =>
+            current.filter((thread) => thread.id !== id),
+          );
+          if (activeId === id) {
+            if (remaining[0]) setActiveId(remaining[0].id);
+            else createThread();
+          }
         },
       },
     },
@@ -60,7 +89,7 @@ export function ThreadListSidebarDemo() {
 
   return (
     <AssistantRuntimeProvider runtime={runtime}>
-      <SidebarProvider defaultOpen className="h-full !min-h-full">
+      <SidebarProvider defaultOpen>
         <ThreadListSidebar />
       </SidebarProvider>
     </AssistantRuntimeProvider>
@@ -70,7 +99,7 @@ export function ThreadListSidebarDemo() {
 export function ThreadListSidebarSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
-      <div className="relative h-120 overflow-hidden rounded-xl [&_[data-slot='sidebar-container']]:!absolute [&_[data-slot='sidebar-container']]:!h-full [&_[data-slot='sidebar-wrapper']]:!min-h-full [&_a]:!no-underline">
+      <div className="relative h-120 overflow-hidden rounded-xl [&_[data-slot='sidebar-container']]:!absolute [&_[data-slot='sidebar-container']]:!h-full [&_[data-slot='sidebar-wrapper']]:!h-full [&_[data-slot='sidebar-wrapper']]:!min-h-full [&_a]:!no-underline">
         <ThreadListSidebarDemo />
       </div>
     </SampleFrame>
