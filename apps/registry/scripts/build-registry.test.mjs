@@ -1334,6 +1334,14 @@ test("a recognized asset extension resolves to the literal file only", () => {
   assert.deepEqual(getRelativeImportCandidates("./logo.PNG", from), [
     "components/assistant-ui/logo.PNG",
   ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./legacy.JS", from), [
+    "components/assistant-ui/legacy.JS",
+    "components/assistant-ui/legacy.tsx",
+    "components/assistant-ui/legacy.ts",
+    "components/assistant-ui/legacy.jsx",
+    "components/assistant-ui/legacy.js",
+  ]);
 });
 
 test("a sibling whose name begins with dots stays inside the installed tree", () => {
@@ -1426,18 +1434,20 @@ test("install validation resolves a dotted alias basename to its shipped source"
       'import { toolConfig } from "@/components/assistant-ui/tool.config";\n',
   };
 
-  assert.equal(
-    findingsFrom([
-      componentItem([
-        importer,
-        {
-          path: "components/assistant-ui/tool.config.tsx",
-          content: "export const toolConfig = {};\n",
-        },
+  for (const providerPath of [
+    "components/assistant-ui/tool.config.tsx",
+    "components/assistant-ui/tool.config.ts",
+  ]) {
+    assert.equal(
+      findingsFrom([
+        componentItem([
+          importer,
+          { path: providerPath, content: "export const toolConfig = {};\n" },
+        ]),
       ]),
-    ]),
-    null,
-  );
+      null,
+    );
+  }
 
   assert.match(
     findingsFrom([componentItem([importer])]),

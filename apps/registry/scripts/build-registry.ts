@@ -844,7 +844,12 @@ function getLocalComponentCandidates(specifier: string) {
   if (EXPLICIT_EXTENSIONS.has(extension.toLowerCase())) return [componentPath];
   if (!extension) return [`${componentPath}.tsx`];
 
-  return [componentPath, `${componentPath}.tsx`];
+  return [
+    componentPath,
+    ...MODULE_EXTENSIONS.map(
+      (moduleExtension) => `${componentPath}${moduleExtension}`,
+    ),
+  ];
 }
 
 const MODULE_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
@@ -896,10 +901,10 @@ export function getRelativeImportCandidates(
   );
   if (resolved === ".." || resolved.startsWith("../")) return null;
 
-  const extension = path.posix.extname(resolved);
+  const extension = path.posix.extname(resolved).toLowerCase();
   const candidates = new Set<string>();
 
-  if (EXPLICIT_EXTENSIONS.has(extension.toLowerCase())) {
+  if (EXPLICIT_EXTENSIONS.has(extension)) {
     candidates.add(resolved);
     if (extension === ".js" || extension === ".jsx") {
       const base = resolved.slice(0, -extension.length);
