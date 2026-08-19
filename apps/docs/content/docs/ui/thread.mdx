@@ -5,7 +5,6 @@ platforms: ["react"]
 ---
 
 import { ThreadSample } from "@/components/docs/samples/thread";
-import { PreviewCode } from "@/components/docs/preview-code.server";
 import { ThreadActionsSample } from "@/components/docs/samples/thread/message-actions";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
@@ -156,14 +155,9 @@ const SuggestionItem = () => (
 
 ### Message Actions
 
-Hover or focus the first assistant response to show its action bar. The last response always shows its actions.
+Hover over the first assistant response to show its action bar. The last response always shows its actions. The copied `Thread` component sets `autohide="not-last"` on `ActionBarPrimitive.Root`. Refer to the [ActionBar primitive](/docs/primitives/action-bar) to change this behavior.
 
-<PreviewCode
-  file="components/docs/samples/thread/message-actions"
-  name="Chat"
->
-  <ThreadActionsSample />
-</PreviewCode>
+<ThreadActionsSample />
 
 ## Component Overrides
 
