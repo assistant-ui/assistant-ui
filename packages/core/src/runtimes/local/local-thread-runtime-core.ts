@@ -504,6 +504,7 @@ export class LocalThreadRuntimeCore
           runCallback,
         );
         runCallback = undefined;
+        if (this._activeRun !== run) break;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});

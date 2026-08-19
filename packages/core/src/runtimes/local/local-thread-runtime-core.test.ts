@@ -673,6 +673,44 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
 });
 
 describe("LocalThreadRuntimeCore cancellation", () => {
+  it("does not let a superseded run abort its replacement during tool continuation", async () => {
+    let resolveFirst!: (result: ChatModelRunResult) => void;
+    let resolveSecond!: (result: ChatModelRunResult) => void;
+    const firstResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return runs.length === 1 ? firstResult : secondResult;
+      },
+    });
+
+    const firstAppend = thread.append(userMessage("first"));
+    await flush();
+    const secondAppend = thread.append(userMessage("second"));
+    await flush();
+
+    expect(runs).toHaveLength(2);
+    expect(runs[0]?.abortSignal.aborted).toBe(true);
+    expect(runs[1]?.abortSignal.aborted).toBe(false);
+
+    resolveFirst(toolCallResult("lookup_weather"));
+    await flush();
+    const runCountAfterFirstSettled = runs.length;
+    const replacementWasAborted = runs[1]?.abortSignal.aborted;
+
+    resolveSecond({ content: [{ type: "text", text: "replacement" }] });
+    await Promise.all([firstAppend, secondAppend]);
+
+    expect(runCountAfterFirstSettled).toBe(2);
+    expect(replacementWasAborted).toBe(false);
+  });
+
   it("keeps a replacement run cancellable after the previous run settles", async () => {
     let releaseFirst!: () => void;
     let releaseSecond!: () => void;
