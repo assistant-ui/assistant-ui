@@ -836,13 +836,15 @@ function collectModuleSpecifiers(file: RegistryOutputFile) {
   return specifiers;
 }
 
-function getLocalComponentPath(specifier: string) {
+function getLocalComponentCandidates(specifier: string) {
   if (!specifier.startsWith("@/components/")) return null;
 
   const componentPath = specifier.slice(2);
-  if (path.extname(componentPath)) return componentPath;
+  const extension = path.extname(componentPath);
+  if (EXPLICIT_EXTENSIONS.has(extension.toLowerCase())) return [componentPath];
+  if (!extension) return [`${componentPath}.tsx`];
 
-  return `${componentPath}.tsx`;
+  return [componentPath, `${componentPath}.tsx`];
 }
 
 const MODULE_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
@@ -897,7 +899,7 @@ export function getRelativeImportCandidates(
   const extension = path.posix.extname(resolved);
   const candidates = new Set<string>();
 
-  if (EXPLICIT_EXTENSIONS.has(extension)) {
+  if (EXPLICIT_EXTENSIONS.has(extension.toLowerCase())) {
     candidates.add(resolved);
     if (extension === ".js" || extension === ".jsx") {
       const base = resolved.slice(0, -extension.length);
@@ -1003,12 +1005,16 @@ export function validateRegistryInstallMetadata(
 
     for (const file of item.files ?? []) {
       for (const specifier of collectModuleSpecifiers(file)) {
-        const localComponentPath = getLocalComponentPath(specifier);
+        const localCandidates = getLocalComponentCandidates(specifier);
 
-        if (localComponentPath) {
-          if (!installContext.files.has(localComponentPath)) {
+        if (localCandidates) {
+          if (
+            !localCandidates.some((candidate) =>
+              installContext.files.has(candidate),
+            )
+          ) {
             findings.add(
-              `${item.name}: ${file.path} imports "${specifier}", but no file or registryDependency provides ${localComponentPath}`,
+              `${item.name}: ${file.path} imports "${specifier}", but no file or registryDependency provides ${localCandidates.join(" or ")}`,
             );
           }
 

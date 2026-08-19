@@ -1330,6 +1330,10 @@ test("a recognized asset extension resolves to the literal file only", () => {
   assert.deepEqual(getRelativeImportCandidates("./tool.config.json", from), [
     "components/assistant-ui/tool.config.json",
   ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./logo.PNG", from), [
+    "components/assistant-ui/logo.PNG",
+  ]);
 });
 
 test("a sibling whose name begins with dots stays inside the installed tree", () => {
@@ -1413,6 +1417,32 @@ test("install validation reports an import that escapes the installed tree", () 
   ]);
 
   assert.match(findings, /a file outside the installed tree/);
+});
+
+test("install validation resolves a dotted alias basename to its shipped source", () => {
+  const importer = {
+    path: "components/assistant-ui/thread.tsx",
+    content:
+      'import { toolConfig } from "@/components/assistant-ui/tool.config";\n',
+  };
+
+  assert.equal(
+    findingsFrom([
+      componentItem([
+        importer,
+        {
+          path: "components/assistant-ui/tool.config.tsx",
+          content: "export const toolConfig = {};\n",
+        },
+      ]),
+    ]),
+    null,
+  );
+
+  assert.match(
+    findingsFrom([componentItem([importer])]),
+    /provides components\/assistant-ui\/tool\.config or components\/assistant-ui\/tool\.config\.tsx/,
+  );
 });
 
 test("install validation resolves a sibling against the registryDependency install path", () => {
