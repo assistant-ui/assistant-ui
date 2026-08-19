@@ -111,7 +111,14 @@ export type NavGlyphKind =
   | "native"
   | "ink"
   | "cloud"
-  | "playground";
+  | "playground"
+  | "examples"
+  | "changelog"
+  | "showcase"
+  | "oss"
+  | "blog"
+  | "careers"
+  | "brand";
 
 export type DropdownItem = {
   label: string;
@@ -128,26 +135,29 @@ export type NavGroup = {
 
 export type NavItem =
   | { type: "link"; label: string; href: string }
-  | { type: "mega"; label: string; groups: NavGroup[] };
+  | {
+      type: "mega";
+      label: string;
+      featured?: { label: string; item: DropdownItem };
+      groups: NavGroup[];
+    };
 
 export const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Docs", href: "/docs" },
   {
     type: "mega",
     label: "Products",
-    groups: [
-      {
-        label: "Extend",
-        items: [
-          {
-            label: "Elements",
-            href: "/elements",
-            description: "Multimodal UI. An extension, not a replacement.",
-            external: false,
-            glyph: "elements",
-          },
-        ],
+    featured: {
+      label: "Extend",
+      item: {
+        label: "Elements",
+        href: "/elements",
+        description: "Multimodal UI. An extension, not a replacement.",
+        external: false,
+        glyph: "elements",
       },
+    },
+    groups: [
       {
         label: "Platforms",
         items: [
@@ -198,6 +208,16 @@ export const NAV_ITEMS: NavItem[] = [
   {
     type: "mega",
     label: "Resources",
+    featured: {
+      label: "Explore",
+      item: {
+        label: "Examples",
+        href: "/examples",
+        description: "Full implementations and demos",
+        external: false,
+        glyph: "examples",
+      },
+    },
     groups: [
       {
         label: "Learn",
@@ -209,6 +229,7 @@ export const NAV_ITEMS: NavItem[] = [
                   href: "/learn",
                   description: "Build your first AI app, step by step",
                   external: false,
+                  glyph: "playground" as const,
                 },
               ]
             : []),
@@ -217,18 +238,21 @@ export const NAV_ITEMS: NavItem[] = [
             href: "/changelog",
             description: "Release notes and updates",
             external: false,
+            glyph: "changelog",
           },
           {
             label: "Showcase",
             href: "/showcase",
             description: "Apps built with assistant-ui",
             external: false,
+            glyph: "showcase",
           },
           {
-            label: "Examples",
-            href: "/examples",
-            description: "Full implementations and demos",
+            label: "Open source",
+            href: "/oss",
+            description: "Projects and repos in the open",
             external: false,
+            glyph: "oss",
           },
         ],
       },
@@ -240,18 +264,21 @@ export const NAV_ITEMS: NavItem[] = [
             href: "/blog",
             description: "Latest news and updates",
             external: false,
+            glyph: "blog",
           },
           {
             label: "Careers",
             href: "/careers",
             description: "Join our team",
             external: false,
+            glyph: "careers",
           },
           {
             label: "Brand",
             href: "/brand",
             description: "Logos and brand assets",
             external: false,
+            glyph: "brand",
           },
         ],
       },

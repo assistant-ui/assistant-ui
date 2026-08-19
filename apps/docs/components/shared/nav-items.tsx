@@ -63,6 +63,38 @@ function DropdownLink({ link }: { link: DropdownItem }) {
   );
 }
 
+function FeaturedCard({
+  featured,
+}: {
+  featured: { label: string; item: DropdownItem };
+}) {
+  const link = featured.item;
+
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="text-muted-foreground px-2 pb-2 font-mono text-[11px] font-medium tracking-wide uppercase">
+        {featured.label}
+      </span>
+      <NavigationMenuLink
+        render={
+          <Link
+            href={link.href}
+            className="group/navlink hover:bg-muted flex flex-1 flex-col gap-4 rounded-md p-3 transition-colors"
+          >
+            {link.glyph ? <NavGlyph kind={link.glyph} size="lg" /> : null}
+            <span className="flex flex-col">
+              <span className="text-sm">{link.label}</span>
+              <span className="text-muted-foreground text-xs">
+                {link.description}
+              </span>
+            </span>
+          </Link>
+        }
+      />
+    </div>
+  );
+}
+
 export function NavItemsRoot({ children }: { children: ReactNode }) {
   const [value, setValue] = useState<string | null>(null);
   const rootRef = useRef<HTMLElement>(null);
@@ -153,7 +185,7 @@ export function NavItems({
             <NavigationMenuContent className="w-full">
               <div
                 className={cn(
-                  "w-full px-4 py-8",
+                  "w-full px-4 pt-7 pb-6",
                   menuAlign === "end" && "flex justify-end",
                   contentClassName,
                 )}
@@ -161,12 +193,19 @@ export function NavItems({
                 <div
                   className={cn(
                     "grid",
-                    item.groups.length <= 2 && "grid-cols-2",
-                    item.groups.length === 3 && "grid-cols-3",
-                    item.groups.length >= 4 && "grid-cols-4",
+                    item.featured
+                      ? "min-h-[15.25rem] grid-cols-[minmax(0,20rem)_1fr_1fr]"
+                      : cn(
+                          item.groups.length <= 2 && "grid-cols-2",
+                          item.groups.length === 3 && "grid-cols-3",
+                          item.groups.length >= 4 && "grid-cols-4",
+                        ),
                     menuAlign === "end" ? "gap-x-12" : "gap-x-6 lg:gap-x-8",
                   )}
                 >
+                  {item.featured ? (
+                    <FeaturedCard featured={item.featured} />
+                  ) : null}
                   {item.groups.map((group) => (
                     <div
                       key={group.label}
