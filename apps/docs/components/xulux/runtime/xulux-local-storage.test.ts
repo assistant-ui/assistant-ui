@@ -116,7 +116,7 @@ describe("claimXuluxStorage", () => {
     ).toBeNull();
   });
 
-  it("migrates storage when Web Locks is unavailable", async () => {
+  it("uses isolated storage without migrating legacy data when Web Locks is unavailable", async () => {
     vi.stubGlobal("navigator", {});
     const storage = createStorage({
       "xulux:threads": '[{"title":"Existing thread"}]',
@@ -126,8 +126,20 @@ describe("claimXuluxStorage", () => {
       true,
     );
 
-    expect(storage.getItem("xulux:threads")).toBeNull();
-    expect(storage.getItem("xulux:user:user_current:threads")).not.toBeNull();
+    expect(storage.getItem("xulux:threads")).not.toBeNull();
+    expect(
+      createXuluxUserStorage(storage, "user_current").getItem("xulux:claim"),
+    ).toBe("user_current");
+
+    vi.stubGlobal("navigator", {
+      locks: {
+        request: (_name: string, callback: () => unknown) => callback(),
+      },
+    });
+    await expect(claimXuluxStorage(storage, "user_second")).resolves.toBe(true);
+    expect(
+      createXuluxUserStorage(storage, "user_second").getItem("xulux:threads"),
+    ).toBeNull();
   });
 
   it("reports unavailable storage without throwing", async () => {

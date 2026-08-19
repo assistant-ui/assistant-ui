@@ -35,6 +35,7 @@ vi.mock("@upstash/ratelimit", async (importOriginal) => ({
 
 import {
   checkAnonymousSessionIssuanceRateLimit,
+  checkBuilderRateLimit,
   checkDownloadRateLimit,
   checkRateLimit,
   getClientIp,
@@ -193,6 +194,25 @@ describe("separate non-inference limits", () => {
     expect(mocks.calls).toEqual([
       { prefix: "aui:anonymous-session:ip:burst", key: "203.0.113.10" },
       { prefix: "aui:anonymous-session:ip:daily", key: "203.0.113.10" },
+    ]);
+  });
+});
+
+describe("checkBuilderRateLimit", () => {
+  it("uses a separate authenticated identity bucket", async () => {
+    const request = new Request("https://www.assistant-ui.com/api/xulux/chat", {
+      headers: { "x-vercel-forwarded-for": "203.0.113.10" },
+    });
+
+    await expect(
+      checkBuilderRateLimit(request, "user:user_123"),
+    ).resolves.toBeNull();
+
+    expect(mocks.calls).toEqual([
+      { prefix: "aui:inference:ip:burst", key: "203.0.113.10" },
+      { prefix: "aui:inference:ip:daily", key: "203.0.113.10" },
+      { prefix: "aui:builder:identity", key: "user:user_123" },
+      { prefix: "aui:inference:global", key: "all" },
     ]);
   });
 });

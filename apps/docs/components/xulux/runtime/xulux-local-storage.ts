@@ -14,6 +14,7 @@ const PREFIX = "xulux:";
 const USER_PREFIX = `${PREFIX}user:`;
 const THREADS_KEY = `${PREFIX}threads`;
 const STORAGE_OWNER_KEY = `${PREFIX}storage-owner`;
+const STORAGE_LEGACY_QUARANTINE_KEY = `${PREFIX}legacy-quarantined`;
 const STORAGE_LOCK_NAME = `${PREFIX}storage-migration`;
 const STORAGE_EVENT = "xulux-storage";
 const EMPTY_THREADS: XuluxStoredThread[] = [];
@@ -46,6 +47,33 @@ export function createXuluxUserStorage(
   };
 }
 
+function getLegacyStorageKeys(
+  storage: Pick<Storage, "length" | "key">,
+): string[] {
+  const keys: string[] = [];
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (
+      key?.startsWith(PREFIX) &&
+      !key.startsWith(USER_PREFIX) &&
+      key !== STORAGE_OWNER_KEY &&
+      key !== STORAGE_LEGACY_QUARANTINE_KEY
+    ) {
+      keys.push(key);
+    }
+  }
+  return keys;
+}
+
+function claimUserStorage(
+  storage: Pick<Storage, "getItem" | "setItem">,
+  userId: string,
+): boolean {
+  const claimKey = userKey(userId, `${PREFIX}claim`);
+  storage.setItem(claimKey, userId);
+  return storage.getItem(claimKey) === userId;
+}
+
 function migrateLegacyStorage(
   storage: Pick<
     Storage,
@@ -55,30 +83,21 @@ function migrateLegacyStorage(
 ): boolean {
   const currentOwner = storage.getItem(STORAGE_OWNER_KEY);
   const legacyOwner = currentOwner ?? userId;
-  const keys: string[] = [];
-  for (let index = 0; index < storage.length; index += 1) {
-    const key = storage.key(index);
-    if (
-      key?.startsWith(PREFIX) &&
-      !key.startsWith(USER_PREFIX) &&
-      key !== STORAGE_OWNER_KEY
-    ) {
-      keys.push(key);
+  const legacyQuarantined =
+    storage.getItem(STORAGE_LEGACY_QUARANTINE_KEY) !== null;
+  if (!legacyQuarantined) {
+    for (const key of getLegacyStorageKeys(storage)) {
+      const targetKey = userKey(legacyOwner, key);
+      if (storage.getItem(targetKey) === null) {
+        const value = storage.getItem(key);
+        if (value !== null) storage.setItem(targetKey, value);
+      }
+      storage.removeItem(key);
     }
-  }
-  for (const key of keys) {
-    const targetKey = userKey(legacyOwner, key);
-    if (storage.getItem(targetKey) === null) {
-      const value = storage.getItem(key);
-      if (value !== null) storage.setItem(targetKey, value);
-    }
-    storage.removeItem(key);
-  }
 
-  if (currentOwner === null) storage.setItem(STORAGE_OWNER_KEY, userId);
-  const claimKey = userKey(userId, `${PREFIX}claim`);
-  storage.setItem(claimKey, userId);
-  return storage.getItem(claimKey) === userId;
+    if (currentOwner === null) storage.setItem(STORAGE_OWNER_KEY, userId);
+  }
+  return claimUserStorage(storage, userId);
 }
 
 export async function claimXuluxStorage(
@@ -89,12 +108,18 @@ export async function claimXuluxStorage(
   userId: string,
 ): Promise<boolean> {
   try {
-    const claimed =
-      typeof navigator !== "undefined" && navigator.locks
-        ? await navigator.locks.request(STORAGE_LOCK_NAME, () =>
-            migrateLegacyStorage(storage, userId),
-          )
-        : migrateLegacyStorage(storage, userId);
+    const locks = typeof navigator !== "undefined" ? navigator.locks : null;
+    let claimed: boolean;
+    if (locks) {
+      claimed = await locks.request(STORAGE_LOCK_NAME, () =>
+        migrateLegacyStorage(storage, userId),
+      );
+    } else {
+      if (getLegacyStorageKeys(storage).length > 0) {
+        storage.setItem(STORAGE_LEGACY_QUARANTINE_KEY, "1");
+      }
+      claimed = claimUserStorage(storage, userId);
+    }
     if (!claimed) return false;
     cachedThreads.delete(userId);
     notify();

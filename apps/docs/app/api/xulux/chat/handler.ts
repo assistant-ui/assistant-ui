@@ -1,6 +1,7 @@
+import { getDistinctId } from "@/lib/posthog-server";
 import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { injectQuoteContext, type FrontendTools } from "@assistant-ui/ai-sdk";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkBuilderRateLimit } from "@/lib/rate-limit";
 import { validateDocChatInput } from "@/lib/validate-input";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
@@ -175,8 +176,9 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       const access = await requireAiBuilderUser();
       if (access instanceof Response) return access;
 
-      const distinctId = `user:${access.userId}`;
-      const rateLimitResponse = await checkRateLimit(req, distinctId);
+      const quotaId = `user:${access.userId}`;
+      const distinctId = getDistinctId(req);
+      const rateLimitResponse = await checkBuilderRateLimit(req, quotaId);
       if (rateLimitResponse) return rateLimitResponse;
 
       const body = await req.json().catch(() => null);
@@ -273,7 +275,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       if (preparedTools instanceof Response) return preparedTools;
       const xuluxTools: ToolSet = preparedTools;
 
-      const budget = await beginTurn(sessionId, distinctId);
+      const budget = await beginTurn(sessionId, quotaId);
       if (budget.denied) {
         const payload = await budget.denied
           .clone()
@@ -372,7 +374,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         onFinish: async ({ usage, response }) => {
           await finishTurn(
             sessionId,
-            distinctId,
+            quotaId,
             usage,
             response.modelId,
             budgetDate,

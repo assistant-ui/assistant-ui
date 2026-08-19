@@ -36,6 +36,7 @@ Set deliberate Preview and Production values for:
 
 - `AUI_IP_REQUESTS_PER_DAY`
 - `AUI_IDENTITY_REQUESTS_PER_DAY`
+- `AUI_BUILDER_REQUESTS_PER_DAY`
 - `AUI_GLOBAL_REQUESTS_PER_DAY`
 - `AUI_ANONYMOUS_SESSIONS_PER_IP_PER_DAY`
 - `AUI_DOWNLOAD_REQUESTS_PER_DAY`
@@ -75,7 +76,7 @@ Before production promotion, verify all of the following on the deployment URL:
    for a signed-in staging user.
 7. Switching Clerk users in one browser cannot expose the previous user's
    Xulux data, including across open tabs. Existing ownerless data is migrated
-   to the first authenticated user's isolated namespace during rollout.
+   under Web Locks; browsers without Web Locks quarantine it instead.
 8. Assistant Cloud rejects a request without the `assistant-ui` JWT.
 9. Redis counters and provider spend alerts are visible to the on-call owner.
 

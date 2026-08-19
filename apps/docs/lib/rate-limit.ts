@@ -45,6 +45,14 @@ const getRatelimits = async () => {
         "1d",
       ),
     }),
+    builderIdentity: new Ratelimit({
+      redis,
+      prefix: "aui:builder:identity",
+      limiter: Ratelimit.fixedWindow(
+        positiveSafeInteger(process.env.AUI_BUILDER_REQUESTS_PER_DAY, 500),
+        "1d",
+      ),
+    }),
     inferenceGlobal: new Ratelimit({
       redis,
       prefix: "aui:inference:global",
@@ -150,6 +158,45 @@ export async function checkRateLimit(
       : null;
     if (identityResult && !identityResult.success) {
       return new Response("Daily session usage limit exceeded", {
+        status: 429,
+      });
+    }
+
+    const globalResult = await ratelimits.inferenceGlobal.limit("all");
+    if (!globalResult.success) {
+      console.error(
+        JSON.stringify({
+          level: "error",
+          message: "global_inference_rate_limit_exceeded",
+          requestId: req.headers.get("x-vercel-id"),
+        }),
+      );
+      return new Response("Service usage limit exceeded", { status: 429 });
+    }
+
+    return null;
+  });
+}
+
+export async function checkBuilderRateLimit(
+  req: Request,
+  identity: string,
+): Promise<Response | null> {
+  return runRateLimitCheck(req, async (ratelimits) => {
+    const ip = getClientIp(req);
+    const burstResult = await ratelimits.inferenceIpBurst.limit(ip);
+    if (!burstResult.success) {
+      return new Response("Rate limit exceeded", { status: 429 });
+    }
+
+    const dailyIpResult = await ratelimits.inferenceIpDaily.limit(ip);
+    if (!dailyIpResult.success) {
+      return new Response("Daily IP usage limit exceeded", { status: 429 });
+    }
+
+    const identityResult = await ratelimits.builderIdentity.limit(identity);
+    if (!identityResult.success) {
+      return new Response("Daily AI Builder usage limit exceeded", {
         status: 429,
       });
     }
