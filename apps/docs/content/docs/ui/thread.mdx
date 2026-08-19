@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { ThreadSample } from "@/components/docs/samples/thread";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { ThreadConversationSample } from "@/components/docs/samples/thread/scripted-conversation";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
 attachments, and conditional UI states. Fully customizable and composable.
@@ -89,6 +91,15 @@ export default function Chat() {
   <div className="min-h-8 grow" />
 </AuiIf>
 ```
+
+A deterministic local history shows how the composer docks below a completed multi-turn exchange.
+
+<PreviewCode
+  file="components/docs/samples/thread/scripted-conversation"
+  name="Chat"
+>
+  <ThreadConversationSample />
+</PreviewCode>
 
 ### Conditional Send/Cancel Button
 
