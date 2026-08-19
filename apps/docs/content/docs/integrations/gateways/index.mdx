@@ -1,6 +1,6 @@
 ---
 title: LLM Gateway Integrations
-description: Route AI chat traffic through OpenAI-compatible LLM gateways (OpenRouter, LiteLLM, Portkey, etc.) for cost, fallback, and BYOK in assistant-ui apps.
+description: Route AI chat traffic through OpenAI-compatible LLM gateways (OpenRouter, LiteLLM, Portkey, OrcaRouter, etc.) for cost, fallback, and BYOK in assistant-ui apps.
 ---
 
 import { HeliconeIcon } from "@/components/icons/helicone";
@@ -15,6 +15,7 @@ For pure observability (proxy that logs every call) see [Helicone](/docs/integra
 | Gateway | Base URL | Auth header | Distinguishing feature |
 | --- | --- | --- | --- |
 | [OpenRouter](#openrouter) | `https://openrouter.ai/api/v1` | `Authorization: Bearer <key>` | Catalog of 100+ models with `vendor/model` IDs |
+| [OrcaRouter](#orcarouter) | `https://api.orcarouter.ai/v1` | `Authorization: Bearer <key>` | Zero-trust gateway for AI agents, auto model routing |
 | [Portkey](#portkey) | `https://api.portkey.ai/v1` | `x-portkey-api-key` | Config-driven multi-provider fallback |
 | [LiteLLM Proxy](#litellm-proxy) | Self-hosted | `Authorization: Bearer <virtual key>` | OSS, self-host, virtual keys per tenant |
 
@@ -22,7 +23,7 @@ If your need is only request logging, Helicone fits the same shape and is docume
 
 ## Common pattern
 
-All three gateways below speak OpenAI's API. Wire them with `createOpenAI`:
+All four gateways below speak OpenAI's API. Wire them with `createOpenAI`:
 
 ```ts title="app/api/chat/route.ts"
 import { createOpenAI } from "@ai-sdk/openai";
@@ -83,6 +84,36 @@ export async function POST(req: Request) {
 
 When to pick: you want a single bill across many models, or you let users pick the model from a long list, or you need to run open-weights models without managing the inference yourself.
 
+## OrcaRouter
+
+[OrcaRouter](https://www.orcarouter.ai) is a gateway that fronts many providers behind one OpenAI-compatible endpoint, with automatic model routing. The model ID is `orcarouter/auto` to let the gateway pick the best model, or any upstream `provider/model` ID (e.g., `anthropic/claude-sonnet-4.6`). It also runs gateway-level, zero-trust security for AI agents on the same endpoint — screening every prompt/response and governing every tool call on a default-deny basis, with no application code changes.
+
+```sh title=".env.local"
+ORCAROUTER_API_KEY=sk-orca-...
+```
+
+```ts title="app/api/chat/route.ts"
+import { createOpenAI } from "@ai-sdk/openai";
+import { streamText, convertToModelMessages } from "ai";
+import type { UIMessage } from "ai";
+
+const orcarouter = createOpenAI({
+  baseURL: "https://api.orcarouter.ai/v1",
+  apiKey: process.env.ORCAROUTER_API_KEY,
+});
+
+export async function POST(req: Request) {
+  const { messages }: { messages: UIMessage[] } = await req.json();
+  const result = streamText({
+    model: orcarouter("orcarouter/auto"),
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse();
+}
+```
+
+When to pick: you want automatic model routing with a single API key, or you need gateway-level security (prompt/response screening and default-deny tool-call governance) for agent workloads without changing application code.
+
 ## Portkey
 
 [Portkey](https://portkey.ai/) is a gateway plus observability with a config-driven router. The differentiating feature is the *config*: a server-defined object that describes routing rules (try Anthropic first, fall back to OpenAI, fall back to a local model), retries, and caching.
@@ -141,7 +172,7 @@ When to pick: self-host requirement, BYOK metering for end-users, or unified bil
 ## Notes
 
 - **Server-side only.** A gateway key is a write capability against your billing account. Never set it in client code; the route handler is the right boundary.
-- **Streaming, tools, attachments.** All three gateways are transparent to the AI SDK; everything that works against OpenAI directly works through them.
+- **Streaming, tools, attachments.** All four gateways are transparent to the AI SDK; everything that works against OpenAI directly works through them.
 - **Combining with observability.** A gateway and an observability tool are not mutually exclusive. Helicone in front of OpenRouter is a common stack: OpenRouter does the routing, Helicone logs the calls.
 
 ## Related
