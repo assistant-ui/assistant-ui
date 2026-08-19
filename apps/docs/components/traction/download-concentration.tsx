@@ -80,7 +80,7 @@ export function DownloadConcentration({
             onFocus={() => onHover(segment.key)}
             aria-label={`${segment.label}, ${Math.round(share(segment.weekly))}% of weekly downloads`}
             className={cn(
-              "cursor-pointer transition-opacity duration-150",
+              "focus-visible:ring-ring/50 cursor-pointer transition-opacity duration-150 outline-none focus-visible:ring-1",
               segment.tone,
               hovered !== null && hovered !== segment.key && "opacity-25",
             )}

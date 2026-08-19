@@ -29,10 +29,10 @@ const Heading =
   ({ children }: ComponentProps<"h1">) => <Tag>{children}</Tag>;
 
 import {
-  DemoShowcaseLLM,
   QuickLinksLLM,
   QuickstartLLM,
   RuntimeGridLLM,
+  SurfaceGridLLM,
 } from "@/components/docs/landing/llm";
 
 export const LLM_COMPONENTS: MDXComponents = {
@@ -58,7 +58,7 @@ export const LLM_COMPONENTS: MDXComponents = {
     <blockquote>{children}</blockquote>
   ),
   Quickstart: QuickstartLLM,
-  DemoShowcase: DemoShowcaseLLM,
+  SurfaceGrid: SurfaceGridLLM,
   RuntimeGrid: RuntimeGridLLM,
   QuickLinks: QuickLinksLLM,
   Callout: CalloutLLM,

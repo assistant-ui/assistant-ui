@@ -1,5 +1,5 @@
 import { buildMarkdownSitemap, createDiscoveryResponse } from "@/lib/agent-discovery";
-import { examples, getTapDocsPages, source } from "@/lib/source";
+import { examples, getTapDocsPages, source, standalone } from "@/lib/source";
 
 export const revalidate = false;
 
@@ -8,6 +8,7 @@ function sitemapDocument() {
     { title: "Documentation", pages: source.getPages() },
     { title: "Tap documentation", pages: getTapDocsPages() },
     { title: "Examples", pages: examples.getPages() },
+    { title: "Standalone", pages: standalone.getPages() },
   ]);
 }
 

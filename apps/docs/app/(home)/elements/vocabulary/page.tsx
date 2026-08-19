@@ -19,6 +19,7 @@ import { IconGlyphGrid } from "@/components/gallery/icon-glyph-grid";
 import { TemplatePreview } from "@/components/gallery/template-preview";
 import { VocabCodeTabs } from "@/components/elements/vocab-code-tabs";
 import { VocabularyToc } from "@/components/elements/vocabulary-toc";
+import { PageFrame } from "@/components/shared/page-frame";
 
 const title = "Component vocabulary";
 const description =
@@ -126,7 +127,7 @@ export default async function VocabularyPage() {
   }
 
   return (
-    <main className="aui-gallery mx-auto w-full max-w-6xl px-4 pt-20 pb-32 md:pt-24">
+    <PageFrame pad="sub" className="aui-gallery">
       <div className="lg:grid lg:grid-cols-[210px_minmax(0,1fr)] lg:gap-14">
         <VocabularyToc categories={COMPONENT_CATEGORIES} />
 
@@ -231,6 +232,6 @@ export default async function VocabularyPage() {
           </div>
         </article>
       </div>
-    </main>
+    </PageFrame>
   );
 }

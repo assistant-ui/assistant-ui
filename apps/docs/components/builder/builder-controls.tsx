@@ -2,7 +2,7 @@
 
 import { CircleAlertIcon, SunIcon, MoonIcon } from "lucide-react";
 
-import { Select } from "@/components/assistant-ui/select";
+import { Select, type SelectProps } from "@/components/assistant-ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   ThemeColorPicker,
@@ -107,8 +107,8 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
   return (
     <div className="h-full scrollbar-none overflow-y-auto">
       <div className="space-y-5">
-        <div className="bg-muted/30 flex items-center justify-between rounded-lg border px-3 py-1">
-          <span className="text-sm font-medium">Preset</span>
+        <div className="flex h-8 items-center justify-between">
+          <span className="text-foreground/45 text-xs font-medium">Preset</span>
           <PresetSelect config={config} onChange={onChange} />
         </div>
 
@@ -121,7 +121,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             <Row
               label="User Position"
               control={
-                <Select
+                <BuilderSelect
                   value={styles.userMessagePosition}
                   onValueChange={(value) =>
                     updateStyles({
@@ -165,7 +165,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             <Row
               label="Spacing"
               control={
-                <Select
+                <BuilderSelect
                   value={styles.messageSpacing}
                   onValueChange={(value) =>
                     updateStyles({ messageSpacing: value as MessageSpacing })
@@ -226,7 +226,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             <Row
               label="Max Width"
               control={
-                <Select
+                <BuilderSelect
                   value={styles.maxWidth}
                   onValueChange={(value) => updateStyles({ maxWidth: value })}
                   options={MAX_WIDTHS}
@@ -296,7 +296,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
                   </>
                 }
                 control={
-                  <Select
+                  <BuilderSelect
                     value={components.codeHighlightTheme}
                     onValueChange={(value) =>
                       updateComponents({
@@ -420,7 +420,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             <Row
               label="Typing Indicator"
               control={
-                <Select
+                <BuilderSelect
                   value={components.typingIndicator}
                   onValueChange={(value) =>
                     updateComponents({
@@ -434,7 +434,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             <Row
               label="Loading Style"
               control={
-                <Select
+                <BuilderSelect
                   value={components.loadingIndicator}
                   onValueChange={(value) =>
                     updateComponents({
@@ -518,7 +518,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             <Row
               label="Font"
               control={
-                <Select
+                <BuilderSelect
                   value={styles.fontFamily}
                   onValueChange={(value) => updateStyles({ fontFamily: value })}
                   options={FONT_FAMILIES}
@@ -528,7 +528,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             <Row
               label="Size"
               control={
-                <Select
+                <BuilderSelect
                   value={styles.fontSize}
                   onValueChange={(value) =>
                     updateStyles({ fontSize: value as FontSize })
@@ -545,7 +545,7 @@ export function BuilderControls({ config, onChange }: BuilderControlsProps) {
             <Row
               label="Radius"
               control={
-                <Select
+                <BuilderSelect
                   value={styles.borderRadius}
                   onValueChange={(value) =>
                     updateStyles({ borderRadius: value as BorderRadius })
@@ -642,7 +642,9 @@ function Section({
   return (
     <div
       className={
-        withDivider ? "border-border/50 space-y-2 border-t pt-4" : "space-y-2"
+        withDivider
+          ? "border-foreground/10 space-y-2 border-t border-dashed pt-4"
+          : "space-y-2"
       }
     >
       <div className="flex items-center justify-between">
@@ -670,7 +672,7 @@ function SectionWithToggle({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-border/50 space-y-2 border-t pt-4">
+    <div className="border-foreground/10 space-y-2 border-t border-dashed pt-4">
       <div className="flex items-center justify-between">
         <span className="text-muted-foreground text-xs font-medium">
           {title}
@@ -792,6 +794,10 @@ function SwitchColorRow({
   );
 }
 
+function BuilderSelect(props: SelectProps) {
+  return <Select {...props} variant="ghost" size="sm" />;
+}
+
 function PresetSelect({
   config,
   onChange,
@@ -809,7 +815,7 @@ function PresetSelect({
   }));
 
   return (
-    <Select
+    <BuilderSelect
       value={currentPreset?.id ?? ""}
       onValueChange={(id) => {
         const preset = PRESETS.find((p) => p.id === id);

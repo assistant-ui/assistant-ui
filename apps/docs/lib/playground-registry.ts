@@ -148,6 +148,7 @@ function generateThreadCode(config: BuilderConfig): string {
     `  ErrorPrimitive,`,
     `  MessagePrimitive,`,
     `  ThreadPrimitive,`,
+    `  useAuiState,`,
     `} from "@assistant-ui/react";`,
     components.markdown && components.typingIndicator === "dot"
       ? `import "@assistant-ui/react-markdown/styles/dot.css";`
@@ -183,65 +184,85 @@ ${externalImports}
 
 ${internalImports}`;
 
-  const borderRadiusClass = getBorderRadiusClass(styles.borderRadius);
   const fontSizeClass = getFontSizeClass(styles.fontSize);
   const messageSpacingClass = getMessageSpacingClass(styles.messageSpacing);
   const accentColor = styles.colors.accent.light;
   const accentForeground = isLightColor(accentColor) ? "#000000" : "#ffffff";
 
+  const composerRadius = getBorderRadiusValue(styles.borderRadius);
+
   const threadComponent = `
 export function Thread() {
+  const isEmpty = useAuiState((s) => s.thread.isEmpty);
+
   return (
     <ThreadPrimitive.Root
       className="flex h-full flex-col bg-background ${fontSizeClass}"
       style={{
         "--thread-max-width": "${styles.maxWidth}",
+        "--composer-radius": "${composerRadius}",
+        "--composer-padding": "8px",
+        "--composer-bg": "var(--color-card)",
         "--accent-color": "${accentColor}",
         "--accent-foreground": "${accentForeground}",${styles.fontFamily !== "system-ui" ? `\n        fontFamily: "${styles.fontFamily}",` : ""}
       }}
     >
       <ThreadPrimitive.Viewport
         turnAnchor="top"
-        className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth px-4 pt-4"
+        className="relative flex flex-1 flex-col overflow-x-auto overflow-y-scroll scroll-smooth"
       >
-        ${
-          components.threadWelcome
-            ? `<AuiIf condition={(s) => s.thread.isEmpty}>
-          <ThreadWelcome />
-        </AuiIf>`
-            : ""
-        }
+        <div
+          className={cn(
+            "mx-auto flex w-full max-w-[var(--thread-max-width)] flex-1 flex-col px-4 pt-4",
+            isEmpty && "justify-center",
+          )}
+        >
+          ${
+            components.threadWelcome
+              ? `<AuiIf condition={(s) => s.thread.isEmpty}>
+            <ThreadWelcome />
+          </AuiIf>`
+              : ""
+          }
 
-        <ThreadPrimitive.Messages
-          components={{
-            UserMessage,${components.editMessage ? `\n            EditComposer,` : ""}
-            AssistantMessage,
-          }}
-        />
+          <div className="mb-14 flex flex-col gap-y-6 empty:hidden">
+            <ThreadPrimitive.Messages
+              components={{
+                UserMessage,${components.editMessage ? `\n                EditComposer,` : ""}
+                AssistantMessage,
+              }}
+            />
+          </div>
 
-        <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mx-auto mt-auto flex w-full max-w-[var(--thread-max-width)] flex-col gap-4 overflow-visible rounded-t-3xl bg-background pb-4">
-          ${components.scrollToBottom ? "<ThreadScrollToBottom />" : ""}
-          <Composer />
-        </ThreadPrimitive.ViewportFooter>
+          <ThreadPrimitive.ViewportFooter
+            className={cn(
+              "flex w-full flex-col gap-4 overflow-visible bg-background pb-4",
+              !isEmpty && "sticky bottom-0 mt-auto rounded-t-[var(--composer-radius)]",
+            )}
+          >
+            ${components.scrollToBottom ? "<ThreadScrollToBottom />" : ""}
+            <Composer />
+            ${
+              components.suggestions
+                ? `<AuiIf condition={(s) => s.thread.isEmpty && s.composer.isEmpty}>
+              <ThreadSuggestions />
+            </AuiIf>`
+                : ""
+            }
+          </ThreadPrimitive.ViewportFooter>
+        </div>
       </ThreadPrimitive.Viewport>
     </ThreadPrimitive.Root>
   );
 }`;
 
   const additionalComponents = [
-    components.threadWelcome
-      ? generateWelcomeComponent(config, borderRadiusClass)
-      : "",
-    generateComposerComponent(config, borderRadiusClass),
+    components.threadWelcome ? generateWelcomeComponent() : "",
+    components.suggestions ? generateSuggestionsComponent() : "",
+    generateComposerComponent(config),
     components.scrollToBottom ? generateScrollToBottomComponent() : "",
-    generateUserMessageComponent(
-      config,
-      borderRadiusClass,
-      messageSpacingClass,
-    ),
-    components.editMessage
-      ? generateEditComposerComponent(borderRadiusClass)
-      : "",
+    generateUserMessageComponent(config, messageSpacingClass),
+    components.editMessage ? generateEditComposerComponent() : "",
     generateAssistantMessageComponent(config, messageSpacingClass),
     generateActionBarComponent(config),
     components.branchPicker ? generateBranchPickerComponent() : "",
@@ -272,18 +293,6 @@ function generateIconImports(config: BuilderConfig): string {
   return `import {\n  ${[...new Set(icons)].sort().join(",\n  ")},\n} from "lucide-react";`;
 }
 
-function getBorderRadiusClass(radius: string): string {
-  return (
-    {
-      none: "rounded-none",
-      sm: "rounded-sm",
-      md: "rounded-md",
-      lg: "rounded-lg",
-      full: "rounded-3xl",
-    }[radius] || "rounded-lg"
-  );
-}
-
 function getFontSizeClass(fontSize: string): string {
   return (
     {
@@ -304,65 +313,56 @@ function getMessageSpacingClass(spacing: string): string {
   );
 }
 
-function generateWelcomeComponent(
-  config: BuilderConfig,
-  borderRadiusClass: string,
-): string {
-  const { components } = config;
+function generateWelcomeComponent(): string {
   return `
 function ThreadWelcome() {
   return (
-    <div className="mx-auto my-auto flex w-full max-w-[var(--thread-max-width)] flex-grow flex-col">
-      <div className="flex w-full flex-grow flex-col items-center justify-center">
-        <div className="flex size-full flex-col justify-center px-8">
-          <div className="text-2xl font-semibold">Hello there!</div>
-          <div className="text-2xl text-muted-foreground/65">
-            How can I help you today?
-          </div>
-        </div>
-      </div>
-      ${
-        components.suggestions
-          ? `<div className="grid w-full gap-2 pb-4 md:grid-cols-2">
-        <ThreadPrimitive.Suggestion prompt="What's the weather in San Francisco?" asChild>
-          <Button variant="ghost" className="h-auto w-full flex-col items-start justify-start gap-1 border ${borderRadiusClass} px-5 py-4 text-left text-sm">
-            <span className="font-medium">What's the weather</span>
-            <span className="text-muted-foreground">in San Francisco?</span>
-          </Button>
-        </ThreadPrimitive.Suggestion>
-        <ThreadPrimitive.Suggestion prompt="Explain React hooks like useState" asChild>
-          <Button variant="ghost" className="h-auto w-full flex-col items-start justify-start gap-1 border ${borderRadiusClass} px-5 py-4 text-left text-sm">
-            <span className="font-medium">Explain React hooks</span>
-            <span className="text-muted-foreground">like useState</span>
-          </Button>
-        </ThreadPrimitive.Suggestion>
-      </div>`
-          : ""
-      }
+    <div className="mb-6 flex flex-col items-center px-4 text-center">
+      <h1 className="text-2xl font-medium tracking-tight">How can I help you today?</h1>
     </div>
   );
 }`;
 }
 
-function generateComposerComponent(
-  config: BuilderConfig,
-  borderRadiusClass: string,
-): string {
+function generateSuggestionsComponent(): string {
+  return `
+function ThreadSuggestions() {
+  return (
+    <div className="flex w-full flex-wrap items-center justify-center gap-2 px-4">
+      <ThreadPrimitive.Suggestion prompt="What's the weather in San Francisco?" send asChild>
+        <Button variant="ghost" className="h-auto gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap">
+          What's the weather <span className="text-muted-foreground">in San Francisco?</span>
+        </Button>
+      </ThreadPrimitive.Suggestion>
+      <ThreadPrimitive.Suggestion prompt="Explain React hooks like useState" send asChild>
+        <Button variant="ghost" className="h-auto gap-1.5 rounded-full border px-3.5 py-1.5 text-sm font-normal whitespace-nowrap">
+          Explain React hooks <span className="text-muted-foreground">like useState</span>
+        </Button>
+      </ThreadPrimitive.Suggestion>
+    </div>
+  );
+}`;
+}
+
+function generateComposerComponent(config: BuilderConfig): string {
   const { components } = config;
   return `
 function Composer() {
   return (
     <ComposerPrimitive.Root className="relative flex w-full flex-col">
-      <ComposerPrimitive.AttachmentDropzone className="flex w-full flex-col ${borderRadiusClass} border border-input bg-background px-1 pt-2 outline-none transition-shadow has-[textarea:focus-visible]:border-ring has-[textarea:focus-visible]:ring-2 has-[textarea:focus-visible]:ring-ring/20 data-[dragging=true]:border-ring data-[dragging=true]:border-dashed data-[dragging=true]:bg-accent/50">
-        ${components.attachments ? "<ComposerAttachments />" : ""}
-        <ComposerPrimitive.Input
-          placeholder="Send a message..."
-          className="mb-1 max-h-32 min-h-14 w-full resize-none bg-transparent px-4 pt-2 pb-3 text-sm outline-none placeholder:text-muted-foreground focus-visible:ring-0"
-          rows={1}
-          autoFocus
-          aria-label="Message input"
-        />
-        <ComposerAction />
+      <ComposerPrimitive.AttachmentDropzone asChild>
+        <div className="flex w-full cursor-text flex-col gap-2 rounded-[var(--composer-radius)] border border-border/60 bg-[var(--composer-bg)] p-[var(--composer-padding)] transition-[border-color] data-[dragging=true]:border-dashed">
+          ${components.attachments ? "<ComposerAttachments />" : ""}
+          <ComposerPrimitive.Input
+            placeholder="Send a message..."
+            className="max-h-48 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base leading-6 outline-none placeholder:text-muted-foreground"
+            rows={1}
+            autoFocus
+            enterKeyHint="send"
+            aria-label="Message input"
+          />
+          <ComposerAction />
+        </div>
       </ComposerPrimitive.AttachmentDropzone>
     </ComposerPrimitive.Root>
   );
@@ -370,7 +370,7 @@ function Composer() {
 
 function ComposerAction() {
   return (
-    <div className="relative mx-2 mb-2 flex items-center justify-between">
+    <div className="relative flex items-center justify-between">
       ${components.attachments ? "<ComposerAddAttachment />" : "<div />"}
 
       <AuiIf condition={(s) => !s.thread.isRunning}>
@@ -381,7 +381,7 @@ function ComposerAction() {
             type="submit"
             variant="default"
             size="icon"
-            className="size-8 rounded-full"
+            className="size-7 rounded-full"
             style={{
               backgroundColor: "var(--accent-color)",
               color: "var(--accent-foreground)",
@@ -399,14 +399,14 @@ function ComposerAction() {
             type="button"
             variant="default"
             size="icon"
-            className="size-8 rounded-full"
+            className="size-7 rounded-full"
             style={{
               backgroundColor: "var(--accent-color)",
               color: "var(--accent-foreground)",
             }}
             aria-label="Stop generating"
           >
-            <SquareIcon className="size-3 fill-current" />
+            <SquareIcon className="size-3.5 fill-current" />
           </Button>
         </ComposerPrimitive.Cancel>
       </AuiIf>
@@ -434,7 +434,6 @@ function ThreadScrollToBottom() {
 
 function generateUserMessageComponent(
   config: BuilderConfig,
-  borderRadiusClass: string,
   messageSpacingClass: string,
 ): string {
   const { components, styles } = config;
@@ -452,7 +451,7 @@ function UserMessage() {
       ${components.attachments ? "<UserMessageAttachments />" : ""}
 
       <div className="relative col-start-2 min-w-0">
-        <div className="${borderRadiusClass} bg-muted px-4 py-2.5 break-words text-foreground">
+        <div className="rounded-xl bg-muted px-4 py-2 break-words text-foreground">
           <MessagePrimitive.Parts />
         </div>
         ${
@@ -490,22 +489,22 @@ ${
 }`;
 }
 
-function generateEditComposerComponent(borderRadiusClass: string): string {
+function generateEditComposerComponent(): string {
   return `
 function EditComposer() {
   return (
     <MessagePrimitive.Root className="mx-auto flex w-full max-w-[var(--thread-max-width)] flex-col px-2 py-3">
-      <ComposerPrimitive.Root className="ml-auto flex w-full max-w-[85%] flex-col ${borderRadiusClass} bg-muted">
+      <ComposerPrimitive.Root className="ml-auto flex w-full max-w-[85%] flex-col rounded-[var(--composer-radius)] border border-border/60 bg-[var(--composer-bg)]">
         <ComposerPrimitive.Input
-          className="min-h-14 w-full resize-none bg-transparent p-4 text-foreground text-sm outline-none"
+          className="min-h-14 w-full resize-none bg-transparent px-4 pt-3 pb-1 text-base text-foreground outline-none"
           autoFocus
         />
-        <div className="mx-3 mb-3 flex items-center gap-2 self-end">
+        <div className="mx-2.5 mb-2.5 flex items-center gap-1.5 self-end">
           <ComposerPrimitive.Cancel asChild>
-            <Button variant="ghost" size="sm">Cancel</Button>
+            <Button variant="ghost" size="sm" className="h-8 rounded-full px-3.5">Cancel</Button>
           </ComposerPrimitive.Cancel>
           <ComposerPrimitive.Send asChild>
-            <Button size="sm">Update</Button>
+            <Button size="sm" className="h-8 rounded-full px-3.5">Update</Button>
           </ComposerPrimitive.Send>
         </div>
       </ComposerPrimitive.Root>

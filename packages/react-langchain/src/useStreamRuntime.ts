@@ -95,6 +95,26 @@ const toStagedHumanMessage = (
   content: getMessageContent(msg),
 });
 
+const humanContentText = (content: LangChainBaseMessage["content"]) => {
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .filter(
+      (part): part is { type: "text"; text: string } =>
+        typeof part === "object" &&
+        part !== null &&
+        part.type === "text" &&
+        typeof part.text === "string",
+    )
+    .map((part) => part.text)
+    .join("");
+};
+
+const hasSameMessageContent = (
+  a: LangChainBaseMessage,
+  b: LangChainBaseMessage,
+) => humanContentText(a.content) === humanContentText(b.content);
+
 const truncateLangChainBaseMessages = (
   threadMessages: readonly ThreadMessage[],
   parentId: string | null,
@@ -262,11 +282,12 @@ const useStreamThreadRuntime = (
       {
         message: LangChainBaseMessage & { id: string };
         runConfig: AppendMessage["runConfig"];
+        reconcileOnEcho: boolean;
+        baseMessageCount: number;
       }
     >(),
   );
   const stagedBaseMessagesRef = useRef<LangChainBaseMessage[] | null>(null);
-
   useEffect(() => {
     if (stagedMessagesRef.current.size === 0) return;
 
@@ -274,18 +295,32 @@ const useStreamThreadRuntime = (
     const baseMessages =
       stagedBaseMessagesRef.current ??
       (stream.messages as LangChainBaseMessage[]);
-    const baseMessageIds = new Set(
-      baseMessages.flatMap((message) => (message.id ? [message.id] : [])),
-    );
     const remainingStagedMessages: LangChainBaseMessage[] = [];
-    const seenStagedIds = new Set<string>();
-    for (const message of visibleMessagesRef.current) {
-      if (!message.id || seenStagedIds.has(message.id)) continue;
-      if (baseMessageIds.has(message.id)) continue;
-      const staged = stagedMessagesRef.current.get(message.id);
-      if (!staged) continue;
-      remainingStagedMessages.push(staged.message);
-      seenStagedIds.add(message.id);
+    const matchedBaseMessageIndexes = new Set<number>();
+    const visibleStagedIds = new Set(
+      visibleMessagesRef.current.flatMap((m) => (m.id ? [m.id] : [])),
+    );
+    for (const [id, staged] of stagedMessagesRef.current) {
+      if (!visibleStagedIds.has(id)) continue;
+      const echoed = baseMessages.some((message, index) => {
+        if (matchedBaseMessageIndexes.has(index)) return false;
+        if (message.id === id) {
+          matchedBaseMessageIndexes.add(index);
+          return true;
+        }
+        if (
+          !staged.reconcileOnEcho ||
+          index < staged.baseMessageCount ||
+          getMessageType(message) !== "human" ||
+          !hasSameMessageContent(message, staged.message)
+        ) {
+          return false;
+        }
+        matchedBaseMessageIndexes.add(index);
+        return true;
+      });
+      if (echoed) stagedMessagesRef.current.delete(id);
+      else remainingStagedMessages.push(staged.message);
     }
 
     if (remainingStagedMessages.length === 0) {
@@ -317,15 +352,32 @@ const useStreamThreadRuntime = (
     };
   };
 
-  const stageUserMessage = (msg: AppendMessage) => {
+  const stageUserMessage = (msg: AppendMessage, reconcileOnEcho = false) => {
     const stagedMessage = toStagedHumanMessage(msg);
     stagedMessagesRef.current.set(stagedMessage.id, {
       message: stagedMessage,
       runConfig: msg.runConfig,
+      reconcileOnEcho,
+      baseMessageCount: streamRef.current.messages.length,
     });
     const nextMessages = [...visibleMessagesRef.current, stagedMessage];
     visibleMessagesRef.current = nextMessages;
     setStagedMessages(nextMessages);
+    return stagedMessage;
+  };
+
+  const removeStagedMessage = (id: string) => {
+    if (!stagedMessagesRef.current.delete(id)) return;
+    const nextMessages = visibleMessagesRef.current.filter(
+      (message) => message.id !== id,
+    );
+    visibleMessagesRef.current = nextMessages;
+    if (stagedMessagesRef.current.size === 0) {
+      stagedBaseMessagesRef.current = null;
+      setStagedMessages(null);
+    } else {
+      setStagedMessages(nextMessages);
+    }
   };
 
   const extras = useMemo(
@@ -370,6 +422,8 @@ const useStreamThreadRuntime = (
         return;
       }
 
+      const stagedMessage = stageUserMessage(msg, true);
+      const stagedMessageId = stagedMessage.id;
       setActiveRunConfig(msg.runConfig);
       const content = getMessageContent(msg);
       const cancellations =
@@ -388,14 +442,28 @@ const useStreamThreadRuntime = (
       // away from its self-created thread and forces a fresh one, so the
       // submit waits for initialization to produce an identity; core no
       // longer holds appends on that barrier.
-      const { externalId } = await aui.threadListItem.initialize();
-      await streamRef.current.submit(
-        { [messagesKey]: [...cancellations, { type: "human", content }] },
-        {
-          ...runConfigToSubmitOptions(msg.runConfig),
-          ...(externalId != null ? { threadId: externalId } : {}),
-        },
-      );
+      try {
+        const { externalId } = await aui.threadListItem.initialize();
+        await streamRef.current.submit(
+          {
+            [messagesKey]: [
+              ...cancellations,
+              {
+                id: stagedMessageId,
+                type: "human",
+                content,
+              },
+            ],
+          },
+          {
+            ...runConfigToSubmitOptions(msg.runConfig),
+            ...(externalId != null ? { threadId: externalId } : {}),
+          },
+        );
+      } catch (error) {
+        removeStagedMessage(stagedMessageId);
+        throw error;
+      }
     },
     onAddToolResult: async ({
       messageId,
@@ -487,6 +555,8 @@ const useStreamThreadRuntime = (
         stagedMessagesRef.current.set(stagedMessage.id, {
           message: stagedMessage,
           runConfig: message.runConfig,
+          reconcileOnEcho: false,
+          baseMessageCount: 0,
         });
         stagedBaseMessagesRef.current = truncated;
         const nextMessages = [...truncated, stagedMessage];

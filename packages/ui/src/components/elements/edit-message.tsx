@@ -73,7 +73,7 @@ export function EditMessage({
         aria-label="Edit your message"
         className={cn(
           field,
-          "text-foreground/90 focus-visible:ring-foreground/20 resize-none rounded-xl px-3 py-2.5 text-[13.5px] leading-relaxed outline-none focus-visible:ring-2",
+          "text-foreground/90 focus-visible:ring-foreground/20 resize-none rounded-xl px-3 py-2.5 text-[13.5px] leading-relaxed outline-none focus-visible:ring-1",
         )}
       />
 

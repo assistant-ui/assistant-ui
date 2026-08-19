@@ -99,7 +99,7 @@ export function AssistantPanelToggle(): React.ReactNode {
       size="icon"
       onClick={handleClick}
       className={cn(
-        "bg-background absolute top-1/2 left-0 z-10 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border shadow-sm transition-opacity duration-300",
+        "bg-background absolute top-1/2 left-0 z-10 size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border transition-opacity duration-300",
         open ? "opacity-100" : "pointer-events-none opacity-0",
       )}
       aria-label="Close AI Chat"
@@ -161,7 +161,7 @@ export function AssistantPanelContent(): React.ReactNode {
           open ? "opacity-100" : "pointer-events-none opacity-0",
         )}
       >
-        <div className="border-border/60 bg-background flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border shadow-xs">
+        <div className="border-border/60 bg-background flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border">
           <div className="min-h-0 flex-1">
             <AssistantThread />
           </div>

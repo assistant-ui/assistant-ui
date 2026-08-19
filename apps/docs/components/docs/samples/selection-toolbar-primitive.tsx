@@ -14,7 +14,7 @@ export function SelectionToolbarPrimitiveSample() {
           <div className="relative inline text-sm leading-relaxed">
             React Server Components allow you to{" "}
             <span className="relative">
-              <span className="bg-popover text-popover-foreground absolute start-1/2 -top-10 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm shadow-md rtl:translate-x-1/2">
+              <span className="bg-popover text-popover-foreground absolute start-1/2 -top-10 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-lg border px-2.5 py-1 text-sm rtl:translate-x-1/2">
                 <QuoteIcon className="size-3.5" />
                 Quote
               </span>

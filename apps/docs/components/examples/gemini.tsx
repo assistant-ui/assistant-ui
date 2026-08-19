@@ -86,7 +86,7 @@ const ghostBtnClass =
 
 const Composer: FC = () => {
   return (
-    <ComposerPrimitive.Root className="mx-auto flex w-full max-w-2xl flex-col rounded-4xl bg-white p-3 shadow-[0_2px_10px_-2px_rgba(0,0,0,0.18)] dark:bg-[#1e1f20] dark:shadow-[0_2px_12px_-2px_rgba(0,0,0,0.6)]">
+    <ComposerPrimitive.Root className="mx-auto flex w-full max-w-2xl flex-col rounded-4xl bg-white p-3 dark:bg-[#1e1f20]">
       <AuiIf condition={(s) => s.composer.attachments.length > 0}>
         <div className="flex flex-row gap-2.5 overflow-x-auto px-1 pt-1 pb-2.5">
           <ComposerPrimitive.Attachments

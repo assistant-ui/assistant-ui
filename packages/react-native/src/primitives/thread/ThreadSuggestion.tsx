@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
 import { useSuggestionTrigger } from "@assistant-ui/core/react";
 
-export type ThreadSuggestionProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type ThreadSuggestionProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
   /** The suggestion prompt. */
   prompt: string;
   /**

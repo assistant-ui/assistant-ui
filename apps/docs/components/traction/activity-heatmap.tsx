@@ -47,120 +47,116 @@ export function ActivityHeatmap({
 
   if (commits.length === 0 && releases.length === 0) {
     return (
-      <div className="border-border text-muted-foreground flex h-[220px] items-center justify-center rounded-lg border border-dashed text-sm">
+      <div className="text-muted-foreground flex h-[220px] items-center text-sm">
         Activity is currently unavailable.
       </div>
     );
   }
 
   return (
-    <div className="border-border rounded-lg border p-4 md:p-5">
-      <HeatGraph.Root
-        data={commits}
-        weekStart="sunday"
-        colorScale={COMMIT_COLORS}
-        className="flex flex-col"
+    <HeatGraph.Root
+      data={commits}
+      weekStart="sunday"
+      colorScale={COMMIT_COLORS}
+      className="flex flex-col"
+    >
+      <div
+        className="relative"
+        style={{ height: 14, marginLeft: 28, marginBottom: 6 }}
       >
-        <div
-          className="relative"
-          style={{ height: 14, marginLeft: 28, marginBottom: 6 }}
-        >
-          <HeatGraph.MonthLabels>
-            {({ label, totalWeeks }) => (
+        <HeatGraph.MonthLabels>
+          {({ label, totalWeeks }) => (
+            <span
+              className="text-muted-foreground absolute text-[11px] leading-[14px]"
+              style={{ left: `${(label.column / totalWeeks) * 100}%` }}
+            >
+              {HeatGraph.MONTH_SHORT[label.month]}
+            </span>
+          )}
+        </HeatGraph.MonthLabels>
+      </div>
+
+      <div className="flex" style={{ gap: 3 }}>
+        <div className="flex shrink-0 flex-col" style={{ width: 25, gap: 3 }}>
+          <HeatGraph.DayLabels>
+            {({ label }) => (
               <span
-                className="text-muted-foreground absolute text-[11px] leading-[14px]"
-                style={{ left: `${(label.column / totalWeeks) * 100}%` }}
+                className="text-muted-foreground relative text-[10px]"
+                style={{ height: 11 }}
               >
-                {HeatGraph.MONTH_SHORT[label.month]}
+                {label.row % 2 === 1 ? (
+                  <span className="absolute" style={{ bottom: -1 }}>
+                    {HeatGraph.DAY_SHORT[label.dayOfWeek]?.charAt(0)}
+                  </span>
+                ) : null}
               </span>
             )}
-          </HeatGraph.MonthLabels>
+          </HeatGraph.DayLabels>
         </div>
 
-        <div className="flex" style={{ gap: 3 }}>
-          <div className="flex shrink-0 flex-col" style={{ width: 25, gap: 3 }}>
-            <HeatGraph.DayLabels>
-              {({ label }) => (
-                <span
-                  className="text-muted-foreground relative text-[10px]"
-                  style={{ height: 11 }}
-                >
-                  {label.row % 2 === 1 ? (
-                    <span className="absolute" style={{ bottom: -1 }}>
-                      {HeatGraph.DAY_SHORT[label.dayOfWeek]?.charAt(0)}
-                    </span>
-                  ) : null}
-                </span>
-              )}
-            </HeatGraph.DayLabels>
-          </div>
-
-          <HeatGraph.Grid
-            style={{
-              gap: 3,
-              gridTemplateRows: "repeat(7, 11px)",
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
-            {({ cell }) => {
-              const released = releaseDays.has(localDateKey(cell.date));
-              return (
-                <HeatGraph.Cell
-                  className="rounded-[2px]"
-                  style={
-                    released ? { backgroundImage: RELEASE_DOT } : undefined
-                  }
-                />
-              );
-            }}
-          </HeatGraph.Grid>
-        </div>
-
-        <div
-          className="text-muted-foreground flex flex-wrap items-center justify-end text-[11px]"
-          style={{ marginTop: 10, gap: 12 }}
+        <HeatGraph.Grid
+          style={{
+            gap: 3,
+            gridTemplateRows: "repeat(7, 11px)",
+            flex: 1,
+            minWidth: 0,
+          }}
         >
-          <div className="flex items-center" style={{ gap: 4 }}>
-            <span>Less</span>
-            <HeatGraph.Legend>
-              {() => (
-                <HeatGraph.LegendLevel
-                  className="rounded-[2px]"
-                  style={{ width: 10, height: 10 }}
-                />
-              )}
-            </HeatGraph.Legend>
-            <span>More</span>
-          </div>
-          <div className="flex items-center" style={{ gap: 4 }}>
-            <Rocket style={{ width: 11, height: 11 }} />
-            <span>Shipped</span>
-          </div>
-        </div>
-
-        <HeatGraph.Tooltip className="border-border bg-popover text-popover-foreground pointer-events-none rounded-md border px-3 py-1.5 text-xs whitespace-nowrap shadow-md">
           {({ cell }) => {
             const released = releaseDays.has(localDateKey(cell.date));
-            const headline =
-              cell.count > 0
-                ? `${cell.count} ${cell.count === 1 ? "commit" : "commits"}`
-                : released
-                  ? "Shipped a release"
-                  : "No commits";
             return (
-              <>
-                <strong>{headline}</strong>
-                {released && cell.count > 0 ? (
-                  <span className="text-muted-foreground">{" · shipped"}</span>
-                ) : null}
-                {" — "}
-                {formatDate(cell.date)}
-              </>
+              <HeatGraph.Cell
+                className="rounded-[2px]"
+                style={released ? { backgroundImage: RELEASE_DOT } : undefined}
+              />
             );
           }}
-        </HeatGraph.Tooltip>
-      </HeatGraph.Root>
-    </div>
+        </HeatGraph.Grid>
+      </div>
+
+      <div
+        className="text-muted-foreground flex flex-wrap items-center justify-end text-[11px]"
+        style={{ marginTop: 10, gap: 12 }}
+      >
+        <div className="flex items-center" style={{ gap: 4 }}>
+          <span>Less</span>
+          <HeatGraph.Legend>
+            {() => (
+              <HeatGraph.LegendLevel
+                className="rounded-[2px]"
+                style={{ width: 10, height: 10 }}
+              />
+            )}
+          </HeatGraph.Legend>
+          <span>More</span>
+        </div>
+        <div className="flex items-center" style={{ gap: 4 }}>
+          <Rocket style={{ width: 11, height: 11 }} />
+          <span>Shipped</span>
+        </div>
+      </div>
+
+      <HeatGraph.Tooltip className="border-border bg-popover text-popover-foreground pointer-events-none rounded-md border px-3 py-1.5 text-xs whitespace-nowrap">
+        {({ cell }) => {
+          const released = releaseDays.has(localDateKey(cell.date));
+          const headline =
+            cell.count > 0
+              ? `${cell.count} ${cell.count === 1 ? "commit" : "commits"}`
+              : released
+                ? "Shipped a release"
+                : "No commits";
+          return (
+            <>
+              <strong>{headline}</strong>
+              {released && cell.count > 0 ? (
+                <span className="text-muted-foreground">{" · shipped"}</span>
+              ) : null}
+              {" — "}
+              {formatDate(cell.date)}
+            </>
+          );
+        }}
+      </HeatGraph.Tooltip>
+    </HeatGraph.Root>
   );
 }

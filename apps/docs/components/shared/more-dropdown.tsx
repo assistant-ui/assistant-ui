@@ -24,8 +24,8 @@ export function MoreDropdown({ items }: { items: MoreDropdownItem[] }) {
           <ChevronDown className="size-3" />
         </button>
       </HoverCardTrigger>
-      <HoverCardContent className="w-40 rounded-xl p-1 shadow-xs" align="end">
-        <div className="flex flex-col">
+      <HoverCardContent className="w-44 rounded-xl p-1" align="end">
+        <div className="flex flex-col gap-0.5">
           {items.map((item) =>
             item.external ? (
               <a
@@ -33,7 +33,7 @@ export function MoreDropdown({ items }: { items: MoreDropdownItem[] }) {
                 href={item.href}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hover:bg-muted flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-sm transition-colors"
+                className="hover:bg-muted flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[13px] tracking-tight transition-colors"
               >
                 {item.label}
                 <ArrowUpRight className="size-3 opacity-40" />
@@ -42,7 +42,7 @@ export function MoreDropdown({ items }: { items: MoreDropdownItem[] }) {
               <Link
                 key={item.href}
                 href={item.href}
-                className="hover:bg-muted rounded-md px-2.5 py-1.5 text-sm transition-colors"
+                className="hover:bg-muted rounded-md px-2.5 py-1.5 text-[13px] tracking-tight transition-colors"
               >
                 {item.label}
               </Link>

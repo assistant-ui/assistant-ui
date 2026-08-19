@@ -138,7 +138,7 @@ export function ContextDisplaySample() {
       {/* Tooltip popover example */}
       <div className="flex flex-col items-center gap-3">
         <span className="text-muted-foreground text-xs">On hover</span>
-        <div className="bg-popover text-popover-foreground grid min-w-40 gap-1.5 rounded-lg border px-3 py-2 text-xs shadow-md">
+        <div className="bg-popover text-popover-foreground grid min-w-40 gap-1.5 rounded-lg border px-3 py-2 text-xs">
           <div className="flex items-center justify-between gap-4">
             <span className="text-muted-foreground">Usage</span>
             <span className="font-mono tabular-nums">72%</span>

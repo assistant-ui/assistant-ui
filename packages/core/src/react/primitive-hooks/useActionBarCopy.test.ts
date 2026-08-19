@@ -82,6 +82,21 @@ describe("useActionBarCopy", () => {
     expect(mocks.setIsCopied).not.toHaveBeenCalled();
   });
 
+  it("does not report copy success when the clipboard handler throws synchronously", async () => {
+    const copyToClipboard = vi.fn(() => {
+      throw new TypeError(
+        "Cannot read properties of undefined (reading 'writeText')",
+      );
+    });
+    const { result } = renderHook(() => useActionBarCopy({ copyToClipboard }));
+
+    expect(() => result.current.copy()).not.toThrow();
+    await Promise.resolve();
+
+    expect(copyToClipboard).toHaveBeenCalledWith("Hello");
+    expect(mocks.setIsCopied).not.toHaveBeenCalled();
+  });
+
   it("keeps copy success visible for the full duration after copying again", async () => {
     vi.useFakeTimers();
     const copyToClipboard = vi.fn();

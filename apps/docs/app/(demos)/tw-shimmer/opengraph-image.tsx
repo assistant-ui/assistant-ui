@@ -1,6 +1,7 @@
 import { ImageResponse } from "next/og";
 import { readFile } from "node:fs/promises";
 import { join } from "node:path";
+import { loadOgFonts, OG_FONT_SANS } from "@/lib/og-fonts";
 import { OG_SIZE, OgTemplate } from "@/lib/og-template";
 
 export const alt = "tw-shimmer";
@@ -8,13 +9,10 @@ export const size = OG_SIZE;
 export const contentType = "image/png";
 
 export default async function Image() {
-  const [geistRegular, geistMedium, geistMono, shimmerTextPng] =
-    await Promise.all([
-      readFile(join(process.cwd(), "assets/Geist-Regular.ttf")),
-      readFile(join(process.cwd(), "assets/Geist-Medium.ttf")),
-      readFile(join(process.cwd(), "assets/GeistMono-Regular.ttf")),
-      readFile(join(process.cwd(), "assets/tw-shimmer-text.png"), "base64"),
-    ]);
+  const [fonts, shimmerTextPng] = await Promise.all([
+    loadOgFonts(),
+    readFile(join(process.cwd(), "assets/tw-shimmer-text.png"), "base64"),
+  ]);
 
   const shimmerTextSrc = `data:image/png;base64,${shimmerTextPng}`;
 
@@ -31,7 +29,7 @@ export default async function Image() {
           fontSize: 42,
           fontWeight: 400,
           color: "#a3a3a3",
-          fontFamily: "Geist",
+          fontFamily: OG_FONT_SANS,
           letterSpacing: "-0.01em",
           textAlign: "center",
         }}
@@ -41,26 +39,7 @@ export default async function Image() {
     </OgTemplate>,
     {
       ...size,
-      fonts: [
-        {
-          name: "Geist",
-          data: geistRegular,
-          style: "normal",
-          weight: 400,
-        },
-        {
-          name: "Geist",
-          data: geistMedium,
-          style: "normal",
-          weight: 500,
-        },
-        {
-          name: "GeistMono",
-          data: geistMono,
-          style: "normal",
-          weight: 400,
-        },
-      ],
+      fonts,
     },
   );
 }

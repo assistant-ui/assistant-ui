@@ -28,17 +28,17 @@ describe("assistantUIDocs", () => {
     expect(result.path).toBe("/");
     expect(result.found).toBe(true);
     expect(result.type).toBe("directory");
-    expect(result.directories).toContain("(docs)");
+    expect(result.directories).toContain("(getting-started)");
     expect(result.directories).toContain("(reference)");
     expect(result.directories).toContain("ui");
   });
 
   it("should retrieve specific documentation file", async () => {
     const result = await testContext.callTool("assistantUIDocs", {
-      paths: ["(docs)/index"],
+      paths: ["(getting-started)/index"],
     });
 
-    expect(result.path).toBe("(docs)/index");
+    expect(result.path).toBe("(getting-started)/index");
     expect(result.found).toBe(true);
     expect(result.type).toBe("file");
     expect(result.content).toBeDefined();
@@ -57,12 +57,15 @@ describe("assistantUIDocs", () => {
 
   it("should support multiple path requests", async () => {
     const result = await testContext.callTool("assistantUIDocs", {
-      paths: ["(docs)/index", "(reference)/api-reference/primitives/thread"],
+      paths: [
+        "(getting-started)/index",
+        "(reference)/api-reference/primitives/thread",
+      ],
     });
 
     expect(result.results).toBeDefined();
     expect(result.results).toHaveLength(2);
-    expect(result.results[0].path).toBe("(docs)/index");
+    expect(result.results[0].path).toBe("(getting-started)/index");
     expect(result.results[1].path).toBe(
       "(reference)/api-reference/primitives/thread",
     );
@@ -83,7 +86,7 @@ describe("assistantUIDocs", () => {
 
   it("should parse MDX files with frontmatter", async () => {
     const result = await testContext.callTool("assistantUIDocs", {
-      paths: ["(docs)/index"],
+      paths: ["(getting-started)/index"],
     });
 
     expect(result.content).toBeDefined();
@@ -93,7 +96,7 @@ describe("assistantUIDocs", () => {
 
   it("includes title and excerpt on a file response", async () => {
     const result = await testContext.callTool("assistantUIDocs", {
-      paths: ["(docs)/index"],
+      paths: ["(getting-started)/index"],
     });
     expect(result.type).toBe("file");
     expect(result.title ?? result.excerpt).toBeDefined();

@@ -14,6 +14,7 @@ import type {
   ChatModelRunResult,
   ExportedMessageRepository,
   MessageStatus,
+  RespondToToolApprovalOptions,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
@@ -45,6 +46,12 @@ import {
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+import {
+  buildToolApprovalResume,
+  projectAgUiToolApprovals,
+  withSettledToolApprovals,
+  withToolApprovalDecision,
+} from "./adapter/tool-approval";
 
 // AbstractAgent.runAgent declares two parameters. HttpAgent ignores a third and
 // is cancelled through agent.abortRun(); the run options stay for subclasses
@@ -148,6 +155,7 @@ export class AgUiThreadRuntimeCore {
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private readonly notifyUpdate: () => void;
+  private readonly reportedErrors = new WeakSet<object>();
 
   private runtime: AssistantRuntime | undefined;
   private readonly repository = new MessageRepository();
@@ -531,34 +539,142 @@ export class AgUiThreadRuntimeCore {
       );
     }
 
+    this.assertInterruptsAnswerable(
+      "submitInterruptResponses",
+      pending.interrupts,
+    );
+
+    await this.resumeWithResponses(
+      pending.messageId,
+      openIds.map((id) => responsesById.get(id)!),
+    );
+  }
+
+  /**
+   * Resumes with an already validated resume array. Answerability is checked
+   * once per submission: re-checking here would let a clock crossing reject a
+   * decision this runtime has already recorded, stranding the gate decided and
+   * unretryable.
+   */
+  private async resumeWithResponses(
+    messageId: string,
+    resume: AgUiResumeEntry[],
+  ): Promise<void> {
+    this.clearPendingInterrupts(messageId, resume);
+    await this.startRun(messageId, this.lastRunConfig, resume);
+  }
+
+  /**
+   * The core seams that reach `respondToToolApproval` discard the promise they
+   * receive, so a rejected decision would otherwise surface only as an
+   * unhandled rejection. A failure raised by the resumed run itself was already
+   * reported by `startRun` before it rethrew, so reporting it here again would
+   * give the consumer two notifications for one failure.
+   */
+  reportError(error: unknown): void {
+    if (this.reportedErrors.has(error as object)) {
+      this.reportedErrors.delete(error as object);
+      return;
+    }
+    invokeRuntimeCallback(
+      "onError",
+      this.onError,
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+
+  private assertInterruptsAnswerable(
+    method: "submitInterruptResponses" | "respondToToolApproval",
+    interrupts: readonly AgUiInterrupt[],
+  ): void {
     const now = Date.now();
-    for (const interrupt of pending.interrupts) {
+    for (const interrupt of interrupts) {
       if (!interrupt.expiresAt) continue;
       const expiry = new Date(interrupt.expiresAt).getTime();
       if (Number.isNaN(expiry)) {
         throw new Error(
-          `[agui] submitInterruptResponses: interrupt ${interrupt.id} has malformed expiresAt "${interrupt.expiresAt}"`,
+          `[agui] ${method}: interrupt ${interrupt.id} has malformed expiresAt "${interrupt.expiresAt}"`,
         );
       }
       if (expiry <= now) {
         throw new Error(
-          `[agui] submitInterruptResponses: interrupt ${interrupt.id} expired at ${interrupt.expiresAt}`,
+          `[agui] ${method}: interrupt ${interrupt.id} expired at ${interrupt.expiresAt}`,
         );
       }
     }
-
-    const resume: AgUiResumeEntry[] = openIds.map((id) =>
-      responsesById.get(id)!,
-    );
-
     if (this.isRunningFlag) {
+      throw new Error(`[agui] ${method}: a run is already in progress`);
+    }
+  }
+
+  async respondToToolApproval(
+    options: RespondToToolApprovalOptions,
+  ): Promise<void> {
+    const pending = this.getPendingInterrupts();
+    if (!pending) {
       throw new Error(
-        "[agui] submitInterruptResponses: a run is already in progress",
+        "[agui] respondToToolApproval: no pending interrupts on this thread",
       );
     }
 
-    this.clearPendingInterrupts(pending.messageId);
-    await this.startRun(pending.messageId, this.lastRunConfig, resume);
+    // Bound against the message the gates landed on, so this check claims a
+    // batch only where the projection did.
+    const gatedMessage = this.tryGetMessage(pending.messageId)?.message as
+      | ThreadAssistantMessage
+      | undefined;
+    const gated = projectAgUiToolApprovals(
+      pending.interrupts,
+      new Set(
+        (gatedMessage?.content ?? [])
+          .filter((part) => part.type === "tool-call")
+          .map((part) => part.toolCallId),
+      ),
+    );
+    const isGated = [...gated.values()].some(
+      (approval) => approval.id === options.approvalId,
+    );
+    if (!isGated) {
+      throw new Error(
+        `[agui] respondToToolApproval: no pending tool-call interrupt for approval id "${options.approvalId}"`,
+      );
+    }
+
+    // The decision is recorded only once the batch is known to be answerable:
+    // a rejected submission would otherwise leave the gate decided and
+    // unretryable, because a second click reports it as already decided.
+    this.assertInterruptsAnswerable(
+      "respondToToolApproval",
+      pending.interrupts,
+    );
+
+    const recorded = this.updateMessage(pending.messageId, (message) => {
+      if (message.role !== "assistant") return message;
+      const assistant = message as ThreadAssistantMessage;
+      const content = withToolApprovalDecision(assistant.content, options);
+      if (content === assistant.content) return assistant;
+      return { ...assistant, content };
+    });
+    if (!recorded) {
+      throw new Error(
+        `[agui] respondToToolApproval: approval "${options.approvalId}" is already decided`,
+      );
+    }
+    this.notifyUpdate();
+
+    const assistant = this.tryGetMessage(pending.messageId)?.message as
+      | ThreadAssistantMessage
+      | undefined;
+    if (!assistant) return;
+
+    // AG-UI resumes a run with one response per open interrupt, so the run
+    // stays paused until every gate in the batch has been answered.
+    const resume = buildToolApprovalResume(
+      assistant.content,
+      pending.interrupts,
+    );
+    if (!resume) return;
+
+    await this.resumeWithResponses(pending.messageId, resume);
   }
 
   async steerAway(
@@ -600,7 +716,7 @@ export class AgUiThreadRuntimeCore {
     }
 
     const normalized = this.toAppendMessage(message);
-    this.clearPendingInterrupts(pending.messageId);
+    this.clearPendingInterrupts(pending.messageId, resume);
     const threadMessageId = this.appendEntry(normalized);
     await this.startRun(threadMessageId, normalized.runConfig, resume);
   }
@@ -682,7 +798,10 @@ export class AgUiThreadRuntimeCore {
     } as AppendMessage;
   }
 
-  private clearPendingInterrupts(messageId: string): void {
+  private clearPendingInterrupts(
+    messageId: string,
+    resume: readonly AgUiResumeEntry[],
+  ): void {
     const touched = this.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
@@ -704,6 +823,7 @@ export class AgUiThreadRuntimeCore {
       }
       return {
         ...assistant,
+        content: withSettledToolApprovals(assistant.content, resume),
         status: { type: "complete" as const, reason: "unknown" as const },
         metadata: { ...assistant.metadata, custom: newCustom },
       };
@@ -1168,6 +1288,7 @@ export class AgUiThreadRuntimeCore {
 
     if (this.pendingError) {
       const err = this.pendingError;
+      this.reportedErrors.add(err);
       this.pendingError = null;
       this.pendingResumeMessageId = null;
       this.pendingA2uiResume = false;

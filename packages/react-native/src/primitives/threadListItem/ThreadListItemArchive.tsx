@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
 import { useThreadListItemArchive } from "@assistant-ui/core/react";
 
-export type ThreadListItemArchiveProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type ThreadListItemArchiveProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
 };
 
 export const ThreadListItemArchive = ({

@@ -25,7 +25,7 @@ export function QuoteSample() {
       {/* Selection Toolbar — floating toolbar on text selection */}
       <div className="flex flex-col items-center gap-3">
         <span className="text-muted-foreground text-xs">Selection Toolbar</span>
-        <div className="bg-popover flex items-center gap-1 rounded-lg border px-1 py-1 shadow-md">
+        <div className="bg-popover flex items-center gap-1 rounded-lg border px-1 py-1">
           <div className="text-popover-foreground hover:bg-accent flex items-center gap-1.5 rounded-md px-2.5 py-1 text-sm transition-colors">
             <QuoteIcon className="size-3.5" />
             Quote

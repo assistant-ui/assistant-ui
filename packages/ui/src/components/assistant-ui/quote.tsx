@@ -90,7 +90,7 @@ function SelectionToolbarRoot({
     <SelectionToolbarPrimitive.Root
       data-slot="selection-toolbar"
       className={cn(
-        "bg-popover flex items-center gap-1 rounded-lg border px-1 py-1 shadow-md",
+        "bg-popover flex items-center gap-1 rounded-lg border px-1 py-1",
         className,
       )}
       {...props}

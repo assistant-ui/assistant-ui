@@ -26,13 +26,11 @@ export const GROUPS: {
     ],
   },
   {
-    label: "Platforms",
+    label: "Explore",
     links: [
-      { label: "React", href: "/docs/installation" },
-      { label: "React Native", href: "/docs/react-native" },
-      { label: "React Ink", href: "/docs/ink" },
       { label: "Agent skills", href: "/docs/llm" },
       { label: "Examples", href: "/examples" },
+      { label: "Standalone", href: "/standalone" },
     ],
   },
 ];

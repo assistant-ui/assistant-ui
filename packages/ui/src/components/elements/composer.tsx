@@ -263,7 +263,7 @@ export function ComposerAttachmentChip({
       )}
       {...props}
     >
-      <span className="bg-background text-foreground/45 flex size-8 shrink-0 items-center justify-center rounded-[10px] shadow-[0_1px_2px_rgba(0,0,0,0.06)] dark:bg-white/10 dark:shadow-none">
+      <span className="bg-background text-foreground/45 flex size-8 shrink-0 items-center justify-center rounded-[10px] dark:bg-white/10">
         <Icon className="size-4" />
       </span>
       <span className="flex flex-col">
