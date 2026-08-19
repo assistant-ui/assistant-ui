@@ -19,6 +19,7 @@ const USER_PREFIX = `${PREFIX}user:`;
 const THREADS_KEY = `${PREFIX}threads`;
 const STORAGE_OWNER_KEY = `${PREFIX}storage-owner`;
 const STORAGE_LEGACY_QUARANTINE_KEY = `${PREFIX}legacy-quarantined`;
+const SESSION_MIGRATIONS_KEY = `${PREFIX}session-migrations`;
 const STORAGE_LOCK_NAME = `${PREFIX}storage-migration`;
 const STORAGE_EVENT = "xulux-storage";
 const EMPTY_THREADS: XuluxStoredThread[] = [];
@@ -85,6 +86,36 @@ function migrateUserSessionData(
   >,
   userId: string,
 ) {
+  const migrationsKey = userKey(userId, SESSION_MIGRATIONS_KEY);
+  const migratedSessions = new Map<string, string>();
+  const rawMigrations = storage.getItem(migrationsKey);
+  if (rawMigrations) {
+    try {
+      const parsed = JSON.parse(rawMigrations) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        for (const [legacyId, sessionId] of Object.entries(parsed)) {
+          if (isXuluxSessionOwnedByUser(sessionId, userId)) {
+            migratedSessions.set(legacyId, sessionId);
+          }
+        }
+      }
+    } catch {}
+  }
+  const migrateSession = (sessionId: string) => {
+    if (isXuluxSessionOwnedByUser(sessionId, userId)) return sessionId;
+    const existing = migratedSessions.get(sessionId);
+    if (existing) return existing;
+    const migrated = migrateLegacyXuluxSessionId(sessionId, userId);
+    const nextMigrations = new Map(migratedSessions);
+    nextMigrations.set(sessionId, migrated);
+    storage.setItem(
+      migrationsKey,
+      JSON.stringify(Object.fromEntries(nextMigrations)),
+    );
+    migratedSessions.set(sessionId, migrated);
+    return migrated;
+  };
+
   const threadsKey = userKey(userId, THREADS_KEY);
   const rawThreads = storage.getItem(threadsKey);
   if (rawThreads) {
@@ -97,6 +128,7 @@ function migrateUserSessionData(
         Boolean(
           value &&
           typeof value === "object" &&
+          typeof (value as XuluxStoredThread).remoteId === "string" &&
           isXuluxSessionOwnedByUser(
             (value as XuluxStoredThread).custom?.sessionId,
             userId,
@@ -122,7 +154,7 @@ function migrateUserSessionData(
       progress = JSON.parse(raw) as { threadId?: unknown };
     } catch {}
     if (typeof progress?.threadId !== "string" || !progress.threadId) continue;
-    const threadId = migrateLegacyXuluxSessionId(progress.threadId, userId);
+    const threadId = migrateSession(progress.threadId);
     if (threadId !== progress.threadId) {
       storage.setItem(key, JSON.stringify({ ...progress, threadId }));
     }

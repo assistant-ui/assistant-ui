@@ -92,6 +92,7 @@ describe("claimXuluxStorage", () => {
   it("retries a failed Learn session migration", async () => {
     const legacySessionId = "legacy-session";
     const learnKey = "xulux:user:user_current:learn:course";
+    const migrationsKey = "xulux:user:user_current:session-migrations";
     const storage = createStorage({
       "xulux:storage-owner": "user_current",
       [learnKey]: JSON.stringify({
@@ -112,13 +113,35 @@ describe("claimXuluxStorage", () => {
     await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
       false,
     );
+    const migratedSessionId = JSON.parse(storage.getItem(migrationsKey)!)[
+      legacySessionId
+    ] as string;
 
     await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
       true,
     );
-    expect(JSON.parse(storage.getItem(learnKey)!).threadId).toMatch(
-      /^user_current\.[0-9a-f]{8}-[0-9a-f-]{27}$/,
+    expect(JSON.parse(storage.getItem(learnKey)!).threadId).toBe(
+      migratedSessionId,
     );
+  });
+
+  it("drops malformed stored threads", async () => {
+    const storage = createStorage({
+      "xulux:storage-owner": "user_current",
+      "xulux:user:user_current:threads": JSON.stringify([
+        {
+          remoteId: null,
+          custom: {
+            sessionId: "user_current.123e4567-e89b-42d3-a456-426614174000",
+          },
+        },
+      ]),
+    });
+
+    await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
+      true,
+    );
+    expect(readXuluxThreads("user_current")).toEqual([]);
   });
 
   it("adopts existing ownerless data for the first authenticated user", async () => {
