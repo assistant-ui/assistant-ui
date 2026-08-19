@@ -141,7 +141,7 @@ describe("claimXuluxStorage", () => {
     await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
       true,
     );
-    expect(readXuluxThreads("user_current")).toEqual([]);
+    expect(storage.getItem("xulux:user:user_current:threads")).toBe("[]");
   });
 
   it("adopts existing ownerless data for the first authenticated user", async () => {
