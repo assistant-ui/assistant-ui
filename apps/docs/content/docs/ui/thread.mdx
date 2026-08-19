@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { ThreadSample } from "@/components/docs/samples/thread";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { ThreadActionsSample } from "@/components/docs/samples/thread/message-actions";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
 attachments, and conditional UI states. Fully customizable and composable.
@@ -151,6 +153,17 @@ const SuggestionItem = () => (
   </SuggestionPrimitive.Trigger>
 );
 ```
+
+### Message Actions
+
+Hover or focus the first assistant response to show its action bar. The last response always shows its actions.
+
+<PreviewCode
+  file="components/docs/samples/thread/message-actions"
+  name="Chat"
+>
+  <ThreadActionsSample />
+</PreviewCode>
 
 ## Component Overrides
 
