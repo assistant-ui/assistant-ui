@@ -90,6 +90,52 @@ describe("claimXuluxStorage", () => {
     ).toMatchObject({ threadId: expectedSessionId });
   });
 
+  it("retries a partial migration with the same persisted session ID", async () => {
+    const legacySessionId = "legacy-session";
+    const threadsKey = "xulux:user:user_current:threads";
+    const learnKey = "xulux:user:user_current:learn:course";
+    const storage = createStorage({
+      "xulux:storage-owner": "user_current",
+      [threadsKey]: JSON.stringify([
+        {
+          remoteId: "thread_existing",
+          status: "regular",
+          custom: {
+            sessionId: legacySessionId,
+            xuluxStatus: "idle",
+            updatedAt: 1,
+          },
+        },
+      ]),
+      [learnKey]: JSON.stringify({
+        courseId: "course",
+        threadId: legacySessionId,
+      }),
+    });
+    const setItem = storage.setItem.bind(storage);
+    let failLearnWrite = true;
+    storage.setItem = (key, value) => {
+      if (key === learnKey && failLearnWrite) {
+        failLearnWrite = false;
+        throw new Error("Storage unavailable");
+      }
+      setItem(key, value);
+    };
+
+    await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
+      false,
+    );
+    const migratedThreadId = JSON.parse(storage.getItem(threadsKey)!)[0].custom
+      .sessionId as string;
+
+    await expect(claimXuluxStorage(storage, "user_current")).resolves.toBe(
+      true,
+    );
+    expect(JSON.parse(storage.getItem(learnKey)!).threadId).toBe(
+      migratedThreadId,
+    );
+  });
+
   it("adopts existing ownerless data for the first authenticated user", async () => {
     const storage = createStorage({
       "xulux:threads": '[{"title":"Existing thread"}]',

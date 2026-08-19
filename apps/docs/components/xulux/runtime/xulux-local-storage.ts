@@ -19,6 +19,7 @@ const USER_PREFIX = `${PREFIX}user:`;
 const THREADS_KEY = `${PREFIX}threads`;
 const STORAGE_OWNER_KEY = `${PREFIX}storage-owner`;
 const STORAGE_LEGACY_QUARANTINE_KEY = `${PREFIX}legacy-quarantined`;
+const SESSION_MIGRATIONS_KEY = `${PREFIX}session-migrations`;
 const STORAGE_LOCK_NAME = `${PREFIX}storage-migration`;
 const STORAGE_EVENT = "xulux-storage";
 const EMPTY_THREADS: XuluxStoredThread[] = [];
@@ -85,11 +86,32 @@ function migrateUserSessionData(
   >,
   userId: string,
 ) {
+  const migrationsKey = userKey(userId, SESSION_MIGRATIONS_KEY);
   const migratedSessions = new Map<string, string>();
+  const rawMigrations = storage.getItem(migrationsKey);
+  if (rawMigrations) {
+    try {
+      const parsed = JSON.parse(rawMigrations) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        for (const [legacyId, sessionId] of Object.entries(parsed)) {
+          if (isXuluxSessionOwnedByUser(sessionId, userId)) {
+            migratedSessions.set(legacyId, sessionId);
+          }
+        }
+      }
+    } catch {}
+  }
   const migrateSession = (sessionId: string) => {
+    if (isXuluxSessionOwnedByUser(sessionId, userId)) return sessionId;
     const existing = migratedSessions.get(sessionId);
     if (existing) return existing;
     const migrated = migrateLegacyXuluxSessionId(sessionId, userId);
+    const nextMigrations = new Map(migratedSessions);
+    nextMigrations.set(sessionId, migrated);
+    storage.setItem(
+      migrationsKey,
+      JSON.stringify(Object.fromEntries(nextMigrations)),
+    );
     migratedSessions.set(sessionId, migrated);
     return migrated;
   };
@@ -97,36 +119,37 @@ function migrateUserSessionData(
   const threadsKey = userKey(userId, THREADS_KEY);
   const rawThreads = storage.getItem(threadsKey);
   if (rawThreads) {
+    let parsed: unknown;
     try {
-      const parsed = JSON.parse(rawThreads) as unknown;
-      if (Array.isArray(parsed)) {
-        const threads = parsed.flatMap((value) => {
-          if (!value || typeof value !== "object") return [];
-          const thread = value as XuluxStoredThread;
-          const oldSessionId = thread.custom?.sessionId;
-          if (
-            typeof thread.remoteId !== "string" ||
-            typeof oldSessionId !== "string"
-          ) {
-            return [];
-          }
-          const sessionId = migrateSession(oldSessionId);
-          const isCloudThread = isAssistantCloudThreadId(thread.remoteId);
-          return [
-            {
-              ...thread,
-              remoteId: isCloudThread ? thread.remoteId : sessionId,
-              ...(isCloudThread || thread.externalId
-                ? { externalId: sessionId }
-                : {}),
-              custom: { ...thread.custom, sessionId },
-            },
-          ];
-        });
-        const nextRaw = JSON.stringify(threads);
-        if (nextRaw !== rawThreads) storage.setItem(threadsKey, nextRaw);
-      }
+      parsed = JSON.parse(rawThreads) as unknown;
     } catch {}
+    if (Array.isArray(parsed)) {
+      const threads = parsed.flatMap((value) => {
+        if (!value || typeof value !== "object") return [];
+        const thread = value as XuluxStoredThread;
+        const oldSessionId = thread.custom?.sessionId;
+        if (
+          typeof thread.remoteId !== "string" ||
+          typeof oldSessionId !== "string"
+        ) {
+          return [];
+        }
+        const sessionId = migrateSession(oldSessionId);
+        const isCloudThread = isAssistantCloudThreadId(thread.remoteId);
+        return [
+          {
+            ...thread,
+            remoteId: isCloudThread ? thread.remoteId : sessionId,
+            ...(isCloudThread || thread.externalId
+              ? { externalId: sessionId }
+              : {}),
+            custom: { ...thread.custom, sessionId },
+          },
+        ];
+      });
+      const nextRaw = JSON.stringify(threads);
+      if (nextRaw !== rawThreads) storage.setItem(threadsKey, nextRaw);
+    }
   }
 
   const learnPrefix = userKey(userId, `${PREFIX}learn:`);
@@ -138,16 +161,15 @@ function migrateUserSessionData(
   for (const key of learnKeys) {
     const raw = storage.getItem(key);
     if (!raw) continue;
+    let progress: { threadId?: unknown } | null = null;
     try {
-      const progress = JSON.parse(raw) as { threadId?: unknown };
-      if (typeof progress.threadId !== "string" || !progress.threadId) {
-        continue;
-      }
-      const threadId = migrateSession(progress.threadId);
-      if (threadId !== progress.threadId) {
-        storage.setItem(key, JSON.stringify({ ...progress, threadId }));
-      }
+      progress = JSON.parse(raw) as { threadId?: unknown };
     } catch {}
+    if (typeof progress?.threadId !== "string" || !progress.threadId) continue;
+    const threadId = migrateSession(progress.threadId);
+    if (threadId !== progress.threadId) {
+      storage.setItem(key, JSON.stringify({ ...progress, threadId }));
+    }
   }
 }
 
