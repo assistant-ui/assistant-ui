@@ -234,8 +234,25 @@ export const useSmooth = (
 
     const partChanged = animatorPartRef.current !== part;
     animatorPartRef.current = part;
+    // A new part whose text shares a prefix with the previous target would
+    // keep the stale cursor and flicker without this reset.
+    if (partChanged || !text.startsWith(animatorRef.targetText)) {
+      if (state.status.type === "running") {
+        animatorRef.currentText = "";
+        animatorRef.targetText = text;
+        animatorRef.lastCommitTime = 0;
+        animatorRef.start();
+      } else {
+        animatorRef.currentText = text;
+        animatorRef.targetText = text;
+        animatorRef.stop();
+        setText(text);
+      }
+      return;
+    }
+
+    animatorRef.targetText = text;
     if (state.status.type !== "running") {
-      animatorRef.targetText = text;
       // No character has painted. A pending frame that never runs would
       // leave an empty bubble after settle.
       if (animatorRef.currentText === "") {
@@ -248,17 +265,6 @@ export const useSmooth = (
       return;
     }
 
-    // A new part whose text shares a prefix with the previous target would
-    // keep the stale cursor and flicker without this reset.
-    if (partChanged || !text.startsWith(animatorRef.targetText)) {
-      animatorRef.currentText = "";
-      animatorRef.targetText = text;
-      animatorRef.lastCommitTime = 0;
-      animatorRef.start();
-      return;
-    }
-
-    animatorRef.targetText = text;
     animatorRef.start();
   }, [animatorRef, enabled, text, state.status.type, part, setText]);
 
