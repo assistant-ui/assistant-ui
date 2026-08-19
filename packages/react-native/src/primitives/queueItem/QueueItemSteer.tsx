@@ -20,7 +20,11 @@ export const QueueItemSteer = ({
   }, [aui]);
 
   return (
-    <Pressable onPress={handleSteer} {...pressableProps}>
+    <Pressable
+      onPress={handleSteer}
+      accessibilityRole="button"
+      {...pressableProps}
+    >
       {children}
     </Pressable>
   );

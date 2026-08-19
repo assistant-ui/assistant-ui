@@ -20,7 +20,11 @@ export const ComposerQuoteDismiss = ({
   }, [aui]);
 
   return (
-    <Pressable onPress={handleDismiss} {...pressableProps}>
+    <Pressable
+      onPress={handleDismiss}
+      accessibilityRole="button"
+      {...pressableProps}
+    >
       {children}
     </Pressable>
   );

@@ -13,7 +13,10 @@ import { BranchPickerPrevious } from "./branchPicker/BranchPickerPrevious";
 import { ChainOfThoughtAccordionTrigger } from "./chainOfThought/ChainOfThoughtAccordionTrigger";
 import { ComposerAddAttachment } from "./composer/ComposerAddAttachment";
 import { ComposerCancel } from "./composer/ComposerCancel";
+import { ComposerQuoteDismiss } from "./composer/ComposerQuoteDismiss";
 import { ComposerSend } from "./composer/ComposerSend";
+import { QueueItemRemove } from "./queueItem/QueueItemRemove";
+import { QueueItemSteer } from "./queueItem/QueueItemSteer";
 import { SuggestionTrigger } from "./suggestion/SuggestionTrigger";
 import { ThreadSuggestion } from "./thread/ThreadSuggestion";
 import { ThreadListNew } from "./threadList/ThreadListNew";
@@ -26,6 +29,8 @@ vi.mock("@assistant-ui/store", () => ({
   useAui: () => ({
     attachment: { remove: vi.fn() },
     chainOfThought: { setCollapsed: vi.fn() },
+    composer: { setQuote: vi.fn() },
+    queueItem: { remove: vi.fn(), steer: vi.fn() },
   }),
   useAuiState: <T,>(
     selector: (s: {
@@ -179,6 +184,30 @@ const actionable: ReadonlyArray<{
       <ComposerSend testID="t" {...e}>
         x
       </ComposerSend>
+    ),
+  },
+  {
+    name: "ComposerQuoteDismiss",
+    render: (e) => (
+      <ComposerQuoteDismiss testID="t" {...e}>
+        x
+      </ComposerQuoteDismiss>
+    ),
+  },
+  {
+    name: "QueueItemRemove",
+    render: (e) => (
+      <QueueItemRemove testID="t" {...e}>
+        x
+      </QueueItemRemove>
+    ),
+  },
+  {
+    name: "QueueItemSteer",
+    render: (e) => (
+      <QueueItemSteer testID="t" {...e}>
+        x
+      </QueueItemSteer>
     ),
   },
   {
