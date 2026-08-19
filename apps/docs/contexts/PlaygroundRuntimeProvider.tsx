@@ -4,7 +4,8 @@ import {
   AssistantRuntimeProvider,
   WebSpeechSynthesisAdapter,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 
 export function PlaygroundRuntimeProvider({
   children,
@@ -12,6 +13,9 @@ export function PlaygroundRuntimeProvider({
   children: React.ReactNode;
 }) {
   const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      fetch: anonymousSessionFetch,
+    }),
     adapters: {
       speech: new WebSpeechSynthesisAdapter(),
     },

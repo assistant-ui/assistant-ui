@@ -19,7 +19,10 @@ import {
   type FeedbackAdapter,
 } from "@assistant-ui/react";
 import { MarkdownTextPrimitive } from "@assistant-ui/react-markdown";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import {
+  AssistantChatTransport,
+  useChatRuntime,
+} from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import remarkGfm from "remark-gfm";
@@ -31,6 +34,7 @@ import {
   Square,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 import { taskBoardInitialState, taskBoardSchema } from "./interactable-state";
 
 const TaskBoard: FC = () => {
@@ -237,6 +241,9 @@ function InteractableRuntimeProvider({
   );
 
   const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      fetch: anonymousSessionFetch,
+    }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters,
     cloud: assistantCloud,

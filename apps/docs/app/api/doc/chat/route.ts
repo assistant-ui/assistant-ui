@@ -4,7 +4,8 @@ import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { injectQuoteContext } from "@assistant-ui/ai-sdk";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
+import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { validateDocChatInput } from "@/lib/validate-input";
 import {
   source,
@@ -314,7 +315,13 @@ Use inline code (\`backticks\`) for:
 
 export async function POST(req: Request): Promise<Response> {
   try {
-    const rateLimitResponse = await checkRateLimit(req);
+    const session = requirePublicAssistantSession(req);
+    if (session instanceof Response) return session;
+
+    const rateLimitResponse = await checkPublicAssistantRateLimit(
+      req,
+      session.id,
+    );
     if (rateLimitResponse) return rateLimitResponse;
 
     const body = await req.json();
