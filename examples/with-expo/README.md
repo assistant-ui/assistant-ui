@@ -26,7 +26,7 @@ It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for 
    cp .env.example .env
    ```
 
-   The bundled API route (`app/api/chat+api.ts`) needs `OPENAI_API_KEY`. To point the app at a separately hosted backend instead, set `EXPO_PUBLIC_CHAT_ENDPOINT_URL`.
+   The bundled API route (`app/api/chat+api.ts`) needs `OPENAI_API_KEY`. To point the app at a separately hosted backend instead, set `EXPO_PUBLIC_CHAT_ENDPOINT_URL`. Browser deployments use `/api/anonymous-session` when the hosted backend supports it and otherwise send the request normally. Native deployments should use a backend intended for their app.
 
 3. Start the app:
 
