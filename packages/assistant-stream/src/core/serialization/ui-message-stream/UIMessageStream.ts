@@ -175,6 +175,8 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
 
             case "tool-input-available":
             case "tool-input-error": {
+              if (settledArgsToolCallIds.has(chunk.toolCallId)) break;
+
               let toolCallController = toolCallControllers.get(
                 chunk.toolCallId,
               );
@@ -232,11 +234,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               const toolCallController = toolCallControllers.get(
                 chunk.toolCallId,
               );
-              if (!toolCallController) {
-                throw new Error(
-                  `Encountered tool result with unknown id: ${chunk.toolCallId}`,
-                );
-              }
+              if (!toolCallController) break;
               if (toolCallController.argsText === activeToolCallArgsText) {
                 activeToolCallArgsText = undefined;
               }
