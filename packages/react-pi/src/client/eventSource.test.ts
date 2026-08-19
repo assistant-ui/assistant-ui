@@ -759,6 +759,18 @@ describe("openPiEventStream", () => {
       'event "tool_execution_end" has an invalid payload',
     ],
     [
+      { type: "agent_start", threadId: "t1" },
+      'expected a non-negative safe integer "seq"',
+    ],
+    [
+      { type: "agent_start", threadId: "t1", seq: -1 },
+      'expected a non-negative safe integer "seq"',
+    ],
+    [
+      { type: "agent_start", threadId: "t1", seq: 1.5 },
+      'expected a non-negative safe integer "seq"',
+    ],
+    [
       {
         type: "snapshot",
         threadId: "t1",
@@ -766,6 +778,30 @@ describe("openPiEventStream", () => {
         snapshot: {
           metadata: { id: "t1", status: "idle" },
           messages: [{ role: "assistant" }],
+        },
+      },
+      'event "snapshot" has an invalid payload',
+    ],
+    [
+      {
+        type: "snapshot",
+        threadId: "t1",
+        seq: 1,
+        snapshot: {
+          metadata: { id: "t1", status: "idle" },
+          messages: [{ role: "bashExecution" }],
+        },
+      },
+      'event "snapshot" has an invalid payload',
+    ],
+    [
+      {
+        type: "snapshot",
+        threadId: "t1",
+        seq: 1,
+        snapshot: {
+          metadata: { id: "t1", status: "idle" },
+          messages: [{ role: "custom", content: "note" }],
         },
       },
       'event "snapshot" has an invalid payload',
@@ -891,6 +927,138 @@ describe("openPiEventStream", () => {
       expect.objectContaining({ type: "agent_start", threadId: "t1", seq: 2 }),
     ]);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+  });
+
+  it("accepts seq 0 and live assistant frames with pending stop reasons", async () => {
+    const liveAssistant = { ...assistantMessage, stopReason: "pending" };
+    const events: PiAnyClientEvent[] = [];
+    const fetchImpl = (async () =>
+      sseResponse([
+        sseFrame({ type: "agent_start", threadId: "t1", seq: 0 }),
+        rawSseFrame({
+          type: "message_start",
+          threadId: "t1",
+          seq: 1,
+          message: liveAssistant,
+        }),
+        rawSseFrame({
+          type: "message_update",
+          threadId: "t1",
+          seq: 2,
+          message: liveAssistant,
+          assistantMessageEvent: {
+            type: "start",
+            partial: liveAssistant,
+          },
+        }),
+      ])) as unknown as typeof fetch;
+
+    await new Promise<void>((resolve, reject) => {
+      let close!: () => void;
+      close = openPiEventStream({
+        url: "/events",
+        fetchImpl,
+        onError: (error) => {
+          close();
+          reject(error);
+        },
+        onEvent: (event) => {
+          events.push(event);
+          if (events.length === 3) {
+            close();
+            resolve();
+          }
+        },
+      });
+    });
+
+    expect(events).toEqual([
+      expect.objectContaining({ type: "agent_start", seq: 0 }),
+      expect.objectContaining({ type: "message_start", seq: 1 }),
+      expect.objectContaining({ type: "message_update", seq: 2 }),
+    ]);
+  });
+
+  it("accepts live tool calls whose arguments are still null", async () => {
+    const liveToolCall = {
+      ...assistantMessage,
+      stopReason: "pending",
+      content: [
+        { type: "toolCall", id: "tc1", name: "search", arguments: null },
+      ],
+    };
+    const event = await new Promise<PiAnyClientEvent>((resolve, reject) => {
+      let close!: () => void;
+      close = openPiEventStream({
+        url: "/events",
+        fetchImpl: (async () =>
+          sseResponse([
+            rawSseFrame({
+              type: "message_update",
+              threadId: "t1",
+              seq: 1,
+              message: liveToolCall,
+              assistantMessageEvent: {
+                type: "toolcall_start",
+                contentIndex: 0,
+                partial: liveToolCall,
+              },
+            }),
+          ])) as unknown as typeof fetch,
+        onError: (error) => {
+          close();
+          reject(error);
+        },
+        onEvent: (value) => {
+          close();
+          resolve(value);
+        },
+      });
+    });
+
+    expect(event).toMatchObject({
+      type: "message_update",
+      seq: 1,
+    });
+  });
+
+  it("accepts snapshots with renderable incomplete assistants", async () => {
+    const event = await new Promise<PiAnyClientEvent>((resolve, reject) => {
+      let close!: () => void;
+      close = openPiEventStream({
+        url: "/events",
+        fetchImpl: (async () =>
+          sseResponse([
+            rawSseFrame({
+              type: "snapshot",
+              threadId: "t1",
+              seq: 1,
+              snapshot: {
+                metadata: { id: "t1", status: "idle" },
+                messages: [
+                  {
+                    role: "assistant",
+                    content: [{ type: "text", text: "Hello" }],
+                    responseModel: null,
+                    errorMessage: null,
+                  },
+                  { role: "bashExecution", command: "ls", output: "x" },
+                ],
+              },
+            }),
+          ])) as unknown as typeof fetch,
+        onError: (error) => {
+          close();
+          reject(error);
+        },
+        onEvent: (value) => {
+          close();
+          resolve(value);
+        },
+      });
+    });
+
+    expect(event.type).toBe("snapshot");
   });
 
   it("requests a snapshot after a malformed live-only event", async () => {

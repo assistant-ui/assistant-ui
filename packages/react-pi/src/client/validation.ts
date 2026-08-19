@@ -38,7 +38,7 @@ const isToolCall = (value: unknown): boolean =>
   value.type === "toolCall" &&
   typeof value.id === "string" &&
   typeof value.name === "string" &&
-  isRecord(value.arguments) &&
+  (value.arguments == null || isRecord(value.arguments)) &&
   isOptionalString(value.thoughtSignature);
 
 const isAssistantContentPart = (value: unknown): boolean => {
@@ -144,29 +144,6 @@ export const isCompleteTranscriptMessage = (
     default:
       return true;
   }
-};
-
-export const isTranscriptMessage = (
-  value: unknown,
-): value is PiTranscriptMessage => {
-  if (!isRecord(value) || typeof value.role !== "string") return false;
-  if (value.role === "user" || value.role === "custom") {
-    return isUserContent(value.content);
-  }
-  if (value.role === "assistant") {
-    return (
-      Array.isArray(value.content) &&
-      value.content.every(isAssistantContentPart)
-    );
-  }
-  if (value.role === "toolResult") {
-    return (
-      typeof value.toolCallId === "string" &&
-      Array.isArray(value.content) &&
-      value.content.every(isUserContentPart)
-    );
-  }
-  return true;
 };
 
 export const isAssistantMessageDelta = (
@@ -287,11 +264,46 @@ export const isThreadMetadata = (value: unknown): value is PiThreadMetadata =>
   isOptionalString(value.createdAt) &&
   isOptionalString(value.updatedAt);
 
+const isRenderableTranscriptMessage = (
+  value: unknown,
+): value is PiTranscriptMessage => {
+  if (!isRecord(value) || typeof value.role !== "string") return false;
+
+  switch (value.role) {
+    case "user":
+      return isUserContent(value.content);
+    case "assistant":
+      return (
+        Array.isArray(value.content) &&
+        value.content.every(isAssistantContentPart)
+      );
+    case "toolResult":
+      return (
+        typeof value.toolCallId === "string" &&
+        Array.isArray(value.content) &&
+        value.content.every(isUserContentPart)
+      );
+    case "bashExecution":
+      return (
+        typeof value.command === "string" && typeof value.output === "string"
+      );
+    case "custom":
+      return (
+        typeof value.customType === "string" && isUserContent(value.content)
+      );
+    case "branchSummary":
+    case "compactionSummary":
+      return typeof value.summary === "string";
+    default:
+      return true;
+  }
+};
+
 export const isThreadSnapshot = (value: unknown): value is PiThreadSnapshot =>
   isRecord(value) &&
   isThreadMetadata(value.metadata) &&
   Array.isArray(value.messages) &&
-  value.messages.every(isTranscriptMessage) &&
+  value.messages.every(isRenderableTranscriptMessage) &&
   (value.hostUiRequests === undefined ||
     (Array.isArray(value.hostUiRequests) &&
       value.hostUiRequests.every(isHostUiRequest)));
