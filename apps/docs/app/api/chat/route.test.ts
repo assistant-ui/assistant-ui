@@ -22,10 +22,10 @@ vi.mock("@/lib/ai/provider", async (importOriginal) => ({
   getModel: mocks.getModel,
 }));
 
-vi.mock("@/lib/docs-toolkit", async (importOriginal) => ({
-  ...(await importOriginal()),
-  default: mocks.docsToolkit,
-}));
+// @/lib/docs-toolkit's UI component graph does not resolve in the test
+// environment, so this mock fully replaces the module (its only export)
+// instead of spreading importOriginal().
+vi.mock("@/lib/docs-toolkit", () => ({ default: mocks.docsToolkit }));
 
 import { POST } from "./route";
 
