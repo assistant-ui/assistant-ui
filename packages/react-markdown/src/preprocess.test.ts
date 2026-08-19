@@ -212,6 +212,15 @@ describe("escapeCurrencyDollars", () => {
     ).toBe("10. ```\n    const price = $5;\n    ```\n\nafter \\$7");
   });
 
+  it("uses tab-expanded columns for list fence containers", () => {
+    expect(escapeCurrencyDollars("-\t```\n\tcode = $5\n\t```\nafter $7")).toBe(
+      "-\t```\n\tcode = $5\n\t```\nafter \\$7",
+    );
+    expect(escapeCurrencyDollars("-\t```\n    code\n  Pay $5 today")).toBe(
+      "-\t```\n    code\n  Pay \\$5 today",
+    );
+  });
+
   it("stops an unclosed blockquote fence when its container ends", () => {
     expect(escapeCurrencyDollars("> ```\n> code\n\nPay $5 today")).toBe(
       "> ```\n> code\n\nPay \\$5 today",

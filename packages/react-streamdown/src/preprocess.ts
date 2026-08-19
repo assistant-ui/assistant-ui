@@ -91,31 +91,74 @@ function nextLineStart(text: string, end: number): number {
   return text[end] === "\r" && text[end + 1] === "\n" ? end + 2 : end + 1;
 }
 
-type FenceContainer = { type: "blockquote" } | { type: "list"; indent: number };
+type FenceContainer =
+  | { type: "blockquote" }
+  | { type: "list"; indentColumns: number };
 
 type FenceContext = { containers: FenceContainer[] };
+
+function advanceColumn(column: number, text: string): number {
+  for (const char of text) {
+    column = char === "\t" ? column + (4 - (column % 4)) : column + 1;
+  }
+  return column;
+}
+
+function whitespaceColumns(text: string, column: number): number | null {
+  const startColumn = column;
+  for (const char of text) {
+    if (char !== " " && char !== "\t") return null;
+    column = advanceColumn(column, char);
+  }
+  return column - startColumn;
+}
+
+function consumeIndentColumns(
+  text: string,
+  column: number,
+  requiredColumns: number,
+): { remaining: string; column: number } | null {
+  const startColumn = column;
+  let index = 0;
+  while (column - startColumn < requiredColumns && index < text.length) {
+    const char = text[index]!;
+    if (char !== " " && char !== "\t") return null;
+    column = advanceColumn(column, char);
+    index++;
+  }
+  if (column - startColumn < requiredColumns) return null;
+  return { remaining: text.slice(index), column };
+}
 
 /** Container context for a fenced code block at this line prefix. */
 function fenceContext(prefix: string): FenceContext | null {
   let remaining = prefix;
+  let column = 0;
   const containers: FenceContainer[] = [];
   while (remaining.length > 0) {
     const blockquote = remaining.match(/^ {0,3}>[ \t]?/);
     if (blockquote) {
       remaining = remaining.slice(blockquote[0].length);
+      column = advanceColumn(column, blockquote[0]);
       containers.push({ type: "blockquote" });
       continue;
     }
     const listItem = remaining.match(/^ {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+/);
     if (listItem) {
+      const listStartColumn = column;
       remaining = remaining.slice(listItem[0].length);
-      containers.push({ type: "list", indent: listItem[0].length });
+      column = advanceColumn(column, listItem[0]);
+      containers.push({
+        type: "list",
+        indentColumns: column - listStartColumn,
+      });
       continue;
     }
     break;
   }
 
-  if (!/^ {0,3}$/.test(remaining)) return null;
+  const remainingColumns = whitespaceColumns(remaining, column);
+  if (remainingColumns === null || remainingColumns > 3) return null;
   return { containers };
 }
 
@@ -123,27 +166,38 @@ function fenceContext(prefix: string): FenceContext | null {
 function consumeFenceContainers(
   prefix: string,
   context: FenceContext,
-): string | null {
+): { remaining: string; column: number } | null {
   let remaining = prefix;
+  let column = 0;
   for (const container of context.containers) {
     if (container.type === "blockquote") {
       const blockquote = remaining.match(/^ {0,3}>[ \t]?/);
       if (!blockquote) return null;
       remaining = remaining.slice(blockquote[0].length);
+      column = advanceColumn(column, blockquote[0]);
       continue;
     }
 
-    const indent = remaining.match(/^[ \t]*/)?.[0].length ?? 0;
-    if (indent < container.indent) return null;
-    remaining = remaining.slice(container.indent);
+    const consumed = consumeIndentColumns(
+      remaining,
+      column,
+      container.indentColumns,
+    );
+    if (!consumed) return null;
+    ({ remaining, column } = consumed);
   }
-  return remaining;
+  return { remaining, column };
 }
 
 /** Whether a closing line remains in the opening fence's container. */
 function matchesFenceContext(prefix: string, context: FenceContext): boolean {
-  const remaining = consumeFenceContainers(prefix, context);
-  return remaining !== null && /^ {0,3}$/.test(remaining);
+  const consumed = consumeFenceContainers(prefix, context);
+  if (!consumed) return false;
+  const remainingColumns = whitespaceColumns(
+    consumed.remaining,
+    consumed.column,
+  );
+  return remainingColumns !== null && remainingColumns <= 3;
 }
 
 /** Whether a content line remains inside the fence's opening container. */
@@ -151,11 +205,13 @@ function continuesFenceContainer(line: string, context: FenceContext): boolean {
   if (context.containers.length === 0) return true;
 
   let remaining = line;
+  let column = 0;
   for (const [index, container] of context.containers.entries()) {
     if (container.type === "blockquote") {
       const blockquote = remaining.match(/^ {0,3}>[ \t]?/);
       if (!blockquote) return false;
       remaining = remaining.slice(blockquote[0].length);
+      column = advanceColumn(column, blockquote[0]);
       continue;
     }
 
@@ -164,9 +220,13 @@ function continuesFenceContainer(line: string, context: FenceContext): boolean {
         .slice(index + 1)
         .some((later) => later.type === "blockquote");
     }
-    const indent = remaining.match(/^[ \t]*/)?.[0].length ?? 0;
-    if (indent < container.indent) return false;
-    remaining = remaining.slice(container.indent);
+    const consumed = consumeIndentColumns(
+      remaining,
+      column,
+      container.indentColumns,
+    );
+    if (!consumed) return false;
+    ({ remaining, column } = consumed);
   }
   return true;
 }
