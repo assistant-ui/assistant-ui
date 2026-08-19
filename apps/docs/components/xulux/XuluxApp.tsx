@@ -30,6 +30,7 @@ import type { XuluxActivePreviewContext } from "./runtime/types";
 import {
   createInitialLearnProgress,
   readLearnProgress,
+  rotateLegacyLearnProgressSession,
   writeLearnProgress,
 } from "@/lib/xulux/learn/progress";
 import { DEFAULT_LEARN_COURSE_ID } from "@/lib/xulux/learn/registry";
@@ -41,10 +42,7 @@ import {
   claimXuluxStorage,
   createXuluxUserStorage,
 } from "./runtime/xulux-local-storage";
-import {
-  createXuluxSessionId,
-  isXuluxSessionOwnedByUser,
-} from "@/lib/xulux/session-owner";
+import { createXuluxSessionId } from "@/lib/xulux/session-owner";
 
 export type XuluxMode = "playground" | "learn";
 
@@ -165,9 +163,11 @@ function XuluxAppReady({
     if (mode !== "learn") return;
     const storage = createXuluxUserStorage(window.localStorage, userId);
     const stored = readLearnProgress(storage, courseId);
-    setLearnProgress(stored);
-    if (isXuluxSessionOwnedByUser(stored.threadId, userId)) {
-      setSessionId(stored.threadId);
+    const progress = rotateLegacyLearnProgressSession(stored, userId);
+    setLearnProgress(progress);
+    if (progress !== stored) writeLearnProgress(storage, progress);
+    if (progress.threadId) {
+      setSessionId(progress.threadId);
     }
     setLearnReady(true);
   }, [courseId, mode, userId]);

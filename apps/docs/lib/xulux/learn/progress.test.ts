@@ -4,6 +4,7 @@ import {
   deserializeLearnProgress,
   learnProgressStorageKey,
   readLearnProgress,
+  rotateLegacyLearnProgressSession,
   serializeLearnProgress,
   writeLearnProgress,
   type LearnProgressStorage,
@@ -90,6 +91,33 @@ describe("Learn progress", () => {
     expect(
       writeLearnProgress(storage, createInitialLearnProgress(COURSE_ID, 500)),
     ).toBe(false);
+  });
+
+  it("rotates a legacy Learn session into the authenticated user namespace", () => {
+    const progress = {
+      ...createInitialLearnProgress(COURSE_ID, 100),
+      threadId: "legacy-session",
+    };
+
+    const migrated = rotateLegacyLearnProgressSession(
+      progress,
+      "user_123",
+      200,
+    );
+
+    expect(migrated.threadId).toMatch(/^user_123\.[0-9a-f]{8}-[0-9a-f-]{27}$/);
+    expect(migrated.updatedAt).toBe(200);
+  });
+
+  it("keeps an already owned Learn session", () => {
+    const progress = {
+      ...createInitialLearnProgress(COURSE_ID, 100),
+      threadId: "user_123.123e4567-e89b-42d3-a456-426614174000",
+    };
+
+    expect(rotateLegacyLearnProgressSession(progress, "user_123", 200)).toBe(
+      progress,
+    );
   });
 
   it("advances once and keeps repeated results idempotent", () => {

@@ -1,6 +1,10 @@
 import { z } from "zod";
 import type { LearnCourseStepResult, LearnProgress } from "./types";
 import { getLearnCourse } from "./registry";
+import {
+  createXuluxSessionId,
+  isXuluxSessionOwnedByUser,
+} from "../session-owner";
 
 const learnProgressSchema = z.object({
   courseId: z.string(),
@@ -90,6 +94,24 @@ export function writeLearnProgress(
   } catch {
     return false;
   }
+}
+
+export function rotateLegacyLearnProgressSession(
+  progress: LearnProgress,
+  userId: string,
+  now = Date.now(),
+): LearnProgress {
+  if (
+    !progress.threadId ||
+    isXuluxSessionOwnedByUser(progress.threadId, userId)
+  ) {
+    return progress;
+  }
+  return {
+    ...progress,
+    threadId: createXuluxSessionId(userId),
+    updatedAt: now,
+  };
 }
 
 export function applyLearnCourseStepResult(
