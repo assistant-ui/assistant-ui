@@ -3515,7 +3515,9 @@ type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
 declare const ThreadListItemTrigger: (_param62: ThreadListItemTriggerProps) => import("react").JSX.Element;
 
 type ThreadListItemTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
-  children: PressableProps["children"];
+  children: ReactNode | ((state: PressableState & {
+    isActive: boolean;
+  }) => ReactNode);
 };
 
 declare const ThreadListItemUnarchive: (_param63: ThreadListItemUnarchiveProps) => import("react").JSX.Element;

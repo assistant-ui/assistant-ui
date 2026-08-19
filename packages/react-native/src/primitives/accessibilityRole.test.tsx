@@ -37,12 +37,14 @@ vi.mock("@assistant-ui/store", () => ({
       suggestion: { prompt: string };
       chainOfThought: { collapsed: boolean };
       threads: { newThreadId: string | null; mainThreadId: string };
+      threadListItem: { id: string };
     }) => T,
   ) =>
     selector({
       suggestion: { prompt: "p" },
       chainOfThought: { collapsed: false },
       threads: { newThreadId: null, mainThreadId: "main" },
+      threadListItem: { id: "thread" },
     }),
 }));
 
