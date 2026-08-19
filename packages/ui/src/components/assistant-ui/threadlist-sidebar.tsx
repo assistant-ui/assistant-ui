@@ -16,6 +16,7 @@ import { ThreadList } from "@/components/assistant-ui/thread-list";
 export function ThreadListSidebar({
   ...props
 }: React.ComponentProps<typeof Sidebar>) {
+  const collapsible = props.collapsible ?? "offcanvas";
   return (
     <Sidebar {...props}>
       <SidebarHeader className="aui-sidebar-header mb-2 border-b">
@@ -48,7 +49,7 @@ export function ThreadListSidebar({
       <SidebarContent className="aui-sidebar-content px-2">
         <ThreadList />
       </SidebarContent>
-      <SidebarRail />
+      {collapsible !== "none" && <SidebarRail />}
       <SidebarFooter className="aui-sidebar-footer border-t">
         <SidebarMenu>
           <SidebarMenuItem>
