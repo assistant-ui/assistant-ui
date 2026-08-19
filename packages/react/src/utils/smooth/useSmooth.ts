@@ -136,7 +136,9 @@ const positiveOr = (value: number | undefined, fallback: number): number =>
  * Takes the current part state and a `smooth` argument: `false` disables,
  * `true` uses the default rate, and a {@link SmoothOptions} object tunes
  * the reveal. Returns the part state with `text` replaced by the revealed
- * prefix and `status` reporting `running` until the reveal catches up.
+ * prefix. While the source part is running, `status` stays `running` until
+ * the reveal catches up. Once the source settles, remaining text is committed
+ * immediately so completion never depends on a pending animation frame.
  *
  * The reveal auto-disables under `prefers-reduced-motion: reduce`,
  * committing the full text immediately; this takes precedence over an
@@ -229,11 +231,6 @@ export const useSmooth = (
       return;
     }
 
-    // Discontinuity: part flipped, or new text breaks continuation
-    // of the animator's current target. Either case requires
-    // resetting the cursor — without the part check, a new part
-    // whose text happens to share a prefix with the previous target
-    // would keep the stale cursor and flicker.
     const partChanged = animatorPartRef.current !== part;
     animatorPartRef.current = part;
     if (state.status.type !== "running") {
@@ -244,6 +241,8 @@ export const useSmooth = (
       return;
     }
 
+    // A new part whose text shares a prefix with the previous target would
+    // keep the stale cursor and flicker without this reset.
     if (partChanged || !text.startsWith(animatorRef.targetText)) {
       animatorRef.currentText = "";
       animatorRef.targetText = text;

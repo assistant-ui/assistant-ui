@@ -237,4 +237,43 @@ describe("useSmooth", () => {
     expect(result.current.text).toBe("hello");
     expect(result.current.status.type).toBe("complete");
   });
+
+  it("commits remaining text as soon as the source part settles", () => {
+    const raf: FrameRequestCallback[] = [];
+    vi.spyOn(globalThis, "requestAnimationFrame").mockImplementation((cb) => {
+      raf.push(cb);
+      return raf.length;
+    });
+    vi.spyOn(globalThis, "cancelAnimationFrame").mockImplementation(() => {});
+    let now = 1000;
+    vi.spyOn(Date, "now").mockImplementation(() => now);
+
+    const frame = () => {
+      if (raf.length === 0) return;
+      const cb = raf.shift()!;
+      now += 16;
+      act(() => {
+        cb(now);
+      });
+    };
+
+    const { result, rerender } = renderHook(
+      (state) =>
+        useSmooth(state, {
+          maxCharsPerFrame: 1,
+          maxCharIntervalMs: 1,
+          drainMs: 250,
+        }),
+      { initialProps: runningState("hello") },
+    );
+
+    frame();
+    expect(result.current.text.length).toBeGreaterThan(0);
+    expect(result.current.text.length).toBeLessThan("hello".length);
+    expect(result.current.status.type).toBe("running");
+
+    rerender(textState("hello"));
+    expect(result.current.text).toBe("hello");
+    expect(result.current.status.type).toBe("complete");
+  });
 });
