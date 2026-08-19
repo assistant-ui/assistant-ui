@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { ThreadListSample } from "@/components/docs/samples/threadlist";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { ThreadListSidebarSample } from "@/components/docs/samples/thread-list/sidebar-composition";
 
 <ThreadListSample />
 
@@ -103,6 +105,14 @@ import { ThreadListPrimitive, ThreadListItemPrimitive } from "@assistant-ui/reac
   </ThreadListPrimitive.Items>
 </ThreadListPrimitive.Root>
 ```
+
+### Sidebar Composition
+
+`ThreadListSidebar` wraps the same `ThreadList` in a complete sidebar shell.
+
+<PreviewCode file="components/docs/samples/thread-list/sidebar-composition" name="ThreadListSidebarDemo" className="p-0">
+  <ThreadListSidebarSample />
+</PreviewCode>
 
 ## API Reference
 
