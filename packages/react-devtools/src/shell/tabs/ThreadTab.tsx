@@ -53,7 +53,13 @@ const UnloadedConversation = ({
       not cached in DevTools.
     </EmptyState>
     {switchToThread ? (
-      <ControlButton onClick={() => switchToThread(threadId)}>
+      <ControlButton
+        onClick={() => {
+          try {
+            void Promise.resolve(switchToThread(threadId)).catch(() => {});
+          } catch {}
+        }}
+      >
         Load conversation
       </ControlButton>
     ) : null}
