@@ -155,7 +155,7 @@ const SuggestionItem = () => (
 
 ### Message Actions
 
-Hover over the first assistant response to show its action bar. The last response always shows its actions. The copied `Thread` component sets `autohide="not-last"` on `ActionBarPrimitive.Root`. Refer to the [ActionBar primitive](/docs/primitives/action-bar) to change this behavior.
+Hover over the first assistant response to show its action bar. When the thread is idle, the last response always shows its actions. The copied `Thread` component sets `hideWhenRunning` and `autohide="not-last"` on `ActionBarPrimitive.Root`. Refer to the [ActionBar primitive](/docs/primitives/action-bar) to change this behavior.
 
 <ThreadActionsSample />
 
