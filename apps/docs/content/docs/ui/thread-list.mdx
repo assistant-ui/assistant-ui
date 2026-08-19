@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { ThreadListSample } from "@/components/docs/samples/threadlist";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { ThreadListNewSample } from "@/components/docs/samples/thread-list/new-thread";
 
 <ThreadListSample />
 
@@ -103,6 +105,14 @@ import { ThreadListPrimitive, ThreadListItemPrimitive } from "@assistant-ui/reac
   </ThreadListPrimitive.Items>
 </ThreadListPrimitive.Root>
 ```
+
+### New Thread
+
+The list starts empty, thus only the New Thread button shows. Click New Thread to make an active thread. The search field shows when a thread exists.
+
+<PreviewCode file="components/docs/samples/thread-list/new-thread" name="EmptyThreadList">
+  <ThreadListNewSample />
+</PreviewCode>
 
 ## API Reference
 
