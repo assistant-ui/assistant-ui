@@ -59,3 +59,62 @@
     animation: none;
   }
 }
+
+@keyframes hero-word-in {
+  from {
+    opacity: 0;
+  }
+}
+
+.hero-word {
+  display: inline-block;
+  animation: hero-word-in 0.5s both;
+}
+
+@keyframes hero-word-ink {
+  from {
+    color: #3b82f6;
+  }
+}
+
+.hero-word-ink {
+  animation: hero-word-ink 0.7s both;
+}
+
+@keyframes hero-caret-blink {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0;
+  }
+}
+
+.hero-caret {
+  opacity: 0;
+  animation: hero-caret-blink 0.5s step-end 0.45s 4;
+}
+
+@keyframes hero-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+.hero-rise {
+  animation: hero-rise 0.6s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hero-word,
+  .hero-word-ink,
+  .hero-rise {
+    animation: none;
+  }
+  .hero-caret {
+    animation: none;
+    opacity: 0;
+  }
+}

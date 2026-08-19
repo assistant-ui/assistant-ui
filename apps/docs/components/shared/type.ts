@@ -1,5 +1,5 @@
 export const typeHero =
-  "font-display text-[2.5rem] leading-[1.05] font-medium tracking-[-0.015em] text-balance lg:text-[4rem]";
+  "font-display text-[2.75rem] leading-[1.04] font-medium tracking-[-0.015em] text-balance lg:text-[4.5rem]";
 
 export const typeSection =
   "font-display text-[1.5rem] leading-snug font-[550] tracking-[-0.01em] text-balance lg:text-[1.75rem]";
