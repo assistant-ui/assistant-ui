@@ -13,9 +13,10 @@ import {
   unstable_Interactables,
   type FeedbackAdapter,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
+import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
 import docsToolkit from "@/lib/docs-toolkit";
 
 // Stateless adapter - safe to share across instances
@@ -51,6 +52,9 @@ export function DocsRuntimeProvider({
   );
 
   const runtime = useChatRuntime({
+    transport: new AssistantChatTransport({
+      fetch: anonymousSessionFetch,
+    }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters,
     cloud: assistantCloud,
