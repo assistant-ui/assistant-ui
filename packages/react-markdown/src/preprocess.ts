@@ -91,31 +91,84 @@ function nextLineStart(text: string, end: number): number {
   return text[end] === "\r" && text[end + 1] === "\n" ? end + 2 : end + 1;
 }
 
-function peelBlockquotes(prefix: string): { depth: number; rest: string } {
-  let rest = prefix;
-  let depth = 0;
-  while (rest.length > 0) {
-    const blockquote = rest.match(/^ {0,3}>[ \t]?/);
-    if (!blockquote) break;
-    rest = rest.slice(blockquote[0].length);
-    depth += 1;
-  }
-  return { depth, rest };
-}
+type FenceContainer = { type: "blockquote" } | { type: "list"; indent: number };
 
-function isFencePrefix(prefix: string): boolean {
-  let remaining = peelBlockquotes(prefix).rest;
+type FenceContext = { containers: FenceContainer[] };
+
+/** Container context for a fenced code block at this line prefix. */
+function fenceContext(prefix: string): FenceContext | null {
+  let remaining = prefix;
+  const containers: FenceContainer[] = [];
   while (remaining.length > 0) {
+    const blockquote = remaining.match(/^ {0,3}>[ \t]?/);
+    if (blockquote) {
+      remaining = remaining.slice(blockquote[0].length);
+      containers.push({ type: "blockquote" });
+      continue;
+    }
     const listItem = remaining.match(/^ {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+/);
-    if (!listItem) break;
-    remaining = remaining.slice(listItem[0].length);
+    if (listItem) {
+      remaining = remaining.slice(listItem[0].length);
+      containers.push({ type: "list", indent: listItem[0].length });
+      continue;
+    }
+    break;
   }
-  return /^ {0,3}$/.test(remaining);
+
+  if (!/^ {0,3}$/.test(remaining)) return null;
+  return { containers };
 }
 
-function isClosingFencePrefix(prefix: string, quoteDepth: number): boolean {
-  const peeled = peelBlockquotes(prefix);
-  return peeled.depth === quoteDepth && /^ {0,3}$/.test(peeled.rest);
+/** Remove the opening container sequence from a later line prefix. */
+function consumeFenceContainers(
+  prefix: string,
+  context: FenceContext,
+): string | null {
+  let remaining = prefix;
+  for (const container of context.containers) {
+    if (container.type === "blockquote") {
+      const blockquote = remaining.match(/^ {0,3}>[ \t]?/);
+      if (!blockquote) return null;
+      remaining = remaining.slice(blockquote[0].length);
+      continue;
+    }
+
+    const indent = remaining.match(/^[ \t]*/)?.[0].length ?? 0;
+    if (indent < container.indent) return null;
+    remaining = remaining.slice(container.indent);
+  }
+  return remaining;
+}
+
+/** Whether a closing line remains in the opening fence's container. */
+function matchesFenceContext(prefix: string, context: FenceContext): boolean {
+  const remaining = consumeFenceContainers(prefix, context);
+  return remaining !== null && /^ {0,3}$/.test(remaining);
+}
+
+/** Whether a content line remains inside the fence's opening container. */
+function continuesFenceContainer(line: string, context: FenceContext): boolean {
+  if (context.containers.length === 0) return true;
+
+  let remaining = line;
+  for (const [index, container] of context.containers.entries()) {
+    if (container.type === "blockquote") {
+      const blockquote = remaining.match(/^ {0,3}>[ \t]?/);
+      if (!blockquote) return false;
+      remaining = remaining.slice(blockquote[0].length);
+      continue;
+    }
+
+    if (/^[ \t]*$/.test(remaining)) {
+      return !context.containers
+        .slice(index + 1)
+        .some((later) => later.type === "blockquote");
+    }
+    const indent = remaining.match(/^[ \t]*/)?.[0].length ?? 0;
+    if (indent < container.indent) return false;
+    remaining = remaining.slice(container.indent);
+  }
+  return true;
 }
 
 function closingFenceEnd(
@@ -123,13 +176,13 @@ function closingFenceEnd(
   start: number,
   end: number,
   minimumLength: number,
-  quoteDepth: number,
+  context: FenceContext,
 ): number {
   const line = text.slice(start, end);
   const runStart = line.indexOf("`");
   if (
     runStart === -1 ||
-    !isClosingFencePrefix(line.slice(0, runStart), quoteDepth)
+    !matchesFenceContext(line.slice(0, runStart), context)
   ) {
     return -1;
   }
@@ -151,10 +204,9 @@ function codeSpanEnd(text: string, start: number): number {
   const openingPrefix = text.slice(openingLineStart, start);
   const openingLineEnd = lineEnd(text, start + delimiterLength);
   const openingInfo = text.slice(start + delimiterLength, openingLineEnd);
+  const context = fenceContext(openingPrefix);
   const isFence =
-    delimiterLength >= 3 &&
-    isFencePrefix(openingPrefix) &&
-    !openingInfo.includes("`");
+    delimiterLength >= 3 && context !== null && !openingInfo.includes("`");
 
   if (isFence) {
     if (openingLineEnd === text.length) return text.length;
@@ -162,12 +214,16 @@ function codeSpanEnd(text: string, start: number): number {
     let closingLineStart = nextLineStart(text, openingLineEnd);
     while (closingLineStart <= text.length) {
       const closingLineEnd = lineEnd(text, closingLineStart);
+      const closingLine = text.slice(closingLineStart, closingLineEnd);
+      if (!continuesFenceContainer(closingLine, context)) {
+        return closingLineStart;
+      }
       const close = closingFenceEnd(
         text,
         closingLineStart,
         closingLineEnd,
         delimiterLength,
-        peelBlockquotes(openingPrefix).depth,
+        context,
       );
       if (close !== -1) return close;
       if (closingLineEnd === text.length) break;

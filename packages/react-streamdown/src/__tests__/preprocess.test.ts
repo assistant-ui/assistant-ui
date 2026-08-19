@@ -186,6 +186,28 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it("recognizes fenced blocks inside list-item blockquotes", () => {
+    expect(
+      escapeCurrencyDollars(
+        "- > ```\n  > const marker = ```;\n  > const price = $5;\n  > ```\nafter $7",
+      ),
+    ).toBe(
+      "- > ```\n  > const marker = ```;\n  > const price = $5;\n  > ```\nafter \\$7",
+    );
+  });
+
+  it("stops an unclosed blockquote fence when its container ends", () => {
+    expect(escapeCurrencyDollars("> ```\n> code\n\nPay $5 today")).toBe(
+      "> ```\n> code\n\nPay \\$5 today",
+    );
+  });
+
+  it("stops an unclosed list fence when its container ends", () => {
+    expect(escapeCurrencyDollars("- ```\n  code\n\nPay $5 today")).toBe(
+      "- ```\n  code\n\nPay \\$5 today",
+    );
+  });
+
   it("does not close a root fence on a list-marker backtick line", () => {
     expect(
       escapeCurrencyDollars("```\n- ```\nconst price = $5;\n```\nafter $7"),
