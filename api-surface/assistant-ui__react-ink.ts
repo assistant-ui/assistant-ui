@@ -16,8 +16,8 @@ type ActionBarCopyProps = Omit<PressableProps, "children" | "onPress"> & UseActi
 
 declare const ActionBarEdit: (_param1: ActionBarEditProps) => import("react").JSX.Element;
 
-type ActionBarEditProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ActionBarEditProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ActionBarFeedbackNegative: (_param2: ActionBarFeedbackNegativeProps) => import("react").JSX.Element;
@@ -38,8 +38,8 @@ type ActionBarFeedbackPositiveProps = Omit<PressableProps, "children" | "onPress
 
 declare const ActionBarReload: (_param4: ActionBarReloadProps) => import("react").JSX.Element;
 
-type ActionBarReloadProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ActionBarReloadProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type AddToolResultOptions = {
@@ -512,8 +512,8 @@ type AttachmentNameProps = ComponentProps<typeof Text>;
 
 declare const AttachmentRemove: (_param6: AttachmentRemoveProps) => import("react").JSX.Element;
 
-type AttachmentRemoveProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type AttachmentRemoveProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const AttachmentRoot: (_param7: AttachmentRootProps) => import("react").JSX.Element;
@@ -773,8 +773,8 @@ type BranchPickerCountProps = ComponentProps<typeof Text>;
 
 declare const BranchPickerNext: (_param8: BranchPickerNextProps) => import("react").JSX.Element;
 
-type BranchPickerNextProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type BranchPickerNextProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const BranchPickerNumber: (props: BranchPickerNumberProps) => import("react").JSX.Element;
@@ -783,14 +783,14 @@ type BranchPickerNumberProps = ComponentProps<typeof Text>;
 
 declare const BranchPickerPrevious: (_param9: BranchPickerPreviousProps) => import("react").JSX.Element;
 
-type BranchPickerPreviousProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type BranchPickerPreviousProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ChainOfThoughtAccordionTrigger: (_param10: ChainOfThoughtAccordionTriggerProps) => import("react").JSX.Element;
 
-type ChainOfThoughtAccordionTriggerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ChainOfThoughtAccordionTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ChainOfThoughtByIndicesProvider: FC<PropsWithChildren<{
@@ -990,8 +990,8 @@ type CompleteAttachmentStatus = {
 
 declare const ComposerAddAttachment: (_param15: ComposerAddAttachmentProps) => import("react").JSX.Element;
 
-type ComposerAddAttachmentProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ComposerAddAttachmentProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ComposerAttachmentByIndex: import("react").FC<ComposerPrimitiveAttachmentByIndex.Props>;
@@ -1021,8 +1021,8 @@ type ComposerAttachmentsProps = ComposerPrimitiveAttachments.Props;
 
 declare const ComposerCancel: (_param16: ComposerCancelProps) => import("react").JSX.Element;
 
-type ComposerCancelProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ComposerCancelProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type ComposerIfFilters = {
@@ -1087,8 +1087,8 @@ declare const ComposerQuote: (_param18: ComposerQuoteProps) => import("react").J
 
 declare const ComposerQuoteDismiss: (_param19: ComposerQuoteDismissProps) => import("react").JSX.Element;
 
-type ComposerQuoteDismissProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ComposerQuoteDismissProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type ComposerQuoteProps = ComponentProps<typeof Box> & {
@@ -1208,8 +1208,8 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
 
 declare const ComposerSend: (_param22: ComposerSendProps) => import("react").JSX.Element;
 
-type ComposerSendProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ComposerSendProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type ComposerState = {
@@ -2732,8 +2732,8 @@ type ProviderToolDefinition<TArgs extends Record<string, unknown>> = Extract<Too
 
 declare const QueueItemRemove: (_param44: QueueItemRemoveProps) => import("react").JSX.Element;
 
-type QueueItemRemoveProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type QueueItemRemoveProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type QueueItemState = {
@@ -2744,8 +2744,8 @@ type QueueItemState = {
 
 declare const QueueItemSteer: (_param45: QueueItemSteerProps) => import("react").JSX.Element;
 
-type QueueItemSteerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type QueueItemSteerProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const QueueItemText: (_param46: QueueItemTextProps) => import("react").JSX.Element;
@@ -3234,8 +3234,8 @@ type SuggestionTitleProps = ComponentProps<typeof Text> & {
 
 declare const SuggestionTrigger: (_param55: SuggestionTriggerProps) => import("react").JSX.Element;
 
-type SuggestionTriggerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type SuggestionTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;
 };
@@ -3367,8 +3367,8 @@ type ThreadIfProps = {
 
 declare const ThreadListItemArchive: (_param59: ThreadListItemArchiveProps) => import("react").JSX.Element;
 
-type ThreadListItemArchiveProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadListItemArchiveProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ThreadListItemByIndexProvider: FC<PropsWithChildren<{
@@ -3389,8 +3389,8 @@ type ThreadListItemCoreState = {
 
 declare const ThreadListItemDelete: (_param60: ThreadListItemDeleteProps) => import("react").JSX.Element;
 
-type ThreadListItemDeleteProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadListItemDeleteProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 type ThreadListItemEventCallback<E extends ThreadListItemEventType> = (payload: ThreadListItemEventPayload[E]) => void;
@@ -3514,14 +3514,14 @@ type ThreadListItemStatus = "archived" | "deleted" | "new" | "regular";
 
 declare const ThreadListItemTrigger: (_param62: ThreadListItemTriggerProps) => import("react").JSX.Element;
 
-type ThreadListItemTriggerProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadListItemTriggerProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ThreadListItemUnarchive: (_param63: ThreadListItemUnarchiveProps) => import("react").JSX.Element;
 
-type ThreadListItemUnarchiveProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadListItemUnarchiveProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ThreadListItems: (_param64: ThreadListItemsProps) => import("react").JSX.Element;
@@ -3535,8 +3535,8 @@ type ThreadListItemsProps = {
 
 declare const ThreadListNew: (_param65: ThreadListNewProps) => import("react").JSX.Element;
 
-type ThreadListNewProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadListNewProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
 };
 
 declare const ThreadListRoot: (_param66: ThreadListRootProps) => import("react").JSX.Element;
@@ -4035,8 +4035,8 @@ type ThreadSuggestion$1 = {
   prompt: string;
 };
 
-type ThreadSuggestionProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+type ThreadSuggestionProps = Omit<PressableProps, "children" | "onPress"> & {
+  children: PressableProps["children"];
   prompt: string;
   send?: boolean | undefined;
   clearComposer?: boolean | undefined;

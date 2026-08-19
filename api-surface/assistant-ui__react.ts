@@ -2246,13 +2246,16 @@ type FrameMessage = {
   toolName: string;
   args: unknown;
 } | {
+  type: "tool-cancel";
+  id: string;
+} | {
   type: "tool-result";
   id: string;
   result?: unknown;
   error?: string;
 };
 
-type FrameMessageType = "model-context-request" | "model-context-update" | "tool-call" | "tool-result";
+type FrameMessageType = "model-context-request" | "model-context-update" | "tool-call" | "tool-cancel" | "tool-result";
 
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "frontend";

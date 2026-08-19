@@ -37,6 +37,10 @@ export class AssistantFrameProvider {
     ModelContextProvider,
     Unsubscribe | undefined
   >();
+  private _activeToolCalls = new Map<
+    string,
+    { abortController: AbortController; event: MessageEvent }
+  >();
   private _targetOrigin: string;
   private _strictRegistrations = 0;
 
@@ -91,6 +95,10 @@ export class AssistantFrameProvider {
       case "tool-call":
         this.handleToolCall(message, event);
         break;
+
+      case "tool-cancel":
+        this.cancelToolCall(message.id);
+        break;
     }
   }
 
@@ -99,6 +107,10 @@ export class AssistantFrameProvider {
     event: MessageEvent,
   ) {
     const tool = this.getModelContext().tools?.[message.toolName];
+    const abortController = new AbortController();
+    this._activeToolCalls.get(message.id)?.abortController.abort();
+    const activeCall = { abortController, event };
+    this._activeToolCalls.set(message.id, activeCall);
 
     let result: any;
     let error: string | undefined;
@@ -110,7 +122,7 @@ export class AssistantFrameProvider {
         result = tool.execute
           ? await tool.execute(message.args, {
               toolCallId: message.id,
-              abortSignal: new AbortController().signal,
+              abortSignal: abortController.signal,
               human: async () => {
                 throw new Error(
                   "Tool human input is not supported in frame context",
@@ -123,11 +135,21 @@ export class AssistantFrameProvider {
       }
     }
 
+    if (this._activeToolCalls.get(message.id) !== activeCall) return;
+    this._activeToolCalls.delete(message.id);
+
     this.sendMessage(event, {
       type: "tool-result",
       id: message.id,
       ...(error ? { error } : { result }),
     });
+  }
+
+  private cancelToolCall(id: string) {
+    const activeCall = this._activeToolCalls.get(id);
+    if (!activeCall) return;
+    this._activeToolCalls.delete(id);
+    activeCall.abortController.abort();
   }
 
   private sendMessage(event: MessageEvent, message: FrameMessage) {
@@ -208,6 +230,15 @@ export class AssistantFrameProvider {
       instance._providerUnsubscribes.forEach((unsubscribe) => unsubscribe?.());
       instance._providerUnsubscribes.clear();
       instance._providers.clear();
+      instance._activeToolCalls.forEach(({ abortController, event }, id) => {
+        abortController.abort();
+        instance.sendMessage(event, {
+          type: "tool-result",
+          id,
+          error: "AssistantFrameProvider has been disposed",
+        });
+      });
+      instance._activeToolCalls.clear();
 
       AssistantFrameProvider._instance = null;
     }

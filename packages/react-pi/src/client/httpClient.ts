@@ -28,6 +28,7 @@
  */
 import { isRecord } from "@assistant-ui/core/internal";
 import { openPiEventStream } from "./eventSource";
+import { isThreadMetadata, isThreadSnapshot } from "./validation";
 import type {
   PiClient,
   PiClientEvent,
@@ -96,61 +97,6 @@ const readJson = async (
   }
 };
 
-const isOptionalString = (value: unknown): boolean =>
-  value === undefined || typeof value === "string";
-
-const isOptionalBoolean = (value: unknown): boolean =>
-  value === undefined || typeof value === "boolean";
-
-const isOptionalNumber = (value: unknown): boolean =>
-  value === undefined || typeof value === "number";
-
-const isQueuedMessage = (value: unknown): boolean => {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.id === "string" &&
-    typeof value.mode === "string" &&
-    typeof value.content === "string"
-  );
-};
-
-const isThreadConfig = (value: unknown): boolean =>
-  value === undefined ||
-  (isRecord(value) &&
-    isOptionalString(value.provider) &&
-    isOptionalString(value.modelId) &&
-    isOptionalString(value.thinkingLevel));
-
-const isContextUsage = (value: unknown): boolean =>
-  value === undefined ||
-  (isRecord(value) &&
-    (value.tokens === null || typeof value.tokens === "number") &&
-    typeof value.contextWindow === "number" &&
-    (value.percent === null || typeof value.percent === "number"));
-
-const isThreadMetadata = (value: unknown): value is PiThreadMetadata => {
-  if (!isRecord(value)) return false;
-  return (
-    typeof value.id === "string" &&
-    value.id.length > 0 &&
-    typeof value.status === "string" &&
-    (value.queuedMessages === undefined ||
-      (Array.isArray(value.queuedMessages) &&
-        value.queuedMessages.every(isQueuedMessage))) &&
-    isOptionalString(value.title) &&
-    isOptionalString(value.workspacePath) &&
-    isOptionalBoolean(value.archived) &&
-    isOptionalString(value.runningRunId) &&
-    isThreadConfig(value.config) &&
-    isContextUsage(value.contextUsage) &&
-    isOptionalString(value.sessionFile) &&
-    isOptionalString(value.parentSessionPath) &&
-    isOptionalNumber(value.messageCount) &&
-    isOptionalString(value.createdAt) &&
-    isOptionalString(value.updatedAt)
-  );
-};
-
 const parseThreadListResponse = (value: unknown): PiThreadMetadata[] => {
   if (!Array.isArray(value)) {
     throw invalidResponse("listing threads", "expected an array of threads.");
@@ -167,99 +113,11 @@ const parseThreadListResponse = (value: unknown): PiThreadMetadata[] => {
   return value;
 };
 
-const isUserContentPart = (value: unknown): boolean => {
-  if (!isRecord(value) || typeof value.type !== "string") return false;
-  if (value.type === "text") return typeof value.text === "string";
-  if (value.type === "image") {
-    return typeof value.data === "string" && typeof value.mimeType === "string";
-  }
-  return true;
-};
-
-const isUserContent = (value: unknown): boolean =>
-  typeof value === "string" ||
-  (Array.isArray(value) && value.every(isUserContentPart));
-
-const isAssistantContentPart = (value: unknown): boolean => {
-  if (!isRecord(value) || typeof value.type !== "string") return false;
-  if (value.type === "text") return typeof value.text === "string";
-  if (value.type === "thinking") return typeof value.thinking === "string";
-  if (value.type === "toolCall") {
-    return (
-      typeof value.id === "string" &&
-      typeof value.name === "string" &&
-      (value.arguments == null || isRecord(value.arguments))
-    );
-  }
-  return true;
-};
-
-const isTranscriptMessage = (value: unknown): boolean => {
-  if (!isRecord(value) || typeof value.role !== "string") return false;
-  if (value.role === "user" || value.role === "custom")
-    return isUserContent(value.content);
-  if (value.role === "assistant") {
-    return (
-      Array.isArray(value.content) &&
-      value.content.every(isAssistantContentPart)
-    );
-  }
-  if (value.role === "toolResult") {
-    return (
-      typeof value.toolCallId === "string" &&
-      Array.isArray(value.content) &&
-      value.content.every(isUserContentPart)
-    );
-  }
-  return true;
-};
-
-const isHostUiRequest = (value: unknown): boolean => {
-  if (!isRecord(value)) return false;
-  if (typeof value.id !== "string" || typeof value.kind !== "string") {
-    return false;
-  }
-  if (
-    !isOptionalString(value.toolCallId) ||
-    !isOptionalNumber(value.timeoutMs)
-  ) {
-    return false;
-  }
-
-  if (value.kind === "confirm") {
-    return typeof value.title === "string" && typeof value.message === "string";
-  }
-  if (value.kind === "select") {
-    return (
-      typeof value.title === "string" &&
-      Array.isArray(value.options) &&
-      value.options.every((option) => typeof option === "string")
-    );
-  }
-  if (value.kind === "input") {
-    return (
-      typeof value.title === "string" && isOptionalString(value.placeholder)
-    );
-  }
-  if (value.kind === "editor") {
-    return typeof value.title === "string" && isOptionalString(value.prefill);
-  }
-  return true;
-};
-
 const parseThreadSnapshotResponse = (
   value: unknown,
   operation: "creating a thread" | "fetching a thread",
 ): PiThreadSnapshot => {
-  if (
-    !isRecord(value) ||
-    !isThreadMetadata(value.metadata) ||
-    !Array.isArray(value.messages) ||
-    !value.messages.every(isTranscriptMessage) ||
-    (value.hostUiRequests !== undefined &&
-      (!Array.isArray(value.hostUiRequests) ||
-        !value.hostUiRequests.every(isHostUiRequest)))
-  ) {
+  if (!isThreadSnapshot(value)) {
     throw invalidResponse(
       operation,
       'expected a thread snapshot with valid "metadata", a "messages" array, and valid host UI requests when present.',
@@ -450,6 +308,10 @@ export const createPiHttpClient = (
           closeTimer: undefined,
           close: openPiEventStream({
             url: eventsUrl,
+            expectedThreadId: threadId,
+            ...(!includeSnapshot && {
+              snapshotRecoveryUrl: `${threadUrl(threadId)}/events`,
+            }),
             fetchImpl,
             ...(headers ? { headers } : {}),
             ...(reconnectDelay ? { reconnectDelay } : {}),

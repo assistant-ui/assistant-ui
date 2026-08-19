@@ -10,14 +10,14 @@
     "preview": "nuxt preview"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.40",
+    "@ai-sdk/openai": "^4.0.42",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/core": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vue": "workspace:*",
     "@lucide/vue": "^1.31.0",
-    "ai": "^7.0.62",
+    "ai": "^7.0.66",
     "nuxt": "^4.5.2",
     "react": "^19.2.8",
     "vue": "^3.5.41"

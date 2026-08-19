@@ -1,10 +1,13 @@
-import { type ReactNode, useCallback } from "react";
+import { useCallback } from "react";
 import { Pressable, type PressableProps } from "react-native";
 
 import { useAui } from "@assistant-ui/store";
 
-export type AttachmentRemoveProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type AttachmentRemoveProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
 };
 
 export const AttachmentRemove = ({

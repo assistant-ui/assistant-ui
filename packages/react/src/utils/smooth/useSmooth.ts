@@ -137,6 +137,9 @@ const positiveOr = (value: number | undefined, fallback: number): number =>
  * `true` uses the default rate, and a {@link SmoothOptions} object tunes
  * the reveal. Returns the part state with `text` replaced by the revealed
  * prefix and `status` reporting `running` until the reveal catches up.
+ * If the source settles before any character has been revealed, the text
+ * is committed immediately so a missed animation frame cannot leave an
+ * empty bubble.
  *
  * The reveal auto-disables under `prefers-reduced-motion: reduce`,
  * committing the full text immediately; this takes precedence over an
@@ -229,13 +232,10 @@ export const useSmooth = (
       return;
     }
 
-    // Discontinuity: part flipped, or new text breaks continuation
-    // of the animator's current target. Either case requires
-    // resetting the cursor — without the part check, a new part
-    // whose text happens to share a prefix with the previous target
-    // would keep the stale cursor and flicker.
     const partChanged = animatorPartRef.current !== part;
     animatorPartRef.current = part;
+    // A new part whose text shares a prefix with the previous target would
+    // keep the stale cursor and flicker without this reset.
     if (partChanged || !text.startsWith(animatorRef.targetText)) {
       if (state.status.type === "running") {
         animatorRef.currentText = "";
@@ -246,13 +246,27 @@ export const useSmooth = (
         animatorRef.currentText = text;
         animatorRef.targetText = text;
         animatorRef.stop();
+        setText(text);
       }
       return;
     }
 
     animatorRef.targetText = text;
+    if (state.status.type !== "running") {
+      // No character has painted. A pending frame that never runs would
+      // leave an empty bubble after settle.
+      if (animatorRef.currentText === "") {
+        animatorRef.currentText = text;
+        animatorRef.stop();
+        setText(text);
+        return;
+      }
+      animatorRef.start();
+      return;
+    }
+
     animatorRef.start();
-  }, [animatorRef, enabled, text, state.status.type, part]);
+  }, [animatorRef, enabled, text, state.status.type, part, setText]);
 
   useEffect(() => {
     return () => {
