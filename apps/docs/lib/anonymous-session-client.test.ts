@@ -25,7 +25,7 @@ describe("ensureAnonymousSession", () => {
   it("starts a session before a public chat request", async () => {
     const fetchMock = vi
       .fn()
-      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockResolvedValueOnce(Response.json({ token: "signed-session" }))
       .mockResolvedValueOnce(new Response("ok"));
     vi.stubGlobal("fetch", fetchMock);
     const { anonymousSessionFetch } =
@@ -40,8 +40,17 @@ describe("ensureAnonymousSession", () => {
       cache: "no-store",
       credentials: "same-origin",
     });
-    expect(fetchMock).toHaveBeenNthCalledWith(2, "/api/chat", {
-      method: "POST",
-    });
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      "/api/chat",
+      expect.objectContaining({
+        method: "POST",
+        headers: expect.any(Headers),
+      }),
+    );
+    const requestInit = fetchMock.mock.calls[1]?.[1];
+    expect(
+      new Headers(requestInit?.headers).get("x-assistant-ui-anonymous-session"),
+    ).toBe("signed-session");
   });
 });

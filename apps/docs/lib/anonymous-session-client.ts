@@ -1,14 +1,24 @@
 let sessionPromise: Promise<void> | null = null;
+let sessionToken: string | null = null;
+
+const ANONYMOUS_SESSION_HEADER = "x-assistant-ui-anonymous-session";
 
 export function ensureAnonymousSession(): Promise<void> {
   sessionPromise ??= fetch("/api/anonymous-session", {
     cache: "no-store",
     credentials: "same-origin",
   })
-    .then((response) => {
+    .then(async (response) => {
       if (!response.ok) {
         throw new Error("Unable to start an anonymous session");
       }
+      if (response.status === 204) return;
+
+      const body = (await response.json()) as { token?: unknown };
+      if (typeof body.token !== "string" || !body.token) {
+        throw new Error("Anonymous session token is missing");
+      }
+      sessionToken = body.token;
     })
     .catch((error: unknown) => {
       sessionPromise = null;
@@ -18,11 +28,21 @@ export function ensureAnonymousSession(): Promise<void> {
 }
 
 export const anonymousSessionFetch: typeof fetch = async (input, init) => {
+  const send = () => {
+    if (!sessionToken) return fetch(input, init);
+    const headers = new Headers(
+      init?.headers ?? (input instanceof Request ? input.headers : undefined),
+    );
+    headers.set(ANONYMOUS_SESSION_HEADER, sessionToken);
+    return fetch(input, { ...init, headers });
+  };
+
   await ensureAnonymousSession();
-  const response = await fetch(input, init);
+  const response = await send();
   if (response.status !== 401) return response;
 
   sessionPromise = null;
+  sessionToken = null;
   await ensureAnonymousSession();
-  return fetch(input, init);
+  return send();
 };
