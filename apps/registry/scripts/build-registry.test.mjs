@@ -1288,6 +1288,50 @@ test("relative import candidates cover extensions, directory indexes, and .js so
   );
 });
 
+test("a dotted basename without a recognized extension probes module and index forms", () => {
+  const from = "components/assistant-ui/thread.tsx";
+
+  assert.deepEqual(getRelativeImportCandidates("./tool.config", from), [
+    "components/assistant-ui/tool.config",
+    "components/assistant-ui/tool.config.tsx",
+    "components/assistant-ui/tool.config.ts",
+    "components/assistant-ui/tool.config.jsx",
+    "components/assistant-ui/tool.config.js",
+    "components/assistant-ui/tool.config/index.tsx",
+    "components/assistant-ui/tool.config/index.ts",
+    "components/assistant-ui/tool.config/index.jsx",
+    "components/assistant-ui/tool.config/index.js",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./thread.v2", from), [
+    "components/assistant-ui/thread.v2",
+    "components/assistant-ui/thread.v2.tsx",
+    "components/assistant-ui/thread.v2.ts",
+    "components/assistant-ui/thread.v2.jsx",
+    "components/assistant-ui/thread.v2.js",
+    "components/assistant-ui/thread.v2/index.tsx",
+    "components/assistant-ui/thread.v2/index.ts",
+    "components/assistant-ui/thread.v2/index.jsx",
+    "components/assistant-ui/thread.v2/index.js",
+  ]);
+});
+
+test("a recognized asset extension resolves to the literal file only", () => {
+  const from = "components/assistant-ui/thread.tsx";
+
+  assert.deepEqual(getRelativeImportCandidates("./globals.css", from), [
+    "components/assistant-ui/globals.css",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./logo.png", from), [
+    "components/assistant-ui/logo.png",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./tool.config.json", from), [
+    "components/assistant-ui/tool.config.json",
+  ]);
+});
+
 test("a sibling whose name begins with dots stays inside the installed tree", () => {
   assert.deepEqual(getRelativeImportCandidates("./..rc.json", "config.tsx"), [
     "..rc.json",

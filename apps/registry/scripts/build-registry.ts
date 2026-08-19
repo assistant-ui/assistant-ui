@@ -847,13 +847,42 @@ function getLocalComponentPath(specifier: string) {
 
 const MODULE_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
 
+const EXPLICIT_EXTENSIONS = new Set([
+  ...MODULE_EXTENSIONS,
+  ".mjs",
+  ".cjs",
+  ".mts",
+  ".cts",
+  ".css",
+  ".json",
+  ".svg",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".avif",
+  ".ico",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".otf",
+  ".md",
+  ".mdx",
+  ".txt",
+]);
+
 /**
  * The install paths a relative specifier may resolve to once the item is
  * installed. A specifier is satisfied when the install closure provides any one
  * of them, which is what a bundler in the user's project will do: an explicit
  * extension, an extensionless module, a directory index, or the TypeScript
- * source behind a `.js` specifier. `null` means the specifier points outside
- * the installed tree, where no closure file can ever satisfy it.
+ * source behind a `.js` specifier. A dot in a basename is only treated as an
+ * explicit extension when it is one of the recognized module or asset
+ * extensions; a dotted module name (`./tool.config`) keeps the literal
+ * candidate and probes module and index forms too. `null` means the specifier
+ * points outside the installed tree, where no closure file can ever satisfy
+ * it.
  */
 export function getRelativeImportCandidates(
   specifier: string,
@@ -868,7 +897,7 @@ export function getRelativeImportCandidates(
   const extension = path.posix.extname(resolved);
   const candidates = new Set<string>();
 
-  if (extension) {
+  if (EXPLICIT_EXTENSIONS.has(extension)) {
     candidates.add(resolved);
     if (extension === ".js" || extension === ".jsx") {
       const base = resolved.slice(0, -extension.length);
@@ -877,6 +906,7 @@ export function getRelativeImportCandidates(
       }
     }
   } else {
+    if (extension) candidates.add(resolved);
     for (const moduleExtension of MODULE_EXTENSIONS) {
       candidates.add(`${resolved}${moduleExtension}`);
     }
