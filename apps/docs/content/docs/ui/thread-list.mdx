@@ -106,9 +106,11 @@ import { ThreadListPrimitive, ThreadListItemPrimitive } from "@assistant-ui/reac
 </ThreadListPrimitive.Root>
 ```
 
+## Examples
+
 ### Archive a Thread
 
-Open the More menu of the active thread, then select Archive. The `onArchive` callback moves the thread out of the regular list.
+Open the More menu of the active thread, then select Archive. The `onArchive` callback moves the thread to the archived list. Select Restore (`ThreadListItemPrimitive.Unarchive`) to move the thread back to the regular list.
 
 <PreviewCode file="components/docs/samples/thread-list/archive-thread" name="ArchivableThreadList">
   <ThreadListArchiveSample />
