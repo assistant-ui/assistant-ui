@@ -1288,6 +1288,66 @@ test("relative import candidates cover extensions, directory indexes, and .js so
   );
 });
 
+test("a dotted basename without a recognized extension probes module and index forms", () => {
+  const from = "components/assistant-ui/thread.tsx";
+
+  assert.deepEqual(getRelativeImportCandidates("./tool.config", from), [
+    "components/assistant-ui/tool.config",
+    "components/assistant-ui/tool.config.tsx",
+    "components/assistant-ui/tool.config.ts",
+    "components/assistant-ui/tool.config.jsx",
+    "components/assistant-ui/tool.config.js",
+    "components/assistant-ui/tool.config/index.tsx",
+    "components/assistant-ui/tool.config/index.ts",
+    "components/assistant-ui/tool.config/index.jsx",
+    "components/assistant-ui/tool.config/index.js",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./thread.v2", from), [
+    "components/assistant-ui/thread.v2",
+    "components/assistant-ui/thread.v2.tsx",
+    "components/assistant-ui/thread.v2.ts",
+    "components/assistant-ui/thread.v2.jsx",
+    "components/assistant-ui/thread.v2.js",
+    "components/assistant-ui/thread.v2/index.tsx",
+    "components/assistant-ui/thread.v2/index.ts",
+    "components/assistant-ui/thread.v2/index.jsx",
+    "components/assistant-ui/thread.v2/index.js",
+  ]);
+});
+
+test("a recognized asset extension resolves to the literal file only", () => {
+  const from = "components/assistant-ui/thread.tsx";
+
+  assert.deepEqual(getRelativeImportCandidates("./globals.css", from), [
+    "components/assistant-ui/globals.css",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./logo.png", from), [
+    "components/assistant-ui/logo.png",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./tool.config.json", from), [
+    "components/assistant-ui/tool.config.json",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./logo.PNG", from), [
+    "components/assistant-ui/logo.PNG",
+  ]);
+});
+
+test("an uppercase module extension still probes TypeScript sources", () => {
+  const from = "components/assistant-ui/thread.tsx";
+
+  assert.deepEqual(getRelativeImportCandidates("./legacy.JS", from), [
+    "components/assistant-ui/legacy.JS",
+    "components/assistant-ui/legacy.tsx",
+    "components/assistant-ui/legacy.ts",
+    "components/assistant-ui/legacy.jsx",
+    "components/assistant-ui/legacy.js",
+  ]);
+});
+
 test("a sibling whose name begins with dots stays inside the installed tree", () => {
   assert.deepEqual(getRelativeImportCandidates("./..rc.json", "config.tsx"), [
     "..rc.json",
@@ -1369,6 +1429,57 @@ test("install validation reports an import that escapes the installed tree", () 
   ]);
 
   assert.match(findings, /a file outside the installed tree/);
+});
+
+test("install validation resolves a dotted alias basename to its shipped source", () => {
+  const importer = {
+    path: "components/assistant-ui/thread.tsx",
+    content:
+      'import { toolConfig } from "@/components/assistant-ui/tool.config";\n',
+  };
+
+  for (const providerPath of [
+    "components/assistant-ui/tool.config.tsx",
+    "components/assistant-ui/tool.config.ts",
+    "components/assistant-ui/tool.config/index.tsx",
+  ]) {
+    assert.equal(
+      findingsFrom([
+        componentItem([
+          importer,
+          { path: providerPath, content: "export const toolConfig = {};\n" },
+        ]),
+      ]),
+      null,
+    );
+  }
+
+  assert.match(
+    findingsFrom([componentItem([importer])]),
+    /provides components\/assistant-ui\/tool\.config or components\/assistant-ui\/tool\.config\.tsx/,
+  );
+});
+
+test("install validation resolves an alias asset import behind a query suffix", () => {
+  const importer = {
+    path: "components/assistant-ui/thread.tsx",
+    content: 'import logoUrl from "@/components/assistant-ui/logo.svg?url";\n',
+  };
+
+  assert.equal(
+    findingsFrom([
+      componentItem([
+        importer,
+        { path: "components/assistant-ui/logo.svg", content: "<svg />\n" },
+      ]),
+    ]),
+    null,
+  );
+
+  assert.match(
+    findingsFrom([componentItem([importer])]),
+    /provides components\/assistant-ui\/logo\.svg/,
+  );
 });
 
 test("install validation resolves a sibling against the registryDependency install path", () => {
