@@ -43,6 +43,25 @@ export const useSyncExternalStore = <T>(
     return true;
   });
 
+  const checkForCommitUpdates = useEffectEvent((): boolean => {
+    try {
+      const nextValue = getSnapshot();
+      if (Object.is(value, nextValue)) {
+        commitCheckDepth.current = 0;
+        return false;
+      }
+
+      // A second mismatch cannot converge through corrective renders.
+      if (!Object.is(nextValue, getSnapshot())) {
+        commitCheckDepth.current = 0;
+        return false;
+      }
+    } catch {
+      // a throwing getSnapshot counts as changed
+    }
+    return true;
+  });
+
   useEffect(() => {
     return subscribe(() => {
       if (checkForUpdates()) forceUpdate();
@@ -52,7 +71,7 @@ export const useSyncExternalStore = <T>(
   // Covers the tearing window between the render's getSnapshot() read and
   // the commit; only these checks count toward the loop guard.
   useEffect(() => {
-    if (!checkForUpdates()) return;
+    if (!checkForCommitUpdates()) return;
     if (++commitCheckDepth.current > 50) {
       commitCheckDepth.current = 0;
       throw new Error(

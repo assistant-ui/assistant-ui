@@ -225,14 +225,53 @@ describe("useSyncExternalStore", () => {
     );
   });
 
-  it("throws after 50 consecutive corrective renders from the commit check", () => {
+  it("does not chase uncached snapshots during the commit check", () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     let dispatched = false;
+    let listener: (() => void) | undefined;
+    let state = 0;
     const fiber = createResourceFiber(
       function useUncached() {
         return useSyncExternalStore(
+          (onStoreChange) => {
+            listener = onStoreChange;
+            return () => {};
+          },
+          () => ({ state }),
+        );
+      },
+      createResourceFiberRoot((evaluate, apply) => {
+        if (!evaluate()) return;
+        apply();
+        dispatched = true;
+      }),
+      undefined,
+      null,
+    );
+
+    expect(renderResourceFiber(fiber, [])).toEqual({ state: 0 });
+    commitResourceFiber(fiber);
+    expect(dispatched).toBe(false);
+
+    state = 1;
+    listener?.();
+    expect(dispatched).toBe(true);
+
+    dispatched = false;
+    expect(renderResourceFiber(fiber, [])).toEqual({ state: 1 });
+    commitResourceFiber(fiber);
+    expect(dispatched).toBe(false);
+    unmountResourceFiber(fiber);
+  });
+
+  it("throws after 50 consecutive corrective renders from the commit check", () => {
+    let snapshot = {};
+    let dispatched = false;
+    const fiber = createResourceFiber(
+      function useChangingSnapshot() {
+        return useSyncExternalStore(
           () => () => {},
-          () => ({}),
+          () => snapshot,
         );
       },
       createResourceFiberRoot((evaluate, apply) => {
@@ -249,6 +288,7 @@ describe("useSyncExternalStore", () => {
     expect(() => {
       for (;;) {
         commits++;
+        snapshot = {};
         commitResourceFiber(fiber);
         if (!dispatched) break;
         dispatched = false;
