@@ -186,6 +186,18 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it("does not close a root fence on a list-marker backtick line", () => {
+    expect(
+      escapeCurrencyDollars("```\n- ```\nconst price = $5;\n```\nafter $7"),
+    ).toBe("```\n- ```\nconst price = $5;\n```\nafter \\$7");
+  });
+
+  it("does not close a root fence on a blockquote backtick line", () => {
+    expect(
+      escapeCurrencyDollars("```\n> ```\nconst price = $5;\n```\nafter $7"),
+    ).toBe("```\n> ```\nconst price = $5;\n```\nafter \\$7");
+  });
+
   it("escapes an amount when the prose before the next span carries latex syntax", () => {
     expect(
       escapeCurrencyDollars("Pay $20 when x_1 rises, then $n$ holds"),

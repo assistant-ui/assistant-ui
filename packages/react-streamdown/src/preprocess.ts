@@ -91,36 +91,48 @@ function nextLineStart(text: string, end: number): number {
   return text[end] === "\r" && text[end + 1] === "\n" ? end + 2 : end + 1;
 }
 
-/** Whether a line prefix permits a fenced code block at this position. */
-function isFencePrefix(prefix: string): boolean {
-  let remaining = prefix;
-  while (remaining.length > 0) {
-    const blockquote = remaining.match(/^ {0,3}>[ \t]?/);
-    if (blockquote) {
-      remaining = remaining.slice(blockquote[0].length);
-      continue;
-    }
+function peelBlockquotes(prefix: string): { depth: number; rest: string } {
+  let rest = prefix;
+  let depth = 0;
+  while (rest.length > 0) {
+    const blockquote = rest.match(/^ {0,3}>[ \t]?/);
+    if (!blockquote) break;
+    rest = rest.slice(blockquote[0].length);
+    depth += 1;
+  }
+  return { depth, rest };
+}
 
+function isFencePrefix(prefix: string): boolean {
+  let remaining = peelBlockquotes(prefix).rest;
+  while (remaining.length > 0) {
     const listItem = remaining.match(/^ {0,3}(?:[-+*]|\d{1,9}[.)])[ \t]+/);
-    if (listItem) {
-      remaining = remaining.slice(listItem[0].length);
-      continue;
-    }
-    break;
+    if (!listItem) break;
+    remaining = remaining.slice(listItem[0].length);
   }
   return /^ {0,3}$/.test(remaining);
 }
 
-/** Closing-fence end on one line, or -1 when the line is not a closer. */
+function isClosingFencePrefix(prefix: string, quoteDepth: number): boolean {
+  const peeled = peelBlockquotes(prefix);
+  return peeled.depth === quoteDepth && /^ {0,3}$/.test(peeled.rest);
+}
+
 function closingFenceEnd(
   text: string,
   start: number,
   end: number,
   minimumLength: number,
+  quoteDepth: number,
 ): number {
   const line = text.slice(start, end);
   const runStart = line.indexOf("`");
-  if (runStart === -1 || !isFencePrefix(line.slice(0, runStart))) return -1;
+  if (
+    runStart === -1 ||
+    !isClosingFencePrefix(line.slice(0, runStart), quoteDepth)
+  ) {
+    return -1;
+  }
 
   const length = runLength(line, runStart, "`");
   if (length < minimumLength) return -1;
@@ -155,6 +167,7 @@ function codeSpanEnd(text: string, start: number): number {
         closingLineStart,
         closingLineEnd,
         delimiterLength,
+        peelBlockquotes(openingPrefix).depth,
       );
       if (close !== -1) return close;
       if (closingLineEnd === text.length) break;
