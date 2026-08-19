@@ -5,7 +5,6 @@ platforms: ["react"]
 ---
 
 import { ThreadSample } from "@/components/docs/samples/thread";
-import { PreviewCode } from "@/components/docs/preview-code.server";
 import { ThreadRunningSample } from "@/components/docs/samples/thread/running-response";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
@@ -108,14 +107,9 @@ export default function Chat() {
 </AuiIf>
 ```
 
-While the last assistant response runs, the composer shows the cancel action, not the send action, and the action bar of the response stays hidden.
+While the last assistant response runs, the composer shows the cancel action, not the send action, and the action bar of the response stays hidden. Click the stop button to cancel the run. The composer then shows the send action again.
 
-<PreviewCode
-  file="components/docs/samples/thread/running-response"
-  name="Chat"
->
-  <ThreadRunningSample />
-</PreviewCode>
+<ThreadRunningSample />
 
 ### Suggestions
 
