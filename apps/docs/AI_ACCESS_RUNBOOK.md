@@ -77,8 +77,10 @@ Before production promotion, verify all of the following on the deployment URL:
    signed-in agent turn, including tool follow-ups, completes without hitting
    the Builder burst limit.
 7. Switching Clerk users in one browser cannot expose the previous user's
-   Xulux data, including across open tabs. Existing ownerless data is migrated
-   under Web Locks; browsers without Web Locks quarantine it instead.
+   Xulux data, including across open tabs. The server rejects chat and download
+   access when a session is bound to another Clerk user. Existing ownerless
+   browser data is migrated under Web Locks; browsers without Web Locks
+   quarantine it instead.
 8. Assistant Cloud rejects a request without the `assistant-ui` JWT.
 9. Redis counters and provider spend alerts are visible to the on-call owner.
 

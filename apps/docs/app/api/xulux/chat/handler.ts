@@ -23,6 +23,7 @@ import {
 import type { XuluxAgentDefinition } from "./agents";
 import { resolveXuluxModel } from "./resolve-model";
 import { requireAiBuilderUser } from "@/lib/ai-builder-auth";
+import { requireXuluxSessionOwner } from "@/lib/xulux/session-owner";
 
 const PRUNE_OPTIONS = {
   toolCalls: "before-last-2-messages",
@@ -266,6 +267,12 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
 
       const inputError = validateDocChatInput(prunedMessages);
       if (inputError) return inputError;
+      const ownershipResponse = await requireXuluxSessionOwner(
+        req,
+        sessionId,
+        access.userId,
+      );
+      if (ownershipResponse) return ownershipResponse;
 
       const preparedTools = agent.prepareTools({
         body,

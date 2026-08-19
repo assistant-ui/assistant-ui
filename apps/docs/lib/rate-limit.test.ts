@@ -65,6 +65,10 @@ describe("positiveSafeInteger", () => {
   it("accepts a positive safe integer", () => {
     expect(positiveSafeInteger("250", 50)).toBe(250);
   });
+
+  it("accepts surrounding whitespace from deployment configuration", () => {
+    expect(positiveSafeInteger(" 250\n", 50)).toBe(250);
+  });
 });
 
 describe("getClientIp", () => {

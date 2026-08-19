@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   checkBuilderRateLimit: vi.fn(),
   requireAiBuilderUser: vi.fn(),
+  requireXuluxSessionOwner: vi.fn(),
   resolveXuluxModel: vi.fn(),
   streamText: vi.fn(),
 }));
@@ -22,6 +23,11 @@ vi.mock("@/lib/ai-builder-auth", async (importOriginal) => ({
   requireAiBuilderUser: mocks.requireAiBuilderUser,
 }));
 
+vi.mock("@/lib/xulux/session-owner", async (importOriginal) => ({
+  ...(await importOriginal()),
+  requireXuluxSessionOwner: mocks.requireXuluxSessionOwner,
+}));
+
 vi.mock("./resolve-model", async (importOriginal) => ({
   ...(await importOriginal()),
   resolveXuluxModel: mocks.resolveXuluxModel,
@@ -38,6 +44,7 @@ import type { XuluxAgentDefinition } from "./agents";
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.requireAiBuilderUser.mockResolvedValue({ userId: "user_123" });
+  mocks.requireXuluxSessionOwner.mockResolvedValue(null);
 });
 
 describe("createXuluxChatHandler rate limiting", () => {
@@ -63,4 +70,35 @@ describe("createXuluxChatHandler rate limiting", () => {
       expect(mocks.streamText).not.toHaveBeenCalled();
     },
   );
+
+  it("rejects a session owned by another user before model selection", async () => {
+    const denied = Response.json({ error: "Forbidden" }, { status: 403 });
+    mocks.checkBuilderRateLimit.mockResolvedValue(null);
+    mocks.requireXuluxSessionOwner.mockResolvedValue(denied);
+    const handler = createXuluxChatHandler({} as XuluxAgentDefinition);
+    const request = new Request("https://www.assistant-ui.com/api/xulux/chat", {
+      method: "POST",
+      body: JSON.stringify({
+        messages: [
+          {
+            id: "msg_1",
+            role: "user",
+            parts: [{ type: "text", text: "Build a weather app" }],
+          },
+        ],
+        sessionId: "session_123",
+      }),
+    });
+
+    const result = await handler(request);
+
+    expect(result).toBe(denied);
+    expect(mocks.requireXuluxSessionOwner).toHaveBeenCalledWith(
+      request,
+      "session_123",
+      "user_123",
+    );
+    expect(mocks.resolveXuluxModel).not.toHaveBeenCalled();
+    expect(mocks.streamText).not.toHaveBeenCalled();
+  });
 });

@@ -4,8 +4,9 @@ export function positiveSafeInteger(
   value: string | undefined,
   fallback: number,
 ): number {
-  if (!value || !/^[1-9]\d*$/.test(value)) return fallback;
-  const parsed = Number(value);
+  const normalized = value?.trim();
+  if (!normalized || !/^[1-9]\d*$/.test(normalized)) return fallback;
+  const parsed = Number(normalized);
   return Number.isSafeInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 

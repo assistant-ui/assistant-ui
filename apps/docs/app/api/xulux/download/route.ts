@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import { checkDownloadRateLimit } from "@/lib/rate-limit";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { requireAiBuilderUser } from "@/lib/ai-builder-auth";
+import { requireXuluxSessionOwner } from "@/lib/xulux/session-owner";
 import { exportWorkspaceArchive } from "../blaxel-sandbox";
 
 export const maxDuration = 120;
@@ -32,13 +33,24 @@ export async function POST(request: Request) {
     const body = (await request.json().catch(() => null)) as {
       sessionId?: unknown;
     } | null;
-    const sessionId = body?.sessionId;
-    if (typeof sessionId !== "string" || sessionId.length === 0) {
+    const rawSessionId = body?.sessionId;
+    if (
+      typeof rawSessionId !== "string" ||
+      rawSessionId.trim().length === 0 ||
+      rawSessionId.trim().length > 128
+    ) {
       return NextResponse.json(
         { error: "Missing sessionId." },
         { status: 400 },
       );
     }
+    const sessionId = rawSessionId.trim();
+    const ownershipResponse = await requireXuluxSessionOwner(
+      request,
+      sessionId,
+      access.userId,
+    );
+    if (ownershipResponse) return ownershipResponse;
 
     const archive = await exportWorkspaceArchive(sessionId);
     cleanup = archive.cleanup;
