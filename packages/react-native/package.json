@@ -40,7 +40,7 @@
     "@assistant-ui/store": "^0.3.10",
     "@assistant-ui/tap": "^0.9.13",
     "assistant-stream": "^0.3.38",
-    "zustand": "^5.0.14"
+    "zustand": "^5.0.15"
   },
   "peerDependencies": {
     "@types/react": "*",
