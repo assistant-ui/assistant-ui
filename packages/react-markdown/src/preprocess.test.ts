@@ -196,6 +196,22 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it("recognizes fenced blocks at a nested list content column", () => {
+    expect(
+      escapeCurrencyDollars(
+        "- outer\n  - ```\n    const price = $5;\n    ```\n\nafter $7",
+      ),
+    ).toBe("- outer\n  - ```\n    const price = $5;\n    ```\n\nafter \\$7");
+  });
+
+  it("recognizes fenced blocks after a wide ordered-list marker", () => {
+    expect(
+      escapeCurrencyDollars(
+        "10. ```\n    const price = $5;\n    ```\n\nafter $7",
+      ),
+    ).toBe("10. ```\n    const price = $5;\n    ```\n\nafter \\$7");
+  });
+
   it("stops an unclosed blockquote fence when its container ends", () => {
     expect(escapeCurrencyDollars("> ```\n> code\n\nPay $5 today")).toBe(
       "> ```\n> code\n\nPay \\$5 today",
