@@ -29,7 +29,9 @@ export function ensureAnonymousSession(): Promise<void> {
 
 export const anonymousSessionFetch: typeof fetch = async (input, init) => {
   const requestTemplate =
-    input instanceof Request ? new Request(input, init) : null;
+    input instanceof Request || init?.body != null
+      ? new Request(input, init)
+      : null;
 
   const send = () => {
     if (!sessionToken) {

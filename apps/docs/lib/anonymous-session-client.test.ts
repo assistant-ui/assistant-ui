@@ -91,4 +91,31 @@ describe("anonymous session client", () => {
     expect(response.status).toBe(200);
     expect(bodies).toEqual(["request body", "request body"]);
   });
+
+  it("resends a body-bearing init after a 401 retry", async () => {
+    const bodies: string[] = [];
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockImplementationOnce(async (input) => {
+        bodies.push(await (input as Request).text());
+        return new Response(null, { status: 401 });
+      })
+      .mockResolvedValueOnce(new Response(null, { status: 204 }))
+      .mockImplementationOnce(async (input) => {
+        bodies.push(await (input as Request).text());
+        return new Response("ok");
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const { anonymousSessionFetch } =
+      await import("./anonymous-session-client");
+
+    const response = await anonymousSessionFetch(
+      "https://www.assistant-ui.com/api/chat",
+      { method: "POST", body: "init body" },
+    );
+
+    expect(response.status).toBe(200);
+    expect(bodies).toEqual(["init body", "init body"]);
+  });
 });
