@@ -3,7 +3,10 @@ import { NextResponse } from "next/server";
 import { checkDownloadRateLimit } from "@/lib/rate-limit";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
 import { requireAiBuilderUser } from "@/lib/ai-builder-auth";
-import { requireXuluxSessionOwner } from "@/lib/xulux/session-owner";
+import {
+  MAX_XULUX_SESSION_ID_CHARS,
+  requireXuluxSessionOwner,
+} from "@/lib/xulux/session-owner";
 import { exportWorkspaceArchive } from "../blaxel-sandbox";
 
 export const maxDuration = 120;
@@ -37,7 +40,7 @@ export async function POST(request: Request) {
     if (
       typeof rawSessionId !== "string" ||
       rawSessionId.trim().length === 0 ||
-      rawSessionId.trim().length > 128
+      rawSessionId.trim().length > MAX_XULUX_SESSION_ID_CHARS
     ) {
       return NextResponse.json(
         { error: "Missing sessionId." },
@@ -45,8 +48,7 @@ export async function POST(request: Request) {
       );
     }
     const sessionId = rawSessionId.trim();
-    const ownershipResponse = await requireXuluxSessionOwner(
-      request,
+    const ownershipResponse = requireXuluxSessionOwner(
       sessionId,
       access.userId,
     );

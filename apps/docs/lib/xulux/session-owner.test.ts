@@ -1,18 +1,42 @@
-import { describe, expect, it } from "vitest";
-import { createMemorySessionOwnerStore } from "./session-owner";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  createXuluxSessionId,
+  isXuluxSessionOwnedByUser,
+  requireXuluxSessionOwner,
+} from "./session-owner";
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("Xulux session ownership", () => {
-  it("binds a new session to its first authenticated user", async () => {
-    const store = createMemorySessionOwnerStore();
+  it("creates a session intrinsically namespaced to its Clerk user", () => {
+    vi.spyOn(crypto, "randomUUID").mockReturnValue(
+      "123e4567-e89b-42d3-a456-426614174000",
+    );
 
-    await expect(store.claim("session_123", "user_123")).resolves.toBe(true);
-    await expect(store.claim("session_123", "user_123")).resolves.toBe(true);
+    const sessionId = createXuluxSessionId("user_123");
+
+    expect(sessionId).toBe("user_123.123e4567-e89b-42d3-a456-426614174000");
+    expect(isXuluxSessionOwnedByUser(sessionId, "user_123")).toBe(true);
   });
 
-  it("rejects a different user for an existing session", async () => {
-    const store = createMemorySessionOwnerStore();
-    await store.claim("session_123", "user_123");
+  it("rejects another user even when the random UUID is reused", () => {
+    const randomId = "123e4567-e89b-42d3-a456-426614174000";
 
-    await expect(store.claim("session_123", "user_456")).resolves.toBe(false);
+    expect(
+      requireXuluxSessionOwner(`user_123.${randomId}`, "user_456")?.status,
+    ).toBe(403);
+    expect(isXuluxSessionOwnedByUser(`user_456.${randomId}`, "user_456")).toBe(
+      true,
+    );
+  });
+
+  it.each([
+    "123e4567-e89b-42d3-a456-426614174000",
+    "user_123.not-a-uuid",
+    `user_123.${"a".repeat(129)}`,
+  ])("rejects legacy or malformed session IDs (%s)", (sessionId) => {
+    expect(isXuluxSessionOwnedByUser(sessionId, "user_123")).toBe(false);
   });
 });

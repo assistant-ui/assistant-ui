@@ -32,6 +32,7 @@ export type XuluxAgentDefinition = {
   resolveSessionId?: (options: {
     body: Record<string, unknown>;
     routeUrl: string;
+    userId: string;
   }) => unknown;
   prepareMessages?: (options: PrepareAgentMessagesOptions) => UIMessage[];
   prepareTools: (options: PrepareAgentToolsOptions) => ToolSet | NextResponse;

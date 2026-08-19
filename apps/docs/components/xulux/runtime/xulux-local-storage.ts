@@ -9,6 +9,7 @@ import type {
   XuluxThreadStatus,
 } from "./types";
 import type { SelectedTemplateContext } from "../XuluxApp";
+import { isXuluxSessionOwnedByUser } from "@/lib/xulux/session-owner";
 
 const PREFIX = "xulux:";
 const USER_PREFIX = `${PREFIX}user:`;
@@ -175,7 +176,9 @@ export function readXuluxThreads(userId: string): XuluxStoredThread[] {
 
   let snapshot: XuluxStoredThread[];
   try {
-    snapshot = JSON.parse(raw) as XuluxStoredThread[];
+    snapshot = (JSON.parse(raw) as XuluxStoredThread[]).filter((thread) =>
+      isXuluxSessionOwnedByUser(thread.custom?.sessionId, userId),
+    );
   } catch {
     snapshot = EMPTY_THREADS;
   }

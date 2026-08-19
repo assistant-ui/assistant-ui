@@ -13,6 +13,7 @@
  */
 
 import { createReadStream } from "node:fs";
+import { createHash } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -73,13 +74,9 @@ function safeExportFilename(sessionId: string): string {
   return `xulux-workspace-${session}.tar.gz`;
 }
 
-function toSandboxName(sessionId: string): string {
-  const safe = sessionId
-    .toLowerCase()
-    .replace(/[^a-z0-9-]+/g, "-")
-    .replace(/^-+|(?<!-)-+$/g, "")
-    .slice(0, 32);
-  return `xulux-${safe}`.slice(0, 40).replace(/(?<!-)-+$/g, "");
+export function toSandboxName(sessionId: string): string {
+  const digest = createHash("sha256").update(sessionId).digest("hex");
+  return `xulux-${digest.slice(0, 32)}`;
 }
 
 async function withRetry<T>(fn: () => Promise<T>): Promise<T> {

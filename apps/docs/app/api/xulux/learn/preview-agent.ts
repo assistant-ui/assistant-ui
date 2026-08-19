@@ -198,8 +198,10 @@ export const learnPreviewAgent: XuluxAgentDefinition = {
     stage_id: getLearnPreviewStageId(routeUrl) ?? "unknown",
   }),
   allowRequestSystemPrompt: false,
-  resolveSessionId: ({ routeUrl }) =>
-    new URL(routeUrl).searchParams.get("sessionId"),
+  resolveSessionId: ({ routeUrl, userId }) => {
+    const sessionId = new URL(routeUrl).searchParams.get("sessionId");
+    return sessionId ? `${userId}.${sessionId}` : null;
+  },
   prepareMessages: ({ messages, routeUrl }) => {
     const stageId = getLearnPreviewStageId(routeUrl);
     return stageId && interactableStageIds.has(stageId)

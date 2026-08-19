@@ -44,7 +44,7 @@ import type { XuluxAgentDefinition } from "./agents";
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.requireAiBuilderUser.mockResolvedValue({ userId: "user_123" });
-  mocks.requireXuluxSessionOwner.mockResolvedValue(null);
+  mocks.requireXuluxSessionOwner.mockReturnValue(null);
 });
 
 describe("createXuluxChatHandler rate limiting", () => {
@@ -74,7 +74,7 @@ describe("createXuluxChatHandler rate limiting", () => {
   it("rejects a session owned by another user before model selection", async () => {
     const denied = Response.json({ error: "Forbidden" }, { status: 403 });
     mocks.checkBuilderRateLimit.mockResolvedValue(null);
-    mocks.requireXuluxSessionOwner.mockResolvedValue(denied);
+    mocks.requireXuluxSessionOwner.mockReturnValue(denied);
     const handler = createXuluxChatHandler({} as XuluxAgentDefinition);
     const request = new Request("https://www.assistant-ui.com/api/xulux/chat", {
       method: "POST",
@@ -94,7 +94,6 @@ describe("createXuluxChatHandler rate limiting", () => {
 
     expect(result).toBe(denied);
     expect(mocks.requireXuluxSessionOwner).toHaveBeenCalledWith(
-      request,
       "session_123",
       "user_123",
     );

@@ -165,7 +165,7 @@ describe("user-bound Xulux storage", () => {
       remoteId: "thread_first",
       status: "regular",
       custom: {
-        sessionId: "session_first",
+        sessionId: "user_first.123e4567-e89b-42d3-a456-426614174000",
         xuluxStatus: "idle",
         updatedAt: 1,
       },
@@ -174,7 +174,7 @@ describe("user-bound Xulux storage", () => {
       remoteId: "thread_second",
       status: "regular",
       custom: {
-        sessionId: "session_second",
+        sessionId: "user_second.123e4567-e89b-42d3-a456-426614174001",
         xuluxStatus: "idle",
         updatedAt: 2,
       },

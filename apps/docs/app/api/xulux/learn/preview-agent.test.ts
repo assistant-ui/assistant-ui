@@ -90,12 +90,14 @@ describe("hosted Learn preview agent", () => {
   });
 
   it("uses the preview session and dedicated trace identity", () => {
+    const previewId = "123e4567-e89b-42d3-a456-426614174000";
     expect(
       learnPreviewAgent.resolveSessionId?.({
         body: {},
-        routeUrl: routeUrl("S3", "course-preview-123"),
+        routeUrl: routeUrl("S3", previewId),
+        userId: "user_123",
       }),
-    ).toBe("course-preview-123");
+    ).toBe(`user_123.${previewId}`);
     expect(learnPreviewAgent.traceName).toBe("xulux_learn_preview");
     expect(
       learnPreviewAgent.getTraceMetadata?.({

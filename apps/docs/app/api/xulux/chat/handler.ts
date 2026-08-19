@@ -23,7 +23,10 @@ import {
 import type { XuluxAgentDefinition } from "./agents";
 import { resolveXuluxModel } from "./resolve-model";
 import { requireAiBuilderUser } from "@/lib/ai-builder-auth";
-import { requireXuluxSessionOwner } from "@/lib/xulux/session-owner";
+import {
+  MAX_XULUX_SESSION_ID_CHARS,
+  requireXuluxSessionOwner,
+} from "@/lib/xulux/session-owner";
 
 const PRUNE_OPTIONS = {
   toolCalls: "before-last-2-messages",
@@ -61,7 +64,6 @@ type JsonObject = { [key: string]: JsonValue };
 const MAX_ACTIVE_PREVIEW_CONFIG_CHARS = 8_000;
 const MAX_RAW_MESSAGES_CHARS = 1_000_000;
 const MAX_SYSTEM_CHARS = 4_000;
-const MAX_SESSION_ID_CHARS = 128;
 
 async function prepareMessages(messages: readonly UIMessage[]) {
   const modelMessages = await convertToModelMessages(
@@ -228,13 +230,17 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       const userMessageId = getLatestUserMessageId(uiMessages);
 
       const resolvedSessionId = agent.resolveSessionId
-        ? agent.resolveSessionId({ body, routeUrl: req.url })
+        ? agent.resolveSessionId({
+            body,
+            routeUrl: req.url,
+            userId: access.userId,
+          })
         : bodySessionId;
 
       if (
         typeof resolvedSessionId !== "string" ||
         resolvedSessionId.trim().length === 0 ||
-        resolvedSessionId.trim().length > MAX_SESSION_ID_CHARS
+        resolvedSessionId.trim().length > MAX_XULUX_SESSION_ID_CHARS
       ) {
         return NextResponse.json(
           { error: "sessionId required" },
@@ -267,8 +273,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
 
       const inputError = validateDocChatInput(prunedMessages);
       if (inputError) return inputError;
-      const ownershipResponse = await requireXuluxSessionOwner(
-        req,
+      const ownershipResponse = requireXuluxSessionOwner(
         sessionId,
         access.userId,
       );

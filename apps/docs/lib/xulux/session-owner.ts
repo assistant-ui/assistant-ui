@@ -1,79 +1,30 @@
-import type { Redis } from "@upstash/redis";
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-export type SessionOwnerStore = {
-  claim: (sessionId: string, userId: string) => Promise<boolean>;
-};
+export const MAX_XULUX_SESSION_ID_CHARS = 128;
 
-function sessionOwnerKey(sessionId: string): string {
-  return `xulux:sess:${sessionId}:owner`;
+export function createXuluxSessionId(userId: string): string {
+  return `${userId}.${crypto.randomUUID()}`;
 }
 
-export function createMemorySessionOwnerStore(): SessionOwnerStore {
-  const owners = new Map<string, string>();
-
-  return {
-    async claim(sessionId, userId) {
-      const owner = owners.get(sessionId);
-      if (owner) return owner === userId;
-      owners.set(sessionId, userId);
-      return true;
-    },
-  };
+export function isXuluxSessionOwnedByUser(
+  sessionId: unknown,
+  userId: string,
+): sessionId is string {
+  if (typeof sessionId !== "string") return false;
+  if (sessionId.length > MAX_XULUX_SESSION_ID_CHARS) return false;
+  const prefix = `${userId}.`;
+  if (!sessionId.startsWith(prefix)) return false;
+  return UUID_PATTERN.test(sessionId.slice(prefix.length));
 }
 
-function createRedisSessionOwnerStore(redis: Redis): SessionOwnerStore {
-  return {
-    async claim(sessionId, userId) {
-      const key = sessionOwnerKey(sessionId);
-      const claimed = await redis.set(key, userId, { nx: true });
-      if (claimed) return true;
-      return (await redis.get<string>(key)) === userId;
-    },
-  };
-}
-
-let memoryStore: SessionOwnerStore | null = null;
-let redisStorePromise: Promise<SessionOwnerStore> | null = null;
-
-async function getSessionOwnerStore(): Promise<SessionOwnerStore> {
-  if (process.env.NODE_ENV !== "production") {
-    memoryStore ??= createMemorySessionOwnerStore();
-    return memoryStore;
-  }
-
-  redisStorePromise ??= (async () => {
-    const { Redis } = await import("@upstash/redis");
-    return createRedisSessionOwnerStore(Redis.fromEnv());
-  })();
-  return redisStorePromise;
-}
-
-export async function requireXuluxSessionOwner(
-  request: Request,
+export function requireXuluxSessionOwner(
   sessionId: string,
   userId: string,
-): Promise<Response | null> {
-  try {
-    const store = await getSessionOwnerStore();
-    const allowed = await store.claim(sessionId, userId);
-    if (allowed) return null;
-
-    return Response.json(
-      { error: "This workspace belongs to another user." },
-      { status: 403 },
-    );
-  } catch (error) {
-    console.error(
-      JSON.stringify({
-        level: "error",
-        message: "xulux_session_owner_unavailable",
-        requestId: request.headers.get("x-vercel-id"),
-        error: error instanceof Error ? error.message : String(error),
-      }),
-    );
-    return Response.json(
-      { error: "Workspace authorization is temporarily unavailable." },
-      { status: 503 },
-    );
-  }
+): Response | null {
+  if (isXuluxSessionOwnedByUser(sessionId, userId)) return null;
+  return Response.json(
+    { error: "This workspace belongs to another user." },
+    { status: 403 },
+  );
 }

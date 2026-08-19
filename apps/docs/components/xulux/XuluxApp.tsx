@@ -41,6 +41,10 @@ import {
   claimXuluxStorage,
   createXuluxUserStorage,
 } from "./runtime/xulux-local-storage";
+import {
+  createXuluxSessionId,
+  isXuluxSessionOwnedByUser,
+} from "@/lib/xulux/session-owner";
 
 export type XuluxMode = "playground" | "learn";
 
@@ -140,7 +144,9 @@ function XuluxAppReady({
   autoStart: boolean;
   autoStartSource: LearnAutoStartSource;
 }) {
-  const [sessionId, setSessionId] = useState(() => crypto.randomUUID());
+  const [sessionId, setSessionId] = useState(() =>
+    createXuluxSessionId(userId),
+  );
   const [learnProgress, setLearnProgress] = useState<LearnProgress>(() =>
     createInitialLearnProgress(courseId),
   );
@@ -160,7 +166,9 @@ function XuluxAppReady({
     const storage = createXuluxUserStorage(window.localStorage, userId);
     const stored = readLearnProgress(storage, courseId);
     setLearnProgress(stored);
-    if (stored.threadId) setSessionId(stored.threadId);
+    if (isXuluxSessionOwnedByUser(stored.threadId, userId)) {
+      setSessionId(stored.threadId);
+    }
     setLearnReady(true);
   }, [courseId, mode, userId]);
 

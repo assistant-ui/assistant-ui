@@ -82,7 +82,7 @@ describe("POST /api/xulux/download access boundary", () => {
   it("rejects a session owned by another user before export", async () => {
     mocks.requireAiBuilderUser.mockResolvedValue({ userId: "user_123" });
     mocks.checkDownloadRateLimit.mockResolvedValue(null);
-    mocks.requireXuluxSessionOwner.mockResolvedValue(
+    mocks.requireXuluxSessionOwner.mockReturnValue(
       Response.json({ error: "Forbidden" }, { status: 403 }),
     );
 
@@ -97,7 +97,6 @@ describe("POST /api/xulux/download access boundary", () => {
 
     expect(response.status).toBe(403);
     expect(mocks.requireXuluxSessionOwner).toHaveBeenCalledWith(
-      request,
       "session_123",
       "user_123",
     );

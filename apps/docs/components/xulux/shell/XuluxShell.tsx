@@ -72,6 +72,7 @@ import type {
   LearnAutoStartSource,
   LearnCourseStartSource,
 } from "@/lib/xulux/learn/types";
+import { createXuluxSessionId } from "@/lib/xulux/session-owner";
 
 const ASSISTANT_UI_REPO_URL = "https://github.com/assistant-ui/assistant-ui";
 
@@ -368,7 +369,7 @@ export function XuluxShell({
   );
 
   const handleNewChat = useCallback(() => {
-    const nextSessionId = crypto.randomUUID();
+    const nextSessionId = createXuluxSessionId(userId);
     onSetSessionId(nextSessionId);
     setSelectedTemplate(null);
     setSelectedTemplateContext(null);
@@ -380,7 +381,7 @@ export function XuluxShell({
     setViewMode("landing");
     onResetSession();
     void aui.threads.switchToNewThread();
-  }, [aui, onResetSession, onSetActivePreviewContext, onSetSessionId]);
+  }, [aui, onResetSession, onSetActivePreviewContext, onSetSessionId, userId]);
 
   const handleRestoreThread = useCallback(
     (thread: XuluxStoredThread) => {
