@@ -10,3 +10,12 @@
 @utility animate-marquee {
   animation: marquee var(--duration) linear infinite;
 }
+
+@keyframes stage-progress {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
