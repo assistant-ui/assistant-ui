@@ -18,7 +18,6 @@ import { GET, OPTIONS } from "./route";
 
 const secret = "test-secret-with-enough-entropy";
 const browserHeaders = {
-  origin: "https://www.assistant-ui.com",
   "sec-fetch-mode": "cors",
   "sec-fetch-site": "same-origin",
 };

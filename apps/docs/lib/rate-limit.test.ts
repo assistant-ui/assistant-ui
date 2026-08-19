@@ -36,7 +36,10 @@ vi.mock("@upstash/ratelimit", async (importOriginal) => ({
       mocks.calls.push({ prefix: this.prefix, key });
       const error = mocks.errors.get(this.prefix);
       if (error) throw error;
-      return { success: mocks.results.get(this.prefix) ?? true };
+      return {
+        success: mocks.results.get(this.prefix) ?? true,
+        reset: Date.now() + 30_000,
+      };
     }
   },
 }));
@@ -60,15 +63,18 @@ afterEach(() => {
 describe("public assistant rate limits", () => {
   const request = () =>
     new Request("https://www.assistant-ui.com/api/chat", {
-      headers: { "x-vercel-forwarded-for": "203.0.113.10" },
+      headers: {
+        "x-vercel-forwarded-for": "203.0.113.10",
+        "x-forwarded-for": "198.51.100.99",
+      },
     });
 
   it("uses generous anonymous defaults with a global ceiling", async () => {
     await checkPublicAssistantRateLimit(request(), "session_1234567890");
 
     expect(mocks.configs.get("aui:public-assistant:ip:burst")).toEqual({
-      limit: 60,
-      window: "1m",
+      limit: 5,
+      window: "30s",
     });
     expect(mocks.configs.get("aui:public-assistant:ip:daily")).toEqual({
       limit: 2_000,
@@ -141,6 +147,44 @@ describe("public assistant rate limits", () => {
     expect(console.error).toHaveBeenCalledWith(
       expect.stringContaining("public_assistant_rate_limit_unavailable"),
     );
+  });
+
+  it("falls back to the first forwarded IP outside Vercel", async () => {
+    const forwardedRequest = new Request(
+      "https://www.assistant-ui.com/api/chat",
+      { headers: { "x-forwarded-for": "198.51.100.4, 10.0.0.1" } },
+    );
+
+    await checkPublicAssistantRateLimit(forwardedRequest, "session_1234567890");
+
+    expect(mocks.calls[0]).toEqual({
+      prefix: "aui:public-assistant:ip:burst",
+      key: "198.51.100.4",
+    });
+  });
+
+  it("fails closed and logs when no client IP is available", async () => {
+    const response = await checkPublicAssistantRateLimit(
+      new Request("https://www.assistant-ui.com/api/chat"),
+      "session_1234567890",
+    );
+
+    expect(response?.status).toBe(503);
+    expect(mocks.calls).toHaveLength(0);
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("public_assistant_client_ip_missing"),
+    );
+  });
+
+  it("returns Retry-After when a quota is exhausted", async () => {
+    mocks.results.set("aui:public-assistant:ip:burst", false);
+
+    const response = await checkPublicAssistantRateLimit(
+      request(),
+      "session_1234567890",
+    );
+
+    expect(response?.headers.get("retry-after")).toBe("30");
   });
 
   it("limits anonymous-session rotation by IP", async () => {

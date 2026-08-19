@@ -125,19 +125,13 @@ export function isAllowedPublicAssistantOrigin(origin: string): boolean {
 export function isPublicAssistantBrowserRequest(request: Request): boolean {
   const fetchSite = request.headers.get("sec-fetch-site");
   const fetchMode = request.headers.get("sec-fetch-mode");
-  if (
-    !["same-origin", "same-site", "cross-site"].includes(fetchSite ?? "") ||
-    fetchMode !== "cors"
-  ) {
-    return false;
-  }
+  if (fetchMode !== "cors") return false;
+  if (fetchSite === "same-origin") return true;
+  if (!["same-site", "cross-site"].includes(fetchSite ?? "")) return false;
 
   const origin = headerOrigin(request);
   if (!origin) return false;
-  return (
-    origin === new URL(request.url).origin ||
-    isAllowedPublicAssistantOrigin(origin)
-  );
+  return isAllowedPublicAssistantOrigin(origin);
 }
 
 export function getAnonymousSessionToken(request: Request): string | null {

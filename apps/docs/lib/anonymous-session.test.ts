@@ -10,7 +10,6 @@ import {
 
 const secret = "test-secret-with-enough-entropy";
 const browserHeaders = {
-  origin: "https://www.assistant-ui.com",
   "sec-fetch-mode": "cors",
   "sec-fetch-site": "same-origin",
 };
@@ -70,7 +69,7 @@ describe("anonymous session tokens", () => {
 });
 
 describe("public assistant browser boundary", () => {
-  it("accepts same-origin website requests", () => {
+  it("accepts the real same-origin GET shape without origin or referer", () => {
     const request = new Request("https://www.assistant-ui.com/api/chat", {
       headers: browserHeaders,
     });

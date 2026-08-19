@@ -31,7 +31,7 @@ const getPublicAssistantRateLimits = async () => {
     ipBurst: new Ratelimit({
       redis,
       prefix: "aui:public-assistant:ip:burst",
-      limiter: Ratelimit.fixedWindow(60, "1m"),
+      limiter: Ratelimit.fixedWindow(5, "30s"),
     }),
     ipDaily: new Ratelimit({
       redis,
@@ -96,13 +96,11 @@ function firstIp(value: string | null): string | null {
   return value?.split(",")[0]?.trim() || null;
 }
 
-function getClientIp(request: Request): string {
-  const vercelIp = firstIp(request.headers.get("x-vercel-forwarded-for"));
-  if (vercelIp) return vercelIp;
-  if (process.env.NODE_ENV !== "production") {
-    return firstIp(request.headers.get("x-forwarded-for")) ?? "unknown";
-  }
-  return "unknown";
+function getClientIp(request: Request): string | null {
+  return (
+    firstIp(request.headers.get("x-vercel-forwarded-for")) ??
+    firstIp(request.headers.get("x-forwarded-for"))
+  );
 }
 
 async function runPublicAssistantRateLimit(
@@ -128,8 +126,25 @@ async function runPublicAssistantRateLimit(
   }
 }
 
-function limitResponse(message: string): Response {
-  return new Response(message, { status: 429 });
+function missingClientIpResponse(request: Request): Response {
+  console.error(
+    JSON.stringify({
+      level: "error",
+      message: "public_assistant_client_ip_missing",
+      requestId: request.headers.get("x-vercel-id"),
+    }),
+  );
+  return new Response("Public assistant temporarily unavailable", {
+    status: 503,
+  });
+}
+
+function limitResponse(message: string, reset: number): Response {
+  const retryAfter = Math.max(1, Math.ceil((reset - Date.now()) / 1_000));
+  return new Response(message, {
+    status: 429,
+    headers: { "Retry-After": String(retryAfter) },
+  });
 }
 
 export async function checkPublicAssistantRateLimit(
@@ -138,15 +153,24 @@ export async function checkPublicAssistantRateLimit(
 ): Promise<Response | null> {
   return runPublicAssistantRateLimit(request, async (limits) => {
     const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request);
+
     const ipBurst = await limits.ipBurst.limit(ip);
-    if (!ipBurst.success) return limitResponse("Rate limit exceeded");
+    if (!ipBurst.success) {
+      return limitResponse("Rate limit exceeded", ipBurst.reset);
+    }
 
     const ipDaily = await limits.ipDaily.limit(ip);
-    if (!ipDaily.success) return limitResponse("Daily usage limit exceeded");
+    if (!ipDaily.success) {
+      return limitResponse("Daily usage limit exceeded", ipDaily.reset);
+    }
 
     const sessionDaily = await limits.sessionDaily.limit(sessionId);
     if (!sessionDaily.success) {
-      return limitResponse("Daily anonymous session limit exceeded");
+      return limitResponse(
+        "Daily anonymous session limit exceeded",
+        sessionDaily.reset,
+      );
     }
 
     const globalDaily = await limits.globalDaily.limit("all");
@@ -158,7 +182,10 @@ export async function checkPublicAssistantRateLimit(
           requestId: request.headers.get("x-vercel-id"),
         }),
       );
-      return limitResponse("Public assistant usage limit exceeded");
+      return limitResponse(
+        "Public assistant usage limit exceeded",
+        globalDaily.reset,
+      );
     }
     return null;
   });
@@ -169,13 +196,15 @@ export async function checkAnonymousSessionIssuanceRateLimit(
 ): Promise<Response | null> {
   return runPublicAssistantRateLimit(request, async (limits) => {
     const ip = getClientIp(request);
+    if (!ip) return missingClientIpResponse(request);
+
     const burst = await limits.sessionIssuanceBurst.limit(ip);
     if (!burst.success) {
-      return limitResponse("Anonymous session limit exceeded");
+      return limitResponse("Anonymous session limit exceeded", burst.reset);
     }
     const daily = await limits.sessionIssuanceDaily.limit(ip);
     if (!daily.success) {
-      return limitResponse("Anonymous session limit exceeded");
+      return limitResponse("Anonymous session limit exceeded", daily.reset);
     }
     return null;
   });

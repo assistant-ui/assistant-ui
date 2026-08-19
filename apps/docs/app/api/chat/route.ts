@@ -10,6 +10,7 @@ import { validateGeneralChatInput } from "@/lib/validate-input";
 import { getModel } from "@/lib/ai/provider";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { AISDKToolkit } from "@assistant-ui/ai-sdk";
+import docsToolkit from "@/lib/docs-toolkit";
 import {
   convertToModelMessages,
   pruneMessages,
@@ -19,14 +20,7 @@ import {
 
 export const maxDuration = 30;
 
-let aiToolkitPromise: Promise<AISDKToolkit> | null = null;
-
-function getAiToolkit() {
-  aiToolkitPromise ??= import("@/lib/docs-toolkit").then(
-    ({ default: toolkit }) => new AISDKToolkit({ toolkit }),
-  );
-  return aiToolkitPromise;
-}
+const aiToolkit = new AISDKToolkit({ toolkit: docsToolkit });
 
 const ALLOWED_ORIGINS = [
   "https://assistant-ui-expo.vercel.app",
@@ -107,7 +101,7 @@ export async function POST(req: Request) {
       messages: prunedMessages,
       maxOutputTokens: 4096,
       stopWhen: stepCountIs(10),
-      tools: await (await getAiToolkit()).tools({ frontend: tools }),
+      tools: await aiToolkit.tools({ frontend: tools }),
       ...posthogTelemetry({
         distinctId,
         spanName: "general_chat",

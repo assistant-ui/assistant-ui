@@ -25,7 +25,7 @@ const MODEL_NAME = "assistant-ui";
 const ANONYMOUS_SESSION_HEADER = "x-assistant-ui-anonymous-session";
 
 function createAnonymousSessionFetch(chatApi: string): typeof fetch {
-  let tokenPromise: Promise<string> | null = null;
+  let tokenPromise: Promise<string | null> | null = null;
 
   const getToken = () => {
     tokenPromise ??= (async () => {
@@ -33,23 +33,22 @@ function createAnonymousSessionFetch(chatApi: string): typeof fetch {
       endpoint.pathname = "/api/anonymous-session";
       endpoint.search = "";
       const response = await fetch(endpoint, { credentials: "omit" });
-      if (!response.ok) throw new Error("Unable to start an anonymous session");
+      if (!response.ok) return null;
       const payload = (await response.json()) as { token?: unknown };
-      if (typeof payload.token !== "string" || !payload.token) {
-        throw new Error("Invalid anonymous session response");
-      }
-      return payload.token;
-    })().catch((error: unknown) => {
-      tokenPromise = null;
-      throw error;
-    });
+      return typeof payload.token === "string" && payload.token
+        ? payload.token
+        : null;
+    })().catch(() => null);
     return tokenPromise;
   };
 
   return async (input, init) => {
     const send = async () => {
-      const headers = new Headers(init?.headers);
-      headers.set(ANONYMOUS_SESSION_HEADER, await getToken());
+      const headers = new Headers(
+        init?.headers ?? (input instanceof Request ? input.headers : undefined),
+      );
+      const token = await getToken();
+      if (token) headers.set(ANONYMOUS_SESSION_HEADER, token);
       return fetch(input, { ...init, headers });
     };
 

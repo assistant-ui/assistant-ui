@@ -21,6 +21,8 @@ vi.mock("@/lib/ai/provider", async (importOriginal) => ({
   getModel: mocks.getModel,
 }));
 
+vi.mock("@/lib/docs-toolkit", () => ({ default: {} }));
+
 import { POST } from "./route";
 
 afterEach(() => {
