@@ -9,7 +9,6 @@ import {
   SelectRoot,
   SelectSeparator,
   SelectTrigger,
-  SelectValue,
 } from "@/components/assistant-ui/select";
 
 const ALL = "__all__";
@@ -74,7 +73,7 @@ export function PackageFilter({
       }}
     >
       <SelectTrigger size="sm" className="w-56 font-mono text-xs">
-        <SelectValue />
+        <span className="truncate">{value ?? "All packages"}</span>
       </SelectTrigger>
       <SelectContent>
         <SelectItem value={ALL}>All packages</SelectItem>
