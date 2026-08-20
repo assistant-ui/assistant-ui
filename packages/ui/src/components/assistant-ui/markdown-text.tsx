@@ -42,8 +42,9 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   return (
     // Sized in em with /0.75 compensation so the header sits on the typeset
     // flow rhythm and lines up with the pre block below it (0.875em type,
-    // 1em padding), mirroring how typeset.css scales pre itself.
-    <div className="aui-code-header-root bg-muted border-border/50 mt-[calc(var(--typeset-flow)/0.75)] flex items-center justify-between rounded-t-lg border-b px-[calc(0.875em/0.75)] py-1.5 text-[0.75em] first:mt-0">
+    // 1em padding), mirroring how typeset.css scales pre itself. Inside a
+    // list item the header drops to the 0.5em list rhythm of li > pre.
+    <div className="aui-code-header-root bg-muted border-border/50 mt-[calc(var(--typeset-flow)/0.75)] flex items-center justify-between rounded-t-lg border-b px-[calc(0.875em/0.75)] py-1.5 text-[0.75em] first:mt-0 [:where(li)>&]:mt-[calc(0.5em/0.75)]">
       <span className="aui-code-header-language text-muted-foreground font-medium lowercase">
         {language}
       </span>
@@ -95,6 +96,16 @@ const defaultComponents = memoizeMarkdownComponents({
       )}
       {...props}
     />
+  ),
+  // typeset keeps thead cells on one line (white-space: nowrap), so a wide
+  // table can exceed the thread width. Markdown output cannot author the
+  // upstream .typeset-scroll wrapper, so the override supplies one; the
+  // wrapper owns the flow margin and mirrors typeset's spacing for tables
+  // after headings, inside list items, and in first position.
+  table: ({ className, ...props }) => (
+    <div className="aui-md-table-scroll mt-(--typeset-flow) overflow-x-auto first:mt-0 [:where(h1,h2,h3,h4,h5,h6)+&]:mt-[1em] [:where(li)>&]:mt-[0.5em]">
+      <table className={cn("aui-md-table mt-0", className)} {...props} />
+    </div>
   ),
   CodeHeader,
 });

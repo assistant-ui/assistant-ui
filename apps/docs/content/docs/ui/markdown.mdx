@@ -75,6 +75,8 @@ To tune the rhythm, change the `--typeset-*` variables on the `className` of `Ma
 
 Tailwind utilities on an element win without `!important`, because typeset uses `:where()` selectors in the `components` layer.
 
+The `reasoning` component renders its content with `MarkdownText`. Typeset sets headings to `--color-foreground`, thus the reasoning wrapper carries `[&_:is(h1,h2,h3,h4,h5,h6)]:text-inherit` to keep the muted heading color. If your project holds an older copy of `reasoning.tsx` without this utility, headings in reasoning show the full-contrast color.
+
 ## Syntax highlighting
 
 Syntax Highlighting is not included by default, see [Syntax Highlighting](/docs/ui/syntax-highlighting) to learn how to add it.
