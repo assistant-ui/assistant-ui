@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: evict deleted messages from the repository on the external-store setMessages path
+fix: evict deleted external-store messages from the repository so no phantom branch survives, on both the setMessages and onDelete paths

@@ -582,8 +582,14 @@ export class ExternalStoreThreadRuntimeCore
 
   public async deleteMessage(messageId: string): Promise<void> {
     if (this._store.onDelete) {
+      // Hosts may decline to act on ids outside the visible thread (e.g. an
+      // off-branch id passed to the public deleteMessage), so only a message
+      // that was visible when the host was asked may be evicted afterwards.
+      const wasVisible = this.repository
+        .getMessages()
+        .some((m) => m.id === messageId);
       await this._store.onDelete(messageId);
-      this._evictDeletedMessage(messageId);
+      if (wasVisible) this._evictDeletedMessage(messageId);
       return;
     }
 
@@ -608,11 +614,15 @@ export class ExternalStoreThreadRuntimeCore
   // before notifying so `messages` and the branch graph agree at notify time,
   // mirroring the end of the snapshot pass.
   private _evictDeletedMessage(messageId: string) {
-    try {
-      this.repository.deleteMessage(messageId);
-    } catch {
-      return;
-    }
+    // A synchronous host update (e.g. a setMessages that re-entered the
+    // snapshot pass) may have evicted the message already; only that case is
+    // skipped, so genuine repository errors still propagate.
+    const exists = this.repository
+      .export()
+      .messages.some(({ message }) => message.id === messageId);
+    if (!exists) return;
+
+    this.repository.deleteMessage(messageId);
     this._messages = this.repository.getMessages();
     this._notifySubscribers();
   }

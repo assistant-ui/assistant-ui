@@ -1263,7 +1263,8 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     const onDelete = vi.fn(async (id: string) => {
       current = current.filter((m) => m.id !== id);
     });
-    const store = () => makeStore({ messages: current, onDelete });
+    const store = () =>
+      makeStore({ messages: current, onDelete, setMessages: vi.fn() });
     const runtime = new ExternalStoreThreadRuntimeCore(
       mockContextProvider,
       store(),
@@ -1274,5 +1275,32 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
 
     expect(runtime.messages.map((m) => m.id)).toEqual(["a1"]);
     expect(runtime.getBranches("a1")).toEqual(["a1"]);
+    expect(() => runtime.switchToBranch("u1")).toThrow(
+      "MessageRepository(switchToBranch): Branch not found",
+    );
+  });
+
+  it("keeps an off-branch sibling the host declined to delete", async () => {
+    let current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "one"),
+    ];
+    const onDelete = vi.fn(async (id: string) => {
+      current = current.filter((m) => m.id !== id);
+    });
+    const store = () => makeStore({ messages: current, onDelete });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    current = [current[0]!, message("a2", "assistant", "two")];
+    runtime.__internal_setAdapter(store());
+    expect(runtime.getBranches("a2")).toEqual(["a1", "a2"]);
+
+    await runtime.deleteMessage("a1");
+
+    expect(onDelete).toHaveBeenCalledWith("a1");
+    expect(runtime.getBranches("a2")).toEqual(["a1", "a2"]);
   });
 });
