@@ -6,6 +6,7 @@ platforms: ["react"]
 
 import {
   ToolFallbackSample,
+  ToolFallbackCompletedSample,
   ToolFallbackRunningSample,
   ToolFallbackCancelledSample,
   ToolFallbackStreamingSample,
@@ -59,6 +60,12 @@ const AssistantMessage = () => {
 Interactive demo showing the full tool call lifecycle: running → complete.
 
 <ToolFallbackStreamingSample />
+
+### Completed With Result
+
+Shows the arguments and the structured result for the completed call.
+
+<ToolFallbackCompletedSample />
 
 ### Running State
 

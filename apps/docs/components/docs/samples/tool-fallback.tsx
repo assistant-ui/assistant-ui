@@ -35,6 +35,27 @@ export function ToolFallbackSample() {
   );
 }
 
+export function ToolFallbackCompletedSample() {
+  return (
+    <SampleFrame className="flex h-auto items-center p-6">
+      <ToolFallbackRoot defaultOpen>
+        <ToolFallbackTrigger
+          toolName="get_weather"
+          status={{ type: "complete" }}
+        />
+        <ToolFallbackContent>
+          <ToolFallbackArgs
+            argsText={JSON.stringify({ location: "San Francisco" }, null, 2)}
+          />
+          <ToolFallbackResult
+            result={{ temperature: 72, condition: "Sunny", humidity: 45 }}
+          />
+        </ToolFallbackContent>
+      </ToolFallbackRoot>
+    </SampleFrame>
+  );
+}
+
 export function ToolFallbackRunningSample() {
   return (
     <SampleFrame className="flex h-auto items-center p-6">
