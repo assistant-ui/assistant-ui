@@ -1,5 +1,13 @@
 # @assistant-ui/react-devtools
 
+## 1.2.15
+
+### Patch Changes
+
+- [#6163](https://github.com/assistant-ui/assistant-ui/pull/6163) [`cef6d73`](https://github.com/assistant-ui/assistant-ui/commit/cef6d731ebebc3c2d4d406f606a22228d650c396) - fix: contain failed DevTools conversation switches ([@okisdev](https://github.com/okisdev))
+  
+  Custom `DevToolsClient.switchToThread` implementations can reject. React does not observe promises returned from click handlers, so a rejection becomes an unhandledRejection. `useDevToolsClient` now consumes both synchronous throws and rejected promises at the client boundary, matching `createInProcessClient`.
+
 ## 1.2.14
 
 ### Patch Changes
