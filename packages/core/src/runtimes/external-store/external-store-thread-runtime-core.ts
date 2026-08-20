@@ -507,8 +507,8 @@ export class ExternalStoreThreadRuntimeCore
       ? this.repository.canonicalHeadId
       : null;
 
-    this._pendingDeleteEvictions.clear();
     this.repository.switchToBranch(branchId);
+    this._pendingDeleteEvictions.clear();
     this.updateMessages(this.repository.getMessages());
     if (onBranchChange) {
       this._notifyBranchChange(previousHeadId, onBranchChange);

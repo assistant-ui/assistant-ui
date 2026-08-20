@@ -1184,6 +1184,9 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     return {
       runtime,
       setMessages,
+      setStoreMessages: (m: import("../types/message").ThreadMessage[]) => {
+        current = m;
+      },
       syncSnapshot: () => runtime.__internal_setAdapter(store()),
     };
   };
@@ -1214,6 +1217,30 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
 
     expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a2"]);
     expect(runtime.getBranches("a2")).toEqual(["a2"]);
+  });
+
+  it("relinks every child branch when deleting a message with siblings", async () => {
+    const { runtime, syncSnapshot, setStoreMessages } = setup([
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+      message("a2", "assistant", "four"),
+    ]);
+
+    setStoreMessages([
+      message("u1", "user", "one"),
+      message("a1", "assistant", "two"),
+      message("u2", "user", "three"),
+      message("a3", "assistant", "five"),
+    ]);
+    syncSnapshot();
+    expect(runtime.getBranches("a3")).toEqual(["a2", "a3"]);
+
+    await runtime.deleteMessage("u2");
+    syncSnapshot();
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1", "a3"]);
+    expect(runtime.getBranches("a3")).toEqual(["a2", "a3"]);
   });
 
   it("does not resurrect deleted content through switchToBranch", async () => {
@@ -1413,6 +1440,18 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     );
     expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
     expect(runtime.getBranches("a1")).toEqual(["a1"]);
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [
+          message("u1b", "user", "other"),
+          message("a1b", "assistant", "branch"),
+        ],
+        onDelete,
+        setMessages: vi.fn(),
+      }),
+    );
+    expect(runtime.getBranches("u1b")).toEqual(["u1", "u1b"]);
   });
 
   it("does not evict a declined delete when a later mutation changes the branch", async () => {
