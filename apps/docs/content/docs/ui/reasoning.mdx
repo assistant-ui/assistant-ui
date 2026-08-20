@@ -6,6 +6,8 @@ platforms: ["react"]
 
 import { ReasoningSample, ReasoningGroupSample } from "@/components/docs/samples/reasoning";
 
+<ReasoningSample />
+
 ## Getting Started
 
 <Steps>
@@ -113,6 +115,14 @@ Use the `variant` prop on `ReasoningRoot` to change the visual style:
 | `ghost`   | No additional styling                        |
 | `muted`   | Muted background                             |
 
+## Examples
+
+### Variant Showcase
+
+The three disclosures show the outline, ghost, and muted surfaces. Select each trigger to compare its open and closed states.
+
+<ReasoningSample />
+
 ## Legacy ReasoningGroup
 
 `ReasoningGroup` is kept for existing code that still uses the deprecated `components.ReasoningGroup` prop on `MessagePrimitive.Parts`. New code should use `MessagePrimitive.GroupedParts` and compose the root/trigger/content pieces directly.
@@ -146,14 +156,6 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
   );
 };
 ```
-
-## Examples
-
-### Variants
-
-The three disclosures show the outline, ghost, and muted surfaces. Select each trigger to compare its open and closed states.
-
-<ReasoningSample />
 
 ## API Reference
 
