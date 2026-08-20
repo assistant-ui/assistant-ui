@@ -35,24 +35,6 @@ export function ToolFallbackSample() {
   );
 }
 
-export function ToolFallbackRunningSample() {
-  return (
-    <SampleFrame className="flex h-auto items-center p-6">
-      <ToolFallbackRoot>
-        <ToolFallbackTrigger
-          toolName="search_web"
-          status={{ type: "running" }}
-        />
-        <ToolFallbackContent>
-          <ToolFallbackArgs
-            argsText={JSON.stringify({ query: "latest news" }, null, 2)}
-          />
-        </ToolFallbackContent>
-      </ToolFallbackRoot>
-    </SampleFrame>
-  );
-}
-
 export function ToolFallbackCancelledSample() {
   return (
     <SampleFrame className="flex h-auto items-center p-6">
