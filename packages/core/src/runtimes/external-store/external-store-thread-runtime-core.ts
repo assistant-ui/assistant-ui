@@ -138,7 +138,10 @@ export class ExternalStoreThreadRuntimeCore
 
   // Ids the host was asked to delete via onDelete. The snapshot pass evicts
   // them from the repository once the host's array no longer carries them;
-  // an id the host kept is dropped from the set without eviction.
+  // an id the host kept is dropped from the set without eviction. Any other
+  // mutation invalidates the set: after e.g. an edit, the incoming array
+  // omits off-branch ids for reasons unrelated to deletion, and a declined
+  // delete must not evict then.
   private _pendingDeleteEvictions = new Set<string>();
 
   private _store!: ExternalStoreAdapter<any>;
@@ -491,6 +494,8 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override switchToBranch(branchId: string): void {
+    this._pendingDeleteEvictions.clear();
+
     if (!this._store.setMessages)
       throw new Error("Runtime does not support switching branches.");
 
@@ -533,6 +538,8 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
+    this._pendingDeleteEvictions.clear();
+
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
     const isEdit =
@@ -632,6 +639,7 @@ export class ExternalStoreThreadRuntimeCore
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) throw new Error("Message not found.");
 
+    this._pendingDeleteEvictions.clear();
     this.updateMessages(messages.filter((message) => message.id !== messageId));
     this._evictDeletedMessage(messageId);
   }
@@ -678,6 +686,8 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
 
+    this._pendingDeleteEvictions.clear();
+
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
     // exists. See `append` above for full rationale.
@@ -689,6 +699,8 @@ export class ExternalStoreThreadRuntimeCore
   public async resumeRun(config: ResumeRunConfig): Promise<void> {
     if (!this._store.onResume)
       throw new Error("Runtime does not support resuming runs.");
+
+    this._pendingDeleteEvictions.clear();
 
     await this._store.onResume(config);
   }

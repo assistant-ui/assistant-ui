@@ -1380,4 +1380,32 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
     expect(runtime.getBranches("a1")).toEqual(["a1"]);
   });
+
+  it("does not evict a declined delete when a later mutation changes the branch", async () => {
+    let current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "one"),
+    ];
+    const onDelete = vi.fn(async () => {});
+    const setMessages = vi.fn((m: unknown[]) => {
+      current = m as typeof current;
+    });
+    const store = () => makeStore({ messages: current, onDelete, setMessages });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    current = [current[0]!, message("a2", "assistant", "two")];
+    runtime.__internal_setAdapter(store());
+    expect(runtime.getBranches("a2")).toEqual(["a1", "a2"]);
+
+    await runtime.deleteMessage("a2");
+
+    runtime.switchToBranch("a1");
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1", "a2"]);
+  });
 });
