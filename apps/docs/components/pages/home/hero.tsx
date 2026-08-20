@@ -11,7 +11,7 @@ import { cn } from "@/lib/utils";
 import Image from "next/image";
 import Link from "next/link";
 
-const HEADLINE_WORDS = ["The", "frontend", "library", "for", "AI", "chat."];
+const HEADLINE_WORDS = ["The", "frontend", "library", "for", "AI", "agents."];
 
 export function Hero({
   stars,
@@ -26,7 +26,9 @@ export function Hero({
         aria-hidden
         className="pointer-events-none absolute top-1/2 right-0 hidden -translate-y-1/2 md:block"
       >
-        <div className="animate-in fade-in-0 bg-foreground/[0.05] h-[20rem] w-[20rem] [mask-image:url(/favicon/icon.svg),radial-gradient(circle,#000_40%,transparent_44%)] [mask-composite:intersect] [mask-size:contain,5px_5px] [mask-position:center,0_0] [mask-repeat:no-repeat,repeat] duration-1000" />
+        <div className="animate-in fade-in-0 bg-foreground/[0.05] relative h-[20rem] w-[20rem] overflow-hidden [mask-image:url(/favicon/icon.svg),radial-gradient(circle,#000_40%,transparent_44%)] [mask-composite:intersect] [mask-size:contain,5px_5px] [mask-position:center,0_0] [mask-repeat:no-repeat,repeat] duration-1000">
+          <span aria-hidden className="hero-glint absolute inset-0 block" />
+        </div>
       </div>
 
       <div className="relative flex flex-col gap-4">

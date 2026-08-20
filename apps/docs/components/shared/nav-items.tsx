@@ -194,7 +194,7 @@ export function NavItems({
                   className={cn(
                     "grid",
                     item.featured
-                      ? "min-h-[15.25rem] grid-cols-[minmax(0,20rem)_1fr_1fr]"
+                      ? "grid-cols-[minmax(0,20rem)_1fr_1fr]"
                       : cn(
                           item.groups.length <= 2 && "grid-cols-2",
                           item.groups.length === 3 && "grid-cols-3",

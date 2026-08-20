@@ -48,7 +48,7 @@ export const metadata = {
   metadataBase: getMetadataBase(),
   title: {
     template: "%s · assistant-ui",
-    default: "assistant-ui · The frontend library for AI chat",
+    default: "assistant-ui · The frontend library for AI agents",
   },
   description:
     "Open-source React components and runtimes for building AI chat. Streaming, tools, and persistence in TypeScript.",

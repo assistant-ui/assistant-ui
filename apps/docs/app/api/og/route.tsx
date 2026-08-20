@@ -106,7 +106,7 @@ export async function GET(request: NextRequest) {
           letterSpacing: "-0.01em",
         }}
       >
-        <span>The frontend library for AI chat.</span>
+        <span>The frontend library for AI agents.</span>
       </div>
     </div>
   );

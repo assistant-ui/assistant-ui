@@ -280,7 +280,7 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
         ) : null}
         <div
           key={`code-${activeTab?.id ?? "none"}`}
-          className="code-cascade relative min-w-0 overflow-x-auto px-6 pt-6 font-mono text-[13px] leading-relaxed md:px-10 [&_.line]:px-0! [&_code]:[font-variant-ligatures:none] [&_pre]:m-0 [&_pre]:bg-transparent! [&_pre]:whitespace-pre"
+          className="code-cascade relative min-w-0 overflow-x-auto px-6 pt-6 font-mono text-[13px] leading-relaxed md:px-10 [&_.line]:pr-0! [&_.line]:pl-2.5! [&_code]:[font-variant-ligatures:none] [&_pre]:m-0 [&_pre]:bg-transparent! [&_pre]:whitespace-pre"
           dangerouslySetInnerHTML={{ __html: activeTab?.html ?? "" }}
         />
         <p
