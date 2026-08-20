@@ -80,6 +80,8 @@ import { Thread } from "@/components/assistant-ui/thread";
 
 const weatherToolkit = defineToolkit({
   get_weather: {
+    type: "backend",
+    display: "standalone",
     render: WeatherToolUI,
   },
 });
