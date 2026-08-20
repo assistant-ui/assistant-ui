@@ -18,7 +18,7 @@ function VariantPair({
   return (
     <div className="flex flex-col gap-2">
       <span className="text-muted-foreground text-xs font-medium">{label}</span>
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid items-start gap-3 sm:grid-cols-2">
         <ReasoningRoot className="mb-0" variant={variant}>
           <ReasoningTrigger />
           <ReasoningContent>
