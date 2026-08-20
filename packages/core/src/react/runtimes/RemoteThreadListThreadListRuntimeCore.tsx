@@ -240,7 +240,7 @@ export class RemoteThreadListThreadListRuntimeCore
     this._hookManager.__internal_subscribeRuntimeReplaced(() => {
       // A republish can land during the thread resource's render, where a
       // synchronous notify would re-enter store consumers mid-render.
-      void Promise.resolve().then(() => this._notifySubscribers());
+      queueMicrotask(() => this._notifySubscribers());
     });
     this.useProvider = create(() => ({
       Provider: this.resolveProvider(options.adapter),
