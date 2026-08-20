@@ -17,8 +17,11 @@ export type HighlighterProps = Omit<
 } & Pick<AUIProps, "language" | "code"> &
   Partial<Pick<AUIProps, "node" | "components">>;
 
+// not-typeset excludes the container from typeset.css, so the component owns
+// every pre style. The pre pairs with the CodeHeader bar in markdown-text:
+// solid muted background, no side borders, matched corner radius.
 const containerClassName =
-  "aui-shiki-base [&_pre]:border-border/50 [&_pre]:bg-muted/30! [&_.line]:px-0! [&_pre]:mt-0 [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-xl [&_pre]:border [&_pre]:border-t-0 [&_pre]:p-3.5 [&_pre]:text-[13px] [&_pre]:leading-relaxed";
+  "not-typeset aui-shiki-base [&_.line]:px-0! [&_pre]:bg-muted! [&_pre]:mt-0 [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:p-3.5 [&_pre]:text-[13px] [&_pre]:leading-relaxed";
 
 const PlainCode: FC<{ code: string }> = ({ code }) => (
   <pre>

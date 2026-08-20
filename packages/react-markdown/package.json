@@ -37,7 +37,8 @@
     "README.md"
   ],
   "sideEffects": [
-    "*.css"
+    "./styles/dot.css",
+    "./styles/typeset.css"
   ],
   "scripts": {
     "build": "aui-build",
