@@ -571,6 +571,7 @@ export class LocalThreadRuntimeCore
     } catch {
       hasStoredMessage = false;
     }
+    // Other writers replace the stored message object, so identity distinguishes this run from a newer owner.
     const ownsMessage = () => {
       if (!hasStoredMessage) return this._activeRun === run;
       try {

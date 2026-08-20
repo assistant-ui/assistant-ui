@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: stop superseded local runs before tool continuation
+fix: settle aborted and superseded local runs without continuing them, while keeping approval pauses answerable after cancel

@@ -872,7 +872,7 @@ describe("LocalThreadRuntimeCore cancellation", () => {
       (part) => part.type === "tool-call" && part.toolCallId === "call-deploy",
     );
     expect(sendEmail?.result).toEqual({ approved: true });
-    expect(deploy?.approval?.approved).toBeUndefined();
+    expect(deploy?.approval).toEqual({ id: "approval-1" });
     expect(message?.status.type).toBe("requires-action");
   });
 
