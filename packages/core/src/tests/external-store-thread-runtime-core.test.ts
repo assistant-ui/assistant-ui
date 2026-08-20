@@ -1208,4 +1208,22 @@ describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
     expect(idsAfter.slice(1)).toEqual(idsBefore);
     expect(new Set(idsAfter).size).toBe(3);
   });
+
+  it("assigns identical fallback ids across separate core instances", () => {
+    const m1 = { text: "one" };
+    const m2 = { role: "assistant" as const, text: "two" };
+
+    const server = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      storeWith([m1, m2]),
+    );
+    const client = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      storeWith([m1, m2]),
+    );
+
+    expect(client.messages.map((m) => m.id)).toEqual(
+      server.messages.map((m) => m.id),
+    );
+  });
 });

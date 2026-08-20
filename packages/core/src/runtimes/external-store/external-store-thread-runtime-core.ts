@@ -139,8 +139,11 @@ export class ExternalStoreThreadRuntimeCore
   // Fallback ids must be stable per store message, not positional: a cached
   // conversion keeps the id it was created with, so an index-derived id
   // collides with fresh conversions once the list shifts (e.g. prepending
-  // older history), and the duplicate sweep would drop a real message.
+  // older history), and the duplicate sweep would drop a real message. The
+  // ids come from a counter rather than generateId so a server render and
+  // its hydration pass assign identical ids.
   private _fallbackIds = new WeakMap<WeakKey, string>();
+  private _nextFallbackId = 0;
 
   private _store!: ExternalStoreAdapter<any>;
 
@@ -302,7 +305,7 @@ export class ExternalStoreThreadRuntimeCore
 
             let fallbackId = this._fallbackIds.get(m);
             if (fallbackId === undefined) {
-              fallbackId = generateId();
+              fallbackId = (this._nextFallbackId++).toString();
               this._fallbackIds.set(m, fallbackId);
             }
 
