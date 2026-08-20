@@ -75,7 +75,7 @@ Pass an array of `{ value, items }` groups to the root, then render each group w
 
 ### Clear and disabled
 
-`showClear` swaps the chevron for a clear button. A disabled combobox keeps its value visible at half opacity.
+`showClear` shows a clear button instead of the chevron while a value is selected. A disabled combobox keeps its value visible at half opacity.
 
 <PreviewCode file="components/design/specimens" name="ComboboxStatesSpecimen" base={<ComboboxStatesSpecimen />}>
   <RadixSpecimens.ComboboxStatesSpecimen />
@@ -137,7 +137,7 @@ The field that anchors the popup and receives the filter text.
       name: "showClear",
       type: "boolean",
       default: "false",
-      description: "Replaces the chevron with a button that clears the selection.",
+      description: "Adds a clear button that replaces the chevron while a value is selected.",
     },
     {
       name: "placeholder",

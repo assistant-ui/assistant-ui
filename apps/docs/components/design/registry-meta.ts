@@ -109,7 +109,7 @@ export const DESIGN_SECTIONS: DesignSectionMeta[] = [
         slug: "callout",
         name: "Callout",
         description:
-          "A tinted aside for notes, warnings, and errors inside prose.",
+          "A quiet aside on a colored rule, for notes, warnings, and errors in prose.",
       },
       {
         slug: "steps",

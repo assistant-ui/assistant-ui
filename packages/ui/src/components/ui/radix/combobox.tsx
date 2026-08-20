@@ -67,7 +67,12 @@ function ComboboxInput({
       />
       {(showTrigger || showClear) && (
         <div className="absolute inset-y-0 end-1.5 flex items-center">
-          {showClear ? <ComboboxClear /> : <ComboboxTrigger />}
+          {showClear && <ComboboxClear className="peer/clear" />}
+          {showTrigger && (
+            <ComboboxTrigger
+              className={cn(showClear && "peer-data-visible/clear:hidden")}
+            />
+          )}
         </div>
       )}
     </div>
