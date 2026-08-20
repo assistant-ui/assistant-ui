@@ -674,6 +674,8 @@ export class ExternalStoreThreadRuntimeCore
     if (!this._store.onCancel)
       throw new Error("Runtime does not support cancelling runs.");
 
+    const generation = captureThreadRuntimeGeneration(this);
+
     // Abort any in-flight client-side tool executions. Fire-and-forget —
     // the abort resolves once executions settle, but we don't gate the
     // cancel on it.
@@ -731,6 +733,8 @@ export class ExternalStoreThreadRuntimeCore
     // tick. Read the repository at flush time and re-apply the rollbacks to
     // it, instead of stamping a snapshot captured above over the newer state.
     setTimeout(() => {
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+
       this.dropEmptyOptimisticHead();
       if (movedLeaf) {
         const current = this.repository.getMessages();

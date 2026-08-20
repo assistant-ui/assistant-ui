@@ -304,7 +304,7 @@ export type ToolCallMessagePartStatus =
       /** The tool call is waiting for UI or human input before continuing. */
       readonly type: "requires-action";
       /** Reason the tool call requires action. */
-      readonly reason: "interrupt";
+      readonly reason: "tool-calls" | "interrupt";
     }
   | MessagePartStatus;
 

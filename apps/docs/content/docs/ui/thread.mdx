@@ -5,8 +5,12 @@ platforms: ["react"]
 ---
 
 import { ThreadSample } from "@/components/docs/samples/thread";
+import { ThreadHistorySample } from "@/components/docs/samples/thread/thread-history";
+import { ThreadActionsSample } from "@/components/docs/samples/thread/message-actions";
 import { PreviewCode } from "@/components/docs/preview-code.server";
+import { ThreadWelcomeSuggestionsSample } from "@/components/docs/samples/thread/welcome-with-suggestions";
 import { ThreadBranchSample } from "@/components/docs/samples/thread/branching-response";
+import { ThreadRunningSample } from "@/components/docs/samples/thread/running-response";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
 attachments, and conditional UI states. Fully customizable and composable.
@@ -92,6 +96,13 @@ export default function Chat() {
 </AuiIf>
 ```
 
+### Thread with History
+
+The thread shows a completed multi-turn conversation. The composer stays below the
+messages, ready for the next input.
+
+<ThreadHistorySample />
+
 ### Conditional Send/Cancel Button
 
 ```tsx
@@ -108,9 +119,22 @@ export default function Chat() {
 </AuiIf>
 ```
 
+While the last assistant response runs, the composer shows the cancel action, not the send action, and the action bar of the response stays hidden. Click the stop button to cancel the run. The composer then shows the send action again.
+
+<ThreadRunningSample />
+
 ### Suggestions
 
 Display suggested prompts using the Suggestions API. See the [Suggestions guide](/docs/guides/suggestions) for detailed configuration.
+
+An empty thread centers the welcome screen and shows the configured suggestion chips. When you select a chip, the thread sends its prompt.
+
+<PreviewCode
+  file="components/docs/samples/thread/welcome-with-suggestions"
+  name="ChatWithSuggestions"
+>
+  <ThreadWelcomeSuggestionsSample />
+</PreviewCode>
 
 ```tsx
 import type { ReactNode } from "react";
@@ -164,6 +188,12 @@ Select the refresh action below the assistant response to make an alternate bran
 >
   <ThreadBranchSample />
 </PreviewCode>
+
+### Message Actions
+
+Hover over the first assistant response to show its action bar. When the thread is idle, the last response always shows its actions. The copied `Thread` component sets `hideWhenRunning` and `autohide="not-last"` on `ActionBarPrimitive.Root`. Refer to the [ActionBar primitive](/docs/primitives/action-bar) to change this behavior.
+
+<ThreadActionsSample />
 
 ## Component Overrides
 

@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState, type ComponentProps } from "react";
 
 import { Text } from "ink";
-import { useThreadIsRunning } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
 
 const defaultFormat = (seconds: number) => {
@@ -24,7 +23,7 @@ export const LoadingElapsedTime = ({
   format = defaultFormat,
   ...textProps
 }: LoadingElapsedTimeProps) => {
-  const isRunning = useThreadIsRunning();
+  const isRunning = useAuiState((s) => s.thread.isRunning);
   const streamStartTime = useAuiState((s) => {
     const lastMessage = s.thread.messages.at(-1);
 

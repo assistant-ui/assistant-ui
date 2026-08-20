@@ -172,8 +172,7 @@ const ComposerAction: FC = () => {
       <div className="flex items-center gap-1">
         <ComposerAddAttachment />
 
-        {/* Dictation Button - Show when not dictation */}
-        <ComposerPrimitive.If dictation={false}>
+        <AuiIf condition={(s) => s.composer.dictation == null}>
           <ComposerPrimitive.Dictate asChild>
             <TooltipIconButton
               tooltip="Voice input"
@@ -185,10 +184,9 @@ const ComposerAction: FC = () => {
               <MicIcon className="size-5" />
             </TooltipIconButton>
           </ComposerPrimitive.Dictate>
-        </ComposerPrimitive.If>
+        </AuiIf>
 
-        {/* Stop Dictation Button - Show when dictation */}
-        <ComposerPrimitive.If dictation>
+        <AuiIf condition={(s) => s.composer.dictation != null}>
           <ComposerPrimitive.StopDictation asChild>
             <TooltipIconButton
               tooltip="Stop dictation"
@@ -200,10 +198,10 @@ const ComposerAction: FC = () => {
               <Square className="size-4 animate-pulse fill-current" />
             </TooltipIconButton>
           </ComposerPrimitive.StopDictation>
-        </ComposerPrimitive.If>
+        </AuiIf>
       </div>
 
-      <ThreadPrimitive.If running={false}>
+      <AuiIf condition={(s) => !s.thread.isRunning}>
         <ComposerPrimitive.Send asChild>
           <TooltipIconButton
             tooltip="Send message"
@@ -217,9 +215,9 @@ const ComposerAction: FC = () => {
             <ArrowUpIcon className="aui-composer-send-icon size-5" />
           </TooltipIconButton>
         </ComposerPrimitive.Send>
-      </ThreadPrimitive.If>
+      </AuiIf>
 
-      <ThreadPrimitive.If running>
+      <AuiIf condition={(s) => s.thread.isRunning}>
         <ComposerPrimitive.Cancel asChild>
           <Button
             type="button"
@@ -231,7 +229,7 @@ const ComposerAction: FC = () => {
             <Square className="aui-composer-cancel-icon size-3.5 fill-white dark:fill-black" />
           </Button>
         </ComposerPrimitive.Cancel>
-      </ThreadPrimitive.If>
+      </AuiIf>
     </div>
   );
 };
@@ -281,12 +279,12 @@ const AssistantActionBar: FC = () => {
     >
       <ActionBarPrimitive.Copy asChild>
         <TooltipIconButton tooltip="Copy">
-          <MessagePrimitive.If copied>
+          <AuiIf condition={(s) => s.message.isCopied}>
             <CheckIcon />
-          </MessagePrimitive.If>
-          <MessagePrimitive.If copied={false}>
+          </AuiIf>
+          <AuiIf condition={(s) => !s.message.isCopied}>
             <CopyIcon />
-          </MessagePrimitive.If>
+          </AuiIf>
         </TooltipIconButton>
       </ActionBarPrimitive.Copy>
       <ActionBarPrimitive.Reload asChild>

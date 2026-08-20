@@ -8,6 +8,7 @@ import type { ModelContextProvider } from "../model-context/types";
 import type { AppendMessage, ThreadMessage } from "../types/message";
 import { createMessageQueue } from "../runtime/queue/message-queue";
 import { getThreadMessageText } from "../utils/text";
+import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
 
 const createContextProvider = (): ModelContextProvider => ({
   getModelContext: () => ({}),
@@ -302,6 +303,25 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       const texts = lastCall.map(getThreadMessageText);
       expect(texts).toContain("partial answer (stopped)");
       expect(texts).not.toContain("partial answer");
+    });
+
+    it("does not resync after the runtime is invalidated", async () => {
+      const setMessages = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [createAssistantMessage("a1", "partial answer")],
+          isRunning: true,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      invalidateThreadRuntime(core);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(setMessages).not.toHaveBeenCalled();
     });
 
     it("re-applies the user leaf rollback when the store updates before the flush", async () => {

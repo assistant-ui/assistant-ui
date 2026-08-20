@@ -170,7 +170,7 @@ export function PlaygroundChatThread({
       {onRunningChange && <RunningObserver onRunningChange={onRunningChange} />}
       <ThreadPrimitive.Root className="flex flex-1 flex-col overflow-hidden">
         <ThreadPrimitive.Viewport className="flex flex-1 scrollbar-none flex-col gap-3 overflow-y-auto px-3 pt-3">
-          <ThreadPrimitive.Empty>
+          <AuiIf condition={(s) => s.thread.isEmpty}>
             <div className="flex flex-1 flex-col items-center justify-center gap-4 py-8 text-center">
               <div>
                 <p className="text-sm font-medium">
@@ -195,7 +195,7 @@ export function PlaygroundChatThread({
                 ))}
               </div>
             </div>
-          </ThreadPrimitive.Empty>
+          </AuiIf>
 
           <ThreadPrimitive.Messages
             components={{ UserMessage, AssistantMessage }}

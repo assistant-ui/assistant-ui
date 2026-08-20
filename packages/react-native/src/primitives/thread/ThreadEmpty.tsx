@@ -1,12 +1,13 @@
 import type { ReactNode } from "react";
-import { useThreadIsEmpty } from "@assistant-ui/core/react";
+import { AuiIf } from "@assistant-ui/store";
 
 export type ThreadEmptyProps = {
   children: ReactNode;
 };
 
-export const ThreadEmpty = ({ children }: ThreadEmptyProps) => {
-  const isEmpty = useThreadIsEmpty();
-  if (!isEmpty) return null;
-  return <>{children}</>;
-};
+/**
+ * @deprecated Use `<AuiIf condition={(s) => s.thread.isEmpty} />` instead.
+ */
+export const ThreadEmpty = ({ children }: ThreadEmptyProps) => (
+  <AuiIf condition={(s) => s.thread.isEmpty}>{children}</AuiIf>
+);

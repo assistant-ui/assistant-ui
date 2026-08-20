@@ -2913,7 +2913,7 @@ type ThreadComposerState = BaseComposerState & {
   readonly type: "thread";
 };
 
-declare const ThreadEmpty: (_param37: ThreadEmptyProps) => import("react").JSX.Element | null;
+declare const ThreadEmpty: (_param37: ThreadEmptyProps) => import("react").JSX.Element;
 
 type ThreadEmptyProps = {
   children: ReactNode;
@@ -3748,7 +3748,7 @@ type ToolCallMessagePartProps<TArgs = any, TResult = unknown> = MessagePartState
 
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
-  readonly reason: "interrupt";
+  readonly reason: "interrupt" | "tool-calls";
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {

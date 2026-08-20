@@ -331,6 +331,16 @@ const approvalOptionLabel = (option: ToolApprovalOption) =>
     : undefined) ??
   option.id;
 
+const offersInterruptAction = (
+  status: ToolCallMessagePartStatus | undefined,
+  approval: ToolCallMessagePart["approval"],
+  interrupt: ToolCallMessagePart["interrupt"],
+) =>
+  status?.type !== "requires-action" ||
+  status.reason !== "interrupt" ||
+  approval != null ||
+  interrupt != null;
+
 function ToolFallbackApproval({
   className,
   addResult,
@@ -338,10 +348,14 @@ function ToolFallbackApproval({
   interrupt,
   approval,
   respondToApproval,
+  status,
   ...props
 }: React.ComponentProps<"div"> &
   Partial<
-    Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">
+    Pick<
+      ToolCallMessagePartProps,
+      "addResult" | "resume" | "respondToApproval" | "status"
+    >
   > & {
     interrupt?: ToolCallMessagePart["interrupt"];
     approval?: ToolCallMessagePart["approval"];
@@ -354,6 +368,8 @@ function ToolFallbackApproval({
     (approval.approved !== undefined || approval.resolution !== undefined)
   )
     return null;
+
+  if (!offersInterruptAction(status, approval, interrupt)) return null;
 
   // Custom (`_`-prefixed) kinds cannot be resolved to a boolean by the kit;
   // hosts using custom kinds render their own bar. A declared option list is
@@ -374,6 +390,11 @@ function ToolFallbackApproval({
       respondToApproval({ approved });
     } else if (interrupt) {
       resume?.({ approved });
+    } else if (
+      status?.type === "requires-action" &&
+      status.reason === "interrupt"
+    ) {
+      return;
     } else {
       addResult?.(approved ? APPROVED_RESULT : DENIED_RESULT);
     }
@@ -539,6 +560,8 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
+  const shouldRenderApproval =
+    isRequiresAction && offersInterruptAction(status, approval, interrupt);
 
   const [open, setOpen] = useState(isRequiresAction);
   const [prevRequiresAction, setPrevRequiresAction] =
@@ -557,13 +580,14 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
           argsText={argsText}
           className={cn(isCancelled && "opacity-60")}
         />
-        {isRequiresAction && (
+        {shouldRenderApproval && (
           <ToolFallbackApproval
             addResult={addResult}
             resume={resume}
             interrupt={interrupt}
             approval={approval}
             respondToApproval={respondToApproval}
+            status={status}
           />
         )}
         {!isCancelled && <ToolFallbackResult result={result} />}

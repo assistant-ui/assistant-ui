@@ -2,6 +2,7 @@ import { useEffect, useRef } from "react";
 import { View, Text, Animated, Platform, StyleSheet } from "react-native";
 import { Image } from "expo-image";
 import {
+  AuiIf,
   useAuiState,
   MessagePrimitive,
   ErrorPrimitive,
@@ -130,12 +131,19 @@ function AssistantMessage() {
           />
         </ErrorPrimitive.Root>
       </View>
-      <MessagePrimitive.If running={false}>
+      <AuiIf
+        condition={(s) =>
+          !(
+            s.message.role === "assistant" &&
+            s.message.status.type === "running"
+          )
+        }
+      >
         <View style={styles.actionsRow}>
           <MessageBranchPicker align="flex-start" />
           <MessageActionBar />
         </View>
-      </MessagePrimitive.If>
+      </AuiIf>
     </MessagePrimitive.Root>
   );
 }

@@ -673,6 +673,325 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
 });
 
 describe("LocalThreadRuntimeCore cancellation", () => {
+  it("settles a superseded tool-call result without aborting its replacement", async () => {
+    let resolveFirst!: (result: ChatModelRunResult) => void;
+    let resolveSecond!: (result: ChatModelRunResult) => void;
+    const firstResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return runs.length === 1 ? firstResult : secondResult;
+      },
+    });
+
+    const firstAppend = thread.append(userMessage("first"));
+    await flush();
+    const supersededMessageId = thread.messages.at(-1)!.id;
+    const secondAppend = thread.append({
+      ...userMessage("second"),
+      parentId: supersededMessageId,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(2);
+    expect(runs[0]?.abortSignal.aborted).toBe(true);
+    expect(runs[1]?.abortSignal.aborted).toBe(false);
+
+    resolveFirst(toolCallResult("lookup_weather"));
+    await firstAppend;
+
+    expect(runs).toHaveLength(2);
+    expect(runs[1]?.abortSignal.aborted).toBe(false);
+    expect(
+      thread.messages.find((item) => item.id === supersededMessageId)?.status,
+    ).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+
+    resolveSecond({ content: [{ type: "text", text: "replacement" }] });
+    await secondAppend;
+  });
+
+  it("cancels a superseded approval pause", async () => {
+    let resolveFirst!: (result: ChatModelRunResult) => void;
+    let resolveSecond!: (result: ChatModelRunResult) => void;
+    const firstResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return runs.length === 1 ? firstResult : secondResult;
+      },
+    });
+
+    const firstAppend = thread.append(userMessage("first"));
+    await flush();
+    const supersededMessageId = thread.messages.at(-1)!.id;
+    const secondAppend = thread.append({
+      ...userMessage("second"),
+      parentId: supersededMessageId,
+    });
+    await flush();
+
+    resolveFirst(toolCallResult("deploy", { id: "approval-1" }));
+    await firstAppend;
+
+    expect(
+      thread.messages.find((item) => item.id === supersededMessageId)?.status,
+    ).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+
+    resolveSecond({ content: [{ type: "text", text: "replacement" }] });
+    await secondAppend;
+  });
+
+  it("ignores a stale result after addToolResult replaces the same message", async () => {
+    let releaseFirst!: () => void;
+    let resolveSecond!: (result: ChatModelRunResult) => void;
+    const firstTeardown = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const secondResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        if (runs.length === 1) {
+          return (async function* () {
+            yield toolCallResult("send_email");
+            await firstTeardown;
+            yield toolCallResult("stale_tool");
+          })();
+        }
+        return secondResult;
+      },
+    });
+
+    const firstAppend = thread.append(userMessage("send an email"));
+    await flush();
+    const messageId = thread.messages.at(-1)!.id;
+
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(2);
+    expect(runs[1]?.abortSignal.aborted).toBe(false);
+
+    releaseFirst();
+    await firstAppend;
+
+    const toolCall = thread.messages
+      .find((item) => item.id === messageId)
+      ?.content.find(
+        (part) =>
+          part.type === "tool-call" && part.toolCallId === "call-send_email",
+      );
+    expect(toolCall?.result).toEqual({ approved: true });
+    expect(runs[1]?.abortSignal.aborted).toBe(false);
+
+    resolveSecond({ content: [{ type: "text", text: "replacement" }] });
+    await vi.waitFor(() => {
+      expect(
+        thread.messages.find((item) => item.id === messageId)?.status.type,
+      ).toBe("complete");
+    });
+  });
+
+  it("ignores stale chunks after a partial tool result updates the active message", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return (async function* () {
+          yield {
+            content: [
+              toolCallPart("send_email"),
+              toolCallPart("deploy", { id: "approval-1" }),
+            ],
+            status: {
+              type: "requires-action",
+              reason: "tool-calls",
+            },
+          } satisfies ChatModelRunResult;
+          await teardown;
+          yield { content: [{ type: "text", text: "stale" }] };
+        })();
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("send and deploy"));
+    await flush();
+    const messageId = thread.messages.at(-1)!.id;
+
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+
+    releaseTeardown();
+    await appendPromise;
+
+    const message = thread.messages.find((item) => item.id === messageId);
+    const sendEmail = message?.content.find(
+      (part) =>
+        part.type === "tool-call" && part.toolCallId === "call-send_email",
+    );
+    const deploy = message?.content.find(
+      (part) => part.type === "tool-call" && part.toolCallId === "call-deploy",
+    );
+    expect(sendEmail?.result).toEqual({ approved: true });
+    expect(deploy?.approval).toEqual({ id: "approval-1" });
+    expect(message?.status.type).toBe("requires-action");
+  });
+
+  it("ignores a superseded result after its message is removed", async () => {
+    let resolveFirst!: (result: ChatModelRunResult) => void;
+    const firstResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    let runCount = 0;
+    const thread = createThread({
+      run() {
+        runCount++;
+        if (runCount === 1) return firstResult;
+        return Promise.resolve({
+          content: [{ type: "text", text: "replacement" }],
+        });
+      },
+    });
+
+    const firstAppend = thread.append(userMessage("first"));
+    await flush();
+    await thread.append(userMessage("second"));
+    thread.reset();
+
+    resolveFirst(toolCallResult("lookup_weather"));
+
+    await expect(firstAppend).resolves.toBeUndefined();
+    expect(thread.messages).toHaveLength(0);
+  });
+
+  it("does not continue after cancelRun when a delayed tool call resolves", async () => {
+    let resolveFirst!: (result: ChatModelRunResult) => void;
+    const firstResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        if (runs.length === 1) return firstResult;
+        return Promise.resolve({
+          content: [{ type: "text", text: "unexpected continuation" }],
+          status: { type: "complete", reason: "stop" },
+        });
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("first"));
+    await flush();
+
+    thread.cancelRun();
+    resolveFirst(toolCallResult("lookup_weather"));
+    await appendPromise;
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+  });
+
+  it("preserves a terminal adapter status when cancelled during teardown", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const thread = createThread({
+      async *run() {
+        yield {
+          content: [{ type: "text", text: "done" }],
+          status: { type: "complete", reason: "stop" },
+        };
+        await teardown;
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("first"));
+    await flush();
+
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "complete",
+      reason: "stop",
+    });
+
+    thread.cancelRun();
+    releaseTeardown();
+    await appendPromise;
+
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "complete",
+      reason: "stop",
+    });
+  });
+
+  it("preserves an approval pause when the adapter yields after cancellation", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const thread = createThread({
+      async *run() {
+        yield toolCallResult("deploy", { id: "approval-1" });
+        await teardown;
+        yield { content: [{ type: "text", text: "late" }] };
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("deploy"));
+    await flush();
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("requires-action");
+
+    thread.cancelRun();
+    releaseTeardown();
+    await appendPromise;
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("requires-action");
+  });
+
   it("keeps a replacement run cancellable after the previous run settles", async () => {
     let releaseFirst!: () => void;
     let releaseSecond!: () => void;
