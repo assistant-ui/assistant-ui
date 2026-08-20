@@ -5,7 +5,7 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 export function MarkdownWithCode() {
-  const codeMarkdown = `Call \`useLocalRuntime\` once at the top of your provider component.
+  const codeMarkdown = `Wrap \`useLocalRuntime\` in a hook, then call the hook from your provider component.
 
 \`\`\`typescript
 function useExampleRuntime() {
