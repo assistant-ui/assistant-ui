@@ -84,13 +84,13 @@ function TimeAxisTicks({
             x2={x}
             y2={28}
             stroke="currentColor"
-            className="text-border"
+            className="text-foreground/15"
           />
           <text
             x={x}
             y={14}
             textAnchor="middle"
-            className="fill-muted-foreground text-[10px]"
+            className="fill-muted-foreground font-mono text-[9px]"
           >
             {formatTime(t)}
           </text>
@@ -198,31 +198,28 @@ export function WaterfallTimeline() {
 
   if (!hasSpans) {
     return (
-      <div className="border-border text-muted-foreground rounded-lg border py-12 text-center text-sm">
-        No spans recorded.
+      <div className="border-foreground/10 text-muted-foreground border py-12 text-center font-mono text-[12px]">
+        no spans recorded
       </div>
     );
   }
 
   return (
-    <div
-      ref={outerRef}
-      className="border-border overflow-hidden rounded-lg border"
-    >
+    <div ref={outerRef} className="border-foreground/10 overflow-hidden border">
       <div
         ref={scrollRef}
         className="overflow-auto"
         style={{ maxHeight: scrollMaxHeight }}
       >
         <div
-          className="border-border bg-background sticky top-0 z-20 flex border-b"
+          className="border-foreground/10 bg-background sticky top-0 z-20 flex border-b"
           style={{ width: contentWidth }}
         >
           <div
-            className="border-border bg-background text-muted-foreground sticky left-0 z-30 shrink-0 border-r px-2 py-1.5 text-xs"
+            className="border-foreground/10 bg-background text-muted-foreground sticky left-0 z-30 flex shrink-0 items-center border-r px-2 font-mono text-[10px] tracking-wide uppercase"
             style={{ width: LABEL_WIDTH }}
           >
-            Span
+            span
           </div>
           <div style={{ width: barWidth, height: 28 }}>
             <TimeAxisTicks timeRange={renderTimeRange} barWidth={barWidth} />
@@ -241,13 +238,10 @@ export function WaterfallTimeline() {
         </WaterfallLayoutContext.Provider>
       </div>
 
-      <div className="border-border text-muted-foreground flex items-center gap-4 border-t px-3 py-2 text-xs">
+      <div className="border-foreground/10 text-muted-foreground/70 flex flex-wrap items-center gap-x-4 gap-y-1 border-t px-3 py-2 font-mono text-[10px] tracking-wide">
         {Object.entries(TYPE_COLORS).map(([label, color]) => (
           <div key={label} className="flex items-center gap-1.5">
-            <span
-              className="size-2.5 rounded-sm"
-              style={{ background: color }}
-            />
+            <span className="size-2" style={{ background: color }} />
             <span>{label}</span>
           </div>
         ))}

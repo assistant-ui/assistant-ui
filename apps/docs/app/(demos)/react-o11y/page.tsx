@@ -112,9 +112,7 @@ export default function ReactO11yPage() {
       </header>
 
       <figure className="mt-12 md:mt-16">
-        <div className="border-foreground/10 border p-4 md:p-6">
-          <WaterfallSample />
-        </div>
+        <WaterfallSample />
         <figcaption className="text-muted-foreground/70 mt-2 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-[11px] tracking-wide">
           <span>fig. 01 · a live waterfall</span>
           <span>collapse subtrees · hold ⌘ and scroll to zoom</span>
@@ -134,7 +132,7 @@ export default function ReactO11yPage() {
                 <p className="text-muted-foreground mt-2 text-sm leading-relaxed text-pretty">
                   {capability.description}
                 </p>
-                <div className="border-foreground/10 mt-5 flex flex-1 items-start border p-4">
+                <div className="mt-5 flex flex-1 items-start">
                   <Demo />
                 </div>
               </div>
