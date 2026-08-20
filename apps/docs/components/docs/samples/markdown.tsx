@@ -12,6 +12,10 @@ This is a paragraph with **bold text**, *italic text*, and [links](#).
 
 - First item
 - Second item
+- Third item
+
+Tasks:
+
 - [x] Completed task
 - [ ] Open task
 
