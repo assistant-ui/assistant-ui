@@ -565,7 +565,11 @@ export class LocalThreadRuntimeCore
     const initialData = message.metadata?.unstable_data;
     const initialSteps = message.metadata?.steps;
     const initialCustom = message.metadata?.custom;
+    const ownsMessage = () =>
+      this._activeRun === run ||
+      this.repository.getMessage(message.id).message === message;
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
+      if (!ownsMessage()) return;
       const newSteps = m.metadata?.steps;
       const steps = newSteps
         ? [...(initialSteps ?? []), ...newSteps]
@@ -736,7 +740,7 @@ export class LocalThreadRuntimeCore
 
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
-      if (isTerminal || (isPausing && history?.update)) {
+      if (ownsMessage() && (isTerminal || (isPausing && history?.update))) {
         const write =
           alreadyPersisted && history?.update
             ? history.update.bind(history)

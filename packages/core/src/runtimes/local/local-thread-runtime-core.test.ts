@@ -759,6 +759,66 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     await secondAppend;
   });
 
+  it("ignores a stale result after addToolResult replaces the same message", async () => {
+    let releaseFirst!: () => void;
+    let resolveSecond!: (result: ChatModelRunResult) => void;
+    const firstTeardown = new Promise<void>((resolve) => {
+      releaseFirst = resolve;
+    });
+    const secondResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        if (runs.length === 1) {
+          return (async function* () {
+            yield toolCallResult("send_email");
+            await firstTeardown;
+            yield toolCallResult("stale_tool");
+          })();
+        }
+        return secondResult;
+      },
+    });
+
+    const firstAppend = thread.append(userMessage("send an email"));
+    await flush();
+    const messageId = thread.messages.at(-1)!.id;
+
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(2);
+    expect(runs[1]?.abortSignal.aborted).toBe(false);
+
+    releaseFirst();
+    await firstAppend;
+
+    const toolCall = thread.messages
+      .find((item) => item.id === messageId)
+      ?.content.find(
+        (part) =>
+          part.type === "tool-call" && part.toolCallId === "call-send_email",
+      );
+    expect(toolCall?.result).toEqual({ approved: true });
+    expect(runs[1]?.abortSignal.aborted).toBe(false);
+
+    resolveSecond({ content: [{ type: "text", text: "replacement" }] });
+    await vi.waitFor(() => {
+      expect(
+        thread.messages.find((item) => item.id === messageId)?.status.type,
+      ).toBe("complete");
+    });
+  });
+
   it("does not continue after cancelRun when a delayed tool call resolves", async () => {
     let resolveFirst!: (result: ChatModelRunResult) => void;
     const firstResult = new Promise<ChatModelRunResult>((resolve) => {
