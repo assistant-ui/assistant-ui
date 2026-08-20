@@ -5,6 +5,7 @@ platforms: ["react"]
 ---
 
 import { ReasoningSample, ReasoningGroupSample } from "@/components/docs/samples/reasoning";
+import { ReasoningCompletedSample } from "@/components/docs/samples/reasoning/completed-with-duration";
 
 <ReasoningSample />
 
@@ -148,6 +149,14 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
   );
 };
 ```
+
+## Examples
+
+### Completed with Duration
+
+Set `duration` (in seconds) on `ReasoningTrigger` to show the completed reasoning duration in the trigger label. The disclosure starts closed because `defaultOpen` is `false`. Select the trigger to open or close the reasoning text.
+
+<ReasoningCompletedSample />
 
 ## API Reference
 
