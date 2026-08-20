@@ -1,0 +1,38 @@
+---
+title: "Tooltip"
+description: "A short label that appears on hover and stays out of the way."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/tooltip.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { TooltipSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="TooltipSpecimen">
+  <TooltipSpecimen />
+</PreviewCode>
+
+## Installation
+
+Tooltip is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return (
+    <Tooltip>
+      <TooltipTrigger render={<Button variant="outline">Hover me</Button>} />
+      <TooltipContent>Copy message</TooltipContent>
+    </Tooltip>
+  );
+}
+```
+
+## When to skip it
+
+A tooltip earns its place when the control is an icon alone. Once the label is written next to the control, the tooltip repeats it; leave it off.

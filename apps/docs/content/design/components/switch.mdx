@@ -1,0 +1,37 @@
+---
+title: "Switch"
+description: "A binary control in two sizes; the only capsule in the kit."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/switch.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { SwitchSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="SwitchSpecimen">
+  <SwitchSpecimen />
+</PreviewCode>
+
+## Installation
+
+Switch is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import { Switch } from "@/components/ui/switch";
+
+export function Example() {
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <Switch defaultChecked />
+      Streaming
+    </label>
+  );
+}
+```
+
+## Sizes
+
+`size` takes `default` (32×18) and `sm` (24×14). Control it with `checked` and `onCheckedChange` when the state lives outside.

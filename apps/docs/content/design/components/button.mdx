@@ -1,0 +1,32 @@
+---
+title: "Button"
+description: "The pressable object: thin, flat, and 8px round, in every weight a surface needs."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/button.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { ButtonSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="ButtonSpecimen">
+  <ButtonSpecimen />
+</PreviewCode>
+
+## Installation
+
+Button is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return <Button variant="outline">Read the docs</Button>;
+}
+```
+
+## Variants and sizes
+
+`variant` takes `default`, `outline`, `secondary`, `ghost`, and `destructive`. `size` takes `xs`, `sm`, `default`, `lg`, and the square `icon` sizes for icon-only buttons. The default height is 32px; `sm` is the 28px header control.

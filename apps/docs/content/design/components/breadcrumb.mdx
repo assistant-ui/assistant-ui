@@ -1,0 +1,47 @@
+---
+title: "Breadcrumb"
+description: "Where you are, as a path you can walk back up."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/breadcrumb.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { BreadcrumbSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="BreadcrumbSpecimen">
+  <BreadcrumbSpecimen />
+</PreviewCode>
+
+## Installation
+
+Breadcrumb is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+
+export function Example() {
+  return (
+    <Breadcrumb>
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink href="/design">Design</BreadcrumbLink>
+        </BreadcrumbItem>
+        <BreadcrumbSeparator />
+        <BreadcrumbItem>
+          <BreadcrumbPage>Breadcrumb</BreadcrumbPage>
+        </BreadcrumbItem>
+      </BreadcrumbList>
+    </Breadcrumb>
+  );
+}
+```

@@ -1,0 +1,50 @@
+---
+title: "Dialog"
+description: "A modal sheet for decisions that need the page to wait."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/dialog.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { DialogSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="DialogSpecimen">
+  <DialogSpecimen />
+</PreviewCode>
+
+## Installation
+
+Dialog is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return (
+    <Dialog>
+      <DialogTrigger render={<Button variant="outline">Rename</Button>} />
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Rename thread</DialogTitle>
+          <DialogDescription>Visible to everyone in this workspace.</DialogDescription>
+        </DialogHeader>
+      </DialogContent>
+    </Dialog>
+  );
+}
+```
+
+## Parts
+
+`DialogFooter` right-aligns the actions and `DialogClose` wraps any control that should dismiss the dialog. The content sits at the dialog radius, one step above surfaces.

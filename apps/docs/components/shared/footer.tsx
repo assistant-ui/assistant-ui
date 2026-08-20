@@ -21,7 +21,10 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
     { label: "React Native", href: "/native" },
     { label: "Ink", href: "/ink" },
   ],
-  Extend: [{ label: "Elements", href: "/elements" }],
+  Extend: [
+    { label: "Elements", href: "/elements" },
+    { label: "Design", href: "/design" },
+  ],
   Company: [
     { label: "Blog", href: "/blog" },
     { label: "Careers", href: "/careers" },

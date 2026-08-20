@@ -1,0 +1,50 @@
+---
+title: "Sheet"
+description: "A panel that slides in from an edge for secondary flows."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/sheet.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { SheetSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="SheetSpecimen">
+  <SheetSpecimen />
+</PreviewCode>
+
+## Installation
+
+Sheet is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return (
+    <Sheet>
+      <SheetTrigger render={<Button variant="outline">Open threads</Button>} />
+      <SheetContent side="right">
+        <SheetHeader>
+          <SheetTitle>Threads</SheetTitle>
+          <SheetDescription>Recent conversations.</SheetDescription>
+        </SheetHeader>
+      </SheetContent>
+    </Sheet>
+  );
+}
+```
+
+## Sides
+
+`side` takes `right`, `left`, `top`, and `bottom`. The mobile thread list in the assistant-ui examples is a `left` sheet.

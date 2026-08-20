@@ -66,7 +66,7 @@ function DropdownLink({ link }: { link: DropdownItem }) {
 function FeaturedCard({
   featured,
 }: {
-  featured: { label: string; item: DropdownItem };
+  featured: { label: string; item: DropdownItem; extraItems?: DropdownItem[] };
 }) {
   const link = featured.item;
 
@@ -91,6 +91,9 @@ function FeaturedCard({
           </Link>
         }
       />
+      {featured.extraItems?.map((item) => (
+        <DropdownLink key={item.href} link={item} />
+      ))}
     </div>
   );
 }

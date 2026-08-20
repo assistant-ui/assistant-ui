@@ -1,0 +1,48 @@
+---
+title: "Dropdown Menu"
+description: "Actions behind a trigger: items, shortcuts, and separators on a quiet surface."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/dropdown-menu.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { DropdownMenuSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="DropdownMenuSpecimen">
+  <DropdownMenuSpecimen />
+</PreviewCode>
+
+## Installation
+
+Dropdown Menu is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="outline">Open</Button>} />
+      <DropdownMenuContent>
+        <DropdownMenuItem>Profile</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>Sign out</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+```
+
+## Parts
+
+`DropdownMenuShortcut` prints a right-aligned key hint inside an item. `DropdownMenuCheckboxItem`, `DropdownMenuRadioGroup`, and `DropdownMenuSub` cover checkable items and nested menus. Triggers take Base UI's `render` prop instead of `asChild`.

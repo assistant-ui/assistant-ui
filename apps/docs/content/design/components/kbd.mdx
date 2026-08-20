@@ -1,0 +1,33 @@
+---
+title: "Kbd"
+description: "Keyboard keys as printed caps, for shortcuts and hints."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/kbd.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { KbdSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="KbdSpecimen">
+  <KbdSpecimen />
+</PreviewCode>
+
+## Installation
+
+Kbd is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+
+export function Example() {
+  return (
+    <KbdGroup>
+      <Kbd>⌘</Kbd>
+      <Kbd>K</Kbd>
+    </KbdGroup>
+  );
+}
+```

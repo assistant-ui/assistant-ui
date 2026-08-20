@@ -1,0 +1,42 @@
+---
+title: "Collapsible"
+description: "One region that folds open and closed in place."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/collapsible.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { CollapsibleSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="CollapsibleSpecimen">
+  <CollapsibleSpecimen />
+</PreviewCode>
+
+## Installation
+
+Collapsible is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return (
+    <Collapsible>
+      <CollapsibleTrigger render={<Button variant="ghost">What ran</Button>} />
+      <CollapsibleContent>Three tool calls.</CollapsibleContent>
+    </Collapsible>
+  );
+}
+```
+
+## Controlled
+
+Pass `open` and `onOpenChange` to drive it from outside, the way reasoning sections open while a model is thinking and fold when it settles.

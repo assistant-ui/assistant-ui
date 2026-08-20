@@ -1,0 +1,37 @@
+---
+title: "Avatar"
+description: "People as initials or images, alone or stacked in groups."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/avatar.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { AvatarSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="AvatarSpecimen">
+  <AvatarSpecimen />
+</PreviewCode>
+
+## Installation
+
+Avatar is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+export function Example() {
+  return (
+    <Avatar>
+      <AvatarImage src="/avatar.png" alt="Ada" />
+      <AvatarFallback>AD</AvatarFallback>
+    </Avatar>
+  );
+}
+```
+
+## Groups
+
+`AvatarGroup` overlaps its children and `AvatarGroupCount` closes the stack with an overflow count. `AvatarBadge` pins a status marker to the rim.

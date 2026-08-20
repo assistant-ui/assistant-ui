@@ -32,21 +32,19 @@ describe("NAV_ITEMS", () => {
     expect(products?.type).toBe("mega");
     if (products?.type !== "mega") return;
 
+    expect(products.featured?.label).toBe("Extend");
+    expect(products.featured?.item.label).toBe("Elements");
+    expect(products.featured?.extraItems?.map((item) => item.label)).toEqual([
+      "Design",
+    ]);
+
     expect(products.groups.map((group) => group.label)).toEqual([
-      "Extend",
       "Platforms",
       "Hosted",
     ]);
     expect(
       products.groups.flatMap((group) => group.items.map((item) => item.label)),
-    ).toEqual([
-      "Elements",
-      "React",
-      "React Native",
-      "Ink",
-      "Cloud",
-      "Playground",
-    ]);
+    ).toEqual(["React", "React Native", "Ink", "Cloud", "Playground"]);
   });
 
   it("keeps Resources to Learn and Company", () => {

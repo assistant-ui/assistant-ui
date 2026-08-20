@@ -18,6 +18,23 @@ function GlyphElements() {
   );
 }
 
+function GlyphDesign() {
+  return (
+    <span className="relative flex h-6 w-8">
+      <span className="border-foreground/25 absolute inset-[3px] border" />
+      <span className="bg-foreground/40 absolute top-[1px] left-[1px] size-[4px]" />
+      <span className="bg-foreground/40 absolute top-[1px] right-[1px] size-[4px]" />
+      <span className="bg-foreground/40 absolute bottom-[1px] left-[1px] size-[4px]" />
+      <span
+        className={cn(
+          "bg-foreground/40 absolute right-[1px] bottom-[1px] size-[4px]",
+          ACCENT,
+        )}
+      />
+    </span>
+  );
+}
+
 function GlyphReact() {
   return (
     <span className="flex w-7 flex-col gap-[3px]">
@@ -201,6 +218,7 @@ function GlyphBrand() {
 
 const GLYPHS: Record<NavGlyphKind, () => React.ReactNode> = {
   elements: GlyphElements,
+  design: GlyphDesign,
   react: GlyphReact,
   native: GlyphNative,
   ink: GlyphInk,

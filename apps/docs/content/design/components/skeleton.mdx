@@ -1,0 +1,37 @@
+---
+title: "Skeleton"
+description: "The loading shape of content that has a known layout."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/skeleton.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { SkeletonSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="SkeletonSpecimen">
+  <SkeletonSpecimen />
+</PreviewCode>
+
+## Installation
+
+Skeleton is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import { Skeleton } from "@/components/ui/skeleton";
+
+export function Example() {
+  return (
+    <div className="flex items-center gap-3">
+      <Skeleton className="size-10 rounded-full" />
+      <Skeleton className="h-4 w-40" />
+    </div>
+  );
+}
+```
+
+## When to use it
+
+A skeleton mirrors the layout the data will fill, so reserve it for loading states whose shape is known. Live machine activity is a different state; assistant-ui renders that with activity indicators instead.

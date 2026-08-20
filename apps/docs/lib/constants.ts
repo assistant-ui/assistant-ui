@@ -107,6 +107,7 @@ export const SUB_PROJECTS: (Product & { slug: string })[] = [
 
 export type NavGlyphKind =
   | "elements"
+  | "design"
   | "react"
   | "native"
   | "ink"
@@ -138,7 +139,11 @@ export type NavItem =
   | {
       type: "mega";
       label: string;
-      featured?: { label: string; item: DropdownItem };
+      featured?: {
+        label: string;
+        item: DropdownItem;
+        extraItems?: DropdownItem[];
+      };
       groups: NavGroup[];
     };
 
@@ -156,6 +161,15 @@ export const NAV_ITEMS: NavItem[] = [
         external: false,
         glyph: "elements",
       },
+      extraItems: [
+        {
+          label: "Design",
+          href: "/design",
+          description: "Every component, live.",
+          external: false,
+          glyph: "design",
+        },
+      ],
     },
     groups: [
       {

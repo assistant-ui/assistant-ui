@@ -1,0 +1,46 @@
+---
+title: "Popover"
+description: "Anchored detail on demand, dismissed by clicking away."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/popover.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { PopoverSpecimen } from "@/components/design/specimens";
+
+<PreviewCode file="components/design/specimens" name="PopoverSpecimen">
+  <PopoverSpecimen />
+</PreviewCode>
+
+## Installation
+
+Popover is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+
+## Usage
+
+```tsx
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return (
+    <Popover>
+      <PopoverTrigger render={<Button variant="outline">Details</Button>} />
+      <PopoverContent>
+        <PopoverHeader>
+          <PopoverTitle>Context usage</PopoverTitle>
+          <PopoverDescription>12.4k of 200k tokens.</PopoverDescription>
+        </PopoverHeader>
+      </PopoverContent>
+    </Popover>
+  );
+}
+```
