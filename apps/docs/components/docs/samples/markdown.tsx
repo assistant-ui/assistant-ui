@@ -1,9 +1,10 @@
 "use client";
 
+import "@assistant-ui/react-markdown/styles/typeset.css";
+
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
-import { cn } from "@/lib/utils";
 
 const sampleMarkdown = `## Markdown Rendering
 
@@ -13,109 +14,28 @@ This is a paragraph with **bold text**, *italic text*, and [links](#).
 - Second item
 - Third item
 
+Tasks:
+
+- [x] Completed task
+- [ ] Open task
+
 > This is a blockquote with some quoted text.
 
 | Name  | Value |
 |-------|-------|
 | Alpha | 100   |
 | Beta  | 200   |
-`;
 
-const components = {
-  h2: ({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) => (
-    <h2
-      className={cn(
-        "aui-md-h2 mt-8 mb-4 scroll-m-20 text-2xl font-semibold tracking-tight first:mt-0 last:mb-0",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  p: ({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) => (
-    <p
-      className={cn(
-        "aui-md-p mt-5 mb-5 leading-7 first:mt-0 last:mb-0",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  a: ({
-    className,
-    ...props
-  }: React.AnchorHTMLAttributes<HTMLAnchorElement>) => (
-    <a
-      className={cn(
-        "aui-md-a text-primary font-medium underline underline-offset-4",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  ul: ({ className, ...props }: React.HTMLAttributes<HTMLUListElement>) => (
-    <ul
-      className={cn("aui-md-ul my-5 ms-6 list-disc [&>li]:mt-2", className)}
-      {...props}
-    />
-  ),
-  blockquote: ({
-    className,
-    ...props
-  }: React.HTMLAttributes<HTMLQuoteElement>) => (
-    <blockquote
-      className={cn("aui-md-blockquote border-s-2 ps-6 italic", className)}
-      {...props}
-    />
-  ),
-  table: ({ className, ...props }: React.HTMLAttributes<HTMLTableElement>) => (
-    <table
-      className={cn(
-        "aui-md-table my-5 w-full border-separate border-spacing-0 overflow-y-auto",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  th: ({
-    className,
-    ...props
-  }: React.ThHTMLAttributes<HTMLTableCellElement>) => (
-    <th
-      className={cn(
-        "aui-md-th bg-muted px-4 py-2 text-start font-bold first:rounded-ss-lg last:rounded-se-lg",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  td: ({
-    className,
-    ...props
-  }: React.TdHTMLAttributes<HTMLTableCellElement>) => (
-    <td
-      className={cn(
-        "aui-md-td border-s border-b px-4 py-2 text-start last:border-e",
-        className,
-      )}
-      {...props}
-    />
-  ),
-  tr: ({ className, ...props }: React.HTMLAttributes<HTMLTableRowElement>) => (
-    <tr
-      className={cn(
-        "aui-md-tr m-0 border-b p-0 first:border-t [&:last-child>td:first-child]:rounded-es-lg [&:last-child>td:last-child]:rounded-ee-lg",
-        className,
-      )}
-      {...props}
-    />
-  ),
-};
+\`\`\`ts
+const total = rows.reduce((sum, row) => sum + row.value, 0);
+\`\`\`
+`;
 
 export const MarkdownSample = () => {
   return (
     <SampleFrame className="bg-background h-auto p-4">
-      <div className="aui-md">
-        <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
+      <div className="aui-md typeset text-(length:--typeset-size) text-inherit [--typeset-flow:1em] [--typeset-leading:1.6]">
+        <ReactMarkdown remarkPlugins={[remarkGfm]}>
           {sampleMarkdown}
         </ReactMarkdown>
       </div>

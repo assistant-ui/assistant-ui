@@ -495,7 +495,7 @@ function DiffViewer({
     return (
       <pre
         data-slot="diff-viewer"
-        className={cn("bg-muted rounded-lg p-4", className)}
+        className={cn("not-typeset bg-muted rounded-lg p-4", className)}
       >
         No diff content provided
       </pre>
