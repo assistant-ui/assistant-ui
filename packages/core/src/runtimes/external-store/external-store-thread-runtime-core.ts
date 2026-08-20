@@ -494,8 +494,6 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public override switchToBranch(branchId: string): void {
-    this._pendingDeleteEvictions.clear();
-
     if (!this._store.setMessages)
       throw new Error("Runtime does not support switching branches.");
 
@@ -509,6 +507,7 @@ export class ExternalStoreThreadRuntimeCore
       ? this.repository.canonicalHeadId
       : null;
 
+    this._pendingDeleteEvictions.clear();
     this.repository.switchToBranch(branchId);
     this.updateMessages(this.repository.getMessages());
     if (onBranchChange) {
@@ -538,8 +537,6 @@ export class ExternalStoreThreadRuntimeCore
   }
 
   public async append(rawMessage: AppendMessage): Promise<void> {
-    this._pendingDeleteEvictions.clear();
-
     // sourceId marks an edit send; the parent may coincide with the head
     // after a resync (e.g. cancelRun dropped the edited message).
     const isEdit =
@@ -571,6 +568,8 @@ export class ExternalStoreThreadRuntimeCore
       }
       if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
+      this._pendingDeleteEvictions.clear();
+
       // Buffering does not start a run, so the tool-abort below must wait
       // until the queue flushes. By then the prior run (and its tools) has
       // settled.
@@ -601,8 +600,10 @@ export class ExternalStoreThreadRuntimeCore
     if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
+      this._pendingDeleteEvictions.clear();
       await this._store.onEdit(message);
     } else {
+      this._pendingDeleteEvictions.clear();
       await this._store.onNew(message);
     }
   }

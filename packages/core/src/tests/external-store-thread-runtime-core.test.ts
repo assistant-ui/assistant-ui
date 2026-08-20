@@ -1299,9 +1299,43 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     expect(runtime.getBranches("a2")).toEqual(["a1", "a2"]);
 
     await runtime.deleteMessage("a1");
+    current = [...current];
+    runtime.__internal_setAdapter(store());
 
     expect(onDelete).toHaveBeenCalledWith("a1");
     expect(runtime.getBranches("a2")).toEqual(["a1", "a2"]);
+  });
+
+  it("keeps a pending eviction across a branch switch swallowed mid-run", async () => {
+    let current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ];
+    const onDelete = vi.fn(async (id: string) => {
+      current = current.filter((m) => m.id !== id);
+    });
+    const store = (isRunning: boolean) =>
+      makeStore({
+        messages: current,
+        onDelete,
+        setMessages: vi.fn(),
+        isRunning,
+      });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(true),
+    );
+
+    await runtime.deleteMessage("u1");
+    runtime.switchToBranch("a1");
+    runtime.__internal_setAdapter(store(true));
+
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+
+    runtime.__internal_setAdapter(store(false));
+    expect(() => runtime.switchToBranch("u1")).toThrow(
+      "MessageRepository(switchToBranch): Branch not found",
+    );
   });
 
   it("keeps a visible message the host declined to delete", async () => {
