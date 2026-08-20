@@ -141,7 +141,7 @@ export class MessageRepository {
 
     if (operation === "relink" && parentOrRoot === newParentOrRoot) return;
 
-    if (operation !== "cut") {
+    if (operation === "relink") {
       for (
         let current: RepositoryMessage | null = newParent;
         current;
