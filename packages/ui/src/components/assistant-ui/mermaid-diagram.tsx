@@ -327,7 +327,7 @@ const MermaidDiagramImpl: FC<MermaidDiagramProps> = ({
       <div
         data-slot="mermaid-fallback"
         className={cn(
-          "aui-mermaid-fallback bg-muted/75 rounded-b-lg",
+          "not-typeset aui-mermaid-fallback bg-muted/75 rounded-b-lg",
           className,
         )}
       >
