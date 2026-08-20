@@ -83,7 +83,7 @@ function WeatherToolChat() {
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
       <div ref={startRun} className="h-full">
-        <Thread />
+        <Thread autoFocus={false} />
       </div>
     </AssistantRuntimeProvider>
   );
