@@ -62,7 +62,7 @@ Current status: **streaming safely**.`;
 
 export function MarkdownStreamingSample() {
   return (
-    <SampleFrame className="h-auto p-6">
+    <SampleFrame className="bg-background h-auto min-h-96 p-6">
       <div className="mx-auto w-full max-w-2xl">
         <StreamingMarkdown />
       </div>
