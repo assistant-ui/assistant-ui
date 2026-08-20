@@ -13,22 +13,27 @@ export function TerminalDemo() {
   }, []);
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="bg-muted/40 overflow-hidden rounded-2xl">
-        {src ? (
-          <iframe
-            src={src}
-            className="h-[480px] w-full border-0"
-            title="assistant-ui ink live demo"
-            allow="clipboard-read; clipboard-write"
-          />
-        ) : (
-          <div className="h-[480px] w-full" aria-hidden />
-        )}
+    <div className="border-foreground/10 overflow-hidden border">
+      <div className="border-foreground/10 text-muted-foreground flex h-9 items-center justify-between border-b px-3.5 font-mono text-[11px] tracking-wide">
+        <span>~ assistant-ui · ink</span>
+        <span className="flex items-center gap-1.5">
+          <span className="size-1.5 animate-pulse rounded-full bg-blue-500 motion-reduce:animate-none" />
+          live
+        </span>
       </div>
-      <p className="text-muted-foreground text-sm">
-        A live Ink render loop. Click the terminal and type.
-      </p>
+      {src ? (
+        <iframe
+          src={src}
+          className="h-[480px] w-full border-0"
+          title="assistant-ui ink live demo"
+          allow="clipboard-read; clipboard-write"
+        />
+      ) : (
+        <div
+          className="bg-foreground/[0.025] dark:bg-foreground/[0.04] h-[480px] w-full"
+          aria-hidden
+        />
+      )}
     </div>
   );
 }

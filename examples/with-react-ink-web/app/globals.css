@@ -18,7 +18,6 @@ body {
 
 .terminal-host {
   width: 100%;
-  max-width: 960px;
   height: min(100%, 560px);
 }
 
