@@ -107,6 +107,15 @@ describe("ImageActions data URI handling", () => {
     expect(await blob.text()).toBe(payload);
   });
 
+  it("percent-decodes valid sequences even when a bare percent is present", async () => {
+    renderActions(
+      "data:image/svg+xml,%3Csvg%3E%3Ctext%3E100% width%3C/text%3E%3C/svg%3E",
+    );
+
+    const blob = await downloadedBlob();
+    expect(await blob.text()).toBe("<svg><text>100% width</text></svg>");
+  });
+
   it("decodes a base64 payload unchanged", async () => {
     renderActions(`data:image/png;base64,${btoa("hello")}`);
 
