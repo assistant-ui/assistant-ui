@@ -8,9 +8,10 @@ import {
   ToolFallbackSample,
   ToolFallbackRunningSample,
   ToolFallbackCancelledSample,
-  ToolFallbackStreamingSample,
   ToolFallbackRequiresActionSample,
 } from "@/components/docs/samples/tool-fallback";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { ToolFallbackRendererSample } from "@/components/docs/samples/tool-fallback/custom-renderer";
 
 <ToolFallbackSample />
 
@@ -54,11 +55,45 @@ const AssistantMessage = () => {
 
 ## Examples
 
-### Streaming Demo
+### Custom Tool Renderer
 
-Interactive demo showing the full tool call lifecycle: running → complete.
+The thread sends a weather request when the preview loads. The registered renderer replaces the default fallback. It shows "Checking the forecast…" first, then the temperature, condition, and humidity.
 
-<ToolFallbackStreamingSample />
+<PreviewCode
+  file="components/docs/samples/tool-fallback/custom-renderer"
+  name="WeatherToolUI"
+>
+  <ToolFallbackRendererSample />
+</PreviewCode>
+
+Register the renderer in a toolkit. Then add the config to `AssistantRuntimeProvider`.
+
+```tsx
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  defineToolkit,
+  Tools,
+} from "@assistant-ui/react";
+
+import { Thread } from "@/components/assistant-ui/thread";
+
+const weatherToolkit = defineToolkit({
+  get_weather: {
+    type: "backend",
+    display: "standalone",
+    render: WeatherToolUI,
+  },
+});
+
+const config = AuiConfig({
+  tools: Tools({ toolkit: weatherToolkit }),
+});
+
+<AssistantRuntimeProvider runtime={runtime} config={config}>
+  <Thread />
+</AssistantRuntimeProvider>;
+```
 
 ### Running State
 

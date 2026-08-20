@@ -195,6 +195,10 @@ Hover over the first assistant response to show its action bar. When the thread 
 
 <ThreadActionsSample />
 
+## Composer Focus
+
+Set `autoFocus={false}` to keep the page focus. This setting stops composer focus when the thread mounts, starts a run, changes threads, or scrolls to the bottom. The default value is `true`.
+
 ## Component Overrides
 
 `Thread` accepts an optional `components` prop that swaps parts of the rendering without editing the copied file. All slots are optional; omitted slots keep the built-in rendering.
