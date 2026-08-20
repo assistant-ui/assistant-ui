@@ -19,6 +19,7 @@ export function ThreadListItem({ onSelect }: { onSelect: () => void }) {
     <ThreadListItemPrimitive.Root>
       <Pressable
         accessibilityRole="button"
+        accessibilityState={{ selected: isActive }}
         onPressIn={haptics.selection}
         onPress={() => {
           aui.threadListItem.switchTo();

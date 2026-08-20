@@ -1,6 +1,10 @@
 import { View, Text, Pressable, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { ThreadListPrimitive, useAui } from "@assistant-ui/react-native";
+import {
+  ThreadListPrimitive,
+  useAui,
+  useAuiState,
+} from "@assistant-ui/react-native";
 import type { DrawerContentComponentProps } from "expo-router/build/react-navigation/drawer/types";
 import { ThreadListItem } from "./ThreadListItem";
 import { Icon } from "@/components/ui/icon";
@@ -11,6 +15,9 @@ import { haptics } from "@/lib/haptics";
 export function ThreadListDrawer({ navigation }: DrawerContentComponentProps) {
   const { colors } = useTheme();
   const aui = useAui();
+  const isNewThreadActive = useAuiState(
+    (s) => s.threads.newThreadId === s.threads.mainThreadId,
+  );
   const insets = useSafeAreaInsets();
 
   return (
@@ -23,6 +30,7 @@ export function ThreadListDrawer({ navigation }: DrawerContentComponentProps) {
       <ThreadListPrimitive.Root style={styles.root}>
         <Pressable
           accessibilityRole="button"
+          accessibilityState={{ selected: isNewThreadActive }}
           onPressIn={haptics.selection}
           onPress={() => {
             aui.threads.switchToNewThread();
