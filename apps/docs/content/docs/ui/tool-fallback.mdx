@@ -11,6 +11,7 @@ import {
   ToolFallbackStreamingSample,
   ToolFallbackRequiresActionSample,
 } from "@/components/docs/samples/tool-fallback";
+import { ToolFallbackErrorSample } from "@/components/docs/samples/tool-fallback/failed-with-error";
 
 <ToolFallbackSample />
 
@@ -65,6 +66,12 @@ Interactive demo showing the full tool call lifecycle: running → complete.
 Shows a loading spinner and shimmer animation while the tool is executing.
 
 <ToolFallbackRunningSample />
+
+### Failed With Error State
+
+Shows a service error above its arguments.
+
+<ToolFallbackErrorSample />
 
 ### Cancelled State
 
