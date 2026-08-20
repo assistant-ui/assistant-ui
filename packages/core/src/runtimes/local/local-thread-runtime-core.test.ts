@@ -783,6 +783,30 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     });
   });
 
+  it("preserves an approval pause when cancelled during teardown", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const thread = createThread({
+      async *run() {
+        yield toolCallResult("deploy", { id: "approval-1" });
+        await teardown;
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("deploy"));
+    await flush();
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("requires-action");
+
+    thread.cancelRun();
+    releaseTeardown();
+    await appendPromise;
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("requires-action");
+  });
+
   it("keeps a replacement run cancellable after the previous run settles", async () => {
     let releaseFirst!: () => void;
     let releaseSecond!: () => void;

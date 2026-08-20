@@ -678,7 +678,10 @@ export class LocalThreadRuntimeCore
         updateMessage(await promiseOrGenerator);
       }
 
-      if (abortSignal.aborted && message.status.type === "requires-action") {
+      if (
+        abortSignal.aborted &&
+        shouldContinue(message, this._options.unstable_humanToolNames)
+      ) {
         updateMessage({
           status: { type: "incomplete", reason: "cancelled" },
         });
