@@ -69,7 +69,8 @@
 
 @theme inline {
   --font-sans: var(--font-public-sans);
-  --font-display: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display:
+    ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: var(--font-jetbrains-mono);
   --container-7xl: var(--page-width);
   --tracking-hero: -0.015em;
@@ -202,11 +203,12 @@
   --border: oklch(0.985 0.002 var(--tint) / 10%);
   --input: oklch(0.985 0.002 var(--tint) / 15%);
   --ring: oklch(0.556 0.004 var(--tint));
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
+  /* Same chart hues as light, lightness lifted for the dark ground. */
+  --chart-1: oklch(0.68 0.21 41.116);
+  --chart-2: oklch(0.64 0.118 184.704);
+  --chart-3: oklch(0.56 0.09 227.392);
+  --chart-4: oklch(0.828 0.189 84.429);
+  --chart-5: oklch(0.769 0.188 70.08);
   --sidebar: oklch(0.215 0.003 var(--tint));
   --sidebar-foreground: oklch(0.985 0.002 var(--tint));
   --sidebar-primary: oklch(0.488 0.243 264.376);

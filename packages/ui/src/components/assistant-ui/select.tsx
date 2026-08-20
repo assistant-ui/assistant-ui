@@ -144,7 +144,7 @@ const SelectLabel = ({
   <SelectPrimitive.GroupLabel
     data-slot="select-label"
     className={cn(
-      "text-muted-foreground px-2.5 pt-1.5 pb-1 text-[11px] font-medium tracking-wide",
+      "text-muted-foreground px-2.5 pt-1.5 pb-1 font-mono text-[11px] font-medium tracking-wide uppercase",
       className,
     )}
     {...props}
@@ -160,7 +160,7 @@ const SelectItem = ({
     data-slot="select-item"
     className={cn(
       "relative flex h-8 w-full cursor-default items-center gap-2 rounded-md py-0 ps-2.5 pe-8 text-[13px] tracking-tight outline-none select-none",
-      "data-highlighted:bg-foreground/5 data-selected:font-medium",
+      "data-highlighted:bg-foreground/[0.06] data-selected:font-medium",
       "data-disabled:pointer-events-none data-disabled:opacity-50",
       "[&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-3.5",
       className,
@@ -184,7 +184,7 @@ const SelectSeparator = ({
 }: SelectPrimitive.Separator.Props) => (
   <SelectPrimitive.Separator
     data-slot="select-separator"
-    className={cn("bg-foreground/8 mx-1.5 my-1 h-px", className)}
+    className={cn("bg-foreground/10 -mx-1.5 my-1 h-px", className)}
     {...props}
   />
 );

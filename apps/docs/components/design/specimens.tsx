@@ -77,6 +77,17 @@ import {
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+} from "@/components/ui/combobox";
 import { Input } from "@/components/ui/input";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { Label } from "@/components/ui/label";
@@ -161,6 +172,119 @@ export function InputSpecimen(): ReactNode {
         <Label htmlFor="specimen-email">Email</Label>
         <Input id="specimen-email" type="email" placeholder="you@example.com" />
       </div>
+    </SampleFrame>
+  );
+}
+
+export function ComboboxSpecimen(): ReactNode {
+  const runtimes = [
+    "AI SDK",
+    "LangGraph",
+    "LangChain",
+    "Mastra",
+    "External Store",
+    "Local",
+  ];
+  return (
+    <SampleFrame className={frameClass}>
+      <Combobox items={runtimes} defaultValue="AI SDK">
+        <ComboboxInput
+          className="w-56"
+          placeholder="Search runtimes…"
+          aria-label="Search runtimes"
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>No runtimes found.</ComboboxEmpty>
+          <ComboboxList>
+            {(runtime: string) => (
+              <ComboboxItem key={runtime} value={runtime}>
+                {runtime}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    </SampleFrame>
+  );
+}
+
+export function ComboboxGroupsSpecimen(): ReactNode {
+  const groups = [
+    {
+      value: "Frameworks",
+      items: ["AI SDK", "LangGraph", "LangChain", "Mastra"],
+    },
+    { value: "Custom", items: ["External Store", "Local"] },
+  ];
+  return (
+    <SampleFrame className={frameClass}>
+      <Combobox items={groups}>
+        <ComboboxInput
+          className="w-56"
+          placeholder="Search runtimes…"
+          aria-label="Search runtimes"
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>No runtimes found.</ComboboxEmpty>
+          <ComboboxList>
+            {(group: { value: string; items: string[] }) => (
+              <ComboboxGroup key={group.value} items={group.items}>
+                <ComboboxLabel>{group.value}</ComboboxLabel>
+                <ComboboxCollection>
+                  {(runtime: string) => (
+                    <ComboboxItem key={runtime} value={runtime}>
+                      {runtime}
+                    </ComboboxItem>
+                  )}
+                </ComboboxCollection>
+              </ComboboxGroup>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+    </SampleFrame>
+  );
+}
+
+export function ComboboxStatesSpecimen(): ReactNode {
+  const runtimes = ["AI SDK", "LangGraph", "LangChain", "Mastra"];
+  return (
+    <SampleFrame className={frameClass}>
+      <Combobox items={runtimes} defaultValue="LangGraph">
+        <ComboboxInput
+          className="w-56"
+          showClear
+          placeholder="Search runtimes…"
+          aria-label="Search runtimes"
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>No runtimes found.</ComboboxEmpty>
+          <ComboboxList>
+            {(runtime: string) => (
+              <ComboboxItem key={runtime} value={runtime}>
+                {runtime}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      <Combobox items={runtimes} defaultValue="AI SDK" disabled>
+        <ComboboxInput
+          className="w-56"
+          placeholder="Search runtimes…"
+          aria-label="Search runtimes"
+        />
+        <ComboboxContent>
+          <ComboboxEmpty>No runtimes found.</ComboboxEmpty>
+          <ComboboxList>
+            {(runtime: string) => (
+              <ComboboxItem key={runtime} value={runtime}>
+                {runtime}
+              </ComboboxItem>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
     </SampleFrame>
   );
 }

@@ -41,6 +41,11 @@ export const DESIGN_SECTIONS: DesignSectionMeta[] = [
         description: "Pick one value from a list, with groups and sizes.",
       },
       {
+        slug: "combobox",
+        name: "Combobox",
+        description: "Type to filter, then pick: a select with a search field.",
+      },
+      {
         slug: "switch",
         name: "Switch",
         description:
