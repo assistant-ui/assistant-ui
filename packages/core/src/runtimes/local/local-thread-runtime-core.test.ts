@@ -673,7 +673,7 @@ describe("LocalThreadRuntimeCore tool approvals", () => {
 });
 
 describe("LocalThreadRuntimeCore cancellation", () => {
-  it("does not let a superseded run abort its replacement during tool continuation", async () => {
+  it("settles a superseded tool-call result without aborting its replacement", async () => {
     let resolveFirst!: (result: ChatModelRunResult) => void;
     let resolveSecond!: (result: ChatModelRunResult) => void;
     const firstResult = new Promise<ChatModelRunResult>((resolve) => {
@@ -692,7 +692,11 @@ describe("LocalThreadRuntimeCore cancellation", () => {
 
     const firstAppend = thread.append(userMessage("first"));
     await flush();
-    const secondAppend = thread.append(userMessage("second"));
+    const supersededMessageId = thread.messages.at(-1)!.id;
+    const secondAppend = thread.append({
+      ...userMessage("second"),
+      parentId: supersededMessageId,
+    });
     await flush();
 
     expect(runs).toHaveLength(2);
@@ -700,15 +704,50 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     expect(runs[1]?.abortSignal.aborted).toBe(false);
 
     resolveFirst(toolCallResult("lookup_weather"));
-    await flush();
-    const runCountAfterFirstSettled = runs.length;
-    const replacementWasAborted = runs[1]?.abortSignal.aborted;
+    await firstAppend;
+
+    expect(runs).toHaveLength(2);
+    expect(runs[1]?.abortSignal.aborted).toBe(false);
+    expect(
+      thread.messages.find((item) => item.id === supersededMessageId)?.status,
+    ).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
 
     resolveSecond({ content: [{ type: "text", text: "replacement" }] });
-    await Promise.all([firstAppend, secondAppend]);
+    await secondAppend;
+  });
 
-    expect(runCountAfterFirstSettled).toBe(2);
-    expect(replacementWasAborted).toBe(false);
+  it("does not continue after cancelRun when a delayed tool call resolves", async () => {
+    let resolveFirst!: (result: ChatModelRunResult) => void;
+    const firstResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        if (runs.length === 1) return firstResult;
+        return Promise.resolve({
+          content: [{ type: "text", text: "unexpected continuation" }],
+          status: { type: "complete", reason: "stop" },
+        });
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("first"));
+    await flush();
+
+    thread.cancelRun();
+    resolveFirst(toolCallResult("lookup_weather"));
+    await appendPromise;
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
   });
 
   it("keeps a replacement run cancellable after the previous run settles", async () => {
