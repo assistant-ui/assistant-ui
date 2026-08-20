@@ -1,7 +1,10 @@
 "use client";
 
 import { CopyButton } from "@/components/shared/copy-button";
-import { LibraryShowcase } from "@/components/pages/home/library-showcase";
+import {
+  LibraryShowcase,
+  type SetupTab,
+} from "@/components/pages/home/library-showcase";
 import { TESTIMONIALS } from "@/components/pages/home/testimonials/data";
 import { TrustedBy } from "@/components/pages/home/trusted-by";
 import { Button } from "@/components/ui/button";
@@ -31,7 +34,7 @@ export function LibraryBody({
   setupTabs,
   reactVersion,
 }: {
-  setupTabs: { id: string; label: string; html: string }[];
+  setupTabs: SetupTab[];
   reactVersion: string | null;
 }) {
   return (

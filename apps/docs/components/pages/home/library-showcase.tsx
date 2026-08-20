@@ -206,7 +206,12 @@ function Stage() {
   );
 }
 
-type SetupTab = { id: string; label: string; caption: string; html: string };
+export type SetupTab = {
+  id: string;
+  label: string;
+  caption: string;
+  html: string;
+};
 
 function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
   const cycle = useAutoCycle(tabs.length);

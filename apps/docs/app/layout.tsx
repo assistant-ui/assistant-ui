@@ -5,6 +5,7 @@ import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Provider } from "./provider";
+import { SiteAssistant } from "@/components/docs/assistant/site-assistant";
 import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";
@@ -113,7 +114,9 @@ export default function Layout({ children }: { children: ReactNode }) {
           . Use .md for canonical markdown pages; .mdx is kept as a
           backwards-compatible alias on supported URL paths.
         </div>
-        <Provider>{children}</Provider>
+        <Provider>
+          <SiteAssistant>{children}</SiteAssistant>
+        </Provider>
         <Analytics />
         <SpeedInsights />
       </body>

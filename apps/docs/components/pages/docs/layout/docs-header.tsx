@@ -13,7 +13,6 @@ import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
-import { getPanelWidth } from "@/components/pages/docs/layout/docs-layout";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { headerBarClassName } from "@/components/shared/header-chrome";
@@ -138,7 +137,6 @@ export function DocsHeader({
     toggle: toggleSidebar,
   } = useDocsSidebar();
   const [navMenuOpen, setNavMenuOpen] = useState(false);
-  const { open, width, isResizing } = useAssistantPanel();
   const scrolled = useScrolled();
 
   const sectionFilter = (item: (typeof NAV_ITEMS)[number]) =>
@@ -163,18 +161,7 @@ export function DocsHeader({
   };
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-50 md:mr-(--chat-panel-width)",
-        !isResizing &&
-          "transition-[margin] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
-      )}
-      style={
-        {
-          "--chat-panel-width": getPanelWidth(open, width),
-        } as React.CSSProperties
-      }
-    >
+    <header className="sticky top-0 z-50">
       <NavItemsRoot>
         <div
           className={headerBarClassName(

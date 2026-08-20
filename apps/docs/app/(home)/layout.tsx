@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
 import { Header } from "@/components/shared/header";
 import { Footer } from "@/components/shared/footer";
-import { HomeAssistant } from "@/components/pages/home/home-assistant";
 
 export default function Layout({
   children,
@@ -9,10 +8,10 @@ export default function Layout({
   children: ReactNode;
 }): React.ReactElement {
   return (
-    <HomeAssistant>
+    <div className="flex min-h-screen flex-col">
       <Header />
       {children}
       <Footer />
-    </HomeAssistant>
+    </div>
   );
 }
