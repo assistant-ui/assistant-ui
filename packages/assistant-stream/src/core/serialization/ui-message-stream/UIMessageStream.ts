@@ -13,6 +13,7 @@ import type {
   UIMessageStreamDataChunk,
 } from "./chunk-types";
 import { generateId } from "../../utils/generateId";
+import type { ReadonlyJSONValue } from "../../../utils/json/json-value";
 
 export type { UIMessageStreamChunk, UIMessageStreamDataChunk };
 
@@ -48,7 +49,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
         deltas: string[];
         emitted: boolean;
         resultEmitted: boolean;
-        pendingResult?: { result: unknown; isError: boolean };
+        pendingResult?: { result: ReadonlyJSONValue; isError: boolean };
       };
       const pendingTools = new Map<string, PendingTool>();
       const emitPendingTool = (
@@ -74,7 +75,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
             toolCallId: tool.toolCallId,
             result: tool.pendingResult.result,
             ...(tool.pendingResult.isError ? { isError: true } : {}),
-          } as UIMessageStreamChunk);
+          });
           tool.resultEmitted = true;
         }
       };
@@ -374,12 +375,12 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                   pendingTools.set(chunk.toolCallId, tool);
                 }
                 if (tool.emitted) return;
-                if (tool.deltas.length === 0 && chunk.input !== undefined) {
-                  tool.deltas.push(
+                if (chunk.input !== undefined) {
+                  tool.deltas = [
                     typeof chunk.input === "string"
                       ? chunk.input
                       : JSON.stringify(chunk.input),
-                  );
+                  ];
                 }
                 if (chunk.type === "tool-input-error") {
                   tool.pendingResult = {
@@ -415,7 +416,10 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                             : "",
                         isError: true,
                       }
-                    : { result: chunk.output, isError: false };
+                    : {
+                        result: chunk.output as ReadonlyJSONValue,
+                        isError: false,
+                      };
                 if (tool.emitted) emitPendingTool(controller, tool);
                 return;
               }

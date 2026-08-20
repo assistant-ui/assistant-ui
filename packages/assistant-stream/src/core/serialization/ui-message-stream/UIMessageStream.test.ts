@@ -896,6 +896,47 @@ describe("UIMessageStreamDecoder", () => {
       expect(result?.result).toEqual({ temp: 20 });
     });
 
+    it("prefers tool-input-available.input over earlier deltas", async () => {
+      const events = [
+        JSON.stringify({ type: "start", messageId: "msg_123" }),
+        JSON.stringify({
+          type: "tool-input-start",
+          toolCallId: "call_abc",
+          toolName: "weather",
+        }),
+        JSON.stringify({
+          type: "tool-input-delta",
+          toolCallId: "call_abc",
+          inputTextDelta: '{"cit',
+        }),
+        JSON.stringify({
+          type: "tool-input-available",
+          toolCallId: "call_abc",
+          toolName: "weather",
+          input: { city: "Berlin" },
+        }),
+        JSON.stringify({
+          type: "tool-output-available",
+          toolCallId: "call_abc",
+          output: { temp: 20 },
+        }),
+        "[DONE]",
+      ];
+
+      const chunks = await collectChunks(
+        createUIMessageStream(events).pipeThrough(new UIMessageStreamDecoder()),
+      );
+
+      const argsText = chunks
+        .filter(
+          (c): c is AssistantStreamChunk & { type: "text-delta" } =>
+            c.type === "text-delta",
+        )
+        .map((c) => c.textDelta)
+        .join("");
+      expect(argsText).toBe('{"city":"Berlin"}');
+    });
+
     it("maps tool-output-error to an error response", async () => {
       const events = [
         JSON.stringify({ type: "start", messageId: "msg_123" }),
