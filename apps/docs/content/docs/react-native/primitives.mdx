@@ -103,9 +103,9 @@ Renders a single message at a specific index in the thread. Provides message con
 Renders its children only when the thread has no messages. Deprecated in favor of `AuiIf`.
 
 ```tsx
-<ThreadPrimitive.Empty>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <Text>Send a message to get started</Text>
-</ThreadPrimitive.Empty>
+</AuiIf>
 ```
 
 ### ThreadPrimitive.If
@@ -113,13 +113,13 @@ Renders its children only when the thread has no messages. Deprecated in favor o
 Conditional rendering based on thread state. Deprecated in favor of `AuiIf`.
 
 ```tsx
-<ThreadPrimitive.If empty>
+<AuiIf condition={(s) => s.thread.isEmpty}>
   <Text>No messages yet</Text>
-</ThreadPrimitive.If>
+</AuiIf>
 
-<ThreadPrimitive.If running>
+<AuiIf condition={(s) => s.thread.isRunning}>
   <ActivityIndicator />
-</ThreadPrimitive.If>
+</AuiIf>
 ```
 
 | Prop | Type | Description |

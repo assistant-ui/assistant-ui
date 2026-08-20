@@ -1,6 +1,7 @@
 // Mirrors examples/with-react-ink/src/components/thread.tsx; keep in sync.
 import { Box, Text, useStdout } from "ink";
 import {
+  AuiIf,
   ThreadPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -72,7 +73,7 @@ const Loading = () => (
 export const Thread = () => {
   return (
     <ThreadPrimitive.Root>
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <Box flexDirection="column" marginBottom={1}>
           <Text>
             A real LLM streaming into a real Ink render loop in your browser.
@@ -81,7 +82,7 @@ export const Thread = () => {
             {'  try: "what is assistant-ui?" or "how do I render markdown?"'}
           </Text>
         </Box>
-      </ThreadPrimitive.Empty>
+      </AuiIf>
 
       <ThreadPrimitive.Messages>
         {({ message }) =>

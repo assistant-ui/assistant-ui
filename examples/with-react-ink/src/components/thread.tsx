@@ -1,5 +1,6 @@
 import { Box, Text } from "ink";
 import {
+  AuiIf,
   ThreadPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
@@ -57,7 +58,7 @@ const Loading = () => (
 export const Thread = () => {
   return (
     <ThreadPrimitive.Root>
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <Box flexDirection="column" marginBottom={1}>
           <Text>
             Working in this project. <Text color="yellow">fetchUser()</Text> is
@@ -65,7 +66,7 @@ export const Thread = () => {
           </Text>
           <Text dimColor>{'  try: "make fetchUser retry on failure"'}</Text>
         </Box>
-      </ThreadPrimitive.Empty>
+      </AuiIf>
 
       <ThreadPrimitive.Messages>
         {({ message }) =>
