@@ -14,16 +14,18 @@ import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 export function ToolWithApproval() {
   const [open, setOpen] = useState(true);
-  const [decision, setDecision] = useState<string>();
+  const [approved, setApproved] = useState<boolean>();
 
   return (
     <ToolFallbackRoot open={open} onOpenChange={setOpen}>
       <ToolFallbackTrigger
         toolName="delete_file"
         status={
-          decision
-            ? { type: "complete" }
-            : { type: "requires-action", reason: "interrupt" }
+          approved === undefined
+            ? { type: "requires-action", reason: "interrupt" }
+            : approved
+              ? { type: "complete" }
+              : { type: "incomplete", reason: "cancelled" }
         }
       />
       <ToolFallbackContent>
@@ -34,18 +36,22 @@ export function ToolWithApproval() {
             2,
           )}
         />
-        {decision === undefined ? (
+        {approved === undefined ? (
           <ToolFallbackApproval
             interrupt={{ type: "human", payload: {} }}
             resume={(payload) => {
-              const { approved } = payload as { approved: boolean };
-              setDecision(
-                approved ? "Approved by user" : "User denied tool execution",
-              );
+              const { approved: isApproved } = payload as {
+                approved: boolean;
+              };
+              setApproved(isApproved);
             }}
           />
         ) : (
-          <ToolFallbackResult result={decision} />
+          <ToolFallbackResult
+            result={
+              approved ? "Approved by user" : "User denied tool execution"
+            }
+          />
         )}
       </ToolFallbackContent>
     </ToolFallbackRoot>
