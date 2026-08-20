@@ -1333,6 +1333,51 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     expect(runtime.getBranches("a2")).toEqual(["a1", "a2"]);
   });
 
+  it("keeps the eviction when a send races an in-flight delete", async () => {
+    let current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ];
+    let resolveDelete!: () => void;
+    const onDelete = vi.fn(
+      (id: string) =>
+        new Promise<void>((resolve) => {
+          resolveDelete = () => {
+            current = current.filter((m) => m.id !== id);
+            resolve();
+          };
+        }),
+    );
+    const onNew = vi.fn();
+    const store = () =>
+      makeStore({ messages: current, onDelete, onNew, setMessages: vi.fn() });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    const deletePromise = runtime.deleteMessage("u1");
+    await runtime.append({
+      role: "user",
+      content: [{ type: "text", text: "while deleting" }],
+      attachments: [],
+      createdAt: new Date(0),
+      parentId: "a1",
+      sourceId: null,
+      runConfig: {},
+      metadata: { custom: {} },
+    });
+    resolveDelete();
+    await deletePromise;
+    runtime.__internal_setAdapter(store());
+
+    expect(onNew).toHaveBeenCalled();
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+    expect(() => runtime.switchToBranch("u1")).toThrow(
+      "MessageRepository(switchToBranch): Branch not found",
+    );
+  });
+
   it("keeps a pending eviction across a branch switch swallowed mid-run", async () => {
     let current = [
       message("u1", "user", "hi"),

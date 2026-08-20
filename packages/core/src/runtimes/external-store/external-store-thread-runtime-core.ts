@@ -138,10 +138,14 @@ export class ExternalStoreThreadRuntimeCore
 
   // Ids the host was asked to delete via onDelete. The snapshot pass evicts
   // them from the repository once the host's array no longer carries them;
-  // an id the host kept is dropped from the set without eviction. Any other
-  // mutation invalidates the set: after e.g. an edit, the incoming array
-  // omits off-branch ids for reasons unrelated to deletion, and a declined
-  // delete must not evict then.
+  // an id the host kept is dropped from the set without eviction.
+  // Branch-changing mutations (edit, branch switch, reload) invalidate the
+  // set, because after them the incoming array omits off-branch ids for
+  // reasons unrelated to deletion. Plain tail sends do not clear: a tail
+  // append cannot make a visible id absent, so id-absence stays unambiguous
+  // and a delete whose confirmation races a send keeps its eviction. An
+  // edit racing an in-flight delete does drop the eviction — accepted, as
+  // main never evicted on this path at all.
   private _pendingDeleteEvictions = new Set<string>();
 
   private _store!: ExternalStoreAdapter<any>;
@@ -568,8 +572,6 @@ export class ExternalStoreThreadRuntimeCore
       }
       if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
 
-      this._pendingDeleteEvictions.clear();
-
       // Buffering does not start a run, so the tool-abort below must wait
       // until the queue flushes. By then the prior run (and its tools) has
       // settled.
@@ -603,7 +605,6 @@ export class ExternalStoreThreadRuntimeCore
       this._pendingDeleteEvictions.clear();
       await this._store.onEdit(message);
     } else {
-      this._pendingDeleteEvictions.clear();
       await this._store.onNew(message);
     }
   }
@@ -700,8 +701,6 @@ export class ExternalStoreThreadRuntimeCore
   public async resumeRun(config: ResumeRunConfig): Promise<void> {
     if (!this._store.onResume)
       throw new Error("Runtime does not support resuming runs.");
-
-    this._pendingDeleteEvictions.clear();
 
     await this._store.onResume(config);
   }
