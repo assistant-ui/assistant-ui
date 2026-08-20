@@ -583,6 +583,7 @@ export class ExternalStoreThreadRuntimeCore
   public async deleteMessage(messageId: string): Promise<void> {
     if (this._store.onDelete) {
       await this._store.onDelete(messageId);
+      this._evictDeletedMessage(messageId);
       return;
     }
 
@@ -598,11 +599,21 @@ export class ExternalStoreThreadRuntimeCore
     if (messageIndex === -1) throw new Error("Message not found.");
 
     this.updateMessages(messages.filter((message) => message.id !== messageId));
+    this._evictDeletedMessage(messageId);
+  }
 
-    // The snapshot pass only relinks incoming messages; it never evicts, so
-    // without this the deleted message survives as a sibling branch that the
-    // branch picker can resurrect into the host store.
-    this.repository.deleteMessage(messageId);
+  // The snapshot pass only relinks incoming messages; it never evicts, so
+  // without this the deleted message survives as a sibling branch that the
+  // branch picker can resurrect into the host store. `_messages` is refreshed
+  // before notifying so `messages` and the branch graph agree at notify time,
+  // mirroring the end of the snapshot pass.
+  private _evictDeletedMessage(messageId: string) {
+    try {
+      this.repository.deleteMessage(messageId);
+    } catch {
+      return;
+    }
+    this._messages = this.repository.getMessages();
     this._notifySubscribers();
   }
 
