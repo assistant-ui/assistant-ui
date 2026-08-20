@@ -77,12 +77,9 @@ function FeaturedCard({
       </span>
       <NavigationMenuLink
         render={
-          <Link
-            href={link.href}
-            className="group/navlink hover:bg-muted flex flex-1 flex-col gap-4 rounded-md p-3 transition-colors"
-          >
+          <Link href={link.href} className="group/navlink flex flex-col gap-1">
             {link.glyph ? <NavGlyph kind={link.glyph} size="lg" /> : null}
-            <span className="flex flex-col">
+            <span className="group-hover/navlink:bg-muted flex flex-col rounded-md px-2 py-2 transition-colors">
               <span className="text-sm">{link.label}</span>
               <span className="text-muted-foreground text-xs">
                 {link.description}
@@ -199,9 +196,9 @@ export function NavItems({
                     item.featured
                       ? cn(
                           item.groups.length <= 2 &&
-                            "grid-cols-[minmax(0,20rem)_1fr_1fr]",
+                            "grid-cols-[minmax(0,12rem)_1fr_1fr]",
                           item.groups.length >= 3 &&
-                            "grid-cols-[minmax(0,18rem)_1fr_1fr_1fr]",
+                            "grid-cols-[minmax(0,12rem)_1fr_1fr_1fr]",
                         )
                       : cn(
                           item.groups.length <= 2 && "grid-cols-2",
