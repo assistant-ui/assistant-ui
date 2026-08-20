@@ -5,7 +5,6 @@ platforms: ["react"]
 ---
 
 import { ReasoningSample, ReasoningStreamingSample } from "@/components/docs/samples/reasoning";
-import { PreviewCode } from "@/components/docs/preview-code.server";
 
 <ReasoningSample />
 
@@ -154,12 +153,7 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
 
 The response shows partial reasoning and stays active. Select Stop to cancel the response and return the composer to its idle state.
 
-<PreviewCode
-  file="components/docs/samples/reasoning"
-  name="ReasoningStreamingThread"
->
-  <ReasoningStreamingSample />
-</PreviewCode>
+<ReasoningStreamingSample />
 
 ## API Reference
 

@@ -54,7 +54,7 @@ export function ReasoningSample() {
   );
 }
 
-export function ReasoningStreamingThread() {
+function ReasoningStreamingThread() {
   const runtime = useLocalRuntime({
     // The first run yields partial reasoning and stays running until the
     // user stops it. Follow-up prompts finish with a short reply.
@@ -62,6 +62,10 @@ export function ReasoningStreamingThread() {
       if (messages.length > 1) {
         yield {
           content: [
+            {
+              type: "reasoning",
+              text: "A short reply is enough here; the streamed run above already shows the live reasoning state.",
+            },
             {
               type: "text",
               text: "This is a demo. The streamed run above shows how reasoning parts render while a response is active.",
