@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import {
   ToolFallbackRoot,
   ToolFallbackTrigger,
@@ -11,7 +10,6 @@ import {
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 export function ToolFallbackErrorSample() {
-  const [open, setOpen] = useState(true);
   const status = {
     type: "incomplete",
     reason: "error",
@@ -20,7 +18,7 @@ export function ToolFallbackErrorSample() {
 
   return (
     <SampleFrame className="flex h-auto items-center p-6">
-      <ToolFallbackRoot open={open} onOpenChange={setOpen}>
+      <ToolFallbackRoot defaultOpen>
         <ToolFallbackTrigger toolName="get_weather" status={status} />
         <ToolFallbackContent>
           <ToolFallbackError status={status} />
