@@ -819,6 +819,63 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     });
   });
 
+  it("ignores stale chunks after a partial tool result updates the active message", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return (async function* () {
+          yield {
+            content: [
+              toolCallPart("send_email"),
+              toolCallPart("deploy", { id: "approval-1" }),
+            ],
+            status: {
+              type: "requires-action",
+              reason: "tool-calls",
+            },
+          } satisfies ChatModelRunResult;
+          await teardown;
+          yield { content: [{ type: "text", text: "stale" }] };
+        })();
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("send and deploy"));
+    await flush();
+    const messageId = thread.messages.at(-1)!.id;
+
+    thread.addToolResult({
+      messageId,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { approved: true },
+      isError: false,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+
+    releaseTeardown();
+    await appendPromise;
+
+    const message = thread.messages.find((item) => item.id === messageId);
+    const sendEmail = message?.content.find(
+      (part) =>
+        part.type === "tool-call" && part.toolCallId === "call-send_email",
+    );
+    const deploy = message?.content.find(
+      (part) => part.type === "tool-call" && part.toolCallId === "call-deploy",
+    );
+    expect(sendEmail?.result).toEqual({ approved: true });
+    expect(deploy?.approval?.approved).toBeUndefined();
+    expect(message?.status.type).toBe("requires-action");
+  });
+
   it("ignores a superseded result after its message is removed", async () => {
     let resolveFirst!: (result: ChatModelRunResult) => void;
     const firstResult = new Promise<ChatModelRunResult>((resolve) => {
@@ -910,7 +967,7 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     });
   });
 
-  it("preserves an approval pause when cancelled during teardown", async () => {
+  it("preserves an approval pause when the adapter yields after cancellation", async () => {
     let releaseTeardown!: () => void;
     const teardown = new Promise<void>((resolve) => {
       releaseTeardown = resolve;
@@ -919,6 +976,7 @@ describe("LocalThreadRuntimeCore cancellation", () => {
       async *run() {
         yield toolCallResult("deploy", { id: "approval-1" });
         await teardown;
+        yield { content: [{ type: "text", text: "late" }] };
       },
     });
 

@@ -565,8 +565,14 @@ export class LocalThreadRuntimeCore
     const initialData = message.metadata?.unstable_data;
     const initialSteps = message.metadata?.steps;
     const initialCustom = message.metadata?.custom;
+    let hasStoredMessage = true;
+    try {
+      this.repository.getMessage(message.id);
+    } catch {
+      hasStoredMessage = false;
+    }
     const ownsMessage = () => {
-      if (this._activeRun === run) return true;
+      if (!hasStoredMessage) return this._activeRun === run;
       try {
         return this.repository.getMessage(message.id).message === message;
       } catch {
@@ -621,6 +627,7 @@ export class LocalThreadRuntimeCore
           : undefined),
       };
       this.repository.addOrUpdateMessage(parentId, message);
+      hasStoredMessage = true;
       this._notifySubscribers();
     };
 
@@ -659,6 +666,12 @@ export class LocalThreadRuntimeCore
         this.adapters.chatModel.run.bind(this.adapters.chatModel);
 
       const abortSignal = abortController.signal;
+      const shouldCancelMessage = () =>
+        abortSignal.aborted &&
+        (message.status.type === "running" ||
+          (message.status.type === "requires-action" &&
+            (this._activeRun !== run ||
+              shouldContinue(message, this._options.unstable_humanToolNames))));
       const threadId = this._getThreadId?.();
       const promiseOrGenerator = runCallback({
         messages,
@@ -677,9 +690,11 @@ export class LocalThreadRuntimeCore
       if (Symbol.asyncIterator in promiseOrGenerator) {
         for await (const r of promiseOrGenerator) {
           if (abortSignal.aborted) {
-            updateMessage({
-              status: { type: "incomplete", reason: "cancelled" },
-            });
+            if (shouldCancelMessage()) {
+              updateMessage({
+                status: { type: "incomplete", reason: "cancelled" },
+              });
+            }
             break;
           }
 
@@ -689,20 +704,13 @@ export class LocalThreadRuntimeCore
         updateMessage(await promiseOrGenerator);
       }
 
-      if (
-        abortSignal.aborted &&
-        message.status.type === "requires-action" &&
-        (this._activeRun !== run ||
-          shouldContinue(message, this._options.unstable_humanToolNames))
-      ) {
+      if (shouldCancelMessage()) {
         updateMessage({
           status: { type: "incomplete", reason: "cancelled" },
         });
       } else if (message.status.type === "running") {
         updateMessage({
-          status: abortSignal.aborted
-            ? { type: "incomplete", reason: "cancelled" }
-            : { type: "complete", reason: "unknown" },
+          status: { type: "complete", reason: "unknown" },
         });
       }
     } catch (e) {
