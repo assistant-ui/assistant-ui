@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type ReactNode } from "react";
+import { toast } from "sonner";
 import {
   ChevronDownIcon,
   ChevronsUpDownIcon,
@@ -407,6 +408,64 @@ export function DialogSpecimen(): ReactNode {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </SampleFrame>
+  );
+}
+
+export function ToastSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Button
+        variant="outline"
+        onClick={() =>
+          toast("Thread archived", {
+            description: "It stays in the archive until you restore it.",
+            action: { label: "Undo", onClick: () => toast("Thread restored") },
+          })
+        }
+      >
+        Archive thread
+      </Button>
+      <Button variant="outline" onClick={() => toast.success("Command copied")}>
+        Copy command
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => toast.error("The model did not respond")}
+      >
+        Fail a request
+      </Button>
+    </SampleFrame>
+  );
+}
+
+export function ToastTypesSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Button
+        variant="outline"
+        onClick={() => toast.info("A new version of the CLI is available")}
+      >
+        Info
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() => toast.warning("This adapter needs an API key")}
+      >
+        Warning
+      </Button>
+      <Button
+        variant="outline"
+        onClick={() =>
+          toast.promise(new Promise((resolve) => setTimeout(resolve, 1600)), {
+            loading: "Exporting thread…",
+            success: "Exported as markdown",
+            error: "Export failed",
+          })
+        }
+      >
+        Run a promise
+      </Button>
     </SampleFrame>
   );
 }

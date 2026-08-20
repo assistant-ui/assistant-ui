@@ -368,7 +368,7 @@ export function NavGlyph({
 
   if (size === "lg") {
     return (
-      <span className="border-foreground/10 bg-background group-hover/navlink:border-foreground/25 flex aspect-square w-full shrink-0 items-center justify-center border transition-colors">
+      <span className="border-foreground/10 bg-background group-hover/navlink:border-foreground/25 flex min-h-24 w-full flex-1 items-center justify-center border transition-colors">
         <span className="block scale-[2.5]">
           <Glyph />
         </span>

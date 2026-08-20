@@ -30,6 +30,7 @@ import {
   StepsSpecimen,
   SwitchSpecimen,
   TableSpecimen,
+  ToastSpecimen,
   TooltipSpecimen,
 } from "@/components/design/specimens";
 
@@ -59,6 +60,7 @@ export const DESIGN_PREVIEWS: Record<string, ComponentType> = {
   popover: PopoverSpecimen,
   tooltip: TooltipSpecimen,
   sheet: SheetSpecimen,
+  toast: ToastSpecimen,
   tabs: TabsSample,
   breadcrumb: BreadcrumbSpecimen,
   accordion: AccordionSample,

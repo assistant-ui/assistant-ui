@@ -165,6 +165,12 @@ export const DESIGN_SECTIONS: DesignSectionMeta[] = [
         name: "Sheet",
         description: "A panel that slides in from an edge for secondary flows.",
       },
+      {
+        slug: "toast",
+        name: "Toast",
+        description:
+          "A passing message for outcomes: success, error, and undo.",
+      },
     ],
   },
   {

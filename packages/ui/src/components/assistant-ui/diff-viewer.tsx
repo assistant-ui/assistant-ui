@@ -143,18 +143,20 @@ function pairLinesForSplit(lines: ParsedLine[]): SplitLinePair[] {
 }
 
 const diffViewerVariants = cva(
-  "aui-diff-viewer overflow-hidden rounded-lg font-mono text-sm",
+  "aui-diff-viewer overflow-hidden font-mono leading-relaxed [font-variant-ligatures:none]",
   {
     variants: {
       variant: {
-        default: "bg-background border",
+        default:
+          "border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] border",
         ghost: "bg-transparent",
-        muted: "border-muted-foreground/20 bg-muted border",
+        muted:
+          "border-foreground/10 bg-foreground/[0.06] dark:bg-foreground/[0.08] border",
       },
       size: {
-        sm: "text-xs",
-        default: "text-sm",
-        lg: "text-base",
+        sm: "text-[11px]",
+        default: "text-[12.5px]",
+        lg: "text-[13.5px]",
       },
     },
     defaultVariants: {
@@ -167,8 +169,8 @@ const diffViewerVariants = cva(
 const diffLineVariants = cva("flex", {
   variants: {
     type: {
-      add: "bg-[var(--diff-add-bg,_rgba(46,160,67,0.15))]",
-      del: "bg-[var(--diff-del-bg,_rgba(248,81,73,0.15))]",
+      add: "bg-[var(--diff-add-bg,var(--_diff-add-bg))] shadow-[inset_2px_0_0_var(--diff-add-rule,var(--color-green-500))] [--_diff-add-bg:color-mix(in_oklab,var(--color-green-500)_8%,transparent)] dark:[--_diff-add-bg:color-mix(in_oklab,var(--color-green-500)_15%,transparent)]",
+      del: "bg-[var(--diff-del-bg,var(--_diff-del-bg))] shadow-[inset_2px_0_0_var(--diff-del-rule,var(--color-red-500))] [--_diff-del-bg:color-mix(in_oklab,var(--color-red-500)_8%,transparent)] dark:[--_diff-del-bg:color-mix(in_oklab,var(--color-red-500)_15%,transparent)]",
       normal: "",
       empty: "",
     },
@@ -181,8 +183,8 @@ const diffLineVariants = cva("flex", {
 const diffLineTextVariants = cva("", {
   variants: {
     type: {
-      add: "text-[var(--diff-add-text,_#1a7f37)] dark:text-[var(--diff-add-text-dark,_#3fb950)]",
-      del: "text-[var(--diff-del-text,_#cf222e)] dark:text-[var(--diff-del-text-dark,_#f85149)]",
+      add: "text-[var(--diff-add-text,var(--color-green-600))] dark:text-[var(--diff-add-text-dark,var(--color-green-400))]",
+      del: "text-[var(--diff-del-text,var(--color-red-600))] dark:text-[var(--diff-del-text-dark,var(--color-red-400))]",
       normal: "",
       empty: "",
     },
@@ -205,9 +207,9 @@ function DiffViewerFileBadge({ filename }: { filename?: string | undefined }) {
   return (
     <span
       data-slot="diff-viewer-file-badge"
-      className="bg-background inline-flex size-5 shrink-0 items-end justify-end rounded-sm border text-[8px] leading-none font-bold"
+      className="border-foreground/15 text-muted-foreground/70 inline-flex h-4 shrink-0 items-center border px-1 text-[9px] leading-none font-medium tracking-wide"
     >
-      <span className="p-0.5">{ext}</span>
+      {ext}
     </span>
   );
 }
@@ -220,9 +222,12 @@ function DiffViewerStats({
   deletions: number;
 }) {
   return (
-    <span data-slot="diff-viewer-stats" className="flex gap-2 text-xs">
+    <span
+      data-slot="diff-viewer-stats"
+      className="flex shrink-0 gap-1.5 text-[11px] tabular-nums"
+    >
       <span className="text-green-600 dark:text-green-400">+{additions}</span>
-      <span className="text-red-600 dark:text-red-400">-{deletions}</span>
+      <span className="text-red-600 dark:text-red-400">−{deletions}</span>
     </span>
   );
 }
@@ -257,7 +262,7 @@ function DiffViewerHeader({
   newName,
   additions = 0,
   deletions = 0,
-  showIcon = true,
+  showIcon = false,
   showStats = true,
   className,
   ...props
@@ -270,20 +275,18 @@ function DiffViewerHeader({
     <div
       data-slot="diff-viewer-header"
       className={cn(
-        "bg-muted text-muted-foreground flex items-center gap-2 border-b px-4 py-2",
+        "border-foreground/10 text-muted-foreground flex h-9 items-center gap-2 border-b ps-3.5 pe-3 text-[11px] font-medium tracking-wide",
         className,
       )}
       {...props}
     >
       {showIcon && <DiffViewerFileBadge filename={displayName} />}
-      <span className="flex-1">
+      <span className="min-w-0 flex-1 truncate">
         {oldName && newName && oldName !== newName ? (
           <>
-            <span className="text-red-600 dark:text-red-400">{oldName}</span>
-            {" → "}
-            <span className="text-green-600 dark:text-green-400">
-              {newName}
-            </span>
+            <span className="text-muted-foreground/60">{oldName}</span>
+            <span className="text-muted-foreground/50">{" → "}</span>
+            <span className="text-foreground/80">{newName}</span>
           </>
         ) : (
           displayName
@@ -319,7 +322,7 @@ function DiffViewerLine({
       {showLineNumbers && (
         <span
           data-slot="diff-viewer-line-number"
-          className="text-muted-foreground w-12 shrink-0 px-2 text-end select-none"
+          className="text-muted-foreground/40 w-10 shrink-0 px-2 text-end tabular-nums select-none"
         >
           {line.type === "del"
             ? line.oldLineNumber
@@ -339,10 +342,7 @@ function DiffViewerLine({
       </span>
       <span
         data-slot="diff-viewer-content"
-        className={cn(
-          "flex-1 break-all whitespace-pre-wrap",
-          diffLineTextVariants({ type: line.type }),
-        )}
+        className="flex-1 pe-3.5 break-all whitespace-pre-wrap"
       >
         {line.content}
       </span>
@@ -373,12 +373,12 @@ function DiffViewerSplitLine({
         data-slot="diff-viewer-split-left"
         data-type={left?.type ?? "empty"}
         className={cn(
-          "flex w-1/2 border-e",
+          "border-foreground/10 flex w-1/2 border-e",
           diffLineVariants({ type: left?.type ?? "empty" }),
         )}
       >
         {showLineNumbers && (
-          <span className="text-muted-foreground w-12 shrink-0 px-2 text-end select-none">
+          <span className="text-muted-foreground/40 w-10 shrink-0 px-2 text-end tabular-nums select-none">
             {left?.oldLineNumber ?? ""}
           </span>
         )}
@@ -390,12 +390,7 @@ function DiffViewerSplitLine({
         >
           {left ? (left.type === "del" ? "-" : " ") : ""}
         </span>
-        <span
-          className={cn(
-            "flex-1 break-all whitespace-pre-wrap",
-            diffLineTextVariants({ type: left?.type ?? "empty" }),
-          )}
-        >
+        <span className="flex-1 pe-3.5 break-all whitespace-pre-wrap">
           {left?.content ?? ""}
         </span>
       </div>
@@ -408,7 +403,7 @@ function DiffViewerSplitLine({
         )}
       >
         {showLineNumbers && (
-          <span className="text-muted-foreground w-12 shrink-0 px-2 text-end select-none">
+          <span className="text-muted-foreground/40 w-10 shrink-0 px-2 text-end tabular-nums select-none">
             {right?.newLineNumber ?? ""}
           </span>
         )}
@@ -420,12 +415,7 @@ function DiffViewerSplitLine({
         >
           {right ? (right.type === "add" ? "+" : " ") : ""}
         </span>
-        <span
-          className={cn(
-            "flex-1 break-all whitespace-pre-wrap",
-            diffLineTextVariants({ type: right?.type ?? "empty" }),
-          )}
-        >
+        <span className="flex-1 pe-3.5 break-all whitespace-pre-wrap">
           {right?.content ?? ""}
         </span>
       </div>
@@ -452,7 +442,7 @@ function DiffViewer({
   newFile,
   viewMode = "unified",
   showLineNumbers = true,
-  showIcon = true,
+  showIcon = false,
   showStats = true,
   variant,
   size,
@@ -495,7 +485,10 @@ function DiffViewer({
     return (
       <pre
         data-slot="diff-viewer"
-        className={cn("bg-muted rounded-lg p-4", className)}
+        className={cn(
+          "border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] text-muted-foreground border px-3.5 py-3 font-mono text-xs",
+          className,
+        )}
       >
         No diff content provided
       </pre>
@@ -514,7 +507,7 @@ function DiffViewer({
         <div
           key={fileIndex}
           data-slot="diff-viewer-file"
-          className="[contain-intrinsic-size:auto_240px] [content-visibility:auto]"
+          className="border-foreground/10 [contain-intrinsic-size:auto_240px] [content-visibility:auto] not-first:border-t"
         >
           <DiffViewerHeader
             oldName={file.oldName}
@@ -524,7 +517,7 @@ function DiffViewer({
             showIcon={showIcon}
             showStats={showStats}
           />
-          <div data-slot="diff-viewer-content" className="overflow-x-auto">
+          <div data-slot="diff-viewer-content" className="overflow-x-auto py-2">
             {viewMode === "split"
               ? (splitLinePairs[fileIndex] ?? []).map((pair, pairIndex) => (
                   <DiffViewerSplitLine

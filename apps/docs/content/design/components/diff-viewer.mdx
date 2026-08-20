@@ -1,6 +1,6 @@
 ---
 title: "Diff Viewer"
-description: Render code diffs with syntax highlighting for additions and deletions.
+description: "Code changes as unified or split diffs, line by line, on the kit's field panel."
 links:
   - label: parse-diff
     url: https://github.com/sergeyt/parse-diff
@@ -102,27 +102,31 @@ Shows old content on the left, new content on the right side-by-side.
 
 ### Theming
 
-DiffViewer uses CSS variables for colors. Override them in your CSS:
+Changed lines carry a 2px gutter rule and a faint fill; the diff hue otherwise appears only on the `+`/`-` markers and the header stats, while code stays in ink. Override the CSS variables to retheme:
 
 ```css
 [data-slot="diff-viewer"] {
-  --diff-add-bg: rgba(46, 160, 67, 0.15);
-  --diff-add-text: #1a7f37;
-  --diff-add-text-dark: #3fb950;
-  --diff-del-bg: rgba(248, 81, 73, 0.15);
-  --diff-del-text: #cf222e;
-  --diff-del-text-dark: #f85149;
+  --diff-add-bg: color-mix(in oklab, var(--color-green-500) 8%, transparent);
+  --diff-add-rule: var(--color-green-500);
+  --diff-add-text: var(--color-green-600);
+  --diff-add-text-dark: var(--color-green-400);
+  --diff-del-bg: color-mix(in oklab, var(--color-red-500) 8%, transparent);
+  --diff-del-rule: var(--color-red-500);
+  --diff-del-text: var(--color-red-600);
+  --diff-del-text-dark: var(--color-red-400);
 }
 ```
 
 | Variable | Description |
 |----------|-------------|
-| `--diff-add-bg` | Background for added lines |
-| `--diff-add-text` | Text color for added lines (light mode) |
-| `--diff-add-text-dark` | Text color for added lines (dark mode) |
-| `--diff-del-bg` | Background for deleted lines |
-| `--diff-del-text` | Text color for deleted lines (light mode) |
-| `--diff-del-text-dark` | Text color for deleted lines (dark mode) |
+| `--diff-add-bg` | Fill for added lines |
+| `--diff-add-rule` | Gutter rule for added lines |
+| `--diff-add-text` | Marker and stat color for additions (light mode) |
+| `--diff-add-text-dark` | Marker and stat color for additions (dark mode) |
+| `--diff-del-bg` | Fill for deleted lines |
+| `--diff-del-rule` | Gutter rule for deleted lines |
+| `--diff-del-text` | Marker and stat color for deletions (light mode) |
+| `--diff-del-text-dark` | Marker and stat color for deletions (dark mode) |
 
 ## API Reference
 
@@ -180,7 +184,7 @@ The main component for rendering diffs.
     {
       name: "showIcon",
       type: "boolean",
-      default: "true",
+      default: "false",
       description: "Show file extension badge in header.",
     },
     {
