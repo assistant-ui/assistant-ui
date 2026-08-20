@@ -8,6 +8,40 @@ import {
   ReasoningText,
 } from "@/components/assistant-ui/reasoning";
 
+function StateCard({
+  state,
+  variant,
+  defaultOpen = false,
+}: {
+  state: string;
+  variant: "outline" | "ghost" | "muted";
+  defaultOpen?: boolean;
+}) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
+        {state}
+      </span>
+      <ReasoningRoot
+        className="mb-0"
+        variant={variant}
+        defaultOpen={defaultOpen}
+      >
+        <ReasoningTrigger />
+        <ReasoningContent>
+          <ReasoningText>
+            <p>Let me think about this step by step...</p>
+            <p>
+              First, I need to consider the main factors involved in this
+              problem.
+            </p>
+          </ReasoningText>
+        </ReasoningContent>
+      </ReasoningRoot>
+    </div>
+  );
+}
+
 function VariantPair({
   label,
   variant,
@@ -19,22 +53,8 @@ function VariantPair({
     <div className="flex flex-col gap-2">
       <span className="text-muted-foreground text-xs font-medium">{label}</span>
       <div className="grid items-start gap-3 sm:grid-cols-2">
-        <ReasoningRoot className="mb-0" variant={variant}>
-          <ReasoningTrigger />
-          <ReasoningContent>
-            <ReasoningText>
-              <p>The closed state shows only the trigger.</p>
-            </ReasoningText>
-          </ReasoningContent>
-        </ReasoningRoot>
-        <ReasoningRoot className="mb-0" variant={variant} defaultOpen>
-          <ReasoningTrigger />
-          <ReasoningContent>
-            <ReasoningText>
-              <p>The open state shows the reasoning text below the trigger.</p>
-            </ReasoningText>
-          </ReasoningContent>
-        </ReasoningRoot>
+        <StateCard state="Closed" variant={variant} />
+        <StateCard state="Open" variant={variant} defaultOpen />
       </div>
     </div>
   );
