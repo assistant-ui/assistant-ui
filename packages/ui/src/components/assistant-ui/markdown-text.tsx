@@ -109,6 +109,8 @@ const defaultComponents = memoizeMarkdownComponents({
   table: ({ className, ...props }) => (
     <div
       tabIndex={0}
+      role="region"
+      aria-label="Table"
       className="aui-md-table-scroll mt-(--typeset-flow) overflow-x-auto first:mt-0 [:where(li)>&]:mt-[0.5em]"
     >
       <table className={cn("aui-md-table mt-0", className)} {...props} />
