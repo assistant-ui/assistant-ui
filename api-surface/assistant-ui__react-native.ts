@@ -2913,7 +2913,7 @@ type ThreadComposerState = BaseComposerState & {
   readonly type: "thread";
 };
 
-declare const ThreadEmpty: (_param37: ThreadEmptyProps) => import("react").JSX.Element | null;
+declare const ThreadEmpty: (_param37: ThreadEmptyProps) => import("react").JSX.Element;
 
 type ThreadEmptyProps = {
   children: ReactNode;

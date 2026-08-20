@@ -336,11 +336,11 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
 )}
 
 ```tsx
-<ComposerPrimitive.If dictation>
+<AuiIf condition={(s) => s.composer.dictation != null}>
   <div className="dictation-preview">
     <ComposerPrimitive.DictationTranscript />
   </div>
-</ComposerPrimitive.If>
+</AuiIf>
 ```
 
 <ParametersTable {...ComposerPrimitiveDictationTranscriptProps} />
