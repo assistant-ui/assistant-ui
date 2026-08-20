@@ -50,7 +50,13 @@ const dataUriToBlob = (dataUri: string): Blob => {
     meta.match(/data:([^;]+)/i)?.[1]?.toLowerCase() ??
     "application/octet-stream";
   if (!/;base64/i.test(meta)) {
-    return new Blob([decodeURIComponent(data)], { type: mime });
+    let text: string;
+    try {
+      text = decodeURIComponent(data);
+    } catch {
+      text = data;
+    }
+    return new Blob([text], { type: mime });
   }
   const bytes = atob(data);
   const arr = new Uint8Array(bytes.length);

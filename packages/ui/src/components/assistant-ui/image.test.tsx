@@ -52,9 +52,23 @@ beforeEach(() => {
   URL.revokeObjectURL = vi.fn();
 });
 
+const originalCreateObjectURL = URL.createObjectURL;
+const originalRevokeObjectURL = URL.revokeObjectURL;
+const originalClipboardDescriptor = Object.getOwnPropertyDescriptor(
+  navigator,
+  "clipboard",
+);
+
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  URL.createObjectURL = originalCreateObjectURL;
+  URL.revokeObjectURL = originalRevokeObjectURL;
+  if (originalClipboardDescriptor) {
+    Object.defineProperty(navigator, "clipboard", originalClipboardDescriptor);
+  } else {
+    Reflect.deleteProperty(navigator, "clipboard");
+  }
 });
 
 describe("ImageActions data URI handling", () => {
@@ -83,6 +97,14 @@ describe("ImageActions data URI handling", () => {
 
     const blob = await downloadedBlob();
     expect(await blob.text()).toBe("<svg><path d='M0,0,1'/></svg>");
+  });
+
+  it("passes through a payload with an invalid percent escape instead of throwing", async () => {
+    const payload = "<svg><text>100% width</text></svg>";
+    renderActions(`data:image/svg+xml,${payload}`);
+
+    const blob = await downloadedBlob();
+    expect(await blob.text()).toBe(payload);
   });
 
   it("decodes a base64 payload unchanged", async () => {
