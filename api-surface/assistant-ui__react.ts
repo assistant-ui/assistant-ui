@@ -5244,7 +5244,7 @@ type ToolCallMessagePartProps<TArgs = any, TResult = unknown> = MessagePartState
 
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
-  readonly reason: "interrupt";
+  readonly reason: "interrupt" | "tool-calls";
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
@@ -6314,7 +6314,7 @@ declare const useSmoothStatus: {
     readonly error?: unknown;
   } | {
     readonly type: "requires-action";
-    readonly reason: "interrupt";
+    readonly reason: "interrupt" | "tool-calls";
   };
   <TSelected>(selector: (state: {
     readonly type: "running";
@@ -6326,7 +6326,7 @@ declare const useSmoothStatus: {
     readonly error?: unknown;
   } | {
     readonly type: "requires-action";
-    readonly reason: "interrupt";
+    readonly reason: "interrupt" | "tool-calls";
   }) => TSelected): TSelected;
   (options: {
     optional: true;
@@ -6340,7 +6340,7 @@ declare const useSmoothStatus: {
     readonly error?: unknown;
   } | {
     readonly type: "requires-action";
-    readonly reason: "interrupt";
+    readonly reason: "interrupt" | "tool-calls";
   } | null;
   <TSelected>(options: {
     optional: true;
@@ -6354,7 +6354,7 @@ declare const useSmoothStatus: {
       readonly error?: unknown;
     } | {
       readonly type: "requires-action";
-      readonly reason: "interrupt";
+      readonly reason: "interrupt" | "tool-calls";
     }) => TSelected;
   }): TSelected | null;
 }, useSmoothStatusStore: {
@@ -6368,7 +6368,7 @@ declare const useSmoothStatus: {
     readonly error?: unknown;
   } | {
     readonly type: "requires-action";
-    readonly reason: "interrupt";
+    readonly reason: "interrupt" | "tool-calls";
   }>;
   (options: {
     optional: true;
@@ -6382,7 +6382,7 @@ declare const useSmoothStatus: {
     readonly error?: unknown;
   } | {
     readonly type: "requires-action";
-    readonly reason: "interrupt";
+    readonly reason: "interrupt" | "tool-calls";
   }> | null;
 };
 

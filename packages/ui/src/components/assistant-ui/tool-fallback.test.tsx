@@ -63,7 +63,7 @@ describe("ToolFallback", () => {
       status: {
         type: "requires-action",
         reason: "tool-calls",
-      } as unknown as ToolCallMessagePartProps["status"],
+      },
       addResult,
     });
 
