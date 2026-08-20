@@ -14,14 +14,18 @@ import {
   TooltipSpecimen,
   TooltipIconSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="TooltipSpecimen">
-  <TooltipSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="TooltipSpecimen" base={<TooltipSpecimen />}>
+  <RadixSpecimens.TooltipSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="tooltip" deps={["@base-ui/react"]} />
+<KitInstall name="tooltip" />
 
 ## Usage
 
@@ -45,8 +49,8 @@ export function Example() {
 
 A tooltip earns its place when the control is an icon alone; written labels do not need one.
 
-<PreviewCode file="components/design/specimens" name="TooltipIconSpecimen">
-  <TooltipIconSpecimen />
+<PreviewCode file="components/design/specimens" name="TooltipIconSpecimen" base={<TooltipIconSpecimen />}>
+  <RadixSpecimens.TooltipIconSpecimen />
 </PreviewCode>
 
 ## API Reference

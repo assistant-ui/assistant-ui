@@ -8,7 +8,7 @@ import {
 import type { ComponentProps, ReactNode } from "react";
 import { cn } from "@/lib/utils";
 
-type CalloutType =
+export type CalloutType =
   | "info"
   | "warn"
   | "warning"
@@ -52,30 +52,12 @@ function resolveType(type: CalloutType): keyof typeof typeConfig {
   return type as keyof typeof typeConfig;
 }
 
-interface CalloutProps extends Omit<ComponentProps<"div">, "title"> {
+export interface CalloutProps extends Omit<ComponentProps<"div">, "title"> {
   type?: CalloutType;
   title?: ReactNode;
   icon?: ReactNode;
   children?: ReactNode;
 }
-
-// Keep the authored fuma type in the `[!type]` marker — don't remap to GitHub's
-// smaller admonition set.
-export const CalloutLLM = ({
-  type = "info",
-  title,
-  children,
-}: CalloutProps) => (
-  <blockquote>
-    <p>{`[!${type}]`}</p>
-    {title ? (
-      <p>
-        <strong>{title}</strong>
-      </p>
-    ) : null}
-    {children}
-  </blockquote>
-);
 
 export function Callout({
   type: inputType = "info",

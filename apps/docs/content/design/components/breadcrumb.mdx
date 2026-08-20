@@ -12,14 +12,18 @@ import {
   BreadcrumbSpecimen,
   BreadcrumbEllipsisSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="BreadcrumbSpecimen">
-  <BreadcrumbSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="BreadcrumbSpecimen" base={<BreadcrumbSpecimen />}>
+  <RadixSpecimens.BreadcrumbSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="breadcrumb" deps={["@base-ui/react"]} />
+<KitInstall name="breadcrumb" />
 
 ## Usage
 
@@ -56,8 +60,8 @@ export function Example() {
 
 `BreadcrumbEllipsis` stands in for levels that do not need to be spelled out.
 
-<PreviewCode file="components/design/specimens" name="BreadcrumbEllipsisSpecimen">
-  <BreadcrumbEllipsisSpecimen />
+<PreviewCode file="components/design/specimens" name="BreadcrumbEllipsisSpecimen" base={<BreadcrumbEllipsisSpecimen />}>
+  <RadixSpecimens.BreadcrumbEllipsisSpecimen />
 </PreviewCode>
 
 ## API Reference

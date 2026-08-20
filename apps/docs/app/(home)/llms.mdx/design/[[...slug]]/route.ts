@@ -1,6 +1,6 @@
 import { type NextRequest, NextResponse } from "next/server";
 import { getLLMText } from "@/lib/get-llm-text";
-import { standalone } from "@/lib/source";
+import { design } from "@/lib/source";
 import { notFound } from "next/navigation";
 
 export const dynamic = "force-dynamic";
@@ -12,11 +12,11 @@ export async function GET(
   const { slug } = await params;
   if (!slug || slug.length === 0) {
     const lines = [
-      "# Standalone",
+      "# Design",
       "",
-      "UI primitives that work anywhere. No runtime required.",
+      "The design system: actions, inputs, display, overlays, and navigation.",
       "",
-      ...standalone.getPages().map((page) => {
+      ...design.getPages().map((page) => {
         const description = page.data.description
           ? `: ${page.data.description}`
           : "";
@@ -33,7 +33,7 @@ export async function GET(
     });
   }
 
-  const page = standalone.getPage(slug);
+  const page = design.getPage(slug);
   if (!page) notFound();
 
   const flavor =
@@ -49,7 +49,7 @@ export async function GET(
 }
 
 export function generateStaticParams() {
-  return standalone.getPages().map((page) => ({
+  return design.getPages().map((page) => ({
     slug: page.slugs,
   }));
 }

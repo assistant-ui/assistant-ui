@@ -1,16 +1,12 @@
 import type { MDXComponents } from "mdx/types";
-import type { ComponentProps } from "react";
+import type { CSSProperties, ComponentProps, ReactNode } from "react";
 import { Accordion, Accordions } from "fumadocs-ui/components/accordion";
-import { Callout } from "@/components/pages/docs/fumadocs/callout";
+import { Callout } from "@/components/ui/callout";
+import { CodeBlock } from "@/components/ui/code-block";
 import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
-import { Step, Steps } from "@/components/pages/docs/fumadocs/steps";
+import { Step, Steps } from "@/components/ui/steps";
 import { Tab, Tabs } from "@/components/pages/docs/fumadocs/tabs";
 import defaultComponents from "fumadocs-ui/mdx";
-import {
-  CodeBlock,
-  type CodeBlockProps,
-  Pre,
-} from "fumadocs-ui/components/codeblock";
 import { InstallCommand } from "@/components/pages/docs/fumadocs/install/install-command";
 import { ParametersTable } from "@/components/pages/docs/parameters-table";
 import {
@@ -54,13 +50,23 @@ function Code({ children, ...props }: ComponentProps<"code">) {
 export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
     ...(defaultComponents as MDXComponents),
-    pre: (props: CodeBlockProps) => (
-      <CodeBlock {...props}>
-        <Pre className="max-h-87.5">
-          <PlatformAwareCode>{props.children}</PlatformAwareCode>
-        </Pre>
-      </CodeBlock>
-    ),
+    pre: ({
+      title,
+      icon: _icon,
+      style,
+      children,
+      ...rest
+    }: ComponentProps<"pre"> & { title?: ReactNode; icon?: ReactNode }) => {
+      const { backgroundColor: _backgroundColor, ...preStyle } = (style ??
+        {}) as CSSProperties;
+      return (
+        <CodeBlock title={title} viewportClassName="max-h-87.5">
+          <pre style={preStyle} {...rest}>
+            <PlatformAwareCode>{children}</PlatformAwareCode>
+          </pre>
+        </CodeBlock>
+      );
+    },
     Tabs,
     Tab,
     PlatformTabs,

@@ -1,0 +1,79 @@
+---
+title: "Callout"
+description: "A tinted aside for notes, warnings, and errors inside prose."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/callout.tsx
+---
+
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { KitInstall } from "@/components/design/kit-install";
+import {
+  CalloutSpecimen,
+  CalloutTitledSpecimen,
+} from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="CalloutSpecimen" base={<CalloutSpecimen />}>
+  <RadixSpecimens.CalloutSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="callout" />
+
+## Usage
+
+```tsx
+import { Callout } from "@/components/ui/callout";
+
+export function Example() {
+  return <Callout type="warning">This adapter needs an API key.</Callout>;
+}
+```
+
+In MDX the callout also renders from a plain blockquote, so prose can stay prose.
+
+## Examples
+
+### With a title and custom content
+
+Titles bold the first line; inline code, kbd caps, links, and lists are styled inside the tint.
+
+<PreviewCode file="components/design/specimens" name="CalloutTitledSpecimen" base={<CalloutTitledSpecimen />}>
+  <RadixSpecimens.CalloutTitledSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### Callout
+
+<ParametersTable
+  type="CalloutProps"
+  parameters={[
+    {
+      name: "type",
+      type: '"info" | "warning" | "error" | "success" | "idea" | "tip" | "note" | "warn"',
+      default: '"info"',
+      description: "The tint and icon. tip and note alias info; warn aliases warning.",
+    },
+    {
+      name: "title",
+      type: "ReactNode",
+      description: "Bold first line above the body.",
+    },
+    {
+      name: "icon",
+      type: "ReactNode",
+      description: "Replaces the type icon.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>

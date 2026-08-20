@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CheckIcon, CopyIcon } from "lucide-react";
 import ShikiHighlighter from "react-shiki";
+import { CodeBlock } from "@/components/ui/code-block";
 import { cn } from "@/lib/utils";
 import { useFlavor } from "@/components/pages/docs/contexts/flavor";
 
@@ -49,17 +49,10 @@ export function PreviewCodeClient({
   className,
 }: PreviewCodeClientProps) {
   const [tab, setTab] = useState<Tab>("preview");
-  const [copied, setCopied] = useState(false);
   const flavor = useFlavor();
 
   const activeCode =
     flavor === "base" && baseCode !== undefined ? baseCode : code;
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(activeCode);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className="not-prose my-4">
@@ -90,30 +83,20 @@ export function PreviewCodeClient({
           </div>
         </div>
       ) : (
-        <div className="preview-code-block relative overflow-hidden rounded-xl">
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="text-muted-foreground hover:bg-background hover:text-foreground absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-md opacity-50 transition-all hover:opacity-100"
-            aria-label={copied ? "Copied" : "Copy code"}
+        <CodeBlock
+          className="my-0"
+          copyText={activeCode}
+          viewportClassName="max-h-96"
+        >
+          <ShikiHighlighter
+            language="tsx"
+            theme={{ dark: "catppuccin-mocha", light: "catppuccin-latte" }}
+            addDefaultStyles={false}
+            showLanguage={false}
           >
-            {copied ? (
-              <CheckIcon className="size-3.5" />
-            ) : (
-              <CopyIcon className="size-3.5" />
-            )}
-          </button>
-          <div className="max-h-96 scrollbar-none overflow-auto py-3.5 text-[0.8125rem] leading-[1.65]">
-            <ShikiHighlighter
-              language="tsx"
-              theme={{ dark: "catppuccin-mocha", light: "catppuccin-latte" }}
-              addDefaultStyles={false}
-              showLanguage={false}
-            >
-              {activeCode.trim()}
-            </ShikiHighlighter>
-          </div>
-        </div>
+            {activeCode.trim()}
+          </ShikiHighlighter>
+        </CodeBlock>
       )}
     </div>
   );

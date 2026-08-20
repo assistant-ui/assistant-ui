@@ -13,14 +13,18 @@ import { KitInstall } from "@/components/design/kit-install";
 import {
   SeparatorSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="SeparatorSpecimen">
-  <SeparatorSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="SeparatorSpecimen" base={<SeparatorSpecimen />}>
+  <RadixSpecimens.SeparatorSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="separator" deps={["@base-ui/react"]} />
+<KitInstall name="separator" />
 
 ## Usage
 

@@ -1,13 +1,12 @@
 "use client";
 
-import { useState } from "react";
-import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
-import { cn } from "@/lib/utils";
-import { useAnimatedTabs } from "@/hooks/use-animated-tabs";
+import { CommandTabs } from "@/components/ui/command-tabs";
 import { analytics } from "@/lib/analytics";
 
 const PACKAGE_MANAGERS = ["npm", "pnpm", "yarn", "bun", "xpm"] as const;
 type PackageManager = (typeof PACKAGE_MANAGERS)[number];
+
+const STORAGE_KEY = "aui-package-manager";
 
 function getInstallCommand(pm: PackageManager, packages: string[]): string {
   const pkgList = packages.join(" ");
@@ -56,82 +55,12 @@ function getExpoInstallCommand(pm: PackageManager, packages: string[]): string {
   }
 }
 
-function CommandTabs({
-  getCommand,
-  packageManagers = PACKAGE_MANAGERS,
-}: {
-  getCommand: (pm: PackageManager) => string;
-  packageManagers?: readonly PackageManager[];
-}) {
-  const [pm, setPm] = useState<PackageManager>(packageManagers[0] ?? "npm");
-  const activeIndex = packageManagers.indexOf(pm);
+function buildCommands(getCommand: (pm: PackageManager) => string) {
+  return Object.fromEntries(PACKAGE_MANAGERS.map((pm) => [pm, getCommand(pm)]));
+}
 
-  const {
-    containerRef,
-    tabRefs,
-    hoveredIndex,
-    setHoveredIndex,
-    activeStyle,
-    hoverStyle,
-  } = useAnimatedTabs({ activeIndex });
-
-  return (
-    <div className="not-prose bg-code-surface my-4 overflow-hidden rounded-xl">
-      <div
-        ref={containerRef}
-        className="relative flex items-center gap-1 px-3 py-2"
-      >
-        {hoveredIndex !== null && hoverStyle.width > 0 && (
-          <div
-            className="bg-foreground/12 pointer-events-none absolute h-6.5 rounded-md transition-all duration-200 ease-out"
-            style={{
-              left: `${hoverStyle.left}px`,
-              width: `${hoverStyle.width}px`,
-            }}
-          />
-        )}
-
-        {activeStyle.width > 0 && (
-          <div
-            className="bg-foreground/8 pointer-events-none absolute h-6.5 rounded-md transition-all duration-200 ease-out"
-            style={{
-              left: `${activeStyle.left}px`,
-              width: `${activeStyle.width}px`,
-            }}
-          />
-        )}
-
-        {packageManagers.map((manager, index) => (
-          <button
-            key={manager}
-            ref={(el) => {
-              tabRefs.current[index] = el;
-            }}
-            type="button"
-            onClick={() => {
-              if (pm !== manager) {
-                analytics.install.packageManagerSelected(manager);
-              }
-              setPm(manager);
-            }}
-            onMouseEnter={() => setHoveredIndex(index)}
-            onMouseLeave={() => setHoveredIndex(null)}
-            className={cn(
-              "relative z-10 rounded-md px-2.5 py-1 text-xs font-medium transition-colors duration-200",
-              pm === manager
-                ? "text-foreground"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-          >
-            {manager}
-          </button>
-        ))}
-      </div>
-      <div className="overflow-hidden rounded-t-lg [&_figure]:my-0! [&_figure]:rounded-none! [&_figure]:border-none! [&_figure]:bg-transparent!">
-        <DynamicCodeBlock lang="bash" code={getCommand(pm)} />
-      </div>
-    </div>
-  );
+function onPackageManagerChange(value: string) {
+  analytics.install.packageManagerSelected(value);
 }
 
 export function PackageManagerTabs({
@@ -139,7 +68,13 @@ export function PackageManagerTabs({
 }: {
   packages: string[];
 }): React.ReactElement {
-  return <CommandTabs getCommand={(pm) => getInstallCommand(pm, packages)} />;
+  return (
+    <CommandTabs
+      commands={buildCommands((pm) => getInstallCommand(pm, packages))}
+      storageKey={STORAGE_KEY}
+      onValueChange={onPackageManagerChange}
+    />
+  );
 }
 
 export function ExpoInstallTabs({
@@ -148,7 +83,11 @@ export function ExpoInstallTabs({
   packages: string[];
 }): React.ReactElement {
   return (
-    <CommandTabs getCommand={(pm) => getExpoInstallCommand(pm, packages)} />
+    <CommandTabs
+      commands={buildCommands((pm) => getExpoInstallCommand(pm, packages))}
+      storageKey={STORAGE_KEY}
+      onValueChange={onPackageManagerChange}
+    />
   );
 }
 
@@ -157,5 +96,11 @@ export function ShadcnInstallTabs({
 }: {
   urls: string[];
 }): React.ReactElement {
-  return <CommandTabs getCommand={(pm) => getShadcnCommand(pm, urls)} />;
+  return (
+    <CommandTabs
+      commands={buildCommands((pm) => getShadcnCommand(pm, urls))}
+      storageKey={STORAGE_KEY}
+      onValueChange={onPackageManagerChange}
+    />
+  );
 }

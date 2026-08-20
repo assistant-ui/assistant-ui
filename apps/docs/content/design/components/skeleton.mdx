@@ -12,9 +12,13 @@ import {
   SkeletonSpecimen,
   SkeletonCardSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="SkeletonSpecimen">
-  <SkeletonSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="SkeletonSpecimen" base={<SkeletonSpecimen />}>
+  <RadixSpecimens.SkeletonSpecimen />
 </PreviewCode>
 
 ## Installation
@@ -42,8 +46,8 @@ export function Example() {
 
 Compose skeleton blocks into the layout the data will fill; the closer the shapes, the calmer the swap.
 
-<PreviewCode file="components/design/specimens" name="SkeletonCardSpecimen">
-  <SkeletonCardSpecimen />
+<PreviewCode file="components/design/specimens" name="SkeletonCardSpecimen" base={<SkeletonCardSpecimen />}>
+  <RadixSpecimens.SkeletonCardSpecimen />
 </PreviewCode>
 
 ## API Reference

@@ -11,9 +11,13 @@ import { KitInstall } from "@/components/design/kit-install";
 import {
   KbdSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="KbdSpecimen">
-  <KbdSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="KbdSpecimen" base={<KbdSpecimen />}>
+  <RadixSpecimens.KbdSpecimen />
 </PreviewCode>
 
 ## Installation

@@ -14,14 +14,18 @@ import {
   SwitchSpecimen,
   SwitchSizesSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="SwitchSpecimen">
-  <SwitchSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="SwitchSpecimen" base={<SwitchSpecimen />}>
+  <RadixSpecimens.SwitchSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="switch" deps={["@base-ui/react"]} />
+<KitInstall name="switch" />
 
 ## Usage
 
@@ -44,8 +48,8 @@ export function Example() {
 
 `default` measures 32×18 and `sm` 24×14. A disabled switch keeps its state visible at half opacity.
 
-<PreviewCode file="components/design/specimens" name="SwitchSizesSpecimen">
-  <SwitchSizesSpecimen />
+<PreviewCode file="components/design/specimens" name="SwitchSizesSpecimen" base={<SwitchSizesSpecimen />}>
+  <RadixSpecimens.SwitchSizesSpecimen />
 </PreviewCode>
 
 ## API Reference

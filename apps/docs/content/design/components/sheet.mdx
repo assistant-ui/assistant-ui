@@ -14,14 +14,18 @@ import {
   SheetSpecimen,
   SheetSidesSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="SheetSpecimen">
-  <SheetSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="SheetSpecimen" base={<SheetSpecimen />}>
+  <RadixSpecimens.SheetSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="sheet" deps={["@base-ui/react"]} />
+<KitInstall name="sheet" />
 
 ## Usage
 
@@ -57,8 +61,8 @@ export function Example() {
 
 The mobile thread list in the assistant-ui examples is a `left` sheet.
 
-<PreviewCode file="components/design/specimens" name="SheetSidesSpecimen">
-  <SheetSidesSpecimen />
+<PreviewCode file="components/design/specimens" name="SheetSidesSpecimen" base={<SheetSidesSpecimen />}>
+  <RadixSpecimens.SheetSidesSpecimen />
 </PreviewCode>
 
 ## API Reference

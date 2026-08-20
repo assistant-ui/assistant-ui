@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import type { DocumentRecord } from "fumadocs-core/search/algolia";
-import { source, getTapDocsPages, standalone } from "@/lib/source";
+import { design, source, getTapDocsPages } from "@/lib/source";
 
 export const revalidate = false;
 
@@ -10,7 +10,7 @@ export function GET() {
   for (const page of [
     ...source.getPages(),
     ...getTapDocsPages(),
-    ...standalone.getPages(),
+    ...design.getPages(),
   ]) {
     results.push({
       _id: page.url,

@@ -3,13 +3,6 @@ import path from "node:path";
 import { DESIGN_COMPONENTS } from "./registry-meta";
 import { DESIGN_PREVIEWS } from "./registry";
 
-const STANDALONE_SLUGS = new Set(
-  fs
-    .readdirSync(path.join(__dirname, "../../content/standalone"))
-    .filter((file) => file.endsWith(".mdx"))
-    .map((file) => file.replace(/\.mdx$/, "")),
-);
-
 describe("design registry", () => {
   it("keeps meta and previews in sync per slug", () => {
     const metaSlugs = DESIGN_COMPONENTS.map((component) => component.slug);
@@ -28,7 +21,7 @@ describe("design registry", () => {
 
     for (const component of DESIGN_COMPONENTS) {
       expect(
-        designSlugs.has(component.slug) || STANDALONE_SLUGS.has(component.slug),
+        designSlugs.has(component.slug),
         `missing MDX for ${component.slug}`,
       ).toBe(true);
     }

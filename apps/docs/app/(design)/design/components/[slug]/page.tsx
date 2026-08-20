@@ -11,12 +11,12 @@ import {
 } from "@/components/design/registry-meta";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeEyebrow, typePage } from "@/components/shared/type";
-import { design, standalone } from "@/lib/source";
+import { design } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 import { cn } from "@/lib/utils";
 
 function getPage(slug: string) {
-  return design.getPage(["components", slug]) ?? standalone.getPage([slug]);
+  return design.getPage(["components", slug]);
 }
 
 export function generateStaticParams() {

@@ -13,14 +13,18 @@ import { KitInstall } from "@/components/design/kit-install";
 import {
   DialogSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="DialogSpecimen">
-  <DialogSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="DialogSpecimen" base={<DialogSpecimen />}>
+  <RadixSpecimens.DialogSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="dialog" deps={["@base-ui/react"]} />
+<KitInstall name="dialog" />
 
 ## Usage
 

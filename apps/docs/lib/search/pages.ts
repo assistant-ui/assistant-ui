@@ -1,4 +1,4 @@
-import { getTapDocsPages, source, standalone } from "@/lib/source";
+import { design, getTapDocsPages, source } from "@/lib/source";
 import type { SearchHeading, SearchRecord } from "./types";
 
 type StructuredHeading = {
@@ -24,14 +24,12 @@ function headingsFrom(structuredData: {
 }
 
 export function buildSearchIndex(): SearchRecord[] {
-  return [
-    ...source.getPages(),
-    ...getTapDocsPages(),
-    ...standalone.getPages(),
-  ].map((page) => ({
-    url: page.url,
-    title: page.data.title,
-    description: page.data.description ?? "",
-    headings: headingsFrom(page.data.structuredData),
-  }));
+  return [...source.getPages(), ...getTapDocsPages(), ...design.getPages()].map(
+    (page) => ({
+      url: page.url,
+      title: page.data.title,
+      description: page.data.description ?? "",
+      headings: headingsFrom(page.data.structuredData),
+    }),
+  );
 }

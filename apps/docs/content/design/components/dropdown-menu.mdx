@@ -14,14 +14,18 @@ import {
   DropdownMenuSpecimen,
   DropdownMenuChecklistSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="DropdownMenuSpecimen">
-  <DropdownMenuSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="DropdownMenuSpecimen" base={<DropdownMenuSpecimen />}>
+  <RadixSpecimens.DropdownMenuSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="dropdown-menu" deps={["@base-ui/react"]} />
+<KitInstall name="dropdown-menu" />
 
 ## Usage
 
@@ -55,8 +59,8 @@ export function Example() {
 
 `DropdownMenuCheckboxItem` holds a checked state, `DropdownMenuLabel` titles a group, and `DropdownMenuSub` nests a second level.
 
-<PreviewCode file="components/design/specimens" name="DropdownMenuChecklistSpecimen">
-  <DropdownMenuChecklistSpecimen />
+<PreviewCode file="components/design/specimens" name="DropdownMenuChecklistSpecimen" base={<DropdownMenuChecklistSpecimen />}>
+  <RadixSpecimens.DropdownMenuChecklistSpecimen />
 </PreviewCode>
 
 ## API Reference

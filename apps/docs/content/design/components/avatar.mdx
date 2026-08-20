@@ -15,14 +15,18 @@ import {
   AvatarSizesSpecimen,
   AvatarBadgeSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="AvatarSpecimen">
-  <AvatarSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="AvatarSpecimen" base={<AvatarSpecimen />}>
+  <RadixSpecimens.AvatarSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="avatar" deps={["@base-ui/react"]} />
+<KitInstall name="avatar" />
 
 ## Usage
 
@@ -43,16 +47,16 @@ export function Example() {
 
 ### Sizes
 
-<PreviewCode file="components/design/specimens" name="AvatarSizesSpecimen">
-  <AvatarSizesSpecimen />
+<PreviewCode file="components/design/specimens" name="AvatarSizesSpecimen" base={<AvatarSizesSpecimen />}>
+  <RadixSpecimens.AvatarSizesSpecimen />
 </PreviewCode>
 
 ### Status badge
 
 `AvatarBadge` pins a marker to the rim; give it a background to carry the status.
 
-<PreviewCode file="components/design/specimens" name="AvatarBadgeSpecimen">
-  <AvatarBadgeSpecimen />
+<PreviewCode file="components/design/specimens" name="AvatarBadgeSpecimen" base={<AvatarBadgeSpecimen />}>
+  <RadixSpecimens.AvatarBadgeSpecimen />
 </PreviewCode>
 
 ## API Reference

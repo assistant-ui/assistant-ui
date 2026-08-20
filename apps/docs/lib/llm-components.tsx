@@ -1,4 +1,4 @@
-import type { ComponentProps } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import type { MDXComponents } from "mdx/types";
 import { getMDXComponents } from "@/mdx-components";
 import { TabLLM, TabsLLM } from "@/components/pages/docs/fumadocs/tabs.llm";
@@ -6,9 +6,26 @@ import {
   PlatformOnlyLLM,
   PlatformTabsLLM,
 } from "@/components/pages/docs/platform/mdx.llm";
-import { CalloutLLM } from "@/components/pages/docs/fumadocs/callout";
+import type { CalloutProps } from "@/components/ui/callout";
+
+// Keep the authored fuma type in the `[!type]` marker; GitHub's admonition set
+// is smaller, so the type is not remapped.
+const CalloutLLM = ({ type = "info", title, children }: CalloutProps) => (
+  <blockquote>
+    <p>{`[!${type}]`}</p>
+    {title ? (
+      <p>
+        <strong>{title}</strong>
+      </p>
+    ) : null}
+    {children}
+  </blockquote>
+);
 import { CardLLM, CardsLLM } from "@/components/pages/docs/fumadocs/card";
-import { StepLLM, StepsLLM } from "@/components/pages/docs/fumadocs/steps";
+const StepsLLM = ({ children }: { children?: ReactNode }) => (
+  <ol>{children}</ol>
+);
+const StepLLM = ({ children }: { children?: ReactNode }) => <li>{children}</li>;
 import { InstallCommandLLM } from "@/components/pages/docs/fumadocs/install/install-command";
 import { ParametersTableLLM } from "@/components/pages/docs/parameters-table";
 import { PrimitivesTypeTableLLM } from "@/components/pages/docs/primitives-type-table";

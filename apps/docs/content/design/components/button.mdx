@@ -15,14 +15,18 @@ import {
   ButtonSizesSpecimen,
   ButtonIconSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="ButtonSpecimen">
-  <ButtonSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="ButtonSpecimen" base={<ButtonSpecimen />}>
+  <RadixSpecimens.ButtonSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="button" deps={["@base-ui/react"]} />
+<KitInstall name="button" />
 
 ## Usage
 
@@ -40,16 +44,16 @@ export function Example() {
 
 The default height is 32px; `sm` is the 28px header control. `xs` and `lg` cover dense rails and prominent calls to action.
 
-<PreviewCode file="components/design/specimens" name="ButtonSizesSpecimen">
-  <ButtonSizesSpecimen />
+<PreviewCode file="components/design/specimens" name="ButtonSizesSpecimen" base={<ButtonSizesSpecimen />}>
+  <RadixSpecimens.ButtonSizesSpecimen />
 </PreviewCode>
 
 ### Icon buttons
 
 The square `icon` sizes pair with an `aria-label`; an icon placed next to a label gets its spacing automatically.
 
-<PreviewCode file="components/design/specimens" name="ButtonIconSpecimen">
-  <ButtonIconSpecimen />
+<PreviewCode file="components/design/specimens" name="ButtonIconSpecimen" base={<ButtonIconSpecimen />}>
+  <RadixSpecimens.ButtonIconSpecimen />
 </PreviewCode>
 
 ## API Reference

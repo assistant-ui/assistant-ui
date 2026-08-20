@@ -100,6 +100,29 @@ export const DESIGN_SECTIONS: DesignSectionMeta[] = [
         description:
           "A quiet overlay scrollbar for panes that keep their own scroll.",
       },
+      {
+        slug: "callout",
+        name: "Callout",
+        description:
+          "A tinted aside for notes, warnings, and errors inside prose.",
+      },
+      {
+        slug: "steps",
+        name: "Steps",
+        description: "A numbered rail for processes that happen in order.",
+      },
+      {
+        slug: "code-block",
+        name: "Code Block",
+        description:
+          "Highlighted code on a field panel, with a title bar and a copy button.",
+      },
+      {
+        slug: "command-tabs",
+        name: "Command Tabs",
+        description:
+          "One command in several dialects, with synced tabs and a copy button.",
+      },
     ],
   },
   {

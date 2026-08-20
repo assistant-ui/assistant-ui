@@ -13,14 +13,18 @@ import { KitInstall } from "@/components/design/kit-install";
 import {
   PopoverSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="PopoverSpecimen">
-  <PopoverSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="PopoverSpecimen" base={<PopoverSpecimen />}>
+  <RadixSpecimens.PopoverSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="popover" deps={["@base-ui/react"]} />
+<KitInstall name="popover" />
 
 ## Usage
 

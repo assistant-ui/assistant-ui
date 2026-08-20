@@ -13,14 +13,18 @@ import { KitInstall } from "@/components/design/kit-install";
 import {
   CollapsibleSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="CollapsibleSpecimen">
-  <CollapsibleSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="CollapsibleSpecimen" base={<CollapsibleSpecimen />}>
+  <RadixSpecimens.CollapsibleSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="collapsible" deps={["@base-ui/react"]} />
+<KitInstall name="collapsible" />
 
 ## Usage
 

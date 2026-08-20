@@ -6,7 +6,6 @@ import {
   docs,
   tapDocs as tapDocsCollection,
   examples as examplePages,
-  standalone as standalonePages,
   design as designPages,
   blog as blogPosts,
   careers as careersCollection,
@@ -76,13 +75,6 @@ export const examples = loader({
 });
 
 export type ExamplePage = InferPageType<typeof examples>;
-
-export const standalone = loader({
-  baseUrl: "/standalone",
-  source: toFumadocsSource(standalonePages, []),
-});
-
-export type StandalonePage = InferPageType<typeof standalone>;
 
 export const design = loader({
   baseUrl: "/design",

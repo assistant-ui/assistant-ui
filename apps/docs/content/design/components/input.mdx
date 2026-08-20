@@ -12,14 +12,18 @@ import {
   InputSpecimen,
   InputWithButtonSpecimen,
 } from "@/components/design/specimens";
+import * as RadixSpecimens from "@/components/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
 
-<PreviewCode file="components/design/specimens" name="InputSpecimen">
-  <InputSpecimen />
+<FlavorSwitcher />
+
+<PreviewCode file="components/design/specimens" name="InputSpecimen" base={<InputSpecimen />}>
+  <RadixSpecimens.InputSpecimen />
 </PreviewCode>
 
 ## Installation
 
-<KitInstall name="input" deps={["@base-ui/react"]} />
+<KitInstall name="input" />
 
 ## Usage
 
@@ -43,8 +47,8 @@ export function Example() {
 
 Inputs sit on the same 32px rhythm as buttons, so rows compose without alignment fixes.
 
-<PreviewCode file="components/design/specimens" name="InputWithButtonSpecimen">
-  <InputWithButtonSpecimen />
+<PreviewCode file="components/design/specimens" name="InputWithButtonSpecimen" base={<InputWithButtonSpecimen />}>
+  <RadixSpecimens.InputWithButtonSpecimen />
 </PreviewCode>
 
 ## API Reference

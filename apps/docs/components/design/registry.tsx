@@ -11,6 +11,9 @@ import { SelectSample } from "@/components/docs/samples/select";
 import { TabsSample } from "@/components/docs/samples/tabs";
 import {
   AvatarSpecimen,
+  CalloutSpecimen,
+  CodeBlockSpecimen,
+  CommandTabsSpecimen,
   BreadcrumbSpecimen,
   ButtonSpecimen,
   CollapsibleSpecimen,
@@ -22,6 +25,7 @@ import {
   SeparatorSpecimen,
   SheetSpecimen,
   SkeletonSpecimen,
+  StepsSpecimen,
   SwitchSpecimen,
   TooltipSpecimen,
 } from "@/components/design/specimens";
@@ -41,6 +45,10 @@ export const DESIGN_PREVIEWS: Record<string, ComponentType> = {
   "dot-matrix": DotMatrixSample,
   "diff-viewer": DiffViewerSample,
   scrollbar: ScrollbarSample,
+  callout: CalloutSpecimen,
+  steps: StepsSpecimen,
+  "code-block": CodeBlockSpecimen,
+  "command-tabs": CommandTabsSpecimen,
   dialog: DialogSpecimen,
   popover: PopoverSpecimen,
   tooltip: TooltipSpecimen,

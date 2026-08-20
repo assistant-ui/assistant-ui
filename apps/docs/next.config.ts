@@ -90,6 +90,16 @@ const config: NextConfig = {
   ],
   redirects: async () => [
     {
+      source: "/standalone",
+      destination: "/design",
+      permanent: true,
+    },
+    {
+      source: "/standalone/:slug",
+      destination: "/design/components/:slug",
+      permanent: true,
+    },
+    {
       source: "/docs/runtimes/ai-sdk/v6",
       destination: "/docs/runtimes/ai-sdk/v6-legacy",
       permanent: true,
@@ -117,17 +127,17 @@ const config: NextConfig = {
     {
       source:
         "/docs/ui/:slug(accordion|badge|diff-viewer|dot-matrix|number-roll|select|tabs)",
-      destination: "/standalone/:slug",
+      destination: "/design/components/:slug",
       permanent: true,
     },
     {
       source: "/docs/standalone",
-      destination: "/standalone",
+      destination: "/design",
       permanent: true,
     },
     {
       source: "/docs/standalone/:slug",
-      destination: "/standalone/:slug",
+      destination: "/design/components/:slug",
       permanent: true,
     },
     {
@@ -189,20 +199,20 @@ const config: NextConfig = {
         destination: "/llms.mdx/examples/:path*",
       },
       {
-        source: "/standalone.md",
-        destination: "/llms.mdx/standalone",
+        source: "/design.md",
+        destination: "/llms.mdx/design",
       },
       {
-        source: "/standalone.mdx",
-        destination: "/llms.mdx/standalone",
+        source: "/design.mdx",
+        destination: "/llms.mdx/design",
       },
       {
-        source: "/standalone/:path*.md",
-        destination: "/llms.mdx/standalone/:path*",
+        source: "/design/:path*.md",
+        destination: "/llms.mdx/design/:path*",
       },
       {
-        source: "/standalone/:path*.mdx",
-        destination: "/llms.mdx/standalone/:path*",
+        source: "/design/:path*.mdx",
+        destination: "/llms.mdx/design/:path*",
       },
       {
         source: "/tap/docs.md",
@@ -253,11 +263,11 @@ const config: NextConfig = {
         destination: "/llms.mdx/examples/:path*",
       },
       {
-        source: "/standalone/:path*",
+        source: "/design/:path*",
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
-        destination: "/llms.mdx/standalone/:path*",
+        destination: "/llms.mdx/design/:path*",
       },
       {
         source: "/tap/docs/:path*",
