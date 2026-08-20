@@ -22,16 +22,18 @@ const syntaxHighlighterCustomStyle = {
   padding: "1.5rem 1rem",
 };
 
+// Both pres sit under the code header; the reset cannot come from the
+// adjacent-sibling rule in markdown-text, which only reaches the first pre.
 const LightSyntaxHighlighter = makePrismAsyncLightSyntaxHighlighter({
   style: coldarkCold,
   customStyle: syntaxHighlighterCustomStyle,
-  className: "dark:hidden",
+  className: "dark:hidden mt-0 rounded-t-none",
 });
 
 const DarkSyntaxHighlighter = makePrismAsyncLightSyntaxHighlighter({
   style: coldarkDark,
   customStyle: syntaxHighlighterCustomStyle,
-  className: "hidden dark:block",
+  className: "hidden dark:block mt-0 rounded-t-none",
 });
 
 export const SyntaxHighlighter = (props: SyntaxHighlighterProps) => (
