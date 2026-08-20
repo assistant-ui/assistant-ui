@@ -23,9 +23,7 @@ export function ToolWithApproval() {
         status={
           approved === undefined
             ? { type: "requires-action", reason: "interrupt" }
-            : approved
-              ? { type: "complete" }
-              : { type: "incomplete", reason: "cancelled" }
+            : { type: "complete" }
         }
       />
       <ToolFallbackContent>
