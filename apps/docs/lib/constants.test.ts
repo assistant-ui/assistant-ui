@@ -41,10 +41,23 @@ describe("NAV_ITEMS", () => {
     expect(products.groups.map((group) => group.label)).toEqual([
       "Platforms",
       "Hosted",
+      "Primitives",
     ]);
     expect(
       products.groups.flatMap((group) => group.items.map((item) => item.label)),
-    ).toEqual(["React", "React Native", "Ink", "Cloud", "Playground"]);
+    ).toEqual([
+      "React",
+      "React Native",
+      "Ink",
+      "Cloud",
+      "Cloud AI SDK",
+      "Playground",
+      "tw-shimmer",
+      "tw-glass",
+      "Heat Graph",
+      "Safe Content Frame",
+      "react-o11y",
+    ]);
   });
 
   it("keeps Resources to Learn and Company", () => {
@@ -62,6 +75,6 @@ describe("NAV_ITEMS", () => {
       resources.groups
         .find((group) => group.label === "Company")
         ?.items.map((item) => item.label),
-    ).toEqual(["Blog", "Careers", "Brand"]);
+    ).toEqual(["Blog", "Careers", "Brand", "Traction"]);
   });
 });

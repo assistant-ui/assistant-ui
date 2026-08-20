@@ -93,6 +93,99 @@ function GlyphCloud() {
   );
 }
 
+function GlyphCloudAiSdk() {
+  return (
+    <span className="flex w-7 flex-col gap-[3px]">
+      <span className="bg-foreground/25 h-[3px] w-full" />
+      <span className="bg-foreground/25 h-[3px] w-4/5" />
+      <span className="border-foreground/25 mt-[2px] flex h-[8px] items-center justify-center border">
+        <span className={cn("bg-foreground/40 h-[3px] w-3.5", ACCENT)} />
+      </span>
+    </span>
+  );
+}
+
+function GlyphShimmer() {
+  return (
+    <span className="flex w-7 flex-col gap-[3px]">
+      <span className="bg-foreground/15 h-[3px] w-full" />
+      <span className="flex h-[3px] w-full gap-[2px]">
+        <span className="bg-foreground/15 w-[6px]" />
+        <span className={cn("bg-foreground/40 w-[9px]", ACCENT)} />
+        <span className="bg-foreground/15 flex-1" />
+      </span>
+      <span className="bg-foreground/15 h-[3px] w-2/3" />
+    </span>
+  );
+}
+
+function GlyphGlass() {
+  return (
+    <span className="relative flex h-6 w-8 flex-col justify-center gap-[3px]">
+      <span className="bg-foreground/20 h-[2px] w-full" />
+      <span className="bg-foreground/20 h-[2px] w-full" />
+      <span className="bg-foreground/20 h-[2px] w-full" />
+      <span className="border-foreground/40 bg-background absolute top-1/2 right-[3px] flex size-[14px] -translate-y-1/2 items-center justify-center rounded-(--radius-capsule) border">
+        <span
+          className={cn("bg-foreground/40 mt-[3px] h-[2px] w-[7px]", ACCENT)}
+        />
+      </span>
+    </span>
+  );
+}
+
+function GlyphHeat() {
+  const tones = [
+    "bg-foreground/10",
+    "bg-foreground/25",
+    "bg-foreground/10",
+    "bg-foreground/40",
+    "bg-foreground/20",
+    "bg-foreground/25",
+    "bg-foreground/10",
+    "bg-foreground/30",
+    "bg-foreground/10",
+    "bg-foreground/25",
+    "bg-foreground/10",
+    "bg-foreground/30",
+    "bg-foreground/15",
+    "bg-foreground/25",
+    "bg-foreground/10",
+  ];
+  return (
+    <span className="grid grid-cols-5 gap-[2px]">
+      {tones.map((tone, index) => (
+        <span
+          key={index}
+          className={cn("size-[4px]", tone, index === 3 && ACCENT)}
+        />
+      ))}
+    </span>
+  );
+}
+
+function GlyphFrame() {
+  return (
+    <span className="border-foreground/25 flex h-6 w-8 border p-[3px]">
+      <span className="border-foreground/40 flex flex-1 items-center justify-center border">
+        <span className={cn("bg-foreground/25 size-[5px]", ACCENT)} />
+      </span>
+    </span>
+  );
+}
+
+function GlyphO11y() {
+  return (
+    <span className="flex w-7 flex-col gap-[3px]">
+      <span className="bg-foreground/30 h-[3px] w-full" />
+      <span className="bg-foreground/20 ml-[5px] h-[3px] w-[13px]" />
+      <span
+        className={cn("bg-foreground/40 ml-[11px] h-[3px] w-[10px]", ACCENT)}
+      />
+    </span>
+  );
+}
+
 function GlyphPlayground() {
   return (
     <span className="border-foreground/25 flex h-6 w-8 border">
@@ -216,6 +309,29 @@ function GlyphBrand() {
   );
 }
 
+function GlyphPackages() {
+  return (
+    <span className="flex flex-col items-center gap-[2px]">
+      <span className="border-foreground/30 size-[9px] border" />
+      <span className="flex gap-[2px]">
+        <span className="border-foreground/30 size-[9px] border" />
+        <span className={cn("bg-foreground/25 size-[9px]", ACCENT)} />
+      </span>
+    </span>
+  );
+}
+
+function GlyphTraction() {
+  return (
+    <span className="flex h-6 items-end gap-[3px]">
+      <span className="bg-foreground/15 h-[6px] w-[5px]" />
+      <span className="bg-foreground/25 h-[10px] w-[5px]" />
+      <span className="bg-foreground/25 h-[14px] w-[5px]" />
+      <span className={cn("bg-foreground/40 h-[19px] w-[5px]", ACCENT)} />
+    </span>
+  );
+}
+
 const GLYPHS: Record<NavGlyphKind, () => React.ReactNode> = {
   elements: GlyphElements,
   design: GlyphDesign,
@@ -223,11 +339,19 @@ const GLYPHS: Record<NavGlyphKind, () => React.ReactNode> = {
   native: GlyphNative,
   ink: GlyphInk,
   cloud: GlyphCloud,
+  "cloud-ai-sdk": GlyphCloudAiSdk,
   playground: GlyphPlayground,
+  shimmer: GlyphShimmer,
+  glass: GlyphGlass,
+  heat: GlyphHeat,
+  frame: GlyphFrame,
+  o11y: GlyphO11y,
   examples: GlyphExamples,
   changelog: GlyphChangelog,
   showcase: GlyphShowcase,
   oss: GlyphOss,
+  packages: GlyphPackages,
+  traction: GlyphTraction,
   blog: GlyphBlog,
   careers: GlyphCareers,
   brand: GlyphBrand,

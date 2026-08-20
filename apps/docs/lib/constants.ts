@@ -112,11 +112,19 @@ export type NavGlyphKind =
   | "native"
   | "ink"
   | "cloud"
+  | "cloud-ai-sdk"
   | "playground"
+  | "shimmer"
+  | "glass"
+  | "heat"
+  | "frame"
+  | "o11y"
   | "examples"
   | "changelog"
   | "showcase"
   | "oss"
+  | "packages"
+  | "traction"
   | "blog"
   | "careers"
   | "brand";
@@ -209,11 +217,58 @@ export const NAV_ITEMS: NavItem[] = [
             glyph: "cloud",
           },
           {
+            label: "Cloud AI SDK",
+            href: "/cloud-ai-sdk",
+            description: "Drop-in persistence for useChat",
+            external: false,
+            glyph: "cloud-ai-sdk",
+          },
+          {
             label: "Playground",
             href: "/playground",
             description: "Try the library in the browser",
             external: false,
             glyph: "playground",
+          },
+        ],
+      },
+      {
+        label: "Primitives",
+        items: [
+          {
+            label: "tw-shimmer",
+            href: "/tw-shimmer",
+            description: "Shimmer loading states for Tailwind",
+            external: false,
+            glyph: "shimmer",
+          },
+          {
+            label: "tw-glass",
+            href: "/tw-glass",
+            description: "Glass refraction in pure CSS",
+            external: false,
+            glyph: "glass",
+          },
+          {
+            label: "Heat Graph",
+            href: "/heat-graph",
+            description: "Headless activity heatmaps",
+            external: false,
+            glyph: "heat",
+          },
+          {
+            label: "Safe Content Frame",
+            href: "/safe-content-frame",
+            description: "Sandboxed iframes for untrusted HTML",
+            external: false,
+            glyph: "frame",
+          },
+          {
+            label: "react-o11y",
+            href: "/react-o11y",
+            description: "Span primitives for agent runs",
+            external: false,
+            glyph: "o11y",
           },
         ],
       },
@@ -268,6 +323,13 @@ export const NAV_ITEMS: NavItem[] = [
             external: false,
             glyph: "oss",
           },
+          {
+            label: "Packages",
+            href: "/packages",
+            description: "Every package we publish on npm",
+            external: false,
+            glyph: "packages",
+          },
         ],
       },
       {
@@ -293,6 +355,13 @@ export const NAV_ITEMS: NavItem[] = [
             description: "Logos and brand assets",
             external: false,
             glyph: "brand",
+          },
+          {
+            label: "Traction",
+            href: "/traction",
+            description: "Stars and downloads, live",
+            external: false,
+            glyph: "traction",
           },
         ],
       },

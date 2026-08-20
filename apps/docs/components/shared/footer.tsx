@@ -24,11 +24,26 @@ const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
   Extend: [
     { label: "Elements", href: "/elements" },
     { label: "Design", href: "/design" },
+    { label: "Cloud AI SDK", href: "/cloud-ai-sdk" },
+  ],
+  Primitives: [
+    { label: "tw-shimmer", href: "/tw-shimmer" },
+    { label: "tw-glass", href: "/tw-glass" },
+    { label: "Heat Graph", href: "/heat-graph" },
+    { label: "Safe Content Frame", href: "/safe-content-frame" },
+    { label: "react-o11y", href: "/react-o11y" },
+  ],
+  Resources: [
+    { label: "Examples", href: "/examples" },
+    { label: "Showcase", href: "/showcase" },
+    { label: "Open source", href: "/oss" },
+    { label: "Packages", href: "/packages" },
   ],
   Company: [
     { label: "Blog", href: "/blog" },
     { label: "Careers", href: "/careers" },
     { label: "Brand", href: "/brand" },
+    { label: "Traction", href: "/traction" },
     { label: "Pricing", href: "/pricing" },
   ],
 };
@@ -37,7 +52,7 @@ export function Footer(): React.ReactElement {
   return (
     <footer className="rounded-(--radius-page) py-10 md:py-16">
       <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4">
-        <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-4">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
           {Object.entries(FOOTER_LINKS).map(([category, links]) => (
             <div key={category} className="flex flex-col gap-3">
               <p className="text-muted-foreground font-mono text-[11px] font-medium tracking-wide uppercase">
