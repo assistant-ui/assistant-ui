@@ -3,6 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Text } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type * as Store from "@assistant-ui/store";
 import { ThreadEmpty } from "./ThreadEmpty";
 
 const h = vi.hoisted(() => ({
@@ -11,15 +12,19 @@ const h = vi.hoisted(() => ({
 
 type ThreadSlice = { thread: { isEmpty: boolean } };
 
-vi.mock("@assistant-ui/store", () => ({
-  AuiIf: ({
-    condition,
-    children,
-  }: {
-    condition: (s: ThreadSlice) => boolean;
-    children: ReactNode;
-  }) => (condition({ thread: { isEmpty: h.isEmpty } }) ? children : null),
-}));
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof Store>();
+  return {
+    ...actual,
+    AuiIf: ({
+      condition,
+      children,
+    }: {
+      condition: (s: ThreadSlice) => boolean;
+      children: ReactNode;
+    }) => (condition({ thread: { isEmpty: h.isEmpty } }) ? children : null),
+  };
+});
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 

@@ -12,7 +12,7 @@ Many primitives share their core logic with `@assistant-ui/react` via `@assistan
 ## Thread
 
 ```tsx
-import { ThreadPrimitive } from "@assistant-ui/react-native";
+import { AuiIf, ThreadPrimitive } from "@assistant-ui/react-native";
 ```
 
 ### ThreadPrimitive.Root
@@ -100,9 +100,14 @@ Renders a single message at a specific index in the thread. Provides message con
 
 ### ThreadPrimitive.Empty
 
-Renders its children only when the thread has no messages. Deprecated in favor of `AuiIf`.
+Renders its children only when the thread is empty (no messages and not loading). Deprecated in favor of `AuiIf`.
 
 ```tsx
+<ThreadPrimitive.Empty>
+  <Text>Send a message to get started</Text>
+</ThreadPrimitive.Empty>
+
+// preferred
 <AuiIf condition={(s) => s.thread.isEmpty}>
   <Text>Send a message to get started</Text>
 </AuiIf>
@@ -113,6 +118,11 @@ Renders its children only when the thread has no messages. Deprecated in favor o
 Conditional rendering based on thread state. Deprecated in favor of `AuiIf`.
 
 ```tsx
+<ThreadPrimitive.If empty>
+  <Text>No messages yet</Text>
+</ThreadPrimitive.If>
+
+// preferred
 <AuiIf condition={(s) => s.thread.isEmpty}>
   <Text>No messages yet</Text>
 </AuiIf>

@@ -2,16 +2,21 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { Text } from "react-native";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type * as Store from "@assistant-ui/store";
 import { ThreadIf } from "./ThreadIf";
 
 const h = vi.hoisted(() => ({
   thread: { isEmpty: true, isRunning: false },
 }));
 
-vi.mock("@assistant-ui/store", () => ({
-  useAuiState: <T,>(selector: (s: { thread: typeof h.thread }) => T) =>
-    selector({ thread: h.thread }),
-}));
+vi.mock("@assistant-ui/store", async (importOriginal) => {
+  const actual = await importOriginal<typeof Store>();
+  return {
+    ...actual,
+    useAuiState: <T,>(selector: (s: { thread: typeof h.thread }) => T) =>
+      selector({ thread: h.thread }),
+  };
+});
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;
 
