@@ -4,10 +4,15 @@ import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 
 import { ToolFallback } from "./tool-fallback";
 
-vi.mock("@assistant-ui/react", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@assistant-ui/react")>()),
+const stubs = vi.hoisted(() => ({
   useScrollLock: () => () => {},
   useToolCallElapsed: () => undefined,
+}));
+
+vi.mock("@assistant-ui/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/react")>()),
+  useScrollLock: stubs.useScrollLock,
+  useToolCallElapsed: stubs.useToolCallElapsed,
 }));
 
 afterEach(cleanup);
@@ -65,5 +70,18 @@ describe("ToolFallback", () => {
     fireEvent.click(screen.getByRole("button", { name: "Allow" }));
 
     expect(addResult).toHaveBeenCalledWith("Approved by user");
+  });
+
+  it("does not fabricate a result from the exported Approval seam", () => {
+    const addResult = vi.fn();
+    render(
+      <ToolFallback.Approval
+        status={{ type: "requires-action", reason: "interrupt" }}
+        addResult={addResult}
+      />,
+    );
+
+    expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
+    expect(addResult).not.toHaveBeenCalled();
   });
 });
