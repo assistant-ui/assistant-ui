@@ -101,9 +101,9 @@ const defaultComponents = memoizeMarkdownComponents({
   // table can exceed the thread width. Markdown output cannot author the
   // upstream .typeset-scroll wrapper, so the override supplies one; the
   // wrapper owns the flow margin and mirrors typeset's spacing for tables
-  // after headings, inside list items, and in first position.
+  // inside list items and in first position.
   table: ({ className, ...props }) => (
-    <div className="aui-md-table-scroll mt-(--typeset-flow) overflow-x-auto first:mt-0 [:where(h1,h2,h3,h4,h5,h6)+&]:mt-[1em] [:where(li)>&]:mt-[0.5em]">
+    <div className="aui-md-table-scroll mt-(--typeset-flow) overflow-x-auto first:mt-0 [:where(li)>&]:mt-[0.5em]">
       <table className={cn("aui-md-table mt-0", className)} {...props} />
     </div>
   ),
