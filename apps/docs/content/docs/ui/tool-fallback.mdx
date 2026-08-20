@@ -66,6 +66,33 @@ The thread sends a weather request when the preview loads. The registered render
   <ToolFallbackRendererSample />
 </PreviewCode>
 
+Register the renderer in a toolkit. Then add the config to `AssistantRuntimeProvider`.
+
+```tsx
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  defineToolkit,
+  Tools,
+} from "@assistant-ui/react";
+
+import { Thread } from "@/components/assistant-ui/thread";
+
+const weatherToolkit = defineToolkit({
+  get_weather: {
+    render: WeatherToolUI,
+  },
+});
+
+const config = AuiConfig({
+  tools: Tools({ toolkit: weatherToolkit }),
+});
+
+<AssistantRuntimeProvider runtime={runtime} config={config}>
+  <Thread />
+</AssistantRuntimeProvider>;
+```
+
 ### Running State
 
 Shows a loading spinner and shimmer animation while the tool is executing.
