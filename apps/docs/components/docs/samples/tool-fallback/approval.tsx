@@ -43,7 +43,6 @@ export function ToolWithApproval() {
                 approved ? "Approved by user" : "User denied tool execution",
               );
             }}
-            addResult={(result) => setDecision(String(result))}
           />
         ) : (
           <ToolFallbackResult result={decision} />

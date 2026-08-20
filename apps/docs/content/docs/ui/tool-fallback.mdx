@@ -75,7 +75,7 @@ Shows a muted appearance when a tool call was cancelled.
 
 ### Approval State
 
-Select Allow or Deny. Allow records the result "Approved by user". Deny records the result "User denied tool execution". Each choice removes the buttons and shows the recorded result.
+Select Allow or Deny. The `resume` callback records the choice, removes the buttons, and shows the result. A tool call whose approval gate is decided shows no buttons. Edit your project's copy of `tool-fallback.tsx` to add trust escalation, edit-args, custom labels, or analytics hooks.
 
 <PreviewCode
   file="components/docs/samples/tool-fallback/approval"
