@@ -135,9 +135,19 @@ describe("escapeCurrencyDollars", () => {
     ).toBe("Use ``value ````` costs $5 `` after \\$7");
   });
 
+  it("escapes currency after an inline opener with no equal-length closer", () => {
+    expect(escapeCurrencyDollars("`a ``b`` $5")).toBe("`a ``b`` \\$5");
+  });
+
   it("does not rewrite a fenced block", () => {
     expect(escapeCurrencyDollars("```\nconst price = $5;\n```")).toBe(
       "```\nconst price = $5;\n```",
+    );
+  });
+
+  it("accepts a longer closing run for a fenced block", () => {
+    expect(escapeCurrencyDollars("```\nconst price = $5;\n````")).toBe(
+      "```\nconst price = $5;\n````",
     );
   });
 

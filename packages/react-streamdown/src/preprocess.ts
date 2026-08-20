@@ -76,6 +76,7 @@ function codeSpanEnd(text: string, start: number): number {
   const delimiter = "`".repeat(delimiterLength);
   let closed = text.indexOf(delimiter, start + delimiterLength);
 
+  // Fences may close on a longer run; one- and two-backtick inline spans may not.
   while (delimiterLength < 3 && closed !== -1) {
     const closedLength = runLength(text, closed, "`");
     if (closedLength === delimiterLength) break;
