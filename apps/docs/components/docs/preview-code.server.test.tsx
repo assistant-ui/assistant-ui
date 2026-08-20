@@ -9,8 +9,9 @@ export function Sample({ value }: Used) {
 }`,
 );
 
-vi.mock("node:fs", () => ({
+vi.mock("node:fs", async (importOriginal) => ({
   default: {
+    ...(await importOriginal<{ default: object }>()).default,
     existsSync: () => false,
     readFileSync: () => sampleSource,
   },
