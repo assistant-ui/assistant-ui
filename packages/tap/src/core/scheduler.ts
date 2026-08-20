@@ -177,6 +177,14 @@ export const flushTapSync = <T>(callback: () => T): T => {
 
     return value;
   } finally {
+    // The notify drain at the end of flushScheduled runs while flushState
+    // still points at the temporary state, so a markDirty from a notify
+    // lands there. Hand that work to the restored state or it is lost.
+    const stranded = flushState.schedulers;
     flushState = prev;
+    if (stranded.size > 0) {
+      for (const scheduler of stranded) flushState.schedulers.add(scheduler);
+      scheduleFlush();
+    }
   }
 };

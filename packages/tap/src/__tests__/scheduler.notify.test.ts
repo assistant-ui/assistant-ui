@@ -3,6 +3,7 @@ import {
   UpdateScheduler,
   flushTapSync,
   scheduleNotify,
+  scheduleTask,
 } from "../core/scheduler";
 
 describe("scheduleNotify", () => {
@@ -69,5 +70,49 @@ describe("scheduleNotify", () => {
     expect(
       (caught as AggregateError).errors.map((e) => (e as Error).message),
     ).toEqual(["task-boom", "notify-boom"]);
+  });
+});
+
+describe("updates dispatched from notifications", () => {
+  const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+  it("flushes a markDirty dispatched from a macrotask-flush notification", async () => {
+    const events: string[] = [];
+    const follower = new UpdateScheduler(() => events.push("follower ran"));
+    const notifier = new UpdateScheduler(() =>
+      scheduleNotify(() => follower.markDirty()),
+    );
+
+    notifier.markDirty();
+    await tick();
+
+    expect(events).toEqual(["follower ran"]);
+    expect(follower.isDirty).toBe(false);
+  });
+
+  it("flushes a markDirty dispatched from a flushTapSync notification", async () => {
+    const events: string[] = [];
+    const follower = new UpdateScheduler(() => events.push("follower ran"));
+    const notifier = new UpdateScheduler(() =>
+      scheduleNotify(() => follower.markDirty()),
+    );
+
+    flushTapSync(() => notifier.markDirty());
+    await tick();
+
+    expect(events).toEqual(["follower ran"]);
+    expect(follower.isDirty).toBe(false);
+  });
+
+  it("runs a task scheduled from a flushTapSync notification", async () => {
+    const events: string[] = [];
+    const notifier = new UpdateScheduler(() =>
+      scheduleNotify(() => scheduleTask(() => events.push("task ran"))),
+    );
+
+    flushTapSync(() => notifier.markDirty());
+    await tick();
+
+    expect(events).toEqual(["task ran"]);
   });
 });
