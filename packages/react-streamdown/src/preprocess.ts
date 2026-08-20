@@ -72,9 +72,18 @@ function runLength(text: string, start: number, char: string): number {
  * text.
  */
 function codeSpanEnd(text: string, start: number): number {
-  const fence = "`".repeat(runLength(text, start, "`"));
-  const closed = text.indexOf(fence, start + fence.length);
-  return closed === -1 ? -1 : closed + fence.length;
+  const fenceLength = runLength(text, start, "`");
+  let index = start + fenceLength;
+  while (index < text.length) {
+    if (text[index] !== "`") {
+      index += 1;
+      continue;
+    }
+    const candidateLength = runLength(text, index, "`");
+    if (candidateLength === fenceLength) return index + candidateLength;
+    index += candidateLength;
+  }
+  return -1;
 }
 
 /**
