@@ -7,8 +7,8 @@ import {
   defineToolkit,
   Tools,
   useLocalRuntime,
-  type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
+import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/thread";
 
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
