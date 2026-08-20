@@ -4,7 +4,8 @@ import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 
 import { ToolFallback } from "./tool-fallback";
 
-vi.mock("@assistant-ui/react", () => ({
+vi.mock("@assistant-ui/react", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useScrollLock: () => () => {},
   useToolCallElapsed: () => undefined,
 }));
