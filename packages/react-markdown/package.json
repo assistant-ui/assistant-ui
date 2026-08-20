@@ -36,7 +36,9 @@
     "styles",
     "README.md"
   ],
-  "sideEffects": false,
+  "sideEffects": [
+    "*.css"
+  ],
   "scripts": {
     "build": "aui-build",
     "test": "vitest run",
