@@ -6,10 +6,15 @@
  * MIT License: https://github.com/shadcn-ui/ui/blob/main/LICENSE.md
  * Source: shadcn-ui/ui@607e8a97 apps/v4/app/(app)/(typeset)/typeset.css
  *
- * Local change: the layer statement below pins the Tailwind layer order.
- * Cascade layers order by first appearance, so without the pin a bundler
- * that emits this sheet before the Tailwind sheet would register
- * "components" first and Tailwind preflight (base) would win over typeset.
+ * Local changes:
+ * - The layer statement below pins the Tailwind layer order. Cascade layers
+ *   order by first appearance, so without the pin a bundler that emits this
+ *   sheet before the Tailwind sheet would register "components" first and
+ *   Tailwind preflight (base) would win over typeset.
+ * - The task-list marker removal is scoped to li.task-list-item instead of
+ *   the whole ul, and the ul keeps the standard list indent. One task item
+ *   marks the whole ul as contains-task-list, so the upstream list-wide
+ *   rule strips the bullets off plain items in a mixed list.
  */
 
 @layer theme, base, components, utilities;
@@ -227,9 +232,8 @@
     }
 
     /* GFM task lists. */
-    &:where(ul.contains-task-list) {
+    &:where(li.task-list-item) {
       list-style-type: none;
-      padding-inline-start: 0.25em;
     }
     &:where(li.task-list-item > input[type="checkbox"]) {
       margin-inline-end: 0.5em;

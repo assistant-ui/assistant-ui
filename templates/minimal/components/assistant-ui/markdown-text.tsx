@@ -107,7 +107,10 @@ const defaultComponents = memoizeMarkdownComponents({
   // wrapper owns the flow margin and mirrors typeset's spacing for tables
   // inside list items and in first position.
   table: ({ className, ...props }) => (
-    <div className="aui-md-table-scroll mt-(--typeset-flow) overflow-x-auto first:mt-0 [:where(li)>&]:mt-[0.5em]">
+    <div
+      tabIndex={0}
+      className="aui-md-table-scroll mt-(--typeset-flow) overflow-x-auto first:mt-0 [:where(li)>&]:mt-[0.5em]"
+    >
       <table className={cn("aui-md-table mt-0", className)} {...props} />
     </div>
   ),
