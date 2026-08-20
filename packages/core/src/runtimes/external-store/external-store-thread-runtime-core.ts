@@ -598,6 +598,12 @@ export class ExternalStoreThreadRuntimeCore
     if (messageIndex === -1) throw new Error("Message not found.");
 
     this.updateMessages(messages.filter((message) => message.id !== messageId));
+
+    // The snapshot pass only relinks incoming messages; it never evicts, so
+    // without this the deleted message survives as a sibling branch that the
+    // branch picker can resurrect into the host store.
+    this.repository.deleteMessage(messageId);
+    this._notifySubscribers();
   }
 
   public getQueueItems() {
