@@ -141,6 +141,7 @@ export class MessageRepository {
 
     if (operation === "relink" && parentOrRoot === newParentOrRoot) return;
 
+    // `link` receives a fresh ID from `addOrUpdateMessage`; only `relink` can introduce a cycle.
     if (operation === "relink") {
       for (
         let current: RepositoryMessage | null = newParent;
@@ -149,7 +150,7 @@ export class MessageRepository {
       ) {
         if (current.current.id === child.current.id) {
           throw new Error(
-            "MessageRepository(performOp/link): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
+            "MessageRepository(performOp/relink): A message with the same id already exists in the parent tree. This error occurs if the same message id is found multiple times. This is likely an internal bug in assistant-ui.",
           );
         }
       }
