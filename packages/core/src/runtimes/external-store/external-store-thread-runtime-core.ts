@@ -605,12 +605,19 @@ export class ExternalStoreThreadRuntimeCore
       // The host owns deletion here, and it may decline (fail a server call,
       // cancel a confirm dialog, ignore an off-branch id). The eviction is
       // therefore deferred to the snapshot pass, which evicts only once the
-      // host's own array no longer carries the id.
+      // host's own array no longer carries the id. Registered before the
+      // callback because an optimistic host publishes that snapshot while
+      // the callback is still awaited.
       const wasVisible = this.repository
         .getMessages()
         .some((m) => m.id === messageId);
-      await this._store.onDelete(messageId);
       if (wasVisible) this._pendingDeleteEvictions.add(messageId);
+      try {
+        await this._store.onDelete(messageId);
+      } catch (error) {
+        this._pendingDeleteEvictions.delete(messageId);
+        throw error;
+      }
       return;
     }
 

@@ -1329,4 +1329,55 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     );
     expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
   });
+
+  it("evicts when the host publishes the confirming snapshot before onDelete resolves", async () => {
+    let current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ];
+    let syncSnapshot!: () => void;
+    const onDelete = vi.fn(async (id: string) => {
+      current = current.filter((m) => m.id !== id);
+      syncSnapshot();
+      await Promise.resolve();
+    });
+    const store = () =>
+      makeStore({ messages: current, onDelete, setMessages: vi.fn() });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+    syncSnapshot = () => runtime.__internal_setAdapter(store());
+
+    await runtime.deleteMessage("u1");
+
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+    expect(() => runtime.switchToBranch("u1")).toThrow(
+      "MessageRepository(switchToBranch): Branch not found",
+    );
+  });
+
+  it("keeps the message when onDelete rejects", async () => {
+    const current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ];
+    const onDelete = vi.fn(async () => {
+      throw new Error("server down");
+    });
+    const store = () =>
+      makeStore({ messages: current, onDelete, setMessages: vi.fn() });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    await expect(runtime.deleteMessage("u1")).rejects.toThrow("server down");
+
+    runtime.__internal_setAdapter(
+      makeStore({ messages: [...current], onDelete, setMessages: vi.fn() }),
+    );
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+  });
 });
