@@ -719,6 +719,46 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     await secondAppend;
   });
 
+  it("cancels a superseded approval pause", async () => {
+    let resolveFirst!: (result: ChatModelRunResult) => void;
+    let resolveSecond!: (result: ChatModelRunResult) => void;
+    const firstResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    const secondResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveSecond = resolve;
+    });
+    const runs: ChatModelRunOptions[] = [];
+    const thread = createThread({
+      run(options) {
+        runs.push(options);
+        return runs.length === 1 ? firstResult : secondResult;
+      },
+    });
+
+    const firstAppend = thread.append(userMessage("first"));
+    await flush();
+    const supersededMessageId = thread.messages.at(-1)!.id;
+    const secondAppend = thread.append({
+      ...userMessage("second"),
+      parentId: supersededMessageId,
+    });
+    await flush();
+
+    resolveFirst(toolCallResult("deploy", { id: "approval-1" }));
+    await firstAppend;
+
+    expect(
+      thread.messages.find((item) => item.id === supersededMessageId)?.status,
+    ).toEqual({
+      type: "incomplete",
+      reason: "cancelled",
+    });
+
+    resolveSecond({ content: [{ type: "text", text: "replacement" }] });
+    await secondAppend;
+  });
+
   it("does not continue after cancelRun when a delayed tool call resolves", async () => {
     let resolveFirst!: (result: ChatModelRunResult) => void;
     const firstResult = new Promise<ChatModelRunResult>((resolve) => {

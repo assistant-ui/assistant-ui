@@ -501,6 +501,7 @@ export class LocalThreadRuntimeCore
           message,
           runConfig,
           alreadyPersisted,
+          run,
           runCallback,
         );
         runCallback = undefined;
@@ -549,6 +550,7 @@ export class LocalThreadRuntimeCore
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
     alreadyPersisted: boolean,
+    run: { cancelled: boolean },
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
@@ -680,7 +682,9 @@ export class LocalThreadRuntimeCore
 
       if (
         abortSignal.aborted &&
-        shouldContinue(message, this._options.unstable_humanToolNames)
+        message.status.type === "requires-action" &&
+        (this._activeRun !== run ||
+          shouldContinue(message, this._options.unstable_humanToolNames))
       ) {
         updateMessage({
           status: { type: "incomplete", reason: "cancelled" },
