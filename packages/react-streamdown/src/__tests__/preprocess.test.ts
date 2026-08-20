@@ -126,6 +126,15 @@ describe("escapeCurrencyDollars", () => {
     );
   });
 
+  it("does not close one- or two-backtick code spans on a longer run", () => {
+    expect(escapeCurrencyDollars("`value ``` costs $5 ` after $7")).toBe(
+      "`value ``` costs $5 ` after \\$7",
+    );
+    expect(
+      escapeCurrencyDollars("Use ``value ````` costs $5 `` after $7"),
+    ).toBe("Use ``value ````` costs $5 `` after \\$7");
+  });
+
   it("does not rewrite a fenced block", () => {
     expect(escapeCurrencyDollars("```\nconst price = $5;\n```")).toBe(
       "```\nconst price = $5;\n```",
