@@ -1,10 +1,10 @@
 import { AssistantMessage, Event, FilePart, GlobalSession, Message as Message$1, Message as Message$2, Model, OpencodeClient, OpencodeClient as OpencodeClient$1, OpencodeClientConfig, Part, Part as Part$1, PermissionRequest, PermissionRequest as PermissionRequest$1, Provider, QuestionAnswer, QuestionAnswer as QuestionAnswer$1, QuestionRequest, QuestionRequest as QuestionRequest$1, ReasoningPart, Session, Session as Session$1, SessionStatus, SessionStatus as SessionStatus$1, SnapshotPart, StepFinishPart, StepStartPart, TextPart, ToolPart, ToolState, UserMessage, createOpencodeClient as createOpencodeClient$1 } from "@opencode-ai/sdk/v2/client";
 
-import "@radix-ui/react-primitive";
-
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import "radix-ui";
+
+import "radix-ui/internal";
 
 import "react-textarea-autosize";
 

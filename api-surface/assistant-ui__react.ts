@@ -1,8 +1,8 @@
-import { Primitive } from "@radix-ui/react-primitive";
-
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { DropdownMenu, Popover } from "radix-ui";
+
+import { Primitive } from "radix-ui/internal";
 
 import React, { CSSProperties, ComponentPropsWithoutRef, ComponentRef, ComponentType, ElementRef, ElementType, FC, ForwardRefExoticComponent, KeyboardEventHandler, PropsWithChildren, ReactElement, ReactNode, RefAttributes, RefCallback, RefObject } from "react";
 
