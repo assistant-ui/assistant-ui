@@ -13,11 +13,10 @@ import {
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 export function ToolWithApproval() {
-  const [open, setOpen] = useState(true);
   const [approved, setApproved] = useState<boolean>();
 
   return (
-    <ToolFallbackRoot open={open} onOpenChange={setOpen}>
+    <ToolFallbackRoot defaultOpen>
       <ToolFallbackTrigger
         toolName="delete_file"
         status={
