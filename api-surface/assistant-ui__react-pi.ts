@@ -1,10 +1,10 @@
 import { createAgentSession } from "@earendil-works/pi-coding-agent";
 
-import "@radix-ui/react-primitive";
-
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import "radix-ui";
+
+import "radix-ui/internal";
 
 import "react-textarea-autosize";
 

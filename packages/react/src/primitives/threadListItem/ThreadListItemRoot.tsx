@@ -10,7 +10,7 @@ import {
   useRef,
 } from "react";
 import { useAuiState } from "@assistant-ui/store";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import { Direction } from "radix-ui";
 import {
   ThreadListItemFocusProvider,

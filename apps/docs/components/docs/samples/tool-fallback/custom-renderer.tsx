@@ -3,7 +3,9 @@
 import { useCallback } from "react";
 import {
   AssistantRuntimeProvider,
-  useAssistantToolUI,
+  AuiConfig,
+  defineToolkit,
+  Tools,
   useLocalRuntime,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
@@ -11,18 +13,47 @@ import { Thread } from "@/components/assistant-ui/thread";
 
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
-export function WeatherToolUI() {
+export function WeatherToolUI({
+  args,
+  result,
+}: ToolCallMessagePartProps<
+  { location: string },
+  { temperature: number; condition: string; humidity: number }
+>) {
+  return (
+    <div className="border-border bg-muted/50 my-2 rounded-lg border px-4 py-3 text-sm">
+      <p className="font-medium">Weather in {args.location}</p>
+      <p className="text-muted-foreground">
+        {result
+          ? `${result.temperature}°F, ${result.condition}, ${result.humidity}% humidity`
+          : "Checking the forecast…"}
+      </p>
+    </div>
+  );
+}
+
+const weatherToolkit = defineToolkit({
+  get_weather: {
+    type: "backend",
+    display: "standalone",
+    render: WeatherToolUI,
+  },
+});
+
+const config = AuiConfig({ tools: Tools({ toolkit: weatherToolkit }) });
+
+function WeatherToolChat() {
   const runtime = useLocalRuntime({
     async *run({ abortSignal }) {
       const toolCall = {
         type: "tool-call" as const,
-        toolCallId: "call_get_weather_1",
+        toolCallId: `call_${crypto.randomUUID()}`,
         toolName: "get_weather",
         args: { location: "San Francisco" },
         argsText: JSON.stringify({ location: "San Francisco" }, null, 2),
       };
       yield { content: [toolCall] };
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      await new Promise<void>((resolve) => setTimeout(resolve, 800));
       if (abortSignal.aborted) return;
       yield {
         content: [
@@ -49,33 +80,8 @@ export function WeatherToolUI() {
     [runtime],
   );
 
-  function RegisterWeatherToolUI() {
-    useAssistantToolUI({
-      toolName: "get_weather",
-      display: "standalone",
-      render: ({
-        args,
-        result,
-      }: ToolCallMessagePartProps<
-        { location: string },
-        { temperature: number; condition: string; humidity: number }
-      >) => (
-        <div className="border-border bg-muted/50 my-2 rounded-lg border px-4 py-3 text-sm">
-          <p className="font-medium">Weather in {args.location}</p>
-          <p className="text-muted-foreground">
-            {result
-              ? `${result.temperature}°F, ${result.condition}, ${result.humidity}% humidity`
-              : "Checking the forecast…"}
-          </p>
-        </div>
-      ),
-    });
-    return null;
-  }
-
   return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <RegisterWeatherToolUI />
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
       <div ref={startRun} className="h-full">
         <Thread />
       </div>
@@ -86,7 +92,7 @@ export function WeatherToolUI() {
 export function ToolFallbackRendererSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
-      <WeatherToolUI />
+      <WeatherToolChat />
     </SampleFrame>
   );
 }

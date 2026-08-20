@@ -1,5 +1,11 @@
 # @assistant-ui/react-lexical
 
+## 0.2.10
+
+### Patch Changes
+
+- [#6088](https://github.com/assistant-ui/assistant-ui/pull/6088) [`4b4808e`](https://github.com/assistant-ui/assistant-ui/commit/4b4808ef9cd18c7be62e049e9e673f0d3c690376) - fix: reparse an unedited composer draft when directive formatters register ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.9
 
 ### Patch Changes
