@@ -171,13 +171,10 @@ export function AssistantActionBar(): ReactNode {
   };
 
   return (
-    <ActionBarPrimitive.Root className="mt-2 flex items-center gap-1">
+    <ActionBarPrimitive.Root className="mt-2 flex items-center gap-1.5">
       <ActionBarPrimitive.Copy
         aria-label="Copy response"
-        className={cn(
-          "text-muted-foreground rounded p-1 transition-colors",
-          "hover:bg-muted hover:text-foreground",
-        )}
+        className="text-muted-foreground/70 hover:text-foreground p-1 transition-colors"
       >
         <AuiIf condition={(s) => s.message.isCopied}>
           <CheckIcon className="size-4" />
@@ -196,11 +193,9 @@ export function AssistantActionBar(): ReactNode {
             : "Good response"
         }
         className={cn(
-          "text-muted-foreground rounded p-1 transition-colors",
-          "hover:bg-muted hover:text-foreground",
+          "text-muted-foreground/70 hover:text-foreground p-1 transition-colors",
           "disabled:cursor-not-allowed disabled:opacity-50",
-          submittedFeedback === "positive" &&
-            "text-green-600 dark:text-green-400",
+          submittedFeedback === "positive" && "text-foreground",
         )}
       >
         <ThumbsUpIcon className="size-4" />
@@ -221,11 +216,9 @@ export function AssistantActionBar(): ReactNode {
               : "Report issue with response"
           }
           className={cn(
-            "text-muted-foreground rounded p-1 transition-colors",
-            "hover:bg-muted hover:text-foreground",
+            "text-muted-foreground/70 hover:text-foreground p-1 transition-colors",
             "disabled:cursor-not-allowed disabled:opacity-50",
-            submittedFeedback === "negative" &&
-              "text-red-600 dark:text-red-400",
+            submittedFeedback === "negative" && "text-foreground",
           )}
         >
           <ThumbsDownIcon className="size-4" />

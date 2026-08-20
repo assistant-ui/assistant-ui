@@ -12,7 +12,6 @@ import { NAV_ITEMS, CLOUD_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
-import { MachineView } from "@/components/pages/home/machine-view";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { headerBarClassName } from "@/components/shared/header-chrome";
@@ -84,7 +83,6 @@ export function Header() {
           />
 
           <div className="flex items-center justify-end gap-2">
-            <MachineView />
             {!isHome && (
               <>
                 <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />

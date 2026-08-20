@@ -9,30 +9,18 @@ import {
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import {
-  BookOpenIcon,
-  CheckIcon,
-  FileCodeIcon,
-  FileTextIcon,
-  FolderTreeIcon,
-  LoaderIcon,
-  type LucideIcon,
-  TerminalIcon,
-} from "lucide-react";
-import {
   type ComponentType,
   type ReactNode,
   useState,
   useEffect,
   useRef,
 } from "react";
-import { cn } from "@/lib/utils";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
-import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
 
 export function UserMessage(): ReactNode {
   return (
     <MessagePrimitive.Root className="flex justify-end py-2" data-role="user">
-      <div className="bg-muted max-w-[85%] rounded-2xl px-3 py-2 text-sm empty:hidden">
+      <div className="bg-muted max-w-[85%] rounded-(--radius-thread) px-3.5 py-2 text-sm empty:hidden">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>
@@ -62,10 +50,7 @@ export function AssistantMessage({
             s.thread.isRunning && s.message.content.length === 0
           }
         >
-          <div className="text-muted-foreground flex items-center gap-2 py-1">
-            <DotMatrix state="connecting" aria-hidden />
-            <span className="text-sm">Connecting</span>
-          </div>
+          <TraceLine live label="connecting" />
         </AuiIf>
         <MessageError />
       </div>
@@ -78,22 +63,20 @@ function getToolDisplay(
   toolName: string,
   args: Record<string, unknown>,
   isRunning: boolean,
-): { icon: LucideIcon; label: string; detail: string } {
+): { label: string; detail: string } {
   switch (toolName) {
     case "listDocs": {
       const path = (args as { path?: string })?.path;
       return {
-        icon: FolderTreeIcon,
-        label: isRunning ? "Listing" : "Listed",
-        detail: path ? `/${path}` : "documentation structure",
+        label: isRunning ? "listing" : "listed",
+        detail: path ? `/${path}` : "the docs tree",
       };
     }
     case "readDoc": {
       const slug = (args as { slugOrUrl?: string })?.slugOrUrl ?? "";
       const normalizedSlug = slug.replace(/^\/docs\/?/, "");
       return {
-        icon: FileTextIcon,
-        label: isRunning ? "Reading" : "Read",
+        label: isRunning ? "reading" : "read",
         detail: `/docs/${normalizedSlug}`,
       };
     }
@@ -102,8 +85,7 @@ function getToolDisplay(
       const preview =
         command.length > 60 ? `${command.slice(0, 57)}...` : command;
       return {
-        icon: TerminalIcon,
-        label: isRunning ? "Running" : "Ran",
+        label: isRunning ? "running" : "ran",
         detail: preview,
       };
     }
@@ -111,34 +93,15 @@ function getToolDisplay(
       const filePath = (args as { path?: string })?.path ?? "";
       const shortPath = filePath.split("/").slice(-2).join("/");
       return {
-        icon: FileCodeIcon,
-        label: isRunning ? "Reading" : "Read",
+        label: isRunning ? "reading" : "read",
         detail: shortPath,
       };
     }
     default:
       return {
-        icon: BookOpenIcon,
-        label: isRunning ? "Running" : "Completed",
+        label: isRunning ? "running" : "done",
         detail: toolName,
       };
-  }
-}
-
-function ToolStatusIcon({
-  status,
-  FallbackIcon,
-}: {
-  status: { type: string } | undefined;
-  FallbackIcon: LucideIcon;
-}): ReactNode {
-  switch (status?.type) {
-    case "running":
-      return <LoaderIcon className="size-3 animate-spin" />;
-    case "complete":
-      return <CheckIcon className="size-3 text-emerald-500" />;
-    default:
-      return <FallbackIcon className="size-3" />;
   }
 }
 
@@ -162,39 +125,65 @@ function formatDuration(ms: number): string {
   return `${(ms / 1000).toFixed(1)}s`;
 }
 
+function TraceLine({
+  live,
+  label,
+  detail,
+  meta,
+}: {
+  live: boolean;
+  label: string;
+  detail?: string;
+  meta?: string;
+}): ReactNode {
+  return (
+    <div className="my-1 flex items-baseline gap-2 font-mono text-[12px] [font-variant-ligatures:none]">
+      <span
+        aria-hidden
+        className={live ? "text-blue-500" : "text-muted-foreground/50"}
+      >
+        {">"}
+      </span>
+      <span className="text-muted-foreground min-w-0 flex-1 truncate">
+        {label}
+        {detail ? ` ${detail}` : null}
+        {live ? (
+          <span
+            aria-hidden
+            className="ml-1 inline-block h-[0.9em] w-[2px] animate-pulse bg-blue-500 align-middle"
+          />
+        ) : null}
+      </span>
+      {meta ? (
+        <span className="text-muted-foreground/50 shrink-0">{meta}</span>
+      ) : null}
+    </div>
+  );
+}
+
 function ToolCall({
   toolName,
   args,
   status,
 }: ToolCallMessagePartProps): ReactNode {
   const isRunning = status?.type === "running";
-  const { icon, label, detail } = getToolDisplay(toolName, args, isRunning);
+  const { label, detail } = getToolDisplay(toolName, args, isRunning);
   const duration = useToolDuration(isRunning);
 
   return (
-    <div
-      className={cn(
-        "border-border/60 bg-muted/30 text-muted-foreground my-1.5 flex items-center gap-2 rounded-lg border px-2.5 py-1.5 text-xs",
-        isRunning && "animate-pulse",
-      )}
-    >
-      <ToolStatusIcon status={status} FallbackIcon={icon} />
-      <span className="flex-1 truncate">
-        {label} {detail}
-      </span>
-      {duration !== null && (
-        <span className="text-muted-foreground/60">
-          {formatDuration(duration)}
-        </span>
-      )}
-    </div>
+    <TraceLine
+      live={isRunning}
+      label={label}
+      detail={detail}
+      {...(duration !== null ? { meta: formatDuration(duration) } : {})}
+    />
   );
 }
 
 function MessageError(): ReactNode {
   return (
     <MessagePrimitive.Error>
-      <ErrorPrimitive.Root className="border-destructive bg-destructive/10 text-destructive dark:bg-destructive/5 mt-2 rounded-md border p-2 text-xs dark:text-red-200">
+      <ErrorPrimitive.Root className="border-destructive/60 text-destructive mt-2 border-l-2 pl-3 text-[12.5px]">
         <ErrorPrimitive.Message className="line-clamp-2" />
       </ErrorPrimitive.Root>
     </MessagePrimitive.Error>

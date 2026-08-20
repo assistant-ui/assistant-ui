@@ -119,11 +119,13 @@ export function AssistantComposer({
   className,
   placeholder = "Ask a question...",
   modelSelector,
+  autoFocus = false,
 }: {
   onSubmit?: () => void;
   className?: string;
   placeholder?: string;
   modelSelector?: ReactNode;
+  autoFocus?: boolean;
 } = {}): ReactNode {
   const handleSubmit = useComposerSubmitHandler(onSubmitProp);
 
@@ -132,10 +134,11 @@ export function AssistantComposer({
       onSubmit={handleSubmit}
       className={cn("pb-2.5", className)}
     >
-      <div className="bg-muted/55 focus-within:bg-muted/75 rounded-3xl border border-transparent transition-colors">
+      <div className="border-foreground/10 bg-muted/30 focus-within:border-foreground/25 rounded-(--radius-thread) border transition-colors">
         <ComposerPrimitive.Input asChild>
           <textarea
             placeholder={placeholder}
+            autoFocus={autoFocus}
             className="placeholder:text-muted-foreground field-sizing-content max-h-32 w-full resize-none bg-transparent px-3.5 pt-3 pb-2 text-sm leading-5 focus:outline-none"
             rows={1}
           />
