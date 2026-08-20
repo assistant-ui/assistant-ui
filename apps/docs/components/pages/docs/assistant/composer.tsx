@@ -2,8 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { useCurrentPage } from "@/components/pages/docs/contexts/current-page";
-import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { docsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
 import {
   DEFAULT_MODEL_ID,
   resolveModelId,
@@ -46,8 +44,6 @@ const setSharedDocsModelName = (modelName: KnownModelId) => {
   sharedDocsModelName = modelName;
   modelStoreListeners.forEach((listener) => listener());
 };
-
-const models = docsModelOptions();
 
 export function useComposerSubmitHandler(onSubmitProp?: () => void) {
   const aui = useAui();
@@ -144,25 +140,11 @@ export function AssistantComposer({
           />
         </ComposerPrimitive.Input>
         <div className="flex items-center justify-between px-2 pb-2">
-          {modelSelector ?? <DefaultDocsModelSelector />}
+          <div className="flex items-center">{modelSelector}</div>
           <AssistantComposerAction />
         </div>
       </div>
     </ComposerPrimitive.Root>
-  );
-}
-
-function DefaultDocsModelSelector(): ReactNode {
-  const { modelValue, onModelChange } = useSharedDocsModelSelection();
-
-  return (
-    <ModelSelector
-      models={models}
-      value={modelValue}
-      onValueChange={onModelChange}
-      variant="ghost"
-      size="sm"
-    />
   );
 }
 

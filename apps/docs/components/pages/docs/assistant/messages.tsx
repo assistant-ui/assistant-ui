@@ -3,19 +3,17 @@
 import { AssistantActionBar } from "./assistant-action-bar";
 import { MarkdownText } from "./markdown";
 import {
-  AuiIf,
   ErrorPrimitive,
   MessagePrimitive,
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
-import {
-  type ComponentType,
-  type ReactNode,
-  useState,
-  useEffect,
-  useRef,
-} from "react";
+import { type ComponentType, type ReactNode } from "react";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
+import {
+  TraceLine,
+  formatDuration,
+  useToolDuration,
+} from "@/components/shared/trace-line";
 
 export function UserMessage(): ReactNode {
   return (
@@ -37,21 +35,17 @@ export function AssistantMessage({
       <div className="text-sm">
         <MessagePrimitive.Parts>
           {({ part }) => {
-            if (part.type === "text") return <MarkdownText />;
+            if (part.type === "text") {
+              if (part.text === "" && part.status?.type === "running")
+                return <TraceLine live label="thinking" />;
+              return <MarkdownText />;
+            }
             if (part.type === "reasoning") return <Reasoning {...part} />;
             if (part.type === "tool-call")
               return part.toolUI ?? <ToolCallComponent {...part} />;
             return null;
           }}
         </MessagePrimitive.Parts>
-
-        <AuiIf
-          condition={(s) =>
-            s.thread.isRunning && s.message.content.length === 0
-          }
-        >
-          <TraceLine live label="connecting" />
-        </AuiIf>
         <MessageError />
       </div>
       <AssistantActionBar />
@@ -103,62 +97,6 @@ function getToolDisplay(
         detail: toolName,
       };
   }
-}
-
-function useToolDuration(isRunning: boolean): number | null {
-  const startTimeRef = useRef<number | null>(null);
-  const [duration, setDuration] = useState<number | null>(null);
-
-  useEffect(() => {
-    if (isRunning && startTimeRef.current === null) {
-      startTimeRef.current = Date.now();
-    } else if (!isRunning && startTimeRef.current !== null) {
-      setDuration(Date.now() - startTimeRef.current);
-    }
-  }, [isRunning]);
-
-  return duration;
-}
-
-function formatDuration(ms: number): string {
-  if (ms < 1000) return `${ms}ms`;
-  return `${(ms / 1000).toFixed(1)}s`;
-}
-
-function TraceLine({
-  live,
-  label,
-  detail,
-  meta,
-}: {
-  live: boolean;
-  label: string;
-  detail?: string;
-  meta?: string;
-}): ReactNode {
-  return (
-    <div className="my-1 flex items-baseline gap-2 font-mono text-[12px] [font-variant-ligatures:none]">
-      <span
-        aria-hidden
-        className={live ? "text-blue-500" : "text-muted-foreground/50"}
-      >
-        {">"}
-      </span>
-      <span className="text-muted-foreground min-w-0 flex-1 truncate">
-        {label}
-        {detail ? ` ${detail}` : null}
-        {live ? (
-          <span
-            aria-hidden
-            className="ml-1 inline-block h-[0.9em] w-[2px] animate-pulse bg-blue-500 align-middle"
-          />
-        ) : null}
-      </span>
-      {meta ? (
-        <span className="text-muted-foreground/50 shrink-0">{meta}</span>
-      ) : null}
-    </div>
-  );
 }
 
 function ToolCall({

@@ -74,7 +74,7 @@ export function Header() {
             "mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 md:grid md:grid-cols-[1fr_auto_1fr]",
           )}
         >
-          <HeaderBrandLink />
+          <HeaderBrandLink className="justify-self-start" />
 
           <NavItems
             items={NAV_ITEMS}
