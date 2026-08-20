@@ -43,14 +43,23 @@ const extensionForMimeType = (mimeType?: string): string => {
 };
 
 const dataUriToBlob = (dataUri: string): Blob => {
-  const [meta, data] = dataUri.split(",");
+  const commaIndex = dataUri.indexOf(",");
+  const meta = commaIndex >= 0 ? dataUri.slice(0, commaIndex) : dataUri;
+  const data = commaIndex >= 0 ? dataUri.slice(commaIndex + 1) : "";
   const mime =
-    meta?.match(/data:([^;]+)/i)?.[1]?.toLowerCase() ??
+    meta.match(/data:([^;]+)/i)?.[1]?.toLowerCase() ??
     "application/octet-stream";
-  if (!/;base64/i.test(meta ?? "")) {
-    return new Blob([decodeURIComponent(data ?? "")], { type: mime });
+  if (!/;base64/i.test(meta)) {
+    const text = data.replace(/(?:%[0-9A-Fa-f]{2})+/g, (seq) => {
+      try {
+        return decodeURIComponent(seq);
+      } catch {
+        return seq;
+      }
+    });
+    return new Blob([text], { type: mime });
   }
-  const bytes = atob(data ?? "");
+  const bytes = atob(data);
   const arr = new Uint8Array(bytes.length);
   for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
   return new Blob([arr], { type: mime });

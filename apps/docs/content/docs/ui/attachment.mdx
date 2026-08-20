@@ -12,6 +12,10 @@ import { AttachmentComposerSample } from "@/components/docs/samples/attachment/c
 import * as AttachmentComposerRadixSample from "@/components/docs/samples/attachment/composer-attachments.radix";
 import { AttachmentMessageContextSample } from "@/components/docs/samples/attachment/message-attachments";
 import * as AttachmentMessageRadixSample from "@/components/docs/samples/attachment/message-attachments.radix";
+import { AttachmentTypesSample } from "@/components/docs/samples/attachment/types";
+import * as AttachmentTypesRadixSample from "@/components/docs/samples/attachment/types.radix";
+import { AttachmentPreviewSample } from "@/components/docs/samples/attachment/image-preview";
+import * as AttachmentPreviewRadixSample from "@/components/docs/samples/attachment/image-preview.radix";
 
 <FlavorSwitcher />
 
@@ -107,6 +111,22 @@ Message attachments are read-only. The same tile in a sent user message does not
 
 <PreviewCode file="components/docs/samples/attachment/message-attachments" name="UserMessageWithAttachments" base={<AttachmentMessageContextSample />}>
   <AttachmentMessageRadixSample.AttachmentMessageContextSample />
+</PreviewCode>
+
+### Custom Types
+
+This example shows the image tile and the generic fallback tile used for the built-in document type and the custom attachment type. The two fallback tiles use the same icon, but their accessible labels distinguish them.
+
+<PreviewCode file="components/docs/samples/attachment/types" name="AttachmentTypesSample" base={<AttachmentTypesSample />}>
+  <AttachmentTypesRadixSample.AttachmentTypesSample />
+</PreviewCode>
+
+### Image Preview
+
+When you click an image tile or activate it with the keyboard, a full-size preview dialog opens.
+
+<PreviewCode file="components/docs/samples/attachment/image-preview" name="AttachmentPreviewSample" base={<AttachmentPreviewSample />}>
+  <AttachmentPreviewRadixSample.AttachmentPreviewSample />
 </PreviewCode>
 
 ## API Reference

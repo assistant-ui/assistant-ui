@@ -7,6 +7,8 @@ platforms: ["react"]
 import { ThreadListSample } from "@/components/docs/samples/threadlist";
 import { PreviewCode } from "@/components/docs/preview-code.server";
 import { ThreadListActiveSample } from "@/components/docs/samples/thread-list/active-threads";
+import { ThreadListNewSample } from "@/components/docs/samples/thread-list/new-thread";
+import { ThreadListArchiveSample } from "@/components/docs/samples/thread-list/archive-thread";
 
 <ThreadListSample />
 
@@ -114,6 +116,22 @@ Select a different seeded conversation, or use the search field to filter the th
 
 <PreviewCode file="components/docs/samples/thread-list/active-threads" name="ActiveThreadList">
   <ThreadListActiveSample />
+</PreviewCode>
+
+### New Thread
+
+The list starts empty, thus only the New Thread button shows. Click New Thread to make an active thread. The search field shows when a thread exists.
+
+<PreviewCode file="components/docs/samples/thread-list/new-thread" name="EmptyThreadList">
+  <ThreadListNewSample />
+</PreviewCode>
+
+### Archive a Thread
+
+Open the More menu of the active thread, then select Archive. The `onArchive` callback moves the thread to the archived list. Select Restore (`ThreadListItemPrimitive.Unarchive`) to move the thread back to the regular list.
+
+<PreviewCode file="components/docs/samples/thread-list/archive-thread" name="ArchivableThreadList">
+  <ThreadListArchiveSample />
 </PreviewCode>
 
 ## API Reference
