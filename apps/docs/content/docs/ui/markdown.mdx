@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { MarkdownSample } from "@/components/docs/samples/markdown";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { MarkdownGfmSample } from "@/components/docs/samples/markdown/gfm-extras";
 
 <MarkdownSample />
 
@@ -53,6 +55,16 @@ const AssistantMessage: FC = () => {
 </Step>
 
 </Steps>
+
+## Examples
+
+### GitHub Flavored Markdown
+
+Task-list checkboxes, strikethrough text, a bare autolink, and an aligned table show through the built-in GFM support.
+
+<PreviewCode file="components/docs/samples/markdown/gfm-extras" name="GfmMarkdown">
+  <MarkdownGfmSample />
+</PreviewCode>
 
 ## Syntax highlighting
 
