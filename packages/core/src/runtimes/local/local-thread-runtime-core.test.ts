@@ -819,6 +819,33 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     });
   });
 
+  it("ignores a superseded result after its message is removed", async () => {
+    let resolveFirst!: (result: ChatModelRunResult) => void;
+    const firstResult = new Promise<ChatModelRunResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    let runCount = 0;
+    const thread = createThread({
+      run() {
+        runCount++;
+        if (runCount === 1) return firstResult;
+        return Promise.resolve({
+          content: [{ type: "text", text: "replacement" }],
+        });
+      },
+    });
+
+    const firstAppend = thread.append(userMessage("first"));
+    await flush();
+    await thread.append(userMessage("second"));
+    thread.reset();
+
+    resolveFirst(toolCallResult("lookup_weather"));
+
+    await expect(firstAppend).resolves.toBeUndefined();
+    expect(thread.messages).toHaveLength(0);
+  });
+
   it("does not continue after cancelRun when a delayed tool call resolves", async () => {
     let resolveFirst!: (result: ChatModelRunResult) => void;
     const firstResult = new Promise<ChatModelRunResult>((resolve) => {

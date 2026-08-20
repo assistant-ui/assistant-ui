@@ -565,9 +565,14 @@ export class LocalThreadRuntimeCore
     const initialData = message.metadata?.unstable_data;
     const initialSteps = message.metadata?.steps;
     const initialCustom = message.metadata?.custom;
-    const ownsMessage = () =>
-      this._activeRun === run ||
-      this.repository.getMessage(message.id).message === message;
+    const ownsMessage = () => {
+      if (this._activeRun === run) return true;
+      try {
+        return this.repository.getMessage(message.id).message === message;
+      } catch {
+        return false;
+      }
+    };
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
       if (!ownsMessage()) return;
       const newSteps = m.metadata?.steps;
