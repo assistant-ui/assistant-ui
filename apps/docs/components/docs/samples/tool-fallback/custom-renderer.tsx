@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useEffect } from "react";
 import {
   AssistantRuntimeProvider,
   AuiConfig,
@@ -8,7 +8,10 @@ import {
   Tools,
   useLocalRuntime,
 } from "@assistant-ui/react";
-import type { ToolCallMessagePartProps } from "@assistant-ui/react";
+import type {
+  AssistantRuntime,
+  ToolCallMessagePartProps,
+} from "@assistant-ui/react";
 import { Thread } from "@/components/assistant-ui/thread";
 
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
@@ -42,6 +45,17 @@ const weatherToolkit = defineToolkit({
 
 const config = AuiConfig({ tools: Tools({ toolkit: weatherToolkit }) });
 
+function useStartRun(runtime: AssistantRuntime) {
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      if (runtime.thread.getState().messages.length > 0) return;
+      runtime.thread.append("What's the weather in San Francisco?");
+    }, 0);
+
+    return () => clearTimeout(timeout);
+  }, [runtime]);
+}
+
 function WeatherToolChat() {
   const runtime = useLocalRuntime({
     async *run({ abortSignal }) {
@@ -66,23 +80,11 @@ function WeatherToolChat() {
     },
   });
 
-  // Defer the append one tick so the strict-mode mount/unmount cycle cannot
-  // abort the run before the first yield.
-  const startRun = useCallback(
-    (node: HTMLDivElement | null) => {
-      if (!node) return;
-      const timeout = setTimeout(() => {
-        if (runtime.thread.getState().messages.length > 0) return;
-        runtime.thread.append("What's the weather in San Francisco?");
-      }, 0);
-      return () => clearTimeout(timeout);
-    },
-    [runtime],
-  );
+  useStartRun(runtime);
 
   return (
     <AssistantRuntimeProvider runtime={runtime} config={config}>
-      <div ref={startRun} className="h-full">
+      <div className="h-full">
         <Thread autoFocus={false} />
       </div>
     </AssistantRuntimeProvider>
