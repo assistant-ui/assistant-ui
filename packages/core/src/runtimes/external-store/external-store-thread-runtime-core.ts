@@ -136,6 +136,11 @@ export class ExternalStoreThreadRuntimeCore
 
   private _converter = new ThreadMessageConverter();
 
+  // Ids the host was asked to delete via onDelete. The snapshot pass evicts
+  // them from the repository once the host's array no longer carries them;
+  // an id the host kept is dropped from the set without eviction.
+  private _pendingDeleteEvictions = new Set<string>();
+
   private _store!: ExternalStoreAdapter<any>;
 
   private _getInitializePromise?: () => Promise<unknown> | undefined;
@@ -252,6 +257,7 @@ export class ExternalStoreThreadRuntimeCore
             this.repository.deleteMessage(message.id);
           }
         }
+        this._pendingDeleteEvictions.clear();
         this.repository.resetHead(headId);
         messages = this.repository.getMessages();
       }
@@ -323,6 +329,20 @@ export class ExternalStoreThreadRuntimeCore
         const message = messages[i]!;
         const parent = messages[i - 1];
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
+      }
+
+      if (this._pendingDeleteEvictions.size > 0) {
+        const incomingIds = new Set(messages.map((m) => m.id));
+        for (const id of this._pendingDeleteEvictions) {
+          this._pendingDeleteEvictions.delete(id);
+          if (incomingIds.has(id)) continue;
+          try {
+            this.repository.getMessage(id);
+          } catch {
+            continue;
+          }
+          this.repository.deleteMessage(id);
+        }
       }
     } else {
       throw new Error(
@@ -582,14 +602,15 @@ export class ExternalStoreThreadRuntimeCore
 
   public async deleteMessage(messageId: string): Promise<void> {
     if (this._store.onDelete) {
-      // Hosts may decline to act on ids outside the visible thread (e.g. an
-      // off-branch id passed to the public deleteMessage), so only a message
-      // that was visible when the host was asked may be evicted afterwards.
+      // The host owns deletion here, and it may decline (fail a server call,
+      // cancel a confirm dialog, ignore an off-branch id). The eviction is
+      // therefore deferred to the snapshot pass, which evicts only once the
+      // host's own array no longer carries the id.
       const wasVisible = this.repository
         .getMessages()
         .some((m) => m.id === messageId);
       await this._store.onDelete(messageId);
-      if (wasVisible) this._evictDeletedMessage(messageId);
+      if (wasVisible) this._pendingDeleteEvictions.add(messageId);
       return;
     }
 
@@ -617,10 +638,11 @@ export class ExternalStoreThreadRuntimeCore
     // A synchronous host update (e.g. a setMessages that re-entered the
     // snapshot pass) may have evicted the message already; only that case is
     // skipped, so genuine repository errors still propagate.
-    const exists = this.repository
-      .export()
-      .messages.some(({ message }) => message.id === messageId);
-    if (!exists) return;
+    try {
+      this.repository.getMessage(messageId);
+    } catch {
+      return;
+    }
 
     this.repository.deleteMessage(messageId);
     this._messages = this.repository.getMessages();

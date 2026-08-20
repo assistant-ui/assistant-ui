@@ -1303,4 +1303,30 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     expect(onDelete).toHaveBeenCalledWith("a1");
     expect(runtime.getBranches("a2")).toEqual(["a1", "a2"]);
   });
+
+  it("keeps a visible message the host declined to delete", async () => {
+    const current = [
+      message("u1", "user", "hi"),
+      message("a1", "assistant", "hello"),
+    ];
+    const onDelete = vi.fn(async () => {});
+    const store = () =>
+      makeStore({ messages: current, onDelete, setMessages: vi.fn() });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+
+    await runtime.deleteMessage("u1");
+    runtime.__internal_setAdapter(store());
+
+    expect(onDelete).toHaveBeenCalledWith("u1");
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+    expect(runtime.getBranches("a1")).toEqual(["a1"]);
+
+    runtime.__internal_setAdapter(
+      makeStore({ messages: [...current], onDelete, setMessages: vi.fn() }),
+    );
+    expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
+  });
 });
