@@ -4,10 +4,16 @@ description: "A panel that slides in from an edge for secondary flows."
 links:
   - label: Source
     url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/sheet.tsx
+  - label: Base UI Dialog
+    url: https://base-ui.com/react/components/dialog
 ---
 
 import { PreviewCode } from "@/components/docs/preview-code.server";
-import { SheetSpecimen } from "@/components/design/specimens";
+import { KitInstall } from "@/components/design/kit-install";
+import {
+  SheetSpecimen,
+  SheetSidesSpecimen,
+} from "@/components/design/specimens";
 
 <PreviewCode file="components/design/specimens" name="SheetSpecimen">
   <SheetSpecimen />
@@ -15,7 +21,7 @@ import { SheetSpecimen } from "@/components/design/specimens";
 
 ## Installation
 
-Sheet is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+<KitInstall name="sheet" deps={["@base-ui/react"]} />
 
 ## Usage
 
@@ -45,6 +51,36 @@ export function Example() {
 }
 ```
 
-## Sides
+## Examples
 
-`side` takes `right`, `left`, `top`, and `bottom`. The mobile thread list in the assistant-ui examples is a `left` sheet.
+### Sides
+
+The mobile thread list in the assistant-ui examples is a `left` sheet.
+
+<PreviewCode file="components/design/specimens" name="SheetSidesSpecimen">
+  <SheetSidesSpecimen />
+</PreviewCode>
+
+## API Reference
+
+The parts wrap Base UI's Dialog primitives and accept their props.
+
+### SheetContent
+
+<ParametersTable
+  type="SheetContentProps"
+  parameters={[
+    {
+      name: "side",
+      type: '"top" | "right" | "bottom" | "left"',
+      default: '"right"',
+      description: "The edge the panel enters from.",
+    },
+    {
+      name: "showCloseButton",
+      type: "boolean",
+      default: "true",
+      description: "Renders the corner close control.",
+    },
+  ]}
+/>

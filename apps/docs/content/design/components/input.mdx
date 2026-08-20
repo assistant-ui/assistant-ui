@@ -7,7 +7,11 @@ links:
 ---
 
 import { PreviewCode } from "@/components/docs/preview-code.server";
-import { InputSpecimen } from "@/components/design/specimens";
+import { KitInstall } from "@/components/design/kit-install";
+import {
+  InputSpecimen,
+  InputWithButtonSpecimen,
+} from "@/components/design/specimens";
 
 <PreviewCode file="components/design/specimens" name="InputSpecimen">
   <InputSpecimen />
@@ -15,7 +19,7 @@ import { InputSpecimen } from "@/components/design/specimens";
 
 ## Installation
 
-Input is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+<KitInstall name="input" deps={["@base-ui/react"]} />
 
 ## Usage
 
@@ -32,3 +36,42 @@ export function Example() {
   );
 }
 ```
+
+## Examples
+
+### With a button
+
+Inputs sit on the same 32px rhythm as buttons, so rows compose without alignment fixes.
+
+<PreviewCode file="components/design/specimens" name="InputWithButtonSpecimen">
+  <InputWithButtonSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### Input
+
+Accepts every native `input` prop.
+
+<ParametersTable
+  type="InputProps"
+  parameters={[
+    {
+      name: "type",
+      type: "string",
+      default: '"text"',
+      description: "The native input type.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      default: "false",
+      description: "Prevents editing and mutes the field.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>

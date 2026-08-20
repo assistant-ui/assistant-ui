@@ -4,19 +4,24 @@ import { useState, type ReactNode } from "react";
 import {
   ChevronDownIcon,
   ChevronsUpDownIcon,
+  CopyIcon,
   LogOutIcon,
+  PlusIcon,
+  RefreshCwIcon,
   SettingsIcon,
   UserIcon,
 } from "lucide-react";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 import {
   Avatar,
+  AvatarBadge,
   AvatarFallback,
   AvatarGroup,
   AvatarGroupCount,
 } from "@/components/ui/avatar";
 import {
   Breadcrumb,
+  BreadcrumbEllipsis,
   BreadcrumbItem,
   BreadcrumbLink,
   BreadcrumbList,
@@ -41,10 +46,15 @@ import {
 } from "@/components/ui/dialog";
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
@@ -355,6 +365,232 @@ export function CollapsibleSpecimen(): ReactNode {
           </div>
         </CollapsibleContent>
       </Collapsible>
+    </SampleFrame>
+  );
+}
+
+export function ButtonSizesSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Button size="xs">Extra small</Button>
+      <Button size="sm">Small</Button>
+      <Button>Default</Button>
+      <Button size="lg">Large</Button>
+    </SampleFrame>
+  );
+}
+
+export function ButtonIconSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Button size="icon" aria-label="Settings">
+        <SettingsIcon className="size-4" />
+      </Button>
+      <Button size="icon-sm" variant="outline" aria-label="Settings">
+        <SettingsIcon className="size-3.5" />
+      </Button>
+      <Button size="icon-xs" variant="ghost" aria-label="Settings">
+        <SettingsIcon className="size-3" />
+      </Button>
+      <Button variant="outline">
+        <PlusIcon className="size-4" />
+        New thread
+      </Button>
+    </SampleFrame>
+  );
+}
+
+export function DropdownMenuChecklistSpecimen(): ReactNode {
+  const [showTimestamps, setShowTimestamps] = useState(true);
+  const [showAvatars, setShowAvatars] = useState(false);
+
+  return (
+    <SampleFrame className={frameClass}>
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <Button variant="outline">
+              View
+              <ChevronDownIcon className="size-3.5" />
+            </Button>
+          }
+        />
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>Show in thread</DropdownMenuLabel>
+          <DropdownMenuCheckboxItem
+            checked={showTimestamps}
+            onCheckedChange={setShowTimestamps}
+          >
+            Timestamps
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={showAvatars}
+            onCheckedChange={setShowAvatars}
+          >
+            Avatars
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Export</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem>Markdown</DropdownMenuItem>
+              <DropdownMenuItem>JSON</DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SampleFrame>
+  );
+}
+
+export function InputWithButtonSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <div className="flex w-full max-w-72 items-center gap-2">
+        <Input type="email" placeholder="you@example.com" />
+        <Button>Invite</Button>
+      </div>
+    </SampleFrame>
+  );
+}
+
+export function SwitchSizesSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <label className="flex items-center gap-2 text-sm">
+        <Switch defaultChecked />
+        Default
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <Switch size="sm" defaultChecked />
+        Small
+      </label>
+      <label className="text-muted-foreground flex items-center gap-2 text-sm">
+        <Switch disabled />
+        Disabled
+      </label>
+    </SampleFrame>
+  );
+}
+
+export function AvatarSizesSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Avatar size="sm">
+        <AvatarFallback>SM</AvatarFallback>
+      </Avatar>
+      <Avatar>
+        <AvatarFallback>MD</AvatarFallback>
+      </Avatar>
+      <Avatar size="lg">
+        <AvatarFallback>LG</AvatarFallback>
+      </Avatar>
+    </SampleFrame>
+  );
+}
+
+export function AvatarBadgeSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Avatar>
+        <AvatarFallback>ON</AvatarFallback>
+        <AvatarBadge className="bg-emerald-500" />
+      </Avatar>
+      <Avatar>
+        <AvatarFallback>AW</AvatarFallback>
+        <AvatarBadge className="bg-amber-500" />
+      </Avatar>
+    </SampleFrame>
+  );
+}
+
+export function SkeletonCardSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <div className="border-foreground/10 flex w-full max-w-72 flex-col gap-3 rounded-(--radius-surface) border p-4">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-4 w-4/5" />
+        <Skeleton className="h-4 w-3/5" />
+        <div className="flex items-center gap-2 pt-1">
+          <Skeleton className="size-6 rounded-full" />
+          <Skeleton className="h-3.5 w-24" />
+        </div>
+      </div>
+    </SampleFrame>
+  );
+}
+
+export function TooltipIconSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button size="icon" variant="ghost" aria-label="Copy message">
+              <CopyIcon className="size-4" />
+            </Button>
+          }
+        />
+        <TooltipContent>Copy message</TooltipContent>
+      </Tooltip>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <Button size="icon" variant="ghost" aria-label="Regenerate">
+              <RefreshCwIcon className="size-4" />
+            </Button>
+          }
+        />
+        <TooltipContent>Regenerate</TooltipContent>
+      </Tooltip>
+    </SampleFrame>
+  );
+}
+
+export function SheetSidesSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      {(["left", "right", "top", "bottom"] as const).map((side) => (
+        <Sheet key={side}>
+          <SheetTrigger render={<Button variant="outline">{side}</Button>} />
+          <SheetContent side={side}>
+            <SheetHeader>
+              <SheetTitle>From the {side}</SheetTitle>
+              <SheetDescription>
+                The panel enters from the {side} edge.
+              </SheetDescription>
+            </SheetHeader>
+          </SheetContent>
+        </Sheet>
+      ))}
+    </SampleFrame>
+  );
+}
+
+export function BreadcrumbEllipsisSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/design">Design</BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbEllipsis />
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbLink href="/design/components/breadcrumb">
+              Components
+            </BreadcrumbLink>
+          </BreadcrumbItem>
+          <BreadcrumbSeparator />
+          <BreadcrumbItem>
+            <BreadcrumbPage>Breadcrumb</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
     </SampleFrame>
   );
 }

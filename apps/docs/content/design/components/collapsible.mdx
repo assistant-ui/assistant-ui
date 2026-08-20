@@ -4,10 +4,15 @@ description: "One region that folds open and closed in place."
 links:
   - label: Source
     url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/collapsible.tsx
+  - label: Base UI Collapsible
+    url: https://base-ui.com/react/components/collapsible
 ---
 
 import { PreviewCode } from "@/components/docs/preview-code.server";
-import { CollapsibleSpecimen } from "@/components/design/specimens";
+import { KitInstall } from "@/components/design/kit-install";
+import {
+  CollapsibleSpecimen,
+} from "@/components/design/specimens";
 
 <PreviewCode file="components/design/specimens" name="CollapsibleSpecimen">
   <CollapsibleSpecimen />
@@ -15,7 +20,7 @@ import { CollapsibleSpecimen } from "@/components/design/specimens";
 
 ## Installation
 
-Collapsible is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+<KitInstall name="collapsible" deps={["@base-ui/react"]} />
 
 ## Usage
 
@@ -37,6 +42,36 @@ export function Example() {
 }
 ```
 
-## Controlled
+## API Reference
 
-Pass `open` and `onOpenChange` to drive it from outside, the way reasoning sections open while a model is thinking and fold when it settles.
+The parts wrap Base UI's Collapsible primitives and accept their props.
+
+### Collapsible
+
+<ParametersTable
+  type="CollapsibleProps"
+  parameters={[
+    {
+      name: "open",
+      type: "boolean",
+      description: "Controlled open state, the way reasoning sections open while a model is thinking and fold when it settles.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description: "Called when the open state changes.",
+    },
+    {
+      name: "defaultOpen",
+      type: "boolean",
+      default: "false",
+      description: "Uncontrolled initial open state.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      default: "false",
+      description: "Prevents toggling.",
+    },
+  ]}
+/>

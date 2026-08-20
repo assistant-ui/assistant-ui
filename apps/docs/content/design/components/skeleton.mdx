@@ -7,7 +7,11 @@ links:
 ---
 
 import { PreviewCode } from "@/components/docs/preview-code.server";
-import { SkeletonSpecimen } from "@/components/design/specimens";
+import { KitInstall } from "@/components/design/kit-install";
+import {
+  SkeletonSpecimen,
+  SkeletonCardSpecimen,
+} from "@/components/design/specimens";
 
 <PreviewCode file="components/design/specimens" name="SkeletonSpecimen">
   <SkeletonSpecimen />
@@ -15,7 +19,7 @@ import { SkeletonSpecimen } from "@/components/design/specimens";
 
 ## Installation
 
-Skeleton is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+<KitInstall name="skeleton" />
 
 ## Usage
 
@@ -32,6 +36,29 @@ export function Example() {
 }
 ```
 
-## When to use it
+## Examples
 
-A skeleton mirrors the layout the data will fill, so reserve it for loading states whose shape is known. Live machine activity is a different state; assistant-ui renders that with activity indicators instead.
+### Card
+
+Compose skeleton blocks into the layout the data will fill; the closer the shapes, the calmer the swap.
+
+<PreviewCode file="components/design/specimens" name="SkeletonCardSpecimen">
+  <SkeletonCardSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### Skeleton
+
+Renders a pulsing `div`; the size comes entirely from `className`.
+
+<ParametersTable
+  type="SkeletonProps"
+  parameters={[
+    {
+      name: "className",
+      type: "string",
+      description: "Width, height, and radius of the placeholder.",
+    },
+  ]}
+/>

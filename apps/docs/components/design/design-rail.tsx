@@ -6,13 +6,7 @@ import { cn } from "@/lib/utils";
 
 export function DesignRail({ activeSlug }: { activeSlug?: string }): ReactNode {
   return (
-    <nav aria-label="Components" className="flex flex-col gap-6">
-      <Link
-        href="/design"
-        className={cn(typeEyebrow, "hover:text-foreground transition-colors")}
-      >
-        Design
-      </Link>
+    <nav aria-label="Components" className="flex flex-col gap-5">
       {DESIGN_SECTIONS.map((section) => (
         <div key={section.label} className="flex flex-col gap-1">
           <p className={cn(typeEyebrow, "px-2")}>{section.label}</p>

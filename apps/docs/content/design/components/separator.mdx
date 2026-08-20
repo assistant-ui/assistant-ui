@@ -4,10 +4,15 @@ description: "A hairline between things, horizontal or vertical."
 links:
   - label: Source
     url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/separator.tsx
+  - label: Base UI Separator
+    url: https://base-ui.com/react/components/separator
 ---
 
 import { PreviewCode } from "@/components/docs/preview-code.server";
-import { SeparatorSpecimen } from "@/components/design/specimens";
+import { KitInstall } from "@/components/design/kit-install";
+import {
+  SeparatorSpecimen,
+} from "@/components/design/specimens";
 
 <PreviewCode file="components/design/specimens" name="SeparatorSpecimen">
   <SeparatorSpecimen />
@@ -15,7 +20,7 @@ import { SeparatorSpecimen } from "@/components/design/specimens";
 
 ## Installation
 
-Separator is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+<KitInstall name="separator" deps={["@base-ui/react"]} />
 
 ## Usage
 
@@ -32,3 +37,26 @@ export function Example() {
   );
 }
 ```
+
+## API Reference
+
+### Separator
+
+Wraps Base UI's Separator.
+
+<ParametersTable
+  type="SeparatorProps"
+  parameters={[
+    {
+      name: "orientation",
+      type: '"horizontal" | "vertical"',
+      default: '"horizontal"',
+      description: "The axis of the line. A vertical separator needs a bounded height from its row.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>

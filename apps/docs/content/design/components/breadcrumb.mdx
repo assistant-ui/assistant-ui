@@ -7,7 +7,11 @@ links:
 ---
 
 import { PreviewCode } from "@/components/docs/preview-code.server";
-import { BreadcrumbSpecimen } from "@/components/design/specimens";
+import { KitInstall } from "@/components/design/kit-install";
+import {
+  BreadcrumbSpecimen,
+  BreadcrumbEllipsisSpecimen,
+} from "@/components/design/specimens";
 
 <PreviewCode file="components/design/specimens" name="BreadcrumbSpecimen">
   <BreadcrumbSpecimen />
@@ -15,7 +19,7 @@ import { BreadcrumbSpecimen } from "@/components/design/specimens";
 
 ## Installation
 
-Breadcrumb is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+<KitInstall name="breadcrumb" deps={["@base-ui/react"]} />
 
 ## Usage
 
@@ -45,3 +49,27 @@ export function Example() {
   );
 }
 ```
+
+## Examples
+
+### Collapsed
+
+`BreadcrumbEllipsis` stands in for levels that do not need to be spelled out.
+
+<PreviewCode file="components/design/specimens" name="BreadcrumbEllipsisSpecimen">
+  <BreadcrumbEllipsisSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### Parts
+
+| Part | Description |
+|------|-------------|
+| `Breadcrumb` | The `nav` landmark. |
+| `BreadcrumbList` | The ordered list of levels. |
+| `BreadcrumbItem` | One level. |
+| `BreadcrumbLink` | A navigable level; compose with `render` for router links. |
+| `BreadcrumbPage` | The current page, not a link. |
+| `BreadcrumbSeparator` | The divider glyph between levels. |
+| `BreadcrumbEllipsis` | Placeholder for collapsed levels. |

@@ -7,7 +7,10 @@ links:
 ---
 
 import { PreviewCode } from "@/components/docs/preview-code.server";
-import { KbdSpecimen } from "@/components/design/specimens";
+import { KitInstall } from "@/components/design/kit-install";
+import {
+  KbdSpecimen,
+} from "@/components/design/specimens";
 
 <PreviewCode file="components/design/specimens" name="KbdSpecimen">
   <KbdSpecimen />
@@ -15,7 +18,7 @@ import { KbdSpecimen } from "@/components/design/specimens";
 
 ## Installation
 
-Kbd is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+<KitInstall name="kbd" />
 
 ## Usage
 
@@ -31,3 +34,35 @@ export function Example() {
   );
 }
 ```
+
+## API Reference
+
+### Kbd
+
+Renders a native `kbd` element and accepts its props.
+
+<ParametersTable
+  type="KbdProps"
+  parameters={[
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### KbdGroup
+
+Lays out a chord of keys with even spacing.
+
+<ParametersTable
+  type="KbdGroupProps"
+  parameters={[
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>

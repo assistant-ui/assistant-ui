@@ -4,10 +4,15 @@ description: "Anchored detail on demand, dismissed by clicking away."
 links:
   - label: Source
     url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/popover.tsx
+  - label: Base UI Popover
+    url: https://base-ui.com/react/components/popover
 ---
 
 import { PreviewCode } from "@/components/docs/preview-code.server";
-import { PopoverSpecimen } from "@/components/design/specimens";
+import { KitInstall } from "@/components/design/kit-install";
+import {
+  PopoverSpecimen,
+} from "@/components/design/specimens";
 
 <PreviewCode file="components/design/specimens" name="PopoverSpecimen">
   <PopoverSpecimen />
@@ -15,7 +20,7 @@ import { PopoverSpecimen } from "@/components/design/specimens";
 
 ## Installation
 
-Popover is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+<KitInstall name="popover" deps={["@base-ui/react"]} />
 
 ## Usage
 
@@ -44,3 +49,51 @@ export function Example() {
   );
 }
 ```
+
+## API Reference
+
+The parts wrap Base UI's Popover primitives and accept their props.
+
+### Popover
+
+<ParametersTable
+  type="PopoverProps"
+  parameters={[
+    {
+      name: "open",
+      type: "boolean",
+      description: "Controlled open state.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description: "Called when the open state changes.",
+    },
+  ]}
+/>
+
+### PopoverContent
+
+<ParametersTable
+  type="PopoverContentProps"
+  parameters={[
+    {
+      name: "side",
+      type: '"top" | "right" | "bottom" | "left"',
+      default: '"bottom"',
+      description: "Preferred side of the trigger.",
+    },
+    {
+      name: "align",
+      type: '"start" | "center" | "end"',
+      default: '"center"',
+      description: "Alignment against the trigger.",
+    },
+    {
+      name: "sideOffset",
+      type: "number",
+      default: "4",
+      description: "Distance from the trigger in pixels.",
+    },
+  ]}
+/>

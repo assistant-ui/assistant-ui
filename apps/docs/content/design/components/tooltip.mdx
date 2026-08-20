@@ -4,10 +4,16 @@ description: "A short label that appears on hover and stays out of the way."
 links:
   - label: Source
     url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/tooltip.tsx
+  - label: Base UI Tooltip
+    url: https://base-ui.com/react/components/tooltip
 ---
 
 import { PreviewCode } from "@/components/docs/preview-code.server";
-import { TooltipSpecimen } from "@/components/design/specimens";
+import { KitInstall } from "@/components/design/kit-install";
+import {
+  TooltipSpecimen,
+  TooltipIconSpecimen,
+} from "@/components/design/specimens";
 
 <PreviewCode file="components/design/specimens" name="TooltipSpecimen">
   <TooltipSpecimen />
@@ -15,7 +21,7 @@ import { TooltipSpecimen } from "@/components/design/specimens";
 
 ## Installation
 
-Tooltip is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+<KitInstall name="tooltip" deps={["@base-ui/react"]} />
 
 ## Usage
 
@@ -33,6 +39,51 @@ export function Example() {
 }
 ```
 
-## When to skip it
+## Examples
 
-A tooltip earns its place when the control is an icon alone. Once the label is written next to the control, the tooltip repeats it; leave it off.
+### Icon buttons
+
+A tooltip earns its place when the control is an icon alone; written labels do not need one.
+
+<PreviewCode file="components/design/specimens" name="TooltipIconSpecimen">
+  <TooltipIconSpecimen />
+</PreviewCode>
+
+## API Reference
+
+The parts wrap Base UI's Tooltip primitives and accept their props.
+
+### TooltipContent
+
+<ParametersTable
+  type="TooltipContentProps"
+  parameters={[
+    {
+      name: "side",
+      type: '"top" | "right" | "bottom" | "left"',
+      default: '"top"',
+      description: "Preferred side of the trigger.",
+    },
+    {
+      name: "sideOffset",
+      type: "number",
+      default: "4",
+      description: "Distance from the trigger in pixels.",
+    },
+  ]}
+/>
+
+### TooltipProvider
+
+Wrap a region to share hover delay across its tooltips.
+
+<ParametersTable
+  type="TooltipProviderProps"
+  parameters={[
+    {
+      name: "delay",
+      type: "number",
+      description: "Milliseconds before the tooltip opens.",
+    },
+  ]}
+/>

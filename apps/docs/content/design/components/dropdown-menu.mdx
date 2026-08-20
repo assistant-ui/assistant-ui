@@ -4,10 +4,16 @@ description: "Actions behind a trigger: items, shortcuts, and separators on a qu
 links:
   - label: Source
     url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/dropdown-menu.tsx
+  - label: Base UI Menu
+    url: https://base-ui.com/react/components/menu
 ---
 
 import { PreviewCode } from "@/components/docs/preview-code.server";
-import { DropdownMenuSpecimen } from "@/components/design/specimens";
+import { KitInstall } from "@/components/design/kit-install";
+import {
+  DropdownMenuSpecimen,
+  DropdownMenuChecklistSpecimen,
+} from "@/components/design/specimens";
 
 <PreviewCode file="components/design/specimens" name="DropdownMenuSpecimen">
   <DropdownMenuSpecimen />
@@ -15,7 +21,7 @@ import { DropdownMenuSpecimen } from "@/components/design/specimens";
 
 ## Installation
 
-Dropdown Menu is part of the assistant-ui kit. Registry items that need it install it automatically as a dependency; to use it on its own, copy the source file into `components/ui/`.
+<KitInstall name="dropdown-menu" deps={["@base-ui/react"]} />
 
 ## Usage
 
@@ -43,6 +49,79 @@ export function Example() {
 }
 ```
 
-## Parts
+## Examples
 
-`DropdownMenuShortcut` prints a right-aligned key hint inside an item. `DropdownMenuCheckboxItem`, `DropdownMenuRadioGroup`, and `DropdownMenuSub` cover checkable items and nested menus. Triggers take Base UI's `render` prop instead of `asChild`.
+### Checkboxes and submenus
+
+`DropdownMenuCheckboxItem` holds a checked state, `DropdownMenuLabel` titles a group, and `DropdownMenuSub` nests a second level.
+
+<PreviewCode file="components/design/specimens" name="DropdownMenuChecklistSpecimen">
+  <DropdownMenuChecklistSpecimen />
+</PreviewCode>
+
+## API Reference
+
+The parts wrap Base UI's Menu primitives and accept their props.
+
+### DropdownMenu
+
+<ParametersTable
+  type="DropdownMenuProps"
+  parameters={[
+    {
+      name: "open",
+      type: "boolean",
+      description: "Controlled open state.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description: "Called when the open state changes.",
+    },
+    {
+      name: "defaultOpen",
+      type: "boolean",
+      default: "false",
+      description: "Uncontrolled initial open state.",
+    },
+  ]}
+/>
+
+### DropdownMenuContent
+
+<ParametersTable
+  type="DropdownMenuContentProps"
+  parameters={[
+    {
+      name: "align",
+      type: '"start" | "center" | "end"',
+      default: '"center"',
+      description: "Alignment against the trigger.",
+    },
+    {
+      name: "sideOffset",
+      type: "number",
+      default: "4",
+      description: "Distance from the trigger in pixels.",
+    },
+  ]}
+/>
+
+### DropdownMenuItem
+
+<ParametersTable
+  type="DropdownMenuItemProps"
+  parameters={[
+    {
+      name: "onSelect",
+      type: "() => void",
+      description: "Called when the item is selected.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      default: "false",
+      description: "Prevents selection and mutes the item.",
+    },
+  ]}
+/>

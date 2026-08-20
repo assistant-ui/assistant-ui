@@ -59,7 +59,7 @@ export default async function DesignComponentPage({
     <PageFrame pad="sub">
       <div className="gap-12 lg:grid lg:grid-cols-[11rem_minmax(0,1fr)] xl:grid-cols-[11rem_minmax(0,1fr)_11rem]">
         <aside className="hidden lg:block">
-          <div className="sticky top-24 max-h-[calc(100vh-8rem)] overflow-y-auto pb-8">
+          <div className="bg-background fixed top-12 bottom-0 w-44 overflow-y-auto pt-20 pb-8">
             <DesignRail activeSlug={slug} />
           </div>
         </aside>
@@ -116,7 +116,7 @@ export default async function DesignComponentPage({
 
         <aside className="hidden xl:block">
           {toc.length > 0 ? (
-            <div className="sticky top-24 flex max-h-[calc(100vh-8rem)] flex-col gap-2 overflow-y-auto pb-8">
+            <div className="bg-background fixed top-12 bottom-0 flex w-44 flex-col gap-2 overflow-y-auto pt-20 pb-8">
               <p className={typeEyebrow}>On this page</p>
               <div className="flex flex-col gap-1">
                 {toc.map((item) => (
