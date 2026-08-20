@@ -678,13 +678,15 @@ export class LocalThreadRuntimeCore
         updateMessage(await promiseOrGenerator);
       }
 
-      if (abortSignal.aborted) {
+      if (abortSignal.aborted && message.status.type === "requires-action") {
         updateMessage({
           status: { type: "incomplete", reason: "cancelled" },
         });
       } else if (message.status.type === "running") {
         updateMessage({
-          status: { type: "complete", reason: "unknown" },
+          status: abortSignal.aborted
+            ? { type: "incomplete", reason: "cancelled" }
+            : { type: "complete", reason: "unknown" },
         });
       }
     } catch (e) {

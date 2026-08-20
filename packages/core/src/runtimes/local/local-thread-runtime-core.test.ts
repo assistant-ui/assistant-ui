@@ -750,6 +750,39 @@ describe("LocalThreadRuntimeCore cancellation", () => {
     });
   });
 
+  it("preserves a terminal adapter status when cancelled during teardown", async () => {
+    let releaseTeardown!: () => void;
+    const teardown = new Promise<void>((resolve) => {
+      releaseTeardown = resolve;
+    });
+    const thread = createThread({
+      async *run() {
+        yield {
+          content: [{ type: "text", text: "done" }],
+          status: { type: "complete", reason: "stop" },
+        };
+        await teardown;
+      },
+    });
+
+    const appendPromise = thread.append(userMessage("first"));
+    await flush();
+
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "complete",
+      reason: "stop",
+    });
+
+    thread.cancelRun();
+    releaseTeardown();
+    await appendPromise;
+
+    expect(thread.messages.at(-1)?.status).toEqual({
+      type: "complete",
+      reason: "stop",
+    });
+  });
+
   it("keeps a replacement run cancellable after the previous run settles", async () => {
     let releaseFirst!: () => void;
     let releaseSecond!: () => void;
