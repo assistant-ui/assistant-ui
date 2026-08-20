@@ -11,12 +11,13 @@ import { SelectSample } from "@/components/docs/samples/select";
 import { TabsSample } from "@/components/docs/samples/tabs";
 import {
   AvatarSpecimen,
-  CalloutSpecimen,
-  CodeBlockSpecimen,
-  CommandTabsSpecimen,
   BreadcrumbSpecimen,
   ButtonSpecimen,
+  CalloutSpecimen,
+  CodeBlockSpecimen,
   CollapsibleSpecimen,
+  CommandTabsSpecimen,
+  DefinitionListSpecimen,
   DialogSpecimen,
   DropdownMenuSpecimen,
   InputSpecimen,
@@ -27,6 +28,7 @@ import {
   SkeletonSpecimen,
   StepsSpecimen,
   SwitchSpecimen,
+  TableSpecimen,
   TooltipSpecimen,
 } from "@/components/design/specimens";
 
@@ -49,6 +51,8 @@ export const DESIGN_PREVIEWS: Record<string, ComponentType> = {
   steps: StepsSpecimen,
   "code-block": CodeBlockSpecimen,
   "command-tabs": CommandTabsSpecimen,
+  table: TableSpecimen,
+  "definition-list": DefinitionListSpecimen,
   dialog: DialogSpecimen,
   popover: PopoverSpecimen,
   tooltip: TooltipSpecimen,

@@ -50,9 +50,9 @@ function CopyButton({
 
 /**
  * Chrome for highlighted code: a hairline field panel with an optional title
- * header and a copy button. Children carry the `pre` element; shiki inline
- * colors pass through, and in dark mode each token falls back to its
- * `--shiki-dark` variable. Lines render as blocks on a `w-max` surface so
+ * header and a copy button. Children carry the `pre` element; tokens read
+ * shiki's inline colors or `--shiki-light`, and in dark mode fall back to
+ * `--shiki-dark`. Lines render as blocks on a `w-max` surface so
  * highlighted rows paint past the scroll fold, and `data-line-numbers` on the
  * `pre` turns on a CSS counter gutter.
  */
@@ -98,6 +98,7 @@ export function CodeBlock({
           "focus-visible:outline-foreground/20 min-w-0 overflow-x-auto py-3.5 font-mono text-[12.5px] leading-relaxed [font-variant-ligatures:none] focus-visible:outline-1 focus-visible:-outline-offset-1",
           "[&_code]:bg-transparent! [&_pre]:w-max [&_pre]:min-w-full [&_pre]:bg-transparent! [&_pre]:px-3.5",
           "[&_.line]:inline-block [&_.line]:min-h-[1lh] [&_.line]:w-full",
+          "[&_code_span]:[color:var(--shiki-light,inherit)]",
           "dark:[&_code_span]:[color:var(--shiki-dark)]!",
           "[&_.highlighted]:bg-blue-500/8 [&_.highlighted]:shadow-[inset_2px_0_0_#3b82f6] dark:[&_.highlighted]:bg-blue-500/15",
           "[&_pre[data-line-numbers]]:[counter-reset:line]",

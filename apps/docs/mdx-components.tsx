@@ -5,6 +5,15 @@ import { Callout } from "@/components/ui/callout";
 import { CodeBlock } from "@/components/ui/code-block";
 import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
 import { Step, Steps } from "@/components/ui/steps";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableFooter,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { Tab, Tabs } from "@/components/pages/docs/fumadocs/tabs";
 import defaultComponents from "fumadocs-ui/mdx";
 import { InstallCommand } from "@/components/pages/docs/fumadocs/install/install-command";
@@ -67,6 +76,17 @@ export function getMDXComponents(components: MDXComponents): MDXComponents {
         </CodeBlock>
       );
     },
+    table: (props: ComponentProps<"table">) => (
+      <div className="my-6">
+        <Table {...props} />
+      </div>
+    ),
+    thead: TableHeader,
+    tbody: TableBody,
+    tfoot: TableFooter,
+    tr: TableRow,
+    th: TableHead,
+    td: TableCell,
     Tabs,
     Tab,
     PlatformTabs,

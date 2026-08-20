@@ -123,6 +123,17 @@ export const DESIGN_SECTIONS: DesignSectionMeta[] = [
         description:
           "One command in several dialects, with synced tabs and a copy button.",
       },
+      {
+        slug: "table",
+        name: "Table",
+        description:
+          "A print-register data table with hairline rules and mono headers.",
+      },
+      {
+        slug: "definition-list",
+        name: "Definition List",
+        description: "A spec sheet of terms and details, one hairline per row.",
+      },
     ],
   },
   {

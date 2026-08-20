@@ -33,6 +33,23 @@ import { Callout } from "@/components/ui/radix/callout";
 import { CodeBlock } from "@/components/ui/radix/code-block";
 import { CommandTabs } from "@/components/ui/radix/command-tabs";
 import {
+  Definition,
+  DefinitionAnnotation,
+  DefinitionDetails,
+  DefinitionList,
+  DefinitionName,
+  DefinitionTerm,
+} from "@/components/ui/radix/definition-list";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/radix/table";
+import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
@@ -738,6 +755,94 @@ export function CommandTabsSyncSpecimen(): ReactNode {
           bun: "bunx --bun shadcn@latest add @assistant-ui/thread",
         }}
       />
+    </SampleFrame>
+  );
+}
+
+export function TableSpecimen(): ReactNode {
+  return (
+    <SampleFrame className="flex h-auto flex-col justify-center p-10">
+      <Table>
+        <TableCaption>Radius scale of the design system.</TableCaption>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Token</TableHead>
+            <TableHead>Value</TableHead>
+            <TableHead>Applies to</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell>
+              <code>--radius-control</code>
+            </TableCell>
+            <TableCell>8px</TableCell>
+            <TableCell>Buttons, inputs, menu items</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>
+              <code>--radius-surface</code>
+            </TableCell>
+            <TableCell>10px</TableCell>
+            <TableCell>Cards, popovers, panels</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>
+              <code>--radius-xl</code>
+            </TableCell>
+            <TableCell>12px</TableCell>
+            <TableCell>Dialogs, large surfaces</TableCell>
+          </TableRow>
+          <TableRow>
+            <TableCell>
+              <code>--radius-thread</code>
+            </TableCell>
+            <TableCell>16px</TableCell>
+            <TableCell>The chat viewport</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+    </SampleFrame>
+  );
+}
+
+export function DefinitionListSpecimen(): ReactNode {
+  return (
+    <SampleFrame className="flex h-auto flex-col justify-center p-10">
+      <DefinitionList>
+        <Definition>
+          <DefinitionTerm>
+            <DefinitionName>commands</DefinitionName>
+            <DefinitionAnnotation>
+              {"Record<string, string>"}
+            </DefinitionAnnotation>
+          </DefinitionTerm>
+          <DefinitionDetails>
+            Tab label to command line, in display order.
+          </DefinitionDetails>
+        </Definition>
+        <Definition>
+          <DefinitionTerm>
+            <DefinitionName>storageKey?</DefinitionName>
+            <DefinitionAnnotation>string</DefinitionAnnotation>
+          </DefinitionTerm>
+          <DefinitionDetails>
+            Persists the selected tab and keeps every instance with the same key
+            in sync.
+          </DefinitionDetails>
+        </Definition>
+        <Definition>
+          <DefinitionTerm>
+            <DefinitionName>onValueChange?</DefinitionName>
+            <DefinitionAnnotation>
+              {"(value: string) => void"}
+            </DefinitionAnnotation>
+          </DefinitionTerm>
+          <DefinitionDetails>
+            Called when the user picks a tab.
+          </DefinitionDetails>
+        </Definition>
+      </DefinitionList>
     </SampleFrame>
   );
 }

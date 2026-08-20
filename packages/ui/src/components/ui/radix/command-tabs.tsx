@@ -130,9 +130,9 @@ export function CommandTabs({
         </button>
       </div>
       <div className="min-w-0 overflow-x-auto">
-        <code className="block w-max min-w-full px-3.5 py-4 font-mono text-[13px] leading-relaxed whitespace-pre [font-variant-ligatures:none]">
-          {command}
-        </code>
+        <pre className="w-max min-w-full px-3.5 py-4 font-mono text-[13px] leading-relaxed whitespace-pre [font-variant-ligatures:none]">
+          <code>{command}</code>
+        </pre>
       </div>
     </figure>
   );
