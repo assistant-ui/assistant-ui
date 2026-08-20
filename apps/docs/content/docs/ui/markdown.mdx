@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { MarkdownSample } from "@/components/docs/samples/markdown";
+import { PreviewCode } from "@/components/docs/preview-code.server";
+import { MarkdownStreamingSample } from "@/components/docs/samples/markdown/streaming-markdown";
 
 <MarkdownSample />
 
@@ -53,6 +55,16 @@ const AssistantMessage: FC = () => {
 </Step>
 
 </Steps>
+
+## Examples
+
+### Streaming Markdown
+
+Select Replay. The markdown increases in steps, and the text part shows a running status until the last chunk.
+
+<PreviewCode file="components/docs/samples/markdown/streaming-markdown" name="StreamingMarkdown">
+  <MarkdownStreamingSample />
+</PreviewCode>
 
 ## Syntax highlighting
 
