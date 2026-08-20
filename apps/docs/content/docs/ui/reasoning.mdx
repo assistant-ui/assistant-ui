@@ -5,6 +5,7 @@ platforms: ["react"]
 ---
 
 import { ReasoningSample, ReasoningGroupSample } from "@/components/docs/samples/reasoning";
+import { ReasoningLongSample } from "@/components/docs/samples/reasoning/long-reasoning";
 
 <ReasoningSample />
 
@@ -148,6 +149,14 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
   );
 };
 ```
+
+## Examples
+
+### Long Reasoning
+
+The `defaultOpen` prop opens the disclosure when the page loads. `ReasoningText` holds long reasoning in a `max-h-64` scroll area. Scroll the text. Then collapse and expand the disclosure.
+
+<ReasoningLongSample />
 
 ## API Reference
 
