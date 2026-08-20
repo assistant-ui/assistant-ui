@@ -5,11 +5,11 @@ import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { SampleFrame } from "@/components/docs/samples/sample-frame";
 
 export function MarkdownDocument() {
-  const richMarkdown = `# Product brief
+  const richMarkdown = `## Product brief
 
 A useful response can combine **clear structure**, _emphasis_, and [source links](https://www.assistant-ui.com).
 
-## What ships
+### What ships
 
 1. Accessible message primitives
 2. Runtime adapters
