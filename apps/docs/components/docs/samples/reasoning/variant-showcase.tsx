@@ -20,7 +20,7 @@ function StateCard({
   return (
     <div className="flex flex-col gap-1.5">
       <span className="text-muted-foreground text-[10px] font-medium tracking-wide uppercase">
-        {state}
+        {state} by default
       </span>
       <ReasoningRoot
         className="mb-0"
