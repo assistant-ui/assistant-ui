@@ -46,8 +46,9 @@ const config = AuiConfig({ tools: Tools({ toolkit: weatherToolkit }) });
 function useStartRun(runtime: AssistantRuntime) {
   useEffect(() => {
     const timeout = setTimeout(() => {
-      if (runtime.thread.getState().messages.length > 0) return;
-      runtime.thread.append("What's the weather in San Francisco?");
+      const message = runtime.thread.getState().messages[0];
+      if (!message) return;
+      runtime.thread.startRun({ parentId: message.id });
     }, 0);
 
     return () => clearTimeout(timeout);
@@ -55,28 +56,35 @@ function useStartRun(runtime: AssistantRuntime) {
 }
 
 function WeatherToolChat() {
-  const runtime = useLocalRuntime({
-    async *run({ abortSignal }) {
-      const toolCall = {
-        type: "tool-call" as const,
-        toolCallId: `call_${crypto.randomUUID()}`,
-        toolName: "get_weather",
-        args: { location: "San Francisco" },
-        argsText: JSON.stringify({ location: "San Francisco" }, null, 2),
-      };
-      yield { content: [toolCall] };
-      await new Promise<void>((resolve) => setTimeout(resolve, 800));
-      if (abortSignal.aborted) return;
-      yield {
-        content: [
-          {
-            ...toolCall,
-            result: { temperature: 72, condition: "Sunny", humidity: 45 },
-          },
-        ],
-      };
+  const runtime = useLocalRuntime(
+    {
+      async *run({ abortSignal }) {
+        const toolCall = {
+          type: "tool-call" as const,
+          toolCallId: `call_${crypto.randomUUID()}`,
+          toolName: "get_weather",
+          args: { location: "San Francisco" },
+          argsText: JSON.stringify({ location: "San Francisco" }, null, 2),
+        };
+        yield { content: [toolCall] };
+        await new Promise<void>((resolve) => setTimeout(resolve, 800));
+        if (abortSignal.aborted) return;
+        yield {
+          content: [
+            {
+              ...toolCall,
+              result: { temperature: 72, condition: "Sunny", humidity: 45 },
+            },
+          ],
+        };
+      },
     },
-  });
+    {
+      initialMessages: [
+        { role: "user", content: "What's the weather in San Francisco?" },
+      ],
+    },
+  );
 
   useStartRun(runtime);
 
