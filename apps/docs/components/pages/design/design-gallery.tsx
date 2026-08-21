@@ -6,8 +6,8 @@ import { ArrowUpRightIcon } from "lucide-react";
 import {
   DESIGN_SECTIONS,
   type DesignComponentMeta,
-} from "@/components/design/registry-meta";
-import { DESIGN_PREVIEWS } from "@/components/design/registry";
+} from "@/components/pages/design/registry-meta";
+import { DESIGN_PREVIEWS } from "@/components/pages/design/registry";
 import { typeEyebrow } from "@/components/shared/type";
 
 export function DesignGallery(): ReactNode {

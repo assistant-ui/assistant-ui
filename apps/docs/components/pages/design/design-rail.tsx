@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { DESIGN_SECTIONS } from "@/components/design/registry-meta";
+import { DESIGN_SECTIONS } from "@/components/pages/design/registry-meta";
 import { typeEyebrow } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 

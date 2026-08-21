@@ -6,18 +6,18 @@ links:
     url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/breadcrumb.tsx
 ---
 
-import { PreviewCode } from "@/components/docs/preview-code.server";
-import { KitInstall } from "@/components/design/kit-install";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
 import {
   BreadcrumbSpecimen,
   BreadcrumbEllipsisSpecimen,
-} from "@/components/design/specimens";
-import * as RadixSpecimens from "@/components/design/specimens.radix";
-import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
 
 <FlavorSwitcher />
 
-<PreviewCode file="components/design/specimens" name="BreadcrumbSpecimen" base={<BreadcrumbSpecimen />}>
+<PreviewCode file="components/pages/design/specimens" name="BreadcrumbSpecimen" base={<BreadcrumbSpecimen />}>
   <RadixSpecimens.BreadcrumbSpecimen />
 </PreviewCode>
 
@@ -60,7 +60,7 @@ export function Example() {
 
 `BreadcrumbEllipsis` stands in for levels that do not need to be spelled out.
 
-<PreviewCode file="components/design/specimens" name="BreadcrumbEllipsisSpecimen" base={<BreadcrumbEllipsisSpecimen />}>
+<PreviewCode file="components/pages/design/specimens" name="BreadcrumbEllipsisSpecimen" base={<BreadcrumbEllipsisSpecimen />}>
   <RadixSpecimens.BreadcrumbEllipsisSpecimen />
 </PreviewCode>
 

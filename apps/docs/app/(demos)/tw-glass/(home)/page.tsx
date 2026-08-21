@@ -2,8 +2,8 @@
 
 import { useState, type ReactNode } from "react";
 import { ArrowUpRight } from "lucide-react";
-import { CopyCommandButton } from "@/components/home/copy-command-button";
-import { Highlight } from "@/components/design/highlight";
+import { CopyCommandButton } from "@/components/shared/copy-command-button";
+import { Highlight } from "@/components/shared/highlight";
 import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";

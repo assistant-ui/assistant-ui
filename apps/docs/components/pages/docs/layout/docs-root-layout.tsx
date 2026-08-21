@@ -8,7 +8,10 @@ import {
   DocsSidebar,
 } from "@/components/pages/docs/contexts/sidebar";
 import { SidebarContent } from "@/components/pages/docs/layout/sidebar-content";
-import { DocsContent, DocsShell } from "@/components/pages/docs/layout/docs-layout";
+import {
+  DocsContent,
+  DocsShell,
+} from "@/components/pages/docs/layout/docs-layout";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 import { PlatformProvider } from "@/components/pages/docs/platform/context";
 

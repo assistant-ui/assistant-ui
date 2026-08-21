@@ -1,11 +1,11 @@
 import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
-import { DemoCard } from "@/components/demo/elements/demo-card";
-import { SectionRail } from "@/components/demo/elements/section-rail";
+import { DemoCard } from "@/components/pages/elements/demo-card";
+import { SectionRail } from "@/components/pages/elements/section-rail";
 import {
   ELEMENT_COUNT,
   ELEMENT_SECTIONS,
-} from "@/components/demo/elements/registry";
+} from "@/components/pages/elements/registry";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";

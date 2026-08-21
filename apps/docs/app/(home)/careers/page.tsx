@@ -4,7 +4,7 @@ import type { Metadata } from "next";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { careers, type CareerPage } from "@/lib/source";
-import { sceneFor } from "@/components/careers/scenes";
+import { sceneFor } from "@/components/pages/careers/scenes";
 import { GlyphPlate } from "@/components/shared/glyph-scene";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";

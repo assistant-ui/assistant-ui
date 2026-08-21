@@ -8,18 +8,18 @@ links:
     url: https://base-ui.com/react/components/menu
 ---
 
-import { PreviewCode } from "@/components/docs/preview-code.server";
-import { KitInstall } from "@/components/design/kit-install";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
 import {
   DropdownMenuSpecimen,
   DropdownMenuChecklistSpecimen,
-} from "@/components/design/specimens";
-import * as RadixSpecimens from "@/components/design/specimens.radix";
-import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
 
 <FlavorSwitcher />
 
-<PreviewCode file="components/design/specimens" name="DropdownMenuSpecimen" base={<DropdownMenuSpecimen />}>
+<PreviewCode file="components/pages/design/specimens" name="DropdownMenuSpecimen" base={<DropdownMenuSpecimen />}>
   <RadixSpecimens.DropdownMenuSpecimen />
 </PreviewCode>
 
@@ -59,7 +59,7 @@ export function Example() {
 
 `DropdownMenuCheckboxItem` holds a checked state, `DropdownMenuLabel` titles a group, and `DropdownMenuSub` nests a second level.
 
-<PreviewCode file="components/design/specimens" name="DropdownMenuChecklistSpecimen" base={<DropdownMenuChecklistSpecimen />}>
+<PreviewCode file="components/pages/design/specimens" name="DropdownMenuChecklistSpecimen" base={<DropdownMenuChecklistSpecimen />}>
   <RadixSpecimens.DropdownMenuChecklistSpecimen />
 </PreviewCode>
 

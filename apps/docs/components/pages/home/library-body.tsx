@@ -1,6 +1,6 @@
 "use client";
 
-import { CopyButton } from "@/components/demo/elements/copy-button";
+import { CopyButton } from "@/components/shared/copy-button";
 import {
   LibraryShowcase,
   type SetupTab,

@@ -8,19 +8,19 @@ links:
     url: https://base-ui.com/react/components/combobox
 ---
 
-import { PreviewCode } from "@/components/docs/preview-code.server";
-import { KitInstall } from "@/components/design/kit-install";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
 import {
   ComboboxSpecimen,
   ComboboxGroupsSpecimen,
   ComboboxStatesSpecimen,
-} from "@/components/design/specimens";
-import * as RadixSpecimens from "@/components/design/specimens.radix";
-import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
 
 <FlavorSwitcher />
 
-<PreviewCode file="components/design/specimens" name="ComboboxSpecimen" base={<ComboboxSpecimen />}>
+<PreviewCode file="components/pages/design/specimens" name="ComboboxSpecimen" base={<ComboboxSpecimen />}>
   <RadixSpecimens.ComboboxSpecimen />
 </PreviewCode>
 
@@ -69,7 +69,7 @@ export function RuntimePicker() {
 
 Pass an array of `{ value, items }` groups to the root, then render each group with its own collection. Group labels use the mono eyebrow voice.
 
-<PreviewCode file="components/design/specimens" name="ComboboxGroupsSpecimen" base={<ComboboxGroupsSpecimen />}>
+<PreviewCode file="components/pages/design/specimens" name="ComboboxGroupsSpecimen" base={<ComboboxGroupsSpecimen />}>
   <RadixSpecimens.ComboboxGroupsSpecimen />
 </PreviewCode>
 
@@ -77,7 +77,7 @@ Pass an array of `{ value, items }` groups to the root, then render each group w
 
 `showClear` shows a clear button instead of the chevron while a value is selected. A disabled combobox keeps its value visible at half opacity.
 
-<PreviewCode file="components/design/specimens" name="ComboboxStatesSpecimen" base={<ComboboxStatesSpecimen />}>
+<PreviewCode file="components/pages/design/specimens" name="ComboboxStatesSpecimen" base={<ComboboxStatesSpecimen />}>
   <RadixSpecimens.ComboboxStatesSpecimen />
 </PreviewCode>
 

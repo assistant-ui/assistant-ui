@@ -11,7 +11,10 @@ describe("design registry", () => {
   });
 
   it("has an MDX page for every component", () => {
-    const designDir = path.join(__dirname, "../../content/design/components");
+    const designDir = path.join(
+      __dirname,
+      "../../../content/design/components",
+    );
     const designSlugs = new Set(
       fs
         .readdirSync(designDir)

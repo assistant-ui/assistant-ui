@@ -3,12 +3,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
-import { DesignRail } from "@/components/design/design-rail";
+import { DesignRail } from "@/components/pages/design/design-rail";
 import {
   DESIGN_COMPONENTS,
   getDesignComponentMeta,
   getDesignSectionLabel,
-} from "@/components/design/registry-meta";
+} from "@/components/pages/design/registry-meta";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeEyebrow, typePage } from "@/components/shared/type";
 import { design } from "@/lib/source";

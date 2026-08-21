@@ -1,14 +1,14 @@
 "use client";
 
 import type { ComponentType } from "react";
-import { AccordionSample } from "@/components/docs/samples/accordion";
-import { BadgeSample } from "@/components/docs/samples/badge";
-import { DiffViewerSample } from "@/components/docs/samples/diff-viewer";
-import { DotMatrixSample } from "@/components/docs/samples/dot-matrix";
-import { NumberRollSample } from "@/components/docs/samples/number-roll";
-import { ScrollbarSample } from "@/components/docs/samples/scrollbar";
-import { SelectSample } from "@/components/docs/samples/select";
-import { TabsSample } from "@/components/docs/samples/tabs";
+import { AccordionSample } from "@/components/pages/docs/samples/accordion";
+import { BadgeSample } from "@/components/pages/docs/samples/badge";
+import { DiffViewerSample } from "@/components/pages/docs/samples/diff-viewer";
+import { DotMatrixSample } from "@/components/pages/docs/samples/dot-matrix";
+import { NumberRollSample } from "@/components/pages/docs/samples/number-roll";
+import { ScrollbarSample } from "@/components/pages/docs/samples/scrollbar";
+import { SelectSample } from "@/components/pages/docs/samples/select";
+import { TabsSample } from "@/components/pages/docs/samples/tabs";
 import {
   AvatarSpecimen,
   BreadcrumbSpecimen,
@@ -32,7 +32,7 @@ import {
   TableSpecimen,
   ToastSpecimen,
   TooltipSpecimen,
-} from "@/components/design/specimens";
+} from "@/components/pages/design/specimens";
 
 export const DESIGN_PREVIEWS: Record<string, ComponentType> = {
   button: ButtonSpecimen,

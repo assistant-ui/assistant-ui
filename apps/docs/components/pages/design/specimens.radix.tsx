@@ -12,14 +12,14 @@ import {
   SettingsIcon,
   UserIcon,
 } from "lucide-react";
-import { SampleFrame } from "@/components/docs/samples/sample-frame";
+import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import {
   Avatar,
   AvatarBadge,
   AvatarFallback,
   AvatarGroup,
   AvatarGroupCount,
-} from "@/components/ui/avatar";
+} from "@/components/ui/radix/avatar";
 import {
   Breadcrumb,
   BreadcrumbEllipsis,
@@ -28,11 +28,11 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "@/components/ui/breadcrumb";
-import { Button } from "@/components/ui/button";
-import { Callout } from "@/components/ui/callout";
-import { CodeBlock } from "@/components/ui/code-block";
-import { CommandTabs } from "@/components/ui/command-tabs";
+} from "@/components/ui/radix/breadcrumb";
+import { Button } from "@/components/ui/radix/button";
+import { Callout } from "@/components/ui/radix/callout";
+import { CodeBlock } from "@/components/ui/radix/code-block";
+import { CommandTabs } from "@/components/ui/radix/command-tabs";
 import {
   Definition,
   DefinitionAnnotation,
@@ -40,7 +40,7 @@ import {
   DefinitionList,
   DefinitionName,
   DefinitionTerm,
-} from "@/components/ui/definition-list";
+} from "@/components/ui/radix/definition-list";
 import {
   Table,
   TableBody,
@@ -49,12 +49,12 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
+} from "@/components/ui/radix/table";
 import {
   Collapsible,
   CollapsibleContent,
   CollapsibleTrigger,
-} from "@/components/ui/collapsible";
+} from "@/components/ui/radix/collapsible";
 import {
   Dialog,
   DialogClose,
@@ -64,7 +64,7 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "@/components/ui/dialog";
+} from "@/components/ui/radix/dialog";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -77,7 +77,7 @@ import {
   DropdownMenuSubContent,
   DropdownMenuSubTrigger,
   DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+} from "@/components/ui/radix/dropdown-menu";
 import {
   Combobox,
   ComboboxCollection,
@@ -88,10 +88,10 @@ import {
   ComboboxItem,
   ComboboxLabel,
   ComboboxList,
-} from "@/components/ui/combobox";
-import { Input } from "@/components/ui/input";
-import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { Label } from "@/components/ui/label";
+} from "@/components/ui/radix/combobox";
+import { Input } from "@/components/ui/radix/input";
+import { Kbd, KbdGroup } from "@/components/ui/radix/kbd";
+import { Label } from "@/components/ui/radix/label";
 import {
   Popover,
   PopoverContent,
@@ -99,8 +99,8 @@ import {
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
-} from "@/components/ui/popover";
-import { Separator } from "@/components/ui/separator";
+} from "@/components/ui/radix/popover";
+import { Separator } from "@/components/ui/radix/separator";
 import {
   Sheet,
   SheetContent,
@@ -108,15 +108,16 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Step, Steps } from "@/components/ui/steps";
-import { Switch } from "@/components/ui/switch";
+} from "@/components/ui/radix/sheet";
+import { Skeleton } from "@/components/ui/radix/skeleton";
+import { Step, Steps } from "@/components/ui/radix/steps";
+import { Switch } from "@/components/ui/radix/switch";
 import {
   Tooltip,
   TooltipContent,
+  TooltipProvider,
   TooltipTrigger,
-} from "@/components/ui/tooltip";
+} from "@/components/ui/radix/tooltip";
 
 const frameClass =
   "flex h-auto flex-wrap items-center justify-center gap-4 p-10";
@@ -133,18 +134,47 @@ export function ButtonSpecimen(): ReactNode {
   );
 }
 
+export function ButtonSizesSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Button size="xs">Extra small</Button>
+      <Button size="sm">Small</Button>
+      <Button>Default</Button>
+      <Button size="lg">Large</Button>
+    </SampleFrame>
+  );
+}
+
+export function ButtonIconSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Button size="icon" aria-label="Settings">
+        <SettingsIcon className="size-4" />
+      </Button>
+      <Button size="icon-sm" variant="outline" aria-label="Settings">
+        <SettingsIcon className="size-3.5" />
+      </Button>
+      <Button size="icon-xs" variant="ghost" aria-label="Settings">
+        <SettingsIcon className="size-3" />
+      </Button>
+      <Button variant="outline">
+        <PlusIcon className="size-4" />
+        New thread
+      </Button>
+    </SampleFrame>
+  );
+}
+
 export function DropdownMenuSpecimen(): ReactNode {
   return (
     <SampleFrame className={frameClass}>
       <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button variant="outline">
-              Open menu
-              <ChevronDownIcon className="size-3.5" />
-            </Button>
-          }
-        />
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline">
+            Open menu
+            <ChevronDownIcon className="size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
         <DropdownMenuContent align="start">
           <DropdownMenuItem>
             <UserIcon className="size-4" />
@@ -166,12 +196,68 @@ export function DropdownMenuSpecimen(): ReactNode {
   );
 }
 
+export function DropdownMenuChecklistSpecimen(): ReactNode {
+  const [showTimestamps, setShowTimestamps] = useState(true);
+  const [showAvatars, setShowAvatars] = useState(false);
+
+  return (
+    <SampleFrame className={frameClass}>
+      <DropdownMenu>
+        <DropdownMenuTrigger asChild>
+          <Button variant="outline">
+            View
+            <ChevronDownIcon className="size-3.5" />
+          </Button>
+        </DropdownMenuTrigger>
+        <DropdownMenuContent align="start">
+          <DropdownMenuLabel>Show in thread</DropdownMenuLabel>
+          <DropdownMenuCheckboxItem
+            checked={showTimestamps}
+            onCheckedChange={setShowTimestamps}
+          >
+            Timestamps
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuCheckboxItem
+            checked={showAvatars}
+            onCheckedChange={setShowAvatars}
+          >
+            Avatars
+          </DropdownMenuCheckboxItem>
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>Export</DropdownMenuSubTrigger>
+            <DropdownMenuSubContent>
+              <DropdownMenuItem>Markdown</DropdownMenuItem>
+              <DropdownMenuItem>JSON</DropdownMenuItem>
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </SampleFrame>
+  );
+}
+
 export function InputSpecimen(): ReactNode {
   return (
     <SampleFrame className={frameClass}>
       <div className="flex w-full max-w-64 flex-col gap-2">
-        <Label htmlFor="specimen-email">Email</Label>
-        <Input id="specimen-email" type="email" placeholder="you@example.com" />
+        <Label htmlFor="specimen-radix-email">Email</Label>
+        <Input
+          id="specimen-radix-email"
+          type="email"
+          placeholder="you@example.com"
+        />
+      </div>
+    </SampleFrame>
+  );
+}
+
+export function InputWithButtonSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <div className="flex w-full max-w-72 items-center gap-2">
+        <Input type="email" placeholder="you@example.com" />
+        <Button>Invite</Button>
       </div>
     </SampleFrame>
   );
@@ -305,6 +391,25 @@ export function SwitchSpecimen(): ReactNode {
   );
 }
 
+export function SwitchSizesSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <label className="flex items-center gap-2 text-sm">
+        <Switch defaultChecked />
+        Default
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <Switch size="sm" defaultChecked />
+        Small
+      </label>
+      <label className="text-muted-foreground flex items-center gap-2 text-sm">
+        <Switch disabled />
+        Disabled
+      </label>
+    </SampleFrame>
+  );
+}
+
 export function KbdSpecimen(): ReactNode {
   return (
     <SampleFrame className={frameClass}>
@@ -352,6 +457,37 @@ export function AvatarSpecimen(): ReactNode {
   );
 }
 
+export function AvatarSizesSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Avatar size="sm">
+        <AvatarFallback>SM</AvatarFallback>
+      </Avatar>
+      <Avatar>
+        <AvatarFallback>MD</AvatarFallback>
+      </Avatar>
+      <Avatar size="lg">
+        <AvatarFallback>LG</AvatarFallback>
+      </Avatar>
+    </SampleFrame>
+  );
+}
+
+export function AvatarBadgeSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <Avatar>
+        <AvatarFallback>ON</AvatarFallback>
+        <AvatarBadge className="bg-emerald-500" />
+      </Avatar>
+      <Avatar>
+        <AvatarFallback>AW</AvatarFallback>
+        <AvatarBadge className="bg-amber-500" />
+      </Avatar>
+    </SampleFrame>
+  );
+}
+
 export function SkeletonSpecimen(): ReactNode {
   return (
     <SampleFrame className={frameClass}>
@@ -360,6 +496,22 @@ export function SkeletonSpecimen(): ReactNode {
         <div className="flex flex-1 flex-col gap-2">
           <Skeleton className="h-3.5 w-4/5" />
           <Skeleton className="h-3.5 w-3/5" />
+        </div>
+      </div>
+    </SampleFrame>
+  );
+}
+
+export function SkeletonCardSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <div className="border-foreground/10 flex w-full max-w-72 flex-col gap-3 rounded-(--radius-surface) border p-4">
+        <Skeleton className="h-24 w-full" />
+        <Skeleton className="h-4 w-4/5" />
+        <Skeleton className="h-4 w-3/5" />
+        <div className="flex items-center gap-2 pt-1">
+          <Skeleton className="size-6 rounded-full" />
+          <Skeleton className="h-3.5 w-24" />
         </div>
       </div>
     </SampleFrame>
@@ -388,9 +540,9 @@ export function DialogSpecimen(): ReactNode {
   return (
     <SampleFrame className={frameClass}>
       <Dialog>
-        <DialogTrigger
-          render={<Button variant="outline">Rename thread</Button>}
-        />
+        <DialogTrigger asChild>
+          <Button variant="outline">Rename thread</Button>
+        </DialogTrigger>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Rename thread</DialogTitle>
@@ -403,8 +555,12 @@ export function DialogSpecimen(): ReactNode {
             aria-label="Thread name"
           />
           <DialogFooter>
-            <DialogClose render={<Button variant="ghost">Cancel</Button>} />
-            <DialogClose render={<Button>Save</Button>} />
+            <DialogClose asChild>
+              <Button variant="ghost">Cancel</Button>
+            </DialogClose>
+            <DialogClose asChild>
+              <Button>Save</Button>
+            </DialogClose>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -474,9 +630,9 @@ export function PopoverSpecimen(): ReactNode {
   return (
     <SampleFrame className={frameClass}>
       <Popover>
-        <PopoverTrigger
-          render={<Button variant="outline">Context usage</Button>}
-        />
+        <PopoverTrigger asChild>
+          <Button variant="outline">Context usage</Button>
+        </PopoverTrigger>
         <PopoverContent className="w-64">
           <PopoverHeader>
             <PopoverTitle>Context usage</PopoverTitle>
@@ -493,10 +649,39 @@ export function PopoverSpecimen(): ReactNode {
 export function TooltipSpecimen(): ReactNode {
   return (
     <SampleFrame className={frameClass}>
-      <Tooltip>
-        <TooltipTrigger render={<Button variant="outline">Hover me</Button>} />
-        <TooltipContent>Copy message</TooltipContent>
-      </Tooltip>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="outline">Hover me</Button>
+          </TooltipTrigger>
+          <TooltipContent>Copy message</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+    </SampleFrame>
+  );
+}
+
+export function TooltipIconSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="icon" variant="ghost" aria-label="Copy message">
+              <CopyIcon className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Copy message</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button size="icon" variant="ghost" aria-label="Regenerate">
+              <RefreshCwIcon className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent>Regenerate</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     </SampleFrame>
   );
 }
@@ -505,9 +690,9 @@ export function SheetSpecimen(): ReactNode {
   return (
     <SampleFrame className={frameClass}>
       <Sheet>
-        <SheetTrigger
-          render={<Button variant="outline">Open thread list</Button>}
-        />
+        <SheetTrigger asChild>
+          <Button variant="outline">Open thread list</Button>
+        </SheetTrigger>
         <SheetContent side="right">
           <SheetHeader>
             <SheetTitle>Threads</SheetTitle>
@@ -517,6 +702,28 @@ export function SheetSpecimen(): ReactNode {
           </SheetHeader>
         </SheetContent>
       </Sheet>
+    </SampleFrame>
+  );
+}
+
+export function SheetSidesSpecimen(): ReactNode {
+  return (
+    <SampleFrame className={frameClass}>
+      {(["left", "right", "top", "bottom"] as const).map((side) => (
+        <Sheet key={side}>
+          <SheetTrigger asChild>
+            <Button variant="outline">{side}</Button>
+          </SheetTrigger>
+          <SheetContent side={side}>
+            <SheetHeader>
+              <SheetTitle>From the {side}</SheetTitle>
+              <SheetDescription>
+                The panel enters from the {side} edge.
+              </SheetDescription>
+            </SheetHeader>
+          </SheetContent>
+        </Sheet>
+      ))}
     </SampleFrame>
   );
 }
@@ -539,234 +746,6 @@ export function BreadcrumbSpecimen(): ReactNode {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-    </SampleFrame>
-  );
-}
-
-export function CollapsibleSpecimen(): ReactNode {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <SampleFrame className={frameClass}>
-      <Collapsible
-        open={open}
-        onOpenChange={setOpen}
-        className="w-full max-w-72"
-      >
-        <CollapsibleTrigger
-          render={
-            <Button variant="ghost" className="w-full justify-between">
-              What ran in this turn
-              <ChevronsUpDownIcon className="size-3.5" />
-            </Button>
-          }
-        />
-        <CollapsibleContent>
-          <div className="text-muted-foreground flex flex-col gap-1.5 px-3 py-2 font-mono text-[12px]">
-            <span>&gt; read /docs/architecture</span>
-            <span>&gt; ran get_weather</span>
-            <span>&gt; present(&lt;Weather /&gt;)</span>
-          </div>
-        </CollapsibleContent>
-      </Collapsible>
-    </SampleFrame>
-  );
-}
-
-export function ButtonSizesSpecimen(): ReactNode {
-  return (
-    <SampleFrame className={frameClass}>
-      <Button size="xs">Extra small</Button>
-      <Button size="sm">Small</Button>
-      <Button>Default</Button>
-      <Button size="lg">Large</Button>
-    </SampleFrame>
-  );
-}
-
-export function ButtonIconSpecimen(): ReactNode {
-  return (
-    <SampleFrame className={frameClass}>
-      <Button size="icon" aria-label="Settings">
-        <SettingsIcon className="size-4" />
-      </Button>
-      <Button size="icon-sm" variant="outline" aria-label="Settings">
-        <SettingsIcon className="size-3.5" />
-      </Button>
-      <Button size="icon-xs" variant="ghost" aria-label="Settings">
-        <SettingsIcon className="size-3" />
-      </Button>
-      <Button variant="outline">
-        <PlusIcon className="size-4" />
-        New thread
-      </Button>
-    </SampleFrame>
-  );
-}
-
-export function DropdownMenuChecklistSpecimen(): ReactNode {
-  const [showTimestamps, setShowTimestamps] = useState(true);
-  const [showAvatars, setShowAvatars] = useState(false);
-
-  return (
-    <SampleFrame className={frameClass}>
-      <DropdownMenu>
-        <DropdownMenuTrigger
-          render={
-            <Button variant="outline">
-              View
-              <ChevronDownIcon className="size-3.5" />
-            </Button>
-          }
-        />
-        <DropdownMenuContent align="start">
-          <DropdownMenuLabel>Show in thread</DropdownMenuLabel>
-          <DropdownMenuCheckboxItem
-            checked={showTimestamps}
-            onCheckedChange={setShowTimestamps}
-          >
-            Timestamps
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem
-            checked={showAvatars}
-            onCheckedChange={setShowAvatars}
-          >
-            Avatars
-          </DropdownMenuCheckboxItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>Export</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent>
-              <DropdownMenuItem>Markdown</DropdownMenuItem>
-              <DropdownMenuItem>JSON</DropdownMenuItem>
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </SampleFrame>
-  );
-}
-
-export function InputWithButtonSpecimen(): ReactNode {
-  return (
-    <SampleFrame className={frameClass}>
-      <div className="flex w-full max-w-72 items-center gap-2">
-        <Input type="email" placeholder="you@example.com" />
-        <Button>Invite</Button>
-      </div>
-    </SampleFrame>
-  );
-}
-
-export function SwitchSizesSpecimen(): ReactNode {
-  return (
-    <SampleFrame className={frameClass}>
-      <label className="flex items-center gap-2 text-sm">
-        <Switch defaultChecked />
-        Default
-      </label>
-      <label className="flex items-center gap-2 text-sm">
-        <Switch size="sm" defaultChecked />
-        Small
-      </label>
-      <label className="text-muted-foreground flex items-center gap-2 text-sm">
-        <Switch disabled />
-        Disabled
-      </label>
-    </SampleFrame>
-  );
-}
-
-export function AvatarSizesSpecimen(): ReactNode {
-  return (
-    <SampleFrame className={frameClass}>
-      <Avatar size="sm">
-        <AvatarFallback>SM</AvatarFallback>
-      </Avatar>
-      <Avatar>
-        <AvatarFallback>MD</AvatarFallback>
-      </Avatar>
-      <Avatar size="lg">
-        <AvatarFallback>LG</AvatarFallback>
-      </Avatar>
-    </SampleFrame>
-  );
-}
-
-export function AvatarBadgeSpecimen(): ReactNode {
-  return (
-    <SampleFrame className={frameClass}>
-      <Avatar>
-        <AvatarFallback>ON</AvatarFallback>
-        <AvatarBadge className="bg-emerald-500" />
-      </Avatar>
-      <Avatar>
-        <AvatarFallback>AW</AvatarFallback>
-        <AvatarBadge className="bg-amber-500" />
-      </Avatar>
-    </SampleFrame>
-  );
-}
-
-export function SkeletonCardSpecimen(): ReactNode {
-  return (
-    <SampleFrame className={frameClass}>
-      <div className="border-foreground/10 flex w-full max-w-72 flex-col gap-3 rounded-(--radius-surface) border p-4">
-        <Skeleton className="h-24 w-full" />
-        <Skeleton className="h-4 w-4/5" />
-        <Skeleton className="h-4 w-3/5" />
-        <div className="flex items-center gap-2 pt-1">
-          <Skeleton className="size-6 rounded-full" />
-          <Skeleton className="h-3.5 w-24" />
-        </div>
-      </div>
-    </SampleFrame>
-  );
-}
-
-export function TooltipIconSpecimen(): ReactNode {
-  return (
-    <SampleFrame className={frameClass}>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button size="icon" variant="ghost" aria-label="Copy message">
-              <CopyIcon className="size-4" />
-            </Button>
-          }
-        />
-        <TooltipContent>Copy message</TooltipContent>
-      </Tooltip>
-      <Tooltip>
-        <TooltipTrigger
-          render={
-            <Button size="icon" variant="ghost" aria-label="Regenerate">
-              <RefreshCwIcon className="size-4" />
-            </Button>
-          }
-        />
-        <TooltipContent>Regenerate</TooltipContent>
-      </Tooltip>
-    </SampleFrame>
-  );
-}
-
-export function SheetSidesSpecimen(): ReactNode {
-  return (
-    <SampleFrame className={frameClass}>
-      {(["left", "right", "top", "bottom"] as const).map((side) => (
-        <Sheet key={side}>
-          <SheetTrigger render={<Button variant="outline">{side}</Button>} />
-          <SheetContent side={side}>
-            <SheetHeader>
-              <SheetTitle>From the {side}</SheetTitle>
-              <SheetDescription>
-                The panel enters from the {side} edge.
-              </SheetDescription>
-            </SheetHeader>
-          </SheetContent>
-        </Sheet>
-      ))}
     </SampleFrame>
   );
 }
@@ -795,6 +774,34 @@ export function BreadcrumbEllipsisSpecimen(): ReactNode {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
+    </SampleFrame>
+  );
+}
+
+export function CollapsibleSpecimen(): ReactNode {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <SampleFrame className={frameClass}>
+      <Collapsible
+        open={open}
+        onOpenChange={setOpen}
+        className="w-full max-w-72"
+      >
+        <CollapsibleTrigger asChild>
+          <Button variant="ghost" className="w-full justify-between">
+            What ran in this turn
+            <ChevronsUpDownIcon className="size-3.5" />
+          </Button>
+        </CollapsibleTrigger>
+        <CollapsibleContent>
+          <div className="text-muted-foreground flex flex-col gap-1.5 px-3 py-2 font-mono text-[12px]">
+            <span>&gt; read /docs/architecture</span>
+            <span>&gt; ran get_weather</span>
+            <span>&gt; present(&lt;Weather /&gt;)</span>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
     </SampleFrame>
   );
 }

@@ -1,6 +1,6 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { Highlight } from "@/components/design/highlight";
+import { Highlight } from "@/components/shared/highlight";
 import { CodeBlock } from "@/components/ui/code-block";
 import { CodeCollapsible } from "@/components/pages/docs/fumadocs/code-collapsible";
 

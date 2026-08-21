@@ -5,7 +5,7 @@ import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { blog, type BlogPage } from "@/lib/source";
 import { GlyphPlate } from "@/components/shared/glyph-scene";
-import { sceneFor } from "@/components/blog/scenes";
+import { sceneFor } from "@/components/pages/blog/scenes";
 import { PageFrame } from "@/components/shared/page-frame";
 import {
   typeDeck,

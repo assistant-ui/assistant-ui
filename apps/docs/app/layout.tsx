@@ -5,7 +5,7 @@ import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Provider } from "./provider";
-import { SiteAssistant } from "@/components/docs/assistant/site-assistant";
+import { SiteAssistant } from "@/components/pages/docs/assistant/site-assistant";
 import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";

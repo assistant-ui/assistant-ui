@@ -6,18 +6,18 @@ links:
     url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/input.tsx
 ---
 
-import { PreviewCode } from "@/components/docs/preview-code.server";
-import { KitInstall } from "@/components/design/kit-install";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
 import {
   InputSpecimen,
   InputWithButtonSpecimen,
-} from "@/components/design/specimens";
-import * as RadixSpecimens from "@/components/design/specimens.radix";
-import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
 
 <FlavorSwitcher />
 
-<PreviewCode file="components/design/specimens" name="InputSpecimen" base={<InputSpecimen />}>
+<PreviewCode file="components/pages/design/specimens" name="InputSpecimen" base={<InputSpecimen />}>
   <RadixSpecimens.InputSpecimen />
 </PreviewCode>
 
@@ -47,7 +47,7 @@ export function Example() {
 
 Inputs sit on the same 32px rhythm as buttons, so rows compose without alignment fixes.
 
-<PreviewCode file="components/design/specimens" name="InputWithButtonSpecimen" base={<InputWithButtonSpecimen />}>
+<PreviewCode file="components/pages/design/specimens" name="InputWithButtonSpecimen" base={<InputWithButtonSpecimen />}>
   <RadixSpecimens.InputWithButtonSpecimen />
 </PreviewCode>
 

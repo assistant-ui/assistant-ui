@@ -6,18 +6,18 @@ links:
     url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/code-block.tsx
 ---
 
-import { PreviewCode } from "@/components/docs/preview-code.server";
-import { KitInstall } from "@/components/design/kit-install";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
 import {
   CodeBlockSpecimen,
   CodeBlockBareSpecimen,
-} from "@/components/design/specimens";
-import * as RadixSpecimens from "@/components/design/specimens.radix";
-import { FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
 
 <FlavorSwitcher />
 
-<PreviewCode file="components/design/specimens" name="CodeBlockSpecimen" base={<CodeBlockSpecimen />}>
+<PreviewCode file="components/pages/design/specimens" name="CodeBlockSpecimen" base={<CodeBlockSpecimen />}>
   <RadixSpecimens.CodeBlockSpecimen />
 </PreviewCode>
 
@@ -49,7 +49,7 @@ export function Example() {
 
 When there is no header, the copy button floats in the corner and appears on hover.
 
-<PreviewCode file="components/design/specimens" name="CodeBlockBareSpecimen" base={<CodeBlockBareSpecimen />}>
+<PreviewCode file="components/pages/design/specimens" name="CodeBlockBareSpecimen" base={<CodeBlockBareSpecimen />}>
   <RadixSpecimens.CodeBlockBareSpecimen />
 </PreviewCode>
 

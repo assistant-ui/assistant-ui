@@ -1,8 +1,8 @@
 import fs from "node:fs";
 import path from "node:path";
-import { Flavored } from "@/components/docs/contexts/flavor.server";
-import { ComponentSourceFromFile } from "@/components/docs/fumadocs/install/component-source";
-import { PackageManagerTabs } from "@/components/docs/fumadocs/install/package-manager-tabs";
+import { Flavored } from "@/components/pages/docs/contexts/flavor.server";
+import { ComponentSourceFromFile } from "@/components/pages/docs/fumadocs/install/component-source";
+import { PackageManagerTabs } from "@/components/pages/docs/fumadocs/install/package-manager-tabs";
 
 const IGNORED_DEPS = new Set([
   "react",

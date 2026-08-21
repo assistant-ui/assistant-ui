@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
-import { DesignGallery } from "@/components/design/design-gallery";
+import { DesignGallery } from "@/components/pages/design/design-gallery";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeEyebrow, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";

@@ -3,7 +3,11 @@
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { mono } from "@/components/assistant-ui/elements/surfaces.standalone";
+<<<<<<< HEAD
 import { CopyButton } from "./copy-button";
+=======
+import { CopyButton } from "@/components/shared/copy-button";
+>>>>>>> c48810359 (init)
 
 const MANAGERS = [
   { key: "npm", runner: "npx", install: "npm install" },

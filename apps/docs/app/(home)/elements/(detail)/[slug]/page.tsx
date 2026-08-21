@@ -9,17 +9,17 @@ import {
   highlightElementSource,
   readElementSource,
 } from "@/lib/element-source";
-import { CopyButton } from "@/components/demo/elements/copy-button";
+import { CopyButton } from "@/components/shared/copy-button";
 import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { DemoStage } from "@/components/demo/elements/demo-stage";
-import { DemoVariants } from "@/components/demo/elements/demo-variants";
-import { InstallCommand } from "@/components/demo/elements/install-command";
-import { ELEMENT_DOCS } from "@/components/demo/elements/element-docs";
+import { DemoVariants } from "@/components/pages/elements/demo-variants";
+import { InstallCommand } from "@/components/pages/elements/install-command";
+import { ELEMENT_DOCS } from "@/components/pages/elements/element-docs";
 import {
   ELEMENT_COUNT,
   ELEMENTS,
   getElement,
-} from "@/components/demo/elements/registry";
+} from "@/components/pages/elements/registry";
 import { getGenerativeElement } from "@/lib/generative-elements";
 
 const GENERATIVE_USAGE = `import { renderGenerativeUI } from "@assistant-ui/react-generative-ui";

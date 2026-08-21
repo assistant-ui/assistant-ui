@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
-import { Highlight } from "@/components/design/highlight";
+import { Highlight } from "@/components/shared/highlight";
 import { CodeBlock } from "@/components/ui/code-block";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
