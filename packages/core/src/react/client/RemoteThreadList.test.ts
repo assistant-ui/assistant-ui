@@ -250,7 +250,9 @@ describe("RemoteThreadList", () => {
       expect(aui.threads.getState().threadIds).toContain(initializedId);
     });
 
-    listDeferred.resolve({ threads: [] });
+    listDeferred.resolve({
+      threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+    });
     await loadPromise;
 
     flushTapSync(() => aui.threads.switchToNewThread());
@@ -258,7 +260,8 @@ describe("RemoteThreadList", () => {
       expect(aui.threads.getState().mainThreadId).not.toBe(initializedId);
     });
 
-    expect(aui.threads.getState().threadIds).toContain(initializedId);
+    expect(aui.threads.getState().threadIds[0]).toBe(initializedId);
+    expect(aui.threads.getState().threadIds).toContain("t1");
     handle.destroy();
   });
 

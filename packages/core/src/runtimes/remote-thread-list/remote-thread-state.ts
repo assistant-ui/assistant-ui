@@ -102,36 +102,41 @@ export type RemoteThreadState = {
 // initialized while the request was running) omits that thread, and the
 // completed-optimistic replay cannot re-add it because the merged threadData
 // already carries the final status. Threads whose status moved from new (or
-// nonexistent) at request time to regular/archived are re-appended; threads
-// the server already knew stay governed by the response, so a server-side
-// deletion is not resurrected.
+// nonexistent) at request time to regular/archived are re-inserted at the
+// top, where updateStatusReducer would have placed them; threads the server
+// already knew stay governed by the response, so a server-side deletion is
+// not resurrected.
 export const preserveMidLoadTransitions = (
   state: RemoteThreadState,
-  fresh: Pick<RemoteThreadState, "threadIds" | "archivedThreadIds">,
   statusAtRequest: ReadonlyMap<string, RemoteThreadData["status"]>,
-): Pick<RemoteThreadState, "threadIds" | "archivedThreadIds"> => {
-  const threadIds = [...fresh.threadIds];
-  const archivedThreadIds = [...fresh.archivedThreadIds];
+): RemoteThreadState => {
+  const regular = new Set(state.threadIds);
+  const archived = new Set(state.archivedThreadIds);
+  const prependRegular: string[] = [];
+  const prependArchived: string[] = [];
 
-  const contains = (ids: readonly string[], data: RemoteThreadData) =>
-    ids.includes(data.id) ||
-    (data.remoteId !== undefined && ids.includes(data.remoteId));
+  const contains = (ids: ReadonlySet<string>, data: RemoteThreadData) =>
+    ids.has(data.id) || (data.remoteId !== undefined && ids.has(data.remoteId));
 
   for (const data of Object.values(state.threadData)) {
     const before = statusAtRequest.get(data.id);
     if (before !== undefined && before !== "new") continue;
 
-    if (data.status === "regular" && !contains(threadIds, data)) {
-      threadIds.push(data.id);
-    } else if (
-      data.status === "archived" &&
-      !contains(archivedThreadIds, data)
-    ) {
-      archivedThreadIds.push(data.id);
+    if (data.status === "regular" && !contains(regular, data)) {
+      prependRegular.push(data.id);
+      regular.add(data.id);
+    } else if (data.status === "archived" && !contains(archived, data)) {
+      prependArchived.push(data.id);
+      archived.add(data.id);
     }
   }
 
-  return { threadIds, archivedThreadIds };
+  if (prependRegular.length === 0 && prependArchived.length === 0) return state;
+  return {
+    ...state,
+    threadIds: [...prependRegular, ...state.threadIds],
+    archivedThreadIds: [...prependArchived, ...state.archivedThreadIds],
+  };
 };
 
 export const statusSnapshot = (
