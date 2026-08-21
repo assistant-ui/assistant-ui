@@ -128,6 +128,7 @@ const seedNewThread = (
           externalId: undefined,
           title: undefined,
           custom: undefined,
+          localOrigin: true,
         },
       },
     },

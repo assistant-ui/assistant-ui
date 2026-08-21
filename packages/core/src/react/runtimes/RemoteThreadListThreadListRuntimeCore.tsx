@@ -88,6 +88,7 @@ const addNewThread = (state: RemoteThreadState) => {
           externalId: undefined,
           title: undefined,
           custom: undefined,
+          localOrigin: true,
         } satisfies RemoteThreadData,
       },
     },

@@ -11,6 +11,7 @@ export type RemoteThreadData =
       readonly status: "new";
       readonly title: undefined;
       readonly custom: undefined;
+      readonly localOrigin?: true;
     }
   | {
       readonly id: string;
@@ -20,6 +21,7 @@ export type RemoteThreadData =
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
       readonly custom: undefined;
+      readonly localOrigin?: true;
     }
   | {
       readonly id: string;
@@ -30,6 +32,7 @@ export type RemoteThreadData =
       readonly title?: string | undefined;
       readonly lastMessageAt?: Date | undefined;
       readonly custom?: Record<string, unknown> | undefined;
+      readonly localOrigin?: true;
     };
 
 export type THREAD_MAPPING_ID = string & { __brand: "THREAD_MAPPING_ID" };
@@ -39,8 +42,6 @@ export function createThreadMappingId(id: string): THREAD_MAPPING_ID {
 }
 
 export const LOCAL_THREAD_ID_PREFIX = "__LOCALID_";
-export const isLocalThreadId = (id: string) =>
-  id.startsWith(LOCAL_THREAD_ID_PREFIX);
 
 export const normalizeCursor = (c: string | undefined): string | undefined =>
   c || undefined;
@@ -107,13 +108,13 @@ export type RemoteThreadState = {
 // completed-optimistic replay cannot re-add it because the merged threadData
 // already carries the final status. Threads whose status moved from new (or
 // nonexistent) at request time to regular/archived are re-inserted at the
-// top, in the order the pre-response lists carried them (updateStatusReducer
-// prepends, so that order is newest first; object enumeration is not a
-// reliable stand-in, since integer-like keys enumerate out of insertion
-// order). Threads the server already knew stay governed by the response, so
+// top, in the order the pre-response lists carried them: updateStatusReducer
+// prepends as transitions happen, so the pre-response lists hold newest
+// first, which threadData insertion order need not match. Threads the server already knew stay governed by the response, so
 // a server-side deletion is not resurrected — and a thread unknown to the
-// snapshot is only rescued when it is a local creation, so a deep-linked
-// thread the fetch path deliberately appended at the tail is not hoisted.
+// snapshot is only rescued when it carries the localOrigin marker stamped at
+// draft creation, so a deep-linked thread the fetch path deliberately
+// appended at the tail is not hoisted, whatever its remote id looks like.
 export const preserveMidLoadTransitions = (
   state: RemoteThreadState,
   priorOrder: Pick<RemoteThreadState, "threadIds" | "archivedThreadIds">,
@@ -130,7 +131,7 @@ export const preserveMidLoadTransitions = (
   for (const data of Object.values(state.threadData)) {
     const before = statusAtRequest.get(data.id);
     if (before !== undefined && before !== "new") continue;
-    if (before === undefined && !isLocalThreadId(data.id)) continue;
+    if (before === undefined && data.localOrigin !== true) continue;
 
     if (data.status === "regular" && !contains(regular, data)) {
       rescuedRegular.push(data);
