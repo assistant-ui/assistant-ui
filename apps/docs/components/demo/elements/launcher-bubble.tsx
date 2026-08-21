@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { LauncherBubble } from "@/components/assistant-ui/elements/launcher-bubble.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const PROMPTS = [
   "How do I add a thread list?",

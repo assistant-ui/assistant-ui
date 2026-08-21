@@ -4,7 +4,7 @@ import {
   BackgroundInbox,
   type BackgroundRun,
 } from "@/components/assistant-ui/elements/background-inbox.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const RUNS: readonly BackgroundRun[] = [
   {

@@ -4,7 +4,7 @@ import {
   ConnectionState,
   type ConnectionPhase,
 } from "@/components/assistant-ui/elements/connection-state.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const PHASES = [1600, 2400, 0] as const;
 const SEQUENCE: readonly ConnectionPhase[] = [

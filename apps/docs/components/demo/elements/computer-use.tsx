@@ -4,7 +4,7 @@ import {
   ComputerUse,
   type ComputerStep,
 } from "@/components/assistant-ui/elements/computer-use.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const STEPS: readonly ComputerStep[] = [
   { id: "1", action: "click", target: "Issues tab", x: 22, y: 18 },

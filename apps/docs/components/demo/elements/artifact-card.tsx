@@ -1,7 +1,7 @@
 "use client";
 
 import { ArtifactCard } from "@/components/assistant-ui/elements/artifact-card.standalone";
-import { useElapsed, useStoryPhases } from "./use-demo";
+import { useElapsed, useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const PHASES = [3200, 2800] as const;
 const MAX_WORDS = 214;

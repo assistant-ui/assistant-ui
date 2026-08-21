@@ -4,7 +4,7 @@ import {
   FileTree,
   type FileTreeNode,
 } from "@/components/assistant-ui/elements/file-tree.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const NODES: readonly FileTreeNode[] = [
   { path: "packages", name: "packages/core/src", depth: 0, kind: "folder" },

@@ -33,7 +33,7 @@ import {
   type ComposerModel,
   type ComposerPerson,
 } from "@/components/assistant-ui/elements/composer.standalone";
-import { useElapsed } from "./use-demo";
+import { useElapsed } from "@/components/demo/hooks/use-demo";
 
 const COMMANDS: ComposerCommand[] = [
   { name: "review", description: "Review the current diff", icon: SearchIcon },

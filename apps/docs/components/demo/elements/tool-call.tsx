@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ToolCall } from "@/components/assistant-ui/elements/tool-call.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const PHASES = [2200, 1400, 3000, 0] as const;
 

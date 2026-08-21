@@ -1,7 +1,7 @@
 "use client";
 
 import { Chart } from "@/components/assistant-ui/elements/chart.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const POINTS = [
   18, 22, 19, 31, 28, 42, 38, 51, 47, 63, 58, 71, 69, 84, 92,

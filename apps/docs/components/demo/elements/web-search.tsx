@@ -4,7 +4,7 @@ import {
   WebSearch,
   type WebSearchResult,
 } from "@/components/assistant-ui/elements/web-search.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const QUERY = "assistant-ui draft persistence";
 const RESULTS: readonly WebSearchResult[] = [

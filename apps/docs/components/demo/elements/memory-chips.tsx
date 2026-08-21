@@ -4,7 +4,7 @@ import {
   MemoryChips,
   type MemoryChip,
 } from "@/components/assistant-ui/elements/memory-chips.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const CHIPS: readonly MemoryChip[] = [
   { id: "1", text: "Prefers TypeScript", change: "existing" },

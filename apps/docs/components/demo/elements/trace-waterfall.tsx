@@ -4,7 +4,7 @@ import {
   TraceWaterfall,
   type TraceSpan,
 } from "@/components/assistant-ui/elements/trace-waterfall.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const SPANS: readonly TraceSpan[] = [
   {

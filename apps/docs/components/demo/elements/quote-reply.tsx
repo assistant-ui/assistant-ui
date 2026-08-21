@@ -5,7 +5,7 @@ import {
   QuoteReply,
   type QuoteAction,
 } from "@/components/assistant-ui/elements/quote-reply.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const ACTIONS: readonly QuoteAction[] = [
   { key: "quote", label: "Quote", icon: "quote" },

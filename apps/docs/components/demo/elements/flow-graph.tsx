@@ -5,7 +5,7 @@ import {
   type FlowEdge,
   type FlowNode,
 } from "@/components/assistant-ui/elements/flow-graph.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const NODES: readonly FlowNode[] = [
   { id: "intake", label: "intake", column: 0, row: 1, state: "done" },

@@ -4,7 +4,11 @@ import {
   AgentStatus,
   type StatusStep,
 } from "@/components/assistant-ui/elements/agent-status.standalone";
-import { formatSeconds, useElapsed, useStoryPhases } from "./use-demo";
+import {
+  formatSeconds,
+  useElapsed,
+  useStoryPhases,
+} from "@/components/demo/hooks/use-demo";
 
 const PHASES = [3200, 2400, 2600, 3000] as const;
 const STEPS: StatusStep[] = [

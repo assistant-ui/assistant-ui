@@ -4,7 +4,7 @@ import {
   SpecSheet,
   type SpecRow,
 } from "@/components/assistant-ui/elements/spec-sheet.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const ROWS: readonly SpecRow[] = [
   { label: "context", value: "500,000 tokens" },

@@ -4,7 +4,7 @@ import {
   ResearchReport,
   type ReportSection,
 } from "@/components/assistant-ui/elements/research-report.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const HEADINGS = [
   "What changed in 0.14",

@@ -5,7 +5,7 @@ import {
   StreamingText,
   type Segment,
 } from "@/components/assistant-ui/elements/streaming-text.standalone";
-import { useWordStream } from "./use-demo";
+import { useWordStream } from "@/components/demo/hooks/use-demo";
 
 const SEGMENTS: Segment[] = [
   { text: "Here is what changed in the latest release: the composer now" },

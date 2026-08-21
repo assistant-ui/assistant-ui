@@ -1,7 +1,7 @@
 "use client";
 
 import { StoppedRun } from "@/components/assistant-ui/elements/stopped-run.standalone";
-import { useWordStream } from "./use-demo";
+import { useWordStream } from "@/components/demo/hooks/use-demo";
 
 const TEXT =
   "The composer reads the draft from the per-thread slot, so switching threads mid-edit no longer";

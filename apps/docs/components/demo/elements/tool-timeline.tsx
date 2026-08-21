@@ -12,7 +12,7 @@ import {
   type TimelineStat,
   type TimelineStep,
 } from "@/components/assistant-ui/elements/tool-timeline.standalone";
-import { useElapsed, useStoryPhases } from "./use-demo";
+import { useElapsed, useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const STEPS: TimelineStep[] = [
   {

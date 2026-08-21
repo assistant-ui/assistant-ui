@@ -4,7 +4,7 @@ import {
   JobProgress,
   type JobStage,
 } from "@/components/assistant-ui/elements/job-progress.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const STAGES: readonly JobStage[] = [
   { name: "clone", weight: 1 },

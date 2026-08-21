@@ -4,7 +4,7 @@ import {
   RetrievalChunks,
   type RetrievalChunk,
 } from "@/components/assistant-ui/elements/retrieval-chunks.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const CHUNKS: readonly RetrievalChunk[] = [
   {

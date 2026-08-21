@@ -9,7 +9,7 @@ import {
   CanvasSplitMessage,
   CanvasSplitThread,
 } from "@/components/assistant-ui/elements/canvas-split.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const MESSAGES = [
   {

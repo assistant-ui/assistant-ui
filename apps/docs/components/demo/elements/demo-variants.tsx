@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { demoCanvasClass } from "@/components/demo/utils/canvas";
-import { DemoStage } from "@/components/demo/elements/demo-stage";
+import { DemoStage } from "./demo-stage";
 import type { ElementVariant } from "./registry";
 
 export function DemoVariants({

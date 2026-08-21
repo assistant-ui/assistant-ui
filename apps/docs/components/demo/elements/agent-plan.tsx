@@ -1,7 +1,7 @@
 "use client";
 
 import { AgentPlan } from "@/components/assistant-ui/elements/agent-plan.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const STEPS = [
   "Read existing composer state",

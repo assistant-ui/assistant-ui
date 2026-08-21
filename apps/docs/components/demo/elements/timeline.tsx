@@ -4,7 +4,7 @@ import {
   Timeline,
   type TimelineEvent,
 } from "@/components/assistant-ui/elements/timeline.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const EVENTS: readonly TimelineEvent[] = [
   {

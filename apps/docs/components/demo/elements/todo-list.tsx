@@ -4,7 +4,7 @@ import {
   TodoList,
   type TodoItem,
 } from "@/components/assistant-ui/elements/todo-list.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const REVISIONS: readonly (readonly TodoItem[])[] = [
   [

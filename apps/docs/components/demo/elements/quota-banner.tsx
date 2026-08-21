@@ -1,7 +1,7 @@
 "use client";
 
 import { QuotaBanner } from "@/components/assistant-ui/elements/quota-banner.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const PHASES = [1400, 1400, 0] as const;
 const USED = [32, 44, 47] as const;

@@ -5,7 +5,7 @@ import {
   ToolGroup,
   type GroupedTool,
 } from "@/components/assistant-ui/elements/tool-group.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const TOOLS: readonly GroupedTool[] = [
   {

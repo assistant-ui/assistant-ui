@@ -10,7 +10,7 @@ import {
   readElementSource,
 } from "@/lib/element-source";
 import { CopyButton } from "@/components/demo/elements/copy-button";
-import { demoCanvasClass } from "@/components/demo/elements/canvas";
+import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { DemoStage } from "@/components/demo/elements/demo-stage";
 import { DemoVariants } from "@/components/demo/elements/demo-variants";
 import { InstallCommand } from "@/components/demo/elements/install-command";

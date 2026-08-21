@@ -4,7 +4,7 @@ import {
   SubagentList,
   type SubagentItem,
 } from "@/components/assistant-ui/elements/subagent-list.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const AGENTS: readonly SubagentItem[] = [
   { name: "Explore the runtime", model: "haiku" },

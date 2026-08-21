@@ -11,7 +11,7 @@ import {
   ComposerSend,
   ComposerToolbar,
 } from "@/components/assistant-ui/elements/composer.standalone";
-import { useStoryPhases } from "./use-demo";
+import { useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const PHASES = [1200, 1200, 0] as const;
 const MESSAGES = [54, 118, 162] as const;
