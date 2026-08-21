@@ -132,10 +132,15 @@ export const preserveMidLoadTransitions = (
   }
 
   if (prependRegular.length === 0 && prependArchived.length === 0) return state;
+  // Newest transition first, as successive updateStatusReducer prepends
+  // would have left them.
   return {
     ...state,
-    threadIds: [...prependRegular, ...state.threadIds],
-    archivedThreadIds: [...prependArchived, ...state.archivedThreadIds],
+    threadIds: [...prependRegular.reverse(), ...state.threadIds],
+    archivedThreadIds: [
+      ...prependArchived.reverse(),
+      ...state.archivedThreadIds,
+    ],
   };
 };
 

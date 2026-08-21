@@ -109,6 +109,18 @@ describe("preserveMidLoadTransitions", () => {
     expect(result.threadIds).toEqual(["local-1", "t1"]);
   });
 
+  it("orders multiple rescued threads newest first", () => {
+    const state = stateWith(
+      [
+        { id: "local-1", remoteId: "remote-1", status: "regular" },
+        { id: "local-2", remoteId: "remote-2", status: "regular" },
+      ],
+      { threadIds: ["t1"] },
+    );
+    const result = preserveMidLoadTransitions(state, new Map());
+    expect(result.threadIds).toEqual(["local-2", "local-1", "t1"]);
+  });
+
   it("re-inserts an archived mid-flight transition", () => {
     const state = stateWith([
       { id: "local-1", remoteId: "remote-1", status: "archived" },
