@@ -13,6 +13,8 @@ import {
   getThreadData,
   normalizeCursor,
   updateStatusReducer,
+  preserveMidLoadTransitions,
+  statusSnapshot,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type {
   RemoteThreadListAdapter,
@@ -158,6 +160,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!this._loadThreadsPromise) {
       const generation = this._loadGeneration;
       let replacedList = false;
+      const statusAtRequest = statusSnapshot(this._state.baseValue);
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
           execute: () => this._options.adapter.list(),
@@ -186,7 +189,7 @@ export class RemoteThreadListThreadListRuntimeCore
               threadIdMap: {},
               threadData: {},
             });
-            return {
+            const merged = {
               ...state,
               isLoading: false,
               cursor: normalizeCursor(l.nextCursor),
@@ -194,6 +197,10 @@ export class RemoteThreadListThreadListRuntimeCore
               archivedThreadIds: fresh.archivedThreadIds,
               threadIdMap: { ...state.threadIdMap, ...fresh.threadIdMap },
               threadData: { ...state.threadData, ...fresh.threadData },
+            };
+            return {
+              ...merged,
+              ...preserveMidLoadTransitions(merged, fresh, statusAtRequest),
             };
           },
         })

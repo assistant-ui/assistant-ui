@@ -23,6 +23,8 @@ import {
   updateStatusReducer,
   type RemoteThreadData,
   type RemoteThreadState,
+  preserveMidLoadTransitions,
+  statusSnapshot,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type {
   RemoteThreadInitializeResponse,
@@ -424,6 +426,7 @@ const useRemoteThreadList = (
     if (session.loadPromise) return session.loadPromise;
     const generation = session.loadGeneration;
     const adapter = session.adapter;
+    const statusAtRequest = statusSnapshot(store.baseValue);
     session.loadPromise = store
       .optimisticUpdate({
         execute: () => adapter.list(),
@@ -437,7 +440,7 @@ const useRemoteThreadList = (
             threadIdMap: {},
             threadData: {},
           });
-          return {
+          const merged = {
             ...state,
             isLoading: false,
             cursor: normalizeCursor(page.nextCursor),
@@ -451,6 +454,10 @@ const useRemoteThreadList = (
               ...state.threadData,
               ...fresh.threadData,
             },
+          };
+          return {
+            ...merged,
+            ...preserveMidLoadTransitions(merged, fresh, statusAtRequest),
           };
         },
       })

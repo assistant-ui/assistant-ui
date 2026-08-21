@@ -98,6 +98,47 @@ export type RemoteThreadState = {
   readonly threadData: Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
 };
 
+// A list() response predating a mid-flight local transition (a thread
+// initialized while the request was running) omits that thread, and the
+// completed-optimistic replay cannot re-add it because the merged threadData
+// already carries the final status. Threads whose status moved from new (or
+// nonexistent) at request time to regular/archived are re-appended; threads
+// the server already knew stay governed by the response, so a server-side
+// deletion is not resurrected.
+export const preserveMidLoadTransitions = (
+  state: RemoteThreadState,
+  fresh: Pick<RemoteThreadState, "threadIds" | "archivedThreadIds">,
+  statusAtRequest: ReadonlyMap<string, RemoteThreadData["status"]>,
+): Pick<RemoteThreadState, "threadIds" | "archivedThreadIds"> => {
+  const threadIds = [...fresh.threadIds];
+  const archivedThreadIds = [...fresh.archivedThreadIds];
+
+  const contains = (ids: readonly string[], data: RemoteThreadData) =>
+    ids.includes(data.id) ||
+    (data.remoteId !== undefined && ids.includes(data.remoteId));
+
+  for (const data of Object.values(state.threadData)) {
+    const before = statusAtRequest.get(data.id);
+    if (before !== undefined && before !== "new") continue;
+
+    if (data.status === "regular" && !contains(threadIds, data)) {
+      threadIds.push(data.id);
+    } else if (
+      data.status === "archived" &&
+      !contains(archivedThreadIds, data)
+    ) {
+      archivedThreadIds.push(data.id);
+    }
+  }
+
+  return { threadIds, archivedThreadIds };
+};
+
+export const statusSnapshot = (
+  state: RemoteThreadState,
+): ReadonlyMap<string, RemoteThreadData["status"]> =>
+  new Map(Object.values(state.threadData).map((d) => [d.id, d.status]));
+
 export const getThreadData = (
   state: RemoteThreadState,
   threadIdOrRemoteId: string,
