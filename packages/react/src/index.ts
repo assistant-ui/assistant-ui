@@ -83,7 +83,12 @@ export {
 } from "@assistant-ui/core";
 
 // --- adapters/suggestion ---
-export type { SuggestionAdapter } from "@assistant-ui/core";
+export type {
+  SuggestionAdapter,
+  SuggestionAdapterGenerateOptions,
+  CreateSuggestionAdapterOptions,
+} from "@assistant-ui/core";
+export { createSuggestionAdapter } from "@assistant-ui/core";
 
 // --- adapters/RuntimeAdapterProvider ---
 export {
