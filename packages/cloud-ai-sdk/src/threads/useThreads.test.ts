@@ -60,12 +60,13 @@ describe("useThreads", () => {
       .threads[0]!;
     const archivedThread = { ...activeThread, is_archived: true };
     let isArchived = false;
+    const get = vi.fn(async () => archivedThread);
     const cloud = {
       threads: {
         list: vi.fn(async () => ({
           threads: isArchived ? [] : [activeThread],
         })),
-        get: vi.fn(async () => archivedThread),
+        get,
         create: vi.fn(),
         delete: vi.fn(),
         update: vi.fn(),
@@ -85,6 +86,7 @@ describe("useThreads", () => {
       await result.current.refresh();
     });
 
+    expect(get).toHaveBeenCalledWith("thread-1");
     expect(result.current.threads).toEqual([]);
     expect(result.current.threadId).toBeNull();
   });
