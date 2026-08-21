@@ -5,6 +5,7 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -1007,10 +1008,19 @@ async function main() {
 }
 
 // import.meta.main requires Node >= 24.2; on older runtimes it is undefined
-// and the script would silently no-op with exit code 0.
+// and the script would silently no-op with exit code 0. Both sides are
+// realpath'd because Node resolves the main module through symlinks while
+// argv keeps the invoked path (e.g. /tmp vs /private/tmp on macOS).
+const realPath = (file) => {
+  try {
+    return realpathSync(file);
+  } catch {
+    return path.resolve(file);
+  }
+};
 const isMainEntry =
   process.argv[1] !== undefined &&
-  path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+  realPath(process.argv[1]) === realPath(fileURLToPath(import.meta.url));
 if (isMainEntry) {
   await main();
 }
