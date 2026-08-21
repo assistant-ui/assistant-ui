@@ -179,10 +179,14 @@ const runtime = useLangGraphRuntime({ stream: myStream });
 Timing is tracked automatically on the client side by the AG-UI run aggregator. Each emitted message includes timing metadata computed from stream chunk observations.
 
 ```tsx
+import { useMemo } from "react";
 import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
 import { HttpAgent } from "@ag-ui/client";
 
-const agent = new HttpAgent({ url: "http://localhost:8000/agent" });
+const agent = useMemo(
+  () => new HttpAgent({ url: "http://localhost:8000/agent" }),
+  [],
+);
 const runtime = useAgUiRuntime({ agent });
 // useMessageTiming() works out of the box
 ```
