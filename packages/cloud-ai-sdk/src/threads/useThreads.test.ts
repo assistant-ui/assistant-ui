@@ -106,10 +106,14 @@ describe("useThreads", () => {
         delete: vi.fn(),
         update: vi.fn(),
       },
-    } as never;
+    };
     const { result, rerender } = renderHook(
       ({ includeArchived }) =>
-        useThreads({ cloud, includeArchived, enabled: false }),
+        useThreads({
+          cloud: cloud as never,
+          includeArchived,
+          enabled: false,
+        }),
       { initialProps: { includeArchived: false } },
     );
 
