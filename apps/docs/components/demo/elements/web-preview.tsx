@@ -1,6 +1,6 @@
 "use client";
 
-import { WebPreview } from "@/components/assistant-ui/elements/web-preview";
+import { WebPreview } from "@/components/assistant-ui/elements/web-preview.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const PHASES = [1500, 0] as const;

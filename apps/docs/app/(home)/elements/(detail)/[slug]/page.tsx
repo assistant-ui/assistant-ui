@@ -3,23 +3,23 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mono } from "@/components/assistant-ui/elements/surfaces";
+import { mono } from "@/components/assistant-ui/elements/surfaces.standalone";
 import { createOgMetadata } from "@/lib/og";
 import {
   highlightElementSource,
   readElementSource,
 } from "@/lib/element-source";
-import { CopyButton } from "@/components/shared/copy-button";
-import { demoCanvasClass } from "@/components/demo/utils/canvas";
+import { CopyButton } from "@/components/demo/elements/copy-button";
+import { demoCanvasClass } from "@/components/demo/elements/canvas";
 import { DemoStage } from "@/components/demo/elements/demo-stage";
-import { DemoVariants } from "@/components/pages/elements/demo-variants";
-import { InstallCommand } from "@/components/pages/elements/install-command";
-import { ELEMENT_DOCS } from "@/components/pages/elements/element-docs";
+import { DemoVariants } from "@/components/demo/elements/demo-variants";
+import { InstallCommand } from "@/components/demo/elements/install-command";
+import { ELEMENT_DOCS } from "@/components/demo/elements/element-docs";
 import {
   ELEMENT_COUNT,
   ELEMENTS,
   getElement,
-} from "@/components/pages/elements/registry";
+} from "@/components/demo/elements/registry";
 import { getGenerativeElement } from "@/lib/generative-elements";
 
 const GENERATIVE_USAGE = `import { renderGenerativeUI } from "@assistant-ui/react-generative-ui";

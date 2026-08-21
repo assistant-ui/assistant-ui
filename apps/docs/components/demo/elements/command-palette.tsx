@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   CommandPalette,
   type PaletteCommand,
-} from "@/components/assistant-ui/elements/command-palette";
+} from "@/components/assistant-ui/elements/command-palette.standalone";
 
 const COMMANDS: readonly PaletteCommand[] = [
   { id: "new", label: "New thread", group: "Thread", keys: ["⌘", "N"] },

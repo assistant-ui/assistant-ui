@@ -3,7 +3,7 @@
 import {
   SpecSheet,
   type SpecRow,
-} from "@/components/assistant-ui/elements/spec-sheet";
+} from "@/components/assistant-ui/elements/spec-sheet.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const ROWS: readonly SpecRow[] = [

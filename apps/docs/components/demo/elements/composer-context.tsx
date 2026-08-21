@@ -10,7 +10,7 @@ import {
   ComposerInput,
   ComposerSend,
   ComposerToolbar,
-} from "@/components/assistant-ui/elements/composer";
+} from "@/components/assistant-ui/elements/composer.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const PHASES = [1200, 1200, 0] as const;

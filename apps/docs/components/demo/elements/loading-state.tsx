@@ -3,7 +3,7 @@
 import {
   GenerationLoader,
   type GenerationLoaderVariant,
-} from "@/components/assistant-ui/elements/loading-state";
+} from "@/components/assistant-ui/elements/loading-state.standalone";
 import { useElapsed } from "./use-demo";
 
 function LoadingDemo({ variant }: { variant: GenerationLoaderVariant }) {

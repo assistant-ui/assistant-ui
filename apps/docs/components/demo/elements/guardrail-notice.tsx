@@ -1,6 +1,6 @@
 "use client";
 
-import { GuardrailNotice } from "@/components/assistant-ui/elements/guardrail-notice";
+import { GuardrailNotice } from "@/components/assistant-ui/elements/guardrail-notice.standalone";
 
 const ALTERNATIVES = [
   "Explain how rate limiting defends against this",

@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   CodeRunner,
   type RunState,
-} from "@/components/assistant-ui/elements/code-runner";
+} from "@/components/assistant-ui/elements/code-runner.standalone";
 
 const CODE = `const queue = createMessageQueue(driver);
 queue.enqueue("also add a changeset");

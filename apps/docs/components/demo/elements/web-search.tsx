@@ -3,7 +3,7 @@
 import {
   WebSearch,
   type WebSearchResult,
-} from "@/components/assistant-ui/elements/web-search";
+} from "@/components/assistant-ui/elements/web-search.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const QUERY = "assistant-ui draft persistence";

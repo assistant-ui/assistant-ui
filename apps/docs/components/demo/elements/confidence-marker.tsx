@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   ConfidenceMarker,
   type ConfidenceClaim,
-} from "@/components/assistant-ui/elements/confidence-marker";
+} from "@/components/assistant-ui/elements/confidence-marker.standalone";
 
 const CLAIMS: readonly ConfidenceClaim[] = [
   {

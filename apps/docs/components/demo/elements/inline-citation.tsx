@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   InlineCitation,
   type Source,
-} from "@/components/assistant-ui/elements/inline-citation";
+} from "@/components/assistant-ui/elements/inline-citation.standalone";
 
 const SOURCES: Source[] = [
   {

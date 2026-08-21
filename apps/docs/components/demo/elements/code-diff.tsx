@@ -3,7 +3,7 @@
 import {
   CodeDiff,
   type DiffLine,
-} from "@/components/assistant-ui/elements/code-diff";
+} from "@/components/assistant-ui/elements/code-diff.standalone";
 
 const LINES: DiffLine[] = [
   { kind: "context", text: "export function Composer() {" },

@@ -3,7 +3,7 @@
 import {
   DataTable,
   type ModelUsage,
-} from "@/components/assistant-ui/elements/data-table";
+} from "@/components/assistant-ui/elements/data-table.standalone";
 
 const MODEL_USAGE = [
   { name: "Sonnet 4.5", context: "200k", cost: "$3.00" },

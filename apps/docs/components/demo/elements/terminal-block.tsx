@@ -1,6 +1,6 @@
 "use client";
 
-import { TerminalBlock } from "@/components/assistant-ui/elements/terminal-block";
+import { TerminalBlock } from "@/components/assistant-ui/elements/terminal-block.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const LINES = [

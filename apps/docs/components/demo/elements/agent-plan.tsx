@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentPlan } from "@/components/assistant-ui/elements/agent-plan";
+import { AgentPlan } from "@/components/assistant-ui/elements/agent-plan.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const STEPS = [

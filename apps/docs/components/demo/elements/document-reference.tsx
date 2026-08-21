@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   DocumentReference,
   type DocumentAnchor,
-} from "@/components/assistant-ui/elements/document-reference";
+} from "@/components/assistant-ui/elements/document-reference.standalone";
 
 const ANCHORS: readonly DocumentAnchor[] = [
   {

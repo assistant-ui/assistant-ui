@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Onboarding,
   type OnboardingStep,
-} from "@/components/assistant-ui/elements/onboarding";
+} from "@/components/assistant-ui/elements/onboarding.standalone";
 
 const STEPS: readonly OnboardingStep[] = [
   {

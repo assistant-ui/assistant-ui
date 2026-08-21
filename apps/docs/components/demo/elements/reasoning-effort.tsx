@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   ReasoningEffort,
   type EffortLevel,
-} from "@/components/assistant-ui/elements/reasoning-effort";
+} from "@/components/assistant-ui/elements/reasoning-effort.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const LEVELS: readonly EffortLevel[] = [

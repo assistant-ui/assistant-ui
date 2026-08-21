@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   Sources,
   type Source,
-} from "@/components/assistant-ui/elements/sources";
+} from "@/components/assistant-ui/elements/sources.standalone";
 
 const SOURCES: Source[] = [
   {

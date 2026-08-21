@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   RegenerateMenu,
   type RegenerateOption,
-} from "@/components/assistant-ui/elements/regenerate-menu";
+} from "@/components/assistant-ui/elements/regenerate-menu.standalone";
 
 const OPTIONS: readonly RegenerateOption[] = [
   { id: "opus", label: "Try again with Opus 5", detail: "slower" },

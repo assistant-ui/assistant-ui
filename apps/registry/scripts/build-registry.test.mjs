@@ -1239,7 +1239,7 @@ test("every element's sibling imports are declared as registry dependencies", as
   );
 
   for (const file of readdirSync(join(process.cwd(), "../..", dir))) {
-    if (!file.endsWith(".tsx") || file === "surfaces.tsx") continue;
+    if (!file.endsWith(".tsx") || file === "surfaces.standalone.tsx") continue;
     const src = readFileSync(join(process.cwd(), "../..", dir, file), "utf8");
     const siblings = [...src.matchAll(/from "\.\/([a-z-]+)"/g)]
       .map((m) => m[1])
@@ -1256,7 +1256,7 @@ test("every element's sibling imports are declared as registry dependencies", as
 });
 
 test("relative import candidates cover extensions, directory indexes, and .js sources", () => {
-  const from = "components/assistant-ui/elements/sources.tsx";
+  const from = "components/assistant-ui/elements/sources.standalone.tsx";
 
   assert.deepEqual(getRelativeImportCandidates("./badge", from), [
     "components/assistant-ui/elements/badge.tsx",

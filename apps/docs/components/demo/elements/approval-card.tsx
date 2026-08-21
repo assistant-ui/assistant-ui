@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   ApprovalCard,
   type ApprovalState,
-} from "@/components/assistant-ui/elements/approval-card";
+} from "@/components/assistant-ui/elements/approval-card.standalone";
 
 export function ApprovalCardDemo() {
   const [state, setState] = useState<ApprovalState>("request");

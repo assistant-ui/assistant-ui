@@ -6,8 +6,8 @@ import {
   ChatPanelMessages,
   ChatPanelTyping,
   ChatPanelUserMessage,
-} from "@/components/assistant-ui/elements/chat-panel";
-import { StreamingText } from "@/components/assistant-ui/elements/streaming-text";
+} from "@/components/assistant-ui/elements/chat-panel.standalone";
+import { StreamingText } from "@/components/assistant-ui/elements/streaming-text.standalone";
 import { useElapsed, useStoryPhases } from "./use-demo";
 
 const USER_MESSAGE = "Why did my draft disappear?";

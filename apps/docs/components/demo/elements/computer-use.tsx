@@ -3,7 +3,7 @@
 import {
   ComputerUse,
   type ComputerStep,
-} from "@/components/assistant-ui/elements/computer-use";
+} from "@/components/assistant-ui/elements/computer-use.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const STEPS: readonly ComputerStep[] = [

@@ -3,7 +3,7 @@
 import {
   ResearchReport,
   type ReportSection,
-} from "@/components/assistant-ui/elements/research-report";
+} from "@/components/assistant-ui/elements/research-report.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const HEADINGS = [

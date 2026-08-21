@@ -5,7 +5,7 @@ import {
   VoiceConversation,
   type VoiceMode,
   type VoiceTurn,
-} from "@/components/assistant-ui/elements/voice-conversation";
+} from "@/components/assistant-ui/elements/voice-conversation.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const MODES: readonly VoiceMode[] = [

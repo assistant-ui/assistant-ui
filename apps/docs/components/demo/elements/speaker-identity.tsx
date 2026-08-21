@@ -3,7 +3,7 @@
 import {
   SpeakerIdentity,
   type SpeakerTurn,
-} from "@/components/assistant-ui/elements/speaker-identity";
+} from "@/components/assistant-ui/elements/speaker-identity.standalone";
 
 const TURNS: readonly SpeakerTurn[] = [
   {

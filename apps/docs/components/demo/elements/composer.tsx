@@ -32,7 +32,7 @@ import {
   type ComposerCommand,
   type ComposerModel,
   type ComposerPerson,
-} from "@/components/assistant-ui/elements/composer";
+} from "@/components/assistant-ui/elements/composer.standalone";
 import { useElapsed } from "./use-demo";
 
 const COMMANDS: ComposerCommand[] = [

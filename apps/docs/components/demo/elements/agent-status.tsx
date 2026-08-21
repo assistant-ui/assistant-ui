@@ -3,7 +3,7 @@
 import {
   AgentStatus,
   type StatusStep,
-} from "@/components/assistant-ui/elements/agent-status";
+} from "@/components/assistant-ui/elements/agent-status.standalone";
 import { formatSeconds, useElapsed, useStoryPhases } from "./use-demo";
 
 const PHASES = [3200, 2400, 2600, 3000] as const;

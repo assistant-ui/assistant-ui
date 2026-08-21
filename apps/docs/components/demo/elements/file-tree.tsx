@@ -3,7 +3,7 @@
 import {
   FileTree,
   type FileTreeNode,
-} from "@/components/assistant-ui/elements/file-tree";
+} from "@/components/assistant-ui/elements/file-tree.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const NODES: readonly FileTreeNode[] = [

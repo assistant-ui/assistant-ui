@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LauncherBubble } from "@/components/assistant-ui/elements/launcher-bubble";
+import { LauncherBubble } from "@/components/assistant-ui/elements/launcher-bubble.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const PROMPTS = [

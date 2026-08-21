@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 import { source, getTapDocsPages, blog, examples, careers } from "@/lib/source";
-import { ELEMENTS } from "@/components/pages/elements/registry";
+import { ELEMENTS } from "@/components/demo/elements/registry";
 import { DEMOS } from "@/lib/demos";
 import { DESIGN_COMPONENTS } from "@/components/design/registry-meta";
 import { BASE_URL, PRODUCTS } from "@/lib/constants";

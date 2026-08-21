@@ -3,7 +3,7 @@
 import {
   SubagentList,
   type SubagentItem,
-} from "@/components/assistant-ui/elements/subagent-list";
+} from "@/components/assistant-ui/elements/subagent-list.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const AGENTS: readonly SubagentItem[] = [

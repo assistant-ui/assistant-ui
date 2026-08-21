@@ -3,7 +3,7 @@
 import {
   ConnectionState,
   type ConnectionPhase,
-} from "@/components/assistant-ui/elements/connection-state";
+} from "@/components/assistant-ui/elements/connection-state.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const PHASES = [1600, 2400, 0] as const;

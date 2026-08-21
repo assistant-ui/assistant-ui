@@ -1,6 +1,6 @@
 "use client";
 
-import { ArtifactCard } from "@/components/assistant-ui/elements/artifact-card";
+import { ArtifactCard } from "@/components/assistant-ui/elements/artifact-card.standalone";
 import { useElapsed, useStoryPhases } from "./use-demo";
 
 const PHASES = [3200, 2800] as const;

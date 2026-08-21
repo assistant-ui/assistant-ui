@@ -5,7 +5,7 @@ import {
   ElicitationForm,
   type ElicitationField,
   type ElicitationState,
-} from "@/components/assistant-ui/elements/elicitation-form";
+} from "@/components/assistant-ui/elements/elicitation-form.standalone";
 
 const FIELDS: readonly ElicitationField[] = [
   {

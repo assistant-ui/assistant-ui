@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   SettingsPanel,
   type SettingToggle,
-} from "@/components/assistant-ui/elements/settings-panel";
+} from "@/components/assistant-ui/elements/settings-panel.standalone";
 
 const MODELS = ["Opus", "Sonnet", "Haiku"] as const;
 

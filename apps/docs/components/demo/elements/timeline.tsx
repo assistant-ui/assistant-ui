@@ -3,7 +3,7 @@
 import {
   Timeline,
   type TimelineEvent,
-} from "@/components/assistant-ui/elements/timeline";
+} from "@/components/assistant-ui/elements/timeline.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const EVENTS: readonly TimelineEvent[] = [

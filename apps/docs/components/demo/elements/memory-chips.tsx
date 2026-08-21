@@ -3,7 +3,7 @@
 import {
   MemoryChips,
   type MemoryChip,
-} from "@/components/assistant-ui/elements/memory-chips";
+} from "@/components/assistant-ui/elements/memory-chips.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const CHIPS: readonly MemoryChip[] = [

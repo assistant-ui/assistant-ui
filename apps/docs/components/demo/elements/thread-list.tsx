@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   ThreadList,
   type ThreadItem,
-} from "@/components/assistant-ui/elements/thread-list";
+} from "@/components/assistant-ui/elements/thread-list.standalone";
 
 const THREADS: ThreadItem[] = [
   { title: "Draft persistence design", time: "2m" },

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Diagram } from "@/components/assistant-ui/elements/diagram";
+import { Diagram } from "@/components/assistant-ui/elements/diagram.standalone";
 
 const BOXES = [
   { label: "composer", x: 8, y: 10 },

@@ -1,6 +1,6 @@
 "use client";
 
-import { AgentHandoff } from "@/components/assistant-ui/elements/agent-handoff";
+import { AgentHandoff } from "@/components/assistant-ui/elements/agent-handoff.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const CARRIED = [

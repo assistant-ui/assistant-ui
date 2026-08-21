@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   RecommendationCard,
   type RecommendationState,
-} from "@/components/assistant-ui/elements/recommendation-card";
+} from "@/components/assistant-ui/elements/recommendation-card.standalone";
 
 export function RecommendationCardDemo() {
   const [state, setState] = useState<RecommendationState>("idle");

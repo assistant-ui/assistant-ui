@@ -1,6 +1,6 @@
 "use client";
 
-import { MessagePair } from "@/components/assistant-ui/elements/message-pair";
+import { MessagePair } from "@/components/assistant-ui/elements/message-pair.standalone";
 import { useWordStream } from "./use-demo";
 
 const USER_MESSAGE = "How do I persist composer drafts across threads?";

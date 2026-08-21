@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ToolError } from "@/components/assistant-ui/elements/tool-error";
+import { ToolError } from "@/components/assistant-ui/elements/tool-error.standalone";
 
 export function ToolErrorDemo() {
   const [retrying, setRetrying] = useState(false);

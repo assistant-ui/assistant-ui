@@ -3,7 +3,7 @@
 import {
   MessageTiming,
   type TimingStat,
-} from "@/components/assistant-ui/elements/message-timing";
+} from "@/components/assistant-ui/elements/message-timing.standalone";
 import { useElapsed, useStoryPhases } from "./use-demo";
 
 const PHASES = [2600, 0] as const;

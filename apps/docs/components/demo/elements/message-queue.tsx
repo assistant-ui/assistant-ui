@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   MessageQueue,
   type QueuedMessage,
-} from "@/components/assistant-ui/elements/message-queue";
+} from "@/components/assistant-ui/elements/message-queue.standalone";
 
 const INITIAL: QueuedMessage[] = [
   { id: "a", text: "Also add a changeset" },

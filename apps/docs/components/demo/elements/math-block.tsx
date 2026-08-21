@@ -5,7 +5,7 @@ import {
   MathBlock,
   Sub,
   Sup,
-} from "@/components/assistant-ui/elements/math-block";
+} from "@/components/assistant-ui/elements/math-block.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const PHASES = [900, 900, 0] as const;

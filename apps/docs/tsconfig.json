@@ -16,7 +16,7 @@
       "@/components/assistant-ui/*": [
         "../../packages/ui/src/components/assistant-ui/*"
       ],
-      "@/components/elements/*": ["./components/elements/*"],
+      "@/components/demo/elements/*": ["./components/demo/elements/*"],
       "@/*": ["./*"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
       "fumadocs-mdx:collections/*": ["./.source/*"],

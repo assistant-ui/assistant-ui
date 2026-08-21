@@ -13,7 +13,7 @@ const SOURCE_ROOTS = [
     "assistant-ui",
     "elements",
   ],
-  ["components", "elements"],
+  ["components", "demo", "elements"],
 ] as const;
 
 export async function readElementSource(file: string): Promise<string> {

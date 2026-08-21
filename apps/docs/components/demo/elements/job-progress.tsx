@@ -3,7 +3,7 @@
 import {
   JobProgress,
   type JobStage,
-} from "@/components/assistant-ui/elements/job-progress";
+} from "@/components/assistant-ui/elements/job-progress.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const STAGES: readonly JobStage[] = [

@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   ReasoningPanel,
   type ReasoningStep,
-} from "@/components/assistant-ui/elements/reasoning-panel";
+} from "@/components/assistant-ui/elements/reasoning-panel.standalone";
 import { useStoryPhases } from "./use-demo";
 
 const STEPS: ReasoningStep[] = [
