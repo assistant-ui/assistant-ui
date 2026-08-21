@@ -4,9 +4,9 @@ description: Composable model picker with reasoning effort levels, search, and r
 platforms: ["react"]
 ---
 
-import { ModelSelectorSample } from "@/components/docs/samples/model-selector";
-import * as ModelSelectorRadixSamples from "@/components/docs/samples/model-selector.radix";
-import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+import { ModelSelectorSample } from "@/components/pages/docs/samples/model-selector";
+import * as ModelSelectorRadixSamples from "@/components/pages/docs/samples/model-selector.radix";
+import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
 
 A picker that lets users switch between AI models and choose a reasoning effort (thinking) level. It is built on Popover + Command, so search, provider grouping, and filtering compose in without being built in. The default export integrates with assistant-ui's `ModelContext` system, so the selection reaches your backend on every request with no extra wiring.
 

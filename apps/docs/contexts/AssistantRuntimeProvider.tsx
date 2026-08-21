@@ -15,7 +15,7 @@ import {
 } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { useEffect, useRef, type ReactNode } from "react";
-import { useCurrentPage } from "@/components/docs/contexts/current-page";
+import { useCurrentPage } from "@/components/pages/docs/contexts/current-page";
 import { analytics } from "@/lib/analytics";
 import {
   consumeRunStartedAt,

@@ -69,7 +69,7 @@ const config: NextConfig = {
   skipTrailingSlashRedirect: true,
   outputFileTracingIncludes: {
     "/elements/[slug]": [
-      "./components/elements/*.tsx",
+      "./components/demo/elements/*.tsx",
       "../../packages/ui/src/components/elements/*.tsx",
     ],
   },

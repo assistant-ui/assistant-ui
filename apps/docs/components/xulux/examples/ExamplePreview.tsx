@@ -1,13 +1,13 @@
 import Image from "next/image";
-import { Artifacts } from "@/components/examples/artifacts";
-import { ChatGPT } from "@/components/examples/chatgpt";
-import { Claude } from "@/components/examples/claude";
-import { Gemini } from "@/components/examples/gemini";
-import { GenUI } from "@/components/examples/genui";
-import { Grok } from "@/components/examples/grok";
-import { ModalChat } from "@/components/examples/modal";
-import { Perplexity } from "@/components/examples/perplexity";
-import { Base } from "@/components/examples/base";
+import { Artifacts } from "@/components/pages/examples/artifacts";
+import { ChatGPT } from "@/components/pages/examples/chatgpt";
+import { Claude } from "@/components/pages/examples/claude";
+import { Gemini } from "@/components/pages/examples/gemini";
+import { GenUI } from "@/components/pages/examples/genui";
+import { Grok } from "@/components/pages/examples/grok";
+import { ModalChat } from "@/components/pages/examples/modal";
+import { Perplexity } from "@/components/pages/examples/perplexity";
+import { Base } from "@/components/pages/examples/base";
 import { ArtifactsRuntimeProvider } from "@/contexts/ArtifactsRuntimeProvider";
 import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
 

@@ -4,7 +4,7 @@ import { codeToHtml } from "shiki";
 
 const SOURCE_ROOTS = [
   ["..", "..", "packages", "ui", "src", "components", "elements"],
-  ["components", "elements"],
+  ["components", "demo", "elements"],
 ] as const;
 
 export async function readElementSource(file: string): Promise<string> {

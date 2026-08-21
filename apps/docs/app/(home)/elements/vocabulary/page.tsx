@@ -14,11 +14,11 @@ import {
   COMPONENT_EXAMPLES,
 } from "@/lib/component-reference";
 import { describeComponentProps } from "@/lib/component-props";
-import { demoCanvasClass } from "@/components/elements/canvas";
+import { demoCanvasClass } from "@/components/demo/utils/canvas";
 import { IconGlyphGrid } from "@/components/gallery/icon-glyph-grid";
 import { TemplatePreview } from "@/components/gallery/template-preview";
-import { VocabCodeTabs } from "@/components/elements/vocab-code-tabs";
-import { VocabularyToc } from "@/components/elements/vocabulary-toc";
+import { VocabCodeTabs } from "@/components/pages/elements/vocab-code-tabs";
+import { VocabularyToc } from "@/components/pages/elements/vocabulary-toc";
 import { PageFrame } from "@/components/shared/page-frame";
 
 const title = "Component vocabulary";

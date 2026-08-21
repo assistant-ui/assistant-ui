@@ -4,13 +4,13 @@ description: Stream-ready React chat container with message list, composer, auto
 platforms: ["react"]
 ---
 
-import { ThreadSample } from "@/components/docs/samples/thread";
-import { ThreadHistorySample } from "@/components/docs/samples/thread/thread-history";
-import { ThreadActionsSample } from "@/components/docs/samples/thread/message-actions";
-import { PreviewCode } from "@/components/docs/preview-code.server";
-import { ThreadWelcomeSuggestionsSample } from "@/components/docs/samples/thread/welcome-with-suggestions";
-import { ThreadBranchSample } from "@/components/docs/samples/thread/branching-response";
-import { ThreadRunningSample } from "@/components/docs/samples/thread/running-response";
+import { ThreadSample } from "@/components/pages/docs/samples/thread";
+import { ThreadHistorySample } from "@/components/pages/docs/samples/thread/thread-history";
+import { ThreadActionsSample } from "@/components/pages/docs/samples/thread/message-actions";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { ThreadWelcomeSuggestionsSample } from "@/components/pages/docs/samples/thread/welcome-with-suggestions";
+import { ThreadBranchSample } from "@/components/pages/docs/samples/thread/branching-response";
+import { ThreadRunningSample } from "@/components/pages/docs/samples/thread/running-response";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
 attachments, and conditional UI states. Fully customizable and composable.
@@ -130,7 +130,7 @@ Display suggested prompts using the Suggestions API. See the [Suggestions guide]
 An empty thread centers the welcome screen and shows the configured suggestion chips. When you select a chip, the thread sends its prompt.
 
 <PreviewCode
-  file="components/docs/samples/thread/welcome-with-suggestions"
+  file="components/pages/docs/samples/thread/welcome-with-suggestions"
   name="ChatWithSuggestions"
 >
   <ThreadWelcomeSuggestionsSample />
@@ -183,7 +183,7 @@ const SuggestionItem = () => (
 Select the refresh action below the assistant response to make an alternate branch. The built-in branch picker then shows `2 / 2` with arrows that switch between the two branches.
 
 <PreviewCode
-  file="components/docs/samples/thread/branching-response"
+  file="components/pages/docs/samples/thread/branching-response"
   name="Chat"
 >
   <ThreadBranchSample />

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SafeContentFrame, type RenderedFrame } from "safe-content-frame";
-import { CopyCommandButton } from "@/components/home/copy-command-button";
+import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
