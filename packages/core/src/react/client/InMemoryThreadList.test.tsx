@@ -146,3 +146,42 @@ describe("InMemoryThreadList delete", () => {
     expect(state.mainThreadId).not.toBe("main");
   });
 });
+
+describe("InMemoryThreadList item index selectors", () => {
+  it("resolves index selectors within the archived and regular subsets", async () => {
+    const { getAui } = setup();
+    await act(async () => {});
+
+    await act(async () => {
+      getAui().threads.switchToNewThread();
+    });
+    await act(async () => {});
+    const b = getAui().threads.getState().mainThreadId;
+
+    await act(async () => {
+      getAui().threads.switchToNewThread();
+    });
+    await act(async () => {});
+
+    await act(async () => {
+      getAui().threads.item({ id: b }).archive();
+    });
+    await act(async () => {});
+
+    const state = getAui().threads.getState();
+    expect(state.archivedThreadIds).toEqual([b]);
+    expect(state.threadIds).toHaveLength(2);
+
+    for (const [index, id] of state.archivedThreadIds.entries()) {
+      expect(
+        getAui().threads.item({ index, archived: true }).getState().id,
+      ).toBe(id);
+    }
+    for (const [index, id] of state.threadIds.entries()) {
+      expect(getAui().threads.item({ index }).getState().id).toBe(id);
+      expect(
+        getAui().threads.item({ index, archived: false }).getState().id,
+      ).toBe(id);
+    }
+  });
+});
