@@ -19,6 +19,19 @@ export const useIsMarkdownCodeBlock = () => {
 };
 
 const PreOverrideImpl: PreComponent = ({ children, ...rest }) => {
+  // The pre element is re-emitted by CodeOverride, which only runs for a
+  // code child. A pre without one (e.g. raw HTML via rehype-raw) would
+  // otherwise lose its element entirely, so it is rendered directly here.
+  const hasCodeChild =
+    rest.node?.children.some(
+      (child) => child.type === "element" && child.tagName === "code",
+    ) ?? true;
+
+  if (!hasCodeChild) {
+    const { node: _, ...preProps } = rest;
+    return <pre {...preProps}>{children}</pre>;
+  }
+
   return <PreContext.Provider value={rest}>{children}</PreContext.Provider>;
 };
 
