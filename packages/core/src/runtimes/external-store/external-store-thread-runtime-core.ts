@@ -141,7 +141,8 @@ export class ExternalStoreThreadRuntimeCore
   // collides with fresh conversions once the list shifts (e.g. prepending
   // older history), and the duplicate sweep would drop a real message. The
   // ids come from a counter rather than generateId so a server render and
-  // its hydration pass assign identical ids.
+  // its hydration pass assign identical ids, and carry a reserved prefix so
+  // they cannot collide with an explicit host id.
   private _fallbackIds = new WeakMap<WeakKey, string>();
   private _nextFallbackId = 0;
 
@@ -305,7 +306,7 @@ export class ExternalStoreThreadRuntimeCore
 
             let fallbackId = this._fallbackIds.get(m);
             if (fallbackId === undefined) {
-              fallbackId = (this._nextFallbackId++).toString();
+              fallbackId = `__external_store_fallback_${this._nextFallbackId++}`;
               this._fallbackIds.set(m, fallbackId);
             }
 

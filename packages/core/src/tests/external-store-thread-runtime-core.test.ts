@@ -1210,20 +1210,40 @@ describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
   });
 
   it("assigns identical fallback ids across separate core instances", () => {
-    const m1 = { text: "one" };
-    const m2 = { role: "assistant" as const, text: "two" };
+    const makeMessages = () => [
+      { text: "one" },
+      { role: "assistant" as const, text: "two" },
+    ];
 
     const server = new ExternalStoreThreadRuntimeCore(
       mockContextProvider,
-      storeWith([m1, m2]),
+      storeWith(makeMessages()),
     );
     const client = new ExternalStoreThreadRuntimeCore(
       mockContextProvider,
-      storeWith([m1, m2]),
+      storeWith(makeMessages()),
     );
 
     expect(client.messages.map((m) => m.id)).toEqual(
       server.messages.map((m) => m.id),
     );
+  });
+
+  it("does not collide a fallback id with an explicit host id", () => {
+    const messages = [{ id: "0", text: "explicit-zero" }, { text: "id-less" }];
+    const convertWithId = (m: { id?: string; text: string }) =>
+      ({
+        ...(m.id !== undefined ? { id: m.id } : {}),
+        role: "user",
+        content: [{ type: "text", text: m.text }],
+      }) as ThreadMessageLike;
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage: convertWithId }),
+    );
+
+    expect(runtime.messages).toHaveLength(2);
+    expect(new Set(runtime.messages.map((m) => m.id)).size).toBe(2);
   });
 });
