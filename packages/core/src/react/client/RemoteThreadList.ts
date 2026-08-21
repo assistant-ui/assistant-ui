@@ -455,7 +455,7 @@ const useRemoteThreadList = (
               ...fresh.threadData,
             },
           };
-          return preserveMidLoadTransitions(merged, statusAtRequest);
+          return preserveMidLoadTransitions(merged, state, statusAtRequest);
         },
       })
       .catch((error: unknown) => {

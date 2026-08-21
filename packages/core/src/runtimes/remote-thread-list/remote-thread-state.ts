@@ -103,17 +103,20 @@ export type RemoteThreadState = {
 // completed-optimistic replay cannot re-add it because the merged threadData
 // already carries the final status. Threads whose status moved from new (or
 // nonexistent) at request time to regular/archived are re-inserted at the
-// top, where updateStatusReducer would have placed them; threads the server
-// already knew stay governed by the response, so a server-side deletion is
-// not resurrected.
+// top, in the order the pre-response lists carried them (updateStatusReducer
+// prepends, so that order is newest first; object enumeration is not a
+// reliable stand-in, since integer-like keys enumerate out of insertion
+// order). Threads the server already knew stay governed by the response, so
+// a server-side deletion is not resurrected.
 export const preserveMidLoadTransitions = (
   state: RemoteThreadState,
+  priorOrder: Pick<RemoteThreadState, "threadIds" | "archivedThreadIds">,
   statusAtRequest: ReadonlyMap<string, RemoteThreadData["status"]>,
 ): RemoteThreadState => {
   const regular = new Set(state.threadIds);
   const archived = new Set(state.archivedThreadIds);
-  const prependRegular: string[] = [];
-  const prependArchived: string[] = [];
+  const rescuedRegular: RemoteThreadData[] = [];
+  const rescuedArchived: RemoteThreadData[] = [];
 
   const contains = (ids: ReadonlySet<string>, data: RemoteThreadData) =>
     ids.has(data.id) || (data.remoteId !== undefined && ids.has(data.remoteId));
@@ -123,22 +126,38 @@ export const preserveMidLoadTransitions = (
     if (before !== undefined && before !== "new") continue;
 
     if (data.status === "regular" && !contains(regular, data)) {
-      prependRegular.push(data.id);
+      rescuedRegular.push(data);
       regular.add(data.id);
     } else if (data.status === "archived" && !contains(archived, data)) {
-      prependArchived.push(data.id);
+      rescuedArchived.push(data);
       archived.add(data.id);
     }
   }
 
-  if (prependRegular.length === 0 && prependArchived.length === 0) return state;
-  // Newest transition first, as successive updateStatusReducer prepends
-  // would have left them.
+  if (rescuedRegular.length === 0 && rescuedArchived.length === 0) return state;
+
+  const position = (ids: readonly string[], data: RemoteThreadData) => {
+    const byId = ids.indexOf(data.id);
+    if (byId !== -1) return byId;
+    const byRemoteId =
+      data.remoteId !== undefined ? ids.indexOf(data.remoteId) : -1;
+    return byRemoteId !== -1 ? byRemoteId : Number.MAX_SAFE_INTEGER;
+  };
+  rescuedRegular.sort(
+    (a, b) =>
+      position(priorOrder.threadIds, a) - position(priorOrder.threadIds, b),
+  );
+  rescuedArchived.sort(
+    (a, b) =>
+      position(priorOrder.archivedThreadIds, a) -
+      position(priorOrder.archivedThreadIds, b),
+  );
+
   return {
     ...state,
-    threadIds: [...prependRegular.reverse(), ...state.threadIds],
+    threadIds: [...rescuedRegular.map((d) => d.id), ...state.threadIds],
     archivedThreadIds: [
-      ...prependArchived.reverse(),
+      ...rescuedArchived.map((d) => d.id),
       ...state.archivedThreadIds,
     ],
   };

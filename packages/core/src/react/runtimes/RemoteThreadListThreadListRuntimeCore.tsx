@@ -198,7 +198,7 @@ export class RemoteThreadListThreadListRuntimeCore
               threadIdMap: { ...state.threadIdMap, ...fresh.threadIdMap },
               threadData: { ...state.threadData, ...fresh.threadData },
             };
-            return preserveMidLoadTransitions(merged, statusAtRequest);
+            return preserveMidLoadTransitions(merged, state, statusAtRequest);
           },
         })
         .catch((error: unknown) => {
