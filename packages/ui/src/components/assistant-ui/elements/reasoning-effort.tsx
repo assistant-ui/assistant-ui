@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { field, mono } from "./surfaces";
-import { pct } from "./range";
+import { pct } from "../utils/range";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 

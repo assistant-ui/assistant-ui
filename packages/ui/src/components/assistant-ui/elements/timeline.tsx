@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
-import { take } from "./range";
+import { take } from "../utils/range";
 
 export type TimelineWhen = "past" | "now" | "future";
 

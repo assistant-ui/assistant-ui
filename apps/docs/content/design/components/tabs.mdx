@@ -1,6 +1,6 @@
 ---
 title: Tabs
-description: A multi-variant tabs component for organizing content into switchable panels.
+description: A tabs component for organizing content into switchable panels.
 links:
   - label: Radix UI Tabs (Radix styles)
     url: https://www.radix-ui.com/primitives/docs/components/tabs
@@ -12,15 +12,12 @@ import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import {
   TabsSample,
   TabsVariantsSample,
-  TabsSizesSample,
   TabsWithIconsSample,
   TabsControlledSample,
   TabsAsLinkSample,
-  TabsAnimatedIndicatorSample,
 } from "@/components/pages/docs/samples/tabs";
 import * as TabsRadixSamples from "@/components/pages/docs/samples/tabs.radix";
 import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
-
 
 <FlavorSwitcher />
 
@@ -35,9 +32,9 @@ import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavo
 ```tsx
 import {
   Tabs,
+  TabsContent,
   TabsList,
   TabsTrigger,
-  TabsContent,
 } from "@/components/ui/tabs";
 
 export function Example() {
@@ -58,35 +55,20 @@ export function Example() {
 
 ### Variants
 
-Use the `variant` prop on `TabsList` to change the visual style. Child components inherit the variant automatically.
+Use `default` for a contained control or `line` for navigation-style tabs.
 
 <Flavored radix={<TabsRadixSamples.TabsVariantsSample />} base={<TabsVariantsSample />} />
 
 ```tsx
-<TabsList variant="default" />  // Muted background with shadow (default)
-<TabsList variant="line" />     // Underline indicator
-<TabsList variant="ghost" />    // Transparent with hover states
-<TabsList variant="pills" />    // Rounded pill buttons
-<TabsList variant="outline" />  // Border with background on active
+<TabsList variant="default" />
+<TabsList variant="line" />
 ```
 
-### Sizes
-
-Use the `size` prop on `TabsList` to change the tab height. Child components inherit the size automatically.
-
-<Flavored radix={<TabsRadixSamples.TabsSizesSample />} base={<TabsSizesSample />} />
-
-```tsx
-<TabsList size="sm" />      // 32px height
-<TabsList size="default" /> // 36px height
-<TabsList size="lg" />      // 40px height
-```
-
-### With Icons
+### With icons
 
 Tabs automatically style SVG icons placed inside triggers.
 
-<PreviewCode file="components/pages/docs/samples/tabs" name="TabsWithIconsSample" base={<TabsWithIconsSample />}>
+<PreviewCode file="components/docs/samples/tabs" name="TabsWithIconsSample" base={<TabsWithIconsSample />}>
   <TabsRadixSamples.TabsWithIconsSample />
 </PreviewCode>
 
@@ -94,32 +76,16 @@ Tabs automatically style SVG icons placed inside triggers.
 
 Use `value` and `onValueChange` for controlled tab state.
 
-<PreviewCode file="components/pages/docs/samples/tabs" name="TabsControlledSample" base={<TabsControlledSample />}>
+<PreviewCode file="components/docs/samples/tabs" name="TabsControlledSample" base={<TabsControlledSample />}>
   <TabsRadixSamples.TabsControlledSample />
 </PreviewCode>
 
-### As Link
+### As link
 
-Compose with `render` (Base UI) or `asChild` (Radix) on `TabsTrigger` to render as a different element, like a navigation link.
+Compose with `render` in Base UI or `asChild` in Radix to render a trigger as a link.
 
-<PreviewCode file="components/pages/docs/samples/tabs" name="TabsAsLinkSample" base={<TabsAsLinkSample />}>
+<PreviewCode file="components/docs/samples/tabs" name="TabsAsLinkSample" base={<TabsAsLinkSample />}>
   <TabsRadixSamples.TabsAsLinkSample />
-</PreviewCode>
-
-### Animated Indicator
-
-All variants feature smooth animated indicators that slide between tabs:
-
-| Variant | Indicator Style |
-|---------|-----------------|
-| `default` | Sliding background with shadow |
-| `line` | Sliding underline |
-| `ghost` | Sliding background with hover effect |
-| `pills` | Sliding pill background |
-| `outline` | Sliding border |
-
-<PreviewCode file="components/pages/docs/samples/tabs" name="TabsAnimatedIndicatorSample" base={<TabsAnimatedIndicatorSample />}>
-  <TabsRadixSamples.TabsAnimatedIndicatorSample />
 </PreviewCode>
 
 ## API Reference
@@ -128,14 +94,12 @@ All variants feature smooth animated indicators that slide between tabs:
 
 | Component | Description |
 |-----------|-------------|
-| `Tabs` | The root component that manages tab state. |
-| `TabsList` | The container for tab triggers. Set `variant` and `size` here. |
-| `TabsTrigger` | An individual tab button. Inherits variant/size from TabsList. |
+| `Tabs` | The root component that manages tab state and orientation. |
+| `TabsList` | The container for tab triggers. |
+| `TabsTrigger` | An individual tab control. |
 | `TabsContent` | The content panel for a tab. |
 
 ### Tabs
-
-The root component that manages tab state.
 
 <ParametersTable
   type="TabsProps"
@@ -143,44 +107,37 @@ The root component that manages tab state.
     {
       name: "defaultValue",
       type: "string",
-      description: "The default active tab value (uncontrolled).",
+      description: "The initial active tab for uncontrolled state.",
     },
     {
       name: "value",
       type: "string",
-      description: "The controlled active tab value.",
+      description: "The controlled active tab.",
     },
     {
       name: "onValueChange",
       type: "(value: string) => void",
-      description: "Callback when the active tab changes.",
+      description: "Called when the active tab changes.",
     },
     {
-      name: "className",
-      type: "string",
-      description: "Additional CSS classes.",
+      name: "orientation",
+      type: '"horizontal" | "vertical"',
+      default: '"horizontal"',
+      description: "The direction of the tab list and keyboard navigation.",
     },
   ]}
 />
 
 ### TabsList
 
-The container for tab triggers. Set `variant` and `size` here to style all child components.
-
 <ParametersTable
   type="TabsListProps"
   parameters={[
     {
       name: "variant",
-      type: '"default" | "line" | "ghost" | "pills" | "outline"',
+      type: '"default" | "line"',
       default: '"default"',
-      description: "The visual style of the tabs. Child components inherit this automatically.",
-    },
-    {
-      name: "size",
-      type: '"sm" | "default" | "lg"',
-      default: '"default"',
-      description: "The size of the tabs. Child components inherit this automatically.",
+      description: "The visual style of the tab list.",
     },
     {
       name: "className",
@@ -192,8 +149,6 @@ The container for tab triggers. Set `variant` and `size` here to style all child
 
 ### TabsTrigger
 
-An individual tab button.
-
 <ParametersTable
   type="TabsTriggerProps"
   parameters={[
@@ -201,18 +156,7 @@ An individual tab button.
       name: "value",
       type: "string",
       required: true,
-      description: "The unique value for this tab.",
-    },
-    {
-      name: "render",
-      type: "ReactElement | function",
-      description: "Base UI: compose as a different element instead of rendering a button.",
-    },
-    {
-      name: "asChild",
-      type: "boolean",
-      default: "false",
-      description: "Radix: merge props with a child element instead of rendering a button.",
+      description: "The unique value for the tab.",
     },
     {
       name: "disabled",
@@ -220,16 +164,20 @@ An individual tab button.
       description: "Whether the tab is disabled.",
     },
     {
-      name: "className",
-      type: "string",
-      description: "Additional CSS classes.",
+      name: "render",
+      type: "ReactElement | function",
+      description: "Base UI: compose as a different element.",
+    },
+    {
+      name: "asChild",
+      type: "boolean",
+      default: "false",
+      description: "Radix: merge props with a child element.",
     },
   ]}
 />
 
 ### TabsContent
-
-The content panel for a tab.
 
 <ParametersTable
   type="TabsContentProps"
@@ -238,7 +186,7 @@ The content panel for a tab.
       name: "value",
       type: "string",
       required: true,
-      description: "The value matching the corresponding TabsTrigger.",
+      description: "The value matching the corresponding trigger.",
     },
     {
       name: "className",
@@ -248,20 +196,16 @@ The content panel for a tab.
   ]}
 />
 
-### Style Variants (CVA)
+### Style variants
 
 | Export | Description |
 |--------|-------------|
-| `tabsListVariants` | Styles for the tabs list container. |
-| `tabsActiveIndicatorVariants` | Styles for the animated active indicator. |
+| `tabsListVariants` | Styles for the tab list container. |
 
 ```tsx
-import {
-  tabsListVariants,
-  tabsActiveIndicatorVariants,
-} from "@/components/ui/tabs";
+import { tabsListVariants } from "@/components/ui/tabs";
 
-<div className={tabsListVariants({ variant: "ghost", size: "sm" })}>
-  Custom Tabs Container
+<div className={tabsListVariants({ variant: "line" })}>
+  Custom tab list
 </div>
 ```

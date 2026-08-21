@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 import { collapsePanel, mono, ShimmerLabel, SwapLabel } from "./surfaces";
-import { take } from "./range";
+import { take } from "../utils/range";
 
 export interface ReasoningStep {
   title: string;

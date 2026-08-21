@@ -11,14 +11,12 @@ links:
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import {
   BadgeSample,
-  BadgeSizesSample,
   BadgeWithIconSample,
   BadgeAsLinkSample,
   BadgeAnimatedSample,
 } from "@/components/pages/docs/samples/badge";
 import * as BadgeRadixSamples from "@/components/pages/docs/samples/badge.radix";
 import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
-
 
 <FlavorSwitcher />
 
@@ -47,29 +45,15 @@ Use the `variant` prop to change the visual style.
 <Flavored radix={<BadgeRadixSamples.BadgeSample />} base={<BadgeSample />} />
 
 ```tsx
-<Badge variant="outline" />     // Border (default)
-<Badge variant="secondary" />   // Secondary background
-<Badge variant="muted" />       // Muted background
-<Badge variant="ghost" />       // No background
-<Badge variant="info" />        // Blue/info style
-<Badge variant="warning" />     // Amber/warning style
-<Badge variant="success" />     // Green/success style
-<Badge variant="destructive" /> // Red/error style
+<Badge variant="default" />
+<Badge variant="secondary" />
+<Badge variant="destructive" />
+<Badge variant="outline" />
+<Badge variant="ghost" />
+<Badge variant="link" />
 ```
 
-### Sizes
-
-Use the `size` prop to change the badge size.
-
-<Flavored radix={<BadgeRadixSamples.BadgeSizesSample />} base={<BadgeSizesSample />} />
-
-```tsx
-<Badge size="sm" />      // Small
-<Badge size="default" /> // Default
-<Badge size="lg" />      // Large
-```
-
-### With Icons
+### With icons
 
 Badges automatically style SVG icons.
 
@@ -77,9 +61,9 @@ Badges automatically style SVG icons.
   <BadgeRadixSamples.BadgeWithIconSample />
 </PreviewCode>
 
-### As Link
+### As link
 
-Compose with `render` (Base UI) or `asChild` (Radix) to render the badge as a different element, like a link.
+Compose with `render` in Base UI or `asChild` in Radix to render a badge as a link.
 
 <PreviewCode file="components/pages/docs/samples/badge" name="BadgeAsLinkSample" base={<BadgeAsLinkSample />}>
   <BadgeRadixSamples.BadgeAsLinkSample />
@@ -87,7 +71,7 @@ Compose with `render` (Base UI) or `asChild` (Radix) to render the badge as a di
 
 ### Animated
 
-Combine with CSS transitions for scroll and color animations.
+Combine the badge with CSS transitions for state changes.
 
 <PreviewCode file="components/pages/docs/samples/badge" name="BadgeAnimatedSample" base={<BadgeAnimatedSample />}>
   <BadgeRadixSamples.BadgeAnimatedSample />
@@ -102,26 +86,20 @@ Combine with CSS transitions for scroll and color animations.
   parameters={[
     {
       name: "variant",
-      type: '"outline" | "secondary" | "muted" | "ghost" | "info" | "warning" | "success" | "destructive"',
-      default: '"outline"',
-      description: "The visual style of the badge.",
-    },
-    {
-      name: "size",
-      type: '"sm" | "default" | "lg"',
+      type: '"default" | "secondary" | "destructive" | "outline" | "ghost" | "link"',
       default: '"default"',
-      description: "The size of the badge.",
+      description: "The visual style of the badge.",
     },
     {
       name: "render",
       type: "ReactElement | function",
-      description: "Base UI: compose as a different element instead of rendering a span.",
+      description: "Base UI: compose as a different element.",
     },
     {
       name: "asChild",
       type: "boolean",
       default: "false",
-      description: "Radix: merge props with a child element instead of rendering a span.",
+      description: "Radix: merge props with a child element.",
     },
     {
       name: "className",
@@ -131,7 +109,7 @@ Combine with CSS transitions for scroll and color animations.
   ]}
 />
 
-### Style Variants (CVA)
+### Style variants
 
 | Export | Description |
 |--------|-------------|
@@ -140,7 +118,7 @@ Combine with CSS transitions for scroll and color animations.
 ```tsx
 import { badgeVariants } from "@/components/ui/badge";
 
-<span className={badgeVariants({ variant: "muted", size: "sm" })}>
-  Custom Badge
+<span className={badgeVariants({ variant: "secondary" })}>
+  Custom badge
 </span>
 ```

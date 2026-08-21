@@ -1,6 +1,6 @@
 ---
 title: Accordion
-description: A vertically stacked set of interactive headings that reveal or hide content sections.
+description: Stacked headings that reveal or hide content sections.
 links:
   - label: Radix UI Accordion (Radix styles)
     url: https://www.radix-ui.com/primitives/docs/components/accordion
@@ -11,7 +11,6 @@ links:
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import {
   AccordionSample,
-  AccordionVariantsSample,
   AccordionMultipleSample,
   AccordionWithIconsSample,
   AccordionControlledSample,
@@ -19,7 +18,6 @@ import {
 } from "@/components/pages/docs/samples/accordion";
 import * as AccordionRadixSamples from "@/components/pages/docs/samples/accordion.radix";
 import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
-
 
 <FlavorSwitcher />
 
@@ -34,14 +32,14 @@ import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavo
 ```tsx
 import {
   Accordion,
+  AccordionContent,
   AccordionItem,
   AccordionTrigger,
-  AccordionContent,
 } from "@/components/ui/accordion";
 
 export function Example() {
   return (
-    <Accordion type="single" collapsible>
+    <Accordion defaultValue={["item-1"]}>
       <AccordionItem value="item-1">
         <AccordionTrigger>Section 1</AccordionTrigger>
         <AccordionContent>Content for section 1.</AccordionContent>
@@ -55,62 +53,17 @@ export function Example() {
 }
 ```
 
+Base UI represents the open value as an array and uses the `multiple` prop. Radix uses `type="single"` or `type="multiple"` and represents a single open value as a string.
+
 ## Examples
 
-### Variants
-
-Use the `variant` prop on `Accordion` to change the visual style. Child components inherit the variant automatically.
-
-<Flavored radix={<AccordionRadixSamples.AccordionVariantsSample />} base={<AccordionVariantsSample />} />
-
-```tsx
-// Default - border-bottom separator
-<Accordion type="single" collapsible variant="default">
-  <AccordionItem value="item-1">
-    <AccordionTrigger>...</AccordionTrigger>
-    <AccordionContent>...</AccordionContent>
-  </AccordionItem>
-</Accordion>
-
-// Outline - bordered container
-<Accordion type="single" collapsible variant="outline">
-  <AccordionItem value="item-1">
-    <AccordionTrigger>...</AccordionTrigger>
-    <AccordionContent>...</AccordionContent>
-  </AccordionItem>
-</Accordion>
-
-// Ghost - separated cards
-<Accordion type="single" collapsible variant="ghost">
-  <AccordionItem value="item-1">
-    <AccordionTrigger>...</AccordionTrigger>
-    <AccordionContent>...</AccordionContent>
-  </AccordionItem>
-</Accordion>
-```
-
-### Multiple Items Open
-
-Use `type="multiple"` to allow multiple items to be open simultaneously.
+### Multiple items open
 
 <Flavored radix={<AccordionRadixSamples.AccordionMultipleSample />} base={<AccordionMultipleSample />} />
 
-```tsx
-<Accordion type="multiple">
-  <AccordionItem value="item-1">
-    <AccordionTrigger>First Section</AccordionTrigger>
-    <AccordionContent>Content 1</AccordionContent>
-  </AccordionItem>
-  <AccordionItem value="item-2">
-    <AccordionTrigger>Second Section</AccordionTrigger>
-    <AccordionContent>Content 2</AccordionContent>
-  </AccordionItem>
-</Accordion>
-```
+### With icons
 
-### With Icons
-
-Add icons or custom elements inside the trigger.
+Add icons or custom content inside the trigger.
 
 <PreviewCode file="components/pages/docs/samples/accordion" name="AccordionWithIconsSample" base={<AccordionWithIconsSample />}>
   <AccordionRadixSamples.AccordionWithIconsSample />
@@ -124,9 +77,7 @@ Use `value` and `onValueChange` for controlled accordion state.
   <AccordionRadixSamples.AccordionControlledSample />
 </PreviewCode>
 
-### FAQ Section
-
-A practical example of using accordion for a FAQ section.
+### FAQ section
 
 <PreviewCode file="components/pages/docs/samples/accordion" name="AccordionFAQSample" base={<AccordionFAQSample />}>
   <AccordionRadixSamples.AccordionFAQSample />
@@ -138,50 +89,46 @@ A practical example of using accordion for a FAQ section.
 
 | Component | Description |
 |-----------|-------------|
-| `Accordion` | The root component that manages accordion state and variant. |
-| `AccordionItem` | A single collapsible section container. |
-| `AccordionTrigger` | The clickable header that toggles content visibility. |
+| `Accordion` | The root component that manages open items. |
+| `AccordionItem` | A collapsible section container. |
+| `AccordionTrigger` | The control that toggles a section. |
 | `AccordionContent` | The collapsible content panel. |
 
 ### Accordion
-
-The root component that manages accordion state. Set `variant` here to style all child components.
 
 <ParametersTable
   type="AccordionProps"
   parameters={[
     {
+      name: "defaultValue",
+      type: "string[] | string",
+      description: "The initial open value. Base UI uses an array; single-value Radix accordions use a string.",
+    },
+    {
+      name: "value",
+      type: "string[] | string",
+      description: "The controlled open value for the selected flavor.",
+    },
+    {
+      name: "onValueChange",
+      type: "(value: string[] | string) => void",
+      description: "Called when the open items change.",
+    },
+    {
+      name: "multiple",
+      type: "boolean",
+      default: "false",
+      description: "Base UI: whether multiple items can be open.",
+    },
+    {
       name: "type",
       type: '"single" | "multiple"',
-      required: true,
-      description: "Whether only one or multiple items can be open at once.",
+      description: "Radix: whether one or multiple items can be open.",
     },
     {
       name: "collapsible",
       type: "boolean",
-      default: "false",
-      description: "When type is 'single', allows closing the open item by clicking it again.",
-    },
-    {
-      name: "defaultValue",
-      type: "string | string[]",
-      description: "The default open item(s) (uncontrolled).",
-    },
-    {
-      name: "value",
-      type: "string | string[]",
-      description: "The controlled open item(s).",
-    },
-    {
-      name: "onValueChange",
-      type: "(value: string | string[]) => void",
-      description: "Callback when the open item(s) change.",
-    },
-    {
-      name: "variant",
-      type: '"default" | "outline" | "ghost"',
-      default: '"default"',
-      description: "The visual style of the accordion. Child components inherit this automatically.",
+      description: "Radix single mode: whether the open item can close.",
     },
     {
       name: "className",
@@ -193,8 +140,6 @@ The root component that manages accordion state. Set `variant` here to style all
 
 ### AccordionItem
 
-A single collapsible section container.
-
 <ParametersTable
   type="AccordionItemProps"
   parameters={[
@@ -202,7 +147,7 @@ A single collapsible section container.
       name: "value",
       type: "string",
       required: true,
-      description: "A unique identifier for this item.",
+      description: "The unique value for the item.",
     },
     {
       name: "disabled",
@@ -219,8 +164,6 @@ A single collapsible section container.
 
 ### AccordionTrigger
 
-The clickable header that toggles content visibility.
-
 <ParametersTable
   type="AccordionTriggerProps"
   parameters={[
@@ -234,29 +177,13 @@ The clickable header that toggles content visibility.
 
 ### AccordionContent
 
-The collapsible content panel.
-
 <ParametersTable
   type="AccordionContentProps"
   parameters={[
     {
       name: "className",
       type: "string",
-      description: "Additional CSS classes.",
+      description: "Additional CSS classes for the panel content.",
     },
   ]}
 />
-
-### Style Variants (CVA)
-
-| Export | Description |
-|--------|-------------|
-| `accordionVariants` | Styles for the accordion container. |
-
-```tsx
-import { accordionVariants } from "@/components/ui/accordion";
-
-<div className={accordionVariants({ variant: "outline" })}>
-  Custom Accordion Container
-</div>
-```

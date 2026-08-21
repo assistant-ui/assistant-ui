@@ -804,10 +804,12 @@ function BuilderSelect({
   value,
   onValueChange,
   options,
+  placeholder,
 }: {
   value: string;
   onValueChange: (value: string) => void;
   options: readonly { value: string; label: string }[];
+  placeholder?: string;
 }) {
   return (
     <Select
@@ -821,7 +823,7 @@ function BuilderSelect({
         size="sm"
         className="hover:bg-accent h-7 border-0 bg-transparent px-2 text-xs shadow-none"
       >
-        <SelectValue />
+        <SelectValue placeholder={placeholder} />
       </SelectTrigger>
       <SelectContent>
         {options.map((option) => (

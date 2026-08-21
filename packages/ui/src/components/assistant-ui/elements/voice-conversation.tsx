@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { MicIcon, MicOffIcon, PhoneOffIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
-import { clamp } from "./range";
+import { clamp } from "../utils/range";
 
 export type VoiceMode = "connecting" | "listening" | "thinking" | "speaking";
 

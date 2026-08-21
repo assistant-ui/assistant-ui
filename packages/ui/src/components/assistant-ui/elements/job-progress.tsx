@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon, XIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, mono, paper } from "./surfaces";
-import { clamp, pct, progressOf, take } from "./range";
+import { clamp, pct, progressOf, take } from "../utils/range";
 
 export interface JobStage {
   name: string;

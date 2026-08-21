@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
-import { take } from "./range";
+import { take } from "../utils/range";
 
 export function TerminalBlock({
   command,

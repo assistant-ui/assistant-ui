@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { DatabaseIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper, ShimmerLabel } from "./surfaces";
-import { pct, take } from "./range";
+import { pct, take } from "../utils/range";
 
 export interface RetrievalChunk {
   id: string;

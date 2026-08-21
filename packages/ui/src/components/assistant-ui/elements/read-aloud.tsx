@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { PauseIcon, PlayIcon, Volume2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, ghostButton, mono, paper } from "./surfaces";
-import { pct } from "./range";
+import { pct } from "../utils/range";
 
 export function ReadAloud({
   words,

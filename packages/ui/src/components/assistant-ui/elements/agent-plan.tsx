@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
-import { pct, progressOf } from "./range";
+import { pct, progressOf } from "../utils/range";
 
 export function AgentPlan({
   steps,

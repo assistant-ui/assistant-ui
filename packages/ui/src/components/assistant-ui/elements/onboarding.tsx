@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { field, inkButton, mono, paper } from "./surfaces";
-import { indexIn } from "./range";
+import { indexIn } from "../utils/range";
 
 export interface OnboardingStep {
   title: string;

@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
-import { clamp, take } from "./range";
+import { clamp, take } from "../utils/range";
 
 export type ChartVariant = "area" | "line" | "bars";
 

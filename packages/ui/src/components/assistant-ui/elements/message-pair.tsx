@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { CopyIcon, RefreshCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, paper } from "./surfaces";
-import { take } from "./range";
+import { take } from "../utils/range";
 
 export interface MessagePairProps extends Omit<
   ComponentProps<"div">,

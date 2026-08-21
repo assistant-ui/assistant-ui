@@ -105,9 +105,9 @@ const elementsRegistryItems: RegistryItem[] = [
     files: [
       {
         type: "registry:lib",
-        path: "components/assistant-ui/elements/range.ts",
+        path: "components/assistant-ui/utils/range.ts",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/elements/range.ts",
+          "../../packages/ui/src/components/assistant-ui/utils/range.ts",
       },
     ],
   },

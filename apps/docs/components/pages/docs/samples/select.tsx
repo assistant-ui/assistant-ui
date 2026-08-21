@@ -106,7 +106,7 @@ export function SelectDisabledItemsSample() {
             <SelectItem
               key={plan.value}
               value={plan.value}
-              disabled={plan.disabled}
+              disabled={plan.disabled === true}
             >
               {plan.label}
             </SelectItem>

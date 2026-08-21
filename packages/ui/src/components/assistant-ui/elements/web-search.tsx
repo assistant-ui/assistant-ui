@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { SearchIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, ShimmerLabel } from "./surfaces";
-import { take } from "./range";
+import { take } from "../utils/range";
 
 export interface WebSearchResult {
   title: string;

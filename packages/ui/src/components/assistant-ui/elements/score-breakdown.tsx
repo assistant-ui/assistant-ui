@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
-import { pct, take } from "./range";
+import { pct, take } from "../utils/range";
 
 export interface ScoreCriterion {
   label: string;

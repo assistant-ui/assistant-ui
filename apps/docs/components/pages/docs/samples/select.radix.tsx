@@ -98,7 +98,7 @@ export function SelectDisabledItemsSample() {
             <SelectItem
               key={plan.value}
               value={plan.value}
-              disabled={plan.disabled}
+              disabled={plan.disabled === true}
             >
               {plan.label}
             </SelectItem>
@@ -110,7 +110,7 @@ export function SelectDisabledItemsSample() {
 }
 
 export function SelectPlaceholderSample() {
-  const [value, setValue] = useState<string>();
+  const [value, setValue] = useState("");
 
   return (
     <SampleFrame className="flex h-auto items-center justify-center p-6">

@@ -2,7 +2,7 @@
 
 import { type ComponentProps, useMemo } from "react";
 import { cn } from "@/lib/utils";
-import { take } from "./range";
+import { take } from "../utils/range";
 
 export interface Segment {
   text: string;

@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
-import { pct } from "./range";
+import { pct } from "../utils/range";
 
 export interface CostLine {
   model: string;

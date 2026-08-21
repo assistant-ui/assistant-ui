@@ -4,7 +4,7 @@ import type { ComponentProps } from "react";
 import { MousePointer2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, mono, paper } from "./surfaces";
-import { at, indexIn } from "./range";
+import { at, indexIn } from "../utils/range";
 
 export interface ComputerStep {
   id: string;
