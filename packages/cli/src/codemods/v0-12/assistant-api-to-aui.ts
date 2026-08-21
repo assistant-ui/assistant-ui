@@ -92,18 +92,58 @@ const migrateAssistantApiToAui = createTransformer(
         return false;
       };
 
+      // What a statement-level node declares for `api`: the declarator id
+      // node when it is a plain `const/let/var api = ...`, "foreign" for any
+      // other binding of the name (patterns, functions, classes, enums), or
+      // undefined when it does not bind `api` at all.
+      const declaredApi = (statement: any): any => {
+        if (!statement) return undefined;
+        if (
+          j.ExportNamedDeclaration.check(statement) ||
+          j.ExportDefaultDeclaration.check(statement)
+        ) {
+          return declaredApi(statement.declaration);
+        }
+        if (j.VariableDeclaration.check(statement)) {
+          for (const declarator of statement.declarations) {
+            if (
+              j.Identifier.check(declarator.id) &&
+              declarator.id.name === "api"
+            )
+              return declarator.id;
+            if (patternBindsApi(declarator.id)) return "foreign";
+          }
+          return undefined;
+        }
+        // FunctionDeclaration, ClassDeclaration, TS enums/namespaces, …
+        if (
+          statement.id &&
+          j.Identifier.check(statement.id) &&
+          statement.id.name === "api"
+        )
+          return "foreign";
+        return undefined;
+      };
+
+      const scanStatements = (statements: any[]): any => {
+        for (const statement of statements) {
+          const found = declaredApi(statement);
+          if (found !== undefined) return found;
+        }
+        return undefined;
+      };
+
       // Returns the declarator id node governing `api` here, or "foreign"
-      // when a param / pattern / catch binding shadows it first.
+      // when any other binding of the name shadows it first.
       const governingApiBinding = (path: any): any => {
         let current = path.parent;
         while (current) {
           const node = current.value;
 
-          const isFunction =
-            j.FunctionDeclaration.check(node) ||
-            j.FunctionExpression.check(node) ||
-            j.ArrowFunctionExpression.check(node);
-          if (isFunction && node.params.some(patternBindsApi)) return "foreign";
+          // Anything function-like (declarations, expressions, arrows,
+          // object/class methods) binds its params.
+          if (Array.isArray(node.params) && node.params.some(patternBindsApi))
+            return "foreign";
           if (
             j.CatchClause.check(node) &&
             node.param &&
@@ -111,26 +151,24 @@ const migrateAssistantApiToAui = createTransformer(
           )
             return "foreign";
 
-          const body = j.BlockStatement.check(node)
-            ? node.body
-            : j.Program.check(node)
-              ? node.body
-              : isFunction && j.BlockStatement.check(node.body)
-                ? null // handled when the walk reaches the BlockStatement
-                : null;
-          if (Array.isArray(body)) {
-            for (const statement of body) {
-              if (!j.VariableDeclaration.check(statement)) continue;
-              for (const declarator of statement.declarations) {
-                if (
-                  j.Identifier.check(declarator.id) &&
-                  declarator.id.name === "api"
-                )
-                  return declarator.id;
-                if (patternBindsApi(declarator.id)) return "foreign";
-              }
-            }
+          let found: any;
+          if (j.BlockStatement.check(node) || j.Program.check(node)) {
+            found = scanStatements(node.body);
+          } else if (j.ForStatement.check(node)) {
+            found = declaredApi(node.init);
+          } else if (
+            j.ForOfStatement.check(node) ||
+            j.ForInStatement.check(node)
+          ) {
+            found = declaredApi(node.left);
+          } else if (j.SwitchStatement.check(node)) {
+            found = scanStatements(
+              node.cases.flatMap((c: any) => c.consequent),
+            );
+          } else if (j.StaticBlock?.check?.(node)) {
+            found = scanStatements(node.body);
           }
+          if (found !== undefined) return found;
 
           current = current.parent;
         }

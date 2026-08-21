@@ -747,3 +747,104 @@ function MyComponent() {
     expect(output).toContain("void api.fetchStuff()");
   });
 });
+
+describe("binding positions beyond plain declarations", () => {
+  it("does not rename method parameters named api", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  const handlers = {
+    load(api: RemoteApi) {
+      return api.send();
+    },
+  };
+  class Client {
+    call(api: RemoteApi) {
+      return api.send();
+    }
+  }
+  return handlers;
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("load(api: RemoteApi)");
+    expect(output).toContain("call(api: RemoteApi)");
+    expect(output?.match(/return api\.send\(\)/g)).toHaveLength(2);
+    expect(output).toContain("void aui.thread()");
+  });
+
+  it("treats function and class declarations named api as shadows", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+const api = useAssistantApi();
+void api.thread();
+
+function outer() {
+  function api() {}
+  return api();
+}
+
+function other() {
+  class api {}
+  return new api();
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("void aui.thread()");
+    expect(output).toContain("function api() {}");
+    expect(output).toContain("return api()");
+    expect(output).toContain("class api {}");
+    expect(output).toContain("new api()");
+  });
+
+  it("recognizes for-initializer and switch-case declarations", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  for (let api = start(); api.more(); api = api.next()) {
+    use(api);
+  }
+  switch (kind) {
+    case "a": {
+      const api = other();
+      return api.load();
+    }
+  }
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("void aui.thread()");
+    expect(output).toContain(
+      "for (let api = start(); api.more(); api = api.next())",
+    );
+    expect(output).toContain("use(api)");
+    expect(output).toContain("const api = other()");
+    expect(output).toContain("return api.load()");
+  });
+
+  it("handles export const api declarations", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+export const api = useAssistantApi();
+
+export function helper() {
+  return api.thread();
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("export const aui = useAui()");
+    expect(output).toContain("return aui.thread()");
+  });
+});
