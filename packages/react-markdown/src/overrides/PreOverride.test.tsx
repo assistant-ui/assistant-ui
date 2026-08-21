@@ -47,6 +47,25 @@ const render = (markdown: string) =>
   );
 
 describe("PreOverride", () => {
+  it("routes a code-less pre through the consumer's pre component", () => {
+    const UserPre: PreComponent = ({ node: _, ...props }) => (
+      <pre className="user-pre" {...props} />
+    );
+    const PreWithFallback: PreComponent = (props) => (
+      <PreOverride fallbackPre={UserPre} {...props} />
+    );
+    const html = renderToStaticMarkup(
+      <ReactMarkdown
+        rehypePlugins={[injectRawPre]}
+        components={{ pre: PreWithFallback, code: CodeWithContext }}
+      >
+        {""}
+      </ReactMarkdown>,
+    );
+
+    expect(html).toContain('<pre class="user-pre">  indented\n  text</pre>');
+  });
+
   it("keeps the pre element for a pre without a code child", () => {
     const html = render("");
 
