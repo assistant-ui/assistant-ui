@@ -32,8 +32,8 @@ import {
   type ComposerCommand,
   type ComposerModel,
   type ComposerPerson,
-} from "@/components/elements/composer";
-import { useElapsed } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/composer";
+import { useElapsed } from "./use-demo";
 
 const COMMANDS: ComposerCommand[] = [
   { name: "review", description: "Review the current diff", icon: SearchIcon },

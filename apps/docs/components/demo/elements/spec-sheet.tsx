@@ -1,7 +1,10 @@
 "use client";
 
-import { SpecSheet, type SpecRow } from "@/components/elements/spec-sheet";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import {
+  SpecSheet,
+  type SpecRow,
+} from "@/components/assistant-ui/elements/spec-sheet";
+import { useStoryPhases } from "./use-demo";
 
 const ROWS: readonly SpecRow[] = [
   { label: "context", value: "500,000 tokens" },

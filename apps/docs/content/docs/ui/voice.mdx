@@ -19,7 +19,7 @@ A control bar for realtime bidirectional voice sessions with an animated orb ind
 
 <InstallCommand shadcn={["voice"]} />
 
-This adds `/components/assistant-ui/voice.tsx` to your project, which you can adjust as needed.
+This adds `/components/assistant-ui/elements/voice.tsx` to your project, which you can adjust as needed.
 
   </Step>
   <Step>
@@ -42,8 +42,8 @@ const runtime = useChatRuntime({
 ### Use in your application
 
 ```tsx title="app/page.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
-import { VoiceControl } from "@/components/assistant-ui/voice";
+import { Thread } from "@/components/assistant-ui/elements/thread";
+import { VoiceControl } from "@/components/assistant-ui/elements/voice";
 import { AuiIf } from "@assistant-ui/react";
 
 export default function Chat() {

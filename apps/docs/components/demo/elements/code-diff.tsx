@@ -1,6 +1,9 @@
 "use client";
 
-import { CodeDiff, type DiffLine } from "@/components/elements/code-diff";
+import {
+  CodeDiff,
+  type DiffLine,
+} from "@/components/assistant-ui/elements/code-diff";
 
 const LINES: DiffLine[] = [
   { kind: "context", text: "export function Composer() {" },

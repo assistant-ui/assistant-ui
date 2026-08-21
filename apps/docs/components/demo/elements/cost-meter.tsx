@@ -1,6 +1,9 @@
 "use client";
 
-import { CostMeter, type CostLine } from "@/components/elements/cost-meter";
+import {
+  CostMeter,
+  type CostLine,
+} from "@/components/assistant-ui/elements/cost-meter";
 
 const LINES: readonly CostLine[] = [
   {

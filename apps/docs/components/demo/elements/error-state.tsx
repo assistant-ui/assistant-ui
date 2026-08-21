@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ErrorState } from "@/components/elements/error-state";
+import { ErrorState } from "@/components/assistant-ui/elements/error-state";
 
 export function ErrorStateDemo() {
   const [retrying, setRetrying] = useState(false);

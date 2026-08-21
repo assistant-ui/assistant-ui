@@ -3,8 +3,8 @@
 import {
   ComputerUse,
   type ComputerStep,
-} from "@/components/elements/computer-use";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/computer-use";
+import { useStoryPhases } from "./use-demo";
 
 const STEPS: readonly ComputerStep[] = [
   { id: "1", action: "click", target: "Issues tab", x: 22, y: 18 },

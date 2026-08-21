@@ -3,8 +3,8 @@
 import {
   SubagentList,
   type SubagentItem,
-} from "@/components/elements/subagent-list";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/subagent-list";
+import { useStoryPhases } from "./use-demo";
 
 const AGENTS: readonly SubagentItem[] = [
   { name: "Explore the runtime", model: "haiku" },

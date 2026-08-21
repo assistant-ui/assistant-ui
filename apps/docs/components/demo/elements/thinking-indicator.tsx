@@ -1,7 +1,7 @@
 "use client";
 
-import { ThinkingIndicator } from "@/components/elements/thinking-indicator";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
+import { useStoryPhases } from "./use-demo";
 
 const STATUSES = [
   "Thinking",

@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { ArrowLeftRight } from "lucide-react";
-import { NumberRoll } from "@/components/assistant-ui/number-roll";
+import { NumberRoll } from "@/components/ui/number-roll";
 
 type Mode = { value: number; caption: string };
 

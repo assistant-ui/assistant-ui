@@ -27,7 +27,7 @@ import {
 ## Usage
 
 ```tsx
-import { DiffViewer } from "@/components/assistant-ui/diff-viewer";
+import { DiffViewer } from "@/components/ui/diff-viewer";
 
 // With a unified diff patch
 <DiffViewer patch={diffString} />
@@ -43,8 +43,8 @@ import { DiffViewer } from "@/components/assistant-ui/diff-viewer";
 
 Integrate with `MarkdownTextPrimitive` to render diff code blocks:
 
-```tsx title="/components/assistant-ui/markdown-text.tsx"
-import { DiffViewer } from "@/components/assistant-ui/diff-viewer"; // [!code ++]
+```tsx title="/components/assistant-ui/elements/markdown-text.tsx"
+import { DiffViewer } from "@/components/ui/diff-viewer"; // [!code ++]
 
 const MarkdownTextImpl = () => {
   return (
@@ -227,7 +227,7 @@ import {
   diffViewerVariants,
   diffLineVariants,
   diffLineTextVariants,
-} from "@/components/assistant-ui/diff-viewer";
+} from "@/components/ui/diff-viewer";
 
 // Use variants directly
 <div className={diffViewerVariants({ variant: "ghost", size: "sm" })}>

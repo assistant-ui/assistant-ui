@@ -4,13 +4,14 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { ArrowUpRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { inkButton, mono } from "@/components/elements/surfaces";
+import { inkButton, mono } from "@/components/assistant-ui/elements/surfaces";
 
 export function DemoCard({
   href,
   index,
   title,
   description,
+  connection,
   wide = false,
   children,
 }: {
@@ -18,6 +19,7 @@ export function DemoCard({
   index: number;
   title: string;
   description: string;
+  connection?: string;
   wide?: boolean;
   children: React.ReactNode;
 }) {
@@ -67,6 +69,16 @@ export function DemoCard({
         <h3 className="text-[13.5px] font-medium group-hover/link:underline group-hover/link:underline-offset-4">
           {title}
         </h3>
+        {connection && (
+          <span
+            className={cn(
+              mono,
+              "bg-foreground/[0.045] text-foreground/45 rounded-full px-2 py-0.5",
+            )}
+          >
+            {connection}
+          </span>
+        )}
       </Link>
       <p className="text-foreground/50 mt-1 text-[13px] leading-relaxed">
         {description}

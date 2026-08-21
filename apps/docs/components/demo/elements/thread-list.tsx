@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { ThreadList, type ThreadItem } from "@/components/elements/thread-list";
+import {
+  ThreadList,
+  type ThreadItem,
+} from "@/components/assistant-ui/elements/thread-list";
 
 const THREADS: ThreadItem[] = [
   { title: "Draft persistence design", time: "2m" },

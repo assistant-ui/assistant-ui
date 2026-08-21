@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   ThreadSearch,
   type SearchableThread,
-} from "@/components/elements/thread-search";
+} from "@/components/assistant-ui/elements/thread-search";
 
 const THREADS: readonly SearchableThread[] = [
   {

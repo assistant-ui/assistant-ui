@@ -7,7 +7,7 @@ import {
   TabsList,
   TabsTrigger,
   TabsContent,
-} from "@/components/assistant-ui/tabs.radix";
+} from "@/components/ui/radix/tabs";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function TabsSample() {

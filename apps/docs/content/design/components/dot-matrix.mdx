@@ -18,12 +18,12 @@ import {
 
 <InstallCommand shadcn={["dot-matrix"]} />
 
-This adds a `/components/assistant-ui/dot-matrix.tsx` file to your project, which you can adjust as needed. The component has no dependencies beyond React.
+This adds a `/components/assistant-ui/elements/dot-matrix.tsx` file to your project, which you can adjust as needed. The component has no dependencies beyond React.
 
 ## Usage
 
 ```tsx
-import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
+import { DotMatrix } from "@/components/ui/dot-matrix";
 
 export function RunIndicator({ isRunning }: { isRunning: boolean }) {
   return <DotMatrix state={isRunning ? "loading" : "success"} />;

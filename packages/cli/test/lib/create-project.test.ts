@@ -516,7 +516,7 @@ describe("transformProject — hasLocalComponents: false", () => {
     it("installs shadcn and assistant-ui components in a single shadcn add call", async () => {
       writeFile(
         "app/page.tsx",
-        'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
+        'import { Thread } from "@/components/assistant-ui/elements/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
       );
 
       await transformProject(testDir, {
@@ -543,7 +543,7 @@ describe("transformProject — hasLocalComponents: false", () => {
     it("skips shadcn when skipInstall is true even without local components", async () => {
       writeFile(
         "app/page.tsx",
-        'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
+        'import { Thread } from "@/components/assistant-ui/elements/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
       );
 
       await run();

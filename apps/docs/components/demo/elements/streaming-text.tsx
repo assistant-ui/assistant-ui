@@ -4,8 +4,8 @@ import { useMemo } from "react";
 import {
   StreamingText,
   type Segment,
-} from "@/components/elements/streaming-text";
-import { useWordStream } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/streaming-text";
+import { useWordStream } from "./use-demo";
 
 const SEGMENTS: Segment[] = [
   { text: "Here is what changed in the latest release: the composer now" },

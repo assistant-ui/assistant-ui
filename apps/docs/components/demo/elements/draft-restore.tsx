@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { DraftRestore } from "@/components/elements/draft-restore";
+import { DraftRestore } from "@/components/assistant-ui/elements/draft-restore";
 
 export function DraftRestoreDemo() {
   const [dismissed, setDismissed] = useState(false);

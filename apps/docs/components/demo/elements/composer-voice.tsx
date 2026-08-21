@@ -11,8 +11,8 @@ import {
   ComposerToolbar,
   ComposerVoice,
   ComposerVoiceButton,
-} from "@/components/elements/composer";
-import { useElapsed, useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/composer";
+import { useElapsed, useStoryPhases } from "./use-demo";
 
 const PHASES = [1400, 3600, 1600, 3000, 0] as const;
 const TRANSCRIPT = "Add a regression test for draft restore";

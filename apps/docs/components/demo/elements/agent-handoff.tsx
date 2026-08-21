@@ -1,7 +1,7 @@
 "use client";
 
-import { AgentHandoff } from "@/components/elements/agent-handoff";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import { AgentHandoff } from "@/components/assistant-ui/elements/agent-handoff";
+import { useStoryPhases } from "./use-demo";
 
 const CARRIED = [
   "The failing test and its output",

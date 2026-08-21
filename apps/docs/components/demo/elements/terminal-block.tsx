@@ -1,7 +1,7 @@
 "use client";
 
-import { TerminalBlock } from "@/components/elements/terminal-block";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import { TerminalBlock } from "@/components/assistant-ui/elements/terminal-block";
+import { useStoryPhases } from "./use-demo";
 
 const LINES = [
   "RUN v4.0.5 /apps/docs",

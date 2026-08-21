@@ -3,8 +3,8 @@
 import {
   ResearchReport,
   type ReportSection,
-} from "@/components/elements/research-report";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/research-report";
+import { useStoryPhases } from "./use-demo";
 
 const HEADINGS = [
   "What changed in 0.14",

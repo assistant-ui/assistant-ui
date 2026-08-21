@@ -1,7 +1,12 @@
 "use client";
 
-import { Frac, MathBlock, Sub, Sup } from "@/components/elements/math-block";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import {
+  Frac,
+  MathBlock,
+  Sub,
+  Sup,
+} from "@/components/assistant-ui/elements/math-block";
+import { useStoryPhases } from "./use-demo";
 
 const PHASES = [900, 900, 0] as const;
 

@@ -1,6 +1,9 @@
 "use client";
 
-import { DataTable, type ModelUsage } from "@/components/elements/data-table";
+import {
+  DataTable,
+  type ModelUsage,
+} from "@/components/assistant-ui/elements/data-table";
 
 const MODEL_USAGE = [
   { name: "Sonnet 4.5", context: "200k", cost: "$3.00" },

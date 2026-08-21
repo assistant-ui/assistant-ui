@@ -1,7 +1,10 @@
 "use client";
 
-import { TodoList, type TodoItem } from "@/components/elements/todo-list";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import {
+  TodoList,
+  type TodoItem,
+} from "@/components/assistant-ui/elements/todo-list";
+import { useStoryPhases } from "./use-demo";
 
 const REVISIONS: readonly (readonly TodoItem[])[] = [
   [

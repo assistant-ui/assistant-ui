@@ -51,10 +51,12 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     "app/page.tsx": pageTsx(manifest),
     "app/api/chat/route.ts": chatRouteTs(),
     "components/runtime/demo-runtime-provider.tsx": runtimeProviderTsx(),
-    "components/assistant-ui/markdown-text.tsx": markdownTextShim(),
-    "components/assistant-ui/shiki-highlighter.tsx": shikiHighlighterShim(),
-    "components/assistant-ui/tool-fallback.tsx": toolFallbackShim(),
-    "components/assistant-ui/tooltip-icon-button.tsx": tooltipIconButtonShim(),
+    "components/assistant-ui/elements/markdown-text.tsx": markdownTextShim(),
+    "components/assistant-ui/elements/shiki-highlighter.tsx":
+      shikiHighlighterShim(),
+    "components/assistant-ui/elements/tool-fallback.tsx": toolFallbackShim(),
+    "components/assistant-ui/elements/tooltip-icon-button.tsx":
+      tooltipIconButtonShim(),
     "components/docs/assistant/docs-model-options.ts": docsModelOptionsShim(),
     "constants/model.ts": 'export const DEFAULT_MODEL_ID = "gpt-5.6-luna";\n',
     "public/favicon/icon.svg": faviconSvg(),
@@ -97,10 +99,10 @@ function assertSnapshotFile(snapshot: SourceSnapshot, snapshotKey: string) {
 }
 
 function flattenUiFlavorImports(source: string) {
-  return source
-    .replace(/@\/components\/ui\/(?:radix|base)\//g, "@/components/ui/")
-    .replace(/@\/components\/pages\/docs\//g, "@/components/docs/")
-    .replace(/@\/components\/pages\/examples\//g, "@/components/examples/");
+  return source.replace(
+    /@\/components\/ui\/(?:radix|base)\//g,
+    "@/components/ui/",
+  );
 }
 
 function targetPathForSourceFile(sourceFile: string) {
@@ -108,14 +110,8 @@ function targetPathForSourceFile(sourceFile: string) {
     return sourceFile
       .replace(/^packages\/ui\/src\//, "")
       .replace(/^components\/ui\/radix\//, "components/ui/")
-      .replace(/^components\/ui\/base\//, "components/ui/");
-  }
-
-  if (sourceFile.startsWith("apps/docs/components/pages/examples/")) {
-    return sourceFile.replace(
-      /^apps\/docs\/components\/pages\/examples\//,
-      "components/examples/",
-    );
+      .replace(/^components\/ui\/base\//, "components/ui/")
+      .replace(/^lib\//, "lib/");
   }
 
   if (sourceFile.startsWith("apps/docs/")) {
@@ -271,7 +267,7 @@ function layoutTsx(manifest: DemoDownloadManifest) {
 }
 
 function pageTsx(manifest: DemoDownloadManifest) {
-  return `import { DemoRuntimeProvider } from "@/components/runtime/demo-runtime-provider";\nimport { ${manifest.componentName} } from "@/components/examples/${manifest.slug}";\n\nexport default function Page() {\n  return (\n    <main className="h-dvh overflow-hidden">\n      <DemoRuntimeProvider>\n        <${manifest.componentName} />\n      </DemoRuntimeProvider>\n    </main>\n  );\n}\n`;
+  return `import { DemoRuntimeProvider } from "@/components/runtime/demo-runtime-provider";\nimport { ${manifest.componentName} } from "@/components/pages/examples/${manifest.slug}";\n\nexport default function Page() {\n  return (\n    <main className="h-dvh overflow-hidden">\n      <DemoRuntimeProvider>\n        <${manifest.componentName} />\n      </DemoRuntimeProvider>\n    </main>\n  );\n}\n`;
 }
 
 function runtimeProviderTsx() {

@@ -1,7 +1,7 @@
 "use client";
 
-import { NumberTicker } from "@/components/elements/number-ticker";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import { NumberTicker } from "@/components/assistant-ui/elements/number-ticker";
+import { useStoryPhases } from "./use-demo";
 
 const VALUES = [12847, 14211, 15108, 17318, 17776] as const;
 const PHASES = [900, 900, 900, 900, 0] as const;

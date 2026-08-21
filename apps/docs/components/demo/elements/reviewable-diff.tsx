@@ -5,7 +5,7 @@ import {
   ReviewableDiff,
   type DiffHunk,
   type HunkDecision,
-} from "@/components/elements/reviewable-diff";
+} from "@/components/assistant-ui/elements/reviewable-diff";
 
 const HUNKS: readonly DiffHunk[] = [
   {

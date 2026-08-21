@@ -29,7 +29,7 @@ const StepLLM = ({ children }: { children?: ReactNode }) => <li>{children}</li>;
 import { InstallCommandLLM } from "@/components/pages/docs/fumadocs/install/install-command";
 import { ParametersTableLLM } from "@/components/pages/docs/parameters-table";
 import { PrimitivesTypeTableLLM } from "@/components/pages/docs/primitives-type-table";
-import { FlowLLM } from "@/components/assistant-ui/flow";
+import { FlowLLM } from "@/components/assistant-ui/elements/flow";
 import { TapTutorialSlideshowLLM } from "@/components/pages/docs/tap/tutorial-slideshow.llm";
 
 /**

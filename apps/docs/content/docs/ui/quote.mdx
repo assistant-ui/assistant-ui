@@ -17,7 +17,7 @@ import { QuoteSample } from "@/components/pages/docs/samples/quote";
 
 <InstallCommand shadcn={["quote"]} />
 
-This adds a `/components/assistant-ui/quote.tsx` file with three components: `QuoteBlock`, `SelectionToolbar`, and `ComposerQuotePreview`.
+This adds a `/components/assistant-ui/elements/quote.tsx` file with three components: `QuoteBlock`, `SelectionToolbar`, and `ComposerQuotePreview`.
 
   </Step>
   <Step>
@@ -26,8 +26,8 @@ This adds a `/components/assistant-ui/quote.tsx` file with three components: `Qu
 
 Add `MessagePrimitive.Quote` above `MessagePrimitive.Parts` in your user message:
 
-```tsx title="components/assistant-ui/thread.tsx" {1,8-10}
-import { QuoteBlock } from "@/components/assistant-ui/quote";
+```tsx title="components/assistant-ui/elements/thread.tsx" {1,8-10}
+import { QuoteBlock } from "@/components/assistant-ui/elements/quote";
 
 const UserMessage = () => {
   return (
@@ -48,8 +48,8 @@ const UserMessage = () => {
 
 Render `SelectionToolbar` inside `ThreadPrimitive.Root`. It portals to the document body and appears near the user's text selection.
 
-```tsx title="components/assistant-ui/thread.tsx" {1,11}
-import { SelectionToolbar } from "@/components/assistant-ui/quote";
+```tsx title="components/assistant-ui/elements/thread.tsx" {1,11}
+import { SelectionToolbar } from "@/components/assistant-ui/elements/quote";
 
 const Thread = () => {
   return (
@@ -74,8 +74,8 @@ const Thread = () => {
 
 Add `ComposerQuotePreview` inside your composer. It only renders when a quote is set.
 
-```tsx title="components/assistant-ui/thread.tsx" {1,6}
-import { ComposerQuotePreview } from "@/components/assistant-ui/quote";
+```tsx title="components/assistant-ui/elements/thread.tsx" {1,6}
+import { ComposerQuotePreview } from "@/components/assistant-ui/elements/quote";
 
 const Composer = () => {
   return (

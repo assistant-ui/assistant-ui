@@ -10,15 +10,13 @@
         "../../packages/ui/src/components/ui/radix/*"
       ],
       "@/lib/utils": ["../../packages/ui/src/lib/utils"],
-      "@/components/assistant-ui/markdown-text": [
-        "./components/assistant-ui/markdown-text"
+      "@/components/assistant-ui/elements/markdown-text": [
+        "./components/assistant-ui/elements/markdown-text"
       ],
       "@/components/assistant-ui/*": [
         "../../packages/ui/src/components/assistant-ui/*"
       ],
-      "@/components/elements/*": [
-        "../../packages/ui/src/components/elements/*"
-      ],
+      "@/components/elements/*": ["./components/elements/*"],
       "@/*": ["./*"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
       "fumadocs-mdx:collections/*": ["./.source/*"],

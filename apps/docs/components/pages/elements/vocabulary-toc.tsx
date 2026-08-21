@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
-import { mono } from "@/components/elements/surfaces";
+import { mono } from "@/components/assistant-ui/elements/surfaces";
 import type { ComponentCategory } from "@/lib/component-reference";
 
 export function VocabularyToc({

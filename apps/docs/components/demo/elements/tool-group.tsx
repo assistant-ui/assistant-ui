@@ -1,8 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { ToolGroup, type GroupedTool } from "@/components/elements/tool-group";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import {
+  ToolGroup,
+  type GroupedTool,
+} from "@/components/assistant-ui/elements/tool-group";
+import { useStoryPhases } from "./use-demo";
 
 const TOOLS: readonly GroupedTool[] = [
   {

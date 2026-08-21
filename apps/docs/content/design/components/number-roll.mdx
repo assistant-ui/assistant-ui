@@ -18,12 +18,12 @@ import {
 
 <InstallCommand shadcn={["number-roll"]} />
 
-This adds a `/components/assistant-ui/number-roll.tsx` file to your project, which you can adjust as needed. The component has no dependencies beyond React.
+This adds a `/components/assistant-ui/elements/number-roll.tsx` file to your project, which you can adjust as needed. The component has no dependencies beyond React.
 
 ## Usage
 
 ```tsx
-import { NumberRoll } from "@/components/assistant-ui/number-roll";
+import { NumberRoll } from "@/components/ui/number-roll";
 
 export function TokenCounter({ count }: { count: number }) {
   return <NumberRoll value={count} format={{ notation: "compact" }} />;

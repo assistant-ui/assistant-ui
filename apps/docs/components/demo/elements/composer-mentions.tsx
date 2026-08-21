@@ -14,7 +14,7 @@ import {
   applyMention,
   useMentionMatches,
   type ComposerPerson,
-} from "@/components/elements/composer";
+} from "@/components/assistant-ui/elements/composer";
 
 const PEOPLE: ComposerPerson[] = [
   { name: "Mara", role: "human" },

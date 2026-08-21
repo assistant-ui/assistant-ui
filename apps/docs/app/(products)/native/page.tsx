@@ -53,9 +53,9 @@ const SNIPPET = `import {
   AuiConfig,
   Tools,
 } from "@assistant-ui/react-native";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 import { useAppRuntime } from "@/hooks/use-app-runtime";
-import toolkit from "@/components/assistant-ui/tools";
+import toolkit from "@/components/assistant-ui/elements/tools";
 
 export default function App() {
   const runtime = useAppRuntime();

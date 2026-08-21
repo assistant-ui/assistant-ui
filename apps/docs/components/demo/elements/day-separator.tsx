@@ -3,7 +3,7 @@
 import {
   DaySeparator,
   type DatedMessage,
-} from "@/components/elements/day-separator";
+} from "@/components/assistant-ui/elements/day-separator";
 
 const MESSAGES: readonly DatedMessage[] = [
   {

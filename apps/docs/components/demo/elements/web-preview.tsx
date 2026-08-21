@@ -1,7 +1,7 @@
 "use client";
 
-import { WebPreview } from "@/components/elements/web-preview";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import { WebPreview } from "@/components/assistant-ui/elements/web-preview";
+import { useStoryPhases } from "./use-demo";
 
 const PHASES = [1500, 0] as const;
 

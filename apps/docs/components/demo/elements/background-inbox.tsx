@@ -3,8 +3,8 @@
 import {
   BackgroundInbox,
   type BackgroundRun,
-} from "@/components/elements/background-inbox";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/background-inbox";
+import { useStoryPhases } from "./use-demo";
 
 const RUNS: readonly BackgroundRun[] = [
   {

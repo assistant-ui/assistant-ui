@@ -3,8 +3,8 @@
 import {
   ConnectionState,
   type ConnectionPhase,
-} from "@/components/elements/connection-state";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/connection-state";
+import { useStoryPhases } from "./use-demo";
 
 const PHASES = [1600, 2400, 0] as const;
 const SEQUENCE: readonly ConnectionPhase[] = [

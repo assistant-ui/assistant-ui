@@ -6,7 +6,7 @@ import {
   generativeUIToJSX,
 } from "@assistant-ui/react-generative-ui";
 import { cn } from "@/lib/utils";
-import { mono } from "@/components/elements/surfaces";
+import { mono } from "@/components/assistant-ui/elements/surfaces";
 import { createOgMetadata } from "@/lib/og";
 import { highlightElementSource } from "@/lib/element-source";
 import {

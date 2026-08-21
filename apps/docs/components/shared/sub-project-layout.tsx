@@ -5,7 +5,13 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { GitHubIcon } from "@/components/icons/github";
-import { Select } from "@/components/assistant-ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { SUB_PROJECTS } from "@/lib/constants";
 import { ThemeToggle } from "./theme-toggle";
 import { HeaderBrandLink } from "./header-brand-link";
@@ -38,6 +44,17 @@ export function SubProjectLayout({
   const pathname = usePathname();
   const router = useRouter();
   const scrolled = useScrolled();
+  const projects = SUB_PROJECTS.toSorted((a, b) =>
+    a.slug.localeCompare(b.slug),
+  ).map((project) => ({
+    value: project.slug,
+    label:
+      project.slug === "tw-shimmer" ? (
+        <span className="shimmer">{project.label}</span>
+      ) : (
+        project.label
+      ),
+  }));
 
   const breadcrumbs = useMemo(() => {
     if (breadcrumbsOverride) {
@@ -79,22 +96,23 @@ export function SubProjectLayout({
             <HeaderBrandLink labelClassName="hidden sm:inline" />
             <span className="text-muted-foreground/40 ml-3">/</span>
             <Select
-              variant="ghost"
               value={name}
-              onValueChange={(value) => router.push(`/${value}`)}
-              options={SUB_PROJECTS.toSorted((a, b) =>
-                a.slug.localeCompare(b.slug),
-              ).map((p) => ({
-                value: p.slug,
-                label:
-                  p.slug === "tw-shimmer" ? (
-                    <span className="shimmer">{p.label}</span>
-                  ) : (
-                    p.label
-                  ),
-                textValue: p.slug,
-              }))}
-            />
+              onValueChange={(value) => {
+                if (value !== null) router.push(`/${value}`);
+              }}
+              items={projects}
+            >
+              <SelectTrigger className="hover:bg-accent h-8 border-0 bg-transparent px-2 shadow-none">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                {projects.map((project) => (
+                  <SelectItem key={project.value} value={project.value}>
+                    {project.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <span className="hidden sm:contents">
               {breadcrumbs?.map((item, index) => (
                 <span key={item.href} className="contents">

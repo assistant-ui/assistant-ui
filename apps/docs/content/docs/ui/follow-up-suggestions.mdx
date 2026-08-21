@@ -23,7 +23,7 @@ import { FollowUpSuggestionsSample } from "@/components/pages/docs/samples/follo
 
 <InstallCommand shadcn={["follow-up-suggestions"]} />
 
-This adds a `/components/assistant-ui/follow-up-suggestions.tsx` file to your project. The default `thread` component already renders `ThreadFollowupSuggestions`, so installing it standalone is only needed when you build your own thread layout.
+This adds a `/components/assistant-ui/elements/follow-up-suggestions.tsx` file to your project. The default `thread` component already renders `ThreadFollowupSuggestions`, so installing it standalone is only needed when you build your own thread layout.
 
   </Step>
   <Step>
@@ -53,8 +53,8 @@ const runtime = useExternalStoreRuntime({
 
 Place `ThreadFollowupSuggestions` near the bottom of your thread viewport, after the assistant message list and before the composer.
 
-```tsx title="/components/assistant-ui/thread.tsx" {1,10}
-import { ThreadFollowupSuggestions } from "@/components/assistant-ui/follow-up-suggestions";
+```tsx title="/components/assistant-ui/elements/thread.tsx" {1,10}
+import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions";
 
 const ThreadViewportFooter = () => {
   return (

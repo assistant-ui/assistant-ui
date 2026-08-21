@@ -4,7 +4,7 @@ import { useCallback, useContext } from "react";
 import {
   ScrollAnchor,
   type ScrollAnchorMessage,
-} from "@/components/elements/scroll-anchor";
+} from "@/components/assistant-ui/elements/scroll-anchor";
 import { DemoStageContext } from "./demo-stage";
 
 const MESSAGES: ScrollAnchorMessage[] = [

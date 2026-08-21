@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   CheckpointHistory,
   type Checkpoint,
-} from "@/components/elements/checkpoint-history";
+} from "@/components/assistant-ui/elements/checkpoint-history";
 
 const CHECKPOINTS: readonly Checkpoint[] = [
   { id: "1", label: "Before the converter change", at: "09:41", files: 0 },

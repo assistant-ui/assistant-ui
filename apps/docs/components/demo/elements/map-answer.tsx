@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { MapAnswer, type MapPin } from "@/components/elements/map-answer";
+import {
+  MapAnswer,
+  type MapPin,
+} from "@/components/assistant-ui/elements/map-answer";
 
 const PINS: readonly MapPin[] = [
   { id: "a", label: "Ferry Building", detail: "start", x: 22, y: 68 },

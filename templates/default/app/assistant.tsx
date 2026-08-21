@@ -6,13 +6,13 @@ import {
   AssistantChatTransport,
 } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
+import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar";
 import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,

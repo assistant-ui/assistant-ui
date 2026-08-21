@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   MessageActions,
   type Reaction,
-} from "@/components/elements/message-actions";
+} from "@/components/assistant-ui/elements/message-actions";
 
 export function MessageActionsDemo() {
   const [copied, setCopied] = useState(false);

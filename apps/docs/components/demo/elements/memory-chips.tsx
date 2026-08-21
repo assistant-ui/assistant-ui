@@ -3,8 +3,8 @@
 import {
   MemoryChips,
   type MemoryChip,
-} from "@/components/elements/memory-chips";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/memory-chips";
+import { useStoryPhases } from "./use-demo";
 
 const CHIPS: readonly MemoryChip[] = [
   { id: "1", text: "Prefers TypeScript", change: "existing" },

@@ -2,7 +2,7 @@
 
 import type { ComponentType, ReactNode } from "react";
 import { Loader2 } from "lucide-react";
-import { TabsList, TabsTrigger } from "@/components/assistant-ui/tabs";
+import { TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 
 export type CanvasTab = {
@@ -22,22 +22,13 @@ const triggerClassName = cn(
   "group/tab-trigger !h-8 max-w-[min(220px,40vw)] min-w-[90px] !flex-none shrink-0 grow-0 basis-auto gap-1.5 !rounded-t-[10px] !rounded-b-none px-3 text-xs transition-colors duration-200",
   "border-border/60 border border-b-0",
   "text-muted-foreground bg-[#f1f3f4]/90 dark:bg-[#2a2a2d]/90",
-  "data-active:bg-background data-active:text-foreground dark:data-active:bg-background dark:data-active:text-foreground data-active:shadow-sm",
+  "data-active:bg-background data-active:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground dark:data-active:bg-background dark:data-active:text-foreground dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground data-active:shadow-sm data-[state=active]:shadow-sm",
 );
 
 export function XuluxCanvasTabBar({ tabs, isLoading = false, actions }: Props) {
   return (
     <div className="flex h-9 shrink-0 items-end gap-0 bg-[#e8eaed] pt-1 pr-1 pl-2 dark:bg-[#202124]">
-      <TabsList
-        variant="outline"
-        size="sm"
-        className={cn(
-          "h-8 w-fit max-w-full gap-1.5 rounded-none border-0 bg-transparent p-0",
-          // Hide the sliding indicator — it measures before layout is ready and overlaps tabs.
-          "[&_[data-slot=tabs-active-indicator]]:hidden",
-          "[&_[data-slot=tabs-hover-indicator]]:hidden",
-        )}
-      >
+      <TabsList className="h-8 w-fit max-w-full gap-1.5 rounded-none border-0 bg-transparent p-0">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           return (
@@ -50,7 +41,7 @@ export function XuluxCanvasTabBar({ tabs, isLoading = false, actions }: Props) {
               <Icon className="size-3.5 shrink-0" />
               <span className="min-w-0 flex-1 truncate">{tab.label}</span>
               {isLoading ? (
-                <Loader2 className="text-muted-foreground hidden size-3 shrink-0 animate-spin group-data-active/tab-trigger:inline-block" />
+                <Loader2 className="text-muted-foreground hidden size-3 shrink-0 animate-spin group-data-active/tab-trigger:inline-block group-data-[state=active]/tab-trigger:inline-block" />
               ) : null}
             </TabsTrigger>
           );

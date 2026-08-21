@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MobileComposer } from "@/components/elements/mobile-composer";
+import { MobileComposer } from "@/components/assistant-ui/elements/mobile-composer";
 
 const ACTIONS = ["Summarize", "Explain code", "Write tests", "Find a bug"];
 

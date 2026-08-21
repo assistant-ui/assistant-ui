@@ -3,8 +3,8 @@
 import {
   GenerationLoader,
   type GenerationLoaderVariant,
-} from "@/components/elements/loading-state";
-import { useElapsed } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/loading-state";
+import { useElapsed } from "./use-demo";
 
 function LoadingDemo({ variant }: { variant: GenerationLoaderVariant }) {
   const tick = useElapsed(true);

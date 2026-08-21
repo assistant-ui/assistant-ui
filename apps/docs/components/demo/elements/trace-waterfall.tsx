@@ -3,8 +3,8 @@
 import {
   TraceWaterfall,
   type TraceSpan,
-} from "@/components/elements/trace-waterfall";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/trace-waterfall";
+import { useStoryPhases } from "./use-demo";
 
 const SPANS: readonly TraceSpan[] = [
   {

@@ -21,7 +21,7 @@ import { MarkdownSample } from "@/components/pages/docs/samples/markdown";
 
 <InstallCommand shadcn={["markdown-text"]} />
 
-This adds a `/components/assistant-ui/markdown-text.tsx` file to your project, which you can adjust as needed.
+This adds a `/components/assistant-ui/elements/markdown-text.tsx` file to your project, which you can adjust as needed.
 
 </Step>
 
@@ -31,8 +31,8 @@ This adds a `/components/assistant-ui/markdown-text.tsx` file to your project, w
 
 Pass the `MarkdownText` component to the `MessagePrimitive.Parts` component
 
-```tsx title="/components/assistant-ui/thread.tsx" {1,7}
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+```tsx title="/components/assistant-ui/elements/thread.tsx" {1,7}
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 
 const AssistantMessage: FC = () => {
   return (

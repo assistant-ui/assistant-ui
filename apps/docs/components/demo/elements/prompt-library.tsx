@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   PromptLibrary,
   type SavedPrompt,
-} from "@/components/elements/prompt-library";
+} from "@/components/assistant-ui/elements/prompt-library";
 
 const PROMPTS: readonly SavedPrompt[] = [
   {

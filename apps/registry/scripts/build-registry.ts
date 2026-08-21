@@ -98,6 +98,10 @@ function throwIfFindings(header: string, findings: Set<string>): void {
 export function getRadixVariantSourcePath(sourcePath: string) {
   if (!sourcePath.endsWith(".tsx")) return null;
 
+  if (sourcePath.includes("/components/ui/base/")) {
+    return sourcePath.replace("/components/ui/base/", "/components/ui/radix/");
+  }
+
   return `${sourcePath.slice(0, -4)}.radix.tsx`;
 }
 

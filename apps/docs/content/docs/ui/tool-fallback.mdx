@@ -23,7 +23,7 @@ import {
 
 <InstallCommand shadcn={["tool-fallback"]} />
 
-This adds a `/components/assistant-ui/tool-fallback.tsx` file to your project, which you can adjust as needed.
+This adds a `/components/assistant-ui/elements/tool-fallback.tsx` file to your project, which you can adjust as needed.
 
   </Step>
   <Step>
@@ -32,8 +32,8 @@ This adds a `/components/assistant-ui/tool-fallback.tsx` file to your project, w
 
 Pass the `ToolFallback` component to the `MessagePrimitive.Parts` component
 
-```tsx title="/components/assistant-ui/thread.tsx" {1,9}
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+```tsx title="/components/assistant-ui/elements/thread.tsx" {1,9}
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback";
 
 const AssistantMessage = () => {
   return (
@@ -102,7 +102,7 @@ import {
   ToolFallbackResult,
   ToolFallbackError,
   ToolFallbackApproval,
-} from "@/components/assistant-ui/tool-fallback";
+} from "@/components/assistant-ui/elements/tool-fallback";
 
 // Compound component syntax
 <ToolFallback.Root>

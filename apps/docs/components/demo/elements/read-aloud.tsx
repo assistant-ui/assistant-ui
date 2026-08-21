@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { ReadAloud } from "@/components/elements/read-aloud";
+import { ReadAloud } from "@/components/assistant-ui/elements/read-aloud";
 
 const TEXT =
   "The converter dropped parts with no text, so the guard now keeps them and the suite passes again.";

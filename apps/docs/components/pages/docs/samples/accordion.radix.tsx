@@ -7,7 +7,7 @@ import {
   AccordionItem,
   AccordionTrigger,
   AccordionContent,
-} from "@/components/assistant-ui/accordion.radix";
+} from "@/components/ui/radix/accordion";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function AccordionSample() {

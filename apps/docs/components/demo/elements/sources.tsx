@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { Sources, type Source } from "@/components/elements/sources";
+import {
+  Sources,
+  type Source,
+} from "@/components/assistant-ui/elements/sources";
 
 const SOURCES: Source[] = [
   {

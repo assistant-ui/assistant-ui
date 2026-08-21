@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { FeedbackDialog } from "@/components/elements/feedback-dialog";
+import { FeedbackDialog } from "@/components/assistant-ui/elements/feedback-dialog";
 
 const REASONS = [
   "Not factual",

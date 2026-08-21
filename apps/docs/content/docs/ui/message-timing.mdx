@@ -21,7 +21,7 @@ import { MessageTimingSample } from "@/components/pages/docs/samples/message-tim
 
 <InstallCommand shadcn={["message-timing"]} />
 
-This adds a `/components/assistant-ui/message-timing.tsx` file to your project.
+This adds a `/components/assistant-ui/elements/message-timing.kit.tsx` file to your project.
 
   </Step>
   <Step>
@@ -30,9 +30,9 @@ This adds a `/components/assistant-ui/message-timing.tsx` file to your project.
 
 Place `MessageTiming` inside `ActionBarPrimitive.Root` in your `thread.tsx`. It will inherit the action bar's auto-hide behaviour and only renders after the stream completes.
 
-```tsx title="/components/assistant-ui/thread.tsx" {2,12}
+```tsx title="/components/assistant-ui/elements/thread.tsx" {2,12}
 import { ActionBarPrimitive } from "@assistant-ui/react";
-import { MessageTiming } from "@/components/assistant-ui/message-timing";
+import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.kit";
 
 const AssistantActionBar: FC = () => {
   return (

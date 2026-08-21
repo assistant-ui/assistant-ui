@@ -71,7 +71,7 @@ Shared adapters (attachments, speech, feedback) work the same way described in [
 ```tsx title="@/components/MyAssistant.tsx"
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
 
@@ -93,7 +93,7 @@ export function MyAssistant() {
 <Tab value="React Native">
 
 ```tsx title="components/MyAssistant.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
 

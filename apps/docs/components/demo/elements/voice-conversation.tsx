@@ -5,8 +5,8 @@ import {
   VoiceConversation,
   type VoiceMode,
   type VoiceTurn,
-} from "@/components/elements/voice-conversation";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/voice-conversation";
+import { useStoryPhases } from "./use-demo";
 
 const MODES: readonly VoiceMode[] = [
   "connecting",

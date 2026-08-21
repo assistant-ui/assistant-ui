@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   McpServerPanel,
   type McpServer,
-} from "@/components/elements/mcp-server-panel";
+} from "@/components/assistant-ui/elements/mcp-server-panel";
 
 const SERVERS: readonly McpServer[] = [
   {

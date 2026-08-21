@@ -12,8 +12,8 @@ import {
   ComposerSend,
   ComposerToolbar,
   type ComposerAttachment,
-} from "@/components/elements/composer";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/composer";
+import { useStoryPhases } from "./use-demo";
 
 const PHASES = [900, 900, 900, 0] as const;
 const PROGRESS = [18, 62, 100, 100] as const;

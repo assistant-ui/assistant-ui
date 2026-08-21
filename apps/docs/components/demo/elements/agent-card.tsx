@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { AgentCard, type AgentSkill } from "@/components/elements/agent-card";
+import {
+  AgentCard,
+  type AgentSkill,
+} from "@/components/assistant-ui/elements/agent-card";
 
 const SKILLS: readonly AgentSkill[] = [
   { name: "triage", description: "Read an issue and label it" },

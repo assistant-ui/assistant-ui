@@ -11,7 +11,7 @@ import {
   ReasoningContent,
   ReasoningText,
   type reasoningVariants,
-} from "@/components/assistant-ui/reasoning";
+} from "@/components/assistant-ui/elements/reasoning";
 
 function ReasoningDemo({ variant }: VariantProps<typeof reasoningVariants>) {
   return (

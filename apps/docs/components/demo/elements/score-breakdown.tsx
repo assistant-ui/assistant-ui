@@ -3,8 +3,8 @@
 import {
   ScoreBreakdown,
   type ScoreCriterion,
-} from "@/components/elements/score-breakdown";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/score-breakdown";
+import { useStoryPhases } from "./use-demo";
 
 const CRITERIA: readonly ScoreCriterion[] = [
   {

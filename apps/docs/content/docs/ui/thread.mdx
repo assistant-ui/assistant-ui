@@ -56,7 +56,7 @@ import { ThreadPrimitive, AuiIf } from "@assistant-ui/react";
 
 <InstallCommand shadcn={["thread"]} />
 
-This adds a `/components/assistant-ui/thread.tsx` file to your project, which you can adjust as needed.
+This adds a `/components/assistant-ui/elements/thread.tsx` file to your project, which you can adjust as needed.
 
   </Step>
   <Step>
@@ -64,7 +64,7 @@ This adds a `/components/assistant-ui/thread.tsx` file to your project, which yo
 ### Use in your application
 
 ```tsx title="/app/page.tsx" {1,6}
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 
 export default function Chat() {
   return (
@@ -200,7 +200,7 @@ Hover over the first assistant response to show its action bar. When the thread 
 `Thread` accepts an optional `components` prop that swaps parts of the rendering without editing the copied file. All slots are optional; omitted slots keep the built-in rendering.
 
 ```tsx
-import { Thread, type ThreadComponents } from "@/components/assistant-ui/thread";
+import { Thread, type ThreadComponents } from "@/components/assistant-ui/elements/thread";
 
 const THREAD_COMPONENTS: ThreadComponents = {
   ToolFallback: MyToolFallback,
@@ -249,7 +249,7 @@ For per-tool UI, prefer registering a renderer by tool name over overriding `Too
 
 ## API Reference
 
-The following primitives are used within the Thread component and can be customized in your `/components/assistant-ui/thread.tsx` file.
+The following primitives are used within the Thread component and can be customized in your `/components/assistant-ui/elements/thread.tsx` file.
 
 ### Root
 

@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { mono } from "@/components/elements/surfaces";
+import { mono } from "@/components/assistant-ui/elements/surfaces";
 import { ELEMENT_COUNT, ELEMENT_SECTIONS, ELEMENTS } from "./registry";
 
 export function ElementsSidebar() {

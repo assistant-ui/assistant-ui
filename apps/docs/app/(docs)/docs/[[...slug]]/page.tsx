@@ -11,7 +11,7 @@ import { TableOfContents } from "@/components/pages/docs/layout/table-of-content
 import { DocsFooter } from "@/components/pages/docs/layout/docs-footer";
 import { DocsPager } from "@/components/pages/docs/layout/docs-pager";
 import { ArrowUpRight } from "lucide-react";
-import { Badge } from "@/components/assistant-ui/badge";
+import { Badge } from "@/components/ui/badge";
 
 function DocsCategory({ url }: { url?: string }) {
   const effectiveUrl = url ?? "";
@@ -95,7 +95,7 @@ export default async function Page(props: {
               {page.data.links.map((link) => (
                 <Badge
                   key={link.url}
-                  variant="muted"
+                  variant="secondary"
                   render={
                     <a
                       href={link.url}

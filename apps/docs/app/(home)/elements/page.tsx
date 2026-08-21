@@ -72,6 +72,9 @@ export default function ElementsPage() {
                     index={runningIndex}
                     title={element.title}
                     description={element.description}
+                    {...(element.connection
+                      ? { connection: element.connection }
+                      : {})}
                     {...(element.wide ? { wide: true } : {})}
                   >
                     <element.Component />

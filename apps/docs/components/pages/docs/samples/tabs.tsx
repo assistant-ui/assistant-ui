@@ -2,12 +2,7 @@
 
 import { useState } from "react";
 import { FileText, Settings, User, Bell, Lock } from "lucide-react";
-import {
-  Tabs,
-  TabsList,
-  TabsTrigger,
-  TabsContent,
-} from "@/components/assistant-ui/tabs";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function TabsSample() {

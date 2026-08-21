@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { EditMessage } from "@/components/elements/edit-message";
+import { EditMessage } from "@/components/assistant-ui/elements/edit-message";
 
 const ORIGINAL = "Explain how the composer keeps its draft.";
 

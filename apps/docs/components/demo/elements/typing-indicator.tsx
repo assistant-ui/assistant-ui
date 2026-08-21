@@ -1,6 +1,6 @@
 "use client";
 
-import { TypingIndicator } from "@/components/elements/typing-indicator";
+import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 
 export function TypingIndicatorDemo() {
   return <TypingIndicator variant="bubble" />;

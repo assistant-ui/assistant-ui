@@ -23,7 +23,7 @@ A floating chat modal built on the popover primitive of your configured style (R
 
 <InstallCommand shadcn={["assistant-modal"]} />
 
-This adds `/components/assistant-ui/assistant-modal.tsx` to your project, which you can adjust as needed.
+This adds `/components/assistant-ui/elements/assistant-modal.tsx` to your project, which you can adjust as needed.
 
   </Step>
   <Step>
@@ -31,7 +31,7 @@ This adds `/components/assistant-ui/assistant-modal.tsx` to your project, which 
 ### Use in your application
 
 ```tsx title="/app/page.tsx" {1,6}
-import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
+import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal";
 
 export default function Home() {
   return (

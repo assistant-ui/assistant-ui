@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import {
   PermissionGrant,
   type GrantScope,
-} from "@/components/elements/permission-grant";
+} from "@/components/assistant-ui/elements/permission-grant";
 
 const REACH = [
   "Read and write files under the workspace",

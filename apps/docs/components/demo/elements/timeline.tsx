@@ -1,7 +1,10 @@
 "use client";
 
-import { Timeline, type TimelineEvent } from "@/components/elements/timeline";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import {
+  Timeline,
+  type TimelineEvent,
+} from "@/components/assistant-ui/elements/timeline";
+import { useStoryPhases } from "./use-demo";
 
 const EVENTS: readonly TimelineEvent[] = [
   {

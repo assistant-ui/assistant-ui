@@ -127,7 +127,13 @@ test("radix registry item removes base-only dependencies without rewriting", () 
   );
 });
 
-test("radix variant source path replaces only the .tsx suffix", () => {
+test("radix variant source path resolves parallel UI trees and sparse suffixes", () => {
+  assert.equal(
+    getRadixVariantSourcePath(
+      "../../packages/ui/src/components/ui/base/button.tsx",
+    ),
+    "../../packages/ui/src/components/ui/radix/button.tsx",
+  );
   assert.equal(
     getRadixVariantSourcePath("components/ui/button.tsx"),
     "components/ui/button.radix.tsx",
@@ -538,8 +544,9 @@ const bundleFixtures = () => {
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/thread.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/thread.tsx",
+        path: "components/assistant-ui/elements/thread.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/elements/thread.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react"],
@@ -555,7 +562,7 @@ const bundleFixtures = () => {
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/reasoning.tsx",
+        path: "components/assistant-ui/elements/reasoning.tsx",
       },
     ],
     dependencies: ["tw-shimmer"],
@@ -599,10 +606,14 @@ test("bundling inlines the closure as targeted files and merges its dependencies
       ["registry:file", "app/page.tsx", undefined],
       [
         "registry:file",
-        "components/assistant-ui/thread.tsx",
-        "../../packages/ui/src/components/assistant-ui/thread.tsx",
+        "components/assistant-ui/elements/thread.tsx",
+        "../../packages/ui/src/components/assistant-ui/elements/thread.tsx",
       ],
-      ["registry:file", "components/assistant-ui/reasoning.tsx", undefined],
+      [
+        "registry:file",
+        "components/assistant-ui/elements/reasoning.tsx",
+        undefined,
+      ],
       [
         "registry:file",
         "components/ui/button.tsx",
@@ -702,7 +713,7 @@ test("universal item validation rejects a bundled item a partial config cannot i
         { type: "registry:page", path: "app/page.tsx", target: "app/page.tsx" },
         {
           type: "registry:component",
-          path: "components/assistant-ui/thread.tsx",
+          path: "components/assistant-ui/elements/thread.tsx",
         },
       ],
       registryDependencies: ["button"],
@@ -713,7 +724,7 @@ test("universal item validation rejects a bundled item a partial config cannot i
       files: [
         {
           type: "registry:component",
-          path: "components/assistant-ui/thread.tsx",
+          path: "components/assistant-ui/elements/thread.tsx",
         },
       ],
     },
@@ -726,7 +737,7 @@ test("universal item validation rejects a bundled item a partial config cannot i
         'eve-chat: type "registry:page" is not installable without a full project config',
       ) &&
       error.message.includes(
-        "eve-chat: components/assistant-ui/thread.tsx needs an explicit target and a universal file type",
+        "eve-chat: components/assistant-ui/elements/thread.tsx needs an explicit target and a universal file type",
       ) &&
       error.message.includes('eve-chat: registry dependency "button"') &&
       !error.message.includes("thread:"),
@@ -1213,7 +1224,7 @@ test("every element's sibling imports are declared as registry dependencies", as
   const { join } = await import("node:path");
   const { registry } = await import("../src/registry.ts");
 
-  const dir = "packages/ui/src/components/elements";
+  const dir = "packages/ui/src/components/assistant-ui/elements";
   const declared = new Map(
     registry
       .filter((item) => item.name.startsWith("elements-"))
@@ -1245,45 +1256,56 @@ test("every element's sibling imports are declared as registry dependencies", as
 });
 
 test("relative import candidates cover extensions, directory indexes, and .js sources", () => {
-  const from = "components/assistant-ui/sources.tsx";
+  const from = "components/assistant-ui/elements/sources.tsx";
 
   assert.deepEqual(getRelativeImportCandidates("./badge", from), [
-    "components/assistant-ui/badge.tsx",
-    "components/assistant-ui/badge.ts",
-    "components/assistant-ui/badge.jsx",
-    "components/assistant-ui/badge.js",
-    "components/assistant-ui/badge/index.tsx",
-    "components/assistant-ui/badge/index.ts",
-    "components/assistant-ui/badge/index.jsx",
-    "components/assistant-ui/badge/index.js",
+    "components/assistant-ui/elements/badge.tsx",
+    "components/assistant-ui/elements/badge.ts",
+    "components/assistant-ui/elements/badge.jsx",
+    "components/assistant-ui/elements/badge.js",
+    "components/assistant-ui/elements/badge/index.tsx",
+    "components/assistant-ui/elements/badge/index.ts",
+    "components/assistant-ui/elements/badge/index.jsx",
+    "components/assistant-ui/elements/badge/index.js",
   ]);
 
   assert.deepEqual(getRelativeImportCandidates("./badge.tsx", from), [
-    "components/assistant-ui/badge.tsx",
+    "components/assistant-ui/elements/badge.tsx",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./badge.kit", from), [
+    "components/assistant-ui/elements/badge.kit.tsx",
+    "components/assistant-ui/elements/badge.kit.ts",
+    "components/assistant-ui/elements/badge.kit.jsx",
+    "components/assistant-ui/elements/badge.kit.js",
+    "components/assistant-ui/elements/badge.kit/index.tsx",
+    "components/assistant-ui/elements/badge.kit/index.ts",
+    "components/assistant-ui/elements/badge.kit/index.jsx",
+    "components/assistant-ui/elements/badge.kit/index.js",
   ]);
 
   assert.deepEqual(getRelativeImportCandidates("./styles.css", from), [
-    "components/assistant-ui/styles.css",
+    "components/assistant-ui/elements/styles.css",
   ]);
 
   assert.deepEqual(getRelativeImportCandidates("./badge.js", from), [
-    "components/assistant-ui/badge.js",
-    "components/assistant-ui/badge.tsx",
-    "components/assistant-ui/badge.ts",
-    "components/assistant-ui/badge.jsx",
+    "components/assistant-ui/elements/badge.js",
+    "components/assistant-ui/elements/badge.tsx",
+    "components/assistant-ui/elements/badge.ts",
+    "components/assistant-ui/elements/badge.jsx",
   ]);
 
   assert.deepEqual(getRelativeImportCandidates("./icon.svg?url", from), [
-    "components/assistant-ui/icon.svg",
+    "components/assistant-ui/elements/icon.svg",
   ]);
 
   assert.equal(
-    getRelativeImportCandidates("../icons/github", from)[0],
+    getRelativeImportCandidates("../../icons/github", from)[0],
     "components/icons/github.tsx",
   );
 
   assert.equal(
-    getRelativeImportCandidates("../../../outside/thing", from),
+    getRelativeImportCandidates("../../../../outside/thing", from),
     null,
   );
 });
@@ -1377,26 +1399,26 @@ test("install validation flags a relative import with no providing file", () => 
   const findings = findingsFrom([
     componentItem([
       {
-        path: "components/assistant-ui/thread.tsx",
+        path: "components/assistant-ui/elements/thread.tsx",
         content: 'import { Badge } from "./badge";\n',
       },
     ]),
   ]);
 
   assert.match(findings, /thread\.tsx imports "\.\/badge"/);
-  assert.match(findings, /components\/assistant-ui\/badge\.tsx/);
+  assert.match(findings, /components\/assistant-ui\/elements\/badge\.tsx/);
 });
 
 test("install validation resolves a sibling through file.target, not file.path", () => {
   const files = [
     {
-      path: "packages/ui/src/components/assistant-ui/thread.tsx",
-      target: "components/assistant-ui/thread.tsx",
+      path: "packages/ui/src/components/assistant-ui/elements/thread.tsx",
+      target: "components/assistant-ui/elements/thread.tsx",
       content: 'import { Badge } from "./badge";\n',
     },
     {
-      path: "packages/ui/src/components/assistant-ui/badge.tsx",
-      target: "components/assistant-ui/badge.tsx",
+      path: "packages/ui/src/components/assistant-ui/elements/badge.tsx",
+      target: "components/assistant-ui/elements/badge.tsx",
       content: "export const Badge = () => null;\n",
     },
   ];
@@ -1422,8 +1444,8 @@ test("install validation reports an import that escapes the installed tree", () 
   const findings = findingsFrom([
     componentItem([
       {
-        path: "components/assistant-ui/thread.tsx",
-        content: 'import { helper } from "../../../outside/helper";\n',
+        path: "components/assistant-ui/elements/thread.tsx",
+        content: 'import { helper } from "../../../../outside/helper";\n',
       },
     ]),
   ]);
@@ -1493,7 +1515,7 @@ test("install validation resolves a sibling against the registryDependency insta
   assert.equal(findingsFrom([importing("components/ui/menu.tsx")]), null);
 
   assert.match(
-    findingsFrom([importing("components/assistant-ui/thread.tsx")]),
+    findingsFrom([importing("components/assistant-ui/elements/thread.tsx")]),
     /imports "\.\/badge", but no file or registryDependency provides/,
   );
 });

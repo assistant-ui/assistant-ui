@@ -22,7 +22,7 @@ A wrapper component that groups consecutive tool calls together, displaying them
 
 <InstallCommand shadcn={["tool-group", "tool-fallback"]} />
 
-This adds `/components/assistant-ui/tool-group.tsx` and `/components/assistant-ui/tool-fallback.tsx` files to your project, which you can adjust as needed.
+This adds `/components/assistant-ui/elements/tool-group.kit.tsx` and `/components/assistant-ui/elements/tool-fallback.tsx` files to your project, which you can adjust as needed.
 
   </Step>
   <Step>
@@ -31,14 +31,14 @@ This adds `/components/assistant-ui/tool-group.tsx` and `/components/assistant-u
 
 Use `MessagePrimitive.GroupedParts` with `groupPartByType` to map tool-call parts to `"group-tool"`. The group case wraps `children`; the tool-call leaf renders the resolved tool UI or your fallback.
 
-```tsx title="/components/assistant-ui/thread.tsx"
+```tsx title="/components/assistant-ui/elements/thread.tsx"
 import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback";
 import {
   ToolGroupContent,
   ToolGroupRoot,
   ToolGroupTrigger,
-} from "@/components/assistant-ui/tool-group";
+} from "@/components/assistant-ui/elements/tool-group.kit";
 
 const AssistantMessage = () => {
   return (
@@ -143,7 +143,7 @@ import {
   ToolGroupRoot,
   ToolGroupTrigger,
   ToolGroupContent,
-} from "@/components/assistant-ui/tool-group";
+} from "@/components/assistant-ui/elements/tool-group.kit";
 
 // Compound component syntax
 <ToolGroup.Root variant="outline" defaultOpen>

@@ -17,7 +17,7 @@ import { ComposerTriggerPopoverSample } from "@/components/pages/docs/samples/co
 
 <InstallCommand shadcn={["composer-trigger-popover"]} />
 
-This adds `/components/assistant-ui/composer-trigger-popover.tsx` — a generic picker UI (Categories + Items + Back) driven by an adapter and one of two behavior props: `directive` (insert a chip) or `action` (run a callback).
+This adds `/components/assistant-ui/elements/composer-trigger-popover.tsx` — a generic picker UI (Categories + Items + Back) driven by an adapter and one of two behavior props: `directive` (insert a chip) or `action` (run a callback).
 
   </Step>
   <Step>
@@ -26,9 +26,9 @@ This adds `/components/assistant-ui/composer-trigger-popover.tsx` — a generic 
 
 Place `ComposerPrimitive.Unstable_TriggerPopoverRoot` around your composer. Any number of `ComposerTriggerPopover` declarations can live inside — each with its own trigger character, adapter, and behavior prop.
 
-```tsx title="components/assistant-ui/thread.tsx"
+```tsx title="components/assistant-ui/elements/thread.tsx"
 import { ComposerPrimitive } from "@assistant-ui/react";
-import { ComposerTriggerPopover } from "@/components/assistant-ui/composer-trigger-popover";
+import { ComposerTriggerPopover } from "@/components/assistant-ui/elements/composer-trigger-popover";
 
 const Composer = () => (
   <ComposerPrimitive.Unstable_TriggerPopoverRoot>

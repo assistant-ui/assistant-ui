@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { GitHubIcon } from "@/components/icons/github";
-import { Tabs } from "@/components/assistant-ui/tabs";
+import { Tabs } from "@/components/ui/tabs";
 import {
   trackXuluxDownload,
   useXuluxAnalytics,

@@ -3,7 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeftIcon, ArrowRightIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mono } from "@/components/elements/surfaces";
+import { mono } from "@/components/assistant-ui/elements/surfaces";
 import { createOgMetadata } from "@/lib/og";
 import {
   highlightElementSource,
@@ -92,7 +92,8 @@ export default async function ElementPage({
   const generativeEntry = element.generative
     ? getGenerativeElement(slug)
     : undefined;
-  const registryName = `elements-${element.installName ?? element.slug}`;
+  const registryName =
+    element.registryName ?? `elements-${element.installName ?? element.slug}`;
   const source = element.file ? await readElementSource(element.file) : null;
   const highlightedSource = source
     ? await highlightElementSource(source)
@@ -117,6 +118,7 @@ export default async function ElementPage({
         <p className="text-foreground/35 font-mono text-[11px] tracking-tight tabular-nums">
           {String(element.index).padStart(2, "0")} /{" "}
           {String(ELEMENT_COUNT).padStart(2, "0")} · {element.section}
+          {element.connection ? ` · ${element.connection}` : ""}
         </p>
         <h1 className="mt-3 text-2xl font-medium tracking-tight md:text-3xl">
           {element.title}

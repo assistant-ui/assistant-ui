@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CodeRunner, type RunState } from "@/components/elements/code-runner";
+import {
+  CodeRunner,
+  type RunState,
+} from "@/components/assistant-ui/elements/code-runner";
 
 const CODE = `const queue = createMessageQueue(driver);
 queue.enqueue("also add a changeset");

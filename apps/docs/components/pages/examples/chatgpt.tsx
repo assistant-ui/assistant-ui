@@ -14,7 +14,7 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { useEffect, useState, type FC } from "react";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { useShallow } from "zustand/shallow";
 import {
   ArrowUpIcon,
@@ -36,8 +36,8 @@ import {
   Volume2,
   XIcon,
 } from "lucide-react";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback";
 import { CloneThreadShell } from "./clone-thread-shell";
 
 export const ChatGPT: FC = () => {

@@ -19,7 +19,7 @@ import {
   ComposerToolbar,
   useSlashMatches,
   type ComposerCommand,
-} from "@/components/elements/composer";
+} from "@/components/assistant-ui/elements/composer";
 
 const COMMANDS: ComposerCommand[] = [
   { name: "review", description: "Review the current diff", icon: SearchIcon },

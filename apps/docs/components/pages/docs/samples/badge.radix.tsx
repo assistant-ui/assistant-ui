@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ArrowUpRight, Check, X, AlertCircle, Loader2 } from "lucide-react";
-import { Badge } from "@/components/assistant-ui/badge.radix";
+import { Badge } from "@/components/ui/radix/badge";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import { cn } from "@/lib/utils";
 

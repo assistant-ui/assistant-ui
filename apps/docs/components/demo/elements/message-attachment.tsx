@@ -3,7 +3,7 @@
 import {
   MessageAttachments,
   type MessageAttachmentItem,
-} from "@/components/elements/message-attachment";
+} from "@/components/assistant-ui/elements/message-attachment";
 
 const ATTACHMENTS: readonly MessageAttachmentItem[] = [
   {

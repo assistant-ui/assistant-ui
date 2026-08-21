@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { ToolCall } from "@/components/elements/tool-call";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import { ToolCall } from "@/components/assistant-ui/elements/tool-call";
+import { useStoryPhases } from "./use-demo";
 
 const PHASES = [2200, 1400, 3000, 0] as const;
 

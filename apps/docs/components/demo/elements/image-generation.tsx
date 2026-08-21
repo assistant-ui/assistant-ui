@@ -1,7 +1,7 @@
 "use client";
 
-import { ImageGeneration } from "@/components/elements/image-generation";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import { ImageGeneration } from "@/components/assistant-ui/elements/image-generation";
+import { useStoryPhases } from "./use-demo";
 
 const PHASES = [3600, 4000] as const;
 

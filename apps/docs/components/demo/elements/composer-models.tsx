@@ -13,7 +13,7 @@ import {
   ComposerSend,
   ComposerToolbar,
   type ComposerModel,
-} from "@/components/elements/composer";
+} from "@/components/assistant-ui/elements/composer";
 
 const MODELS: ComposerModel[] = [
   { name: "Fable 5", meta: "1M ctx" },

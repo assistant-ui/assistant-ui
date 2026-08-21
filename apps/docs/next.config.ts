@@ -69,8 +69,8 @@ const config: NextConfig = {
   skipTrailingSlashRedirect: true,
   outputFileTracingIncludes: {
     "/elements/[slug]": [
-      "./components/demo/elements/*.tsx",
-      "../../packages/ui/src/components/elements/*.tsx",
+      "./components/elements/*.tsx",
+      "../../packages/ui/src/components/assistant-ui/elements/*.tsx",
     ],
   },
   headers: async () => [

@@ -8,8 +8,8 @@ import {
   CanvasSplitLine,
   CanvasSplitMessage,
   CanvasSplitThread,
-} from "@/components/elements/canvas-split";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/canvas-split";
+import { useStoryPhases } from "./use-demo";
 
 const MESSAGES = [
   {

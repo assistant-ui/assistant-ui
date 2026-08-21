@@ -4,8 +4,8 @@ import {
   FlowGraph,
   type FlowEdge,
   type FlowNode,
-} from "@/components/elements/flow-graph";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/flow-graph";
+import { useStoryPhases } from "./use-demo";
 
 const NODES: readonly FlowNode[] = [
   { id: "intake", label: "intake", column: 0, row: 1, state: "done" },

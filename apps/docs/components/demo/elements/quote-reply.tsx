@@ -4,8 +4,8 @@ import { useState } from "react";
 import {
   QuoteReply,
   type QuoteAction,
-} from "@/components/elements/quote-reply";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/quote-reply";
+import { useStoryPhases } from "./use-demo";
 
 const ACTIONS: readonly QuoteAction[] = [
   { key: "quote", label: "Quote", icon: "quote" },

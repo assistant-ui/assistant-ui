@@ -1,4 +1,4 @@
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 import {
   useAui,
   AuiProvider,

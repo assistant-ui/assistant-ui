@@ -45,7 +45,7 @@ const SETUP_SNIPPETS = [
     caption: "Your route runs the model. The transport streams it back.",
     code: `import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 
 export default function App() {
   const runtime = useChatRuntime({
@@ -66,7 +66,7 @@ export default function App() {
     caption: "Point stream at your graph. Threads and interrupts included.",
     code: `import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useLangGraphRuntime } from "@assistant-ui/react-langgraph";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 
 export default function App() {
   const runtime = useLangGraphRuntime({
@@ -87,7 +87,7 @@ export default function App() {
     caption: "Connects to your deployed assistant by id.",
     code: `import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 
 export default function App() {
   const runtime = useStreamRuntime({
@@ -108,7 +108,7 @@ export default function App() {
     caption: "The same AI SDK client. Your route calls the Mastra agent.",
     code: `import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 
 export default function App() {
   const runtime = useChatRuntime({
@@ -129,7 +129,7 @@ export default function App() {
     caption: "No adapter at all. Your store, your transport, any backend.",
     code: `import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useExternalStoreRuntime } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 
 export default function App() {
   const runtime = useExternalStoreRuntime({

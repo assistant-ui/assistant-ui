@@ -1,7 +1,10 @@
 "use client";
 
-import { JobProgress, type JobStage } from "@/components/elements/job-progress";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import {
+  JobProgress,
+  type JobStage,
+} from "@/components/assistant-ui/elements/job-progress";
+import { useStoryPhases } from "./use-demo";
 
 const STAGES: readonly JobStage[] = [
   { name: "clone", weight: 1 },

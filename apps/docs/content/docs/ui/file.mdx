@@ -24,8 +24,8 @@ import { FileSample } from "@/components/pages/docs/samples/file";
 
 The shipped `Thread` component renders `file` parts through `File` by default, in both assistant and user messages. In a custom thread, pass `File` to `MessagePrimitive.Parts`:
 
-```tsx title="/components/assistant-ui/thread.tsx" {1,8}
-import { File } from "@/components/assistant-ui/file";
+```tsx title="/components/assistant-ui/elements/thread.tsx" {1,8}
+import { File } from "@/components/assistant-ui/elements/file";
 
 const UserMessage: FC = () => {
   return (
@@ -92,7 +92,7 @@ import {
   FileName,
   FileSize,
   FileDownload,
-} from "@/components/assistant-ui/file";
+} from "@/components/assistant-ui/elements/file";
 
 <FileRoot variant="muted" size="lg">
   <FileIconDisplay mimeType="application/pdf" />
@@ -137,7 +137,7 @@ import {
   getFileDataKind,
   getBase64Size,
   formatFileSize,
-} from "@/components/assistant-ui/file";
+} from "@/components/assistant-ui/elements/file";
 
 // Get icon component for a MIME type
 const Icon = getMimeTypeIcon("application/pdf"); // FileTextIcon

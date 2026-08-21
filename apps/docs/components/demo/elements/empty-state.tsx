@@ -6,7 +6,7 @@ import {
   EmptyStateGreeting,
   EmptyStateSuggestion,
   EmptyStateSuggestions,
-} from "@/components/elements/empty-state";
+} from "@/components/assistant-ui/elements/empty-state";
 
 const SUGGESTIONS = [
   "Explain this repo",

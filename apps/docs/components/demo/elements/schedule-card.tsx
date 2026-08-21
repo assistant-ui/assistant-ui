@@ -4,7 +4,7 @@ import { useState } from "react";
 import {
   ScheduleCard,
   type ScheduleRun,
-} from "@/components/elements/schedule-card";
+} from "@/components/assistant-ui/elements/schedule-card";
 
 const HISTORY: readonly ScheduleRun[] = [
   { id: "1", at: "Today, 06:00", ok: true },

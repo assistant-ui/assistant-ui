@@ -11,8 +11,8 @@ import {
   ToolTimeline,
   type TimelineStat,
   type TimelineStep,
-} from "@/components/elements/tool-timeline";
-import { useElapsed, useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/tool-timeline";
+import { useElapsed, useStoryPhases } from "./use-demo";
 
 const STEPS: TimelineStep[] = [
   {

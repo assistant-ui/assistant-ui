@@ -3,7 +3,7 @@
 import {
   SharedConversation,
   type SharedTurn,
-} from "@/components/elements/shared-conversation";
+} from "@/components/assistant-ui/elements/shared-conversation";
 
 const TURNS: readonly SharedTurn[] = [
   {

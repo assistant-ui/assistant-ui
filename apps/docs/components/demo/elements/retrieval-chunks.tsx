@@ -3,8 +3,8 @@
 import {
   RetrievalChunks,
   type RetrievalChunk,
-} from "@/components/elements/retrieval-chunks";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/retrieval-chunks";
+import { useStoryPhases } from "./use-demo";
 
 const CHUNKS: readonly RetrievalChunk[] = [
   {

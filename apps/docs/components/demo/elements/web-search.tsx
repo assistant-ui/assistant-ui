@@ -3,8 +3,8 @@
 import {
   WebSearch,
   type WebSearchResult,
-} from "@/components/elements/web-search";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+} from "@/components/assistant-ui/elements/web-search";
+import { useStoryPhases } from "./use-demo";
 
 const QUERY = "assistant-ui draft persistence";
 const RESULTS: readonly WebSearchResult[] = [

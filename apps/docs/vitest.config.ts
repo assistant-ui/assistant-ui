@@ -14,9 +14,9 @@ export default {
         __dirname,
         "../../packages/ui/src/components/ui/base",
       ),
-      "@/components/assistant-ui/markdown-text": resolve(
+      "@/components/assistant-ui/elements/markdown-text": resolve(
         __dirname,
-        "./components/assistant-ui/markdown-text",
+        "./components/assistant-ui/elements/markdown-text",
       ),
       "@/components/assistant-ui": resolve(
         __dirname,
