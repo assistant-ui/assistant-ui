@@ -183,5 +183,15 @@ describe("InMemoryThreadList item index selectors", () => {
         getAui().threads.item({ index, archived: false }).getState().id,
       ).toBe(id);
     }
+
+    expect(() =>
+      getAui().threads.item({ index: state.threadIds.length }),
+    ).toThrow("out of bounds");
+    expect(() =>
+      getAui().threads.item({
+        index: state.archivedThreadIds.length,
+        archived: true,
+      }),
+    ).toThrow("out of bounds");
   });
 });

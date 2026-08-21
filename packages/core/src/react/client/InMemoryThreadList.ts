@@ -238,8 +238,8 @@ const useInMemoryThreadList = (
       }
       // The lookup is keyed over the combined thread array, while index
       // selectors address the regular/archived subset the primitives render.
-      const status = selector.archived ? "archived" : "regular";
-      const id = threads.filter((t) => t.status === status)[selector.index]?.id;
+      const ids = selector.archived ? state.archivedThreadIds : state.threadIds;
+      const id = ids[selector.index];
       if (id === undefined) return threadListItems.get({ index: -1 });
       const index = threads.findIndex((t) => t.id === id);
       return threadListItems.get({ index });
