@@ -46,4 +46,8 @@ const PreOverrideImpl = ({
   return <PreContext.Provider value={rest}>{children}</PreContext.Provider>;
 };
 
-export const PreOverride = memo(PreOverrideImpl, memoCompareNodes);
+export const PreOverride = memo(
+  PreOverrideImpl,
+  (prev, next) =>
+    prev.fallbackPre === next.fallbackPre && memoCompareNodes(prev, next),
+);
