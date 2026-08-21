@@ -3,111 +3,6 @@ import {
   GenerationLoaderDemo,
   GenerationLoaderRoundedDemo,
   GenerationLoaderSquaresDemo,
-<<<<<<< HEAD
-} from "./loading-state";
-import { DataTableDemo } from "./data-table";
-import { RecommendationCardDemo } from "./recommendation-card";
-import { NumberTickerDemo } from "./number-ticker";
-import { ChatPanelDemo } from "./chat-panel";
-import { ThinkingIndicatorDemo } from "./thinking-indicator";
-import { ReasoningPanelDemo } from "./reasoning-panel";
-import { StreamingTextDemo } from "./streaming-text";
-import {
-  TypingIndicatorBareDemo,
-  TypingIndicatorDemo,
-} from "./typing-indicator";
-import { MessagePairDemo, MessagePairFlatDemo } from "./message-pair";
-import { MessageBranchesDemo } from "./message-branches";
-import { MessageActionsDemo } from "./message-actions";
-import { SuggestionsDemo, SuggestionsListDemo } from "./suggestions";
-import { ErrorStateDemo } from "./error-state";
-import { ToolCallDemo } from "./tool-call";
-import { ToolTimelineDemo } from "./tool-timeline";
-import { TerminalBlockDemo, TerminalBlockInkDemo } from "./terminal-block";
-import { CodeDiffDemo } from "./code-diff";
-import { WebSearchDemo } from "./web-search";
-import { SourcesDemo } from "./sources";
-import { InlineCitationDemo } from "./inline-citation";
-import { ImageGenerationDemo } from "./image-generation";
-import { AgentPlanDemo } from "./agent-plan";
-import { SubagentListDemo } from "./subagent-list";
-import { AgentStatusDemo } from "./agent-status";
-import { ApprovalCardDemo } from "./approval-card";
-import { ArtifactCardDemo } from "./artifact-card";
-import { ComposerDemo } from "./composer";
-import { ComposerSlashDemo } from "./composer-slash";
-import { ComposerMentionsDemo } from "./composer-mentions";
-import { ComposerAttachmentsDemo } from "./composer-attachments";
-import { ComposerModelsDemo } from "./composer-models";
-import { ComposerVoiceDemo } from "./composer-voice";
-import { ComposerContextDemo } from "./composer-context";
-import { EmptyStateDemo } from "./empty-state";
-import { ThreadListDemo } from "./thread-list";
-import { ScrollAnchorDemo } from "./scroll-anchor";
-import { TodoListDemo } from "./todo-list";
-import { MessageQueueDemo } from "./message-queue";
-import { MessageAttachmentDemo } from "./message-attachment";
-import { ReviewableDiffDemo } from "./reviewable-diff";
-import { FileTreeDemo } from "./file-tree";
-import { ElicitationFormDemo } from "./elicitation-form";
-import { RetrievalChunksDemo } from "./retrieval-chunks";
-import { ChartBarsDemo, ChartDemo, ChartLineDemo } from "./chart";
-import { TraceWaterfallDemo } from "./trace-waterfall";
-import { CanvasSplitDemo } from "./canvas-split";
-import { VoiceConversationDemo } from "./voice-conversation";
-import { ReadAloudDemo } from "./read-aloud";
-import { McpServerPanelDemo } from "./mcp-server-panel";
-import { FeedbackDialogDemo } from "./feedback-dialog";
-import { QuoteReplyDemo } from "./quote-reply";
-import { EditMessageDemo } from "./edit-message";
-import { ConnectionStateDemo } from "./connection-state";
-import { StoppedRunDemo } from "./stopped-run";
-import { AgentCardDemo } from "./agent-card";
-import { WebPreviewDemo } from "./web-preview";
-import { MessageTimingDemo } from "./message-timing";
-import { DraftRestoreDemo } from "./draft-restore";
-import { DiagramDemo } from "./diagram";
-import { FlowGraphDemo } from "./flow-graph";
-import { ActivityGraphDemo } from "./activity-graph";
-import { ToolGroupDemo } from "./tool-group";
-import { ContextBreakdownDemo } from "./context-breakdown";
-import { ModelPickerDemo } from "./model-picker";
-import { ReasoningEffortDemo } from "./reasoning-effort";
-import { GuardrailNoticeDemo } from "./guardrail-notice";
-import { DaySeparatorDemo } from "./day-separator";
-import { SpeakerIdentityDemo } from "./speaker-identity";
-import { RegenerateMenuDemo } from "./regenerate-menu";
-import { ConfidenceMarkerDemo } from "./confidence-marker";
-import { ToolErrorDemo } from "./tool-error";
-import { PermissionGrantDemo } from "./permission-grant";
-import { ComputerUseDemo } from "./computer-use";
-import { CodeRunnerDemo } from "./code-runner";
-import { DocumentReferenceDemo } from "./document-reference";
-import { MemoryChipsDemo } from "./memory-chips";
-import { ResearchReportDemo } from "./research-report";
-import { MapAnswerDemo } from "./map-answer";
-import { MathBlockDemo } from "./math-block";
-import { SpecSheetDemo } from "./spec-sheet";
-import { ComparisonCardDemo } from "./comparison-card";
-import { TimelineDemo } from "./timeline";
-import { JobProgressDemo } from "./job-progress";
-import { ScoreBreakdownDemo } from "./score-breakdown";
-import { CostMeterDemo } from "./cost-meter";
-import { QuotaBannerDemo } from "./quota-banner";
-import { AgentHandoffDemo } from "./agent-handoff";
-import { BackgroundInboxDemo } from "./background-inbox";
-import { CheckpointHistoryDemo } from "./checkpoint-history";
-import { ScheduleCardDemo } from "./schedule-card";
-import { PromptLibraryDemo } from "./prompt-library";
-import { CommandPaletteDemo } from "./command-palette";
-import { SharedConversationDemo } from "./shared-conversation";
-import { ConversationSearchDemo } from "./conversation-search";
-import { ThreadSearchDemo } from "./thread-search";
-import { LauncherBubbleDemo } from "./launcher-bubble";
-import { SettingsPanelDemo } from "./settings-panel";
-import { OnboardingDemo } from "./onboarding";
-import { MobileComposerDemo } from "./mobile-composer";
-=======
 } from "@/components/demo/elements/loading-state";
 import { DataTableDemo } from "@/components/demo/elements/data-table";
 import { RecommendationCardDemo } from "@/components/demo/elements/recommendation-card";
@@ -224,7 +119,6 @@ import { LauncherBubbleDemo } from "@/components/demo/elements/launcher-bubble";
 import { SettingsPanelDemo } from "@/components/demo/elements/settings-panel";
 import { OnboardingDemo } from "@/components/demo/elements/onboarding";
 import { MobileComposerDemo } from "@/components/demo/elements/mobile-composer";
->>>>>>> c48810359 (init)
 import {
   AuiAssistantModalDemo,
   AuiAssistantSidebarDemo,
@@ -255,13 +149,8 @@ import {
   AuiToolGroupDemo,
   AuiTooltipIconButtonDemo,
   AuiVoiceDemo,
-<<<<<<< HEAD
-} from "./aui-demos";
-import * as generativeDemos from "./generative-demos";
-=======
 } from "@/components/demo/elements/aui-demos";
 import * as generativeDemos from "@/components/demo/elements/generative-demos";
->>>>>>> c48810359 (init)
 import { GENERATIVE_ELEMENTS } from "@/lib/generative-elements";
 
 export interface ElementVariant {

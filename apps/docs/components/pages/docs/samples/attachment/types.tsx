@@ -5,7 +5,7 @@ import {
   ThreadPrimitive,
   type ThreadMessageLike,
 } from "@assistant-ui/react";
-import { UserMessageAttachments } from "@/components/assistant-ui/attachment";
+import { UserMessageAttachments } from "@/components/assistant-ui/elements/attachment";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-runtime-provider";
 

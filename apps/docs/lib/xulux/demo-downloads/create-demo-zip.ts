@@ -110,8 +110,7 @@ function targetPathForSourceFile(sourceFile: string) {
     return sourceFile
       .replace(/^packages\/ui\/src\//, "")
       .replace(/^components\/ui\/radix\//, "components/ui/")
-      .replace(/^components\/ui\/base\//, "components/ui/")
-      .replace(/^lib\//, "lib/");
+      .replace(/^components\/ui\/base\//, "components/ui/");
   }
 
   if (sourceFile.startsWith("apps/docs/components/pages/examples/")) {
@@ -274,7 +273,7 @@ function layoutTsx(manifest: DemoDownloadManifest) {
 }
 
 function pageTsx(manifest: DemoDownloadManifest) {
-  return `import { DemoRuntimeProvider } from "@/components/runtime/demo-runtime-provider";\nimport { ${manifest.componentName} } from "@/components/pages/examples/${manifest.slug}";\n\nexport default function Page() {\n  return (\n    <main className="h-dvh overflow-hidden">\n      <DemoRuntimeProvider>\n        <${manifest.componentName} />\n      </DemoRuntimeProvider>\n    </main>\n  );\n}\n`;
+  return `import { DemoRuntimeProvider } from "@/components/runtime/demo-runtime-provider";\nimport { ${manifest.componentName} } from "@/components/examples/${manifest.slug}";\n\nexport default function Page() {\n  return (\n    <main className="h-dvh overflow-hidden">\n      <DemoRuntimeProvider>\n        <${manifest.componentName} />\n      </DemoRuntimeProvider>\n    </main>\n  );\n}\n`;
 }
 
 function runtimeProviderTsx() {

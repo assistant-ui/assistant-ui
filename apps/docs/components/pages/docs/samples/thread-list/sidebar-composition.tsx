@@ -7,7 +7,7 @@ import {
   type ExternalStoreThreadData,
   type ThreadMessage,
 } from "@assistant-ui/react";
-import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";
+import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar";
 import { SidebarProvider } from "@/components/ui/sidebar";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
