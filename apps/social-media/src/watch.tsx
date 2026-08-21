@@ -3,7 +3,7 @@ import { readdir } from "node:fs/promises";
 import { renderCard } from "./render";
 import { fileURLToPath } from "node:url";
 
-const LAUNCHES_DIR = fileURLToPath(new URL("../dist", import.meta.url));
+const LAUNCHES_DIR = fileURLToPath(new URL("./launches", import.meta.url));
 
 async function buildAll() {
   const files = await readdir(LAUNCHES_DIR);
