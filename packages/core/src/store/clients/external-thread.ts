@@ -795,6 +795,13 @@ const useComposerClientResource = ({
       }
     },
     cancel: () => {
+      // An edit session ends here, so its in-flight adapter adds must not
+      // land in a later session; the thread composer's cancel stops the run
+      // and leaves the draft (and its pending adds) alone.
+      if (type === "edit") {
+        attachmentAddOperations.cancelAll();
+        void removePendingAttachments(attachmentsRef.current);
+      }
       onCancel?.();
       if (type === "edit") setIsEditing(false);
     },
