@@ -113,10 +113,38 @@ const CodeOverrideImpl: FC<CodeOverrideProps> = ({
   );
 };
 
+// Compared structurally: the prop's documented usage is an inline object
+// literal, so a fresh-but-equal identity per render must not re-render (and
+// re-tokenize) every code block during streaming.
+export const compareComponentsByLanguage = (
+  prev: CodeOverrideProps["componentsByLanguage"],
+  next: CodeOverrideProps["componentsByLanguage"],
+): boolean => {
+  if (prev === next) return true;
+  if (!prev || !next) return false;
+  const prevKeys = Object.keys(prev);
+  if (prevKeys.length !== Object.keys(next).length) return false;
+  for (const key of prevKeys) {
+    const prevEntry = prev[key];
+    const nextEntry = next[key];
+    if (prevEntry === nextEntry) continue;
+    if (!nextEntry) return false;
+    if (
+      prevEntry!.SyntaxHighlighter !== nextEntry.SyntaxHighlighter ||
+      prevEntry!.CodeHeader !== nextEntry.CodeHeader
+    )
+      return false;
+  }
+  return true;
+};
+
 export const CodeOverride = memo(CodeOverrideImpl, (prev, next) => {
   const isEqual =
     prev.components === next.components &&
-    prev.componentsByLanguage === next.componentsByLanguage &&
+    compareComponentsByLanguage(
+      prev.componentsByLanguage,
+      next.componentsByLanguage,
+    ) &&
     memoCompareNodes(prev, next);
   return isEqual;
 });
