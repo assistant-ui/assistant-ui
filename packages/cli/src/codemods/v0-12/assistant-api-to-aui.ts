@@ -115,6 +115,13 @@ const migrateAssistantApiToAui = createTransformer(
           }
           return undefined;
         }
+        // Type-only declarations do not shadow the value binding.
+        if (
+          statement.type === "TSTypeAliasDeclaration" ||
+          statement.type === "TSInterfaceDeclaration" ||
+          statement.type === "TSDeclareFunction"
+        )
+          return undefined;
         // FunctionDeclaration, ClassDeclaration, TS enums/namespaces, …
         if (
           statement.id &&
@@ -184,13 +191,19 @@ const migrateAssistantApiToAui = createTransformer(
       root.find(j.Identifier, { name: "api" }).forEach((path: any) => {
         const parent = path.parent.value;
         if (j.ImportSpecifier.check(parent)) return;
-        if (j.VariableDeclarator.check(parent) && parent.id === path.value)
-          return;
+        // Declaration names (variable, function, class, type alias,
+        // interface) and TS type positions are not value references.
+        if (parent.id === path.value) return;
+        if (j.TSTypeReference?.check?.(parent)) return;
+        if (j.TSQualifiedName?.check?.(parent)) return;
+        // Any non-computed key position is a name, not a reference: object
+        // properties, object/class methods, class properties, TS signatures.
+        // Esprima-style shorthand reuses one node as key and value, so the
+        // value position must survive the guard.
         if (
-          (j.Property.check(parent) || j.ObjectProperty.check(parent)) &&
           parent.key === path.value &&
           !parent.computed &&
-          !parent.shorthand
+          parent.value !== path.value
         )
           return;
         if (

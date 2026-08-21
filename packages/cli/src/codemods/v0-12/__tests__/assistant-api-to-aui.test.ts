@@ -848,3 +848,55 @@ export function helper() {
     expect(output).toContain("return aui.thread()");
   });
 });
+
+describe("keys and type-only declarations", () => {
+  it("does not rename method or class-member keys named api", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  const handlers = {
+    api() {
+      return 1;
+    },
+  };
+  class Client {
+    api = 1;
+    api2() {
+      return this.api;
+    }
+  }
+  return { handlers, Client };
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("api() {");
+    expect(output).toContain("api = 1;");
+    expect(output).toContain("return this.api");
+    expect(output).toContain("void aui.thread()");
+  });
+
+  it("does not treat type-only declarations as value shadows", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  type api2 = string;
+  {
+    type api = { x: number };
+    interface apiShape {}
+    void api.thread();
+  }
+  return null;
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("void aui.thread()");
+    expect(output).toContain("type api = { x: number }");
+  });
+});
