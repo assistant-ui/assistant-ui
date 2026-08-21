@@ -2,4 +2,4 @@
 "@assistant-ui/ai-sdk": patch
 ---
 
-fix: forward the chat update throttle through `useChatRuntime`
+fix: expose the chat update throttle in `useChatRuntime` options

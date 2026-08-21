@@ -1,4 +1,4 @@
-import { Chat, CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, UseChatOptions, useChat } from "@ai-sdk/react";
+import { Chat, CreateUIMessage, UIMessage as UIMessage$1, UseChatHelpers, useChat } from "@ai-sdk/react";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -520,7 +520,8 @@ type ChatModelRunResult = {
   };
 };
 
-type ChatThreadOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<UI_MESSAGE> & Pick<UseChatOptions<UI_MESSAGE>, "throttle"> & ExternalStoreSharedOptions & {
+type ChatThreadOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<UI_MESSAGE> & ExternalStoreSharedOptions & {
+  throttle?: number | undefined;
   adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   onResume?: AISDKRuntimeAdapter["onResume"];
