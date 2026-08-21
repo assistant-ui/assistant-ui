@@ -108,9 +108,7 @@ function targetPathForSourceFile(sourceFile: string) {
     return sourceFile
       .replace(/^packages\/ui\/src\//, "")
       .replace(/^components\/ui\/radix\//, "components/ui/")
-      .replace(/^components\/ui\/base\//, "components/ui/")
-      .replace(/^components\/assistant-ui\//, "components/assistant-ui/")
-      .replace(/^lib\//, "lib/");
+      .replace(/^components\/ui\/base\//, "components/ui/");
   }
 
   if (sourceFile.startsWith("apps/docs/components/pages/examples/")) {
