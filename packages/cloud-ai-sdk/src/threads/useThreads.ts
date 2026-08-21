@@ -182,7 +182,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
             try {
               const selectedThread = await cloud.threads.get(selectedThreadId);
               shouldClearSelectedThread =
-                !includeArchived && selectedThread.is_archived;
+                !includeArchivedRef.current && selectedThread.is_archived;
             } catch (error) {
               shouldClearSelectedThread =
                 typeof error === "object" &&
