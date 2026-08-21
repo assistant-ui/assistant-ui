@@ -119,13 +119,18 @@ const migrateAssistantApiToAui = createTransformer(
           return;
         if (j.JSXAttribute.check(parent)) return;
         // The exported name of `export { api }` is the public alias, not a
-        // reference; only the local side is renamed (to `aui as api`).
-        if (
-          j.ExportSpecifier.check(parent) &&
-          parent.exported === path.value &&
-          parent.local !== path.value
-        )
-          return;
+        // reference; only the local side is renamed (to `aui as api`). A
+        // source-bearing re-export binds in the other module, never here.
+        if (j.ExportSpecifier.check(parent)) {
+          const grandparent = path.parent.parent?.value;
+          if (
+            j.ExportNamedDeclaration.check(grandparent) &&
+            grandparent.source != null
+          )
+            return;
+          if (parent.exported === path.value && parent.local !== path.value)
+            return;
+        }
         if (!bindsToRenamedApi(path)) return;
         referencePaths.push(path);
       });
@@ -145,13 +150,16 @@ const migrateAssistantApiToAui = createTransformer(
           j.ExportSpecifier.check(parent) &&
           parent.local === path.value
         ) {
-          // `export { api }`: rename the local binding, keep the public name.
-          // Replaced wholesale — recast keeps the shorthand form (dropping
-          // the alias) when only the fields of the original node change.
+          // `export { api }` / `export { api as name }`: rename the local
+          // binding, keep the public name. Replaced wholesale — recast keeps
+          // the shorthand form (dropping the alias) when only the fields of
+          // the original node change.
           path.parent.replace(
             j.exportSpecifier.from({
               local: j.identifier("aui"),
-              exported: j.identifier("api"),
+              exported: j.Identifier.check(parent.exported)
+                ? j.identifier(parent.exported.name)
+                : parent.exported,
             }),
           );
         } else {

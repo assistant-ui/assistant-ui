@@ -686,3 +686,35 @@ export { api };
     expect(output).toContain("const aui = useAui()");
   });
 });
+
+describe("aliased and source-bearing exports", () => {
+  it("preserves aliased public names", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+const api = useAssistantApi();
+
+export { api as default };
+export { api as clientApi };
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("export { aui as default }");
+    expect(output).toContain("export { aui as clientApi }");
+  });
+
+  it("leaves source-bearing re-exports untouched", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+const api = useAssistantApi();
+void api.thread();
+
+export { api } from "./other-module";
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain('export { api } from "./other-module"');
+    expect(output).toContain("void aui.thread()");
+  });
+});
