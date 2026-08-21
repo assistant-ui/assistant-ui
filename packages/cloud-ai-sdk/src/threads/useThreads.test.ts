@@ -55,6 +55,40 @@ describe("useThreads", () => {
     vi.restoreAllMocks();
   });
 
+  it("clears a selected thread archived outside the current client", async () => {
+    const activeThread = createThreadListResponse("Active", "thread-1")
+      .threads[0]!;
+    const archivedThread = { ...activeThread, is_archived: true };
+    let isArchived = false;
+    const cloud = {
+      threads: {
+        list: vi.fn(async () => ({
+          threads: isArchived ? [] : [activeThread],
+        })),
+        get: vi.fn(async () => archivedThread),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    } as never;
+    const { result } = renderHook(() =>
+      useThreads({ cloud, includeArchived: false, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+    act(() => result.current.selectThread("thread-1"));
+
+    isArchived = true;
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(result.current.threads).toEqual([]);
+    expect(result.current.threadId).toBeNull();
+  });
+
   it("returns fallback and exposes error when an action fails", async () => {
     const cloud = {
       threads: {
