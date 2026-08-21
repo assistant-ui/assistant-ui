@@ -1013,7 +1013,7 @@ async function main() {
 // argv keeps the invoked path (e.g. /tmp vs /private/tmp on macOS).
 const realPath = (file) => {
   try {
-    return realpathSync(file);
+    return realpathSync.native(file);
   } catch {
     return path.resolve(file);
   }
