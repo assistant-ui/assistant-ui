@@ -865,6 +865,12 @@ describe("elements that cannot be migrated stay intact", () => {
     </ThreadPrimitive.If>`,
     ],
     [
+      "namespaced attributes",
+      `<ThreadPrimitive.If empty xml:lang="en">
+      <div>Content</div>
+    </ThreadPrimitive.If>`,
+    ],
+    [
       "fixed-condition components with props",
       `<ThreadPrimitive.Empty asChild>
       <div>Content</div>

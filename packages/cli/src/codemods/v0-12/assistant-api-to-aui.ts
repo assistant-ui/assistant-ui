@@ -102,16 +102,32 @@ const migrateAssistantApiToAui = createTransformer(
           !parent.computed
         )
           return;
+        // JSXIdentifier extends Identifier, so JSX positions land here too:
+        // member properties (<config.api/>), namespace names, and lowercase
+        // element names (<api/> is an intrinsic tag) are not references.
+        if (
+          j.JSXMemberExpression?.check?.(parent) &&
+          parent.property === path.value
+        )
+          return;
+        if (j.JSXNamespacedName?.check?.(parent)) return;
+        if (
+          (j.JSXOpeningElement?.check?.(parent) ||
+            j.JSXClosingElement?.check?.(parent)) &&
+          parent.name === path.value
+        )
+          return;
         if (j.JSXAttribute.check(parent)) return;
+        // The exported name of `export { api }` is the public alias, not a
+        // reference; only the local side is renamed (to `aui as api`).
+        if (
+          j.ExportSpecifier.check(parent) &&
+          parent.exported === path.value &&
+          parent.local !== path.value
+        )
+          return;
         if (!bindsToRenamedApi(path)) return;
         referencePaths.push(path);
-      });
-
-      const jsxReferencePaths: any[] = [];
-      root.find(j.JSXIdentifier, { name: "api" }).forEach((path: any) => {
-        if (j.JSXAttribute.check(path.parent.value)) return;
-        if (!bindsToRenamedApi(path)) return;
-        jsxReferencePaths.push(path);
       });
 
       for (const path of referencePaths) {
@@ -125,13 +141,16 @@ const migrateAssistantApiToAui = createTransformer(
           parent.shorthand = false;
           parent.key = j.identifier("api");
           parent.value = j.identifier("aui");
+        } else if (
+          j.ExportSpecifier.check(parent) &&
+          parent.local === path.value
+        ) {
+          // `export { api }`: rename the local binding, keep the public name
+          parent.local = j.identifier("aui");
+          parent.exported = j.identifier("api");
         } else {
           path.value.name = "aui";
         }
-        markAsChanged();
-      }
-      for (const path of jsxReferencePaths) {
-        path.value.name = "aui";
         markAsChanged();
       }
       for (const idNode of renamedDeclaratorIds) {

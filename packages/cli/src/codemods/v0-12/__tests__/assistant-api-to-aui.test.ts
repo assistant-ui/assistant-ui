@@ -648,3 +648,41 @@ function MyComponent() {
     expect(output).toContain("register({ api: aui })");
   });
 });
+
+describe("JSX and export positions", () => {
+  it("does not rename JSX member properties or intrinsic tags", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  return (
+    <div>
+      <config.api />
+      <api />
+    </div>
+  );
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("<config.api />");
+    expect(output).toContain("<api />");
+    expect(output).toContain("void aui.thread()");
+  });
+
+  it("preserves the public name of a re-exported api", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+const api = useAssistantApi();
+
+export { api };
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("export { aui as api }");
+    expect(output).toContain("const aui = useAui()");
+  });
+});

@@ -262,7 +262,11 @@ const migratePrimitiveIfToAuiIf = createTransformer(
         }
         const propName =
           typeof attr.name.name === "string" ? attr.name.name : null;
-        if (!propName) continue;
+        if (!propName) {
+          // e.g. JSXNamespacedName — not expressible as a condition
+          hasUnknownProp = true;
+          continue;
+        }
 
         const mapper = propMap[propName];
         if (!mapper) {
