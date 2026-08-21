@@ -36,11 +36,16 @@ const injectRawPre = () => (tree: Root) => {
   tree.children.push(pre);
 };
 
+const PlainPre: PreComponent = ({ node: _, ...props }) => <pre {...props} />;
+const PreWithPlainFallback: PreComponent = (props) => (
+  <PreOverride fallbackPre={PlainPre} {...props} />
+);
+
 const render = (markdown: string) =>
   renderToStaticMarkup(
     <ReactMarkdown
       rehypePlugins={[injectRawPre]}
-      components={{ pre: PreOverride, code: CodeWithContext }}
+      components={{ pre: PreWithPlainFallback, code: CodeWithContext }}
     >
       {markdown}
     </ReactMarkdown>,
@@ -64,12 +69,6 @@ describe("PreOverride", () => {
     );
 
     expect(html).toContain('<pre class="user-pre">  indented\n  text</pre>');
-  });
-
-  it("keeps the pre element for a pre without a code child", () => {
-    const html = render("");
-
-    expect(html).toContain("<pre>  indented\n  text</pre>");
   });
 
   it("still routes fenced code blocks through the code override", () => {

@@ -19,7 +19,7 @@ export const useIsMarkdownCodeBlock = () => {
 };
 
 type PreOverrideProps = ComponentPropsWithoutRef<PreComponent> & {
-  fallbackPre?: PreComponent | undefined;
+  fallbackPre: PreComponent;
 };
 
 const PreOverrideImpl = ({
@@ -30,18 +30,14 @@ const PreOverrideImpl = ({
   // The pre element is re-emitted by CodeOverride, which only runs for a
   // code child. A pre without one (e.g. raw HTML via rehype-raw) would
   // otherwise lose its element entirely, so it is rendered here through the
-  // consumer's pre component (fallbackPre, wired by MarkdownTextInner) so
-  // raw blocks keep consumer styling, or as a plain pre without one.
+  // consumer's pre component so raw blocks keep consumer styling. Required
+  // so the compiler pins MarkdownTextInner's wiring.
   const hasCodeChild =
     rest.node?.children.some(
       (child) => child.type === "element" && child.tagName === "code",
     ) ?? true;
 
-  if (!hasCodeChild) {
-    if (FallbackPre) return <FallbackPre {...rest}>{children}</FallbackPre>;
-    const { node: _, ...preProps } = rest;
-    return <pre {...preProps}>{children}</pre>;
-  }
+  if (!hasCodeChild) return <FallbackPre {...rest}>{children}</FallbackPre>;
 
   return <PreContext.Provider value={rest}>{children}</PreContext.Provider>;
 };
