@@ -3,15 +3,15 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { Element, Root } from "hast";
 import type { ComponentType } from "react";
 
+const mocks = vi.hoisted(() => ({
+  messagePartText: { type: "text", text: "", status: { type: "complete" } },
+}));
+
 vi.mock("@assistant-ui/react", async (importOriginal) => {
   const original = await importOriginal<typeof import("@assistant-ui/react")>();
   return {
     ...original,
-    useMessagePartText: () => ({
-      type: "text",
-      text: "",
-      status: { type: "complete" },
-    }),
+    useMessagePartText: () => mocks.messagePartText,
     INTERNAL: {
       ...original.INTERNAL,
       useSmooth: (part: { text: string }) => part,

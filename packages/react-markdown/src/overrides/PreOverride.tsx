@@ -30,8 +30,7 @@ const PreOverrideImpl = ({
   // The pre element is re-emitted by CodeOverride, which only runs for a
   // code child. A pre without one (e.g. raw HTML via rehype-raw) would
   // otherwise lose its element entirely, so it is rendered here through the
-  // consumer's pre component so raw blocks keep consumer styling. Required
-  // so the compiler pins MarkdownTextInner's wiring.
+  // consumer's pre component so raw blocks keep consumer styling.
   const hasCodeChild =
     rest.node?.children.some(
       (child) => child.type === "element" && child.tagName === "code",
