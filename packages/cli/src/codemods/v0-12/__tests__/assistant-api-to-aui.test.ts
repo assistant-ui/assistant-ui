@@ -900,3 +900,25 @@ function MyComponent() {
     expect(output).toContain("type api = { x: number }");
   });
 });
+
+describe("named expressions", () => {
+  it("does not rename the self-reference of a named function expression", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  const run = function api() {
+    return api;
+  };
+  return run;
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("function api() {");
+    expect(output).toContain("return api;");
+    expect(output).toContain("void aui.thread()");
+  });
+});

@@ -151,6 +151,13 @@ const migrateAssistantApiToAui = createTransformer(
           // object/class methods) binds its params.
           if (Array.isArray(node.params) && node.params.some(patternBindsApi))
             return "foreign";
+          // A named function/class expression binds its own name in its body.
+          if (
+            (j.FunctionExpression.check(node) ||
+              j.ClassExpression.check(node)) &&
+            node.id?.name === "api"
+          )
+            return "foreign";
           if (
             j.CatchClause.check(node) &&
             node.param &&
