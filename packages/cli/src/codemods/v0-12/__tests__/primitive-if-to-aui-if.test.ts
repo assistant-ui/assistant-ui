@@ -916,3 +916,24 @@ function MyComponent(props: Record<string, unknown>) {
     expect(output).toContain("<ThreadPrimitive.If {...props}>");
   });
 });
+
+describe("null literal prop values", () => {
+  it("maps submittedFeedback={null} to the null comparison", () => {
+    const input = `
+import { MessagePrimitive } from "@assistant-ui/react";
+
+function MyComponent() {
+  return (
+    <MessagePrimitive.If submittedFeedback={null}>
+      <div>Content</div>
+    </MessagePrimitive.If>
+  );
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain(
+      "(s.message.metadata.submittedFeedback?.type ?? null) === null",
+    );
+  });
+});

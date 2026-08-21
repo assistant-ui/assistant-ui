@@ -143,11 +143,13 @@ const getAttrValue = (j: any, attr: any): unknown => {
   if (j.JSXExpressionContainer.check(attr.value)) {
     const expr = attr.value.expression;
     if (j.BooleanLiteral.check(expr)) return expr.value;
+    // NullLiteral bases Literal in ast-types but carries no `value` field,
+    // so it must be recognized before the generic Literal branch.
+    if (j.NullLiteral.check(expr)) return null;
     if (j.Literal.check(expr)) {
       if (expr.value === null) return null;
       return expr.value;
     }
-    if (j.NullLiteral.check(expr)) return null;
     return UNSUPPORTED_VALUE;
   }
 

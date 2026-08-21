@@ -72,15 +72,74 @@ const migrateAssistantApiToAui = createTransformer(
       }
     });
 
-    // 3. Rename references whose binding is one of those declarators
+    // 3. Rename references governed by one of those declarators. Resolution
+    // is lexical (nearest enclosing declaration wins) rather than via
+    // ast-types scopes, which have no block granularity: a block-scoped
+    // `const api = other()` inside the same function must shadow.
     if (renamedDeclaratorIds.size > 0) {
+      const patternBindsApi = (id: any): boolean => {
+        if (j.Identifier.check(id)) return id.name === "api";
+        if (j.ObjectPattern.check(id)) {
+          return id.properties.some((prop: any) =>
+            patternBindsApi(prop.value ?? prop.argument ?? prop),
+          );
+        }
+        if (j.ArrayPattern.check(id)) {
+          return id.elements.some((el: any) => el && patternBindsApi(el));
+        }
+        if (j.AssignmentPattern.check(id)) return patternBindsApi(id.left);
+        if (j.RestElement.check(id)) return patternBindsApi(id.argument);
+        return false;
+      };
+
+      // Returns the declarator id node governing `api` here, or "foreign"
+      // when a param / pattern / catch binding shadows it first.
+      const governingApiBinding = (path: any): any => {
+        let current = path.parent;
+        while (current) {
+          const node = current.value;
+
+          const isFunction =
+            j.FunctionDeclaration.check(node) ||
+            j.FunctionExpression.check(node) ||
+            j.ArrowFunctionExpression.check(node);
+          if (isFunction && node.params.some(patternBindsApi)) return "foreign";
+          if (
+            j.CatchClause.check(node) &&
+            node.param &&
+            patternBindsApi(node.param)
+          )
+            return "foreign";
+
+          const body = j.BlockStatement.check(node)
+            ? node.body
+            : j.Program.check(node)
+              ? node.body
+              : isFunction && j.BlockStatement.check(node.body)
+                ? null // handled when the walk reaches the BlockStatement
+                : null;
+          if (Array.isArray(body)) {
+            for (const statement of body) {
+              if (!j.VariableDeclaration.check(statement)) continue;
+              for (const declarator of statement.declarations) {
+                if (
+                  j.Identifier.check(declarator.id) &&
+                  declarator.id.name === "api"
+                )
+                  return declarator.id;
+                if (patternBindsApi(declarator.id)) return "foreign";
+              }
+            }
+          }
+
+          current = current.parent;
+        }
+        return undefined;
+      };
+
       const bindsToRenamedApi = (path: any): boolean => {
-        const scope = path.scope?.lookup("api");
-        if (!scope) return false;
-        const bindings = scope.getBindings()["api"] ?? [];
-        return bindings.some((binding: any) =>
-          renamedDeclaratorIds.has(binding.value),
-        );
+        const governing = governingApiBinding(path);
+        return governing !== "foreign" && renamedDeclaratorIds.has(governing);
       };
 
       const referencePaths: any[] = [];

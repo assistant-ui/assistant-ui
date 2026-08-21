@@ -718,3 +718,32 @@ export { api } from "./other-module";
     expect(output).toContain("void aui.thread()");
   });
 });
+
+describe("block-scoped shadowing", () => {
+  it("does not rename a block-scoped api inside the same function", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  {
+    const api = createOther();
+    void api.other();
+  }
+  if (true) {
+    const { api } = createClient();
+    void api.fetchStuff();
+  }
+  return null;
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("void aui.thread()");
+    expect(output).toContain("const api = createOther()");
+    expect(output).toContain("void api.other()");
+    expect(output).toContain("const { api } = createClient()");
+    expect(output).toContain("void api.fetchStuff()");
+  });
+});
