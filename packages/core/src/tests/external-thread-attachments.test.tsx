@@ -705,6 +705,11 @@ describe("cancelled edit sessions", () => {
     expect(remove).toHaveBeenCalledWith(
       expect.objectContaining({ id: "pending-1" }),
     );
+
+    await act(async () => {
+      composer().cancel();
+    });
+    expect(remove).toHaveBeenCalledTimes(1);
   });
 
   it("keeps the thread composer's in-flight add across a run cancel", async () => {
