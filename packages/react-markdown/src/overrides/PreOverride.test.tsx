@@ -50,8 +50,7 @@ describe("PreOverride", () => {
   it("keeps the pre element for a pre without a code child", () => {
     const html = render("");
 
-    expect(html).toContain("<pre>");
-    expect(html).toContain("  indented\n  text");
+    expect(html).toContain("<pre>  indented\n  text</pre>");
   });
 
   it("still routes fenced code blocks through the code override", () => {
