@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: cancel an edit session's in-flight attachment adds so they cannot leak into a later session
+fix: cancelling an edit session cancels its in-flight attachment adds and removes its non-complete attachments through the attachment adapter

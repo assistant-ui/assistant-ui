@@ -647,6 +647,66 @@ describe("cancelled edit sessions", () => {
     expect(composer().getState().attachments).toEqual([]);
   });
 
+  it("adapter-removes the session's pending attachments on cancel, sparing prefilled ones", async () => {
+    const remove = vi.fn(async () => {});
+    const aui = renderThreadWithProps({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [
+            {
+              id: "prefilled-1",
+              type: "document",
+              name: "existing.txt",
+              contentType: "text/plain",
+              content: [],
+              status: { type: "complete" },
+            } as unknown as CompleteAttachment,
+          ],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      onEdit: () => {},
+      attachmentAdapter: {
+        accept: "*",
+        add: async ({ file }: { file: File }) =>
+          ({
+            id: "pending-1",
+            type: "document",
+            name: file.name,
+            contentType: file.type,
+            file,
+            status: { type: "pending", reason: "uploading", progress: 0 },
+          }) as PendingAttachment,
+        send: async () => ({}) as never,
+        remove,
+      },
+    });
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+
+    await act(async () => {
+      composer().beginEdit();
+    });
+    await act(() =>
+      composer().addAttachment(
+        new File(["data"], "notes.txt", { type: "text/plain" }),
+      ),
+    );
+    expect(composer().getState().attachments).toHaveLength(2);
+
+    await act(async () => {
+      composer().cancel();
+    });
+
+    await waitFor(() => expect(remove).toHaveBeenCalledTimes(1));
+    expect(remove).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "pending-1" }),
+    );
+  });
+
   it("keeps the thread composer's in-flight add across a run cancel", async () => {
     let resolveAdd!: (attachment: PendingAttachment) => void;
     const aui = renderThreadWithProps({

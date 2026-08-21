@@ -800,7 +800,9 @@ const useComposerClientResource = ({
       // and leaves the draft (and its pending adds) alone.
       if (type === "edit") {
         attachmentAddOperations.cancelAll();
-        void removePendingAttachments(attachmentsRef.current);
+        removePendingAttachments(attachmentsRef.current).catch((error) => {
+          console.error("Failed to remove cancelled edit attachments", error);
+        });
       }
       onCancel?.();
       if (type === "edit") setIsEditing(false);
