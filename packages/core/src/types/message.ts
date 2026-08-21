@@ -306,6 +306,11 @@ export type ToolCallMessagePartStatus =
       /** Reason the tool call requires action. */
       readonly reason: "tool-calls" | "interrupt";
     }
+  | {
+      readonly type: "incomplete";
+      readonly reason: "tool-calls";
+      readonly error?: ReadonlyJSONValue;
+    }
   | MessagePartStatus;
 
 export type MessageStatus =

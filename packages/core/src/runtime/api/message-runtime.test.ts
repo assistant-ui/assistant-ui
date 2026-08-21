@@ -173,6 +173,31 @@ describe("toMessagePartStatus", () => {
     });
   });
 
+  it("preserves incomplete tool-call status on unresolved tool calls", () => {
+    const message = createAssistantMessage(
+      [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "weather",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+      {
+        type: "incomplete",
+        reason: "tool-calls",
+        error: { message: "Tool execution did not finish" },
+      },
+    );
+
+    expect(toMessagePartStatus(message, 0, message.content[0]!)).toEqual({
+      type: "incomplete",
+      reason: "tool-calls",
+      error: { message: "Tool execution did not finish" },
+    });
+  });
+
   it.each([
     ["false", false],
     ["zero", 0],
