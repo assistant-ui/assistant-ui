@@ -145,9 +145,15 @@ const migrateAssistantApiToAui = createTransformer(
           j.ExportSpecifier.check(parent) &&
           parent.local === path.value
         ) {
-          // `export { api }`: rename the local binding, keep the public name
-          parent.local = j.identifier("aui");
-          parent.exported = j.identifier("api");
+          // `export { api }`: rename the local binding, keep the public name.
+          // Replaced wholesale — recast keeps the shorthand form (dropping
+          // the alias) when only the fields of the original node change.
+          path.parent.replace(
+            j.exportSpecifier.from({
+              local: j.identifier("aui"),
+              exported: j.identifier("api"),
+            }),
+          );
         } else {
           path.value.name = "aui";
         }
