@@ -1,6 +1,11 @@
 "use client";
 
-import { useChat, type Chat, type UIMessage } from "@ai-sdk/react";
+import {
+  useChat,
+  type Chat,
+  type UIMessage,
+  type UseChatOptions,
+} from "@ai-sdk/react";
 import {
   pickExternalStoreSharedOptions,
   type AssistantRuntime,
@@ -31,6 +36,7 @@ import { useResourceCleanup } from "./useResourceCleanup";
 
 export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
+    Pick<UseChatOptions<UI_MESSAGE>, "throttle"> &
     ExternalStoreSharedOptions & {
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;

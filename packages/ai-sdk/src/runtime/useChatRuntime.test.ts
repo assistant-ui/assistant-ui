@@ -96,6 +96,19 @@ describe("useChatRuntime", () => {
     window.sessionStorage.clear();
   });
 
+  it("forwards the chat update throttle to useChat", () => {
+    mocks.useChat.mockReturnValue({
+      resumeStream: vi.fn(),
+      status: "ready",
+    });
+
+    renderHook(() => useChatRuntime({ throttle: 50 }));
+
+    expect(mocks.useChat).toHaveBeenCalledWith(
+      expect.objectContaining({ throttle: 50 }),
+    );
+  });
+
   it("waits for external history to load before resuming a stream", async () => {
     mocks.state.isLoadingHistory = true;
     const resumeStream = vi.fn().mockResolvedValue(undefined);
