@@ -15,6 +15,7 @@ import {
   updateStatusReducer,
   preserveMidLoadTransitions,
   statusSnapshot,
+  LOCAL_THREAD_ID_PREFIX,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type {
   RemoteThreadListAdapter,
@@ -65,7 +66,7 @@ const EMPTY_REMOTE_STATE: RemoteThreadState = {
 const addNewThread = (state: RemoteThreadState) => {
   let id: string;
   do {
-    id = `__LOCALID_${generateId()}`;
+    id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
   } while (state.threadIdMap[id]);
 
   const mappingId = createThreadMappingId(id);

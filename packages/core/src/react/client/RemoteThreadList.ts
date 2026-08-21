@@ -25,6 +25,7 @@ import {
   type RemoteThreadState,
   preserveMidLoadTransitions,
   statusSnapshot,
+  LOCAL_THREAD_ID_PREFIX,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type {
   RemoteThreadInitializeResponse,
@@ -106,7 +107,7 @@ const seedNewThread = (
 ): { id: string; state: RemoteThreadState } => {
   let id: string;
   do {
-    id = `__LOCALID_${generateId()}`;
+    id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
   } while (state.threadIdMap[id]);
   const mappingId = createThreadMappingId(id);
   return {

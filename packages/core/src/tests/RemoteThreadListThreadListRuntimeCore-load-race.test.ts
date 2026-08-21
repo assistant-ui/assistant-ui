@@ -85,12 +85,12 @@ describe("preserveMidLoadTransitions", () => {
 
   it("does not duplicate a thread the response contains by remoteId", () => {
     const state = stateWith(
-      [{ id: "local-1", remoteId: "remote-1", status: "regular" }],
+      [{ id: "__LOCALID_1", remoteId: "remote-1", status: "regular" }],
       { threadIds: ["remote-1"] },
     );
     const result = preserveMidLoadTransitions(
       state,
-      { threadIds: ["local-1"], archivedThreadIds: [] },
+      { threadIds: ["__LOCALID_1"], archivedThreadIds: [] },
       new Map(),
     );
     expect(result.threadIds).toEqual(["remote-1"]);
@@ -118,41 +118,40 @@ describe("preserveMidLoadTransitions", () => {
   it("orders multiple rescued threads by their live pre-response order", () => {
     const state = stateWith(
       [
-        { id: "local-1", remoteId: "remote-1", status: "regular" },
-        { id: "local-2", remoteId: "remote-2", status: "regular" },
+        { id: "__LOCALID_1", remoteId: "remote-1", status: "regular" },
+        { id: "__LOCALID_2", remoteId: "remote-2", status: "regular" },
       ],
       { threadIds: ["t1"] },
     );
     const result = preserveMidLoadTransitions(
       state,
-      { threadIds: ["local-2", "local-1"], archivedThreadIds: [] },
+      { threadIds: ["__LOCALID_1", "__LOCALID_2"], archivedThreadIds: [] },
       new Map(),
     );
-    expect(result.threadIds).toEqual(["local-2", "local-1", "t1"]);
+    expect(result.threadIds).toEqual(["__LOCALID_1", "__LOCALID_2", "t1"]);
   });
 
-  it("is not confused by integer-like ids enumerating out of order", () => {
-    const state = stateWith([
-      { id: "1", status: "regular" },
-      { id: "2", status: "regular" },
-    ]);
+  it("leaves a fetched non-local thread governed by the response", () => {
+    const state = stateWith([{ id: "t9", remoteId: "t9", status: "regular" }], {
+      threadIds: ["t1"],
+    });
     const result = preserveMidLoadTransitions(
       state,
-      { threadIds: ["1", "2"], archivedThreadIds: [] },
+      { threadIds: ["t1", "t9"], archivedThreadIds: [] },
       new Map(),
     );
-    expect(result.threadIds).toEqual(["1", "2"]);
+    expect(result.threadIds).toEqual(["t1"]);
   });
 
   it("re-inserts an archived mid-flight transition", () => {
     const state = stateWith([
-      { id: "local-1", remoteId: "remote-1", status: "archived" },
+      { id: "__LOCALID_1", remoteId: "remote-1", status: "archived" },
     ]);
     const result = preserveMidLoadTransitions(
       state,
-      { threadIds: [], archivedThreadIds: ["local-1"] },
-      new Map([["local-1", "new"]]),
+      { threadIds: [], archivedThreadIds: ["__LOCALID_1"] },
+      new Map([["__LOCALID_1", "new"]]),
     );
-    expect(result.archivedThreadIds).toEqual(["local-1"]);
+    expect(result.archivedThreadIds).toEqual(["__LOCALID_1"]);
   });
 });

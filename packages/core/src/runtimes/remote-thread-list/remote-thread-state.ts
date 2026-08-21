@@ -38,6 +38,10 @@ export function createThreadMappingId(id: string): THREAD_MAPPING_ID {
   return id as THREAD_MAPPING_ID;
 }
 
+export const LOCAL_THREAD_ID_PREFIX = "__LOCALID_";
+export const isLocalThreadId = (id: string) =>
+  id.startsWith(LOCAL_THREAD_ID_PREFIX);
+
 export const normalizeCursor = (c: string | undefined): string | undefined =>
   c || undefined;
 
@@ -107,7 +111,9 @@ export type RemoteThreadState = {
 // prepends, so that order is newest first; object enumeration is not a
 // reliable stand-in, since integer-like keys enumerate out of insertion
 // order). Threads the server already knew stay governed by the response, so
-// a server-side deletion is not resurrected.
+// a server-side deletion is not resurrected — and a thread unknown to the
+// snapshot is only rescued when it is a local creation, so a deep-linked
+// thread the fetch path deliberately appended at the tail is not hoisted.
 export const preserveMidLoadTransitions = (
   state: RemoteThreadState,
   priorOrder: Pick<RemoteThreadState, "threadIds" | "archivedThreadIds">,
@@ -124,6 +130,7 @@ export const preserveMidLoadTransitions = (
   for (const data of Object.values(state.threadData)) {
     const before = statusAtRequest.get(data.id);
     if (before !== undefined && before !== "new") continue;
+    if (before === undefined && !isLocalThreadId(data.id)) continue;
 
     if (data.status === "regular" && !contains(regular, data)) {
       rescuedRegular.push(data);
