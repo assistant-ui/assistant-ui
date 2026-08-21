@@ -121,6 +121,33 @@ describe("compareComponentsByLanguage", () => {
     ).toBe(false);
   });
 
+  it("distinguishes same-sized maps with different keys and undefined entries", () => {
+    expect(
+      compareComponentsByLanguage(
+        { a: undefined },
+        { b: { SyntaxHighlighter: Highlighter } },
+      ),
+    ).toBe(false);
+    expect(
+      compareComponentsByLanguage(
+        { mermaid: undefined },
+        { mermaid: { SyntaxHighlighter: Highlighter } },
+      ),
+    ).toBe(false);
+    expect(
+      compareComponentsByLanguage({ a: undefined }, { a: undefined }),
+    ).toBe(true);
+  });
+
+  it("does not read inherited keys off the next map", () => {
+    expect(
+      compareComponentsByLanguage(
+        { toString: { SyntaxHighlighter: Highlighter } },
+        { other: { SyntaxHighlighter: Highlighter } },
+      ),
+    ).toBe(false);
+  });
+
   it("handles absent maps by identity", () => {
     expect(compareComponentsByLanguage(undefined, undefined)).toBe(true);
     expect(

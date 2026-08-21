@@ -116,22 +116,30 @@ const CodeOverrideImpl: FC<CodeOverrideProps> = ({
 // Compared structurally: the prop's documented usage is an inline object
 // literal, so a fresh-but-equal identity per render must not re-render (and
 // re-tokenize) every code block during streaming.
+type LanguageComponentEntry = {
+  CodeHeader?: ComponentType<CodeHeaderProps>;
+  SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps>;
+};
+
+// Entries may be undefined at runtime (conditional map building, plain JS
+// consumers), so the comparator accepts and distinguishes them.
 export const compareComponentsByLanguage = (
-  prev: CodeOverrideProps["componentsByLanguage"],
-  next: CodeOverrideProps["componentsByLanguage"],
+  prev: Record<string, LanguageComponentEntry | undefined> | undefined,
+  next: Record<string, LanguageComponentEntry | undefined> | undefined,
 ): boolean => {
   if (prev === next) return true;
   if (!prev || !next) return false;
   const prevKeys = Object.keys(prev);
   if (prevKeys.length !== Object.keys(next).length) return false;
   for (const key of prevKeys) {
+    if (!Object.hasOwn(next, key)) return false;
     const prevEntry = prev[key];
     const nextEntry = next[key];
     if (prevEntry === nextEntry) continue;
-    if (!nextEntry) return false;
+    if (!prevEntry || !nextEntry) return false;
     if (
-      prevEntry!.SyntaxHighlighter !== nextEntry.SyntaxHighlighter ||
-      prevEntry!.CodeHeader !== nextEntry.CodeHeader
+      prevEntry.SyntaxHighlighter !== nextEntry.SyntaxHighlighter ||
+      prevEntry.CodeHeader !== nextEntry.CodeHeader
     )
       return false;
   }
