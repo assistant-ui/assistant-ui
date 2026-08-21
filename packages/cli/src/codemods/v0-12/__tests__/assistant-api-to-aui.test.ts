@@ -592,3 +592,59 @@ function MyComponent() {
     expect(output?.trim()).toBe(expected.trim());
   });
 });
+
+describe("api bindings unrelated to useAssistantApi", () => {
+  it("does not rename a destructured api from another source", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  return api.thread();
+}
+
+function loadData() {
+  const { api } = createClient();
+  return api.fetchStuff();
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("const { api } = createClient()");
+    expect(output).toContain("api.fetchStuff()");
+    expect(output).toContain("const aui = useAui()");
+  });
+
+  it("does not rename a function parameter named api", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  return api.thread();
+}
+
+function callRemote(api: RemoteApi) {
+  return api.send();
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("function callRemote(api: RemoteApi)");
+    expect(output).toContain("return api.send()");
+  });
+
+  it("expands shorthand object properties instead of renaming the key", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  return register({ api });
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("register({ api: aui })");
+  });
+});
