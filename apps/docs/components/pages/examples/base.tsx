@@ -87,7 +87,7 @@ import Image from "next/image";
 import { useState, type FC, type ReactNode } from "react";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { docsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
-import { DEFAULT_MODEL_ID } from "@/constants/model";
+import { DEFAULT_MODEL_ID } from "@/lib/model";
 
 const Logo: FC<{ collapsed?: boolean }> = ({ collapsed = false }) => {
   return (
