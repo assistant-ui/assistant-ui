@@ -5245,6 +5245,10 @@ type ToolCallMessagePartProps<TArgs = any, TResult = unknown> = MessagePartState
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
   readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "tool-calls";
+  readonly error?: ReadonlyJSONValue;
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
@@ -6315,6 +6319,10 @@ declare const useSmoothStatus: {
   } | {
     readonly type: "requires-action";
     readonly reason: "interrupt" | "tool-calls";
+  } | {
+    readonly type: "incomplete";
+    readonly reason: "tool-calls";
+    readonly error?: ReadonlyJSONValue;
   };
   <TSelected>(selector: (state: {
     readonly type: "running";
@@ -6327,6 +6335,10 @@ declare const useSmoothStatus: {
   } | {
     readonly type: "requires-action";
     readonly reason: "interrupt" | "tool-calls";
+  } | {
+    readonly type: "incomplete";
+    readonly reason: "tool-calls";
+    readonly error?: ReadonlyJSONValue;
   }) => TSelected): TSelected;
   (options: {
     optional: true;
@@ -6341,6 +6353,10 @@ declare const useSmoothStatus: {
   } | {
     readonly type: "requires-action";
     readonly reason: "interrupt" | "tool-calls";
+  } | {
+    readonly type: "incomplete";
+    readonly reason: "tool-calls";
+    readonly error?: ReadonlyJSONValue;
   } | null;
   <TSelected>(options: {
     optional: true;
@@ -6355,6 +6371,10 @@ declare const useSmoothStatus: {
     } | {
       readonly type: "requires-action";
       readonly reason: "interrupt" | "tool-calls";
+    } | {
+      readonly type: "incomplete";
+      readonly reason: "tool-calls";
+      readonly error?: ReadonlyJSONValue;
     }) => TSelected;
   }): TSelected | null;
 }, useSmoothStatusStore: {
@@ -6369,6 +6389,10 @@ declare const useSmoothStatus: {
   } | {
     readonly type: "requires-action";
     readonly reason: "interrupt" | "tool-calls";
+  } | {
+    readonly type: "incomplete";
+    readonly reason: "tool-calls";
+    readonly error?: ReadonlyJSONValue;
   }>;
   (options: {
     optional: true;
@@ -6383,6 +6407,10 @@ declare const useSmoothStatus: {
   } | {
     readonly type: "requires-action";
     readonly reason: "interrupt" | "tool-calls";
+  } | {
+    readonly type: "incomplete";
+    readonly reason: "tool-calls";
+    readonly error?: ReadonlyJSONValue;
   }> | null;
 };
 
