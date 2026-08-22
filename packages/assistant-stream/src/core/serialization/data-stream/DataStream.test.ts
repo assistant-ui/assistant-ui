@@ -571,6 +571,24 @@ describe("file parts on the data stream", () => {
     ).toBe(true);
   });
 
+  it("routes a decoded parentId onto the part", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'k:{"data":"data:image/png;base64,AAAA","mimeType":"image/png","parentId":"t1"}',
+    ]);
+
+    expect(
+      chunks.some(
+        (c) =>
+          c.type === "part-start" &&
+          c.part.type === "file" &&
+          c.part.data === "data:image/png;base64,AAAA" &&
+          c.part.mimeType === "image/png" &&
+          c.part.parentId === "t1",
+      ),
+    ).toBe(true);
+  });
+
   it("carries the parentId on the wire", async () => {
     const lines = await encodeChunks([
       {
