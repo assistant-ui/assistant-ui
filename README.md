@@ -75,7 +75,7 @@ export function Chat() {
 
 | Integration                            | Package                                                          |
 | -------------------------------------- | ---------------------------------------------------------------- |
-| Vercel AI SDK                          | `@assistant-ui/ai-sdk`                                     |
+| Vercel AI SDK                          | `@assistant-ui/ai-sdk`                                           |
 | LangGraph / LangChain                  | `@assistant-ui/react-langgraph`, `@assistant-ui/react-langchain` |
 | AG-UI / A2A protocols                  | `@assistant-ui/react-ag-ui`, `@assistant-ui/react-a2a`           |
 | Google ADK / OpenCode                  | `@assistant-ui/react-google-adk`, `@assistant-ui/react-opencode` |

@@ -9,12 +9,6 @@ import { logger } from "./logger";
 export interface PackageInstallConfig {
   packageName: string;
   importPatterns: string[];
-  /**
-   * Additional packages that already satisfy the need. Lets a renamed package
-   * accept its previous name so an existing install is not duplicated;
-   * `packageName` always counts.
-   */
-  satisfiedBy?: string[];
   promptMessage: string;
   skipMessage: string;
   notFoundMessage: string;
@@ -30,8 +24,7 @@ export async function installPackageIfNeeded(
     return;
   }
 
-  const satisfying = [config.packageName, ...(config.satisfiedBy ?? [])];
-  if (satisfying.some((name) => isPackageInstalled(name))) {
+  if (isPackageInstalled(config.packageName)) {
     logger.info(config.skipMessage);
     return;
   }
