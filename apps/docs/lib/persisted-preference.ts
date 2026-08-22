@@ -106,7 +106,6 @@ export function createPersistedPreference<T>({
     subscribe: (listener) => {
       if (!listening) {
         listening = true;
-        snapshot = compute();
         window.addEventListener("storage", handleStorage);
         // Without a url mapping a history entry carries no selection, so
         // recomputing on popstate could only discard one that storage failed
@@ -114,6 +113,10 @@ export function createPersistedPreference<T>({
         if (url) window.addEventListener("popstate", refresh);
       }
       listeners.add(listener);
+      // A client-side navigation changes the url without a popstate, so the
+      // cached snapshot is re-derived for every subscriber rather than only
+      // for the first.
+      refresh();
       return () => {
         listeners.delete(listener);
       };

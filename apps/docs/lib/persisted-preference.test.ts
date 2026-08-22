@@ -103,6 +103,9 @@ const setup = ({
     emit,
     localStorage,
     getSearch: () => currentSearch,
+    setSearch: (next: string) => {
+      currentSearch = next;
+    },
     getNotifications: () => notifications,
   };
 };
@@ -219,6 +222,16 @@ it("keeps a url-less selection across popstate when storage is blocked", () => {
 
   preference.set("radix");
   emit("popstate", {});
+
+  expect(preference.get()).toBe("radix");
+});
+
+it("re-reads the url when a later subscriber joins", () => {
+  const { preference, setSearch } = setup({});
+  expect(preference.get()).toBe("base");
+
+  setSearch("?view=radix-ui");
+  preference.subscribe(() => {});
 
   expect(preference.get()).toBe("radix");
 });
