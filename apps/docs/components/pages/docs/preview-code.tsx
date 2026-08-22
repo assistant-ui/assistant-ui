@@ -11,6 +11,7 @@ type Tab = "preview" | "code";
 
 type PreviewCodeClientProps = {
   code: string;
+  codeVariant: "base" | "radix";
   baseCode?: string;
   children: React.ReactNode;
   base?: React.ReactNode;
@@ -44,6 +45,7 @@ function TabButton({ label, value, currentTab, onSelect }: TabButtonProps) {
 
 export function PreviewCodeClient({
   code,
+  codeVariant,
   baseCode,
   children,
   base,
@@ -60,7 +62,7 @@ export function PreviewCodeClient({
     await navigator.clipboard.writeText(activeCode);
     analytics.code.blockCopied(
       "tsx",
-      copiedBaseSource ? "docs_preview_base" : "docs_preview_radix",
+      `docs_preview_${copiedBaseSource ? "base" : codeVariant}`,
     );
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);

@@ -119,20 +119,49 @@ it("rolls again once the visit window has lapsed", () => {
   expect(later.appended).toHaveLength(0);
 });
 
-it("extends the window while the reader keeps browsing", () => {
+it("does not renew the window while the reader keeps browsing", () => {
   const store = new Map<string, string>();
 
   run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: 1_000_000 });
   const midVisit = run({ store, rolls: [1], now: 1_000_000 + 20 * 60 * 1000 });
-  const afterOriginalExpiry = run({
+  // umami stamps a visit at its first event, so the roll lapses on that clock
+  // rather than being pushed forward by continued browsing
+  const nextVisit = run({
     store,
     rolls: [1],
-    now: 1_000_000 + 45 * 60 * 1000,
+    now: 1_000_000 + 31 * 60 * 1000,
   });
 
+  expect(midVisit.rollsUsed).toBe(0);
   expect(midVisit.appended).toHaveLength(1);
-  expect(afterOriginalExpiry.rollsUsed).toBe(0);
-  expect(afterOriginalExpiry.appended).toHaveLength(1);
+  expect(nextVisit.rollsUsed).toBe(1);
+  expect(nextVisit.appended).toHaveLength(0);
+});
+
+it("reuses a stored decision to stay out of the sample", () => {
+  const store = new Map<string, string>();
+
+  run({ store, rolls: [1], now: 1_000_000 });
+  const secondTab = run({
+    store,
+    rolls: [UMAMI_SAMPLE_RATE / 2],
+    now: 1_000_000 + 60_000,
+  });
+
+  expect(secondTab.rollsUsed).toBe(0);
+  expect(secondTab.appended).toHaveLength(0);
+});
+
+it("rolls fresh when the stored payload is unreadable", () => {
+  const store = new Map<string, string>([["aui-umami-sample", "not-json"]]);
+
+  const { appended, rollsUsed } = run({
+    store,
+    rolls: [UMAMI_SAMPLE_RATE / 2],
+  });
+
+  expect(rollsUsed).toBe(1);
+  expect(appended).toHaveLength(1);
 });
 
 it("still decides when storage is unavailable", () => {

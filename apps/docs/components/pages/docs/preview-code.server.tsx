@@ -239,6 +239,7 @@ export async function PreviewCode({
   return (
     <PreviewCodeClient
       code={code}
+      codeVariant={hasRadixVariant ? "radix" : "base"}
       {...(base !== undefined && { base })}
       {...(baseCode !== undefined && { baseCode })}
       {...(className && { className })}

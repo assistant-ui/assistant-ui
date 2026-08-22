@@ -5,8 +5,10 @@ const WEBSITE_ID = "6f07c001-46a2-411f-9241-4f7f5afb60ee";
 const DOMAINS = "www.assistant-ui.com";
 
 /**
- * Umami rotates visit_id after 30 minutes and its bounce rate, pages per visit
- * and duration are all per visit, so the roll is held for the same window.
+ * Umami stamps a visit at its first event and rotates visit_id once 30 minutes
+ * have passed, so the window is fixed rather than sliding. The roll is written
+ * once and left to lapse on the same schedule, which keeps one decision from
+ * spanning several visits.
  */
 const VISIT_WINDOW_MS = 30 * 60 * 1000;
 
@@ -35,8 +37,10 @@ export const umamiBootstrapScript = `
       var raw=window.localStorage.getItem(k);
       if(raw){var p=JSON.parse(raw);if(p&&typeof p.s==="number"&&p.e>now){s=p.s;}}
     }catch(e){}
-    if(s===null){s=Math.random()<${UMAMI_SAMPLE_RATE}?1:0;}
-    try{window.localStorage.setItem(k,JSON.stringify({s:s,e:now+w}));}catch(e){}
+    if(s===null){
+      s=Math.random()<${UMAMI_SAMPLE_RATE}?1:0;
+      try{window.localStorage.setItem(k,JSON.stringify({s:s,e:now+w}));}catch(e){}
+    }
     if(!s){return;}
     var el=document.createElement("script");
     el.defer=true;
