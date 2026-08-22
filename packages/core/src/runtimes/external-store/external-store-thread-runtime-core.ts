@@ -136,6 +136,18 @@ export class ExternalStoreThreadRuntimeCore
 
   private _converter = new ThreadMessageConverter();
 
+  // Ids the host was asked to delete via onDelete. The snapshot pass evicts
+  // them from the repository once the host's array no longer carries them;
+  // an id the host kept is dropped from the set without eviction.
+  // Branch-changing mutations (edit, branch switch, reload) invalidate the
+  // set, because after them the incoming array omits off-branch ids for
+  // reasons unrelated to deletion. Plain tail sends do not clear: a tail
+  // append cannot make a visible id absent, so id-absence stays unambiguous
+  // and a delete whose confirmation races a send keeps its eviction. An
+  // edit racing an in-flight delete does drop the eviction — accepted, as
+  // main never evicted on this path at all.
+  private _pendingDeleteEvictions = new Set<string>();
+
   private _store!: ExternalStoreAdapter<any>;
 
   private _getInitializePromise?: () => Promise<unknown> | undefined;
@@ -252,6 +264,7 @@ export class ExternalStoreThreadRuntimeCore
             this.repository.deleteMessage(message.id);
           }
         }
+        this._pendingDeleteEvictions.clear();
         this.repository.resetHead(headId);
         messages = this.repository.getMessages();
       }
@@ -323,6 +336,20 @@ export class ExternalStoreThreadRuntimeCore
         const message = messages[i]!;
         const parent = messages[i - 1];
         this.repository.addOrUpdateMessage(parent?.id ?? null, message);
+      }
+
+      if (this._pendingDeleteEvictions.size > 0) {
+        const incomingIds = new Set(messages.map((m) => m.id));
+        for (const id of this._pendingDeleteEvictions) {
+          this._pendingDeleteEvictions.delete(id);
+          if (incomingIds.has(id)) continue;
+          try {
+            this.repository.getMessage(id);
+          } catch {
+            continue;
+          }
+          this.repository.deleteMessage(id);
+        }
       }
     } else {
       throw new Error(
@@ -485,6 +512,7 @@ export class ExternalStoreThreadRuntimeCore
       : null;
 
     this.repository.switchToBranch(branchId);
+    this._pendingDeleteEvictions.clear();
     this.updateMessages(this.repository.getMessages());
     if (onBranchChange) {
       this._notifyBranchChange(previousHeadId, onBranchChange);
@@ -574,6 +602,7 @@ export class ExternalStoreThreadRuntimeCore
     if (isEdit) {
       if (!this._store.onEdit)
         throw new Error("Runtime does not support editing messages.");
+      this._pendingDeleteEvictions.clear();
       await this._store.onEdit(message);
     } else {
       await this._store.onNew(message);
@@ -582,7 +611,22 @@ export class ExternalStoreThreadRuntimeCore
 
   public async deleteMessage(messageId: string): Promise<void> {
     if (this._store.onDelete) {
-      await this._store.onDelete(messageId);
+      // The host owns deletion here, and it may decline (fail a server call,
+      // cancel a confirm dialog, ignore an off-branch id). The eviction is
+      // therefore deferred to the snapshot pass, which evicts only once the
+      // host's own array no longer carries the id. Registered before the
+      // callback because an optimistic host publishes that snapshot while
+      // the callback is still awaited.
+      const wasVisible = this.repository
+        .getMessages()
+        .some((m) => m.id === messageId);
+      if (wasVisible) this._pendingDeleteEvictions.add(messageId);
+      try {
+        await this._store.onDelete(messageId);
+      } catch (error) {
+        this._pendingDeleteEvictions.delete(messageId);
+        throw error;
+      }
       return;
     }
 
@@ -597,7 +641,29 @@ export class ExternalStoreThreadRuntimeCore
     const messageIndex = messages.findIndex((m) => m.id === messageId);
     if (messageIndex === -1) throw new Error("Message not found.");
 
+    this._pendingDeleteEvictions.clear();
     this.updateMessages(messages.filter((message) => message.id !== messageId));
+    this._evictDeletedMessage(messageId);
+  }
+
+  // The snapshot pass only relinks incoming messages; it never evicts, so
+  // without this the deleted message survives as a sibling branch that the
+  // branch picker can resurrect into the host store. `_messages` is refreshed
+  // before notifying so `messages` and the branch graph agree at notify time,
+  // mirroring the end of the snapshot pass.
+  private _evictDeletedMessage(messageId: string) {
+    // A synchronous host update (e.g. a setMessages that re-entered the
+    // snapshot pass) may have evicted the message already; only that case is
+    // skipped, so genuine repository errors still propagate.
+    try {
+      this.repository.getMessage(messageId);
+    } catch {
+      return;
+    }
+
+    this.repository.deleteMessage(messageId);
+    this._messages = this.repository.getMessages();
+    this._notifySubscribers();
   }
 
   public getQueueItems() {
@@ -621,6 +687,8 @@ export class ExternalStoreThreadRuntimeCore
   public async startRun(config: StartRunConfig): Promise<void> {
     if (!this._store.onReload)
       throw new Error("Runtime does not support reloading messages.");
+
+    this._pendingDeleteEvictions.clear();
 
     // Auto-abort in-flight client-side tool executions when a run reloads;
     // any results that land afterward would target a turn that no longer
