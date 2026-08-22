@@ -13,6 +13,7 @@
       "@/components/assistant-ui/markdown-text": [
         "./components/assistant-ui/markdown-text"
       ],
+      "@/hooks/use-mobile": ["../../packages/ui/src/hooks/use-mobile"],
       "@/components/assistant-ui/*": [
         "../../packages/ui/src/components/assistant-ui/*"
       ],
