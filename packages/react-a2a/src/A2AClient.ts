@@ -63,6 +63,37 @@ const OPAQUE_FIELDS = new Set([
   "scopes",
 ]);
 
+const JSONRPC_STATE_MAP: Record<string, string> = {
+  "input-required": "input_required",
+  "auth-required": "auth_required",
+  unknown: "unspecified",
+};
+
+// JSON-RPC file parts nest the payload under `file`; the internal A2APart is
+// flat, so the nested fields map onto url/raw/mediaType/filename.
+function normalizeParts(value: unknown[]): unknown[] {
+  return value.map((raw) => {
+    const part = normalizeKeys(raw, false);
+    if (part === null || typeof part !== "object" || Array.isArray(part))
+      return part;
+    const record = part as Record<string, unknown>;
+    if (record.kind === undefined) return part;
+    const { kind, ...rest } = record;
+    const file = rest.file;
+    if (kind !== "file" || file === null || typeof file !== "object")
+      return rest;
+    const { file: _file, ...others } = rest;
+    const nested = file as Record<string, unknown>;
+    return {
+      ...others,
+      ...(nested.uri !== undefined ? { url: nested.uri } : {}),
+      ...(nested.bytes !== undefined ? { raw: nested.bytes } : {}),
+      ...(nested.mimeType !== undefined ? { mediaType: nested.mimeType } : {}),
+      ...(nested.name !== undefined ? { filename: nested.name } : {}),
+    };
+  });
+}
+
 function normalizeKeys(obj: unknown, opaque = false): unknown {
   if (Array.isArray(obj)) return obj.map((v) => normalizeKeys(v, opaque));
   if (obj !== null && typeof obj === "object") {
@@ -80,12 +111,15 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
       const camelKey = toCamelCase(key);
       const isOpaqueChild = OPAQUE_FIELDS.has(camelKey);
 
-      if (
-        camelKey === "state" &&
-        typeof value === "string" &&
-        value.startsWith("TASK_STATE_")
-      ) {
-        result[camelKey] = value.slice(11).toLowerCase();
+      if (camelKey === "state" && typeof value === "string") {
+        // Proto-style (TASK_STATE_WORKING) and the JSON-RPC state names map
+        // onto the internal snake_case states; anything unrecognized is
+        // preserved verbatim.
+        if (value.startsWith("TASK_STATE_")) {
+          result[camelKey] = value.slice(11).toLowerCase();
+        } else {
+          result[camelKey] = JSONRPC_STATE_MAP[value] ?? value;
+        }
       } else if (
         camelKey === "role" &&
         typeof value === "string" &&
@@ -94,9 +128,11 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
         result[camelKey] = value.slice(5).toLowerCase();
       } else if (camelKey === "content" && Array.isArray(value)) {
         // v0.3 servers used "content" for message/artifact parts; normalize to "parts" for backward compat
-        result.parts = normalizeKeys(value, false);
-      } else if (camelKey !== "parts" || !("parts" in result)) {
+        result.parts = normalizeParts(value);
+      } else if (camelKey === "parts" && Array.isArray(value)) {
         // dedup: "content" was already mapped to parts above; don't overwrite
+        if (!("parts" in result)) result.parts = normalizeParts(value);
+      } else if (camelKey !== "parts" || !("parts" in result)) {
         result[camelKey] = isOpaqueChild ? value : normalizeKeys(value, false);
       }
     }
@@ -151,6 +187,50 @@ function discriminateStreamResponse(
         : never,
     };
   }
+  // JSON-RPC streaming results are the event itself, flat, discriminated by
+  // `kind` (per the A2A JSON-RPC schema), rather than wrapped in a
+  // REST-style single-key envelope. The field sets cannot collide with the
+  // wrapper keys above, so this is a pure fallthrough.
+  const { kind, ...flat } = data;
+  switch (kind) {
+    case "task":
+      if (!isTask(flat)) break;
+      return { type: "task", task: flat };
+    case "message":
+      if (!isMessage(flat)) break;
+      return { type: "message", message: flat };
+    case "status-update": {
+      if (typeof flat.taskId !== "string" || flat.taskId.length === 0) break;
+      if (!isRecord(flat.status) || !isTaskState(flat.status.state)) break;
+      const { final: _final, ...event } = flat;
+      return {
+        type: "statusUpdate",
+        event: event as unknown as A2AStreamEvent extends {
+          type: "statusUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+    }
+    case "artifact-update":
+      if (
+        !isRecord(flat.artifact) ||
+        typeof flat.artifact.artifactId !== "string" ||
+        !Array.isArray(flat.artifact.parts) ||
+        !flat.artifact.parts.every(isRecord)
+      )
+        break;
+      return {
+        type: "artifactUpdate",
+        event: flat as unknown as A2AStreamEvent extends {
+          type: "artifactUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+  }
   return null;
 }
 
@@ -199,6 +279,21 @@ const isMessage = (value: unknown): value is A2AMessage =>
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
+
+const toJsonRpcError = (error: unknown): A2AError => {
+  const rpcError = error as { code?: number; message?: string; data?: unknown };
+  return new A2AError({
+    code: rpcError.code ?? -1,
+    status: "JSONRPC_ERROR",
+    message: rpcError.message ?? "A2A JSON-RPC error",
+    details:
+      rpcError.data === undefined
+        ? undefined
+        : Array.isArray(rpcError.data)
+          ? rpcError.data
+          : [rpcError.data],
+  });
+};
 
 const invalidAgentCard = (): never => {
   throw new Error(
@@ -522,6 +617,19 @@ export class A2AClient {
       await this.throwResponseError(response);
     }
     const json = await response.json();
+    if (json && typeof json === "object" && "jsonrpc" in json) {
+      if ("error" in json && json.error) {
+        throw toJsonRpcError(json.error);
+      }
+      if ("result" in json) {
+        const result = normalizeKeys(json.result);
+        if (isRecord(result) && typeof result.kind === "string") {
+          const { kind: _kind, ...rest } = result;
+          return rest as T;
+        }
+        return result as T;
+      }
+    }
     return normalizeKeys(json) as T;
   }
 
@@ -798,13 +906,13 @@ export class A2AClient {
       try {
         let parsed = JSON.parse(event.data);
 
-        if (
-          parsed &&
-          typeof parsed === "object" &&
-          "jsonrpc" in parsed &&
-          "result" in parsed
-        ) {
-          parsed = parsed.result;
+        if (parsed && typeof parsed === "object" && "jsonrpc" in parsed) {
+          if ("error" in parsed && parsed.error) {
+            throw toJsonRpcError(parsed.error);
+          }
+          if ("result" in parsed) {
+            parsed = parsed.result;
+          }
         }
 
         const normalized = normalizeKeys(parsed) as Record<string, unknown>;
@@ -812,6 +920,7 @@ export class A2AClient {
         if (!streamEvent) noteSkip(event.data, "unrecognized event shape");
         return streamEvent;
       } catch (error) {
+        if (error instanceof A2AError) throw error;
         noteSkip(
           event.data,
           error instanceof Error ? error.message : String(error),
