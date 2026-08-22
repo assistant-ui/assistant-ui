@@ -5,13 +5,19 @@ const WEBSITE_ID = "6f07c001-46a2-411f-9241-4f7f5afb60ee";
 const DOMAINS = "www.assistant-ui.com";
 
 /**
- * Umami derives visit_id from the UTC hour, as
- * `visitSalt = hash(startOfHour(createdAt).toUTCString())`, so every event a
- * reader sends inside one clock hour carries the same visit_id. Keying the roll
- * to the same bucket makes the decision constant across exactly one visit and
- * flip exactly where umami's own boundary falls, so no visit is half sent.
+ * Umami starts a new visit only where both of its conditions meet: at least
+ * 1800s since the visit began, and a different UTC hour than the one the last
+ * visit_id was salted with, because the rotation recomputes
+ * `uuid(sessionId, hash(startOfHour(now)))` and lands on the same value inside
+ * one hour. No client-side window reproduces that hybrid, and every window that
+ * lapses mid visit truncates one, which is the single failure this design
+ * exists to prevent.
+ *
+ * So the roll is bucketed well past any visit instead. Holding one decision
+ * across consecutive visits only correlates them and leaves every visit whole,
+ * which keeps the ratios exact and counts unbiased, at slightly wider variance.
  */
-const VISIT_BUCKET_MS = 60 * 60 * 1000;
+const BUCKET_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Umami records a sampled slice of traffic; PostHog stays the full-fidelity source.
@@ -24,7 +30,7 @@ const VISIT_BUCKET_MS = 60 * 60 * 1000;
  * derives its session id server-side from the client IP and user agent, with no
  * client-side key: a reader's tabs are one umami session, so a per-tab roll
  * would send part of a session and truncate it. The stored value is one bit and
- * an hour bucket rather than an identifier.
+ * a bucket number rather than an identifier.
  *
  * Sampling whole visits rather than individual events is what keeps bounce
  * rate, pages per visit and duration correct; only counts need scaling by
@@ -33,7 +39,7 @@ const VISIT_BUCKET_MS = 60 * 60 * 1000;
 export const umamiBootstrapScript = `
 (function(){
   try{
-    var k=${JSON.stringify(STORAGE_KEY)},b=Math.floor(Date.now()/${VISIT_BUCKET_MS}),s=null;
+    var k=${JSON.stringify(STORAGE_KEY)},b=Math.floor(Date.now()/${BUCKET_MS}),s=null;
     try{
       var raw=window.localStorage.getItem(k);
       if(raw){var p=JSON.parse(raw);if(p&&typeof p.s==="number"&&p.b===b){s=p.s;}}

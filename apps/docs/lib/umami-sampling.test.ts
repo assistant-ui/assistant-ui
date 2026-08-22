@@ -1,8 +1,8 @@
 import { expect, it } from "vitest";
 import { UMAMI_SAMPLE_RATE, umamiBootstrapScript } from "./umami-sampling";
 
-const HOUR = 60 * 60 * 1000;
-const HOUR_START = 1000 * HOUR;
+const DAY = 24 * 60 * 60 * 1000;
+const DAY_START = 1000 * DAY;
 
 type Appended = { src: string; defer: boolean; attrs: Record<string, string> };
 
@@ -16,7 +16,7 @@ type RunOptions = {
 const run = ({
   store = new Map<string, string>(),
   rolls = [UMAMI_SAMPLE_RATE / 2],
-  now = HOUR_START,
+  now = DAY_START,
   storageThrows = false,
 }: RunOptions = {}) => {
   const appended: Appended[] = [];
@@ -101,24 +101,30 @@ it("gives every tab in the visit the same answer", () => {
   expect(second.rollsUsed).toBe(0);
 });
 
-it("holds the decision for the whole clock hour umami calls one visit", () => {
+it("never lapses inside a visit, however umami draws the boundary", () => {
   const store = new Map<string, string>();
 
-  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: HOUR_START + 5 * 60_000 });
-  const lateInHour = run({ store, rolls: [1], now: HOUR_START + 55 * 60_000 });
+  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: DAY_START + 55 * 60_000 });
+  // past the clock hour and past 1800s from the first pageview, both of which
+  // earlier revisions re-rolled on while umami was still in one visit
+  const acrossTheHour = run({
+    store,
+    rolls: [1],
+    now: DAY_START + 70 * 60_000,
+  });
 
-  expect(lateInHour.rollsUsed).toBe(0);
-  expect(lateInHour.appended).toHaveLength(1);
+  expect(acrossTheHour.rollsUsed).toBe(0);
+  expect(acrossTheHour.appended).toHaveLength(1);
 });
 
-it("rolls again in the next clock hour, where umami starts a new visit", () => {
+it("rolls again in the next bucket", () => {
   const store = new Map<string, string>();
 
-  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: HOUR_START + 55 * 60_000 });
-  const nextHour = run({ store, rolls: [1], now: HOUR_START + 65 * 60_000 });
+  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: DAY_START });
+  const nextBucket = run({ store, rolls: [1], now: DAY_START + DAY });
 
-  expect(nextHour.rollsUsed).toBe(1);
-  expect(nextHour.appended).toHaveLength(0);
+  expect(nextBucket.rollsUsed).toBe(1);
+  expect(nextBucket.appended).toHaveLength(0);
 });
 
 it("reuses a stored decision to stay out of the sample", () => {
