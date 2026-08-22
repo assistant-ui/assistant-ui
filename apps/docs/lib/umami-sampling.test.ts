@@ -159,11 +159,12 @@ it("rolls fresh when the stored payload is unreadable", () => {
   expect(appended).toHaveLength(1);
 });
 
-it("still decides when storage is unavailable", () => {
-  const { appended } = run({
-    rolls: [UMAMI_SAMPLE_RATE / 2],
-    storageThrows: true,
-  });
+it("does not track at all when storage is unavailable", () => {
+  // rolling per load there would be event sampling, and umami turns each
+  // surviving pageview into its own visit
+  const first = run({ rolls: [UMAMI_SAMPLE_RATE / 2], storageThrows: true });
+  const second = run({ rolls: [UMAMI_SAMPLE_RATE / 2], storageThrows: true });
 
-  expect(appended).toHaveLength(1);
+  expect(first.appended).toHaveLength(0);
+  expect(second.appended).toHaveLength(0);
 });
