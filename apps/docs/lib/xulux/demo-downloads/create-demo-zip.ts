@@ -275,7 +275,7 @@ function pageTsx(manifest: DemoDownloadManifest) {
 }
 
 function runtimeProviderTsx() {
-  return `"use client";\n\nimport { AssistantRuntimeProvider } from "@assistant-ui/react";\nimport { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-sdk";\n\nexport function DemoRuntimeProvider({ children }: { children: React.ReactNode }) {\n  const runtime = useChatRuntime({\n    transport: new AssistantChatTransport({ api: "/api/chat" }),\n  });\n\n  return (\n    <AssistantRuntimeProvider runtime={runtime}>\n      {children}\n    </AssistantRuntimeProvider>\n  );\n}\n`;
+  return `"use client";\n\nimport { AssistantRuntimeProvider } from "@assistant-ui/react";\nimport { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";\n\nexport function DemoRuntimeProvider({ children }: { children: React.ReactNode }) {\n  const runtime = useChatRuntime({\n    transport: new AssistantChatTransport({ api: "/api/chat" }),\n  });\n\n  return (\n    <AssistantRuntimeProvider runtime={runtime}>\n      {children}\n    </AssistantRuntimeProvider>\n  );\n}\n`;
 }
 
 function chatRouteTs() {

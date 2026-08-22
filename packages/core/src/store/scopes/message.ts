@@ -19,7 +19,7 @@ export type MessageState = ThreadMessage & {
    * @example
    * ```ts
    * import { WebSpeechSynthesisAdapter } from "@assistant-ui/react";
-   * import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+   * import { useChatRuntime } from "@assistant-ui/ai-sdk";
    *
    * const runtime = useChatRuntime({
    *   adapters: {

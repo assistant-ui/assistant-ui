@@ -1,9 +1,9 @@
 ---
-title: "@assistant-ui/react-ai-sdk"
-description: Vercel AI SDK runtime hooks, chat transports, and message conversion utilities for assistant-ui React applications.
+title: "@assistant-ui/ai-sdk"
+description: Vercel AI SDK runtime hooks, chat transports, and message conversion utilities for assistant-ui applications.
 ---
 
-import { reactAiSdk_AISDKChat, reactAiSdk_AISDKThreads, reactAiSdk_AISDKToolkit, reactAiSdk_AssistantChatTransport, reactAiSdk_createResumableSessionStorage, reactAiSdk_getThreadMessageTokenUsage, reactAiSdk_injectQuoteContext, reactAiSdk_unstable_injectInteractableContext, reactAiSdk_useAISDKRuntime, reactAiSdk_useChatRuntime } from "@/generated/integrationTypeDocs";
+import { aiSdk_AISDKChat, aiSdk_AISDKThreads, aiSdk_AISDKToolkit, aiSdk_AssistantChatTransport, aiSdk_createResumableSessionStorage, aiSdk_getThreadMessageTokenUsage, aiSdk_injectQuoteContext, aiSdk_unstable_injectInteractableContext, aiSdk_useAISDKRuntime, aiSdk_useChatRuntime } from "@/generated/integrationTypeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -19,16 +19,16 @@ import { reactAiSdk_AISDKChat, reactAiSdk_AISDKThreads, reactAiSdk_AISDKToolkit,
 `AuiConfig` entry that runs the AI SDK chat as the `threads` scope. Hosts the
 same orchestration as `useChatRuntime` inside the client's own resource tree,
 so it works with any `AssistantClient` host, React or not. Single thread; the
-multi-thread and assistant-cloud surface is [AISDKThreads](/docs/api-reference/integrations/react-ai-sdk#aisdkthreads). The chat
+multi-thread and assistant-cloud surface is [AISDKThreads](/docs/api-reference/integrations/ai-sdk#aisdkthreads). The chat
 id is captured when the entry mounts, so a later `id` change in the options
 has no effect.
 
-<ParametersTable {...reactAiSdk_AISDKChat} />
+<ParametersTable {...aiSdk_AISDKChat} />
 
 ### AISDKThreads
 
 `AuiConfig` entry that runs one AI SDK chat per thread. Hosts the same
-per-thread orchestration as [AISDKChat](/docs/api-reference/integrations/react-ai-sdk#aisdkchat) inside the client's own
+per-thread orchestration as [AISDKChat](/docs/api-reference/integrations/ai-sdk#aisdkchat) inside the client's own
 resource tree, so it works with any `AssistantClient` host, React or not.
 Without `cloud`, threads live in memory for the client's lifetime and keep
 their history across switches; each thread's chat id is its thread id.
@@ -37,21 +37,21 @@ cloud history reloads on a switch. The store entry mounts only the visible
 thread, so a switch cancels an in-flight run. Model context is
 registered on the visible thread only.
 
-<ParametersTable {...reactAiSdk_AISDKThreads} />
+<ParametersTable {...aiSdk_AISDKThreads} />
 
 ### AISDKToolkit
 
-<ParametersTable {...reactAiSdk_AISDKToolkit} />
+<ParametersTable {...aiSdk_AISDKToolkit} />
 
 ### AssistantChatTransport
 
-<ParametersTable {...reactAiSdk_AssistantChatTransport} />
+<ParametersTable {...aiSdk_AssistantChatTransport} />
 
 ### createResumableSessionStorage
 
 `sessionStorage`-backed storage for the pending resumable stream id. See the [Resumable Streams](/docs/guides/resumable-streams) guide for end-to-end wiring.
 
-<ParametersTable {...reactAiSdk_createResumableSessionStorage} />
+<ParametersTable {...aiSdk_createResumableSessionStorage} />
 
 ### frontendTools
 
@@ -61,7 +61,7 @@ const frontendTools: (tools: FrontendTools) => ToolSet;
 
 ### getThreadMessageTokenUsage
 
-<ParametersTable {...reactAiSdk_getThreadMessageTokenUsage} />
+<ParametersTable {...aiSdk_getThreadMessageTokenUsage} />
 
 ### injectQuoteContext
 
@@ -72,7 +72,7 @@ sees the quoted text that the user is referring to.
 
 ```ts
 import { convertToModelMessages, streamText } from "ai";
-import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
+import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
@@ -84,7 +84,7 @@ export async function POST(req: Request) {
 }
 ```
 
-<ParametersTable {...reactAiSdk_injectQuoteContext} />
+<ParametersTable {...aiSdk_injectQuoteContext} />
 
 ### RESUMABLE_STREAM_ID_HEADER
 
@@ -98,7 +98,7 @@ const RESUMABLE_STREAM_ID_HEADER: "x-resumable-stream-id";
 
 Injects interactable state snapshots into messages as model-visible text.
 
-Mirrors [injectQuoteContext](/docs/api-reference/integrations/react-ai-sdk#injectquotecontext): reads the frozen snapshot stamped on a user
+Mirrors [injectQuoteContext](/docs/api-reference/integrations/ai-sdk#injectquotecontext): reads the frozen snapshot stamped on a user
 message's `metadata.custom.interactables` (by the interactables scope at send
 time) and prepends a text part. Run this in your route handler before
 `convertToModelMessages`, which otherwise ignores `metadata.custom`.
@@ -112,7 +112,7 @@ only the fields that changed since the model's last known state.
 
 ```ts
 import { convertToModelMessages, streamText } from "ai";
-import { unstable_injectInteractableContext } from "@assistant-ui/react-ai-sdk";
+import { unstable_injectInteractableContext } from "@assistant-ui/ai-sdk";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
@@ -124,7 +124,7 @@ export async function POST(req: Request) {
 }
 ```
 
-<ParametersTable {...reactAiSdk_unstable_injectInteractableContext} />
+<ParametersTable {...aiSdk_unstable_injectInteractableContext} />
 
 ### useAISDKChat
 
@@ -149,11 +149,11 @@ const useAISDKError: () => Error | undefined;
 
 ### useAISDKRuntime
 
-<ParametersTable {...reactAiSdk_useAISDKRuntime} />
+<ParametersTable {...aiSdk_useAISDKRuntime} />
 
 ### useChatRuntime
 
-<ParametersTable {...reactAiSdk_useChatRuntime} />
+<ParametersTable {...aiSdk_useChatRuntime} />
 
 ### useThreadTokenUsage
 
@@ -164,7 +164,7 @@ function useThreadTokenUsage(): ThreadTokenUsage | undefined;
 ### generativeTools
 
 <Callout type="warn">
-<strong>Deprecated.</strong> Use [AISDKToolkit](/docs/api-reference/integrations/react-ai-sdk#aisdktoolkit) instead:
+<strong>Deprecated.</strong> Use [AISDKToolkit](/docs/api-reference/integrations/ai-sdk#aisdktoolkit) instead:
 `new AISDKToolkit({ toolkit }).tools({ frontend })`. It is a strict superset
 (it also opens MCP server connections), so it replaces `generativeTools`
 everywhere. The `frontendTools` option is named `frontend` on `.tools()`, and

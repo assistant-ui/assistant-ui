@@ -131,6 +131,11 @@ const config: NextConfig = {
       permanent: true,
     },
     {
+      source: "/docs/api-reference/integrations/react-ai-sdk",
+      destination: "/docs/api-reference/integrations/ai-sdk",
+      permanent: true,
+    },
+    {
       source: "/docs/integrations/frameworks/cloudflare-agents/overview",
       destination: "/docs/integrations/frameworks/cloudflare-agents",
       permanent: true,

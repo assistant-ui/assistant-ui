@@ -170,7 +170,7 @@ Per-name `setToolUI` registrations always win over the MCP fallback — you can 
 
 ## AI SDK integration
 
-`@assistant-ui/react-ai-sdk` forwards `callProviderMetadata.mcp.app` from AI SDK tool UI parts into `ToolCallMessagePart.mcp.app`. With AI SDK 5.x and an MCP-Apps-capable MCP server, no extra wiring is required on the part shape.
+`@assistant-ui/ai-sdk` forwards `callProviderMetadata.mcp.app` from AI SDK tool UI parts into `ToolCallMessagePart.mcp.app`. With AI SDK 5.x and an MCP-Apps-capable MCP server, no extra wiring is required on the part shape.
 
 The rich UI comes from the MCP server's metadata, not from the model, so the path is identical whichever provider drives the conversation. Running Claude is just a different `model:` in `streamText` (`anthropic("claude-sonnet-4-6")` via `@ai-sdk/anthropic`); the MCP server, `splitMcpAppTools`, and the renderer are unchanged. MCP Apps is an open standard in the MCP ecosystem (Claude is one of its hosts), so a standard MCP-Apps server renders out of the box. The bridge below is only needed for servers that use OpenAI's `openai/outputTemplate` convention, again independent of which model you run.
 
