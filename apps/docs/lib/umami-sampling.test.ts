@@ -1,6 +1,9 @@
 import { expect, it } from "vitest";
 import { UMAMI_SAMPLE_RATE, umamiBootstrapScript } from "./umami-sampling";
 
+const HOUR = 60 * 60 * 1000;
+const HOUR_START = 1000 * HOUR;
+
 type Appended = { src: string; defer: boolean; attrs: Record<string, string> };
 
 type RunOptions = {
@@ -10,18 +13,12 @@ type RunOptions = {
   storageThrows?: boolean;
 };
 
-type RunResult = {
-  appended: Appended[];
-  store: Map<string, string>;
-  rollsUsed: number;
-};
-
 const run = ({
   store = new Map<string, string>(),
   rolls = [UMAMI_SAMPLE_RATE / 2],
-  now = 1_000_000,
+  now = HOUR_START,
   storageThrows = false,
-}: RunOptions = {}): RunResult => {
+}: RunOptions = {}) => {
   const appended: Appended[] = [];
   let rollsUsed = 0;
 
@@ -42,19 +39,14 @@ const run = ({
       };
 
   const document = {
-    createElement: (): Appended & {
-      setAttribute: (k: string, v: string) => void;
-    } => {
-      const element = {
-        src: "",
-        defer: false,
-        attrs: {} as Record<string, string>,
-        setAttribute(key: string, value: string) {
-          this.attrs[key] = value;
-        },
-      };
-      return element;
-    },
+    createElement: () => ({
+      src: "",
+      defer: false,
+      attrs: {} as Record<string, string>,
+      setAttribute(key: string, value: string) {
+        this.attrs[key] = value;
+      },
+    }),
     head: {
       appendChild: (element: Appended) => {
         appended.push(element);
@@ -62,10 +54,10 @@ const run = ({
     },
   };
 
-  const fakeMath = {
-    ...Math,
+  // Math's own properties are non-enumerable, so spreading it yields {}
+  const fakeMath = Object.assign(Object.create(Math) as Math, {
     random: () => rolls[Math.min(rollsUsed++, rolls.length - 1)]!,
-  };
+  });
 
   const fn = new Function(
     "window",
@@ -109,44 +101,31 @@ it("gives every tab in the visit the same answer", () => {
   expect(second.rollsUsed).toBe(0);
 });
 
-it("rolls again once the visit window has lapsed", () => {
+it("holds the decision for the whole clock hour umami calls one visit", () => {
   const store = new Map<string, string>();
 
-  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: 1_000_000 });
-  const later = run({ store, rolls: [1], now: 1_000_000 + 30 * 60 * 1000 + 1 });
+  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: HOUR_START + 5 * 60_000 });
+  const lateInHour = run({ store, rolls: [1], now: HOUR_START + 55 * 60_000 });
 
-  expect(later.rollsUsed).toBe(1);
-  expect(later.appended).toHaveLength(0);
+  expect(lateInHour.rollsUsed).toBe(0);
+  expect(lateInHour.appended).toHaveLength(1);
 });
 
-it("does not renew the window while the reader keeps browsing", () => {
+it("rolls again in the next clock hour, where umami starts a new visit", () => {
   const store = new Map<string, string>();
 
-  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: 1_000_000 });
-  const midVisit = run({ store, rolls: [1], now: 1_000_000 + 20 * 60 * 1000 });
-  // umami stamps a visit at its first event, so the roll lapses on that clock
-  // rather than being pushed forward by continued browsing
-  const nextVisit = run({
-    store,
-    rolls: [1],
-    now: 1_000_000 + 31 * 60 * 1000,
-  });
+  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: HOUR_START + 55 * 60_000 });
+  const nextHour = run({ store, rolls: [1], now: HOUR_START + 65 * 60_000 });
 
-  expect(midVisit.rollsUsed).toBe(0);
-  expect(midVisit.appended).toHaveLength(1);
-  expect(nextVisit.rollsUsed).toBe(1);
-  expect(nextVisit.appended).toHaveLength(0);
+  expect(nextHour.rollsUsed).toBe(1);
+  expect(nextHour.appended).toHaveLength(0);
 });
 
 it("reuses a stored decision to stay out of the sample", () => {
   const store = new Map<string, string>();
 
-  run({ store, rolls: [1], now: 1_000_000 });
-  const secondTab = run({
-    store,
-    rolls: [UMAMI_SAMPLE_RATE / 2],
-    now: 1_000_000 + 60_000,
-  });
+  run({ store, rolls: [1] });
+  const secondTab = run({ store, rolls: [UMAMI_SAMPLE_RATE / 2] });
 
   expect(secondTab.rollsUsed).toBe(0);
   expect(secondTab.appended).toHaveLength(0);

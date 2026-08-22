@@ -5,12 +5,13 @@ const WEBSITE_ID = "6f07c001-46a2-411f-9241-4f7f5afb60ee";
 const DOMAINS = "www.assistant-ui.com";
 
 /**
- * Umami stamps a visit at its first event and rotates visit_id once 30 minutes
- * have passed, so the window is fixed rather than sliding. The roll is written
- * once and left to lapse on the same schedule, which keeps one decision from
- * spanning several visits.
+ * Umami derives visit_id from the UTC hour, as
+ * `visitSalt = hash(startOfHour(createdAt).toUTCString())`, so every event a
+ * reader sends inside one clock hour carries the same visit_id. Keying the roll
+ * to the same bucket makes the decision constant across exactly one visit and
+ * flip exactly where umami's own boundary falls, so no visit is half sent.
  */
-const VISIT_WINDOW_MS = 30 * 60 * 1000;
+const VISIT_BUCKET_MS = 60 * 60 * 1000;
 
 /**
  * Umami records a sampled slice of traffic; PostHog stays the full-fidelity source.
@@ -23,7 +24,7 @@ const VISIT_WINDOW_MS = 30 * 60 * 1000;
  * derives its session id server-side from the client IP and user agent, with no
  * client-side key: a reader's tabs are one umami session, so a per-tab roll
  * would send part of a session and truncate it. The stored value is one bit and
- * an expiry rather than an identifier, and it lapses with the visit window.
+ * an hour bucket rather than an identifier.
  *
  * Sampling whole visits rather than individual events is what keeps bounce
  * rate, pages per visit and duration correct; only counts need scaling by
@@ -32,14 +33,14 @@ const VISIT_WINDOW_MS = 30 * 60 * 1000;
 export const umamiBootstrapScript = `
 (function(){
   try{
-    var k=${JSON.stringify(STORAGE_KEY)},w=${VISIT_WINDOW_MS},now=Date.now(),s=null;
+    var k=${JSON.stringify(STORAGE_KEY)},b=Math.floor(Date.now()/${VISIT_BUCKET_MS}),s=null;
     try{
       var raw=window.localStorage.getItem(k);
-      if(raw){var p=JSON.parse(raw);if(p&&typeof p.s==="number"&&p.e>now){s=p.s;}}
+      if(raw){var p=JSON.parse(raw);if(p&&typeof p.s==="number"&&p.b===b){s=p.s;}}
     }catch(e){}
     if(s===null){
       s=Math.random()<${UMAMI_SAMPLE_RATE}?1:0;
-      try{window.localStorage.setItem(k,JSON.stringify({s:s,e:now+w}));}catch(e){}
+      try{window.localStorage.setItem(k,JSON.stringify({s:s,b:b}));}catch(e){}
     }
     if(!s){return;}
     var el=document.createElement("script");
