@@ -29,7 +29,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { type FC, useState } from "react";
-import { useAttachmentSrc } from "@/components/pages/examples/use-attachment-src";
+import { useAttachmentSrc } from "./use-attachment-src";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { CloneThreadShell } from "./clone-thread-shell";
 import {

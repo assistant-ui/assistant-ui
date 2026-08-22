@@ -32,7 +32,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { type FC, useState } from "react";
-import { useAttachmentSrc } from "@/components/pages/examples/use-attachment-src";
+import { useAttachmentSrc } from "./use-attachment-src";
 import {
   DropdownMenu,
   DropdownMenuContent,

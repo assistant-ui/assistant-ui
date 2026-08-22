@@ -14,7 +14,7 @@ import {
 } from "@assistant-ui/react";
 import { type FC } from "react";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { useAttachmentSrc } from "@/components/pages/examples/use-attachment-src";
+import { useAttachmentSrc } from "./use-attachment-src";
 import {
   ArrowUpIcon,
   AudioLines,
