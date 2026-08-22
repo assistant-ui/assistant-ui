@@ -123,6 +123,12 @@ it("ignores a stored value it cannot parse", () => {
   expect(setup({ stored: "solid" }).preference.get()).toBe("base");
 });
 
+it("falls back to the stored value when the url parameter is unparseable", () => {
+  expect(
+    setup({ stored: "radix", search: "?view=solid" }).preference.get(),
+  ).toBe("radix");
+});
+
 it("lets a url parameter outrank the stored value", () => {
   expect(
     setup({ stored: "base", search: "?view=radix-ui" }).preference.get(),
@@ -206,4 +212,13 @@ it("works without a url mapping", () => {
 
   expect(store.get("flavor")).toBe("radix");
   expect(getSearch()).toBe("");
+});
+
+it("keeps a url-less selection across popstate when storage is blocked", () => {
+  const { preference, emit } = setup({ url: false, storageThrows: true });
+
+  preference.set("radix");
+  emit("popstate", {});
+
+  expect(preference.get()).toBe("radix");
 });

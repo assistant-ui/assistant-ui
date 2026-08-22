@@ -61,7 +61,7 @@ function readPlatformParam(): Platform | null {
 // Landing on a ?platform= url is an entry point the reader should keep for the
 // rest of the visit, so the parameter is promoted into storage instead of only
 // being read while it stays in the address bar.
-function syncPlatformFromUrl() {
+export function syncPlatformFromUrl() {
   platformPreference.resync();
   const fromUrl = readPlatformParam();
   if (fromUrl !== null) platformPreference.set(fromUrl);

@@ -108,7 +108,10 @@ export function createPersistedPreference<T>({
         listening = true;
         snapshot = compute();
         window.addEventListener("storage", handleStorage);
-        window.addEventListener("popstate", refresh);
+        // Without a url mapping a history entry carries no selection, so
+        // recomputing on popstate could only discard one that storage failed
+        // to persist.
+        if (url) window.addEventListener("popstate", refresh);
       }
       listeners.add(listener);
       return () => {
