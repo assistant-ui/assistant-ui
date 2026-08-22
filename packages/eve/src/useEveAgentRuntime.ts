@@ -31,6 +31,12 @@ import {
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
+import {
+  assignCreatedAt,
+  collectTurnTimestamps,
+  createTurnTimestampCache,
+  type AssignedCreatedAt,
+} from "./deriveCreatedAt";
 import { eveExtras } from "./eveExtras";
 
 const USER_STAGED_STATUS = {
@@ -188,7 +194,8 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const [stagedMessages, setStagedMessages] = useState<ThreadMessage[] | null>(
     null,
   );
-  const createdAtByMessageIdRef = useRef(new Map<string, Date>());
+  const createdAtByMessageIdRef = useRef(new Map<string, AssignedCreatedAt>());
+  const turnTimestampCacheRef = useRef(createTurnTimestampCache());
   const stagedInputsRef = useRef(
     new Map<
       string,
@@ -204,28 +211,28 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     agent.status === "streaming" ||
     hasExecutingTools;
 
+  // Most events leave the turn timestamps untouched, and the message list memo
+  // below reallocates every ThreadMessage when it recomputes. Keeping the scan
+  // in its own memo confines that cost to the events that actually change a
+  // timestamp.
+  const turnTimestamps = useMemo(
+    () => collectTurnTimestamps(agent.events, turnTimestampCacheRef.current),
+    [agent.events],
+  );
+
   const convertedMessages = useMemo(() => {
-    const createdAtByMessageId = createdAtByMessageIdRef.current;
-    const messageIds = new Set(
-      agent.data.messages.map((message) => message.id),
+    const assignedById = assignCreatedAt(
+      agent.data.messages,
+      turnTimestamps,
+      createdAtByMessageIdRef.current,
     );
-    for (const messageId of createdAtByMessageId.keys()) {
-      if (!messageIds.has(messageId)) createdAtByMessageId.delete(messageId);
-    }
 
     return convertEveMessages(agent.data, {
       isRunning,
       error: agent.error,
-      getCreatedAt: (message) => {
-        const existing = createdAtByMessageId.get(message.id);
-        if (existing) return existing;
-
-        const createdAt = new Date();
-        createdAtByMessageId.set(message.id, createdAt);
-        return createdAt;
-      },
+      getCreatedAt: (message) => assignedById.get(message.id) ?? new Date(),
     });
-  }, [agent.data, agent.error, isRunning]);
+  }, [agent.data, agent.error, isRunning, turnTimestamps]);
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
