@@ -23,6 +23,9 @@ import {
   updateStatusReducer,
   type RemoteThreadData,
   type RemoteThreadState,
+  preserveMidLoadTransitions,
+  statusSnapshot,
+  LOCAL_THREAD_ID_PREFIX,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type {
   RemoteThreadInitializeResponse,
@@ -104,7 +107,7 @@ const seedNewThread = (
 ): { id: string; state: RemoteThreadState } => {
   let id: string;
   do {
-    id = `__LOCALID_${generateId()}`;
+    id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
   } while (state.threadIdMap[id]);
   const mappingId = createThreadMappingId(id);
   return {
@@ -125,6 +128,7 @@ const seedNewThread = (
           externalId: undefined,
           title: undefined,
           custom: undefined,
+          localOrigin: true,
         },
       },
     },
@@ -424,6 +428,7 @@ const useRemoteThreadList = (
     if (session.loadPromise) return session.loadPromise;
     const generation = session.loadGeneration;
     const adapter = session.adapter;
+    const statusAtRequest = statusSnapshot(store.baseValue);
     session.loadPromise = store
       .optimisticUpdate({
         execute: () => adapter.list(),
@@ -437,7 +442,7 @@ const useRemoteThreadList = (
             threadIdMap: {},
             threadData: {},
           });
-          return {
+          const merged = {
             ...state,
             isLoading: false,
             cursor: normalizeCursor(page.nextCursor),
@@ -452,6 +457,7 @@ const useRemoteThreadList = (
               ...fresh.threadData,
             },
           };
+          return preserveMidLoadTransitions(merged, state, statusAtRequest);
         },
       })
       .catch((error: unknown) => {
