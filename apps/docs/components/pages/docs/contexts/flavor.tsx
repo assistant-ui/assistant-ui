@@ -1,74 +1,32 @@
 "use client";
 
-import { useSyncExternalStore, type ReactNode } from "react";
+import { type ReactNode } from "react";
 import { cn } from "@/lib/utils";
+import {
+  createPersistedPreference,
+  usePersistedPreference,
+} from "@/lib/persisted-preference";
 
 export type UiFlavor = "base" | "radix";
 
-const STORAGE_KEY = "aui-docs-flavor";
-const PARAM = "view";
-
-let flavor: UiFlavor = "base";
-let hydrated = false;
-const listeners = new Set<() => void>();
-
-function readStoredFlavor(): string | null {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY);
-  } catch {
-    return null;
-  }
-}
-
-function readCurrent(): UiFlavor {
-  if (typeof window === "undefined") return "base";
-  const param = new URLSearchParams(window.location.search).get(PARAM);
-  if (param === "radix-ui") return "radix";
-  if (param === "base-ui") return "base";
-  return readStoredFlavor() === "radix" ? "radix" : "base";
-}
-
-function emit() {
-  for (const listener of listeners) listener();
-}
-
-function subscribe(listener: () => void) {
-  if (!hydrated) {
-    hydrated = true;
-    flavor = readCurrent();
-    window.addEventListener("popstate", () => {
-      flavor = readCurrent();
-      emit();
-    });
-  }
-  listeners.add(listener);
-  return () => listeners.delete(listener);
-}
+const flavorPreference = createPersistedPreference<UiFlavor>({
+  key: "aui-docs-flavor",
+  fallback: "base",
+  read: (raw) => (raw === "radix" || raw === "base" ? raw : null),
+  url: {
+    param: "view",
+    read: (raw) =>
+      raw === "radix-ui" ? "radix" : raw === "base-ui" ? "base" : null,
+    write: (value) => (value === "radix" ? "radix-ui" : null),
+  },
+});
 
 export function setFlavor(next: UiFlavor) {
-  flavor = next;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, next);
-  } catch {
-    // Storage can be blocked (private mode, quota); the in-memory value and
-    // the url parameter still carry the selection.
-  }
-  const url = new URL(window.location.href);
-  if (next === "radix") {
-    url.searchParams.set(PARAM, "radix-ui");
-  } else {
-    url.searchParams.delete(PARAM);
-  }
-  window.history.replaceState(window.history.state, "", url);
-  emit();
+  flavorPreference.set(next);
 }
 
 export function useFlavor(): UiFlavor {
-  return useSyncExternalStore(
-    subscribe,
-    () => flavor,
-    () => "base" as const,
-  );
+  return usePersistedPreference(flavorPreference);
 }
 
 export function Flavored({
