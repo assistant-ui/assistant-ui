@@ -1,5 +1,18 @@
 # @assistant-ui/ai-sdk
 
+## 0.0.3
+
+### Patch Changes
+
+- [#6224](https://github.com/assistant-ui/assistant-ui/pull/6224) [`c70c911`](https://github.com/assistant-ui/assistant-ui/commit/c70c911d9537e6f3e87da44768e3363d65e6a19d) - docs: name `@assistant-ui/ai-sdk` in JSDoc examples ([@okisdev](https://github.com/okisdev))
+  
+  the import examples on `injectQuoteContext`, `unstable_injectInteractableContext`, and the interactable and message JSDoc pointed at `@assistant-ui/react-ai-sdk`. they now name the framework-neutral package, which is where these live; the old package re-exports it, so both imports resolve.
+
+- [#6176](https://github.com/assistant-ui/assistant-ui/pull/6176) [`d7ec59b`](https://github.com/assistant-ui/assistant-ui/commit/d7ec59b91668f961cfd90b4b53328b45b5c26505) - fix: preserve settled output-denied tool calls when sending a new message ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`c70c911`](https://github.com/assistant-ui/assistant-ui/commit/c70c911d9537e6f3e87da44768e3363d65e6a19d), [`8626c1f`](https://github.com/assistant-ui/assistant-ui/commit/8626c1ffe1c6d56ec75073e795aa9fbf7493c3ed), [`4000eed`](https://github.com/assistant-ui/assistant-ui/commit/4000eed17a9bb97d854a44eb61d9d5b72634e66c), [`1263c1f`](https://github.com/assistant-ui/assistant-ui/commit/1263c1fb8870ff1ba0a1c0e0ec3f3ea53a4c53da), [`e97f7c6`](https://github.com/assistant-ui/assistant-ui/commit/e97f7c61365ef0f73686c7b596751802f1a1ddd2), [`ebabca4`](https://github.com/assistant-ui/assistant-ui/commit/ebabca49de57630a2040af0ed59c058da95483d7)]:
+  - @assistant-ui/core@0.3.16
+  - assistant-stream@0.3.40
+
 ## 0.0.2
 
 ### Patch Changes

@@ -1,5 +1,14 @@
 # @assistant-ui/react-google-adk
 
+## 0.0.27
+
+### Patch Changes
+
+- [#6221](https://github.com/assistant-ui/assistant-ui/pull/6221) [`31a049f`](https://github.com/assistant-ui/assistant-ui/commit/31a049fcfa846a76da7c8e2c0bcd62960825dbd4) - fix: keep every text and reasoning part of a multi-part ADK event ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`c70c911`](https://github.com/assistant-ui/assistant-ui/commit/c70c911d9537e6f3e87da44768e3363d65e6a19d), [`8626c1f`](https://github.com/assistant-ui/assistant-ui/commit/8626c1ffe1c6d56ec75073e795aa9fbf7493c3ed), [`4000eed`](https://github.com/assistant-ui/assistant-ui/commit/4000eed17a9bb97d854a44eb61d9d5b72634e66c), [`1263c1f`](https://github.com/assistant-ui/assistant-ui/commit/1263c1fb8870ff1ba0a1c0e0ec3f3ea53a4c53da), [`e97f7c6`](https://github.com/assistant-ui/assistant-ui/commit/e97f7c61365ef0f73686c7b596751802f1a1ddd2), [`ebabca4`](https://github.com/assistant-ui/assistant-ui/commit/ebabca49de57630a2040af0ed59c058da95483d7)]:
+  - @assistant-ui/core@0.3.16
+  - assistant-stream@0.3.40
+
 ## 0.0.26
 
 ### Patch Changes

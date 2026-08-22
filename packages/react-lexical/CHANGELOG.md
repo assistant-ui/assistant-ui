@@ -1,5 +1,11 @@
 # @assistant-ui/react-lexical
 
+## 0.2.11
+
+### Patch Changes
+
+- [#6226](https://github.com/assistant-ui/assistant-ui/pull/6226) [`fd2fc2b`](https://github.com/assistant-ui/assistant-ui/commit/fd2fc2b1110dee79015a1b0d472d2dbd43cfe9db) - fix: keep leading blank lines when reading composer text back from the editor ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.2.10
 
 ### Patch Changes

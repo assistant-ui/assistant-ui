@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.14.13
+
+### Patch Changes
+
+- [#6212](https://github.com/assistant-ui/assistant-ui/pull/6212) [`0fa835c`](https://github.com/assistant-ui/assistant-ui/commit/0fa835cf4abc38eddcb2e6fa998a8c14b3299f50) - fix: keep the pre element for raw pre blocks without a code child ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.14.12
 
 ### Patch Changes
