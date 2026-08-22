@@ -1731,4 +1731,96 @@ describe("A2AClient", () => {
       expect(card.skills[0]).toMatchObject({ id: "s", tags: [] });
     });
   });
+
+  describe("streamMessage - JSON-RPC kind-discriminated results", () => {
+    const rpc = (result: unknown) =>
+      `data: ${JSON.stringify({ jsonrpc: "2.0", id: 1, result })}`;
+
+    it("parses a flat status-update result", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            contextId: "ctx-1",
+            status: { state: "working" },
+            final: false,
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe("statusUpdate");
+      const evt = events[0] as Extract<
+        A2AStreamEvent,
+        { type: "statusUpdate" }
+      >;
+      expect(evt.event.taskId).toBe("t1");
+      expect(evt.event.status.state).toBe("working");
+    });
+
+    it("parses a flat task result and maps hyphenated states", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "task",
+            id: "t1",
+            contextId: "ctx-1",
+            status: { state: "input-required" },
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe("task");
+      const evt = events[0] as Extract<A2AStreamEvent, { type: "task" }>;
+      expect(evt.task.status.state).toBe("input_required");
+    });
+
+    it("parses flat message and artifact-update results", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "message",
+            messageId: "m1",
+            role: "agent",
+            parts: [{ kind: "text", text: "hello" }],
+          }),
+          "",
+          rpc({
+            kind: "artifact-update",
+            taskId: "t1",
+            contextId: "ctx-1",
+            artifact: {
+              artifactId: "a1",
+              parts: [{ kind: "text", text: "x" }],
+            },
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events.map((e) => e.type)).toEqual(["message", "artifactUpdate"]);
+    });
+  });
 });

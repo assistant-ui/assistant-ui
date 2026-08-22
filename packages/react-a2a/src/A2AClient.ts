@@ -80,12 +80,17 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
       const camelKey = toCamelCase(key);
       const isOpaqueChild = OPAQUE_FIELDS.has(camelKey);
 
-      if (
-        camelKey === "state" &&
-        typeof value === "string" &&
-        value.startsWith("TASK_STATE_")
-      ) {
-        result[camelKey] = value.slice(11).toLowerCase();
+      if (camelKey === "state" && typeof value === "string") {
+        // Proto-style (TASK_STATE_WORKING), JSON-RPC hyphenated
+        // (input-required), and JSON-RPC "unknown" all map onto the
+        // internal snake_case states.
+        if (value.startsWith("TASK_STATE_")) {
+          result[camelKey] = value.slice(11).toLowerCase();
+        } else if (value === "unknown") {
+          result[camelKey] = "unspecified";
+        } else {
+          result[camelKey] = value.replaceAll("-", "_");
+        }
       } else if (
         camelKey === "role" &&
         typeof value === "string" &&
@@ -150,6 +155,36 @@ function discriminateStreamResponse(
         ? E
         : never,
     };
+  }
+  // JSON-RPC streaming results are the event itself, flat, discriminated by
+  // `kind` (per the A2A JSON-RPC schema), rather than wrapped in a
+  // REST-style single-key envelope. The field sets cannot collide with the
+  // wrapper keys above, so this is a pure fallthrough.
+  switch (data.kind) {
+    case "task":
+      return { type: "task", task: data as unknown as A2ATask };
+    case "message":
+      return { type: "message", message: data as unknown as A2AMessage };
+    case "status-update":
+      return {
+        type: "statusUpdate",
+        event: data as unknown as A2AStreamEvent extends {
+          type: "statusUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+    case "artifact-update":
+      return {
+        type: "artifactUpdate",
+        event: data as unknown as A2AStreamEvent extends {
+          type: "artifactUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
   }
   return null;
 }
