@@ -53,12 +53,15 @@ export function PreviewCodeClient({
   const [copied, setCopied] = useState(false);
   const flavor = useFlavor();
 
-  const activeCode =
-    flavor === "base" && baseCode !== undefined ? baseCode : code;
+  const copiedBaseSource = flavor === "base" && baseCode !== undefined;
+  const activeCode = copiedBaseSource ? baseCode : code;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(activeCode);
-    analytics.code.blockCopied("tsx", `docs_preview_${flavor}`);
+    analytics.code.blockCopied(
+      "tsx",
+      copiedBaseSource ? "docs_preview_base" : "docs_preview_radix",
+    );
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

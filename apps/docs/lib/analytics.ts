@@ -57,10 +57,6 @@ export const analytics = {
       trackEvent("prompt_copied", properties),
   },
 
-  pricing: {
-    pageViewed: () => trackEvent("pricing_page_viewed"),
-  },
-
   search: {
     opened: (source: "header" | "sidebar" | "keyboard") =>
       trackEvent("search_opened", { source }),

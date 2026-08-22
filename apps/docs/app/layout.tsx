@@ -8,8 +8,8 @@ import { Provider } from "./provider";
 import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";
-import { UmamiAnalytics } from "@/components/umami-analytics";
 import { galleryStagingCss } from "@/components/gallery/gallery-staging";
+import { umamiBootstrapScript } from "@/lib/umami-sampling";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -79,6 +79,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <head>
         <GenerativeUIStyle />
         <style>{galleryStagingCss}</style>
+        <script dangerouslySetInnerHTML={{ __html: umamiBootstrapScript }} />
         <Script
           id="vector-script"
           dangerouslySetInnerHTML={{
@@ -105,7 +106,6 @@ export default function Layout({ children }: { children: ReactNode }) {
           backwards-compatible alias on supported URL paths.
         </div>
         <Provider>{children}</Provider>
-        <UmamiAnalytics />
         <Analytics />
         <SpeedInsights />
       </body>

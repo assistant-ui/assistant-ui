@@ -8,7 +8,6 @@ import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage, typeSection } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 import { CLOUD_URL } from "@/lib/constants";
-import { PricingAnalytics } from "./pricing-analytics";
 import { PricingPlanCard } from "./pricing-plan-card";
 import {
   cloudHighlights,
@@ -45,7 +44,6 @@ function HighlightGrid({ items }: { items: typeof libraryHighlights }) {
 export default function PricingPage() {
   return (
     <PageFrame pad="sub" className="flex flex-col gap-20 md:gap-28">
-      <PricingAnalytics />
       <header className="max-w-2xl">
         <h1 className={typePage}>
           Open source UI. Hosted persistence when you need it.

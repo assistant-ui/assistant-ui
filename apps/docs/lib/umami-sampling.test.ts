@@ -1,78 +1,145 @@
-import { afterEach, expect, it, vi } from "vitest";
-import { UMAMI_SAMPLE_RATE, isSampledSession } from "./umami-sampling";
+import { expect, it } from "vitest";
+import { UMAMI_SAMPLE_RATE, umamiBootstrapScript } from "./umami-sampling";
 
-const globalObject = globalThis as {
-  window?: { sessionStorage: Pick<Storage, "getItem" | "setItem"> };
+type Appended = { src: string; defer: boolean; attrs: Record<string, string> };
+
+type RunOptions = {
+  store?: Map<string, string>;
+  rolls?: number[];
+  now?: number;
+  storageThrows?: boolean;
 };
 
-const previousWindow = globalObject.window;
+type RunResult = {
+  appended: Appended[];
+  store: Map<string, string>;
+  rollsUsed: number;
+};
 
-const createSessionStorage = (initial: Record<string, string> = {}) => {
-  const store = new Map(Object.entries(initial));
-  return {
-    getItem: (key: string) => store.get(key) ?? null,
-    setItem: (key: string, value: string) => {
-      store.set(key, value);
+const run = ({
+  store = new Map<string, string>(),
+  rolls = [UMAMI_SAMPLE_RATE / 2],
+  now = 1_000_000,
+  storageThrows = false,
+}: RunOptions = {}): RunResult => {
+  const appended: Appended[] = [];
+  let rollsUsed = 0;
+
+  const localStorage = storageThrows
+    ? {
+        getItem: () => {
+          throw new Error("blocked");
+        },
+        setItem: () => {
+          throw new Error("blocked");
+        },
+      }
+    : {
+        getItem: (key: string) => store.get(key) ?? null,
+        setItem: (key: string, value: string) => {
+          store.set(key, value);
+        },
+      };
+
+  const document = {
+    createElement: (): Appended & {
+      setAttribute: (k: string, v: string) => void;
+    } => {
+      const element = {
+        src: "",
+        defer: false,
+        attrs: {} as Record<string, string>,
+        setAttribute(key: string, value: string) {
+          this.attrs[key] = value;
+        },
+      };
+      return element;
+    },
+    head: {
+      appendChild: (element: Appended) => {
+        appended.push(element);
+      },
     },
   };
+
+  const fakeMath = {
+    ...Math,
+    random: () => rolls[Math.min(rollsUsed++, rolls.length - 1)]!,
+  };
+
+  const fn = new Function(
+    "window",
+    "document",
+    "Date",
+    "Math",
+    umamiBootstrapScript,
+  );
+  fn({ localStorage }, document, { now: () => now }, fakeMath);
+
+  return { appended, store, rollsUsed };
 };
 
-const createBlockedSessionStorage = () => ({
-  getItem: () => {
-    throw new Error("session storage is blocked");
-  },
-  setItem: () => {
-    throw new Error("session storage is blocked");
-  },
+it("loads the tracker when the roll lands under the rate", () => {
+  const { appended } = run({ rolls: [UMAMI_SAMPLE_RATE / 2] });
+
+  expect(appended).toHaveLength(1);
+  expect(appended[0]!.src).toBe("/umami/script.js");
+  expect(appended[0]!.defer).toBe(true);
+  expect(appended[0]!.attrs["data-website-id"]).toBe(
+    "6f07c001-46a2-411f-9241-4f7f5afb60ee",
+  );
+  expect(appended[0]!.attrs["data-domains"]).toBe("www.assistant-ui.com");
 });
 
-afterEach(() => {
-  if (previousWindow === undefined) {
-    delete globalObject.window;
-  } else {
-    globalObject.window = previousWindow;
-  }
-  vi.restoreAllMocks();
+it("stays out of the sample when the roll lands on the rate", () => {
+  const { appended } = run({ rolls: [UMAMI_SAMPLE_RATE] });
+
+  expect(appended).toHaveLength(0);
 });
 
-it("samples the session when the roll lands under the rate", () => {
-  globalObject.window = { sessionStorage: createSessionStorage() };
-  vi.spyOn(Math, "random").mockReturnValue(UMAMI_SAMPLE_RATE / 2);
+it("gives every tab in the visit the same answer", () => {
+  const store = new Map<string, string>();
 
-  expect(isSampledSession()).toBe(true);
+  const first = run({ store, rolls: [UMAMI_SAMPLE_RATE / 2] });
+  // a second tab would lose its own roll, but must follow the stored decision
+  const second = run({ store, rolls: [1] });
+
+  expect(first.appended).toHaveLength(1);
+  expect(second.appended).toHaveLength(1);
+  expect(second.rollsUsed).toBe(0);
 });
 
-it("excludes the session when the roll lands on the rate", () => {
-  globalObject.window = { sessionStorage: createSessionStorage() };
-  vi.spyOn(Math, "random").mockReturnValue(UMAMI_SAMPLE_RATE);
+it("rolls again once the visit window has lapsed", () => {
+  const store = new Map<string, string>();
 
-  expect(isSampledSession()).toBe(false);
+  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: 1_000_000 });
+  const later = run({ store, rolls: [1], now: 1_000_000 + 30 * 60 * 1000 + 1 });
+
+  expect(later.rollsUsed).toBe(1);
+  expect(later.appended).toHaveLength(0);
 });
 
-it("keeps every call in a session on the same side of the decision", () => {
-  globalObject.window = { sessionStorage: createSessionStorage() };
-  vi.spyOn(Math, "random")
-    .mockReturnValueOnce(UMAMI_SAMPLE_RATE / 2)
-    .mockReturnValue(1);
+it("extends the window while the reader keeps browsing", () => {
+  const store = new Map<string, string>();
 
-  expect(isSampledSession()).toBe(true);
-  expect(isSampledSession()).toBe(true);
-  expect(isSampledSession()).toBe(true);
+  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: 1_000_000 });
+  const midVisit = run({ store, rolls: [1], now: 1_000_000 + 20 * 60 * 1000 });
+  const afterOriginalExpiry = run({
+    store,
+    rolls: [1],
+    now: 1_000_000 + 45 * 60 * 1000,
+  });
+
+  expect(midVisit.appended).toHaveLength(1);
+  expect(afterOriginalExpiry.rollsUsed).toBe(0);
+  expect(afterOriginalExpiry.appended).toHaveLength(1);
 });
 
-it("reuses a decision already stored for the session", () => {
-  globalObject.window = {
-    sessionStorage: createSessionStorage({ "aui-umami-sample": "0" }),
-  };
-  const random = vi.spyOn(Math, "random");
+it("still decides when storage is unavailable", () => {
+  const { appended } = run({
+    rolls: [UMAMI_SAMPLE_RATE / 2],
+    storageThrows: true,
+  });
 
-  expect(isSampledSession()).toBe(false);
-  expect(random).not.toHaveBeenCalled();
-});
-
-it("falls back to a per-load roll when session storage is unavailable", () => {
-  globalObject.window = { sessionStorage: createBlockedSessionStorage() };
-  vi.spyOn(Math, "random").mockReturnValue(UMAMI_SAMPLE_RATE / 2);
-
-  expect(isSampledSession()).toBe(true);
+  expect(appended).toHaveLength(1);
 });
