@@ -494,14 +494,15 @@ export function SyncPlugin({
           const rootNode = $getRoot();
           let fullText = "";
 
-          // Joined per paragraph boundary, not on accumulated length: leading
-          // empty paragraphs contribute no text, and gating on length would
-          // silently drop their newlines from what gets sent.
-          for (const [index, paragraph] of rootNode.getChildren().entries()) {
-            if (index > 0) {
+          // One newline per paragraph boundary; empty paragraphs are lines
+          // too.
+          let lineIndex = 0;
+          for (const paragraph of rootNode.getChildren()) {
+            if (!$isElementNode(paragraph)) continue;
+            if (lineIndex > 0) {
               fullText += "\n";
             }
-            if (!$isElementNode(paragraph)) continue;
+            lineIndex++;
             for (const child of paragraph.getChildren()) {
               fullText += child.getTextContent();
             }
