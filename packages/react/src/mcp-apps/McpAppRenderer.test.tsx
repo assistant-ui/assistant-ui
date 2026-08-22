@@ -61,10 +61,19 @@ const createPart = (serverId?: string): ToolCallMessagePartProps => ({
   respondToApproval: vi.fn(),
 });
 
-function Harness({ host, serverId }: { host: McpAppsHost; serverId?: string }) {
+function Harness({
+  host,
+  serverId,
+  handlers,
+}: {
+  host: McpAppsHost;
+  serverId?: string;
+  handlers?: Partial<McpAppBridgeHandlers>;
+}) {
   const renderer = useResource(
     McpAppRenderer({
       host: Host({ host }),
+      ...(handlers === undefined ? {} : { handlers }),
     }),
   );
   const Renderer = renderer.render;
@@ -396,5 +405,68 @@ describe("McpAppRenderer", () => {
 
     await handlers.listResources?.(params);
     expect(listResources).toHaveBeenCalledWith(params);
+  });
+
+  it("uses caller UI handlers and keeps data-plane handlers on the host", async () => {
+    const callTool = vi.fn();
+    const readResource = vi.fn();
+    const listResources = vi.fn();
+    const host: McpAppsHost = {
+      loadResource: vi.fn(async ({ uri }) => ({
+        uri,
+        mimeType: "text/html;profile=mcp-app" as const,
+        html: "",
+      })),
+      callTool: vi.fn(),
+      readResource: vi.fn(),
+      listResources: vi.fn(),
+    };
+    const requestDisplayMode = vi.fn(({ mode }) => ({ mode }));
+    const updateModelContext = vi.fn();
+    const openLink = vi.fn();
+    const sendMessage = vi.fn();
+    const onInitialized = vi.fn();
+
+    render(
+      <Harness
+        host={host}
+        handlers={{
+          callTool,
+          readResource,
+          listResources,
+          requestDisplayMode,
+          updateModelContext,
+          openLink,
+          sendMessage,
+          onInitialized,
+        }}
+      />,
+    );
+    await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
+    const handlers = framePropsMock.mock.lastCall?.[0]
+      .handlers as McpAppBridgeHandlers;
+
+    expect(await handlers.requestDisplayMode?.({ mode: "fullscreen" })).toEqual(
+      { mode: "fullscreen" },
+    );
+    await handlers.updateModelContext?.({ text: "context" });
+    await handlers.openLink?.({ url: "https://example.com" });
+    await handlers.sendMessage?.({ text: "hello" });
+    handlers.onInitialized?.();
+    await handlers.callTool?.({ name: "search" });
+    await handlers.readResource?.({ uri: "ui://resource" });
+    await handlers.listResources?.();
+
+    expect(requestDisplayMode).toHaveBeenCalledWith({ mode: "fullscreen" });
+    expect(updateModelContext).toHaveBeenCalledWith({ text: "context" });
+    expect(openLink).toHaveBeenCalledWith({ url: "https://example.com" });
+    expect(sendMessage).toHaveBeenCalledWith({ text: "hello" });
+    expect(onInitialized).toHaveBeenCalledOnce();
+    expect(callTool).not.toHaveBeenCalled();
+    expect(readResource).not.toHaveBeenCalled();
+    expect(listResources).not.toHaveBeenCalled();
+    expect(host.callTool).toHaveBeenCalledWith({ name: "search" });
+    expect(host.readResource).toHaveBeenCalledWith({ uri: "ui://resource" });
+    expect(host.listResources).toHaveBeenCalledWith(undefined);
   });
 });
