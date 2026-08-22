@@ -96,6 +96,21 @@ describe("tool-call writes after cancellation", () => {
   });
 });
 
+describe("controller close idempotence", () => {
+  it("tolerates a second close after the stream drains", async () => {
+    const [stream, controller] = createAssistantStreamController();
+    controller.appendText("hi");
+    controller.close();
+
+    const reader = stream.getReader();
+    while (!(await reader.read()).done) {
+      // drain
+    }
+
+    expect(() => controller.close()).not.toThrow();
+  });
+});
+
 describe("createAssistantStream task settlement", () => {
   it("emits callback failures without leaking an unhandled rejection", async () => {
     let chunks: AssistantStreamChunk[] = [];
