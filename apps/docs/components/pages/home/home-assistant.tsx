@@ -8,7 +8,7 @@ import {
   AssistantPanelProvider,
   useAssistantPanel,
 } from "@/components/pages/docs/assistant/context";
-import { DocsAssistantRuntimeProvider } from "@/contexts/AssistantRuntimeProvider";
+import { DocsAssistantRuntimeProvider } from "@/runtimes/providers";
 import {
   DocsAssistantPanel,
   getPanelWidth,

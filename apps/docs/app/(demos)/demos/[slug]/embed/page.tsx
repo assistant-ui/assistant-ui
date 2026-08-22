@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/runtimes/providers";
 import { DEMOS, getDemo } from "@/lib/demos";
 
 export function generateStaticParams() {

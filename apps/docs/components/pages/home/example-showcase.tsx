@@ -5,7 +5,7 @@ import { Claude } from "@/components/pages/examples/claude";
 import { Perplexity } from "@/components/pages/examples/perplexity";
 import { Base } from "@/components/pages/examples/base";
 import { Tab } from "@/components/shared/tab";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/runtimes/providers";
 import { Gemini } from "@/components/pages/examples/gemini";
 import { Grok } from "@/components/pages/examples/grok";
 import { Button } from "@/components/ui/button";

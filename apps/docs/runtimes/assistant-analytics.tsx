@@ -1,19 +1,12 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import {
-  AssistantRuntimeProvider,
-  SimpleImageAttachmentAdapter,
   useAssistantInstructions,
   useAui,
   useAuiEvent,
 } from "@assistant-ui/react";
-import {
-  useChatRuntime,
-  AssistantChatTransport,
-  getThreadMessageTokenUsage,
-} from "@assistant-ui/ai-sdk";
-import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { useEffect, useRef, type ReactNode } from "react";
+import { getThreadMessageTokenUsage } from "@assistant-ui/ai-sdk";
 import { useCurrentPage } from "@/components/pages/docs/contexts/current-page";
 import { analytics } from "@/lib/analytics";
 import {
@@ -23,8 +16,6 @@ import {
   recordRunStartedAt,
 } from "@/lib/assistant-analytics-helpers";
 import { countToolCalls, getTextLength } from "@/lib/assistant-metrics";
-import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
-import { feedbackAdapter } from "@/lib/feedback-adapter";
 
 type ThreadMessagePart = { type: string; text?: string };
 
@@ -46,7 +37,7 @@ function getLastAssistantMessage(
   return undefined;
 }
 
-function AssistantPageContext() {
+export function AssistantPageContext() {
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
 
@@ -60,7 +51,7 @@ function AssistantPageContext() {
   return null;
 }
 
-function AssistantAnalyticsTracker() {
+export function AssistantAnalyticsTracker() {
   const aui = useAui();
   const currentPage = useCurrentPage();
   const pathname = currentPage?.pathname;
@@ -150,30 +141,4 @@ function AssistantAnalyticsTracker() {
   });
 
   return null;
-}
-
-export function DocsAssistantRuntimeProvider({
-  children,
-}: {
-  children: ReactNode;
-}) {
-  const runtime = useChatRuntime({
-    transport: new AssistantChatTransport({
-      api: "/api/doc/chat",
-      fetch: anonymousSessionFetch,
-    }),
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
-    adapters: {
-      feedback: feedbackAdapter,
-      attachments: new SimpleImageAttachmentAdapter(),
-    },
-  });
-
-  return (
-    <AssistantRuntimeProvider runtime={runtime}>
-      <AssistantAnalyticsTracker />
-      <AssistantPageContext />
-      {children}
-    </AssistantRuntimeProvider>
-  );
 }

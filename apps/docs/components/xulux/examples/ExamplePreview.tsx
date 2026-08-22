@@ -8,8 +8,10 @@ import { Grok } from "@/components/pages/examples/grok";
 import { ModalChat } from "@/components/pages/examples/modal";
 import { Perplexity } from "@/components/pages/examples/perplexity";
 import { Base } from "@/components/pages/examples/base";
-import { ArtifactsRuntimeProvider } from "@/contexts/ArtifactsRuntimeProvider";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import {
+  ArtifactsRuntimeProvider,
+  DocsRuntimeProvider,
+} from "@/runtimes/providers";
 
 type PreviewData = {
   slug: string;
