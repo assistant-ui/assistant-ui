@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import {
   createAssistantStream,
+  createAssistantStreamController,
   createAssistantStreamResponse,
 } from "./assistant-stream";
 import { AssistantStream } from "../AssistantStream";
@@ -53,6 +54,47 @@ const captureUnhandledRejections = async (
     process.off("unhandledRejection", listener);
   }
 };
+
+describe("tool-call writes after cancellation", () => {
+  it("ignores setResponse after the consumer cancels", async () => {
+    const unhandledRejections = await captureUnhandledRejections(async () => {
+      const [stream, controller] = createAssistantStreamController();
+      const toolCall = controller.addToolCallPart({
+        toolCallId: "t1",
+        toolName: "search",
+      });
+
+      const reader = stream.getReader();
+      await reader.cancel("consumer stopped");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      toolCall.setResponse({ result: "ok" });
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(unhandledRejections).toEqual([]);
+  });
+
+  it("ignores args appends and close after the consumer cancels", async () => {
+    const unhandledRejections = await captureUnhandledRejections(async () => {
+      const [stream, controller] = createAssistantStreamController();
+      const toolCall = controller.addToolCallPart({
+        toolCallId: "t1",
+        toolName: "search",
+      });
+
+      const reader = stream.getReader();
+      await reader.cancel("consumer stopped");
+      await new Promise((resolve) => setTimeout(resolve, 0));
+
+      toolCall.argsText.append('{"q":1}');
+      toolCall.close();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(unhandledRejections).toEqual([]);
+  });
+});
 
 describe("createAssistantStream task settlement", () => {
   it("emits callback failures without leaking an unhandled rejection", async () => {

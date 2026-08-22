@@ -19,6 +19,17 @@ export type ToolCallStreamController = {
 class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _isClosed = false;
 
+  // enqueue() throwing TypeError is the portable termination signal for
+  // ReadableStream controllers; after the consumer cancels, writes are
+  // intentionally discarded instead of surfacing as unhandled rejections.
+  private _enqueue(chunk: AssistantStreamChunk) {
+    try {
+      this._controller.enqueue(chunk);
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+    }
+  }
+
   private _mergeTask: Promise<void>;
   private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
 
@@ -39,19 +50,19 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
           switch (chunk.type) {
             case "text-delta":
               hasArgsText = true;
-              this._controller.enqueue(chunk);
+              this._enqueue(chunk);
               break;
 
             case "part-finish":
               if (!hasArgsText) {
                 // if no argsText was provided, assume empty object
-                this._controller.enqueue({
+                this._enqueue({
                   type: "text-delta",
                   textDelta: "{}",
                   path: [],
                 });
               }
-              this._controller.enqueue({
+              this._enqueue({
                 type: "tool-call-args-text-finish",
                 path: [],
               });
@@ -79,7 +90,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     // indistinguishable from one that never finished.
     const result = response.result;
 
-    this._controller.enqueue({
+    this._enqueue({
       type: "result",
       path: [],
       ...(response.artifact !== undefined
@@ -104,11 +115,15 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     this._argsTextController.close();
     await this._mergeTask;
 
-    this._controller.enqueue({
+    this._enqueue({
       type: "part-finish",
       path: [],
     });
-    this._controller.close();
+    try {
+      this._controller.close();
+    } catch (error) {
+      if (!(error instanceof TypeError)) throw error;
+    }
   }
 }
 
