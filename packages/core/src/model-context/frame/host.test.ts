@@ -84,6 +84,23 @@ describe("AssistantFrameHost", () => {
     host.dispose();
   });
 
+  it("rejects tool results that carry an empty error message", async () => {
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
+    const result = Promise.resolve(
+      execute({ query: "weather" }, executionContext),
+    );
+
+    dispatchMessage({
+      type: "tool-result",
+      id: getToolCallId(),
+      error: "",
+    });
+
+    await expect(result).rejects.toThrow();
+    expect(vi.getTimerCount()).toBe(0);
+    host.dispose();
+  });
+
   it("rejects pending tool calls when disposed", async () => {
     const { execute, getToolCallId, host, postMessage } = createHost();
     const result = Promise.resolve(execute({}, executionContext));
