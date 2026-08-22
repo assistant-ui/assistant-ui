@@ -17,7 +17,6 @@ import { TerminalIcon } from "lucide-react";
 import { useMemo } from "react";
 import { z } from "zod";
 import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
-import { feedbackAdapter } from "@/lib/feedback-adapter";
 
 const artifactsToolkit: Toolkit = {
   render_html: {
@@ -60,7 +59,6 @@ export function ArtifactsRuntimeProvider({
     }),
     sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
     adapters: {
-      feedback: feedbackAdapter,
       speech: new WebSpeechSynthesisAdapter(),
       dictation: new WebSpeechDictationAdapter(),
     },
