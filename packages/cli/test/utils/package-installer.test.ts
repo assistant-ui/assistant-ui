@@ -67,7 +67,7 @@ describe("package-installer utilities", () => {
       await installPackageIfNeeded({
         packageName: "@assistant-ui/ai-sdk",
         importPatterns: ["@assistant-ui/ai-sdk"],
-        satisfiedBy: ["@assistant-ui/ai-sdk", "@assistant-ui/react-ai-sdk"],
+        satisfiedBy: ["@assistant-ui/react-ai-sdk"],
         promptMessage: "Install?",
         skipMessage: "Already installed",
         notFoundMessage: "Not found",
@@ -85,7 +85,7 @@ describe("package-installer utilities", () => {
       await installPackageIfNeeded({
         packageName: "@assistant-ui/ai-sdk",
         importPatterns: ["@assistant-ui/ai-sdk"],
-        satisfiedBy: ["@assistant-ui/ai-sdk", "@assistant-ui/react-ai-sdk"],
+        satisfiedBy: ["@assistant-ui/react-ai-sdk"],
         promptMessage: "Install?",
         skipMessage: "Already installed",
         notFoundMessage: "Not found",

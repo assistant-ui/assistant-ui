@@ -10,9 +10,9 @@ export interface PackageInstallConfig {
   packageName: string;
   importPatterns: string[];
   /**
-   * Packages that already satisfy the need, beyond `packageName`. Lets a
-   * renamed package accept its previous name so an existing install is not
-   * duplicated. Defaults to `packageName` alone.
+   * Additional packages that already satisfy the need. Lets a renamed package
+   * accept its previous name so an existing install is not duplicated;
+   * `packageName` always counts.
    */
   satisfiedBy?: string[];
   promptMessage: string;
@@ -30,7 +30,7 @@ export async function installPackageIfNeeded(
     return;
   }
 
-  const satisfying = config.satisfiedBy ?? [config.packageName];
+  const satisfying = [config.packageName, ...(config.satisfiedBy ?? [])];
   if (satisfying.some((name) => isPackageInstalled(name))) {
     logger.info(config.skipMessage);
     return;

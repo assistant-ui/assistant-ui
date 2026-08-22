@@ -9,7 +9,7 @@ export default async function installEdgeLib(): Promise<void> {
       "@assistant-ui/react-ai-sdk",
       "useChatRuntime",
     ],
-    satisfiedBy: ["@assistant-ui/ai-sdk", "@assistant-ui/react-ai-sdk"],
+    satisfiedBy: ["@assistant-ui/react-ai-sdk"],
     promptMessage:
       "Edge Runtime imports were detected but @assistant-ui/ai-sdk is not installed. Do you want to install it? (Y/n) ",
     skipMessage:

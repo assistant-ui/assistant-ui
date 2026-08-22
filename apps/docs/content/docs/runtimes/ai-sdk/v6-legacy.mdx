@@ -122,7 +122,7 @@ export async function POST(req: Request) {
 
 import { Thread } from "@/components/assistant-ui/thread";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 
 export default function Home() {
   const runtime = useChatRuntime();
@@ -144,7 +144,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react-native";
 import {
   AssistantChatTransport,
   useChatRuntime,
-} from "@assistant-ui/ai-sdk";
+} from "@assistant-ui/react-ai-sdk";
 import { View } from "react-native";
 import { Thread } from "@/components/assistant-ui/thread";
 
@@ -174,7 +174,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/react-ink";
 import {
   AssistantChatTransport,
   useChatRuntime,
-} from "@assistant-ui/ai-sdk";
+} from "@assistant-ui/react-ai-sdk";
 import { Box } from "ink";
 import { Thread } from "./components/thread.js";
 
@@ -231,7 +231,7 @@ Follow the [Ink setup](/docs/ink) to add a terminal Thread, composer, and suppor
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages, zodSchema } from "ai";
 import type { UIMessage } from "ai";
-import { frontendTools } from "@assistant-ui/ai-sdk";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 
 export async function POST(req: Request) {
   const {
@@ -330,7 +330,7 @@ import { useChat } from "@ai-sdk/react";
 import {
   AssistantRuntimeProvider,
   useAISDKRuntime,
-} from "@assistant-ui/ai-sdk";
+} from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { Thread } from "@/components/assistant-ui/thread";
 
@@ -360,7 +360,7 @@ import {
   defineToolkit,
   Tools,
 } from "@assistant-ui/react";
-import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
+import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
 import { Thread } from "@/components/assistant-ui/thread";
 
@@ -417,7 +417,7 @@ import {
   streamText,
   convertToModelMessages,
 } from "ai";
-import { injectQuoteContext } from "@assistant-ui/ai-sdk";
+import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
 import { openai } from "@ai-sdk/openai";
 
 export async function POST(req: Request) {
@@ -438,7 +438,7 @@ export async function POST(req: Request) {
 
 ```ts title="@/app/api/chat/route.ts"
 import { streamText, convertToModelMessages } from "ai";
-import { frontendTools } from "@assistant-ui/ai-sdk";
+import { frontendTools } from "@assistant-ui/react-ai-sdk";
 
 export async function POST(req: Request) {
   const { messages, tools, config } = await req.json();
@@ -464,7 +464,7 @@ export async function POST(req: Request) {
 ```tsx title="@/components/TokenCounter.tsx"
 "use client";
 
-import { useThreadTokenUsage } from "@assistant-ui/ai-sdk";
+import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
 
 export function TokenCounter() {
   const usage = useThreadTokenUsage();
@@ -519,7 +519,7 @@ For server-side cloud persistence with zero adapter code, see the [AssistantClou
 ```tsx
 "use client";
 
-import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
 import type { ThreadHistoryAdapter } from "@assistant-ui/react";
 
 const historyAdapter: ThreadHistoryAdapter = {
@@ -565,7 +565,7 @@ Each persisted row follows `{ id, parent_id, format, content }`. `fmt.encode` pr
 import {
   useChatRuntime,
   AssistantChatTransport,
-} from "@assistant-ui/ai-sdk";
+} from "@assistant-ui/react-ai-sdk";
 
 const runtime = useChatRuntime({
   transport: new AssistantChatTransport({ api: "/my-custom-api/chat" }),
@@ -580,7 +580,7 @@ When you need direct access to the `useChat` instance (e.g. to share it with non
 
 ```tsx
 import { useChat } from "@ai-sdk/react";
-import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
+import { useAISDKRuntime } from "@assistant-ui/react-ai-sdk";
 
 const chat = useChat();
 const runtime = useAISDKRuntime(chat);
@@ -611,7 +611,7 @@ const runtime = useAISDKRuntime(chat);
 
 ## Example
 
-The maintained example targets v7: [`examples/with-ai-sdk-v7`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v7). The last v6 revision of that example lives in the repository history alongside the `@assistant-ui/ai-sdk` 1.x releases.
+The maintained example targets v7: [`examples/with-ai-sdk-v7`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-ai-sdk-v7). The last v6 revision of that example lives in the repository history alongside the `@assistant-ui/react-ai-sdk` 1.x releases.
 
 For responses that should survive a page reload mid-stream, see [Resumable streams](/docs/guides/resumable-streams), which wraps the same v6 byte stream in `assistant-stream/resumable`.
 
