@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Menu, X, ArrowUpRight, ArrowRight, Search } from "lucide-react";
 import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
@@ -18,6 +18,7 @@ import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { headerBarClassName } from "@/components/shared/header-chrome";
 import { useScrolled } from "@/hooks/use-scrolled";
+import { useHomepageVisit } from "./use-homepage-visit";
 
 function SearchButton({ onToggle }: { onToggle: () => void }) {
   useEffect(() => {
@@ -95,19 +96,16 @@ export function Header({ stars }: { stars: number | null }) {
     "homepage-hiring-banner-dismissed",
   );
   const [visited, setVisited] = usePersistentBoolean("homepage-visited");
-  const [returningVisitor, setReturningVisitor] = useState(false);
+  const returningVisitor = useHomepageVisit({
+    pathname,
+    mounted,
+    visited,
+    setVisited,
+  });
 
   useEffect(() => {
     setMounted(true);
   }, []);
-
-  useEffect(() => {
-    if (pathname !== "/") return;
-    // Show the banner only from the second homepage visit onward.
-    setReturningVisitor(visited);
-    if (!visited) setVisited(true);
-    // oxlint-disable-next-line react/exhaustive-deps
-  }, [pathname]);
 
   const isHome = pathname === "/";
   const showBanner = mounted && isHome && returningVisitor && !dismissed;
