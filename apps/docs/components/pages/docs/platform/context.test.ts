@@ -1,4 +1,4 @@
-import { afterEach, expect, it } from "vitest";
+import { afterEach, expect, it, vi } from "vitest";
 
 const STORAGE_KEY = "assistant-ui::docs:platform";
 
@@ -46,6 +46,7 @@ const setup = ({
 };
 
 afterEach(() => {
+  vi.resetModules();
   delete (globalThis as { window?: unknown }).window;
 });
 
