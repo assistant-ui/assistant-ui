@@ -1,5 +1,13 @@
 # assistant-ui
 
+## 0.0.113
+
+### Patch Changes
+
+- [#6224](https://github.com/assistant-ui/assistant-ui/pull/6224) [`c70c911`](https://github.com/assistant-ui/assistant-ui/commit/c70c911d9537e6f3e87da44768e3363d65e6a19d) - chore: install `@assistant-ui/ai-sdk` instead of `@assistant-ui/react-ai-sdk` ([@okisdev](https://github.com/okisdev))
+  
+  the AI SDK and edge install helpers now add the framework-neutral package. an import of the previous name still installs that package, since the two are separate npm packages and the neutral one would not make the old import resolvable. `assistant-ui info` reports both names while users are split across them.
+
 ## 0.0.112
 
 ### Patch Changes

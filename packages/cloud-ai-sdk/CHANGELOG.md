@@ -1,5 +1,13 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.36
+
+### Patch Changes
+
+- [#6217](https://github.com/assistant-ui/assistant-ui/pull/6217) [`030b49e`](https://github.com/assistant-ui/assistant-ui/commit/030b49e72c5e966c224fc50ce1e05f61e2b387ef) - fix: preserve active chats when Cloud scope renders are interrupted ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6218](https://github.com/assistant-ui/assistant-ui/pull/6218) [`622ac53`](https://github.com/assistant-ui/assistant-ui/commit/622ac53047acc988b6408cab80a0e71521cf9d73) - fix: clear selected Cloud threads hidden by remote archival ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.1.35
 
 ### Patch Changes

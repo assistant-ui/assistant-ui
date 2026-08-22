@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.40
+
+### Patch Changes
+
+- [#6235](https://github.com/assistant-ui/assistant-ui/pull/6235) [`8626c1f`](https://github.com/assistant-ui/assistant-ui/commit/8626c1ffe1c6d56ec75073e795aa9fbf7493c3ed) - fix: encode file parts on the data stream ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.39
 
 ### Patch Changes
