@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
-import { DemoStage } from "@/components/demo/elements/demo-stage";
+import { DemoStage } from "@/components/demo/demo-stage";
 import { mono } from "@/components/elements/surfaces";
 import { StandalonePreview } from "@/components/pages/standalone/previews";
 import { createOgMetadata } from "@/lib/og";

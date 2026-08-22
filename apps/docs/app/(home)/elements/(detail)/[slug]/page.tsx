@@ -10,8 +10,8 @@ import {
   readElementSource,
 } from "@/lib/element-source";
 import { CopyButton } from "@/components/shared/copy-button";
-import { demoCanvasClass } from "@/components/demo/utils/canvas";
-import { DemoStage } from "@/components/demo/elements/demo-stage";
+import { demoCanvasClass } from "@/components/pages/elements/demos/canvas";
+import { DemoStage } from "@/components/demo/demo-stage";
 import { DemoVariants } from "@/components/pages/elements/demo-variants";
 import { InstallCommand } from "@/components/pages/elements/install-command";
 import { ELEMENT_DOCS } from "@/components/pages/elements/element-docs";
