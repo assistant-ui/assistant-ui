@@ -105,7 +105,6 @@ export const ComposerInput = ({
         const threadState = aui.thread.getState();
         if (threadState.isRunning && !threadState.capabilities.queue) return;
         (e as unknown as Event).preventDefault?.();
-        if (!aui.composer.getState().canSend) return;
         aui.composer.send();
       }
     },
