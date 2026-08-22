@@ -5,6 +5,7 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import ShikiHighlighter from "react-shiki";
 import { cn } from "@/lib/utils";
 import { useFlavor } from "@/components/pages/docs/contexts/flavor";
+import { analytics } from "@/lib/analytics";
 
 type Tab = "preview" | "code";
 
@@ -57,6 +58,7 @@ export function PreviewCodeClient({
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(activeCode);
+    analytics.code.blockCopied("tsx", `docs_preview_${flavor}`);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
