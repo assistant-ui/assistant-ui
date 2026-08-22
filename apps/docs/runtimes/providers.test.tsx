@@ -1,5 +1,9 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { renderToString } from "react-dom/server";
+import {
+  CloudFileAttachmentAdapter,
+  SimpleImageAttachmentAdapter,
+} from "@assistant-ui/react";
 
 const useDocsChatRuntime = vi.hoisted(() => vi.fn(() => ({}) as never));
 const useSpeechAdapters = vi.hoisted(() => vi.fn(() => ({ speech: "speech" })));
@@ -51,7 +55,9 @@ it("wires the docs surface with a cloud, dictation and cloud attachments", async
   expect(useAnonymousCloud).toHaveBeenCalled();
   expect(runtimeOptions().cloud).toBe("cloud");
   expect(runtimeOptions().sendAutomatically).toBe(true);
-  expect(runtimeOptions().adapters?.attachments).toBeInstanceOf(Object);
+  expect(runtimeOptions().adapters?.attachments).toBeInstanceOf(
+    CloudFileAttachmentAdapter,
+  );
   expect(runtimeOptions().adapters?.feedback).toBeDefined();
 });
 
@@ -76,7 +82,9 @@ it("wires the docs assistant onto its own endpoint with no cloud", async () => {
   expect(runtimeOptions().api).toBe("/api/doc/chat");
   expect(runtimeOptions().cloud).toBeUndefined();
   expect(runtimeOptions().sendAutomatically).toBe(true);
-  expect(runtimeOptions().adapters?.attachments).toBeInstanceOf(Object);
+  expect(runtimeOptions().adapters?.attachments).toBeInstanceOf(
+    SimpleImageAttachmentAdapter,
+  );
   expect(useSpeechAdapters).not.toHaveBeenCalled();
 });
 

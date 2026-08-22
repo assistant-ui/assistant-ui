@@ -10,6 +10,12 @@ export default {
   },
   resolve: {
     alias: {
+      // Keep in step with the tsconfig paths: packages/ui ships stock shadcn
+      // sidebars importing this bare alias, and it resolves outside this app.
+      "@/hooks/use-mobile": resolve(
+        __dirname,
+        "../../packages/ui/src/hooks/use-mobile",
+      ),
       "@": resolve(__dirname),
     },
   },
