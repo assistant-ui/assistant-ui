@@ -136,6 +136,16 @@ export class ExternalStoreThreadRuntimeCore
 
   private _converter = new ThreadMessageConverter();
 
+  // Fallback ids must be stable per store message, not positional: a cached
+  // conversion keeps the id it was created with, so an index-derived id
+  // collides with fresh conversions once the list shifts (e.g. prepending
+  // older history), and the duplicate sweep would drop a real message. The
+  // ids come from a counter rather than generateId so a server render and
+  // its hydration pass assign identical ids, and carry a reserved prefix so
+  // they cannot collide with an explicit host id.
+  private _fallbackIds = new WeakMap<WeakKey, string>();
+  private _nextFallbackId = 0;
+
   private _store!: ExternalStoreAdapter<any>;
 
   private _getInitializePromise?: () => Promise<unknown> | undefined;
@@ -294,10 +304,16 @@ export class ExternalStoreThreadRuntimeCore
             )
               return cache;
 
+            let fallbackId = this._fallbackIds.get(m);
+            if (fallbackId === undefined) {
+              fallbackId = `__external_store_fallback_${this._nextFallbackId++}`;
+              this._fallbackIds.set(m, fallbackId);
+            }
+
             const messageLike = store.convertMessage(m, idx);
             const newMessage = fromThreadMessageLike(
               messageLike,
-              idx.toString(),
+              fallbackId,
               autoStatus,
             );
             bindExternalStoreMessage(newMessage, m);

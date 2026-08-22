@@ -1155,3 +1155,95 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(queue.remove).toHaveBeenCalledWith("q1");
   });
 });
+
+describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
+  const convertMessage = (m: { role?: "user" | "assistant"; text: string }) =>
+    ({
+      role: m.role ?? "user",
+      content: [{ type: "text", text: m.text }],
+    }) as ThreadMessageLike;
+
+  const storeWith = (
+    messages: { role?: "user" | "assistant"; text: string }[],
+  ) => makeStore({ messages, convertMessage });
+
+  it("keeps a prepended history message", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const m0 = { text: "older-user" };
+      const m1 = { text: "newer-user" };
+      const m2 = { role: "assistant" as const, text: "newer-assistant" };
+
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        mockContextProvider,
+        storeWith([m1, m2]),
+      );
+      expect(runtime.messages).toHaveLength(2);
+
+      runtime.__internal_setAdapter(storeWith([m0, m1, m2]));
+
+      expect(warn).not.toHaveBeenCalled();
+      expect(runtime.messages).toHaveLength(3);
+      expect(
+        runtime.messages.map((m) => (m.content[0] as { text: string }).text),
+      ).toEqual(["older-user", "newer-user", "newer-assistant"]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("keeps converted ids stable across index shifts", () => {
+    const m1 = { text: "newer-user" };
+    const m2 = { role: "assistant" as const, text: "newer-assistant" };
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      storeWith([m1, m2]),
+    );
+    const idsBefore = runtime.messages.map((m) => m.id);
+
+    runtime.__internal_setAdapter(storeWith([{ text: "older-user" }, m1, m2]));
+
+    const idsAfter = runtime.messages.map((m) => m.id);
+    expect(idsAfter.slice(1)).toEqual(idsBefore);
+    expect(new Set(idsAfter).size).toBe(3);
+  });
+
+  it("assigns identical fallback ids across separate core instances", () => {
+    const makeMessages = () => [
+      { text: "one" },
+      { role: "assistant" as const, text: "two" },
+    ];
+
+    const server = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      storeWith(makeMessages()),
+    );
+    const client = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      storeWith(makeMessages()),
+    );
+
+    expect(client.messages.map((m) => m.id)).toEqual(
+      server.messages.map((m) => m.id),
+    );
+  });
+
+  it("does not collide a fallback id with an explicit host id", () => {
+    const messages = [{ id: "0", text: "explicit-zero" }, { text: "id-less" }];
+    const convertWithId = (m: { id?: string; text: string }) =>
+      ({
+        ...(m.id !== undefined ? { id: m.id } : {}),
+        role: "user",
+        content: [{ type: "text", text: m.text }],
+      }) as ThreadMessageLike;
+
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({ messages, convertMessage: convertWithId }),
+    );
+
+    expect(runtime.messages).toHaveLength(2);
+    expect(new Set(runtime.messages.map((m) => m.id)).size).toBe(2);
+  });
+});
