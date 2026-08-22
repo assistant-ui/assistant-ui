@@ -58,6 +58,44 @@ describe("package-installer utilities", () => {
       expect(packageManager.installPackage).not.toHaveBeenCalled();
     });
 
+    it("should skip installation when a satisfiedBy package is installed", async () => {
+      vi.mocked(fileScanner.scanForImport).mockReturnValue(true);
+      vi.mocked(packageManager.isPackageInstalled).mockImplementation(
+        (name) => name === "@assistant-ui/react-ai-sdk",
+      );
+
+      await installPackageIfNeeded({
+        packageName: "@assistant-ui/ai-sdk",
+        importPatterns: ["@assistant-ui/ai-sdk"],
+        satisfiedBy: ["@assistant-ui/ai-sdk", "@assistant-ui/react-ai-sdk"],
+        promptMessage: "Install?",
+        skipMessage: "Already installed",
+        notFoundMessage: "Not found",
+      });
+
+      expect(consoleLogSpy).toHaveBeenCalledWith("Already installed");
+      expect(packageManager.installPackage).not.toHaveBeenCalled();
+    });
+
+    it("should install when no satisfiedBy package is installed", async () => {
+      vi.mocked(fileScanner.scanForImport).mockReturnValue(true);
+      vi.mocked(packageManager.isPackageInstalled).mockReturnValue(false);
+      vi.mocked(packageManager.askQuestion).mockResolvedValue("y");
+
+      await installPackageIfNeeded({
+        packageName: "@assistant-ui/ai-sdk",
+        importPatterns: ["@assistant-ui/ai-sdk"],
+        satisfiedBy: ["@assistant-ui/ai-sdk", "@assistant-ui/react-ai-sdk"],
+        promptMessage: "Install?",
+        skipMessage: "Already installed",
+        notFoundMessage: "Not found",
+      });
+
+      expect(packageManager.installPackage).toHaveBeenCalledWith(
+        "@assistant-ui/ai-sdk",
+      );
+    });
+
     it("should prompt for installation when package needed but not installed", async () => {
       vi.mocked(fileScanner.scanForImport).mockReturnValue(true);
       vi.mocked(packageManager.isPackageInstalled).mockReturnValue(false);
