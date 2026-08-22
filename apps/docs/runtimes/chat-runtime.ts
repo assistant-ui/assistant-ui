@@ -43,17 +43,21 @@ export function useDocsChatRuntime({
   api,
   cloud,
   adapters,
+  sendAutomatically = false,
 }: {
   api?: string;
   cloud?: AssistantCloud;
   adapters?: Adapters;
+  sendAutomatically?: boolean;
 } = {}) {
   return useChatRuntime({
     transport: new AssistantChatTransport({
       ...(api ? { api } : {}),
       fetch: anonymousSessionFetch,
     }),
-    sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls,
+    ...(sendAutomatically
+      ? { sendAutomaticallyWhen: lastAssistantMessageIsCompleteWithToolCalls }
+      : {}),
     ...(adapters ? { adapters } : {}),
     ...(cloud ? { cloud } : {}),
   });

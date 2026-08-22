@@ -14,10 +14,8 @@ import {
   DocsAssistantPanel,
   DocsShell,
 } from "@/components/pages/docs/layout/docs-layout";
-import {
-  DocsAssistantRuntimeProvider,
-  DocsRuntimeProvider,
-} from "@/runtimes/providers";
+import { DocsAssistantRuntimeProvider } from "@/runtimes/docs-assistant";
+import { DocsRuntimeProvider } from "@/runtimes/docs";
 import { CurrentPageProvider } from "@/components/pages/docs/contexts/current-page";
 import { PlatformProvider } from "@/components/pages/docs/platform/context";
 import { FloatingComposer } from "@/components/pages/docs/assistant/floating-composer";
