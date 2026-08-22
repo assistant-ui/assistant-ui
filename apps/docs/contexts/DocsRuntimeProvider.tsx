@@ -11,21 +11,14 @@ import {
   Tools,
   Suggestions,
   unstable_Interactables,
-  type FeedbackAdapter,
 } from "@assistant-ui/react";
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
 import { DevToolsModal } from "@assistant-ui/react-devtools";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
+import { feedbackAdapter } from "@/lib/feedback-adapter";
 import docsToolkit from "@/lib/docs-toolkit";
 
-// Stateless adapter - safe to share across instances
-const feedbackAdapter: FeedbackAdapter = {
-  submit: () => {
-    // Feedback is tracked via analytics in AssistantActionBar
-    // The runtime automatically updates message.metadata.submittedFeedback
-  },
-};
 export function DocsRuntimeProvider({
   children,
 }: {

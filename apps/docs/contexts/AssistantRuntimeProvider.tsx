@@ -2,7 +2,6 @@
 
 import {
   AssistantRuntimeProvider,
-  type FeedbackAdapter,
   SimpleImageAttachmentAdapter,
   useAssistantInstructions,
   useAui,
@@ -25,6 +24,7 @@ import {
 } from "@/lib/assistant-analytics-helpers";
 import { countToolCalls, getTextLength } from "@/lib/assistant-metrics";
 import { anonymousSessionFetch } from "@/lib/anonymous-session-client";
+import { feedbackAdapter } from "@/lib/feedback-adapter";
 
 type ThreadMessagePart = { type: string; text?: string };
 
@@ -45,14 +45,6 @@ function getLastAssistantMessage(
   }
   return undefined;
 }
-
-// Stateless adapter - safe to share across instances
-const feedbackAdapter: FeedbackAdapter = {
-  submit: () => {
-    // Feedback is tracked via analytics in AssistantActionBar
-    // The runtime automatically updates message.metadata.submittedFeedback
-  },
-};
 
 function AssistantPageContext() {
   const currentPage = useCurrentPage();
