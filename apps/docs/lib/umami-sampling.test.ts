@@ -1,8 +1,8 @@
 import { expect, it } from "vitest";
 import { UMAMI_SAMPLE_RATE, umamiBootstrapScript } from "./umami-sampling";
 
-const DAY = 24 * 60 * 60 * 1000;
-const DAY_START = 1000 * DAY;
+const MONTH_START = Date.UTC(2026, 7, 1);
+const NEXT_MONTH = Date.UTC(2026, 8, 1);
 
 type Appended = { src: string; defer: boolean; attrs: Record<string, string> };
 
@@ -16,7 +16,7 @@ type RunOptions = {
 const run = ({
   store = new Map<string, string>(),
   rolls = [UMAMI_SAMPLE_RATE / 2],
-  now = DAY_START,
+  now = MONTH_START,
   storageThrows = false,
 }: RunOptions = {}) => {
   const appended: Appended[] = [];
@@ -59,6 +59,12 @@ const run = ({
     random: () => rolls[Math.min(rollsUsed++, rolls.length - 1)]!,
   });
 
+  class FakeDate extends Date {
+    static override now() {
+      return now;
+    }
+  }
+
   const fn = new Function(
     "window",
     "document",
@@ -66,7 +72,7 @@ const run = ({
     "Math",
     umamiBootstrapScript,
   );
-  fn({ localStorage }, document, { now: () => now }, fakeMath);
+  fn({ localStorage }, document, FakeDate, fakeMath);
 
   return { appended, store, rollsUsed };
 };
@@ -104,24 +110,28 @@ it("gives every tab in the visit the same answer", () => {
 it("outlasts a visit whichever boundary umami applies to it", () => {
   const store = new Map<string, string>();
 
-  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: DAY_START + 55 * 60_000 });
+  run({
+    store,
+    rolls: [UMAMI_SAMPLE_RATE / 2],
+    now: MONTH_START + 55 * 60_000,
+  });
   // past the clock hour and past 1800s from the first pageview, both of which
   // earlier revisions re-rolled on while umami was still in one visit
   const acrossTheHour = run({
     store,
     rolls: [1],
-    now: DAY_START + 70 * 60_000,
+    now: MONTH_START + 70 * 60_000,
   });
 
   expect(acrossTheHour.rollsUsed).toBe(0);
   expect(acrossTheHour.appended).toHaveLength(1);
 });
 
-it("rolls again in the next bucket", () => {
+it("rolls again in the next month, where umami rotates its salt", () => {
   const store = new Map<string, string>();
 
-  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: DAY_START });
-  const nextBucket = run({ store, rolls: [1], now: DAY_START + DAY });
+  run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: MONTH_START });
+  const nextBucket = run({ store, rolls: [1], now: NEXT_MONTH });
 
   expect(nextBucket.rollsUsed).toBe(1);
   expect(nextBucket.appended).toHaveLength(0);

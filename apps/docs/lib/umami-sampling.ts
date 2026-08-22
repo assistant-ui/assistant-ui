@@ -13,18 +13,22 @@ const DOMAINS = "www.assistant-ui.com";
  * lapses mid visit truncates one, which is the single failure this design
  * exists to prevent.
  *
- * So the roll is bucketed far wider than the roughly two hours a visit can run
- * (1800s plus at most one hour). Holding one decision across consecutive visits
- * only correlates them and leaves each one whole, which keeps the ratios exact
- * and counts unbiased at slightly wider variance.
+ * So the roll is bucketed to umami's own session lifetime instead. session_id
+ * is uuid(websiteId, ip, userAgent, getSalt(SALT_ROTATION)), and getSalt
+ * defaults to startOfMonth, so a device carries one session_id for a UTC
+ * calendar month. Matching that does two things: no bucket edge can fall inside
+ * a visit often enough to matter, and Visitors, which is a distinct count over
+ * session_id rather than a sum of per-visit counts, still scales by 1 / rate.
+ * A shorter bucket breaks that second property: a device active on d days is
+ * sampled with probability about r * d, so the scaled figure converges on
+ * summed daily uniques rather than range uniques and Visitors reads high.
  *
- * This is not an invariant: the bucket still has a boundary at UTC midnight and
- * a visit straddling it is still half sent. That residual is about
- * E[visit] / 24h, a few tenths of a percent, against roughly 8% for an hourly
- * bucket. Closing it entirely would mean mirroring umami's rotation state
- * client-side, which is not worth that.
+ * This tracks the SALT_ROTATION default. Setting it to day or week upstream
+ * would need the same change here.
+ *
+ * Not an invariant: a visit straddling the month boundary is still half sent,
+ * at about E[visit] / 30d.
  */
-const BUCKET_MS = 24 * 60 * 60 * 1000;
 
 /**
  * Umami records a sampled slice of traffic; PostHog stays the full-fidelity source.
@@ -46,7 +50,7 @@ const BUCKET_MS = 24 * 60 * 60 * 1000;
 export const umamiBootstrapScript = `
 (function(){
   try{
-    var k=${JSON.stringify(STORAGE_KEY)},b=Math.floor(Date.now()/${BUCKET_MS}),s=null;
+    var k=${JSON.stringify(STORAGE_KEY)},t=new Date(Date.now()),b=t.getUTCFullYear()*12+t.getUTCMonth(),s=null;
     try{
       var raw=window.localStorage.getItem(k);
       if(raw){var p=JSON.parse(raw);if(p&&typeof p.s==="number"&&p.b===b){s=p.s;}}
