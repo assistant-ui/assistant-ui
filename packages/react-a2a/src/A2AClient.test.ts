@@ -1919,6 +1919,55 @@ describe("A2AClient", () => {
       const task = await client.getTask("t1");
       expect(task.id).toBe("t1");
       expect(task.status.state).toBe("working");
+      expect(task).not.toHaveProperty("kind");
+    });
+
+    it("surfaces JSON-RPC error responses on non-streaming requests", async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          jsonrpc: "2.0",
+          id: 1,
+          error: {
+            code: -32001,
+            message: "Task not found",
+            data: { taskId: "t1" },
+          },
+        }),
+      });
+
+      const error = await client.getTask("t1").catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(A2AError);
+      const a2aError = error as A2AError;
+      expect(a2aError.message).toBe("Task not found");
+      expect(a2aError.code).toBe(-32001);
+      expect(a2aError.status).toBe("JSONRPC_ERROR");
+      expect(a2aError.details).toEqual([{ taskId: "t1" }]);
+    });
+
+    it("skips malformed kind-discriminated frames instead of emitting empty events", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({ kind: "message" }),
+          "",
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            contextId: "ctx-1",
+            status: { state: "working" },
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe("statusUpdate");
     });
 
     it("parses flat message and artifact-update results", async () => {

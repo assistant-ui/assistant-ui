@@ -192,10 +192,13 @@ function discriminateStreamResponse(
   const { kind, ...flat } = data;
   switch (kind) {
     case "task":
-      return { type: "task", task: flat as unknown as A2ATask };
+      if (!isTask(flat)) break;
+      return { type: "task", task: flat };
     case "message":
-      return { type: "message", message: flat as unknown as A2AMessage };
+      if (!isMessage(flat)) break;
+      return { type: "message", message: flat };
     case "status-update": {
+      if (!isRecord(flat.status) || !isTaskState(flat.status.state)) break;
       const { final: _final, ...event } = flat;
       return {
         type: "statusUpdate",
@@ -208,6 +211,7 @@ function discriminateStreamResponse(
       };
     }
     case "artifact-update":
+      if (!isRecord(flat.artifact)) break;
       return {
         type: "artifactUpdate",
         event: flat as unknown as A2AStreamEvent extends {
@@ -266,6 +270,21 @@ const isMessage = (value: unknown): value is A2AMessage =>
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
+
+const toJsonRpcError = (error: unknown): A2AError => {
+  const rpcError = error as { code?: number; message?: string; data?: unknown };
+  return new A2AError({
+    code: rpcError.code ?? -1,
+    status: "JSONRPC_ERROR",
+    message: rpcError.message ?? "A2A JSON-RPC error",
+    details:
+      rpcError.data === undefined
+        ? undefined
+        : Array.isArray(rpcError.data)
+          ? rpcError.data
+          : [rpcError.data],
+  });
+};
 
 const invalidAgentCard = (): never => {
   throw new Error(
@@ -591,16 +610,15 @@ export class A2AClient {
     const json = await response.json();
     if (json && typeof json === "object" && "jsonrpc" in json) {
       if ("error" in json && json.error) {
-        const rpcError = json.error as { code?: number; message?: string };
-        throw new A2AError({
-          code: rpcError.code ?? -1,
-          status: "JSONRPC_ERROR",
-          message: rpcError.message ?? "A2A JSON-RPC error",
-          details: undefined,
-        });
+        throw toJsonRpcError(json.error);
       }
       if ("result" in json) {
-        return normalizeKeys(json.result) as T;
+        const result = normalizeKeys(json.result);
+        if (isRecord(result) && typeof result.kind === "string") {
+          const { kind: _kind, ...rest } = result;
+          return rest as T;
+        }
+        return result as T;
       }
     }
     return normalizeKeys(json) as T;
@@ -881,16 +899,7 @@ export class A2AClient {
 
         if (parsed && typeof parsed === "object" && "jsonrpc" in parsed) {
           if ("error" in parsed && parsed.error) {
-            const rpcError = parsed.error as {
-              code?: number;
-              message?: string;
-            };
-            throw new A2AError({
-              code: rpcError.code ?? -1,
-              status: "JSONRPC_ERROR",
-              message: rpcError.message ?? "A2A JSON-RPC error",
-              details: undefined,
-            });
+            throw toJsonRpcError(parsed.error);
           }
           if ("result" in parsed) {
             parsed = parsed.result;
