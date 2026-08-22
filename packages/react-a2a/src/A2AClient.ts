@@ -200,6 +200,7 @@ function discriminateStreamResponse(
       if (!isMessage(flat)) break;
       return { type: "message", message: flat };
     case "status-update": {
+      if (typeof flat.taskId !== "string" || flat.taskId.length === 0) break;
       if (!isRecord(flat.status) || !isTaskState(flat.status.state)) break;
       const { final: _final, ...event } = flat;
       return {
@@ -213,7 +214,13 @@ function discriminateStreamResponse(
       };
     }
     case "artifact-update":
-      if (!isRecord(flat.artifact)) break;
+      if (
+        !isRecord(flat.artifact) ||
+        typeof flat.artifact.artifactId !== "string" ||
+        !Array.isArray(flat.artifact.parts) ||
+        !flat.artifact.parts.every(isRecord)
+      )
+        break;
       return {
         type: "artifactUpdate",
         event: flat as unknown as A2AStreamEvent extends {

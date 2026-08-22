@@ -1979,6 +1979,10 @@ describe("A2AClient", () => {
         mockSSEResponse([
           rpc({ kind: "message" }),
           "",
+          rpc({ kind: "status-update", status: { state: "working" } }),
+          "",
+          rpc({ kind: "artifact-update", taskId: "t1", artifact: {} }),
+          "",
           rpc({
             kind: "status-update",
             taskId: "t1",
