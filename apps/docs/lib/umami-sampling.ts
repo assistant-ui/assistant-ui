@@ -55,7 +55,7 @@ export const umamiBootstrapScript = `
     }
     if(!s){return;}
     var el=document.createElement("script");
-    el.defer=true;
+    el.async=false;
     el.src="/umami/script.js";
     el.setAttribute("data-website-id",${JSON.stringify(WEBSITE_ID)});
     el.setAttribute("data-domains",${JSON.stringify(DOMAINS)});

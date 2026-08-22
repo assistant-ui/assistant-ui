@@ -4,7 +4,7 @@ import { UMAMI_SAMPLE_RATE, umamiBootstrapScript } from "./umami-sampling";
 const MONTH_START = Date.UTC(2026, 7, 1);
 const NEXT_MONTH = Date.UTC(2026, 8, 1);
 
-type Appended = { src: string; defer: boolean; attrs: Record<string, string> };
+type Appended = { src: string; async: boolean; attrs: Record<string, string> };
 
 type RunOptions = {
   store?: Map<string, string>;
@@ -41,7 +41,7 @@ const run = ({
   const document = {
     createElement: () => ({
       src: "",
-      defer: false,
+      async: true,
       attrs: {} as Record<string, string>,
       setAttribute(key: string, value: string) {
         this.attrs[key] = value;
@@ -82,7 +82,7 @@ it("loads the tracker when the roll lands under the rate", () => {
 
   expect(appended).toHaveLength(1);
   expect(appended[0]!.src).toBe("/umami/script.js");
-  expect(appended[0]!.defer).toBe(true);
+  expect(appended[0]!.async).toBe(false);
   expect(appended[0]!.attrs["data-website-id"]).toBe(
     "6f07c001-46a2-411f-9241-4f7f5afb60ee",
   );
@@ -115,8 +115,8 @@ it("outlasts a visit whichever boundary umami applies to it", () => {
     rolls: [UMAMI_SAMPLE_RATE / 2],
     now: MONTH_START + 55 * 60_000,
   });
-  // past the clock hour and past 1800s from the first pageview, both of which
-  // earlier revisions re-rolled on while umami was still in one visit
+  // past the clock hour and past 1800s from the first pageview: neither of
+  // umami's two visit conditions may move the decision
   const acrossTheHour = run({
     store,
     rolls: [1],
