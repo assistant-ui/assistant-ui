@@ -43,6 +43,7 @@ function mockSSETextResponse(
           return Promise.resolve({ done: true, value: undefined });
         }),
         releaseLock: vi.fn(),
+        cancel: vi.fn(async () => {}),
       }),
     },
   } as unknown as Response;
@@ -1789,6 +1790,135 @@ describe("A2AClient", () => {
       expect(events[0]!.type).toBe("task");
       const evt = events[0] as Extract<A2AStreamEvent, { type: "task" }>;
       expect(evt.task.status.state).toBe("input_required");
+    });
+
+    it("maps the unknown wire state to unspecified", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "task",
+            id: "t1",
+            contextId: "ctx-1",
+            status: { state: "unknown" },
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      const evt = events[0] as Extract<A2AStreamEvent, { type: "task" }>;
+      expect(evt.task.status.state).toBe("unspecified");
+    });
+
+    it("strips the wire discriminators from emitted events", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            contextId: "ctx-1",
+            status: { state: "working" },
+            final: true,
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      const evt = events[0] as Extract<
+        A2AStreamEvent,
+        { type: "statusUpdate" }
+      >;
+      expect(evt.event).not.toHaveProperty("kind");
+      expect(evt.event).not.toHaveProperty("final");
+    });
+
+    it("flattens nested file parts onto the internal part shape", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "message",
+            messageId: "m1",
+            role: "agent",
+            parts: [
+              {
+                kind: "file",
+                file: {
+                  uri: "https://files.test/y.png",
+                  mimeType: "image/png",
+                  name: "y.png",
+                },
+              },
+            ],
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      const evt = events[0] as Extract<A2AStreamEvent, { type: "message" }>;
+      expect(evt.message.parts[0]).toEqual({
+        url: "https://files.test/y.png",
+        mediaType: "image/png",
+        filename: "y.png",
+      });
+    });
+
+    it("surfaces JSON-RPC error frames instead of an empty stream", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          `data: ${JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            error: { code: -32001, message: "Task not found" },
+          })}`,
+          "",
+          "",
+        ]),
+      );
+
+      const read = async () => {
+        for await (const _event of client.streamMessage(userMessage)) {
+          // consume
+        }
+      };
+
+      await expect(read()).rejects.toThrow("Task not found");
+    });
+
+    it("unwraps JSON-RPC envelopes on non-streaming responses", async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            kind: "task",
+            id: "t1",
+            contextId: "ctx-1",
+            status: { state: "working" },
+          },
+        }),
+      });
+
+      const task = await client.getTask("t1");
+      expect(task.id).toBe("t1");
+      expect(task.status.state).toBe("working");
     });
 
     it("parses flat message and artifact-update results", async () => {
