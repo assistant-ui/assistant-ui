@@ -235,3 +235,12 @@ it("re-reads the url when a later subscriber joins", () => {
 
   expect(preference.get()).toBe("radix");
 });
+
+it("keeps a url-less selection when a later subscriber joins and storage is blocked", () => {
+  const { preference } = setup({ url: false, storageThrows: true });
+
+  preference.set("radix");
+  preference.subscribe(() => {});
+
+  expect(preference.get()).toBe("radix");
+});
