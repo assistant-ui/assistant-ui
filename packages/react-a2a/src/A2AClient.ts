@@ -77,13 +77,15 @@ function normalizeParts(value: unknown[]): unknown[] {
     if (part === null || typeof part !== "object" || Array.isArray(part))
       return part;
     const record = part as Record<string, unknown>;
-    const file = record.file;
-    if (record.kind !== "file" || file === null || typeof file !== "object")
-      return part;
-    const { kind: _kind, file: _file, ...rest } = record;
+    if (record.kind === undefined) return part;
+    const { kind, ...rest } = record;
+    const file = rest.file;
+    if (kind !== "file" || file === null || typeof file !== "object")
+      return rest;
+    const { file: _file, ...others } = rest;
     const nested = file as Record<string, unknown>;
     return {
-      ...rest,
+      ...others,
       ...(nested.uri !== undefined ? { url: nested.uri } : {}),
       ...(nested.bytes !== undefined ? { raw: nested.bytes } : {}),
       ...(nested.mimeType !== undefined ? { mediaType: nested.mimeType } : {}),

@@ -1843,6 +1843,35 @@ describe("A2AClient", () => {
       expect(evt.event).not.toHaveProperty("final");
     });
 
+    it("strips the kind discriminator from text and data parts", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "message",
+            messageId: "m1",
+            role: "agent",
+            parts: [
+              { kind: "text", text: "hello" },
+              { kind: "data", data: { answer: 42 } },
+            ],
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      const evt = events[0] as Extract<A2AStreamEvent, { type: "message" }>;
+      expect(evt.message.parts).toEqual([
+        { text: "hello" },
+        { data: { answer: 42 } },
+      ]);
+    });
+
     it("flattens nested file parts onto the internal part shape", async () => {
       fetchMock.mockResolvedValue(
         mockSSEResponse([
