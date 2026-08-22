@@ -13,9 +13,16 @@ const DOMAINS = "www.assistant-ui.com";
  * lapses mid visit truncates one, which is the single failure this design
  * exists to prevent.
  *
- * So the roll is bucketed well past any visit instead. Holding one decision
- * across consecutive visits only correlates them and leaves every visit whole,
- * which keeps the ratios exact and counts unbiased, at slightly wider variance.
+ * So the roll is bucketed far wider than the roughly two hours a visit can run
+ * (1800s plus at most one hour). Holding one decision across consecutive visits
+ * only correlates them and leaves each one whole, which keeps the ratios exact
+ * and counts unbiased at slightly wider variance.
+ *
+ * This is not an invariant: the bucket still has a boundary at UTC midnight and
+ * a visit straddling it is still half sent. That residual is about
+ * E[visit] / 24h, a few tenths of a percent, against roughly 8% for an hourly
+ * bucket. Closing it entirely would mean mirroring umami's rotation state
+ * client-side, which is not worth that.
  */
 const BUCKET_MS = 24 * 60 * 60 * 1000;
 

@@ -101,7 +101,7 @@ it("gives every tab in the visit the same answer", () => {
   expect(second.rollsUsed).toBe(0);
 });
 
-it("never lapses inside a visit, however umami draws the boundary", () => {
+it("outlasts a visit whichever boundary umami applies to it", () => {
   const store = new Map<string, string>();
 
   run({ store, rolls: [UMAMI_SAMPLE_RATE / 2], now: DAY_START + 55 * 60_000 });
