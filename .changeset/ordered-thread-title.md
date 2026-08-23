@@ -2,4 +2,4 @@
 "@assistant-ui/core": patch
 ---
 
-Preserve generated thread titles across overlapping optimistic updates.
+fix: preserve generated thread titles across overlapping optimistic updates

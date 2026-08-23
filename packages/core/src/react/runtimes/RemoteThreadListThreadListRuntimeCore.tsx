@@ -860,6 +860,7 @@ export class RemoteThreadListThreadListRuntimeCore
       await this._state.optimisticUpdate({
         execute: async () => {},
         optimistic: (state) => {
+          if (adapterGeneration !== this._adapterGeneration) return state;
           const currentData = getThreadData(state, data.id);
           if (!currentData) return state;
           return {
