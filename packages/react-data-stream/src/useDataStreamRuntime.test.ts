@@ -136,6 +136,36 @@ describe("useDataStreamRuntime request errors", () => {
     expect(onError).not.toHaveBeenCalled();
   });
 
+  it("normalizes non-Error stream failures for onError", async () => {
+    const onError = vi.fn();
+    const encoder = new TextEncoder();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => {
+        const body = new ReadableStream<Uint8Array>({
+          start(streamController) {
+            streamController.enqueue(encoder.encode('0:"Hello"\n'));
+            streamController.error("wire failure");
+          },
+        });
+        return Promise.resolve(
+          new Response(body, {
+            status: 200,
+            headers: { "x-vercel-ai-data-stream": "v1" },
+          }),
+        );
+      }),
+    );
+
+    const adapter = createAdapter({ api: "/api/chat", onError });
+
+    await expect(runToCompletion(adapter, createRunOptions())).rejects.toBe(
+      "wire failure",
+    );
+    expect(onError).toHaveBeenCalledExactlyOnceWith(new Error("wire failure"));
+  });
+
   it.each(["throws", "rejects"] as const)(
     "preserves request failures when onError %s",
     async (failureMode) => {
