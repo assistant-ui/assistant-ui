@@ -257,6 +257,7 @@ export async function transformProject(
       components,
       "components",
       pm,
+      findMissingRegistryFiles(projectDir, allShadcn, assistantUI),
     );
     if (failure) return { registryInstallFailure: failure };
   }
@@ -416,6 +417,47 @@ function stripImportExtension(component: string): string {
   return component.replace(/\.[cm]?[tj]sx?$/, "");
 }
 
+const MODULE_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"] as const;
+
+function hasModuleFile(projectDir: string, relativePath: string): boolean {
+  const candidates = [
+    relativePath,
+    ...MODULE_EXTENSIONS.map((extension) => `${relativePath}${extension}`),
+    ...MODULE_EXTENSIONS.map((extension) =>
+      path.join(relativePath, `index${extension}`),
+    ),
+  ];
+
+  return candidates.some((candidate) => {
+    try {
+      return fs.statSync(path.join(projectDir, candidate)).isFile();
+    } catch {
+      return false;
+    }
+  });
+}
+
+function findMissingRegistryFiles(
+  projectDir: string,
+  shadcnUI: string[],
+  assistantUI: string[],
+): string[] {
+  const expectedFiles = [
+    ...shadcnUI.map((component) =>
+      component === "utils"
+        ? "lib/utils"
+        : path.join("components/ui", component),
+    ),
+    ...assistantUI.map((component) =>
+      path.join("components/assistant-ui", component),
+    ),
+  ];
+
+  return expectedFiles.filter(
+    (expectedFile) => !hasModuleFile(projectDir, expectedFile),
+  );
+}
+
 function scanRequiredComponents(projectDir: string): RequiredComponents {
   const files = globSync("**/*.{ts,tsx}", {
     cwd: projectDir,
@@ -472,6 +514,7 @@ async function installShadcnRegistry(
   components: string[],
   label: string,
   pm: PackageManagerName,
+  expectedFiles: string[],
 ): Promise<{ retryCommand: string } | undefined> {
   const [cmd, dlxArgs] = dlxCommand(pm);
   // For npm, dlxArgs may already include `--yes` for npx auto-install.
@@ -481,6 +524,17 @@ async function installShadcnRegistry(
 
   try {
     await runSpawn(cmd, addArgs, projectDir);
+
+    const missingFiles = expectedFiles.filter(
+      (expectedFile) => !hasModuleFile(projectDir, expectedFile),
+    );
+    if (missingFiles.length > 0) {
+      logger.warn(
+        `shadcn did not create expected files: ${missingFiles.join(", ")}.`,
+      );
+      return { retryCommand: `${cmd} ${retryArgs.join(" ")}` };
+    }
+
     return undefined;
   } catch (error) {
     if (error instanceof SpawnExitError) {

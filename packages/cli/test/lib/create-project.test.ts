@@ -64,8 +64,17 @@ let originalGitHubAuthEnv: Record<
   string | undefined
 >;
 
+function mockZeroExitSpawn() {
+  (spawn as Mock).mockImplementation(() => {
+    const child = new EventEmitter();
+    setTimeout(() => child.emit("close", 0), 0);
+    return child;
+  });
+}
+
 beforeEach(() => {
   testDir = fs.mkdtempSync(path.join(os.tmpdir(), "cli-create-project-"));
+  mockZeroExitSpawn();
   originalGitHubAuthEnv = Object.fromEntries(
     GITHUB_AUTH_ENV_KEYS.map((key) => [key, process.env[key]]),
   ) as Record<(typeof GITHUB_AUTH_ENV_KEYS)[number], string | undefined>;
@@ -103,6 +112,34 @@ function readJSON(filePath: string) {
 
 function readFile(filePath: string) {
   return fs.readFileSync(path.join(testDir, filePath), "utf-8");
+}
+
+function mockSuccessfulShadcnInstall() {
+  (spawn as Mock).mockImplementation(
+    (_command: string, args: string[], options: { cwd?: string }) => {
+      const child = new EventEmitter();
+      const addIndex = args.indexOf("add");
+      if (addIndex !== -1 && options.cwd) {
+        for (const component of args
+          .slice(addIndex + 1)
+          .filter((arg) => arg !== "--yes")) {
+          const relativePath = component.startsWith("@assistant-ui/")
+            ? path.join(
+                "components/assistant-ui",
+                `${component.slice("@assistant-ui/".length)}.tsx`,
+              )
+            : component === "utils"
+              ? path.join("lib", "utils.ts")
+              : path.join("components/ui", `${component}.tsx`);
+          const filePath = path.join(options.cwd, relativePath);
+          fs.mkdirSync(path.dirname(filePath), { recursive: true });
+          fs.writeFileSync(filePath, "export {};\n");
+        }
+      }
+      setTimeout(() => child.emit("close", 0), 0);
+      return child;
+    },
+  );
 }
 
 describe("resolveLatestReleaseRef", () => {
@@ -514,16 +551,18 @@ describe("transformProject — hasLocalComponents: false", () => {
   // Component scanning tests
   describe("component scanning", () => {
     it("installs shadcn and assistant-ui components in a single shadcn add call", async () => {
+      mockSuccessfulShadcnInstall();
       writeFile(
         "app/page.tsx",
         'import { Thread } from "@/components/assistant-ui/thread.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
       );
 
-      await transformProject(testDir, {
+      const result = await transformProject(testDir, {
         ...defaultOpts,
         skipInstall: false,
         hasLocalComponents: false,
       });
+      expect(result.registryInstallFailure).toBeUndefined();
 
       const addCalls = (spawn as Mock).mock.calls.filter(
         ([cmd, args]: [string, string[]]) =>
@@ -609,6 +648,7 @@ describe("installShadcnRegistry behavior", () => {
   });
 
   it("reports no failure when shadcn succeeds", async () => {
+    mockSuccessfulShadcnInstall();
     writeJSON("package.json", { name: "test", dependencies: {} });
     writeFile(
       "app/page.tsx",
@@ -622,5 +662,23 @@ describe("installShadcnRegistry behavior", () => {
     });
 
     expect(result.registryInstallFailure).toBeUndefined();
+  });
+
+  it("reports missing files when shadcn exits successfully without creating them", async () => {
+    writeJSON("package.json", { name: "test", dependencies: {} });
+    writeFile(
+      "app/page.tsx",
+      'import { Thread } from "@/components/assistant-ui/thread";\nimport { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";\n',
+    );
+
+    const result = await transformProject(testDir, {
+      ...defaultOpts,
+      skipInstall: false,
+      hasLocalComponents: false,
+    });
+
+    expect(result.registryInstallFailure?.retryCommand).toContain(
+      "@assistant-ui/threadlist-sidebar",
+    );
   });
 });
