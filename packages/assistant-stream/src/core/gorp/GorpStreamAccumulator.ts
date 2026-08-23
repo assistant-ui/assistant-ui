@@ -80,7 +80,7 @@ export class GorpStreamAccumulator {
     assertSafePathSegment(key);
     if (Array.isArray(state)) {
       let idx = Number(key);
-      if (Number.isNaN(idx))
+      if (!Number.isInteger(idx) || String(idx) !== key)
         throw new Error(`Expected array index at [${path.join(", ")}]`);
       if (idx < 0) throw new Error(`Insert array index out of bounds`);
       if (idx > state.length) {
