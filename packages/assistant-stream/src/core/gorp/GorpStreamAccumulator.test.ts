@@ -89,7 +89,16 @@ describe("GorpStreamAccumulator", () => {
         { type: "set", path: ["list", "01"], value: "x" },
       ]);
       expect(acc.state).toEqual({ list: ["a", "b"] });
+      expect(error).toHaveBeenCalledTimes(4);
       error.mockRestore();
+    });
+
+    it("accepts numeric index segments from the wire", () => {
+      const acc = new GorpStreamAccumulator({ list: ["a", "b"] });
+      acc.append([
+        { type: "set", path: ["list", 0] as unknown as string[], value: "x" },
+      ]);
+      expect(acc.state).toEqual({ list: ["x", "b"] });
     });
 
     it("skips negative array indices", () => {
