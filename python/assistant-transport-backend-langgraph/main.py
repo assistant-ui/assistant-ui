@@ -340,10 +340,20 @@ async def tool_executor_node(state: GraphState) -> dict[str, Any]:
     if not hasattr(last_message, 'tool_calls') or not last_message.tool_calls:
         return {"messages": []}
 
+    # Names of request-provided frontend tools. These are executed on the client,
+    # so the backend must defer them rather than answer them here. Only a name in
+    # neither the frontend tools nor TOOL_BY_NAME is a genuine error.
+    frontend_tool_names = set(state.get("tools") or {})
+
     # Process each tool call
     tool_messages = []
     for tool_call in last_message.tool_calls:
         tool_name = tool_call["name"]
+        if tool_name in frontend_tool_names and tool_name not in TOOL_BY_NAME:
+            # Frontend-owned tool: return it to the client instead of answering it
+            # server side. Emitting a ToolMessage here would tell the model its own
+            # tool does not exist and the client would never receive the call.
+            continue
         if tool_name == "task_tool":
             # Extract task description
             task_description = tool_call["args"].get("task_description", "")
