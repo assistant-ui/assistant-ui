@@ -145,9 +145,7 @@ export class AssistantCloudAPI {
         if (typeof body?.message === "string" && body.message.length > 0) {
           message = body.message;
         }
-      } catch {
-        // non-JSON bodies fall through to the status fallback
-      }
+      } catch {}
       throw new CloudAPIError(
         message ?? `Request failed with status ${response.status}, ${text}`,
         response.status,
