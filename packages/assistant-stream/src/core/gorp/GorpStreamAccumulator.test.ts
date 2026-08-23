@@ -93,14 +93,6 @@ describe("GorpStreamAccumulator", () => {
       error.mockRestore();
     });
 
-    it("accepts numeric index segments from the wire", () => {
-      const acc = new GorpStreamAccumulator({ list: ["a", "b"] });
-      acc.append([
-        { type: "set", path: ["list", 0] as unknown as string[], value: "x" },
-      ]);
-      expect(acc.state).toEqual({ list: ["x", "b"] });
-    });
-
     it("skips negative array indices", () => {
       const error = vi.spyOn(console, "error").mockImplementation(() => {});
       const acc = new GorpStreamAccumulator({ list: ["a"] }, { strict: false });
@@ -108,6 +100,14 @@ describe("GorpStreamAccumulator", () => {
       expect(acc.state).toEqual({ list: ["a"] });
       expect(error).toHaveBeenCalledOnce();
     });
+  });
+
+  it("accepts numeric index segments from the wire", () => {
+    const acc = new GorpStreamAccumulator({ list: ["a", "b"] });
+    acc.append([
+      { type: "set", path: ["list", 0] as unknown as string[], value: "x" },
+    ]);
+    expect(acc.state).toEqual({ list: ["x", "b"] });
   });
 
   it("throws on fractional array indices by default", () => {
