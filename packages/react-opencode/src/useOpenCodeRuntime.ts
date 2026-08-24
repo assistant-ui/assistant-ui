@@ -258,22 +258,23 @@ const toOptimisticThreadMessage = (
   attachments: message.attachments,
 });
 
+type PendingInitialOpenCodeMessage = {
+  message: AppendMessage;
+};
+
 const useNewOpenCodeThreadStore = (
-  client: ReturnType<typeof createOpencodeClient>,
-  registry: OpenCodeControllerRegistry,
   options: OpenCodeRuntimeOptions,
   enabled: boolean,
   extras: unknown,
+  pendingInitialMessageRef: {
+    current: PendingInitialOpenCodeMessage | undefined;
+  },
 ): ExternalStoreAdapter<ThreadMessage> => {
   const aui = useAui();
   const [optimisticMessages, setOptimisticMessages] = useState<
     readonly ThreadMessageLike[]
   >([]);
   const optimisticMessageIndexRef = useRef(0);
-  const initializationRef = useRef<
-    Promise<{ remoteId: string; externalId: string | undefined }> | undefined
-  >(undefined);
-  const sendQueueRef = useRef(Promise.resolve());
   const optimisticRepository = useMemo(
     () => ExportedMessageRepository.fromArray(optimisticMessages),
     [optimisticMessages],
@@ -295,44 +296,32 @@ const useNewOpenCodeThreadStore = (
           message,
           optimisticMessageIndexRef.current++,
         );
+        const pending = { message };
+        pendingInitialMessageRef.current = pending;
         setOptimisticMessages((messages) => [...messages, optimistic]);
-
-        const task = sendQueueRef.current.then(async () => {
-          let initialization:
-            | Promise<{
-                remoteId: string;
-                externalId: string | undefined;
-              }>
-            | undefined;
-          try {
-            initialization =
-              initializationRef.current ??
-              (initializationRef.current = aui.threadListItem.initialize());
-            const { remoteId, externalId } = await initialization;
-            const sessionId = externalId ?? remoteId;
-            const controller = getController(registry, client, sessionId);
-            const dispatch = sendOpenCodeMessage(controller, message, options);
-            setOptimisticMessages((messages) =>
-              messages.filter((candidate) => candidate !== optimistic),
-            );
-            await dispatch;
-          } catch (error) {
-            setOptimisticMessages((messages) =>
-              messages.filter((candidate) => candidate !== optimistic),
-            );
-            invokeErrorCallback(options.onError, error);
-            throw error;
-          } finally {
-            if (initializationRef.current === initialization) {
-              initializationRef.current = undefined;
-            }
+        try {
+          await aui.threadListItem.initialize();
+          setOptimisticMessages([]);
+        } catch (error) {
+          if (pendingInitialMessageRef.current === pending) {
+            pendingInitialMessageRef.current = undefined;
           }
-        });
-        sendQueueRef.current = task.catch(() => {});
-        return task;
+          setOptimisticMessages((messages) =>
+            messages.filter((candidate) => candidate !== optimistic),
+          );
+          invokeErrorCallback(options.onError, error);
+          throw error;
+        }
       },
     }),
-    [aui, client, enabled, extras, optimisticRepository, options, registry],
+    [
+      aui,
+      enabled,
+      extras,
+      optimisticRepository,
+      options,
+      pendingInitialMessageRef,
+    ],
   );
 };
 
@@ -340,6 +329,9 @@ const useRuntimeHook = (
   client: ReturnType<typeof createOpencodeClient>,
   registry: OpenCodeControllerRegistry,
   options: OpenCodeRuntimeOptions,
+  pendingInitialMessageRef: {
+    current: PendingInitialOpenCodeMessage | undefined;
+  },
 ) => {
   const threadListItem = useAuiState((state) => state.threadListItem);
   const sessionId = threadListItem.externalId ?? threadListItem.remoteId;
@@ -350,11 +342,10 @@ const useRuntimeHook = (
 
   const threadStore = useOpenCodeThreadStore(controller, options);
   const newThreadStore = useNewOpenCodeThreadStore(
-    client,
-    registry,
     options,
     threadListItem.status === "new",
     threadStore.extras,
+    pendingInitialMessageRef,
   );
 
   return useExternalStoreRuntime<ThreadMessage>(
@@ -371,6 +362,9 @@ export const useOpenCodeRuntime = (
     [baseUrl, options.client],
   );
   const registry = useMemo(() => createRegistry(client), [client]);
+  const pendingInitialMessageRef = useRef<
+    PendingInitialOpenCodeMessage | undefined
+  >(undefined);
 
   useEffect(() => {
     return () => {
@@ -378,10 +372,23 @@ export const useOpenCodeRuntime = (
     };
   }, [registry]);
 
-  const adapter = useMemo(
-    () => createOpenCodeThreadListAdapter(client),
-    [client],
-  );
+  const adapter = useMemo(() => {
+    const base = createOpenCodeThreadListAdapter(client);
+    return {
+      ...base,
+      initialize: async () => {
+        const pending = pendingInitialMessageRef.current;
+        pendingInitialMessageRef.current = undefined;
+        const ids = await base.initialize();
+        if (pending) {
+          const sessionId = ids.externalId ?? ids.remoteId;
+          const controller = getController(registry, client, sessionId);
+          await sendOpenCodeMessage(controller, pending.message, options);
+        }
+        return ids;
+      },
+    };
+  }, [client, options, registry]);
 
   return useRemoteThreadListRuntime({
     allowNesting: true,
@@ -389,6 +396,7 @@ export const useOpenCodeRuntime = (
     initialThreadId: options.initialSessionId,
     onThreadIdChange: options.onThreadIdChange,
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook callback is invoked by useRemoteThreadListRuntime at the appropriate hook position
-    runtimeHook: () => useRuntimeHook(client, registry, options),
+    runtimeHook: () =>
+      useRuntimeHook(client, registry, options, pendingInitialMessageRef),
   });
 };

@@ -11,13 +11,18 @@ import type { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 
 const mocks = vi.hoisted(() => ({
   adapters: [] as unknown[],
+  threadListAdapter: undefined as
+    | { initialize: () => Promise<{ remoteId: string; externalId: string }> }
+    | undefined,
+  sessionCreate: vi.fn().mockResolvedValue({ data: { id: "session-1" } }),
   threadListItem: {
     externalId: "session-1" as string | undefined,
     remoteId: "session-1" as string | undefined,
     status: "regular" as "new" | "regular",
-    initialize: vi.fn().mockResolvedValue({
-      remoteId: "session-1",
-      externalId: "session-1",
+    initialize: vi.fn(async () => {
+      const adapter = mocks.threadListAdapter;
+      if (!adapter) throw new Error("thread list adapter missing");
+      return adapter.initialize();
     }),
   },
   controller: {
@@ -37,8 +42,15 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
     mocks.adapters.push(adapter);
     return {};
   },
-  useRemoteThreadListRuntime: (options: { runtimeHook: () => unknown }) =>
-    options.runtimeHook(),
+  useRemoteThreadListRuntime: (options: {
+    adapter: {
+      initialize: () => Promise<{ remoteId: string; externalId: string }>;
+    };
+    runtimeHook: () => unknown;
+  }) => {
+    mocks.threadListAdapter = options.adapter;
+    return options.runtimeHook();
+  },
 }));
 
 vi.mock("./OpenCodeThreadController", async (importOriginal) => {
@@ -79,7 +91,9 @@ type RuntimeAdapter = ApprovalAdapter & {
   onNew?: (message: { role: "user"; content: [] }) => Promise<void> | void;
 };
 
-const stubClient = {} as ReturnType<typeof createOpencodeClient>;
+const stubClient = {
+  session: { create: mocks.sessionCreate },
+} as ReturnType<typeof createOpencodeClient>;
 
 let root: Root | undefined;
 
@@ -87,12 +101,14 @@ afterEach(() => {
   act(() => root?.unmount());
   root = undefined;
   mocks.adapters.length = 0;
+  mocks.threadListAdapter = undefined;
   mocks.threadListItem.externalId = "session-1";
   mocks.threadListItem.remoteId = "session-1";
   mocks.threadListItem.status = "regular";
-  mocks.threadListItem.initialize
+  mocks.threadListItem.initialize.mockClear();
+  mocks.sessionCreate
     .mockReset()
-    .mockResolvedValue({ remoteId: "session-1", externalId: "session-1" });
+    .mockResolvedValue({ data: { id: "session-1" } });
   mocks.controller.load.mockReset().mockResolvedValue(undefined);
   mocks.controller.sendMessage.mockReset().mockResolvedValue(undefined);
   mocks.controller.replyToPermission.mockReset().mockResolvedValue(undefined);
@@ -101,8 +117,7 @@ afterEach(() => {
 });
 
 describe("useOpenCodeRuntime", () => {
-  it("keeps a new thread enabled and sends after session initialization", async () => {
-    const initialize = mocks.threadListItem.initialize;
+  it("keeps a new thread enabled and prompts before ids land", async () => {
     mocks.threadListItem.externalId = undefined;
     mocks.threadListItem.remoteId = undefined;
     mocks.threadListItem.status = "new";
@@ -126,7 +141,14 @@ describe("useOpenCodeRuntime", () => {
     expect(adapter.isLoading).toBe(false);
     await adapter.onNew!(message);
 
-    expect(initialize).toHaveBeenCalledTimes(1);
+    expect(mocks.sessionCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.controller.sendMessage).toHaveBeenCalledTimes(1);
+
+    mocks.threadListItem.externalId = "session-1";
+    mocks.threadListItem.remoteId = "session-1";
+    mocks.threadListItem.status = "regular";
+    await act(async () => root!.render(createElement(App)));
+
     expect(mocks.controller.sendMessage).toHaveBeenCalledTimes(1);
   });
 
@@ -136,7 +158,7 @@ describe("useOpenCodeRuntime", () => {
     mocks.threadListItem.remoteId = undefined;
     mocks.threadListItem.status = "new";
     mocks.state = createOpenCodeThreadState("session-1");
-    mocks.threadListItem.initialize.mockRejectedValue(initializationError);
+    mocks.sessionCreate.mockRejectedValue(initializationError);
     const onError = vi.fn();
 
     const App = () => {
