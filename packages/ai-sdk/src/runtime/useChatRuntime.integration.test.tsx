@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, renderHook, screen, waitFor } from "@testing-library/react";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
@@ -192,5 +192,59 @@ describe("useChatRuntime integration", () => {
     expect(transport.getCurrentTransport("suspended-thread")).toBe(
       sourceTransport,
     );
+  });
+
+  it("uses the latest thread list item getter after host rerenders", async () => {
+    const bodies: Array<{ id: string }> = [];
+    const sourceTransport = new AssistantChatTransport<UIMessage>({
+      fetch: vi.fn(async (_input, init) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return new Response(
+          new ReadableStream({ start: (controller) => controller.close() }),
+          { headers: { "content-type": "text/event-stream" } },
+        );
+      }),
+    });
+    const transport = new DynamicChatTransport(sourceTransport);
+    const { rerender } = renderHook(
+      ({ remoteId }: { remoteId: string }) =>
+        useChatThread(
+          { transport },
+          {
+            id: "stable-thread",
+            isMainThread: true,
+            getThreadListItem: () => ({
+              initialize: async () => ({
+                remoteId,
+                externalId: undefined,
+              }),
+            }),
+          },
+        ),
+      { initialProps: { remoteId: "remote-a" } },
+    );
+    const send = () =>
+      transport.sendMessages({
+        trigger: "submit-message",
+        chatId: "stable-thread",
+        messageId: undefined,
+        messages: [
+          {
+            id: "message-id",
+            role: "user",
+            parts: [{ type: "text", text: "hello" }],
+          },
+        ],
+        abortSignal: undefined,
+      });
+
+    await send();
+    rerender({ remoteId: "remote-b" });
+    await send();
+
+    expect(bodies).toEqual([
+      expect.objectContaining({ id: "remote-a" }),
+      expect.objectContaining({ id: "remote-b" }),
+    ]);
   });
 });

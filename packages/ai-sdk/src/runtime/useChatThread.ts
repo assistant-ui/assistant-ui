@@ -154,6 +154,14 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
   const transport = transportOptions ?? defaultTransport;
   const transportContextOwner = useMemo(() => ({}), []);
+  const getThreadListItemRef = useRef(getThreadListItem);
+  useInsertionEffect(() => {
+    getThreadListItemRef.current = getThreadListItem;
+  }, [getThreadListItem]);
+  const getCurrentThreadListItem = useCallback(
+    () => getThreadListItemRef.current(),
+    [],
+  );
   const subscribeToTransport = useCallback(
     (callback: () => void) =>
       transport instanceof DynamicChatTransport
@@ -203,7 +211,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
         chatId,
         transportContextOwner,
         runtime,
-        getThreadListItem,
+        getCurrentThreadListItem,
       );
       return () =>
         dynamicTransport.unregisterThread(chatId, transportContextOwner);
@@ -219,7 +227,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     sourceTransport instanceof AssistantChatTransport
   ) {
     sourceTransport.setRuntime(runtime);
-    sourceTransport.__internal_setGetThreadListItem(getThreadListItem);
+    sourceTransport.__internal_setGetThreadListItem(getCurrentThreadListItem);
   }
 
   const subscribeToRuntime = useCallback(
