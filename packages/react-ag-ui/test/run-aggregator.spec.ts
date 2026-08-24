@@ -334,6 +334,26 @@ describe("RunAggregator", () => {
     ]);
   });
 
+  it("ignores blank values on a retracted visible block", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "",
+      encryptedValue: "sig",
+    } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_END" } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
   it("ignores hidden signatures with blank values", () => {
     const aggregator = createAggregator(false);
 
@@ -435,12 +455,19 @@ describe("RunAggregator", () => {
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
       type: "REASONING_ENCRYPTED_VALUE",
       subtype: "message",
       entityId: "m1",
       encryptedValue: "sig-1",
     } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+    expect(
+      (results.at(-1)?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toEqual([{ id: "m1", encryptedValue: "sig-1", after: true }]);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r2" } as AgUiEvent);
     aggregator.handle({
@@ -449,10 +476,10 @@ describe("RunAggregator", () => {
     } as AgUiEvent);
     aggregator.handle({ type: "RUN_FINISHED", runId: "r2" } as AgUiEvent);
 
+    // The empty key keeps being emitted so the namespace merge retracts the
+    // previous run's entries.
     const last = results.at(-1);
-    expect(
-      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
-    ).toBeUndefined();
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([]);
   });
 
   it("keeps an inline signature on a visible reasoning part without duplicating it", () => {

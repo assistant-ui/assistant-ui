@@ -146,7 +146,10 @@ export class RunAggregator {
         this.hiddenSignatureAnchors.clear();
         this.hiddenReasoningIds.clear();
         this.hiddenActiveReasoning = "none";
-        this.hasEmittedOpaqueReasoning = false;
+        // hasEmittedOpaqueReasoning survives the reset deliberately: the
+        // namespace merge only overwrites present keys, so a later run must
+        // keep emitting the (now empty) key to retract a previous run's
+        // entries from the message.
         this.loggedDroppedOpaqueIds.clear();
         this.anonymousReasoningKeys.clear();
         this.activeReasoningKey = undefined;
@@ -717,10 +720,8 @@ export class RunAggregator {
             // a part to live on, its signature rides the message metadata,
             // matching the shape a snapshot reload produces.
             const encryptedValue = this.reasoningSignatures.get(part.key);
-            const id =
-              this.reasoningSignatureIds.get(part.key) ??
-              this.reasoningMessageIds.get(part.key);
-            if (encryptedValue !== undefined && id !== undefined) {
+            const id = this.reasoningSignatureIds.get(part.key);
+            if (id?.trim() && encryptedValue?.trim()) {
               opaqueCandidates.push({ id, encryptedValue, anchor: index + 1 });
             }
           }
