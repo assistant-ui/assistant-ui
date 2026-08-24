@@ -85,9 +85,15 @@ or lands on an already-active entry. A gate belongs to the provider:
 `approved === true` means the provider is producing the result, `false`
 means it records the denial, so the frontend `execute` never fires for
 that `toolCallId` once the gate is present. `streamCall` still fires
-once and the backend result flows through A.5 when it lands. A gate
-that arrives only after the args stream has closed is too late; the
-adapter must withhold the call until the gate is known (#6285).
+once and the backend result flows through A.5 when it lands.
+
+If the gate lands after the args stream has closed but before an
+in-flight `execute` resolves, the execute runs to completion (its side
+effects happen) but its result chunk is dropped: `onResult` never fires,
+and the `executing` status, plus any `human()` interrupt the execution
+parked, stays up until the promise settles. Only a gate that lands after
+the result chunk has already been emitted is fully too late; the adapter
+must project the gate before that (#6285).
 
 ## B. Tool call disappears from snapshot
 
