@@ -102,6 +102,8 @@ export const ComposerInput = ({
       // react-native-web forwards the raw DOM keydown before its own composition guard, so re-check it here (mirrors isEventComposing)
       if (nativeEvent.isComposing || nativeEvent.keyCode === 229) return;
       if (nativeEvent.key === "Enter" && !nativeEvent.shiftKey) {
+        const threadState = aui.thread.getState();
+        if (threadState.isRunning && !threadState.capabilities.queue) return;
         (e as unknown as Event).preventDefault?.();
         aui.composer.send();
       }

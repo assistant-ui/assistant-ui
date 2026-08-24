@@ -1,8 +1,8 @@
-import "@radix-ui/react-primitive";
-
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import "radix-ui";
+
+import "radix-ui/internal";
 
 import { ComponentType, ReactNode } from "react";
 

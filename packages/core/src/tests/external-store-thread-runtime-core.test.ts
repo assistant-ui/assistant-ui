@@ -1155,3 +1155,106 @@ describe("ExternalStoreThreadRuntimeCore - message queue", () => {
     expect(queue.remove).toHaveBeenCalledWith("q1");
   });
 });
+
+describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
+  const convertMessage = (m: {
+    role?: "user" | "assistant";
+    text: string;
+  }): ThreadMessageLike => ({
+    role: m.role ?? "user",
+    content: [{ type: "text", text: m.text }],
+  });
+
+  const storeWith = (
+    messages: { role?: "user" | "assistant"; text: string }[],
+    isRunning = false,
+  ) => makeStore({ messages, convertMessage, isRunning });
+
+  const textOf = (message: { content: readonly { type: string }[] }) => {
+    const part = message.content[0];
+    return part && part.type === "text" && "text" in part
+      ? part.text
+      : undefined;
+  };
+
+  it("keeps a prepended history message", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const m0 = { text: "older-user" };
+      const m1 = { text: "newer-user" };
+      const m2 = { role: "assistant" as const, text: "newer-assistant" };
+
+      const runtime = new ExternalStoreThreadRuntimeCore(
+        mockContextProvider,
+        storeWith([m1, m2]),
+      );
+      expect(runtime.messages).toHaveLength(2);
+
+      runtime.__internal_setAdapter(storeWith([m0, m1, m2]));
+
+      expect(warn).not.toHaveBeenCalled();
+      expect(runtime.messages).toHaveLength(3);
+      expect(runtime.messages.map(textOf)).toEqual([
+        "older-user",
+        "newer-user",
+        "newer-assistant",
+      ]);
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("keeps the last message id when its host object is replaced while running", () => {
+    const user = { text: "hi" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      storeWith([user, { role: "assistant", text: "he" }], true),
+    );
+    const assistantId = runtime.messages[1]!.id;
+
+    runtime.__internal_setAdapter(
+      storeWith([user, { role: "assistant", text: "hel" }], true),
+    );
+    runtime.__internal_setAdapter(
+      storeWith([user, { role: "assistant", text: "hello" }], true),
+    );
+
+    expect(runtime.messages[1]!.id).toBe(assistantId);
+    expect(runtime.getBranches(assistantId)).toEqual([assistantId]);
+    expect(textOf(runtime.messages[1]!)).toBe("hello");
+  });
+
+  it("does not rewrite an explicit host id when the list shifts", () => {
+    const convertWithId = (m: {
+      id?: string;
+      text: string;
+    }): ThreadMessageLike => ({
+      ...(m.id !== undefined ? { id: m.id } : {}),
+      role: "user",
+      content: [{ type: "text", text: m.text }],
+    });
+
+    const explicit = { id: "host-a", text: "kept" };
+    const idLess = { text: "id-less" };
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [explicit],
+        convertMessage: convertWithId,
+      }),
+    );
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages: [idLess, explicit],
+        convertMessage: convertWithId,
+      }),
+    );
+
+    expect(runtime.messages.map((m) => m.id)).toEqual([
+      expect.stringMatching(/^__external_store_fallback_/),
+      "host-a",
+    ]);
+    expect(runtime.messages.map(textOf)).toEqual(["id-less", "kept"]);
+  });
+});

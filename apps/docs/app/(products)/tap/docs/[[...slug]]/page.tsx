@@ -4,10 +4,10 @@ import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import { tapDocs } from "@/lib/source";
 import { findNeighbour, getPageTreePeers } from "fumadocs-core/page-tree";
-import { Card, Cards } from "@/components/docs/fumadocs/card";
-import { TableOfContents } from "@/components/docs/layout/table-of-contents";
-import { DocsPager } from "@/components/docs/layout/docs-pager";
-import { DocsFooter } from "@/components/docs/layout/docs-footer";
+import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
+import { TableOfContents } from "@/components/pages/docs/layout/table-of-contents";
+import { DocsPager } from "@/components/pages/docs/layout/docs-pager";
+import { DocsFooter } from "@/components/pages/docs/layout/docs-footer";
 import { createOgMetadata } from "@/lib/og";
 
 function DocsCategory({ url }: { url?: string }) {

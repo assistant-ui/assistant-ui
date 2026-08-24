@@ -1,7 +1,7 @@
 "use client";
 
 import { Primitive } from "../../utils/Primitive";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import {
   type ComponentPropsWithoutRef,
   type ComponentRef,

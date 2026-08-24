@@ -306,7 +306,11 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       let hasChanges = false;
       const parts = lastMessage.parts?.map((part) => {
         if (!isToolUIPart(part)) return part;
-        if (part.state === "output-available" || part.state === "output-error")
+        if (
+          part.state === "output-available" ||
+          part.state === "output-error" ||
+          part.state === "output-denied"
+        )
           return part;
 
         hasChanges = true;

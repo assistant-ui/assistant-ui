@@ -1,6 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server";
-import { getPresetById } from "@/components/builder/presets";
-import { DEFAULT_CONFIG, type BuilderConfig } from "@/components/builder/types";
+import { getPresetById } from "@/components/pages/playground/presets";
+import {
+  DEFAULT_CONFIG,
+  type BuilderConfig,
+} from "@/components/pages/playground/types";
 import { decodeConfig } from "@/lib/playground-url-state";
 import { generateRegistryJson } from "@/lib/playground-registry";
 

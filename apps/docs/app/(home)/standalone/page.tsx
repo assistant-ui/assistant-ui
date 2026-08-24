@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
-import { DemoCard } from "@/components/elements/demo-card";
-import { StandalonePreview } from "@/components/standalone/previews";
+import { DemoCard } from "@/components/pages/elements/demo-card";
+import { StandalonePreview } from "@/components/pages/standalone/previews";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typePage } from "@/components/shared/type";
 import { STANDALONE_COMPONENTS, STANDALONE_COUNT } from "@/lib/standalone";
