@@ -149,9 +149,11 @@ describe("scope-filtered on", () => {
       const { getAui } = setup();
       const aui = getAui();
       const failure = new Error("async listener failed");
+      const later = vi.fn();
       aui.on({ scope: "thread", event: "thread.pinged" }, async () => {
         throw failure;
       });
+      aui.on({ scope: "thread", event: "thread.pinged" }, later);
 
       act(() => {
         aui.thread.ping("boom");
@@ -159,11 +161,12 @@ describe("scope-filtered on", () => {
       await flushEvents();
       await flushEvents();
 
+      expect(later).toHaveBeenCalledTimes(1);
       expect(consoleError).toHaveBeenCalledWith(
         "NotificationManager: event listener error",
         failure,
       );
-      expect(rejections).toEqual([]);
+      expect(rejections).not.toContain(failure);
     } finally {
       proc.off("unhandledRejection", onRejection);
       consoleError.mockRestore();

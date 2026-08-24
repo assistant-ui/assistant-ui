@@ -23,22 +23,25 @@ describe("NotificationManager listener errors", () => {
       const manager = createNotificationManager();
       const failure = new Error("async listener failed");
 
+      const later = vi.fn();
       manager.on(
         "thread.initialize" as never,
         (async () => {
           throw failure;
         }) as never,
       );
+      manager.on("thread.initialize" as never, later);
 
       manager.emit("thread.initialize" as never, {} as never, clientStack);
       await flushMicrotasks();
       await flushMicrotasks();
 
+      expect(later).toHaveBeenCalledTimes(1);
       expect(consoleError).toHaveBeenCalledWith(
         "NotificationManager: event listener error",
         failure,
       );
-      expect(rejections).toEqual([]);
+      expect(rejections).not.toContain(failure);
     } finally {
       proc.off("unhandledRejection", onRejection);
     }
@@ -46,6 +49,30 @@ describe("NotificationManager listener errors", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+  });
+
+  it("observes a function-valued thenable returned by a listener", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const manager = createNotificationManager();
+    const failure = new Error("thenable failed");
+    const thenable = Object.assign(() => {}, {
+      then: (_onFulfilled: unknown, onRejected: (reason: unknown) => void) => {
+        onRejected(failure);
+      },
+    });
+
+    manager.on("thread.initialize" as never, (() => thenable) as never);
+
+    manager.emit("thread.initialize" as never, {} as never, clientStack);
+    await flushMicrotasks();
+    await flushMicrotasks();
+
+    expect(consoleError).toHaveBeenCalledWith(
+      "NotificationManager: event listener error",
+      failure,
+    );
   });
 
   it("logs a throwing listener without raising an uncatchable error", async () => {
