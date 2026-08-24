@@ -48,7 +48,7 @@ describe("reduceOpenCodeThreadState", () => {
     expect(failed.sessionStatus).toBeNull();
   });
 
-  it("keeps ownership across overlapping optimistic run starts", () => {
+  it("never writes sessionStatus from run.started, even twice in a row", () => {
     const initial = createOpenCodeThreadState("ses_1");
     const pending: PendingUserMessage = {
       clientId: "local_1",

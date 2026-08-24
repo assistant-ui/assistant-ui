@@ -2,4 +2,4 @@
 "@assistant-ui/react-opencode": patch
 ---
 
-fix: roll back the optimistic busy status when a prompt fails to send
+fix: keep sessionStatus as server truth so a failed prompt send no longer leaves the thread stuck running
