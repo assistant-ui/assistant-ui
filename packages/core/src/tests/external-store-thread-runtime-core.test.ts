@@ -1172,7 +1172,9 @@ describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
 
   const textOf = (message: { content: readonly { type: string }[] }) => {
     const part = message.content[0];
-    return part && part.type === "text" && "text" in part ? part.text : undefined;
+    return part && part.type === "text" && "text" in part
+      ? part.text
+      : undefined;
   };
 
   it("keeps a prepended history message", () => {
@@ -1256,5 +1258,3 @@ describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
     expect(runtime.messages.map(textOf)).toEqual(["id-less", "kept"]);
   });
 });
-
-
