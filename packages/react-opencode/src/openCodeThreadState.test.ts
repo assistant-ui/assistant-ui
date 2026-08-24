@@ -47,6 +47,37 @@ describe("reduceOpenCodeThreadState", () => {
     expect(failed.sessionStatus).toBeNull();
   });
 
+  it("keeps ownership across overlapping optimistic run starts", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+    const pending: PendingUserMessage = {
+      clientId: "local_1",
+      sessionId: "ses_1",
+      createdAt: 1000,
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+      contentText: "hello world",
+      parts: [{ type: "text", text: "hello world" }],
+      status: "pending",
+    };
+    const queued = reduceOpenCodeThreadState(initial, {
+      type: "local.message.queued",
+      pending,
+    });
+    const startedTwice = reduceOpenCodeThreadState(
+      reduceOpenCodeThreadState(queued, { type: "run.started" }),
+      { type: "run.started" },
+    );
+
+    const failed = reduceOpenCodeThreadState(startedTwice, {
+      type: "local.message.failed",
+      clientId: "local_1",
+      error: new Error("network down"),
+    });
+
+    expect(failed.sessionStatus).toBeNull();
+  });
+
   it("keeps a server-confirmed busy when a later prompt fails to send", () => {
     const initial = createOpenCodeThreadState("ses_1");
     const serverBusy = reduceOpenCodeThreadState(initial, {
