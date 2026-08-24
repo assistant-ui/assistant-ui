@@ -28,6 +28,9 @@ export type AgUiOpaqueReasoning = {
 };
 
 export type AgUiCustomMetadata = {
+  /** Wire role restored on export for messages the internal model cannot
+   * represent (a developer record rides as a system message). */
+  role?: "developer";
   interrupts?: AgUiInterrupt[];
   opaqueReasoning?: AgUiOpaqueReasoning[];
 };

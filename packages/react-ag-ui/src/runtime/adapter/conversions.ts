@@ -679,7 +679,11 @@ function toUserOrSystemSnapshotMessage(
     ...(role === "developer"
       ? {
           metadata: {
-            custom: { [AG_UI_METADATA_NAMESPACE]: { role: "developer" } },
+            custom: {
+              [AG_UI_METADATA_NAMESPACE]: {
+                role: "developer",
+              } satisfies AgUiCustomMetadata,
+            },
           },
         }
       : {}),
