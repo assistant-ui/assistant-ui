@@ -564,16 +564,19 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const setMessagesRef = useRef(chatHelpers.setMessages);
   setMessagesRef.current = chatHelpers.setMessages;
 
+  const chatMessageCount = chatHelpers.messages.length;
+
   useEffect(() => {
     if (importedMessageRepositoryRef.current === messageRepository) return;
     importedMessageRepositoryRef.current = messageRepository;
     if (!exportedMessageRepository) return;
     runtime.thread.import(exportedMessageRepository);
+    if (chatMessageCount > 0) return;
     const tempRepo = new MessageRepository();
     tempRepo.import(exportedMessageRepository);
     setMessagesRef.current(
       tempRepo.getMessages().flatMap(getExternalStoreMessages<UI_MESSAGE>),
     );
-  }, [exportedMessageRepository, messageRepository, runtime]);
+  }, [exportedMessageRepository, messageRepository, runtime, chatMessageCount]);
   return runtime;
 };
