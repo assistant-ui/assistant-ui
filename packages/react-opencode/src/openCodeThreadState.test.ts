@@ -48,37 +48,57 @@ describe("reduceOpenCodeThreadState", () => {
     expect(failed.sessionStatus).toBeNull();
   });
 
-  it("never writes sessionStatus from run.started, even twice in a row", () => {
-    const initial = createOpenCodeThreadState("ses_1");
-    const pending: PendingUserMessage = {
-      clientId: "local_1",
-      sessionId: "ses_1",
-      createdAt: 1000,
-      parentId: null,
-      sourceId: null,
-      runConfig: undefined,
-      contentText: "hello world",
-      parts: [{ type: "text", text: "hello world" }],
-      status: "pending",
-    };
-    const queued = reduceOpenCodeThreadState(initial, {
-      type: "local.message.queued",
-      pending,
-    });
-    const startedTwice = reduceOpenCodeThreadState(
-      reduceOpenCodeThreadState(queued, { type: "run.started" }),
-      { type: "run.started" },
-    );
-    expect(startedTwice.sessionStatus).toBeNull();
+  it.each([
+    ["in send order", ["local_1", "local_2"]],
+    ["in reverse order", ["local_2", "local_1"]],
+  ] as const)(
+    "never writes sessionStatus across overlapping sends failing %s",
+    (_label, failureOrder) => {
+      const makePending = (
+        clientId: string,
+        createdAt: number,
+      ): PendingUserMessage => ({
+        clientId,
+        sessionId: "ses_1",
+        createdAt,
+        parentId: null,
+        sourceId: null,
+        runConfig: undefined,
+        contentText: `prompt ${clientId}`,
+        parts: [{ type: "text", text: `prompt ${clientId}` }],
+        status: "pending",
+      });
 
-    const failed = reduceOpenCodeThreadState(startedTwice, {
-      type: "local.message.failed",
-      clientId: "local_1",
-      error: new Error("network down"),
-    });
+      let state = createOpenCodeThreadState("ses_1");
+      state = reduceOpenCodeThreadState(state, {
+        type: "local.message.queued",
+        pending: makePending("local_1", 1000),
+      });
+      state = reduceOpenCodeThreadState(state, { type: "run.started" });
+      state = reduceOpenCodeThreadState(state, {
+        type: "local.message.queued",
+        pending: makePending("local_2", 2000),
+      });
+      state = reduceOpenCodeThreadState(state, { type: "run.started" });
+      expect(state.sessionStatus).toBeNull();
 
-    expect(failed.sessionStatus).toBeNull();
-  });
+      for (const clientId of failureOrder) {
+        state = reduceOpenCodeThreadState(state, {
+          type: "local.message.failed",
+          clientId,
+          error: new Error("network down"),
+        });
+      }
+
+      expect(state.sessionStatus).toBeNull();
+      expect(state.runState).toEqual({
+        type: "error",
+        error: new Error("network down"),
+      });
+      expect(state.pendingUserMessages["local_1"]?.status).toBe("failed");
+      expect(state.pendingUserMessages["local_2"]?.status).toBe("failed");
+    },
+  );
 
   it("keeps a server-confirmed busy when a later prompt fails to send", () => {
     const initial = createOpenCodeThreadState("ses_1");
