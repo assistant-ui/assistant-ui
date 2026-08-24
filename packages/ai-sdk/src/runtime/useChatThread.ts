@@ -152,6 +152,12 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
   const transport = transportOptions ?? defaultTransport;
   const transportContextOwner = useMemo(() => ({}), []);
+  const getThreadListItemRef = useRef(getThreadListItem);
+  getThreadListItemRef.current = getThreadListItem;
+  const getCurrentThreadListItem = useCallback(
+    () => getThreadListItemRef.current(),
+    [],
+  );
   if (transport instanceof DynamicChatTransport) {
     transport.registerThread(id, transportContextOwner);
   }
@@ -197,25 +203,29 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepository && { messageRepository }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
+  const runtimeRef = useRef(runtime);
+  runtimeRef.current = runtime;
 
-  if (transport instanceof DynamicChatTransport) {
+  const registerTransportContext = useCallback(() => {
+    if (!(transport instanceof DynamicChatTransport)) return undefined;
     transport.setThreadContext(
       id,
       transportContextOwner,
-      runtime,
-      getThreadListItem,
+      runtimeRef.current,
+      getCurrentThreadListItem,
     );
-  } else if (sourceTransport instanceof AssistantChatTransport) {
+    return () => transport.unregisterThread(id, transportContextOwner);
+  }, [getCurrentThreadListItem, id, transport, transportContextOwner]);
+
+  registerTransportContext();
+  if (
+    !(transport instanceof DynamicChatTransport) &&
+    sourceTransport instanceof AssistantChatTransport
+  ) {
     sourceTransport.setRuntime(runtime);
-    sourceTransport.__internal_setGetThreadListItem(getThreadListItem);
+    sourceTransport.__internal_setGetThreadListItem(getCurrentThreadListItem);
   }
-  useEffect(
-    () =>
-      transport instanceof DynamicChatTransport
-        ? () => transport.unregisterThread(id, transportContextOwner)
-        : undefined,
-    [id, transport, transportContextOwner],
-  );
+  useEffect(registerTransportContext, [registerTransportContext]);
 
   const subscribeToRuntime = useCallback(
     (callback: () => void) => runtime.thread.subscribe(callback),

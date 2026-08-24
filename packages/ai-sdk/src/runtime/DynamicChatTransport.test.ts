@@ -34,6 +34,18 @@ const createRuntime = (system: string) =>
   }) as AssistantRuntime;
 
 describe("DynamicChatTransport", () => {
+  it("rejects sends without a registered thread context", () => {
+    const dynamicTransport = new DynamicChatTransport(
+      new AssistantChatTransport<UIMessage>(),
+    );
+
+    expect(() =>
+      dynamicTransport.getCurrentTransport("missing-thread"),
+    ).toThrow(
+      'DynamicChatTransport has no registered context for chat "missing-thread"',
+    );
+  });
+
   it("keeps AssistantChatTransport wiring scoped per thread", async () => {
     const bodies: Array<{ id: string; system: string }> = [];
     const createTransport = () =>

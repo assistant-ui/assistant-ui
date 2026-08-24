@@ -94,7 +94,13 @@ export class DynamicChatTransport<
   }
 
   private getTransport(chatId: string) {
-    return this.threadContexts.get(chatId)?.transport ?? this.transport;
+    const context = this.threadContexts.get(chatId);
+    if (!context) {
+      throw new Error(
+        `DynamicChatTransport has no registered context for chat "${chatId}"`,
+      );
+    }
+    return context.transport;
   }
 
   private createThreadTransport(transport: ChatTransport<UI_MESSAGE>) {

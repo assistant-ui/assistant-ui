@@ -4,11 +4,14 @@ import { render, screen, waitFor } from "@testing-library/react";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
+import { useTapHost } from "@assistant-ui/tap";
 import type { ChatTransport, UIMessage } from "ai";
-import { StrictMode, useLayoutEffect, useState } from "react";
+import { StrictMode, useEffect, useLayoutEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
+import { DynamicChatTransport } from "./DynamicChatTransport";
 import { useChatRuntime } from "./useChatRuntime";
+import { useChatThread } from "./useChatThread";
 
 const messages: UIMessage[] = [
   {
@@ -108,5 +111,49 @@ describe("useChatRuntime integration", () => {
 
     await waitFor(() => expect(sendB).toHaveBeenCalledOnce());
     expect(sendA).not.toHaveBeenCalled();
+  });
+
+  it("keeps AssistantChatTransport wired through StrictMode effect replay", () => {
+    const sourceTransport = new AssistantChatTransport<UIMessage>({
+      api: "/api/chat",
+    });
+    const transport = new DynamicChatTransport(sourceTransport);
+    const wiredDuringEffectSetup: boolean[] = [];
+    const Probe = ({ effects }: { effects: () => void }) => {
+      useEffect(effects);
+      useEffect(() => {
+        try {
+          wiredDuringEffectSetup.push(
+            transport.getCurrentTransport("strict-mode-thread") !==
+              sourceTransport,
+          );
+        } catch {
+          wiredDuringEffectSetup.push(false);
+        }
+      }, []);
+      return null;
+    };
+
+    const App = () => {
+      const { effects } = useTapHost(function ChatThreadResource() {
+        return useChatThread(
+          { transport },
+          {
+            id: "strict-mode-thread",
+            isMainThread: true,
+            getThreadListItem: () => undefined,
+          },
+        );
+      });
+      return <Probe effects={effects} />;
+    };
+
+    render(
+      <StrictMode>
+        <App />
+      </StrictMode>,
+    );
+
+    expect(wiredDuringEffectSetup).toEqual([true, true]);
   });
 });
