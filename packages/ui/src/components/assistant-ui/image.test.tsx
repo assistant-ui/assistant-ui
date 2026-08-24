@@ -147,6 +147,10 @@ describe("ImageActions regeneration", () => {
 
       fireEvent.click(screen.getByLabelText("Regenerate image"));
 
+      expect(
+        (screen.getByLabelText("Regenerate image") as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
       await waitFor(() =>
         expect(
           (screen.getByLabelText("Regenerate image") as HTMLButtonElement)
