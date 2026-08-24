@@ -7,8 +7,11 @@ import {
   symbolInnerMessage,
   bindExternalStoreMessage,
   FALLBACK_ID_PREFIX,
-  isGeneratedFallbackId,
 } from "../../runtime/utils/external-store-message";
+
+// Generatedness is tracked by identity, not by id shape: a caller-supplied id
+// that happens to match the generated pattern must never be rewritten.
+const generatedFallbackMessages = new WeakSet<object>();
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
@@ -537,8 +540,12 @@ export const useExternalMessageConverter = <T extends WeakKey>({
             // A positional fallback id goes stale when messages are prepended
             // or reordered; serving it unchanged makes two messages collide on
             // one id and the dedup downstream drops one of them.
-            if (isGeneratedFallbackId(cache.id) && cache.id !== fallbackId) {
+            if (
+              generatedFallbackMessages.has(cache) &&
+              cache.id !== fallbackId
+            ) {
               const updated = { ...cache, id: fallbackId };
+              generatedFallbackMessages.add(updated);
               bindExternalStoreMessage(updated, message.inputs);
               return updated;
             }
@@ -551,6 +558,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
           fallbackId,
           autoStatus,
         );
+        if (joined.id == null) generatedFallbackMessages.add(newMessage);
         bindExternalStoreMessage(newMessage, message.inputs);
         return newMessage;
       },

@@ -88,6 +88,41 @@ describe("useExternalMessageConverter", () => {
     ).toEqual(["older", "newer"]);
   });
 
+  it("never rewrites a caller-supplied id that matches the generated shape", () => {
+    const explicitConvert: useExternalMessageConverter.Callback<TestMessage> = (
+      message,
+    ) => ({
+      role: message.role,
+      id: message.id === "explicit" ? "__external_store_fallback_0" : undefined,
+      content: [{ type: "text", text: message.text }],
+    });
+
+    const explicit: TestMessage = {
+      id: "explicit",
+      role: "user",
+      text: "kept",
+    };
+    const older: TestMessage = { id: "u0", role: "user", text: "older" };
+
+    const { result, rerender } = renderHook(
+      ({ messages }: { messages: TestMessage[] }) =>
+        useExternalMessageConverter<TestMessage>({
+          callback: explicitConvert,
+          messages,
+          isRunning: false,
+          metadata: EMPTY,
+        }),
+      { initialProps: { messages: [explicit] } },
+    );
+
+    rerender({ messages: [older, explicit] });
+
+    const explicitOut = result.current.find(
+      (message) => (message.content[0] as any).text === "kept",
+    );
+    expect(explicitOut?.id).toBe("__external_store_fallback_0");
+  });
+
   it("reuses converted messages across rerenders when inputs are unchanged", () => {
     const { result, rerender } = renderConverter();
 
