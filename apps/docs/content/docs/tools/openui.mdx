@@ -63,7 +63,7 @@ import {
   AuiConfig,
   Tools,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { OpenUIInstructions, openuiIntegration } from "@openuidev/assistant-ui";
 import { shouldContinueAfterOpenUIPrompt } from "@openuidev/assistant-ui/ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -102,7 +102,7 @@ The default `AssistantChatTransport` forwards the registered instructions and bo
 
 ```ts title="app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import {
   type JSONSchema7,
   streamText,

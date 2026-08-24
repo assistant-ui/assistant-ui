@@ -1,10 +1,10 @@
 import type { FC } from "react";
-import { Base } from "@/components/examples/base";
-import { ChatGPT } from "@/components/examples/chatgpt";
-import { Claude } from "@/components/examples/claude";
-import { Gemini } from "@/components/examples/gemini";
-import { Grok } from "@/components/examples/grok";
-import { Perplexity } from "@/components/examples/perplexity";
+import { Base } from "@/components/pages/examples/base";
+import { ChatGPT } from "@/components/pages/examples/chatgpt";
+import { Claude } from "@/components/pages/examples/claude";
+import { Gemini } from "@/components/pages/examples/gemini";
+import { Grok } from "@/components/pages/examples/grok";
+import { Perplexity } from "@/components/pages/examples/perplexity";
 import { DEMO_META, type DemoMeta } from "./demos-meta";
 
 export type DemoEntry = DemoMeta & { component: FC };

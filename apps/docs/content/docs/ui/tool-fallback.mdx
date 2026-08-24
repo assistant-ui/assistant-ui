@@ -9,9 +9,9 @@ import {
   ToolFallbackRunningSample,
   ToolFallbackCancelledSample,
   ToolFallbackRequiresActionSample,
-} from "@/components/docs/samples/tool-fallback";
-import { PreviewCode } from "@/components/docs/preview-code.server";
-import { ToolFallbackRendererSample } from "@/components/docs/samples/tool-fallback/custom-renderer";
+} from "@/components/pages/docs/samples/tool-fallback";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { ToolFallbackRendererSample } from "@/components/pages/docs/samples/tool-fallback/custom-renderer";
 
 <ToolFallbackSample />
 
@@ -60,7 +60,7 @@ const AssistantMessage = () => {
 The thread sends a weather request when the preview loads. The registered renderer replaces the default fallback. It shows "Checking the forecast…" first, then the temperature, condition, and humidity.
 
 <PreviewCode
-  file="components/docs/samples/tool-fallback/custom-renderer"
+  file="components/pages/docs/samples/tool-fallback/custom-renderer"
   name="WeatherToolUI"
 >
   <ToolFallbackRendererSample />

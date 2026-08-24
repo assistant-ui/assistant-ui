@@ -47,6 +47,14 @@ export type McpAppRendererOptions = {
   hostInfo?: McpAppHostInfo;
   /** Delivered to the widget on initialize and pushed via `notifications/host_context/changed` on change. */
   hostContext?: McpAppHostContext;
+  /**
+   * Optional widget interaction and lifecycle handlers. Data-plane handlers
+   * (`callTool`, `readResource`, `listResources`) always use `host`.
+   */
+  handlers?: Omit<
+    McpAppBridgeHandlers,
+    "callTool" | "readResource" | "listResources"
+  >;
   /** Rendered when no MCP app is on the part, or while load is in flight / failed (unless overridden). */
   fallback?: ReactNode;
   /** Rendered while the resource is loading. Defaults to `fallback`. */
@@ -122,6 +130,7 @@ function InlineRenderer({
   const serverId = appForRender?.serverId;
   const serverIdRef = useRef<string | undefined>(undefined);
   serverIdRef.current = serverId;
+  const callerHandlers = opts.handlers;
   useEffect(() => {
     if (resourceUri == null) return;
     let cancelled = false;
@@ -165,13 +174,16 @@ function InlineRenderer({
 
   const bridgeHandlers = useMemo<McpAppBridgeHandlers>(
     () => ({
-      openLink: defaultOpenLink,
-      sendMessage: (params) => {
-        const text = extractSendMessageText(params);
-        if (!text) return { ok: false, reason: "unrecognised params shape" };
-        aui.thread.append({ content: [{ type: "text", text }] });
-        return { ok: true };
-      },
+      ...callerHandlers,
+      openLink: callerHandlers?.openLink ?? defaultOpenLink,
+      sendMessage:
+        callerHandlers?.sendMessage ??
+        ((params) => {
+          const text = extractSendMessageText(params);
+          if (!text) return { ok: false, reason: "unrecognised params shape" };
+          aui.thread.append({ content: [{ type: "text", text }] });
+          return { ok: true };
+        }),
       callTool: (params) =>
         useHostStore.getState().host.callTool({
           ...params,
@@ -192,7 +204,7 @@ function InlineRenderer({
         });
       },
     }),
-    [aui, useHostStore],
+    [aui, callerHandlers, useHostStore],
   );
 
   const loadedResourceForApp =

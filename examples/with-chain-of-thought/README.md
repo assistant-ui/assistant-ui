@@ -61,7 +61,7 @@ This is the canonical pattern. For non-adjacent clustering (parts that share an 
 
 ## How sources are emitted
 
-The route emits structured `source-url` chunks; `@assistant-ui/react-ai-sdk` converts them to `source` message parts that the `Sources` component renders as badges. They are not URLs scraped from assistant text.
+The route emits structured `source-url` chunks; `@assistant-ui/ai-sdk` converts them to `source` message parts that the `Sources` component renders as badges. They are not URLs scraped from assistant text.
 
 ```ts
 writer.write({

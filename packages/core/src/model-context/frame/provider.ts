@@ -141,7 +141,7 @@ export class AssistantFrameProvider {
     this.sendMessage(event, {
       type: "tool-result",
       id: message.id,
-      ...(error ? { error } : { result }),
+      ...(error !== undefined ? { error } : { result }),
     });
   }
 

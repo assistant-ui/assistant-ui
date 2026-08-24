@@ -1,4 +1,4 @@
-import type { BuilderConfig } from "@/components/builder/types";
+import type { BuilderConfig } from "@/components/pages/playground/types";
 
 const REGISTRY_BASE_URL = "https://r.assistant-ui.com";
 

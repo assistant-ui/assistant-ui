@@ -582,3 +582,176 @@ describe("ExternalThread attachments", () => {
     vi.restoreAllMocks();
   });
 });
+
+describe("cancelled edit sessions", () => {
+  const editSetup = (
+    add: (arg: { file: File }) => Promise<PendingAttachment>,
+  ) =>
+    renderThreadWithProps({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      onEdit: () => {},
+      attachmentAdapter: {
+        accept: "*",
+        add,
+        send: async () => ({}) as never,
+        remove: async () => {},
+      },
+    });
+
+  it("does not leak an in-flight add into the next edit session", async () => {
+    let resolveAdd!: (attachment: PendingAttachment) => void;
+    const aui = editSetup(
+      () =>
+        new Promise<PendingAttachment>((resolve) => {
+          resolveAdd = resolve;
+        }),
+    );
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+
+    await act(async () => {
+      composer().beginEdit();
+    });
+    let addPromise!: Promise<void>;
+    await act(async () => {
+      addPromise = composer().addAttachment(
+        new File(["data"], "notes.txt", { type: "text/plain" }),
+      );
+    });
+    await act(async () => {
+      composer().cancel();
+    });
+    await act(async () => {
+      composer().beginEdit();
+    });
+    await act(async () => {
+      resolveAdd({
+        id: "leak-1",
+        type: "document",
+        name: "notes.txt",
+        contentType: "text/plain",
+        file: new File(["data"], "notes.txt", { type: "text/plain" }),
+        status: { type: "pending", reason: "uploading", progress: 0 },
+      } as PendingAttachment);
+      await addPromise.catch(() => {});
+    });
+
+    expect(composer().getState().attachments).toEqual([]);
+  });
+
+  it("adapter-removes the session's pending attachments on cancel, sparing prefilled ones", async () => {
+    const remove = vi.fn(async () => {});
+    const aui = renderThreadWithProps({
+      messages: [
+        {
+          id: "u1",
+          role: "user",
+          content: [{ type: "text", text: "hi" }],
+          createdAt: new Date(0),
+          attachments: [
+            {
+              id: "prefilled-1",
+              type: "document",
+              name: "existing.txt",
+              contentType: "text/plain",
+              content: [],
+              status: { type: "complete" },
+            } as unknown as CompleteAttachment,
+          ],
+          metadata: { custom: {} },
+        } as unknown as ExternalThreadMessage,
+      ],
+      onEdit: () => {},
+      attachmentAdapter: {
+        accept: "*",
+        add: async ({ file }: { file: File }) =>
+          ({
+            id: "pending-1",
+            type: "document",
+            name: file.name,
+            contentType: file.type,
+            file,
+            status: { type: "pending", reason: "uploading", progress: 0 },
+          }) as PendingAttachment,
+        send: async () => ({}) as never,
+        remove,
+      },
+    });
+    const composer = () => aui().thread.message({ id: "u1" }).composer();
+
+    await act(async () => {
+      composer().beginEdit();
+    });
+    await act(() =>
+      composer().addAttachment(
+        new File(["data"], "notes.txt", { type: "text/plain" }),
+      ),
+    );
+    expect(composer().getState().attachments).toHaveLength(2);
+
+    await act(async () => {
+      composer().cancel();
+    });
+
+    await waitFor(() => expect(remove).toHaveBeenCalledTimes(1));
+    expect(remove).toHaveBeenCalledWith(
+      expect.objectContaining({ id: "pending-1" }),
+    );
+
+    await act(async () => {
+      composer().cancel();
+    });
+    expect(remove).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps the thread composer's in-flight add across a run cancel", async () => {
+    let resolveAdd!: (attachment: PendingAttachment) => void;
+    const aui = renderThreadWithProps({
+      onNew: () => {},
+      onCancel: () => {},
+      attachmentAdapter: {
+        accept: "*",
+        add: () =>
+          new Promise<PendingAttachment>((resolve) => {
+            resolveAdd = resolve;
+          }),
+        send: async () => ({}) as never,
+        remove: async () => {},
+      },
+    });
+    const composer = () => aui().thread().composer();
+
+    let addPromise!: Promise<void>;
+    await act(async () => {
+      addPromise = composer().addAttachment(
+        new File(["data"], "notes.txt", { type: "text/plain" }),
+      );
+    });
+    await act(async () => {
+      composer().cancel();
+    });
+    await act(async () => {
+      resolveAdd({
+        id: "draft-1",
+        type: "document",
+        name: "notes.txt",
+        contentType: "text/plain",
+        file: new File(["data"], "notes.txt", { type: "text/plain" }),
+        status: { type: "pending", reason: "uploading", progress: 0 },
+      } as PendingAttachment);
+      await addPromise;
+    });
+
+    expect(composer().getState().attachments).toMatchObject([
+      { id: "draft-1" },
+    ]);
+  });
+});

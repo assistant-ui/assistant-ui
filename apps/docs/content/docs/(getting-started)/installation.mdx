@@ -93,37 +93,37 @@ Install provider SDK:
 
 <Tabs groupId="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/openai"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/ai-sdk", "@ai-sdk/openai"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/anthropic"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/ai-sdk", "@ai-sdk/anthropic"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/azure"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/ai-sdk", "@ai-sdk/azure"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/amazon-bedrock"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/ai-sdk", "@ai-sdk/amazon-bedrock"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/google"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/ai-sdk", "@ai-sdk/google"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/google-vertex"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/ai-sdk", "@ai-sdk/google-vertex"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/groq"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/ai-sdk", "@ai-sdk/groq"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/fireworks"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/ai-sdk", "@ai-sdk/fireworks"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "@ai-sdk/cohere"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/ai-sdk", "@ai-sdk/cohere"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "ollama-ai-provider-v2"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/ai-sdk", "ollama-ai-provider-v2"]} />
   </Tab>
   <Tab>
-    <InstallCommand npm={["ai", "@assistant-ui/react-ai-sdk", "chrome-ai"]} />
+    <InstallCommand npm={["ai", "@assistant-ui/ai-sdk", "chrome-ai"]} />
   </Tab>
 </Tabs>
 
@@ -132,7 +132,7 @@ Add an API endpoint:
 <Tabs groupId="provider" items={["OpenAI", "Anthropic", "Azure", "AWS", "Gemini", "GCP", "Groq", "Fireworks", "Cohere", "Ollama", "Chrome AI"]}>
 ```ts title="/app/api/chat/route.ts" tab="OpenAI"
 import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
@@ -151,7 +151,7 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Anthropic"
 import { anthropic } from "@ai-sdk/anthropic";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
@@ -170,7 +170,7 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Azure"
 import { azure } from "@ai-sdk/azure";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
@@ -189,7 +189,7 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="AWS"
 import { bedrock } from "@ai-sdk/amazon-bedrock";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
@@ -208,7 +208,7 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Gemini"
 import { google } from "@ai-sdk/google";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
@@ -227,7 +227,7 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="GCP"
 import { vertex } from "@ai-sdk/google-vertex";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
@@ -246,7 +246,7 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Groq"
 import { groq } from "@ai-sdk/groq";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
@@ -265,7 +265,7 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Fireworks"
 import { fireworks } from "@ai-sdk/fireworks";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
@@ -284,7 +284,7 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Cohere"
 import { cohere } from "@ai-sdk/cohere";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
@@ -303,7 +303,7 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Ollama"
 import { ollama } from "ollama-ai-provider-v2";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
@@ -322,7 +322,7 @@ export async function POST(req: Request) {
 
 ```ts title="/app/api/chat/route.ts" tab="Chrome AI"
 import { chromeai } from "chrome-ai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;
@@ -408,7 +408,7 @@ If you aren't using Next.js, you can also deploy this endpoint to Cloudflare Wor
 
 ```tsx title="/app/page.tsx" tab="Thread"
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { Thread } from "@/components/assistant-ui/thread";
 
@@ -434,7 +434,7 @@ export default function MyApp() {
 // run `npx shadcn@latest add @assistant-ui/assistant-modal`
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
 
 export default function MyApp() {

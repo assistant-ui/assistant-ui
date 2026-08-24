@@ -99,6 +99,32 @@ describe("AssistantFrameProvider", () => {
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
   });
 
+  it("reports a failure even when the thrown error has an empty message", async () => {
+    const execute = vi.fn(async () => {
+      throw new Error();
+    });
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({
+        tools: {
+          sensitiveTool: { execute },
+        },
+      }),
+    });
+
+    dispatchToolCall("https://parent.example");
+
+    await vi.waitFor(() => {
+      const frame = (
+        parentWindow.postMessage as ReturnType<typeof vi.fn>
+      ).mock.calls
+        .map(([data]) => data)
+        .find((data) => data?.message?.type === "tool-result");
+      expect(frame).toBeDefined();
+      expect(frame.message).toHaveProperty("error");
+      expect(frame.message).not.toHaveProperty("result");
+    });
+  });
+
   it("aborts in-flight tool calls when the parent cancels them", async () => {
     let toolSignal: AbortSignal | undefined;
     const execute = vi.fn(

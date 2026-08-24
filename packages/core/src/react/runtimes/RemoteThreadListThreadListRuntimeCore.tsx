@@ -857,17 +857,22 @@ export class RemoteThreadListThreadListRuntimeCore
     for await (const result of messageStream) {
       if (adapterGeneration !== this._adapterGeneration) return;
       const newTitle = result.parts.filter((c) => c.type === "text")[0]?.text;
-      const state = this._state.baseValue;
-      const currentData = getThreadData(state, data.id);
-      if (!currentData) continue;
-      this._state.update({
-        ...state,
-        threadData: {
-          ...state.threadData,
-          [currentData.id]: {
-            ...currentData,
-            title: newTitle,
-          },
+      await this._state.optimisticUpdate({
+        execute: async () => {},
+        optimistic: (state) => {
+          if (adapterGeneration !== this._adapterGeneration) return state;
+          const currentData = getThreadData(state, data.id);
+          if (!currentData) return state;
+          return {
+            ...state,
+            threadData: {
+              ...state.threadData,
+              [currentData.id]: {
+                ...currentData,
+                title: newTitle,
+              },
+            },
+          };
         },
       });
     }
