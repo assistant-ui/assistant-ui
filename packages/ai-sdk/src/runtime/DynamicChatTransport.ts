@@ -5,33 +5,27 @@ import {
   AssistantChatTransport,
   type InitializableThreadListItem,
 } from "../transport/AssistantChatTransport";
+import { getResumableAdapter } from "./getResumableAdapter";
 
-const getResumableStorage = <UI_MESSAGE extends UIMessage>(
-  transport: ChatTransport<UI_MESSAGE>,
-) => {
-  if (transport instanceof AssistantChatTransport) {
-    return transport.getResumableAdapter()?.storage;
-  }
-  const getAdapter = (
-    transport as {
-      getResumableAdapter?: () => { storage?: unknown } | undefined;
-    }
-  ).getResumableAdapter;
-  return typeof getAdapter === "function"
-    ? getAdapter.call(transport)?.storage
-    : undefined;
+type ThreadTransportContext<UI_MESSAGE extends UIMessage> = {
+  owner: object;
+  transport: ChatTransport<UI_MESSAGE>;
+  runtime?: AssistantRuntime | undefined;
+  getThreadListItem?:
+    | (() => InitializableThreadListItem | undefined)
+    | undefined;
 };
 
 export class DynamicChatTransport<
   UI_MESSAGE extends UIMessage,
 > implements ChatTransport<UI_MESSAGE> {
   private readonly listeners = new Set<() => void>();
+  private readonly threadContexts = new Map<
+    string,
+    ThreadTransportContext<UI_MESSAGE>
+  >();
   private hasPendingNotification = false;
-  private runtime: AssistantRuntime | undefined;
   private transport: ChatTransport<UI_MESSAGE>;
-  private getThreadListItem:
-    | (() => InitializableThreadListItem | undefined)
-    | undefined;
 
   constructor(transport: ChatTransport<UI_MESSAGE>) {
     this.transport = transport;
@@ -39,12 +33,13 @@ export class DynamicChatTransport<
 
   public readonly sendMessages: ChatTransport<UI_MESSAGE>["sendMessages"] = (
     options,
-  ) => this.transport.sendMessages(options);
+  ) => this.getTransport(options.chatId).sendMessages(options);
 
   public readonly reconnectToStream: ChatTransport<UI_MESSAGE>["reconnectToStream"] =
-    (options) => this.transport.reconnectToStream(options);
+    (options) => this.getTransport(options.chatId).reconnectToStream(options);
 
-  public readonly getCurrentTransport = () => this.transport;
+  public readonly getCurrentTransport = (chatId: string) =>
+    this.getTransport(chatId);
 
   public readonly subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -53,11 +48,14 @@ export class DynamicChatTransport<
 
   public setTransport(transport: ChatTransport<UI_MESSAGE>) {
     if (this.transport === transport) return;
-    const previousStorage = getResumableStorage(this.transport);
     this.transport = transport;
-    this.wireTransport();
-    if (previousStorage !== getResumableStorage(transport)) {
-      this.hasPendingNotification = true;
+    for (const context of this.threadContexts.values()) {
+      const previousStorage = getResumableAdapter(context.transport)?.storage;
+      context.transport = this.createThreadTransport(transport);
+      this.wireTransport(context);
+      if (previousStorage !== getResumableAdapter(context.transport)?.storage) {
+        this.hasPendingNotification = true;
+      }
     }
   }
 
@@ -67,23 +65,51 @@ export class DynamicChatTransport<
     for (const listener of this.listeners) listener();
   }
 
-  public setRuntime(runtime: AssistantRuntime) {
-    this.runtime = runtime;
-    this.wireTransport();
+  public registerThread(chatId: string, owner: object) {
+    const existing = this.threadContexts.get(chatId);
+    if (existing?.owner === owner) return;
+    this.threadContexts.set(chatId, {
+      owner,
+      transport: this.createThreadTransport(this.transport),
+    });
   }
 
-  public setGetThreadListItem(
+  public setThreadContext(
+    chatId: string,
+    owner: object,
+    runtime: AssistantRuntime,
     getThreadListItem: () => InitializableThreadListItem | undefined,
   ) {
-    this.getThreadListItem = getThreadListItem;
-    this.wireTransport();
+    this.registerThread(chatId, owner);
+    const context = this.threadContexts.get(chatId)!;
+    context.runtime = runtime;
+    context.getThreadListItem = getThreadListItem;
+    this.wireTransport(context);
   }
 
-  private wireTransport() {
-    if (!(this.transport instanceof AssistantChatTransport)) return;
-    if (this.runtime) this.transport.setRuntime(this.runtime);
-    if (this.getThreadListItem) {
-      this.transport.__internal_setGetThreadListItem(this.getThreadListItem);
+  public unregisterThread(chatId: string, owner: object) {
+    if (this.threadContexts.get(chatId)?.owner === owner) {
+      this.threadContexts.delete(chatId);
+    }
+  }
+
+  private getTransport(chatId: string) {
+    return this.threadContexts.get(chatId)?.transport ?? this.transport;
+  }
+
+  private createThreadTransport(transport: ChatTransport<UI_MESSAGE>) {
+    return transport instanceof AssistantChatTransport
+      ? transport.__internal_clone()
+      : transport;
+  }
+
+  private wireTransport(context: ThreadTransportContext<UI_MESSAGE>) {
+    if (!(context.transport instanceof AssistantChatTransport)) return;
+    if (context.runtime) context.transport.setRuntime(context.runtime);
+    if (context.getThreadListItem) {
+      context.transport.__internal_setGetThreadListItem(
+        context.getThreadListItem,
+      );
     }
   }
 }

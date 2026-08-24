@@ -11,15 +11,12 @@ import {
   type AISDKRuntimeAdapter,
   type CustomToCreateMessageFunction,
 } from "./useAISDKRuntime";
-import type { ChatInit, ChatTransport } from "ai";
+import type { ChatInit } from "ai";
 import {
   AssistantChatTransport,
   type InitializableThreadListItem,
 } from "../transport/AssistantChatTransport";
-import type {
-  AssistantChatResumableOptions,
-  ResumableClientStorage,
-} from "../transport/resumable";
+import type { ResumableClientStorage } from "../transport/resumable";
 import {
   useCallback,
   useEffect,
@@ -29,6 +26,7 @@ import {
 } from "react";
 import { useResourceCleanup } from "./useResourceCleanup";
 import { DynamicChatTransport } from "./DynamicChatTransport";
+import { getResumableAdapter } from "./getResumableAdapter";
 
 export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
@@ -61,18 +59,6 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
    * from the instance.
    */
   chat?: Chat<UI_MESSAGE> | undefined;
-};
-
-const getResumableAdapter = <UI_MESSAGE extends UIMessage>(
-  transport: ChatTransport<UI_MESSAGE>,
-): AssistantChatResumableOptions | undefined => {
-  if (transport instanceof AssistantChatTransport) {
-    return transport.getResumableAdapter();
-  }
-  const candidate = (transport as { getResumableAdapter?: () => unknown })
-    .getResumableAdapter;
-  if (typeof candidate !== "function") return undefined;
-  return candidate.call(transport) as AssistantChatResumableOptions | undefined;
 };
 
 const getNoPendingStreamId = () => null;
@@ -165,6 +151,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
   const transport = transportOptions ?? defaultTransport;
+  const transportContextOwner = useMemo(() => ({}), []);
+  if (transport instanceof DynamicChatTransport) {
+    transport.registerThread(id, transportContextOwner);
+  }
   const subscribeToTransport = useCallback(
     (callback: () => void) =>
       transport instanceof DynamicChatTransport
@@ -175,9 +165,9 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const getSourceTransport = useCallback(
     () =>
       transport instanceof DynamicChatTransport
-        ? transport.getCurrentTransport()
+        ? transport.getCurrentTransport(id)
         : transport,
-    [transport],
+    [id, transport],
   );
   const sourceTransport = useSyncExternalStore(
     subscribeToTransport,
@@ -209,12 +199,23 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   });
 
   if (transport instanceof DynamicChatTransport) {
-    transport.setRuntime(runtime);
-    transport.setGetThreadListItem(getThreadListItem);
+    transport.setThreadContext(
+      id,
+      transportContextOwner,
+      runtime,
+      getThreadListItem,
+    );
   } else if (sourceTransport instanceof AssistantChatTransport) {
     sourceTransport.setRuntime(runtime);
     sourceTransport.__internal_setGetThreadListItem(getThreadListItem);
   }
+  useEffect(
+    () =>
+      transport instanceof DynamicChatTransport
+        ? () => transport.unregisterThread(id, transportContextOwner)
+        : undefined,
+    [id, transport, transportContextOwner],
+  );
 
   const subscribeToRuntime = useCallback(
     (callback: () => void) => runtime.thread.subscribe(callback),
