@@ -55,6 +55,93 @@ describe("useThreads", () => {
     vi.restoreAllMocks();
   });
 
+  it("clears a selected thread archived outside the current client", async () => {
+    const activeThread = createThreadListResponse("Active", "thread-1")
+      .threads[0]!;
+    const archivedThread = { ...activeThread, is_archived: true };
+    let isArchived = false;
+    const get = vi.fn(async () => archivedThread);
+    const cloud = {
+      threads: {
+        list: vi.fn(async () => ({
+          threads: isArchived ? [] : [activeThread],
+        })),
+        get,
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    } as never;
+    const { result } = renderHook(() =>
+      useThreads({ cloud, includeArchived: false, enabled: false }),
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+    act(() => result.current.selectThread("thread-1"));
+
+    isArchived = true;
+    await act(async () => {
+      await result.current.refresh();
+    });
+
+    expect(get).toHaveBeenCalledWith("thread-1");
+    expect(result.current.threads).toEqual([]);
+    expect(result.current.threadId).toBeNull();
+  });
+
+  it("preserves a remotely archived selection made visible during refresh", async () => {
+    const activeThread = createThreadListResponse("Active", "thread-1")
+      .threads[0]!;
+    const archivedThread = { ...activeThread, is_archived: true };
+    const verification = createDeferred<typeof archivedThread>();
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({ threads: [activeThread] })
+      .mockResolvedValueOnce({ threads: [] });
+    const cloud = {
+      threads: {
+        list,
+        get: vi.fn().mockReturnValueOnce(verification.promise),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    };
+    const { result, rerender } = renderHook(
+      ({ includeArchived }) =>
+        useThreads({
+          cloud: cloud as never,
+          includeArchived,
+          enabled: false,
+        }),
+      { initialProps: { includeArchived: false } },
+    );
+
+    await act(async () => {
+      await result.current.refresh();
+    });
+    act(() => result.current.selectThread("thread-1"));
+
+    let refreshPromise!: Promise<boolean>;
+    act(() => {
+      refreshPromise = result.current.refresh();
+    });
+    await waitFor(() => {
+      expect(result.current.threads).toEqual([]);
+      expect(cloud.threads.get).toHaveBeenCalledWith("thread-1");
+    });
+
+    rerender({ includeArchived: true });
+    await act(async () => {
+      verification.resolve(archivedThread);
+      await refreshPromise;
+    });
+
+    expect(result.current.threadId).toBe("thread-1");
+  });
+
   it("returns fallback and exposes error when an action fails", async () => {
     const cloud = {
       threads: {

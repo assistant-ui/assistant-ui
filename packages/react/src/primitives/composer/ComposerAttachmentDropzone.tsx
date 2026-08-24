@@ -9,7 +9,7 @@ import {
   isValidElement,
 } from "react";
 
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import { Slot } from "radix-ui";
 import type React from "react";
 import { useAui } from "@assistant-ui/store";

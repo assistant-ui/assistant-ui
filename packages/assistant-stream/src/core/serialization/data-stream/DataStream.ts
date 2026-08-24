@@ -81,6 +81,13 @@ export class DataStreamEncoder
                   value,
                 });
               }
+              if (part.type === "file") {
+                const { type, ...value } = part;
+                controller.enqueue({
+                  type: DataStreamStreamChunkType.File,
+                  value,
+                });
+              }
               if (part.type === "data") {
                 const { type, ...value } = part;
                 controller.enqueue({
@@ -499,12 +506,17 @@ export class DataStreamDecoder extends PipeableTransformStream<
               });
               break;
 
-            case DataStreamStreamChunkType.File:
-              controller.appendFile({
+            case DataStreamStreamChunkType.File: {
+              const { parentId, ...fileData } = value;
+              const ctrl = parentId
+                ? controller.withParentId(parentId)
+                : controller;
+              ctrl.appendFile({
                 type: "file",
-                ...value,
+                ...fileData,
               });
               break;
+            }
 
             case DataStreamStreamChunkType.AuiDataPart:
               controller.appendData({

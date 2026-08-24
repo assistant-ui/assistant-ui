@@ -1,7 +1,7 @@
 "use client";
 
-import { composeEventHandlers } from "@radix-ui/primitive";
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { composeEventHandlers } from "radix-ui/internal";
+import { useComposedRefs } from "radix-ui/internal";
 import { Slot } from "radix-ui";
 import {
   type ClipboardEvent,
@@ -19,7 +19,7 @@ import TextareaAutosize, {
   type TextareaAutosizeProps,
   type TextareaHeightChangeMeta,
 } from "react-textarea-autosize";
-import { useEscapeKeydown } from "@radix-ui/react-use-escape-keydown";
+import { useEscapeKeydown } from "radix-ui/internal";
 import { useOnScrollToBottom } from "../../utils/hooks/useOnScrollToBottom";
 import { useMediaQuery } from "../../utils/hooks/useMediaQuery";
 import { useAui } from "@assistant-ui/store";

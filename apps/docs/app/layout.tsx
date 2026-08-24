@@ -9,6 +9,7 @@ import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";
 import { galleryStagingCss } from "@/components/gallery/gallery-staging";
+import { umamiBootstrapScript } from "@/lib/umami-sampling";
 
 const inter = Inter({
   variable: "--font-inter",
@@ -78,12 +79,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <head>
         <GenerativeUIStyle />
         <style>{galleryStagingCss}</style>
-        <script
-          defer
-          src="/umami/script.js"
-          data-website-id="6f07c001-46a2-411f-9241-4f7f5afb60ee"
-          data-domains="www.assistant-ui.com"
-        ></script>
+        <script dangerouslySetInnerHTML={{ __html: umamiBootstrapScript }} />
         <Script
           id="vector-script"
           dangerouslySetInnerHTML={{

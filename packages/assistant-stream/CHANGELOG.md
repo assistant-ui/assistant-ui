@@ -1,5 +1,11 @@
 # assistant-stream
 
+## 0.3.39
+
+### Patch Changes
+
+- [#6155](https://github.com/assistant-ui/assistant-ui/pull/6155) [`19e52c4`](https://github.com/assistant-ui/assistant-ui/commit/19e52c4012a6a8c32e514134af9ce4eee1146864) - fix: decode AI SDK v6 tool-input/tool-output chunks in UIMessageStreamDecoder ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.38
 
 ### Patch Changes

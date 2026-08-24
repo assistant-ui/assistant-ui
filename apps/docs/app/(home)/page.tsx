@@ -3,13 +3,13 @@
 import { analytics } from "@/lib/analytics";
 import { Button, buttonVariants } from "@/components/ui/button";
 import Link from "next/link";
-import { TESTIMONIALS } from "@/components/home/testimonials/data";
-import { TestimonialContainer } from "@/components/home/testimonials/testimonials";
+import { TESTIMONIALS } from "@/components/pages/home/testimonials/data";
+import { TestimonialContainer } from "@/components/pages/home/testimonials/testimonials";
 import { ArrowRight } from "lucide-react";
-import { FeatureHighlights } from "@/components/home/feature-highlights";
-import { TrustedBy } from "@/components/home/trusted-by";
-import { Hero } from "@/components/home/hero";
-import { ExampleShowcase } from "@/components/home/example-showcase";
+import { FeatureHighlights } from "@/components/pages/home/feature-highlights";
+import { TrustedBy } from "@/components/pages/home/trusted-by";
+import { Hero } from "@/components/pages/home/hero";
+import { ExampleShowcase } from "@/components/pages/home/example-showcase";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeSection } from "@/components/shared/type";
 

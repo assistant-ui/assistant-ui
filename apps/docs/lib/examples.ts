@@ -14,7 +14,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Floating button that opens an AI assistant chat box.",
     link: "/examples/modal",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/docs/samples/assistant-modal.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/docs/samples/assistant-modal.tsx",
   },
   {
     title: "Form Filling Co-Pilot",
@@ -30,7 +30,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a ChatGPT look and feel.",
     link: "/examples/chatgpt",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/chatgpt.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/examples/chatgpt.tsx",
   },
   {
     title: "Claude Clone",
@@ -38,7 +38,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a Claude look and feel.",
     link: "/examples/claude",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/claude.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/examples/claude.tsx",
   },
   {
     title: "Gemini Clone",
@@ -46,7 +46,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a Gemini look and feel.",
     link: "/examples/gemini",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/gemini.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/examples/gemini.tsx",
   },
   {
     title: "Grok Clone",
@@ -54,7 +54,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a Grok look and feel.",
     link: "/examples/grok",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/grok.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/examples/grok.tsx",
   },
   {
     title: "Perplexity Clone",
@@ -62,7 +62,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Customized colors and styles for a Perplexity look and feel.",
     link: "/examples/perplexity",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/perplexity.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/examples/perplexity.tsx",
   },
   {
     title: "AI SDK",
@@ -70,7 +70,7 @@ const INTERNAL_EXAMPLES: ExampleItem[] = [
     description: "Chat persistence with AI SDK.",
     link: "/examples/ai-sdk",
     githubLink:
-      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/examples/base.tsx",
+      "https://github.com/assistant-ui/assistant-ui/blob/main/apps/docs/components/pages/examples/base.tsx",
   },
   {
     title: "Mem0 - ChatGPT with memory",

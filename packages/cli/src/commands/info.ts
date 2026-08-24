@@ -26,6 +26,7 @@ const ASSISTANT_UI_PACKAGES = [
   "@assistant-ui/cloud-ai-sdk",
   // Adapters
   "@assistant-ui/eve",
+  "@assistant-ui/ai-sdk",
   "@assistant-ui/react-ai-sdk",
   "@assistant-ui/react-langgraph",
   "@assistant-ui/react-ag-ui",

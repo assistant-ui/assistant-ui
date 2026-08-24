@@ -6,7 +6,7 @@ import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
 import {
   ExamplePreview,
   hasExamplePreview,
-} from "@/components/examples/example-preview";
+} from "@/components/pages/examples/example-preview";
 import { GitHubIcon } from "@/components/icons/github";
 import { PageFrame } from "@/components/shared/page-frame";
 import { createOgMetadata } from "@/lib/og";

@@ -909,7 +909,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/ai-sdk-backend.json",
       "https://r.assistant-ui.com/thread.json",
     ],
-    dependencies: ["@assistant-ui/react-ai-sdk"],
+    dependencies: ["@assistant-ui/ai-sdk"],
     meta: {
       importSpecifier: "Assistant",
       moduleSpecifier: "@/app/assistant",
@@ -929,7 +929,7 @@ export const registry: RegistryItem[] = [
         target: "app/api/chat/route.ts",
       },
     ],
-    dependencies: ["ai", "@ai-sdk/openai", "@assistant-ui/react-ai-sdk"],
+    dependencies: ["ai", "@ai-sdk/openai", "@assistant-ui/ai-sdk"],
   },
   {
     name: "ai-sdk-backend-resumable",
@@ -962,7 +962,7 @@ export const registry: RegistryItem[] = [
     dependencies: [
       "ai",
       "@ai-sdk/openai",
-      "@assistant-ui/react-ai-sdk",
+      "@assistant-ui/ai-sdk",
       "assistant-stream",
       "next",
     ],
@@ -1120,7 +1120,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/context-display.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react", "@assistant-ui/react-ai-sdk"],
+    dependencies: ["@assistant-ui/react", "@assistant-ui/ai-sdk"],
     registryDependencies: ["tooltip"],
   },
   {

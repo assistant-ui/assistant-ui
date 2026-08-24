@@ -9,7 +9,7 @@ links:
 platforms: ["react"]
 ---
 
-import { PreviewCode } from "@/components/docs/preview-code.server";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import {
   SelectSample,
   SelectDisabledItemsSample,
@@ -19,9 +19,9 @@ import {
   SelectVariantsSample,
   SelectSizesSample,
   SelectScrollableSample,
-} from "@/components/docs/samples/select";
-import * as SelectRadixSamples from "@/components/docs/samples/select.radix";
-import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+} from "@/components/pages/docs/samples/select";
+import * as SelectRadixSamples from "@/components/pages/docs/samples/select.radix";
+import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
 
 <Callout>
   This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
@@ -89,7 +89,7 @@ Use the `size` prop on `SelectTrigger` to change the height.
 
 Long lists automatically become scrollable.
 
-<PreviewCode file="components/docs/samples/select" name="SelectScrollableSample" base={<SelectScrollableSample />}>
+<PreviewCode file="components/pages/docs/samples/select" name="SelectScrollableSample" base={<SelectScrollableSample />}>
   <SelectRadixSamples.SelectScrollableSample />
 </PreviewCode>
 
@@ -97,25 +97,25 @@ Long lists automatically become scrollable.
 
 Use the composable API for grouped options:
 
-<PreviewCode file="components/docs/samples/select" name="SelectGroupsSample" base={<SelectGroupsSample />}>
+<PreviewCode file="components/pages/docs/samples/select" name="SelectGroupsSample" base={<SelectGroupsSample />}>
   <SelectRadixSamples.SelectGroupsSample />
 </PreviewCode>
 
 ### Disabled Items
 
-<PreviewCode file="components/docs/samples/select" name="SelectDisabledItemsSample" base={<SelectDisabledItemsSample />}>
+<PreviewCode file="components/pages/docs/samples/select" name="SelectDisabledItemsSample" base={<SelectDisabledItemsSample />}>
   <SelectRadixSamples.SelectDisabledItemsSample />
 </PreviewCode>
 
 ### With Placeholder
 
-<PreviewCode file="components/docs/samples/select" name="SelectPlaceholderSample" base={<SelectPlaceholderSample />}>
+<PreviewCode file="components/pages/docs/samples/select" name="SelectPlaceholderSample" base={<SelectPlaceholderSample />}>
   <SelectRadixSamples.SelectPlaceholderSample />
 </PreviewCode>
 
 ### Disabled Select
 
-<PreviewCode file="components/docs/samples/select" name="SelectDisabledSample" base={<SelectDisabledSample />}>
+<PreviewCode file="components/pages/docs/samples/select" name="SelectDisabledSample" base={<SelectDisabledSample />}>
   <SelectRadixSamples.SelectDisabledSample />
 </PreviewCode>
 

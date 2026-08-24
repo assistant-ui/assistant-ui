@@ -1,7 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { normalizeBundledDeclaration } from "./generate-api-surface.mjs";
+import {
+  normalizeBundledDeclaration,
+  selectStaleSurfaceFiles,
+} from "./generate-api-surface.mjs";
 
 const attachmentUnion = (first, second) =>
   `type X = (${first}) | (${second});\n`;
@@ -211,4 +214,56 @@ test("protected members stay in the surface", () => {
   assert.match(output, /protected render\(\): void/);
   assert.match(output, /#private;/);
   assert.equal(output.includes("hide"), false);
+});
+
+test("stale surface selection flags files for no current package under any filter", () => {
+  const files = [
+    "api-surface/a.ts",
+    "api-surface/gone.ts",
+    "api-surface/readme.md",
+  ];
+  const generatedFiles = new Set(["api-surface/a.ts"]);
+  const knownFiles = new Set(["api-surface/a.ts", "api-surface/b.ts"]);
+
+  assert.deepEqual(
+    selectStaleSurfaceFiles({
+      files,
+      generatedFiles,
+      knownFiles,
+      filtered: true,
+    }),
+    ["api-surface/gone.ts"],
+  );
+});
+
+test("a filtered run leaves files for unselected-but-existing packages alone", () => {
+  const files = ["api-surface/a.ts", "api-surface/b.ts"];
+  const generatedFiles = new Set(["api-surface/a.ts"]);
+  const knownFiles = new Set(["api-surface/a.ts", "api-surface/b.ts"]);
+
+  assert.deepEqual(
+    selectStaleSurfaceFiles({
+      files,
+      generatedFiles,
+      knownFiles,
+      filtered: true,
+    }),
+    [],
+  );
+});
+
+test("an unfiltered run treats not-regenerated files as stale", () => {
+  const files = ["api-surface/a.ts", "api-surface/b.ts", "api-surface/gone.ts"];
+  const generatedFiles = new Set(["api-surface/a.ts"]);
+  const knownFiles = new Set(["api-surface/a.ts", "api-surface/b.ts"]);
+
+  assert.deepEqual(
+    selectStaleSurfaceFiles({
+      files,
+      generatedFiles,
+      knownFiles,
+      filtered: false,
+    }),
+    ["api-surface/b.ts", "api-surface/gone.ts"],
+  );
 });

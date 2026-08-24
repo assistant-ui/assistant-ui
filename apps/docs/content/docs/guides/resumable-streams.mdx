@@ -84,7 +84,7 @@ The context exposes two more verbs: `ctx.status(streamId)` returns `"streaming" 
 
 ## Client side: native integration
 
-`@assistant-ui/react-ai-sdk` ships a `resumable` option on `AssistantChatTransport`. It captures the stream id from the response header, redirects `chat.resumeStream()` reconnects to your resume route, and clears the stored id when the response finishes naturally. Pair it with `useChatRuntime`, which fires `chat.resumeStream()` whenever its resumable storage reports a pending id, including ids discovered after mount.
+`@assistant-ui/ai-sdk` ships a `resumable` option on `AssistantChatTransport`. It captures the stream id from the response header, redirects `chat.resumeStream()` reconnects to your resume route, and clears the stored id when the response finishes naturally. Pair it with `useChatRuntime`, which fires `chat.resumeStream()` whenever its resumable storage reports a pending id, including ids discovered after mount.
 
 ```tsx title="/app/page.tsx"
 "use client";
@@ -94,7 +94,7 @@ import {
   AssistantChatTransport,
   createResumableSessionStorage,
   useChatRuntime,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 import { useMemo } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 
@@ -153,7 +153,7 @@ import {
   AssistantChatTransport,
   createResumableSessionStorage,
   useChatRuntime,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 import { useMemo } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
