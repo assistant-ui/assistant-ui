@@ -8,7 +8,9 @@ import { ComponentType, ReactNode } from "react";
 
 declare const AISDKChat: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKChatOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
 
-type AISDKChatOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatThreadOptions<UI_MESSAGE>;
+type AISDKChatOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "transport"> & {
+  transport?: ChatTransport<UI_MESSAGE> | undefined;
+};
 
 type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ExternalStoreSharedOptions & {
   adapters?: (NonNullable<ExternalStoreAdapter["adapters"]> & {
@@ -2130,7 +2132,8 @@ type Unstable_InteractableSnapshotEntry = {
 
 type Unsubscribe = () => void;
 
-type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatThreadOptions<UI_MESSAGE> & {
+type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = Omit<ChatThreadOptions<UI_MESSAGE>, "transport"> & {
+  transport?: ChatTransport<UI_MESSAGE> | undefined;
   cloud?: AssistantCloud | undefined;
   onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
 };

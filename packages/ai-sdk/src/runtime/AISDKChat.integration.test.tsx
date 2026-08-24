@@ -1,15 +1,68 @@
 // @vitest-environment jsdom
 
-import { useEffect } from "react";
+import { useEffect, useLayoutEffect } from "react";
 import { render, waitFor } from "@testing-library/react";
 import { StrictMode } from "react";
 import { AuiConfig, AuiProvider, useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
-import { describe, expect, it } from "vitest";
+import type { ChatTransport, UIMessage } from "ai";
+import { describe, expect, it, vi } from "vitest";
 import { AISDKChat } from "./AISDKChat";
 import { createCancellableTransport } from "./__tests__/controlled-transport";
 
 describe("AISDKChat React integration", () => {
+  it("routes sends through a replacement transport", async () => {
+    const emptyStream = () =>
+      new ReadableStream({ start: (controller) => controller.close() });
+    const sendA = vi.fn(async () => emptyStream());
+    const sendB = vi.fn(async () => emptyStream());
+    const transportA: ChatTransport<UIMessage> = {
+      sendMessages: sendA,
+      reconnectToStream: vi.fn(),
+    };
+    const transportB: ChatTransport<UIMessage> = {
+      sendMessages: sendB,
+      reconnectToStream: vi.fn(),
+    };
+    let initialClient: ReturnType<typeof useAui> | undefined;
+    let currentClient: ReturnType<typeof useAui> | undefined;
+    const CaptureClient = () => {
+      const aui = useAui();
+      initialClient ??= aui;
+      currentClient = aui;
+      return null;
+    };
+    const SendOnLayout = () => {
+      const aui = useAui();
+      useLayoutEffect(() => {
+        flushTapSync(() => {
+          aui.composer.setText("hello");
+          aui.composer.send();
+        });
+      }, [aui]);
+      return null;
+    };
+    const App = ({
+      transport,
+      send = false,
+    }: {
+      transport: ChatTransport<UIMessage>;
+      send?: boolean;
+    }) => (
+      <AuiProvider config={AuiConfig({ threads: AISDKChat({ transport }) })}>
+        <CaptureClient />
+        {send && <SendOnLayout />}
+      </AuiProvider>
+    );
+
+    const view = render(<App transport={transportA} />);
+    view.rerender(<App transport={transportB} send />);
+
+    await waitFor(() => expect(sendB).toHaveBeenCalledOnce());
+    expect(sendA).not.toHaveBeenCalled();
+    expect(currentClient).toBe(initialClient);
+  });
+
   it("does not treat React provider unmount as client destruction", async () => {
     const { transport, getCancelCount, close } = createCancellableTransport();
     let started = false;

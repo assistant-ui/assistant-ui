@@ -11,23 +11,25 @@ import {
   type AISDKRuntimeAdapter,
   type CustomToCreateMessageFunction,
 } from "./useAISDKRuntime";
-import type { ChatInit, ChatTransport } from "ai";
+import type { ChatInit } from "ai";
 import {
   AssistantChatTransport,
   type InitializableThreadListItem,
 } from "../transport/AssistantChatTransport";
-import type {
-  AssistantChatResumableOptions,
-  ResumableClientStorage,
-} from "../transport/resumable";
+import type { ResumableClientStorage } from "../transport/resumable";
 import {
   useCallback,
   useEffect,
+  useEffectEvent,
+  useInsertionEffect,
   useMemo,
   useRef,
   useSyncExternalStore,
 } from "react";
 import { useResourceCleanup } from "./useResourceCleanup";
+import { DynamicChatTransport } from "./DynamicChatTransport";
+import { getResumableAdapter } from "./getResumableAdapter";
+import { useDynamicChatTransport } from "./useDynamicChatTransport";
 
 export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
@@ -62,39 +64,9 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   chat?: Chat<UI_MESSAGE> | undefined;
 };
 
-const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
-  transport: ChatTransport<UI_MESSAGE>,
-): ChatTransport<UI_MESSAGE> => {
-  const transportRef = useRef<ChatTransport<UI_MESSAGE>>(transport);
-  useEffect(() => {
-    transportRef.current = transport;
-  });
-  const dynamicTransport = useMemo(
-    () =>
-      new Proxy(transportRef.current, {
-        get(_, prop) {
-          const res =
-            transportRef.current[prop as keyof ChatTransport<UI_MESSAGE>];
-          return typeof res === "function"
-            ? res.bind(transportRef.current)
-            : res;
-        },
-      }),
-    [],
-  );
-  return dynamicTransport;
-};
-
-const getResumableAdapter = <UI_MESSAGE extends UIMessage>(
-  transport: ChatTransport<UI_MESSAGE>,
-): AssistantChatResumableOptions | undefined => {
-  if (transport instanceof AssistantChatTransport) {
-    return transport.getResumableAdapter();
-  }
-  const candidate = (transport as { getResumableAdapter?: () => unknown })
-    .getResumableAdapter;
-  if (typeof candidate !== "function") return undefined;
-  return candidate.call(transport) as AssistantChatResumableOptions | undefined;
+type ChatThreadTransportBinding = {
+  runtime: AssistantRuntime;
+  getThreadListItem: () => InitializableThreadListItem | undefined;
 };
 
 const getNoPendingStreamId = () => null;
@@ -186,13 +158,63 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   } = env;
 
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
-  const sourceTransport = transportOptions ?? defaultTransport;
-  const transport = useDynamicChatTransport(sourceTransport);
+  const configuredTransport = transportOptions ?? defaultTransport;
+  const transport = useDynamicChatTransport(
+    configuredTransport,
+    externalChat === undefined,
+  );
+  const transportContextOwner = useMemo(() => ({}), []);
+  const getThreadListItemRef = useRef(getThreadListItem);
+  useInsertionEffect(() => {
+    getThreadListItemRef.current = getThreadListItem;
+  }, [getThreadListItem]);
+  const getCurrentThreadListItem = useCallback(
+    () => getThreadListItemRef.current(),
+    [],
+  );
+  const subscribeToTransport = useCallback(
+    (callback: () => void) =>
+      transport instanceof DynamicChatTransport
+        ? transport.subscribe(callback)
+        : () => {},
+    [transport],
+  );
+  const getSourceTransport = useCallback(
+    () =>
+      transport instanceof DynamicChatTransport
+        ? transport.getCurrentSourceTransport()
+        : transport,
+    [transport],
+  );
+  const sourceTransport = useSyncExternalStore(
+    subscribeToTransport,
+    getSourceTransport,
+    getSourceTransport,
+  );
+
+  const transportBindingRef = useRef<ChatThreadTransportBinding | null>(null);
+  // This is null when useMemo runs, so the proxy pins its mount render's binding. The fallback
+  // serves only pre-commit sends; after insertion effects, transportBindingRef is authoritative.
+  let initialTransportBinding: ChatThreadTransportBinding | null = null;
+  const chatTransport = useMemo(
+    () =>
+      transport instanceof DynamicChatTransport
+        ? transport.createThreadProxy(transportContextOwner, () => {
+            const binding =
+              transportBindingRef.current ?? initialTransportBinding;
+            if (!binding) {
+              throw new Error("Chat transport used before runtime setup");
+            }
+            return binding;
+          })
+        : transport,
+    [initialTransportBinding, transport, transportContextOwner],
+  );
 
   const chat = useChat({
     ...chatOptions,
     id,
-    transport,
+    transport: chatTransport,
     ...(throttle !== undefined && { throttle }),
     ...(externalChat !== undefined && { chat: externalChat }),
   });
@@ -211,10 +233,42 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepository && { messageRepository }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
+  initialTransportBinding = {
+    runtime,
+    getThreadListItem: getCurrentThreadListItem,
+  };
+  useInsertionEffect(() => {
+    transportBindingRef.current = {
+      runtime,
+      getThreadListItem: getCurrentThreadListItem,
+    };
+  }, [runtime, getCurrentThreadListItem]);
 
-  if (sourceTransport instanceof AssistantChatTransport) {
-    sourceTransport.setRuntime(runtime);
-    sourceTransport.__internal_setGetThreadListItem(getThreadListItem);
+  const registerTransportContext = useEffectEvent(
+    (dynamicTransport: DynamicChatTransport<UI_MESSAGE>, chatId: string) => {
+      dynamicTransport.setThreadContext(
+        chatId,
+        transportContextOwner,
+        runtime,
+        getCurrentThreadListItem,
+      );
+      return () =>
+        dynamicTransport.unregisterThread(chatId, transportContextOwner);
+    },
+  );
+  useInsertionEffect(() => {
+    if (!(transport instanceof DynamicChatTransport)) return undefined;
+    return registerTransportContext(transport, id);
+  }, [id, runtime, transport, transportContextOwner]);
+
+  if (
+    !(transport instanceof DynamicChatTransport) &&
+    configuredTransport instanceof AssistantChatTransport
+  ) {
+    configuredTransport.setRuntime(runtime);
+    configuredTransport.__internal_setGetThreadListItem(
+      getCurrentThreadListItem,
+    );
   }
 
   const subscribeToRuntime = useCallback(
@@ -235,6 +289,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     () => getResumableAdapter(sourceTransport)?.storage,
     [sourceTransport],
   );
+
   const subscribeToResumableStorage = useCallback(
     (callback: () => void) =>
       isMainThread

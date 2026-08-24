@@ -8,10 +8,20 @@ import {
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
+import type { ChatTransport } from "ai";
+import { useMemo } from "react";
+import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import { useChatThread, type ChatThreadOptions } from "./useChatThread";
+import { useDynamicChatTransport } from "./useDynamicChatTransport";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
-  ChatThreadOptions<UI_MESSAGE> & {
+  Omit<ChatThreadOptions<UI_MESSAGE>, "transport"> & {
+    /**
+     * The transport threads send through. `AssistantChatTransport` instances
+     * are cloned per thread through `__internal_clone()` so their assistant-ui
+     * wiring remains isolated. Other transport instances are shared as-is.
+     */
+    transport?: ChatTransport<UI_MESSAGE> | undefined;
     cloud?: AssistantCloud | undefined;
     onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   };
@@ -38,9 +48,11 @@ export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   ...options
 }: UseChatRuntimeOptions<UI_MESSAGE> = {}): AssistantRuntime => {
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
+  const fallback = useMemo(() => new AssistantChatTransport<UI_MESSAGE>(), []);
+  const transport = useDynamicChatTransport(options.transport ?? fallback);
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      return useChatThreadRuntime(options);
+      return useChatThreadRuntime({ ...options, transport });
     },
     adapter: cloudAdapter,
     allowNesting: true,
