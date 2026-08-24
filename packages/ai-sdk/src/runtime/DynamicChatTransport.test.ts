@@ -1,6 +1,6 @@
 import type { AssistantRuntime } from "@assistant-ui/core";
 import type { UIMessage } from "@ai-sdk/react";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import { DynamicChatTransport } from "./DynamicChatTransport";
 
@@ -34,6 +34,10 @@ const createRuntime = (system: string) =>
   }) as AssistantRuntime;
 
 describe("DynamicChatTransport", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("rejects sends without a registered thread context", () => {
     const dynamicTransport = new DynamicChatTransport(
       new AssistantChatTransport<UIMessage>(),
