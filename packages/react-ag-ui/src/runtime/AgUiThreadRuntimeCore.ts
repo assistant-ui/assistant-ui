@@ -175,6 +175,7 @@ export class AgUiThreadRuntimeCore {
   private readonly historyWrites = new Map<string, Promise<void>>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
+  private _loadRequested = false;
   private pendingResumeMessageId: string | null = null;
   private pendingA2uiResume = false;
   private pendingA2uiAction: Record<string, unknown> | undefined;
@@ -198,8 +199,19 @@ export class AgUiThreadRuntimeCore {
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
+    const previousHistory = this.history;
     this.history = options.history;
     this.installResumeShim();
+
+    if (
+      this._loadRequested &&
+      !this._loadPromise &&
+      !previousHistory &&
+      options.history &&
+      this.repository.getMessages().length === 0
+    ) {
+      void this.__internal_load();
+    }
   }
 
   attachRuntime(runtime: AssistantRuntime) {
@@ -320,9 +332,11 @@ export class AgUiThreadRuntimeCore {
   }
 
   __internal_load(): Promise<void> {
+    this._loadRequested = true;
     if (this._loadPromise) return this._loadPromise;
+    if (!this.history) return Promise.resolve();
 
-    const promise = this.history?.load() ?? Promise.resolve(null);
+    const promise = this.history.load();
 
     this._isLoading = true;
 
