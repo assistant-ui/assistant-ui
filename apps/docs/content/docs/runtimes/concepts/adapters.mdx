@@ -21,7 +21,7 @@ const runtime = useChatRuntime({ adapters: { attachments, history } });
 
 ## Support matrix
 
-| Adapter | LocalRuntime | ExternalStoreRuntime | DataStream | AssistantTransport | react-ai-sdk | react-langgraph | react-langchain | react-google-adk | react-a2a | react-ag-ui | react-opencode |
+| Adapter | LocalRuntime | ExternalStoreRuntime | DataStream | AssistantTransport | ai-sdk | react-langgraph | react-langchain | react-google-adk | react-a2a | react-ag-ui | react-opencode |
 | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
 | Attachments | Yes | Yes | Yes | Yes | Yes | (via thread state) | (via thread state) | Yes | Yes | Yes | (no) |
 | Speech | Yes | Yes | Yes | (no) | Yes | Yes | Yes | Yes | Yes | Yes | (no) |
@@ -173,7 +173,7 @@ const feedbackAdapter: FeedbackAdapter = {
 
 ## History adapter
 
-Per-thread message persistence. Used by `LocalRuntime` and adapters built on it (`react-ai-sdk`, `react-google-adk`, `react-a2a`, `useDataStreamRuntime`).
+Per-thread message persistence. Used by `LocalRuntime` and adapters built on it (`ai-sdk`, `react-google-adk`, `react-a2a`, `useDataStreamRuntime`).
 
 `ExternalStoreRuntime` does not use a history adapter directly, since you already own the message array. Persist via your store instead. `react-langgraph` and `react-langchain` source persistence from server-side thread state, exposed through their `load` callbacks.
 
@@ -196,7 +196,7 @@ type ThreadHistoryAdapter = {
 `load` runs when a thread opens. `append` runs after each message completes.
 
 <Callout type="info">
-`react-ai-sdk` requires `withFormat` so messages round-trip as AI SDK `UIMessage` objects. An adapter without `withFormat` throws at runtime in the AI SDK path. See the [AI SDK history docs](/docs/runtimes/ai-sdk/v7) for the full pattern.
+`ai-sdk` requires `withFormat` so messages round-trip as AI SDK `UIMessage` objects. An adapter without `withFormat` throws at runtime in the AI SDK path. See the [AI SDK history docs](/docs/runtimes/ai-sdk/v7) for the full pattern.
 </Callout>
 
 ## Suggestion adapter

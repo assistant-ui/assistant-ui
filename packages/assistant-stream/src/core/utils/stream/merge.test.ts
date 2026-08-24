@@ -65,3 +65,18 @@ describe("createMergeStream", () => {
     await vi.waitFor(() => expect(cancelSource).toHaveBeenCalledOnce());
   });
 });
+
+describe("createMergeStream seal", () => {
+  it("is idempotent once the underlying stream has closed", async () => {
+    const merger = createMergeStream();
+    merger.seal();
+
+    const reader = merger.readable.getReader();
+    while (!(await reader.read()).done) {
+      // drain
+    }
+
+    expect(() => merger.seal()).not.toThrow();
+    expect(merger.isSealed()).toBe(true);
+  });
+});

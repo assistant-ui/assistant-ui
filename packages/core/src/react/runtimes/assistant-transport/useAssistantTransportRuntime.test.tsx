@@ -4,6 +4,7 @@ import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { useAui } from "@assistant-ui/store";
+import { ToolResponse } from "assistant-stream";
 import { AssistantRuntimeProvider } from "../../AssistantRuntimeProvider";
 import {
   useAssistantTransportRuntime,
@@ -145,6 +146,63 @@ afterEach(() => {
 });
 
 describe("useAssistantTransportRuntime", () => {
+  it.each([false, 0, "", null])(
+    "preserves the falsy tool artifact %j",
+    async (artifact) => {
+      const fetchMock = installFetch();
+      const { aui } = mountRuntime({
+        converter: (_state, meta) => ({
+          messages: [
+            {
+              id: "a1",
+              role: "assistant",
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tc1",
+                  toolName: "probe",
+                  args: {},
+                  argsText: "{}",
+                },
+              ],
+              createdAt: new Date(0),
+              status: { type: "requires-action", reason: "tool-calls" },
+              metadata: { custom: {} },
+            },
+          ],
+          isRunning: meta.isSending,
+        }),
+      });
+
+      await waitFor(() =>
+        expect(
+          aui()
+            .thread.message({ id: "a1" })
+            .part({ toolCallId: "tc1" })
+            .getState().type,
+        ).toBe("tool-call"),
+      );
+
+      act(() => {
+        aui()
+          .thread.message({ id: "a1" })
+          .part({ toolCallId: "tc1" })
+          .addToolResult(new ToolResponse({ result: "ok", artifact }));
+      });
+
+      await waitFor(() => expect(fetchMock.requests).toHaveLength(1));
+      expect(fetchMock.requests[0]!.body["commands"][0]).toHaveProperty(
+        "artifact",
+        artifact,
+      );
+
+      act(() => fetchMock.servers[0]!.close());
+      await waitFor(() =>
+        expect(aui().thread.getState().isRunning).toBe(false),
+      );
+    },
+  );
+
   it.each(["throws", "rejects"] as const)(
     "cancels the response body when onResponse %s",
     async (failureMode) => {

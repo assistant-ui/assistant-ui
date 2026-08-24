@@ -205,13 +205,13 @@ type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
   total_steps?: number;
-  tool_calls?: ReportToolCall[];
+  tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
     input_tokens?: number;
     output_tokens?: number;
     reasoning_tokens?: number;
     cached_input_tokens?: number;
-    tool_calls?: ReportToolCall[];
+    tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
   }[];
@@ -224,6 +224,17 @@ type AssistantCloudRunReport = {
   duration_ms?: number;
   output_text?: string;
   metadata?: Record<string, unknown>;
+};
+
+type AssistantCloudRunReportToolCall = {
+  tool_name: string;
+  tool_call_id: string;
+  tool_args?: string;
+  tool_result?: string;
+  tool_source?: "backend" | "frontend" | "mcp";
+  start_ms?: number;
+  end_ms?: number;
+  sampling_calls?: SamplingCallData[];
 };
 
 declare class AssistantCloudRuns {
@@ -1640,6 +1651,8 @@ type ErrorDisplay = "dev-only" | "inline" | "silent" | "toast";
 
 type ErrorSeverity = "critical" | "info" | "warning";
 
+type EventListener<T> = (payload: T) => unknown;
+
 type EventSource<T extends AssistantEventName> = T extends `${infer Source}.${string}` ? Source : never;
 
 type EventSubscribable<TEvent extends string> = {
@@ -1938,13 +1951,16 @@ type FrameMessage = {
   toolName: string;
   args: unknown;
 } | {
+  type: "tool-cancel";
+  id: string;
+} | {
   type: "tool-result";
   id: string;
   result?: unknown;
   error?: string;
 };
 
-type FrameMessageType = "model-context-request" | "model-context-update" | "tool-call" | "tool-result";
+type FrameMessageType = "model-context-request" | "model-context-update" | "tool-call" | "tool-cancel" | "tool-result";
 
 type FrontendTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
   type: "frontend";
@@ -2081,6 +2097,70 @@ type InMemoryThreadListProps = {
   onSwitchToNewThread?: () => void;
   onDelete?: (threadId: string) => void;
 };
+
+declare abstract class InertThreadRuntimeCore extends BaseSubscribable implements ThreadRuntimeCore {
+  protected abstract get error(): Error;
+  abstract readonly messages: readonly ThreadMessage[];
+  abstract readonly isLoading: boolean;
+  abstract readonly composer: ThreadRuntimeCore["composer"];
+  abstract getMessageById(messageId: string): {
+    parentId: string | null;
+    message: ThreadMessage;
+    index: number;
+  } | undefined;
+  abstract getBranches(messageId: string): readonly string[];
+  abstract export(): ExportedMessageRepository;
+  switchToBranch(): void;
+  append(): void;
+  deleteMessage(): void;
+  startRun(): void;
+  resumeRun(): void;
+  cancelRun(): void;
+  unstable_notifySessionReset(): void;
+  addToolResult(): void;
+  resumeToolCall(): void;
+  respondToToolApproval(): void;
+  speak(): void;
+  stopSpeaking(): void;
+  connectVoice(): void;
+  disconnectVoice(): void;
+  muteVoice(): void;
+  unmuteVoice(): void;
+  submitFeedback(): void;
+  exportExternalState(): void;
+  importExternalState(): void;
+  beginEdit(): void;
+  import(): void;
+  reset(): void;
+  getModelContext(): {};
+  getEditComposer(): undefined;
+  getVoiceVolume: () => number;
+  subscribeVoiceVolume: () => Unsubscribe$1;
+  speech: undefined;
+  voice: undefined;
+  capabilities: {
+    readonly switchToBranch: false;
+    readonly switchBranchDuringRun: false;
+    readonly edit: false;
+    readonly delete: false;
+    readonly reload: false;
+    readonly refetchThread: false;
+    readonly cancel: false;
+    readonly unstable_copy: false;
+    readonly speech: false;
+    readonly dictation: false;
+    readonly voice: false;
+    readonly attachments: false;
+    readonly feedback: false;
+    readonly queue: false;
+  };
+  isDisabled: boolean;
+  isSendDisabled: boolean;
+  state: null;
+  suggestions: never[];
+  extras: undefined;
+  unstable_on(): Unsubscribe$1;
+}
 
 type InteractableDefinition = {
   id: string;
@@ -3271,8 +3351,9 @@ declare namespace ReadonlyThreadProvider {
 
 declare const ReadonlyThreadProvider: FC<ReadonlyThreadProvider.Props>;
 
-declare class ReadonlyThreadRuntimeCore extends BaseSubscribable implements ThreadRuntimeCore {
+declare class ReadonlyThreadRuntimeCore extends InertThreadRuntimeCore {
   #private;
+  protected get error(): Error;
   get messages(): readonly ThreadMessage[];
   setMessages(messages: readonly ThreadMessage[]): void;
   getMessageById(messageId: string): {
@@ -3281,28 +3362,12 @@ declare class ReadonlyThreadRuntimeCore extends BaseSubscribable implements Thre
     index: number;
   } | undefined;
   getBranches(messageId: string): string[];
-  switchToBranch(): void;
-  append(): void;
-  deleteMessage(): void;
-  startRun(): void;
-  resumeRun(): void;
-  cancelRun(): void;
-  addToolResult(): void;
-  resumeToolCall(): void;
-  respondToToolApproval(): void;
-  speak(): void;
-  stopSpeaking(): void;
-  connectVoice(): void;
-  disconnectVoice(): void;
-  getVoiceVolume: () => number;
-  subscribeVoiceVolume: () => Unsubscribe$1;
-  muteVoice(): void;
-  unmuteVoice(): void;
-  submitFeedback(): void;
-  getModelContext(): {};
-  exportExternalState(): void;
-  importExternalState(): void;
-  unstable_notifySessionReset(): void;
+  export(): {
+    messages: {
+      message: ThreadMessage;
+      parentId: string | null;
+    }[];
+  };
   composer: {
     attachments: never[];
     attachmentAccept: string;
@@ -3333,41 +3398,10 @@ declare class ReadonlyThreadRuntimeCore extends BaseSubscribable implements Thre
     subscribe(): () => void;
     unstable_on(): () => void;
   };
-  getEditComposer(): undefined;
-  beginEdit(): void;
-  speech: undefined;
-  voice: undefined;
-  capabilities: {
-    readonly switchToBranch: false;
-    readonly switchBranchDuringRun: false;
-    readonly edit: false;
-    readonly delete: false;
-    readonly reload: false;
-    readonly refetchThread: false;
-    readonly cancel: false;
-    readonly unstable_copy: false;
-    readonly speech: false;
-    readonly dictation: false;
-    readonly voice: false;
-    readonly attachments: false;
-    readonly feedback: false;
-    readonly queue: false;
-  };
-  isDisabled: boolean;
-  isSendDisabled: boolean;
   isLoading: boolean;
-  state: null;
-  suggestions: never[];
-  extras: undefined;
-  import(): void;
-  export(): {
-    messages: {
-      message: ThreadMessage;
-      parentId: string | null;
-    }[];
-  };
-  reset(): void;
-  unstable_on(): Unsubscribe$1;
+  cancelRun(): void;
+  stopSpeaking(): void;
+  disconnectVoice(): void;
 }
 
 declare namespace RealtimeVoiceAdapter {
@@ -3645,6 +3679,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }> | undefined;
   __internal_isThreadRunning(threadId: string): boolean;
   __internal_subscribeRunningChanged(callback: () => void): Unsubscribe$1;
+  __internal_subscribeRuntimeReplaced(callback: () => void): Unsubscribe$1;
   stopThreadRuntime(threadId: string): void;
   setRuntimeHook(newRuntimeHook: RemoteThreadListHook): void;
   __internal_setDefaultAdapters(adapters: RuntimeAdapters | null): void;
@@ -3857,17 +3892,6 @@ type RemoteThreadState = {
   readonly archivedThreadIds: readonly string[];
   readonly threadIdMap: Readonly<Record<string, THREAD_MAPPING_ID>>;
   readonly threadData: Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
-};
-
-type ReportToolCall = {
-  tool_name: string;
-  tool_call_id: string;
-  tool_args?: string;
-  tool_result?: string;
-  tool_source?: "backend" | "frontend" | "mcp";
-  start_ms?: number;
-  end_ms?: number;
-  sampling_calls?: SamplingCallData[];
 };
 
 type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<keyof T, Keys>> & {
@@ -4742,6 +4766,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
@@ -5321,7 +5346,7 @@ type ToolCallMessagePartProps<TArgs = any, TResult = unknown> = MessagePartState
 
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
-  readonly reason: "interrupt";
+  readonly reason: "interrupt" | "tool-calls";
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
@@ -5945,7 +5970,7 @@ declare namespace entry_store_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolInvocationTracker, consumeSuggestionResult, createThreadMappingId, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isParsableUrl, isRecord, parseDataUrl, resolveFileMediaType, resolveImageMediaType, resolveToolApprovalResponse, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer };
+  export { AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolInvocationTracker, consumeSuggestionResult, createThreadMappingId, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isParsableUrl, isRecord, notifyEventListeners, parseDataUrl, resolveFileMediaType, resolveImageMediaType, resolveToolApprovalResponse, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer };
 }
 
 declare namespace entry_store_internal_exports {
@@ -5979,6 +6004,8 @@ declare const makeAssistantTool: <TArgs extends Record<string, unknown>, TResult
 declare const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<TArgs, TResult>) => AssistantToolUI;
 
 declare const mergeModelContexts: (configSet: Set<ModelContextProvider>) => ModelContext$1;
+
+declare const notifyEventListeners: <T>(listeners: Iterable<EventListener<T>>, payloadOrFactory: T | (() => T), errorContext: string) => void;
 
 declare function parseDataUrl(value: string): {
   mimeType: string;

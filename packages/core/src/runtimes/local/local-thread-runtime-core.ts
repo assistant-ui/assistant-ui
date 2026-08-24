@@ -501,9 +501,11 @@ export class LocalThreadRuntimeCore
           message,
           runConfig,
           alreadyPersisted,
+          run,
           runCallback,
         );
         runCallback = undefined;
+        if (this._activeRun !== run) break;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});
@@ -548,6 +550,7 @@ export class LocalThreadRuntimeCore
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
     alreadyPersisted: boolean,
+    run: { cancelled: boolean },
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
@@ -562,7 +565,23 @@ export class LocalThreadRuntimeCore
     const initialData = message.metadata?.unstable_data;
     const initialSteps = message.metadata?.steps;
     const initialCustom = message.metadata?.custom;
+    let hasStoredMessage = true;
+    try {
+      this.repository.getMessage(message.id);
+    } catch {
+      hasStoredMessage = false;
+    }
+    // Other writers replace the stored message object, so identity distinguishes this run from a newer owner.
+    const ownsMessage = () => {
+      if (!hasStoredMessage) return this._activeRun === run;
+      try {
+        return this.repository.getMessage(message.id).message === message;
+      } catch {
+        return false;
+      }
+    };
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
+      if (!ownsMessage()) return;
       const newSteps = m.metadata?.steps;
       const steps = newSteps
         ? [...(initialSteps ?? []), ...newSteps]
@@ -609,6 +628,7 @@ export class LocalThreadRuntimeCore
           : undefined),
       };
       this.repository.addOrUpdateMessage(parentId, message);
+      hasStoredMessage = true;
       this._notifySubscribers();
     };
 
@@ -647,6 +667,12 @@ export class LocalThreadRuntimeCore
         this.adapters.chatModel.run.bind(this.adapters.chatModel);
 
       const abortSignal = abortController.signal;
+      const shouldCancelMessage = () =>
+        abortSignal.aborted &&
+        (message.status.type === "running" ||
+          (message.status.type === "requires-action" &&
+            (this._activeRun !== run ||
+              shouldContinue(message, this._options.unstable_humanToolNames))));
       const threadId = this._getThreadId?.();
       const promiseOrGenerator = runCallback({
         messages,
@@ -665,9 +691,11 @@ export class LocalThreadRuntimeCore
       if (Symbol.asyncIterator in promiseOrGenerator) {
         for await (const r of promiseOrGenerator) {
           if (abortSignal.aborted) {
-            updateMessage({
-              status: { type: "incomplete", reason: "cancelled" },
-            });
+            if (shouldCancelMessage()) {
+              updateMessage({
+                status: { type: "incomplete", reason: "cancelled" },
+              });
+            }
             break;
           }
 
@@ -677,11 +705,13 @@ export class LocalThreadRuntimeCore
         updateMessage(await promiseOrGenerator);
       }
 
-      if (message.status.type === "running") {
+      if (shouldCancelMessage()) {
         updateMessage({
-          status: abortSignal.aborted
-            ? { type: "incomplete", reason: "cancelled" }
-            : { type: "complete", reason: "unknown" },
+          status: { type: "incomplete", reason: "cancelled" },
+        });
+      } else if (message.status.type === "running") {
+        updateMessage({
+          status: { type: "complete", reason: "unknown" },
         });
       }
     } catch (e) {
@@ -724,7 +754,7 @@ export class LocalThreadRuntimeCore
 
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
-      if (isTerminal || (isPausing && history?.update)) {
+      if (ownsMessage() && (isTerminal || (isPausing && history?.update))) {
         const write =
           alreadyPersisted && history?.update
             ? history.update.bind(history)

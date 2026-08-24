@@ -18,7 +18,7 @@
     "eventsource-parser": "^4.0.0",
     "isbot": "^5.2.1",
     "lucide-react": "^1.31.0",
-    "openai": "^7.4.0",
+    "openai": "^7.5.0",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-router": "^8.3.0",

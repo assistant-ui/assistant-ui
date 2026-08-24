@@ -8,12 +8,15 @@ import {
   type inferParserType,
 } from "nuqs";
 import { useCallback, useMemo } from "react";
-import { type BuilderConfig, DEFAULT_CONFIG } from "@/components/builder/types";
+import {
+  type BuilderConfig,
+  DEFAULT_CONFIG,
+} from "@/components/pages/playground/types";
 import {
   PRESETS,
   getPresetById,
   configMatchesPreset,
-} from "@/components/builder/presets";
+} from "@/components/pages/playground/presets";
 
 // Preset IDs from presets.ts
 const PRESET_IDS = PRESETS.map((p) => p.id);

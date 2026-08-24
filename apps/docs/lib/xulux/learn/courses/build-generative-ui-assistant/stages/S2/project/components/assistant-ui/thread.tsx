@@ -37,7 +37,7 @@ export function Thread() {
       </header>
 
       <ThreadPrimitive.Viewport className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <ThreadPrimitive.Empty>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
           <div className="flex flex-1 items-center justify-center p-6 text-center">
             <div className="w-full max-w-2xl">
               <h1 className="text-2xl font-semibold">
@@ -62,7 +62,7 @@ export function Thread() {
               </div>
             </div>
           </div>
-        </ThreadPrimitive.Empty>
+        </AuiIf>
 
         <ThreadPrimitive.Messages
           components={{ UserMessage, AssistantMessage }}

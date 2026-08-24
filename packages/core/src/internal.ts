@@ -33,6 +33,7 @@ export {
 // Message utilities
 export { getThreadMessageText } from "./utils/text";
 export { toMessagePartStatus } from "./utils/normalizePartStatus";
+export { notifyEventListeners } from "./utils/notify-event-listeners";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
 export { consumeSuggestionResult } from "./adapters/suggestion";
 

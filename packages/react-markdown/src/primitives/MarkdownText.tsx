@@ -134,15 +134,19 @@ const MarkdownTextInner: FC<MarkdownTextPrimitiveProps> = ({
     />
   ));
 
+  const PreComponentWithFallback = useCallbackRef((props) => (
+    <PreOverride fallbackPre={pre} {...props} />
+  ));
+
   const components: Options["components"] = useMemo(() => {
     const { pre, code, SyntaxHighlighter, CodeHeader, ...componentsRest } =
       userComponents ?? {};
     return {
       ...componentsRest,
-      pre: PreOverride,
+      pre: PreComponentWithFallback,
       code: CodeComponent,
     };
-  }, [CodeComponent, userComponents]);
+  }, [CodeComponent, PreComponentWithFallback, userComponents]);
 
   return (
     <ReactMarkdown components={components} {...rest}>

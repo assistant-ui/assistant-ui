@@ -208,8 +208,7 @@ function ToolFallbackContent({
         "data-open:animate-collapsible-down",
         "data-closed:fill-mode-forwards",
         "data-closed:pointer-events-none",
-        "data-open:duration-(--animation-duration)",
-        "data-closed:duration-(--animation-duration)",
+        "[--tw-duration:var(--animation-duration)]",
         className,
       )}
       {...props}
@@ -219,7 +218,7 @@ function ToolFallbackContent({
           "flex flex-col gap-2 ps-6 pt-1 pb-2 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
           "group-data-open/collapsible-content:animate-in group-data-open/collapsible-content:fade-in-0 group-data-open/collapsible-content:blur-in-[2px] group-data-open/collapsible-content:slide-in-from-top-1",
           "group-data-closed/collapsible-content:animate-out group-data-closed/collapsible-content:fade-out-0 group-data-closed/collapsible-content:blur-out-[2px] group-data-closed/collapsible-content:slide-out-to-top-1",
-          "group-data-closed/collapsible-content:duration-(--animation-duration) group-data-open/collapsible-content:duration-(--animation-duration)",
+          "group-data-closed/collapsible-content:animation-duration-(--animation-duration) group-data-open/collapsible-content:animation-duration-(--animation-duration)",
         )}
       >
         {children}
@@ -332,6 +331,16 @@ const approvalOptionLabel = (option: ToolApprovalOption) =>
     : undefined) ??
   option.id;
 
+const offersInterruptAction = (
+  status: ToolCallMessagePartStatus | undefined,
+  approval: ToolCallMessagePart["approval"],
+  interrupt: ToolCallMessagePart["interrupt"],
+) =>
+  status?.type !== "requires-action" ||
+  status.reason !== "interrupt" ||
+  approval != null ||
+  interrupt != null;
+
 function ToolFallbackApproval({
   className,
   addResult,
@@ -339,10 +348,14 @@ function ToolFallbackApproval({
   interrupt,
   approval,
   respondToApproval,
+  status,
   ...props
 }: React.ComponentProps<"div"> &
   Partial<
-    Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">
+    Pick<
+      ToolCallMessagePartProps,
+      "addResult" | "resume" | "respondToApproval" | "status"
+    >
   > & {
     interrupt?: ToolCallMessagePart["interrupt"];
     approval?: ToolCallMessagePart["approval"];
@@ -355,6 +368,8 @@ function ToolFallbackApproval({
     (approval.approved !== undefined || approval.resolution !== undefined)
   )
     return null;
+
+  if (!offersInterruptAction(status, approval, interrupt)) return null;
 
   // Custom (`_`-prefixed) kinds cannot be resolved to a boolean by the kit;
   // hosts using custom kinds render their own bar. A declared option list is
@@ -375,6 +390,11 @@ function ToolFallbackApproval({
       respondToApproval({ approved });
     } else if (interrupt) {
       resume?.({ approved });
+    } else if (
+      status?.type === "requires-action" &&
+      status.reason === "interrupt"
+    ) {
+      return;
     } else {
       addResult?.(approved ? APPROVED_RESULT : DENIED_RESULT);
     }
@@ -540,6 +560,8 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
+  const shouldRenderApproval =
+    isRequiresAction && offersInterruptAction(status, approval, interrupt);
 
   const [open, setOpen] = useState(isRequiresAction);
   const [prevRequiresAction, setPrevRequiresAction] =
@@ -558,13 +580,14 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
           argsText={argsText}
           className={cn(isCancelled && "opacity-60")}
         />
-        {isRequiresAction && (
+        {shouldRenderApproval && (
           <ToolFallbackApproval
             addResult={addResult}
             resume={resume}
             interrupt={interrupt}
             approval={approval}
             respondToApproval={respondToApproval}
+            status={status}
           />
         )}
         {!isCancelled && <ToolFallbackResult result={result} />}

@@ -13,6 +13,7 @@ import type {
   UIMessageStreamDataChunk,
 } from "./chunk-types";
 import { generateId } from "../../utils/generateId";
+import type { ReadonlyJSONValue } from "../../../utils/json/json-value";
 
 export type { UIMessageStreamChunk, UIMessageStreamDataChunk };
 
@@ -42,6 +43,42 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
       let activeToolCallArgsText: TextStreamController | undefined;
       let currentMessageId: string | undefined;
       let receivedDone = false;
+      type PendingTool = {
+        toolCallId: string;
+        toolName: string;
+        deltas: string[];
+        emitted: boolean;
+        resultEmitted: boolean;
+        pendingResult?: { result: ReadonlyJSONValue; isError: boolean };
+      };
+      const pendingTools = new Map<string, PendingTool>();
+      const emitPendingTool = (
+        out: TransformStreamDefaultController<UIMessageStreamChunk>,
+        tool: PendingTool,
+      ) => {
+        if (!tool.emitted) {
+          tool.emitted = true;
+          out.enqueue({
+            type: "tool-call-start",
+            id: generateId(),
+            toolCallId: tool.toolCallId,
+            toolName: tool.toolName,
+          });
+          for (const argsText of tool.deltas) {
+            out.enqueue({ type: "tool-call-delta", argsText });
+          }
+          out.enqueue({ type: "tool-call-end" });
+        }
+        if (tool.pendingResult && !tool.resultEmitted) {
+          out.enqueue({
+            type: "tool-result",
+            toolCallId: tool.toolCallId,
+            result: tool.pendingResult.result,
+            ...(tool.pendingResult.isError ? { isError: true } : {}),
+          });
+          tool.resultEmitted = true;
+        }
+      };
 
       const transform = new AssistantTransformStream<UIMessageStreamChunk>({
         transform(chunk, controller) {
@@ -221,6 +258,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               }
 
               if (event.data === "[DONE]") {
+                for (const tool of pendingTools.values()) {
+                  emitPendingTool(controller, tool);
+                }
                 receivedDone = true;
                 controller.terminate();
                 return;
@@ -294,6 +334,93 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                   finishReason: chunk.finishReason ?? "unknown",
                   usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
                 });
+                return;
+              }
+              if (chunk.type === "tool-input-start") {
+                if (typeof chunk.toolCallId !== "string") return;
+                if (pendingTools.has(chunk.toolCallId)) return;
+                pendingTools.set(chunk.toolCallId, {
+                  toolCallId: chunk.toolCallId,
+                  toolName:
+                    typeof chunk.toolName === "string" ? chunk.toolName : "",
+                  deltas: [],
+                  emitted: false,
+                  resultEmitted: false,
+                });
+                return;
+              }
+              if (chunk.type === "tool-input-delta") {
+                if (typeof chunk.toolCallId !== "string") return;
+                if (typeof chunk.inputTextDelta !== "string") return;
+                const tool = pendingTools.get(chunk.toolCallId);
+                if (!tool || tool.emitted) return;
+                tool.deltas.push(chunk.inputTextDelta);
+                return;
+              }
+              if (
+                chunk.type === "tool-input-available" ||
+                chunk.type === "tool-input-error"
+              ) {
+                if (typeof chunk.toolCallId !== "string") return;
+                let tool = pendingTools.get(chunk.toolCallId);
+                if (!tool) {
+                  tool = {
+                    toolCallId: chunk.toolCallId,
+                    toolName:
+                      typeof chunk.toolName === "string" ? chunk.toolName : "",
+                    deltas: [],
+                    emitted: false,
+                    resultEmitted: false,
+                  };
+                  pendingTools.set(chunk.toolCallId, tool);
+                }
+                if (tool.emitted) return;
+                if (chunk.input !== undefined) {
+                  tool.deltas = [
+                    typeof chunk.input === "string"
+                      ? chunk.input
+                      : JSON.stringify(chunk.input),
+                  ];
+                }
+                if (chunk.type === "tool-input-error") {
+                  tool.pendingResult = {
+                    result:
+                      typeof chunk.errorText === "string"
+                        ? chunk.errorText
+                        : "",
+                    isError: true,
+                  };
+                }
+                emitPendingTool(controller, tool);
+                return;
+              }
+              if (
+                chunk.type === "tool-output-available" ||
+                chunk.type === "tool-output-error"
+              ) {
+                if (typeof chunk.toolCallId !== "string") return;
+                if (
+                  chunk.type === "tool-output-available" &&
+                  chunk.preliminary
+                ) {
+                  return;
+                }
+                const tool = pendingTools.get(chunk.toolCallId);
+                if (!tool || tool.resultEmitted) return;
+                tool.pendingResult =
+                  chunk.type === "tool-output-error"
+                    ? {
+                        result:
+                          typeof chunk.errorText === "string"
+                            ? chunk.errorText
+                            : "",
+                        isError: true,
+                      }
+                    : {
+                        result: chunk.output as ReadonlyJSONValue,
+                        isError: false,
+                      };
+                if (tool.emitted) emitPendingTool(controller, tool);
                 return;
               }
 

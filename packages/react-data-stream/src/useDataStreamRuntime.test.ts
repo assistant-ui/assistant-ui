@@ -92,6 +92,80 @@ describe("useDataStreamRuntime request errors", () => {
     expect(onError).toHaveBeenCalledExactlyOnceWith(error);
   });
 
+  it("keeps mid-stream cancellation separate from stream errors", async () => {
+    const controller = new AbortController();
+    const abortError = new DOMException("Cancelled", "AbortError");
+    const onCancel = vi.fn();
+    const onError = vi.fn();
+    const encoder = new TextEncoder();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_input: RequestInfo | URL, init?: RequestInit) => {
+        const body = new ReadableStream<Uint8Array>({
+          start(streamController) {
+            streamController.enqueue(encoder.encode('0:"Hello"\n'));
+            init?.signal?.addEventListener(
+              "abort",
+              () => streamController.error(init.signal?.reason),
+              { once: true },
+            );
+          },
+        });
+        return Promise.resolve(
+          new Response(body, {
+            status: 200,
+            headers: { "x-vercel-ai-data-stream": "v1" },
+          }),
+        );
+      }),
+    );
+
+    const adapter = createAdapter({ api: "/api/chat", onCancel, onError });
+    const run = async () => {
+      for await (const _ of adapter.run(
+        createRunOptions(controller.signal),
+      ) as AsyncGenerator) {
+        void _;
+        controller.abort(abortError);
+      }
+    };
+
+    await expect(run()).rejects.toBe(abortError);
+    expect(onCancel).toHaveBeenCalledOnce();
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("normalizes non-Error stream failures for onError", async () => {
+    const onError = vi.fn();
+    const encoder = new TextEncoder();
+
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => {
+        const body = new ReadableStream<Uint8Array>({
+          start(streamController) {
+            streamController.enqueue(encoder.encode('0:"Hello"\n'));
+            streamController.error("wire failure");
+          },
+        });
+        return Promise.resolve(
+          new Response(body, {
+            status: 200,
+            headers: { "x-vercel-ai-data-stream": "v1" },
+          }),
+        );
+      }),
+    );
+
+    const adapter = createAdapter({ api: "/api/chat", onError });
+
+    await expect(runToCompletion(adapter, createRunOptions())).rejects.toBe(
+      "wire failure",
+    );
+    expect(onError).toHaveBeenCalledExactlyOnceWith(new Error("wire failure"));
+  });
+
   it.each(["throws", "rejects"] as const)(
     "preserves request failures when onError %s",
     async (failureMode) => {

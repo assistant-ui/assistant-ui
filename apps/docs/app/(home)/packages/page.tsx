@@ -13,7 +13,7 @@ import {
   PackageDirectory,
   type DirectoryCategory,
   type DirectoryRow,
-} from "@/components/traction/package-directory";
+} from "@/components/pages/packages/package-directory";
 import { createOgMetadata } from "@/lib/og";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";

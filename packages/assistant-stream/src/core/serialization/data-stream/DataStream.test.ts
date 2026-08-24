@@ -525,6 +525,91 @@ describe("DataStreamDecoder interleaved tool-call args", () => {
   });
 });
 
+describe("file parts on the data stream", () => {
+  it("carries file parts on the wire", async () => {
+    const lines = await encodeChunks([
+      {
+        type: "part-start",
+        path: [],
+        part: {
+          type: "file",
+          data: "data:image/png;base64,AAAA",
+          mimeType: "image/png",
+        },
+      },
+      { type: "part-finish", path: [0] },
+    ]);
+
+    expect(lines).toEqual([
+      'k:{"data":"data:image/png;base64,AAAA","mimeType":"image/png"}',
+    ]);
+  });
+
+  it("round-trips a file part", async () => {
+    const lines = await encodeChunks([
+      {
+        type: "part-start",
+        path: [],
+        part: {
+          type: "file",
+          data: "data:image/png;base64,AAAA",
+          mimeType: "image/png",
+        },
+      },
+      { type: "part-finish", path: [0] },
+    ]);
+    const chunks = await decodeLines(lines);
+
+    expect(
+      chunks.some(
+        (c) =>
+          c.type === "part-start" &&
+          c.part.type === "file" &&
+          c.part.data === "data:image/png;base64,AAAA" &&
+          c.part.mimeType === "image/png",
+      ),
+    ).toBe(true);
+  });
+
+  it("routes a decoded parentId onto the part", async () => {
+    const chunks = await decodeLines([
+      'b:{"toolCallId":"t1","toolName":"search"}',
+      'k:{"data":"data:image/png;base64,AAAA","mimeType":"image/png","parentId":"t1"}',
+    ]);
+
+    expect(
+      chunks.some(
+        (c) =>
+          c.type === "part-start" &&
+          c.part.type === "file" &&
+          c.part.data === "data:image/png;base64,AAAA" &&
+          c.part.mimeType === "image/png" &&
+          c.part.parentId === "t1",
+      ),
+    ).toBe(true);
+  });
+
+  it("carries the parentId on the wire", async () => {
+    const lines = await encodeChunks([
+      {
+        type: "part-start",
+        path: [],
+        part: {
+          type: "file",
+          data: "data:image/png;base64,AAAA",
+          mimeType: "image/png",
+          parentId: "p1",
+        },
+      },
+      { type: "part-finish", path: [0] },
+    ]);
+
+    expect(lines).toEqual([
+      'k:{"data":"data:image/png;base64,AAAA","mimeType":"image/png","parentId":"p1"}',
+    ]);
+  });
+});
+
 describe("DataStreamDecoder strict: false", () => {
   afterEach(() => {
     vi.restoreAllMocks();
