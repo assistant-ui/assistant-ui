@@ -4,13 +4,13 @@ description: Tiny 5x5 dot-matrix indicator with 20 state-specific blink patterns
 platforms: ["react"]
 ---
 
-import { PreviewCode } from "@/components/docs/preview-code.server";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import {
   DotMatrixSample,
   DotMatrixLifecycleSample,
   DotMatrixInlineSample,
   DotMatrixSizesSample,
-} from "@/components/docs/samples/dot-matrix";
+} from "@/components/pages/docs/samples/dot-matrix";
 
 <Callout>
   This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
@@ -69,7 +69,7 @@ The component exports `dotMatrixStates` (the ordered list above) and the `DotMat
 
 Drive the `state` prop from your run status; the matrix morphs between patterns instead of swapping components.
 
-<PreviewCode file="components/docs/samples/dot-matrix" name="DotMatrixLifecycleSample">
+<PreviewCode file="components/pages/docs/samples/dot-matrix" name="DotMatrixLifecycleSample">
   <DotMatrixLifecycleSample />
 </PreviewCode>
 
@@ -77,7 +77,7 @@ Drive the `state` prop from your run status; the matrix morphs between patterns 
 
 At the default `size-4` the matrix aligns with text like an icon, and the dots adapt to inverted surfaces through `currentColor`.
 
-<PreviewCode file="components/docs/samples/dot-matrix" name="DotMatrixInlineSample">
+<PreviewCode file="components/pages/docs/samples/dot-matrix" name="DotMatrixInlineSample">
   <DotMatrixInlineSample />
 </PreviewCode>
 

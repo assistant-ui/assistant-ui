@@ -139,16 +139,17 @@ export class AssistantCloudAPI {
 
     if (!response.ok) {
       const text = await response.text();
+      let message: string | undefined;
       try {
         const body = JSON.parse(text);
-        throw new CloudAPIError(body.message, response.status);
-      } catch (error) {
-        if (error instanceof CloudAPIError) throw error;
-        throw new CloudAPIError(
-          `Request failed with status ${response.status}, ${text}`,
-          response.status,
-        );
-      }
+        if (typeof body?.message === "string" && body.message.length > 0) {
+          message = body.message;
+        }
+      } catch {}
+      throw new CloudAPIError(
+        message ?? `Request failed with status ${response.status}, ${text}`,
+        response.status,
+      );
     }
 
     return response;

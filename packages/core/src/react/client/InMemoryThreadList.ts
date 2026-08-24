@@ -236,7 +236,13 @@ const useInMemoryThreadList = (
         const index = threads.findIndex((t) => t.id === selector.id);
         return threadListItems.get({ index });
       }
-      return threadListItems.get(selector);
+      // The lookup is keyed over the combined thread array, while index
+      // selectors address the regular/archived subset the primitives render.
+      const ids = selector.archived ? state.archivedThreadIds : state.threadIds;
+      const id = ids[selector.index];
+      if (id === undefined) return threadListItems.get({ index: -1 });
+      const index = threads.findIndex((t) => t.id === id);
+      return threadListItems.get({ index });
     },
     thread: () => mainThreadClient.methods,
   };

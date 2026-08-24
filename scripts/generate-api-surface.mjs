@@ -5,13 +5,14 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { optionArgs, optionValues } from "./lib/script-options.mjs";
 
 const repoRoot = process.cwd();
@@ -114,11 +115,7 @@ function declarationFilesForTarget(packageDir, typePath) {
   return files;
 }
 
-function collectPackages() {
-  const filteredPackageNames = turboFilters.length
-    ? collectTurboFilteredPackageNames(turboFilters)
-    : undefined;
-
+function collectPackages(filteredPackageNames) {
   return readdirSync(packagesRoot, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(packagesRoot, entry.name, "package.json"))
@@ -918,8 +915,29 @@ function writeOrCheck(file, content, changedFiles) {
   if (!checkMode) writeFileSync(file, content);
 }
 
+// A filtered run cannot judge files for unselected packages, but a file
+// matching no current publishable package (deleted, renamed, privatized) is
+// stale under any filter; only the unfiltered run may treat
+// not-regenerated-this-run as stale.
+export function selectStaleSurfaceFiles({
+  files,
+  generatedFiles,
+  knownFiles,
+  filtered,
+}) {
+  return files.filter(
+    (file) =>
+      file.endsWith(".ts") &&
+      !generatedFiles.has(file) &&
+      !(filtered && knownFiles.has(file)),
+  );
+}
+
 async function main() {
-  const packages = collectPackages();
+  const allPackages = collectPackages(undefined);
+  const packages = turboFilters.length
+    ? collectPackages(collectTurboFilteredPackageNames(turboFilters))
+    : allPackages;
   const generatedFiles = new Set();
   const changedFiles = [];
 
@@ -945,11 +963,21 @@ async function main() {
       writeOrCheck(outputFile, content, changedFiles);
     }
 
-    // Filtered checks only know about selected packages; stale cleanup needs the full package set.
-    if (turboFilters.length === 0 && existsSync(apiSurfaceRoot)) {
-      for (const entry of readdirSync(apiSurfaceRoot)) {
-        const file = path.join(apiSurfaceRoot, entry);
-        if (!entry.endsWith(".ts") || generatedFiles.has(file)) continue;
+    if (existsSync(apiSurfaceRoot)) {
+      const knownFiles = new Set(
+        allPackages.map(({ pkg }) =>
+          path.join(apiSurfaceRoot, packageFileName(pkg.name)),
+        ),
+      );
+      const stale = selectStaleSurfaceFiles({
+        files: readdirSync(apiSurfaceRoot).map((entry) =>
+          path.join(apiSurfaceRoot, entry),
+        ),
+        generatedFiles,
+        knownFiles,
+        filtered: turboFilters.length > 0,
+      });
+      for (const file of stale) {
         if (checkMode) {
           changedFiles.push({
             file: path.relative(repoRoot, file).replaceAll("\\", "/"),
@@ -979,6 +1007,20 @@ async function main() {
   }
 }
 
-if (import.meta.main) {
+// import.meta.main requires Node >= 24.2; on older runtimes it is undefined
+// and the script would silently no-op with exit code 0. Both sides are
+// realpath'd because Node resolves the main module through symlinks while
+// argv keeps the invoked path (e.g. /tmp vs /private/tmp on macOS).
+const realPath = (file) => {
+  try {
+    return realpathSync.native(file);
+  } catch {
+    return path.resolve(file);
+  }
+};
+const isMainEntry =
+  process.argv[1] !== undefined &&
+  realPath(process.argv[1]) === realPath(fileURLToPath(import.meta.url));
+if (isMainEntry) {
   await main();
 }

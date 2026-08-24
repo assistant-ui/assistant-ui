@@ -9,7 +9,7 @@ links:
 platforms: ["react"]
 ---
 
-import { PreviewCode } from "@/components/docs/preview-code.server";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import {
   AccordionSample,
   AccordionVariantsSample,
@@ -17,9 +17,9 @@ import {
   AccordionWithIconsSample,
   AccordionControlledSample,
   AccordionFAQSample,
-} from "@/components/docs/samples/accordion";
-import * as AccordionRadixSamples from "@/components/docs/samples/accordion.radix";
-import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+} from "@/components/pages/docs/samples/accordion";
+import * as AccordionRadixSamples from "@/components/pages/docs/samples/accordion.radix";
+import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
 
 <Callout>
   This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
@@ -116,7 +116,7 @@ Use `type="multiple"` to allow multiple items to be open simultaneously.
 
 Add icons or custom elements inside the trigger.
 
-<PreviewCode file="components/docs/samples/accordion" name="AccordionWithIconsSample" base={<AccordionWithIconsSample />}>
+<PreviewCode file="components/pages/docs/samples/accordion" name="AccordionWithIconsSample" base={<AccordionWithIconsSample />}>
   <AccordionRadixSamples.AccordionWithIconsSample />
 </PreviewCode>
 
@@ -124,7 +124,7 @@ Add icons or custom elements inside the trigger.
 
 Use `value` and `onValueChange` for controlled accordion state.
 
-<PreviewCode file="components/docs/samples/accordion" name="AccordionControlledSample" base={<AccordionControlledSample />}>
+<PreviewCode file="components/pages/docs/samples/accordion" name="AccordionControlledSample" base={<AccordionControlledSample />}>
   <AccordionRadixSamples.AccordionControlledSample />
 </PreviewCode>
 
@@ -132,7 +132,7 @@ Use `value` and `onValueChange` for controlled accordion state.
 
 A practical example of using accordion for a FAQ section.
 
-<PreviewCode file="components/docs/samples/accordion" name="AccordionFAQSample" base={<AccordionFAQSample />}>
+<PreviewCode file="components/pages/docs/samples/accordion" name="AccordionFAQSample" base={<AccordionFAQSample />}>
   <AccordionRadixSamples.AccordionFAQSample />
 </PreviewCode>
 

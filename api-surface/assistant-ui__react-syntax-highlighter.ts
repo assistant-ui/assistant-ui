@@ -4,6 +4,8 @@ import "@standard-schema/spec";
 
 import "radix-ui";
 
+import "radix-ui/internal";
+
 import { ComponentPropsWithoutRef, ComponentType } from "react";
 
 import "react-markdown";

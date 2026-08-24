@@ -9,16 +9,16 @@ links:
 platforms: ["react"]
 ---
 
-import { PreviewCode } from "@/components/docs/preview-code.server";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import {
   BadgeSample,
   BadgeSizesSample,
   BadgeWithIconSample,
   BadgeAsLinkSample,
   BadgeAnimatedSample,
-} from "@/components/docs/samples/badge";
-import * as BadgeRadixSamples from "@/components/docs/samples/badge.radix";
-import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+} from "@/components/pages/docs/samples/badge";
+import * as BadgeRadixSamples from "@/components/pages/docs/samples/badge.radix";
+import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
 
 <Callout>
   This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
@@ -77,7 +77,7 @@ Use the `size` prop to change the badge size.
 
 Badges automatically style SVG icons.
 
-<PreviewCode file="components/docs/samples/badge" name="BadgeWithIconSample" base={<BadgeWithIconSample />}>
+<PreviewCode file="components/pages/docs/samples/badge" name="BadgeWithIconSample" base={<BadgeWithIconSample />}>
   <BadgeRadixSamples.BadgeWithIconSample />
 </PreviewCode>
 
@@ -85,7 +85,7 @@ Badges automatically style SVG icons.
 
 Compose with `render` (Base UI) or `asChild` (Radix) to render the badge as a different element, like a link.
 
-<PreviewCode file="components/docs/samples/badge" name="BadgeAsLinkSample" base={<BadgeAsLinkSample />}>
+<PreviewCode file="components/pages/docs/samples/badge" name="BadgeAsLinkSample" base={<BadgeAsLinkSample />}>
   <BadgeRadixSamples.BadgeAsLinkSample />
 </PreviewCode>
 
@@ -93,7 +93,7 @@ Compose with `render` (Base UI) or `asChild` (Radix) to render the badge as a di
 
 Combine with CSS transitions for scroll and color animations.
 
-<PreviewCode file="components/docs/samples/badge" name="BadgeAnimatedSample" base={<BadgeAnimatedSample />}>
+<PreviewCode file="components/pages/docs/samples/badge" name="BadgeAnimatedSample" base={<BadgeAnimatedSample />}>
   <BadgeRadixSamples.BadgeAnimatedSample />
 </PreviewCode>
 

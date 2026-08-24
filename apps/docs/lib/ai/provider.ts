@@ -1,5 +1,5 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { resolveModelId } from "@/constants/model";
+import { resolveModelId } from "@/lib/model";
 
 export const openai = createOpenAI({
   apiKey: process.env.OPENAI_API_KEY!,

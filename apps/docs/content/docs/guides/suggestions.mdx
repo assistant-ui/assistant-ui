@@ -16,7 +16,7 @@ Configure suggestions using the `Suggestions()` API in your runtime provider:
 
 ```tsx
 import { AuiConfig, Tools, Suggestions } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
@@ -218,7 +218,7 @@ They also accept the same `suggestion` adapter as the local runtime under `adapt
 
 ```tsx
 import { createSuggestionAdapter } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 const runtime = useChatRuntime({
   adapters: {

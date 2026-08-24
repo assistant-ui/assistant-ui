@@ -1,7 +1,7 @@
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { LiveKitVoiceAdapter } from "@/lib/livekit-voice-adapter";
 import { VoiceThread } from "./voice-thread";
 

@@ -1,5 +1,5 @@
 import { openai } from "@ai-sdk/openai";
-import { AISDKToolkit, type FrontendTools } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit, type FrontendTools } from "@assistant-ui/ai-sdk";
 import {
   convertToModelMessages,
   stepCountIs,
