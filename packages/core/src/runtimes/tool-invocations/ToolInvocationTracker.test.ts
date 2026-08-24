@@ -395,13 +395,13 @@ describe("ToolInvocationTracker", () => {
       );
 
     tracker.setState(createState([gated({ id: "approval-1" })], false));
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 0));
     expect(execute).not.toHaveBeenCalled();
 
     tracker.setState(
       createState([gated({ id: "approval-1", approved: true })], true),
     );
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(execute).not.toHaveBeenCalled();
     expect(onResult).not.toHaveBeenCalled();
@@ -446,9 +446,68 @@ describe("ToolInvocationTracker", () => {
         true,
       ),
     );
-    await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 0));
 
     expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("drops the result of an in-flight execute once a provider approval lands", async () => {
+    let resolveExecute!: (value: { deleted: boolean }) => void;
+    const execute = vi.fn(
+      () =>
+        new Promise<{ deleted: boolean }>((r) => {
+          resolveExecute = r;
+        }),
+    );
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            {
+              toolName: "deleteFile",
+            },
+          ),
+        ],
+        true,
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+    expect(execute).toHaveBeenCalledTimes(1);
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            {
+              toolName: "deleteFile",
+              approval: { id: "approval-1" },
+            },
+          ),
+        ],
+        true,
+      ),
+    );
+    resolveExecute({ deleted: true });
+    await new Promise((r) => setTimeout(r, 0));
+
     expect(onResult).not.toHaveBeenCalled();
   });
 
