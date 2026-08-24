@@ -2205,6 +2205,67 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(core.isLoading).toBe(false);
   });
 
+  it("loads history when the adapter arrives after the first load", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const userMessage: ThreadMessage = {
+      id: "late-msg-1",
+      role: "user",
+      createdAt: new Date(),
+      content: [{ type: "text", text: "Hello" }],
+      metadata: { custom: {} },
+    };
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({
+        headId: userMessage.id,
+        messages: [{ message: userMessage, parentId: null }],
+      }),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent);
+
+    await core.__internal_load();
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: historyAdapter,
+    });
+    await core.__internal_load();
+
+    expect(historyAdapter.load).toHaveBeenCalledTimes(1);
+    expect(core.getMessages().map((message) => message.id)).toEqual([
+      userMessage.id,
+    ]);
+  });
+
+  it("does not load late history over a non-empty thread", async () => {
+    const agent = { runAgent: vi.fn() } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue(null),
+      append: vi.fn().mockResolvedValue(undefined),
+    };
+    const core = createCore(agent);
+
+    await core.__internal_load();
+    core.applyExternalMessages([
+      {
+        id: "local-msg-1",
+        role: "user",
+        createdAt: new Date(),
+        content: [{ type: "text", text: "Local" }],
+        metadata: { custom: {} },
+      },
+    ]);
+    core.updateOptions({
+      agent,
+      logger: noopLogger,
+      showThinking: true,
+      history: historyAdapter,
+    });
+
+    expect(historyAdapter.load).not.toHaveBeenCalled();
+  });
+
   it("triggers startRun when unstable_resume is true", async () => {
     const runAgent = vi.fn(async (_input, subscriber) => {
       subscriber.onRunFinalized?.();

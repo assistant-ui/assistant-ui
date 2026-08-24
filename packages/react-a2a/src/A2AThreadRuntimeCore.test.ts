@@ -175,6 +175,52 @@ describe("A2AThreadRuntimeCore", () => {
   });
 
   describe("history loading", () => {
+    it("loads history when the adapter arrives after the first load", async () => {
+      const client = createMockClient();
+      const user = createHistoryMessage("late-user", "user", "Question");
+      const history = {
+        load: vi.fn().mockResolvedValue({
+          headId: user.id,
+          messages: [{ parentId: null, message: user }],
+        }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.__internal_load();
+      core.updateOptions({ client, history });
+      await core.__internal_load();
+
+      expect(history.load).toHaveBeenCalledTimes(1);
+      expect(core.getMessages().map((message) => message.id)).toEqual([
+        user.id,
+      ]);
+      expect(client.getAgentCard).toHaveBeenCalledTimes(1);
+    });
+
+    it("does not load late history over a non-empty thread", async () => {
+      const client = createMockClient();
+      const history = {
+        load: vi.fn().mockResolvedValue(null),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.__internal_load();
+      core.applyExternalMessages([
+        createHistoryMessage("local-user", "user", "Local"),
+      ]);
+      core.updateOptions({ client, history });
+
+      expect(history.load).not.toHaveBeenCalled();
+    });
+
     it("preserves sibling branches and selects the persisted head", async () => {
       const { user, firstAssistant, secondAssistant, history } =
         createBranchedHistory();

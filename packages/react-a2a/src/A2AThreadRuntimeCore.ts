@@ -110,6 +110,8 @@ export class A2AThreadRuntimeCore {
   private readonly recordedHistoryIds = new Set<string>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
+  private _loadRequested = false;
+  private _agentCardPromise: Promise<void> | undefined;
 
   constructor(options: A2AThreadRuntimeCoreOptions) {
     this.client = options.client;
@@ -123,6 +125,7 @@ export class A2AThreadRuntimeCore {
   }
 
   updateOptions(options: Omit<A2AThreadRuntimeCoreOptions, "notifyUpdate">) {
+    const previousHistory = this.history;
     this.client = options.client;
     this.contextId = options.contextId;
     this.configuration = options.configuration;
@@ -130,6 +133,16 @@ export class A2AThreadRuntimeCore {
     this.onCancel = options.onCancel;
     this.onArtifactComplete = options.onArtifactComplete;
     this.history = options.history;
+
+    if (
+      this._loadRequested &&
+      !this._loadPromise &&
+      !previousHistory &&
+      this.history &&
+      this.getMessages().length === 0
+    ) {
+      void this.__internal_load();
+    }
   }
 
   attachRuntime(runtime: AssistantRuntime) {
@@ -235,19 +248,39 @@ export class A2AThreadRuntimeCore {
     return this._isLoading;
   }
 
+  private loadAgentCard(): Promise<void> {
+    this._agentCardPromise ??= this.client
+      .getAgentCard()
+      .then((agentCard) => {
+        this.agentCardValue = agentCard;
+      })
+      .catch(() => {});
+    return this._agentCardPromise;
+  }
+
   __internal_load(): Promise<void> {
+    this._loadRequested = true;
     if (this._loadPromise) return this._loadPromise;
+
+    const agentCardPromise = this.loadAgentCard();
+    if (!this.history) {
+      this._isLoading = true;
+      const promise = agentCardPromise.finally(() => {
+        if (!this._loadPromise) {
+          this._isLoading = false;
+          this.notifyUpdate();
+        }
+      });
+      this.notifyUpdate();
+      return promise;
+    }
 
     this._isLoading = true;
 
-    const historyPromise = this.history?.load() ?? Promise.resolve(null);
-    const agentCardPromise = this.client.getAgentCard().catch(() => undefined);
+    const historyPromise = this.history.load();
 
     this._loadPromise = Promise.all([historyPromise, agentCardPromise])
-      .then(([repo, agentCard]) => {
-        if (agentCard) {
-          this.agentCardValue = agentCard;
-        }
+      .then(([repo]) => {
         if (repo) {
           this.applyExternalMessageRepository(repo);
         }
