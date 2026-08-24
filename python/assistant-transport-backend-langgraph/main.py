@@ -137,7 +137,8 @@ def bindable_tools(tools: dict[str, Any] | None) -> list[Any]:
 def tool_call_owner(tool_name: str, request_tools: dict[str, Any] | None) -> str:
     if tool_name in TOOL_BY_NAME:
         return "server"
-    if request_tools and tool_name in request_tools:
+    definition = (request_tools or {}).get(tool_name)
+    if isinstance(definition, dict) and definition.get("disabled") is not True:
         return "frontend"
     return "unknown"
 

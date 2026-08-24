@@ -70,6 +70,35 @@ async def test_tool_executor_keeps_unknown_tool_error() -> None:
 
 
 @pytest.mark.asyncio
+async def test_tool_executor_errors_disabled_and_malformed_request_tools() -> None:
+    state = {
+        "messages": [
+            message_with_calls(
+                tool_call("disabled-1", "get_weather"),
+                tool_call("malformed-1", "broken_tool"),
+            )
+        ],
+        "tools": {
+            "get_weather": {"description": "weather", "disabled": True},
+            "broken_tool": "not-a-schema",
+        },
+    }
+
+    result = await main.tool_executor_node(state)
+
+    assert [message.tool_call_id for message in result["messages"]] == [
+        "disabled-1",
+        "malformed-1",
+    ]
+    assert json.loads(result["messages"][0].content) == {
+        "error": "Unknown tool: get_weather"
+    }
+    assert json.loads(result["messages"][1].content) == {
+        "error": "Unknown tool: broken_tool"
+    }
+
+
+@pytest.mark.asyncio
 async def test_tool_executor_defers_frontend_and_errors_unknown_calls() -> None:
     state = {
         "messages": [
