@@ -1118,7 +1118,6 @@ type OpenCodeThreadState = {
   sessionId: string;
   session: Session | null;
   sessionStatus: SessionStatus | null;
-  optimisticBusy: boolean;
   loadState: OpenCodeLoadState;
   runState: OpenCodeRunState;
   messageOrder: readonly string[];

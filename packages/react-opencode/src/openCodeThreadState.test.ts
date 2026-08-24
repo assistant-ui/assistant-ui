@@ -11,7 +11,7 @@ import type {
 } from "./types";
 
 describe("reduceOpenCodeThreadState", () => {
-  it("rolls back the optimistic busy status when the prompt fails to send", () => {
+  it("keeps sessionStatus as server truth across run start and send failure", () => {
     const initial = createOpenCodeThreadState("ses_1");
     const pending: PendingUserMessage = {
       clientId: "local_1",
@@ -32,7 +32,8 @@ describe("reduceOpenCodeThreadState", () => {
     const started = reduceOpenCodeThreadState(queued, {
       type: "run.started",
     });
-    expect(started.sessionStatus).toEqual({ type: "busy" });
+    expect(started.runState).toEqual({ type: "streaming" });
+    expect(started.sessionStatus).toBeNull();
 
     const failed = reduceOpenCodeThreadState(started, {
       type: "local.message.failed",
@@ -68,6 +69,7 @@ describe("reduceOpenCodeThreadState", () => {
       reduceOpenCodeThreadState(queued, { type: "run.started" }),
       { type: "run.started" },
     );
+    expect(startedTwice.sessionStatus).toBeNull();
 
     const failed = reduceOpenCodeThreadState(startedTwice, {
       type: "local.message.failed",
