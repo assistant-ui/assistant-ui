@@ -78,6 +78,14 @@ sees only the first result.
 ### A.7. Previously-resolved tool loses its `result` (back to undefined)
 Silently ignored. The entry stays in the resolved phase internally.
 
+### A.8. Tool call carries a provider `approval`
+The entry starts with `skipExecute`, exactly like a call observed with
+a `result`. A gate belongs to the provider: `approved === true` means
+the provider is producing the result, `false` means it records the
+denial, so the frontend `execute` never fires for that `toolCallId`
+in either state. `streamCall` still fires once and the backend result
+flows through A.5 when it lands.
+
 ## B. Tool call disappears from snapshot
 
 ### B.1. Tool call removed entirely (rollback, branch switch)

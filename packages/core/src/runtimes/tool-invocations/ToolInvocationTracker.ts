@@ -790,7 +790,7 @@ export class ToolInvocationTracker {
           entry = this._startActiveEntry(
             content.toolCallId,
             content.toolName,
-            content.result !== undefined,
+            content.result !== undefined || content.approval !== undefined,
           );
         }
 
