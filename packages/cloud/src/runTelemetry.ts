@@ -64,8 +64,8 @@ export type RunTelemetryToolCallInit = {
   toolCallId: string;
   args?: unknown;
   /**
-   * Pre-serialized arguments, used in place of serializing `args`. Forwarded
-   * verbatim, so the caller owns clamping it to the span size.
+   * Pre-serialized arguments, used in place of serializing `args`. Values over
+   * the span size are clamped before they are included in the report.
    */
   argsText?: string | undefined;
   result?: unknown;
@@ -85,7 +85,8 @@ export function createRunTelemetryToolCall(
     tool_name: toolName,
     tool_call_id: toolCallId,
   };
-  const toolArgs = argsText ?? safeStringify(args);
+  const toolArgs =
+    argsText != null ? truncateRunTelemetryText(argsText) : safeStringify(args);
   if (toolArgs !== undefined) call.tool_args = toolArgs;
   const toolResult =
     toolSource === "mcp" ? summarizeMcpResult(result) : safeStringify(result);

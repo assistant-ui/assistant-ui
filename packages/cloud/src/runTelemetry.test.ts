@@ -47,7 +47,7 @@ describe("createRunTelemetryToolCall", () => {
     expect(call.tool_result).toHaveLength(MAX);
   });
 
-  it("forwards argsText verbatim, including past the cap", () => {
+  it("clamps pre-serialized argsText to the cap", () => {
     const argsText = "a".repeat(MAX + 10);
     const call = createRunTelemetryToolCall({
       toolName: "t",
@@ -55,7 +55,7 @@ describe("createRunTelemetryToolCall", () => {
       argsText,
       args: { ignored: true },
     });
-    expect(call.tool_args).toBe(argsText);
+    expect(call.tool_args).toBe(argsText.slice(0, MAX));
   });
 
   it("omits fields whose value cannot be serialized", () => {
