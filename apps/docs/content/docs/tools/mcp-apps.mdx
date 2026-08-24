@@ -96,14 +96,14 @@ Pass `handlers` when the widget needs host-side UI or lifecycle callbacks. The c
 McpAppRenderer({
   host: McpAppsRemoteHost({ url: "/api/mcp-apps" }),
   handlers: {
-    requestDisplayMode: ({ mode }) => ({ mode }),
-    updateModelContext: (params) => {
-      console.log("model context", params);
-    },
+    requestDisplayMode: ({ mode }) => applyHostDisplayMode(mode),
+    updateModelContext: applyHostModelContext,
     openLink: ({ url }) => window.open(url, "_blank", "noopener,noreferrer"),
   },
 });
 ```
+
+`requestDisplayMode` should update host chrome and return the mode that was actually honored, then push that mode back through `hostContext.displayMode`. Echoing `{ mode }` without applying it tells the widget the change succeeded while the host stays `inline`.
 
 Caller handlers override the default `openLink` and `sendMessage` behavior and can provide `requestDisplayMode`, `updateModelContext`, and lifecycle hooks such as `onInitialized` and `onSizeChange`. `callTool`, `readResource`, and `listResources` remain bound to the configured `host`; use a custom host to change those data-plane operations.
 

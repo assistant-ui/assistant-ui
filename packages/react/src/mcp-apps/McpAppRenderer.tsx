@@ -51,7 +51,10 @@ export type McpAppRendererOptions = {
    * Optional widget interaction and lifecycle handlers. Data-plane handlers
    * (`callTool`, `readResource`, `listResources`) always use `host`.
    */
-  handlers?: Partial<McpAppBridgeHandlers>;
+  handlers?: Omit<
+    McpAppBridgeHandlers,
+    "callTool" | "readResource" | "listResources"
+  >;
   /** Rendered when no MCP app is on the part, or while load is in flight / failed (unless overridden). */
   fallback?: ReactNode;
   /** Rendered while the resource is loading. Defaults to `fallback`. */

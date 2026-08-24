@@ -2595,7 +2595,7 @@ type McpAppRendererOptions = {
   maxHeight?: number;
   hostInfo?: McpAppHostInfo;
   hostContext?: McpAppHostContext;
-  handlers?: Partial<McpAppBridgeHandlers>;
+  handlers?: Omit<McpAppBridgeHandlers, "callTool" | "listResources" | "readResource">;
   fallback?: ReactNode;
   loadingFallback?: ReactNode;
   errorFallback?: ReactNode | ((error: Error) => ReactNode);

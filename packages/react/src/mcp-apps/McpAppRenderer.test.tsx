@@ -29,7 +29,7 @@ vi.mock("./app-frame", () => ({
   },
 }));
 
-import { McpAppRenderer } from "./McpAppRenderer";
+import { McpAppRenderer, type McpAppRendererOptions } from "./McpAppRenderer";
 import { McpAppsRemoteHost } from "./McpAppsRemoteHost";
 
 const useHost = ({ host }: { host: McpAppsHost }) => host;
@@ -68,7 +68,7 @@ function Harness({
 }: {
   host: McpAppsHost;
   serverId?: string;
-  handlers?: Partial<McpAppBridgeHandlers>;
+  handlers?: McpAppRendererOptions["handlers"];
 }) {
   const renderer = useResource(
     McpAppRenderer({
@@ -408,9 +408,6 @@ describe("McpAppRenderer", () => {
   });
 
   it("uses caller UI handlers and keeps data-plane handlers on the host", async () => {
-    const callTool = vi.fn();
-    const readResource = vi.fn();
-    const listResources = vi.fn();
     const host: McpAppsHost = {
       loadResource: vi.fn(async ({ uri }) => ({
         uri,
@@ -431,9 +428,6 @@ describe("McpAppRenderer", () => {
       <Harness
         host={host}
         handlers={{
-          callTool,
-          readResource,
-          listResources,
           requestDisplayMode,
           updateModelContext,
           openLink,
@@ -462,9 +456,6 @@ describe("McpAppRenderer", () => {
     expect(openLink).toHaveBeenCalledWith({ url: "https://example.com" });
     expect(sendMessage).toHaveBeenCalledWith({ text: "hello" });
     expect(onInitialized).toHaveBeenCalledOnce();
-    expect(callTool).not.toHaveBeenCalled();
-    expect(readResource).not.toHaveBeenCalled();
-    expect(listResources).not.toHaveBeenCalled();
     expect(host.callTool).toHaveBeenCalledWith({ name: "search" });
     expect(host.readResource).toHaveBeenCalledWith({ uri: "ui://resource" });
     expect(host.listResources).toHaveBeenCalledWith(undefined);
