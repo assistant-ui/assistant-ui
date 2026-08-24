@@ -2,7 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
-import { CopyCommandButton } from "@/components/home/copy-command-button";
+import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { CLOUD_URL } from "@/lib/constants";

@@ -11,10 +11,10 @@ import {
   forwardRef,
   isValidElement,
 } from "react";
-import { Primitive as RadixPrimitive } from "@radix-ui/react-primitive";
+import { Primitive as RadixPrimitive } from "radix-ui/internal";
 
 /**
- * Thin wrapper around `@radix-ui/react-primitive` that adds `render` prop support.
+ * Thin wrapper around Radix `Primitive` that adds `render` prop support.
  *
  * When `render` is provided, it is converted to the equivalent `asChild` pattern:
  *   render={<Comp props />} + children  →  asChild + <Comp props>{children}</Comp>

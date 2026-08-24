@@ -9,16 +9,16 @@ Server- and client-side SDK for [Assistant Cloud](https://cloud.assistant-ui.com
 ## Installation
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-ai-sdk assistant-cloud
+npm install @assistant-ui/react @assistant-ui/ai-sdk assistant-cloud
 ```
 
 ## Usage
 
-Pass an `AssistantCloud` instance to your runtime hook (typically `useChatRuntime` from `@assistant-ui/react-ai-sdk`):
+Pass an `AssistantCloud` instance to your runtime hook (typically `useChatRuntime` from `@assistant-ui/ai-sdk`):
 
 ```tsx
 import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 const cloud = new AssistantCloud({
   baseUrl: process.env.NEXT_PUBLIC_ASSISTANT_BASE_URL!,

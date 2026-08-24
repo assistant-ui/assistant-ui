@@ -1,5 +1,42 @@
 # @assistant-ui/react
 
+## 0.15.16
+
+### Patch Changes
+
+- [#6136](https://github.com/assistant-ui/assistant-ui/pull/6136) [`f7bd2d9`](https://github.com/assistant-ui/assistant-ui/commit/f7bd2d9392e1e71750012fa87649002e8c9d1dab) - fix: keep DevTools updates flowing when a subscriber throws ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6055](https://github.com/assistant-ui/assistant-ui/pull/6055) [`1f3eaa7`](https://github.com/assistant-ui/assistant-ui/commit/1f3eaa77897e617efa977f4d194de7e6013a0de5) - fix: contain SandboxHost render failures after teardown ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6110](https://github.com/assistant-ui/assistant-ui/pull/6110) [`48f95b1`](https://github.com/assistant-ui/assistant-ui/commit/48f95b1442c4e9f744660b8e25e7aceb9b5ba5dc) - chore: delete the dead `ensureBinding` and `useRuntimeState` utilities ([@samdickson22](https://github.com/samdickson22))
+  
+  `src/context/react/utils/ensureBinding.ts` and
+  `src/context/react/utils/useRuntimeState.ts` imported only each other. Nothing
+  else in the repo referenced them, neither appears in the package barrel or the
+  api-surface snapshot, and the `"."`-only exports map made them unreachable to
+  consumers. `ensureBinding` was an external caller of `__internal_bindMethods`
+  that no longer had a caller of its own; the runtime classes bind themselves in
+  their constructors, so nothing changes at runtime. The public API surface is
+  unchanged and every other emitted file is byte-identical.
+
+- [#6156](https://github.com/assistant-ui/assistant-ui/pull/6156) [`9c65b51`](https://github.com/assistant-ui/assistant-ui/commit/9c65b511bc7cdc7d6699c128cac4650cae728043) - deprecate leftover Primitive.If and Empty wrappers on react-native and react-ink, and point them at AuiIf ([@okisdev](https://github.com/okisdev))
+  
+  ThreadIf now reads `thread.isEmpty` instead of `messages.length === 0`, matching the loading-aware field already used by ThreadEmpty and AuiIf. First-party examples and docs samples that still called the leftover wrappers now use `AuiIf` directly.
+
+- [#6084](https://github.com/assistant-ui/assistant-ui/pull/6084) [`ca9e72c`](https://github.com/assistant-ui/assistant-ui/commit/ca9e72ce85a9164b11947f9b7a38fb5801f7d04e) - fix: resync trigger popover cursor after selection ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6054](https://github.com/assistant-ui/assistant-ui/pull/6054) [`59e9a08`](https://github.com/assistant-ui/assistant-ui/commit/59e9a0881c3c392dd0f92508deab78aa50ddd605) - fix: handle rejected asynchronous Markdown exports ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6098](https://github.com/assistant-ui/assistant-ui/pull/6098) [`b9b9dad`](https://github.com/assistant-ui/assistant-ui/commit/b9b9dad28af0fc7c873d0b653830c0f1a78197ed) - fix: drain unrevealed smooth text when a message completes before any frame ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6061](https://github.com/assistant-ui/assistant-ui/pull/6061) [`75dfbe3`](https://github.com/assistant-ui/assistant-ui/commit/75dfbe3a2b7c3af61793fc1448e06d2d0063767a) - docs: document Escape-to-stop-speaking on ThreadPrimitive.Root ([@samdickson22](https://github.com/samdickson22))
+
+- [#6124](https://github.com/assistant-ui/assistant-ui/pull/6124) [`06b04a7`](https://github.com/assistant-ui/assistant-ui/commit/06b04a7976d10fac3af40ae9ca59b52385ef2ae2) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`fa30915`](https://github.com/assistant-ui/assistant-ui/commit/fa309156e033dc085c0d3b8fb97c27c81a3d2c6e), [`b355aef`](https://github.com/assistant-ui/assistant-ui/commit/b355aefbe2403025562f0e08494a57450bfdc049), [`f7bd2d9`](https://github.com/assistant-ui/assistant-ui/commit/f7bd2d9392e1e71750012fa87649002e8c9d1dab), [`4947ef4`](https://github.com/assistant-ui/assistant-ui/commit/4947ef4f9b0956bd4ca21c457b3cc7e79a2fc9e0), [`332f736`](https://github.com/assistant-ui/assistant-ui/commit/332f736e64bfa26f76cd60318279697ddbc0b36d), [`ef9254d`](https://github.com/assistant-ui/assistant-ui/commit/ef9254d5b2174fb4b58b4e954a8a0d60910a484c), [`9c65b51`](https://github.com/assistant-ui/assistant-ui/commit/9c65b511bc7cdc7d6699c128cac4650cae728043), [`5845ba7`](https://github.com/assistant-ui/assistant-ui/commit/5845ba7c5690af776701683fbd2d04e9ca0eaaff), [`1b30bfd`](https://github.com/assistant-ui/assistant-ui/commit/1b30bfdabadfe3613b7c98296de3d6665122136b), [`365e763`](https://github.com/assistant-ui/assistant-ui/commit/365e763928ff38d2de518efa2a7c44249afbbf83), [`d19921d`](https://github.com/assistant-ui/assistant-ui/commit/d19921d3739efb53dcbbb1ae04ffd18a94dca080), [`996aa57`](https://github.com/assistant-ui/assistant-ui/commit/996aa5723cf8d7db00cc72da08713226d90ec0e1), [`21d6e87`](https://github.com/assistant-ui/assistant-ui/commit/21d6e87dc2834af11babb93c004f7d4f3a4f9568), [`cd247e5`](https://github.com/assistant-ui/assistant-ui/commit/cd247e557b4876c49feb9b79c4f5149cc2271dad), [`f2b3ef8`](https://github.com/assistant-ui/assistant-ui/commit/f2b3ef8b6330e9353741973b0bfe0abf37d81e70), [`1bf263b`](https://github.com/assistant-ui/assistant-ui/commit/1bf263ba208668ead7f6c0786ca0c3064e31c3ab), [`19e52c4`](https://github.com/assistant-ui/assistant-ui/commit/19e52c4012a6a8c32e514134af9ce4eee1146864), [`06b04a7`](https://github.com/assistant-ui/assistant-ui/commit/06b04a7976d10fac3af40ae9ca59b52385ef2ae2), [`a614b5e`](https://github.com/assistant-ui/assistant-ui/commit/a614b5e44df5f59d82b63b60132a41c89f82e185), [`07b51db`](https://github.com/assistant-ui/assistant-ui/commit/07b51dbbc749c94023fa25df99bb7f64dc211ff1), [`92e52bd`](https://github.com/assistant-ui/assistant-ui/commit/92e52bd2c99ee8cacd242bf723f617df64e42e2a)]:
+  - @assistant-ui/core@0.3.15
+  - @assistant-ui/tap@0.9.14
+  - assistant-stream@0.3.39
+
 ## 0.15.15
 
 ### Patch Changes

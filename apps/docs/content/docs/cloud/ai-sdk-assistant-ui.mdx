@@ -19,7 +19,7 @@ This integration provides:
 
 ## How It Works
 
-The `useChatRuntime` hook from `@assistant-ui/react-ai-sdk` wraps AI SDK's `useChat` and adds cloud persistence via the `cloud` parameter. `AISDKThreads({ cloud })` is the store-entry list for `AuiConfig` / `createAssistantClient` hosts. That host mounts only the visible thread, so a switch cancels an in-flight run. The runtime automatically:
+The `useChatRuntime` hook from `@assistant-ui/ai-sdk` wraps AI SDK's `useChat` and adds cloud persistence via the `cloud` parameter. `AISDKThreads({ cloud })` is the store-entry list for `AuiConfig` / `createAssistantClient` hosts. That host mounts only the visible thread, so a switch cancels an in-flight run. The runtime automatically:
 
 1. Creates a cloud thread on the first user message
 2. Persists messages as they complete streaming
@@ -102,17 +102,17 @@ Install the required packages:
 <PlatformTabs>
 <Tab value="React">
 
-<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/react-ai-sdk"]} />
+<InstallCommand npm={["@assistant-ui/react", "@assistant-ui/ai-sdk"]} />
 
 </Tab>
 <Tab value="React Native">
 
-<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/react-ai-sdk", "assistant-cloud"]} />
+<InstallCommand expo={["@assistant-ui/react-native", "@assistant-ui/ai-sdk", "assistant-cloud"]} />
 
 </Tab>
 <Tab value="React Ink">
 
-<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/react-ai-sdk", "assistant-cloud", "ink", "react"]} />
+<InstallCommand npm={["@assistant-ui/react-ink", "@assistant-ui/ai-sdk", "assistant-cloud", "ink", "react"]} />
 
 </Tab>
 </PlatformTabs>
@@ -133,7 +133,7 @@ Create a client-side AssistantCloud instance and integrate it with your AI SDK r
 
 import { useMemo } from "react";
 import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { ThreadList } from "@/components/assistant-ui/thread-list";
 import { Thread } from "@/components/assistant-ui/thread";
 
@@ -174,7 +174,7 @@ import {
   ThreadListPrimitive,
 } from "@assistant-ui/react-native";
 import { AssistantCloud } from "assistant-cloud";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 
 async function getAssistantToken() {
@@ -236,7 +236,7 @@ import {
   ThreadListPrimitive,
 } from "@assistant-ui/react-ink";
 import { AssistantCloud } from "assistant-cloud";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { Thread } from "./components/thread.js";
 
 async function getAssistantToken() {
@@ -453,7 +453,7 @@ The React example above uses anonymous mode for quick demos. For production apps
 import { useMemo } from "react";
 import { useAuth } from "@clerk/nextjs";
 import { AssistantCloud } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 function Chat() {
   const { getToken } = useAuth();
@@ -474,7 +474,7 @@ function Chat() {
 ```tsx
 import { useMemo } from "react";
 import { AssistantCloud } from "assistant-cloud";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 async function getAssistantToken() {
   // Return a user token from your native auth provider.
@@ -498,7 +498,7 @@ function Chat() {
 ```tsx
 import { useMemo } from "react";
 import { AssistantCloud } from "assistant-cloud";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 async function getAssistantToken() {
   // Return a user token from your CLI auth flow.

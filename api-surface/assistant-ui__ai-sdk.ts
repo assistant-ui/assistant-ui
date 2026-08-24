@@ -10,7 +10,7 @@ declare const AISDKChat: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, 
 
 type AISDKChatOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatThreadOptions<UI_MESSAGE>;
 
-type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
+type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ExternalStoreSharedOptions & {
   adapters?: (NonNullable<ExternalStoreAdapter["adapters"]> & {
     history?: ThreadHistoryAdapter | undefined;
     suggestion?: SuggestionAdapter | undefined;
@@ -20,6 +20,8 @@ type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   onResume?: ExternalStoreAdapter["onResume"];
   onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
   joinStrategy?: JoinStrategy | undefined;
+  messageRepository?: MessageFormatRepository<UI_MESSAGE>;
+  unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
 };
 
 declare const AISDKThreads: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKThreadsOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
@@ -190,13 +192,13 @@ type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
   total_steps?: number;
-  tool_calls?: ReportToolCall[];
+  tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
     input_tokens?: number;
     output_tokens?: number;
     reasoning_tokens?: number;
     cached_input_tokens?: number;
-    tool_calls?: ReportToolCall[];
+    tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
   }[];
@@ -209,6 +211,17 @@ type AssistantCloudRunReport = {
   duration_ms?: number;
   output_text?: string;
   metadata?: Record<string, unknown>;
+};
+
+type AssistantCloudRunReportToolCall = {
+  tool_name: string;
+  tool_call_id: string;
+  tool_args?: string;
+  tool_result?: string;
+  tool_source?: "backend" | "frontend" | "mcp";
+  start_ms?: number;
+  end_ms?: number;
+  sampling_calls?: SamplingCallData[];
 };
 
 declare class AssistantCloudRuns {
@@ -521,12 +534,15 @@ type ChatModelRunResult = {
 };
 
 type ChatThreadOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<UI_MESSAGE> & ExternalStoreSharedOptions & {
+  throttle?: number | undefined;
   adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
   toCreateMessage?: CustomToCreateMessageFunction;
   onResume?: AISDKRuntimeAdapter["onResume"];
   onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
   onResumeError?: ((error: unknown) => void) | undefined;
   joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
+  messageRepository?: AISDKRuntimeAdapter<UI_MESSAGE>["messageRepository"];
+  unstable_onBranchChange?: AISDKRuntimeAdapter["unstable_onBranchChange"];
 };
 
 type ClientError<E extends string> = {
@@ -1407,17 +1423,6 @@ type ReloadConfig = {
   runConfig?: RunConfig;
 };
 
-type ReportToolCall = {
-  tool_name: string;
-  tool_call_id: string;
-  tool_args?: string;
-  tool_result?: string;
-  tool_source?: "backend" | "frontend" | "mcp";
-  start_ms?: number;
-  end_ms?: number;
-  sampling_calls?: SamplingCallData[];
-};
-
 type ReservedAccessorProps = "name" | "query" | "source";
 
 type ReservedScopeNames = "on" | "optional" | "subscribe";
@@ -1732,6 +1737,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
@@ -2190,7 +2196,7 @@ declare const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage>() => UseC
 
 declare const useAISDKError: () => Error | undefined;
 
-declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter) => AssistantRuntime;
+declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter<UI_MESSAGE>) => AssistantRuntime;
 
 declare const useChatRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(_param2?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
 

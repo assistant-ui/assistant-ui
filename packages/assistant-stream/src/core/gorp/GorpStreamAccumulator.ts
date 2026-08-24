@@ -80,7 +80,9 @@ export class GorpStreamAccumulator {
     assertSafePathSegment(key);
     if (Array.isArray(state)) {
       let idx = Number(key);
-      if (Number.isNaN(idx))
+      // The wire can deliver numeric segments (op.path is only type-checked,
+      // not runtime-validated), so canonicality is compared via String(key).
+      if (!Number.isInteger(idx) || String(idx) !== String(key))
         throw new Error(`Expected array index at [${path.join(", ")}]`);
       if (idx < 0) throw new Error(`Insert array index out of bounds`);
       if (idx > state.length) {

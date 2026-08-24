@@ -4,9 +4,9 @@ description: Display rich text with headings, lists, links, and code blocks.
 platforms: ["react"]
 ---
 
-import { MarkdownSample } from "@/components/docs/samples/markdown";
-import { PreviewCode } from "@/components/docs/preview-code.server";
-import { MarkdownRichDocumentSample } from "@/components/docs/samples/markdown/rich-document";
+import { MarkdownSample } from "@/components/pages/docs/samples/markdown";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { MarkdownRichDocumentSample } from "@/components/pages/docs/samples/markdown/rich-document";
 
 <MarkdownSample />
 
@@ -62,7 +62,7 @@ const AssistantMessage: FC = () => {
 
 The renderer shows headings, emphasis, links, nested lists, a blockquote, a divider, and a table from one completed response.
 
-<PreviewCode file="components/docs/samples/markdown/rich-document" name="MarkdownDocument">
+<PreviewCode file="components/pages/docs/samples/markdown/rich-document" name="MarkdownDocument">
   <MarkdownRichDocumentSample />
 </PreviewCode>
 

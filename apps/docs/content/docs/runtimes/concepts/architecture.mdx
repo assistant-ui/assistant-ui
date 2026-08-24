@@ -10,7 +10,7 @@ assistant-ui exposes runtime integrations at three layers. Understanding which l
 <Flow.Root
   llm={`graph TD
     subgraph Framework["Framework adapters"]
-      A1[react-ai-sdk]
+      A1[ai-sdk]
       A2[react-langgraph]
       A3[react-langchain]
       A4[react-google-adk]
@@ -58,7 +58,7 @@ assistant-ui exposes runtime integrations at three layers. Understanding which l
       <Flow.Group flowId="adapters">
         <Flow.GroupLabel>Framework adapters</Flow.GroupLabel>
         <Flow.Row className="flex-wrap justify-start">
-          <Flow.Node>react-ai-sdk</Flow.Node>
+          <Flow.Node>ai-sdk</Flow.Node>
           <Flow.Node>react-langgraph</Flow.Node>
           <Flow.Node>react-langchain</Flow.Node>
           <Flow.Node>react-google-adk</Flow.Node>
@@ -118,7 +118,7 @@ The fastest path. Each adapter wraps one of the core or protocol layers and adds
 
 | Adapter | Layered on | Targets |
 | --- | --- | --- |
-| `react-ai-sdk` | `ExternalStoreRuntime` | Vercel AI SDK v7 (`useChat`) |
+| `ai-sdk` | `ExternalStoreRuntime` | Vercel AI SDK v7 (`useChat`) |
 | `react-langgraph` | `ExternalStoreRuntime` | LangGraph Cloud via `@langchain/langgraph-sdk` |
 | `react-langchain` | `ExternalStoreRuntime` | LangGraph Cloud via `@langchain/react`'s `useStream` |
 | `react-google-adk` | `ExternalStoreRuntime` | Google ADK JS or Python agents |

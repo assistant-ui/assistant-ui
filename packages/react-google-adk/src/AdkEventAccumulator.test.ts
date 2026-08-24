@@ -1477,3 +1477,86 @@ describe("AdkEventAccumulator - user message handling", () => {
     });
   });
 });
+
+describe("AdkEventAccumulator - multiple parts in one event", () => {
+  it("keeps every text part of a single non-partial event in order", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: { role: "model", parts: [{ text: "A" }, { text: "B" }] },
+      }),
+    );
+
+    expect(msgs[0]?.content).toEqual([
+      { type: "text", text: "A" },
+      { type: "text", text: "B" },
+    ]);
+  });
+
+  it("preserves the Gemini code-execution shape", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            { text: "Here is the code:" },
+            { executableCode: { code: "print(1)", language: "python" } },
+            { codeExecutionResult: { outcome: "OUTCOME_OK", output: "1" } },
+            { text: "The result is 1." },
+          ],
+        },
+      }),
+    );
+
+    expect(msgs[0]?.content).toEqual([
+      { type: "text", text: "Here is the code:" },
+      { type: "code", code: "print(1)", language: "python" },
+      { type: "code_result", output: "1", outcome: "OUTCOME_OK" },
+      { type: "text", text: "The result is 1." },
+    ]);
+  });
+
+  it("keeps every reasoning part of a single non-partial event", () => {
+    const acc = new AdkEventAccumulator();
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            { text: "First thought", thought: true },
+            { text: "Second thought", thought: true },
+          ],
+        },
+      }),
+    );
+
+    expect(msgs[0]?.content).toEqual([
+      { type: "reasoning", text: "First thought" },
+      { type: "reasoning", text: "Second thought" },
+    ]);
+  });
+
+  it("still replaces the streamed buffer with the final text", () => {
+    const acc = new AdkEventAccumulator();
+    acc.processEvent(makeTextEvent("Hel", true));
+    acc.processEvent(makeTextEvent("lo", true));
+    const msgs = acc.processEvent(
+      makeEvent({
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [{ text: "Hello" }, { text: "Again" }],
+        },
+      }),
+    );
+
+    expect(msgs[0]?.content).toEqual([
+      { type: "text", text: "Hello" },
+      { type: "text", text: "Again" },
+    ]);
+  });
+});

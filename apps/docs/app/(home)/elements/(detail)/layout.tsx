@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { ElementsSidebar } from "@/components/elements/elements-sidebar";
-import { ScrollReset } from "@/components/elements/scroll-reset";
+import { ElementsSidebar } from "@/components/pages/elements/elements-sidebar";
+import { ScrollReset } from "@/components/pages/elements/scroll-reset";
 import { PageFrame } from "@/components/shared/page-frame";
 
 export default function ElementDetailLayout({
