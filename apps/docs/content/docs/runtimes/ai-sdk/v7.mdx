@@ -646,7 +646,7 @@ When omitted, `resumeRun` throws `"Runtime does not support resuming runs."`. Fo
 
 ### messageRepository
 
-Import a branch-aware AI SDK message tree into the thread. Live updates still come from `useChat`; this is a seed, not a replacement for that feed. Pass a stable reference and change it only when a new tree should be loaded. Persisted threads that already go through `adapters.history` do not need this.
+Import a branch-aware AI SDK message tree once, and only when `useChat` is empty. After that seed, live updates come only from `useChat`. Clearing the chat or passing a new object identity does not reload the tree. Persisted threads that already go through `adapters.history` do not need this.
 
 ```tsx
 const runtime = useChatRuntime({

@@ -789,6 +789,91 @@ describe("useAISDKRuntime", () => {
     );
   });
 
+  it("does not overwrite a nonempty chat with the repository", async () => {
+    const chat = createChatHelpers([
+      { id: "live", role: "user", parts: [{ type: "text", text: "keep me" }] },
+    ]);
+    const messageRepository = {
+      headId: "a1",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "u1",
+            role: "user" as const,
+            parts: [{ type: "text" as const, text: "question" }],
+          },
+        },
+        {
+          parentId: "u1",
+          message: {
+            id: "a1",
+            role: "assistant" as const,
+            parts: [{ type: "text" as const, text: "first" }],
+          },
+        },
+      ],
+    };
+
+    const { result } = renderHook(() =>
+      useAISDKRuntime(chat, { messageRepository }),
+    );
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.map((message) => message.id),
+      ).toEqual(["live"]);
+    });
+    expect(chat.messages.map((message: { id: string }) => message.id)).toEqual([
+      "live",
+    ]);
+  });
+
+  it("does not reseed when the repository object identity changes", async () => {
+    const chat = createChatHelpers();
+    const makeRepository = (text: string) => ({
+      headId: "a1",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "u1",
+            role: "user" as const,
+            parts: [{ type: "text" as const, text: "question" }],
+          },
+        },
+        {
+          parentId: "u1",
+          message: {
+            id: "a1",
+            role: "assistant" as const,
+            parts: [{ type: "text" as const, text }],
+          },
+        },
+      ],
+    });
+
+    const { result, rerender } = renderHook(
+      ({ repository }) =>
+        useAISDKRuntime(chat, { messageRepository: repository }),
+      { initialProps: { repository: makeRepository("first") } },
+    );
+
+    await waitFor(() => {
+      expect(textOf(result.current.thread.getState().messages.at(-1))).toBe(
+        "first",
+      );
+    });
+    const setMessagesCalls = chat.setMessages.mock.calls.length;
+
+    rerender({ repository: makeRepository("second") });
+
+    expect(textOf(result.current.thread.getState().messages.at(-1))).toBe(
+      "first",
+    );
+    expect(chat.setMessages.mock.calls.length).toBe(setMessagesCalls);
+  });
+
   it("calls adapters.suggestion after settle with messages and signal", async () => {
     const generate = vi.fn().mockResolvedValue([{ prompt: "next" }]);
     const chat = createChatHelpers([

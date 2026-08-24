@@ -116,10 +116,9 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
      */
     joinStrategy?: JoinStrategy | undefined;
     /**
-     * A branch-aware AI SDK message tree to import into the thread. Live
-     * updates still come from `useChat`; this is not a replacement for that
-     * feed. Pass a stable reference and change it only when a new tree should
-     * be loaded.
+     * A branch-aware AI SDK message tree seeded once when `useChat` is empty.
+     * After that seed, live updates come only from `useChat`. A later empty
+     * chat or a new object identity does not reload the tree.
      */
     messageRepository?: MessageFormatRepository<UI_MESSAGE>;
     /**
@@ -358,9 +357,15 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     });
   };
 
+  const hasSeededRepositoryRef = useRef(false);
+  const shouldFeedRepository =
+    exportedMessageRepository != null &&
+    !hasSeededRepositoryRef.current &&
+    messages.length === 0;
+
   const runtime = useExternalStoreRuntime({
     isRunning,
-    ...(exportedMessageRepository && messages.length === 0
+    ...(shouldFeedRepository
       ? { messageRepository: exportedMessageRepository }
       : { messages }),
     unstable_enableToolInvocations: true,
@@ -558,25 +563,22 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     isLoading,
   });
 
-  const importedMessageRepositoryRef = useRef<
-    MessageFormatRepository<UI_MESSAGE> | undefined
-  >(undefined);
   const setMessagesRef = useRef(chatHelpers.setMessages);
   setMessagesRef.current = chatHelpers.setMessages;
 
-  const chatMessageCount = chatHelpers.messages.length;
-
   useEffect(() => {
-    if (importedMessageRepositoryRef.current === messageRepository) return;
-    importedMessageRepositoryRef.current = messageRepository;
+    if (hasSeededRepositoryRef.current) return;
     if (!exportedMessageRepository) return;
-    runtime.thread.import(exportedMessageRepository);
-    if (chatMessageCount > 0) return;
+    if (chatHelpers.messages.length > 0) {
+      hasSeededRepositoryRef.current = true;
+      return;
+    }
     const tempRepo = new MessageRepository();
     tempRepo.import(exportedMessageRepository);
     setMessagesRef.current(
       tempRepo.getMessages().flatMap(getExternalStoreMessages<UI_MESSAGE>),
     );
-  }, [exportedMessageRepository, messageRepository, runtime, chatMessageCount]);
+    hasSeededRepositoryRef.current = true;
+  }, [exportedMessageRepository, chatHelpers.messages.length]);
   return runtime;
 };
