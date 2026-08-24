@@ -13,7 +13,6 @@ import { shouldContinueAfterOpenUIPrompt } from "@openuidev/assistant-ui/ai-sdk"
 
 export default function Home() {
   const runtime = useChatRuntime({
-    throttle: 50,
     sendAutomaticallyWhen: shouldContinueAfterOpenUIPrompt,
   });
 
