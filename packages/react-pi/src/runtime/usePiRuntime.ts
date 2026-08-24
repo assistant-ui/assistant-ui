@@ -32,7 +32,7 @@ import {
 import { piQueueItemId } from "../queueIds";
 import { splitHostUiRequests, type PiInterruptAnswer } from "./hostUi";
 import { createPiThreadState, type PiThreadState } from "./threadState";
-import type { PiClient, PiSendMessageInput, PiThreadMetadata } from "../types";
+import type { PiClient, PiThreadMetadata } from "../types";
 import { piExtras } from "./piExtras";
 import type { PiRuntimeExtrasInternal, PiRuntimeOptions } from "./runtimeTypes";
 
@@ -230,11 +230,10 @@ const usePiThreadStore = (
     void controller.load().catch(onLoadError);
   }, [controller]);
 
-  // A running thread must stream live events even when this client never
-  // called `sendMessage` — e.g. the first message of a new thread starts the
-  // run server-side inside `createThread`. The supervisor already holds a live
-  // record for a running thread, so subscribing attaches to it; idle threads
-  // never connect and the cold-read path stays cheap.
+  // A running thread must stream live events even when this controller did not
+  // start the current run. The supervisor already holds a live record for a
+  // running thread, so subscribing attaches to it; idle threads never connect
+  // and the cold-read path stays cheap.
   useEffect(() => {
     if (controller === NOOP_CONTROLLER) return;
     if (!isRunning) return;
@@ -364,7 +363,7 @@ const toOptimisticThreadMessage = (
 const useNewPiThreadStore = (
   options: PiRuntimeOptions,
   enabled: boolean,
-  pendingInitialMessageRef: { current: PiSendMessageInput | undefined },
+  client: PiClient,
 ): ExternalStoreAdapter<ThreadMessage> => {
   const aui = useAui();
   const {
@@ -378,6 +377,11 @@ const useNewPiThreadStore = (
   const [optimisticMessages, setOptimisticMessages] = useState<
     readonly ThreadMessageLike[]
   >([]);
+  const optimisticMessageIndexRef = useRef(0);
+  const initializationRef = useRef<
+    Promise<{ remoteId: string; externalId: string | undefined }> | undefined
+  >(undefined);
+  const sendQueueRef = useRef(Promise.resolve());
   const optimisticRepository = useMemo(
     () => ExportedMessageRepository.fromArray(optimisticMessages),
     [optimisticMessages],
@@ -398,32 +402,51 @@ const useNewPiThreadStore = (
         if (!enabled) return NOOP_ON_NEW();
         const optimistic = toOptimisticThreadMessage(
           message,
-          optimisticMessages.length,
+          optimisticMessageIndexRef.current++,
         );
-        const initialMessage = buildPiSendInput(message, undefined);
-        pendingInitialMessageRef.current = initialMessage;
         setOptimisticMessages((messages) => [...messages, optimistic]);
-        try {
-          await aui.threadListItem.initialize();
-          setOptimisticMessages([]);
-        } catch (error) {
-          if (pendingInitialMessageRef.current === initialMessage) {
-            pendingInitialMessageRef.current = undefined;
+
+        let initialization:
+          | Promise<{
+              remoteId: string;
+              externalId: string | undefined;
+            }>
+          | undefined;
+        const task = sendQueueRef.current.then(async () => {
+          try {
+            initialization =
+              initializationRef.current ??
+              (initializationRef.current = aui.threadListItem.initialize());
+            const { remoteId, externalId } = await initialization;
+            const threadId = externalId ?? remoteId;
+            await client.sendMessage(
+              threadId,
+              buildPiSendInput(message, undefined),
+            );
+            setOptimisticMessages((messages) =>
+              messages.filter((candidate) => candidate !== optimistic),
+            );
+          } catch (error) {
+            setOptimisticMessages((messages) =>
+              messages.filter((candidate) => candidate !== optimistic),
+            );
+            invokePiErrorCallback(onError, error);
+            throw error;
+          } finally {
+            if (initializationRef.current === initialization) {
+              initializationRef.current = undefined;
+            }
           }
-          setOptimisticMessages((messages) =>
-            messages.filter((message) => message !== optimistic),
-          );
-          invokePiErrorCallback(onError, error);
-          throw error;
-        }
+        });
+        sendQueueRef.current = task.catch(() => {});
+        return task;
       },
     }),
     [
       aui,
+      client,
       enabled,
-      optimisticMessages.length,
       optimisticRepository,
-      pendingInitialMessageRef,
       adapters,
       isDisabled,
       isSendDisabled,
@@ -439,7 +462,7 @@ const useNewPiThreadStore = (
 const useRuntimeHook = (
   registry: PiControllerRegistry,
   options: PiRuntimeOptions,
-  pendingInitialMessageRef: { current: PiSendMessageInput | undefined },
+  client: PiClient,
 ) => {
   const threadListItem = useAuiState((state) => state.threadListItem);
   const isMainThread = useAuiState(
@@ -460,7 +483,7 @@ const useRuntimeHook = (
   const newThreadStore = useNewPiThreadStore(
     options,
     threadListItem.status === "new",
-    pendingInitialMessageRef,
+    client,
   );
 
   // One runtime whose store CONTENT switches between the new-thread and
@@ -502,9 +525,6 @@ const mapThreadMetadata = (metadata: PiThreadMetadata) => ({
 export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
   const { client } = options;
   const registry = useMemo(() => createRegistry(client), [client]);
-  const pendingInitialMessageRef = useRef<PiSendMessageInput | undefined>(
-    undefined,
-  );
 
   useEffect(() => () => registry.dispose(), [registry]);
 
@@ -534,13 +554,10 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
         await client.deleteThread?.(remoteId);
       },
       initialize: async () => {
-        const initialMessage = pendingInitialMessageRef.current;
-        pendingInitialMessageRef.current = undefined;
         const snapshot = await client.createThread({
           ...(options.workspacePath !== undefined
             ? { workspacePath: options.workspacePath }
             : {}),
-          ...(initialMessage ? { initialMessage } : {}),
         });
         return {
           remoteId: snapshot.metadata.id,
@@ -560,12 +577,7 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
         return mapThreadMetadata(snapshot.metadata);
       },
     }),
-    [
-      client,
-      options.workspacePath,
-      options.includeArchived,
-      pendingInitialMessageRef,
-    ],
+    [client, options.workspacePath, options.includeArchived],
   );
 
   return useRemoteThreadListRuntime({
@@ -580,7 +592,7 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
       : {}),
     runtimeHook: () => {
       // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook is invoked by useRemoteThreadListRuntime at the correct hook position
-      return useRuntimeHook(registry, options, pendingInitialMessageRef);
+      return useRuntimeHook(registry, options, client);
     },
   });
 };

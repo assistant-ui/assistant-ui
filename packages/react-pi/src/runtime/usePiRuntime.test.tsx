@@ -8,6 +8,31 @@ import type { PiClient } from "../types";
 
 const mocks = vi.hoisted(() => ({
   adapters: [] as ExternalStoreAdapter[],
+  threadListAdapter: undefined as
+    | {
+        initialize: () => Promise<{
+          remoteId: string;
+          externalId: string | undefined;
+        }>;
+      }
+    | undefined,
+  initializeTask: undefined as
+    | Promise<{ remoteId: string; externalId: string | undefined }>
+    | undefined,
+  threadListItem: {
+    id: "t1" as string,
+    remoteId: "t1" as string | undefined,
+    externalId: "t1" as string | undefined,
+    status: "regular" as "new" | "regular",
+    initialize: vi.fn(() => {
+      mocks.initializeTask ??= (async () => {
+        const adapter = mocks.threadListAdapter;
+        if (!adapter) throw new Error("thread list adapter missing");
+        return adapter.initialize();
+      })();
+      return mocks.initializeTask;
+    }),
+  },
   repository: undefined as unknown,
   state: undefined as unknown,
   controller: {
@@ -18,25 +43,28 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
-  useAui: () => ({
-    threadListItem: { initialize: vi.fn().mockResolvedValue(undefined) },
-  }),
+  useAui: () => ({ threadListItem: mocks.threadListItem }),
   useAuiState: (selector: (state: unknown) => unknown) =>
     selector({
-      threadListItem: {
-        id: "t1",
-        remoteId: "t1",
-        externalId: "t1",
-        status: "regular",
-      },
-      threads: { mainThreadId: "t1" },
+      threadListItem: mocks.threadListItem,
+      threads: { mainThreadId: mocks.threadListItem.id },
     }),
   useExternalStoreRuntime: (adapter: ExternalStoreAdapter) => {
     mocks.adapters.push(adapter);
     return {};
   },
-  useRemoteThreadListRuntime: (options: { runtimeHook: () => unknown }) =>
-    options.runtimeHook(),
+  useRemoteThreadListRuntime: (options: {
+    adapter: {
+      initialize: () => Promise<{
+        remoteId: string;
+        externalId: string | undefined;
+      }>;
+    };
+    runtimeHook: () => unknown;
+  }) => {
+    mocks.threadListAdapter = options.adapter;
+    return options.runtimeHook();
+  },
 }));
 
 vi.mock("./ThreadController", async (importOriginal) => {
@@ -81,6 +109,13 @@ afterEach(() => {
   act(() => root?.unmount());
   root = undefined;
   mocks.adapters.length = 0;
+  mocks.threadListAdapter = undefined;
+  mocks.initializeTask = undefined;
+  mocks.threadListItem.id = "t1";
+  mocks.threadListItem.remoteId = "t1";
+  mocks.threadListItem.externalId = "t1";
+  mocks.threadListItem.status = "regular";
+  mocks.threadListItem.initialize.mockClear();
   vi.clearAllMocks();
   vi.restoreAllMocks();
 });
@@ -135,4 +170,64 @@ describe("usePiRuntime error callbacks", () => {
       );
     },
   );
+});
+
+describe("usePiRuntime new threads", () => {
+  it("sends the first message after initialization returns the thread id", async () => {
+    mocks.threadListItem.id = "new";
+    mocks.threadListItem.remoteId = undefined;
+    mocks.threadListItem.externalId = undefined;
+    mocks.threadListItem.status = "new";
+
+    let resolveCreateThread!: (snapshot: {
+      metadata: { id: string; status: string };
+      messages: [];
+    }) => void;
+    const createThreadPromise = new Promise<{
+      metadata: { id: string; status: string };
+      messages: [];
+    }>((resolve) => {
+      resolveCreateThread = resolve;
+    });
+    const client = {
+      createThread: vi.fn(() => createThreadPromise),
+      sendMessage: vi.fn().mockResolvedValue(undefined),
+    } as unknown as PiClient;
+
+    const App = () => {
+      usePiRuntime({ client });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    const adapter = mocks.adapters.at(-1)!;
+    const initialization = mocks.threadListItem.initialize();
+    expect(client.createThread).toHaveBeenCalledWith({});
+
+    const message: AppendMessage = {
+      role: "user",
+      content: [{ type: "text", text: "hello" }],
+    } as unknown as AppendMessage;
+    let sendPromise!: Promise<void>;
+    await act(async () => {
+      sendPromise = adapter.onNew(message);
+    });
+
+    expect(client.sendMessage).not.toHaveBeenCalled();
+    await act(async () => {
+      resolveCreateThread({
+        metadata: { id: "thread-1", status: "idle" },
+        messages: [],
+      });
+      await initialization;
+      await sendPromise;
+    });
+
+    expect(client.createThread).toHaveBeenCalledTimes(1);
+    expect(client.sendMessage).toHaveBeenCalledWith("thread-1", {
+      content: "hello",
+    });
+  });
 });
