@@ -8,10 +8,7 @@ import {
   StatusBarPrimitive,
   useAui,
 } from "@assistant-ui/react-ink";
-import {
-  useChatRuntime,
-  AssistantChatTransport,
-} from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import { Thread } from "./thread";
 

@@ -64,6 +64,35 @@ describe("GorpStreamAccumulator", () => {
       error.mockRestore();
     });
 
+    it("skips fractional array indices", () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const acc = new GorpStreamAccumulator(
+        { list: ["a", "b"] },
+        { strict: false },
+      );
+      acc.append([{ type: "set", path: ["list", "0.5"], value: "x" }]);
+      expect(acc.state).toEqual({ list: ["a", "b"] });
+      expect(error).toHaveBeenCalledOnce();
+      error.mockRestore();
+    });
+
+    it("skips empty and non-canonical numeric array indices", () => {
+      const error = vi.spyOn(console, "error").mockImplementation(() => {});
+      const acc = new GorpStreamAccumulator(
+        { list: ["a", "b"] },
+        { strict: false },
+      );
+      acc.append([
+        { type: "set", path: ["list", ""], value: "x" },
+        { type: "set", path: ["list", " "], value: "x" },
+        { type: "set", path: ["list", "1e0"], value: "x" },
+        { type: "set", path: ["list", "01"], value: "x" },
+      ]);
+      expect(acc.state).toEqual({ list: ["a", "b"] });
+      expect(error).toHaveBeenCalledTimes(4);
+      error.mockRestore();
+    });
+
     it("skips negative array indices", () => {
       const error = vi.spyOn(console, "error").mockImplementation(() => {});
       const acc = new GorpStreamAccumulator({ list: ["a"] }, { strict: false });
@@ -71,6 +100,29 @@ describe("GorpStreamAccumulator", () => {
       expect(acc.state).toEqual({ list: ["a"] });
       expect(error).toHaveBeenCalledOnce();
     });
+  });
+
+  it("accepts numeric index segments from the wire", () => {
+    const acc = new GorpStreamAccumulator({ list: ["a", "b"] });
+    acc.append([
+      { type: "set", path: ["list", 0] as unknown as string[], value: "x" },
+    ]);
+    expect(acc.state).toEqual({ list: ["x", "b"] });
+  });
+
+  it("throws on fractional array indices by default", () => {
+    const acc = new GorpStreamAccumulator({ list: ["a", "b"] });
+    expect(() =>
+      acc.append([{ type: "set", path: ["list", "0.5"], value: "x" }]),
+    ).toThrow(/Expected array index/);
+  });
+
+  it("throws on an empty-string array index by default", () => {
+    const acc = new GorpStreamAccumulator({ list: ["a", "b"] });
+    expect(() =>
+      acc.append([{ type: "set", path: ["list", ""], value: "x" }]),
+    ).toThrow(/Expected array index/);
+    expect(acc.state).toEqual({ list: ["a", "b"] });
   });
 
   it("throws on out-of-bounds array inserts by default", () => {

@@ -191,6 +191,8 @@ export class AdkEventAccumulator {
   private messagesMap = new Map<string, AdkMessage>();
   private currentMessageId: string | null = null;
   private partialTextBuffer = "";
+  private finalTextReplacedThisEvent = false;
+  private finalReasoningReplacedThisEvent = false;
   private partialReasoningBuffer = "";
   private accumulatedStateDelta: Record<string, unknown> = {};
   private accumulatedArtifactDelta: Record<string, number> = {};
@@ -387,6 +389,11 @@ export class AdkEventAccumulator {
       }
     }
 
+    // Replace-semantics close out the streamed partial buffer, which only
+    // the first final text/reasoning part of an event may do; later parts
+    // of the same event are distinct content and append.
+    this.finalTextReplacedThisEvent = false;
+    this.finalReasoningReplacedThisEvent = false;
     for (const [index, part] of parts.entries()) {
       this.processPart(part, event, index);
     }
@@ -472,9 +479,12 @@ export class AdkEventAccumulator {
       if (event.partial) {
         this.partialReasoningBuffer += part.text;
         this.replaceLastReasoningContent(msg, this.partialReasoningBuffer);
-      } else {
+      } else if (!this.finalReasoningReplacedThisEvent) {
+        this.finalReasoningReplacedThisEvent = true;
         this.partialReasoningBuffer = "";
         this.replaceLastReasoningContent(msg, part.text);
+      } else {
+        this.appendContent(msg, { type: "reasoning", text: part.text });
       }
       return;
     }
@@ -485,9 +495,12 @@ export class AdkEventAccumulator {
       if (event.partial) {
         this.partialTextBuffer += part.text;
         this.replaceLastTextContent(msg, this.partialTextBuffer);
-      } else {
+      } else if (!this.finalTextReplacedThisEvent) {
+        this.finalTextReplacedThisEvent = true;
         this.partialTextBuffer = "";
         this.replaceLastTextContent(msg, part.text);
+      } else {
+        this.appendContent(msg, { type: "text", text: part.text });
       }
       return;
     }

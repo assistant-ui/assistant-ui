@@ -1,5 +1,11 @@
 # @assistant-ui/react-markdown
 
+## 0.14.12
+
+### Patch Changes
+
+- [#6160](https://github.com/assistant-ui/assistant-ui/pull/6160) [`235fa59`](https://github.com/assistant-ui/assistant-ui/commit/235fa598a99f33170bb1e69c99c96fdb2bd643fc) - fix: preserve currency inside one- and two-backtick code spans that contain longer backtick runs ([@okisdev](https://github.com/okisdev))
+
 ## 0.14.11
 
 ### Patch Changes

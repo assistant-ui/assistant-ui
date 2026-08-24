@@ -9,7 +9,7 @@ import {
   JsonToSseTransformStream,
 } from "ai";
 import type { UIMessage, UIMessageStreamWriter } from "ai";
-import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import { z } from "zod";
 import toolkit from "../../toolkit";
 

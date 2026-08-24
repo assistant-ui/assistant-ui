@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import { useManagedRef } from "../../utils/hooks/useManagedRef";
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { useComposedRefs } from "radix-ui/internal";
 import {
   useThreadViewport,
   useThreadViewportStore,
