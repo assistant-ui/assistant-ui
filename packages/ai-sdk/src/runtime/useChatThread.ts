@@ -227,11 +227,19 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepository && { messageRepository }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
-  // The proxy reads this only for a first send before insertion effects; owner-matched committed contexts bypass it.
-  transportBindingRef.current = {
-    runtime,
-    getThreadListItem: getCurrentThreadListItem,
-  };
+  // An abandoned mount cannot expose this ref or its proxy; updates publish only during commit.
+  if (!transportBindingRef.current) {
+    transportBindingRef.current = {
+      runtime,
+      getThreadListItem: getCurrentThreadListItem,
+    };
+  }
+  useInsertionEffect(() => {
+    transportBindingRef.current = {
+      runtime,
+      getThreadListItem: getCurrentThreadListItem,
+    };
+  }, [runtime, getCurrentThreadListItem]);
 
   const registerTransportContext = useEffectEvent(
     (dynamicTransport: DynamicChatTransport<UI_MESSAGE>, chatId: string) => {
