@@ -686,7 +686,7 @@ export class RunAggregator {
       Array.from(this.hiddenSignatures, ([id, encryptedValue]) => ({
         id,
         encryptedValue,
-        anchor: this.hiddenSignatureAnchors.get(id) ?? this.partOrder.length,
+        anchor: this.hiddenSignatureAnchors.get(id)!,
       }));
 
     let currentIndex = -1;
