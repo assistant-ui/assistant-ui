@@ -9,7 +9,7 @@ import {
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { ChatTransport } from "ai";
-import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { useEffect, useInsertionEffect, useMemo, useState } from "react";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import { DynamicChatTransport } from "./DynamicChatTransport";
 import { useChatThread, type ChatThreadOptions } from "./useChatThread";
@@ -20,9 +20,6 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
     onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   };
 
-const useIsomorphicLayoutEffect =
-  typeof window === "undefined" ? useEffect : useLayoutEffect;
-
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage>(
   transport: ChatTransport<UI_MESSAGE> | undefined,
 ): ChatTransport<UI_MESSAGE> => {
@@ -31,9 +28,12 @@ const useDynamicChatTransport = <UI_MESSAGE extends UIMessage>(
     () => new DynamicChatTransport(transport ?? fallback),
   );
 
-  useIsomorphicLayoutEffect(() => {
+  useInsertionEffect(() => {
     dynamicTransport.setTransport(transport ?? fallback);
   }, [dynamicTransport, fallback, transport]);
+  useEffect(() => {
+    dynamicTransport.flushTransportChange();
+  }, [dynamicTransport, transport]);
 
   return dynamicTransport;
 };

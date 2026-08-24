@@ -26,6 +26,7 @@ export class DynamicChatTransport<
   UI_MESSAGE extends UIMessage,
 > implements ChatTransport<UI_MESSAGE> {
   private readonly listeners = new Set<() => void>();
+  private hasPendingNotification = false;
   private runtime: AssistantRuntime | undefined;
   private getThreadListItem:
     | (() => InitializableThreadListItem | undefined)
@@ -53,8 +54,14 @@ export class DynamicChatTransport<
     this.transport = transport;
     this.wireTransport();
     if (previousStorage !== getResumableStorage(transport)) {
-      for (const listener of this.listeners) listener();
+      this.hasPendingNotification = true;
     }
+  }
+
+  public flushTransportChange() {
+    if (!this.hasPendingNotification) return;
+    this.hasPendingNotification = false;
+    for (const listener of this.listeners) listener();
   }
 
   public setRuntime(runtime: AssistantRuntime) {

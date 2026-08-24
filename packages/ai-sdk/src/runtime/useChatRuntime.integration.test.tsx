@@ -1,11 +1,11 @@
 // @vitest-environment jsdom
 
-import { act, render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import type { AssistantRuntime } from "@assistant-ui/core";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
 import type { ChatTransport, UIMessage } from "ai";
-import { StrictMode, useState } from "react";
+import { StrictMode, useLayoutEffect, useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import { useChatRuntime } from "./useChatRuntime";
@@ -79,23 +79,34 @@ describe("useChatRuntime integration", () => {
       sendMessages: sendB,
       reconnectToStream: vi.fn(),
     };
-    let runtime: AssistantRuntime | undefined;
-    const App = ({ transport }: { transport: ChatTransport<UIMessage> }) => {
-      runtime = useChatRuntime({ transport });
-      return <AssistantRuntimeProvider runtime={runtime} />;
+    const SendOnLayout = ({ runtime }: { runtime: AssistantRuntime }) => {
+      useLayoutEffect(() => {
+        void runtime.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+        });
+      }, [runtime]);
+      return null;
+    };
+    const App = ({
+      transport,
+      send = false,
+    }: {
+      transport: ChatTransport<UIMessage>;
+      send?: boolean;
+    }) => {
+      const runtime = useChatRuntime({ transport });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {send && <SendOnLayout runtime={runtime} />}
+        </AssistantRuntimeProvider>
+      );
     };
 
     const view = render(<App transport={transportA} />);
-    view.rerender(<App transport={transportB} />);
+    view.rerender(<App transport={transportB} send />);
 
-    await act(async () => {
-      await runtime!.thread.append({
-        role: "user",
-        content: [{ type: "text", text: "hello" }],
-      });
-    });
-
-    expect(sendB).toHaveBeenCalledOnce();
+    await waitFor(() => expect(sendB).toHaveBeenCalledOnce());
     expect(sendA).not.toHaveBeenCalled();
   });
 });
