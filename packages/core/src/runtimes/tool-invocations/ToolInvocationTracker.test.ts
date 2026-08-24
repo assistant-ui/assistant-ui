@@ -395,10 +395,56 @@ describe("ToolInvocationTracker", () => {
       );
 
     tracker.setState(createState([gated({ id: "approval-1" })], false));
-    await waitFor(() => expect(execute).not.toHaveBeenCalled());
+    await new Promise((r) => setTimeout(r, 20));
+    expect(execute).not.toHaveBeenCalled();
 
     tracker.setState(
       createState([gated({ id: "approval-1", approved: true })], true),
+    );
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("stops executing a live tool call once a provider approval lands", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp',
+            {},
+            { toolName: "deleteFile" },
+          ),
+        ],
+        true,
+      ),
+    );
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile", approval: { id: "approval-1" } },
+          ),
+        ],
+        true,
+      ),
     );
     await new Promise((r) => setTimeout(r, 20));
 

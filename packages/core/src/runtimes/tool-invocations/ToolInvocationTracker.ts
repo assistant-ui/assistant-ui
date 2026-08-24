@@ -794,6 +794,8 @@ export class ToolInvocationTracker {
           );
         }
 
+        if (content.approval !== undefined) entry.skipExecute = true;
+
         this._processArgsText(entry, content);
 
         if (content.result !== undefined && !entry.hasResult) {
