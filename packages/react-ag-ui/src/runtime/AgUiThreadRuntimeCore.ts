@@ -127,8 +127,9 @@ const invokeRuntimeCallback = <TArgs extends unknown[]>(
   }
 };
 
-// The aggregator only ever sends the interrupts it owns, so a shallow spread at
-// the custom level would drop sibling agui state such as opaqueReasoning.
+// The aggregator sends only the agui keys it owns (interrupts and
+// opaqueReasoning, each as a full replacement), so a shallow spread at the
+// custom level would drop any sibling agui state a snapshot import attached.
 const mergeAgUiNamespace = (
   current: Record<string, unknown> | undefined,
   incoming: Record<string, unknown>,

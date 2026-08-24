@@ -794,7 +794,10 @@ export class RunAggregator {
       .filter((entry) => {
         const collides =
           this.textParts.has(entry.id) ||
-          entry.id === this.reportedServerMessageId;
+          entry.id === this.reportedServerMessageId ||
+          Array.from(this.toolCalls.values()).some(
+            (call) => call.toolMessageId === entry.id,
+          );
         if (collides && !this.loggedDroppedOpaqueIds.has(entry.id)) {
           this.loggedDroppedOpaqueIds.add(entry.id);
           this.logger.debug?.(
