@@ -104,12 +104,14 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             await onSwitchToNewThread();
+            core.resetContext();
             core.applyExternalMessages([]);
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
             const result = await onSwitchToThread(threadId);
+            core.resetContext();
             core.applyExternalMessages(result.messages);
           }
         : undefined,

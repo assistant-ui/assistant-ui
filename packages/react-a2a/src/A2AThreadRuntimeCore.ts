@@ -142,6 +142,16 @@ export class A2AThreadRuntimeCore {
     this.history = options.history;
   }
 
+  /** Thread-boundary reset: applyExternalMessages alone also serves branch
+   * switches, deletes, and cancel resyncs, which must keep the live context. */
+  resetContext(): void {
+    if (this.abortController) {
+      this.abortController.abort();
+      this.abortController = null;
+    }
+    this.contextId = this.lastOptionsContextId;
+  }
+
   attachRuntime(runtime: AssistantRuntime) {
     this.runtime = runtime;
   }
@@ -361,9 +371,6 @@ export class A2AThreadRuntimeCore {
       this.recordedHistoryIds.add(message.id);
     }
     this.currentTask = undefined;
-    // An external apply is a thread boundary; the next conversation must not
-    // inherit the previous thread's server-assigned context.
-    this.contextId = this.lastOptionsContextId;
     this.currentArtifacts = [];
     this.notifyUpdate();
   }

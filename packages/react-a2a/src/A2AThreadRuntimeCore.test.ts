@@ -405,11 +405,32 @@ describe("A2AThreadRuntimeCore", () => {
       });
 
       await core.append(createUserAppendMessage("First"));
+      core.resetContext();
       core.applyExternalMessages([]);
       await core.append(createUserAppendMessage("Fresh thread"));
 
       const secondSend = streamMessage.mock.calls[1]?.[0];
       expect(secondSend?.contextId).toBeUndefined();
+    });
+
+    it("keeps the contextId across a bare external apply", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Answer");
+      });
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.append(createUserAppendMessage("First"));
+      // Branch switches, deletes, and cancel resyncs route through
+      // applyExternalMessages without a thread switch.
+      core.applyExternalMessages(core.getMessages());
+      await core.append(createUserAppendMessage("Second"));
+
+      const secondSend = streamMessage.mock.calls[1]?.[0];
+      expect(secondSend?.contextId).toBe("ctx-1");
     });
 
     it("applies a changed contextId option", async () => {
