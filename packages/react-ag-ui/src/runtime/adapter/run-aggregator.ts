@@ -96,6 +96,7 @@ export class RunAggregator {
   // claim rules mirror the visible path: an id-carrying block, or an open
   // anonymous one.
   private readonly hiddenSignatures = new Map<string, string>();
+  private readonly hiddenSignatureAnchors = new Map<string, number>();
   private readonly hiddenReasoningIds = new Set<string>();
   private hiddenActiveReasoning: "none" | "anonymous" | "identified" = "none";
   private hasEmittedOpaqueReasoning = false;
@@ -115,6 +116,7 @@ export class RunAggregator {
   )[] = [];
   private textPartCounter = 0;
   private serverMessageIdReported = false;
+  private reportedServerMessageId: string | undefined;
 
   private streamStartTime: number | undefined;
   private firstTokenTime: number | undefined;
@@ -140,6 +142,7 @@ export class RunAggregator {
         this.reasoningMessageIds.clear();
         this.reasoningSignatureIds.clear();
         this.hiddenSignatures.clear();
+        this.hiddenSignatureAnchors.clear();
         this.hiddenReasoningIds.clear();
         this.hiddenActiveReasoning = "none";
         this.hasEmittedOpaqueReasoning = false;
@@ -155,6 +158,7 @@ export class RunAggregator {
         this.activeTextMessageId = undefined;
         this.interrupts = undefined;
         this.serverMessageIdReported = false;
+        this.reportedServerMessageId = undefined;
         this.streamStartTime = Date.now();
         this.firstTokenTime = undefined;
         this.totalChunks = 0;
@@ -269,6 +273,10 @@ export class RunAggregator {
               this.hiddenActiveReasoning === "anonymous")
           ) {
             this.hiddenSignatures.set(event.entityId, event.encryptedValue);
+            this.hiddenSignatureAnchors.set(
+              event.entityId,
+              this.partOrder.length,
+            );
             this.emit();
           }
         }
@@ -462,6 +470,7 @@ export class RunAggregator {
   private reportServerMessageId(messageId: string | undefined): void {
     if (this.serverMessageIdReported || !messageId) return;
     this.serverMessageIdReported = true;
+    this.reportedServerMessageId = messageId;
     this.onServerMessageId?.(messageId);
   }
 
@@ -664,12 +673,22 @@ export class RunAggregator {
       new Set(this.toolCalls.keys()),
     );
 
-    const opaqueReasoning: AgUiOpaqueReasoning[] = Array.from(
-      this.hiddenSignatures,
-      ([id, encryptedValue]) => ({ id, encryptedValue }),
-    );
+    const opaqueCandidates: (AgUiOpaqueReasoning & { anchor: number })[] =
+      Array.from(this.hiddenSignatures, ([id, encryptedValue]) => ({
+        id,
+        encryptedValue,
+        anchor: this.hiddenSignatureAnchors.get(id) ?? this.partOrder.length,
+      }));
 
-    for (const part of this.partOrder) {
+    let currentIndex = -1;
+    let lastMaterializedIndex = -1;
+    const pushSnapshotPart = (part: (typeof snapshot)[number]) => {
+      snapshot.push(part);
+      lastMaterializedIndex = currentIndex;
+    };
+
+    for (const [index, part] of this.partOrder.entries()) {
+      currentIndex = index;
       if (part.kind === "reasoning") {
         if (this.showThinking) {
           const buffer = this.reasoningParts.get(part.key) ?? "";
@@ -680,7 +699,7 @@ export class RunAggregator {
               ...(reasoningId !== undefined ? { reasoningId } : {}),
               ...(encryptedValue !== undefined ? { encryptedValue } : {}),
             };
-            snapshot.push({
+            pushSnapshotPart({
               type: "reasoning",
               text: buffer,
               ...(Object.keys(meta).length > 0
@@ -696,7 +715,7 @@ export class RunAggregator {
               this.reasoningSignatureIds.get(part.key) ??
               this.reasoningMessageIds.get(part.key);
             if (encryptedValue !== undefined && id !== undefined) {
-              opaqueReasoning.push({ id, encryptedValue });
+              opaqueCandidates.push({ id, encryptedValue, anchor: index + 1 });
             }
           }
         }
@@ -706,13 +725,13 @@ export class RunAggregator {
       if (part.kind === "text") {
         const entry = this.textParts.get(part.key);
         if (entry?.touched) {
-          snapshot.push({ type: "text", text: entry.buffer } as const);
+          pushSnapshotPart({ type: "text", text: entry.buffer } as const);
         }
         continue;
       }
 
       if (part.kind === "data") {
-        snapshot.push({
+        pushSnapshotPart({
           type: "data",
           name: part.name,
           data: part.value,
@@ -752,17 +771,26 @@ export class RunAggregator {
           ? { unstable_toolMessageId: entry.toolMessageId }
           : {}),
       } as ToolCallMessagePart & { unstable_toolMessageId?: string };
-      snapshot.push(toolPart);
+      pushSnapshotPart(toolPart);
     }
 
     // An anonymous claim promotes the signature's entityId to a wire message
-    // id; when that id actually names a text message (which the runtime may
-    // adopt as the assistant id), replaying it would put two wire records
-    // under one id — the sibling conversion path synthesizes ids to avoid
-    // exactly that, so such entries are dropped instead.
-    const publishableOpaqueReasoning = opaqueReasoning.filter(
-      (entry) => !this.textParts.has(entry.id),
-    );
+    // id; when that id actually names a text message or the adopted assistant
+    // message id (which can also arrive via TOOL_CALL_START.parentMessageId),
+    // replaying it would put two wire records under one id — the sibling
+    // conversion path synthesizes ids to avoid exactly that, so such entries
+    // are dropped instead. Entries with no materialized part after their
+    // anchor trail the assistant record, matching the snapshot path's
+    // anchor/after bookkeeping.
+    const publishableOpaqueReasoning = opaqueCandidates
+      .filter(
+        (entry) =>
+          !this.textParts.has(entry.id) &&
+          entry.id !== this.reportedServerMessageId,
+      )
+      .map(({ anchor, ...entry }) =>
+        lastMaterializedIndex < anchor ? { ...entry, after: true } : entry,
+      );
     if (publishableOpaqueReasoning.length > 0)
       this.hasEmittedOpaqueReasoning = true;
     // Once an opaque entry has been published this run, the key keeps being

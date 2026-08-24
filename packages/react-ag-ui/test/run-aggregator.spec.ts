@@ -183,7 +183,7 @@ describe("RunAggregator", () => {
       false,
     );
     expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
-      { id: "m1", encryptedValue: "sig-1" },
+      { id: "m1", encryptedValue: "sig-1", after: true },
     ]);
   });
 
@@ -225,7 +225,7 @@ describe("RunAggregator", () => {
 
     const last = results.at(-1);
     expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
-      { id: "m1", encryptedValue: "sig-1" },
+      { id: "m1", encryptedValue: "sig-1", after: true },
     ]);
   });
 
@@ -262,6 +262,76 @@ describe("RunAggregator", () => {
       "sig-1",
     );
     expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([]);
+  });
+
+  it("drops a signature naming the assistant id adopted from a tool call", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc1",
+      toolCallName: "search",
+      parentMessageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "srv-1",
+      encryptedValue: "sig-t",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
+  it("marks a trailing signed block with after and a leading one without", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "lead",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "lead",
+      encryptedValue: "sig-lead",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "lead",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "answer",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "trail",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "trail",
+      encryptedValue: "sig-trail",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "trail",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
+      { id: "lead", encryptedValue: "sig-lead" },
+      { id: "trail", encryptedValue: "sig-trail", after: true },
+    ]);
   });
 
   it("closes the anonymous claim when an identified hidden block opens", () => {
@@ -306,7 +376,7 @@ describe("RunAggregator", () => {
 
     const last = results.at(-1);
     expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
-      { id: "m1", encryptedValue: "sig-1" },
+      { id: "m1", encryptedValue: "sig-1", after: true },
     ]);
   });
 
