@@ -93,9 +93,6 @@ export const NOOP_CONTROLLER: PiThreadControllerLike = {
   dispose: () => {},
 };
 
-const NOOP_ON_NEW = () =>
-  Promise.reject(new Error("Pi thread is still initializing"));
-
 const reportPiCallbackError = (callbackError: unknown) => {
   console.error("[react-pi] onError callback threw an error", callbackError);
 };
@@ -395,7 +392,6 @@ const useNewPiThreadStore = (
       extras: EMPTY_RUNTIME_EXTRAS,
       ...(adapters ? { adapters } : {}),
       onNew: async (message) => {
-        if (!enabled) return NOOP_ON_NEW();
         const optimistic = toOptimisticThreadMessage(
           message,
           optimisticMessageIndexRef.current++,
