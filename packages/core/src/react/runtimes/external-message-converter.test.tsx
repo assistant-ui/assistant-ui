@@ -79,7 +79,10 @@ describe("useExternalMessageConverter", () => {
     rerender({ messages: [older, newer] });
 
     const ids = result.current.map((message) => message.id);
-    expect(new Set(ids).size).toBe(ids.length);
+    expect(ids).toEqual([
+      "__external_store_fallback_0",
+      "__external_store_fallback_1",
+    ]);
     expect(
       result.current.map((message) => (message.content[0] as any).text),
     ).toEqual(["older", "newer"]);

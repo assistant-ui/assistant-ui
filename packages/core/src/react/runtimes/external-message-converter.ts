@@ -6,12 +6,13 @@ import {
   getExternalStoreMessages,
   symbolInnerMessage,
   bindExternalStoreMessage,
+  FALLBACK_ID_PREFIX,
+  isGeneratedFallbackId,
 } from "../../runtime/utils/external-store-message";
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
-import { FALLBACK_ID_PREFIX } from "../../runtimes/external-store/external-store-thread-runtime-core";
 import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
 import type { ToolExecutionStatus } from "../../runtimes/tool-invocations/ToolInvocationTracker";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
@@ -413,7 +414,7 @@ export const convertExternalMessages = <T extends WeakKey>(
     );
     const newMessage = fromThreadMessageLike(
       joined,
-      idx.toString(),
+      `${FALLBACK_ID_PREFIX}${idx}`,
       autoStatus,
     );
     bindExternalStoreMessage(newMessage, message.inputs);
@@ -536,10 +537,7 @@ export const useExternalMessageConverter = <T extends WeakKey>({
             // A positional fallback id goes stale when messages are prepended
             // or reordered; serving it unchanged makes two messages collide on
             // one id and the dedup downstream drops one of them.
-            if (
-              cache.id.startsWith(FALLBACK_ID_PREFIX) &&
-              cache.id !== fallbackId
-            ) {
+            if (isGeneratedFallbackId(cache.id) && cache.id !== fallbackId) {
               const updated = { ...cache, id: fallbackId };
               bindExternalStoreMessage(updated, message.inputs);
               return updated;

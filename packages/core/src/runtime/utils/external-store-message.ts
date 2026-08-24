@@ -42,3 +42,11 @@ export const getExternalStoreMessages = <T>(
   container[symbolInnerMessages] = [value];
   return container[symbolInnerMessages];
 };
+
+export const FALLBACK_ID_PREFIX = "__external_store_fallback_";
+
+/** True for ids this package generated positionally (prefix + index) — a
+ * caller-supplied id that merely resembles the prefix is left untouched. */
+export const isGeneratedFallbackId = (id: string): boolean =>
+  id.startsWith(FALLBACK_ID_PREFIX) &&
+  /^\d+$/.test(id.slice(FALLBACK_ID_PREFIX.length));
