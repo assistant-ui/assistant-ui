@@ -405,12 +405,50 @@ describe("A2AThreadRuntimeCore", () => {
       });
 
       await core.append(createUserAppendMessage("First"));
-      core.resetContext();
       core.applyExternalMessages([]);
+      core.resetContext();
       await core.append(createUserAppendMessage("Fresh thread"));
 
       const secondSend = streamMessage.mock.calls[1]?.[0];
       expect(secondSend?.contextId).toBeUndefined();
+    });
+
+    it("does not persist a partial message when switching away mid-run", async () => {
+      let releaseStream!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        releaseStream = resolve;
+      });
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("working");
+        await gate;
+      });
+      const history = {
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn(),
+      };
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+        history,
+      } as never);
+
+      const run = core.append(createUserAppendMessage("First"));
+      await Promise.resolve();
+      history.append.mockClear();
+
+      core.applyExternalMessages([]);
+      core.resetContext();
+      releaseStream();
+      await run.catch(() => {});
+
+      const cancelledAppend = history.append.mock.calls.find((call) => {
+        const entry = call[0] as
+          | { message?: { status?: { reason?: string } } }
+          | undefined;
+        return entry?.message?.status?.reason === "cancelled";
+      });
+      expect(cancelledAppend).toBeUndefined();
     });
 
     it("keeps the contextId across a bare external apply", async () => {

@@ -145,11 +145,17 @@ export class A2AThreadRuntimeCore {
   /** Thread-boundary reset: applyExternalMessages alone also serves branch
    * switches, deletes, and cancel resyncs, which must keep the live context. */
   resetContext(): void {
-    if (this.abortController) {
-      this.abortController.abort();
-      this.abortController = null;
-    }
+    // Restore the seed before aborting: an onCancel callback that starts a
+    // new run must not pick up the old thread's context, and its controller
+    // must not be discarded.
+    const controller = this.abortController;
     this.contextId = this.lastOptionsContextId;
+    if (controller) {
+      controller.abort();
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
+    }
   }
 
   attachRuntime(runtime: AssistantRuntime) {
