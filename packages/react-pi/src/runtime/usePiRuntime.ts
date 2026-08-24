@@ -362,6 +362,7 @@ const toOptimisticThreadMessage = (
 });
 
 const useNewPiThreadStore = (
+  registry: PiControllerRegistry,
   options: PiRuntimeOptions,
   enabled: boolean,
   pendingInitialMessageRef: { current: PiSendMessageInput | undefined },
@@ -404,7 +405,17 @@ const useNewPiThreadStore = (
         pendingInitialMessageRef.current = initialMessage;
         setOptimisticMessages((messages) => [...messages, optimistic]);
         try {
-          await aui.threadListItem.initialize();
+          const { remoteId, externalId } =
+            await aui.threadListItem.initialize();
+          if (pendingInitialMessageRef.current === initialMessage) {
+            // The core starts thread initialization before dispatching onNew,
+            // so adapter.initialize has usually already run and created the
+            // thread without the message; deliver it to the live thread.
+            pendingInitialMessageRef.current = undefined;
+            await getController(registry, externalId ?? remoteId).sendMessage(
+              message,
+            );
+          }
           setOptimisticMessages([]);
         } catch (error) {
           if (pendingInitialMessageRef.current === initialMessage) {
@@ -424,6 +435,7 @@ const useNewPiThreadStore = (
       optimisticMessages.length,
       optimisticRepository,
       pendingInitialMessageRef,
+      registry,
       adapters,
       isDisabled,
       isSendDisabled,
@@ -458,6 +470,7 @@ const useRuntimeHook = (
     options,
   );
   const newThreadStore = useNewPiThreadStore(
+    registry,
     options,
     threadListItem.status === "new",
     pendingInitialMessageRef,
