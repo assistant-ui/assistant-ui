@@ -92,8 +92,13 @@ export class RunAggregator {
   private readonly reasoningSignatures = new Map<string, string>();
   private readonly reasoningSignatureIds = new Map<string, string>();
   // Signatures captured while thinking is hidden have no block to live on;
-  // they are transport state that must survive to the next run input.
+  // they are transport state that must survive to the next run input. The
+  // claim rules mirror the visible path: an id-carrying block, or an open
+  // anonymous one.
   private readonly hiddenSignatures = new Map<string, string>();
+  private readonly hiddenReasoningIds = new Set<string>();
+  private hiddenAnonymousReasoningOpen = false;
+  private hasEmittedOpaqueReasoning = false;
   private readonly reasoningMessageIds = new Map<string, string>();
   private readonly anonymousReasoningKeys = new Set<string>();
   private activeReasoningKey: string | undefined;
@@ -135,6 +140,9 @@ export class RunAggregator {
         this.reasoningMessageIds.clear();
         this.reasoningSignatureIds.clear();
         this.hiddenSignatures.clear();
+        this.hiddenReasoningIds.clear();
+        this.hiddenAnonymousReasoningOpen = false;
+        this.hasEmittedOpaqueReasoning = false;
         this.anonymousReasoningKeys.clear();
         this.activeReasoningKey = undefined;
         this.reasoningPartCounter = 0;
@@ -255,7 +263,11 @@ export class RunAggregator {
             this.reasoningSignatures.set(key, event.encryptedValue);
             this.reasoningSignatureIds.set(key, event.entityId);
             this.emit();
-          } else if (!this.showThinking) {
+          } else if (
+            !this.showThinking &&
+            (this.hiddenReasoningIds.has(event.entityId) ||
+              this.hiddenAnonymousReasoningOpen)
+          ) {
             this.hiddenSignatures.set(event.entityId, event.encryptedValue);
             this.emit();
           }
@@ -743,15 +755,19 @@ export class RunAggregator {
       snapshot.push(toolPart);
     }
 
+    if (opaqueReasoning.length > 0) this.hasEmittedOpaqueReasoning = true;
+    // Once an opaque entry has been published this run, the key keeps being
+    // emitted (empty when withdrawn) so the namespace merge can retract it.
+    const includeOpaque = this.hasEmittedOpaqueReasoning;
     const timing = this.getTiming();
     const metadata = {
       ...(timing ? { timing } : {}),
-      ...(this.interrupts || opaqueReasoning.length > 0
+      ...(this.interrupts || includeOpaque
         ? {
             custom: {
               [AG_UI_METADATA_NAMESPACE]: {
                 ...(this.interrupts ? { interrupts: this.interrupts } : {}),
-                ...(opaqueReasoning.length > 0 ? { opaqueReasoning } : {}),
+                ...(includeOpaque ? { opaqueReasoning } : {}),
               } satisfies AgUiCustomMetadata,
             },
           }
@@ -807,7 +823,14 @@ export class RunAggregator {
   }
 
   private handleReasoningStart(messageId?: string, isMessageId = false): void {
-    if (!this.showThinking) return;
+    if (!this.showThinking) {
+      if (messageId === undefined) {
+        this.hiddenAnonymousReasoningOpen = true;
+      } else {
+        this.hiddenReasoningIds.add(messageId);
+      }
+      return;
+    }
     // A reasoning block acts as a boundary: anonymous text arriving after it
     // should be a new part, not appended to any pre-reasoning text.
     this.activeTextMessageId = undefined;
@@ -845,7 +868,10 @@ export class RunAggregator {
   }
 
   private handleReasoningEnd(): void {
-    if (!this.showThinking) return;
+    if (!this.showThinking) {
+      this.hiddenAnonymousReasoningOpen = false;
+      return;
+    }
     this.activeReasoningKey = undefined;
     this.emit();
   }
