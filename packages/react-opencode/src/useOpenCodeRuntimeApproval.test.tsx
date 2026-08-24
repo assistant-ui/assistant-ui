@@ -14,15 +14,21 @@ const mocks = vi.hoisted(() => ({
   threadListAdapter: undefined as
     | { initialize: () => Promise<{ remoteId: string; externalId: string }> }
     | undefined,
+  initializeTask: undefined as
+    | Promise<{ remoteId: string; externalId: string }>
+    | undefined,
   sessionCreate: vi.fn().mockResolvedValue({ data: { id: "session-1" } }),
   threadListItem: {
     externalId: "session-1" as string | undefined,
     remoteId: "session-1" as string | undefined,
     status: "regular" as "new" | "regular",
-    initialize: vi.fn(async () => {
-      const adapter = mocks.threadListAdapter;
-      if (!adapter) throw new Error("thread list adapter missing");
-      return adapter.initialize();
+    initialize: vi.fn(() => {
+      mocks.initializeTask ??= (async () => {
+        const adapter = mocks.threadListAdapter;
+        if (!adapter) throw new Error("thread list adapter missing");
+        return adapter.initialize();
+      })();
+      return mocks.initializeTask;
     }),
   },
   controller: {
@@ -102,6 +108,7 @@ afterEach(() => {
   root = undefined;
   mocks.adapters.length = 0;
   mocks.threadListAdapter = undefined;
+  mocks.initializeTask = undefined;
   mocks.threadListItem.externalId = "session-1";
   mocks.threadListItem.remoteId = "session-1";
   mocks.threadListItem.status = "regular";
@@ -149,6 +156,43 @@ describe("useOpenCodeRuntime", () => {
     mocks.threadListItem.status = "regular";
     await act(async () => root!.render(createElement(App)));
 
+    expect(mocks.controller.sendMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("sends after core starts initialize and status leaves new", async () => {
+    const sessionCreate = Promise.withResolvers<{ data: { id: string } }>();
+    mocks.sessionCreate.mockReturnValue(sessionCreate.promise);
+    mocks.threadListItem.externalId = undefined;
+    mocks.threadListItem.remoteId = undefined;
+    mocks.threadListItem.status = "new";
+    mocks.state = createOpenCodeThreadState("session-1");
+
+    const App = () => {
+      useOpenCodeRuntime({ client: stubClient });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    const initialization = mocks.threadListItem.initialize();
+    mocks.threadListItem.status = "regular";
+    await act(async () => root!.render(createElement(App)));
+
+    const adapter = mocks.adapters.at(-1) as RuntimeAdapter & {
+      isDisabled?: boolean;
+    };
+    expect(adapter.isDisabled).toBe(false);
+
+    const sendPromise = adapter.onNew!({ role: "user", content: [] });
+    expect(mocks.controller.sendMessage).not.toHaveBeenCalled();
+
+    sessionCreate.resolve({ data: { id: "session-1" } });
+    await initialization;
+    await sendPromise;
+
+    expect(mocks.sessionCreate).toHaveBeenCalledTimes(1);
+    expect(mocks.threadListItem.initialize).toHaveBeenCalled();
     expect(mocks.controller.sendMessage).toHaveBeenCalledTimes(1);
   });
 
