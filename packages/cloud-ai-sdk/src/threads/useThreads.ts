@@ -173,23 +173,25 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
           if (!isLatest()) return true;
 
-          let selectedThreadDeleted = false;
+          let shouldClearSelectedThread = false;
           if (
             selectedThreadWasListed &&
             selectedThreadId !== null &&
             !nextThreadIds.has(selectedThreadId)
           ) {
             try {
-              await cloud.threads.get(selectedThreadId);
+              const selectedThread = await cloud.threads.get(selectedThreadId);
+              shouldClearSelectedThread =
+                !includeArchivedRef.current && selectedThread.is_archived;
             } catch (error) {
-              selectedThreadDeleted =
+              shouldClearSelectedThread =
                 typeof error === "object" &&
                 error !== null &&
                 "status" in error &&
                 error.status === 404;
             }
           }
-          if (selectedThreadDeleted) {
+          if (shouldClearSelectedThread) {
             commit(() =>
               setSelection((current) =>
                 current.scope === scope && current.threadId === selectedThreadId

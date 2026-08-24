@@ -6,7 +6,7 @@ import {
   AssistantChatTransport,
   createResumableSessionStorage,
   useChatRuntime,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 
 const storage = createResumableSessionStorage();

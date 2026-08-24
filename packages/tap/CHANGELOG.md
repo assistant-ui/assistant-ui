@@ -1,5 +1,11 @@
 # @assistant-ui/tap
 
+## 0.9.14
+
+### Patch Changes
+
+- [#6171](https://github.com/assistant-ui/assistant-ui/pull/6171) [`f2b3ef8`](https://github.com/assistant-ui/assistant-ui/commit/f2b3ef8b6330e9353741973b0bfe0abf37d81e70) - fix: flush state updates dispatched from subscriber notifications during flushTapSync ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.9.13
 
 ### Patch Changes

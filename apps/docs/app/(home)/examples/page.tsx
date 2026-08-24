@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { createOgMetadata } from "@/lib/og";
-import { ExampleCard } from "@/components/examples/example-card";
+import { ExampleCard } from "@/components/pages/examples/example-card";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typePage } from "@/components/shared/type";
 import { COMMUNITY_EXAMPLES, INTERNAL_EXAMPLES } from "@/lib/examples";

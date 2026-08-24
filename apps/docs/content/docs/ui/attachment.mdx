@@ -4,18 +4,18 @@ description: UI components for attaching and viewing files in messages.
 platforms: ["react"]
 ---
 
-import { AttachmentSample } from "@/components/docs/samples/attachment";
-import * as AttachmentRadixSamples from "@/components/docs/samples/attachment.radix";
-import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
-import { PreviewCode } from "@/components/docs/preview-code.server";
-import { AttachmentComposerSample } from "@/components/docs/samples/attachment/composer-attachments";
-import * as AttachmentComposerRadixSample from "@/components/docs/samples/attachment/composer-attachments.radix";
-import { AttachmentMessageContextSample } from "@/components/docs/samples/attachment/message-attachments";
-import * as AttachmentMessageRadixSample from "@/components/docs/samples/attachment/message-attachments.radix";
-import { AttachmentTypesSample } from "@/components/docs/samples/attachment/types";
-import * as AttachmentTypesRadixSample from "@/components/docs/samples/attachment/types.radix";
-import { AttachmentPreviewSample } from "@/components/docs/samples/attachment/image-preview";
-import * as AttachmentPreviewRadixSample from "@/components/docs/samples/attachment/image-preview.radix";
+import { AttachmentSample } from "@/components/pages/docs/samples/attachment";
+import * as AttachmentRadixSamples from "@/components/pages/docs/samples/attachment.radix";
+import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { AttachmentComposerSample } from "@/components/pages/docs/samples/attachment/composer-attachments";
+import * as AttachmentComposerRadixSample from "@/components/pages/docs/samples/attachment/composer-attachments.radix";
+import { AttachmentMessageContextSample } from "@/components/pages/docs/samples/attachment/message-attachments";
+import * as AttachmentMessageRadixSample from "@/components/pages/docs/samples/attachment/message-attachments.radix";
+import { AttachmentTypesSample } from "@/components/pages/docs/samples/attachment/types";
+import * as AttachmentTypesRadixSample from "@/components/pages/docs/samples/attachment/types.radix";
+import { AttachmentPreviewSample } from "@/components/pages/docs/samples/attachment/image-preview";
+import * as AttachmentPreviewRadixSample from "@/components/pages/docs/samples/attachment/image-preview.radix";
 
 <FlavorSwitcher />
 
@@ -101,7 +101,7 @@ const UserMessage: FC = () => {
 
 In the composer, each attachment tile shows a remove button that deletes the attachment from the composer. Use the plus button to add your own files.
 
-<PreviewCode file="components/docs/samples/attachment/composer-attachments" name="ComposerWithAttachments" base={<AttachmentComposerSample />}>
+<PreviewCode file="components/pages/docs/samples/attachment/composer-attachments" name="ComposerWithAttachments" base={<AttachmentComposerSample />}>
   <AttachmentComposerRadixSample.AttachmentComposerSample />
 </PreviewCode>
 
@@ -109,7 +109,7 @@ In the composer, each attachment tile shows a remove button that deletes the att
 
 Message attachments are read-only. The same tile in a sent user message does not show a remove button.
 
-<PreviewCode file="components/docs/samples/attachment/message-attachments" name="UserMessageWithAttachments" base={<AttachmentMessageContextSample />}>
+<PreviewCode file="components/pages/docs/samples/attachment/message-attachments" name="UserMessageWithAttachments" base={<AttachmentMessageContextSample />}>
   <AttachmentMessageRadixSample.AttachmentMessageContextSample />
 </PreviewCode>
 
@@ -117,7 +117,7 @@ Message attachments are read-only. The same tile in a sent user message does not
 
 This example shows the image tile and the generic fallback tile used for the built-in document type and the custom attachment type. The two fallback tiles use the same icon, but their accessible labels distinguish them.
 
-<PreviewCode file="components/docs/samples/attachment/types" name="AttachmentTypesSample" base={<AttachmentTypesSample />}>
+<PreviewCode file="components/pages/docs/samples/attachment/types" name="AttachmentTypesSample" base={<AttachmentTypesSample />}>
   <AttachmentTypesRadixSample.AttachmentTypesSample />
 </PreviewCode>
 
@@ -125,7 +125,7 @@ This example shows the image tile and the generic fallback tile used for the bui
 
 When you click an image tile or activate it with the keyboard, a full-size preview dialog opens.
 
-<PreviewCode file="components/docs/samples/attachment/image-preview" name="AttachmentPreviewSample" base={<AttachmentPreviewSample />}>
+<PreviewCode file="components/pages/docs/samples/attachment/image-preview" name="AttachmentPreviewSample" base={<AttachmentPreviewSample />}>
   <AttachmentPreviewRadixSample.AttachmentPreviewSample />
 </PreviewCode>
 

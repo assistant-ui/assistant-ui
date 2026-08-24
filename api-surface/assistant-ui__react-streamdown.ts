@@ -1,8 +1,8 @@
-import "@radix-ui/react-primitive";
-
 import "@standard-schema/spec";
 
 import "radix-ui";
+
+import "radix-ui/internal";
 
 import { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
 

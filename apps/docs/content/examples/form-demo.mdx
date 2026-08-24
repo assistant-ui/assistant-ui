@@ -32,7 +32,7 @@ The example uses `useAssistantForm` from `@assistant-ui/react-hook-form` to conn
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 export function MyRuntimeProvider({
   children,
@@ -52,7 +52,7 @@ export function MyRuntimeProvider({
 ```ts
 // app/api/chat/route.ts
 import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;

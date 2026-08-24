@@ -8,7 +8,7 @@
     "start": "next start"
   },
   "dependencies": {
-    "@assistant-ui/react-ai-sdk": "workspace:*",
+    "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react-ink": "workspace:*",
     "@assistant-ui/react-ink-markdown": "workspace:*",
     "@wterm/dom": "^0.3.4",

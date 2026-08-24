@@ -20,10 +20,10 @@ import {
 import { getCommitStats, getDependents, getRepo } from "@/lib/github";
 import { FLAGSHIP_PACKAGE } from "@/lib/npm";
 import { formatCompact, formatNumber } from "@/lib/format";
-import { ActivityHeatmap } from "@/components/traction/activity-heatmap";
-import { DownloadsChart } from "@/components/traction/downloads-chart";
-import { StarHistoryChart } from "@/components/traction/star-history-chart";
-import { WeeklyDownloadsStat } from "@/components/traction/weekly-downloads-stat";
+import { ActivityHeatmap } from "@/components/pages/traction/activity-heatmap";
+import { DownloadsChart } from "@/components/pages/traction/downloads-chart";
+import { StarHistoryChart } from "@/components/pages/traction/star-history-chart";
+import { WeeklyDownloadsStat } from "@/components/pages/traction/weekly-downloads-stat";
 
 const title = "Traction";
 const description =
