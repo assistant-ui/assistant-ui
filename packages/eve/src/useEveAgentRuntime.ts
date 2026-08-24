@@ -424,14 +424,13 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       // Eve 0.38 replaced the binding's local-abort `stop()` with the durable
       // `cancel()`, so the adapter detects which side of that break the host's
       // eve provides instead of pinning the peer range to one of them.
-      const controls = agent as {
-        readonly cancel?: () => Promise<unknown>;
-        readonly stop?: () => void;
-      };
-      if (controls.cancel) {
+      const controls = agent as
+        | { readonly cancel: () => Promise<unknown> }
+        | { readonly stop: () => void };
+      if ("cancel" in controls) {
         await controls.cancel();
       } else {
-        controls.stop?.();
+        controls.stop();
       }
     },
     onRespondToToolApproval: async (response) => {
