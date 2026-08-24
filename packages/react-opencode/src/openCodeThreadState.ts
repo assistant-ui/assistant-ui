@@ -674,6 +674,12 @@ export const reduceOpenCodeThreadState = (
           },
         },
         runState: { type: "error", error: event.error },
+        // run.started optimistically marks the session busy before the prompt
+        // request is made; a send failure means it never reached the server,
+        // so the optimistic status must roll back or the thread reports
+        // running forever (no server event will ever clear it).
+        sessionStatus:
+          state.sessionStatus?.type === "busy" ? null : state.sessionStatus,
       };
     }
   }

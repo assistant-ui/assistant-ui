@@ -11,6 +11,74 @@ import type {
 } from "./types";
 
 describe("reduceOpenCodeThreadState", () => {
+  it("rolls back the optimistic busy status when the prompt fails to send", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+    const pending: PendingUserMessage = {
+      clientId: "local_1",
+      sessionId: "ses_1",
+      createdAt: 1000,
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+      contentText: "hello world",
+      parts: [{ type: "text", text: "hello world" }],
+      status: "pending",
+    };
+
+    const queued = reduceOpenCodeThreadState(initial, {
+      type: "local.message.queued",
+      pending,
+    });
+    const started = reduceOpenCodeThreadState(queued, {
+      type: "run.started",
+    });
+    expect(started.sessionStatus).toEqual({ type: "busy" });
+
+    const failed = reduceOpenCodeThreadState(started, {
+      type: "local.message.failed",
+      clientId: "local_1",
+      error: new Error("network down"),
+    });
+
+    expect(failed.runState).toEqual({
+      type: "error",
+      error: new Error("network down"),
+    });
+    expect(failed.sessionStatus).toBeNull();
+  });
+
+  it("keeps a server-reported session status when a prompt fails", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+    const pending: PendingUserMessage = {
+      clientId: "local_1",
+      sessionId: "ses_1",
+      createdAt: 1000,
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+      contentText: "hello world",
+      parts: [{ type: "text", text: "hello world" }],
+      status: "pending",
+    };
+
+    const queued = reduceOpenCodeThreadState(initial, {
+      type: "local.message.queued",
+      pending,
+    });
+    const retrying = reduceOpenCodeThreadState(queued, {
+      type: "session.status",
+      status: { type: "retry" } as never,
+    });
+
+    const failed = reduceOpenCodeThreadState(retrying, {
+      type: "local.message.failed",
+      clientId: "local_1",
+      error: new Error("network down"),
+    });
+
+    expect(failed.sessionStatus).toEqual({ type: "retry" });
+  });
+
   it("reconciles a pending user message with loaded history", () => {
     const initial = createOpenCodeThreadState("ses_1");
     const pending: PendingUserMessage = {
