@@ -9,7 +9,7 @@ links:
 platforms: ["react"]
 ---
 
-import { PreviewCode } from "@/components/docs/preview-code.server";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import {
   TabsSample,
   TabsVariantsSample,
@@ -18,9 +18,9 @@ import {
   TabsControlledSample,
   TabsAsLinkSample,
   TabsAnimatedIndicatorSample,
-} from "@/components/docs/samples/tabs";
-import * as TabsRadixSamples from "@/components/docs/samples/tabs.radix";
-import { Flavored, FlavorSwitcher } from "@/components/docs/contexts/flavor.server";
+} from "@/components/pages/docs/samples/tabs";
+import * as TabsRadixSamples from "@/components/pages/docs/samples/tabs.radix";
+import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
 
 <Callout>
   This is a **standalone component** that does not depend on the assistant-ui runtime. Use it anywhere in your application.
@@ -90,7 +90,7 @@ Use the `size` prop on `TabsList` to change the tab height. Child components inh
 
 Tabs automatically style SVG icons placed inside triggers.
 
-<PreviewCode file="components/docs/samples/tabs" name="TabsWithIconsSample" base={<TabsWithIconsSample />}>
+<PreviewCode file="components/pages/docs/samples/tabs" name="TabsWithIconsSample" base={<TabsWithIconsSample />}>
   <TabsRadixSamples.TabsWithIconsSample />
 </PreviewCode>
 
@@ -98,7 +98,7 @@ Tabs automatically style SVG icons placed inside triggers.
 
 Use `value` and `onValueChange` for controlled tab state.
 
-<PreviewCode file="components/docs/samples/tabs" name="TabsControlledSample" base={<TabsControlledSample />}>
+<PreviewCode file="components/pages/docs/samples/tabs" name="TabsControlledSample" base={<TabsControlledSample />}>
   <TabsRadixSamples.TabsControlledSample />
 </PreviewCode>
 
@@ -106,7 +106,7 @@ Use `value` and `onValueChange` for controlled tab state.
 
 Compose with `render` (Base UI) or `asChild` (Radix) on `TabsTrigger` to render as a different element, like a navigation link.
 
-<PreviewCode file="components/docs/samples/tabs" name="TabsAsLinkSample" base={<TabsAsLinkSample />}>
+<PreviewCode file="components/pages/docs/samples/tabs" name="TabsAsLinkSample" base={<TabsAsLinkSample />}>
   <TabsRadixSamples.TabsAsLinkSample />
 </PreviewCode>
 
@@ -122,7 +122,7 @@ All variants feature smooth animated indicators that slide between tabs:
 | `pills` | Sliding pill background |
 | `outline` | Sliding border |
 
-<PreviewCode file="components/docs/samples/tabs" name="TabsAnimatedIndicatorSample" base={<TabsAnimatedIndicatorSample />}>
+<PreviewCode file="components/pages/docs/samples/tabs" name="TabsAnimatedIndicatorSample" base={<TabsAnimatedIndicatorSample />}>
   <TabsRadixSamples.TabsAnimatedIndicatorSample />
 </PreviewCode>
 

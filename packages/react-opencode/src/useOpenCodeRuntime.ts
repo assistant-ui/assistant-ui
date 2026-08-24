@@ -3,6 +3,7 @@
 import {
   ExportedMessageRepository,
   pickExternalStoreSharedOptions,
+  useAui,
   useAuiState,
   useExternalStoreRuntime,
   useRemoteThreadListRuntime,
@@ -10,10 +11,12 @@ import {
 import type {
   AppendMessage,
   AssistantRuntime,
+  ExternalStoreAdapter,
   ThreadMessage,
+  ThreadMessageLike,
 } from "@assistant-ui/react";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
-import { useEffect, useEffectEvent, useMemo } from "react";
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type {
   OpenCodeRuntimeOptions,
   OpenCodeThreadControllerLike,
@@ -95,9 +98,6 @@ const NOOP_CONTROLLER: OpenCodeThreadControllerLike = {
   rejectQuestion: async () => {},
 };
 
-const NOOP_ON_NEW = () =>
-  Promise.reject(new Error("OpenCode session is still initializing"));
-
 const isOpenCodeStateRunning = (state: OpenCodeThreadState): boolean =>
   state.runState.type === "streaming" ||
   state.runState.type === "cancelling" ||
@@ -122,10 +122,25 @@ const invokeErrorCallback = (
   }
 };
 
-const useOpenCodeThreadRuntime = (
+const sendOpenCodeMessage = (
+  controller: OpenCodeThreadControllerLike,
+  message: AppendMessage,
+  options: OpenCodeRuntimeOptions,
+) => {
+  const sendOptions = {
+    model: options.defaultModel,
+    agent: options.defaultAgent,
+  };
+  if (!(message.startRun ?? message.role === "user")) {
+    return controller.stageMessage(message, sendOptions);
+  }
+  return controller.sendMessage(message, sendOptions);
+};
+
+const useOpenCodeThreadStore = (
   controller: OpenCodeThreadControllerLike,
   options: OpenCodeRuntimeOptions,
-): AssistantRuntime => {
+): ExternalStoreAdapter<ThreadMessage> => {
   const state = useOpenCodeControllerState(controller);
   const onLoadError = useEffectEvent((error: unknown) => {
     invokeErrorCallback(options.onError, error);
@@ -171,64 +186,148 @@ const useOpenCodeThreadRuntime = (
     [controller, state],
   );
 
-  return useExternalStoreRuntime<ThreadMessage>({
-    ...pickExternalStoreSharedOptions(options),
-    isLoading: state.loadState.type === "loading",
-    isRunning: isOpenCodeStateRunning(state),
-    messageRepository,
-    extras,
-    ...(options.adapters && { adapters: options.adapters }),
-    onNew: async (message: AppendMessage) => {
-      try {
-        const sendOptions = {
-          model: options.defaultModel,
-          agent: options.defaultAgent,
-        };
-        if (!(message.startRun ?? message.role === "user")) {
-          await controller.stageMessage(message, sendOptions);
-          return;
+  return useMemo<ExternalStoreAdapter<ThreadMessage>>(
+    () => ({
+      ...pickExternalStoreSharedOptions(options),
+      isLoading: state.loadState.type === "loading",
+      isRunning: isOpenCodeStateRunning(state),
+      messageRepository,
+      extras,
+      ...(options.adapters && { adapters: options.adapters }),
+      onNew: async (message: AppendMessage) => {
+        try {
+          await sendOpenCodeMessage(controller, message, options);
+        } catch (error) {
+          invokeErrorCallback(options.onError, error);
+          throw error;
         }
-        await controller.sendMessage(message, sendOptions);
-      } catch (error) {
-        invokeErrorCallback(options.onError, error);
-        throw error;
-      }
-    },
-    onCancel: async () => {
-      try {
-        await controller.cancel();
-      } catch (error) {
-        invokeErrorCallback(options.onError, error);
-        throw error;
-      }
-    },
-    onRespondToToolApproval: async (response) => {
-      try {
-        await controller.replyToPermission(
-          response.approvalId,
-          toOpenCodePermissionResponse(response),
-        );
-      } catch (error) {
-        invokeErrorCallback(options.onError, error);
-        throw error;
-      }
-    },
-    onReload: async (parentId: string | null) => {
-      if (!parentId) return;
-      try {
-        const sentStagedMessage = await controller.sendStagedMessage(parentId, {
-          model: options.defaultModel,
-          agent: options.defaultAgent,
-        });
-        if (sentStagedMessage) return;
+      },
+      onCancel: async () => {
+        try {
+          await controller.cancel();
+        } catch (error) {
+          invokeErrorCallback(options.onError, error);
+          throw error;
+        }
+      },
+      onRespondToToolApproval: async (response) => {
+        try {
+          await controller.replyToPermission(
+            response.approvalId,
+            toOpenCodePermissionResponse(response),
+          );
+        } catch (error) {
+          invokeErrorCallback(options.onError, error);
+          throw error;
+        }
+      },
+      onReload: async (parentId: string | null) => {
+        if (!parentId) return;
+        try {
+          const sentStagedMessage = await controller.sendStagedMessage(
+            parentId,
+            {
+              model: options.defaultModel,
+              agent: options.defaultAgent,
+            },
+          );
+          if (sentStagedMessage) return;
 
-        await controller.revert(parentId);
-      } catch (error) {
-        invokeErrorCallback(options.onError, error);
-        throw error;
-      }
-    },
-  });
+          await controller.revert(parentId);
+        } catch (error) {
+          invokeErrorCallback(options.onError, error);
+          throw error;
+        }
+      },
+    }),
+    [controller, extras, messageRepository, options, state],
+  );
+};
+
+const toOptimisticThreadMessage = (
+  message: AppendMessage,
+  index: number,
+): ThreadMessageLike => ({
+  id: `opencode-new-user:${index}`,
+  role: "user",
+  createdAt: message.createdAt,
+  content: message.content,
+  attachments: message.attachments,
+});
+
+const useNewOpenCodeThreadStore = (
+  client: ReturnType<typeof createOpencodeClient>,
+  registry: OpenCodeControllerRegistry,
+  options: OpenCodeRuntimeOptions,
+  extras: unknown,
+): ExternalStoreAdapter<ThreadMessage> => {
+  const aui = useAui();
+  const [optimisticMessages, setOptimisticMessages] = useState<
+    readonly ThreadMessageLike[]
+  >([]);
+  const optimisticMessageIndexRef = useRef(0);
+  const initializationRef = useRef<
+    Promise<{ remoteId: string; externalId: string | undefined }> | undefined
+  >(undefined);
+  const sendQueueRef = useRef(Promise.resolve());
+  const optimisticRepository = useMemo(
+    () => ExportedMessageRepository.fromArray(optimisticMessages),
+    [optimisticMessages],
+  );
+
+  return useMemo<ExternalStoreAdapter<ThreadMessage>>(
+    () => ({
+      ...pickExternalStoreSharedOptions(options),
+      isDisabled: options.isDisabled ?? false,
+      isLoading: false,
+      isRunning: false,
+      messageRepository: optimisticRepository,
+      extras,
+      ...(options.adapters && { adapters: options.adapters }),
+      onNew: async (message: AppendMessage) => {
+        const optimistic = toOptimisticThreadMessage(
+          message,
+          optimisticMessageIndexRef.current++,
+        );
+        setOptimisticMessages((messages) => [...messages, optimistic]);
+
+        const task = sendQueueRef.current.then(async () => {
+          let initialization:
+            | Promise<{
+                remoteId: string;
+                externalId: string | undefined;
+              }>
+            | undefined;
+          try {
+            initialization =
+              initializationRef.current ??
+              (initializationRef.current = aui.threadListItem.initialize());
+            const { remoteId, externalId } = await initialization;
+            const sessionId = externalId ?? remoteId;
+            const controller = getController(registry, client, sessionId);
+            const dispatch = sendOpenCodeMessage(controller, message, options);
+            setOptimisticMessages((messages) =>
+              messages.filter((candidate) => candidate !== optimistic),
+            );
+            await dispatch;
+          } catch (error) {
+            setOptimisticMessages((messages) =>
+              messages.filter((candidate) => candidate !== optimistic),
+            );
+            invokeErrorCallback(options.onError, error);
+            throw error;
+          } finally {
+            if (initializationRef.current === initialization) {
+              initializationRef.current = undefined;
+            }
+          }
+        });
+        sendQueueRef.current = task.catch(() => {});
+        return task;
+      },
+    }),
+    [aui, client, extras, optimisticRepository, options, registry],
+  );
 };
 
 const useRuntimeHook = (
@@ -236,25 +335,24 @@ const useRuntimeHook = (
   registry: OpenCodeControllerRegistry,
   options: OpenCodeRuntimeOptions,
 ) => {
-  const sessionId = useAuiState(
-    (state) => state.threadListItem.externalId ?? state.threadListItem.remoteId,
-  );
+  const threadListItem = useAuiState((state) => state.threadListItem);
+  const sessionId = threadListItem.externalId ?? threadListItem.remoteId;
 
   const controller = sessionId
     ? getController(registry, client, sessionId)
     : NOOP_CONTROLLER;
 
-  const threadRuntime = useOpenCodeThreadRuntime(controller, options);
+  const threadStore = useOpenCodeThreadStore(controller, options);
+  const newThreadStore = useNewOpenCodeThreadStore(
+    client,
+    registry,
+    options,
+    threadStore.extras,
+  );
 
-  const fallbackRuntime = useExternalStoreRuntime<ThreadMessage>({
-    isDisabled: true,
-    isLoading: true,
-    messageRepository: ExportedMessageRepository.fromArray([]),
-    onNew: NOOP_ON_NEW,
-  });
-
-  if (!sessionId) return fallbackRuntime;
-  return threadRuntime;
+  return useExternalStoreRuntime<ThreadMessage>(
+    sessionId ? threadStore : newThreadStore,
+  );
 };
 
 export const useOpenCodeRuntime = (

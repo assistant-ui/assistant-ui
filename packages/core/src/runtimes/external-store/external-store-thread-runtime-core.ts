@@ -77,6 +77,8 @@ export const hasUpcomingMessage = (
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
 
+const FALLBACK_ID_PREFIX = "__external_store_fallback_";
+
 export class ExternalStoreThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
@@ -285,19 +287,29 @@ export class ExternalStoreThreadRuntimeCore
               false,
               undefined,
             );
+            const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
 
             if (
               cache &&
               (cache.role !== "assistant" ||
                 !isAutoStatus(cache.status) ||
                 cache.status === autoStatus)
-            )
+            ) {
+              if (
+                cache.id.startsWith(FALLBACK_ID_PREFIX) &&
+                cache.id !== fallbackId
+              ) {
+                const updated = { ...cache, id: fallbackId };
+                bindExternalStoreMessage(updated, m);
+                return updated;
+              }
               return cache;
+            }
 
             const messageLike = store.convertMessage(m, idx);
             const newMessage = fromThreadMessageLike(
               messageLike,
-              idx.toString(),
+              fallbackId,
               autoStatus,
             );
             bindExternalStoreMessage(newMessage, m);

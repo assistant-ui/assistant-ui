@@ -6,10 +6,10 @@ import { getMDXComponents } from "@/mdx-components";
 import { source } from "@/lib/source";
 import { getPageTreePeers } from "fumadocs-core/page-tree";
 import { getDocsNeighbours } from "@/lib/docs-neighbours";
-import { Card, Cards } from "@/components/docs/fumadocs/card";
-import { TableOfContents } from "@/components/docs/layout/table-of-contents";
-import { DocsFooter } from "@/components/docs/layout/docs-footer";
-import { DocsPager } from "@/components/docs/layout/docs-pager";
+import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
+import { TableOfContents } from "@/components/pages/docs/layout/table-of-contents";
+import { DocsFooter } from "@/components/pages/docs/layout/docs-footer";
+import { DocsPager } from "@/components/pages/docs/layout/docs-pager";
 import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/assistant-ui/badge";
 

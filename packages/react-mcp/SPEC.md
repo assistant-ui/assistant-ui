@@ -447,7 +447,7 @@ In a chat app, pass the same config to `AssistantRuntimeProvider` instead — it
 "use client";
 import type { ReactNode } from "react";
 import { AssistantRuntimeProvider, AuiConfig } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { McpManagerResource, defineConnector } from "@assistant-ui/react-mcp";
 
 const connectors = [
@@ -510,7 +510,7 @@ export default function Callback() {
 // app/chat/page.tsx — chat runtime sees MCP tools through modelContext
 // (no useMcpTools / no adapter call — the manager registers them itself)
 "use client";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 export function Chat() {
   const runtime = useChatRuntime({ api: "/api/chat" });

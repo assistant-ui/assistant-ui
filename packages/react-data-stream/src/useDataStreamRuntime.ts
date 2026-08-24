@@ -249,7 +249,13 @@ class DataStreamRuntimeAdapter implements ChatModelAdapter {
         unstable_getMessage(),
       );
     } catch (error: unknown) {
-      invokeRuntimeCallback("onError", this.options.onError, error as Error);
+      if (!(error instanceof Error && error.name === "AbortError")) {
+        invokeRuntimeCallback(
+          "onError",
+          this.options.onError,
+          error instanceof Error ? error : new Error(String(error)),
+        );
+      }
       throw error;
     } finally {
       abortSignal.removeEventListener("abort", handleAbort);

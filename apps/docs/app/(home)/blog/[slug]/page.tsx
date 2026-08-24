@@ -6,7 +6,7 @@ import Link from "next/link";
 import { blog, type BlogPage } from "@/lib/source";
 import { getMDXComponents } from "@/mdx-components";
 import { ArrowLeft, ArrowRight } from "lucide-react";
-import { BlogTOC } from "@/components/blog/blog-toc";
+import { BlogTOC } from "@/components/pages/blog/blog-toc";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typeDeck, typePage } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
