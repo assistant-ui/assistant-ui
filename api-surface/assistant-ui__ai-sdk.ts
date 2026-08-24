@@ -2196,7 +2196,7 @@ declare const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage>() => UseC
 
 declare const useAISDKError: () => Error | undefined;
 
-declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter) => AssistantRuntime;
+declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter<UI_MESSAGE>) => AssistantRuntime;
 
 declare const useChatRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(_param2?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
 
