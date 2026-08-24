@@ -790,14 +790,16 @@ export class RunAggregator {
     // block". Entries with no materialized part after their anchor trail the
     // assistant record, matching the snapshot path's anchor/after
     // bookkeeping.
+    const toolMessageIds = new Set<string>();
+    for (const call of this.toolCalls.values()) {
+      if (call.toolMessageId) toolMessageIds.add(call.toolMessageId);
+    }
     const publishableOpaqueReasoning = opaqueCandidates
       .filter((entry) => {
         const collides =
           this.textParts.has(entry.id) ||
           entry.id === this.reportedServerMessageId ||
-          Array.from(this.toolCalls.values()).some(
-            (call) => call.toolMessageId === entry.id,
-          );
+          toolMessageIds.has(entry.id);
         if (collides && !this.loggedDroppedOpaqueIds.has(entry.id)) {
           this.loggedDroppedOpaqueIds.add(entry.id);
           this.logger.debug?.(
