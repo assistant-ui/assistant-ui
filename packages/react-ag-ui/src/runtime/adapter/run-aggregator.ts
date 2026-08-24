@@ -133,6 +133,8 @@ export class RunAggregator {
         this.reasoningParts.clear();
         this.reasoningSignatures.clear();
         this.reasoningMessageIds.clear();
+        this.reasoningSignatureIds.clear();
+        this.hiddenSignatures.clear();
         this.anonymousReasoningKeys.clear();
         this.activeReasoningKey = undefined;
         this.reasoningPartCounter = 0;

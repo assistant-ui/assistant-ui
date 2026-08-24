@@ -187,6 +187,31 @@ describe("RunAggregator", () => {
     ]);
   });
 
+  it("clears captured signatures when a new run starts", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "sig-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r2" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "second run",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r2" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
   it("keeps an inline signature on a visible reasoning part without duplicating it", () => {
     const aggregator = createAggregator(true);
 
