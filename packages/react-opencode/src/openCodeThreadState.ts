@@ -239,6 +239,7 @@ export const createOpenCodeThreadState = (
   sessionId,
   session: null,
   sessionStatus: null,
+  optimisticBusy: false,
   loadState: { type: "idle" },
   runState: { type: "idle" },
   messageOrder: [],
@@ -315,6 +316,7 @@ export const reduceOpenCodeThreadState = (
         ...state,
         runState: { type: "streaming" },
         sessionStatus: { type: "busy" },
+        optimisticBusy: state.sessionStatus?.type !== "busy",
       };
 
     case "run.cancelling":
@@ -349,6 +351,7 @@ export const reduceOpenCodeThreadState = (
       return {
         ...state,
         sessionStatus: event.status,
+        optimisticBusy: false,
         runState:
           event.status.type === "idle"
             ? { type: "idle" }
@@ -366,6 +369,7 @@ export const reduceOpenCodeThreadState = (
       return {
         ...state,
         sessionStatus: { type: "idle" },
+        optimisticBusy: false,
         runState: { type: "idle" },
         sync: {
           ...state.sync,
@@ -449,6 +453,7 @@ export const reduceOpenCodeThreadState = (
           state.sessionStatus?.type === "retry"
             ? state.sessionStatus
             : { type: "busy" },
+        optimisticBusy: false,
         sync: {
           ...state.sync,
           lastEventAt: Date.now(),
@@ -479,6 +484,7 @@ export const reduceOpenCodeThreadState = (
           state.sessionStatus?.type === "retry"
             ? state.sessionStatus
             : { type: "busy" },
+        optimisticBusy: false,
         sync: {
           ...state.sync,
           lastEventAt: Date.now(),
@@ -677,9 +683,11 @@ export const reduceOpenCodeThreadState = (
         // run.started optimistically marks the session busy before the prompt
         // request is made; a send failure means it never reached the server,
         // so the optimistic status must roll back or the thread reports
-        // running forever (no server event will ever clear it).
-        sessionStatus:
-          state.sessionStatus?.type === "busy" ? null : state.sessionStatus,
+        // running forever (no server event will ever clear it). A busy that
+        // any server event has since confirmed is left alone.
+        ...(state.optimisticBusy && state.sessionStatus?.type === "busy"
+          ? { sessionStatus: null, optimisticBusy: false }
+          : {}),
       };
     }
   }

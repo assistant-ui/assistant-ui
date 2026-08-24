@@ -121,6 +121,10 @@ export type OpenCodeThreadState = {
   sessionId: string;
   session: Session | null;
   sessionStatus: SessionStatus | null;
+  /** True while the current busy status was set client-side by run.started
+   * rather than reported by the server; a send failure may only roll back a
+   * busy it owns. */
+  optimisticBusy: boolean;
   loadState: OpenCodeLoadState;
   runState: OpenCodeRunState;
   messageOrder: readonly string[];

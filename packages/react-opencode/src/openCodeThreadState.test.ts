@@ -47,6 +47,41 @@ describe("reduceOpenCodeThreadState", () => {
     expect(failed.sessionStatus).toBeNull();
   });
 
+  it("keeps a server-confirmed busy when a later prompt fails to send", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+    const serverBusy = reduceOpenCodeThreadState(initial, {
+      type: "session.status",
+      status: { type: "busy" } as never,
+    });
+
+    const pending: PendingUserMessage = {
+      clientId: "local_2",
+      sessionId: "ses_1",
+      createdAt: 2000,
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+      contentText: "second prompt",
+      parts: [{ type: "text", text: "second prompt" }],
+      status: "pending",
+    };
+    const queued = reduceOpenCodeThreadState(serverBusy, {
+      type: "local.message.queued",
+      pending,
+    });
+    const started = reduceOpenCodeThreadState(queued, {
+      type: "run.started",
+    });
+
+    const failed = reduceOpenCodeThreadState(started, {
+      type: "local.message.failed",
+      clientId: "local_2",
+      error: new Error("network down"),
+    });
+
+    expect(failed.sessionStatus).toEqual({ type: "busy" });
+  });
+
   it("keeps a server-reported session status when a prompt fails", () => {
     const initial = createOpenCodeThreadState("ses_1");
     const pending: PendingUserMessage = {
