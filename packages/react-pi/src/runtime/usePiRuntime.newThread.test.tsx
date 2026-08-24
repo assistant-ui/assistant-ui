@@ -151,6 +151,6 @@ describe("usePiRuntime new-thread first message", () => {
 
     expect(createThread).toHaveBeenCalledTimes(1);
     expect(createThread.mock.calls[0]?.[0]?.initialMessage).toBeUndefined();
-    expect(sentTexts().sort()).toEqual(["message A", "message B"]);
+    expect(sentTexts()).toEqual(["message A", "message B"]);
   });
 });
