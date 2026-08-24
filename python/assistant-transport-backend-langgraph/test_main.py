@@ -1,7 +1,7 @@
 import json
 
 import pytest
-from langchain_core.messages import AIMessage
+from langchain_core.messages import AIMessage, ToolMessage
 
 import main
 
@@ -93,7 +93,12 @@ def test_should_continue_after_tools_stops_for_deferred_calls() -> None:
             message_with_calls(
                 tool_call("server-1", "calculate_sum"),
                 tool_call("frontend-1", "get_weather"),
-            )
+            ),
+            ToolMessage(
+                content='{"sum": 5.0}',
+                tool_call_id="server-1",
+                name="calculate_sum",
+            ),
         ],
         "tools": {"get_weather": {"description": "weather"}},
     }
@@ -108,3 +113,36 @@ def test_should_continue_after_tools_resumes_server_calls() -> None:
     }
 
     assert main.should_continue_after_tools(state) == "agent"
+
+
+@pytest.mark.asyncio
+async def test_mixed_graph_turn_does_not_reenter_agent(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    mixed = message_with_calls(
+        tool_call("server-1", "calculate_sum"),
+        tool_call("frontend-1", "get_weather"),
+    )
+    calls = 0
+
+    async def fake_agent(state: dict[str, object]) -> dict[str, object]:
+        nonlocal calls
+        calls += 1
+        if calls > 1:
+            raise AssertionError("agent re-entered with an unanswered frontend call")
+        return {"messages": [mixed]}
+
+    monkeypatch.setattr(main, "agent_node", fake_agent)
+    result = await main.create_graph().ainvoke(
+        {
+            "messages": [],
+            "tools": {"get_weather": {"description": "weather"}},
+        },
+        {"configurable": {"thread_id": "mixed-1"}},
+    )
+
+    assert calls == 1
+    assert [
+        message.tool_call_id
+        for message in result["messages"]
+        if isinstance(message, ToolMessage)
+    ] == ["server-1"]
