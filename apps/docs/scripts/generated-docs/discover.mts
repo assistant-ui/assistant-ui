@@ -189,10 +189,7 @@ type ClassifiedExportInput = DiscoveredExportInput & {
 type ApiReferenceLinkItem = Pick<ExportInfo, "name" | "section" | "page">;
 
 const MANUAL_API_REFERENCE_LINKS = new Map([
-  [
-    "AISDKToolkit",
-    "/docs/api-reference/integrations/react-ai-sdk#aisdktoolkit",
-  ],
+  ["AISDKToolkit", "/docs/api-reference/integrations/ai-sdk#aisdktoolkit"],
   [
     "JSONGenerativeUI.present",
     "/docs/api-reference/generative-ui/json-generative-ui#jsongenerativeui",

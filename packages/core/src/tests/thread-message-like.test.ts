@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { fromThreadMessageLike } from "../runtime/utils/thread-message-like";
+import {
+  fromThreadMessageLike,
+  type ThreadMessageLike,
+} from "../runtime/utils/thread-message-like";
+import type { ToolCallMessagePartMcpMetadata } from "../types/message";
 
 const fallbackId = "test-id";
 const fallbackStatus = {
@@ -417,6 +421,40 @@ describe("fromThreadMessageLike provider metadata", () => {
         data: "https://example.com/spec.pdf",
         mimeType: "application/pdf",
         providerMetadata: { agui: { file_id: "f_2" } },
+      },
+    ]);
+  });
+});
+
+describe("fromThreadMessageLike MCP app metadata", () => {
+  it("keeps mcp on tool-call parts", () => {
+    const mcp: ToolCallMessagePartMcpMetadata = {
+      app: { resourceUri: "ui://demo/card" },
+    };
+    const message: ThreadMessageLike = {
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "show_card",
+          args: {},
+          argsText: "{}",
+          mcp,
+        },
+      ],
+    };
+
+    const result = fromThreadMessageLike(message, fallbackId, fallbackStatus);
+
+    expect(result.content).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "show_card",
+        args: {},
+        argsText: "{}",
+        mcp,
       },
     ]);
   });

@@ -744,8 +744,8 @@ Register the components with `makeAssistantDataUI`, keyed by the `UIMessage`'s `
 import {
   AssistantRuntimeProvider,
   makeAssistantDataUI,
-  Thread,
 } from "@assistant-ui/react";
+import { Thread } from "@/components/assistant-ui/thread";
 import { useStreamRuntime } from "@assistant-ui/react-langchain";
 
 const ChartUI = makeAssistantDataUI({

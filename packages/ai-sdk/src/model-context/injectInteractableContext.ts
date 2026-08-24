@@ -23,7 +23,7 @@ import {
  * @example
  * ```ts
  * import { convertToModelMessages, streamText } from "ai";
- * import { unstable_injectInteractableContext } from "@assistant-ui/react-ai-sdk";
+ * import { unstable_injectInteractableContext } from "@assistant-ui/ai-sdk";
  *
  * export async function POST(req: Request) {
  *   const { messages } = await req.json();

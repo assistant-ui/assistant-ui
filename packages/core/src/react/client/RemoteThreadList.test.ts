@@ -331,6 +331,71 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("preserves generated titles across an overlapping reload", async () => {
+    const reload = deferred<{
+      threads: {
+        status: "regular";
+        remoteId: string;
+        title: string;
+      }[];
+    }>();
+    const adapter = makeAdapter({
+      list: vi
+        .fn()
+        .mockResolvedValueOnce({
+          threads: [
+            { status: "regular" as const, remoteId: "t1", title: "One" },
+          ],
+        })
+        .mockImplementationOnce(() => reload.promise),
+      generateTitle: vi.fn(
+        async () =>
+          new ReadableStream({
+            start(controller) {
+              controller.enqueue({
+                type: "part-start",
+                path: [],
+                part: { type: "text" },
+              });
+              controller.enqueue({
+                type: "text-delta",
+                path: [0],
+                textDelta: "Generated",
+              });
+              controller.enqueue({ type: "part-finish", path: [0] });
+              controller.close();
+            },
+          }) as never,
+      ),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+
+    const reloadPromise = aui.threads.reload();
+    await vi.waitFor(() => {
+      expect(adapter.list).toHaveBeenCalledTimes(2);
+    });
+    await aui.threads.item({ id: "t1" }).rename("Renamed");
+    await aui.threads.item({ id: "t1" }).generateTitle();
+    await vi.waitFor(() => {
+      expect(aui.threads.item({ id: "t1" }).getState().title).toBe("Generated");
+    });
+
+    reload.resolve({
+      threads: [{ status: "regular", remoteId: "t1", title: "One" }],
+    });
+    await reloadPromise;
+    await vi.waitFor(() => {
+      expect(aui.threads.item({ id: "t1" }).getState().title).toBe("Generated");
+    });
+    handle.destroy();
+  });
+
   it("opens a controlled threadId without echoing it back", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
