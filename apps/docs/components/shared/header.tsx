@@ -13,7 +13,7 @@ import { DiscordIcon } from "@/components/icons/discord";
 import { NAV_ITEMS, CLOUD_URL } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";
-import { useAssistantPanel } from "@/components/docs/assistant/context";
+import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { headerBarClassName } from "@/components/shared/header-chrome";

@@ -1,6 +1,6 @@
 "use client";
 
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { useComposedRefs } from "radix-ui/internal";
 import { useCallback, useLayoutEffect, useRef, type RefCallback } from "react";
 import { useAuiEvent, useAuiState } from "@assistant-ui/store";
 import { isUserScrollUp } from "@assistant-ui/store/client";

@@ -52,7 +52,7 @@ See the [cloud documentation](/docs/cloud) for setup, auth, and self-host option
 
 `useRemoteThreadListRuntime` lets you back the thread list with any database while keeping the per-thread runtime simple. You provide a `RemoteThreadListAdapter` describing how to list, create, rename, archive, and delete threads. Keep that adapter reference stable across renders (module scope or `useMemo`). Replacing it reloads the list and drops cached threads that are not in the replacement page.
 
-Works with any `LocalRuntime`-based runtime, including framework adapters that build on it (`react-ai-sdk`, `react-google-adk`, `react-a2a`, `useDataStreamRuntime`).
+Works with any `LocalRuntime`-based runtime, including framework adapters that build on it (`ai-sdk`, `react-google-adk`, `react-a2a`, `useDataStreamRuntime`).
 
 ```tsx title="app/MyProvider.tsx"
 "use client";

@@ -91,11 +91,11 @@ const toInitializeResult = (
 
 const applyTitleStream = async (
   stream: Parameters<typeof AssistantMessageStream.fromAssistantStream>[0],
-  onTitle: (title: string | undefined) => void,
+  onTitle: (title: string | undefined) => Promise<void>,
 ) => {
   const messageStream = AssistantMessageStream.fromAssistantStream(stream);
   for await (const result of messageStream) {
-    onTitle(result.parts.filter((part) => part.type === "text")[0]?.text);
+    await onTitle(result.parts.filter((part) => part.type === "text")[0]?.text);
   }
 };
 
@@ -985,19 +985,23 @@ const useRemoteThreadList = (
       if (!messages) return;
       const stream = await currentAdapter.generateTitle(remoteId, messages);
       requireAdapterGeneration(adapterGeneration);
-      await applyTitleStream(stream, (newTitle) => {
-        if (adapterGeneration !== session.adapterGeneration) return;
-        const state = store.baseValue;
-        const current = getThreadData(state, data.id);
-        if (!current) return;
-        store.update({
-          ...state,
-          threadData: {
-            ...state.threadData,
-            [current.id]: {
-              ...current,
-              title: newTitle,
-            },
+      await applyTitleStream(stream, async (newTitle) => {
+        await store.optimisticUpdate({
+          execute: async () => {},
+          optimistic: (state) => {
+            if (adapterGeneration !== session.adapterGeneration) return state;
+            const current = getThreadData(state, data.id);
+            if (!current) return state;
+            return {
+              ...state,
+              threadData: {
+                ...state.threadData,
+                [current.id]: {
+                  ...current,
+                  title: newTitle,
+                },
+              },
+            };
           },
         });
       });

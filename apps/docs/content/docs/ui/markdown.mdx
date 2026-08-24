@@ -4,9 +4,9 @@ description: Display rich text with headings, lists, links, and code blocks.
 platforms: ["react"]
 ---
 
-import { MarkdownSample } from "@/components/docs/samples/markdown";
-import { PreviewCode } from "@/components/docs/preview-code.server";
-import { MarkdownCodeBlockSample } from "@/components/docs/samples/markdown/code-block-and-copy";
+import { MarkdownSample } from "@/components/pages/docs/samples/markdown";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { MarkdownCodeBlockSample } from "@/components/pages/docs/samples/markdown/code-block-and-copy";
 
 <MarkdownSample />
 
@@ -62,7 +62,7 @@ const AssistantMessage: FC = () => {
 
 Fenced code blocks get a language header and a copy button, and inline code keeps compact styling. The preview also uses [syntax highlighting](/docs/ui/syntax-highlighting), which the copied component does not include by default.
 
-<PreviewCode file="components/docs/samples/markdown/code-block-and-copy" name="MarkdownWithCode">
+<PreviewCode file="components/pages/docs/samples/markdown/code-block-and-copy" name="MarkdownWithCode">
   <MarkdownCodeBlockSample />
 </PreviewCode>
 

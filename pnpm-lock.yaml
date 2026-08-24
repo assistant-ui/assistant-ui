@@ -174,9 +174,6 @@ importers:
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-data-stream':
         specifier: workspace:*
         version: link:../../packages/react-data-stream
@@ -479,15 +476,15 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/eve':
         specifier: workspace:*
         version: link:../../packages/eve
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -783,12 +780,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -859,12 +856,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -1066,12 +1063,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -1142,12 +1139,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -1279,12 +1276,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -1361,12 +1358,12 @@ importers:
       '@ai-sdk/react':
         specifier: ^4.0.69
         version: 4.0.69(react@19.2.8)(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:^
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:^
         version: link:../../packages/react-markdown
@@ -1446,12 +1443,12 @@ importers:
       '@ai-sdk/react':
         specifier: ^4.0.69
         version: 4.0.69(react@19.2.8)(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:^
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:^
         version: link:../../packages/react-markdown
@@ -1601,9 +1598,9 @@ importers:
       '@ai-sdk/react':
         specifier: ^4.0.69
         version: 4.0.69(react@19.2.3)(zod@4.4.3)
-      '@assistant-ui/react-ai-sdk':
+      '@assistant-ui/ai-sdk':
         specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react-native':
         specifier: workspace:*
         version: link:../../packages/react-native
@@ -1780,12 +1777,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -1862,12 +1859,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-generative-ui':
         specifier: workspace:*
         version: link:../../packages/react-generative-ui
@@ -2127,12 +2124,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/ui':
         specifier: workspace:*
         version: link:../../packages/ui
@@ -2346,12 +2343,12 @@ importers:
       '@ai-sdk/react':
         specifier: ^4.0.69
         version: 4.0.69(react@19.2.8)(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:^
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:^
         version: link:../../packages/react-markdown
@@ -2431,12 +2428,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -2668,12 +2665,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -2829,12 +2826,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-hook-form':
         specifier: workspace:*
         version: link:../../packages/react-hook-form
@@ -2933,9 +2930,9 @@ importers:
 
   examples/with-react-ink-web:
     dependencies:
-      '@assistant-ui/react-ai-sdk':
+      '@assistant-ui/ai-sdk':
         specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react-ink':
         specifier: workspace:*
         version: link:../../packages/react-ink
@@ -3073,12 +3070,12 @@ importers:
       '@ai-sdk/react':
         specifier: ^4.0.69
         version: 4.0.69(react@19.2.8)(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -3575,13 +3572,13 @@ importers:
         specifier: ^4.0.69
         version: 4.0.69(react@19.2.8)(zod@4.4.3)
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.13
+        specifier: ^0.9.14
         version: link:../tap
       ai:
         specifier: ^7.0.66
@@ -3590,7 +3587,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -3772,7 +3769,7 @@ importers:
         specifier: npm:ai@^6.0.209
         version: ai@6.0.257(zod@4.4.3)
       assistant-stream:
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../assistant-stream
       jsdom:
         specifier: ^30.0.1
@@ -3787,7 +3784,7 @@ importers:
   packages/core:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../assistant-stream
       nanoid:
         specifier: ^6.0.1
@@ -3998,43 +3995,19 @@ importers:
   packages/react:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.13
+        specifier: ^0.9.14
         version: link:../tap
-      '@radix-ui/primitive':
-        specifier: ^1.1.7
-        version: 1.1.7
-      '@radix-ui/react-collection':
-        specifier: ^1.1.15
-        version: 1.1.15(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@radix-ui/react-compose-refs':
-        specifier: ^1.1.5
-        version: 1.1.5(@types/react@19.2.18)(react@19.2.8)
-      '@radix-ui/react-context':
-        specifier: ^1.2.2
-        version: 1.2.2(@types/react@19.2.18)(react@19.2.8)
-      '@radix-ui/react-primitive':
-        specifier: ^2.1.10
-        version: 2.1.10(@types/react-dom@19.2.4(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@radix-ui/react-use-callback-ref':
-        specifier: ^1.1.4
-        version: 1.1.4(@types/react@19.2.18)(react@19.2.8)
-      '@radix-ui/react-use-controllable-state':
-        specifier: ^1.2.6
-        version: 1.2.6(@types/react@19.2.18)(react@19.2.8)
-      '@radix-ui/react-use-escape-keydown':
-        specifier: ^1.1.5
-        version: 1.1.5(@types/react@19.2.18)(react@19.2.8)
       assistant-cloud:
         specifier: ^0.1.41
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../assistant-stream
       radix-ui:
         specifier: ^1.6.7
@@ -4089,13 +4062,13 @@ importers:
   packages/react-a2a:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4129,7 +4102,7 @@ importers:
         specifier: ^0.0.58
         version: 0.0.58
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/react-generative-ui':
         specifier: ^0.0.15
@@ -4138,7 +4111,7 @@ importers:
         specifier: ^0.3.10
         version: link:../store
       assistant-stream:
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../assistant-stream
       fast-json-patch:
         specifier: ^3.1.1
@@ -4172,7 +4145,7 @@ importers:
   packages/react-ai-sdk:
     dependencies:
       '@assistant-ui/ai-sdk':
-        specifier: ^0.0.1
+        specifier: ^0.0.2
         version: link:../ai-sdk
       '@types/react':
         specifier: '*'
@@ -4262,7 +4235,7 @@ importers:
   packages/react-generative-ui:
     dependencies:
       assistant-stream:
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/react':
@@ -4336,7 +4309,7 @@ importers:
   packages/react-hook-form:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
@@ -4373,16 +4346,16 @@ importers:
   packages/react-ink:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.13
+        specifier: ^0.9.14
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../assistant-stream
       diff:
         specifier: ^9.0.0
@@ -4425,7 +4398,7 @@ importers:
   packages/react-ink-markdown:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
@@ -4462,7 +4435,7 @@ importers:
   packages/react-langchain:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
@@ -4471,7 +4444,7 @@ importers:
         specifier: '*'
         version: link:../cloud
       assistant-stream:
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4674,16 +4647,16 @@ importers:
   packages/react-native:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.13
+        specifier: ^0.9.14
         version: link:../tap
       assistant-stream:
-        specifier: ^0.3.38
+        specifier: ^0.3.39
         version: link:../assistant-stream
       zustand:
         specifier: ^5.0.15
@@ -4754,7 +4727,7 @@ importers:
   packages/react-opencode:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
@@ -4794,7 +4767,7 @@ importers:
   packages/react-pi:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
@@ -4958,13 +4931,13 @@ importers:
   packages/svelte:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.13
+        specifier: ^0.9.14
         version: link:../tap
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5039,12 +5012,12 @@ importers:
 
   packages/ui:
     dependencies:
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../react-ai-sdk
       '@assistant-ui/react-generative-ui':
         specifier: workspace:*
         version: link:../react-generative-ui
@@ -5186,13 +5159,13 @@ importers:
   packages/vue:
     dependencies:
       '@assistant-ui/core':
-        specifier: ^0.3.14
+        specifier: ^0.3.15
         version: link:../core
       '@assistant-ui/store':
         specifier: ^0.3.10
         version: link:../store
       '@assistant-ui/tap':
-        specifier: ^0.9.13
+        specifier: ^0.9.14
         version: link:../tap
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -5293,12 +5266,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -5375,12 +5348,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -5463,12 +5436,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -5718,12 +5691,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown
@@ -5800,12 +5773,12 @@ importers:
       '@ai-sdk/openai':
         specifier: ^4.0.42
         version: 4.0.42(zod@4.4.3)
+      '@assistant-ui/ai-sdk':
+        specifier: workspace:*
+        version: link:../../packages/ai-sdk
       '@assistant-ui/react':
         specifier: workspace:*
         version: link:../../packages/react
-      '@assistant-ui/react-ai-sdk':
-        specifier: workspace:*
-        version: link:../../packages/react-ai-sdk
       '@assistant-ui/react-markdown':
         specifier: workspace:*
         version: link:../../packages/react-markdown

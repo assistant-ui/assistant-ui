@@ -1,5 +1,11 @@
 # @assistant-ui/agent-launcher
 
+## 0.1.12
+
+### Patch Changes
+
+- [#6093](https://github.com/assistant-ui/assistant-ui/pull/6093) [`2c4b33d`](https://github.com/assistant-ui/assistant-ui/commit/2c4b33d981f850600f5a1d0b39206e5e822f21a3) - fix: propagate child process termination signals ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.1.11
 
 ### Patch Changes

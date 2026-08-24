@@ -56,7 +56,7 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     "components/assistant-ui/tool-fallback.tsx": toolFallbackShim(),
     "components/assistant-ui/tooltip-icon-button.tsx": tooltipIconButtonShim(),
     "components/docs/assistant/docs-model-options.ts": docsModelOptionsShim(),
-    "constants/model.ts": 'export const DEFAULT_MODEL_ID = "gpt-5.6-luna";\n',
+    "lib/model.ts": 'export const DEFAULT_MODEL_ID = "gpt-5.6-luna";\n',
     "public/favicon/icon.svg": faviconSvg(),
     [`components/examples/${manifest.slug}.tsx`]: demoSource,
   };
@@ -97,10 +97,10 @@ function assertSnapshotFile(snapshot: SourceSnapshot, snapshotKey: string) {
 }
 
 function flattenUiFlavorImports(source: string) {
-  return source.replace(
-    /@\/components\/ui\/(?:radix|base)\//g,
-    "@/components/ui/",
-  );
+  return source
+    .replace(/@\/components\/ui\/(?:radix|base)\//g, "@/components/ui/")
+    .replace(/@\/components\/pages\/docs\//g, "@/components/docs/")
+    .replace(/@\/components\/pages\/examples\//g, "@/components/examples/");
 }
 
 function targetPathForSourceFile(sourceFile: string) {
@@ -108,9 +108,14 @@ function targetPathForSourceFile(sourceFile: string) {
     return sourceFile
       .replace(/^packages\/ui\/src\//, "")
       .replace(/^components\/ui\/radix\//, "components/ui/")
-      .replace(/^components\/ui\/base\//, "components/ui/")
-      .replace(/^components\/assistant-ui\//, "components/assistant-ui/")
-      .replace(/^lib\//, "lib/");
+      .replace(/^components\/ui\/base\//, "components/ui/");
+  }
+
+  if (sourceFile.startsWith("apps/docs/components/pages/examples/")) {
+    return sourceFile.replace(
+      /^apps\/docs\/components\/pages\/examples\//,
+      "components/examples/",
+    );
   }
 
   if (sourceFile.startsWith("apps/docs/")) {
@@ -270,7 +275,7 @@ function pageTsx(manifest: DemoDownloadManifest) {
 }
 
 function runtimeProviderTsx() {
-  return `"use client";\n\nimport { AssistantRuntimeProvider } from "@assistant-ui/react";\nimport { AssistantChatTransport, useChatRuntime } from "@assistant-ui/react-ai-sdk";\n\nexport function DemoRuntimeProvider({ children }: { children: React.ReactNode }) {\n  const runtime = useChatRuntime({\n    transport: new AssistantChatTransport({ api: "/api/chat" }),\n  });\n\n  return (\n    <AssistantRuntimeProvider runtime={runtime}>\n      {children}\n    </AssistantRuntimeProvider>\n  );\n}\n`;
+  return `"use client";\n\nimport { AssistantRuntimeProvider } from "@assistant-ui/react";\nimport { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";\n\nexport function DemoRuntimeProvider({ children }: { children: React.ReactNode }) {\n  const runtime = useChatRuntime({\n    transport: new AssistantChatTransport({ api: "/api/chat" }),\n  });\n\n  return (\n    <AssistantRuntimeProvider runtime={runtime}>\n      {children}\n    </AssistantRuntimeProvider>\n  );\n}\n`;
 }
 
 function chatRouteTs() {

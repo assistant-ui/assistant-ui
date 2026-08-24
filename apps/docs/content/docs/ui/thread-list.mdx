@@ -4,12 +4,12 @@ description: Sidebar or dropdown component for switching between AI chat convers
 platforms: ["react"]
 ---
 
-import { ThreadListSample } from "@/components/docs/samples/threadlist";
-import { PreviewCode } from "@/components/docs/preview-code.server";
-import { ThreadListSidebarSample } from "@/components/docs/samples/thread-list/sidebar-composition";
-import { ThreadListActiveSample } from "@/components/docs/samples/thread-list/active-threads";
-import { ThreadListNewSample } from "@/components/docs/samples/thread-list/new-thread";
-import { ThreadListArchiveSample } from "@/components/docs/samples/thread-list/archive-thread";
+import { ThreadListSample } from "@/components/pages/docs/samples/threadlist";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { ThreadListSidebarSample } from "@/components/pages/docs/samples/thread-list/sidebar-composition";
+import { ThreadListActiveSample } from "@/components/pages/docs/samples/thread-list/active-threads";
+import { ThreadListNewSample } from "@/components/pages/docs/samples/thread-list/new-thread";
+import { ThreadListArchiveSample } from "@/components/pages/docs/samples/thread-list/archive-thread";
 
 <ThreadListSample />
 
@@ -115,7 +115,7 @@ import { ThreadListPrimitive, ThreadListItemPrimitive } from "@assistant-ui/reac
 
 Select a different seeded conversation, or use the search field to filter the threads by title.
 
-<PreviewCode file="components/docs/samples/thread-list/active-threads" name="ActiveThreadList">
+<PreviewCode file="components/pages/docs/samples/thread-list/active-threads" name="ActiveThreadList">
   <ThreadListActiveSample />
 </PreviewCode>
 
@@ -123,7 +123,7 @@ Select a different seeded conversation, or use the search field to filter the th
 
 The list starts empty, thus only the New Thread button shows. Click New Thread to make an active thread. The search field shows when a thread exists.
 
-<PreviewCode file="components/docs/samples/thread-list/new-thread" name="EmptyThreadList">
+<PreviewCode file="components/pages/docs/samples/thread-list/new-thread" name="EmptyThreadList">
   <ThreadListNewSample />
 </PreviewCode>
 
@@ -131,7 +131,7 @@ The list starts empty, thus only the New Thread button shows. Click New Thread t
 
 `ThreadListSidebar` wraps the same `ThreadList` in a complete sidebar shell.
 
-<PreviewCode file="components/docs/samples/thread-list/sidebar-composition" name="ThreadListSidebarDemo" className="p-0">
+<PreviewCode file="components/pages/docs/samples/thread-list/sidebar-composition" name="ThreadListSidebarDemo" className="p-0">
   <ThreadListSidebarSample />
 </PreviewCode>
 
@@ -139,7 +139,7 @@ The list starts empty, thus only the New Thread button shows. Click New Thread t
 
 Open the More menu of the active thread, then select Archive. The `onArchive` callback moves the thread to the archived list. Select Restore (`ThreadListItemPrimitive.Unarchive`) to move the thread back to the regular list.
 
-<PreviewCode file="components/docs/samples/thread-list/archive-thread" name="ArchivableThreadList">
+<PreviewCode file="components/pages/docs/samples/thread-list/archive-thread" name="ArchivableThreadList">
   <ThreadListArchiveSample />
 </PreviewCode>
 

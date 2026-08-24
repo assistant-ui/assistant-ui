@@ -205,13 +205,13 @@ type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
   total_steps?: number;
-  tool_calls?: ReportToolCall[];
+  tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
     input_tokens?: number;
     output_tokens?: number;
     reasoning_tokens?: number;
     cached_input_tokens?: number;
-    tool_calls?: ReportToolCall[];
+    tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
   }[];
@@ -224,6 +224,17 @@ type AssistantCloudRunReport = {
   duration_ms?: number;
   output_text?: string;
   metadata?: Record<string, unknown>;
+};
+
+type AssistantCloudRunReportToolCall = {
+  tool_name: string;
+  tool_call_id: string;
+  tool_args?: string;
+  tool_result?: string;
+  tool_source?: "backend" | "frontend" | "mcp";
+  start_ms?: number;
+  end_ms?: number;
+  sampling_calls?: SamplingCallData[];
 };
 
 declare class AssistantCloudRuns {
@@ -3668,6 +3679,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }> | undefined;
   __internal_isThreadRunning(threadId: string): boolean;
   __internal_subscribeRunningChanged(callback: () => void): Unsubscribe$1;
+  __internal_subscribeRuntimeReplaced(callback: () => void): Unsubscribe$1;
   stopThreadRuntime(threadId: string): void;
   setRuntimeHook(newRuntimeHook: RemoteThreadListHook): void;
   __internal_setDefaultAdapters(adapters: RuntimeAdapters | null): void;
@@ -3880,17 +3892,6 @@ type RemoteThreadState = {
   readonly archivedThreadIds: readonly string[];
   readonly threadIdMap: Readonly<Record<string, THREAD_MAPPING_ID>>;
   readonly threadData: Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
-};
-
-type ReportToolCall = {
-  tool_name: string;
-  tool_call_id: string;
-  tool_args?: string;
-  tool_result?: string;
-  tool_source?: "backend" | "frontend" | "mcp";
-  start_ms?: number;
-  end_ms?: number;
-  sampling_calls?: SamplingCallData[];
 };
 
 type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<keyof T, Keys>> & {
@@ -4765,6 +4766,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;

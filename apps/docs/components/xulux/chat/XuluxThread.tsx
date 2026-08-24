@@ -2,12 +2,12 @@
 
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
 import { Button } from "@/components/ui/button";
-import { AssistantComposer } from "@/components/docs/assistant/composer";
-import { AssistantActionBar } from "@/components/docs/assistant/assistant-action-bar";
+import { AssistantComposer } from "@/components/pages/docs/assistant/composer";
+import { AssistantActionBar } from "@/components/pages/docs/assistant/assistant-action-bar";
 import { XuluxMarkdownText } from "./XuluxMarkdownText";
-import { AssistantFooter } from "@/components/docs/assistant/footer";
-import { UserMessage } from "@/components/docs/assistant/messages";
-import { useAssistantPanel } from "@/components/docs/assistant/context";
+import { AssistantFooter } from "@/components/pages/docs/assistant/footer";
+import { UserMessage } from "@/components/pages/docs/assistant/messages";
+import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
 import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
 import { analytics } from "@/lib/analytics";

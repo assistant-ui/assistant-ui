@@ -99,7 +99,7 @@ import {
   AuiConfig,
   Tools,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
 import toolkit from "./toolkit";
 
@@ -135,7 +135,7 @@ The route imports the same toolkit module. The compiler resolves that import to 
 
 ```ts title="app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
-import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, stepCountIs, streamText } from "ai";
 import toolkit from "@/app/toolkit";
 

@@ -173,6 +173,18 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
       this._trackRunning(instance);
     }
     this._notifySubscribers();
+    if (previousRuntime !== undefined && previousRuntime !== runtime) {
+      for (const callback of this.replacedSubscribers) callback();
+    }
+  }
+
+  private replacedSubscribers = new Set<() => void>();
+
+  public __internal_subscribeRuntimeReplaced(
+    callback: () => void,
+  ): Unsubscribe {
+    this.replacedSubscribers.add(callback);
+    return () => this.replacedSubscribers.delete(callback);
   }
 
   private _trackRunning(instance: RemoteThreadListHookInstance) {
