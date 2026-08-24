@@ -41,7 +41,7 @@ const invokeListener = (
     const result = cb(payload, clientStack) as unknown;
     if (
       result !== null &&
-      typeof result === "object" &&
+      (typeof result === "object" || typeof result === "function") &&
       typeof (result as PromiseLike<unknown>).then === "function"
     ) {
       void Promise.resolve(result as PromiseLike<unknown>).catch(
