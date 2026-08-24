@@ -315,8 +315,13 @@ export const reduceOpenCodeThreadState = (
       return {
         ...state,
         runState: { type: "streaming" },
-        sessionStatus: { type: "busy" },
-        optimisticBusy: state.sessionStatus?.type !== "busy",
+        sessionStatus:
+          state.sessionStatus?.type === "retry"
+            ? state.sessionStatus
+            : { type: "busy" },
+        optimisticBusy:
+          state.sessionStatus?.type !== "busy" &&
+          state.sessionStatus?.type !== "retry",
       };
 
     case "run.cancelling":

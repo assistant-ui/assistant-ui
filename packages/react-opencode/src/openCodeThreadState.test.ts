@@ -82,6 +82,42 @@ describe("reduceOpenCodeThreadState", () => {
     expect(failed.sessionStatus).toEqual({ type: "busy" });
   });
 
+  it("keeps a server-reported retry across run start and send failure", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+    const retrying = reduceOpenCodeThreadState(initial, {
+      type: "session.status",
+      status: { type: "retry" } as never,
+    });
+
+    const pending: PendingUserMessage = {
+      clientId: "local_1",
+      sessionId: "ses_1",
+      createdAt: 1000,
+      parentId: null,
+      sourceId: null,
+      runConfig: undefined,
+      contentText: "hello world",
+      parts: [{ type: "text", text: "hello world" }],
+      status: "pending",
+    };
+    const queued = reduceOpenCodeThreadState(retrying, {
+      type: "local.message.queued",
+      pending,
+    });
+    const started = reduceOpenCodeThreadState(queued, {
+      type: "run.started",
+    });
+    expect(started.sessionStatus).toEqual({ type: "retry" });
+
+    const failed = reduceOpenCodeThreadState(started, {
+      type: "local.message.failed",
+      clientId: "local_1",
+      error: new Error("network down"),
+    });
+
+    expect(failed.sessionStatus).toEqual({ type: "retry" });
+  });
+
   it("keeps a server-reported session status when a prompt fails", () => {
     const initial = createOpenCodeThreadState("ses_1");
     const pending: PendingUserMessage = {
