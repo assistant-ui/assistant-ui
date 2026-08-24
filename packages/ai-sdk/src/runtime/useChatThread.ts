@@ -227,6 +227,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepository && { messageRepository }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
+  // The proxy reads this only for a first send before insertion effects; owner-matched committed contexts bypass it.
   transportBindingRef.current = {
     runtime,
     getThreadListItem: getCurrentThreadListItem,
