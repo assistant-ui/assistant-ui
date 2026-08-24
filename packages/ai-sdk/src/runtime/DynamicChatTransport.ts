@@ -9,7 +9,8 @@ import { getResumableAdapter } from "./getResumableAdapter";
 
 type ThreadTransportContext<UI_MESSAGE extends UIMessage> = {
   owner: object;
-  transport: ChatTransport<UI_MESSAGE>;
+  sourceTransport?: ChatTransport<UI_MESSAGE> | undefined;
+  transport?: ChatTransport<UI_MESSAGE> | undefined;
   runtime?: AssistantRuntime | undefined;
   getThreadListItem?:
     | (() => InitializableThreadListItem | undefined)
@@ -39,7 +40,9 @@ export class DynamicChatTransport<
     (options) => this.getTransport(options.chatId).reconnectToStream(options);
 
   public readonly getCurrentTransport = (chatId: string) =>
-    this.threadContexts.get(chatId)?.transport ?? this.transport;
+    this.getThreadTransport(this.threadContexts.get(chatId)) ?? this.transport;
+
+  public readonly getCurrentSourceTransport = () => this.transport;
 
   public readonly subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -48,14 +51,10 @@ export class DynamicChatTransport<
 
   public setTransport(transport: ChatTransport<UI_MESSAGE>) {
     if (this.transport === transport) return;
+    const previousStorage = getResumableAdapter(this.transport)?.storage;
     this.transport = transport;
-    for (const context of this.threadContexts.values()) {
-      const previousStorage = getResumableAdapter(context.transport)?.storage;
-      context.transport = this.createThreadTransport(transport);
-      this.wireTransport(context);
-      if (previousStorage !== getResumableAdapter(context.transport)?.storage) {
-        this.hasPendingNotification = true;
-      }
+    if (previousStorage !== getResumableAdapter(transport)?.storage) {
+      this.hasPendingNotification = true;
     }
   }
 
@@ -70,7 +69,6 @@ export class DynamicChatTransport<
     if (existing?.owner === owner) return;
     this.threadContexts.set(chatId, {
       owner,
-      transport: this.createThreadTransport(this.transport),
     });
   }
 
@@ -84,7 +82,7 @@ export class DynamicChatTransport<
     const context = this.threadContexts.get(chatId)!;
     context.runtime = runtime;
     context.getThreadListItem = getThreadListItem;
-    this.wireTransport(context);
+    this.getThreadTransport(context);
   }
 
   public unregisterThread(chatId: string, owner: object) {
@@ -100,7 +98,19 @@ export class DynamicChatTransport<
         `DynamicChatTransport has no registered context for chat "${chatId}"`,
       );
     }
-    return context.transport;
+    return this.getThreadTransport(context)!;
+  }
+
+  private getThreadTransport(
+    context: ThreadTransportContext<UI_MESSAGE> | undefined,
+  ) {
+    if (!context) return undefined;
+    if (context.sourceTransport !== this.transport) {
+      context.sourceTransport = this.transport;
+      context.transport = this.createThreadTransport(this.transport);
+    }
+    this.wireTransport(context, context.transport!);
+    return context.transport!;
   }
 
   private createThreadTransport(transport: ChatTransport<UI_MESSAGE>) {
@@ -109,13 +119,14 @@ export class DynamicChatTransport<
       : transport;
   }
 
-  private wireTransport(context: ThreadTransportContext<UI_MESSAGE>) {
-    if (!(context.transport instanceof AssistantChatTransport)) return;
-    if (context.runtime) context.transport.setRuntime(context.runtime);
+  private wireTransport(
+    context: ThreadTransportContext<UI_MESSAGE>,
+    transport: ChatTransport<UI_MESSAGE>,
+  ) {
+    if (!(transport instanceof AssistantChatTransport)) return;
+    if (context.runtime) transport.setRuntime(context.runtime);
     if (context.getThreadListItem) {
-      context.transport.__internal_setGetThreadListItem(
-        context.getThreadListItem,
-      );
+      transport.__internal_setGetThreadListItem(context.getThreadListItem);
     }
   }
 }

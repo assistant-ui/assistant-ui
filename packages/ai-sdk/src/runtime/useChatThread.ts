@@ -172,9 +172,9 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const getSourceTransport = useCallback(
     () =>
       transport instanceof DynamicChatTransport
-        ? transport.getCurrentTransport(id)
+        ? transport.getCurrentSourceTransport()
         : transport,
-    [id, transport],
+    [transport],
   );
   const sourceTransport = useSyncExternalStore(
     subscribeToTransport,
@@ -220,14 +220,14 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   useInsertionEffect(() => {
     if (!(transport instanceof DynamicChatTransport)) return undefined;
     return registerTransportContext(transport, id);
-  }, [id, transport, transportContextOwner]);
+  }, [id, runtime, transport, transportContextOwner]);
 
   if (
     !(transport instanceof DynamicChatTransport) &&
-    sourceTransport instanceof AssistantChatTransport
+    transport instanceof AssistantChatTransport
   ) {
-    sourceTransport.setRuntime(runtime);
-    sourceTransport.__internal_setGetThreadListItem(getCurrentThreadListItem);
+    transport.setRuntime(runtime);
+    transport.__internal_setGetThreadListItem(getCurrentThreadListItem);
   }
 
   const subscribeToRuntime = useCallback(
@@ -248,6 +248,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     () => getResumableAdapter(sourceTransport)?.storage,
     [sourceTransport],
   );
+
   const subscribeToResumableStorage = useCallback(
     (callback: () => void) =>
       isMainThread

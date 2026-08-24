@@ -111,4 +111,40 @@ describe("DynamicChatTransport", () => {
       dynamicTransport.getCurrentTransport("thread-b"),
     );
   });
+
+  it("defers replacement clones until a thread uses the transport", async () => {
+    const clone = vi.spyOn(
+      AssistantChatTransport.prototype,
+      "__internal_clone",
+    );
+    const dynamicTransport = new DynamicChatTransport(
+      new AssistantChatTransport<UIMessage>(),
+    );
+    dynamicTransport.setThreadContext(
+      "thread-a",
+      {},
+      createRuntime("system-a"),
+      () => ({
+        initialize: async () => ({
+          remoteId: "remote-a",
+          externalId: undefined,
+        }),
+      }),
+    );
+    clone.mockClear();
+
+    for (let index = 0; index < 10; index++) {
+      dynamicTransport.setTransport(
+        new AssistantChatTransport<UIMessage>({
+          fetch: async () => emptyStreamResponse(),
+        }),
+      );
+    }
+
+    expect(clone).not.toHaveBeenCalled();
+
+    await dynamicTransport.sendMessages(sendMessagesOptions("thread-a"));
+
+    expect(clone).toHaveBeenCalledOnce();
+  });
 });

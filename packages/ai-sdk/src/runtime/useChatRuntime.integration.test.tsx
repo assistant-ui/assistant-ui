@@ -119,6 +119,38 @@ describe("useChatRuntime integration", () => {
     expect(sendA).not.toHaveBeenCalled();
   });
 
+  it("routes sends triggered during the initial layout commit", async () => {
+    const send = vi.fn(
+      async () =>
+        new ReadableStream({ start: (controller) => controller.close() }),
+    );
+    const transport: ChatTransport<UIMessage> = {
+      sendMessages: send,
+      reconnectToStream: vi.fn(),
+    };
+    const SendOnLayout = ({ runtime }: { runtime: AssistantRuntime }) => {
+      useLayoutEffect(() => {
+        void runtime.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+        });
+      }, [runtime]);
+      return null;
+    };
+    const App = () => {
+      const runtime = useChatRuntime({ transport });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <SendOnLayout runtime={runtime} />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+
+    await waitFor(() => expect(send).toHaveBeenCalledOnce());
+  });
+
   it("keeps AssistantChatTransport wired through StrictMode effect replay", () => {
     const sourceTransport = new AssistantChatTransport<UIMessage>({
       api: "/api/chat",

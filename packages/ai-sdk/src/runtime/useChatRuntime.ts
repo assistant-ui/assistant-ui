@@ -15,7 +15,13 @@ import { DynamicChatTransport } from "./DynamicChatTransport";
 import { useChatThread, type ChatThreadOptions } from "./useChatThread";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
-  ChatThreadOptions<UI_MESSAGE> & {
+  Omit<ChatThreadOptions<UI_MESSAGE>, "transport"> & {
+    /**
+     * The transport threads send through. `AssistantChatTransport` instances
+     * are cloned per thread through `__internal_clone()` so their assistant-ui
+     * wiring remains isolated. Other transport instances are shared as-is.
+     */
+    transport?: ChatTransport<UI_MESSAGE> | undefined;
     cloud?: AssistantCloud | undefined;
     onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   };
