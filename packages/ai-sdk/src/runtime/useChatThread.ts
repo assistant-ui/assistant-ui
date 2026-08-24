@@ -66,9 +66,7 @@ const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
   transport: ChatTransport<UI_MESSAGE>,
 ): ChatTransport<UI_MESSAGE> => {
   const transportRef = useRef<ChatTransport<UI_MESSAGE>>(transport);
-  useEffect(() => {
-    transportRef.current = transport;
-  });
+  transportRef.current = transport;
   const dynamicTransport = useMemo(
     () =>
       new Proxy(transportRef.current, {
