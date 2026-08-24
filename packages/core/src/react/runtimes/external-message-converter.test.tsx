@@ -54,6 +54,37 @@ const renderConverter = (initialProps: Props = {}) =>
   );
 
 describe("useExternalMessageConverter", () => {
+  it("refreshes positional fallback ids when an id-less message is prepended", () => {
+    const idlessConvert: useExternalMessageConverter.Callback<TestMessage> = (
+      message,
+    ) => ({
+      role: message.role,
+      content: [{ type: "text", text: message.text }],
+    });
+
+    const older: TestMessage = { id: "u0", role: "user", text: "older" };
+    const newer: TestMessage = { id: "u1", role: "user", text: "newer" };
+
+    const { result, rerender } = renderHook(
+      ({ messages }: { messages: TestMessage[] }) =>
+        useExternalMessageConverter<TestMessage>({
+          callback: idlessConvert,
+          messages,
+          isRunning: false,
+          metadata: EMPTY,
+        }),
+      { initialProps: { messages: [newer] } },
+    );
+
+    rerender({ messages: [older, newer] });
+
+    const ids = result.current.map((message) => message.id);
+    expect(new Set(ids).size).toBe(ids.length);
+    expect(
+      result.current.map((message) => (message.content[0] as any).text),
+    ).toEqual(["older", "newer"]);
+  });
+
   it("reuses converted messages across rerenders when inputs are unchanged", () => {
     const { result, rerender } = renderConverter();
 

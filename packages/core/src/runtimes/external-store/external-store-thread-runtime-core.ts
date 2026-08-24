@@ -77,7 +77,7 @@ export const hasUpcomingMessage = (
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
 
-const FALLBACK_ID_PREFIX = "__external_store_fallback_";
+export const FALLBACK_ID_PREFIX = "__external_store_fallback_";
 
 export class ExternalStoreThreadRuntimeCore
   extends BaseThreadRuntimeCore
