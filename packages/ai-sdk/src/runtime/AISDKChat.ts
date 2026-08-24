@@ -28,6 +28,7 @@ const useAISDKChat = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: AISDKChatOptions<UI_MESSAGE>,
 ) => {
   const [id] = useState(() => options?.id ?? generateId());
+  const { transport, ...chatOptions } = options ?? {};
   // The transport resolves the request id from the thread list item, falling
   // back to the runtime's main item, whose id here is the external store's
   // placeholder constant. The single thread of this entry is the chat itself,
@@ -35,12 +36,20 @@ const useAISDKChat = <UI_MESSAGE extends UIMessage = UIMessage>(
   const [threadListItem] = useState(() => ({
     initialize: async () => ({ remoteId: id, externalId: undefined }),
   }));
-  const runtime = useChatThread(options, {
-    id,
-    isMainThread: true,
-    getThreadListItem: () => threadListItem,
-    stopOnClientDestroy: true,
-  });
+  const runtime = useChatThread(
+    options === undefined
+      ? undefined
+      : {
+          ...chatOptions,
+          ...(transport !== undefined && { transport }),
+        },
+    {
+      id,
+      isMainThread: true,
+      getThreadListItem: () => threadListItem,
+      stopOnClientDestroy: true,
+    },
+  );
   return useResource(RuntimeAdapter(runtime));
 };
 
