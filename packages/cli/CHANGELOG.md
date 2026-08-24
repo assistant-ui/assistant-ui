@@ -1,5 +1,12 @@
 # assistant-ui
 
+## 0.0.112
+
+### Patch Changes
+
+- Updated dependencies [[`2c4b33d`](https://github.com/assistant-ui/assistant-ui/commit/2c4b33d981f850600f5a1d0b39206e5e822f21a3)]:
+  - @assistant-ui/agent-launcher@0.1.12
+
 ## 0.0.111
 
 ### Patch Changes

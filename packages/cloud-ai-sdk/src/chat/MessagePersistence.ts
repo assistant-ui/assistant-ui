@@ -13,7 +13,7 @@ function encode({ id, ...rest }: UIMessage): ReadonlyJSONObject {
   return rest as ReadonlyJSONObject;
 }
 
-// Intentionally duplicated in cloud-ai-sdk and react-ai-sdk.
+// Intentionally duplicated in cloud-ai-sdk and ai-sdk.
 // We keep this local to avoid introducing cross-package coupling for a small adapter.
 // If behavior changes, update both adapters and their contract tests together.
 const aiSdkFormatAdapter: MessageFormatAdapter<UIMessage, ReadonlyJSONObject> =

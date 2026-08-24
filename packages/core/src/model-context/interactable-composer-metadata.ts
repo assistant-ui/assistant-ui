@@ -33,7 +33,7 @@ type SnapshotCarrierMessage = {
  * `metadata.custom.interactables`, or `undefined` if none. This is the read
  * half of the snapshot channel — integrations use it to surface interactable
  * state to the model (see `unstable_injectInteractableContext` in
- * `@assistant-ui/react-ai-sdk` for the AI SDK implementation).
+ * `@assistant-ui/ai-sdk` for the AI SDK implementation).
  *
  * @deprecated Unstable / Experimental (not actually removed).
  */

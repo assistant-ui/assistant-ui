@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { ArrowLeftIcon } from "lucide-react";
-import { ScrollReset } from "@/components/elements/scroll-reset";
+import { ScrollReset } from "@/components/pages/elements/scroll-reset";
 import {
   StandaloneMobileNav,
   StandaloneSidebar,
-} from "@/components/standalone/sidebar";
+} from "@/components/pages/standalone/sidebar";
 import { PageFrame } from "@/components/shared/page-frame";
 
 export default function StandaloneDetailLayout({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useComposedRefs } from "@radix-ui/react-compose-refs";
+import { useComposedRefs } from "radix-ui/internal";
 import { Primitive } from "../../utils/Primitive";
 import {
   type ComponentRef,

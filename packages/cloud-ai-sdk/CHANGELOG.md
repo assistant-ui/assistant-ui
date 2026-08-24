@@ -1,5 +1,13 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.35
+
+### Patch Changes
+
+- [#6091](https://github.com/assistant-ui/assistant-ui/pull/6091) [`9a7aa0a`](https://github.com/assistant-ui/assistant-ui/commit/9a7aa0a75fd45286cd2cfc533016e0dfff688bfb) - fix: clear thread selections after refresh confirms their deletion ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6124](https://github.com/assistant-ui/assistant-ui/pull/6124) [`06b04a7`](https://github.com/assistant-ui/assistant-ui/commit/06b04a7976d10fac3af40ae9ca59b52385ef2ae2) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 0.1.34
 
 ### Patch Changes

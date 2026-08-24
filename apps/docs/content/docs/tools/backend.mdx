@@ -10,10 +10,10 @@ For authoring tools, see [Defining Tools](/docs/tools/defining-tools). For MCP s
 
 ## The request body
 
-`@assistant-ui/react-ai-sdk` posts `{ messages, system, tools }` to your route. `tools` is the map of **frontend** tools the client serialized for this request (the model needs their schemas to call them, even though they run in the browser):
+`@assistant-ui/ai-sdk` posts `{ messages, system, tools }` to your route. `tools` is the map of **frontend** tools the client serialized for this request (the model needs their schemas to call them, even though they run in the browser):
 
 ```ts
-import type { FrontendTools } from "@assistant-ui/react-ai-sdk";
+import type { FrontendTools } from "@assistant-ui/ai-sdk";
 
 const {
   messages,
@@ -31,7 +31,7 @@ const {
 When you author tools in a [`"use generative"` file](/docs/tools/defining-tools#quick-start-use-generative), the same import resolves to the **server build** inside a route handler — schema plus any backend `execute`, with renderers stripped. Wrap it in an `AISDKToolkit` and call `.tools()` with the uploaded `tools`:
 
 ```ts title="app/api/chat/route.ts"
-import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { openai } from "@ai-sdk/openai";
 import toolkit from "../../toolkit";
@@ -70,7 +70,7 @@ serializes browser-executed tools into the request `tools`. Convert them to the
 AI SDK shape with `frontendTools` and spread your own server tools alongside:
 
 ```ts title="app/api/chat/route.ts"
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { streamText, convertToModelMessages, tool, zodSchema } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { z } from "zod";

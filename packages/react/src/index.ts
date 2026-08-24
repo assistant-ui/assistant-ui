@@ -520,6 +520,7 @@ export type {
   McpAppsHost,
   McpAppsRemoteHostOptions,
   McpAppToolCallParams,
+  McpAppBridgeHandlers,
   ToolCallMessagePartMcpMetadata,
 } from "./mcp-apps";
 export type { McpAppResourceOutput } from "@assistant-ui/core/react";

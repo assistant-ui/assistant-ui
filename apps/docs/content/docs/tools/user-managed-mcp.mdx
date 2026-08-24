@@ -221,12 +221,12 @@ The callback reads `?state=...&code=...` from the URL, derives the target server
 
 ### That's it — the chat sees your tools
 
-`McpManagerResource` registers connected tools as **frontend tools** with the `modelContext` scope. Any chat runtime mounted in the same store (e.g. `@assistant-ui/react-ai-sdk`'s `useChatRuntime`) sees them and exposes them to the model — no `useMcpTools` hook, no adapter call.
+`McpManagerResource` registers connected tools as **frontend tools** with the `modelContext` scope. Any chat runtime mounted in the same store (e.g. `@assistant-ui/ai-sdk`'s `useChatRuntime`) sees them and exposes them to the model — no `useMcpTools` hook, no adapter call.
 
 ```tsx
 "use client";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 export function Chat() {
   const runtime = useChatRuntime({

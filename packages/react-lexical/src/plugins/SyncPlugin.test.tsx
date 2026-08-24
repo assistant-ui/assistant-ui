@@ -572,4 +572,71 @@ describe("SyncPlugin", () => {
       metadata: { workspace: "acme" },
     });
   });
+
+  it("preserves leading blank lines through an editor readback", async () => {
+    const initialConfig = {
+      namespace: "sync-plugin-test",
+      onError: (error: Error) => {
+        throw error;
+      },
+    };
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const aui = createAui("\nhello");
+    mocks.aui = aui;
+    await act(async () => {
+      root.render(
+        <LexicalComposer initialConfig={initialConfig}>
+          <SyncPlugin />
+          <EditorProbe capture={capture} />
+        </LexicalComposer>,
+      );
+    });
+    expect(
+      editor.getEditorState().read(() => $getRoot().getChildrenSize()),
+    ).toBe(2);
+
+    await act(async () => {
+      editor.update(() => {
+        const lastParagraph = $getRoot().getLastChild();
+        if (!$isElementNode(lastParagraph)) throw new Error("no paragraph");
+        lastParagraph.append($createTextNode("!"));
+      });
+    });
+
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("\nhello!");
+  });
+
+  it("preserves multiple leading blank lines", async () => {
+    const initialConfig = {
+      namespace: "sync-plugin-test",
+      onError: (error: Error) => {
+        throw error;
+      },
+    };
+    const capture = (capturedEditor: LexicalEditor) => {
+      editor = capturedEditor;
+    };
+    const aui = createAui("\n\nx");
+    mocks.aui = aui;
+    await act(async () => {
+      root.render(
+        <LexicalComposer initialConfig={initialConfig}>
+          <SyncPlugin />
+          <EditorProbe capture={capture} />
+        </LexicalComposer>,
+      );
+    });
+
+    await act(async () => {
+      editor.update(() => {
+        const lastParagraph = $getRoot().getLastChild();
+        if (!$isElementNode(lastParagraph)) throw new Error("no paragraph");
+        lastParagraph.append($createTextNode("!"));
+      });
+    });
+
+    expect(aui.composer.setText).toHaveBeenLastCalledWith("\n\nx!");
+  });
 });

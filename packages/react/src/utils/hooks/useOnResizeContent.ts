@@ -1,4 +1,4 @@
-import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
+import { useCallbackRef } from "radix-ui/internal";
 import { useCallback } from "react";
 import { useManagedRef } from "./useManagedRef";
 
