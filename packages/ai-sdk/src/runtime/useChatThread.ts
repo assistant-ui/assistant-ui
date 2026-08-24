@@ -23,6 +23,7 @@ import type {
 import {
   useCallback,
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useSyncExternalStore,
@@ -66,7 +67,9 @@ const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
   transport: ChatTransport<UI_MESSAGE>,
 ): ChatTransport<UI_MESSAGE> => {
   const transportRef = useRef<ChatTransport<UI_MESSAGE>>(transport);
-  transportRef.current = transport;
+  useLayoutEffect(() => {
+    transportRef.current = transport;
+  }, [transport]);
   const dynamicTransport = useMemo(
     () =>
       new Proxy(transportRef.current, {
