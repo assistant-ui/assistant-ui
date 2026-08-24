@@ -334,6 +334,28 @@ describe("RunAggregator", () => {
     ]);
   });
 
+  it("ignores hidden signatures with blank values", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "   ",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
   it("closes the anonymous claim when an identified hidden block opens", () => {
     const aggregator = createAggregator(false);
 

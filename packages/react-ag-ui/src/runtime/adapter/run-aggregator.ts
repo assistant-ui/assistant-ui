@@ -100,6 +100,7 @@ export class RunAggregator {
   private readonly hiddenReasoningIds = new Set<string>();
   private hiddenActiveReasoning: "none" | "anonymous" | "identified" = "none";
   private hasEmittedOpaqueReasoning = false;
+  private readonly loggedDroppedOpaqueIds = new Set<string>();
   private readonly reasoningMessageIds = new Map<string, string>();
   private readonly anonymousReasoningKeys = new Set<string>();
   private activeReasoningKey: string | undefined;
@@ -146,6 +147,7 @@ export class RunAggregator {
         this.hiddenReasoningIds.clear();
         this.hiddenActiveReasoning = "none";
         this.hasEmittedOpaqueReasoning = false;
+        this.loggedDroppedOpaqueIds.clear();
         this.anonymousReasoningKeys.clear();
         this.activeReasoningKey = undefined;
         this.reasoningPartCounter = 0;
@@ -269,9 +271,13 @@ export class RunAggregator {
             this.emit();
           } else if (
             !this.showThinking &&
+            event.entityId.trim().length > 0 &&
+            event.encryptedValue.trim().length > 0 &&
             (this.hiddenReasoningIds.has(event.entityId) ||
               this.hiddenActiveReasoning === "anonymous")
           ) {
+            // Blank values cannot round-trip: the snapshot replay path
+            // rejects them, so they would only pollute the metadata.
             this.hiddenSignatures.set(event.entityId, event.encryptedValue);
             this.hiddenSignatureAnchors.set(
               event.entityId,
@@ -777,17 +783,26 @@ export class RunAggregator {
     // An anonymous claim promotes the signature's entityId to a wire message
     // id; when that id actually names a text message or the adopted assistant
     // message id (which can also arrive via TOOL_CALL_START.parentMessageId),
-    // replaying it would put two wire records under one id — the sibling
-    // conversion path synthesizes ids to avoid exactly that, so such entries
-    // are dropped instead. Entries with no materialized part after their
-    // anchor trail the assistant record, matching the snapshot path's
-    // anchor/after bookkeeping.
+    // replaying it as its own record would put two wire records under one id,
+    // so such entries are dropped instead — the same outcome the visible
+    // path's claim guard produces for a signature that is "not for this
+    // block". Entries with no materialized part after their anchor trail the
+    // assistant record, matching the snapshot path's anchor/after
+    // bookkeeping.
     const publishableOpaqueReasoning = opaqueCandidates
-      .filter(
-        (entry) =>
-          !this.textParts.has(entry.id) &&
-          entry.id !== this.reportedServerMessageId,
-      )
+      .filter((entry) => {
+        const collides =
+          this.textParts.has(entry.id) ||
+          entry.id === this.reportedServerMessageId;
+        if (collides && !this.loggedDroppedOpaqueIds.has(entry.id)) {
+          this.loggedDroppedOpaqueIds.add(entry.id);
+          this.logger.debug?.(
+            "[agui] aggregator dropped opaque reasoning signature: id collides with a message id",
+            entry.id,
+          );
+        }
+        return !collides;
+      })
       .map(({ anchor, ...entry }) =>
         lastMaterializedIndex < anchor ? { ...entry, after: true } : entry,
       );
