@@ -64,6 +64,11 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   chat?: Chat<UI_MESSAGE> | undefined;
 };
 
+type ChatThreadTransportBinding = {
+  runtime: AssistantRuntime;
+  getThreadListItem: () => InitializableThreadListItem | undefined;
+};
+
 const getNoPendingStreamId = () => null;
 
 const resumedStreamIdsByStorage = new WeakMap<
@@ -187,22 +192,22 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     getSourceTransport,
   );
 
-  const transportBindingRef = useRef<{
-    runtime: AssistantRuntime;
-    getThreadListItem: () => InitializableThreadListItem | undefined;
-  } | null>(null);
+  const transportBindingRef = useRef<ChatThreadTransportBinding | null>(null);
+  // The proxy captures this mount-local fallback; shared updates publish only during commit.
+  let initialTransportBinding: ChatThreadTransportBinding | null = null;
   const chatTransport = useMemo(
     () =>
       transport instanceof DynamicChatTransport
         ? transport.createThreadProxy(transportContextOwner, () => {
-            const binding = transportBindingRef.current;
+            const binding =
+              transportBindingRef.current ?? initialTransportBinding;
             if (!binding) {
               throw new Error("Chat transport used before runtime setup");
             }
             return binding;
           })
         : transport,
-    [transport, transportContextOwner],
+    [initialTransportBinding, transport, transportContextOwner],
   );
 
   const chat = useChat({
@@ -227,13 +232,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepository && { messageRepository }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
-  // An abandoned mount cannot expose this ref or its proxy; updates publish only during commit.
-  if (!transportBindingRef.current) {
-    transportBindingRef.current = {
-      runtime,
-      getThreadListItem: getCurrentThreadListItem,
-    };
-  }
+  initialTransportBinding = {
+    runtime,
+    getThreadListItem: getCurrentThreadListItem,
+  };
   useInsertionEffect(() => {
     transportBindingRef.current = {
       runtime,
