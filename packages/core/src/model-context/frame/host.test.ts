@@ -84,6 +84,41 @@ describe("AssistantFrameHost", () => {
     host.dispose();
   });
 
+  it("rejects tool results that carry an empty error message", async () => {
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
+    const result = Promise.resolve(
+      execute({ query: "weather" }, executionContext),
+    );
+
+    dispatchMessage({
+      type: "tool-result",
+      id: getToolCallId(),
+      error: "",
+    });
+
+    await expect(result).rejects.toThrow();
+    expect(vi.getTimerCount()).toBe(0);
+    host.dispose();
+  });
+
+  it("resolves results from guests that serialize an absent error as null", async () => {
+    const { dispatchMessage, execute, getToolCallId, host } = createHost();
+    const result = Promise.resolve(
+      execute({ query: "weather" }, executionContext),
+    );
+
+    dispatchMessage({
+      type: "tool-result",
+      id: getToolCallId(),
+      result: "sunny",
+      error: null,
+    } as unknown as FrameMessage);
+
+    await expect(result).resolves.toBe("sunny");
+    expect(vi.getTimerCount()).toBe(0);
+    host.dispose();
+  });
+
   it("rejects pending tool calls when disposed", async () => {
     const { execute, getToolCallId, host, postMessage } = createHost();
     const result = Promise.resolve(execute({}, executionContext));

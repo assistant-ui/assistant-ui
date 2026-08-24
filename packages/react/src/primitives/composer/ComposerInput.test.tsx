@@ -81,7 +81,8 @@ vi.mock("./trigger/TriggerPopoverRootContext", () => ({
 
 let escapeKeydownHandler: ((event: KeyboardEvent) => void) | null = null;
 
-vi.mock("@radix-ui/react-use-escape-keydown", () => ({
+vi.mock("radix-ui/internal", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("radix-ui/internal")>()),
   useEscapeKeydown: (handler: (event: KeyboardEvent) => void) => {
     escapeKeydownHandler = handler;
   },

@@ -6,7 +6,7 @@ import {
   useRemoteThreadListRuntime,
   type RemoteThreadListAdapter,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { createAssistantStream } from "assistant-stream";
 
 const PAGE_SIZE = 10;

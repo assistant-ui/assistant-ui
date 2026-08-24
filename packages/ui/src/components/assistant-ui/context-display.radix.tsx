@@ -1,8 +1,8 @@
 "use client";
 
 import { useAuiState } from "@assistant-ui/react";
-import { useThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
-import type { ThreadTokenUsage } from "@assistant-ui/react-ai-sdk";
+import { useThreadTokenUsage } from "@assistant-ui/ai-sdk";
+import type { ThreadTokenUsage } from "@assistant-ui/ai-sdk";
 import {
   Tooltip,
   TooltipContent,

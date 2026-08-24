@@ -3,7 +3,7 @@
 import { forwardRef } from "react";
 import type { ActionButtonProps } from "../../utils/createActionButton";
 import { Primitive } from "../../utils/Primitive";
-import { composeEventHandlers } from "@radix-ui/primitive";
+import { composeEventHandlers } from "radix-ui/internal";
 import { useActionBarStopSpeaking as useActionBarStopSpeakingBehavior } from "@assistant-ui/core/react";
 
 const useActionBarStopSpeaking = () => {

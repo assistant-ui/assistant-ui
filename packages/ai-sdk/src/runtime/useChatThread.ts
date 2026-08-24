@@ -32,6 +32,7 @@ import { useResourceCleanup } from "./useResourceCleanup";
 export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
     ExternalStoreSharedOptions & {
+      throttle?: number | undefined;
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
@@ -122,6 +123,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
   const {
     adapters,
     transport,
+    throttle,
     toCreateMessage,
     isDisabled: _isDisabled,
     isSendDisabled: _isSendDisabled,
@@ -141,6 +143,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
   return {
     adapters,
     transport,
+    throttle,
     toCreateMessage,
     onResume,
     onResumeToolCall,
@@ -157,6 +160,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const {
     adapters,
     transport: transportOptions,
+    throttle,
     toCreateMessage,
     onResume,
     onResumeToolCall,
@@ -181,6 +185,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...chatOptions,
     id,
     transport,
+    ...(throttle !== undefined && { throttle }),
     ...(externalChat !== undefined && { chat: externalChat }),
   });
 

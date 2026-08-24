@@ -1,5 +1,64 @@
 # @assistant-ui/core
 
+## 0.3.15
+
+### Patch Changes
+
+- [#6100](https://github.com/assistant-ui/assistant-ui/pull/6100) [`fa30915`](https://github.com/assistant-ui/assistant-ui/commit/fa309156e033dc085c0d3b8fb97c27c81a3d2c6e) - fix: propagate AssistantFrame tool cancellation across the frame boundary ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5823](https://github.com/assistant-ui/assistant-ui/pull/5823) [`b355aef`](https://github.com/assistant-ui/assistant-ui/commit/b355aefbe2403025562f0e08494a57450bfdc049) - fix: prevent AssistantFrameProvider from ignoring a later explicit targetOrigin ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6136](https://github.com/assistant-ui/assistant-ui/pull/6136) [`f7bd2d9`](https://github.com/assistant-ui/assistant-ui/commit/f7bd2d9392e1e71750012fa87649002e8c9d1dab) - fix: keep DevTools updates flowing when a subscriber throws ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6107](https://github.com/assistant-ui/assistant-ui/pull/6107) [`4947ef4`](https://github.com/assistant-ui/assistant-ui/commit/4947ef4f9b0956bd4ca21c457b3cc7e79a2fc9e0) - fix: preserve falsy assistant transport artifacts ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5809](https://github.com/assistant-ui/assistant-ui/pull/5809) [`332f736`](https://github.com/assistant-ui/assistant-ui/commit/332f736e64bfa26f76cd60318279697ddbc0b36d) - fix: load archived threads in the cloud thread list adapter ([@SnowingFox](https://github.com/SnowingFox))
+
+- [#6112](https://github.com/assistant-ui/assistant-ui/pull/6112) [`ef9254d`](https://github.com/assistant-ui/assistant-ui/commit/ef9254d5b2174fb4b58b4e954a8a0d60910a484c) - fix: contain a synchronously throwing clipboard writer in useActionBarCopy ([@samdickson22](https://github.com/samdickson22))
+
+- [#6156](https://github.com/assistant-ui/assistant-ui/pull/6156) [`9c65b51`](https://github.com/assistant-ui/assistant-ui/commit/9c65b511bc7cdc7d6699c128cac4650cae728043) - deprecate leftover Primitive.If and Empty wrappers on react-native and react-ink, and point them at AuiIf ([@okisdev](https://github.com/okisdev))
+  
+  ThreadIf now reads `thread.isEmpty` instead of `messages.length === 0`, matching the loading-aware field already used by ThreadEmpty and AuiIf. First-party examples and docs samples that still called the leftover wrappers now use `AuiIf` directly.
+
+- [#6106](https://github.com/assistant-ui/assistant-ui/pull/6106) [`5845ba7`](https://github.com/assistant-ui/assistant-ui/commit/5845ba7c5690af776701683fbd2d04e9ca0eaaff) - fix: `ExternalThread` no longer reports an empty thread while it is loading ([@samdickson22](https://github.com/samdickson22))
+  
+  `ExternalThread` computed `thread.isEmpty` as `messages.length === 0`, omitting
+  the `isLoading` term that `thread-runtime-client.ts` already applies. A thread
+  with `isLoading: true` and no messages yet reported `isEmpty: true`, so
+  `<ThreadPrimitive.Empty>`, `useThreadIsEmpty()`, and `AuiIf` on
+  `s.thread.isEmpty` rendered their empty state underneath the loading indicator.
+  The `ThreadState` type already documents the intended contract: a thread is
+  empty when it has no messages and is not loading.
+  
+  Both producers now define `isEmpty` identically. Consumers that pass
+  `isLoading` to `ExternalThread` and render empty-state UI will see that UI stay
+  hidden until loading finishes. `useExternalStoreRuntime` is unaffected — it
+  already carried the `isLoading` term.
+
+- [#6125](https://github.com/assistant-ui/assistant-ui/pull/6125) [`1b30bfd`](https://github.com/assistant-ui/assistant-ui/commit/1b30bfdabadfe3613b7c98296de3d6665122136b) - refactor: collapse the two inert thread cores onto a shared base ([@okisdev](https://github.com/okisdev))
+
+- [#6159](https://github.com/assistant-ui/assistant-ui/pull/6159) [`365e763`](https://github.com/assistant-ui/assistant-ui/commit/365e763928ff38d2de518efa2a7c44249afbbf83) - fix: avoid ancestor scans when importing new messages ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6135](https://github.com/assistant-ui/assistant-ui/pull/6135) [`d19921d`](https://github.com/assistant-ui/assistant-ui/commit/d19921d3739efb53dcbbb1ae04ffd18a94dca080) - fix: prevent cancelled external-store runs from resyncing after teardown ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6080](https://github.com/assistant-ui/assistant-ui/pull/6080) [`996aa57`](https://github.com/assistant-ui/assistant-ui/commit/996aa5723cf8d7db00cc72da08713226d90ec0e1) - fix: reset remote thread selection and cached records when the thread-list adapter is replaced ([@okisdev](https://github.com/okisdev))
+
+- [#6177](https://github.com/assistant-ui/assistant-ui/pull/6177) [`21d6e87`](https://github.com/assistant-ui/assistant-ui/commit/21d6e87dc2834af11babb93c004f7d4f3a4f9568) - fix: notify thread subscribers when a remote thread core is republished ([@Yonom](https://github.com/Yonom))
+
+- [#6092](https://github.com/assistant-ui/assistant-ui/pull/6092) [`cd247e5`](https://github.com/assistant-ui/assistant-ui/commit/cd247e557b4876c49feb9b79c4f5149cc2271dad) - fix: traverse long message branches without recursive stack growth ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6142](https://github.com/assistant-ui/assistant-ui/pull/6142) [`1bf263b`](https://github.com/assistant-ui/assistant-ui/commit/1bf263ba208668ead7f6c0786ca0c3064e31c3ab) - fix: settle aborted and superseded local runs without continuing them, while keeping approval pauses answerable after cancel ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6124](https://github.com/assistant-ui/assistant-ui/pull/6124) [`06b04a7`](https://github.com/assistant-ui/assistant-ui/commit/06b04a7976d10fac3af40ae9ca59b52385ef2ae2) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6081](https://github.com/assistant-ui/assistant-ui/pull/6081) [`a614b5e`](https://github.com/assistant-ui/assistant-ui/commit/a614b5e44df5f59d82b63b60132a41c89f82e185) - Disconnect immediately when createVoiceSession receives an already-aborted signal. ([@Gujiassh](https://github.com/Gujiassh))
+
+- [#6087](https://github.com/assistant-ui/assistant-ui/pull/6087) [`07b51db`](https://github.com/assistant-ui/assistant-ui/commit/07b51dbbc749c94023fa25df99bb7f64dc211ff1) - Mark voice sessions cancelled when aborted or explicitly disconnected. ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6168](https://github.com/assistant-ui/assistant-ui/pull/6168) [`92e52bd`](https://github.com/assistant-ui/assistant-ui/commit/92e52bd2c99ee8cacd242bf723f617df64e42e2a) - fix: align tool-call status reasons with message status ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`19e52c4`](https://github.com/assistant-ui/assistant-ui/commit/19e52c4012a6a8c32e514134af9ce4eee1146864)]:
+  - assistant-stream@0.3.39
+
 ## 0.3.14
 
 ### Patch Changes

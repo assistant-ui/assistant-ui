@@ -1,10 +1,10 @@
 "use client";
 
-import { createCollection } from "@radix-ui/react-collection";
+import { Collection } from "radix-ui/internal";
 import { createContext, useContext, type RefObject } from "react";
 
 const [collection, useThreadListCollection] =
-  createCollection<HTMLButtonElement>("ThreadList");
+  Collection.createCollection<HTMLButtonElement>("ThreadList");
 
 export const ThreadListCollection = collection;
 export { useThreadListCollection };
