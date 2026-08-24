@@ -103,13 +103,13 @@ describe("useChatRuntime", () => {
     });
 
     renderHook(() => useChatRuntime({ throttle: 50 }));
-    renderHook(() => useChatRuntime({ throttle: undefined }));
-
-    expect(mocks.useChat).toHaveBeenNthCalledWith(
-      1,
+    expect(mocks.useChat).toHaveBeenLastCalledWith(
       expect.objectContaining({ throttle: 50 }),
     );
-    expect(mocks.useChat.mock.calls[1]?.[0]).not.toHaveProperty("throttle");
+
+    mocks.useChat.mockClear();
+    renderHook(() => useChatRuntime({ throttle: undefined }));
+    expect(mocks.useChat.mock.lastCall?.[0]).not.toHaveProperty("throttle");
   });
 
   it("waits for external history to load before resuming a stream", async () => {

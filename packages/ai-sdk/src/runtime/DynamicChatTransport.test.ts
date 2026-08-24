@@ -40,22 +40,29 @@ describe("DynamicChatTransport", () => {
     );
 
     expect(() =>
-      dynamicTransport.getCurrentTransport("missing-thread"),
+      dynamicTransport.sendMessages(sendMessagesOptions("missing-thread")),
     ).toThrow(
       'DynamicChatTransport has no registered context for chat "missing-thread"',
     );
   });
 
   it("keeps AssistantChatTransport wiring scoped per thread", async () => {
-    const bodies: Array<{ id: string; system: string }> = [];
-    const createTransport = () =>
-      new AssistantChatTransport<UIMessage>({
-        fetch: vi.fn(async (_input, init) => {
-          bodies.push(JSON.parse(String(init?.body)));
-          return emptyStreamResponse();
-        }),
+    const createTransport = () => {
+      const bodies: Array<{ id: string; system: string }> = [];
+      const fetch = vi.fn(async (_input, init) => {
+        bodies.push(JSON.parse(String(init?.body)));
+        return emptyStreamResponse();
       });
-    const dynamicTransport = new DynamicChatTransport(createTransport());
+      return {
+        bodies,
+        fetch,
+        transport: new AssistantChatTransport<UIMessage>({
+          fetch,
+        }),
+      };
+    };
+    const initial = createTransport();
+    const dynamicTransport = new DynamicChatTransport(initial.transport);
     const ownerA = {};
     const ownerB = {};
 
@@ -85,13 +92,18 @@ describe("DynamicChatTransport", () => {
     await dynamicTransport.sendMessages(sendMessagesOptions("thread-a"));
     await dynamicTransport.sendMessages(sendMessagesOptions("thread-b"));
 
-    dynamicTransport.setTransport(createTransport());
+    const replacement = createTransport();
+    dynamicTransport.setTransport(replacement.transport);
     await dynamicTransport.sendMessages(sendMessagesOptions("thread-a"));
     await dynamicTransport.sendMessages(sendMessagesOptions("thread-b"));
 
-    expect(bodies).toEqual([
+    expect(initial.fetch).toHaveBeenCalledTimes(2);
+    expect(replacement.fetch).toHaveBeenCalledTimes(2);
+    expect(initial.bodies).toEqual([
       expect.objectContaining({ id: "remote-a", system: "system-a" }),
       expect.objectContaining({ id: "remote-b", system: "system-b" }),
+    ]);
+    expect(replacement.bodies).toEqual([
       expect.objectContaining({ id: "remote-a", system: "system-a" }),
       expect.objectContaining({ id: "remote-b", system: "system-b" }),
     ]);

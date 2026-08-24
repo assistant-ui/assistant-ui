@@ -6,7 +6,13 @@ import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
 import { useTapHost } from "@assistant-ui/tap";
 import type { ChatTransport, UIMessage } from "ai";
-import { StrictMode, useEffect, useLayoutEffect, useState } from "react";
+import {
+  StrictMode,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useState,
+} from "react";
 import { describe, expect, it, vi } from "vitest";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
 import { DynamicChatTransport } from "./DynamicChatTransport";
@@ -155,5 +161,36 @@ describe("useChatRuntime integration", () => {
     );
 
     expect(wiredDuringEffectSetup).toEqual([true, true]);
+  });
+
+  it("does not publish transport contexts from suspended renders", () => {
+    const sourceTransport = new AssistantChatTransport<UIMessage>({
+      api: "/api/chat",
+    });
+    const transport = new DynamicChatTransport(sourceTransport);
+    const pending = new Promise<never>(() => {});
+    const SuspendedThread = () => {
+      useTapHost(function ChatThreadResource() {
+        return useChatThread(
+          { transport },
+          {
+            id: "suspended-thread",
+            isMainThread: true,
+            getThreadListItem: () => undefined,
+          },
+        );
+      });
+      throw pending;
+    };
+
+    render(
+      <Suspense fallback={null}>
+        <SuspendedThread />
+      </Suspense>,
+    );
+
+    expect(transport.getCurrentTransport("suspended-thread")).toBe(
+      sourceTransport,
+    );
   });
 });

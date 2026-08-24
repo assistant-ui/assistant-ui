@@ -39,7 +39,7 @@ export class DynamicChatTransport<
     (options) => this.getTransport(options.chatId).reconnectToStream(options);
 
   public readonly getCurrentTransport = (chatId: string) =>
-    this.getTransport(chatId);
+    this.threadContexts.get(chatId)?.transport ?? this.transport;
 
   public readonly subscribe = (listener: () => void) => {
     this.listeners.add(listener);
