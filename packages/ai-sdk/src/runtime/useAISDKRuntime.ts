@@ -35,7 +35,10 @@ import {
   getExternalStoreMessages,
   pickExternalStoreSharedOptions,
 } from "@assistant-ui/core";
-import { consumeSuggestionResult } from "@assistant-ui/core/internal";
+import {
+  consumeSuggestionResult,
+  MessageRepository,
+} from "@assistant-ui/core/internal";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
 import { sliceMessagesUntil } from "../utils/sliceMessagesUntil";
 import { toCreateMessage } from "../converters/toCreateMessage";
@@ -70,48 +73,63 @@ const toUIMessage = <UI_MESSAGE extends UIMessage>(
     role: createMessage.role ?? fallbackRole,
   }) as UI_MESSAGE;
 
-export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
-  adapters?:
-    | (NonNullable<ExternalStoreAdapter["adapters"]> & {
-        history?: ThreadHistoryAdapter | undefined;
-        suggestion?: SuggestionAdapter | undefined;
-      })
-    | undefined;
-  toCreateMessage?: CustomToCreateMessageFunction;
-  /**
-   * Whether to automatically cancel pending interactive tool calls when the user sends a new message.
-   *
-   * When enabled (default), the pending tool calls will be marked as failed with an error message
-   * indicating the user cancelled the tool call by sending a new message.
-   *
-   * @default true
-   */
-  cancelPendingToolCallsOnSend?: boolean | undefined;
-  /**
-   * Called when `runtime.thread.resumeRun(config)` is invoked.
-   *
-   * When omitted, `resumeRun` throws `"Runtime does not support resuming runs."`.
-   * Provide this to bridge resume invocations into a custom replay channel
-   * (for example, an SSE reconnect endpoint keyed by turn id).
-   */
-  onResume?: ExternalStoreAdapter["onResume"];
-  /**
-   * Called when `runtime.thread.resumeToolCall(options)` is invoked for a tool call the in-process tracker does not own.
-   *
-   * When omitted, `resumeToolCall` throws `"Tool call ${toolCallId} is not waiting for resume."`.
-   * Provide this to bridge resume-tool-call invocations into a custom handler.
-   */
-  onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
-  /**
-   * How consecutive assistant messages are rendered.
-   *
-   * `"concat-content"` (the default) merges them into a single thread message.
-   * `"none"` keeps each assistant message as its own thread message, which is
-   * useful when a backend persists proactive or consecutive assistant messages
-   * as separate entries.
-   */
-  joinStrategy?: JoinStrategy | undefined;
-};
+export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
+  ExternalStoreSharedOptions & {
+    adapters?:
+      | (NonNullable<ExternalStoreAdapter["adapters"]> & {
+          history?: ThreadHistoryAdapter | undefined;
+          suggestion?: SuggestionAdapter | undefined;
+        })
+      | undefined;
+    toCreateMessage?: CustomToCreateMessageFunction;
+    /**
+     * Whether to automatically cancel pending interactive tool calls when the user sends a new message.
+     *
+     * When enabled (default), the pending tool calls will be marked as failed with an error message
+     * indicating the user cancelled the tool call by sending a new message.
+     *
+     * @default true
+     */
+    cancelPendingToolCallsOnSend?: boolean | undefined;
+    /**
+     * Called when `runtime.thread.resumeRun(config)` is invoked.
+     *
+     * When omitted, `resumeRun` throws `"Runtime does not support resuming runs."`.
+     * Provide this to bridge resume invocations into a custom replay channel
+     * (for example, an SSE reconnect endpoint keyed by turn id).
+     */
+    onResume?: ExternalStoreAdapter["onResume"];
+    /**
+     * Called when `runtime.thread.resumeToolCall(options)` is invoked for a tool call the in-process tracker does not own.
+     *
+     * When omitted, `resumeToolCall` throws `"Tool call ${toolCallId} is not waiting for resume."`.
+     * Provide this to bridge resume-tool-call invocations into a custom handler.
+     */
+    onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
+    /**
+     * How consecutive assistant messages are rendered.
+     *
+     * `"concat-content"` (the default) merges them into a single thread message.
+     * `"none"` keeps each assistant message as its own thread message, which is
+     * useful when a backend persists proactive or consecutive assistant messages
+     * as separate entries.
+     */
+    joinStrategy?: JoinStrategy | undefined;
+    /**
+     * A branch-aware AI SDK message tree to import into the thread. Live
+     * updates still come from `useChat`; this is not a replacement for that
+     * feed. Pass a stable reference and change it only when a new tree should
+     * be loaded.
+     */
+    messageRepository?: MessageFormatRepository<UI_MESSAGE>;
+    /**
+     * Called after an explicit `switchToBranch` (for example a BranchPicker
+     * click). Complements `setMessages` and does not enable switching by itself.
+     *
+     * @deprecated This API is still under active development and might change without notice.
+     */
+    unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
+  };
 
 const EMPTY_SUGGESTIONS: readonly ThreadSuggestion[] = [];
 
@@ -190,7 +208,7 @@ const useGeneratedSuggestions = (
 
 export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>,
-  adapter: AISDKRuntimeAdapter = {},
+  adapter: AISDKRuntimeAdapter<UI_MESSAGE> = {},
 ) => {
   const {
     adapters,
@@ -199,6 +217,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onResume,
     onResumeToolCall,
     joinStrategy,
+    messageRepository,
+    unstable_onBranchChange,
   } = adapter;
   const suggestionAdapter = adapters?.suggestion;
   const contextAdapters = useRuntimeAdapters();
@@ -247,6 +267,17 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
       [toolStatuses, messageTiming, optimisticMessageId, chatHelpers.error],
     ),
   });
+
+  const exportedMessageRepository = useMemo(() => {
+    if (!messageRepository) return undefined;
+    const converted = toExportedMessageRepository(
+      AISDKMessageConverter.toThreadMessages as (
+        messages: UI_MESSAGE[],
+      ) => ThreadMessage[],
+      messageRepository,
+    );
+    return converted.messages.length > 0 ? converted : undefined;
+  }, [messageRepository]);
 
   const generatedSuggestions = useGeneratedSuggestions(
     suggestionAdapter,
@@ -329,7 +360,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   const runtime = useExternalStoreRuntime({
     isRunning,
-    messages,
+    ...(exportedMessageRepository && messages.length === 0
+      ? { messageRepository: exportedMessageRepository }
+      : { messages }),
     unstable_enableToolInvocations: true,
     setToolStatuses,
     setMessages: (messages) =>
@@ -515,6 +548,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(suggestionAdapter ? { suggestions: generatedSuggestions } : {}),
     ...(onResume && { onResume }),
     ...(onResumeToolCall && { onResumeToolCall }),
+    ...(unstable_onBranchChange && { unstable_onBranchChange }),
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,
@@ -524,5 +558,22 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     isLoading,
   });
 
+  const importedMessageRepositoryRef = useRef<
+    MessageFormatRepository<UI_MESSAGE> | undefined
+  >(undefined);
+  const setMessagesRef = useRef(chatHelpers.setMessages);
+  setMessagesRef.current = chatHelpers.setMessages;
+
+  useEffect(() => {
+    if (importedMessageRepositoryRef.current === messageRepository) return;
+    importedMessageRepositoryRef.current = messageRepository;
+    if (!exportedMessageRepository) return;
+    runtime.thread.import(exportedMessageRepository);
+    const tempRepo = new MessageRepository();
+    tempRepo.import(exportedMessageRepository);
+    setMessagesRef.current(
+      tempRepo.getMessages().flatMap(getExternalStoreMessages<UI_MESSAGE>),
+    );
+  }, [exportedMessageRepository, messageRepository, runtime]);
   return runtime;
 };
