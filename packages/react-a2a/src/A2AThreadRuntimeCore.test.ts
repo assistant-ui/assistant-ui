@@ -371,6 +371,48 @@ describe("A2AThreadRuntimeCore", () => {
     });
   });
 
+  describe("updateOptions", () => {
+    it("keeps the server-assigned contextId across re-renders", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Answer");
+      });
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.append(createUserAppendMessage("First"));
+
+      // useA2ARuntime re-applies its options on every render, including the
+      // renders triggered by the stream's own notifyUpdate calls.
+      core.updateOptions({ client, contextId: undefined } as never);
+
+      await core.append(createUserAppendMessage("Second"));
+
+      const secondSend = streamMessage.mock.calls[1]?.[0];
+      expect(secondSend?.contextId).toBe("ctx-1");
+    });
+
+    it("applies a changed contextId option", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Answer");
+      });
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.append(createUserAppendMessage("First"));
+      core.updateOptions({ client, contextId: "ctx-override" } as never);
+      await core.append(createUserAppendMessage("Second"));
+
+      const secondSend = streamMessage.mock.calls[1]?.[0];
+      expect(secondSend?.contextId).toBe("ctx-override");
+    });
+  });
+
   // --- Edit & Reload ---
 
   describe("edit", () => {

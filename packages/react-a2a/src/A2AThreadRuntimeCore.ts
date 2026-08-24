@@ -111,9 +111,12 @@ export class A2AThreadRuntimeCore {
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
 
+  private lastOptionsContextId: string | undefined;
+
   constructor(options: A2AThreadRuntimeCoreOptions) {
     this.client = options.client;
     this.contextId = options.contextId;
+    this.lastOptionsContextId = options.contextId;
     this.configuration = options.configuration;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
@@ -124,7 +127,14 @@ export class A2AThreadRuntimeCore {
 
   updateOptions(options: Omit<A2AThreadRuntimeCoreOptions, "notifyUpdate">) {
     this.client = options.client;
-    this.contextId = options.contextId;
+    // The hook re-applies options on every render, including renders caused
+    // by this core's own notifyUpdate. The option only seeds the context: a
+    // re-render with the same value must not clobber a server-assigned
+    // contextId learned from the stream.
+    if (options.contextId !== this.lastOptionsContextId) {
+      this.contextId = options.contextId;
+      this.lastOptionsContextId = options.contextId;
+    }
     this.configuration = options.configuration;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
