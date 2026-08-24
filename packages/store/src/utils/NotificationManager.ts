@@ -55,7 +55,6 @@ export const createNotificationManager = (): NotificationManager => {
       if (!listeners.has(event) && wildcardListeners.size === 0) return;
 
       queueMicrotask(() => {
-        const errors = [];
         // Resolved at flush time: a consumer that unsubscribed and resubscribed
         // since the emit lands in a fresh set, and the live-set contract says
         // the in-flight emission still reaches it
@@ -65,7 +64,9 @@ export const createNotificationManager = (): NotificationManager => {
             try {
               cb(payload, clientStack);
             } catch (e) {
-              errors.push(e);
+              // A throw here has no caller on the stack: it would surface as
+              // an uncaught exception and terminate Node/SSR hosts.
+              console.error("NotificationManager: event listener error", e);
             }
           }
         }
@@ -75,22 +76,8 @@ export const createNotificationManager = (): NotificationManager => {
             try {
               cb(wrapped, clientStack);
             } catch (e) {
-              errors.push(e);
+              console.error("NotificationManager: event listener error", e);
             }
-          }
-        }
-
-        if (errors.length > 0) {
-          if (errors.length === 1) {
-            throw errors[0];
-          } else {
-            for (const error of errors) {
-              console.error(error);
-            }
-            throw new AggregateError(
-              errors,
-              "Errors occurred during event emission",
-            );
           }
         }
       });
