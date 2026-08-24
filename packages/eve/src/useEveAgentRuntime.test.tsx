@@ -1580,3 +1580,79 @@ describe("useEveAgentRuntime concurrent sends", () => {
     ]);
   });
 });
+
+describe("useEveAgentRuntime cancel binding", () => {
+  it("cancels through the eve 0.38+ cancel binding when the agent provides it", async () => {
+    const cancel = vi.fn().mockResolvedValue({ status: "cancelled" });
+    const agent = createAgent({ status: "streaming", cancel });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.cancelRun();
+    });
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(agent.stop).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the pre-0.38 stop binding when cancel is absent", async () => {
+    const agent = createAgent({ status: "streaming" });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.cancelRun();
+    });
+
+    expect(agent.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a queued send when the durable cancel settles late", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    let resolveCancel!: () => void;
+    const cancel = vi.fn(
+      () =>
+        new Promise<{ status: string }>((resolve) => {
+          resolveCancel = () => resolve({ status: "cancelled" });
+        }),
+    );
+    const agent = createAgent({ data: settledData, send, cancel });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "queued" }],
+      });
+    });
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirstSend();
+      resolveCancel();
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+});
