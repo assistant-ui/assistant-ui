@@ -366,6 +366,7 @@ const useNewPiThreadStore = (
   options: PiRuntimeOptions,
   enabled: boolean,
   pendingInitialMessageRef: { current: PiSendMessageInput | undefined },
+  consumedInitialMessagesRef: { current: WeakSet<PiSendMessageInput> },
 ): ExternalStoreAdapter<ThreadMessage> => {
   const aui = useAui();
   const {
@@ -379,6 +380,7 @@ const useNewPiThreadStore = (
   const [optimisticMessages, setOptimisticMessages] = useState<
     readonly ThreadMessageLike[]
   >([]);
+  const optimisticMessageIndexRef = useRef(0);
   const optimisticRepository = useMemo(
     () => ExportedMessageRepository.fromArray(optimisticMessages),
     [optimisticMessages],
@@ -399,7 +401,7 @@ const useNewPiThreadStore = (
         if (!enabled) return NOOP_ON_NEW();
         const optimistic = toOptimisticThreadMessage(
           message,
-          optimisticMessages.length,
+          optimisticMessageIndexRef.current++,
         );
         const initialMessage = buildPiSendInput(message, undefined);
         pendingInitialMessageRef.current = initialMessage;
@@ -408,15 +410,22 @@ const useNewPiThreadStore = (
           const { remoteId, externalId } =
             await aui.threadListItem.initialize();
           if (pendingInitialMessageRef.current === initialMessage) {
+            pendingInitialMessageRef.current = undefined;
+          }
+          if (consumedInitialMessagesRef.current.has(initialMessage)) {
+            consumedInitialMessagesRef.current.delete(initialMessage);
+          } else {
             // The core starts thread initialization before dispatching onNew,
             // so adapter.initialize has usually already run and created the
-            // thread without the message; deliver it to the live thread.
-            pendingInitialMessageRef.current = undefined;
+            // thread without this message (or another send overwrote the
+            // single handoff slot); deliver it to the live thread.
             await getController(registry, externalId ?? remoteId).sendMessage(
               message,
             );
           }
-          setOptimisticMessages([]);
+          setOptimisticMessages((messages) =>
+            messages.filter((candidate) => candidate !== optimistic),
+          );
         } catch (error) {
           if (pendingInitialMessageRef.current === initialMessage) {
             pendingInitialMessageRef.current = undefined;
@@ -432,9 +441,9 @@ const useNewPiThreadStore = (
     [
       aui,
       enabled,
-      optimisticMessages.length,
       optimisticRepository,
       pendingInitialMessageRef,
+      consumedInitialMessagesRef,
       registry,
       adapters,
       isDisabled,
@@ -452,6 +461,7 @@ const useRuntimeHook = (
   registry: PiControllerRegistry,
   options: PiRuntimeOptions,
   pendingInitialMessageRef: { current: PiSendMessageInput | undefined },
+  consumedInitialMessagesRef: { current: WeakSet<PiSendMessageInput> },
 ) => {
   const threadListItem = useAuiState((state) => state.threadListItem);
   const isMainThread = useAuiState(
@@ -474,6 +484,7 @@ const useRuntimeHook = (
     options,
     threadListItem.status === "new",
     pendingInitialMessageRef,
+    consumedInitialMessagesRef,
   );
 
   // One runtime whose store CONTENT switches between the new-thread and
@@ -518,6 +529,9 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
   const pendingInitialMessageRef = useRef<PiSendMessageInput | undefined>(
     undefined,
   );
+  const consumedInitialMessagesRef = useRef<WeakSet<PiSendMessageInput>>(
+    new WeakSet(),
+  );
 
   useEffect(() => () => registry.dispose(), [registry]);
 
@@ -549,6 +563,9 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
       initialize: async () => {
         const initialMessage = pendingInitialMessageRef.current;
         pendingInitialMessageRef.current = undefined;
+        if (initialMessage) {
+          consumedInitialMessagesRef.current.add(initialMessage);
+        }
         const snapshot = await client.createThread({
           ...(options.workspacePath !== undefined
             ? { workspacePath: options.workspacePath }
@@ -578,6 +595,7 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
       options.workspacePath,
       options.includeArchived,
       pendingInitialMessageRef,
+      consumedInitialMessagesRef,
     ],
   );
 
@@ -593,7 +611,12 @@ export const usePiRuntime = (options: PiRuntimeOptions): AssistantRuntime => {
       : {}),
     runtimeHook: () => {
       // oxlint-disable-next-line react-hooks/rules-of-hooks -- runtimeHook is invoked by useRemoteThreadListRuntime at the correct hook position
-      return useRuntimeHook(registry, options, pendingInitialMessageRef);
+      return useRuntimeHook(
+        registry,
+        options,
+        pendingInitialMessageRef,
+        consumedInitialMessagesRef,
+      );
     },
   });
 };

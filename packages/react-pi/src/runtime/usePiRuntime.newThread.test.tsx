@@ -54,8 +54,12 @@ const snapshot: PiThreadSnapshot = {
   messages: [],
 } as unknown as PiThreadSnapshot;
 
-const createClient = () => {
-  const createThread = vi.fn().mockResolvedValue(snapshot);
+const createClient = (
+  createThreadImpl: (options?: {
+    initialMessage?: unknown;
+  }) => Promise<PiThreadSnapshot> = () => Promise.resolve(snapshot),
+) => {
+  const createThread = vi.fn(createThreadImpl);
   const client = {
     listThreads: vi.fn().mockResolvedValue([]),
     createThread,
@@ -65,6 +69,13 @@ const createClient = () => {
   } as unknown as PiClient;
   return { client, createThread };
 };
+
+const sentTexts = () =>
+  mocks.sendMessage.mock.calls.map((call) => {
+    const content = (call[0] as { content: readonly { text?: string }[] })
+      .content;
+    return content.map((part) => part.text).join("");
+  });
 
 let root: Root | undefined;
 
@@ -97,10 +108,49 @@ describe("usePiRuntime new-thread first message", () => {
     await act(async () => {});
 
     expect(createThread).toHaveBeenCalledTimes(1);
+    // The core initializes before onNew runs, so the atomic path cannot see
+    // the message; delivery must happen exactly once via the live thread.
+    expect(createThread.mock.calls[0]?.[0]?.initialMessage).toBeUndefined();
+    expect(mocks.sendMessage).toHaveBeenCalledTimes(1);
+    expect(sentTexts()).toEqual(["hello pi"]);
+  });
 
-    const createdWithMessage =
-      createThread.mock.calls[0]?.[0]?.initialMessage !== undefined;
-    const sentViaController = mocks.sendMessage.mock.calls.length > 0;
-    expect(createdWithMessage || sentViaController).toBe(true);
+  it("delivers both messages when a second send lands during initialization", async () => {
+    let resolveCreate!: (value: PiThreadSnapshot) => void;
+    const { client, createThread } = createClient(
+      () =>
+        new Promise<PiThreadSnapshot>((resolve) => {
+          resolveCreate = resolve;
+        }),
+    );
+    let runtime!: AssistantRuntime;
+
+    const Harness = () => {
+      runtime = usePiRuntime({ client });
+      return createElement(AssistantRuntimeProvider, { runtime }, null);
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => {
+      root!.render(createElement(Harness));
+    });
+    await act(async () => {});
+
+    let first!: Promise<void> | void;
+    let second!: Promise<void> | void;
+    await act(async () => {
+      first = runtime.thread.append("message A");
+      second = runtime.thread.append("message B");
+    });
+
+    await act(async () => {
+      resolveCreate(snapshot);
+      await Promise.all([first, second]);
+    });
+    await act(async () => {});
+
+    expect(createThread).toHaveBeenCalledTimes(1);
+    expect(createThread.mock.calls[0]?.[0]?.initialMessage).toBeUndefined();
+    expect(sentTexts().sort()).toEqual(["message A", "message B"]);
   });
 });
