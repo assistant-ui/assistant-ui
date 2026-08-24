@@ -90,6 +90,10 @@ export class RunAggregator {
   private activeTextMessageId: string | undefined;
   private readonly reasoningParts = new Map<string, string>(); // key → buffer
   private readonly reasoningSignatures = new Map<string, string>();
+  private readonly reasoningSignatureIds = new Map<string, string>();
+  // Signatures captured while thinking is hidden have no block to live on;
+  // they are transport state that must survive to the next run input.
+  private readonly hiddenSignatures = new Map<string, string>();
   private readonly reasoningMessageIds = new Map<string, string>();
   private readonly anonymousReasoningKeys = new Set<string>();
   private activeReasoningKey: string | undefined;
@@ -238,13 +242,19 @@ export class RunAggregator {
           // entityId names any message, not necessarily a reasoning one, so an
           // unmatched id may only claim a block that has no id to contradict it.
           const active = this.activeReasoningKey;
-          const key = this.reasoningParts.has(event.entityId)
-            ? event.entityId
-            : active !== undefined && this.anonymousReasoningKeys.has(active)
-              ? active
-              : undefined;
+          const key = this.showThinking
+            ? this.reasoningParts.has(event.entityId)
+              ? event.entityId
+              : active !== undefined && this.anonymousReasoningKeys.has(active)
+                ? active
+                : undefined
+            : undefined;
           if (key !== undefined) {
             this.reasoningSignatures.set(key, event.encryptedValue);
+            this.reasoningSignatureIds.set(key, event.entityId);
+            this.emit();
+          } else if (!this.showThinking) {
+            this.hiddenSignatures.set(event.entityId, event.encryptedValue);
             this.emit();
           }
         }
@@ -640,6 +650,11 @@ export class RunAggregator {
       new Set(this.toolCalls.keys()),
     );
 
+    const opaqueReasoning: AgUiOpaqueReasoning[] = Array.from(
+      this.hiddenSignatures,
+      ([id, encryptedValue]) => ({ id, encryptedValue }),
+    );
+
     for (const part of this.partOrder) {
       if (part.kind === "reasoning") {
         if (this.showThinking) {
@@ -658,6 +673,17 @@ export class RunAggregator {
                 ? { providerMetadata: { [AG_UI_METADATA_NAMESPACE]: meta } }
                 : {}),
             } as const);
+          } else {
+            // A retracted empty block still carries transport state: without
+            // a part to live on, its signature rides the message metadata,
+            // matching the shape a snapshot reload produces.
+            const encryptedValue = this.reasoningSignatures.get(part.key);
+            const id =
+              this.reasoningSignatureIds.get(part.key) ??
+              this.reasoningMessageIds.get(part.key);
+            if (encryptedValue !== undefined && id !== undefined) {
+              opaqueReasoning.push({ id, encryptedValue });
+            }
           }
         }
         continue;
@@ -718,11 +744,12 @@ export class RunAggregator {
     const timing = this.getTiming();
     const metadata = {
       ...(timing ? { timing } : {}),
-      ...(this.interrupts
+      ...(this.interrupts || opaqueReasoning.length > 0
         ? {
             custom: {
               [AG_UI_METADATA_NAMESPACE]: {
-                interrupts: this.interrupts,
+                ...(this.interrupts ? { interrupts: this.interrupts } : {}),
+                ...(opaqueReasoning.length > 0 ? { opaqueReasoning } : {}),
               } satisfies AgUiCustomMetadata,
             },
           }
