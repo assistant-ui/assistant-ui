@@ -8,6 +8,42 @@ const flushMicrotasks = () =>
   new Promise<void>((resolve) => setTimeout(resolve, 0));
 
 describe("NotificationManager listener errors", () => {
+  it("logs a rejecting async listener without an unhandled rejection", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const rejections: unknown[] = [];
+    const onRejection = (reason: unknown) => rejections.push(reason);
+    const proc = process as unknown as {
+      on(event: "unhandledRejection", cb: (reason: unknown) => void): void;
+      off(event: "unhandledRejection", cb: (reason: unknown) => void): void;
+    };
+    proc.on("unhandledRejection", onRejection);
+    try {
+      const manager = createNotificationManager();
+      const failure = new Error("async listener failed");
+
+      manager.on(
+        "thread.initialize" as never,
+        (async () => {
+          throw failure;
+        }) as never,
+      );
+
+      manager.emit("thread.initialize" as never, {} as never, clientStack);
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      expect(consoleError).toHaveBeenCalledWith(
+        "NotificationManager: event listener error",
+        failure,
+      );
+      expect(rejections).toEqual([]);
+    } finally {
+      proc.off("unhandledRejection", onRejection);
+    }
+  });
+
   afterEach(() => {
     vi.restoreAllMocks();
   });

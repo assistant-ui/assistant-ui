@@ -25,6 +25,34 @@ export type NotificationManager = {
   notifySubscribers(): void;
 };
 
+const reportListenerError = (error: unknown) => {
+  console.error("NotificationManager: event listener error", error);
+};
+
+// Async listeners are legal in the void-callback position, so a rejected
+// return value must be observed too — an unobserved rejection terminates
+// Node/SSR hosts just like the synchronous throw would.
+const invokeListener = (
+  cb: InternalCallback,
+  payload: unknown,
+  clientStack: ClientStack,
+) => {
+  try {
+    const result = cb(payload, clientStack) as unknown;
+    if (
+      result !== null &&
+      typeof result === "object" &&
+      typeof (result as PromiseLike<unknown>).then === "function"
+    ) {
+      void Promise.resolve(result as PromiseLike<unknown>).catch(
+        reportListenerError,
+      );
+    }
+  } catch (e) {
+    reportListenerError(e);
+  }
+};
+
 export const createNotificationManager = (): NotificationManager => {
   const listeners = new Map<string, Set<InternalCallback>>();
   const wildcardListeners = new Set<InternalCallback>();
@@ -61,23 +89,13 @@ export const createNotificationManager = (): NotificationManager => {
         const eventListeners = listeners.get(event);
         if (eventListeners) {
           for (const cb of eventListeners) {
-            try {
-              cb(payload, clientStack);
-            } catch (e) {
-              // A throw here has no caller on the stack: it would surface as
-              // an uncaught exception and terminate Node/SSR hosts.
-              console.error("NotificationManager: event listener error", e);
-            }
+            invokeListener(cb, payload, clientStack);
           }
         }
         if (wildcardListeners.size > 0) {
           const wrapped = { event, payload };
           for (const cb of wildcardListeners) {
-            try {
-              cb(wrapped, clientStack);
-            } catch (e) {
-              console.error("NotificationManager: event listener error", e);
-            }
+            invokeListener(cb, wrapped, clientStack);
           }
         }
       });
