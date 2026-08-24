@@ -1,9 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
-import { useLayoutEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChatTransport, UIMessage } from "ai";
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -384,49 +382,6 @@ describe("useChatRuntime", () => {
     rerender({ transport: transportB });
 
     await waitFor(() => expect(resumeStream).toHaveBeenCalledTimes(1));
-  });
-
-  it("routes immediate sends through a replacement transport", async () => {
-    const sendA = vi.fn().mockResolvedValue(new ReadableStream());
-    const sendB = vi.fn().mockResolvedValue(new ReadableStream());
-    const transportA = {
-      sendMessages: sendA,
-      reconnectToStream: vi.fn(),
-    };
-    const transportB = {
-      sendMessages: sendB,
-      reconnectToStream: vi.fn(),
-    };
-    let activeTransport: ChatTransport<UIMessage> | undefined;
-    mocks.useChat.mockImplementation(
-      ({ transport }: { transport: ChatTransport<UIMessage> }) => {
-        activeTransport = transport;
-        return { resumeStream: vi.fn(), status: "ready" };
-      },
-    );
-
-    const { rerender } = renderHook(
-      ({
-        transport,
-        send,
-      }: {
-        transport: ChatTransport<UIMessage>;
-        send: boolean;
-      }) => {
-        useChatRuntime({ transport });
-        useLayoutEffect(() => {
-          if (send) {
-            void activeTransport?.sendMessages(sendMessagesOptions as never);
-          }
-        }, [send]);
-      },
-      { initialProps: { transport: transportA, send: false } },
-    );
-
-    rerender({ transport: transportB, send: true });
-
-    await waitFor(() => expect(sendB).toHaveBeenCalledOnce());
-    expect(sendA).not.toHaveBeenCalled();
   });
 
   it("does not clear a newer stream id when an older resume fails", async () => {

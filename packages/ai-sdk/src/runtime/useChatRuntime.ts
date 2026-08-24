@@ -8,6 +8,10 @@ import {
   useRemoteThreadListRuntime,
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
+import type { ChatTransport } from "ai";
+import { useEffect, useLayoutEffect, useMemo, useState } from "react";
+import { AssistantChatTransport } from "../transport/AssistantChatTransport";
+import { DynamicChatTransport } from "./DynamicChatTransport";
 import { useChatThread, type ChatThreadOptions } from "./useChatThread";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
@@ -15,6 +19,24 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
     cloud?: AssistantCloud | undefined;
     onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   };
+
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
+const useDynamicChatTransport = <UI_MESSAGE extends UIMessage>(
+  transport: ChatTransport<UI_MESSAGE> | undefined,
+): ChatTransport<UI_MESSAGE> => {
+  const fallback = useMemo(() => new AssistantChatTransport<UI_MESSAGE>(), []);
+  const [dynamicTransport] = useState(
+    () => new DynamicChatTransport(transport ?? fallback),
+  );
+
+  useIsomorphicLayoutEffect(() => {
+    dynamicTransport.setTransport(transport ?? fallback);
+  }, [dynamicTransport, fallback, transport]);
+
+  return dynamicTransport;
+};
 
 const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: ChatThreadOptions<UI_MESSAGE>,
@@ -38,9 +60,10 @@ export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   ...options
 }: UseChatRuntimeOptions<UI_MESSAGE> = {}): AssistantRuntime => {
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
+  const transport = useDynamicChatTransport(options.transport);
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      return useChatThreadRuntime(options);
+      return useChatThreadRuntime({ ...options, transport });
     },
     adapter: cloudAdapter,
     allowNesting: true,

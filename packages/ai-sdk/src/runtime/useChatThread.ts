@@ -23,12 +23,12 @@ import type {
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
   useMemo,
   useRef,
   useSyncExternalStore,
 } from "react";
 import { useResourceCleanup } from "./useResourceCleanup";
+import { DynamicChatTransport } from "./DynamicChatTransport";
 
 export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
@@ -61,32 +61,6 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
    * from the instance.
    */
   chat?: Chat<UI_MESSAGE> | undefined;
-};
-
-const useIsomorphicLayoutEffect =
-  typeof window === "undefined" ? useEffect : useLayoutEffect;
-
-const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
-  transport: ChatTransport<UI_MESSAGE>,
-): ChatTransport<UI_MESSAGE> => {
-  const transportRef = useRef<ChatTransport<UI_MESSAGE>>(transport);
-  useIsomorphicLayoutEffect(() => {
-    transportRef.current = transport;
-  }, [transport]);
-  const dynamicTransport = useMemo(
-    () =>
-      new Proxy(transportRef.current, {
-        get(_, prop) {
-          const res =
-            transportRef.current[prop as keyof ChatTransport<UI_MESSAGE>];
-          return typeof res === "function"
-            ? res.bind(transportRef.current)
-            : res;
-        },
-      }),
-    [],
-  );
-  return dynamicTransport;
 };
 
 const getResumableAdapter = <UI_MESSAGE extends UIMessage>(
@@ -190,8 +164,26 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   } = env;
 
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
-  const sourceTransport = transportOptions ?? defaultTransport;
-  const transport = useDynamicChatTransport(sourceTransport);
+  const transport = transportOptions ?? defaultTransport;
+  const subscribeToTransport = useCallback(
+    (callback: () => void) =>
+      transport instanceof DynamicChatTransport
+        ? transport.subscribe(callback)
+        : () => {},
+    [transport],
+  );
+  const getSourceTransport = useCallback(
+    () =>
+      transport instanceof DynamicChatTransport
+        ? transport.getCurrentTransport()
+        : transport,
+    [transport],
+  );
+  const sourceTransport = useSyncExternalStore(
+    subscribeToTransport,
+    getSourceTransport,
+    getSourceTransport,
+  );
 
   const chat = useChat({
     ...chatOptions,
@@ -216,7 +208,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
 
-  if (sourceTransport instanceof AssistantChatTransport) {
+  if (transport instanceof DynamicChatTransport) {
+    transport.setRuntime(runtime);
+    transport.setGetThreadListItem(getThreadListItem);
+  } else if (sourceTransport instanceof AssistantChatTransport) {
     sourceTransport.setRuntime(runtime);
     sourceTransport.__internal_setGetThreadListItem(getThreadListItem);
   }
