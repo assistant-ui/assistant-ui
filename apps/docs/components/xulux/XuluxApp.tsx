@@ -14,8 +14,9 @@ import {
   useRemoteThreadListRuntime,
 } from "@assistant-ui/react";
 import { AssistantChatTransport, useChatRuntime } from "@assistant-ui/ai-sdk";
-import { AssistantPanelProvider } from "@/components/docs/assistant/context";
+import { AssistantPanelProvider } from "@/components/pages/docs/assistant/context";
 import { XuluxAnalyticsProvider } from "@/lib/xulux/analytics-context";
+import { feedbackAdapter } from "@/lib/feedback-adapter";
 import type { XuluxTemplate } from "./templates/types";
 import { XuluxShell } from "./shell/XuluxShell";
 import { createXuluxLocalThreadListAdapter } from "./runtime/xulux-thread-list-adapter";
@@ -272,6 +273,9 @@ function XuluxRuntimeProviderInner({
       return useChatRuntime({
         transport,
         isSendDisabled: limitBlock != null,
+        adapters: {
+          feedback: feedbackAdapter,
+        },
       });
     },
   });

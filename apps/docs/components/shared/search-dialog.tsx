@@ -28,7 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
-import { useGlobalAskAI } from "@/components/docs/assistant/context";
+import { useGlobalAskAI } from "@/components/pages/docs/assistant/context";
 import {
   collectPageEntries,
   collectPageTextMatches,

@@ -8,7 +8,7 @@ import type {
   TextMessagePart,
   MessagePartState,
 } from "@assistant-ui/core";
-import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
+import { useCallbackRef } from "radix-ui/internal";
 import { useMediaQuery } from "../hooks/useMediaQuery";
 import { useSmoothStatusStore } from "./SmoothContext";
 import { writableStore } from "../../context/ReadonlyStore";

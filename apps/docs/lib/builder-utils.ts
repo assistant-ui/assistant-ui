@@ -2,7 +2,7 @@ import type {
   BorderRadius,
   FontSize,
   MessageSpacing,
-} from "@/components/builder/types";
+} from "@/components/pages/playground/types";
 
 export const BORDER_RADIUS_CLASS: Record<BorderRadius, string> = {
   none: "rounded-none",

@@ -1,9 +1,11 @@
 // @vitest-environment jsdom
 
-import { act, renderHook } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
+import { createElement, Suspense } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { UseThreadsResult } from "../types";
 import { CloudChatCore } from "../core/CloudChatCore";
+import { ChatRegistry } from "./ChatRegistry";
 import { useCloudChat } from "./useCloudChat";
 
 function createThreads(
@@ -64,6 +66,41 @@ describe("useCloudChat thread switching", () => {
     rerender({ tid: null });
 
     expect(result.current.messages).toHaveLength(0);
+  });
+
+  it("keeps the committed chat active when a Cloud scope switch suspends", () => {
+    const stopAll = vi
+      .spyOn(ChatRegistry.prototype, "stopAll")
+      .mockResolvedValue(undefined);
+    const cloudA = { threads: {} };
+    const cloudB = { threads: {} };
+    const threadsA = createThreads(cloudA, null);
+    const threadsB = createThreads(cloudB, null);
+    const pending = new Promise<never>(() => {});
+
+    const Probe = ({
+      threads,
+      suspend,
+    }: {
+      threads: UseThreadsResult;
+      suspend: boolean;
+    }) => {
+      useCloudChat({ threads });
+      if (suspend) throw pending;
+      return null;
+    };
+    const renderProbe = (threads: UseThreadsResult, suspend: boolean) =>
+      createElement(
+        Suspense,
+        { fallback: null },
+        createElement(Probe, { threads, suspend }),
+      );
+
+    const view = render(renderProbe(threadsA, false));
+    view.rerender(renderProbe(threadsB, true));
+    view.rerender(renderProbe(threadsA, false));
+
+    expect(stopAll).not.toHaveBeenCalled();
   });
 
   it("retries an interrupted history load when switching back to a thread", () => {
