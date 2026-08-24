@@ -17,7 +17,7 @@ export type AssistantCloudRunReportToolCall = {
 
 /**
  * Clamps a string to the size the runs endpoint accepts for a single span
- * field. Apply it to any free-form text placed on a run report.
+ * field.
  */
 export function truncateRunTelemetryText(value: string): string {
   if (value.length <= MAX_TELEMETRY_TEXT_LENGTH) return value;
@@ -63,7 +63,10 @@ export type RunTelemetryToolCallInit = {
   toolName: string;
   toolCallId: string;
   args?: unknown;
-  /** Pre-serialized arguments, used in place of serializing `args`. */
+  /**
+   * Pre-serialized arguments, used in place of serializing `args`. Forwarded
+   * verbatim, so the caller owns clamping it to the span size.
+   */
   argsText?: string | undefined;
   result?: unknown;
   toolSource?: "mcp" | "frontend" | "backend" | undefined;
