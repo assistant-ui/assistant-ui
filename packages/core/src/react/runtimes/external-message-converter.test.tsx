@@ -117,6 +117,14 @@ describe("useExternalMessageConverter", () => {
 
     rerender({ messages: [older, explicit] });
 
+    // The caller-supplied id survives untouched — at the cost of colliding
+    // with the id minted for the prepended message, since the caller chose an
+    // id inside the reserved fallback namespace. The full list makes that
+    // trade-off explicit.
+    expect(result.current.map((message) => message.id)).toEqual([
+      "__external_store_fallback_0",
+      "__external_store_fallback_0",
+    ]);
     const explicitOut = result.current.find(
       (message) => (message.content[0] as any).text === "kept",
     );

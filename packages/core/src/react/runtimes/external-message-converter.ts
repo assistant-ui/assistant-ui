@@ -8,10 +8,6 @@ import {
   bindExternalStoreMessage,
   FALLBACK_ID_PREFIX,
 } from "../../runtime/utils/external-store-message";
-
-// Generatedness is tracked by identity, not by id shape: a caller-supplied id
-// that happens to match the generated pattern must never be rewritten.
-const generatedFallbackMessages = new WeakSet<object>();
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
@@ -26,6 +22,10 @@ import type {
   ToolCallMessagePart,
 } from "../../types/message";
 import type { MessageTiming } from "../../types/message";
+
+// Generatedness is tracked by identity, not by id shape: a caller-supplied id
+// that happens to match the generated pattern must never be rewritten.
+const generatedFallbackMessages = new WeakSet<object>();
 
 export type JoinStrategy = "concat-content" | "none";
 
