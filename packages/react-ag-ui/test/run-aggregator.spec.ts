@@ -264,6 +264,80 @@ describe("RunAggregator", () => {
     expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([]);
   });
 
+  it("closes the anonymous claim when an identified hidden block opens", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m2",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "unrelated",
+      encryptedValue: "sig-x",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
+  it("registers a hidden block opened lazily by content", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "hidden thought",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "sig-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
+      { id: "m1", encryptedValue: "sig-1" },
+    ]);
+  });
+
+  it("drops an anonymous-claimed signature whose id names a text message", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "t1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "t1",
+      delta: "answer",
+    } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "t1",
+      encryptedValue: "sig-t",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
   it("clears captured signatures when a new run starts", () => {
     const aggregator = createAggregator(false);
 

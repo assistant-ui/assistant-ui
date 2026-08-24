@@ -97,7 +97,7 @@ export class RunAggregator {
   // anonymous one.
   private readonly hiddenSignatures = new Map<string, string>();
   private readonly hiddenReasoningIds = new Set<string>();
-  private hiddenAnonymousReasoningOpen = false;
+  private hiddenActiveReasoning: "none" | "anonymous" | "identified" = "none";
   private hasEmittedOpaqueReasoning = false;
   private readonly reasoningMessageIds = new Map<string, string>();
   private readonly anonymousReasoningKeys = new Set<string>();
@@ -141,7 +141,7 @@ export class RunAggregator {
         this.reasoningSignatureIds.clear();
         this.hiddenSignatures.clear();
         this.hiddenReasoningIds.clear();
-        this.hiddenAnonymousReasoningOpen = false;
+        this.hiddenActiveReasoning = "none";
         this.hasEmittedOpaqueReasoning = false;
         this.anonymousReasoningKeys.clear();
         this.activeReasoningKey = undefined;
@@ -266,7 +266,7 @@ export class RunAggregator {
           } else if (
             !this.showThinking &&
             (this.hiddenReasoningIds.has(event.entityId) ||
-              this.hiddenAnonymousReasoningOpen)
+              this.hiddenActiveReasoning === "anonymous")
           ) {
             this.hiddenSignatures.set(event.entityId, event.encryptedValue);
             this.emit();
@@ -755,7 +755,16 @@ export class RunAggregator {
       snapshot.push(toolPart);
     }
 
-    if (opaqueReasoning.length > 0) this.hasEmittedOpaqueReasoning = true;
+    // An anonymous claim promotes the signature's entityId to a wire message
+    // id; when that id actually names a text message (which the runtime may
+    // adopt as the assistant id), replaying it would put two wire records
+    // under one id — the sibling conversion path synthesizes ids to avoid
+    // exactly that, so such entries are dropped instead.
+    const publishableOpaqueReasoning = opaqueReasoning.filter(
+      (entry) => !this.textParts.has(entry.id),
+    );
+    if (publishableOpaqueReasoning.length > 0)
+      this.hasEmittedOpaqueReasoning = true;
     // Once an opaque entry has been published this run, the key keeps being
     // emitted (empty when withdrawn) so the namespace merge can retract it.
     const includeOpaque = this.hasEmittedOpaqueReasoning;
@@ -767,7 +776,9 @@ export class RunAggregator {
             custom: {
               [AG_UI_METADATA_NAMESPACE]: {
                 ...(this.interrupts ? { interrupts: this.interrupts } : {}),
-                ...(includeOpaque ? { opaqueReasoning } : {}),
+                ...(includeOpaque
+                  ? { opaqueReasoning: publishableOpaqueReasoning }
+                  : {}),
               } satisfies AgUiCustomMetadata,
             },
           }
@@ -825,9 +836,10 @@ export class RunAggregator {
   private handleReasoningStart(messageId?: string, isMessageId = false): void {
     if (!this.showThinking) {
       if (messageId === undefined) {
-        this.hiddenAnonymousReasoningOpen = true;
+        this.hiddenActiveReasoning = "anonymous";
       } else {
         this.hiddenReasoningIds.add(messageId);
+        this.hiddenActiveReasoning = "identified";
       }
       return;
     }
@@ -856,7 +868,15 @@ export class RunAggregator {
     messageId?: string,
     isMessageId = false,
   ): void {
-    if (!this.showThinking || !delta) return;
+    if (!delta) return;
+    if (!this.showThinking) {
+      // Content without a preceding START still names the block (the visible
+      // path opens it lazily); register it so a signature can claim it.
+      if (this.hiddenActiveReasoning === "none") {
+        this.handleReasoningStart(messageId, isMessageId);
+      }
+      return;
+    }
     if (!this.activeReasoningKey) {
       // Content arrived without a preceding START — create the slot lazily.
       this.handleReasoningStart(messageId, isMessageId);
@@ -869,7 +889,7 @@ export class RunAggregator {
 
   private handleReasoningEnd(): void {
     if (!this.showThinking) {
-      this.hiddenAnonymousReasoningOpen = false;
+      this.hiddenActiveReasoning = "none";
       return;
     }
     this.activeReasoningKey = undefined;
