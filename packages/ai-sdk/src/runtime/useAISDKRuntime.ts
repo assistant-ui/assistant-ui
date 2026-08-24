@@ -71,6 +71,8 @@ const toUIMessage = <UI_MESSAGE extends UIMessage>(
   }) as UI_MESSAGE;
 
 export type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
+  messageRepository?: ExternalStoreAdapter["messageRepository"];
+  unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
   adapters?:
     | (NonNullable<ExternalStoreAdapter["adapters"]> & {
         history?: ThreadHistoryAdapter | undefined;
@@ -199,6 +201,8 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     onResume,
     onResumeToolCall,
     joinStrategy,
+    messageRepository,
+    unstable_onBranchChange,
   } = adapter;
   const suggestionAdapter = adapters?.suggestion;
   const contextAdapters = useRuntimeAdapters();
@@ -329,7 +333,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   const runtime = useExternalStoreRuntime({
     isRunning,
-    messages,
+    ...(messageRepository ? { messageRepository } : { messages }),
     unstable_enableToolInvocations: true,
     setToolStatuses,
     setMessages: (messages) =>
@@ -515,6 +519,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(suggestionAdapter ? { suggestions: generatedSuggestions } : {}),
     ...(onResume && { onResume }),
     ...(onResumeToolCall && { onResumeToolCall }),
+    ...(unstable_onBranchChange && { unstable_onBranchChange }),
     adapters: {
       attachments: vercelAttachmentAdapter,
       ...contextAdapters,

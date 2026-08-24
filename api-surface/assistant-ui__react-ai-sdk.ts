@@ -11,6 +11,8 @@ declare const AISDKChat: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, 
 type AISDKChatOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatThreadOptions<UI_MESSAGE>;
 
 type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
+  messageRepository?: ExternalStoreAdapter["messageRepository"];
+  unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
   adapters?: (NonNullable<ExternalStoreAdapter["adapters"]> & {
     history?: ThreadHistoryAdapter | undefined;
     suggestion?: SuggestionAdapter | undefined;

@@ -3,6 +3,10 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { validateUIMessages } from "ai";
+import type {
+  ExportedMessageRepository,
+  ThreadMessage,
+} from "@assistant-ui/core";
 
 // Mock only the sibling module that requires AUI store context (not available
 // in isolation). Every other dependency — useExternalStoreRuntime,
@@ -69,6 +73,31 @@ const textOf = (message: any): string =>
     .filter((part: any) => part.type === "text")
     .map((part: any) => part.text)
     .join("|");
+
+const createRepositoryMessage = (
+  id: string,
+  role: "user" | "assistant",
+  text: string,
+): ThreadMessage =>
+  ({
+    id,
+    role,
+    createdAt: new Date(),
+    content: [{ type: "text", text }],
+    metadata: { custom: {} },
+    ...(role === "user"
+      ? { attachments: [] }
+      : {
+          status: { type: "complete", reason: "stop" },
+          metadata: {
+            unstable_state: null,
+            unstable_annotations: [],
+            unstable_data: [],
+            steps: [],
+            custom: {},
+          },
+        }),
+  }) as ThreadMessage;
 
 describe("useAISDKRuntime", () => {
   beforeEach(() => {
@@ -688,6 +717,56 @@ describe("useAISDKRuntime", () => {
     const suggestions = [{ prompt: "tell me a joke" }];
     const { result } = renderHook(() => useAISDKRuntime(chat, { suggestions }));
     expect(result.current.thread.getState().suggestions).toEqual(suggestions);
+  });
+
+  it("uses an external message repository and forwards branch changes", () => {
+    const chat = createChatHelpers();
+    const onBranchChange = vi.fn();
+    const messageRepository = {
+      headId: "a2",
+      messages: [
+        {
+          parentId: null,
+          message: createRepositoryMessage("u1", "user", "question"),
+        },
+        {
+          parentId: "u1",
+          message: createRepositoryMessage("a1", "assistant", "first"),
+        },
+        {
+          parentId: "u1",
+          message: createRepositoryMessage("a2", "assistant", "second"),
+        },
+      ],
+    } satisfies ExportedMessageRepository;
+
+    const { result } = renderHook(() =>
+      useAISDKRuntime(chat, {
+        messageRepository,
+        unstable_onBranchChange: onBranchChange,
+      }),
+    );
+
+    expect(
+      result.current.thread.getState().messages.map((message) => message.id),
+    ).toEqual(["u1", "a2"]);
+    expect(result.current.thread.getMessageById("a2").getState()).toMatchObject(
+      {
+        branchNumber: 2,
+        branchCount: 2,
+      },
+    );
+
+    act(() => {
+      result.current.thread
+        .getMessageById("a2")
+        .switchToBranch({ branchId: "a1" });
+    });
+
+    expect(onBranchChange).toHaveBeenCalledWith({
+      headId: "a1",
+      visibleMessageIds: ["u1", "a1"],
+    });
   });
 
   it("calls adapters.suggestion after settle with messages and signal", async () => {
