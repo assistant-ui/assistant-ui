@@ -193,7 +193,8 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   );
 
   const transportBindingRef = useRef<ChatThreadTransportBinding | null>(null);
-  // The proxy captures this mount-local fallback; shared updates publish only during commit.
+  // This is null when useMemo runs, so the proxy pins its mount render's binding. The fallback
+  // serves only pre-commit sends; after insertion effects, transportBindingRef is authoritative.
   let initialTransportBinding: ChatThreadTransportBinding | null = null;
   const chatTransport = useMemo(
     () =>

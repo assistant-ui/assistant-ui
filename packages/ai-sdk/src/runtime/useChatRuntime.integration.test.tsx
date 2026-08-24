@@ -1,8 +1,17 @@
 // @vitest-environment jsdom
 
-import { render, renderHook, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import type { AssistantRuntime } from "@assistant-ui/core";
-import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
+import {
+  AssistantRuntimeProvider,
+  RuntimeAdapterProvider,
+} from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
 import { useTapHost } from "@assistant-ui/tap";
 import type { ChatTransport, UIMessage } from "ai";
@@ -10,6 +19,7 @@ import { createRoot } from "react-dom/client";
 import {
   StrictMode,
   Suspense,
+  type ReactNode,
   useEffect,
   useLayoutEffect,
   useState,
@@ -252,8 +262,8 @@ describe("useChatRuntime integration", () => {
     );
   });
 
-  it("uses the latest thread list item getter after host rerenders", async () => {
-    const bodies: Array<{ id: string }> = [];
+  it("routes runtime sends through a wired clone with the latest thread item", async () => {
+    const bodies: Array<{ id: string; system: string }> = [];
     const sourceTransport = new AssistantChatTransport<UIMessage>({
       fetch: vi.fn(async (_input, init) => {
         bodies.push(JSON.parse(String(init?.body)));
@@ -264,7 +274,18 @@ describe("useChatRuntime integration", () => {
       }),
     });
     const transport = new DynamicChatTransport(sourceTransport);
-    const { rerender } = renderHook(
+    const wrapper = ({ children }: { children: ReactNode }) => (
+      <RuntimeAdapterProvider
+        adapters={{
+          modelContext: {
+            getModelContext: () => ({ system: "system prompt" }),
+          },
+        }}
+      >
+        {children}
+      </RuntimeAdapterProvider>
+    );
+    const { result, rerender } = renderHook(
       ({ remoteId }: { remoteId: string }) =>
         useChatThread(
           { transport },
@@ -279,30 +300,24 @@ describe("useChatRuntime integration", () => {
             }),
           },
         ),
-      { initialProps: { remoteId: "remote-a" } },
+      { initialProps: { remoteId: "remote-a" }, wrapper },
     );
-    const send = () =>
-      transport.sendMessages({
-        trigger: "submit-message",
-        chatId: "stable-thread",
-        messageId: undefined,
-        messages: [
-          {
-            id: "message-id",
-            role: "user",
-            parts: [{ type: "text", text: "hello" }],
-          },
-        ],
-        abortSignal: undefined,
+    const send = async () => {
+      await act(async () => {
+        await result.current.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "hello" }],
+        });
       });
+    };
 
     await send();
     rerender({ remoteId: "remote-b" });
     await send();
 
     expect(bodies).toEqual([
-      expect.objectContaining({ id: "remote-a" }),
-      expect.objectContaining({ id: "remote-b" }),
+      expect.objectContaining({ id: "remote-a", system: "system prompt" }),
+      expect.objectContaining({ id: "remote-b", system: "system prompt" }),
     ]);
   });
 });
