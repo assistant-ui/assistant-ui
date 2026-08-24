@@ -29,6 +29,7 @@ import {
 import { useResourceCleanup } from "./useResourceCleanup";
 import { DynamicChatTransport } from "./DynamicChatTransport";
 import { getResumableAdapter } from "./getResumableAdapter";
+import { useDynamicChatTransport } from "./useDynamicChatTransport";
 
 export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
@@ -152,7 +153,11 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   } = env;
 
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
-  const transport = transportOptions ?? defaultTransport;
+  const configuredTransport = transportOptions ?? defaultTransport;
+  const transport = useDynamicChatTransport(
+    configuredTransport,
+    externalChat === undefined,
+  );
   const transportContextOwner = useMemo(() => ({}), []);
   const getThreadListItemRef = useRef(getThreadListItem);
   useInsertionEffect(() => {
@@ -224,10 +229,12 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
 
   if (
     !(transport instanceof DynamicChatTransport) &&
-    transport instanceof AssistantChatTransport
+    configuredTransport instanceof AssistantChatTransport
   ) {
-    transport.setRuntime(runtime);
-    transport.__internal_setGetThreadListItem(getCurrentThreadListItem);
+    configuredTransport.setRuntime(runtime);
+    configuredTransport.__internal_setGetThreadListItem(
+      getCurrentThreadListItem,
+    );
   }
 
   const subscribeToRuntime = useCallback(

@@ -9,10 +9,10 @@ import {
 } from "@assistant-ui/core/react";
 import { useAui, useAuiState } from "@assistant-ui/store";
 import type { ChatTransport } from "ai";
-import { useEffect, useInsertionEffect, useMemo, useState } from "react";
+import { useMemo } from "react";
 import { AssistantChatTransport } from "../transport/AssistantChatTransport";
-import { DynamicChatTransport } from "./DynamicChatTransport";
 import { useChatThread, type ChatThreadOptions } from "./useChatThread";
+import { useDynamicChatTransport } from "./useDynamicChatTransport";
 
 export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   Omit<ChatThreadOptions<UI_MESSAGE>, "transport"> & {
@@ -25,24 +25,6 @@ export type UseChatRuntimeOptions<UI_MESSAGE extends UIMessage = UIMessage> =
     cloud?: AssistantCloud | undefined;
     onThreadIdChange?: ((threadId: string | undefined) => void) | undefined;
   };
-
-const useDynamicChatTransport = <UI_MESSAGE extends UIMessage>(
-  transport: ChatTransport<UI_MESSAGE> | undefined,
-): ChatTransport<UI_MESSAGE> => {
-  const fallback = useMemo(() => new AssistantChatTransport<UI_MESSAGE>(), []);
-  const [dynamicTransport] = useState(
-    () => new DynamicChatTransport(transport ?? fallback),
-  );
-
-  useInsertionEffect(() => {
-    dynamicTransport.setTransport(transport ?? fallback);
-  }, [dynamicTransport, fallback, transport]);
-  useEffect(() => {
-    dynamicTransport.flushTransportChange();
-  }, [dynamicTransport, transport]);
-
-  return dynamicTransport;
-};
 
 const useChatThreadRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: ChatThreadOptions<UI_MESSAGE>,
@@ -66,7 +48,8 @@ export const useChatRuntime = <UI_MESSAGE extends UIMessage = UIMessage>({
   ...options
 }: UseChatRuntimeOptions<UI_MESSAGE> = {}): AssistantRuntime => {
   const cloudAdapter = useCloudThreadListAdapter({ cloud });
-  const transport = useDynamicChatTransport(options.transport);
+  const fallback = useMemo(() => new AssistantChatTransport<UI_MESSAGE>(), []);
+  const transport = useDynamicChatTransport(options.transport ?? fallback);
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
       return useChatThreadRuntime({ ...options, transport });
