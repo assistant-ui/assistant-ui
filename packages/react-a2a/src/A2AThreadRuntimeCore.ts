@@ -361,6 +361,9 @@ export class A2AThreadRuntimeCore {
       this.recordedHistoryIds.add(message.id);
     }
     this.currentTask = undefined;
+    // An external apply is a thread boundary; the next conversation must not
+    // inherit the previous thread's server-assigned context.
+    this.contextId = this.lastOptionsContextId;
     this.currentArtifacts = [];
     this.notifyUpdate();
   }
