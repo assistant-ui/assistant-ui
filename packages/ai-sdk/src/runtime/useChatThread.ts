@@ -63,11 +63,14 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   chat?: Chat<UI_MESSAGE> | undefined;
 };
 
+const useIsomorphicLayoutEffect =
+  typeof window === "undefined" ? useEffect : useLayoutEffect;
+
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
   transport: ChatTransport<UI_MESSAGE>,
 ): ChatTransport<UI_MESSAGE> => {
   const transportRef = useRef<ChatTransport<UI_MESSAGE>>(transport);
-  useLayoutEffect(() => {
+  useIsomorphicLayoutEffect(() => {
     transportRef.current = transport;
   }, [transport]);
   const dynamicTransport = useMemo(
