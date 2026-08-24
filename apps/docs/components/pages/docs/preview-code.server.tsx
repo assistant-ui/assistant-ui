@@ -199,6 +199,10 @@ function cleanupImports(imports: string[]): string[] {
     );
 }
 
+function extractUseClientDirective(source: string): string | undefined {
+  return source.match(/^\s*(["'])use client\1;?/)?.[0].trim();
+}
+
 function buildPreviewCode(file: string, name: string): string {
   const filePath = path.join(process.cwd(), `${file}.tsx`);
   try {
@@ -209,10 +213,15 @@ function buildPreviewCode(file: string, name: string): string {
     const allImports = extractImports(source);
     const relevantImports = filterRelevantImports(allImports, cleanedCode);
     const cleanedImports = cleanupImports(relevantImports);
+    const useClientDirective = extractUseClientDirective(source);
+    const previewCode =
+      cleanedImports.length > 0
+        ? `${cleanedImports.join("\n")}\n\n${cleanedCode}`
+        : cleanedCode;
 
-    return cleanedImports.length > 0
-      ? `${cleanedImports.join("\n")}\n\n${cleanedCode}`
-      : cleanedCode;
+    return useClientDirective
+      ? `${useClientDirective}\n\n${previewCode}`
+      : previewCode;
   } catch {
     return `// Error reading file: ${file}`;
   }
