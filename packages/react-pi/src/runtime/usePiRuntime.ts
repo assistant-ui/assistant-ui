@@ -360,7 +360,6 @@ const toOptimisticThreadMessage = (
 const useNewPiThreadStore = (
   registry: PiControllerRegistry,
   options: PiRuntimeOptions,
-  enabled: boolean,
 ): ExternalStoreAdapter<ThreadMessage> => {
   const aui = useAui();
   const {
@@ -382,11 +381,11 @@ const useNewPiThreadStore = (
 
   const store = useMemo<ExternalStoreAdapter<ThreadMessage>>(
     () => ({
-      isDisabled: isDisabled || !enabled,
+      isDisabled: isDisabled ?? false,
       isSendDisabled,
       unstable_capabilities,
       suggestions,
-      isLoading: !enabled,
+      isLoading: false,
       isRunning: false,
       messageRepository: optimisticRepository,
       extras: EMPTY_RUNTIME_EXTRAS,
@@ -420,7 +419,6 @@ const useNewPiThreadStore = (
     }),
     [
       aui,
-      enabled,
       optimisticRepository,
       registry,
       adapters,
@@ -455,11 +453,7 @@ const useRuntimeHook = (
     isMainThread ? controller : NOOP_CONTROLLER,
     options,
   );
-  const newThreadStore = useNewPiThreadStore(
-    registry,
-    options,
-    threadListItem.status === "new",
-  );
+  const newThreadStore = useNewPiThreadStore(registry, options);
 
   // One runtime whose store CONTENT switches between the new-thread and
   // live-thread branches. Returning two alternating runtime instances breaks
