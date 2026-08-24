@@ -16,6 +16,7 @@ function makeState(
     sessionId: "ses_1",
     session: null,
     sessionStatus: null,
+    optimisticBusy: false,
     loadState: { type: "ready" },
     runState: { type: "idle" },
     messageOrder: overrides.messageOrder ?? [],
