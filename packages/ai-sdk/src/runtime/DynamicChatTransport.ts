@@ -17,6 +17,11 @@ type ThreadTransportContext<UI_MESSAGE extends UIMessage> = {
     | undefined;
 };
 
+type ThreadTransportBinding = {
+  runtime: AssistantRuntime;
+  getThreadListItem: () => InitializableThreadListItem | undefined;
+};
+
 export class DynamicChatTransport<
   UI_MESSAGE extends UIMessage,
 > implements ChatTransport<UI_MESSAGE> {
@@ -43,6 +48,26 @@ export class DynamicChatTransport<
     this.getThreadTransport(this.threadContexts.get(chatId)) ?? this.transport;
 
   public readonly getCurrentSourceTransport = () => this.transport;
+
+  public createThreadProxy(
+    owner: object,
+    getBinding: () => ThreadTransportBinding,
+  ): ChatTransport<UI_MESSAGE> {
+    return {
+      sendMessages: (options) =>
+        this.getOrCreateBoundTransport(
+          options.chatId,
+          owner,
+          getBinding,
+        ).sendMessages(options),
+      reconnectToStream: (options) =>
+        this.getOrCreateBoundTransport(
+          options.chatId,
+          owner,
+          getBinding,
+        ).reconnectToStream(options),
+    };
+  }
 
   public readonly subscribe = (listener: () => void) => {
     this.listeners.add(listener);
@@ -78,11 +103,10 @@ export class DynamicChatTransport<
     runtime: AssistantRuntime,
     getThreadListItem: () => InitializableThreadListItem | undefined,
   ) {
-    this.registerThread(chatId, owner);
-    const context = this.threadContexts.get(chatId)!;
-    context.runtime = runtime;
-    context.getThreadListItem = getThreadListItem;
-    this.getThreadTransport(context);
+    this.getBoundTransport(chatId, owner, {
+      runtime,
+      getThreadListItem,
+    });
   }
 
   public unregisterThread(chatId: string, owner: object) {
@@ -99,6 +123,29 @@ export class DynamicChatTransport<
       );
     }
     return this.getThreadTransport(context)!;
+  }
+
+  private getBoundTransport(
+    chatId: string,
+    owner: object,
+    binding: ThreadTransportBinding,
+  ) {
+    this.registerThread(chatId, owner);
+    const context = this.threadContexts.get(chatId)!;
+    context.runtime = binding.runtime;
+    context.getThreadListItem = binding.getThreadListItem;
+    return this.getThreadTransport(context)!;
+  }
+
+  private getOrCreateBoundTransport(
+    chatId: string,
+    owner: object,
+    getBinding: () => ThreadTransportBinding,
+  ) {
+    const context = this.threadContexts.get(chatId);
+    return context?.owner === owner
+      ? this.getThreadTransport(context)!
+      : this.getBoundTransport(chatId, owner, getBinding());
   }
 
   private getThreadTransport(

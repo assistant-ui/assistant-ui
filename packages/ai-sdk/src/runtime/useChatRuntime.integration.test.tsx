@@ -6,6 +6,7 @@ import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import { useAuiState } from "@assistant-ui/store";
 import { useTapHost } from "@assistant-ui/tap";
 import type { ChatTransport, UIMessage } from "ai";
+import { createRoot } from "react-dom/client";
 import {
   StrictMode,
   Suspense,
@@ -128,12 +129,17 @@ describe("useChatRuntime integration", () => {
       sendMessages: send,
       reconnectToStream: vi.fn(),
     };
+    let resolveLayout!: () => void;
+    const layoutCommitted = new Promise<void>((resolve) => {
+      resolveLayout = resolve;
+    });
     const SendOnLayout = ({ runtime }: { runtime: AssistantRuntime }) => {
       useLayoutEffect(() => {
-        void runtime.thread.append({
+        runtime.thread.append({
           role: "user",
           content: [{ type: "text", text: "hello" }],
         });
+        resolveLayout();
       }, [runtime]);
       return null;
     };
@@ -145,10 +151,30 @@ describe("useChatRuntime integration", () => {
         </AssistantRuntimeProvider>
       );
     };
+    const actEnvironment = globalThis as typeof globalThis & {
+      IS_REACT_ACT_ENVIRONMENT?: boolean;
+    };
+    const previousActEnvironment = actEnvironment.IS_REACT_ACT_ENVIRONMENT;
+    const container = document.createElement("div");
+    const root = createRoot(container);
 
-    render(<App />);
+    actEnvironment.IS_REACT_ACT_ENVIRONMENT = false;
+    document.body.append(container);
+    try {
+      root.render(<App />);
+      await layoutCommitted;
+      await new Promise((resolve) => setTimeout(resolve, 0));
 
-    await waitFor(() => expect(send).toHaveBeenCalledOnce());
+      expect(send).toHaveBeenCalledOnce();
+    } finally {
+      root.unmount();
+      container.remove();
+      if (previousActEnvironment === undefined) {
+        delete actEnvironment.IS_REACT_ACT_ENVIRONMENT;
+      } else {
+        actEnvironment.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+      }
+    }
   });
 
   it("keeps AssistantChatTransport wired through StrictMode effect replay", () => {

@@ -187,10 +187,28 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     getSourceTransport,
   );
 
+  const transportBindingRef = useRef<{
+    runtime: AssistantRuntime;
+    getThreadListItem: () => InitializableThreadListItem | undefined;
+  } | null>(null);
+  const chatTransport = useMemo(
+    () =>
+      transport instanceof DynamicChatTransport
+        ? transport.createThreadProxy(transportContextOwner, () => {
+            const binding = transportBindingRef.current;
+            if (!binding) {
+              throw new Error("Chat transport used before runtime setup");
+            }
+            return binding;
+          })
+        : transport,
+    [transport, transportContextOwner],
+  );
+
   const chat = useChat({
     ...chatOptions,
     id,
-    transport,
+    transport: chatTransport,
     ...(throttle !== undefined && { throttle }),
     ...(externalChat !== undefined && { chat: externalChat }),
   });
@@ -209,6 +227,10 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(messageRepository && { messageRepository }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
+  transportBindingRef.current = {
+    runtime,
+    getThreadListItem: getCurrentThreadListItem,
+  };
 
   const registerTransportContext = useEffectEvent(
     (dynamicTransport: DynamicChatTransport<UI_MESSAGE>, chatId: string) => {

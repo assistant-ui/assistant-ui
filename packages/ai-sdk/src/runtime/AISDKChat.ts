@@ -2,7 +2,7 @@
 
 import { resource, useResource } from "@assistant-ui/tap";
 import { useState } from "react";
-import { generateId } from "ai";
+import { generateId, type ChatTransport } from "ai";
 import type { UIMessage } from "@ai-sdk/react";
 import {
   RuntimeAdapter,
@@ -11,8 +11,18 @@ import {
 import { attachTransformScopes } from "@assistant-ui/store/client";
 import { useChatThread, type ChatThreadOptions } from "./useChatThread";
 
-export type AISDKChatOptions<UI_MESSAGE extends UIMessage = UIMessage> =
-  ChatThreadOptions<UI_MESSAGE>;
+export type AISDKChatOptions<UI_MESSAGE extends UIMessage = UIMessage> = Omit<
+  ChatThreadOptions<UI_MESSAGE>,
+  "transport"
+> & {
+  /**
+   * The transport the chat sends through. An `AssistantChatTransport` is
+   * cloned so its assistant-ui runtime wiring stays private to this chat;
+   * subclasses with additional state should override `__internal_clone()`.
+   * Other transport implementations are used as-is.
+   */
+  transport?: ChatTransport<UI_MESSAGE> | undefined;
+};
 
 const useAISDKChat = <UI_MESSAGE extends UIMessage = UIMessage>(
   options?: AISDKChatOptions<UI_MESSAGE>,
