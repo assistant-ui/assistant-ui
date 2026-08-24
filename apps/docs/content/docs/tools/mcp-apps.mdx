@@ -90,9 +90,7 @@ const mcpApp = McpAppRenderer({
 
 `openLink` is auto-wired to `window.open(url, "_blank", "noopener,noreferrer")`. `sendMessage` is auto-wired to append a user message to the current thread (accepts `string`, `{ prompt }`, `{ text }`, or `{ message }`).
 
-Pass `handlers` when the widget needs host-side UI or lifecycle callbacks. The
-capabilities are advertised during mount, so provide the handlers before the
-widget initializes:
+Pass `handlers` when the widget needs host-side UI or lifecycle callbacks. The capabilities are advertised during mount, so provide the handlers before the widget initializes:
 
 ```tsx
 McpAppRenderer({
@@ -107,11 +105,7 @@ McpAppRenderer({
 });
 ```
 
-Caller handlers override the default `openLink` and `sendMessage` behavior and
-can provide `requestDisplayMode`, `updateModelContext`, and lifecycle hooks
-such as `onInitialized` and `onSizeChange`. `callTool`, `readResource`, and
-`listResources` remain bound to the configured `host`; use a custom host to
-change those data-plane operations.
+Caller handlers override the default `openLink` and `sendMessage` behavior and can provide `requestDisplayMode`, `updateModelContext`, and lifecycle hooks such as `onInitialized` and `onSizeChange`. `callTool`, `readResource`, and `listResources` remain bound to the configured `host`; use a custom host to change those data-plane operations.
 
 ### Route handler
 
