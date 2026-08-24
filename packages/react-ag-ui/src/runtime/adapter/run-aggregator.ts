@@ -40,6 +40,7 @@ type ToolCallState = {
   argsText: string;
   parsedArgs: Record<string, unknown> | undefined;
   result: unknown;
+  frontendResult?: unknown;
   isError: boolean | undefined;
   parentMessageId?: string;
   toolMessageId?: string;
@@ -57,6 +58,15 @@ export const isPlainObject = (
   value: unknown,
 ): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
+
+const isArgsTextComplete = (argsText: string): boolean => {
+  try {
+    JSON.parse(argsText);
+    return true;
+  } catch {
+    return false;
+  }
+};
 
 export type RunAggregatorOptions = {
   showThinking: boolean;
@@ -120,6 +130,19 @@ export class RunAggregator {
 
   hasToolCall(toolCallId: string): boolean {
     return this.toolCalls.has(toolCallId);
+  }
+
+  addFrontendToolResult(
+    toolCallId: string,
+    result: unknown,
+    isError: boolean | undefined,
+  ): boolean {
+    const entry = this.toolCalls.get(toolCallId);
+    if (!entry) return false;
+    entry.frontendResult = result;
+    entry.isError = isError;
+    this.emit();
+    return true;
   }
 
   handle(event: AgUiEvent): void {
@@ -682,6 +705,14 @@ export class RunAggregator {
 
       const entry = this.toolCalls.get(part.toolCallId);
       if (!entry) continue;
+      if (
+        this.status?.type === "running" &&
+        entry.result === undefined &&
+        entry.frontendResult === undefined &&
+        isArgsTextComplete(entry.argsText)
+      ) {
+        continue;
+      }
       const approval = approvals.get(entry.toolCallId);
       const toolPart: ToolCallMessagePart = {
         type: "tool-call",
@@ -690,7 +721,11 @@ export class RunAggregator {
         args: (entry.parsedArgs ?? {}) as any,
         argsText: entry.argsText,
         ...(approval ? { approval } : {}),
-        ...(entry.result !== undefined ? { result: entry.result } : {}),
+        ...(entry.frontendResult !== undefined
+          ? { result: entry.frontendResult }
+          : entry.result !== undefined
+            ? { result: entry.result }
+            : {}),
         ...(entry.modelContent !== undefined
           ? { modelContent: entry.modelContent }
           : {}),

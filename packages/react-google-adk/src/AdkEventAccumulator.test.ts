@@ -96,9 +96,76 @@ describe("AdkEventAccumulator - reasoning/thought", () => {
 });
 
 describe("AdkEventAccumulator - function calls", () => {
+  it("keeps a regular call hidden until its provider confirmation arrives", () => {
+    const acc = new AdkEventAccumulator();
+    const first = acc.processEvent(
+      makeEvent({
+        id: "original-event",
+        author: "agent",
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                name: "delete_file",
+                id: "tc-1",
+                args: { path: "/tmp/a" },
+              },
+            },
+          ],
+        },
+      }),
+    );
+    expect(
+      first.flatMap((message) =>
+        message.type === "ai" ? (message.tool_calls ?? []) : [],
+      ),
+    ).toHaveLength(0);
+
+    const second = acc.processEvent(
+      makeEvent({
+        id: "confirmation-event",
+        author: "agent",
+        actions: { requestedToolConfirmations: { "tc-1": {} } },
+        longRunningToolIds: ["conf-1"],
+        content: {
+          role: "model",
+          parts: [
+            {
+              functionCall: {
+                name: "adk_request_confirmation",
+                id: "conf-1",
+                args: {
+                  originalFunctionCall: {
+                    name: "delete_file",
+                    id: "tc-1",
+                    args: { path: "/tmp/a" },
+                  },
+                  toolConfirmation: { hint: "Confirm?" },
+                },
+              },
+            },
+          ],
+        },
+      }),
+    );
+
+    expect(
+      second.flatMap((message) =>
+        message.type === "ai" ? (message.tool_calls ?? []) : [],
+      ),
+    ).toEqual([
+      expect.objectContaining({ id: "tc-1", name: "delete_file" }),
+      expect.objectContaining({
+        id: "conf-1",
+        name: "adk_request_confirmation",
+      }),
+    ]);
+  });
+
   it("creates a tool_calls entry from a functionCall part", () => {
     const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(
+    acc.processEvent(
       makeEvent({
         author: "agent",
         content: {
@@ -111,6 +178,7 @@ describe("AdkEventAccumulator - function calls", () => {
         },
       }),
     );
+    const msgs = acc.flushPendingToolCalls();
     expect(msgs[0]).toMatchObject({
       type: "ai",
       tool_calls: [{ id: "tc-1", name: "search", args: { q: "test" } }],
@@ -119,7 +187,7 @@ describe("AdkEventAccumulator - function calls", () => {
 
   it("generates a UUID for functionCall without an id", () => {
     const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(
+    acc.processEvent(
       makeEvent({
         author: "agent",
         content: {
@@ -128,6 +196,7 @@ describe("AdkEventAccumulator - function calls", () => {
         },
       }),
     );
+    const msgs = acc.flushPendingToolCalls();
     const tc = (msgs[0] as AdkMessage & { type: "ai" }).tool_calls;
     expect(tc).toHaveLength(1);
     expect(tc![0]!.id).toBeTruthy();
@@ -162,7 +231,7 @@ describe("AdkEventAccumulator - function calls", () => {
       }),
     );
     // Final event with complete args
-    const msgs = acc.processEvent(
+    acc.processEvent(
       makeEvent({
         author: "agent",
         content: {
@@ -179,6 +248,7 @@ describe("AdkEventAccumulator - function calls", () => {
         },
       }),
     );
+    const msgs = acc.flushPendingToolCalls();
     const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
     expect(aiMsg.tool_calls).toHaveLength(1);
     expect(aiMsg.tool_calls![0]).toMatchObject({
@@ -522,7 +592,7 @@ describe("AdkEventAccumulator - finish reasons", () => {
 describe("AdkEventAccumulator - isFinalResponse logic", () => {
   it("does NOT mark as final when event has functionCall parts", () => {
     const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(
+    acc.processEvent(
       makeEvent({
         author: "agent",
         content: {
@@ -531,6 +601,7 @@ describe("AdkEventAccumulator - isFinalResponse logic", () => {
         },
       }),
     );
+    const msgs = acc.flushPendingToolCalls();
     expect((msgs[0] as AdkMessage & { type: "ai" }).status).toBeUndefined();
   });
 
@@ -594,7 +665,9 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
     const msgs = acc.processEvent(makeHitlEvent("tc-1"));
 
     expect(msgs).toHaveLength(1);
-    const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
+    const aiMsg = acc.flushPendingToolCalls()[0] as AdkMessage & {
+      type: "ai";
+    };
     expect(aiMsg.type).toBe("ai");
     expect(aiMsg.tool_calls).toHaveLength(1);
     expect(aiMsg.tool_calls![0]!.id).toBe("tc-1");
@@ -691,7 +764,7 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
 
   it("keeps status undefined for mixed text and functionCall content", () => {
     const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(
+    acc.processEvent(
       makeEvent({
         author: "agent",
         longRunningToolIds: ["mixed-tc-1"],
@@ -711,7 +784,9 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
       }),
     );
 
-    const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
+    const aiMsg = acc
+      .flushPendingToolCalls()
+      .find((m): m is AdkMessage & { type: "ai" } => m.type === "ai")!;
     const parts = aiMsg.content as AdkMessageContentPart[];
     expect(parts.some((c) => c.type === "text")).toBe(true);
     expect(aiMsg.tool_calls).toHaveLength(1);
@@ -721,7 +796,7 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
 
   it("handles multiple tool calls with partial longRunningToolIds overlap", () => {
     const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(
+    acc.processEvent(
       makeEvent({
         author: "agent",
         longRunningToolIds: ["tc-hitl"],
@@ -747,6 +822,7 @@ describe("AdkEventAccumulator - HITL requires-action", () => {
       }),
     );
 
+    const msgs = acc.flushPendingToolCalls();
     const aiMsg = msgs[0] as AdkMessage & { type: "ai" };
     expect(aiMsg.tool_calls).toHaveLength(2);
     expect(aiMsg.tool_calls!.map((tc) => tc.id).sort()).toEqual(
@@ -1025,7 +1101,7 @@ describe("AdkEventAccumulator - author/agent tracking", () => {
 describe("AdkEventAccumulator - snake_case normalization", () => {
   it("normalizes function_call to functionCall in parts", () => {
     const acc = new AdkEventAccumulator();
-    const msgs = acc.processEvent(
+    acc.processEvent(
       makeEvent({
         author: "agent",
         content: {
@@ -1034,6 +1110,7 @@ describe("AdkEventAccumulator - snake_case normalization", () => {
         },
       }),
     );
+    const msgs = acc.flushPendingToolCalls();
     expect((msgs[0] as AdkMessage & { type: "ai" }).tool_calls).toHaveLength(1);
   });
 

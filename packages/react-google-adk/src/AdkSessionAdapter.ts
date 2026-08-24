@@ -339,6 +339,7 @@ export function createAdkSessionAdapter(
     for (const event of events) {
       messages = accumulator.processEvent(event);
     }
+    messages = accumulator.flushPendingToolCalls();
     // The per-turn state rides along, so a refetch can swap the thread over in
     // one commit instead of reconstructing it from the messages alone.
     return {

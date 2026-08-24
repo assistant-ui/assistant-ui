@@ -33,6 +33,12 @@ const aiMessageId = (event: AdkEvent, ordinal: number): string =>
 
 const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
 const ADK_REQUEST_CREDENTIAL = "adk_request_credential";
+const ADK_REQUEST_INPUT = "adk_request_input";
+
+type PendingToolCall = {
+  message: InProgressMessage;
+  toolCall: AdkToolCall;
+};
 
 /**
  * Checks if an event is a final response using the same logic as ADK's
@@ -206,6 +212,8 @@ export class AdkEventAccumulator {
   private authRequests: AdkAuthRequest[] = [];
   private escalated = false;
   private messageMetadataMap = new Map<string, AdkMessageMetadata>();
+  private pendingToolCalls = new Map<string, PendingToolCall>();
+  private newToolCallIds = new Set<string>();
   // How many assistant messages each event has opened, so a replay of that
   // event opens them with the same ids.
   private aiMessageOrdinals = new Map<string, number>();
@@ -219,6 +227,10 @@ export class AdkEventAccumulator {
 
   processEvent(rawEvent: AdkEvent): AdkMessage[] {
     const event = normalizeEvent(rawEvent);
+
+    if (this.shouldFlushPendingToolCalls(event)) {
+      this.flushPendingToolCalls();
+    }
 
     // Accumulate state delta
     if (event.actions?.stateDelta) {
@@ -423,6 +435,7 @@ export class AdkEventAccumulator {
 
     // Non-partial event finalizes the current message
     if (!event.partial || isFinalResponse(event)) {
+      this.deferNewToolCalls();
       this.finalizeCurrentMessage();
     }
 
@@ -508,6 +521,7 @@ export class AdkEventAccumulator {
     // Function call — skip partial events (args may be incomplete)
     if (part.functionCall) {
       if (event.partial) return;
+      const name = part.functionCall.name;
       const msg = this.getOrCreateAiMessage(event);
       const toolCall: AdkToolCall = {
         id: part.functionCall.id ?? uuidv4(),
@@ -528,6 +542,14 @@ export class AdkEventAccumulator {
         tool_calls: existing,
       };
       this.messagesMap.set(updated.id, updated);
+      if (
+        name !== ADK_REQUEST_CONFIRMATION &&
+        name !== ADK_REQUEST_CREDENTIAL &&
+        name !== ADK_REQUEST_INPUT &&
+        !event.longRunningToolIds?.includes(toolCall.id)
+      ) {
+        this.newToolCallIds.add(toolCall.id);
+      }
       return;
     }
 
@@ -676,6 +698,99 @@ export class AdkEventAccumulator {
     this.partialTextBuffer = "";
     this.partialReasoningBuffer = "";
     this.currentMessageId = null;
+  }
+
+  private shouldFlushPendingToolCalls(event: AdkEvent): boolean {
+    if (this.pendingToolCalls.size === 0) return false;
+    if (
+      event.author === "user" ||
+      event.interrupted ||
+      event.errorCode !== undefined ||
+      event.errorMessage !== undefined ||
+      event.actions?.requestedToolConfirmations !== undefined
+    ) {
+      return true;
+    }
+
+    return (
+      event.content?.parts?.some((part) => {
+        if (part.functionResponse?.id) {
+          return this.pendingToolCalls.has(part.functionResponse.id);
+        }
+        if (part.functionCall?.name !== ADK_REQUEST_CONFIRMATION) return false;
+        const args = part.functionCall.args;
+        const original =
+          (args.originalFunctionCall as Record<string, unknown>) ??
+          (args.original_function_call as Record<string, unknown>);
+        return (
+          typeof original?.id === "string" &&
+          this.pendingToolCalls.has(original.id)
+        );
+      }) ?? false
+    );
+  }
+
+  private deferNewToolCalls(): void {
+    if (this.newToolCallIds.size === 0) return;
+
+    const grouped = new Map<string, Set<string>>();
+    for (const toolCallId of this.newToolCallIds) {
+      const msg = [...this.messagesMap.values()].find(
+        (candidate): candidate is InProgressMessage =>
+          candidate.type === "ai" &&
+          (candidate.tool_calls?.some((call) => call.id === toolCallId) ??
+            false),
+      );
+      if (!msg) continue;
+      let ids = grouped.get(msg.id);
+      if (!ids) {
+        ids = new Set<string>();
+        grouped.set(msg.id, ids);
+      }
+      ids.add(toolCallId);
+    }
+
+    for (const [messageId, toolCallIds] of grouped) {
+      const msg = this.messagesMap.get(messageId);
+      if (!msg || msg.type !== "ai" || !msg.tool_calls) continue;
+      const pending = msg.tool_calls.filter((call) => toolCallIds.has(call.id));
+      if (pending.length === 0) continue;
+      const remaining = msg.tool_calls.filter(
+        (call) => !toolCallIds.has(call.id),
+      );
+      const { tool_calls: _toolCalls, ...messageWithoutToolCalls } = msg;
+      const baseMessage = {
+        ...messageWithoutToolCalls,
+        ...(remaining.length > 0 ? { tool_calls: remaining } : {}),
+      };
+      if (remaining.length > 0 || this.getContentArray(msg).length > 0) {
+        this.messagesMap.set(messageId, baseMessage);
+      } else {
+        this.messagesMap.delete(messageId);
+      }
+      for (const toolCall of pending) {
+        this.pendingToolCalls.set(toolCall.id, {
+          message: baseMessage,
+          toolCall,
+        });
+      }
+    }
+    this.newToolCallIds.clear();
+  }
+
+  flushPendingToolCalls(): AdkMessage[] {
+    for (const { message, toolCall } of this.pendingToolCalls.values()) {
+      const current = this.messagesMap.get(message.id);
+      const currentAi = current?.type === "ai" ? current : undefined;
+      const calls = [...(currentAi?.tool_calls ?? [])];
+      if (calls.some((call) => call.id === toolCall.id)) continue;
+      this.messagesMap.set(message.id, {
+        ...(currentAi ?? message),
+        tool_calls: [...calls, toolCall],
+      });
+    }
+    this.pendingToolCalls.clear();
+    return this.getMessages();
   }
 
   getMessages(): AdkMessage[] {

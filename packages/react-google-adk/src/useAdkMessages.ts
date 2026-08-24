@@ -216,6 +216,7 @@ export const useAdkMessages = ({
             );
           }
         }
+        setMessagesImmediate(accumulator.flushPendingToolCalls());
       } catch (error) {
         if (
           !abortController.signal.aborted &&

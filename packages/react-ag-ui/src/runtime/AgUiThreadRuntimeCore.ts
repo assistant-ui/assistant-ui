@@ -165,6 +165,7 @@ export class AgUiThreadRuntimeCore {
   // The agent that started the active run. updateOptions can swap this.agent
   // mid-run, and cancelling has to reach the agent holding the live request.
   private activeRunAgent: AbstractAgent | null = null;
+  private activeRunAggregator: RunAggregator | null = null;
   private stateSnapshot: ReadonlyJSONValue | undefined;
   private pendingError: Error | null = null;
   private history: ThreadHistoryAdapter | undefined;
@@ -869,6 +870,14 @@ export class AgUiThreadRuntimeCore {
   }
 
   addToolResult(options: AddToolResultOptions): void {
+    if (this.isRunningFlag) {
+      this.activeRunAggregator?.addFrontendToolResult(
+        options.toolCallId,
+        options.result,
+        options.isError,
+      );
+    }
+
     const updated = this.updateMessage(options.messageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
@@ -1208,6 +1217,7 @@ export class AgUiThreadRuntimeCore {
         }
       },
     });
+    this.activeRunAggregator = aggregator;
     const dispatch = (event: AgUiEvent) =>
       this.handleEvent(aggregator, event, assistantMessageId);
 
@@ -1458,6 +1468,7 @@ export class AgUiThreadRuntimeCore {
     if (this.abortController === controller) {
       this.abortController = null;
       this.activeRunAgent = null;
+      this.activeRunAggregator = null;
     }
     this.setRunning(false);
   }

@@ -82,6 +82,7 @@ describe("RunAggregator", () => {
       type: "TEXT_MESSAGE_CONTENT",
       delta: "after",
     } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
     expect(results.at(-1)?.content).toEqual([
       { type: "text", text: "before" },
@@ -212,6 +213,48 @@ describe("RunAggregator", () => {
     expect((toolPart as any).toolName).toBe("search");
     expect((toolPart as any).argsText).toBe('{"query":"test"}');
     expect((toolPart as any).result).toBe("result");
+  });
+
+  it("defers complete result-less tool calls until the run finishes", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "delete_file",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_ARGS",
+      toolCallId: "tool1",
+      delta: '{"path":"/tmp/a"}',
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_END",
+      toolCallId: "tool1",
+    } as AgUiEvent);
+
+    expect(
+      results.at(-1)?.content.some((part) => part.type === "tool-call"),
+    ).toBe(false);
+
+    aggregator.handle({
+      type: "RUN_FINISHED",
+      runId: "r1",
+      outcome: {
+        type: "interrupt",
+        interrupts: [{ id: "int-1", reason: "tool_call", toolCallId: "tool1" }],
+      },
+    } as AgUiEvent);
+
+    expect(results.at(-1)?.content).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "tool1",
+        argsText: '{"path":"/tmp/a"}',
+        approval: { id: "int-1" },
+      }),
+    );
   });
 
   it("stamps mcp app metadata onto the last resolved tool call", () => {
@@ -939,6 +982,7 @@ describe("RunAggregator", () => {
       type: "TEXT_MESSAGE_END",
       messageId: "mB",
     } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
     const last = results.at(-1);
     const types = (last?.content ?? []).map((part) => part.type);
@@ -1157,6 +1201,7 @@ describe("RunAggregator", () => {
       toolCallId: "tool1",
       delta: '"pizza"}',
     } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
     const last = results.at(-1);
     const toolPart = last?.content?.find(
