@@ -28,11 +28,14 @@ export class DynamicChatTransport<
   private readonly listeners = new Set<() => void>();
   private hasPendingNotification = false;
   private runtime: AssistantRuntime | undefined;
+  private transport: ChatTransport<UI_MESSAGE>;
   private getThreadListItem:
     | (() => InitializableThreadListItem | undefined)
     | undefined;
 
-  constructor(private transport: ChatTransport<UI_MESSAGE>) {}
+  constructor(transport: ChatTransport<UI_MESSAGE>) {
+    this.transport = transport;
+  }
 
   public readonly sendMessages: ChatTransport<UI_MESSAGE>["sendMessages"] = (
     options,
