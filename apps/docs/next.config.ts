@@ -58,12 +58,18 @@ const cspHeader = `
 `;
 
 const config: NextConfig = {
+  experimental: {
+    // Learn previews compile several complete lesson stages into the docs app.
+    // Bound build concurrency so Vercel and other constrained builders do not
+    // run out of memory while Turbopack compiles those routes in parallel.
+    cpus: 2,
+  },
   transpilePackages: ["@assistant-ui/ui", "shiki"],
   serverExternalPackages: ["just-bash"],
   skipTrailingSlashRedirect: true,
   outputFileTracingIncludes: {
     "/elements/[slug]": [
-      "./components/elements/*.tsx",
+      "./components/pages/elements/demos/*.tsx",
       "../../packages/ui/src/components/elements/*.tsx",
     ],
   },
@@ -89,6 +95,11 @@ const config: NextConfig = {
       permanent: true,
     },
     {
+      source: "/docs/tools/interactables-legacy",
+      destination: "/docs/tools/interactables#migrating-from-the-previous-api",
+      permanent: true,
+    },
+    {
       source: "/gallery",
       destination: "/elements",
       permanent: true,
@@ -101,6 +112,32 @@ const config: NextConfig = {
     {
       source: "/gallery/:slug",
       destination: "/elements/generative-:slug",
+      permanent: true,
+    },
+    {
+      source:
+        "/docs/ui/:slug(accordion|badge|diff-viewer|dot-matrix|number-roll|select|tabs)",
+      destination: "/standalone/:slug",
+      permanent: true,
+    },
+    {
+      source: "/docs/standalone",
+      destination: "/standalone",
+      permanent: true,
+    },
+    {
+      source: "/docs/standalone/:slug",
+      destination: "/standalone/:slug",
+      permanent: true,
+    },
+    {
+      source: "/docs/api-reference/integrations/react-ai-sdk",
+      destination: "/docs/api-reference/integrations/ai-sdk",
+      permanent: true,
+    },
+    {
+      source: "/docs/integrations/frameworks/cloudflare-agents/overview",
+      destination: "/docs/integrations/frameworks/cloudflare-agents",
       permanent: true,
     },
   ],
@@ -157,6 +194,22 @@ const config: NextConfig = {
         destination: "/llms.mdx/examples/:path*",
       },
       {
+        source: "/standalone.md",
+        destination: "/llms.mdx/standalone",
+      },
+      {
+        source: "/standalone.mdx",
+        destination: "/llms.mdx/standalone",
+      },
+      {
+        source: "/standalone/:path*.md",
+        destination: "/llms.mdx/standalone/:path*",
+      },
+      {
+        source: "/standalone/:path*.mdx",
+        destination: "/llms.mdx/standalone/:path*",
+      },
+      {
         source: "/tap/docs.md",
         destination: "/tap-llms.mdx",
       },
@@ -203,6 +256,13 @@ const config: NextConfig = {
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
         destination: "/llms.mdx/examples/:path*",
+      },
+      {
+        source: "/standalone/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/llms.mdx/standalone/:path*",
       },
       {
         source: "/tap/docs/:path*",

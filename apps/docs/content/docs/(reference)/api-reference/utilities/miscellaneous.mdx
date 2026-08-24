@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
+import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, MessageNotSentError, RemoteThreadList, SingleThreadList, Suggestions, useSmooth } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -59,6 +59,34 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 
 <ParametersTable {...InMemoryThreadList} />
 
+### isMessageNotSentError
+
+```ts
+const isMessageNotSentError: (error: unknown) => error is MessageNotSentError;
+```
+
+### MessageNotSentError
+
+Rejection reason for a send that never reached the backend, so nothing ran
+and nothing is recoverable from the thread. A runtime adapter throws it from
+`onNew` to hand the message back to the thread composer, which restores the
+draft it cleared at dispatch time when nothing has claimed the composer
+since. An edit composer closes at dispatch, so a rejected edit is not
+restored.
+
+<ParametersTable {...MessageNotSentError} />
+
+### RemoteThreadList
+
+`AuiConfig` `threads` entry backed by a `RemoteThreadListAdapter`. Thread
+bodies are born from the `thread` factory inside the client tree, so any
+`AssistantClient` host can run a remote or cloud list. Per-thread history
+and attachments come from `unstable_useAdapters`. `useRemoteThreadListRuntime`
+uses the same hook when `unstable_Provider` is omitted. Key the factory
+with `withKey` so history reloads when the visible thread changes.
+
+<ParametersTable {...RemoteThreadList} />
+
 ### SingleThreadList
 
 <ParametersTable {...SingleThreadList} />
@@ -85,6 +113,9 @@ Takes the current part state and a `smooth` argument: `false` disables,
 `true` uses the default rate, and a SmoothOptions object tunes
 the reveal. Returns the part state with `text` replaced by the revealed
 prefix and `status` reporting `running` until the reveal catches up.
+If the source settles before any character has been revealed, the text
+is committed immediately so a missed animation frame cannot leave an
+empty bubble.
 
 The reveal auto-disables under `prefers-reduced-motion: reduce`,
 committing the full text immediately; this takes precedence over an

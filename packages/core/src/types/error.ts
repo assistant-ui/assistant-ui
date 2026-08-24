@@ -52,6 +52,30 @@ export const isAssistantError = (value: unknown): value is AssistantError => {
   return true;
 };
 
+const MESSAGE_NOT_SENT = Symbol.for("assistant-ui.message-not-sent");
+
+/**
+ * Rejection reason for a send that never reached the backend, so nothing ran
+ * and nothing is recoverable from the thread. A runtime adapter throws it from
+ * `onNew` to hand the message back to the thread composer, which restores the
+ * draft it cleared at dispatch time when nothing has claimed the composer
+ * since. An edit composer closes at dispatch, so a rejected edit is not
+ * restored.
+ */
+export class MessageNotSentError extends Error {
+  readonly [MESSAGE_NOT_SENT] = true;
+
+  constructor(message = "The message was not sent.") {
+    super(message);
+    this.name = "MessageNotSentError";
+  }
+}
+
+export const isMessageNotSentError = (
+  error: unknown,
+): error is MessageNotSentError =>
+  typeof error === "object" && error !== null && MESSAGE_NOT_SENT in error;
+
 export const toAssistantError = (error: unknown): AssistantError => {
   if (isAssistantError(error)) return error;
   if (error instanceof Error) {

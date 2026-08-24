@@ -127,6 +127,17 @@ describe("useSuggestionTrigger", () => {
     expect(mocks.setText).toHaveBeenCalledWith("my draft Hello");
   });
 
+  it("does not add a separator for an empty prompt", () => {
+    mocks.composerState.text = "my draft";
+    const { result } = renderHook(() =>
+      useSuggestionTrigger({ prompt: "", clearComposer: false }),
+    );
+
+    result.current.trigger();
+
+    expect(mocks.setText).toHaveBeenCalledWith("my draft");
+  });
+
   it("inserts the prompt alone when the composer is empty and clearComposer is false", () => {
     const { result } = renderHook(() =>
       useSuggestionTrigger({ prompt: "Hello", clearComposer: false }),

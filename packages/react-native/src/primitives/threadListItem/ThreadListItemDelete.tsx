@@ -1,9 +1,11 @@
-import type { ReactNode } from "react";
 import { Pressable, type PressableProps } from "react-native";
 import { useThreadListItemDelete } from "@assistant-ui/core/react";
 
-export type ThreadListItemDeleteProps = Omit<PressableProps, "onPress"> & {
-  children: ReactNode;
+export type ThreadListItemDeleteProps = Omit<
+  PressableProps,
+  "onPress" | "children"
+> & {
+  children: PressableProps["children"];
 };
 
 export const ThreadListItemDelete = ({
@@ -13,7 +15,11 @@ export const ThreadListItemDelete = ({
   const { delete: deleteThread } = useThreadListItemDelete();
 
   return (
-    <Pressable onPress={deleteThread} {...pressableProps}>
+    <Pressable
+      onPress={deleteThread}
+      accessibilityRole="button"
+      {...pressableProps}
+    >
       {children}
     </Pressable>
   );

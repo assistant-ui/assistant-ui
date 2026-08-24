@@ -36,6 +36,10 @@ function toCloudThread(t: {
 
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;
+  const includeArchivedRef = useRef(includeArchived);
+  useLayoutEffect(() => {
+    includeArchivedRef.current = includeArchived;
+  }, [includeArchived]);
 
   const [threads, setThreads] = useState<CloudThread[]>([]);
   const [isLoading, setIsLoading] = useState(enabled);
@@ -45,6 +49,11 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     scope: { cloud },
     threadId: null as string | null,
   }));
+  const selectionRef = useRef(selection);
+  const listedThreadIdsRef = useRef(new Set<string>());
+  useLayoutEffect(() => {
+    selectionRef.current = selection;
+  }, [selection]);
   const scope = selection.scope;
   const threadId = scope.cloud === cloud ? selection.threadId : null;
 
@@ -58,8 +67,15 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const activeScopeRef = useRef<typeof scope | null>(scope);
   useLayoutEffect(() => {
-    activeScopeRef.current = scope.cloud === cloud ? scope : null;
-  }, [cloud, scope]);
+    const isActiveScope = scope.cloud === cloud;
+    activeScopeRef.current = isActiveScope ? scope : null;
+    if (!isActiveScope) {
+      listedThreadIdsRef.current.clear();
+      setThreads([]);
+      setError(null);
+      setIsLoading(enabled);
+    }
+  }, [cloud, enabled, scope]);
   const isCurrentCloud = useCallback(
     () => scope.cloud === cloud && activeScopeRef.current === scope,
     [cloud, scope],
@@ -67,7 +83,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   if (enabled !== previousEnabled) {
     setPreviousEnabled(enabled);
-    if (enabled) setIsLoading(true);
+    setIsLoading(enabled);
   }
 
   const mountedRef = useRef(true);
@@ -108,15 +124,82 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
     const requestId = ++refreshRequestRef.current;
     const isLatest = () =>
       requestId === refreshRequestRef.current && isCurrentCloud();
+    const selectedThreadId =
+      selectionRef.current.scope === scope
+        ? selectionRef.current.threadId
+        : null;
+    // A never-listed selection may be a new thread whose list entry is lagging;
+    // probing it could incorrectly deselect an in-flight conversation.
+    const selectedThreadWasListed =
+      selectedThreadId !== null &&
+      listedThreadIdsRef.current.has(selectedThreadId);
     setIsLoading(true);
 
     try {
       return await withAction(
         async (commit) => {
-          const response = await cloud.threads.list(
-            includeArchived ? undefined : { is_archived: false },
+          // Keep includeArchived refreshes atomic; withAction preserves the
+          // previous complete list and exposes either request's failure.
+          const responses = includeArchived
+            ? await Promise.all([
+                cloud.threads.list({ is_archived: false }),
+                cloud.threads.list({ is_archived: true }),
+              ])
+            : [await cloud.threads.list({ is_archived: false })];
+          const nextThreads = Array.from(
+            new Map(
+              responses
+                .flatMap((response) => response.threads)
+                .map((thread) => [thread.id, thread] as const),
+            ).values(),
+            toCloudThread,
           );
-          commit(() => setThreads(() => response.threads.map(toCloudThread)));
+          if (includeArchived) {
+            nextThreads.sort((a, b) => {
+              const timeDifference =
+                b.lastMessageAt.getTime() - a.lastMessageAt.getTime();
+              return timeDifference || b.id.localeCompare(a.id);
+            });
+          }
+          const nextThreadIds = new Set(nextThreads.map((thread) => thread.id));
+          commit(() => {
+            for (const id of nextThreadIds) {
+              listedThreadIdsRef.current.add(id);
+            }
+            setThreads(nextThreads);
+            setIsLoading(false);
+            setError(null);
+          });
+
+          if (!isLatest()) return true;
+
+          let shouldClearSelectedThread = false;
+          if (
+            selectedThreadWasListed &&
+            selectedThreadId !== null &&
+            !nextThreadIds.has(selectedThreadId)
+          ) {
+            try {
+              const selectedThread = await cloud.threads.get(selectedThreadId);
+              shouldClearSelectedThread =
+                !includeArchivedRef.current && selectedThread.is_archived;
+            } catch (error) {
+              shouldClearSelectedThread =
+                typeof error === "object" &&
+                error !== null &&
+                "status" in error &&
+                error.status === 404;
+            }
+          }
+          if (shouldClearSelectedThread) {
+            commit(() =>
+              setSelection((current) =>
+                current.scope === scope && current.threadId === selectedThreadId
+                  ? { scope, threadId: null }
+                  : current,
+              ),
+            );
+          }
           return true;
         },
         false,
@@ -127,7 +210,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         setIsLoading(false);
       }
     }
-  }, [cloud, includeArchived, isCurrentCloud, withAction]);
+  }, [cloud, includeArchived, isCurrentCloud, scope, withAction]);
 
   useEffect(() => {
     if (!enabled) return;
@@ -175,14 +258,21 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
       return await withAction(
         async (commit) => {
           await cloud.threads.delete(id);
-          commit(() => setThreads((prev) => prev.filter((t) => t.id !== id)));
+          commit(() => {
+            setThreads((prev) => prev.filter((t) => t.id !== id));
+            setSelection((current) =>
+              current.scope === scope && current.threadId === id
+                ? { scope, threadId: null }
+                : current,
+            );
+          });
           return true;
         },
         false,
         isCurrentCloud,
       );
     },
-    [cloud, isCurrentCloud, withAction],
+    [cloud, isCurrentCloud, scope, withAction],
   );
 
   const rename = useCallback(
@@ -210,16 +300,24 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         async (commit) => {
           await cloud.threads.update(id, { is_archived: true });
 
-          commit(() =>
+          commit(() => {
+            const shouldIncludeArchived = includeArchivedRef.current;
             setThreads((prev) => {
-              if (includeArchived) {
+              if (shouldIncludeArchived) {
                 return prev.map((t) =>
                   t.id === id ? { ...t, status: "archived" } : t,
                 );
               }
               return prev.filter((t) => t.id !== id);
-            }),
-          );
+            });
+            if (!shouldIncludeArchived) {
+              setSelection((current) =>
+                current.scope === scope && current.threadId === id
+                  ? { scope, threadId: null }
+                  : current,
+              );
+            }
+          });
 
           return true;
         },
@@ -227,7 +325,7 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         isCurrentCloud,
       );
     },
-    [cloud, includeArchived, isCurrentCloud, withAction],
+    [cloud, isCurrentCloud, scope, withAction],
   );
 
   const unarchive = useCallback(
@@ -256,13 +354,15 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
 
   const selectThread = useCallback(
     (id: string | null) => {
+      if (!isCurrentCloud()) return;
+
+      const nextSelection = { scope, threadId: id };
+      selectionRef.current = nextSelection;
       setSelection((current) =>
-        scope.cloud === cloud && current.scope === scope
-          ? { scope, threadId: id }
-          : current,
+        current.scope === scope ? nextSelection : current,
       );
     },
-    [cloud, scope],
+    [isCurrentCloud, scope],
   );
 
   const generateTitle = useCallback(

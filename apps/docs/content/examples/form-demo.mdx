@@ -3,15 +3,6 @@ title: Form-Filling AI Copilot
 description: Open-source AI copilot that fills forms for users — sidebar UI, field-aware tool calls, and a working React example built with assistant-ui.
 ---
 
-
-<div className="not-prose h-[600px]">
-  <DemoIframe
-    title="Form Filling Co-Pilot demo"
-    className="h-full w-full border-none"
-    src="https://assistant-ui-form-demo.vercel.app/"
-  />
-</div>
-
 ## Overview
 
 This example demonstrates how to create an AI assistant sidebar that helps users fill out forms automatically. The assistant understands form structure and can populate fields based on natural language instructions, making complex forms easier to complete.
@@ -41,7 +32,7 @@ The example uses `useAssistantForm` from `@assistant-ui/react-hook-form` to conn
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 export function MyRuntimeProvider({
   children,
@@ -61,7 +52,7 @@ export function MyRuntimeProvider({
 ```ts
 // app/api/chat/route.ts
 import { openai } from "@ai-sdk/openai";
-import { frontendTools } from "@assistant-ui/react-ai-sdk";
+import { frontendTools } from "@assistant-ui/ai-sdk";
 import { convertToModelMessages, streamText } from "ai";
 
 export const maxDuration = 30;

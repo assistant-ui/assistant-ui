@@ -5,6 +5,7 @@ import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
 import type { DictationAdapter } from "../../adapters/speech";
 import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 
 export type AttachmentAddErrorReason =
   | "no-adapter"
@@ -82,7 +83,7 @@ export type ComposerRuntimeCore = Readonly<{
   cancel: () => void;
 
   queue: readonly QueueItemState[];
-  steerQueueItem: (queueItemId: string) => void;
+  moveQueueItem: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem: (queueItemId: string) => void;
 
   dictation: DictationState | undefined;

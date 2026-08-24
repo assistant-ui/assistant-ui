@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { fromThreadMessageLike } from "../runtime/utils/thread-message-like";
+import {
+  fromThreadMessageLike,
+  type ThreadMessageLike,
+} from "../runtime/utils/thread-message-like";
+import type { ToolCallMessagePartMcpMetadata } from "../types/message";
 
 const fallbackId = "test-id";
 const fallbackStatus = {
@@ -147,6 +151,49 @@ describe("fromThreadMessageLike", () => {
       expect(result.content).toEqual([{ type: "reasoning", text: "hi" }]);
     });
 
+    it("keeps a reasoning part with a summary and no text", () => {
+      const result = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [
+            {
+              type: "reasoning",
+              text: "",
+              unstable_summary: "Searching the codebase",
+            },
+          ],
+        },
+        fallbackId,
+        fallbackStatus,
+      );
+
+      expect(result.content).toEqual([
+        {
+          type: "reasoning",
+          text: "",
+          unstable_summary: "Searching the codebase",
+        },
+      ]);
+    });
+
+    it("drops a reasoning part with neither text nor a summary to show", () => {
+      // the transport layers round-trip an empty summary faithfully; this is
+      // the display normalizer, so it drops a part with nothing to render for
+      // the same reason it drops whitespace-only text.
+      const message = fromThreadMessageLike(
+        {
+          role: "assistant",
+          content: [
+            { type: "reasoning", text: "", unstable_summary: "" },
+            { type: "reasoning", text: "  ", unstable_summary: "   " },
+          ],
+        },
+        "m1",
+        { type: "complete", reason: "unknown" },
+      );
+
+      expect(message.content).toEqual([]);
+    });
     it("drops an assistant image part whose image is undefined", () => {
       const result = fromThreadMessageLike(
         {
@@ -337,5 +384,78 @@ describe("fromThreadMessageLike", () => {
 
       expect(result.metadata).not.toHaveProperty("isOptimistic");
     });
+  });
+});
+
+describe("fromThreadMessageLike provider metadata", () => {
+  it("keeps it on image and file parts", () => {
+    const result = fromThreadMessageLike(
+      {
+        role: "user",
+        content: [
+          {
+            type: "image",
+            image: "https://example.com/cat.png",
+            providerMetadata: { agui: { file_id: "f_1" } },
+          },
+          {
+            type: "file",
+            data: "https://example.com/spec.pdf",
+            mimeType: "application/pdf",
+            providerMetadata: { agui: { file_id: "f_2" } },
+          },
+        ],
+      },
+      fallbackId,
+      fallbackStatus,
+    );
+
+    expect(result.content).toEqual([
+      {
+        type: "image",
+        image: "https://example.com/cat.png",
+        providerMetadata: { agui: { file_id: "f_1" } },
+      },
+      {
+        type: "file",
+        data: "https://example.com/spec.pdf",
+        mimeType: "application/pdf",
+        providerMetadata: { agui: { file_id: "f_2" } },
+      },
+    ]);
+  });
+});
+
+describe("fromThreadMessageLike MCP app metadata", () => {
+  it("keeps mcp on tool-call parts", () => {
+    const mcp: ToolCallMessagePartMcpMetadata = {
+      app: { resourceUri: "ui://demo/card" },
+    };
+    const message: ThreadMessageLike = {
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "show_card",
+          args: {},
+          argsText: "{}",
+          mcp,
+        },
+      ],
+    };
+
+    const result = fromThreadMessageLike(message, fallbackId, fallbackStatus);
+
+    expect(result.content).toEqual([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "show_card",
+        args: {},
+        argsText: "{}",
+        mcp,
+      },
+    ]);
   });
 });

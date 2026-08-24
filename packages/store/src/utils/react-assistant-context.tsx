@@ -3,6 +3,7 @@ import { useContextProvider } from "@assistant-ui/tap";
 import type { AssistantClient } from "../types/client";
 import { BaseProxyHandler, handleIntrospectionProp } from "./BaseProxyHandler";
 import { createErrorClientAccessor } from "./client-accessor";
+import { createOptionalClientView } from "./optional-client-view";
 
 const NO_OP_SUBSCRIBE = () => () => {};
 
@@ -15,16 +16,26 @@ class EmptyAssistantClientProxyHandler
 {
   readonly #displayName: string;
   readonly #messageOf: (prop: string) => string;
+  readonly #getClient: () => AssistantClient;
+  #optional: AssistantClient["optional"] | undefined;
 
-  constructor(displayName: string, messageOf: (prop: string) => string) {
+  constructor(
+    displayName: string,
+    messageOf: (prop: string) => string,
+    getClient: () => AssistantClient,
+  ) {
     super();
     this.#displayName = displayName;
     this.#messageOf = messageOf;
+    this.#getClient = getClient;
   }
 
   get(_: unknown, prop: string | symbol) {
     if (prop === "subscribe") return NO_OP_SUBSCRIBE;
     if (prop === "on") return NO_OP_SUBSCRIBE;
+    if (prop === "optional") {
+      return (this.#optional ??= createOptionalClientView(this.#getClient()));
+    }
     const introspection = handleIntrospectionProp(prop, this.#displayName);
     if (introspection !== false) return introspection;
     return createErrorClientAccessor(
@@ -34,22 +45,34 @@ class EmptyAssistantClientProxyHandler
   }
 
   ownKeys(): ArrayLike<string | symbol> {
-    return ["subscribe", "on"];
+    return ["subscribe", "on", "optional"];
+  }
+
+  // Built clients define `optional` as a non-enumerable own property; the
+  // proxy flavors report the same shape so spreads and Object.keys stay
+  // uniform across every client the library hands out.
+  override getOwnPropertyDescriptor(_: unknown, prop: string | symbol) {
+    if (prop !== "optional") return super.getOwnPropertyDescriptor(_, prop);
+    const value = this.get(_, prop);
+    if (value === undefined) return undefined;
+    return { value, writable: false, enumerable: false, configurable: true };
   }
 
   has(_: unknown, prop: string | symbol): boolean {
-    return prop === "subscribe" || prop === "on";
+    return prop === "subscribe" || prop === "on" || prop === "optional";
   }
 }
 
 const createEmptyAssistantClient = (
   displayName: string,
   messageOf: (prop: string) => string,
-): AssistantClient =>
-  new Proxy<AssistantClient>(
+): AssistantClient => {
+  const client: AssistantClient = new Proxy<AssistantClient>(
     {} as AssistantClient,
-    new EmptyAssistantClientProxyHandler(displayName, messageOf),
+    new EmptyAssistantClientProxyHandler(displayName, messageOf, () => client),
   );
+  return client;
+};
 
 /** Default context value - throws "wrap in AuiProvider" error */
 export const DefaultAssistantClient: AssistantClient =

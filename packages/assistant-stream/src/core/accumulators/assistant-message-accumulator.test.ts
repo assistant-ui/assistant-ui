@@ -29,6 +29,42 @@ const collectStream = async (
   return messages;
 };
 
+describe("AssistantMessageAccumulator reasoning summaries", () => {
+  it("copies reasoning summaries from part-start chunks", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "reasoning", unstable_summary: "Planning" },
+      },
+      { type: "text-delta", path: [0], textDelta: "thinking" },
+      { type: "part-finish", path: [0] },
+    ]);
+
+    expect(messages.at(-1)?.parts).toEqual([
+      expect.objectContaining({
+        type: "reasoning",
+        text: "thinking",
+        unstable_summary: "Planning",
+      }),
+    ]);
+  });
+
+  it("preserves an empty reasoning summary", async () => {
+    const messages = await collectStream([
+      {
+        type: "part-start",
+        path: [0],
+        part: { type: "reasoning", unstable_summary: "" },
+      },
+    ]);
+
+    expect(messages.at(-1)?.parts[0]).toEqual(
+      expect.objectContaining({ type: "reasoning", unstable_summary: "" }),
+    );
+  });
+});
+
 describe("AssistantMessageAccumulator timing", () => {
   it("should include timing on message-finish", async () => {
     const chunks: AssistantStreamChunk[] = [

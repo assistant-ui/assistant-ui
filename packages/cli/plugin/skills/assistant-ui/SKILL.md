@@ -67,7 +67,7 @@ assistant-ui requires a runtime. The most common setup uses AI SDK:
 
 Install the integration package:
 ```bash
-npm install @assistant-ui/react-ai-sdk
+npm install @assistant-ui/ai-sdk
 ```
 
 Create a chat API route (Next.js App Router):
@@ -83,7 +83,7 @@ export async function POST(req: Request) {
   const { messages, config } = await req.json();
 
   const result = streamText({
-    model: openai("gpt-5.4-nano"),
+    model: openai("gpt-5.6-luna"),
     messages,
     ...config,
   });
@@ -98,7 +98,7 @@ Create the assistant component:
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export const Assistant = () => {
@@ -125,7 +125,7 @@ import { streamText, tool } from "ai";
 import { z } from "zod";
 
 const result = streamText({
-  model: openai("gpt-5.4-nano"),
+  model: openai("gpt-5.6-luna"),
   messages,
   tools: {
     get_weather: tool({
@@ -188,7 +188,7 @@ Do not use `makeAssistantToolUI`, `useAssistantToolUI`, `makeAssistantTool`, or 
 | Package | Purpose |
 |---------|---------|
 | `@assistant-ui/react` | Core React components and primitives |
-| `@assistant-ui/react-ai-sdk` | Vercel AI SDK integration |
+| `@assistant-ui/ai-sdk` | Vercel AI SDK integration |
 | `@assistant-ui/react-markdown` | Markdown rendering |
 | `@assistant-ui/react-syntax-highlighter` | Code highlighting |
 | `@assistant-ui/ui` | Pre-built shadcn/ui component set |

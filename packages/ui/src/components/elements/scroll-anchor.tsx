@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  type ComponentProps,
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { ArrowDownIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { field, floating, paper } from "./surfaces";
@@ -18,11 +24,14 @@ export function ScrollAnchor({
   paused = false,
   onSettled,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "messages" | "paused" | "onSettled"
+> & {
   messages: ScrollAnchorMessage[];
   paused?: boolean;
   onSettled?: () => void;
-  className?: string;
 }) {
   const viewportRef = useRef<HTMLDivElement>(null);
   const [count, setCount] = useState(INITIAL_COUNT);
@@ -80,11 +89,14 @@ export function ScrollAnchor({
 
   return (
     <div
+      data-slot="scroll-anchor"
       className={cn(
         paper,
         "relative h-64 w-full max-w-sm overflow-hidden rounded-2xl",
         className,
       )}
+
+      {...props}
     >
       <div
         ref={viewportRef}

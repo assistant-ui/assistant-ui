@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { cn } from "@/lib/utils";
 import { mono } from "./surfaces";
 
@@ -24,15 +25,20 @@ export function NumberTicker({
   value,
   label,
   className,
-}: {
+  ...props
+}: Omit<ComponentProps<"div">, "children" | "value" | "label"> & {
   value: number;
   label: string;
-  className?: string;
 }) {
   const formatted = value.toLocaleString("en-US");
 
   return (
-    <div className={cn("flex flex-col items-center gap-2.5", className)}>
+    <div
+      data-slot="number-ticker"
+      className={cn("flex flex-col items-center gap-2.5", className)}
+
+      {...props}
+    >
       <span
         className="flex text-3xl font-medium tracking-tight tabular-nums"
         aria-label={formatted}

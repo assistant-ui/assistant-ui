@@ -11,6 +11,15 @@ const REDIS_URL = process.env["REDIS_URL"] ?? "redis://127.0.0.1:6379";
 const REDIS_TESTS_DISABLED =
   process.env["REDIS_URL"] === undefined && process.env["REDIS_TESTS"] !== "1";
 
+// The peer union is only honest if each vitest leg loads the major it claims:
+// a broken alias would silently re-run the v6 suite and report both covered.
+it("loads the ioredis major this leg advertises", async () => {
+  const { version } = (await import("ioredis/package.json")) as unknown as {
+    version: string;
+  };
+  expect(version.split(".")[0]).toBe(process.env["IOREDIS_PEER_MAJOR"]);
+});
+
 const enc = new TextEncoder();
 const dec = new TextDecoder();
 const bytes = (s: string): Uint8Array => enc.encode(s);

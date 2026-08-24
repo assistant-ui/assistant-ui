@@ -1,8 +1,10 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CheckIcon, Loader2Icon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { mono, paper } from "./surfaces";
+import { pct } from "./range";
 
 export interface SubagentItem {
   name: string;
@@ -16,20 +18,31 @@ export function SubagentList({
   showSummary,
   summaryAgent,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  | "children"
+  | "agents"
+  | "completedCount"
+  | "progress"
+  | "showSummary"
+  | "summaryAgent"
+> & {
   agents: readonly SubagentItem[];
   completedCount: number;
   progress: readonly number[];
   showSummary: boolean;
   summaryAgent: SubagentItem;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="subagent-list"
       className={cn(
         "flex min-h-[14.5rem] w-full max-w-xs flex-col gap-2",
         className,
       )}
+
+      {...props}
     >
       {agents.map((agent, index) => {
         const done = index < completedCount;
@@ -62,7 +75,7 @@ export function SubagentList({
                   "block h-full rounded-full transition-[width] duration-700",
                   done ? "bg-emerald-500/70" : "bg-foreground/60",
                 )}
-                style={{ width: `${width}%` }}
+                style={{ width: `${pct(width, 100)}%` }}
               />
             </span>
           </div>

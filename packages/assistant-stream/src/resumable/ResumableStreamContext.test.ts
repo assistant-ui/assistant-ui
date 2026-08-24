@@ -167,9 +167,91 @@ describe("createResumableStreamContext", () => {
     expect(await collect(replay!)).toBe("chunk0;chunk1;chunk2;chunk3;chunk4;");
   });
 
-  it("propagates producer errors to consumers", async () => {
+  it("waits for store iterator cleanup when a consumer cancels", async () => {
+    let releaseCleanup!: () => void;
+    const cleanupGate = new Promise<void>((resolve) => {
+      releaseCleanup = resolve;
+    });
+    const iterator = {
+      next: vi.fn(
+        () =>
+          new Promise<IteratorResult<{ cursor: string; chunk: Uint8Array }>>(
+            () => undefined,
+          ),
+      ),
+      return: vi.fn(async () => {
+        await cleanupGate;
+        return { done: true as const, value: undefined };
+      }),
+    };
+    const ctx = createResumableStreamContext({
+      store: {
+        async acquire() {
+          return "consumer";
+        },
+        async append() {},
+        async finalize() {},
+        read() {
+          return {
+            [Symbol.asyncIterator]: () => iterator,
+          };
+        },
+        async status() {
+          return "streaming";
+        },
+        async delete() {},
+      },
+    });
+
+    const stream = await ctx.run("a", () => {
+      throw new Error("consumer must not create a producer stream");
+    });
+    let cancelSettled = false;
+    const cancelPromise = stream.cancel().then(() => {
+      cancelSettled = true;
+    });
+
+    await vi.waitFor(() => expect(iterator.return).toHaveBeenCalledOnce());
+    expect(cancelSettled).toBe(false);
+
+    releaseCleanup();
+    await cancelPromise;
+    expect(cancelSettled).toBe(true);
+  });
+
+  it("cancels a parked in-memory store reader", async () => {
+    const store = createInMemoryResumableStreamStore();
+    await store.acquire("a");
+    const read = store.read.bind(store);
+    let markReadStarted!: () => void;
+    const readStarted = new Promise<void>((resolve) => {
+      markReadStarted = resolve;
+    });
+    vi.spyOn(store, "read").mockImplementation(async function* (...args) {
+      markReadStarted();
+      yield* read(...args);
+    });
+    const ctx = createResumableStreamContext({ store });
+
+    const stream = await ctx.run("a", () => {
+      throw new Error("consumer must not create a producer stream");
+    });
+    const reader = stream.getReader();
+    const readPromise = reader.read();
+    await readStarted;
+
+    await expect(reader.cancel()).resolves.toBeUndefined();
+    await expect(readPromise).resolves.toEqual({
+      done: true,
+      value: undefined,
+    });
+  });
+
+  it("propagates producer errors and releases the source reader", async () => {
+    const tasks: Promise<unknown>[] = [];
     const ctx = createResumableStreamContext({
       store: createInMemoryResumableStreamStore(),
+      waitUntil: (task) => tasks.push(task),
     });
     const failing = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -179,7 +261,9 @@ describe("createResumableStreamContext", () => {
     });
     const stream = await ctx.run("a", () => failing);
     await expect(collect(stream)).rejects.toThrow("oops");
+    await Promise.all(tasks);
     expect(await ctx.status("a")).toBe("error");
+    expect(failing.locked).toBe(false);
   });
 
   it("waitUntil receives the producer task promise", async () => {

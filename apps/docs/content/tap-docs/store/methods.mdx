@@ -104,18 +104,15 @@ const Counter = () => {
 
 ## Checking if a scope exists
 
-Accessing `aui.counter` never throws, and the accessor is always truthy — `if (aui.counter)` does not tell you anything. When the scope hasn't been provided by any `AuiProvider` above, the accessor still answers `source` (`null`), `query`, and `name`; calling it or reading any other property throws. Check `source`:
+Accessing `aui.counter` never throws, and the accessor is always truthy — `if (aui.counter)` does not tell you anything. When the scope hasn't been provided by any `AuiProvider` above, the accessor still answers `source` (`null`), `query`, and `name`; calling it or reading any other property throws. Read the scope through `aui.optional`, which resolves to the same accessor when available and `undefined` when not:
 
 ```tsx
 const aui = useAui();
 
-if (aui.counter.source != null) {
-  // safe to use
-  aui.counter.increment();
-}
+aui.optional.counter?.increment();
 ```
 
-`source` is `null` when the scope isn't available. Any other value (`"root"`, a parent scope name) means the scope is bound.
+This mirrors `s.optional` on the state side. The accessor metadata keeps working, and `aui.optional.counter` is `undefined` whenever the scope is not available, whether its accessor reports `source: null` or the scope is entirely absent from a hand-built parent chain.
 
 ## Subscribing to scope identity
 

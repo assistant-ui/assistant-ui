@@ -1,5 +1,7 @@
 import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { auth, type FetchLike } from "@modelcontextprotocol/client";
 import { describe, expect, it } from "vitest";
+import { createOAuthProvider } from "../../auth/createOAuthProvider";
 
 import {
   McpLocalStorage,
@@ -155,6 +157,103 @@ describe("normalizePersistedAuthState", () => {
     });
   });
 
+  it("keeps valid OAuth discovery state", () => {
+    const discoveryState = {
+      authorizationServerUrl: "https://auth.example.com",
+      resourceMetadataUrl:
+        "https://mcp.example.com/.well-known/oauth-protected-resource",
+      authorizationServerMetadata: {
+        issuer: "https://auth.example.com",
+        authorization_endpoint: "https://auth.example.com/authorize",
+        token_endpoint: "https://auth.example.com/token",
+        response_types_supported: ["code"],
+      },
+      resourceMetadata: {
+        resource: "https://mcp.example.com",
+        authorization_servers: ["https://auth.example.com"],
+      },
+    };
+
+    expect(normalizePersistedAuthState({ discoveryState })).toEqual({
+      discoveryState,
+    });
+  });
+
+  it("drops malformed OAuth discovery state", () => {
+    expect(
+      normalizePersistedAuthState({
+        token: "bearer-token",
+        discoveryState: {
+          authorizationServerUrl: "not-a-url",
+        },
+      }),
+    ).toEqual({ token: "bearer-token" });
+  });
+
+  it("keeps the URL binding when optional discovery fields are malformed", () => {
+    expect(
+      normalizePersistedAuthState({
+        token: "bearer-token",
+        discoveryState: {
+          authorizationServerUrl: "https://auth.example.com",
+          authorizationServerMetadata: { issuer: 123 },
+          resourceMetadata: { resource: 42 },
+        },
+      }),
+    ).toEqual({
+      token: "bearer-token",
+      discoveryState: {
+        authorizationServerUrl: "https://auth.example.com",
+      },
+    });
+  });
+
+  it.each([
+    "http://auth.example.com",
+    "data:text/plain,auth",
+    "file:///tmp/auth",
+  ])("drops discovery state with an unsafe URL: %s", (url) => {
+    expect(
+      normalizePersistedAuthState({
+        token: "bearer-token",
+        discoveryState: { authorizationServerUrl: url },
+      }),
+    ).toEqual({ token: "bearer-token" });
+  });
+
+  it.each([
+    "http://localhost:3000",
+    "http://foo.localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.2:3000",
+    "http://[::1]:3000",
+  ])("keeps loopback HTTP discovery URLs: %s", (url) => {
+    expect(
+      normalizePersistedAuthState({
+        discoveryState: { authorizationServerUrl: url },
+      }),
+    ).toEqual({
+      discoveryState: { authorizationServerUrl: url },
+    });
+  });
+
+  it("drops an unsafe resource metadata URL but keeps the binding", () => {
+    expect(
+      normalizePersistedAuthState({
+        token: "bearer-token",
+        discoveryState: {
+          authorizationServerUrl: "https://auth.example.com",
+          resourceMetadataUrl: "http://mcp.example.com/oauth-resource",
+        },
+      }),
+    ).toEqual({
+      token: "bearer-token",
+      discoveryState: {
+        authorizationServerUrl: "https://auth.example.com",
+      },
+    });
+  });
+
   it("keeps valid fields when neighboring fields are malformed", () => {
     expect(
       normalizePersistedAuthState({
@@ -235,6 +334,87 @@ describe("McpLocalStorage auth state", () => {
 
     await expect(loadStorage(storage).loadAuthState("docs")).resolves.toEqual({
       token: "bearer-token",
+    });
+  });
+
+  it("completes an SDK callback with discovery state from localStorage", async () => {
+    const storage = createStorage();
+    const requests: Array<{ method: string; url: string }> = [];
+    const fetchFn: FetchLike = async (input, init) => {
+      const url = new URL(
+        input instanceof Request ? input.url : input.toString(),
+      );
+      requests.push({ method: init?.method ?? "GET", url: url.toString() });
+
+      if (url.pathname === "/.well-known/oauth-protected-resource") {
+        return Response.json({
+          resource: "https://mcp.example.com/mcp",
+          authorization_servers: ["https://auth.example.com"],
+        });
+      }
+      if (url.pathname === "/.well-known/oauth-authorization-server") {
+        return Response.json({
+          issuer: "https://auth.example.com",
+          authorization_endpoint: "https://auth.example.com/authorize",
+          token_endpoint: "https://auth.example.com/token",
+          response_types_supported: ["code"],
+          code_challenge_methods_supported: ["S256"],
+        });
+      }
+      if (url.pathname === "/token") {
+        return Response.json({
+          access_token: "access-token",
+          token_type: "Bearer",
+        });
+      }
+      throw new Error(`Unexpected OAuth request: ${url}`);
+    };
+    const authorizationUrls: URL[] = [];
+    const createProvider = () =>
+      createOAuthProvider({
+        serverId: "docs",
+        config: { type: "oauth", clientId: "client-id" },
+        storage: loadStorage(storage),
+        redirectUri: "http://localhost/callback",
+        onAuthorizationUrl: (url) => authorizationUrls.push(url),
+      });
+    const redirectProvider = createProvider();
+
+    await expect(
+      auth(redirectProvider, {
+        serverUrl: "https://mcp.example.com/mcp",
+        resourceMetadataUrl: new URL(
+          "https://mcp.example.com/.well-known/oauth-protected-resource",
+        ),
+        fetchFn,
+      }),
+    ).resolves.toBe("REDIRECT");
+    expect(authorizationUrls).toHaveLength(1);
+    expect(
+      JSON.parse(storage.getItem("test-mcp:auth:docs") ?? "null"),
+    ).toMatchObject({
+      codeVerifier: expect.any(String),
+      discoveryState: {
+        authorizationServerUrl: "https://auth.example.com",
+      },
+    });
+
+    requests.length = 0;
+    const callbackProvider = createProvider();
+    await expect(
+      auth(callbackProvider, {
+        serverUrl: "https://mcp.example.com/mcp",
+        authorizationCode: "authorization-code",
+        fetchFn,
+      }),
+    ).resolves.toBe("AUTHORIZED");
+    expect(requests).toEqual([
+      { method: "POST", url: "https://auth.example.com/token" },
+    ]);
+    await expect(
+      loadStorage(storage).loadAuthState("docs"),
+    ).resolves.toMatchObject({
+      tokens: { access_token: "access-token" },
     });
   });
 });

@@ -1,0 +1,118 @@
+---
+title: Claude Managed Agents
+description: Connect Anthropic's Managed Agents sessions to assistant-ui with the external store runtime, folding the session event log into messages, rendering approval gates, and using sessions as the thread list.
+---
+
+[Claude Managed Agents](https://platform.claude.com/docs/en/managed-agents/overview) is Anthropic's hosted agent platform: Anthropic runs the agent loop and provisions a sandboxed container per session, and your client drives the session over an event stream. A session holds the entire conversation server-side as a durable event log, streams every step (text, tool calls, approval stops, status) as typed events, and accepts user messages and tool confirmations back.
+
+That shape maps directly onto two assistant-ui primitives, with no adapter package in between:
+
+- [`useExternalStoreRuntime`](/docs/runtimes/custom/external-store) renders messages you derive from the session's event log. The log is the single source of truth, so replaying a stored session and tailing a live one run through the same pure function and can never disagree.
+- [`useRemoteThreadListRuntime`](/docs/api-reference/hooks/runtimes#useremotethreadlistruntime) turns the session list into the thread sidebar. A thread is a session; there is no conversations table anywhere in the app.
+
+Anthropic ships an official reference implementation of this integration: the [Claude Managed Agents quickstart](https://github.com/anthropics/claude-quickstarts/tree/main/managed-agents/assistant-ui) is a complete Next.js app (composer, thread, sidebar, tool cards, approval gate) built exactly this way. This page teaches the pattern; the quickstart is the runnable proof.
+
+<Callout type="info">
+Managed Agents is a beta API (`managed-agents-2026-04-01`; the SDK sets the header automatically). The quickstart declares `@anthropic-ai/sdk` `^0.113.0` (the session event helpers and token previews need 0.109.0 or later), and `@assistant-ui/react` 0.14.27 or later for the toolkit API and the approval gate on the external store runtime.
+</Callout>
+
+## The event-to-message mapping
+
+Everything the session emits arrives as a typed event. The integration is one pure fold from the event array to assistant-ui's message model:
+
+| Managed Agents event | assistant-ui |
+| --- | --- |
+| `user.message` | A user message |
+| `agent.message` | Assistant text (buffered, authoritative) |
+| `event_start` / `event_delta` | The same text, streamed early as token previews |
+| `agent.thinking` | A reasoning part (progress signal only; the API sends no reasoning text) |
+| `agent.tool_use` / `agent.mcp_tool_use` / `agent.custom_tool_use` | A tool-call part; the `toolCallId` is the event id |
+| `agent.tool_result` (and mcp / custom variants) | That part's result |
+| `session.status_idle` with `stop_reason: requires_action` | `requires-action` message status, plus an approval on each blocked tool part |
+| `user.tool_confirmation` | The approval, settled (allowed or denied) |
+| `session.status_running` / `status_idle` | Whether the turn is live (`isRunning`) |
+| `session.error` | An error status on the message, or a retry banner |
+
+Because the fold is pure, opening an old chat replays `sessions.events.list()` through it, and a live chat feeds the SSE tail through it, and the two paths cannot render differently. Approvals, denials, and charts all come back after a reload because they are in the log, not in browser state.
+
+The runtime wiring is a structural subset of `ThreadMessageLike`, handed to the external store as-is:
+
+```tsx
+const runtime = useExternalStoreRuntime<ThreadMessageLike>({
+  messages: snapshot.messages,
+  convertMessage: (m) => m,
+  isRunning: isBusy(snapshot),
+
+  onNew: async (message) => {
+    const id = await ensureSession();
+    await sendMessage(id, textOf(message));
+  },
+
+  // The Stop button becomes a real server-side interrupt.
+  onCancel: async () => controller.interrupt(),
+
+  // The Allow / Deny click on a gated tool call. approvalId is the
+  // tool_use event id from session.status_idle { requires_action }.
+  onRespondToToolApproval: async ({ approvalId, approved, reason }) => {
+    controller.respondToApproval(approvalId, approved, reason);
+  },
+});
+```
+
+## Sessions are the thread list
+
+The sidebar is a `RemoteThreadListAdapter` over the Managed Agents session API. Thread id and session id are the same string, so nothing maps between the two worlds:
+
+| Adapter method | Managed Agents call |
+| --- | --- |
+| `list` | `sessions.list()`, filtered to the sessions this app created (a `metadata` tag) |
+| `initialize` | `sessions.create()`, invoked by assistant-ui on the first message of a new chat |
+| `rename` | `sessions.update({ title })` |
+| `archive` | `sessions.archive()` |
+| `unarchive` | Throws. Managed Agents sessions cannot be unarchived, and switching to an archived thread auto-unarchives by default, so do not render archived sessions as switchable (the quickstart's ownership gate rejects archived ids outright) |
+| `delete` | `sessions.delete()` |
+| `fetch` | `sessions.retrieve()` |
+| `generateTitle` | Reads the title back after the server retitles the session from the first message, so the sidebar row updates without a second model call |
+
+A brand-new chat has no session until the first send: the composer works immediately, and `initialize()` creates the session lazily when the first message (or first attachment upload) needs one. Kill the server, restart, reload, and every conversation comes back, because none of it ever lived in the app.
+
+## The approval gate
+
+Managed Agents supports per-tool [permission policies](https://platform.claude.com/docs/en/managed-agents/permission-policies). A tool configured as `always_ask` (the quickstart gates `bash` this way) does not run when the agent reaches for it. The session emits the `agent.tool_use` event, then parks:
+
+```json
+{ "type": "session.status_idle", "stop_reason": { "type": "requires_action", "event_ids": ["sevt_..."] } }
+```
+
+The fold stamps an approval onto that tool part and sets the message status to `requires-action`, which is everything assistant-ui needs to render Allow and Deny on the tool card. The click flows back through `onRespondToToolApproval` as a `user.tool_confirmation` event:
+
+```json
+{ "type": "user.tool_confirmation", "tool_use_id": "sevt_...", "result": "deny", "deny_message": "Not on this box." }
+```
+
+Two wire details matter. The `tool_use_id` is the tool-use event id, not an Anthropic `toolu_` id. And a denial reaches the agent as the tool's result, so it adjusts course instead of retrying the same command.
+
+Custom client-executed tools ride the same `requires_action` stop but take a `user.custom_tool_result` instead of a confirmation; sending a confirmation for one is a 400. The quickstart's inline chart tool is the worked example: the session parks, the card renders the chart from the tool's input, and the client answers so the agent continues.
+
+## Token streaming
+
+By default assistant text arrives as whole `agent.message` events when a model request finishes. Opting the stream into `event_deltas: ["agent.message", "agent.thinking"]` adds token previews: an `event_start` announces the upcoming event, `event_delta` fragments stream the text, and the buffered event lands last as the authoritative record. Concatenating a preview's deltas in arrival order yields a prefix of the final text, but under load the server may shed the remaining deltas for an event, so the prefix is not necessarily the whole message. The fold therefore appends fragments for display and discards the accumulated preview when the buffered event arrives; never treat a preview as final. When a turn errors or is interrupted, the buffered event may never arrive at all, but `span.model_request_end` still does, so close any unreconciled preview when you see it.
+
+Previews are best-effort and gated per organization. Build against the buffered events and treat deltas as an enhancement: an org without the streaming gate runs the identical code path with replies arriving whole.
+
+## Security boundary
+
+The Anthropic API key stays server-side; the browser talks only to your own route handlers, which relay to Managed Agents. Because a session id arrives from the browser and becomes an API path parameter, validate ownership on every route: the id must resolve, belong to your agent, and carry your app's metadata tag before any read or write. The API key can see the whole workspace; that gate is what keeps a guessed id from reading it. The quickstart's [`ownedSession()`](https://github.com/anthropics/claude-quickstarts/blob/main/managed-agents/assistant-ui/lib/owned-session.ts) is the reference shape.
+
+## Run the reference
+
+```bash
+git clone https://github.com/anthropics/claude-quickstarts
+cd claude-quickstarts/managed-agents/assistant-ui
+npm install
+cp .env.example .env   # add ANTHROPIC_API_KEY, or `ant auth login` once
+npm run setup          # one-time: creates the agent + environment, paste the IDs into .env
+npm run dev            # drop sample_data/sales.csv into the chat
+```
+
+The quickstart's [README](https://github.com/anthropics/claude-quickstarts/tree/main/managed-agents/assistant-ui#readme) walks through every file: the reducer, the session controller, the thread list adapter, the tool cards, and the attachment adapter that uploads composer files into the session sandbox. For the platform itself, start with Anthropic's [Managed Agents overview](https://platform.claude.com/docs/en/managed-agents/overview) and [events reference](https://platform.claude.com/docs/en/managed-agents/events-and-streaming).

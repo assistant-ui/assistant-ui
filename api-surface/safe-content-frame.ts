@@ -7,16 +7,13 @@ interface RenderedFrame {
 }
 
 declare class SafeContentFrame {
-  private product;
-  private options;
+  #private;
   constructor(product: string, options?: SafeContentFrameOptions);
   renderHtml(html: string, container: HTMLElement, opts?: {
     unsafeDocumentWrite?: boolean;
   }): Promise<RenderedFrame>;
   renderRaw(content: Uint8Array | string, mimeType: string, container: HTMLElement): Promise<RenderedFrame>;
   renderPdf(content: Uint8Array, container: HTMLElement): Promise<RenderedFrame>;
-  private render;
-  private getSandbox;
 }
 
 interface SafeContentFrameOptions {

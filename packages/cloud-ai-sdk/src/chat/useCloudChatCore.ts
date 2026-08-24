@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { UIMessage } from "@ai-sdk/react";
 import type { ChatTransport } from "ai";
 import { DefaultChatTransport } from "ai";
@@ -17,19 +17,16 @@ export function useCloudChatCore(
   },
 ): CloudChatCore {
   const { threads, chatConfig, onSyncError, transport } = options;
+  const currentOptions = { threads, chatConfig, onSyncError };
+  const currentOptionsRef = useRef(currentOptions);
+  currentOptionsRef.current = currentOptions;
 
-  // Recreate when cloud identity changes (prevents stale persistence client)
-  const coreRef = useRef<CloudChatCore | null>(null);
-  if (!coreRef.current || coreRef.current.cloud !== cloud) {
-    coreRef.current = new CloudChatCore(cloud, {
-      threads,
-      chatConfig,
-      onSyncError,
-    });
-  }
-  const core = coreRef.current;
+  const core = useMemo(
+    () => new CloudChatCore(cloud, currentOptionsRef.current),
+    [cloud],
+  );
 
-  core.options = { threads, chatConfig, onSyncError };
+  core.options = currentOptions;
 
   // Track component lifetime for safe async operations
   const mountedRef = useRef(true);

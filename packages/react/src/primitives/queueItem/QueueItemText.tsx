@@ -25,11 +25,17 @@ export const QueueItemPrimitiveText = forwardRef<
   QueueItemPrimitiveText.Element,
   QueueItemPrimitiveText.Props
 >((props, ref) => {
-  const prompt = useAuiState((s) => s.queueItem.prompt);
+  const text = useAuiState((s) =>
+    // hosts on the pre-parts adapter shape may omit the field at runtime
+    (s.queueItem.parts ?? [])
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("\n\n"),
+  );
 
   return (
     <Primitive.span {...props} ref={ref}>
-      {props.children ?? prompt}
+      {props.children ?? text}
     </Primitive.span>
   );
 });

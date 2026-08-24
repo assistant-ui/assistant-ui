@@ -14,13 +14,19 @@ import type {
   ChatModelRunResult,
   ExportedMessageRepository,
   MessageStatus,
+  RespondToToolApprovalOptions,
   ThreadAssistantMessage,
   ThreadHistoryAdapter,
   ThreadMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
 import { MessageRepository } from "@assistant-ui/core/internal";
-import type { AbstractAgent } from "@ag-ui/client";
+import type {
+  AbstractAgent,
+  AgentSubscriber,
+  RunAgentParameters,
+  RunAgentResult,
+} from "@ag-ui/client";
 import jsonpatch, { type Operation } from "fast-json-patch";
 import type { Logger } from "./logger";
 import { readMcpAppResourceUri } from "./mcp-tool-result";
@@ -40,6 +46,21 @@ import {
   toAgUiTools,
 } from "./adapter/conversions";
 import { createAgUiSubscriber } from "./adapter/subscriber";
+import {
+  buildToolApprovalResume,
+  projectAgUiToolApprovals,
+  withSettledToolApprovals,
+  withToolApprovalDecision,
+} from "./adapter/tool-approval";
+
+// AbstractAgent.runAgent declares two parameters. HttpAgent ignores a third and
+// is cancelled through agent.abortRun(); the run options stay for subclasses
+// that inherit the base no-op abortRun and have no other cancellation hook.
+type RunAgentWithRunOptions = (
+  parameters: RunAgentParameters,
+  subscriber: AgentSubscriber,
+  options: { signal: AbortSignal },
+) => Promise<RunAgentResult>;
 
 const optimisticPrefix = "__optimistic__";
 const generateOptimisticId = () => `${optimisticPrefix}${generateId()}`;
@@ -76,6 +97,56 @@ type CoreOptions = {
 
 const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
+type AgUiRuntimeCallbackName = "onError" | "onCancel";
+
+const reportCallbackError = (name: AgUiRuntimeCallbackName, error: unknown) => {
+  console.error(`[react-ag-ui] ${name} callback threw an error`, error);
+};
+
+const invokeRuntimeCallback = <TArgs extends unknown[]>(
+  name: AgUiRuntimeCallbackName,
+  callback: ((...args: TArgs) => void) | undefined,
+  ...args: TArgs
+) => {
+  if (!callback) return;
+
+  try {
+    const result = callback(...args) as unknown;
+    if (
+      result !== null &&
+      (typeof result === "object" || typeof result === "function") &&
+      "then" in result &&
+      typeof result.then === "function"
+    ) {
+      void Promise.resolve(result).catch((error) => {
+        reportCallbackError(name, error);
+      });
+    }
+  } catch (error) {
+    reportCallbackError(name, error);
+  }
+};
+
+// The aggregator only ever sends the interrupts it owns, so a shallow spread at
+// the custom level would drop sibling agui state such as opaqueReasoning.
+const mergeAgUiNamespace = (
+  current: Record<string, unknown> | undefined,
+  incoming: Record<string, unknown>,
+) => {
+  const merged = { ...current, ...incoming };
+  const currentNs = current?.[AG_UI_METADATA_NAMESPACE];
+  const incomingNs = incoming[AG_UI_METADATA_NAMESPACE];
+  if (
+    typeof currentNs === "object" &&
+    currentNs !== null &&
+    typeof incomingNs === "object" &&
+    incomingNs !== null
+  ) {
+    merged[AG_UI_METADATA_NAMESPACE] = { ...currentNs, ...incomingNs };
+  }
+  return merged;
+};
+
 export class AgUiThreadRuntimeCore {
   private agent: AbstractAgent;
   private logger: Logger;
@@ -84,18 +155,24 @@ export class AgUiThreadRuntimeCore {
   private onError: ((error: Error) => void) | undefined;
   private onCancel: (() => void) | undefined;
   private readonly notifyUpdate: () => void;
+  private readonly reportedErrors = new WeakSet<object>();
 
   private runtime: AssistantRuntime | undefined;
   private readonly repository = new MessageRepository();
   private exportedRepository: ExportedMessageRepository | undefined;
   private isRunningFlag = false;
   private abortController: AbortController | null = null;
+  // The agent that started the active run. updateOptions can swap this.agent
+  // mid-run, and cancelling has to reach the agent holding the live request.
+  private activeRunAgent: AbstractAgent | null = null;
   private stateSnapshot: ReadonlyJSONValue | undefined;
   private pendingError: Error | null = null;
   private history: ThreadHistoryAdapter | undefined;
   private lastRunConfig: RunConfig | undefined;
   private readonly assistantHistoryParents = new Map<string, string | null>();
-  private readonly recordedHistoryIds = new Set<string>();
+  private readonly snapshotHistoryIds = new Set<string>();
+  private readonly persistedHistoryIds = new Set<string>();
+  private readonly historyWrites = new Map<string, Promise<void>>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
   private pendingResumeMessageId: string | null = null;
@@ -131,6 +208,9 @@ export class AgUiThreadRuntimeCore {
 
   detachRuntime() {
     this.runtime = undefined;
+    void this.cancel().catch((error) => {
+      this.logger.error("[agui] failed to cancel run during teardown", error);
+    });
   }
 
   getMessages(): readonly ThreadMessage[] {
@@ -269,7 +349,9 @@ export class AgUiThreadRuntimeCore {
       })
       .catch((error) => {
         this.logger.error?.("[agui] failed to load history", error);
-        this.onError?.(
+        invokeRuntimeCallback(
+          "onError",
+          this.onError,
           error instanceof Error ? error : new Error(String(error)),
         );
       })
@@ -333,7 +415,16 @@ export class AgUiThreadRuntimeCore {
 
   async cancel(): Promise<void> {
     if (!this.abortController) return;
-    this.abortController.abort();
+    // Before the local abort, whose listener runs onCancel synchronously: a
+    // callback that starts another run replaces the agent's controller, and
+    // aborting afterwards would kill that replacement and leave this run live.
+    // The local abort is unconditional because abortRun is a user subclass's
+    // code, and a throw there would otherwise strand the thread as running.
+    try {
+      (this.activeRunAgent ?? this.agent).abortRun();
+    } finally {
+      this.abortController.abort();
+    }
   }
 
   async resume(config: ResumeRunConfig): Promise<void> {
@@ -354,7 +445,7 @@ export class AgUiThreadRuntimeCore {
         "[agui] unstable_resume requires a ThreadHistoryAdapter with a resume() method; skipping resume after thread switch",
       );
       this.logger.error?.(error.message);
-      this.onError?.(error);
+      invokeRuntimeCallback("onError", this.onError, error);
       return;
     }
     const parentId = messages.at(-1)?.id ?? null;
@@ -448,34 +539,142 @@ export class AgUiThreadRuntimeCore {
       );
     }
 
+    this.assertInterruptsAnswerable(
+      "submitInterruptResponses",
+      pending.interrupts,
+    );
+
+    await this.resumeWithResponses(
+      pending.messageId,
+      openIds.map((id) => responsesById.get(id)!),
+    );
+  }
+
+  /**
+   * Resumes with an already validated resume array. Answerability is checked
+   * once per submission: re-checking here would let a clock crossing reject a
+   * decision this runtime has already recorded, stranding the gate decided and
+   * unretryable.
+   */
+  private async resumeWithResponses(
+    messageId: string,
+    resume: AgUiResumeEntry[],
+  ): Promise<void> {
+    this.clearPendingInterrupts(messageId, resume);
+    await this.startRun(messageId, this.lastRunConfig, resume);
+  }
+
+  /**
+   * The core seams that reach `respondToToolApproval` discard the promise they
+   * receive, so a rejected decision would otherwise surface only as an
+   * unhandled rejection. A failure raised by the resumed run itself was already
+   * reported by `startRun` before it rethrew, so reporting it here again would
+   * give the consumer two notifications for one failure.
+   */
+  reportError(error: unknown): void {
+    if (this.reportedErrors.has(error as object)) {
+      this.reportedErrors.delete(error as object);
+      return;
+    }
+    invokeRuntimeCallback(
+      "onError",
+      this.onError,
+      error instanceof Error ? error : new Error(String(error)),
+    );
+  }
+
+  private assertInterruptsAnswerable(
+    method: "submitInterruptResponses" | "respondToToolApproval",
+    interrupts: readonly AgUiInterrupt[],
+  ): void {
     const now = Date.now();
-    for (const interrupt of pending.interrupts) {
+    for (const interrupt of interrupts) {
       if (!interrupt.expiresAt) continue;
       const expiry = new Date(interrupt.expiresAt).getTime();
       if (Number.isNaN(expiry)) {
         throw new Error(
-          `[agui] submitInterruptResponses: interrupt ${interrupt.id} has malformed expiresAt "${interrupt.expiresAt}"`,
+          `[agui] ${method}: interrupt ${interrupt.id} has malformed expiresAt "${interrupt.expiresAt}"`,
         );
       }
       if (expiry <= now) {
         throw new Error(
-          `[agui] submitInterruptResponses: interrupt ${interrupt.id} expired at ${interrupt.expiresAt}`,
+          `[agui] ${method}: interrupt ${interrupt.id} expired at ${interrupt.expiresAt}`,
         );
       }
     }
-
-    const resume: AgUiResumeEntry[] = openIds.map((id) =>
-      responsesById.get(id)!,
-    );
-
     if (this.isRunningFlag) {
+      throw new Error(`[agui] ${method}: a run is already in progress`);
+    }
+  }
+
+  async respondToToolApproval(
+    options: RespondToToolApprovalOptions,
+  ): Promise<void> {
+    const pending = this.getPendingInterrupts();
+    if (!pending) {
       throw new Error(
-        "[agui] submitInterruptResponses: a run is already in progress",
+        "[agui] respondToToolApproval: no pending interrupts on this thread",
       );
     }
 
-    this.clearPendingInterrupts(pending.messageId);
-    await this.startRun(pending.messageId, this.lastRunConfig, resume);
+    // Bound against the message the gates landed on, so this check claims a
+    // batch only where the projection did.
+    const gatedMessage = this.tryGetMessage(pending.messageId)?.message as
+      | ThreadAssistantMessage
+      | undefined;
+    const gated = projectAgUiToolApprovals(
+      pending.interrupts,
+      new Set(
+        (gatedMessage?.content ?? [])
+          .filter((part) => part.type === "tool-call")
+          .map((part) => part.toolCallId),
+      ),
+    );
+    const isGated = [...gated.values()].some(
+      (approval) => approval.id === options.approvalId,
+    );
+    if (!isGated) {
+      throw new Error(
+        `[agui] respondToToolApproval: no pending tool-call interrupt for approval id "${options.approvalId}"`,
+      );
+    }
+
+    // The decision is recorded only once the batch is known to be answerable:
+    // a rejected submission would otherwise leave the gate decided and
+    // unretryable, because a second click reports it as already decided.
+    this.assertInterruptsAnswerable(
+      "respondToToolApproval",
+      pending.interrupts,
+    );
+
+    const recorded = this.updateMessage(pending.messageId, (message) => {
+      if (message.role !== "assistant") return message;
+      const assistant = message as ThreadAssistantMessage;
+      const content = withToolApprovalDecision(assistant.content, options);
+      if (content === assistant.content) return assistant;
+      return { ...assistant, content };
+    });
+    if (!recorded) {
+      throw new Error(
+        `[agui] respondToToolApproval: approval "${options.approvalId}" is already decided`,
+      );
+    }
+    this.notifyUpdate();
+
+    const assistant = this.tryGetMessage(pending.messageId)?.message as
+      | ThreadAssistantMessage
+      | undefined;
+    if (!assistant) return;
+
+    // AG-UI resumes a run with one response per open interrupt, so the run
+    // stays paused until every gate in the batch has been answered.
+    const resume = buildToolApprovalResume(
+      assistant.content,
+      pending.interrupts,
+    );
+    if (!resume) return;
+
+    await this.resumeWithResponses(pending.messageId, resume);
   }
 
   async steerAway(
@@ -517,7 +716,7 @@ export class AgUiThreadRuntimeCore {
     }
 
     const normalized = this.toAppendMessage(message);
-    this.clearPendingInterrupts(pending.messageId);
+    this.clearPendingInterrupts(pending.messageId, resume);
     const threadMessageId = this.appendEntry(normalized);
     await this.startRun(threadMessageId, normalized.runConfig, resume);
   }
@@ -599,7 +798,10 @@ export class AgUiThreadRuntimeCore {
     } as AppendMessage;
   }
 
-  private clearPendingInterrupts(messageId: string): void {
+  private clearPendingInterrupts(
+    messageId: string,
+    resume: readonly AgUiResumeEntry[],
+  ): void {
     const touched = this.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
@@ -621,6 +823,7 @@ export class AgUiThreadRuntimeCore {
       }
       return {
         ...assistant,
+        content: withSettledToolApprovals(assistant.content, resume),
         status: { type: "complete" as const, reason: "unknown" as const },
         metadata: { ...assistant.metadata, custom: newCustom },
       };
@@ -761,7 +964,11 @@ export class AgUiThreadRuntimeCore {
 
   private startResumeRun(messageId: string): void {
     void this.startRun(messageId, this.lastRunConfig).catch((error) => {
-      this.onError?.(error instanceof Error ? error : new Error(String(error)));
+      invokeRuntimeCallback(
+        "onError",
+        this.onError,
+        error instanceof Error ? error : new Error(String(error)),
+      );
     });
   }
 
@@ -808,9 +1015,9 @@ export class AgUiThreadRuntimeCore {
       this.resetRepositoryHead(lastAppliedId);
     }
 
-    this.recordedHistoryIds.clear();
+    this.snapshotHistoryIds.clear();
     for (const { message } of this.getMessageRepository().messages) {
-      this.recordedHistoryIds.add(message.id);
+      this.snapshotHistoryIds.add(message.id);
     }
     this.notifyUpdate();
   }
@@ -872,9 +1079,10 @@ export class AgUiThreadRuntimeCore {
     }
 
     this.assistantHistoryParents.clear();
-    this.recordedHistoryIds.clear();
+    this.snapshotHistoryIds.clear();
+    this.persistedHistoryIds.clear();
     for (const { message } of loaded.messages) {
-      this.recordedHistoryIds.add(message.id);
+      this.persistedHistoryIds.add(message.id);
     }
     this.notifyUpdate();
   }
@@ -917,14 +1125,20 @@ export class AgUiThreadRuntimeCore {
         ? (this.tryGetMessages(parentId) ?? this.repository.getMessages())
         : this.repository.getMessages()),
     ];
+    const runStartMessageIds = new Set(
+      this.getMessageRepository().messages.map(({ message }) => message.id),
+    );
 
     this.pendingError = null;
     const assistantParentId = parent ? parentId : this.repository.headId;
     let assistantMessageId: string | undefined;
     // A snapshot the preserve gate declines still evicts the in-flight
     // assistant; recreating under the cached id on the next content-bearing
-    // emit keeps both the stream and the message identity. Status-only emits
-    // and server-id collisions must not recreate.
+    // emit keeps both the stream and the message identity. Status-only emits,
+    // data-only content, and off-branch server-id collisions must not
+    // recreate: the snapshot already carries this turn's assistant, so
+    // resurrecting for custom-event data would leave a trailing data-only
+    // duplicate.
     let assistantCollided = false;
     const ensureAssistant = (allowRecreate = false): string => {
       const cached = assistantMessageId;
@@ -932,12 +1146,20 @@ export class AgUiThreadRuntimeCore {
       if (cached !== undefined && (assistantCollided || !allowRecreate)) {
         return cached;
       }
+      const repositoryHeadId = this.repository.headId;
+      const shouldUseSelectedParent =
+        cached === undefined ||
+        (shouldEagerlyInsertAssistant &&
+          (repositoryHeadId === null ||
+            runStartMessageIds.has(repositoryHeadId)));
+      // Branch runs keep their selected parent unless the snapshot advanced to
+      // a message introduced during this run.
       const parentId =
-        cached === undefined &&
+        shouldUseSelectedParent &&
         assistantParentId &&
         this.hasMessage(assistantParentId)
           ? assistantParentId
-          : this.repository.headId;
+          : repositoryHeadId;
       const created = this.insertAssistantPlaceholder(parentId, cached);
       assistantMessageId = created;
       this.markPendingAssistantHistory(created, parentId);
@@ -947,10 +1169,11 @@ export class AgUiThreadRuntimeCore {
     if (shouldEagerlyInsertAssistant) ensureAssistant();
 
     const applyUpdate = (update: ChatModelRunResult) => {
-      const hasContent =
-        Array.isArray(update.content) && update.content.length > 0;
+      const hasStreamContent =
+        Array.isArray(update.content) &&
+        update.content.some((part) => part.type !== "data");
       const resolved = this.updateAssistantMessage(
-        ensureAssistant(hasContent),
+        ensureAssistant(hasStreamContent),
         update,
       );
       if (resolved !== assistantMessageId) {
@@ -965,8 +1188,21 @@ export class AgUiThreadRuntimeCore {
       onServerMessageId: (serverId) => {
         const placeholder = ensureAssistant(true);
         if (placeholder === serverId) return;
-        if (this.reassignAssistantId(placeholder, serverId)) {
+        const reassigned = this.reassignAssistantId(placeholder, serverId);
+        // A collision drops the placeholder before revealing the existing
+        // server message as the current head. Only messages introduced during
+        // this run can replace the placeholder; regeneration must not rewrite
+        // a previous branch when the server incorrectly reuses its id.
+        const adoptsVisibleCollision =
+          !reassigned &&
+          !runStartMessageIds.has(serverId) &&
+          this.repository.headId === serverId;
+        if (reassigned || adoptsVisibleCollision) {
           assistantMessageId = serverId;
+          if (adoptsVisibleCollision) {
+            const parentId = this.tryGetMessage(serverId)?.parentId ?? null;
+            this.markPendingAssistantHistory(serverId, parentId);
+          }
         } else {
           assistantCollided = true;
         }
@@ -978,6 +1214,8 @@ export class AgUiThreadRuntimeCore {
     const abortController = new AbortController();
     const abortSignal = abortController.signal;
     this.abortController = abortController;
+    const runAgentInstance = this.agent;
+    this.activeRunAgent = runAgentInstance;
 
     let cancelRun = () => dispatch({ type: "RUN_CANCELLED" });
     abortSignal.addEventListener(
@@ -985,7 +1223,7 @@ export class AgUiThreadRuntimeCore {
       () => {
         cancelRun();
         this.finishRun(abortController);
-        this.onCancel?.();
+        invokeRuntimeCallback("onCancel", this.onCancel);
       },
       { once: true },
     );
@@ -1021,26 +1259,27 @@ export class AgUiThreadRuntimeCore {
           runId,
           logger: this.logger,
           onRunFailed: (error) => {
+            if (abortSignal.aborted) return;
             this.pendingError = error;
-            this.onError?.(error);
+            invokeRuntimeCallback("onError", this.onError, error);
           },
         });
         try {
-          (this.agent as any).messages = input.messages;
-          (this.agent as any).threadId = input.threadId;
-          (this.agent as any).state = input.state ?? null;
+          (runAgentInstance as any).messages = input.messages;
+          (runAgentInstance as any).threadId = input.threadId;
+          (runAgentInstance as any).state = input.state ?? null;
         } catch {
           // ignore
         }
-        await (this.agent as any).runAgent(input, subscriber, {
-          signal: abortSignal,
-        });
+        const runAgent: RunAgentWithRunOptions =
+          runAgentInstance.runAgent.bind(runAgentInstance);
+        await runAgent(input, subscriber, { signal: abortSignal });
       }
     } catch (error) {
       if (!abortSignal.aborted) {
         const err = error instanceof Error ? error : new Error(String(error));
         dispatch({ type: "RUN_ERROR", message: err.message });
-        this.onError?.(err);
+        invokeRuntimeCallback("onError", this.onError, err);
         this.pendingError = this.pendingError ?? err;
       }
     } finally {
@@ -1049,6 +1288,7 @@ export class AgUiThreadRuntimeCore {
 
     if (this.pendingError) {
       const err = this.pendingError;
+      this.reportedErrors.add(err);
       this.pendingError = null;
       this.pendingResumeMessageId = null;
       this.pendingA2uiResume = false;
@@ -1142,7 +1382,7 @@ export class AgUiThreadRuntimeCore {
       ctx.applyUpdate({
         status: { type: "incomplete", reason: "error", error: err.message },
       });
-      this.onError?.(err);
+      invokeRuntimeCallback("onError", this.onError, err);
       this.pendingError = this.pendingError ?? err;
       return;
     }
@@ -1217,6 +1457,7 @@ export class AgUiThreadRuntimeCore {
   private finishRun(controller: AbortController | null) {
     if (this.abortController === controller) {
       this.abortController = null;
+      this.activeRunAgent = null;
     }
     this.setRunning(false);
   }
@@ -1278,10 +1519,33 @@ export class AgUiThreadRuntimeCore {
       }
     }
 
-    if (this.recordedHistoryIds.has(oldId)) {
-      this.recordedHistoryIds.delete(oldId);
+    for (const ids of [this.snapshotHistoryIds, this.persistedHistoryIds]) {
+      if (ids.has(oldId)) {
+        ids.delete(oldId);
+        if (!collidesWithExisting) {
+          ids.add(newId);
+        }
+      }
+    }
+
+    // An in-flight write completes under the id it was started with, so the
+    // rename moves the chain entry and transfers the completion mark; without
+    // this the resolve records the dead id and the live one appends again.
+    const pendingWrite = this.historyWrites.get(oldId);
+    if (pendingWrite) {
+      this.historyWrites.delete(oldId);
       if (!collidesWithExisting) {
-        this.recordedHistoryIds.add(newId);
+        this.historyWrites.set(newId, pendingWrite);
+        const settle = () => {
+          if (this.historyWrites.get(newId) === pendingWrite) {
+            this.historyWrites.delete(newId);
+          }
+        };
+        void pendingWrite.then(() => {
+          this.persistedHistoryIds.delete(oldId);
+          this.persistedHistoryIds.add(newId);
+          settle();
+        }, settle);
       }
     }
 
@@ -1390,7 +1654,7 @@ export class AgUiThreadRuntimeCore {
       ...(current.isOptimistic ? { isOptimistic: true } : {}),
       ...(incoming.timing ? { timing: incoming.timing } : {}),
       custom: incoming.custom
-        ? { ...current.custom, ...incoming.custom }
+        ? mergeAgUiNamespace(current.custom, incoming.custom)
         : current.custom,
     };
   }
@@ -1622,7 +1886,6 @@ export class AgUiThreadRuntimeCore {
           );
         }
       }
-      const snapshotHeadId = converted.at(-1)?.id ?? null;
       const snapshotContainsActiveAssistant = converted.some(
         (message) => message.id === activeAssistant?.id,
       );
@@ -1635,9 +1898,17 @@ export class AgUiThreadRuntimeCore {
         converted.push(activeAssistant);
       }
       this.applyExternalMessages(converted);
-      if (preservesActiveAssistant) {
-        this.recordedHistoryIds.delete(activeAssistant.id);
-        this.markPendingAssistantHistory(activeAssistant.id, snapshotHeadId);
+      if (activeAssistant !== undefined) {
+        const activeItem = this.tryGetMessage(activeAssistant.id);
+        if (activeItem) {
+          if (preservesActiveAssistant) {
+            this.snapshotHistoryIds.delete(activeAssistant.id);
+          }
+          this.markPendingAssistantHistory(
+            activeAssistant.id,
+            activeItem.parentId,
+          );
+        }
       }
     } catch (error) {
       this.logger.error?.("[agui] failed to import messages snapshot", error);
@@ -1662,7 +1933,9 @@ export class AgUiThreadRuntimeCore {
   }
 
   private recordHistoryEntry(parentId: string | null, message: ThreadMessage) {
-    this.appendHistoryItem(parentId, message);
+    void this.appendHistoryItem(parentId, message)?.catch((error) => {
+      this.logger.error?.("[agui] failed to append history entry", error);
+    });
   }
 
   private markPendingAssistantHistory(
@@ -1674,22 +1947,108 @@ export class AgUiThreadRuntimeCore {
   }
 
   private persistAssistantHistory(messageId: string) {
-    if (!this.history) return;
+    const history = this.history;
+    if (!history) return;
     const parentId = this.assistantHistoryParents.get(messageId);
     if (parentId === undefined) return;
     const message = this.tryGetMessage(messageId)?.message;
     if (!message || message.role !== "assistant") return;
     if (!this.isPersistableStatus(message.status)) return;
+    const wasPersisted = this.persistedHistoryIds.has(messageId);
+    const update = history.update;
+    const shouldUpdate =
+      update !== undefined &&
+      (wasPersisted || this.snapshotHistoryIds.has(messageId));
+
+    if (shouldUpdate) {
+      const write = this.chainHistoryWrite(messageId, () =>
+        update.call(history, { parentId, message }),
+      );
+      this.assistantHistoryParents.delete(messageId);
+      void write.then(
+        () => {
+          this.persistedHistoryIds.add(messageId);
+        },
+        (error) => {
+          const pending = this.historyWrites.get(messageId);
+          if (pending === undefined || pending === write) {
+            this.assistantHistoryParents.set(messageId, parentId);
+          }
+          this.logger.error?.("[agui] failed to update history entry", error);
+        },
+      );
+      return;
+    }
+
+    if (wasPersisted) {
+      this.assistantHistoryParents.delete(messageId);
+      return;
+    }
+
+    const write = this.appendHistoryItem(parentId, message);
+    if (!write) return;
     this.assistantHistoryParents.delete(messageId);
-    this.appendHistoryItem(parentId, message);
+    void write.then(
+      () => {},
+      (error) => {
+        const pending = this.historyWrites.get(messageId);
+        if (pending === undefined || pending === write) {
+          this.assistantHistoryParents.set(messageId, parentId);
+        }
+        this.logger.error?.("[agui] failed to append history entry", error);
+      },
+    );
   }
 
-  private appendHistoryItem(parentId: string | null, message: ThreadMessage) {
-    if (!this.history || this.recordedHistoryIds.has(message.id)) return;
-    this.recordedHistoryIds.add(message.id);
-    void this.history.append({ parentId, message }).catch((error) => {
-      this.recordedHistoryIds.delete(message.id);
-      this.logger.error?.("[agui] failed to append history entry", error);
-    });
+  private appendHistoryItem(
+    parentId: string | null,
+    message: ThreadMessage,
+  ): Promise<void> | undefined {
+    if (!this.history || this.persistedHistoryIds.has(message.id)) return;
+    const pending = this.historyWrites.get(message.id);
+    if (pending) return pending;
+
+    const append = this.history.append.bind(this.history);
+    const write = this.chainHistoryWrite(message.id, () =>
+      append({ parentId, message }),
+    );
+    void write.then(
+      () => {
+        this.persistedHistoryIds.add(message.id);
+      },
+      () => {},
+    );
+    return write;
+  }
+
+  private chainHistoryWrite(
+    id: string,
+    write: () => Promise<void>,
+  ): Promise<void> {
+    const pending = this.historyWrites.get(id);
+    let next: Promise<void>;
+    if (pending) {
+      next = pending.then(write, write);
+    } else {
+      try {
+        next = Promise.resolve(write());
+      } catch (error) {
+        next = Promise.reject(error);
+      }
+    }
+    this.historyWrites.set(id, next);
+    void next.then(
+      () => {
+        if (this.historyWrites.get(id) === next) {
+          this.historyWrites.delete(id);
+        }
+      },
+      () => {
+        if (this.historyWrites.get(id) === next) {
+          this.historyWrites.delete(id);
+        }
+      },
+    );
+    return next;
   }
 }

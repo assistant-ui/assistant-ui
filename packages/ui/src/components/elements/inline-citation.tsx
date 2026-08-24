@@ -1,5 +1,6 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { PreviewCard } from "@base-ui/react/preview-card";
 import { cn } from "@/lib/utils";
 import { floating, mono } from "./surfaces";
@@ -64,11 +65,13 @@ function Citation({ index, source, open, onOpenChange }: CitationProps) {
   );
 }
 
-export interface InlineCitationProps {
+export interface InlineCitationProps extends Omit<
+  ComponentProps<"p">,
+  "children"
+> {
   sources: Source[];
   openIndex: number | null;
   onOpenIndexChange: (index: number | null) => void;
-  className?: string;
 }
 
 export function InlineCitation({
@@ -76,13 +79,17 @@ export function InlineCitation({
   openIndex,
   onOpenIndexChange,
   className,
+  ...props
 }: InlineCitationProps) {
   return (
     <p
+      data-slot="inline-citation"
       className={cn(
         "text-foreground/90 max-w-sm text-sm leading-relaxed",
         className,
       )}
+
+      {...props}
     >
       Optimistic updates keep the thread responsive while the server confirms
       the write

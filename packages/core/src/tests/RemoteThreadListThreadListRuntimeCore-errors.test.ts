@@ -3,10 +3,10 @@ import { createCore, makeAdapter } from "./remote-thread-list-test-helpers";
 import { InMemoryThreadListAdapter } from "../runtimes/remote-thread-list/adapter/in-memory";
 
 describe("RemoteThreadListThreadListRuntimeCore errors", () => {
-  it("includes the requested thread id when a thread is missing", () => {
+  it("includes the requested thread id when a thread is missing", async () => {
     const core = createCore(makeAdapter());
 
-    expect(() => core.rename("missing-thread", "New title")).toThrow(
+    await expect(core.rename("missing-thread", "New title")).rejects.toThrow(
       'Thread "missing-thread" not found while renaming it.',
     );
   });

@@ -1,11 +1,10 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
 import { Select } from "@/components/assistant-ui/select";
 import { GitHubIcon } from "@/components/icons/github";
+import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { DEMO_META } from "@/lib/demos-meta";
 
@@ -14,33 +13,24 @@ export function DemoHeader({ slug }: { slug: string }) {
   const demo = DEMO_META.find((entry) => entry.slug === slug);
 
   return (
-    <header className="flex h-12 flex-none items-center justify-between gap-4 border-b px-4">
+    <header className="bg-background z-50 flex h-12 shrink-0 items-center justify-between px-4">
       <div className="flex min-w-0 items-center">
-        <Link href="/" className="flex shrink-0 items-center gap-2">
-          <Image
-            src="/favicon/icon.svg"
-            alt="assistant-ui logo"
-            width={18}
-            height={18}
-            className="dark:hue-rotate-180 dark:invert"
-          />
-          <span className="hidden font-medium tracking-tight sm:inline">
-            assistant-ui
-          </span>
-        </Link>
+        <HeaderBrandLink labelClassName="hidden sm:inline" />
         <span className="text-muted-foreground/40 ml-3">/</span>
         <Select
+          variant="ghost"
           value={slug}
           onValueChange={(value) => router.push(`/demos/${value}`)}
           options={DEMO_META.map((d) => ({ value: d.slug, label: d.name }))}
         />
-        {demo && (
-          <p className="text-muted-foreground ml-2 hidden min-w-0 truncate text-xs lg:block">
-            {demo.tagline}
-          </p>
-        )}
       </div>
-      <div className="flex flex-none items-center gap-1">
+      <div className="flex items-center gap-2">
+        <Link
+          href="/docs"
+          className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+        >
+          Docs
+        </Link>
         {demo && (
           <a
             href={demo.githubLink}
@@ -53,14 +43,6 @@ export function DemoHeader({ slug }: { slug: string }) {
           </a>
         )}
         <ThemeToggle />
-        <Button
-          size="sm"
-          className="ml-1 h-8"
-          nativeButton={false}
-          render={<Link href="/docs" />}
-        >
-          Get started
-        </Button>
       </div>
     </header>
   );

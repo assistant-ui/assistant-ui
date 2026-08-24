@@ -1,8 +1,9 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { ArrowUpRightIcon, FileTextIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { mono, paper } from "./surfaces";
+import { mono, paper, ShimmerLabel } from "./surfaces";
 
 export function ArtifactCard({
   title,
@@ -10,20 +11,26 @@ export function ArtifactCard({
   generating = false,
   words = 0,
   className,
-}: {
+  ...props
+}: Omit<
+  ComponentProps<"div">,
+  "children" | "title" | "meta" | "generating" | "words"
+> & {
   title: string;
   meta: string;
   generating?: boolean;
   words?: number;
-  className?: string;
 }) {
   return (
     <div
+      data-slot="artifact-card"
       className={cn(
         paper,
         "group flex w-full max-w-xs cursor-pointer items-center gap-3 rounded-[20px] p-3.5 transition-transform duration-150 hover:-translate-y-px active:scale-[0.98]",
         className,
       )}
+
+      {...props}
     >
       <span className="bg-foreground/[0.05] text-foreground/45 flex size-9 shrink-0 items-center justify-center rounded-xl">
         <FileTextIcon
@@ -37,15 +44,9 @@ export function ArtifactCard({
         <p className="truncate text-[13.5px] font-medium">{title}</p>
         {generating ? (
           <p className={cn(mono, "text-foreground/40 flex items-center gap-1")}>
-            <span className="relative inline-block leading-none">
-              <span>Writing</span>
-              <span
-                aria-hidden
-                className="shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-              >
-                Writing
-              </span>
-            </span>
+            <ShimmerLabel className="relative inline-block leading-none">
+              Writing
+            </ShimmerLabel>
             <span>·</span>
             <span className="tabular-nums">{words} words</span>
           </p>

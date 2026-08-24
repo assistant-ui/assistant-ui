@@ -35,4 +35,4 @@ npm run dev
 ## Related Documentation
 
 - [assistant-ui Documentation](https://www.assistant-ui.com/docs)
-- [External Store Runtime Guide](https://www.assistant-ui.com/docs/runtimes/external-store)
+- [External Store Runtime Guide](https://www.assistant-ui.com/docs/runtimes/custom/external-store)

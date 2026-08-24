@@ -4,7 +4,7 @@ description: Render AI tool calls as custom React components — show loading, r
 platforms: ["react"]
 ---
 
-import { ToolUISample } from "@/components/docs/samples/tool-ui";
+import { ToolUISample } from "@/components/pages/docs/samples/tool-ui";
 
 Create custom UI components for AI tool calls, providing visual feedback and interactive experiences when tools are executed.
 
@@ -21,8 +21,7 @@ Tool UIs in assistant-ui allow you to create custom interfaces that appear when 
 
 This guide demonstrates building tool UIs with the **Vercel AI SDK**.
 
-For composing UI from a JSON spec and component allowlist (display-only layouts),
-see the [Generative UI primitive guide](/docs/tools/generative-ui).
+To let the model compose UI from a vocabulary instead of binding one component per tool, see [Generative UI](/docs/tools/generative-ui).
 
 ## Creating Tool UIs
 
@@ -70,7 +69,7 @@ export default defineToolkit({
 
 ```tsx title="app/MyRuntimeProvider.tsx"
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import toolkit from "./toolkit";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {

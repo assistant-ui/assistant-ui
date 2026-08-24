@@ -74,11 +74,9 @@ describe("MessageContent", () => {
 
   it("prefers a provided renderText over the default renderer", async () => {
     h.state.message.content = [{ type: "text", text: "raw" }];
-    const renderText = vi.fn(
-      ({ part, index }): ReactElement => (
-        <span data-testid={`text-${index}`}>custom:{part.text}</span>
-      ),
-    );
+    const renderText = vi.fn(({ part, index }): ReactElement => (
+      <span data-testid={`text-${index}`}>custom:{part.text}</span>
+    ));
     await mount({ renderText });
 
     expect(renderText).toHaveBeenCalledTimes(1);
@@ -115,18 +113,18 @@ describe("MessageContent", () => {
       { type: "source", sourceType: "url", id: "1", url: "u" },
       { type: "file", filename: "f" },
     ];
-    const renderImage = vi.fn(
-      ({ index }): ReactElement => <span>image-{index}</span>,
-    );
-    const renderReasoning = vi.fn(
-      ({ index }): ReactElement => <span>reasoning-{index}</span>,
-    );
-    const renderSource = vi.fn(
-      ({ index }): ReactElement => <span>source-{index}</span>,
-    );
-    const renderFile = vi.fn(
-      ({ index }): ReactElement => <span>file-{index}</span>,
-    );
+    const renderImage = vi.fn(({ index }): ReactElement => (
+      <span>image-{index}</span>
+    ));
+    const renderReasoning = vi.fn(({ index }): ReactElement => (
+      <span>reasoning-{index}</span>
+    ));
+    const renderSource = vi.fn(({ index }): ReactElement => (
+      <span>source-{index}</span>
+    ));
+    const renderFile = vi.fn(({ index }): ReactElement => (
+      <span>file-{index}</span>
+    ));
     await mount({ renderImage, renderReasoning, renderSource, renderFile });
 
     expect(container.textContent).toBe("image-0reasoning-1source-2file-3");
@@ -183,13 +181,11 @@ describe("MessageContent", () => {
       h.state.message.content = [
         { type: "tool-call", toolName: "search", toolCallId: "c1" },
       ];
-      const renderToolCall = vi.fn(
-        ({ part, index }): ReactElement => (
-          <span data-testid="fallback">
-            fallback:{String(part.toolName)}:{index}
-          </span>
-        ),
-      );
+      const renderToolCall = vi.fn(({ part, index }): ReactElement => (
+        <span data-testid="fallback">
+          fallback:{String(part.toolName)}:{index}
+        </span>
+      ));
       await mount({ renderToolCall });
 
       const el = container.querySelector('[data-testid="fallback"]');
@@ -239,13 +235,11 @@ describe("MessageContent", () => {
 
     it("falls back to renderData when no renderer is registered", async () => {
       h.state.message.content = [{ type: "data", name: "chart", data: {} }];
-      const renderData = vi.fn(
-        ({ part, index }): ReactElement => (
-          <span data-testid="dfallback">
-            fallback:{String(part.name)}:{index}
-          </span>
-        ),
-      );
+      const renderData = vi.fn(({ part, index }): ReactElement => (
+        <span data-testid="dfallback">
+          fallback:{String(part.name)}:{index}
+        </span>
+      ));
       await mount({ renderData });
 
       const el = container.querySelector('[data-testid="dfallback"]');

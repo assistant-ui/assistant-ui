@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getExternalStoreMessages,
   pickExternalStoreSharedOptions,
@@ -33,7 +33,14 @@ import type {
   OnAdkAgentTransferCallback,
 } from "./types";
 import { useAdkMessages } from "./useAdkMessages";
-import { convertAdkMessage } from "./convertAdkMessages";
+import {
+  convertAdkMessage,
+  createAdkMessageConverter,
+} from "./convertAdkMessages";
+import {
+  projectAdkToolApprovals,
+  toAdkToolConfirmationReply,
+} from "./adkToolApproval";
 import { adkExtras } from "./adkExtras";
 import { v4 as uuidv4 } from "uuid";
 
@@ -285,8 +292,21 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     }
   };
 
+  const { approvals: toolApprovals, key: toolApprovalsKey } =
+    projectAdkToolApprovals(messages);
+  const toolApprovalsRef = useRef(toolApprovals);
+  toolApprovalsRef.current = toolApprovals;
+
+  const messageConverter = useMemo(
+    () =>
+      toolApprovalsKey === ""
+        ? convertAdkMessage
+        : createAdkMessageConverter(toolApprovalsRef.current),
+    [toolApprovalsKey],
+  );
+
   const threadMessages = useExternalMessageConverter({
-    callback: convertAdkMessage,
+    callback: messageConverter,
     messages,
     isRunning: effectiveIsRunning,
   });
@@ -553,6 +573,12 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
             status: isError ? "error" : "success",
           },
         ],
+        {},
+      );
+    },
+    onRespondToToolApproval: async (options) => {
+      await handleSendMessage(
+        [toAdkToolConfirmationReply(options, toolApprovalsRef.current)],
         {},
       );
     },

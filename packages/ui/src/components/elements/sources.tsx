@@ -29,6 +29,7 @@ export function Sources({
 }: SourcesProps) {
   return (
     <Collapsible
+      data-slot="sources"
       open={open}
       onOpenChange={onOpenChange}
       className={cn("w-full max-w-sm", className)}

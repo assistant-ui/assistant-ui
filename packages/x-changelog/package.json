@@ -3,11 +3,11 @@
   "version": "0.0.0",
   "private": true,
   "description": "Internal changesets changelog generator for assistant-ui",
-  "main": "./index.cjs",
+  "main": "./index.mjs",
   "files": [
-    "index.cjs"
+    "index.mjs"
   ],
   "dependencies": {
-    "@changesets/get-github-info": "^0.8.0"
+    "@changesets/get-github-info": "^1.0.0"
   }
 }

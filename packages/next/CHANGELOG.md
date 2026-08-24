@@ -1,5 +1,40 @@
 # @assistant-ui/next
 
+## 0.0.17
+
+### Patch Changes
+
+- [#6079](https://github.com/assistant-ui/assistant-ui/pull/6079) [`ce68614`](https://github.com/assistant-ui/assistant-ui/commit/ce68614d62215757ef485705353d0ddfe9b715e7) - feat: add a `backendless` compile option for apps without their own backend (e.g. cloud-hosted runs), keeping `"use generative"` frontend/human tool schemas and `JSONGenerativeUI` component-library schemas uploadable from the client instead of assuming the backend already knows them ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`ce68614`](https://github.com/assistant-ui/assistant-ui/commit/ce68614d62215757ef485705353d0ddfe9b715e7)]:
+  - @assistant-ui/x-generative-compiler@0.0.14
+
+## 0.0.16
+
+### Patch Changes
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e)]:
+  - @assistant-ui/x-generative-compiler@0.0.13
+
+## 0.0.15
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8)]:
+  - @assistant-ui/x-generative-compiler@0.0.12
+
+## 0.0.14
+
+### Patch Changes
+
+- [#5571](https://github.com/assistant-ui/assistant-ui/pull/5571) [`5e22e97`](https://github.com/assistant-ui/assistant-ui/commit/5e22e97459e1525a879b0c26c02844adf809b5b7) - fix: only run the use-generative loader on modules carrying the directive ([@ephraimduncan](https://github.com/ephraimduncan))
+
+  turbopack matches loader rules against the modules it generates itself, including the shim behind `new Worker(new URL(...))`. that shim's resource path is not on the project filesystem, so reading its source back through a webpack loader fails the build (next 16.3 surfaces this as `Resource path "worker/browser/createWorker.ts" needs to be on project filesystem`). gating the rule on the directive matches the loader's own detection and leaves generated modules alone.
+
+  the rule now lands as its own entry alongside a rule the caller already set on the same glob, rather than merging into it. a condition only ever scopes the entry it sits on, so sharing one would have narrowed the caller's loaders to the same directive; sharing also spread a caller's array of rules into an object keyed by index.
+
 ## 0.0.13
 
 ### Patch Changes

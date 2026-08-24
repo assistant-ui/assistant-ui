@@ -1,16 +1,20 @@
 "use client";
 
+import type { ComponentProps } from "react";
 import { CopyIcon, RefreshCwIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ghostButton, paper } from "./surfaces";
+import { take } from "./range";
 
-export interface MessagePairProps {
+export interface MessagePairProps extends Omit<
+  ComponentProps<"div">,
+  "children"
+> {
   userMessage: string;
   words: readonly string[];
   visibleWords: number;
   streaming: boolean;
   variant?: "bubble" | "flat";
-  className?: string;
 }
 
 export function MessagePair({
@@ -20,9 +24,17 @@ export function MessagePair({
   streaming,
   variant = "bubble",
   className,
+  ...props
 }: MessagePairProps) {
+  const shown = take(words, visibleWords);
+
   return (
-    <div className={cn("flex w-full max-w-sm flex-col gap-5", className)}>
+    <div
+      data-slot="message-pair"
+      className={cn("flex w-full max-w-sm flex-col gap-5", className)}
+
+      {...props}
+    >
       <p
         className={cn(
           "max-w-[85%] self-end text-sm",
@@ -35,8 +47,8 @@ export function MessagePair({
       </p>
       <div className="group/message flex flex-col items-start">
         <p className="min-h-[4.25rem] text-sm leading-relaxed">
-          {words.slice(0, visibleWords).map((word, index) => {
-            const fresh = streaming && visibleWords - 1 - index < 2;
+          {shown.map((word, index) => {
+            const fresh = streaming && shown.length - 1 - index < 2;
 
             return (
               <span
@@ -54,7 +66,7 @@ export function MessagePair({
               </span>
             );
           })}
-          {streaming && visibleWords > 0 && (
+          {streaming && shown.length > 0 && (
             <span
               aria-hidden
               className="-mb-0.5 ml-0.5 inline-block h-4 w-0.5 animate-pulse rounded-full bg-blue-500 motion-reduce:animate-none dark:bg-blue-400"

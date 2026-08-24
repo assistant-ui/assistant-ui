@@ -8,7 +8,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { MessageBubble } from "./message";
 import { Composer } from "./composer";
-import { ThreadPrimitive } from "@assistant-ui/react-native";
+import { AuiIf, ThreadPrimitive } from "@assistant-ui/react-native";
 import { useTheme } from "@/hooks/use-theme";
 import { Radius, Spacing } from "@/constants/theme";
 import { haptics } from "@/lib/haptics";
@@ -60,10 +60,10 @@ function EmptyState() {
 function ChatMessages() {
   return (
     <>
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <EmptyState />
-      </ThreadPrimitive.Empty>
-      <ThreadPrimitive.If empty={false}>
+      </AuiIf>
+      <AuiIf condition={(s) => !s.thread.isEmpty}>
         <ThreadPrimitive.MessagesFlatList
           style={styles.flex}
           contentContainerStyle={styles.messageList}
@@ -71,7 +71,7 @@ function ChatMessages() {
         >
           {() => <MessageBubble />}
         </ThreadPrimitive.MessagesFlatList>
-      </ThreadPrimitive.If>
+      </AuiIf>
     </>
   );
 }

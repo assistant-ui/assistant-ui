@@ -83,6 +83,7 @@ const useTriggerSelectionResource = ({
       aui.composer.setText(
         before + directive + (after.startsWith(" ") ? after : ` ${after}`),
       );
+      setCursorPosition(before.length + directive.length + 1);
     };
 
     if (behavior.kind === "directive") {
@@ -93,6 +94,7 @@ const useTriggerSelectionResource = ({
         aui.composer.setText(
           before + (after.startsWith(" ") ? after.slice(1) : after),
         );
+        setCursorPosition(before.length);
       } else {
         // Leave directive chip in the composer as an audit trail
         insertDirective();

@@ -100,7 +100,7 @@ Timing is tracked automatically on the client side by observing streaming state 
 </Callout>
 
 ```tsx
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 const runtime = useChatRuntime();
 // useMessageTiming() works out of the box
@@ -174,14 +174,20 @@ const runtime = useLangGraphRuntime({ stream: myStream });
 // useMessageTiming() works out of the box
 ```
 
-### AG-UI (`useAgUiThreadRuntime`)
+### AG-UI (`useAgUiRuntime`)
 
 Timing is tracked automatically on the client side by the AG-UI run aggregator. Each emitted message includes timing metadata computed from stream chunk observations.
 
 ```tsx
-import { useAgUiThreadRuntime } from "@assistant-ui/react-ag-ui";
+import { useMemo } from "react";
+import { useAgUiRuntime } from "@assistant-ui/react-ag-ui";
+import { HttpAgent } from "@ag-ui/client";
 
-const runtime = useAgUiThreadRuntime({ runtimeUrl: "..." });
+const agent = useMemo(
+  () => new HttpAgent({ url: "http://localhost:8000/agent" }),
+  [],
+);
+const runtime = useAgUiRuntime({ agent });
 // useMessageTiming() works out of the box
 ```
 

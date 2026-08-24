@@ -1,5 +1,247 @@
 # @assistant-ui/react
 
+## 0.15.16
+
+### Patch Changes
+
+- [#6136](https://github.com/assistant-ui/assistant-ui/pull/6136) [`f7bd2d9`](https://github.com/assistant-ui/assistant-ui/commit/f7bd2d9392e1e71750012fa87649002e8c9d1dab) - fix: keep DevTools updates flowing when a subscriber throws ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6055](https://github.com/assistant-ui/assistant-ui/pull/6055) [`1f3eaa7`](https://github.com/assistant-ui/assistant-ui/commit/1f3eaa77897e617efa977f4d194de7e6013a0de5) - fix: contain SandboxHost render failures after teardown ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6110](https://github.com/assistant-ui/assistant-ui/pull/6110) [`48f95b1`](https://github.com/assistant-ui/assistant-ui/commit/48f95b1442c4e9f744660b8e25e7aceb9b5ba5dc) - chore: delete the dead `ensureBinding` and `useRuntimeState` utilities ([@samdickson22](https://github.com/samdickson22))
+  
+  `src/context/react/utils/ensureBinding.ts` and
+  `src/context/react/utils/useRuntimeState.ts` imported only each other. Nothing
+  else in the repo referenced them, neither appears in the package barrel or the
+  api-surface snapshot, and the `"."`-only exports map made them unreachable to
+  consumers. `ensureBinding` was an external caller of `__internal_bindMethods`
+  that no longer had a caller of its own; the runtime classes bind themselves in
+  their constructors, so nothing changes at runtime. The public API surface is
+  unchanged and every other emitted file is byte-identical.
+
+- [#6156](https://github.com/assistant-ui/assistant-ui/pull/6156) [`9c65b51`](https://github.com/assistant-ui/assistant-ui/commit/9c65b511bc7cdc7d6699c128cac4650cae728043) - deprecate leftover Primitive.If and Empty wrappers on react-native and react-ink, and point them at AuiIf ([@okisdev](https://github.com/okisdev))
+  
+  ThreadIf now reads `thread.isEmpty` instead of `messages.length === 0`, matching the loading-aware field already used by ThreadEmpty and AuiIf. First-party examples and docs samples that still called the leftover wrappers now use `AuiIf` directly.
+
+- [#6084](https://github.com/assistant-ui/assistant-ui/pull/6084) [`ca9e72c`](https://github.com/assistant-ui/assistant-ui/commit/ca9e72ce85a9164b11947f9b7a38fb5801f7d04e) - fix: resync trigger popover cursor after selection ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6054](https://github.com/assistant-ui/assistant-ui/pull/6054) [`59e9a08`](https://github.com/assistant-ui/assistant-ui/commit/59e9a0881c3c392dd0f92508deab78aa50ddd605) - fix: handle rejected asynchronous Markdown exports ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6098](https://github.com/assistant-ui/assistant-ui/pull/6098) [`b9b9dad`](https://github.com/assistant-ui/assistant-ui/commit/b9b9dad28af0fc7c873d0b653830c0f1a78197ed) - fix: drain unrevealed smooth text when a message completes before any frame ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6061](https://github.com/assistant-ui/assistant-ui/pull/6061) [`75dfbe3`](https://github.com/assistant-ui/assistant-ui/commit/75dfbe3a2b7c3af61793fc1448e06d2d0063767a) - docs: document Escape-to-stop-speaking on ThreadPrimitive.Root ([@samdickson22](https://github.com/samdickson22))
+
+- [#6124](https://github.com/assistant-ui/assistant-ui/pull/6124) [`06b04a7`](https://github.com/assistant-ui/assistant-ui/commit/06b04a7976d10fac3af40ae9ca59b52385ef2ae2) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`fa30915`](https://github.com/assistant-ui/assistant-ui/commit/fa309156e033dc085c0d3b8fb97c27c81a3d2c6e), [`b355aef`](https://github.com/assistant-ui/assistant-ui/commit/b355aefbe2403025562f0e08494a57450bfdc049), [`f7bd2d9`](https://github.com/assistant-ui/assistant-ui/commit/f7bd2d9392e1e71750012fa87649002e8c9d1dab), [`4947ef4`](https://github.com/assistant-ui/assistant-ui/commit/4947ef4f9b0956bd4ca21c457b3cc7e79a2fc9e0), [`332f736`](https://github.com/assistant-ui/assistant-ui/commit/332f736e64bfa26f76cd60318279697ddbc0b36d), [`ef9254d`](https://github.com/assistant-ui/assistant-ui/commit/ef9254d5b2174fb4b58b4e954a8a0d60910a484c), [`9c65b51`](https://github.com/assistant-ui/assistant-ui/commit/9c65b511bc7cdc7d6699c128cac4650cae728043), [`5845ba7`](https://github.com/assistant-ui/assistant-ui/commit/5845ba7c5690af776701683fbd2d04e9ca0eaaff), [`1b30bfd`](https://github.com/assistant-ui/assistant-ui/commit/1b30bfdabadfe3613b7c98296de3d6665122136b), [`365e763`](https://github.com/assistant-ui/assistant-ui/commit/365e763928ff38d2de518efa2a7c44249afbbf83), [`d19921d`](https://github.com/assistant-ui/assistant-ui/commit/d19921d3739efb53dcbbb1ae04ffd18a94dca080), [`996aa57`](https://github.com/assistant-ui/assistant-ui/commit/996aa5723cf8d7db00cc72da08713226d90ec0e1), [`21d6e87`](https://github.com/assistant-ui/assistant-ui/commit/21d6e87dc2834af11babb93c004f7d4f3a4f9568), [`cd247e5`](https://github.com/assistant-ui/assistant-ui/commit/cd247e557b4876c49feb9b79c4f5149cc2271dad), [`f2b3ef8`](https://github.com/assistant-ui/assistant-ui/commit/f2b3ef8b6330e9353741973b0bfe0abf37d81e70), [`1bf263b`](https://github.com/assistant-ui/assistant-ui/commit/1bf263ba208668ead7f6c0786ca0c3064e31c3ab), [`19e52c4`](https://github.com/assistant-ui/assistant-ui/commit/19e52c4012a6a8c32e514134af9ce4eee1146864), [`06b04a7`](https://github.com/assistant-ui/assistant-ui/commit/06b04a7976d10fac3af40ae9ca59b52385ef2ae2), [`a614b5e`](https://github.com/assistant-ui/assistant-ui/commit/a614b5e44df5f59d82b63b60132a41c89f82e185), [`07b51db`](https://github.com/assistant-ui/assistant-ui/commit/07b51dbbc749c94023fa25df99bb7f64dc211ff1), [`92e52bd`](https://github.com/assistant-ui/assistant-ui/commit/92e52bd2c99ee8cacd242bf723f617df64e42e2a)]:
+  - @assistant-ui/core@0.3.15
+  - @assistant-ui/tap@0.9.14
+  - assistant-stream@0.3.39
+
+## 0.15.15
+
+### Patch Changes
+
+- [#6071](https://github.com/assistant-ui/assistant-ui/pull/6071) [`c3fd447`](https://github.com/assistant-ui/assistant-ui/commit/c3fd447f23cbaa36381b2f62058b420bd54cc148) - feat: host assistant-cloud thread lists on AISDKThreads via RemoteThreadList ([@okisdev](https://github.com/okisdev))
+  
+  AISDKThreads({ cloud }) uses RemoteThreadList and remounts each thread like useChatRuntime. Cloud history withFormat resolves persistence per call so one adapter can serve many threads. useExternalHistory waits for threadListItem.remoteId instead of latching on the first empty paint.
+
+- [#5872](https://github.com/assistant-ui/assistant-ui/pull/5872) [`f9529bf`](https://github.com/assistant-ui/assistant-ui/commit/f9529bfdea5018505ef393fe46e93809a0012032) - feat: move useAssistantTransportRuntime into core/react ([@okisdev](https://github.com/okisdev))
+
+- [#5872](https://github.com/assistant-ui/assistant-ui/pull/5872) [`f9529bf`](https://github.com/assistant-ui/assistant-ui/commit/f9529bfdea5018505ef393fe46e93809a0012032) - fix: persist data message parts in aui/v0 cloud history ([@okisdev](https://github.com/okisdev))
+
+- [#5839](https://github.com/assistant-ui/assistant-ui/pull/5839) [`24a1af7`](https://github.com/assistant-ui/assistant-ui/commit/24a1af7607a29e5026f1de77a24e0b3efa76bca4) - fix: validate MCP App resource responses ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5817](https://github.com/assistant-ui/assistant-ui/pull/5817) [`dab7b7a`](https://github.com/assistant-ui/assistant-ui/commit/dab7b7af71773db87a729d7233035187a10a60db) - fix: dispose sandbox frames when bridge setup fails ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6005](https://github.com/assistant-ui/assistant-ui/pull/6005) [`4326079`](https://github.com/assistant-ui/assistant-ui/commit/4326079bfca7cdaac75497958be39e132343b26c) - feat: move useCloudThreadListRuntime into core/react and drop the unused react copy of the aui/v0 codec ([@okisdev](https://github.com/okisdev))
+
+- [#5952](https://github.com/assistant-ui/assistant-ui/pull/5952) [`3e2fa6e`](https://github.com/assistant-ui/assistant-ui/commit/3e2fa6e5ccff300cd7016f530dfa60b356e51127) - fix: await assistant transport response callbacks and cancel unfinished responses when they fail ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5990](https://github.com/assistant-ui/assistant-ui/pull/5990) [`f439663`](https://github.com/assistant-ui/assistant-ui/commit/f4396635f7696371a9e9f94fd3e79ebea85d0bbf) - fix: keep bottom follow through a content-growth undershoot ([@okisdev](https://github.com/okisdev))
+
+- [#5891](https://github.com/assistant-ui/assistant-ui/pull/5891) [`a20c2ef`](https://github.com/assistant-ui/assistant-ui/commit/a20c2ef2032e1a71c234e267420d88072f1c8857) - fix: refresh live completion results after their data source changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5406](https://github.com/assistant-ui/assistant-ui/pull/5406) [`f2c37ec`](https://github.com/assistant-ui/assistant-ui/commit/f2c37ecaea1b1e74b104fc96a615d40c2d14fb64) - fix: keep MCP App error replies reliable when error callbacks throw ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5981](https://github.com/assistant-ui/assistant-ui/pull/5981) [`f28ffae`](https://github.com/assistant-ui/assistant-ui/commit/f28ffaee6ec4219792dd5523a56eb26b6a53a614) - fix: isolate MCP App notification callback errors ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5942](https://github.com/assistant-ui/assistant-ui/pull/5942) [`285392a`](https://github.com/assistant-ui/assistant-ui/commit/285392a967d3d3688f9c2b1d738fa095e72fa1be) - fix: isolate assistant transport lifecycle callback failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5959](https://github.com/assistant-ui/assistant-ui/pull/5959) [`9d920cc`](https://github.com/assistant-ui/assistant-ui/commit/9d920cc89c25459e602ee0c3037b5f84fd626e01) - fix: InMemoryThreadList restarts with a fresh thread when the last one is deleted, notifies the new onDelete callback, and applies deletes batch-safely; the export is now sourced from the core store entry ([@okisdev](https://github.com/okisdev))
+
+- [#5618](https://github.com/assistant-ui/assistant-ui/pull/5618) [`82e2bde`](https://github.com/assistant-ui/assistant-ui/commit/82e2bde62d0b3b31ec445c939c719ab72cd8ff23) - fix: top-anchor turn clears skip turns that are still valid ([@Yonom](https://github.com/Yonom))
+
+- [#6037](https://github.com/assistant-ui/assistant-ui/pull/6037) [`f5b39d4`](https://github.com/assistant-ui/assistant-ui/commit/f5b39d415b447d881bf269d08577d31a9646b0fd) - feat: add `RemoteThreadListAdapter.unstable_useAdapters` so the `RemoteThreadList` store entry can load per-thread history without rendering `unstable_Provider` ([@okisdev](https://github.com/okisdev))
+
+- [#6020](https://github.com/assistant-ui/assistant-ui/pull/6020) [`26f40c1`](https://github.com/assistant-ui/assistant-ui/commit/26f40c1304b5b4dcd081303bd69a5ec95a37334e) - feat: add a `RemoteThreadList` store entry so any `AssistantClient` host can run a remote thread list from a `RemoteThreadListAdapter` and a `thread` factory ([@okisdev](https://github.com/okisdev))
+
+- [#5992](https://github.com/assistant-ui/assistant-ui/pull/5992) [`adcfe01`](https://github.com/assistant-ui/assistant-ui/commit/adcfe01e6d5b7bb8bf28d00de033c150dc76fe53) - fix: preserve bottom follow through viewport clicks and cancel stale auto-scroll frames ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5499](https://github.com/assistant-ui/assistant-ui/pull/5499) [`5dff06c`](https://github.com/assistant-ui/assistant-ui/commit/5dff06ca363fb8cfd857bfc5ede786c4a1d82872) - fix: keep Escape-to-stop-speaking active when message action bars are hidden by moving the shortcut to `ThreadPrimitive.Root`; custom compositions must mount the root to enable it ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6058](https://github.com/assistant-ui/assistant-ui/pull/6058) [`837ef1b`](https://github.com/assistant-ui/assistant-ui/commit/837ef1b21fead90a2a4176f209dbb01ed6ccae62) - fix: render system messages safely when editing components are omitted ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5914](https://github.com/assistant-ui/assistant-ui/pull/5914) [`0d2e23f`](https://github.com/assistant-ui/assistant-ui/commit/0d2e23f5597c2500da03ac417bfee1defd2d808e) - feat: new `threads.selectionChanged` event carrying `threadId` and `previousThreadId`; deprecate `threadListItem.switchedTo`/`switchedAway` in its favor. Un-deprecate the semantically meaningful events (`thread.runStart`, `thread.runEnd`, `thread.initialize`, `composer.send`, `composer.attachmentAdd`). ([@Yonom](https://github.com/Yonom))
+  
+  The new event fires in situations where the deprecated pair did not, so the selection-driven defaults (`scrollToBottomOnThreadSwitch`, `unstable_focusOnThreadSwitched`) now engage there too: `InMemoryThreadList` emits on selection changes (it previously emitted no switch events at all), `switchToNewThread()` emits for the newly created thread, and runtimes that resolve a deep-linked `threadId`/`initialThreadId` after mount (`useRemoteThreadListRuntime`) emit when the deep link resolves, with the initial placeholder thread as `previousThreadId`.
+
+- [#5838](https://github.com/assistant-ui/assistant-ui/pull/5838) [`2a512eb`](https://github.com/assistant-ui/assistant-ui/commit/2a512eb24b2db3d338e65fedd13b60c7ba6f3cdc) - fix: handle synchronous live completion failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5631](https://github.com/assistant-ui/assistant-ui/pull/5631) [`7ea9de1`](https://github.com/assistant-ui/assistant-ui/commit/7ea9de1204687585297c62981183015cac0baa99) - feat: runtime suggestions can carry a display title and label ([@samdickson22](https://github.com/samdickson22))
+  
+  `ThreadSuggestion` gains optional `title` and `label`, so an adapter can show a
+  short pill while still sending the full `prompt`. `useThreadSuggestions` now
+  passes them through instead of hardcoding `title: prompt`, falling back to
+  `title ?? prompt` and `label ?? ""` so prompt-only suggestions render exactly as
+  before. `SuggestionConfig` is unchanged; the change is additive.
+- Updated dependencies [[`99c5302`](https://github.com/assistant-ui/assistant-ui/commit/99c530260e625c4c63a06701ef40bda0ef6b41a6), [`ac0c836`](https://github.com/assistant-ui/assistant-ui/commit/ac0c8364a0f25555f693e4354d07c411e65f5489), [`c3fd447`](https://github.com/assistant-ui/assistant-ui/commit/c3fd447f23cbaa36381b2f62058b420bd54cc148), [`f9529bf`](https://github.com/assistant-ui/assistant-ui/commit/f9529bfdea5018505ef393fe46e93809a0012032), [`f9529bf`](https://github.com/assistant-ui/assistant-ui/commit/f9529bfdea5018505ef393fe46e93809a0012032), [`bd01e8b`](https://github.com/assistant-ui/assistant-ui/commit/bd01e8bd38493565727644326997e1dd0c817d90), [`05b94bd`](https://github.com/assistant-ui/assistant-ui/commit/05b94bd5ec879fbf87165385028000eb01e47396), [`cef671d`](https://github.com/assistant-ui/assistant-ui/commit/cef671d63d173bd30fcef268b1539f1a64cf5f39), [`ef7f70d`](https://github.com/assistant-ui/assistant-ui/commit/ef7f70d4fc05195d6386f8e2d072d3deaef1e56a), [`4a2a76f`](https://github.com/assistant-ui/assistant-ui/commit/4a2a76f8ef3a9bb4d61e84e834bf22868c54b200), [`04e967c`](https://github.com/assistant-ui/assistant-ui/commit/04e967cb32eaea5c265533d3616845639dfcf3a2), [`39db2ff`](https://github.com/assistant-ui/assistant-ui/commit/39db2ff60c6392267d88bbc42d63aa32dd9be0fe), [`0e91e27`](https://github.com/assistant-ui/assistant-ui/commit/0e91e277ebe218e891d1c318a18eec230ee4f981), [`c5bc8ed`](https://github.com/assistant-ui/assistant-ui/commit/c5bc8ed0c78e8fb66a6c21c596765caeccef3aec), [`a2a753b`](https://github.com/assistant-ui/assistant-ui/commit/a2a753b71cf8e2c531a8006060eb9931a44824d8), [`2b0fec7`](https://github.com/assistant-ui/assistant-ui/commit/2b0fec76d8abff2b013aa05eb2a5d62545325da2), [`bec0753`](https://github.com/assistant-ui/assistant-ui/commit/bec075348dbdcd377c38074dd179d2751463ba35), [`4326079`](https://github.com/assistant-ui/assistant-ui/commit/4326079bfca7cdaac75497958be39e132343b26c), [`3d68b16`](https://github.com/assistant-ui/assistant-ui/commit/3d68b168e23bb0fd63853b41368d46f8199a3874), [`98795aa`](https://github.com/assistant-ui/assistant-ui/commit/98795aa266f724d512b973d791ce08fe4c21c2c5), [`9d920cc`](https://github.com/assistant-ui/assistant-ui/commit/9d920cc89c25459e602ee0c3037b5f84fd626e01), [`1b9c33d`](https://github.com/assistant-ui/assistant-ui/commit/1b9c33d114ab1589f0592fabda58ca63265265c6), [`d68918e`](https://github.com/assistant-ui/assistant-ui/commit/d68918ee5c862ca6a261a01ea0b961e7b2b66af2), [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7), [`87bf950`](https://github.com/assistant-ui/assistant-ui/commit/87bf95093f6b3f38406b5317545ce697e4979e6d), [`5a01343`](https://github.com/assistant-ui/assistant-ui/commit/5a01343f87ba3282004a08ef014dc3d51f3ce3cf), [`0f6e9e9`](https://github.com/assistant-ui/assistant-ui/commit/0f6e9e9b56c648249781cef7689f4587209948d0), [`f0d1d48`](https://github.com/assistant-ui/assistant-ui/commit/f0d1d48842b61c8f781771375e3893d189321c2d), [`b80a6be`](https://github.com/assistant-ui/assistant-ui/commit/b80a6be3db5b5558792e5e0e267db45c133d248e), [`01580e3`](https://github.com/assistant-ui/assistant-ui/commit/01580e3b8b660542743d63ed79dd02026bb649e4), [`ab7f49f`](https://github.com/assistant-ui/assistant-ui/commit/ab7f49fcb91b8a9d96408426da3259c99f619649), [`e8c53e9`](https://github.com/assistant-ui/assistant-ui/commit/e8c53e9ce2b687e0342cbb9158191300827f75e9), [`53ae80f`](https://github.com/assistant-ui/assistant-ui/commit/53ae80f67f7cd82f5af1751f1d73ade437ba7136), [`5f4dee5`](https://github.com/assistant-ui/assistant-ui/commit/5f4dee5e233c2918b61719ef1b91397bad856762), [`d79b87d`](https://github.com/assistant-ui/assistant-ui/commit/d79b87df08d4a7684831e1fa4a2ba8acea3938ff), [`645c56b`](https://github.com/assistant-ui/assistant-ui/commit/645c56bedafc493c022b782724e44872f9b6e4a9), [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e), [`2da61a3`](https://github.com/assistant-ui/assistant-ui/commit/2da61a3be3e8e3f61a4d9310b1845325c44d8ac7), [`0131fc7`](https://github.com/assistant-ui/assistant-ui/commit/0131fc741624dad2a0c2a60b4a29eb106e0511aa), [`a934d03`](https://github.com/assistant-ui/assistant-ui/commit/a934d03a14fb5e2afa6a7647b82a0018d4a66b1d), [`b6d7b2b`](https://github.com/assistant-ui/assistant-ui/commit/b6d7b2b1c553433784a5e52ac411c9c544d8d0c1), [`bc337af`](https://github.com/assistant-ui/assistant-ui/commit/bc337af975bb69c0127a7b42ae48790ab8e3440b), [`dc6eb2f`](https://github.com/assistant-ui/assistant-ui/commit/dc6eb2f9098e1fd9de112b44a5dfd46d3bcea249), [`ce57458`](https://github.com/assistant-ui/assistant-ui/commit/ce574588a32f806ebf37e9c2c4457569b1269348), [`ab7ead9`](https://github.com/assistant-ui/assistant-ui/commit/ab7ead9dae979daafd5fb423d4e636cb41b8ed26), [`067ef52`](https://github.com/assistant-ui/assistant-ui/commit/067ef528f725fb77a892049bd8d6bbc5422baaa4), [`f44163f`](https://github.com/assistant-ui/assistant-ui/commit/f44163f8030e8a12d33f1412de96ecdda4000f7c), [`e5bf0ef`](https://github.com/assistant-ui/assistant-ui/commit/e5bf0ef9739be0579bb4fb4bb175dc0cdd3143fc), [`a2ab997`](https://github.com/assistant-ui/assistant-ui/commit/a2ab997dc645923fa8ebbca5e8e050d467a69cf4), [`fc9dd90`](https://github.com/assistant-ui/assistant-ui/commit/fc9dd90e25db8635a42e8961f4e371ce09457523), [`0e2a230`](https://github.com/assistant-ui/assistant-ui/commit/0e2a23073b3b62ebd2e614858cd910c75886977c), [`d800f8b`](https://github.com/assistant-ui/assistant-ui/commit/d800f8bbee28f5fe3693f2ec2c8682f4dad2ae62), [`f5b39d4`](https://github.com/assistant-ui/assistant-ui/commit/f5b39d415b447d881bf269d08577d31a9646b0fd), [`26f40c1`](https://github.com/assistant-ui/assistant-ui/commit/26f40c1304b5b4dcd081303bd69a5ec95a37334e), [`f618ab6`](https://github.com/assistant-ui/assistant-ui/commit/f618ab692eed3662a60a15d474c1c16715edb012), [`d80e988`](https://github.com/assistant-ui/assistant-ui/commit/d80e9882c4ec0a7662df28546ddd92cc1f0b1fcd), [`7f944be`](https://github.com/assistant-ui/assistant-ui/commit/7f944be666ab4f59d35e68c721bfb93ca7551522), [`f37f595`](https://github.com/assistant-ui/assistant-ui/commit/f37f5952171240eb04c1fe3395d4c9afe4b5ccc8), [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7), [`1b9c33d`](https://github.com/assistant-ui/assistant-ui/commit/1b9c33d114ab1589f0592fabda58ca63265265c6), [`82e2bde`](https://github.com/assistant-ui/assistant-ui/commit/82e2bde62d0b3b31ec445c939c719ab72cd8ff23), [`52df42d`](https://github.com/assistant-ui/assistant-ui/commit/52df42da5d7c4e9610469f64b8e3fe8fd690d7cd), [`6c9e7dd`](https://github.com/assistant-ui/assistant-ui/commit/6c9e7ddf584394ce63c3bc5f17bafcb28face442), [`837ef1b`](https://github.com/assistant-ui/assistant-ui/commit/837ef1b21fead90a2a4176f209dbb01ed6ccae62), [`5c092ef`](https://github.com/assistant-ui/assistant-ui/commit/5c092efb81aab1afc75acb913ecd95f0c07b7365), [`2f3c638`](https://github.com/assistant-ui/assistant-ui/commit/2f3c638efb70313c6b64721a6edf15bb8d27bac9), [`8e77515`](https://github.com/assistant-ui/assistant-ui/commit/8e77515ce17d91240c5e0877b6a4b4c0a2ed548a), [`d9c355d`](https://github.com/assistant-ui/assistant-ui/commit/d9c355d25c6daf415283edf769b88c4c6786fd13), [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7), [`a14b347`](https://github.com/assistant-ui/assistant-ui/commit/a14b347c67a0a2dee1f77dbf8dc6035036bcd41d), [`e999f5d`](https://github.com/assistant-ui/assistant-ui/commit/e999f5d363731fb87f4890d89a65b75ca64413db), [`44d98d7`](https://github.com/assistant-ui/assistant-ui/commit/44d98d708b85d6f76cd48f923e78a25d9e4b5171), [`4320fc6`](https://github.com/assistant-ui/assistant-ui/commit/4320fc62de06f89370dd074bc19530ab97ddac15), [`d4b8845`](https://github.com/assistant-ui/assistant-ui/commit/d4b884535d60b19f0841e94e8e5ea5cd6e14a852), [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7), [`a279301`](https://github.com/assistant-ui/assistant-ui/commit/a27930133724dd6dafa7f6dcce6998e0bdc759e9), [`d7322c0`](https://github.com/assistant-ui/assistant-ui/commit/d7322c0ca223dd0d34d246e55055928270df60ff), [`8b0a836`](https://github.com/assistant-ui/assistant-ui/commit/8b0a836ec4a05a2b110780e7c325de7aec178af7), [`20efa42`](https://github.com/assistant-ui/assistant-ui/commit/20efa4206a7c08eb8df192305fb1e434d06a4bfc), [`833fbe8`](https://github.com/assistant-ui/assistant-ui/commit/833fbe84f12a23a8caebd121d60a32528e33378d), [`94a39ad`](https://github.com/assistant-ui/assistant-ui/commit/94a39ad218bea1228c3298756122acc312cf7218), [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7), [`74dca03`](https://github.com/assistant-ui/assistant-ui/commit/74dca0330e907428ec11b85fb1a33306368ddae7), [`7748e15`](https://github.com/assistant-ui/assistant-ui/commit/7748e15acf9d7d16701296e9ef89e1757ec346b3), [`72705c3`](https://github.com/assistant-ui/assistant-ui/commit/72705c39b3241a5a61919baeee3996ddbfe4cf48), [`0d2e23f`](https://github.com/assistant-ui/assistant-ui/commit/0d2e23f5597c2500da03ac417bfee1defd2d808e), [`4446d45`](https://github.com/assistant-ui/assistant-ui/commit/4446d458e8fc904b66f306749d4e389cb1c46e60), [`e8997d9`](https://github.com/assistant-ui/assistant-ui/commit/e8997d922d15d0de0d20558ce0735fa3e844f27f), [`bfe47b6`](https://github.com/assistant-ui/assistant-ui/commit/bfe47b699ca1ed7e6c222ad1fc5a33b21ec8a4af), [`ceb8c16`](https://github.com/assistant-ui/assistant-ui/commit/ceb8c166fe233fa8235b3ab4cece8f636c77a164), [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e), [`7ea9de1`](https://github.com/assistant-ui/assistant-ui/commit/7ea9de1204687585297c62981183015cac0baa99), [`72a6272`](https://github.com/assistant-ui/assistant-ui/commit/72a6272434a1e5964047c7158c49db37295e5f4e), [`51886b2`](https://github.com/assistant-ui/assistant-ui/commit/51886b2ce2e023708c3a07b3241f09181e57b418), [`3053195`](https://github.com/assistant-ui/assistant-ui/commit/3053195d8b62b1338335cb5b424f15cd5dda7c83), [`44e574f`](https://github.com/assistant-ui/assistant-ui/commit/44e574f8c17dd5603933ec74821eecd08e94e371), [`14c3b5a`](https://github.com/assistant-ui/assistant-ui/commit/14c3b5a25afe2b2f37760dfe8003818b2e4f72d3)]:
+  - @assistant-ui/tap@0.9.13
+  - @assistant-ui/core@0.3.14
+  - @assistant-ui/store@0.3.10
+  - assistant-cloud@0.1.41
+  - assistant-stream@0.3.38
+
+## 0.15.14
+
+### Patch Changes
+
+- [#5760](https://github.com/assistant-ui/assistant-ui/pull/5760) [`a4ac7dd`](https://github.com/assistant-ui/assistant-ui/commit/a4ac7dd94e9992070310acddff5e29f4e0693340) - fix: release replay response readers after completion, cancellation, and errors ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5764](https://github.com/assistant-ui/assistant-ui/pull/5764) [`47b9256`](https://github.com/assistant-ui/assistant-ui/commit/47b9256d417acda832cf93cd76f2c2714dd8ed6a) - fix: generate unique in-memory thread IDs ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5789](https://github.com/assistant-ui/assistant-ui/pull/5789) [`d3fece3`](https://github.com/assistant-ui/assistant-ui/commit/d3fece3b17487edbbeeedb903f0e8075f82b2dd7) - feat: give the composer its draft back when a send never reached the backend. a runtime that rejects `onNew` with the new `MessageNotSentError` restores the text, quote, and attachments the composer cleared at dispatch time, as long as nothing has claimed the composer since. that guard and that outcome are the ones `cancelRun` already applies to a trailing user message, so whichever fires first keeps the composer, and of several drafts queued behind one turn only the most recent is still restorable. an edit composer closes at dispatch, so a rejected edit is not restored. ([@okisdev](https://github.com/okisdev))
+
+- [#5828](https://github.com/assistant-ui/assistant-ui/pull/5828) [`685a069`](https://github.com/assistant-ui/assistant-ui/commit/685a06939edb9478d68258cab632f389c2742a05) - feat: wire `threads.reloadMainThread()` through the tap `ExternalThread` path via a new `onRefetchThread` callback, with the `refetchThread` capability derived from its presence ([@okisdev](https://github.com/okisdev))
+
+- [#5757](https://github.com/assistant-ui/assistant-ui/pull/5757) [`092585b`](https://github.com/assistant-ui/assistant-ui/commit/092585b6859eeca4d2947cbe858019f5a9d9e101) - fix: derive the suggestions scope from the thread so runtime-provided suggestions render through `ThreadPrimitive.Suggestions` ([#5529](https://github.com/assistant-ui/assistant-ui/issues/5529)) ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`a90db30`](https://github.com/assistant-ui/assistant-ui/commit/a90db30dbf1c73eb2ba8cc587cf157b1a04ce541), [`cfb5fab`](https://github.com/assistant-ui/assistant-ui/commit/cfb5fab251784ce20722ec9371fd66137a9727f8), [`65e03a6`](https://github.com/assistant-ui/assistant-ui/commit/65e03a697366c62cc5295c28ae528634baaf2901), [`d3fece3`](https://github.com/assistant-ui/assistant-ui/commit/d3fece3b17487edbbeeedb903f0e8075f82b2dd7), [`4b75b8f`](https://github.com/assistant-ui/assistant-ui/commit/4b75b8f96729314a369879d26d8e4cd8321eac36), [`1e98bcf`](https://github.com/assistant-ui/assistant-ui/commit/1e98bcf3f406385f3c924521b73300c12898fea6), [`82cbc15`](https://github.com/assistant-ui/assistant-ui/commit/82cbc1560b069ba1dd7e9b068585f5c647629b36), [`e28a62d`](https://github.com/assistant-ui/assistant-ui/commit/e28a62d84439e93a32b64f166196cef2cb02e5db), [`8bba3aa`](https://github.com/assistant-ui/assistant-ui/commit/8bba3aaadcae042b4750436e6aa62bbba4815dde), [`48af3c5`](https://github.com/assistant-ui/assistant-ui/commit/48af3c5c4198b9f3fe015e77580922b2e4733e7a), [`22fa20f`](https://github.com/assistant-ui/assistant-ui/commit/22fa20ffd1f0d192c417b12d4512dcffeab5161b), [`00a630a`](https://github.com/assistant-ui/assistant-ui/commit/00a630aa93ce0a5e40f81fbf6ff1886275f72356), [`417efee`](https://github.com/assistant-ui/assistant-ui/commit/417efee92b48f3fac057d65200f85d4df8657fa0), [`1e1d52b`](https://github.com/assistant-ui/assistant-ui/commit/1e1d52bd2f08b8712764792a9d95b608cb365b64), [`c98699d`](https://github.com/assistant-ui/assistant-ui/commit/c98699d83b1fcc98511ca00e810e1c3d2ba019ba), [`685a069`](https://github.com/assistant-ui/assistant-ui/commit/685a06939edb9478d68258cab632f389c2742a05), [`f59d24b`](https://github.com/assistant-ui/assistant-ui/commit/f59d24b3ee7036c94bce7bc0a38f018574f50a69), [`092585b`](https://github.com/assistant-ui/assistant-ui/commit/092585b6859eeca4d2947cbe858019f5a9d9e101)]:
+  - @assistant-ui/core@0.3.13
+  - @assistant-ui/store@0.3.9
+  - assistant-cloud@0.1.40
+  - @assistant-ui/tap@0.9.12
+
+## 0.15.13
+
+### Patch Changes
+
+- [#5745](https://github.com/assistant-ui/assistant-ui/pull/5745) [`1df4327`](https://github.com/assistant-ui/assistant-ui/commit/1df4327dc915103bb1b64e01ee8d888c08de9f59) - refactor: move ExternalThread, SingleThreadList, and the Assistant augmentation namespace into @assistant-ui/core ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`1df4327`](https://github.com/assistant-ui/assistant-ui/commit/1df4327dc915103bb1b64e01ee8d888c08de9f59)]:
+  - @assistant-ui/core@0.3.12
+
+## 0.15.12
+
+### Patch Changes
+
+- [#5730](https://github.com/assistant-ui/assistant-ui/pull/5730) [`6c9560d`](https://github.com/assistant-ui/assistant-ui/commit/6c9560d145d8cd4699002ad305005e8b83a94342) - chore: drop dependencies that are never imported ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`f551562`](https://github.com/assistant-ui/assistant-ui/commit/f551562162f43b2bbeb2bb46d39b68243ca1d35a), [`dc7b77d`](https://github.com/assistant-ui/assistant-ui/commit/dc7b77dca65ad8d0384e8aec268a4141dc8bd0da), [`0ae51a8`](https://github.com/assistant-ui/assistant-ui/commit/0ae51a8e8c4c49c4b8810b9c64845eeeded8b9bc), [`d1b7097`](https://github.com/assistant-ui/assistant-ui/commit/d1b7097ca86e84698fcfaabd1b310e30612dd32c), [`e319574`](https://github.com/assistant-ui/assistant-ui/commit/e319574df10df2dbf2d57fc2bcf7cb92d3c6a2e6)]:
+  - @assistant-ui/core@0.3.11
+  - assistant-stream@0.3.37
+
+## 0.15.11
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#5722](https://github.com/assistant-ui/assistant-ui/pull/5722) [`7faf0fb`](https://github.com/assistant-ui/assistant-ui/commit/7faf0fb1fbc3e36f14ba4822446f95bf730c452b) - fix: ExternalThread edit composer reads editing state live, so a same-tick beginEdit + setText + send dispatches the edit; send before beginEdit and double beginEdit now throw (legacy runtime parity) ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8), [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967)]:
+  - assistant-stream@0.3.36
+  - assistant-cloud@0.1.39
+  - @assistant-ui/core@0.3.10
+  - safe-content-frame@0.0.27
+  - @assistant-ui/store@0.3.8
+  - @assistant-ui/tap@0.9.11
+
+## 0.15.10
+
+### Patch Changes
+
+- [#5720](https://github.com/assistant-ui/assistant-ui/pull/5720) [`ab9e765`](https://github.com/assistant-ui/assistant-ui/commit/ab9e765a2d70e30572c4a72c26526df490334b1e) - fix: route sourceId-carrying edit sends to onEdit instead of the queue adapter, and fail fast on beginEdit without an edit handler ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`ab9e765`](https://github.com/assistant-ui/assistant-ui/commit/ab9e765a2d70e30572c4a72c26526df490334b1e)]:
+  - @assistant-ui/core@0.3.9
+
+## 0.15.9
+
+### Patch Changes
+
+- [#5717](https://github.com/assistant-ui/assistant-ui/pull/5717) [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01) - Edit composer send always emits: an unchanged edit re-sends the message on a new branch instead of silently closing the composer. ([@Yonom](https://github.com/Yonom))
+
+- [#5713](https://github.com/assistant-ui/assistant-ui/pull/5713) [`f105884`](https://github.com/assistant-ui/assistant-ui/commit/f105884c3bde7c9c9e34c1b61d6ddc6411a053fe) - feat: feedback adapter support in ExternalThread ([@Yonom](https://github.com/Yonom))
+
+- [#5712](https://github.com/assistant-ui/assistant-ui/pull/5712) [`44f6a94`](https://github.com/assistant-ui/assistant-ui/commit/44f6a94530aa38277de6f1d74550faf0a32d402d) - feat: speech synthesis adapter support in ExternalThread ([@Yonom](https://github.com/Yonom))
+
+- [#5702](https://github.com/assistant-ui/assistant-ui/pull/5702) [`7d0265e`](https://github.com/assistant-ui/assistant-ui/commit/7d0265eb8f1753234a3d59a1f5517ea296c7c245) - fix: allow failed live completion searches to be retried ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5639](https://github.com/assistant-ui/assistant-ui/pull/5639) [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4) - feat: preserve app-authored reasoning summaries on message parts ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5701](https://github.com/assistant-ui/assistant-ui/pull/5701) [`ca49427`](https://github.com/assistant-ui/assistant-ui/commit/ca49427aa14d7d50afa3c0c2e88371881de59cb2) - fix: clear dropped assistant transport resume requests ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`456b056`](https://github.com/assistant-ui/assistant-ui/commit/456b056b2859994bf49ed5cc4cf031f0601e2174), [`99d09c8`](https://github.com/assistant-ui/assistant-ui/commit/99d09c828c04bfca35d091e73f29c6d6643dfb01), [`a88751d`](https://github.com/assistant-ui/assistant-ui/commit/a88751d71edfd2516f266ce8889081749fba4e5a), [`79253f2`](https://github.com/assistant-ui/assistant-ui/commit/79253f2a5e0a637c8907ba30859f308ff6dcd1c4), [`4e99deb`](https://github.com/assistant-ui/assistant-ui/commit/4e99deb80dc3401480f80c7bef31acbf86a71573), [`2af514c`](https://github.com/assistant-ui/assistant-ui/commit/2af514cabbf6d7d52cb0fd20ef8d1e842294ebb3)]:
+  - assistant-stream@0.3.35
+  - @assistant-ui/core@0.3.8
+  - @assistant-ui/store@0.3.7
+
+## 0.15.8
+
+### Patch Changes
+
+- Republish of 0.15.6 (registry staged-version conflicts blocked 0.15.6 and 0.15.7; contents identical).
+
+## 0.15.6
+
+### Patch Changes
+
+- [#5664](https://github.com/assistant-ui/assistant-ui/pull/5664) [`3b0d778`](https://github.com/assistant-ui/assistant-ui/commit/3b0d7789b912c5bde44f0fd102124d759cca5312) - fix: gate ComposerPrimitive.AttachmentDropzone on file drags and the attachments capability ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#5666](https://github.com/assistant-ui/assistant-ui/pull/5666) [`366da2b`](https://github.com/assistant-ui/assistant-ui/commit/366da2bb6463e819cc1806afd06b77e594d19c37) - fix(react): route only thread-composer sends into the queue adapter ([@Yonom](https://github.com/Yonom))
+
+- Updated dependencies [[`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a), [`4aa1b1d`](https://github.com/assistant-ui/assistant-ui/commit/4aa1b1d1b9368f4812b55a33d6f09bb3dcd71949), [`bd4c0ad`](https://github.com/assistant-ui/assistant-ui/commit/bd4c0ad3d41a65d0a2caea921f82c6502011615a)]:
+  - @assistant-ui/core@0.3.7
+  - @assistant-ui/store@0.3.5
+
+## 0.15.5
+
+### Patch Changes
+
+- [#5476](https://github.com/assistant-ui/assistant-ui/pull/5476) [`02b9dc1`](https://github.com/assistant-ui/assistant-ui/commit/02b9dc10df3132db534399367a8340b4c1b28d50) - fix: allow callers to override the default type="button" on action button primitives ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5564](https://github.com/assistant-ui/assistant-ui/pull/5564) [`31a427a`](https://github.com/assistant-ui/assistant-ui/commit/31a427a6b8d1faba6f046919c97b02729ec9c502) - fix: hydrate assistant transport resumes from their retained initial state ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5415](https://github.com/assistant-ui/assistant-ui/pull/5415) [`271d85d`](https://github.com/assistant-ui/assistant-ui/commit/271d85d2fc8a0428dc5bd826497f8d0e37b39451) - fix: AttachmentPrimitive.Thumb now renders custom children and supports asChild instead of always overriding them with the automatic label ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5421](https://github.com/assistant-ui/assistant-ui/pull/5421) [`e7a696c`](https://github.com/assistant-ui/assistant-ui/commit/e7a696c981feed1b6e655a6cdb01742ecb3cd6e3) - fix: AttachmentPrimitive.Thumb no longer renders a bare "." for extension-less filenames; falls back to the attachment type ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5430](https://github.com/assistant-ui/assistant-ui/pull/5430) [`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61) - feat: AuiProvider extends/config grammar. `config={AuiConfig({...})}` alone creates a top-level root client; nested providers must pass `extends` — a client to extend, or `null` to isolate (dev-enforced). An empty config creates a client extending the `extends` client; `ref` exposes the resulting client. The `config` prop only accepts configs built with `AuiConfig(...)` (branded type). AssistantRuntimeProvider gains an optional `config` prop whose scopes are provided alongside the runtime scope. The `useAui({...})` extension overload and the AuiProvider `value` prop are deprecated; `value={client}` now exposes a client extending the given one (same scopes, new identity) rather than the exact instance. `useAui({})` with an empty scope object now mounts a rooted host (so the scope set can grow across renders) instead of a passthrough derived-only client. `useAuiState` state enumeration (`Object.keys`/spread) now includes scopes inherited from parent clients, matching `in`-operator behavior. Clients derived from a hand-built parent (a plain object with `subscribe`/`on`) forward scoped `on(...)` listeners to the parent's `on` instead of throwing for scopes the parent does not expose. ([@Yonom](https://github.com/Yonom))
+
+- [#5416](https://github.com/assistant-ui/assistant-ui/pull/5416) [`c5b88f1`](https://github.com/assistant-ui/assistant-ui/commit/c5b88f1647578c2dd6b891924ae0248581e727af) - fix: ignore Escape during IME composition in ComposerPrimitiveInput so dismissing a composition candidate no longer cancels the composer ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5420](https://github.com/assistant-ui/assistant-ui/pull/5420) [`129d0c1`](https://github.com/assistant-ui/assistant-ui/commit/129d0c1203f193e82be61bfaf980f96f85365976) - fix: defer blob URL revocation in ActionBarPrimitive.ExportMarkdown so the download fetch can start before the URL is revoked ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5585](https://github.com/assistant-ui/assistant-ui/pull/5585) [`1160d8b`](https://github.com/assistant-ui/assistant-ui/commit/1160d8b273c635c52c3e9800bad0a733bb2db7ec) - fix: settle assistant transport runs when finish callbacks fail ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5418](https://github.com/assistant-ui/assistant-ui/pull/5418) [`cc85bf4`](https://github.com/assistant-ui/assistant-ui/commit/cc85bf4943a85905def4ad6b720780eab37aaa40) - fix: compose SelectionToolbarRoot onMouseDown with composeEventHandlers so user handlers run before preventDefault ([@ephraimduncan](https://github.com/ephraimduncan))
+
+- [#5650](https://github.com/assistant-ui/assistant-ui/pull/5650) [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f) - feat: two-lane, placement-aware message queue with steer-by-default mid-run sends ([@Yonom](https://github.com/Yonom))
+
+  `ExternalThreadQueueAdapter` is reshaped: `enqueue(message, { steer })` splits into
+  `enqueue(message)` / `steer(message)`, `steer(queueItemId)` becomes
+  `move(queueItemId, { lane: "steer", insertAfter: null })`, `clear(reason)` is dropped
+  (queue clear policy is now host-owned), and `steerItems` / `move` / `edit` and
+  `QueueItemState.parts` are required.
+
+- Updated dependencies [[`dcacd9b`](https://github.com/assistant-ui/assistant-ui/commit/dcacd9bc45117f9beca698006fd67616d2c1ca61), [`d52928d`](https://github.com/assistant-ui/assistant-ui/commit/d52928db2c83a3ba6f25bf8c6b21934571dd4622), [`d8a59ad`](https://github.com/assistant-ui/assistant-ui/commit/d8a59ad5d75f220e76e689d4191855c244ddc20a), [`e70da91`](https://github.com/assistant-ui/assistant-ui/commit/e70da91866a5ac880472fbcf23039909270f7623), [`aac3a8c`](https://github.com/assistant-ui/assistant-ui/commit/aac3a8cb8824472f694226a4c53829a0a693072e), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`aa302ee`](https://github.com/assistant-ui/assistant-ui/commit/aa302eeaacd399f58b74b64eb3a1e17d9ea97e03), [`71cf74e`](https://github.com/assistant-ui/assistant-ui/commit/71cf74eaa7fb3bcf1cc7af346637b51f99e3fc33), [`34cec64`](https://github.com/assistant-ui/assistant-ui/commit/34cec64fcfbdef0e101d731f5518e9075d989e2f)]:
+  - @assistant-ui/store@0.3.4
+  - @assistant-ui/core@0.3.6
+  - assistant-stream@0.3.34
+  - @assistant-ui/tap@0.9.10
+
 ## 0.15.4
 
 ### Patch Changes

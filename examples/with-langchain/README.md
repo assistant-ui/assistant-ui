@@ -2,7 +2,7 @@
 
 Demonstrates `@assistant-ui/react-langchain`, which wraps `useStream` from `@langchain/react` and exposes it as an assistant-ui runtime.
 
-> assistant-ui also ships `@assistant-ui/react-langgraph`, which integrates with `@langchain/langgraph-sdk` directly and currently has a broader feature set. Pick the adapter that matches your upstream choice. See [the comparison](https://www.assistant-ui.com/docs/runtimes/langchain/comparison).
+> assistant-ui also ships `@assistant-ui/react-langgraph`, which integrates with `@langchain/langgraph-sdk` directly and currently has a broader feature set. Pick the adapter that matches your upstream choice. See [the comparison](https://www.assistant-ui.com/docs/runtimes/langchain#comparison-with-react-langgraph).
 
 ## Quick Start
 
@@ -19,7 +19,7 @@ NEXT_PUBLIC_LANGGRAPH_API_URL=http://localhost:2024
 NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=your_graph_id
 ```
 
-Start a local LangGraph server via [LangGraph Studio](https://github.com/langchain-ai/langgraph-studio) pointing at your graph, or use [LangSmith](https://www.langchain.com/langsmith) for a hosted deployment.
+Start a local LangGraph server with [`npx @langchain/langgraph-cli dev`](https://docs.langchain.com/oss/javascript/langgraph/local-server), then inspect it in [LangSmith Studio](https://docs.langchain.com/langsmith/quick-start-studio). For a hosted deployment, use [LangSmith](https://www.langchain.com/langsmith).
 
 ### Run
 
@@ -44,4 +44,4 @@ Open [http://localhost:3000](http://localhost:3000).
 
 - [assistant-ui Documentation](https://www.assistant-ui.com/docs)
 - [LangChain useStream Integration](https://www.assistant-ui.com/docs/runtimes/langchain)
-- [react-langgraph vs react-langchain](https://www.assistant-ui.com/docs/runtimes/langchain/comparison)
+- [react-langgraph vs react-langchain](https://www.assistant-ui.com/docs/runtimes/langchain#comparison-with-react-langgraph)

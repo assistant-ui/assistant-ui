@@ -4,10 +4,10 @@ import { notFound } from "next/navigation";
 import { getMDXComponents } from "@/mdx-components";
 import { tapDocs } from "@/lib/source";
 import { findNeighbour, getPageTreePeers } from "fumadocs-core/page-tree";
-import { Card, Cards } from "@/components/docs/fumadocs/card";
-import { TableOfContents } from "@/components/docs/layout/table-of-contents";
-import { DocsPager } from "@/components/docs/layout/docs-pager";
-import { DocsFooter } from "@/components/docs/layout/docs-footer";
+import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
+import { TableOfContents } from "@/components/pages/docs/layout/table-of-contents";
+import { DocsPager } from "@/components/pages/docs/layout/docs-pager";
+import { DocsFooter } from "@/components/pages/docs/layout/docs-footer";
 import { createOgMetadata } from "@/lib/og";
 
 function DocsCategory({ url }: { url?: string }) {
@@ -70,7 +70,7 @@ export default async function Page(props: {
         enabled: false,
       }}
     >
-      <DocsBody>
+      <DocsBody data-page-content="">
         <header className="not-prose mb-8">
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-xl font-medium tracking-tight md:text-2xl">
@@ -83,7 +83,7 @@ export default async function Page(props: {
             />
           </div>
           {page.data.description && (
-            <p className="text-muted-foreground mt-2 text-sm md:text-base">
+            <p className="text-muted-foreground mt-2 max-w-2xl text-sm md:text-base">
               {page.data.description}
             </p>
           )}

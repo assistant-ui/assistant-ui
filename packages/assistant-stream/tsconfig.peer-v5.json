@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "paths": {
+      "ioredis": ["./node_modules/ioredis-v5"],
+      "ioredis/*": ["./node_modules/ioredis-v5/*"]
+    }
+  }
+}

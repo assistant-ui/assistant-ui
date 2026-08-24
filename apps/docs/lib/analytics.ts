@@ -1,15 +1,11 @@
+import type { LearnCourseStartSource } from "@/lib/xulux/learn/types";
+
 declare global {
   interface Window {
     posthog?: {
       capture?: (
         event: string,
         properties?: Record<string, string | number | boolean>,
-      ) => void;
-    };
-    umami?: {
-      track: (
-        event: string,
-        data?: Record<string, string | number | boolean>,
       ) => void;
     };
   }
@@ -43,9 +39,6 @@ const trackEvent = (event: string, properties?: AnalyticsProperties) => {
 
   // Vercel Analytics
   void getVercelTrack().then((track) => track?.(event, properties));
-
-  // Umami
-  window.umami?.track?.(event, properties);
 };
 
 export const analytics = {
@@ -62,14 +55,6 @@ export const analytics = {
 
     promptCopied: (properties?: AnalyticsProperties) =>
       trackEvent("prompt_copied", properties),
-  },
-
-  outbound: {
-    linkClicked: (
-      href: string,
-      label: string,
-      properties?: Record<string, string | number | boolean>,
-    ) => trackEvent("outbound_link_clicked", { ...properties, href, label }),
   },
 
   search: {
@@ -96,27 +81,6 @@ export const analytics = {
       trackEvent("code_block_copied", { language, source }),
   },
 
-  example: {
-    tabSwitched: (example: string) =>
-      trackEvent("example_tab_switched", { example }),
-  },
-
-  docs: {
-    navigationClicked: (pageName: string, pageUrl: string, depth: number) =>
-      trackEvent("doc_navigation_clicked", {
-        page_name: pageName,
-        page_url: pageUrl,
-        depth,
-      }),
-
-    folderToggled: (folderName: string, isOpen: boolean, depth: number) =>
-      trackEvent("doc_folder_toggled", {
-        folder_name: folderName,
-        is_open: isOpen,
-        depth,
-      }),
-  },
-
   builder: {
     presetSelected: (preset: string) =>
       trackEvent("builder_preset_selected", { preset }),
@@ -133,12 +97,6 @@ export const analytics = {
   },
 
   toc: {
-    linkClicked: (headingTitle: string, headingDepth: number) =>
-      trackEvent("toc_link_clicked", {
-        heading_title: headingTitle,
-        heading_depth: headingDepth,
-      }),
-
     actionClicked: (action: "copy" | "markdown" | "github" | "ask_ai") =>
       trackEvent("toc_action_clicked", { action }),
   },
@@ -281,6 +239,54 @@ export const analytics = {
   },
 
   xulux: {
+    learnPageViewed: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+      status: "not_started" | "in_progress" | "completed";
+    }) => trackEvent("learn_page_viewed", props),
+
+    learnCourseStarted: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+      source: LearnCourseStartSource;
+    }) => trackEvent("learn_course_started", props),
+
+    learnStepAdvanced: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+      step_id: string;
+      step_index: number;
+    }) => trackEvent("learn_step_advanced", props),
+
+    learnCourseCompleted: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+    }) => trackEvent("learn_course_completed", props),
+
+    learnCourseDownloaded: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+      stage_id: string;
+    }) => trackEvent("learn_course_downloaded", props),
+
+    learnCertificateSubmitted: (props: {
+      session_id: string;
+      thread_id?: string;
+      pathname?: string;
+      course_id: string;
+      consent: boolean;
+    }) => trackEvent("learn_certificate_submitted", props),
+
     playgroundViewed: (props: {
       session_id: string;
       thread_id?: string;

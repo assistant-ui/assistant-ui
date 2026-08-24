@@ -39,6 +39,8 @@ export interface MessageFormatAdapter<
 
 export type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
+  /** Snapshot the current thread so later writes survive a switch. */
+  pin?(): void;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
   update?(
     item: MessageFormatItem<TMessage>,

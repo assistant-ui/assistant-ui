@@ -221,6 +221,28 @@ export class CloudChatCore {
 
   private handleSyncError(err: unknown): void {
     const error = err instanceof Error ? err : new Error(String(err));
-    this.options.onSyncError?.(error);
+    const onSyncError = this.options.onSyncError;
+    if (!onSyncError) return;
+
+    const reportCallbackError = (callbackError: unknown) => {
+      console.error(
+        "[cloud-ai-sdk] onSyncError callback threw an error",
+        callbackError,
+      );
+    };
+
+    try {
+      const result = onSyncError(error) as unknown;
+      if (
+        result !== null &&
+        (typeof result === "object" || typeof result === "function") &&
+        "then" in result &&
+        typeof result.then === "function"
+      ) {
+        void Promise.resolve(result).catch(reportCallbackError);
+      }
+    } catch (callbackError) {
+      reportCallbackError(callbackError);
+    }
   }
 }

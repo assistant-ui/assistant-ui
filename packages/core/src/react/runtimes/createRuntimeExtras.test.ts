@@ -1,6 +1,10 @@
 import { describe, it, expect } from "vitest";
 import type { AssistantClient } from "@assistant-ui/store";
-import { createRuntimeExtras } from "./createRuntimeExtras";
+import {
+  createRuntimeExtras,
+  unstable_createRuntimeExtrasFromBrand,
+} from "./createRuntimeExtras";
+import { createRuntimeExtrasBrand } from "../../runtime/utils/runtime-extras-brand";
 
 type Extras = { value: number; greet: () => string };
 
@@ -54,5 +58,14 @@ describe("createRuntimeExtras", () => {
     const channel = createRuntimeExtras<Extras>("useTestRuntime");
 
     expect(() => channel.get(clientWith(undefined))).toThrow("useTestRuntime");
+  });
+
+  it("reads extras provided through a standalone brand instance", () => {
+    const brand = createRuntimeExtrasBrand<Extras>("useTestRuntime");
+    const channel = unstable_createRuntimeExtrasFromBrand(brand);
+    const branded = brand.provide({ value: 7, greet: () => "hi" });
+
+    expect(channel.is(branded)).toBe(true);
+    expect(channel.get(clientWith(branded)).value).toBe(7);
   });
 });

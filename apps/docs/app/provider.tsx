@@ -15,8 +15,7 @@ export function Provider({ children }: { children: ReactNode }) {
         position="top-center"
         toastOptions={{
           classNames: {
-            toast:
-              "!rounded-xl !border !bg-popover/95 !text-popover-foreground !shadow-lg !backdrop-blur-sm",
+            toast: "!rounded-xl !border !bg-popover !text-popover-foreground",
             title: "!text-sm !font-medium",
             description: "!text-sm !text-muted-foreground",
           },

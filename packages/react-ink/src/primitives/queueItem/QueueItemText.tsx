@@ -8,7 +8,13 @@ export const QueueItemText = ({
   children,
   ...textProps
 }: QueueItemTextProps) => {
-  const prompt = useAuiState((s) => s.queueItem.prompt);
+  const text = useAuiState((s) =>
+    // hosts on the pre-parts adapter shape may omit the field at runtime
+    (s.queueItem.parts ?? [])
+      .filter((part) => part.type === "text")
+      .map((part) => part.text)
+      .join("\n\n"),
+  );
 
-  return <Text {...textProps}>{children ?? prompt}</Text>;
+  return <Text {...textProps}>{children ?? text}</Text>;
 };

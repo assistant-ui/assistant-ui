@@ -39,6 +39,33 @@ const readErrorBody = async (res: Response): Promise<string | undefined> => {
   }
 };
 
+const invalidMcpAppResource = (options: McpAppsRemoteHostOptions): never => {
+  throw new Error(
+    `Invalid MCP App host response "mcp-apps/read-resource" from "${options.url}": expected a resource with non-empty string "uri" and "html" fields`,
+  );
+};
+
+const parseMcpAppResource = (
+  value: unknown,
+  options: McpAppsRemoteHostOptions,
+): McpAppResource => {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return invalidMcpAppResource(options);
+  }
+
+  const resource = value as Record<string, unknown>;
+  if (
+    typeof resource.uri !== "string" ||
+    resource.uri.trim() === "" ||
+    typeof resource.html !== "string" ||
+    resource.html.trim() === ""
+  ) {
+    return invalidMcpAppResource(options);
+  }
+
+  return value as McpAppResource;
+};
+
 async function postToHost(
   options: McpAppsRemoteHostOptions,
   method: string,
@@ -63,7 +90,14 @@ async function postToHost(
       `MCP App host request "${method}" to "${options.url}" failed with ${status}${body ? `: ${body}` : ""}`,
     );
   }
-  return res.json();
+  try {
+    return await res.json();
+  } catch (cause) {
+    throw new Error(
+      `Invalid MCP App host response "${method}" from "${options.url}": expected valid JSON`,
+      { cause },
+    );
+  }
 }
 
 /**
@@ -91,12 +125,13 @@ const useMcpAppsRemoteHost = (
       };
     };
     return {
-      loadResource: (params) =>
-        postToHost(
-          getCurrentOptions(),
-          "mcp-apps/read-resource",
-          params,
-        ) as Promise<McpAppResource>,
+      loadResource: async (params) => {
+        const options = getCurrentOptions();
+        return parseMcpAppResource(
+          await postToHost(options, "mcp-apps/read-resource", params),
+          options,
+        );
+      },
       callTool: (params) =>
         postToHost(getCurrentOptions(), "tools/call", params),
       readResource: (params) =>

@@ -2,6 +2,7 @@ import type {
   OAuthClientProvider,
   OAuthClientInformationFull,
   OAuthClientMetadata,
+  OAuthDiscoveryState,
   OAuthTokens,
 } from "@modelcontextprotocol/client";
 import type { MCPStorage } from "../resources/storage/types";
@@ -70,6 +71,7 @@ export function createOAuthProvider(
     tokens?: OAuthTokens | undefined;
     clientInformation?: OAuthClientInformationFull | undefined;
     codeVerifier?: string | undefined;
+    discoveryState?: OAuthDiscoveryState | undefined;
   };
   let cached: Cache | null = null;
 
@@ -89,6 +91,8 @@ export function createOAuthProvider(
       initial.clientInformation = persisted.clientInformation;
     }
     if (persisted?.codeVerifier) initial.codeVerifier = persisted.codeVerifier;
+    if (persisted?.discoveryState)
+      initial.discoveryState = persisted.discoveryState;
     cached = initial;
     return cached;
   };
@@ -100,6 +104,7 @@ export function createOAuthProvider(
     if (c.tokens) next.tokens = c.tokens;
     if (c.clientInformation) next.clientInformation = c.clientInformation;
     if (c.codeVerifier) next.codeVerifier = c.codeVerifier;
+    if (c.discoveryState) next.discoveryState = c.discoveryState;
     await storage.saveAuthState(serverId, next);
   };
 
@@ -161,11 +166,21 @@ export function createOAuthProvider(
       }
       return c.codeVerifier;
     },
+    async saveDiscoveryState(discoveryState) {
+      const c = await loadCache();
+      c.discoveryState = discoveryState;
+      await persist();
+    },
+    async discoveryState() {
+      const c = await loadCache();
+      return c.discoveryState;
+    },
     async invalidateCredentials(scope) {
       const c = await loadCache();
       if (scope === "all" || scope === "tokens") delete c.tokens;
       if (scope === "all" || scope === "client") delete c.clientInformation;
       if (scope === "all" || scope === "verifier") delete c.codeVerifier;
+      if (scope === "all" || scope === "discovery") delete c.discoveryState;
       await persist();
     },
   };

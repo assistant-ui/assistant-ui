@@ -4,7 +4,7 @@ description: Build stateful components and tool UIs that both the user and the m
 platforms: ["react"]
 ---
 
-import { InteractableSample } from "@/components/docs/samples/interactable";
+import { InteractableSample } from "@/components/pages/docs/samples/interactable";
 
 Interactables allow both agents and users to read and edit tool UIs and components. They can be in-thread tool UIs like an email composer, or app-scoped components, like artifacts, task boards, or settings panels.
 
@@ -46,7 +46,7 @@ import {
   AssistantRuntimeProvider,
   Tools,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
@@ -66,8 +66,9 @@ function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
 ```
 
 <Callout type="idea">
-  The legacy `interactables: Interactables()` scope and the new
-  `unstable_interactables: unstable_Interactables()` scope are mutually
+  The deprecated [`interactables:
+  Interactables()`](/docs/api-reference/tools/interactables-legacy) scope and the
+  new `unstable_interactables: unstable_Interactables()` scope are mutually
   exclusive. Mount only one interactables API in a single provider config.
 </Callout>
 
@@ -195,7 +196,7 @@ Each user message carries its state snapshots in its metadata, but the AI SDK's 
 ```ts title="app/api/chat/route.ts"
 import { openai } from "@ai-sdk/openai";
 import { convertToModelMessages, streamText } from "ai";
-import { unstable_injectInteractableContext as injectInteractableContext } from "@assistant-ui/react-ai-sdk";
+import { unstable_injectInteractableContext as injectInteractableContext } from "@assistant-ui/ai-sdk";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
@@ -629,7 +630,7 @@ function MyRuntimeProvider({ children }) {
 
 `load` is called when the adapter is attached and may be async. Loaded state seeds interactables as they register; a local edit made while a slow `load` is still in flight wins over the loaded value. Thread-scoped interactables are not touched by the adapter; they persist via thread history.
 
-For dynamic setups (an adapter that depends on auth), call `aui.interactables.setPersistenceAdapter(adapter)` imperatively instead.
+For dynamic setups (an adapter that depends on auth), call `aui.unstable_interactables.setPersistenceAdapter(adapter)` imperatively instead. Replacing or removing an adapter flushes queued changes through the outgoing adapter before the new persistence context is attached.
 
 ### Sync Status
 
@@ -711,7 +712,7 @@ Inside a thread-scoped `render`, `streaming: true` carries the same live state: 
 
 ## Multiple Instances
 
-A `name` can have many live instances at once. They all share one `update_{name}` tool: the model addresses an instance with the tool's `id` parameter, which it reads from the state snapshots in the conversation. The tool's name, schema, and description never change as instances mount and unmount, so the model's tool list (and provider prompt caches) stay stable. While exactly one instance exists, the model may omit `id`; a call with an unknown `id` returns an error listing the valid ids, so the model can recover.
+A `name` can have many live instances at once. They all share one `update_{name}` tool: the model addresses an instance with the tool's `id` parameter, which it reads from the state snapshots in the conversation. The tool's name, schema, and description never change as instances mount and unmount, so the model's tool list (and provider prompt caches) stay stable. The schema marks `id` as required, so the model is expected to send it on every call; the runtime still resolves an id-less call while exactly one instance exists. A call with an unknown `id` returns an error listing the valid ids, so the model can recover.
 
 How instances come into being differs by scope.
 

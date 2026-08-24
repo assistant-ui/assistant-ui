@@ -41,7 +41,8 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
     <Code {...getCodeProps(props)} />
   ));
 
-  const language = /language-(\w+)/.exec(codeProps.className || "")?.[1] ?? "";
+  const language =
+    /language-([^\s]+)/.exec(codeProps.className || "")?.[1] ?? "";
 
   // if the code content is not string (due to rehype plugins), return a default code block
   if (typeof children !== "string") {
@@ -70,7 +71,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
         SyntaxHighlighter,
         CodeHeader,
       }}
-      language={language || "unknown"}
+      language={language}
       code={children}
     />
   );

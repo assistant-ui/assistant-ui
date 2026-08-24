@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Header } from "@/components/shared/header";
 import { Footer } from "@/components/shared/footer";
-import { HomeAssistant } from "@/components/home/home-assistant";
+import { HomeAssistant } from "@/components/pages/home/home-assistant";
 import { getRepo } from "@/lib/github";
 
 export default async function Layout({

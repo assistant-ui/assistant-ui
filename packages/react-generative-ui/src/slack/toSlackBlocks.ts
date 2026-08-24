@@ -26,6 +26,7 @@ import {
   INPUT_LABEL_CAP,
   INTERACTIVE_TEXT_CAP,
   MARKDOWN_TEXT_BUDGET,
+  MAX_ELEMENT_DEPTH,
   MAX_TRAVERSAL_DEPTH,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
@@ -72,6 +73,14 @@ const INTERACTIVE_TYPES = new Set([
   "Checkbox",
   "RadioGroup",
 ]);
+
+/**
+ * Types whose control disappears when a card is reshaped to text. `Input` and
+ * `Form` are not in {@link INTERACTIVE_TYPES} because they emit their own
+ * block rather than an actions element, but a reshape loses them the same way,
+ * and a `Form` gets a Submit button whether or not it carries an action.
+ */
+const CONTROL_TYPES = new Set([...INTERACTIVE_TYPES, "Input", "Form"]);
 
 const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -201,6 +210,22 @@ const optionFrom = (
   };
 };
 
+const warnDroppedOptions = (
+  kept: number,
+  taken: number,
+  component: string,
+  context: ConversionContext,
+) => {
+  const dropped = taken - kept;
+  if (dropped === 0) return;
+  warn(
+    context,
+    "dropped",
+    component,
+    `${dropped} ${dropped === 1 ? "option was" : "options were"} dropped for want of a string label and value.`,
+  );
+};
+
 const toActionElement = (
   element: NormalizedUIElement,
   context: ConversionContext,
@@ -227,10 +252,16 @@ const toActionElement = (
           `options were clamped to ${SELECT_OPTION_CAP} entries.`,
         );
       }
-      const options = rawOptions
-        .slice(0, SELECT_OPTION_CAP)
+      const takenOptions = rawOptions.slice(0, SELECT_OPTION_CAP);
+      const options = takenOptions
         .map((option) => optionFrom(option, "Select", context))
         .filter((option): option is SlackOption => option !== undefined);
+      warnDroppedOptions(
+        options.length,
+        takenOptions.length,
+        "Select",
+        context,
+      );
       const placeholder = clampText(
         asString(props["placeholder"]),
         PLACEHOLDER_TEXT_CAP,
@@ -296,10 +327,16 @@ const toActionElement = (
           `options were clamped to ${RADIO_OPTION_CAP} entries.`,
         );
       }
-      const options = rawOptions
-        .slice(0, RADIO_OPTION_CAP)
+      const takenOptions = rawOptions.slice(0, RADIO_OPTION_CAP);
+      const options = takenOptions
         .map((option) => optionFrom(option, "RadioGroup", context))
         .filter((option): option is SlackOption => option !== undefined);
+      warnDroppedOptions(
+        options.length,
+        takenOptions.length,
+        "RadioGroup",
+        context,
+      );
       const selectedValue =
         typeof props["value"] === "string"
           ? props["value"]
@@ -582,10 +619,54 @@ const convertCard = (
   return [card];
 };
 
+/** The content kinds a reshaped carousel card cannot carry, in report order. */
+const LOST_CONTENT_KINDS = ["images", "tables", "charts", "controls"] as const;
+
+const listPhrase = (items: readonly string[]): string =>
+  items.length <= 1
+    ? (items[0] ?? "")
+    : `${items.slice(0, -1).join(", ")} and ${items[items.length - 1]}`;
+
+/**
+ * Collects the kinds of content a reshape drops, walking the same tree
+ * {@link collectText} does so a node nested below the top level counts too.
+ * These are exactly the pieces text cannot represent: an image has no text, a
+ * table and a chart carry theirs in array props, and a control is behavior,
+ * whether or not it carries an action of its own. An `$action` counts only on
+ * a node that renders a control from it, since a `Box` or a `Row` carrying one
+ * renders no control on the clean path either.
+ */
+const scanLostContent = (
+  node: NormalizedUINode | undefined,
+  into: Set<string>,
+  depth: number,
+): void => {
+  if (depth > MAX_TRAVERSAL_DEPTH) return;
+  if (Array.isArray(node)) {
+    for (const child of node) scanLostContent(child, into, depth + 1);
+    return;
+  }
+  if (node === undefined || !isElement(node)) return;
+  if (
+    CONTROL_TYPES.has(node.type) ||
+    (node.type === "ListViewItem" && isRecord(node.action)) ||
+    (node.type === "Card" &&
+      (isRecord(node.props["confirm"]) || isRecord(node.props["cancel"])))
+  ) {
+    into.add("controls");
+  }
+  if (node.type === "Image") into.add("images");
+  if (node.type === "Table") into.add("tables");
+  if (node.type === "Chart") into.add("charts");
+  scanLostContent(node.children, into, depth + 1);
+};
+
 /**
  * Degrades a card that cannot map cleanly into a title-and-body card block.
- * A carousel cannot fall back to a block sequence like a standalone card
- * can, so its content is clamped down to fit the card shape instead.
+ * A carousel cannot fall back to a block sequence like a standalone card can,
+ * so the card is reshaped to the two text fields the block has. Text reachable
+ * by {@link collectText} survives at any depth; an image, a table, a chart,
+ * and a control do not, and are reported separately from the reshape itself.
  */
 const degradeCard = (
   element: NormalizedUIElement,
@@ -596,14 +677,40 @@ const degradeCard = (
   const textChunks = collectText(element.children, depth + 1);
   const titleSource = rawTitle || textChunks[0] || "";
   const bodyChunks = rawTitle ? textChunks : textChunks.slice(1);
-  const titleText = titleSource.slice(0, CARD_TITLE_CAP);
-  const bodyText = bodyChunks.join("\n").slice(0, CARD_BODY_CAP);
+  const titleText = clampText(
+    titleSource,
+    CARD_TITLE_CAP,
+    "Card",
+    "title",
+    context,
+  );
+  const bodyText = clampText(
+    bodyChunks.join("\n"),
+    CARD_BODY_CAP,
+    "Card",
+    "body",
+    context,
+  );
   warn(
     context,
-    "clamped",
+    "fallback",
     "Card",
-    "A card inside a carousel was degraded to title and body.",
+    "A card inside a carousel was reshaped to title and body.",
   );
+  const lostKinds = new Set<string>();
+  if (isRecord(element.props["confirm"]) || isRecord(element.props["cancel"])) {
+    lostKinds.add("controls");
+  }
+  scanLostContent(element.children, lostKinds, depth + 1);
+  const lost = LOST_CONTENT_KINDS.filter((kind) => lostKinds.has(kind));
+  if (lost.length > 0) {
+    warn(
+      context,
+      "dropped",
+      "Card",
+      `A reshaped carousel card's ${listPhrase(lost)} were dropped.`,
+    );
+  }
   return buildCardBlock({
     ...(titleText ? { title: { type: "mrkdwn", text: titleText } } : {}),
     ...(bodyText ? { body: { type: "mrkdwn", text: bodyText } } : {}),
@@ -698,15 +805,47 @@ const convertListItem = (
   };
 };
 
+/**
+ * Converts a child whose output is thrown away, and reports whether anything
+ * was lost with it. A scratch context keeps the throwaway out of the shared
+ * markdown and data-table budgets that surviving blocks still need; only its
+ * `dropped` warnings are forwarded, because those describe the tree the caller
+ * wrote, while a clamp or a fallback would describe content never delivered.
+ */
+const discardedChild = (
+  child: NormalizedUINode,
+  context: ConversionContext,
+  depth: number,
+): boolean => {
+  const scratch: ConversionContext = { ...context, warnings: [] };
+  const produced = convertSequence(child, scratch, depth).length > 0;
+  const lost = scratch.warnings.filter((warning) => warning.code === "dropped");
+  context.warnings.push(...lost);
+  return produced || lost.length > 0;
+};
+
 const convertListView = (
   element: NormalizedUIElement,
   context: ConversionContext,
   depth: number,
 ): SlackBlock[] => {
-  const items = normalizedList(element.children).filter(
-    (child): child is NormalizedUIElement =>
-      isElement(child) && child.type === "ListViewItem",
-  );
+  const items: NormalizedUIElement[] = [];
+  let discarded = 0;
+  for (const child of normalizedList(element.children)) {
+    if (isElement(child) && child.type === "ListViewItem") {
+      items.push(child);
+      continue;
+    }
+    if (discardedChild(child, context, depth + 1)) discarded += 1;
+  }
+  if (discarded > 0) {
+    warn(
+      context,
+      "dropped",
+      "ListView",
+      `${discarded} non-item ${discarded === 1 ? "child was" : "children were"} dropped.`,
+    );
+  }
   return items.flatMap((item, index) => [
     ...(index > 0 ? [{ type: "divider" as const }] : []),
     convertListItem(item, context, depth + 1),
@@ -719,12 +858,21 @@ const convertCarousel = (
   depth: number,
 ): SlackBlock[] => {
   const cardChildren: NormalizedUIElement[] = [];
+  let droppedCards = 0;
   for (const child of normalizedList(element.children)) {
     if (isElement(child) && child.type === "Card") {
       cardChildren.push(child);
-    } else {
-      warn(context, "dropped", "Carousel", "A non-card child was dropped.");
+      continue;
     }
+    if (discardedChild(child, context, depth + 1)) droppedCards += 1;
+  }
+  if (droppedCards > 0) {
+    warn(
+      context,
+      "dropped",
+      "Carousel",
+      `${droppedCards} non-card ${droppedCards === 1 ? "child was" : "children were"} dropped.`,
+    );
   }
   if (cardChildren.length > CAROUSEL_CARD_CAP) {
     warn(
@@ -790,13 +938,22 @@ const convertTable = (
     );
   }
 
-  const columnHeaderRow: SlackDataTableCell[] = rawColumns
-    .slice(0, DATA_TABLE_COLUMN_CAP)
-    .filter(isRecord)
-    .map((column) => ({
-      type: "raw_text" as const,
-      text: asString(column["label"]),
-    }));
+  const takenColumns = rawColumns.slice(0, DATA_TABLE_COLUMN_CAP);
+  const unlabeled = takenColumns.filter(
+    (column) => !isRecord(column) || typeof column["label"] !== "string",
+  ).length;
+  if (unlabeled > 0) {
+    warn(
+      context,
+      "dropped",
+      "Table",
+      `${unlabeled} column ${unlabeled === 1 ? "header was" : "headers were"} left blank for want of a string label.`,
+    );
+  }
+  const columnHeaderRow: SlackDataTableCell[] = takenColumns.map((column) => ({
+    type: "raw_text" as const,
+    text: isRecord(column) ? asString(column["label"]) : "",
+  }));
   const dataRows: SlackDataTableCell[][] = rawRows
     .slice(0, DATA_TABLE_ROW_CAP)
     .map((row) =>
@@ -1283,7 +1440,7 @@ export function toSlackBlocks(
           : reason === "cycle"
             ? "a self-referencing node was dropped."
             : reason === "depth"
-              ? `nodes deeper than ${MAX_TRAVERSAL_DEPTH} levels were dropped.`
+              ? `nodes deeper than ${MAX_ELEMENT_DEPTH} levels were dropped.`
               : `children were clamped to ${CHILDREN_CAP} entries.`;
       warn(context, "clamped", "Root", detail);
     });

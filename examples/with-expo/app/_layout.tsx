@@ -32,6 +32,7 @@ function NewChatButton() {
   return (
     <Pressable
       accessibilityLabel="New chat"
+      accessibilityRole="button"
       hitSlop={8}
       onPress={() => {
         haptics.selection();

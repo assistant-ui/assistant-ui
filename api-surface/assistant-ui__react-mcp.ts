@@ -1,4 +1,4 @@
-import { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/client";
+import { OAuthClientInformationFull, OAuthDiscoveryState, OAuthTokens } from "@modelcontextprotocol/client";
 
 import { Primitive } from "@radix-ui/react-primitive";
 
@@ -145,6 +145,7 @@ type MCPPersistedAuthState = {
   tokens?: OAuthTokens;
   clientInformation?: OAuthClientInformationFull;
   codeVerifier?: string;
+  discoveryState?: OAuthDiscoveryState;
   token?: string;
 };
 

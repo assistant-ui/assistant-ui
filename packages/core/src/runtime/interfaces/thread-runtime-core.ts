@@ -17,6 +17,7 @@ import type {
   ThreadComposerRuntimeCore,
 } from "./composer-runtime-core";
 import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 
 export type RuntimeCapabilities = {
   readonly switchToBranch: boolean;
@@ -71,6 +72,11 @@ export type SubmitFeedbackOptions = {
 };
 
 export type ThreadSuggestion = {
+  /** Display heading for the suggestion. Falls back to the prompt when absent. */
+  title?: string;
+  /** Secondary display text shown alongside the title. */
+  label?: string;
+  /** The message text sent when the suggestion is selected. */
   prompt: string;
 };
 
@@ -155,6 +161,7 @@ export type ThreadRuntimeCore = Readonly<{
   startRun: (config: StartRunConfig) => void;
   resumeRun: (config: ResumeRunConfig) => void;
   cancelRun: () => void;
+  unstable_notifySessionReset: () => void;
 
   addToolResult: (options: AddToolResultOptions) => void;
   resumeToolCall: (options: ResumeToolCallOptions) => void;
@@ -177,7 +184,8 @@ export type ThreadRuntimeCore = Readonly<{
   beginEdit: (messageId: string) => void;
 
   getQueueItems?: () => readonly QueueItemState[];
-  steerQueueItem?: (queueItemId: string) => void;
+  getSteerQueueItems?: () => readonly QueueItemState[];
+  moveQueueItem?: (queueItemId: string, placement: QueuePlacement) => void;
   removeQueueItem?: (queueItemId: string) => void;
 
   speech: SpeechState | undefined;

@@ -1,5 +1,40 @@
 # @assistant-ui/react-ai-sdk
 
+## 1.4.7
+
+### Patch Changes
+
+- Updated dependencies [[`06b04a7`](https://github.com/assistant-ui/assistant-ui/commit/06b04a7976d10fac3af40ae9ca59b52385ef2ae2)]:
+  - @assistant-ui/ai-sdk@0.0.2
+
+## 1.4.6
+
+### Patch Changes
+
+- [#6071](https://github.com/assistant-ui/assistant-ui/pull/6071) [`c3fd447`](https://github.com/assistant-ui/assistant-ui/commit/c3fd447f23cbaa36381b2f62058b420bd54cc148) - feat: host assistant-cloud thread lists on AISDKThreads via RemoteThreadList ([@okisdev](https://github.com/okisdev))
+  
+  AISDKThreads({ cloud }) uses RemoteThreadList and remounts each thread like useChatRuntime. Cloud history withFormat resolves persistence per call so one adapter can serve many threads. useExternalHistory waits for threadListItem.remoteId instead of latching on the first empty paint.
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5923](https://github.com/assistant-ui/assistant-ui/pull/5923) [`ab2ee15`](https://github.com/assistant-ui/assistant-ui/commit/ab2ee155f70e93a713daf151f4f50957e0420675) - refactor: the package now re-exports `@assistant-ui/ai-sdk`. all existing imports keep working unchanged. ([@okisdev](https://github.com/okisdev))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`d68918e`](https://github.com/assistant-ui/assistant-ui/commit/d68918ee5c862ca6a261a01ea0b961e7b2b66af2), [`ab2ee15`](https://github.com/assistant-ui/assistant-ui/commit/ab2ee155f70e93a713daf151f4f50957e0420675), [`833fbe8`](https://github.com/assistant-ui/assistant-ui/commit/833fbe84f12a23a8caebd121d60a32528e33378d), [`9d920cc`](https://github.com/assistant-ui/assistant-ui/commit/9d920cc89c25459e602ee0c3037b5f84fd626e01), [`c3fd447`](https://github.com/assistant-ui/assistant-ui/commit/c3fd447f23cbaa36381b2f62058b420bd54cc148), [`bec0753`](https://github.com/assistant-ui/assistant-ui/commit/bec075348dbdcd377c38074dd179d2751463ba35), [`0f6e9e9`](https://github.com/assistant-ui/assistant-ui/commit/0f6e9e9b56c648249781cef7689f4587209948d0), [`9ad48f4`](https://github.com/assistant-ui/assistant-ui/commit/9ad48f40006c9d05fcd5a44c1bc47ae1f2e63754), [`be0f698`](https://github.com/assistant-ui/assistant-ui/commit/be0f698c766bff1a667d9ea3ef1f897cee54c540), [`f44163f`](https://github.com/assistant-ui/assistant-ui/commit/f44163f8030e8a12d33f1412de96ecdda4000f7c), [`9bb4735`](https://github.com/assistant-ui/assistant-ui/commit/9bb4735bbec2a22507e4dcad6aa8c691caef0a74)]:
+  - @assistant-ui/ai-sdk@0.0.1
+
+## 1.4.5
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8), [`ab57969`](https://github.com/assistant-ui/assistant-ui/commit/ab5796932c97bc5bade19022e2ac8762949d2967)]:
+  - assistant-stream@0.3.36
+  - assistant-cloud@0.1.39
+  - @assistant-ui/core@0.3.10
+  - @assistant-ui/store@0.3.8
+
 ## 1.4.4
 
 ### Patch Changes

@@ -109,6 +109,7 @@ function AttachButton() {
   return (
     <Pressable
       accessibilityLabel="Add image"
+      accessibilityRole="button"
       onPress={pickImage}
       hitSlop={6}
       style={({ pressed }) => [

@@ -64,4 +64,15 @@ export class ChatRegistry {
   getChatKeyForThread(threadId: string): string | undefined {
     return this.keyByThreadId.get(threadId);
   }
+
+  // The maps stay populated: stopping emits onFinish(isAbort) whose
+  // persistence path resolves this registry's meta, so the aborted partial
+  // run still saves through the scope it belongs to.
+  async stopAll(): Promise<void> {
+    await Promise.allSettled(
+      [...this.chatByKey.values()].map(async (chat) => {
+        await chat.stop();
+      }),
+    );
+  }
 }

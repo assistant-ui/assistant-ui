@@ -5,7 +5,6 @@ import "react-shiki/css";
 
 import {
   StreamdownTextPrimitive,
-  useIsStreamdownCodeBlock,
   type StreamdownTextComponents,
   type SyntaxHighlighterProps,
 } from "@assistant-ui/react-streamdown";
@@ -23,11 +22,14 @@ import { cn } from "@/lib/utils";
 import ShikiHighlighter from "react-shiki";
 import Link from "next/link";
 import { useCopyToClipboard } from "@assistant-ui/ui/hooks/use-copy-to-clipboard";
+import { parseXuluxFileReference } from "@/lib/xulux/learn/file-reference";
+import { LearnInlineFileReference } from "../learn/LearnFileView";
 
 const XuluxMarkdownTextImpl = () => {
   return (
     <StreamdownTextPrimitive
       containerClassName="aui-md-assistant"
+      preprocess={replaceCourseFileReferences}
       components={markdownComponents as StreamdownTextComponents}
       componentsByLanguage={{
         "open-in": {
@@ -47,6 +49,30 @@ const XuluxMarkdownTextImpl = () => {
 };
 
 export const XuluxMarkdownText = memo(XuluxMarkdownTextImpl);
+
+const LEARN_FILE_REFERENCE_FRAGMENT_PREFIX = "#xulux-file:course:";
+const LEARN_FILE_REFERENCE_PATTERN = /`(xulux-file:course:[^`\n]+)`/g;
+
+function replaceCourseFileReferences(text: string) {
+  return text.replace(LEARN_FILE_REFERENCE_PATTERN, (match, token: string) => {
+    const reference = parseXuluxFileReference(token);
+    if (!reference) return match;
+    return `[${reference.path}](${LEARN_FILE_REFERENCE_FRAGMENT_PREFIX}${encodeURIComponent(reference.path)})`;
+  });
+}
+
+function parseLearnFileReferenceFragment(href: string) {
+  if (!href.startsWith(LEARN_FILE_REFERENCE_FRAGMENT_PREFIX)) return null;
+  try {
+    return parseXuluxFileReference(
+      `xulux-file:course:${decodeURIComponent(
+        href.slice(LEARN_FILE_REFERENCE_FRAGMENT_PREFIX.length),
+      )}`,
+    );
+  } catch {
+    return null;
+  }
+}
 
 const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   const { isCopied, copyToClipboard } = useCopyToClipboard();
@@ -177,6 +203,13 @@ const markdownComponents = {
     target,
     rel,
   }: ComponentPropsWithoutRef<"a">) => {
+    const reference = href ? parseLearnFileReferenceFragment(href) : null;
+    if (reference) {
+      return (
+        <LearnInlineFileReference reference={reference} className={className} />
+      );
+    }
+
     const linkClass = cn(
       "text-primary hover:text-primary/80 underline underline-offset-2",
       className,
@@ -276,21 +309,5 @@ const markdownComponents = {
       {...props}
     />
   ),
-  code: function Code({
-    className,
-    ...props
-  }: ComponentPropsWithoutRef<"code">) {
-    const isCodeBlock = useIsStreamdownCodeBlock();
-    return (
-      <code
-        className={cn(
-          !isCodeBlock &&
-            "border-border/50 bg-muted/50 rounded-md border px-1.5 py-0.5 font-mono text-[0.85em]",
-          className,
-        )}
-        {...props}
-      />
-    );
-  },
   CodeHeader,
 };

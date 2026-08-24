@@ -1,3 +1,4 @@
+import { constants } from "node:os";
 import spawn from "cross-spawn";
 
 export interface LaunchOptions {
@@ -45,6 +46,12 @@ export function launch(options: LaunchOptions): void {
       process.exit(1);
     }
     throw result.error;
+  }
+
+  if (result.signal !== null) {
+    process.removeAllListeners(result.signal);
+    process.kill(process.pid, result.signal);
+    process.exit(128 + (constants.signals[result.signal] ?? 0));
   }
 
   if (result.status !== null && result.status !== 0) {

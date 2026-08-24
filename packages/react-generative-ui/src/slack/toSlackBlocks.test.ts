@@ -328,6 +328,21 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Select", () => {
+    it("reports options dropped for want of a string label and value", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Select",
+        options: [{ label: "ok", value: "a" }, { label: "bad" }, "nope"],
+      });
+      const select = (blocks[0] as SlackActionsBlock)
+        .elements[0] as SlackStaticSelectElement;
+      expect(select.options).toHaveLength(1);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Select",
+        detail: "2 options were dropped for want of a string label and value.",
+      });
+    });
+
     it("converts options and placeholder", () => {
       const { blocks } = toSlackBlocks({
         $type: "Select",
@@ -579,6 +594,18 @@ describe("toSlackBlocks", () => {
   });
 
   describe("RadioGroup", () => {
+    it("names RadioGroup when the same option loss happens there", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "RadioGroup",
+        options: [{ label: "ok", value: "a" }, { label: "bad" }],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "RadioGroup",
+        detail: "1 option was dropped for want of a string label and value.",
+      });
+    });
+
     const options = [
       { label: "Small", value: "s" },
       { label: "Large", value: "l" },
@@ -1118,7 +1145,7 @@ describe("toSlackBlocks", () => {
       expect(warnings).toContainEqual({
         code: "dropped",
         component: "Carousel",
-        detail: "A non-card child was dropped.",
+        detail: "1 non-card child was dropped.",
       });
     });
 
@@ -1149,9 +1176,214 @@ describe("toSlackBlocks", () => {
         },
       ]);
       expect(warnings).toContainEqual({
+        code: "fallback",
+        component: "Card",
+        detail: "A card inside a carousel was reshaped to title and body.",
+      });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
+    it("does not report a Caption as lost, since its text reaches the body", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              { $type: "Text", value: "body" },
+              { $type: "Caption", value: "fine print" },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      const card = (blocks[0] as SlackCarouselBlock).elements[0];
+      expect(card?.body).toEqual({ type: "mrkdwn", text: "body\nfine print" });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
+    it("reports the images and controls a reshaped card really loses", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            confirm: { label: "Buy", $action: { type: "buy" } },
+            children: [
+              { $type: "Image", src: "hero.png", alt: "hero" },
+              { $type: "Text", value: "body" },
+              { $type: "Caption", value: "fine print" },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      const card = (blocks[0] as SlackCarouselBlock).elements[0];
+      expect(card?.hero_image).toBeUndefined();
+      expect(card?.actions).toBeUndefined();
+      expect(card?.body).toEqual({ type: "mrkdwn", text: "body\nfine print" });
+      expect(warnings).toContainEqual({
+        code: "fallback",
+        component: "Card",
+        detail: "A card inside a carousel was reshaped to title and body.",
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Card",
+        detail: "A reshaped carousel card's images and controls were dropped.",
+      });
+    });
+
+    it.each([
+      ["tables", { $type: "Table", columns: [{ label: "A" }], rows: [["1"]] }],
+      ["charts", { $type: "Chart", series: [] }],
+      [
+        "images",
+        { $type: "ListViewItem", children: [{ $type: "Image", src: "x.png" }] },
+      ],
+      [
+        "controls",
+        {
+          $type: "ListViewItem",
+          children: [{ $type: "Button", label: "Go", $action: { type: "go" } }],
+        },
+      ],
+      ["controls", { $type: "Select", options: [{ label: "A", value: "a" }] }],
+      ["controls", { $type: "Input", name: "email", label: "Email" }],
+      [
+        "controls",
+        { $type: "Form", children: [{ $type: "Text", value: "inner" }] },
+      ],
+      [
+        "controls",
+        {
+          $type: "Card",
+          title: "nested",
+          confirm: { label: "Buy", $action: { type: "buy" } },
+        },
+      ],
+    ])(
+      "reports %s that a reshape cannot carry, however deep",
+      (kind, child) => {
+        const { warnings } = toSlackBlocks({
+          $type: "Carousel",
+          children: [
+            {
+              $type: "Card",
+              title: "Plan",
+              children: [
+                { $type: "Text", value: "b" },
+                child,
+                { $type: "Divider" },
+              ],
+            },
+          ],
+        });
+        expect(warnings).toContainEqual({
+          code: "dropped",
+          component: "Card",
+          detail: `A reshaped carousel card's ${kind} were dropped.`,
+        });
+      },
+    );
+
+    it("scans below a child whose text the reshape consumes", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              {
+                $type: "Text",
+                value: "body",
+                children: [{ $type: "Image", src: "x.png" }],
+              },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Card",
+        detail: "A reshaped carousel card's images were dropped.",
+      });
+    });
+
+    it("does not report a ListViewItem whose action renders no accessory", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              { $type: "Text", value: "body" },
+              { $type: "ListViewItem", title: "row", $action: "open" },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
+    it("does not report an action on a node that renders no control", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "Plan",
+            children: [
+              {
+                $type: "Box",
+                $action: { type: "open" },
+                children: [{ $type: "Text", value: "body" }],
+              },
+              { $type: "Divider" },
+            ],
+          },
+        ],
+      });
+      expect(warnings.some((warning) => warning.code === "dropped")).toBe(
+        false,
+      );
+    });
+
+    it("clamps a reshaped card's title and body instead of slicing them silently", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "Carousel",
+        children: [
+          {
+            $type: "Card",
+            title: "t".repeat(CARD_TITLE_CAP + 10),
+            children: [
+              { $type: "Text", value: "b".repeat(CARD_BODY_CAP + 10) },
+              { $type: "Fact", label: "L", value: "V" },
+            ],
+          },
+        ],
+      });
+      expect(warnings).toContainEqual({
         code: "clamped",
         component: "Card",
-        detail: "A card inside a carousel was degraded to title and body.",
+        detail: `title was clamped to ${CARD_TITLE_CAP} characters.`,
+      });
+      expect(warnings).toContainEqual({
+        code: "clamped",
+        component: "Card",
+        detail: `body was clamped to ${CARD_BODY_CAP} characters.`,
       });
     });
 
@@ -1360,6 +1592,27 @@ describe("toSlackBlocks", () => {
   });
 
   describe("Table", () => {
+    it.each([["A"], [{}], [{ label: 42 }]])(
+      "keeps an unlabeled column's position in the header and reports it: %j",
+      (column) => {
+        const { blocks, warnings } = toSlackBlocks({
+          $type: "Table",
+          columns: [column, { label: "B" }],
+          rows: [["1", "2"]],
+        });
+        const table = blocks[0] as SlackDataTableBlock;
+        expect(table.rows[0]).toEqual([
+          { type: "raw_text", text: "" },
+          { type: "raw_text", text: "B" },
+        ]);
+        expect(warnings).toContainEqual({
+          code: "dropped",
+          component: "Table",
+          detail: "1 column header was left blank for want of a string label.",
+        });
+      },
+    );
+
     it("converts columns and rows into a header-first rows array with typed cells", () => {
       const { blocks } = toSlackBlocks({
         $type: "Table",
@@ -1433,7 +1686,7 @@ describe("toSlackBlocks", () => {
     });
 
     it(`clamps rows to fit the ${DATA_TABLE_CHAR_BUDGET}-character table budget, always keeping the header row`, () => {
-      const bigCell = "z".repeat(2000);
+      const bigCell = "z".repeat(Math.ceil(DATA_TABLE_CHAR_BUDGET / 5));
       const rows = Array.from({ length: 6 }, (_, r) => [`row${r}`, bigCell]);
       const { blocks, warnings } = toSlackBlocks({
         $type: "Table",
@@ -1454,10 +1707,11 @@ describe("toSlackBlocks", () => {
     });
 
     it("shares the character budget across multiple data-table blocks in one payload", () => {
-      const filler = "f".repeat(9994);
+      const secondValue = "second";
+      const filler = "f".repeat(DATA_TABLE_CHAR_BUDGET - secondValue.length);
       const { blocks, warnings } = toSlackBlocks([
         { $type: "Table", columns: [{ label: "A" }], rows: [[filler]] },
-        { $type: "Table", columns: [{ label: "B" }], rows: [["second"]] },
+        { $type: "Table", columns: [{ label: "B" }], rows: [[secondValue]] },
       ]);
       const first = blocks[0] as SlackDataTableBlock;
       const second = blocks[1] as SlackDataTableBlock;
@@ -1509,6 +1763,41 @@ describe("toSlackBlocks", () => {
       });
       const table = blocks[0] as SlackDataTableBlock;
       expect(table.rows).toHaveLength(2);
+    });
+
+    it("emits Slack's documented ceiling of 200 data rows unclamped", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Table",
+        columns: [{ label: "n" }],
+        rows: Array.from({ length: 200 }, (_, r) => [String(r)]),
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows).toHaveLength(201);
+      expect(warnings).toEqual([]);
+    });
+
+    it("emits Slack's documented ceiling of 20,000 characters and clamps at 20,001", () => {
+      const atBudget = toSlackBlocks({
+        $type: "Table",
+        columns: [{ label: "h" }],
+        rows: [["c".repeat(19999)]],
+      });
+      expect((atBudget.blocks[0] as SlackDataTableBlock).rows).toHaveLength(2);
+      expect(atBudget.warnings).toEqual([]);
+
+      const overBudget = toSlackBlocks({
+        $type: "Table",
+        columns: [{ label: "h" }],
+        rows: [["c".repeat(20000)]],
+      });
+      expect((overBudget.blocks[0] as SlackDataTableBlock).rows).toHaveLength(
+        1,
+      );
+      expect(overBudget.warnings).toContainEqual({
+        code: "clamped",
+        component: "Table",
+        detail: "rows were clamped to fit the 20000-character table budget.",
+      });
     });
   });
 
@@ -1575,6 +1864,65 @@ describe("toSlackBlocks", () => {
   });
 
   describe("ListView and ListViewItem", () => {
+    it("forwards a discarded child's own dropped warning and counts it", () => {
+      const { warnings } = toSlackBlocks({
+        $type: "ListView",
+        children: [
+          { $type: "Mystery" },
+          { $type: "ListViewItem", children: { $type: "Text", value: "row" } },
+        ],
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "Mystery",
+        detail: "Unknown component type was dropped.",
+      });
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "ListView",
+        detail: "1 non-item child was dropped.",
+      });
+    });
+
+    it("does not let a discarded child spend the markdown budget", () => {
+      const { blocks, warnings } = toSlackBlocks([
+        {
+          $type: "ListView",
+          children: [
+            { $type: "Markdown", value: "x".repeat(MARKDOWN_TEXT_BUDGET) },
+            {
+              $type: "ListViewItem",
+              children: { $type: "Text", value: "row" },
+            },
+          ],
+        },
+        { $type: "Markdown", value: "**real**" },
+      ]);
+      expect(blocks[blocks.length - 1]).toEqual({
+        type: "markdown",
+        text: "**real**",
+      });
+      expect(warnings.some((warning) => warning.component === "Markdown")).toBe(
+        false,
+      );
+    });
+
+    it("reports a non-item child it filters out", () => {
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "ListView",
+        children: [
+          { $type: "Text", value: "stray" },
+          { $type: "ListViewItem", children: { $type: "Text", value: "Kept" } },
+        ],
+      });
+      expect(blocks).toHaveLength(1);
+      expect(warnings).toContainEqual({
+        code: "dropped",
+        component: "ListView",
+        detail: "1 non-item child was dropped.",
+      });
+    });
+
     it("renders each item as a section, separated by dividers", () => {
       const { blocks } = toSlackBlocks({
         $type: "ListView",
@@ -1887,8 +2235,26 @@ describe("toSlackBlocks", () => {
       expect(warnings).toContainEqual({
         code: "clamped",
         component: "Root",
-        detail: "nodes deeper than 64 levels were dropped.",
+        detail: "nodes deeper than 32 levels were dropped.",
       });
+    });
+
+    it("reports the depth detail at the level it actually starts dropping", () => {
+      const chain = (levels: number) => {
+        let node: unknown = { $type: "Caption", value: "x" };
+        for (let i = 0; i < levels; i++) {
+          node = { $type: "Card", children: [node] };
+        }
+        return node;
+      };
+      const dropped = (node: unknown) =>
+        toSlackBlocks(node).warnings.some((warning) =>
+          warning.detail.includes("deeper than"),
+        );
+      expect(dropped(chain(32))).toBe(false);
+      expect(dropped(chain(33))).toBe(true);
+      expect(dropped([chain(31)])).toBe(false);
+      expect(dropped([chain(32)])).toBe(true);
     });
   });
 });
@@ -1922,7 +2288,7 @@ describe("toSlackBlocks data_table integrity", () => {
   it("drops a table whose header row alone exceeds the character budget", () => {
     const { blocks, warnings } = toSlackBlocks({
       $type: "Table",
-      columns: [{ label: "h".repeat(10001) }],
+      columns: [{ label: "h".repeat(DATA_TABLE_CHAR_BUDGET + 1) }],
       rows: [["x"]],
     });
     expect(blocks).toEqual([]);

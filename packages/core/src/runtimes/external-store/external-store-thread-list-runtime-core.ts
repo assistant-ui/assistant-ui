@@ -5,6 +5,8 @@ import type {
   ThreadListRuntimeCore,
 } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "./external-store-adapter";
+import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import { notifySubscribers } from "../../subscribable/subscribable";
 
 export type ExternalStoreThreadFactory = () => ExternalStoreThreadRuntimeCore;
 
@@ -150,6 +152,7 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
 
     // `initialLoad ||`: `_mainThread!` must be assigned on construction.
     if (initialLoad || previousThreadId !== newThreadId) {
+      if (!initialLoad) invalidateThreadRuntime(this._mainThread);
       this._mainThreadId = newThreadId;
       this._mainThread = this.threadFactory();
     }
@@ -268,6 +271,6 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
   }
 
   private _notifySubscribers() {
-    for (const callback of this._subscriptions) callback();
+    notifySubscribers(this._subscriptions);
   }
 }

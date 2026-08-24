@@ -72,7 +72,7 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
   useEffect(() => {
     if (aui.composer.getState().type !== "thread") return undefined;
 
-    return aui.on("threadListItem.switchedTo", () => {
+    return aui.on("threads.selectionChanged", () => {
       browseRef.current = null;
     });
   }, [aui]);

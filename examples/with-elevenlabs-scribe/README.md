@@ -36,4 +36,4 @@ npm run dev
 ## Related Documentation
 
 - [assistant-ui Documentation](https://www.assistant-ui.com/docs)
-- [ElevenLabs Scribe](https://elevenlabs.io/docs/api-reference/scribe)
+- [ElevenLabs Scribe](https://elevenlabs.io/docs/overview/capabilities/speech-to-text)

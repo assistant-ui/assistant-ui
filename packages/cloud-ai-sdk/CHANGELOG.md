@@ -1,5 +1,63 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.35
+
+### Patch Changes
+
+- [#6091](https://github.com/assistant-ui/assistant-ui/pull/6091) [`9a7aa0a`](https://github.com/assistant-ui/assistant-ui/commit/9a7aa0a75fd45286cd2cfc533016e0dfff688bfb) - fix: clear thread selections after refresh confirms their deletion ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6124](https://github.com/assistant-ui/assistant-ui/pull/6124) [`06b04a7`](https://github.com/assistant-ui/assistant-ui/commit/06b04a7976d10fac3af40ae9ca59b52385ef2ae2) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.1.34
+
+### Patch Changes
+
+- [#5976](https://github.com/assistant-ui/assistant-ui/pull/5976) [`7f74516`](https://github.com/assistant-ui/assistant-ui/commit/7f74516a41cb64067979aa13f622ac1c8a4260a6) - fix: stop abandoned chats when the Cloud scope changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5929](https://github.com/assistant-ui/assistant-ui/pull/5929) [`0f6e9e9`](https://github.com/assistant-ui/assistant-ui/commit/0f6e9e9b56c648249781cef7689f4587209948d0) - chore: replace stale example model ids with gpt-5.6-luna ([@okisdev](https://github.com/okisdev))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5863](https://github.com/assistant-ui/assistant-ui/pull/5863) [`dae3488`](https://github.com/assistant-ui/assistant-ui/commit/dae3488563836b8b7ae35e4bf075e3c9da1f1923) - fix: isolate Cloud synchronization error callbacks ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`bd01e8b`](https://github.com/assistant-ui/assistant-ui/commit/bd01e8bd38493565727644326997e1dd0c817d90), [`4a2a76f`](https://github.com/assistant-ui/assistant-ui/commit/4a2a76f8ef3a9bb4d61e84e834bf22868c54b200), [`04e967c`](https://github.com/assistant-ui/assistant-ui/commit/04e967cb32eaea5c265533d3616845639dfcf3a2), [`d79b87d`](https://github.com/assistant-ui/assistant-ui/commit/d79b87df08d4a7684831e1fa4a2ba8acea3938ff), [`645c56b`](https://github.com/assistant-ui/assistant-ui/commit/645c56bedafc493c022b782724e44872f9b6e4a9), [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e), [`72a6272`](https://github.com/assistant-ui/assistant-ui/commit/72a6272434a1e5964047c7158c49db37295e5f4e)]:
+  - assistant-cloud@0.1.41
+
+## 0.1.33
+
+### Patch Changes
+
+- [#5706](https://github.com/assistant-ui/assistant-ui/pull/5706) [`8931526`](https://github.com/assistant-ui/assistant-ui/commit/8931526edb88404da9aaad9b9dc6c1ebfcc855eb) - fix: clear stale thread lists when the Cloud client changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5715](https://github.com/assistant-ui/assistant-ui/pull/5715) [`8bba3aa`](https://github.com/assistant-ui/assistant-ui/commit/8bba3aaadcae042b4750436e6aa62bbba4815dde) - fix: include archived Cloud threads when requested and preserve archive filters ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5706](https://github.com/assistant-ui/assistant-ui/pull/5706) [`8931526`](https://github.com/assistant-ui/assistant-ui/commit/8931526edb88404da9aaad9b9dc6c1ebfcc855eb) - fix: settle thread loading when automatic fetching becomes disabled ([@Kinfe123](https://github.com/Kinfe123))
+
+- Updated dependencies [[`8bba3aa`](https://github.com/assistant-ui/assistant-ui/commit/8bba3aaadcae042b4750436e6aa62bbba4815dde)]:
+  - assistant-cloud@0.1.40
+
+## 0.1.32
+
+### Patch Changes
+
+- [#5719](https://github.com/assistant-ui/assistant-ui/pull/5719) [`a44f537`](https://github.com/assistant-ui/assistant-ui/commit/a44f53750bf77bf5ad18755b6183ce4d6cf4ba34) - fix: clear a selected Cloud thread when archiving removes it from the list ([@Kinfe123](https://github.com/Kinfe123))
+
+## 0.1.31
+
+### Patch Changes
+
+- [#5723](https://github.com/assistant-ui/assistant-ui/pull/5723) [`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- Updated dependencies [[`94dc3e5`](https://github.com/assistant-ui/assistant-ui/commit/94dc3e509fa2b4fae1a14c88ec34b910c8d95af8)]:
+  - assistant-cloud@0.1.39
+
+## 0.1.30
+
+### Patch Changes
+
+- [#5714](https://github.com/assistant-ui/assistant-ui/pull/5714) [`5a32f13`](https://github.com/assistant-ui/assistant-ui/commit/5a32f136f508127b2d5ba4a97570039ff676e6bf) - fix: clear the selected Cloud thread after deleting it ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.1.29
 
 ### Patch Changes

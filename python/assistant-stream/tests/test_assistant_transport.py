@@ -6,10 +6,12 @@ from assistant_stream.assistant_stream_chunk import (
     ErrorChunk,
     FileChunk,
     ReasoningDeltaChunk,
+    ReasoningPartStartChunk,
     SourceChunk,
     StepFinishChunk,
     StepStartChunk,
     TextDeltaChunk,
+    ToolCallArgsTextFinishChunk,
     ToolCallBeginChunk,
     ToolCallDeltaChunk,
     ToolResultChunk,
@@ -679,4 +681,149 @@ async def test_assistant_transport_encoder_run_controller_emit_paths():
             "usage": {"inputTokens": 12, "outputTokens": 34},
             "isContinued": False,
         },
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_explicit_args_finish_settles_the_part():
+    """An explicit args-text-finish settles the tool part where it arrives
+    rather than at stream close, so later content is framed after a completed
+    call. A repeat finish for the same id is a no-op."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="ask_human")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"q": "ok?"}')
+        yield ToolCallArgsTextFinishChunk(tool_call_id="t1")
+        yield ToolCallArgsTextFinishChunk(tool_call_id="t1")
+        yield TextDeltaChunk(text_delta="after")
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "tool-call", "toolCallId": "t1", "toolName": "ask_human"},
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": '{"q": "ok?"}', "path": [0]},
+        {"type": "tool-call-args-text-finish", "path": [0]},
+        {"type": "part-finish", "path": [0]},
+        {"type": "part-start", "part": {"type": "text"}, "path": []},
+        {"type": "text-delta", "textDelta": "after", "path": [1]},
+        {"type": "part-finish", "path": [1]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_result_after_args_finish_keeps_the_part_path():
+    """The two-phase human-in-the-loop shape: args settle first, the human
+    answers later. The result must still address the tool part, because the
+    accumulator only resolves a path of length one and drops anything emitted
+    at the message root."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="ask_human")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"q": "ok?"}')
+        yield ToolCallArgsTextFinishChunk(tool_call_id="t1")
+        yield ToolResultChunk(
+            tool_call_id="t1", result="yes", artifact=None, is_error=False
+        )
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    results = [c for c in collected if c["type"] == "result"]
+    assert results == [
+        {"type": "result", "result": "yes", "isError": False, "path": [0]}
+    ]
+    # The part settled once, at the args finish; the result does not repeat it.
+    assert [c["type"] for c in collected].count("part-finish") == 1
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_carries_trailing_args_on_the_finish_chunk():
+    """Trailing arguments delivered on the finish chunk reach the wire and
+    satisfy the empty-object default, matching the data-stream encoder for the
+    same chunk sequence."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="search")
+        yield ToolCallArgsTextFinishChunk(
+            tool_call_id="t1", args_text_delta='{"q": 1}'
+        )
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "tool-call", "toolCallId": "t1", "toolName": "search"},
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": '{"q": 1}', "path": [0]},
+        {"type": "tool-call-args-text-finish", "path": [0]},
+        {"type": "part-finish", "path": [0]},
+    ]
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_rejects_args_after_the_part_settled():
+    """The path outlives settlement so a deferred result can address the part,
+    which must not let late arguments append to an already finished part."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ToolCallBeginChunk(tool_call_id="t1", tool_name="search")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta='{"q": 1}')
+        yield ToolCallArgsTextFinishChunk(tool_call_id="t1")
+        yield ToolCallDeltaChunk(tool_call_id="t1", args_text_delta=' ignored')
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    deltas = [c["textDelta"] for c in collected if c["type"] == "text-delta"]
+    assert deltas == ['{"q": 1}']
+
+
+@pytest.mark.anyio
+async def test_assistant_transport_encoder_reasoning_summary_opens_one_part():
+    """The summary opens the reasoning part and the deltas that follow extend
+    it, rather than opening a second part beside it."""
+    encoder = AssistantTransportEncoder()
+
+    async def stream():
+        yield ReasoningPartStartChunk(unstable_summary="Planning")
+        yield ReasoningDeltaChunk(reasoning_delta="thinking", parent_id=None)
+
+    collected = [
+        json.loads(line[6:-2])
+        async for line in encoder.encode_stream(stream())
+        if line != "data: [DONE]\n\n"
+    ]
+
+    assert collected == [
+        {
+            "type": "part-start",
+            "part": {"type": "reasoning", "unstable_summary": "Planning"},
+            "path": [],
+        },
+        {"type": "text-delta", "textDelta": "thinking", "path": [0]},
+        {"type": "part-finish", "path": [0]},
     ]

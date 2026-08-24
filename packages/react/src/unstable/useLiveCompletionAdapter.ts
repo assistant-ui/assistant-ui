@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   Unstable_TriggerAdapter,
   Unstable_TriggerItem,
@@ -13,6 +20,11 @@ export type Unstable_UseLiveCompletionAdapterOptions = {
    * next render.
    */
   readonly fetcher: (query: string) => Promise<readonly Unstable_TriggerItem[]>;
+  /**
+   * Identifies the fetcher's data source. Change this when switching accounts,
+   * workspaces, or another boundary that should invalidate cached results.
+   */
+  readonly cacheKey?: string | number | undefined;
   /** Debounce applied before a fetch fires, in milliseconds. @default 60 */
   readonly debounceMs?: number | undefined;
   /** When `false`, no fetch is scheduled and the adapter stays empty. @default true */
@@ -52,12 +64,13 @@ const NO_QUERY = "\u0000";
 export function unstable_useLiveCompletionAdapter(
   options: Unstable_UseLiveCompletionAdapterOptions,
 ): { adapter: Unstable_TriggerAdapter; isLoading: boolean } {
-  const { fetcher, debounceMs = 60, enabled = true } = options;
+  const { fetcher, cacheKey, debounceMs = 60, enabled = true } = options;
 
   const [state, setState] = useState<{
     query: string;
     items: readonly Unstable_TriggerItem[];
-  }>({ query: NO_QUERY, items: [] });
+    failed: boolean;
+  }>({ query: NO_QUERY, items: [], failed: false });
   const [isLoading, setIsLoading] = useState(false);
 
   const fetcherRef = useRef(fetcher);
@@ -66,6 +79,8 @@ export function unstable_useLiveCompletionAdapter(
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tokenRef = useRef(0);
   const pendingQueryRef = useRef<string | null>(null);
+  const retryableQueryRef = useRef<string | null>(null);
+  const pendingRetryQueryRef = useRef<string | null>(null);
 
   const cancelTimer = useCallback(() => {
     if (timerRef.current !== null) {
@@ -74,49 +89,83 @@ export function unstable_useLiveCompletionAdapter(
     }
   }, []);
 
+  const rearmPendingRetry = useCallback(() => {
+    const query = pendingRetryQueryRef.current;
+    if (query === null) return;
+    retryableQueryRef.current = query;
+    pendingRetryQueryRef.current = null;
+  }, []);
+
   const scheduleFetch = useCallback(
     (query: string) => {
       if (!enabled) return;
       if (pendingQueryRef.current === query) return;
+      rearmPendingRetry();
+      if (retryableQueryRef.current === query) {
+        retryableQueryRef.current = null;
+        pendingRetryQueryRef.current = query;
+      }
       pendingQueryRef.current = query;
       cancelTimer();
       const token = ++tokenRef.current;
       setIsLoading(true);
       timerRef.current = setTimeout(() => {
         timerRef.current = null;
-        fetcherRef.current(query).then(
-          (items) => {
-            if (token !== tokenRef.current) return;
-            setState({ query, items });
-            setIsLoading(false);
-          },
-          () => {
-            if (token !== tokenRef.current) return;
-            setState({ query, items: [] });
-            setIsLoading(false);
-          },
-        );
+        Promise.resolve()
+          .then(() => fetcherRef.current(query))
+          .then(
+            (items) => {
+              if (token !== tokenRef.current) return;
+              pendingRetryQueryRef.current = null;
+              setState({ query, items, failed: false });
+              setIsLoading(false);
+            },
+            () => {
+              if (token !== tokenRef.current) return;
+              pendingQueryRef.current = null;
+              pendingRetryQueryRef.current = null;
+              setState({ query, items: [], failed: true });
+              setIsLoading(false);
+            },
+          );
       }, debounceMs);
     },
-    [enabled, debounceMs, cancelTimer],
+    [enabled, debounceMs, cancelTimer, rearmPendingRetry],
   );
 
   const invalidatePending = useCallback(() => {
+    rearmPendingRetry();
     cancelTimer();
     pendingQueryRef.current = null;
     tokenRef.current += 1;
     setIsLoading(false);
-  }, [cancelTimer]);
+  }, [cancelTimer, rearmPendingRetry]);
+
+  const cacheKeyRef = useRef(cacheKey);
+  useLayoutEffect(() => {
+    if (cacheKeyRef.current === cacheKey) return;
+    cacheKeyRef.current = cacheKey;
+    invalidatePending();
+    retryableQueryRef.current = null;
+    pendingRetryQueryRef.current = null;
+    setState({ query: NO_QUERY, items: [], failed: false });
+  }, [cacheKey, invalidatePending]);
 
   useEffect(() => {
     if (enabled) return;
     invalidatePending();
     setState((s) =>
-      s.query === NO_QUERY ? s : { query: NO_QUERY, items: [] },
+      s.query === NO_QUERY ? s : { query: NO_QUERY, items: [], failed: false },
     );
   }, [enabled, invalidatePending]);
 
   useEffect(() => cancelTimer, [cancelTimer]);
+
+  // Arm retries only after the failed state commits. Arming during rejection
+  // would let the failure render immediately schedule another request.
+  useEffect(() => {
+    retryableQueryRef.current = state.failed ? state.query : null;
+  }, [state]);
 
   const adapter = useMemo<Unstable_TriggerAdapter>(
     () => ({
@@ -125,7 +174,7 @@ export function unstable_useLiveCompletionAdapter(
       search: (query: string) => {
         // search() runs inside the popover's render; defer state updates with
         // queueMicrotask so they are not dispatched while another component renders.
-        if (query !== state.query) {
+        if (query !== state.query || retryableQueryRef.current === query) {
           queueMicrotask(() => scheduleFetch(query));
         } else if (
           pendingQueryRef.current !== null &&

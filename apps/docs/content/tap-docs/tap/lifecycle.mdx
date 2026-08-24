@@ -92,6 +92,11 @@ The `@assistant-ui/store` layer currently relies on `useSyncExternalStore` to br
 
 When a resource is hidden by `<Activity mode="hidden">`, state updates that arrive while it's hidden are tracked and replayed once it becomes visible again. No configuration needed.
 
+A `createTapRoot` root with `mountOnSubscribe: true` follows the same model when
+its subscriber count drops to zero: effect cleanups run, state is preserved, and
+the next subscriber remounts the tree — like an Activity going hidden and
+visible again.
+
 ## Strict mode
 
 In development, resources render twice on mount to surface side effects in render, the same as React's `<StrictMode>`.

@@ -71,6 +71,7 @@ const isLangChainMessage = (
     value.type === "system" ||
     value.type === "human" ||
     value.type === "tool" ||
+    value.type === "remove" ||
     value.type === "ai"
   );
 };

@@ -48,6 +48,9 @@ out/
 # nitro
 .output/
 
+# nuxt
+.nuxt/
+
 # build
 build/
 

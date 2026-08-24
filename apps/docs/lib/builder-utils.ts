@@ -2,7 +2,7 @@ import type {
   BorderRadius,
   FontSize,
   MessageSpacing,
-} from "@/components/builder/types";
+} from "@/components/pages/playground/types";
 
 export const BORDER_RADIUS_CLASS: Record<BorderRadius, string> = {
   none: "rounded-none",
@@ -23,6 +23,20 @@ export const MESSAGE_SPACING_CLASS: Record<MessageSpacing, string> = {
   compact: "py-2",
   comfortable: "py-3",
   spacious: "py-5",
+};
+
+export const MESSAGE_GAP_CLASS: Record<MessageSpacing, string> = {
+  compact: "gap-y-4",
+  comfortable: "gap-y-6",
+  spacious: "gap-y-8",
+};
+
+export const COMPOSER_RADIUS: Record<BorderRadius, string> = {
+  none: "0",
+  sm: "0.5rem",
+  md: "0.75rem",
+  lg: "1rem",
+  full: "1.5rem",
 };
 
 /**

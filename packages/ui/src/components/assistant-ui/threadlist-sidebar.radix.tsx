@@ -45,7 +45,7 @@ export function ThreadListSidebar({
       <SidebarContent className="aui-sidebar-content px-2">
         <ThreadList />
       </SidebarContent>
-      <SidebarRail />
+      {props.collapsible !== "none" && <SidebarRail />}
       <SidebarFooter className="aui-sidebar-footer border-t">
         <SidebarMenu>
           <SidebarMenuItem>

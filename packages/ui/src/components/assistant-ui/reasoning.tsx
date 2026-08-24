@@ -145,7 +145,7 @@ function ReasoningFade({
           "bg-[linear-gradient(to_bottom,var(--color-background),transparent)]",
           "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_bottom,color-mix(in_oklab,var(--color-muted)_50%,var(--color-background)),transparent)]",
           "fade-in-0 animate-in",
-          "duration-(--animation-duration)",
+          "animation-duration-(--animation-duration)",
           className,
         )}
         {...props}
@@ -161,7 +161,7 @@ function ReasoningFade({
         "bg-[linear-gradient(to_top,var(--color-background),transparent)]",
         "group-data-[variant=muted]/reasoning-root:bg-[linear-gradient(to_top,color-mix(in_oklab,var(--color-muted)_50%,var(--color-background)),transparent)]",
         "fade-in-0 animate-in",
-        "duration-(--animation-duration)",
+        "animation-duration-(--animation-duration)",
         className,
       )}
       {...props}
@@ -239,8 +239,7 @@ function ReasoningContent({
         "data-open:animate-collapsible-down",
         "data-closed:fill-mode-forwards",
         "data-closed:pointer-events-none",
-        "data-open:duration-(--animation-duration)",
-        "data-closed:duration-(--animation-duration)",
+        "[--tw-duration:var(--animation-duration)]",
         className,
       )}
       {...props}
@@ -321,8 +320,8 @@ function ReasoningText({
         "group-data-closed/collapsible-content:slide-out-to-top-4",
         "group-data-open/collapsible-content:blur-in-[2px]",
         "group-data-closed/collapsible-content:blur-out-[2px]",
-        "group-data-open/collapsible-content:duration-(--animation-duration)",
-        "group-data-closed/collapsible-content:duration-(--animation-duration)",
+        "group-data-open/collapsible-content:animation-duration-(--animation-duration)",
+        "group-data-closed/collapsible-content:animation-duration-(--animation-duration)",
         className,
       )}
       {...props}

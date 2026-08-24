@@ -1885,3 +1885,61 @@ export default defineToolkit({
     ).toBe(false);
   });
 });
+
+describe("backendless builds", () => {
+  const source = `"use generative";
+import { defineToolkit, humanTool } from "@assistant-ui/react";
+import { JSONGenerativeUI } from "@assistant-ui/react-generative-ui";
+const generative = new JSONGenerativeUI({ library: {} });
+export default defineToolkit({
+  toast: {
+    parameters: { type: "object", properties: {} },
+    execute: async () => {
+      "use client";
+      return 1;
+    },
+    render: () => null,
+  },
+  ask: {
+    parameters: { type: "object", properties: {} },
+    execute: humanTool(),
+    render: () => null,
+  },
+  present: generative.present(),
+});
+`;
+
+  it("does not mark client frontend/human tools with backend defaults", () => {
+    const code = compileGenerative(source, {
+      target: "client",
+      backendless: true,
+    }).code;
+    expect(code).not.toContain("unstable_backendDefault: {");
+    expect(code).toContain('type: "frontend"');
+    expect(code).toContain('type: "human"');
+  });
+
+  it("strips the runtime marker from pass-through generative entries", () => {
+    const code = compileGenerative(source, {
+      target: "client",
+      backendless: true,
+    }).code;
+    expect(code).toContain("generative.present()");
+    expect(code).toContain("...tool");
+  });
+
+  it("leaves generative entries untouched without the flag", () => {
+    const code = compileGenerative(source, { target: "client" }).code;
+    expect(code).toContain("present: generative.present()");
+    expect(code).not.toContain("...tool");
+  });
+
+  it("emits an identical server build with and without the flag", () => {
+    const withFlag = compileGenerative(source, {
+      target: "server",
+      backendless: true,
+    }).code;
+    const withoutFlag = compileGenerative(source, { target: "server" }).code;
+    expect(withFlag).toBe(withoutFlag);
+  });
+});

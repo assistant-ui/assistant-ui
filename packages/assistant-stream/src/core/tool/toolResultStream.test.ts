@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   toolResultStream as unstable_toolResultStream,
   unstable_runPendingTools,
@@ -31,6 +31,10 @@ const captureUnhandledRejections = async (
     process.off("unhandledRejection", listener);
   }
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
 
 describe("unstable_runPendingTools", () => {
   it("settles a tool that returns no value with a concrete result", async () => {
@@ -350,6 +354,73 @@ describe("unstable_runPendingTools", () => {
       expect(tool1Started).toBe(true);
       expect(tool2Started).toBe(true);
     });
+  });
+
+  it("keeps same-id tool executions separate when they overlap", async () => {
+    const executions: Array<{
+      resolve: (value: string) => void;
+      promise: Promise<string>;
+    }> = [];
+    const inputChunks: AssistantStreamChunk[] = [
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "reused", toolName: "tool" },
+      },
+      { type: "text-delta", path: [0], textDelta: '{"run":1}' },
+      { type: "tool-call-args-text-finish", path: [0] },
+      { type: "part-finish", path: [0] },
+      {
+        type: "part-start",
+        path: [],
+        part: { type: "tool-call", toolCallId: "reused", toolName: "tool" },
+      },
+      { type: "text-delta", path: [1], textDelta: '{"run":2}' },
+      { type: "tool-call-args-text-finish", path: [1] },
+      { type: "part-finish", path: [1] },
+    ];
+    const input = new ReadableStream<AssistantStreamChunk>({
+      start(controller) {
+        inputChunks.forEach((chunk) => controller.enqueue(chunk));
+        controller.close();
+      },
+    });
+    const output: AssistantStreamChunk[] = [];
+    const finished = input
+      .pipeThrough(
+        unstable_toolResultStream(
+          {
+            tool: {
+              parameters: { type: "object", properties: {} },
+              execute: () => {
+                const execution = promiseWithResolvers<string>();
+                executions.push(execution);
+                return execution.promise;
+              },
+            },
+          },
+          new AbortController().signal,
+          async () => {},
+        ),
+      )
+      .pipeTo(
+        new WritableStream<AssistantStreamChunk>({
+          write(chunk) {
+            output.push(chunk);
+          },
+        }),
+      );
+
+    await vi.waitFor(() => expect(executions).toHaveLength(2));
+    executions[0]!.resolve("first");
+    executions[1]!.resolve("second");
+    await finished;
+
+    expect(
+      output
+        .filter((chunk) => chunk.type === "result")
+        .map((chunk) => (chunk.type === "result" ? chunk.result : undefined)),
+    ).toEqual(["first", "second"]);
   });
 
   describe("edge cases", () => {
@@ -931,5 +1002,94 @@ describe("unstable_runPendingTools", () => {
 
       expect(called).toBe(false);
     });
+  });
+
+  describe("execution lifecycle callbacks", () => {
+    it.each([
+      ["onExecutionStart", "throws", "succeeds"],
+      ["onExecutionStart", "rejects", "succeeds"],
+      ["onExecutionEnd", "throws", "succeeds"],
+      ["onExecutionEnd", "rejects", "succeeds"],
+      ["onExecutionEnd", "throws", "fails"],
+    ] as const)(
+      "preserves tool settlement when %s %s and the tool %s",
+      async (callbackName, behavior, toolOutcome) => {
+        const callbackError = new Error(`${callbackName} ${behavior}`);
+        const toolError = new Error("tool failed");
+        const error = vi.spyOn(console, "error").mockImplementation(() => {});
+        const lifecycleCallback =
+          behavior === "throws"
+            ? vi.fn(() => {
+                throw callbackError;
+              })
+            : vi.fn(() => Promise.reject(callbackError));
+        const inputChunks: AssistantStreamChunk[] = [
+          {
+            type: "part-start",
+            path: [],
+            part: {
+              type: "tool-call",
+              toolCallId: "tc-lifecycle",
+              toolName: "succeed",
+            },
+          },
+          { type: "text-delta", path: [0], textDelta: "{}" },
+          { type: "tool-call-args-text-finish", path: [0] },
+          { type: "part-finish", path: [0] },
+        ];
+        const inputStream = new ReadableStream<AssistantStreamChunk>({
+          start(controller) {
+            for (const chunk of inputChunks) controller.enqueue(chunk);
+            controller.close();
+          },
+        });
+        const outputChunks: AssistantStreamChunk[] = [];
+
+        const unhandledRejections = await captureUnhandledRejections(
+          async () => {
+            await inputStream
+              .pipeThrough(
+                unstable_toolResultStream(
+                  {
+                    succeed: {
+                      parameters: { type: "object", properties: {} },
+                      execute: async () => {
+                        if (toolOutcome === "fails") throw toolError;
+                        return "done";
+                      },
+                    },
+                  },
+                  new AbortController().signal,
+                  async () => {},
+                  callbackName === "onExecutionStart"
+                    ? { onExecutionStart: lifecycleCallback }
+                    : { onExecutionEnd: lifecycleCallback },
+                ),
+              )
+              .pipeTo(
+                new WritableStream<AssistantStreamChunk>({
+                  write(chunk) {
+                    outputChunks.push(chunk);
+                  },
+                }),
+              );
+          },
+        );
+
+        expect(unhandledRejections).toEqual([]);
+        expect(lifecycleCallback).toHaveBeenCalledOnce();
+        expect(outputChunks.find((chunk) => chunk.type === "result")).toEqual(
+          expect.objectContaining({
+            type: "result",
+            result: toolOutcome === "fails" ? String(toolError) : "done",
+            isError: toolOutcome === "fails",
+          }),
+        );
+        expect(error).toHaveBeenCalledWith(
+          `[assistant-stream] ${callbackName} callback threw an error`,
+          callbackError,
+        );
+      },
+    );
   });
 });

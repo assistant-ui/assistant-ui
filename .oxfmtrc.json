@@ -26,6 +26,7 @@
     "**/next-env.d.ts",
     "**/.tanstack/**",
     "**/.output/**",
+    "**/.nuxt/**",
     "**/routeTree.gen.ts",
     "**/build/**",
     "**/.turbo/**",
