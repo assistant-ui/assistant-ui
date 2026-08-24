@@ -1,5 +1,19 @@
 import { describe, it, expect } from "vitest";
-import { detectTrigger } from "./detectTrigger";
+import { detectTrigger, type TriggerMatcher } from "./detectTrigger";
+
+const matchFromLastTrigger: TriggerMatcher = (
+  text,
+  triggerChar,
+  cursorPosition,
+) => {
+  const textUpToCursor = text.slice(0, cursorPosition);
+  const offset = textUpToCursor.lastIndexOf(triggerChar);
+  if (offset === -1) return null;
+  return {
+    query: textUpToCursor.slice(offset + triggerChar.length),
+    offset,
+  };
+};
 
 describe("detectTrigger", () => {
   it("detects @query at cursor position", () => {
@@ -31,6 +45,15 @@ describe("detectTrigger", () => {
   it("stops at whitespace in query", () => {
     // "@foo bar" — space terminates the mention
     expect(detectTrigger("@foo bar", "@", 8)).toBeNull();
+  });
+
+  it("uses a custom matcher for multi-word queries", () => {
+    expect(
+      detectTrigger("hello @Example UK", "@", 17, matchFromLastTrigger),
+    ).toEqual({
+      query: "Example UK",
+      offset: 6,
+    });
   });
 
   it("stops at newline", () => {

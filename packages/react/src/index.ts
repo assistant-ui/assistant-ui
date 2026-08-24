@@ -475,6 +475,7 @@ export {
   useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers,
   useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional,
   type RegisteredTrigger as Unstable_RegisteredTrigger,
+  type TriggerMatcher as Unstable_TriggerMatcher,
   type TriggerBehavior as Unstable_TriggerBehavior,
 } from "./primitives/composer/trigger";
 export type {

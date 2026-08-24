@@ -1,5 +1,16 @@
 const WHITESPACE_RE = /\s/u;
 
+export type TriggerMatch = {
+  readonly query: string;
+  readonly offset: number;
+};
+
+export type TriggerMatcher = (
+  text: string,
+  triggerChar: string,
+  cursorPosition: number,
+) => TriggerMatch | null;
+
 /**
  * Detect a trigger character in text relative to the cursor position.
  *
@@ -9,10 +20,10 @@ export function detectTrigger(
   text: string,
   triggerChar: string,
   cursorPosition: number,
-): {
-  query: string;
-  offset: number;
-} | null {
+  matcher?: TriggerMatcher | undefined,
+): TriggerMatch | null {
+  if (matcher) return matcher(text, triggerChar, cursorPosition);
+
   // Only consider text up to the cursor
   const textUpToCursor = text.slice(0, cursorPosition);
 

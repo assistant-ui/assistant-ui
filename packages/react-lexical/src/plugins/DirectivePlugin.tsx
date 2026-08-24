@@ -39,6 +39,12 @@ type TriggerMatch = {
   endOffset: number;
 };
 
+type TriggerMatcher = (
+  text: string,
+  triggerChar: string,
+  cursorPosition: number,
+) => { readonly query: string; readonly offset: number } | null;
+
 const WHITESPACE_RE = /\s/u;
 
 function $removeSelectedDirectiveNodes(): boolean {
@@ -104,8 +110,21 @@ export function findTriggerMatch(
   trigger: string,
   node: TextNode,
   anchorOffset: number,
+  matcher?: TriggerMatcher | undefined,
 ): TriggerMatch | null {
   const text = node.getTextContent();
+
+  if (matcher) {
+    const match = matcher(text, trigger, anchorOffset);
+    if (!match) return null;
+    return {
+      query: match.query,
+      node,
+      startOffset: match.offset,
+      endOffset: anchorOffset,
+    };
+  }
+
   const textUpToCursor = text.slice(0, anchorOffset);
 
   for (let i = textUpToCursor.length - 1; i >= 0; i--) {
@@ -175,6 +194,7 @@ export function DirectivePlugin({
               trigger.char,
               anchorNode,
               anchor.offset,
+              trigger.matcher,
             );
             if (match) {
               matchRef.current = {

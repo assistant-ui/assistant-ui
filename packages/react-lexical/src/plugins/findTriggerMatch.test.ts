@@ -1,6 +1,21 @@
 import { describe, it, expect } from "vitest";
 import type { TextNode } from "lexical";
 import { findTriggerMatch } from "./DirectivePlugin";
+import type { Unstable_TriggerMatcher } from "@assistant-ui/react";
+
+const matchFromLastTrigger: Unstable_TriggerMatcher = (
+  text,
+  triggerChar,
+  cursorPosition,
+) => {
+  const textUpToCursor = text.slice(0, cursorPosition);
+  const offset = textUpToCursor.lastIndexOf(triggerChar);
+  if (offset === -1) return null;
+  return {
+    query: textUpToCursor.slice(offset + triggerChar.length),
+    offset,
+  };
+};
 
 function mockTextNode(text: string): TextNode {
   return { getTextContent: () => text } as unknown as TextNode;
@@ -47,6 +62,16 @@ describe("findTriggerMatch", () => {
   it("stops at whitespace before cursor", () => {
     const node = mockTextNode("@foo bar");
     expect(findTriggerMatch("@", node, 8)).toBeNull();
+  });
+
+  it("uses a custom matcher for multi-word queries", () => {
+    const node = mockTextNode("@Example UK");
+    expect(findTriggerMatch("@", node, 11, matchFromLastTrigger)).toEqual({
+      query: "Example UK",
+      node,
+      startOffset: 0,
+      endOffset: 11,
+    });
   });
 
   it("stops at newline", () => {
