@@ -9,6 +9,10 @@ import {
   type ParseError,
 } from "jsonc-parser";
 import { logger } from "./utils/logger";
+import {
+  getComponentsJsonStyle,
+  resolveRegistryItemUrl,
+} from "./utils/registry";
 import { runSpawn, SpawnExitError } from "./run-spawn";
 
 export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
@@ -249,7 +253,10 @@ export async function transformProject(
     const allShadcn = shadcnUI.includes("utils")
       ? shadcnUI
       : [...shadcnUI, "utils"];
-    const auiComponents = assistantUI.map((c) => `@assistant-ui/${c}`);
+    const style = getComponentsJsonStyle(projectDir);
+    const auiComponents = assistantUI.map((c) =>
+      resolveRegistryItemUrl(c, style),
+    );
     const components = [...allShadcn, ...auiComponents];
     logger.step(`Installing components: ${components.join(", ")}...`);
     const failure = await installShadcnRegistry(

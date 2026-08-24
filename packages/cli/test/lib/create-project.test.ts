@@ -535,9 +535,42 @@ describe("transformProject — hasLocalComponents: false", () => {
 
       const args = addCalls[0]![1] as string[];
       expect(args).toContain("button");
-      expect(args).toContain("@assistant-ui/thread");
+      expect(args).toContain("https://r.assistant-ui.com/base/thread.json");
       expect(args).not.toContain("button.tsx");
+      expect(args).not.toContain("@assistant-ui/thread");
       expect(args).not.toContain("@assistant-ui/thread.tsx");
+    });
+
+    it("uses the style-scoped registry URL from components.json", async () => {
+      writeJSON("components.json", { style: "base-nova" });
+      writeFile(
+        "app/page.tsx",
+        'import { Thread } from "@/components/assistant-ui/thread";\nimport { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar";\n',
+      );
+
+      await transformProject(testDir, {
+        ...defaultOpts,
+        skipInstall: false,
+        hasLocalComponents: false,
+      });
+
+      const addCalls = (spawn as Mock).mock.calls.filter(
+        ([cmd, args]: [string, string[]]) =>
+          cmd === TEST_DLX_CMD &&
+          args.includes("shadcn@latest") &&
+          args.includes("add"),
+      );
+      expect(addCalls).toHaveLength(1);
+
+      const args = addCalls[0]![1] as string[];
+      expect(args).toContain(
+        "https://r.assistant-ui.com/styles/base-nova/thread.json",
+      );
+      expect(args).toContain(
+        "https://r.assistant-ui.com/styles/base-nova/threadlist-sidebar.json",
+      );
+      expect(args).not.toContain("@assistant-ui/thread");
+      expect(args).not.toContain("@assistant-ui/threadlist-sidebar");
     });
 
     it("skips shadcn when skipInstall is true even without local components", async () => {
