@@ -3,7 +3,7 @@
 import { act, renderHook, waitFor } from "@testing-library/react";
 import { useLayoutEffect } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { ChatTransport } from "ai";
+import type { ChatTransport, UIMessage } from "ai";
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -397,20 +397,26 @@ describe("useChatRuntime", () => {
       sendMessages: sendB,
       reconnectToStream: vi.fn(),
     };
-    let activeTransport: ChatTransport | undefined;
+    let activeTransport: ChatTransport<UIMessage> | undefined;
     mocks.useChat.mockImplementation(
-      ({ transport }: { transport: ChatTransport }) => {
+      ({ transport }: { transport: ChatTransport<UIMessage> }) => {
         activeTransport = transport;
         return { resumeStream: vi.fn(), status: "ready" };
       },
     );
 
     const { rerender } = renderHook(
-      ({ transport, send }: { transport: ChatTransport; send: boolean }) => {
+      ({
+        transport,
+        send,
+      }: {
+        transport: ChatTransport<UIMessage>;
+        send: boolean;
+      }) => {
         useChatRuntime({ transport });
         useLayoutEffect(() => {
           if (send) {
-            void activeTransport?.sendMessages(sendMessagesOptions);
+            void activeTransport?.sendMessages(sendMessagesOptions as never);
           }
         }, [send]);
       },
