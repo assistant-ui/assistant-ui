@@ -72,6 +72,97 @@ describe("ToolFallback", () => {
     expect(addResult).toHaveBeenCalledWith("Approved by user");
   });
 
+  it("renders custom-kind options declared by the request", () => {
+    const respondToApproval = vi.fn();
+    renderTool({
+      approval: {
+        id: "approval-1",
+        options: [
+          { id: "red", kind: "_red", label: "Red" },
+          { id: "blue", kind: "_blue", label: "Blue" },
+        ],
+      },
+      respondToApproval,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Blue" }));
+    fireEvent.click(screen.getByRole("button", { name: "Red" }));
+
+    expect(respondToApproval).toHaveBeenCalledExactlyOnceWith({
+      optionId: "blue",
+      approved: true,
+    });
+  });
+
+  it("runs the confirmation step for a custom-kind option", () => {
+    const respondToApproval = vi.fn();
+    renderTool({
+      approval: {
+        id: "approval-1",
+        options: [{ id: "red", kind: "_red", label: "Red", confirm: true }],
+      },
+      respondToApproval,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Red" }));
+    fireEvent.click(screen.getByRole("button", { name: "Confirm" }));
+
+    expect(respondToApproval).toHaveBeenCalledWith({
+      optionId: "red",
+      approved: true,
+    });
+  });
+
+  it("keeps a refusal path when every declared option is a custom kind", () => {
+    const respondToApproval = vi.fn();
+    renderTool({
+      approval: {
+        id: "approval-1",
+        options: [{ id: "red", kind: "_red", label: "Red" }],
+      },
+      respondToApproval,
+    });
+
+    fireEvent.click(screen.getByRole("button", { name: "Deny" }));
+
+    expect(respondToApproval).toHaveBeenCalledWith({ approved: false });
+  });
+
+  it("keeps known-kind resolution when custom options are declared alongside", () => {
+    const respondToApproval = vi.fn();
+    renderTool({
+      approval: {
+        id: "approval-1",
+        options: [
+          { id: "allow", kind: "allow-once" },
+          { id: "reject", kind: "reject-once" },
+          { id: "red", kind: "_red", label: "Red" },
+        ],
+      },
+      respondToApproval,
+    });
+
+    expect(screen.getByRole("button", { name: "Allow" })).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Red" })).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Deny" })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole("button", { name: "Allow" }));
+
+    expect(respondToApproval).toHaveBeenCalledWith({ optionId: "allow" });
+  });
+
+  it("falls back to the option id when a custom option has no label", () => {
+    renderTool({
+      approval: {
+        id: "approval-1",
+        options: [{ id: "escalate", kind: "_escalate" }],
+      },
+      respondToApproval: vi.fn(),
+    });
+
+    expect(screen.getByRole("button", { name: "escalate" })).toBeTruthy();
+  });
+
   it("does not fabricate a result from the exported Approval seam", () => {
     const addResult = vi.fn();
     render(

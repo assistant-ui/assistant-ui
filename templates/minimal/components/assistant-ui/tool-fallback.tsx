@@ -321,12 +321,15 @@ const APPROVAL_OPTION_DEFAULT_LABELS: Record<string, string> = {
   "reject-always": "Always deny",
 };
 
+const isKnownKind = (kind: string) =>
+  Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, kind);
+
 const isAllowKind = (kind: string) =>
   kind === "allow-once" || kind === "allow-always";
 
 const approvalOptionLabel = (option: ToolApprovalOption) =>
   option.label ??
-  (Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, option.kind)
+  (isKnownKind(option.kind)
     ? APPROVAL_OPTION_DEFAULT_LABELS[option.kind]
     : undefined) ??
   option.id;
@@ -371,14 +374,9 @@ function ToolFallbackApproval({
 
   if (!offersInterruptAction(status, approval, interrupt)) return null;
 
-  // Custom (`_`-prefixed) kinds cannot be resolved to a boolean by the kit;
-  // hosts using custom kinds render their own bar. A declared option list is
-  // a host constraint: the kit never adds an approval path beyond it, but
-  // always preserves a refusal path.
+  // A declared option list is a host constraint: the kit never adds an
+  // approval path beyond it, but always preserves a refusal path.
   const declaredOptions = respondToApproval ? approval?.options : undefined;
-  const options = declaredOptions?.filter((o) =>
-    Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, o.kind),
-  );
 
   const respond = (approved: boolean) => {
     if (submitted) return;
@@ -403,7 +401,14 @@ function ToolFallbackApproval({
 
   const respondWithOption = (option: ToolApprovalOption) => {
     if (submitted) return;
-    respondToApproval?.({ optionId: option.id });
+    // A custom kind has no decision class for the runtime to derive, and
+    // responding without one throws; picking a declared option is an answer,
+    // so it resolves as approved.
+    respondToApproval?.(
+      isKnownKind(option.kind)
+        ? { optionId: option.id }
+        : { optionId: option.id, approved: true },
+    );
     setSubmitted(true);
     setConfirmingId(null);
   };
@@ -418,7 +423,7 @@ function ToolFallbackApproval({
 
   const confirming =
     confirmingId != null
-      ? options?.find((o) => o.id === confirmingId)
+      ? declaredOptions?.find((o) => o.id === confirmingId)
       : undefined;
 
   if (confirming) {
@@ -478,8 +483,11 @@ function ToolFallbackApproval({
   }
 
   if (declaredOptions && declaredOptions.length > 0) {
-    const allowOptions = options?.filter((o) => isAllowKind(o.kind)) ?? [];
-    const rejectOptions = options?.filter((o) => !isAllowKind(o.kind)) ?? [];
+    const allowOptions = declaredOptions.filter((o) => isAllowKind(o.kind));
+    const customOptions = declaredOptions.filter((o) => !isKnownKind(o.kind));
+    const rejectOptions = declaredOptions.filter(
+      (o) => isKnownKind(o.kind) && !isAllowKind(o.kind),
+    );
     return (
       <div
         data-slot="tool-fallback-approval"
@@ -489,7 +497,7 @@ function ToolFallbackApproval({
         )}
         {...props}
       >
-        {[...allowOptions, ...rejectOptions].map((option) => (
+        {[...allowOptions, ...customOptions, ...rejectOptions].map((option) => (
           <Button
             key={option.id}
             size="sm"
