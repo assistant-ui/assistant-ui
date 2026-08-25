@@ -57,6 +57,8 @@ describe("appendLangChainChunk content-less chunks", () => {
       content: "hello",
     } as unknown as LangChainMessageChunk);
 
+    expect(first.content).toEqual([]);
+
     expect(merged.content).toEqual([{ type: "text", text: "hello" }]);
     expect(merged.tool_calls).toEqual([
       expect.objectContaining({ id: "call-1", name: "search" }),
