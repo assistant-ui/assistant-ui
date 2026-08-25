@@ -8,12 +8,6 @@ declare global {
         properties?: Record<string, string | number | boolean>,
       ) => void;
     };
-    umami?: {
-      track: (
-        event: string,
-        data?: Record<string, string | number | boolean>,
-      ) => void;
-    };
   }
 }
 
@@ -45,9 +39,6 @@ const trackEvent = (event: string, properties?: AnalyticsProperties) => {
 
   // Vercel Analytics
   void getVercelTrack().then((track) => track?.(event, properties));
-
-  // Umami
-  window.umami?.track?.(event, properties);
 };
 
 export const analytics = {
@@ -64,14 +55,6 @@ export const analytics = {
 
     promptCopied: (properties?: AnalyticsProperties) =>
       trackEvent("prompt_copied", properties),
-  },
-
-  outbound: {
-    linkClicked: (
-      href: string,
-      label: string,
-      properties?: Record<string, string | number | boolean>,
-    ) => trackEvent("outbound_link_clicked", { ...properties, href, label }),
   },
 
   search: {
@@ -98,27 +81,6 @@ export const analytics = {
       trackEvent("code_block_copied", { language, source }),
   },
 
-  example: {
-    tabSwitched: (example: string) =>
-      trackEvent("example_tab_switched", { example }),
-  },
-
-  docs: {
-    navigationClicked: (pageName: string, pageUrl: string, depth: number) =>
-      trackEvent("doc_navigation_clicked", {
-        page_name: pageName,
-        page_url: pageUrl,
-        depth,
-      }),
-
-    folderToggled: (folderName: string, isOpen: boolean, depth: number) =>
-      trackEvent("doc_folder_toggled", {
-        folder_name: folderName,
-        is_open: isOpen,
-        depth,
-      }),
-  },
-
   builder: {
     presetSelected: (preset: string) =>
       trackEvent("builder_preset_selected", { preset }),
@@ -135,12 +97,6 @@ export const analytics = {
   },
 
   toc: {
-    linkClicked: (headingTitle: string, headingDepth: number) =>
-      trackEvent("toc_link_clicked", {
-        heading_title: headingTitle,
-        heading_depth: headingDepth,
-      }),
-
     actionClicked: (action: "copy" | "markdown" | "github" | "ask_ai") =>
       trackEvent("toc_action_clicked", { action }),
   },

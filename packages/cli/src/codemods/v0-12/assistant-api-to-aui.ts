@@ -22,72 +22,8 @@ const isUseAuiCall = (j: any, node: any): boolean => {
   );
 };
 
-// Check if a scope node directly contains an 'api' variable declaration
-const scopeHasDirectApiDeclaration = (j: any, scopeNode: any): boolean => {
-  // Get the body of the scope
-  let body = null;
-  if (
-    j.FunctionDeclaration.check(scopeNode) ||
-    j.FunctionExpression.check(scopeNode)
-  ) {
-    body = scopeNode.body?.body;
-  } else if (j.ArrowFunctionExpression.check(scopeNode)) {
-    // Arrow functions might have block or expression body
-    if (j.BlockStatement.check(scopeNode.body)) {
-      body = scopeNode.body.body;
-    }
-  } else if (j.BlockStatement.check(scopeNode)) {
-    body = scopeNode.body;
-  }
-
-  if (!Array.isArray(body)) return false;
-
-  // Check only direct statements in this scope's body
-  for (const statement of body) {
-    if (j.VariableDeclaration.check(statement)) {
-      for (const declarator of statement.declarations) {
-        if (j.Identifier.check(declarator.id) && declarator.id.name === "api") {
-          // Don't count it as shadowing if it's from useAui
-          if (!isUseAuiCall(j, declarator.init)) {
-            return true;
-          }
-        }
-      }
-    }
-  }
-
-  return false;
-};
-
-// Check if a path is inside a scope that shadows the api variable
-const isInsideShadowingScope = (j: any, identifierPath: any): boolean => {
-  let currentPath = identifierPath.parent;
-
-  while (currentPath) {
-    const node = currentPath.value;
-
-    // Check if this is a scope-creating node (function, arrow function, block)
-    if (
-      j.FunctionDeclaration.check(node) ||
-      j.FunctionExpression.check(node) ||
-      j.ArrowFunctionExpression.check(node) ||
-      j.BlockStatement.check(node)
-    ) {
-      if (scopeHasDirectApiDeclaration(j, node)) {
-        return true;
-      }
-    }
-
-    currentPath = currentPath.parent;
-  }
-
-  return false;
-};
-
 const migrateAssistantApiToAui = createTransformer(
   ({ j, root, markAsChanged }) => {
-    let hasApiFromUseAui = false;
-
     // 1. Update imports
     root.find(j.ImportDeclaration).forEach((path: any) => {
       const source = path.value.source.value;
@@ -122,91 +58,248 @@ const migrateAssistantApiToAui = createTransformer(
       }
     });
 
-    // 2. Find and rename variable declarations from useAui (or useAssistantApi)
+    // 2. Collect `api` declarators initialized from useAui / useAssistantApi.
+    // References are renamed by binding resolution, so an `api` bound
+    // elsewhere (function params, `const { api } = other()`) is never touched.
+    const renamedDeclaratorIds = new Set<any>();
     root.find(j.VariableDeclarator).forEach((path: any) => {
-      const init = path.value.init;
-
-      // Check if this is a call to useAui or useAssistantApi
-      if (isUseAuiCall(j, init)) {
-        if (j.Identifier.check(path.value.id)) {
-          const oldVarName = path.value.id.name;
-
-          // Only rename if it's called 'api'
-          if (oldVarName === "api") {
-            path.value.id.name = "aui";
-            hasApiFromUseAui = true;
-            markAsChanged();
-          }
-        }
+      if (
+        isUseAuiCall(j, path.value.init) &&
+        j.Identifier.check(path.value.id) &&
+        path.value.id.name === "api"
+      ) {
+        renamedDeclaratorIds.add(path.value.id);
       }
     });
 
-    // 3. Rename all references to 'api' if we found it from useAui
-    if (hasApiFromUseAui) {
-      root.find(j.Identifier).forEach((path: any) => {
-        if (path.value.name === "api") {
-          // Skip if this is part of an import
-          if (j.ImportSpecifier.check(path.parent.value)) {
-            return;
-          }
+    // 3. Rename references governed by one of those declarators. Resolution
+    // is lexical (nearest enclosing declaration wins) rather than via
+    // ast-types scopes, which have no block granularity: a block-scoped
+    // `const api = other()` inside the same function must shadow.
+    if (renamedDeclaratorIds.size > 0) {
+      const patternBindsApi = (id: any): boolean => {
+        if (
+          id &&
+          (id.type === "TSParameterProperty" ||
+            j.TSParameterProperty?.check?.(id))
+        ) {
+          return patternBindsApi(id.parameter);
+        }
+        if (j.Identifier.check(id)) return id.name === "api";
+        if (j.ObjectPattern.check(id)) {
+          return id.properties.some((prop: any) =>
+            patternBindsApi(prop.value ?? prop.argument ?? prop),
+          );
+        }
+        if (j.ArrayPattern.check(id)) {
+          return id.elements.some((el: any) => el && patternBindsApi(el));
+        }
+        if (j.AssignmentPattern.check(id)) return patternBindsApi(id.left);
+        if (j.RestElement.check(id)) return patternBindsApi(id.argument);
+        return false;
+      };
 
-          // Skip if this is a variable declarator id
-          if (j.VariableDeclarator.check(path.parent.value)) {
-            const declarator = path.parent.value;
-            if (declarator.id === path.value) {
-              return;
-            }
+      // What a statement-level node declares for `api`: the declarator id
+      // node when it is a plain `const/let/var api = ...`, "foreign" for any
+      // other binding of the name (patterns, functions, classes, enums), or
+      // undefined when it does not bind `api` at all.
+      const declaredApi = (statement: any): any => {
+        if (!statement) return undefined;
+        if (
+          j.ExportNamedDeclaration.check(statement) ||
+          j.ExportDefaultDeclaration.check(statement)
+        ) {
+          return declaredApi(statement.declaration);
+        }
+        if (j.VariableDeclaration.check(statement)) {
+          for (const declarator of statement.declarations) {
+            if (
+              j.Identifier.check(declarator.id) &&
+              declarator.id.name === "api"
+            )
+              return declarator.id;
+            if (patternBindsApi(declarator.id)) return "foreign";
           }
+          return undefined;
+        }
+        // Type-only declarations do not shadow the value binding.
+        if (
+          statement.type === "TSTypeAliasDeclaration" ||
+          statement.type === "TSInterfaceDeclaration" ||
+          statement.type === "TSDeclareFunction"
+        )
+          return undefined;
+        // FunctionDeclaration, ClassDeclaration, TS enums/namespaces, …
+        if (
+          statement.id &&
+          j.Identifier.check(statement.id) &&
+          statement.id.name === "api"
+        )
+          return "foreign";
+        return undefined;
+      };
 
-          // Skip if this is a property key in an object (e.g., { api: true })
-          if (j.Property.check(path.parent.value)) {
-            const prop = path.parent.value;
-            if (prop.key === path.value && !prop.shorthand && !prop.computed) {
-              return;
-            }
-          }
+      const scanStatements = (statements: any[]): any => {
+        for (const statement of statements) {
+          const found = declaredApi(statement);
+          if (found !== undefined) return found;
+        }
+        return undefined;
+      };
 
-          if (j.ObjectProperty.check(path.parent.value)) {
-            const prop = path.parent.value;
-            if (prop.key === path.value && !prop.shorthand && !prop.computed) {
-              return;
-            }
-          }
+      // Returns the declarator id node governing `api` here, or "foreign"
+      // when any other binding of the name shadows it first.
+      const governingApiBinding = (path: any): any => {
+        let current = path.parent;
+        while (current) {
+          const node = current.value;
 
-          // Skip if this is a property in a member expression (e.g., foo.api)
+          // Anything function-like (declarations, expressions, arrows,
+          // object/class methods) binds its params.
+          if (Array.isArray(node.params) && node.params.some(patternBindsApi))
+            return "foreign";
+          // A named function/class expression binds its own name in its body.
           if (
-            j.MemberExpression.check(path.parent.value) &&
-            path.parent.value.property === path.value &&
-            !path.parent.value.computed
+            (j.FunctionExpression.check(node) ||
+              j.ClassExpression.check(node)) &&
+            node.id?.name === "api"
+          )
+            return "foreign";
+          if (
+            j.CatchClause.check(node) &&
+            node.param &&
+            patternBindsApi(node.param)
+          )
+            return "foreign";
+
+          let found: any;
+          if (j.BlockStatement.check(node) || j.Program.check(node)) {
+            found = scanStatements(node.body);
+          } else if (j.ForStatement.check(node)) {
+            found = declaredApi(node.init);
+          } else if (
+            j.ForOfStatement.check(node) ||
+            j.ForInStatement.check(node)
           ) {
-            return;
+            found = declaredApi(node.left);
+          } else if (j.SwitchStatement.check(node)) {
+            found = scanStatements(
+              node.cases.flatMap((c: any) => c.consequent),
+            );
+          } else if (j.StaticBlock?.check?.(node)) {
+            found = scanStatements(node.body);
           }
+          if (found !== undefined) return found;
 
-          // Skip if this is a JSX attribute name
-          if (j.JSXAttribute.check(path.parent.value)) {
+          current = current.parent;
+        }
+        return undefined;
+      };
+
+      const bindsToRenamedApi = (path: any): boolean => {
+        const governing = governingApiBinding(path);
+        return governing !== "foreign" && renamedDeclaratorIds.has(governing);
+      };
+
+      const referencePaths: any[] = [];
+      root.find(j.Identifier, { name: "api" }).forEach((path: any) => {
+        const parent = path.parent.value;
+        if (j.ImportSpecifier.check(parent)) return;
+        // Declaration names (variable, function, class, type alias,
+        // interface) and TS type positions are not value references.
+        if (parent.id === path.value) return;
+        if (j.TSTypeReference?.check?.(parent)) return;
+        if (j.TSQualifiedName?.check?.(parent)) return;
+        // Any non-computed key position is a name, not a reference: object
+        // properties, object/class methods, class properties, TS signatures.
+        // Esprima-style shorthand reuses one node as key and value, so the
+        // value position must survive the guard.
+        if (
+          parent.key === path.value &&
+          !parent.computed &&
+          parent.value !== path.value
+        )
+          return;
+        if (
+          j.MemberExpression.check(parent) &&
+          parent.property === path.value &&
+          !parent.computed
+        )
+          return;
+        // JSXIdentifier extends Identifier, so JSX positions land here too:
+        // member properties (<config.api/>), namespace names, and lowercase
+        // element names (<api/> is an intrinsic tag) are not references.
+        if (
+          j.JSXMemberExpression?.check?.(parent) &&
+          parent.property === path.value
+        )
+          return;
+        if (j.JSXNamespacedName?.check?.(parent)) return;
+        if (
+          (j.JSXOpeningElement?.check?.(parent) ||
+            j.JSXClosingElement?.check?.(parent)) &&
+          parent.name === path.value
+        )
+          return;
+        if (j.JSXAttribute.check(parent)) return;
+        // The exported name of `export { api }` is the public alias, not a
+        // reference; only the local side is renamed (to `aui as api`). A
+        // source-bearing re-export binds in the other module, never here.
+        if (j.ExportSpecifier.check(parent)) {
+          const grandparent = path.parent.parent?.value;
+          if (
+            j.ExportNamedDeclaration.check(grandparent) &&
+            grandparent.source != null
+          )
             return;
-          }
-
-          // Skip if this identifier is inside a scope that shadows the api variable
-          if (isInsideShadowingScope(j, path)) {
+          if (
+            grandparent?.exportKind === "type" ||
+            parent.exportKind === "type"
+          )
             return;
-          }
+          if (parent.exported === path.value && parent.local !== path.value)
+            return;
+        }
+        if (!bindsToRenamedApi(path)) return;
+        referencePaths.push(path);
+      });
 
-          // Update the reference
+      for (const path of referencePaths) {
+        const parent = path.parent.value;
+        if (
+          (j.Property.check(parent) || j.ObjectProperty.check(parent)) &&
+          parent.shorthand &&
+          parent.value === path.value
+        ) {
+          // `{ api }` in an object literal: keep the key, rename the value
+          parent.shorthand = false;
+          parent.key = j.identifier("api");
+          parent.value = j.identifier("aui");
+        } else if (
+          j.ExportSpecifier.check(parent) &&
+          parent.local === path.value
+        ) {
+          // `export { api }` / `export { api as name }`: rename the local
+          // binding, keep the public name. Replaced wholesale — recast keeps
+          // the shorthand form (dropping the alias) when only the fields of
+          // the original node change.
+          path.parent.replace(
+            j.exportSpecifier.from({
+              local: j.identifier("aui"),
+              exported: j.Identifier.check(parent.exported)
+                ? j.identifier(parent.exported.name)
+                : parent.exported,
+            }),
+          );
+        } else {
           path.value.name = "aui";
-          markAsChanged();
         }
-      });
-
-      // Also handle JSX identifiers
-      root.find(j.JSXIdentifier).forEach((path: any) => {
-        if (path.value.name === "api") {
-          if (!isInsideShadowingScope(j, path)) {
-            path.value.name = "aui";
-            markAsChanged();
-          }
-        }
-      });
+        markAsChanged();
+      }
+      for (const idNode of renamedDeclaratorIds) {
+        idNode.name = "aui";
+        markAsChanged();
+      }
     }
 
     // 4. Update hook call references (in case they're used as values)

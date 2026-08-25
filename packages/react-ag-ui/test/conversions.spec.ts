@@ -50,6 +50,25 @@ describe("adapter conversions", () => {
     });
   });
 
+  it("round-trips a developer message through import and export", () => {
+    const imported = fromAgUiMessages([
+      { id: "d-1", role: "developer", content: "Hidden instruction" },
+      { id: "u-1", role: "user", content: "Hello" },
+    ] as Message[]);
+
+    const developer = imported.find((message) => message.id === "d-1");
+    expect(developer).toMatchObject({ role: "system" });
+
+    const replayed = toAgUiMessages(
+      imported as Parameters<typeof toAgUiMessages>[0],
+    );
+    expect(replayed[0]).toMatchObject({
+      id: "d-1",
+      role: "developer",
+      content: "Hidden instruction",
+    });
+  });
+
   it("keeps system, developer, and reasoning roles and drops unknown ones", () => {
     const result = toAgUiMessages([
       { id: "s-1", role: "system", content: "Be brief" },

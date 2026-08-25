@@ -16,7 +16,7 @@ Use a toolkit registered with `Tools({ toolkit })` instead. Toolkits keep the mo
 
 ```tsx
 import { AssistantRuntimeProvider, makeAssistantTool } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { z } from "zod";
 
 const WeatherTool = makeAssistantTool({
@@ -76,7 +76,7 @@ import {
   AuiConfig,
   Tools,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import toolkit from "./toolkit";
 
 export function App() {

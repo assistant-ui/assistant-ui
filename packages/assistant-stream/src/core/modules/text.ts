@@ -1,5 +1,6 @@
 import type { AssistantStream } from "../AssistantStream";
 import type { AssistantStreamChunk } from "../AssistantStreamChunk";
+import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
 import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 
 export type TextStreamController = {
@@ -49,11 +50,11 @@ class TextStreamControllerImpl implements TextStreamController {
   close() {
     if (this._isClosed) return;
     this._isClosed = true;
-    this._controller.enqueue({
+    enqueueIfOpen(this._controller, {
       type: "part-finish",
       path: [],
     });
-    this._controller.close();
+    closeIfOpen(this._controller);
   }
 }
 

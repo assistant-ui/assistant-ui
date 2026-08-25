@@ -4,6 +4,7 @@ import { NO_RESULT, type ToolResponseLike } from "../tool/ToolResponse";
 import type { ReadonlyJSONValue } from "../../utils/json/json-value";
 import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 import { createTextStream, type TextStreamController } from "./text";
+import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
 
 export type ToolCallStreamController = {
   argsText: TextStreamController;
@@ -39,19 +40,19 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
           switch (chunk.type) {
             case "text-delta":
               hasArgsText = true;
-              this._controller.enqueue(chunk);
+              enqueueIfOpen(this._controller, chunk);
               break;
 
             case "part-finish":
               if (!hasArgsText) {
                 // if no argsText was provided, assume empty object
-                this._controller.enqueue({
+                enqueueIfOpen(this._controller, {
                   type: "text-delta",
                   textDelta: "{}",
                   path: [],
                 });
               }
-              this._controller.enqueue({
+              enqueueIfOpen(this._controller, {
                 type: "tool-call-args-text-finish",
                 path: [],
               });
@@ -79,7 +80,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     // indistinguishable from one that never finished.
     const result = response.result;
 
-    this._controller.enqueue({
+    enqueueIfOpen(this._controller, {
       type: "result",
       path: [],
       ...(response.artifact !== undefined
@@ -104,11 +105,11 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     this._argsTextController.close();
     await this._mergeTask;
 
-    this._controller.enqueue({
+    enqueueIfOpen(this._controller, {
       type: "part-finish",
       path: [],
     });
-    this._controller.close();
+    closeIfOpen(this._controller);
   }
 }
 

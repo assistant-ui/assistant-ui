@@ -10,6 +10,13 @@ const mocks = vi.hoisted(() => ({
   adapters: [] as ExternalStoreAdapter[],
   repository: undefined as unknown,
   state: undefined as unknown,
+  threadListItem: {
+    id: "t1",
+    remoteId: "t1" as string | undefined,
+    externalId: "t1" as string | undefined,
+    status: "regular" as "new" | "regular" | "archived",
+  },
+  mainThreadId: "t1",
   controller: {
     load: vi.fn().mockResolvedValue(undefined),
     sendMessage: vi.fn().mockResolvedValue(undefined),
@@ -19,17 +26,15 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@assistant-ui/react", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/react")>()),
   useAui: () => ({
-    threadListItem: { initialize: vi.fn().mockResolvedValue(undefined) },
+    threadListItem: {
+      ...mocks.threadListItem,
+      initialize: vi.fn().mockResolvedValue(undefined),
+    },
   }),
   useAuiState: (selector: (state: unknown) => unknown) =>
     selector({
-      threadListItem: {
-        id: "t1",
-        remoteId: "t1",
-        externalId: "t1",
-        status: "regular",
-      },
-      threads: { mainThreadId: "t1" },
+      threadListItem: mocks.threadListItem,
+      threads: { mainThreadId: mocks.mainThreadId },
     }),
   useExternalStoreRuntime: (adapter: ExternalStoreAdapter) => {
     mocks.adapters.push(adapter);
@@ -81,6 +86,13 @@ afterEach(() => {
   act(() => root?.unmount());
   root = undefined;
   mocks.adapters.length = 0;
+  mocks.threadListItem = {
+    id: "t1",
+    remoteId: "t1",
+    externalId: "t1",
+    status: "regular",
+  };
+  mocks.mainThreadId = "t1";
   vi.clearAllMocks();
   vi.restoreAllMocks();
 });
@@ -135,4 +147,28 @@ describe("usePiRuntime error callbacks", () => {
       );
     },
   );
+});
+
+describe("usePiRuntime new-thread store", () => {
+  it("keeps the composer enabled while initialization has no remote ids", async () => {
+    mocks.threadListItem = {
+      id: "__LOCALID_new",
+      remoteId: undefined,
+      externalId: undefined,
+      status: "regular",
+    };
+    mocks.mainThreadId = "__LOCALID_new";
+
+    const App = () => {
+      usePiRuntime({ client: {} as PiClient });
+      return null;
+    };
+
+    root = createRoot(document.createElement("div"));
+    await act(async () => root!.render(createElement(App)));
+
+    const adapter = mocks.adapters.at(-1)!;
+    expect(adapter.isDisabled).toBe(false);
+    expect(adapter.isLoading).toBe(false);
+  });
 });

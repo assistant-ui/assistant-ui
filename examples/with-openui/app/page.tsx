@@ -7,7 +7,7 @@ import {
   Suggestions,
   Tools,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { OpenUIInstructions, openuiIntegration } from "@openuidev/assistant-ui";
 import { shouldContinueAfterOpenUIPrompt } from "@openuidev/assistant-ui/ai-sdk";
 

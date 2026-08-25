@@ -68,6 +68,7 @@ packages/react-devtools/src/styles/panel.generated.ts
 # turbo
 .turbo
 .api-surface-tmp/
+.strict-libcheck-*/
 
 # python
 __pycache__/

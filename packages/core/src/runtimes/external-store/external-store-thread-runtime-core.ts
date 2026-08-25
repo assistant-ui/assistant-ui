@@ -16,6 +16,7 @@ import type {
 import {
   getExternalStoreMessages,
   bindExternalStoreMessage,
+  FALLBACK_ID_PREFIX,
 } from "../../runtime/utils/external-store-message";
 import { ThreadMessageConverter } from "./thread-message-converter";
 import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
@@ -143,9 +144,7 @@ export class ExternalStoreThreadRuntimeCore
   // set, because after them the incoming array omits off-branch ids for
   // reasons unrelated to deletion. Plain tail sends do not clear: a tail
   // append cannot make a visible id absent, so id-absence stays unambiguous
-  // and a delete whose confirmation races a send keeps its eviction. An
-  // edit racing an in-flight delete does drop the eviction — accepted, as
-  // main never evicted on this path at all.
+  // and a delete whose confirmation races a send keeps its eviction.
   private _pendingDeleteEvictions = new Set<string>();
 
   private _store!: ExternalStoreAdapter<any>;
@@ -298,19 +297,29 @@ export class ExternalStoreThreadRuntimeCore
               false,
               undefined,
             );
+            const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
 
             if (
               cache &&
               (cache.role !== "assistant" ||
                 !isAutoStatus(cache.status) ||
                 cache.status === autoStatus)
-            )
+            ) {
+              if (
+                cache.id.startsWith(FALLBACK_ID_PREFIX) &&
+                cache.id !== fallbackId
+              ) {
+                const updated = { ...cache, id: fallbackId };
+                bindExternalStoreMessage(updated, m);
+                return updated;
+              }
               return cache;
+            }
 
             const messageLike = store.convertMessage(m, idx);
             const newMessage = fromThreadMessageLike(
               messageLike,
-              idx.toString(),
+              fallbackId,
               autoStatus,
             );
             bindExternalStoreMessage(newMessage, m);

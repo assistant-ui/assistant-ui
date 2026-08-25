@@ -93,7 +93,10 @@ const useSingleThreadList = ({
         !(
           typeof selector === "object" &&
           "index" in selector &&
-          selector.index === 0
+          selector.index === 0 &&
+          // Index selectors address their archived/regular subset, and the
+          // archived subset here is always empty.
+          !selector.archived
         )
       ) {
         throw new Error(

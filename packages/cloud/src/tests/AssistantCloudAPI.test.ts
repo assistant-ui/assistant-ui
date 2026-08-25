@@ -169,6 +169,31 @@ describe("AssistantCloudAPI", () => {
     expect(error.status).toBe(400);
   });
 
+  it("falls back to the response text when the JSON error body has no message", async () => {
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 429,
+      headers: new Headers(),
+      text: vi
+        .fn()
+        .mockResolvedValue(JSON.stringify({ error: "rate limited" })),
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    const api = new AssistantCloudAPI({
+      apiKey: "test-key",
+      userId: "u-1",
+      workspaceId: "w-1",
+    });
+
+    const error = await api.makeRawRequest("/threads").catch((e) => e);
+    expect(error).toBeInstanceOf(CloudAPIError);
+    expect(error.message).toBe(
+      'Request failed with status 429, {"error":"rate limited"}',
+    );
+    expect(error.status).toBe(429);
+  });
+
   it("throws generic error with status for non-JSON error responses", async () => {
     const fetchMock = vi.fn().mockResolvedValue({
       ok: false,

@@ -120,12 +120,18 @@ const fixedConditionMap: Record<string, Record<string, string>> = {
   },
 };
 
+// A prop value the maps cannot faithfully express as a static condition
+// (dynamic expressions, `{undefined}`); elements carrying one are skipped
+// so runtime behavior is never silently changed.
+const UNSUPPORTED_VALUE: unique symbol = Symbol("unsupported");
+
 /**
  * Extract the value of a JSX attribute.
  * - Boolean prop (no value): `<X.If user>` → `true`
  * - `{true}` / `{false}`: → `true` / `false`
  * - `{"positive"}`: → `"positive"`
  * - `{null}`: → `null`
+ * - anything else (dynamic expressions): → UNSUPPORTED_VALUE
  */
 const getAttrValue = (j: any, attr: any): unknown => {
   // Boolean attribute (no value), e.g. `<X.If user>`
@@ -137,12 +143,14 @@ const getAttrValue = (j: any, attr: any): unknown => {
   if (j.JSXExpressionContainer.check(attr.value)) {
     const expr = attr.value.expression;
     if (j.BooleanLiteral.check(expr)) return expr.value;
+    // NullLiteral bases Literal in ast-types but carries no `value` field,
+    // so it must be recognized before the generic Literal branch.
+    if (j.NullLiteral.check(expr)) return null;
     if (j.Literal.check(expr)) {
       if (expr.value === null) return null;
       return expr.value;
     }
-    if (j.NullLiteral.check(expr)) return null;
-    if (j.Identifier.check(expr) && expr.name === "undefined") return undefined;
+    return UNSUPPORTED_VALUE;
   }
 
   // String literal
@@ -150,7 +158,7 @@ const getAttrValue = (j: any, attr: any): unknown => {
     return attr.value.value;
   }
 
-  return undefined;
+  return UNSUPPORTED_VALUE;
 };
 
 const buildConditionString = (fragments: ConditionFragment[]): string => {
@@ -185,61 +193,52 @@ const migratePrimitiveIfToAuiIf = createTransformer(
 
     if (importedPrimitives.size === 0) return;
 
-    // Process fixed-condition components: <ThreadPrimitive.Empty> → <AuiIf condition={...}>
-    root.find(j.JSXOpeningElement).forEach((path: any) => {
-      const name = path.value.name;
-      if (!j.JSXMemberExpression.check(name)) return;
-      if (!j.JSXIdentifier.check(name.object)) return;
-      if (!j.JSXIdentifier.check(name.property)) return;
-
-      const primitiveName = name.object.name as string;
-      const propertyName = name.property.name as string;
-      const fixedMap = fixedConditionMap[primitiveName];
-      if (!fixedMap) return;
-      const conditionBody = fixedMap[propertyName];
-      if (!conditionBody) return;
-      if (!importedPrimitives.has(primitiveName)) return;
-
-      // Only transform if there are no props (other than children, which are implicit)
-      const attrs: any[] = path.value.attributes || [];
-      if (attrs.length > 0) return;
-
+    // Opening and closing tags are rewritten together per element, so a
+    // skipped element can never be left with a mismatched closing tag.
+    const convertElementToAuiIf = (elementPath: any, conditionBody: string) => {
       const arrowFnAst = j(`(s) => ${conditionBody}`)
         .find(j.ArrowFunctionExpression)
         .paths()[0]!.value;
 
-      path.value.name = j.jsxIdentifier("AuiIf");
-      path.value.attributes = [
+      const opening = elementPath.value.openingElement;
+      opening.name = j.jsxIdentifier("AuiIf");
+      opening.attributes = [
         j.jsxAttribute(
           j.jsxIdentifier("condition"),
           j.jsxExpressionContainer(arrowFnAst),
         ),
       ];
+      if (elementPath.value.closingElement) {
+        elementPath.value.closingElement.name = j.jsxIdentifier("AuiIf");
+      }
 
       needsAuiIfImport = true;
       markAsChanged();
-    });
+    };
 
-    // Update closing elements for fixed-condition components
-    root.find(j.JSXClosingElement).forEach((path: any) => {
-      const name = path.value.name;
+    // Process fixed-condition components: <ThreadPrimitive.Empty> → <AuiIf condition={...}>
+    root.find(j.JSXElement).forEach((path: any) => {
+      const name = path.value.openingElement.name;
       if (!j.JSXMemberExpression.check(name)) return;
       if (!j.JSXIdentifier.check(name.object)) return;
       if (!j.JSXIdentifier.check(name.property)) return;
 
       const primitiveName = name.object.name as string;
       const propertyName = name.property.name as string;
-      const fixedMap = fixedConditionMap[primitiveName];
-      if (!fixedMap?.[propertyName]) return;
+      const conditionBody = fixedConditionMap[primitiveName]?.[propertyName];
+      if (!conditionBody) return;
       if (!importedPrimitives.has(primitiveName)) return;
 
-      path.value.name = j.jsxIdentifier("AuiIf");
-      markAsChanged();
+      // Only transform if there are no props (other than children, which are implicit)
+      const attrs: any[] = path.value.openingElement.attributes || [];
+      if (attrs.length > 0) return;
+
+      convertElementToAuiIf(path, conditionBody);
     });
 
     // Process JSX elements: <ThreadPrimitive.If ...> → <AuiIf condition={...}>
-    root.find(j.JSXOpeningElement).forEach((path: any) => {
-      const name = path.value.name;
+    root.find(j.JSXElement).forEach((path: any) => {
+      const name = path.value.openingElement.name;
 
       // Check for `<XPrimitive.If ...>`
       if (!j.JSXMemberExpression.check(name)) return;
@@ -253,7 +252,7 @@ const migratePrimitiveIfToAuiIf = createTransformer(
       if (!importedPrimitives.has(primitiveName)) return;
 
       // Extract props
-      const attrs: any[] = path.value.attributes || [];
+      const attrs: any[] = path.value.openingElement.attributes || [];
       const fragments: ConditionFragment[] = [];
       let hasUnknownProp = false;
 
@@ -265,7 +264,11 @@ const migratePrimitiveIfToAuiIf = createTransformer(
         }
         const propName =
           typeof attr.name.name === "string" ? attr.name.name : null;
-        if (!propName) continue;
+        if (!propName) {
+          // e.g. JSXNamespacedName — not expressible as a condition
+          hasUnknownProp = true;
+          continue;
+        }
 
         const mapper = propMap[propName];
         if (!mapper) {
@@ -274,6 +277,10 @@ const migratePrimitiveIfToAuiIf = createTransformer(
         }
 
         const value = getAttrValue(j, attr);
+        if (value === UNSUPPORTED_VALUE) {
+          hasUnknownProp = true;
+          continue;
+        }
         const fragment = mapper(value);
         if (fragment) {
           fragments.push(fragment);
@@ -283,42 +290,7 @@ const migratePrimitiveIfToAuiIf = createTransformer(
       // If we couldn't map all props, skip this element
       if (hasUnknownProp || fragments.length === 0) return;
 
-      const conditionBody = buildConditionString(fragments);
-
-      // Parse the arrow function as an expression to get a proper AST node
-      const arrowFnAst = j(`(s) => ${conditionBody}`)
-        .find(j.ArrowFunctionExpression)
-        .paths()[0]!.value;
-
-      // Replace <XPrimitive.If ...> with <AuiIf condition={...}>
-      path.value.name = j.jsxIdentifier("AuiIf");
-
-      // Replace all attributes with a single condition prop
-      path.value.attributes = [
-        j.jsxAttribute(
-          j.jsxIdentifier("condition"),
-          j.jsxExpressionContainer(arrowFnAst),
-        ),
-      ];
-
-      needsAuiIfImport = true;
-      markAsChanged();
-    });
-
-    // Update closing elements to match
-    root.find(j.JSXClosingElement).forEach((path: any) => {
-      const name = path.value.name;
-      if (!j.JSXMemberExpression.check(name)) return;
-      if (!j.JSXIdentifier.check(name.object)) return;
-      if (!j.JSXIdentifier.check(name.property)) return;
-      if (name.property.name !== "If") return;
-
-      const primitiveName = name.object.name;
-      if (!primitiveMap[primitiveName]) return;
-      if (!importedPrimitives.has(primitiveName)) return;
-
-      path.value.name = j.jsxIdentifier("AuiIf");
-      markAsChanged();
+      convertElementToAuiIf(path, buildConditionString(fragments));
     });
 
     // Add AuiIf import if needed

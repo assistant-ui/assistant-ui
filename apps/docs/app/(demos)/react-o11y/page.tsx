@@ -11,14 +11,14 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import { CopyCommandButton } from "@/components/home/copy-command-button";
+import { CopyCommandButton } from "@/components/shared/copy-command-button";
 import { Button, buttonVariants } from "@/components/ui/button";
-import { WaterfallSample } from "@/components/docs/samples/o11y/waterfall";
+import { WaterfallSample } from "@/components/pages/docs/samples/o11y/waterfall";
 import {
   CollapseSample,
   StatusSample,
   StreamingSample,
-} from "@/components/docs/samples/o11y/capability-samples";
+} from "@/components/pages/docs/samples/o11y/capability-samples";
 
 const ANALYTICS_PAGE = "react-o11y" as const;
 

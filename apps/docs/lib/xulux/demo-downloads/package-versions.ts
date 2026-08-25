@@ -1,8 +1,8 @@
 type Snapshot = Record<string, string>;
 
 const WORKSPACE_PACKAGE_JSON: Record<string, string> = {
+  "@assistant-ui/ai-sdk": "packages/ai-sdk/package.json",
   "@assistant-ui/react": "packages/react/package.json",
-  "@assistant-ui/react-ai-sdk": "packages/react-ai-sdk/package.json",
   "@assistant-ui/react-ink": "packages/react-ink/package.json",
   "@assistant-ui/react-ink-markdown":
     "packages/react-ink-markdown/package.json",
@@ -12,8 +12,8 @@ const WORKSPACE_PACKAGE_JSON: Record<string, string> = {
 
 export const DEMO_DEPENDENCIES = [
   "@ai-sdk/openai",
+  "@assistant-ui/ai-sdk",
   "@assistant-ui/react",
-  "@assistant-ui/react-ai-sdk",
   "@assistant-ui/react-lexical",
   "@assistant-ui/react-markdown",
   "@base-ui/react",

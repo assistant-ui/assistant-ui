@@ -101,7 +101,11 @@ type DataStreamStreamChunkValue = {
   };
   [DataStreamStreamChunkType.RedactedReasoning]: { data: string };
   [DataStreamStreamChunkType.ReasoningSignature]: { signature: string };
-  [DataStreamStreamChunkType.File]: { data: string; mimeType: string };
+  [DataStreamStreamChunkType.File]: {
+    data: string;
+    mimeType: string;
+    parentId?: string;
+  };
 
   // aui-extensions
   [DataStreamStreamChunkType.AuiUpdateStateOperations]: GorpStreamOperation[];

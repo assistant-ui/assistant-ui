@@ -110,10 +110,15 @@ export class A2AThreadRuntimeCore {
   private readonly recordedHistoryIds = new Set<string>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
+  private _loadRequested = false;
+  private _agentCardPromise: Promise<void> | undefined;
+
+  private lastOptionsContextId: string | undefined;
 
   constructor(options: A2AThreadRuntimeCoreOptions) {
     this.client = options.client;
     this.contextId = options.contextId;
+    this.lastOptionsContextId = options.contextId;
     this.configuration = options.configuration;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
@@ -124,12 +129,46 @@ export class A2AThreadRuntimeCore {
 
   updateOptions(options: Omit<A2AThreadRuntimeCoreOptions, "notifyUpdate">) {
     this.client = options.client;
-    this.contextId = options.contextId;
+    // The hook re-applies options on every render, including renders caused
+    // by this core's own notifyUpdate. The option only seeds the context: a
+    // re-render with the same value must not clobber a server-assigned
+    // contextId learned from the stream.
+    if (options.contextId !== this.lastOptionsContextId) {
+      this.contextId = options.contextId;
+      this.lastOptionsContextId = options.contextId;
+    }
     this.configuration = options.configuration;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.onArtifactComplete = options.onArtifactComplete;
+    const previousHistory = this.history;
     this.history = options.history;
+
+    if (
+      this._loadRequested &&
+      !this._loadPromise &&
+      !previousHistory &&
+      options.history &&
+      this.repository.getMessages().length === 0
+    ) {
+      void this.__internal_load();
+    }
+  }
+
+  /** Thread-boundary reset: applyExternalMessages alone also serves branch
+   * switches, deletes, and cancel resyncs, which must keep the live context. */
+  resetContext(): void {
+    // Restore the seed before aborting: an onCancel callback that starts a
+    // new run must not pick up the old thread's context, and its controller
+    // must not be discarded.
+    const controller = this.abortController;
+    this.contextId = this.lastOptionsContextId;
+    if (controller) {
+      controller.abort();
+      if (this.abortController === controller) {
+        this.abortController = null;
+      }
+    }
   }
 
   attachRuntime(runtime: AssistantRuntime) {
@@ -236,18 +275,24 @@ export class A2AThreadRuntimeCore {
   }
 
   __internal_load(): Promise<void> {
+    this._loadRequested = true;
+    this._agentCardPromise ??= this.client
+      .getAgentCard()
+      .then((agentCard) => {
+        this.agentCardValue = agentCard;
+        this.notifyUpdate();
+      })
+      .catch(() => undefined);
+
     if (this._loadPromise) return this._loadPromise;
+    if (!this.history) return this._agentCardPromise;
 
     this._isLoading = true;
 
-    const historyPromise = this.history?.load() ?? Promise.resolve(null);
-    const agentCardPromise = this.client.getAgentCard().catch(() => undefined);
+    const historyPromise = this.history.load();
 
-    this._loadPromise = Promise.all([historyPromise, agentCardPromise])
-      .then(([repo, agentCard]) => {
-        if (agentCard) {
-          this.agentCardValue = agentCard;
-        }
+    this._loadPromise = Promise.all([historyPromise, this._agentCardPromise])
+      .then(([repo]) => {
         if (repo) {
           this.applyExternalMessageRepository(repo);
         }

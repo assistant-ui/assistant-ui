@@ -24,7 +24,7 @@ function useIsSmallScreen(): boolean {
   );
 }
 import { useAui, useAuiState, type ThreadMessage } from "@assistant-ui/react";
-import { useAssistantPanel } from "@/components/docs/assistant/context";
+import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { Button } from "@/components/ui/button";
 import { analytics } from "@/lib/analytics";
 import {

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { createOgMetadata } from "@/lib/og";
-import { ShowcaseCard } from "@/components/showcase/showcase-card";
+import { ShowcaseCard } from "@/components/pages/showcase/showcase-card";
 import { PageFrame } from "@/components/shared/page-frame";
 import { typePage } from "@/components/shared/type";
 import { SHOWCASE_COUNT, SHOWCASE_SECTIONS } from "@/lib/showcase";

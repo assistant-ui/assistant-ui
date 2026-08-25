@@ -69,7 +69,7 @@ function createComplexMessage(): UIMessage {
   } as UIMessage;
 }
 
-describe("CONTRACT: cloud-ai-sdk and react-ai-sdk ai-sdk/v6 adapters must stay in lockstep", () => {
+describe("CONTRACT: cloud-ai-sdk and ai-sdk ai-sdk/v6 adapters must stay in lockstep", () => {
   let message: UIMessage;
   let create: ReturnType<typeof createCloudMock>["create"];
   let list: ReturnType<typeof createCloudMock>["list"];

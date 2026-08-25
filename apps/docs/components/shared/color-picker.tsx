@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from "react";
 
-import type { ThemeColor } from "@/components/builder/types";
+import type { ThemeColor } from "@/components/pages/playground/types";
 import { cn } from "@/lib/utils";
 
 export type { ThemeColor };

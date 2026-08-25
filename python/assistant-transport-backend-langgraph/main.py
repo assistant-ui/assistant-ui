@@ -134,6 +134,15 @@ def bindable_tools(tools: dict[str, Any] | None) -> list[Any]:
     return [*TOOLS, *request_tool_schemas(tools)]
 
 
+def tool_call_owner(tool_name: str, request_tools: dict[str, Any] | None) -> str:
+    if tool_name in TOOL_BY_NAME:
+        return "server"
+    definition = (request_tools or {}).get(tool_name)
+    if isinstance(definition, dict) and definition.get("disabled") is not True:
+        return "frontend"
+    return "unknown"
+
+
 def tool_result_content(command: AddToolResultCommand) -> str:
     content = command.model_content if command.model_content is not None else command.result
     return content if isinstance(content, str) else json.dumps(content)
@@ -320,13 +329,31 @@ def should_call_tools(state: GraphState) -> str:
         return "end"
 
     last_message = messages[-1]
+    request_tools = state.get("tools")
     if (
         hasattr(last_message, 'tool_calls')
         and last_message.tool_calls
-        and any(tool_call["name"] in TOOL_BY_NAME for tool_call in last_message.tool_calls)
+        and any(
+            tool_call_owner(tool_call["name"], request_tools) != "frontend"
+            for tool_call in last_message.tool_calls
+        )
     ):
         return "tools"
 
+    return "end"
+
+
+def should_continue_after_tools(state: GraphState) -> str:
+    messages = state.get("messages", [])
+    request_tools = state.get("tools")
+    for message in reversed(messages):
+        if isinstance(message, AIMessage) and message.tool_calls:
+            if any(
+                tool_call_owner(tool_call["name"], request_tools) == "frontend"
+                for tool_call in message.tool_calls
+            ):
+                return "end"
+            return "agent"
     return "end"
 
 
@@ -342,8 +369,11 @@ async def tool_executor_node(state: GraphState) -> dict[str, Any]:
 
     # Process each tool call
     tool_messages = []
+    request_tools = state.get("tools")
     for tool_call in last_message.tool_calls:
         tool_name = tool_call["name"]
+        if tool_call_owner(tool_name, request_tools) == "frontend":
+            continue
         if tool_name == "task_tool":
             # Extract task description
             task_description = tool_call["args"].get("task_description", "")
@@ -427,8 +457,14 @@ def create_graph(checkpointer=None) -> CompiledStateGraph:
         }
     )
 
-    # After tools, go back to agent for potential follow-up
-    workflow.add_edge("tools", "agent")
+    workflow.add_conditional_edges(
+        "tools",
+        should_continue_after_tools,
+        {
+            "agent": "agent",
+            "end": END,
+        },
+    )
 
     # Compile with a checkpointer so DeltaChannel is exercised across thread turns.
     return workflow.compile(checkpointer=checkpointer or InMemorySaver())

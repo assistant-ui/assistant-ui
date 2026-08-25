@@ -8,6 +8,7 @@ const h = vi.hoisted(() => ({
   sendSpy: vi.fn<() => void>(),
   flushTapSyncSpy: vi.fn(<T,>(fn: () => T) => fn()),
   composerState: { text: "" },
+  threadState: { isRunning: false, queue: false },
   platform: { os: "web" as "web" | "ios" | "android" },
 }));
 
@@ -16,7 +17,13 @@ vi.mock("@assistant-ui/store", () => {
     setText: h.setText,
     send: h.sendSpy,
   });
-  const aui = { composer };
+  const thread = {
+    getState: () => ({
+      isRunning: h.threadState.isRunning,
+      capabilities: { queue: h.threadState.queue },
+    }),
+  };
+  const aui = { composer, thread };
   return {
     useAui: () => aui,
     useAuiState: <T,>(
@@ -100,6 +107,8 @@ describe("ComposerInput", () => {
     h.sendSpy.mockReset();
     h.flushTapSyncSpy.mockClear();
     h.composerState.text = "";
+    h.threadState.isRunning = false;
+    h.threadState.queue = false;
     h.platform.os = "web";
 
     container = document.createElement("div");
@@ -167,6 +176,43 @@ describe("ComposerInput", () => {
 
       expect(h.sendSpy).not.toHaveBeenCalled();
       expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("does not submit while the thread runs without queue support", async () => {
+      h.threadState.isRunning = true;
+      const input = await mount();
+
+      let event!: KeyboardEvent;
+      await act(async () => {
+        event = fireKeyDown(input, { key: "Enter" });
+      });
+
+      expect(h.sendSpy).not.toHaveBeenCalled();
+      expect(event.defaultPrevented).toBe(false);
+    });
+
+    it("submits while running when the thread supports queueing", async () => {
+      h.threadState.isRunning = true;
+      h.threadState.queue = true;
+      const input = await mount();
+
+      await act(async () => {
+        fireKeyDown(input, { key: "Enter" });
+      });
+
+      expect(h.sendSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it("blocks submission when the thread starts running after mount", async () => {
+      const input = await mount();
+
+      h.threadState.isRunning = true;
+
+      await act(async () => {
+        fireKeyDown(input, { key: "Enter" });
+      });
+
+      expect(h.sendSpy).not.toHaveBeenCalled();
     });
 
     it("ignores Enter while isComposing is set", async () => {

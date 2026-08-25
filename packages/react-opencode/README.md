@@ -33,7 +33,7 @@ export function App() {
 
 ## See also
 
-- `@assistant-ui/react-ai-sdk` for general-purpose Vercel AI SDK integration.
+- `@assistant-ui/ai-sdk` for general-purpose Vercel AI SDK integration.
 - `@assistant-ui/react-langgraph` for LangGraph agents.
 
 Full reference at [assistant-ui.com/docs/runtimes/opencode](https://www.assistant-ui.com/docs/runtimes/opencode).
