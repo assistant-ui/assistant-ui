@@ -6,6 +6,7 @@ import {
   mkdtempSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
@@ -220,7 +221,13 @@ function collectTurboFilteredPackageNames(repoRoot, filters) {
 }
 
 function checkPackage(repoRoot, packageDir, pkg) {
-  const probe = createDeclarationProbe(packageDir, pkg);
+  let probe;
+  try {
+    probe = createDeclarationProbe(packageDir, pkg);
+  } catch (error) {
+    console.error(`${pkg.name}: ${error.message}`);
+    return 1;
+  }
   if (!probe) return 0;
 
   try {
@@ -259,6 +266,15 @@ function checkPackage(repoRoot, packageDir, pkg) {
   }
 }
 
+export function isExecutedAsMain(metaUrl, argv1) {
+  if (!argv1) return false;
+  try {
+    return realpathSync(fileURLToPath(metaUrl)) === realpathSync(argv1);
+  } catch {
+    return false;
+  }
+}
+
 function main() {
   const repoRoot = process.cwd();
   const filters = optionValues(process.argv.slice(2), "--filter");
@@ -279,9 +295,6 @@ function main() {
   if (failed) process.exitCode = 1;
 }
 
-if (
-  process.argv[1] &&
-  fileURLToPath(import.meta.url) === path.resolve(process.argv[1])
-) {
+if (isExecutedAsMain(import.meta.url, process.argv[1])) {
   main();
 }

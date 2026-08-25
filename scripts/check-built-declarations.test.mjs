@@ -15,6 +15,7 @@ import {
   collectDeclarationEntries,
   createDeclarationProbe,
   declarationGateResult,
+  isExecutedAsMain,
   isOwnDeclarationFile,
   ownDeclarationDiagnostics,
 } from "./check-built-declarations.mjs";
@@ -167,4 +168,17 @@ test("fails when tsc cannot spawn or reports no file-anchored errors", () => {
     }),
     "pass",
   );
+});
+
+test("treats symlink-equivalent paths as the main module", () => {
+  const script = path.join(import.meta.dirname, "check-built-declarations.mjs");
+  assert.equal(isExecutedAsMain(import.meta.url, script), false);
+  assert.equal(
+    isExecutedAsMain(
+      import.meta.resolve("./check-built-declarations.mjs"),
+      script,
+    ),
+    true,
+  );
+  assert.equal(isExecutedAsMain(import.meta.url, undefined), false);
 });
