@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useAui,
-  useAuiState,
-  useMessagePartText,
-  useSmooth,
-} from "@assistant-ui/react";
+import { useMessagePartText, useSmooth } from "@assistant-ui/react";
 import { harden } from "rehype-harden";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, {
@@ -22,8 +17,6 @@ import {
   forwardRef,
   useDeferredValue,
   useMemo,
-  useRef,
-  useState,
 } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
@@ -35,44 +28,6 @@ import type {
 } from "../types";
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
-
-// Replaced text needs a fresh subtree once the replacement is rendered, while
-// prefix appends preserve Streamdown's incremental state.
-const useStreamRevision = (
-  part: unknown,
-  rawText: string,
-  renderedText: string,
-) => {
-  const [revision, setRevision] = useState(0);
-  const previousRef = useRef({
-    part,
-    rawText,
-    renderedText,
-  });
-  const pendingResetRef = useRef(false);
-  const previous = previousRef.current;
-  const rawTextChanged = rawText !== previous.rawText;
-  const textReplaced =
-    part !== previous.part ||
-    (rawTextChanged && !rawText.startsWith(previous.rawText));
-
-  if (textReplaced) {
-    pendingResetRef.current = true;
-  } else if (rawTextChanged) {
-    pendingResetRef.current = false;
-  }
-
-  const shouldReset =
-    pendingResetRef.current && renderedText !== previous.renderedText;
-  previousRef.current = { part, rawText, renderedText };
-
-  if (!shouldReset) return revision;
-
-  pendingResetRef.current = false;
-  const nextRevision = revision + 1;
-  setRevision(nextRevision);
-  return nextRevision;
-};
 
 // Streamdown extends the default sanitize schema without exporting it, so it is
 // read back off its own plugin set; a copy would fall behind on a bump. An
@@ -206,8 +161,6 @@ export const StreamdownTextPrimitive = forwardRef<
     ref,
   ) => {
     const messagePart = useMessagePartText();
-    const aui = useAui();
-    const part = useAuiState(() => aui.part);
 
     const processedPart = useMemo(
       () =>
@@ -221,11 +174,6 @@ export const StreamdownTextPrimitive = forwardRef<
 
     const deferredText = useDeferredValue(text);
     const processedText = defer ? deferredText : text;
-    const streamRevision = useStreamRevision(
-      part,
-      messagePart.text,
-      processedText,
-    );
 
     const shouldTailRemend =
       mode === "streaming" &&
@@ -309,7 +257,6 @@ export const StreamdownTextPrimitive = forwardRef<
         className={containerClass}
       >
         <Streamdown
-          key={streamRevision}
           mode={mode}
           isAnimating={status.type === "running"}
           components={mergedComponents}

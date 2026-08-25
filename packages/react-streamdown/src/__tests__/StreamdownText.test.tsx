@@ -1,9 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
 import { cleanup, render, screen } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
-import { useEffect, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { defaultRehypePlugins } from "streamdown";
-import { normalizeMathDelimiters } from "../preprocess";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
   StreamdownTextComponents,
@@ -123,59 +122,6 @@ describe("StreamdownTextPrimitive", () => {
       expect(screen.queryByText("first")).toBeNull();
     },
   );
-
-  it.each([
-    {
-      name: "plain",
-      initial: "first",
-      next: "first second",
-      props: {},
-    },
-    {
-      name: "preprocessed",
-      initial: "\\(x",
-      next: "\\(x\\)",
-      props: { preprocess: normalizeMathDelimiters },
-    },
-    {
-      name: "deferred",
-      initial: "first",
-      next: "first second",
-      props: { defer: true },
-    },
-  ])("preserves $name blocks for raw prefix appends", async (testCase) => {
-    const mounted = vi.fn();
-    const BlockComponent = ({ content }: { content: string }) => {
-      useEffect(() => {
-        mounted();
-      }, []);
-      return <div>{content}</div>;
-    };
-    const { rerender } = render(
-      <TextMessagePartProvider text={testCase.initial} isRunning>
-        <StreamdownTextPrimitive
-          {...testCase.props}
-          BlockComponent={BlockComponent}
-        />
-      </TextMessagePartProvider>,
-    );
-
-    expect(await screen.findByText(testCase.initial)).toBeTruthy();
-
-    rerender(
-      <TextMessagePartProvider text={testCase.next} isRunning>
-        <StreamdownTextPrimitive
-          {...testCase.props}
-          BlockComponent={BlockComponent}
-        />
-      </TextMessagePartProvider>,
-    );
-
-    const expectedText =
-      testCase.name === "preprocessed" ? "$x$" : testCase.next;
-    expect(await screen.findByText(expectedText)).toBeTruthy();
-    expect(mounted).toHaveBeenCalledTimes(1);
-  });
 
   it("renders settled text in full when smooth is enabled", async () => {
     render(

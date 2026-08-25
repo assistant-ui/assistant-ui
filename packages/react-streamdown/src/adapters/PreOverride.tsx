@@ -3,7 +3,7 @@
 import type { Element } from "hast";
 import {
   type ComponentPropsWithoutRef,
-  type ReactElement,
+  type ReactNode,
   cloneElement,
   createContext,
   isValidElement,
@@ -47,9 +47,17 @@ export const PreOverride = memo(function PreOverride({
   node,
   ...rest
 }: PreOverrideProps) {
-  const childWithBlock = isValidElement(children)
-    ? cloneElement(children as ReactElement<{ "data-block"?: string }>, {
+  const childWithBlock = isValidElement<{
+    "data-block"?: string;
+    children?: ReactNode;
+  }>(children)
+    ? cloneElement(children, {
         "data-block": "true",
+        key:
+          typeof children.props.children === "string" ||
+          typeof children.props.children === "number"
+            ? children.props.children
+            : children.key,
       })
     : children;
 
