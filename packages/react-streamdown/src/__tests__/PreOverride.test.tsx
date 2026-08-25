@@ -163,20 +163,20 @@ describe("PreOverride component", () => {
     };
     const { rerender } = render(
       <PreOverride>
-        <Code>fir</Code>
+        <Code>{"fir\n"}</Code>
       </PreOverride>,
     );
 
     rerender(
       <PreOverride>
-        <Code>first</Code>
+        <Code>{"first\n"}</Code>
       </PreOverride>,
     );
     expect(onMount).toHaveBeenCalledTimes(1);
 
     rerender(
       <PreOverride>
-        <Code>second</Code>
+        <Code>{"second\n"}</Code>
       </PreOverride>,
     );
     expect(onMount).toHaveBeenCalledTimes(2);

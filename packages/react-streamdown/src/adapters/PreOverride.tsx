@@ -23,22 +23,18 @@ const useCodeRevision = (children: ReactNode) => {
     : null;
   const content =
     typeof childContent === "string" || typeof childContent === "number"
-      ? String(childContent)
+      ? String(childContent).replace(/\n$/, "")
       : null;
   const [state, setState] = useState(() => ({
     anchor: content,
     revision: 0,
   }));
 
-  if (
-    content === null ||
-    content === state.anchor ||
-    (state.anchor !== null && content.startsWith(state.anchor))
-  ) {
+  if (content === null || content === state.anchor) {
     return state.revision;
   }
 
-  if (state.anchor === null || state.anchor === "") {
+  if (state.anchor === null || content.startsWith(state.anchor)) {
     setState({ anchor: content, revision: state.revision });
     return state.revision;
   }

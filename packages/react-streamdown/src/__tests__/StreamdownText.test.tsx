@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import { defaultRehypePlugins } from "streamdown";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
@@ -122,6 +122,32 @@ describe("StreamdownTextPrimitive", () => {
       expect(screen.queryByText("first")).toBeNull();
     },
   );
+
+  it("preserves code mounts during streamed prefix appends", async () => {
+    const mounted = vi.fn();
+    const Code = ({ children }: { children?: ReactNode }) => {
+      useEffect(() => {
+        mounted();
+      }, []);
+      return <code>{children}</code>;
+    };
+    const components = { code: Code } as StreamdownTextComponents;
+    const { rerender } = render(
+      <TextMessagePartProvider text={"```ts\nfir\n```"} isRunning>
+        <StreamdownTextPrimitive components={components} />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("fir")).toBeTruthy();
+    rerender(
+      <TextMessagePartProvider text={"```ts\nfirst\n```"} isRunning>
+        <StreamdownTextPrimitive components={components} />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("first")).toBeTruthy();
+    await waitFor(() => expect(mounted).toHaveBeenCalledTimes(1));
+  });
 
   it("renders settled text in full when smooth is enabled", async () => {
     render(
