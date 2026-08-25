@@ -104,7 +104,7 @@
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "zustand": "^5.0.15"
   },
   "publishConfig": {

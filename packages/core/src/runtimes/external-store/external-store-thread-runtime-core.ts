@@ -16,6 +16,7 @@ import type {
 import {
   getExternalStoreMessages,
   bindExternalStoreMessage,
+  FALLBACK_ID_PREFIX,
 } from "../../runtime/utils/external-store-message";
 import { ThreadMessageConverter } from "./thread-message-converter";
 import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
@@ -76,8 +77,6 @@ export const hasUpcomingMessage = (
 ) => {
   return isRunning && messages[messages.length - 1]?.role !== "assistant";
 };
-
-const FALLBACK_ID_PREFIX = "__external_store_fallback_";
 
 export class ExternalStoreThreadRuntimeCore
   extends BaseThreadRuntimeCore

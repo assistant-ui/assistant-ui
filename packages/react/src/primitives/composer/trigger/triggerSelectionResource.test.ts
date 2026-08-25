@@ -45,7 +45,7 @@ const render = ({
 }: {
   behavior: TriggerBehavior;
   text: string;
-  trigger: { offset: number; query: string };
+  trigger: { offset: number; query: string; endOffset: number };
 }) => {
   const textRef = { value: text };
   const { aui, setText } = makeAui(textRef);
@@ -72,7 +72,7 @@ describe("TriggerSelectionResource", () => {
     const { root, setText, setCursorPosition, onSelected } = render({
       behavior: { kind: "directive", formatter },
       text: "@file tail",
-      trigger: { offset: 0, query: "file" },
+      trigger: { offset: 0, query: "file", endOffset: 5 },
     });
 
     root.getValue().selectItem(item);
@@ -91,7 +91,7 @@ describe("TriggerSelectionResource", () => {
         removeOnExecute: true,
       },
       text: "before @file tail",
-      trigger: { offset: 7, query: "file" },
+      trigger: { offset: 7, query: "file", endOffset: 12 },
     });
 
     root.getValue().selectItem(item);
@@ -131,5 +131,17 @@ describe("TriggerSelectionResource", () => {
     expect(setText).toHaveBeenCalledOnce();
     expect(setText).toHaveBeenCalledWith("@file.txt ");
     expect(textRef.value).toBe("@file.txt ");
+  });
+
+  it("replaces the matcher endOffset even when query is shorter", () => {
+    const { root, setText } = render({
+      behavior: { kind: "directive", formatter },
+      text: "hello @Example UK tail",
+      trigger: { offset: 6, query: "example", endOffset: 17 },
+    });
+
+    root.getValue().selectItem(item);
+
+    expect(setText).toHaveBeenCalledWith("hello @file.txt tail");
   });
 });

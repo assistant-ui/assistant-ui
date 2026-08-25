@@ -65,7 +65,7 @@ export const toMessagePartStatus = (
 
   if (part.type === "tool-call") {
     if (part.result === undefined) {
-      return message.status as ToolCallMessagePartStatus;
+      return message.status;
     } else {
       return COMPLETE_STATUS;
     }
