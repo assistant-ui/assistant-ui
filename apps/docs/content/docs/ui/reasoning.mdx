@@ -4,7 +4,7 @@ description: Collapsible UI for displaying AI reasoning and thinking messages.
 platforms: ["react"]
 ---
 
-import { ReasoningSample, ReasoningGroupSample } from "@/components/pages/docs/samples/reasoning";
+import { ReasoningSample, ReasoningStreamingSample } from "@/components/pages/docs/samples/reasoning";
 
 <ReasoningSample />
 
@@ -119,8 +119,6 @@ Use the `variant` prop on `ReasoningRoot` to change the visual style:
 
 `ReasoningGroup` is kept for existing code that still uses the deprecated `components.ReasoningGroup` prop on `MessagePrimitive.Parts`. New code should use `MessagePrimitive.GroupedParts` and compose the root/trigger/content pieces directly.
 
-<ReasoningGroupSample />
-
 ```tsx
 import { ReasoningGroup } from "@/components/assistant-ui/reasoning";
 
@@ -148,6 +146,14 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
   );
 };
 ```
+
+## Examples
+
+### Streaming Reasoning
+
+The response shows partial reasoning and stays active. Select Stop to cancel the response and return the composer to its idle state.
+
+<ReasoningStreamingSample />
 
 ## API Reference
 

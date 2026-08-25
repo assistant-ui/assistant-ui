@@ -98,7 +98,7 @@ function WeatherToolChat() {
   );
 }
 
-export function ToolFallbackRendererSample() {
+export function ToolUIRendererSample() {
   return (
     <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
       <WeatherToolChat />

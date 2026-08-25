@@ -1,19 +1,43 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { PlayIcon } from "lucide-react";
+import type { ToolCallMessagePartStatus } from "@assistant-ui/react";
 import {
   ToolFallbackRoot,
   ToolFallbackTrigger,
   ToolFallbackContent,
   ToolFallbackArgs,
   ToolFallbackResult,
-  ToolFallbackApproval,
 } from "@/components/assistant-ui/tool-fallback";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
+import { Button } from "@/components/ui/button";
 
 export function ToolFallbackSample() {
   return (
     <SampleFrame className="flex h-auto items-center p-6">
       <ToolFallbackRoot>
+        <ToolFallbackTrigger
+          toolName="get_weather"
+          status={{ type: "complete" }}
+        />
+        <ToolFallbackContent>
+          <ToolFallbackArgs
+            argsText={JSON.stringify({ location: "San Francisco" }, null, 2)}
+          />
+          <ToolFallbackResult
+            result={{ temperature: 72, condition: "Sunny", humidity: 45 }}
+          />
+        </ToolFallbackContent>
+      </ToolFallbackRoot>
+    </SampleFrame>
+  );
+}
+
+export function ToolFallbackCompletedSample() {
+  return (
+    <SampleFrame className="flex h-auto items-center p-6">
+      <ToolFallbackRoot defaultOpen>
         <ToolFallbackTrigger
           toolName="get_weather"
           status={{ type: "complete" }}
@@ -68,29 +92,89 @@ export function ToolFallbackCancelledSample() {
   );
 }
 
-export function ToolFallbackRequiresActionSample() {
+function ToolFallbackStreamingDemo() {
+  const [status, setStatus] = useState<ToolCallMessagePartStatus>({
+    type: "complete",
+  });
+  const [isOpen, setIsOpen] = useState(false);
+  const [streamedArgs, setStreamedArgs] = useState("");
+  const [result, setResult] = useState<object | undefined>(undefined);
+
+  const fullArgs = JSON.stringify({ location: "San Francisco" }, null, 2);
+
+  const isRunning = status.type === "running";
+
+  useEffect(() => {
+    if (!isRunning) return;
+
+    setIsOpen(true);
+    setStreamedArgs("");
+    setResult(undefined);
+
+    let index = 0;
+    const argsInterval = setInterval(() => {
+      if (index < fullArgs.length) {
+        setStreamedArgs(fullArgs.slice(0, index + 1));
+        index++;
+      } else {
+        clearInterval(argsInterval);
+        // Simulate tool execution delay
+        setTimeout(() => {
+          const fullResult = {
+            temperature: 72,
+            condition: "Sunny",
+            humidity: 45,
+          };
+          setResult(fullResult);
+          setStatus({ type: "complete" });
+        }, 500);
+      }
+    }, 30);
+
+    return () => clearInterval(argsInterval);
+  }, [isRunning, fullArgs]);
+
+  const handleStart = () => {
+    setStreamedArgs("");
+    setResult(undefined);
+    setStatus({ type: "running" });
+  };
+
   return (
-    <SampleFrame className="flex h-auto items-center p-6">
-      <ToolFallbackRoot defaultOpen>
-        <ToolFallbackTrigger
-          toolName="delete_file"
-          status={{ type: "requires-action", reason: "interrupt" }}
-        />
+    <div className="flex flex-col gap-3">
+      <div className="flex items-center gap-2">
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={handleStart}
+          disabled={isRunning}
+          className="gap-1.5"
+        >
+          <PlayIcon className="size-3" />
+          {isRunning ? "Running..." : "Start Tool Call"}
+        </Button>
+      </div>
+      <ToolFallbackRoot open={isOpen} onOpenChange={setIsOpen}>
+        <ToolFallbackTrigger toolName="get_weather" status={status} />
         <ToolFallbackContent>
-          <ToolFallbackArgs
-            argsText={JSON.stringify(
-              { path: "/tmp/work-in-progress.txt" },
-              null,
-              2,
-            )}
-          />
-          <ToolFallbackApproval
-            addResult={() => {}}
-            resume={() => {}}
-            interrupt={{ type: "human", payload: {} }}
-          />
+          {streamedArgs ? (
+            <ToolFallbackArgs argsText={streamedArgs} />
+          ) : (
+            <div className="text-muted-foreground/50 px-4 italic">
+              Click &quot;Start Tool Call&quot; to see the streaming effect
+            </div>
+          )}
+          {result && <ToolFallbackResult result={result} />}
         </ToolFallbackContent>
       </ToolFallbackRoot>
+    </div>
+  );
+}
+
+export function ToolFallbackStreamingSample() {
+  return (
+    <SampleFrame className="h-auto p-4">
+      <ToolFallbackStreamingDemo />
     </SampleFrame>
   );
 }

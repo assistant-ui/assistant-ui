@@ -54,7 +54,7 @@ describe("PreviewCode", () => {
 
   it("keeps only the type import used by the preview function", async () => {
     const { code } = await getPreviewCode(
-      "components/pages/docs/samples/tool-fallback/custom-renderer",
+      "components/pages/docs/samples/tool-ui/custom-renderer",
       "WeatherToolUI",
     );
 
