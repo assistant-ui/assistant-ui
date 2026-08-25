@@ -83,6 +83,7 @@ export const appendLangChainChunk = (
     const toolCalls = (curr.tool_call_chunks ?? []).map(chunkToToolCall);
     return {
       ...curr,
+      content: curr.content ?? [],
       type: curr.type.replace("MessageChunk", "").toLowerCase(),
       tool_call_chunks: undefined,
       ...(toolCalls.length > 0 && { tool_calls: toolCalls }),

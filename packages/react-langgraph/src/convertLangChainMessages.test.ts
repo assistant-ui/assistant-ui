@@ -36,7 +36,15 @@ describe("convertLangChainMessages content-less messages", () => {
     } as unknown as LangChainMessage);
 
     expect(result.role).toBe("assistant");
-    expect(result.content.some((part) => part.type === "tool-call")).toBe(true);
+    expect(result.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        args: { q: 1 },
+        argsText: '{"q":1}',
+      },
+    ]);
   });
 
   it("converts a human message without content", () => {

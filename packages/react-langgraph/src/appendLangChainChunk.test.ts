@@ -57,15 +57,10 @@ describe("appendLangChainChunk content-less chunks", () => {
       content: "hello",
     } as unknown as LangChainMessageChunk);
 
-    expect(
-      Array.isArray(merged.content)
-        ? merged.content.some(
-            (part) =>
-              (part as { type?: string; text?: string }).type === "text" &&
-              (part as { text?: string }).text === "hello",
-          )
-        : merged.content === "hello",
-    ).toBe(true);
+    expect(merged.content).toEqual([{ type: "text", text: "hello" }]);
+    expect(merged.tool_calls).toEqual([
+      expect.objectContaining({ id: "call-1", name: "search" }),
+    ]);
   });
 });
 
