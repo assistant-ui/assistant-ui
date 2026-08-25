@@ -100,41 +100,36 @@ export const useInteractablePersistenceQueue = <State>({
         ),
       }));
 
+      const settleBatch = (status: PersistenceStatus | undefined) => {
+        const settledIds: string[] = [];
+        for (const id of dirtyIds) {
+          if (
+            latestSyncSeqByIdRef.current.get(id) !== seq ||
+            dirtyIdsRef.current.has(id)
+          )
+            continue;
+          latestSyncSeqByIdRef.current.delete(id);
+          settledIds.push(id);
+        }
+        if (settledIds.length === 0) return;
+        updatePersistenceStatus((prev) => {
+          let changed = false;
+          const persistence = { ...prev };
+          for (const id of settledIds) {
+            if (prev[id] === undefined) continue;
+            if (status === undefined) delete persistence[id];
+            else persistence[id] = status;
+            changed = true;
+          }
+          return changed ? persistence : prev;
+        });
+      };
+
       try {
         await adapter.save(payload);
-        updatePersistenceStatus((prev) => {
-          let changed = false;
-          const persistence = { ...prev };
-          for (const id of dirtyIds) {
-            if (
-              latestSyncSeqByIdRef.current.get(id) !== seq ||
-              dirtyIdsRef.current.has(id)
-            )
-              continue;
-            latestSyncSeqByIdRef.current.delete(id);
-            if (prev[id] === undefined) continue;
-            delete persistence[id];
-            changed = true;
-          }
-          return changed ? persistence : prev;
-        });
+        settleBatch(undefined);
       } catch (e) {
-        updatePersistenceStatus((prev) => {
-          let changed = false;
-          const persistence = { ...prev };
-          for (const id of dirtyIds) {
-            if (
-              latestSyncSeqByIdRef.current.get(id) !== seq ||
-              dirtyIdsRef.current.has(id)
-            )
-              continue;
-            latestSyncSeqByIdRef.current.delete(id);
-            if (prev[id] === undefined) continue;
-            persistence[id] = { isPending: false, error: e };
-            changed = true;
-          }
-          return changed ? persistence : prev;
-        });
+        settleBatch({ isPending: false, error: e });
       } finally {
         inFlightPersistenceRef.current -= 1;
         const next =
