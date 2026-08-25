@@ -16,10 +16,12 @@ const cancelledController = () => {
 
 describe("controller guards", () => {
   it("swallows enqueue on a cancelled controller", () => {
+    expect(() => cancelledController().enqueue(chunk)).toThrow(TypeError);
     expect(() => enqueueIfOpen(cancelledController(), chunk)).not.toThrow();
   });
 
   it("swallows close on a cancelled controller", () => {
+    expect(() => cancelledController().close()).toThrow(TypeError);
     expect(() => closeIfOpen(cancelledController())).not.toThrow();
   });
 
