@@ -663,7 +663,7 @@ aui.interactables.importState(snapshot);
 
 <Callout type="warn">
   If you change a Zod schema after state has been persisted, the loaded snapshot
-  may silently mis-match the new shape. The adapter does a shallow merge, so
+  may silently mismatch the new shape. The adapter does a shallow merge, so
   extra fields are preserved and missing fields keep their initial values, but
   type mismatches are not caught at runtime. To avoid silent corruption, version
   your schema key (e.g. `"taskBoard_v2"`) or namespace it by schema hash
