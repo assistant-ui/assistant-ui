@@ -91,7 +91,7 @@
     "safe-content-frame": "workspace:*",
     "shiki": "^4.4.3",
     "sonner": "^2.0.8",
-    "streamdown": "^2.5.0",
+    "streamdown": "^2.6.0",
     "tailwind-merge": "^3.6.0",
     "tailwind-scrollbar": "^4.0.2",
     "tw-glass": "workspace:*",
