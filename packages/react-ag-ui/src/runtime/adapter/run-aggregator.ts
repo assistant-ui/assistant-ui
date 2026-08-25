@@ -90,10 +90,7 @@ export class RunAggregator {
 
   private status: ChatModelRunResult["status"] | undefined;
   private interrupts: AgUiInterrupt[] | undefined;
-  private readonly textParts = new Map<
-    string,
-    { buffer: string; touched: boolean }
-  >();
+  private readonly textParts = new Map<string, { buffer: string }>();
   private activeTextMessageId: string | undefined;
   private readonly reasoningParts = new Map<string, string>(); // key → buffer
   private readonly reasoningSignatures = new Map<string, string>();
@@ -198,11 +195,8 @@ export class RunAggregator {
       case "TEXT_MESSAGE_START": {
         this.beginDistinctTextMessage(event.messageId);
         this.reportServerMessageId(event.messageId);
-        const id = this.startTextMessage(event.messageId);
+        this.startTextMessage(event.messageId);
         if (event.messageId) this.lastTextMessageId = event.messageId;
-        if (id) {
-          this.markTextPartTouched(id);
-        }
         this.emit();
         break;
       }
@@ -554,7 +548,7 @@ export class RunAggregator {
 
   private ensureTextPart(id: string): void {
     if (!this.textParts.has(id)) {
-      this.textParts.set(id, { buffer: "", touched: false });
+      this.textParts.set(id, { buffer: "" });
       if (
         !this.partOrder.some((part) => part.kind === "text" && part.key === id)
       ) {
@@ -563,18 +557,11 @@ export class RunAggregator {
     }
   }
 
-  private markTextPartTouched(id: string): void {
-    const entry = this.textParts.get(id);
-    if (!entry) return;
-    entry.touched = true;
-  }
-
   private appendText(id: string, delta: string): void {
     this.ensureTextPart(id);
     const entry = this.textParts.get(id);
     if (!entry) return;
     entry.buffer += delta;
-    entry.touched = true;
   }
 
   private startToolCall(
@@ -767,7 +754,7 @@ export class RunAggregator {
 
       if (part.kind === "text") {
         const entry = this.textParts.get(part.key);
-        if (entry?.touched && entry.buffer.trim().length > 0) {
+        if (entry && entry.buffer.trim().length > 0) {
           pushSnapshotPart({ type: "text", text: entry.buffer } as const);
         }
         continue;
