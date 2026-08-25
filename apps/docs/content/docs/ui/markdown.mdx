@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { MarkdownSample } from "@/components/pages/docs/samples/markdown";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { MarkdownRichDocumentSample } from "@/components/pages/docs/samples/markdown/rich-document";
 
 <MarkdownSample />
 
@@ -78,6 +80,16 @@ Tailwind utilities on an element win without `!important`, because typeset uses 
 The `reasoning` component renders its content with `MarkdownText`. Typeset sets headings to `--color-foreground`, thus the reasoning wrapper carries `[&_:is(h1,h2,h3,h4,h5,h6)]:text-inherit` to keep the muted heading color. If your project holds an older copy of `reasoning.tsx` without this utility, headings in reasoning show the full-contrast color.
 
 If you register your own renderer through `componentsByLanguage`, put `not-typeset` (or `data-not-typeset`) on its container. Typeset element rules then skip the container and all of its descendants. The `shiki-highlighter`, `mermaid-diagram`, and `diff-viewer` components use this hook.
+
+## Examples
+
+### Rich Document
+
+The renderer shows headings, emphasis, links, nested lists, a blockquote, a divider, and a table from one completed response.
+
+<PreviewCode file="components/pages/docs/samples/markdown/rich-document" name="MarkdownDocument">
+  <MarkdownRichDocumentSample />
+</PreviewCode>
 
 ## Syntax highlighting
 
