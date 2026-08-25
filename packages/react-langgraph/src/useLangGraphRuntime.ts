@@ -700,7 +700,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
-    isRunning: effectiveIsRunning,
+    isRunning,
     isLoading: isLoadingThread,
     messages: threadMessages,
     unstable_enableToolInvocations: true,

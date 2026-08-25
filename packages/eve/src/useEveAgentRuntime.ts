@@ -200,10 +200,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const hasExecutingTools = Object.values(toolStatuses).some(
     (status) => status?.type === "executing",
   );
-  const isRunning =
-    agent.status === "submitted" ||
-    agent.status === "streaming" ||
-    hasExecutingTools;
+  const providerIsRunning =
+    agent.status === "submitted" || agent.status === "streaming";
+  const isRunning = providerIsRunning || hasExecutingTools;
 
   const convertedMessages = useMemo(() => {
     const createdAtByMessageId = createdAtByMessageIdRef.current;
@@ -340,7 +339,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     messages,
-    isRunning,
+    isRunning: providerIsRunning,
     extras,
     unstable_enableToolInvocations: true,
     setToolStatuses,

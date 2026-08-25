@@ -802,6 +802,83 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
   });
 
   describe("tool callbacks", () => {
+    it("keeps the runtime running until an executing client tool settles", async () => {
+      let resolveTool!: (value: { forecast: string }) => void;
+      const execute = vi.fn(
+        () =>
+          new Promise<{ forecast: string }>((resolve) => {
+            resolveTool = resolve;
+          }),
+      );
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        },
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+        }),
+      );
+      const onRunEnd = vi.fn();
+      const onUpdate = vi.fn();
+      core.unstable_on("runEnd", onRunEnd);
+      core.subscribe(onUpdate);
+
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+          messages: [
+            {
+              ...createAssistantMessage("a1"),
+              status: { type: "requires-action", reason: "tool-calls" },
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tc1",
+                  toolName: "weatherSearch",
+                  args: { city: "London" },
+                  argsText: '{"city":"London"}',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      await vi.waitFor(() => expect(core.isRunning).toBe(true));
+      expect(onRunEnd).not.toHaveBeenCalled();
+
+      onUpdate.mockClear();
+      resolveTool({ forecast: "sunny" });
+
+      await vi.waitFor(() => expect(core.isRunning).toBe(false));
+      expect(onRunEnd).toHaveBeenCalledOnce();
+      expect(onUpdate).toHaveBeenCalled();
+    });
+
+    it("mirrors the adapter running value when tool invocations are disabled", () => {
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter(),
+      );
+
+      expect(core.isRunning).toBeUndefined();
+
+      core.__internal_setAdapter(createBaseAdapter({ isRunning: false }));
+      expect(core.isRunning).toBe(false);
+
+      core.__internal_setAdapter(createBaseAdapter({ isRunning: true }));
+      expect(core.isRunning).toBe(true);
+    });
+
     it("handles rejected automatic tool result callbacks", async () => {
       const error = new Error("tool result failed");
       const consoleError = vi
