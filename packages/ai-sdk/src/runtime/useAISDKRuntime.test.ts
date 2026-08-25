@@ -7,13 +7,17 @@ import { validateUIMessages } from "ai";
 // Mock only the sibling module that requires AUI store context (not available
 // in isolation). Every other dependency — useExternalStoreRuntime,
 // useToolInvocations, the message converter — runs for real.
-vi.mock("./useExternalHistory", () => ({
-  useExternalHistory: vi.fn(() => ({
-    isLoading: false,
-    deleteMessage: vi.fn().mockResolvedValue(undefined),
-  })),
-  toExportedMessageRepository: vi.fn(),
-}));
+vi.mock("./useExternalHistory", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("./useExternalHistory")>();
+  return {
+    ...original,
+    useExternalHistory: vi.fn(() => ({
+      isLoading: false,
+      deleteMessage: vi.fn().mockResolvedValue(undefined),
+    })),
+  };
+});
 
 import { useExternalHistory } from "./useExternalHistory";
 import { useAISDKRuntime } from "./useAISDKRuntime";
@@ -688,6 +692,186 @@ describe("useAISDKRuntime", () => {
     const suggestions = [{ prompt: "tell me a joke" }];
     const { result } = renderHook(() => useAISDKRuntime(chat, { suggestions }));
     expect(result.current.thread.getState().suggestions).toEqual(suggestions);
+  });
+
+  it("imports a message tree without replacing the chat feed", async () => {
+    const chat = createChatHelpers();
+    const onBranchChange = vi.fn();
+    const messageRepository = {
+      headId: "a2",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "u1",
+            role: "user" as const,
+            parts: [{ type: "text" as const, text: "question" }],
+          },
+        },
+        {
+          parentId: "u1",
+          message: {
+            id: "a1",
+            role: "assistant" as const,
+            parts: [{ type: "text" as const, text: "first" }],
+          },
+        },
+        {
+          parentId: "u1",
+          message: {
+            id: "a2",
+            role: "assistant" as const,
+            parts: [{ type: "text" as const, text: "second" }],
+          },
+        },
+      ],
+    };
+
+    const { result, rerender } = renderHook(() =>
+      useAISDKRuntime(chat, {
+        messageRepository,
+        unstable_onBranchChange: onBranchChange,
+      }),
+    );
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.map((message) => message.id),
+      ).toEqual(["u1", "a2"]);
+    });
+    expect(result.current.thread.getMessageById("a2").getState()).toMatchObject(
+      {
+        branchNumber: 2,
+        branchCount: 2,
+      },
+    );
+    expect(chat.messages.map((message: { id: string }) => message.id)).toEqual([
+      "u1",
+      "a2",
+    ]);
+
+    act(() => {
+      result.current.thread
+        .getMessageById("a2")
+        .switchToBranch({ branchId: "a1" });
+    });
+
+    expect(onBranchChange).toHaveBeenCalledWith({
+      headId: "a1",
+      visibleMessageIds: ["u1", "a1"],
+    });
+    expect(chat.messages.map((message: { id: string }) => message.id)).toEqual([
+      "u1",
+      "a1",
+    ]);
+    expect(chat.messages).not.toEqual([]);
+
+    chat.messages = [
+      { id: "u1", role: "user", parts: [{ type: "text", text: "question" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [{ type: "text", text: "first token" }],
+      },
+    ];
+    rerender();
+
+    await waitFor(() => {
+      expect(textOf(result.current.thread.getState().messages.at(-1))).toBe(
+        "first token",
+      );
+    });
+    expect(result.current.thread.getMessageById("a1").getState()).toMatchObject(
+      {
+        branchNumber: 1,
+        branchCount: 2,
+      },
+    );
+  });
+
+  it("does not overwrite a nonempty chat with the repository", async () => {
+    const chat = createChatHelpers([
+      { id: "live", role: "user", parts: [{ type: "text", text: "keep me" }] },
+    ]);
+    const messageRepository = {
+      headId: "a1",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "u1",
+            role: "user" as const,
+            parts: [{ type: "text" as const, text: "question" }],
+          },
+        },
+        {
+          parentId: "u1",
+          message: {
+            id: "a1",
+            role: "assistant" as const,
+            parts: [{ type: "text" as const, text: "first" }],
+          },
+        },
+      ],
+    };
+
+    const { result } = renderHook(() =>
+      useAISDKRuntime(chat, { messageRepository }),
+    );
+
+    await waitFor(() => {
+      expect(
+        result.current.thread.getState().messages.map((message) => message.id),
+      ).toEqual(["live"]);
+    });
+    expect(chat.messages.map((message: { id: string }) => message.id)).toEqual([
+      "live",
+    ]);
+  });
+
+  it("does not reseed when the repository object identity changes", async () => {
+    const chat = createChatHelpers();
+    const makeRepository = (text: string) => ({
+      headId: "a1",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "u1",
+            role: "user" as const,
+            parts: [{ type: "text" as const, text: "question" }],
+          },
+        },
+        {
+          parentId: "u1",
+          message: {
+            id: "a1",
+            role: "assistant" as const,
+            parts: [{ type: "text" as const, text }],
+          },
+        },
+      ],
+    });
+
+    const { result, rerender } = renderHook(
+      ({ repository }) =>
+        useAISDKRuntime(chat, { messageRepository: repository }),
+      { initialProps: { repository: makeRepository("first") } },
+    );
+
+    await waitFor(() => {
+      expect(textOf(result.current.thread.getState().messages.at(-1))).toBe(
+        "first",
+      );
+    });
+    const setMessagesCalls = chat.setMessages.mock.calls.length;
+
+    rerender({ repository: makeRepository("second") });
+
+    expect(textOf(result.current.thread.getState().messages.at(-1))).toBe(
+      "first",
+    );
+    expect(chat.setMessages.mock.calls.length).toBe(setMessagesCalls);
   });
 
   it("calls adapters.suggestion after settle with messages and signal", async () => {
