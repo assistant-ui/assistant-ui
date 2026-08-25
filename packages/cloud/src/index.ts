@@ -2,6 +2,7 @@ export type { CloudMessage } from "./AssistantCloudThreadMessages";
 export type { AssistantCloudTelemetryConfig } from "./AssistantCloudAPI";
 export { CloudAPIError } from "./AssistantCloudAPI";
 export { CloudResponseError } from "./cloudResponse";
+export { generateThreadTitle } from "./generateThreadTitle";
 export type { AssistantCloudRunReport } from "./AssistantCloudRuns";
 export {
   createRunTelemetryToolCall,

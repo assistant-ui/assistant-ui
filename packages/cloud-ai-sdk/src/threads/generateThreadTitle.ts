@@ -1,4 +1,7 @@
-import type { AssistantCloud } from "assistant-cloud";
+import {
+  generateThreadTitle as generateCloudThreadTitle,
+  type AssistantCloud,
+} from "assistant-cloud";
 import { MESSAGE_FORMAT } from "../chat/MessagePersistence";
 
 export async function generateThreadTitle(
@@ -47,29 +50,8 @@ export async function generateThreadTitle(
 
   if (convertedMessages.length === 0) return null;
 
-  const stream = await cloud.runs.stream({
-    thread_id: threadId,
-    assistant_id: "system/thread_title",
+  return generateCloudThreadTitle(cloud, {
+    threadId,
     messages: convertedMessages,
   });
-
-  let title = "";
-  const reader = stream.getReader();
-  try {
-    while (true) {
-      const { done, value: chunk } = await reader.read();
-      if (done) break;
-      if (chunk.type === "text-delta") {
-        title += chunk.textDelta;
-      }
-    }
-  } finally {
-    reader.releaseLock();
-  }
-
-  if (title) {
-    await cloud.threads.update(threadId, { title });
-  }
-
-  return title || null;
 }
