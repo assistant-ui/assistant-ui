@@ -25,6 +25,12 @@ function isReactElement(node: unknown): node is ReactElement {
  */
 function compareNodes(a: ReactNode, b: ReactNode): boolean {
   if (a === b) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
+      return false;
+    }
+    return a.every((node, index) => compareNodes(node, b[index]));
+  }
   if (!isReactElement(a) || !isReactElement(b)) return false;
   return (
     a.type === b.type && a.key === b.key && memoCompareNodes(a.props, b.props)
