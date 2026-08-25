@@ -59,6 +59,17 @@ const createFrameScheduler = (fn: () => void) => {
 
 const USER_GESTURE_WINDOW_MS = 500;
 const SCROLL_TRAIN_GAP_MS = 150;
+const LAYOUT_CHANGE_WINDOW_MS = 400;
+
+const SCROLL_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "PageUp",
+  "PageDown",
+  "Home",
+  "End",
+  " ",
+]);
 
 export const mountTopAnchorReserve = (store: TopAnchorStore) => {
   let reserve: HTMLElement | null = null;
@@ -68,23 +79,35 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
   // subtree swapped for its final rendering) makes the browser clamp
   // scrollTop synchronously, before the reserve can grow to compensate;
   // WebKit lays such states out where Chromium happens not to, which turned
-  // the clamp into a permanently broken pin. The clamp is undone by
-  // restoring the pre-clamp position once the reserve has settled. A
-  // scrollTop decrease is attributed to the user — and left alone — while a
-  // scroll gesture is held or recent, or while an uninterrupted scroll train
-  // started by one is still running (touch momentum outlives its input
-  // events). The upward restore and the downward smooth pin never match the
-  // "unattributed decrease" trigger, so the mechanism cannot feed itself.
+  // the clamp into a permanently broken pin. The transient state is not
+  // observable afterwards (the swap completes within the same task), so the
+  // clamp is detected as a scrollTop decrease that no user gesture accounts
+  // for, and bounded by three gates: it must closely follow an observed
+  // layout change, it fires at most once per anchor turn, and the
+  // correction restores the anchor-relative position rather than the raw
+  // offset — so a browser that already compensated (scroll anchoring)
+  // yields a no-op instead of a fight.
   let listenedViewport: HTMLElement | null = null;
   let lastScrollTop = 0;
   let lastScrollAt = -Infinity;
   let lastGestureAt = -Infinity;
+  let lastLayoutChangeAt = -Infinity;
   let gestureHeld = false;
   let userScrollTrain = false;
   let restoreScrollTop: number | null = null;
+  let restoredThisTurn = false;
+  let lastAppliedTarget: number | null = null;
+
+  const clearRestore = () => {
+    restoreScrollTop = null;
+    lastAppliedTarget = null;
+  };
 
   const onGesture = () => {
     lastGestureAt = performance.now();
+  };
+  const onKeyDown = (event: Event) => {
+    if (SCROLL_KEYS.has((event as KeyboardEvent).key)) onGesture();
   };
   const onGestureStart = () => {
     lastGestureAt = performance.now();
@@ -112,7 +135,11 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
         restoreScrollTop = null;
       } else {
         userScrollTrain = false;
-        if (scrollTop < lastScrollTop) {
+        if (
+          scrollTop < lastScrollTop &&
+          !restoredThisTurn &&
+          now - lastLayoutChangeAt < LAYOUT_CHANGE_WINDOW_MS
+        ) {
           restoreScrollTop ??= lastScrollTop;
           scheduler.schedule();
         }
@@ -128,7 +155,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     if (listenedViewport) {
       listenedViewport.removeEventListener("scroll", handleScroll);
       listenedViewport.removeEventListener("wheel", onGesture);
-      listenedViewport.removeEventListener("keydown", onGesture);
+      listenedViewport.removeEventListener("keydown", onKeyDown);
       listenedViewport.removeEventListener("touchstart", onGestureStart);
       listenedViewport.removeEventListener("pointerdown", onGestureStart);
       window.removeEventListener("touchend", onGestureEnd);
@@ -139,11 +166,12 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     listenedViewport = viewport;
     gestureHeld = false;
     userScrollTrain = false;
-    restoreScrollTop = null;
+    restoredThisTurn = false;
+    clearRestore();
     if (viewport) {
       viewport.addEventListener("scroll", handleScroll, { passive: true });
       viewport.addEventListener("wheel", onGesture, { passive: true });
-      viewport.addEventListener("keydown", onGesture, { passive: true });
+      viewport.addEventListener("keydown", onKeyDown, { passive: true });
       viewport.addEventListener("touchstart", onGestureStart, {
         passive: true,
       });
@@ -169,6 +197,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
 
     if (state.turnAnchor !== "top" || !viewport) {
       observers.disconnect();
+      clearRestore();
       if (reserve) {
         setReserveHeight(reserve, 0);
         reserve.remove();
@@ -181,6 +210,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
       // trailing turn (followed at most by pending user messages), so reaching
       // here means the anchor gap is transient and the next run is imminent.
       observers.disconnect();
+      clearRestore();
       if (
         reserve?.parentElement &&
         reserve.parentElement.lastElementChild !== reserve
@@ -192,6 +222,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
 
     if (!anchor || !target || !clamp) {
       observers.disconnect();
+      clearRestore();
       if (reserve) {
         setReserveHeight(reserve, 0);
         reserve.remove();
@@ -220,28 +251,41 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
       return;
     }
 
-    if (restoreScrollTop !== null) {
-      const top = restoreScrollTop;
-      restoreScrollTop = null;
-      viewport.scrollTo({ top, behavior: "instant" });
-    }
-
     const anchorId = getAnchorId(anchor);
-    if (anchorId !== undefined && lastScrolledAnchorId === anchorId) return;
-
     const targetScrollTop = snapScrollTop(
       computeTopAnchorTargetScrollTop({ viewport, anchor, ...clamp }),
     );
 
-    if (Math.abs(viewport.scrollTop - targetScrollTop) > 1) {
-      viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
+    if (anchorId === undefined || anchorId !== lastScrolledAnchorId) {
+      restoreScrollTop = null;
+      restoredThisTurn = false;
+      if (Math.abs(viewport.scrollTop - targetScrollTop) > 1) {
+        viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
+      }
+      if (anchorId !== undefined) lastScrolledAnchorId = anchorId;
+    } else if (restoreScrollTop !== null && lastAppliedTarget !== null) {
+      // Restore the anchor-relative position: if content above the anchor
+      // changed height and the browser already adjusted scrollTop to match
+      // (scroll anchoring), the desired offset equals the current one and
+      // this is a no-op.
+      const desired = snapScrollTop(
+        restoreScrollTop + (targetScrollTop - lastAppliedTarget),
+      );
+      restoreScrollTop = null;
+      if (Math.abs(viewport.scrollTop - desired) > 1) {
+        restoredThisTurn = true;
+        viewport.scrollTo({ top: desired, behavior: "instant" });
+      }
     }
 
-    if (anchorId !== undefined) lastScrolledAnchorId = anchorId;
+    lastAppliedTarget = targetScrollTop;
   }
 
   const scheduler = createFrameScheduler(apply);
-  const observers = createReserveObservers(scheduler.schedule);
+  const observers = createReserveObservers(() => {
+    lastLayoutChangeAt = performance.now();
+    scheduler.schedule();
+  });
 
   scheduler.schedule();
   const unsubscribe = store.subscribe(scheduler.schedule);
