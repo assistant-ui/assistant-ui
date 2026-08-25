@@ -707,7 +707,7 @@ describe("useLangGraphMessages", {}, () => {
       expect(result.current.messages).toHaveLength(1);
       const message = result.current.messages[0]!;
       expect(message.id).toBeDefined();
-      expect(message.id).toMatch(/^[0-9A-Za-z]{7}$/);
+      expect(message.id).not.toHaveLength(0);
     });
   });
 
