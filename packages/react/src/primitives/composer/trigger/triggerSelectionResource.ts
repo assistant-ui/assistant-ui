@@ -37,7 +37,6 @@ const useTriggerSelectionResource = ({
   behavior,
   trigger,
   aui,
-  triggerChar,
   setCursorPosition,
   onSelected,
 }: {

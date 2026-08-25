@@ -128,14 +128,11 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
     const popoverId = useId();
     const matcherRef = useRef(matcher);
     matcherRef.current = matcher;
-    const stableMatcher = useMemo(
-      () =>
-        matcher === undefined
-          ? undefined
-          : (text: string, triggerChar: string, cursorPosition: number) =>
-              matcherRef.current!(text, triggerChar, cursorPosition),
-      [matcher === undefined],
+    const [stableWrapper] = useState(
+      () => (nextText: string, triggerChar: string, cursorPosition: number) =>
+        matcherRef.current!(nextText, triggerChar, cursorPosition),
     );
+    const stableMatcher = matcher !== undefined ? stableWrapper : undefined;
 
     // Track in state (for resource reactivity) + ref (dev warning on duplicate registrations).
     const behaviorRef = useRef<TriggerBehavior | null>(null);
