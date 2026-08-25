@@ -661,6 +661,9 @@ export class ExternalStoreThreadRuntimeCore
   // before notifying so `messages` and the branch graph agree at notify time,
   // mirroring the end of the snapshot pass.
   private _evictDeletedMessage(messageId: string) {
+    // Positional fallback ids are remapped in the snapshot pass; evicting
+    // them first leaves the pre-renumber node as a sibling of the new head.
+    if (messageId.startsWith(FALLBACK_ID_PREFIX)) return;
     // A synchronous host update (e.g. a setMessages that re-entered the
     // snapshot pass) may have evicted the message already; only that case is
     // skipped, so genuine repository errors still propagate.

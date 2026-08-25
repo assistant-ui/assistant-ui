@@ -1526,6 +1526,32 @@ describe("ExternalStoreThreadRuntimeCore - deleteMessage via setMessages", () =>
     expect(runtime.messages.map((m) => m.id)).toEqual(["u1", "a1"]);
     expect(runtime.getBranches("a1")).toEqual(["a1", "a2"]);
   });
+
+  it("leaves positional fallback ids for the snapshot remapping to prune", async () => {
+    const convertMessage = (m: { text: string }): ThreadMessageLike => ({
+      role: "user",
+      content: [{ type: "text", text: m.text }],
+    });
+    let current = [{ text: "first" }, { text: "second" }];
+    const setMessages = vi.fn((m: typeof current) => {
+      current = m;
+    });
+    const store = () =>
+      makeStore({ messages: current, convertMessage, setMessages });
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      store(),
+    );
+    const firstId = runtime.messages[0]!.id;
+
+    await runtime.deleteMessage(firstId);
+    runtime.__internal_setAdapter(store());
+
+    expect(runtime.messages).toHaveLength(1);
+    expect(runtime.getBranches(runtime.messages[0]!.id)).toEqual([
+      runtime.messages[0]!.id,
+    ]);
+  });
 });
 
 describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
