@@ -396,6 +396,7 @@ describe("useEveAgentRuntime tool approval responses", () => {
       await flushMicrotasks();
 
       expect(agent.send).not.toHaveBeenCalled();
+      expect(agent.respond).not.toHaveBeenCalled();
       expect(rejections).toEqual([]);
     } finally {
       processEvents.off("unhandledRejection", onUnhandledRejection);
