@@ -1,6 +1,11 @@
 "use client";
 
-import { useMessagePartText, useSmooth } from "@assistant-ui/react";
+import {
+  useAui,
+  useAuiState,
+  useMessagePartText,
+  useSmooth,
+} from "@assistant-ui/react";
 import { harden } from "rehype-harden";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, {
@@ -17,6 +22,7 @@ import {
   forwardRef,
   useDeferredValue,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
@@ -30,29 +36,42 @@ import type {
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
 
-// Streamdown 2.5 memoizes fenced code nodes by source position. Raw text
-// replacements reset that subtree once their rendered text is ready.
-const useStreamRevision = (rawText: string, renderedText: string) => {
-  const [state, setState] = useState({
+// Replaced text needs a fresh subtree once the replacement is rendered, while
+// prefix appends preserve Streamdown's incremental state.
+const useStreamRevision = (
+  part: unknown,
+  rawText: string,
+  renderedText: string,
+) => {
+  const [revision, setRevision] = useState(0);
+  const previousRef = useRef({
+    part,
     rawText,
     renderedText,
-    pendingReset: false,
-    revision: 0,
   });
-  if (state.rawText === rawText && state.renderedText === renderedText) {
-    return state.revision;
+  const pendingResetRef = useRef(false);
+  const previous = previousRef.current;
+  const rawTextChanged = rawText !== previous.rawText;
+  const textReplaced =
+    part !== previous.part ||
+    (rawTextChanged && !rawText.startsWith(previous.rawText));
+
+  if (textReplaced) {
+    pendingResetRef.current = true;
+  } else if (rawTextChanged) {
+    pendingResetRef.current = false;
   }
 
-  let pendingReset =
-    state.pendingReset ||
-    (state.rawText !== rawText && !rawText.startsWith(state.rawText));
-  let revision = state.revision;
-  if (pendingReset && state.renderedText !== renderedText) {
-    pendingReset = false;
-    revision += 1;
-  }
-  setState({ rawText, renderedText, pendingReset, revision });
-  return revision;
+  const shouldReset =
+    pendingResetRef.current && renderedText !== previous.renderedText;
+  previousRef.current = { part, rawText, renderedText };
+
+  if (!shouldReset) return revision;
+
+  pendingResetRef.current = false;
+  const nextRevision = revision + 1;
+  setRevision(nextRevision);
+  return nextRevision;
 };
 
 // Streamdown extends the default sanitize schema without exporting it, so it is
@@ -187,6 +206,8 @@ export const StreamdownTextPrimitive = forwardRef<
     ref,
   ) => {
     const messagePart = useMessagePartText();
+    const aui = useAui();
+    const part = useAuiState(() => aui.part);
 
     const processedPart = useMemo(
       () =>
@@ -200,7 +221,11 @@ export const StreamdownTextPrimitive = forwardRef<
 
     const deferredText = useDeferredValue(text);
     const processedText = defer ? deferredText : text;
-    const streamRevision = useStreamRevision(messagePart.text, processedText);
+    const streamRevision = useStreamRevision(
+      part,
+      messagePart.text,
+      processedText,
+    );
 
     const shouldTailRemend =
       mode === "streaming" &&
