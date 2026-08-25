@@ -53,7 +53,8 @@
   },
   "dependencies": {
     "@assistant-ui/core": "^0.3.15",
-    "@assistant-ui/store": "^0.3.10"
+    "@assistant-ui/store": "^0.3.10",
+    "@standard-schema/spec": "^1.1.0"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
