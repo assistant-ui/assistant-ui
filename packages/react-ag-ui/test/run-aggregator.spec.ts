@@ -458,6 +458,36 @@ describe("RunAggregator", () => {
     ]);
   });
 
+  it("anchors a late hidden signature to the block open, not arrival time", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "answer",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "sig-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
+      { id: "m1", encryptedValue: "sig-1" },
+    ]);
+  });
+
   it("drops an anonymous-claimed signature whose id names a text message", () => {
     const aggregator = createAggregator(false);
 

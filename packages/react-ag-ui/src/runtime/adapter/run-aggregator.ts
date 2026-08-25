@@ -104,6 +104,8 @@ export class RunAggregator {
   // anonymous one.
   private readonly hiddenSignatures = new Map<string, string>();
   private readonly hiddenSignatureAnchors = new Map<string, number>();
+  private readonly hiddenBlockAnchors = new Map<string, number>();
+  private hiddenAnonymousAnchor: number | undefined;
   private readonly hiddenReasoningIds = new Set<string>();
   private hiddenActiveReasoning: "none" | "anonymous" | "identified" = "none";
   private hasEmittedOpaqueReasoning = false;
@@ -270,12 +272,12 @@ export class RunAggregator {
             (this.hiddenReasoningIds.has(event.entityId) ||
               this.hiddenActiveReasoning === "anonymous")
           ) {
-            // Blank values cannot round-trip: the snapshot replay path
-            // rejects them, so they would only pollute the metadata.
             this.hiddenSignatures.set(event.entityId, event.encryptedValue);
             this.hiddenSignatureAnchors.set(
               event.entityId,
-              this.partOrder.length,
+              this.hiddenBlockAnchors.get(event.entityId) ??
+                this.hiddenAnonymousAnchor ??
+                this.partOrder.length,
             );
             this.emit();
           }
@@ -490,6 +492,8 @@ export class RunAggregator {
     this.reasoningMessageIds.clear();
     this.hiddenSignatures.clear();
     this.hiddenSignatureAnchors.clear();
+    this.hiddenBlockAnchors.clear();
+    this.hiddenAnonymousAnchor = undefined;
     this.hiddenReasoningIds.clear();
     this.hiddenActiveReasoning = "none";
     this.loggedDroppedOpaqueIds.clear();
@@ -826,6 +830,7 @@ export class RunAggregator {
     for (const call of this.toolCalls.values()) {
       if (call.toolMessageId) toolMessageIds.add(call.toolMessageId);
     }
+    opaqueCandidates.sort((a, b) => a.anchor - b.anchor);
     const publishableOpaqueReasoning = opaqueCandidates
       .filter((entry) => {
         const collides =
@@ -916,10 +921,13 @@ export class RunAggregator {
 
   private handleReasoningStart(messageId?: string, isMessageId = false): void {
     if (!this.showThinking) {
+      const anchor = this.partOrder.length;
       if (messageId === undefined) {
         this.hiddenActiveReasoning = "anonymous";
+        this.hiddenAnonymousAnchor = anchor;
       } else {
         this.hiddenReasoningIds.add(messageId);
+        this.hiddenBlockAnchors.set(messageId, anchor);
         this.hiddenActiveReasoning = "identified";
       }
       return;
