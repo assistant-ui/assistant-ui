@@ -149,4 +149,27 @@ describe("ModelContextRegistry", () => {
 
     expect(subscriber).toHaveBeenCalledTimes(1);
   });
+
+  it("removes a provider's context and subscription through the addProvider handle", () => {
+    const registry = new ModelContextRegistry();
+    const unsubscribe = vi.fn();
+
+    const handle = registry.addProvider({
+      getModelContext: () => ({ system: "provider instructions" }),
+      subscribe: () => unsubscribe,
+    });
+    expect(registry.getModelContext().system).toContain(
+      "provider instructions",
+    );
+
+    const subscriber = vi.fn();
+    registry.subscribe(subscriber);
+    handle.remove();
+
+    expect(unsubscribe).toHaveBeenCalledTimes(1);
+    expect(registry.getModelContext().system ?? "").not.toContain(
+      "provider instructions",
+    );
+    expect(subscriber).toHaveBeenCalledTimes(1);
+  });
 });
