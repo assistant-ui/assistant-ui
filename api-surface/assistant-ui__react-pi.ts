@@ -1132,6 +1132,7 @@ interface PiCustomMessage {
 interface PiEventStreamOptions {
   url: string;
   onEvent: (event: PiAnyClientEvent) => void;
+  onConnect?: () => void;
   onError?: (error: unknown) => void;
   fetchImpl?: typeof fetch;
   headers?: Record<string, string>;
