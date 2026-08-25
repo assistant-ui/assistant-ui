@@ -254,19 +254,18 @@ describe("useThreads", () => {
 
   it("loads every active and archived page when requested", async () => {
     const activePage = Array.from(
-      { length: 100 },
+      { length: 20 },
       (_, index) =>
         createThreadListResponse(`Active ${index}`, `active-${index}`)
           .threads[0]!,
     );
-    const archivedPage = Array.from({ length: 100 }, (_, index) => ({
+    const archivedPage = Array.from({ length: 20 }, (_, index) => ({
       ...createThreadListResponse(`Archived ${index}`, `archived-${index}`)
         .threads[0]!,
       is_archived: true,
     }));
     const lastArchived = {
-      ...createThreadListResponse("Newest archived", "archived-100")
-        .threads[0]!,
+      ...createThreadListResponse("Newest archived", "archived-20").threads[0]!,
       is_archived: true,
       last_message_at: new Date("2026-02-01T00:00:00.000Z"),
     };
@@ -297,32 +296,32 @@ describe("useThreads", () => {
 
     expect(list).toHaveBeenCalledWith({
       is_archived: false,
-      limit: 100,
+      limit: 20,
     });
     expect(list).toHaveBeenCalledWith({
       is_archived: true,
-      limit: 100,
+      limit: 20,
     });
     expect(list).toHaveBeenCalledWith({
       is_archived: false,
-      limit: 100,
-      after: "active-99",
+      limit: 20,
+      after: "active-19",
     });
     expect(list).toHaveBeenCalledWith({
       is_archived: true,
-      limit: 100,
-      after: "archived-99",
+      limit: 20,
+      after: "archived-19",
     });
-    expect(result.current.threads).toHaveLength(201);
+    expect(result.current.threads).toHaveLength(41);
     expect(result.current.threads[0]).toMatchObject({
-      id: "archived-100",
+      id: "archived-20",
       status: "archived",
     });
   });
 
   it("stops when thread pagination does not advance", async () => {
     const firstPage = Array.from(
-      { length: 100 },
+      { length: 20 },
       (_, index) =>
         createThreadListResponse(`Thread ${index}`, `thread-${index}`)
           .threads[0]!,
@@ -345,16 +344,16 @@ describe("useThreads", () => {
 
     expect(list).toHaveBeenNthCalledWith(1, {
       is_archived: false,
-      limit: 100,
+      limit: 20,
     });
     expect(list).toHaveBeenNthCalledWith(2, {
       is_archived: false,
-      limit: 100,
-      after: "thread-99",
+      limit: 20,
+      after: "thread-19",
     });
     expect(list).toHaveBeenCalledTimes(2);
     expect(result.current.error).toBeNull();
-    expect(result.current.threads).toHaveLength(100);
+    expect(result.current.threads).toHaveLength(20);
   });
 
   it("deduplicates threads returned by both archive filters", async () => {

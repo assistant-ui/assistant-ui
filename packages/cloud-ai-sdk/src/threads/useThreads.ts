@@ -34,7 +34,7 @@ function toCloudThread(t: {
   };
 }
 
-const CLOUD_THREAD_PAGE_SIZE = 100;
+const CLOUD_THREAD_PAGE_SIZE = 20;
 
 async function listAllThreads(
   cloud: UseThreadsOptions["cloud"],
