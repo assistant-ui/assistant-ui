@@ -181,15 +181,7 @@ export class RunAggregator {
       }
 
       case "TEXT_MESSAGE_START": {
-        if (
-          event.messageId &&
-          this.lastTextMessageId !== undefined &&
-          this.lastTextMessageId !== event.messageId &&
-          this.onTextMessageStart
-        ) {
-          this.resetMessageParts();
-          this.onTextMessageStart(event.messageId);
-        }
+        this.beginDistinctTextMessage(event.messageId);
         this.reportServerMessageId(event.messageId);
         const id = this.startTextMessage(event.messageId);
         if (event.messageId) this.lastTextMessageId = event.messageId;
@@ -202,15 +194,7 @@ export class RunAggregator {
       case "TEXT_MESSAGE_CONTENT":
       case "TEXT_MESSAGE_CHUNK": {
         const incomingId = "messageId" in event ? event.messageId : undefined;
-        if (
-          incomingId &&
-          this.lastTextMessageId !== undefined &&
-          this.lastTextMessageId !== incomingId &&
-          this.onTextMessageStart
-        ) {
-          this.resetMessageParts();
-          this.onTextMessageStart(incomingId);
-        }
+        this.beginDistinctTextMessage(incomingId);
         this.reportServerMessageId(incomingId);
         if (!event.delta) break;
         this.recordFirstToken();
@@ -477,6 +461,19 @@ export class RunAggregator {
     this.partOrder.length = 0;
     this.textPartCounter = 0;
     this.activeTextMessageId = undefined;
+  }
+
+  private beginDistinctTextMessage(messageId: string | undefined): void {
+    if (
+      !messageId ||
+      this.lastTextMessageId === undefined ||
+      this.lastTextMessageId === messageId ||
+      !this.onTextMessageStart
+    ) {
+      return;
+    }
+    this.resetMessageParts();
+    this.onTextMessageStart(messageId);
   }
 
   private generateTextKey(): string {

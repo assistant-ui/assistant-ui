@@ -1187,7 +1187,13 @@ export class AgUiThreadRuntimeCore {
     ) => {
       if (startNewMessage && assistantMessageId !== undefined) {
         applyUpdate({ status: { type: "complete", reason: "unknown" } });
+        const previousId = assistantMessageId;
         assistantMessageId = undefined;
+        if (this.tryGetMessage(previousId)) {
+          const created = this.insertAssistantPlaceholder(previousId);
+          assistantMessageId = created;
+          this.markPendingAssistantHistory(created, previousId);
+        }
       }
       const placeholder = ensureAssistant(true);
       if (placeholder === serverId) return;
