@@ -57,66 +57,106 @@ const createFrameScheduler = (fn: () => void) => {
   };
 };
 
+const USER_GESTURE_WINDOW_MS = 500;
+const SCROLL_TRAIN_GAP_MS = 150;
+
 export const mountTopAnchorReserve = (store: TopAnchorStore) => {
   let reserve: HTMLElement | null = null;
   let lastScrolledAnchorId: string | undefined;
 
-  // The browser clamps scrollTop synchronously when a transient layout state
-  // (e.g. a streamed subtree being swapped for its final render) shrinks
-  // scrollHeight below the pinned position; the reserve can only compensate a
-  // frame later. Track whether the user has taken over scrolling so the pin
-  // can be re-asserted after such layout-induced shifts without ever fighting
-  // a user scroll.
-  let userTookOver = false;
-  let pinScrollTarget: number | null = null;
+  // A transient layout state that shrinks scrollHeight (e.g. a streamed
+  // subtree swapped for its final rendering) makes the browser clamp
+  // scrollTop synchronously, before the reserve can grow to compensate;
+  // WebKit lays such states out where Chromium happens not to, which turned
+  // the clamp into a permanently broken pin. The clamp is undone by
+  // restoring the pre-clamp position once the reserve has settled. A
+  // scrollTop decrease is attributed to the user — and left alone — while a
+  // scroll gesture is held or recent, or while an uninterrupted scroll train
+  // started by one is still running (touch momentum outlives its input
+  // events). The upward restore and the downward smooth pin never match the
+  // "unattributed decrease" trigger, so the mechanism cannot feed itself.
   let listenedViewport: HTMLElement | null = null;
   let lastScrollTop = 0;
-  let lastScrollHeight = 0;
+  let lastScrollAt = -Infinity;
+  let lastGestureAt = -Infinity;
+  let gestureHeld = false;
+  let userScrollTrain = false;
+  let restoreScrollTop: number | null = null;
 
-  const releasePin = () => {
-    userTookOver = true;
-    pinScrollTarget = null;
+  const onGesture = () => {
+    lastGestureAt = performance.now();
+  };
+  const onGestureStart = () => {
+    lastGestureAt = performance.now();
+    gestureHeld = true;
+  };
+  const onGestureEnd = () => {
+    lastGestureAt = performance.now();
+    gestureHeld = false;
   };
 
   const handleScroll = () => {
     const viewport = listenedViewport;
     if (!viewport) return;
-    const { scrollTop, scrollHeight } = viewport;
-    const stableHeight = scrollHeight === lastScrollHeight;
+    const now = performance.now();
+    const scrollTop = viewport.scrollTop;
 
-    if (pinScrollTarget !== null) {
-      if (Math.abs(scrollTop - pinScrollTarget) <= 1) {
-        pinScrollTarget = null;
-      } else if (stableHeight) {
-        const approaching =
-          Math.abs(pinScrollTarget - scrollTop) <
-          Math.abs(pinScrollTarget - lastScrollTop);
-        if (!approaching) releasePin();
+    if (scrollTop !== lastScrollTop) {
+      const userAttributed =
+        gestureHeld ||
+        now - lastGestureAt < USER_GESTURE_WINDOW_MS ||
+        (userScrollTrain && now - lastScrollAt < SCROLL_TRAIN_GAP_MS);
+
+      if (userAttributed) {
+        userScrollTrain = true;
+        restoreScrollTop = null;
+      } else {
+        userScrollTrain = false;
+        if (scrollTop < lastScrollTop) {
+          restoreScrollTop ??= lastScrollTop;
+          scheduler.schedule();
+        }
       }
-    } else if (stableHeight && scrollTop !== lastScrollTop) {
-      releasePin();
     }
 
+    lastScrollAt = now;
     lastScrollTop = scrollTop;
-    lastScrollHeight = scrollHeight;
   };
 
   const listenViewport = (viewport: HTMLElement | null) => {
     if (listenedViewport === viewport) return;
     if (listenedViewport) {
       listenedViewport.removeEventListener("scroll", handleScroll);
-      listenedViewport.removeEventListener("wheel", releasePin);
-      listenedViewport.removeEventListener("touchstart", releasePin);
-      listenedViewport.removeEventListener("pointerdown", releasePin);
+      listenedViewport.removeEventListener("wheel", onGesture);
+      listenedViewport.removeEventListener("keydown", onGesture);
+      listenedViewport.removeEventListener("touchstart", onGestureStart);
+      listenedViewport.removeEventListener("pointerdown", onGestureStart);
+      window.removeEventListener("touchend", onGestureEnd);
+      window.removeEventListener("touchcancel", onGestureEnd);
+      window.removeEventListener("pointerup", onGestureEnd);
+      window.removeEventListener("pointercancel", onGestureEnd);
     }
     listenedViewport = viewport;
+    gestureHeld = false;
+    userScrollTrain = false;
+    restoreScrollTop = null;
     if (viewport) {
       viewport.addEventListener("scroll", handleScroll, { passive: true });
-      viewport.addEventListener("wheel", releasePin, { passive: true });
-      viewport.addEventListener("touchstart", releasePin, { passive: true });
-      viewport.addEventListener("pointerdown", releasePin, { passive: true });
+      viewport.addEventListener("wheel", onGesture, { passive: true });
+      viewport.addEventListener("keydown", onGesture, { passive: true });
+      viewport.addEventListener("touchstart", onGestureStart, {
+        passive: true,
+      });
+      viewport.addEventListener("pointerdown", onGestureStart, {
+        passive: true,
+      });
+      window.addEventListener("touchend", onGestureEnd, { passive: true });
+      window.addEventListener("touchcancel", onGestureEnd, { passive: true });
+      window.addEventListener("pointerup", onGestureEnd, { passive: true });
+      window.addEventListener("pointercancel", onGestureEnd, {
+        passive: true,
+      });
       lastScrollTop = viewport.scrollTop;
-      lastScrollHeight = viewport.scrollHeight;
     }
   };
 
@@ -180,27 +220,24 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
       return;
     }
 
+    if (restoreScrollTop !== null) {
+      const top = restoreScrollTop;
+      restoreScrollTop = null;
+      viewport.scrollTo({ top, behavior: "instant" });
+    }
+
     const anchorId = getAnchorId(anchor);
+    if (anchorId !== undefined && lastScrolledAnchorId === anchorId) return;
+
     const targetScrollTop = snapScrollTop(
       computeTopAnchorTargetScrollTop({ viewport, anchor, ...clamp }),
     );
-    const atTarget = Math.abs(viewport.scrollTop - targetScrollTop) <= 1;
-    if (pinScrollTarget !== null && atTarget) pinScrollTarget = null;
 
-    if (anchorId === undefined || anchorId !== lastScrolledAnchorId) {
-      userTookOver = false;
-      if (!atTarget) {
-        pinScrollTarget = targetScrollTop;
-        viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
-      }
-      if (anchorId !== undefined) lastScrolledAnchorId = anchorId;
-      return;
+    if (Math.abs(viewport.scrollTop - targetScrollTop) > 1) {
+      viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
     }
 
-    if (!userTookOver && pinScrollTarget === null && !atTarget) {
-      pinScrollTarget = targetScrollTop;
-      viewport.scrollTo({ top: targetScrollTop, behavior: "instant" });
-    }
+    if (anchorId !== undefined) lastScrolledAnchorId = anchorId;
   }
 
   const scheduler = createFrameScheduler(apply);
