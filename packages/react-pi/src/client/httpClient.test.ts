@@ -752,6 +752,45 @@ describe("createPiHttpClient", () => {
     unsubscribeNinth();
   });
 
+  it("keeps the highest-sequence snapshot when a delayed main snapshot is older", async () => {
+    const { client, fetchImpl, send } = openSharedSse();
+    const firstEvents: PiAnyClientEvent[] = [];
+    const unsubscribeFirst = client.subscribe("t1", (event) => {
+      firstEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    send(0, snapshotAt(1));
+    send(0, { type: "agent_start", threadId: "t1", seq: 2 });
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+
+    const lateEvents: PiAnyClientEvent[] = [];
+    const unsubscribeLate = client.subscribe("t1", (event) => {
+      lateEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+
+    const newerHelperSnapshot = snapshotAt(4, "idle");
+    send(1, newerHelperSnapshot);
+    await vi.waitFor(() => expect(lateEvents).toEqual([newerHelperSnapshot]));
+
+    send(0, snapshotAt(3, "running"));
+    expect(firstEvents).toEqual([
+      snapshotAt(1),
+      { type: "agent_start", threadId: "t1", seq: 2 },
+    ]);
+
+    const cachedEvents: PiAnyClientEvent[] = [];
+    const unsubscribeCached = client.subscribe("t1", (event) => {
+      cachedEvents.push(event);
+    });
+    await vi.waitFor(() => expect(cachedEvents).toEqual([newerHelperSnapshot]));
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+    unsubscribeFirst();
+    unsubscribeLate();
+    unsubscribeCached();
+  });
+
   it("caps stale snapshot retries after a server sequence reset", async () => {
     const streamControllers: ReadableStreamDefaultController<Uint8Array>[] = [];
     const fetchImpl = vi.fn(
