@@ -1299,6 +1299,17 @@ describe("ExternalStoreThreadRuntimeCore - convertMessage auto status", () => {
     });
   });
 
+  it("reports an interrupt for a human interrupt", () => {
+    const runtime = makeRuntime({
+      role: "assistant",
+      content: [toolCall({ interrupt: { type: "human", payload: {} } })],
+    });
+    expect(runtime.messages[1]!.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
   it("reports complete once the tool call has a result", () => {
     const runtime = makeRuntime({
       role: "assistant",
@@ -1354,5 +1365,37 @@ describe("ExternalStoreThreadRuntimeCore - convertMessage auto status", () => {
       }),
     );
     expect(runtime.messages[1]!.status).toMatchObject({ type: "complete" });
+  });
+
+  it("recomputes a cached message's status when the run ends", () => {
+    const pending: ThreadMessageLike = {
+      role: "assistant",
+      content: [toolCall()],
+    };
+    const user: ThreadMessageLike = { role: "user", content: "run it" };
+    const convertMessage = vi.fn((m: ThreadMessageLike) => m);
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        isRunning: true,
+        messages: [user, pending],
+        convertMessage,
+        setMessages: vi.fn(),
+      }),
+    );
+    expect(runtime.messages[1]!.status).toMatchObject({ type: "running" });
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        isRunning: false,
+        messages: [user, pending],
+        convertMessage,
+        setMessages: vi.fn(),
+      }),
+    );
+    expect(runtime.messages[1]!.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
   });
 });
