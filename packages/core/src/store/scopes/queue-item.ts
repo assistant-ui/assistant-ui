@@ -1,10 +1,7 @@
 import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
-import {
-  EMPTY_QUEUE_ITEMS,
-  type QueueItemState,
-} from "../../runtime/queue/queue-item";
+import type { QueueItemState } from "../../runtime/queue/queue-item";
 
-export { EMPTY_QUEUE_ITEMS, type QueueItemState };
+export type { QueueItemState };
 
 export type QueueItemMethods = {
   getState(): QueueItemState;
