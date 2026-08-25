@@ -10,6 +10,25 @@ export type SuggestionConfig =
   | string
   | { title: string; label: string; prompt: string };
 
+const normalizeSuggestion = (suggestion: SuggestionConfig): SuggestionState => {
+  if (typeof suggestion === "string") {
+    return {
+      title: suggestion,
+      label: "",
+      prompt: suggestion,
+    };
+  }
+
+  return {
+    title: suggestion.title,
+    label: suggestion.label,
+    prompt: suggestion.prompt,
+  };
+};
+
+const isSameSuggestion = (a: SuggestionState, b: SuggestionState) =>
+  a.title === b.title && a.label === b.label && a.prompt === b.prompt;
+
 const useSuggestionClient = (
   state: SuggestionState,
 ): ClientOutput<"suggestion"> => {
@@ -40,25 +59,24 @@ const useSuggestionsClient = (
 const useStaticSuggestions = (
   suggestions?: SuggestionConfig[],
 ): ClientOutput<"suggestions"> => {
-  const state = useMemo<SuggestionsState>(
-    () => ({
-      suggestions: (suggestions ?? []).map((s) => {
-        if (typeof s === "string") {
-          return {
-            title: s,
-            label: "",
-            prompt: s,
-          };
-        }
-        return {
-          title: s.title,
-          label: s.label,
-          prompt: s.prompt,
-        };
-      }),
-    }),
-    [suggestions],
-  );
+  const cell = useMemo(() => ({}) as { state?: SuggestionsState }, []);
+  const previousState = cell.state;
+  const normalizedSuggestions = (suggestions ?? []).map((suggestion, index) => {
+    const normalized = normalizeSuggestion(suggestion);
+    const previous = previousState?.suggestions[index];
+    return previous && isSameSuggestion(previous, normalized)
+      ? previous
+      : normalized;
+  });
+  const state =
+    previousState &&
+    previousState.suggestions.length === normalizedSuggestions.length &&
+    normalizedSuggestions.every(
+      (suggestion, index) => suggestion === previousState.suggestions[index],
+    )
+      ? previousState
+      : { suggestions: normalizedSuggestions };
+  cell.state = state;
 
   return useSuggestionsClient(state);
 };
