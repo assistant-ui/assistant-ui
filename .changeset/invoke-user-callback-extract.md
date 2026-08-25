@@ -11,4 +11,4 @@
 ---
 
 refactor: share the runtime lifecycle callback invoker from core internal.
-synchronous throws from callbacks are now reported instead of escaping in the promise-variant adapters.
+callback errors continue to be reported and swallowed through the shared invoker.

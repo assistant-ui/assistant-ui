@@ -1,7 +1,11 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { invokeUserCallback } from "./invoke-user-callback";
 
 describe("invokeUserCallback", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
   it("invokes a callback synchronously with its arguments", () => {
     const callback = vi.fn((left: number, right: number) => left + right);
 
@@ -28,8 +32,6 @@ describe("invokeUserCallback", () => {
       "[test] onError callback threw an error",
       error,
     );
-
-    consoleError.mockRestore();
   });
 
   it("reports an asynchronous rejection and resolves", async () => {
@@ -48,8 +50,6 @@ describe("invokeUserCallback", () => {
       "[test] onError callback threw an error",
       error,
     );
-
-    consoleError.mockRestore();
   });
 
   it("resolves only after an asynchronous callback settles", async () => {
