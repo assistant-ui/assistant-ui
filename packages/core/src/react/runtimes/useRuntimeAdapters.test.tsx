@@ -1,8 +1,11 @@
 // @vitest-environment jsdom
 
 import { renderHook } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { useStableRuntimeAdapters } from "./useRuntimeAdapters";
+import { describe, expect, it, vi } from "vitest";
+import {
+  RuntimeAdaptersContext,
+  useStableRuntimeAdapters,
+} from "./useRuntimeAdapters";
 import type { RuntimeAdapters } from "../../runtimes/remote-thread-list/types";
 import type { ThreadHistoryAdapter } from "../../adapters/thread-history";
 
@@ -58,5 +61,15 @@ describe("useStableRuntimeAdapters", () => {
     rerender({ adapters: {} });
     expect(result.current).not.toBeNull();
     expect(result.current).toEqual({});
+  });
+});
+
+describe("RuntimeAdaptersContext", () => {
+  it("shares the adapter context across independently loaded modules", async () => {
+    vi.resetModules();
+    const { RuntimeAdaptersContext: secondContext } =
+      await import("./useRuntimeAdapters");
+
+    expect(secondContext).toBe(RuntimeAdaptersContext);
   });
 });

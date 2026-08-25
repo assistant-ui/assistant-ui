@@ -1,9 +1,19 @@
-import { createContext, useContext } from "react";
+import { createContext, type Context, useContext } from "react";
 import { useContextProvider } from "@assistant-ui/tap";
 import { useShallowStable } from "@assistant-ui/store/internal";
 import type { RuntimeAdapters } from "../../runtimes/remote-thread-list/types";
 
-const RuntimeAdaptersContext = createContext<RuntimeAdapters | null>(null);
+const RUNTIME_ADAPTERS_CONTEXT_KEY = Symbol.for(
+  "@assistant-ui/core.runtime-adapters-context",
+);
+const globalContexts = globalThis as unknown as Record<
+  symbol,
+  Context<RuntimeAdapters | null> | undefined
+>;
+const RuntimeAdaptersContext =
+  globalContexts[RUNTIME_ADAPTERS_CONTEXT_KEY] ??
+  (globalContexts[RUNTIME_ADAPTERS_CONTEXT_KEY] =
+    createContext<RuntimeAdapters | null>(null));
 
 export const useRuntimeAdaptersProvider = <T>(
   adapters: RuntimeAdapters | null,
