@@ -9,11 +9,43 @@ import {
   isValidElement,
   memo,
   useContext,
+  useState,
 } from "react";
 import { memoCompareNodes } from "../memoization";
 
 type PreOverrideProps = ComponentPropsWithoutRef<"pre"> & {
   node?: Element | undefined;
+};
+
+const useCodeRevision = (children: ReactNode) => {
+  const childContent = isValidElement<{ children?: ReactNode }>(children)
+    ? children.props.children
+    : null;
+  const content =
+    typeof childContent === "string" || typeof childContent === "number"
+      ? String(childContent)
+      : null;
+  const [state, setState] = useState(() => ({
+    anchor: content,
+    revision: 0,
+  }));
+
+  if (
+    content === null ||
+    content === state.anchor ||
+    (state.anchor !== null && content.startsWith(state.anchor))
+  ) {
+    return state.revision;
+  }
+
+  if (state.anchor === null || state.anchor === "") {
+    setState({ anchor: content, revision: state.revision });
+    return state.revision;
+  }
+
+  const nextRevision = state.revision + 1;
+  setState({ anchor: content, revision: nextRevision });
+  return nextRevision;
 };
 
 /**
@@ -47,17 +79,14 @@ export const PreOverride = memo(function PreOverride({
   node,
   ...rest
 }: PreOverrideProps) {
+  const codeRevision = useCodeRevision(children);
   const childWithBlock = isValidElement<{
     "data-block"?: string;
     children?: ReactNode;
   }>(children)
     ? cloneElement(children, {
         "data-block": "true",
-        key:
-          typeof children.props.children === "string" ||
-          typeof children.props.children === "number"
-            ? children.props.children
-            : children.key,
+        key: `${children.key ?? "code"}:${codeRevision}`,
       })
     : children;
 

@@ -1,6 +1,6 @@
-import { describe, it, expect, afterEach } from "vitest";
+import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, renderHook, screen, cleanup } from "@testing-library/react";
-import type { ReactNode } from "react";
+import { type ReactNode, useEffect } from "react";
 import type { Element } from "hast";
 import {
   PreContext,
@@ -151,6 +151,36 @@ describe("PreOverride component", () => {
 
     const codeElement = screen.getByTestId("child-code");
     expect(codeElement.getAttribute("data-block")).toBe("true");
+  });
+
+  it("remounts code only when streamed content is replaced", () => {
+    const onMount = vi.fn();
+    const Code = ({ children }: { children: ReactNode }) => {
+      useEffect(() => {
+        onMount();
+      }, []);
+      return <code>{children}</code>;
+    };
+    const { rerender } = render(
+      <PreOverride>
+        <Code>fir</Code>
+      </PreOverride>,
+    );
+
+    rerender(
+      <PreOverride>
+        <Code>first</Code>
+      </PreOverride>,
+    );
+    expect(onMount).toHaveBeenCalledTimes(1);
+
+    rerender(
+      <PreOverride>
+        <Code>second</Code>
+      </PreOverride>,
+    );
+    expect(onMount).toHaveBeenCalledTimes(2);
+    expect(screen.getByText("second")).toBeDefined();
   });
 
   it("handles non-element children without data-block", () => {
