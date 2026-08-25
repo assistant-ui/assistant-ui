@@ -487,8 +487,7 @@ describe("ToolInvocationTracker", () => {
         true,
       ),
     );
-    await new Promise((r) => setTimeout(r, 0));
-    expect(execute).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
 
     tracker.setState(
       createState(
