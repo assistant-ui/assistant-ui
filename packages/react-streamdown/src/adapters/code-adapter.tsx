@@ -18,7 +18,6 @@ const LANGUAGE_REGEX = /language-([^\s]+)/;
 
 type CodeProps = ComponentPropsWithoutRef<"code"> & {
   node?: Element | undefined;
-  "data-block"?: string;
 };
 
 type PreProps = ComponentPropsWithoutRef<"pre"> & {
@@ -43,16 +42,6 @@ function extractCode(children: unknown): string {
     return props.children;
   }
   return "";
-}
-
-export function compareCodeProps(prev: CodeProps, next: CodeProps): boolean {
-  return (
-    prev.className === next.className &&
-    prev["data-block"] === next["data-block"] &&
-    prev.children === next.children &&
-    prev.node?.position?.start.line === next.node?.position?.start.line &&
-    prev.node?.position?.end.line === next.node?.position?.end.line
-  );
 }
 
 function DefaultPre({ node: _, ...props }: PreProps): ReactNode {
@@ -84,7 +73,7 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     children,
     "data-block": dataBlock,
     ...props
-  }: CodeProps) {
+  }: CodeProps & { "data-block"?: string }) {
     if (!dataBlock) {
       return (
         <code
@@ -139,7 +128,15 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     );
   }
 
-  const AdaptedCode = memo(AdaptedCodeInner, compareCodeProps);
+  const AdaptedCode = memo(AdaptedCodeInner, (prev, next) => {
+    return (
+      prev.className === next.className &&
+      prev["data-block"] === next["data-block"] &&
+      prev.children === next.children &&
+      prev.node?.position?.start.line === next.node?.position?.start.line &&
+      prev.node?.position?.end.line === next.node?.position?.end.line
+    );
+  });
   AdaptedCode.displayName = "AdaptedCode";
 
   return AdaptedCode;

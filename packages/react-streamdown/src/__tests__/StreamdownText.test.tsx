@@ -11,6 +11,8 @@ import type {
   CodeHeaderProps,
 } from "../types";
 
+Element.prototype.scrollTo ??= function scrollTo() {};
+
 afterEach(cleanup);
 
 describe("StreamdownTextPrimitive", () => {

@@ -2,4 +2,4 @@
 "@assistant-ui/react-streamdown": patch
 ---
 
-fix: update fenced code blocks when streamed content changes. `memoCompareNodes` now walks nested element children.
+fix: bump streamdown to 2.6 so fenced code updates when streamed content changes

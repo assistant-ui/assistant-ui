@@ -57,26 +57,6 @@ describe("memoCompareNodes", () => {
     expect(memoCompareNodes(prev, next)).toBe(true);
   });
 
-  it("returns false for React elements with different children", () => {
-    const prev = {
-      children: createElement("code", { key: "1" }, "first"),
-    };
-    const next = {
-      children: createElement("code", { key: "1" }, "second"),
-    };
-    expect(memoCompareNodes(prev, next)).toBe(false);
-  });
-
-  it("returns true for equivalent React element child arrays", () => {
-    const prev = {
-      children: createElement("code", null, ["first", "second"]),
-    };
-    const next = {
-      children: createElement("code", null, ["first", "second"]),
-    };
-    expect(memoCompareNodes(prev, next)).toBe(true);
-  });
-
   it("returns false for different React element types", () => {
     const prev = { children: createElement("div", { key: "1" }) };
     const next = { children: createElement("span", { key: "1" }) };

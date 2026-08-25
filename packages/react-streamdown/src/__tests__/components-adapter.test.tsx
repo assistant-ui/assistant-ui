@@ -130,6 +130,7 @@ describe("useAdaptedComponents", () => {
           componentsByLanguage: {},
         }),
       );
+      // Empty componentsByLanguage should not create code adapter
       expect(result.current).not.toHaveProperty("code");
     });
   });
