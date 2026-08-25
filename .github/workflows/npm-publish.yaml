@@ -29,7 +29,7 @@ jobs:
     steps:
       - name: Resolve release commit SHA
         id: release-sha
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
           script: |
             const dispatchReleaseShaRaw = context.payload?.client_payload?.releaseSha;
@@ -101,7 +101,7 @@ jobs:
     steps:
       - name: Cancel older queued/waiting runs
         continue-on-error: true
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
           script: |
             const owner = context.repo.owner;
@@ -211,7 +211,7 @@ jobs:
     steps:
 
       - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
@@ -258,7 +258,7 @@ jobs:
 
       - name: Resolve publish targets
         id: targets
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
           script: |
             const fs = require("node:fs");
@@ -409,7 +409,7 @@ jobs:
 
       - name: Write release summary
         if: steps.targets.outputs.targetCount != '0'
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         env:
           TARGETS_JSON: ${{ steps.targets.outputs.targetsJson }}
         with:
@@ -679,16 +679,16 @@ jobs:
     steps:
 
       - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
 
       - name: Install pnpm
-        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # v6.0.10
+        uses: pnpm/action-setup@0977fd99725f1db4007ccb2928dbb4e90d06cc86 # ratchet:pnpm/action-setup@v6.0.10
 
       - name: Setup node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # ratchet:actions/setup-node@v7.0.0
         with:
           node-version: 24
           # No cache - hardened against cache poisoning for sensitive publish operations
@@ -701,7 +701,7 @@ jobs:
         # exchange after this pre-flight call within the same job, causing
         # "OIDC publish authorize: Invalid token" on every package.
         if: false
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         env:
           TARGETS_JSON: ${{ needs.summary.outputs.targets_json }}
         with:
@@ -800,7 +800,7 @@ jobs:
 
       - name: Publish to npm and create GitHub releases
         id: changesets-publish
-        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # v2.1.1
+        uses: changesets/action@8488615a623b1b9c987934bb89eae8af6a946ac1 # ratchet:changesets/action@v2.1.1
         with:
           publish-script: pnpm ci:publish
           create-github-releases: true

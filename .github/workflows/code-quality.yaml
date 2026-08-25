@@ -296,7 +296,7 @@ jobs:
     # and 6 and node-redis; both legs need a live server or their suites skip.
     services:
       redis:
-        image: redis:8-alpine
+        image: redis:8-alpine # ratchet:exclude
         ports:
           - 6379:6379
         options: >-
