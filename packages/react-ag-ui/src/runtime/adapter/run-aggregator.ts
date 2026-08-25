@@ -196,10 +196,10 @@ export class RunAggregator {
         const incomingId = "messageId" in event ? event.messageId : undefined;
         this.beginDistinctTextMessage(incomingId);
         this.reportServerMessageId(incomingId);
+        if (incomingId) this.lastTextMessageId = incomingId;
         if (!event.delta) break;
         this.recordFirstToken();
         const id = this.resolveTextMessageId(incomingId);
-        if (incomingId) this.lastTextMessageId = incomingId;
         this.appendText(id, event.delta);
         this.totalChunks++;
         this.emit();
@@ -437,7 +437,11 @@ export class RunAggregator {
   }
 
   private reportServerMessageId(messageId: string | undefined): void {
-    if (this.serverMessageIdReported || !messageId) return;
+    if (!messageId) return;
+    if (this.lastTextMessageId === undefined) {
+      this.lastTextMessageId = messageId;
+    }
+    if (this.serverMessageIdReported) return;
     this.serverMessageIdReported = true;
     this.onServerMessageId?.(messageId);
   }
