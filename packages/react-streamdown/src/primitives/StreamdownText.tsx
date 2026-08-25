@@ -17,6 +17,7 @@ import {
   forwardRef,
   useDeferredValue,
   useMemo,
+  useRef,
 } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
@@ -174,6 +175,11 @@ export const StreamdownTextPrimitive = forwardRef<
 
     const deferredText = useDeferredValue(text);
     const processedText = defer ? deferredText : text;
+    const streamRevisionRef = useRef({ text: processedText, revision: 0 });
+    if (!processedText.startsWith(streamRevisionRef.current.text)) {
+      streamRevisionRef.current.revision += 1;
+    }
+    streamRevisionRef.current.text = processedText;
 
     const shouldTailRemend =
       mode === "streaming" &&
@@ -257,6 +263,7 @@ export const StreamdownTextPrimitive = forwardRef<
         className={containerClass}
       >
         <Streamdown
+          key={streamRevisionRef.current.revision}
           mode={mode}
           isAnimating={status.type === "running"}
           components={mergedComponents}

@@ -91,6 +91,25 @@ describe("StreamdownTextPrimitive", () => {
     expect(await screen.findByText("first chunk second chunk")).toBeTruthy();
   });
 
+  it("updates streamed fenced code block content", async () => {
+    const { rerender } = render(
+      <TextMessagePartProvider text={"```ts\nfirst\n```"} isRunning>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("first")).toBeTruthy();
+
+    rerender(
+      <TextMessagePartProvider text={"```ts\nsecond\n```"} isRunning>
+        <StreamdownTextPrimitive />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("second")).toBeTruthy();
+    expect(screen.queryByText("first")).toBeNull();
+  });
+
   it("renders settled text in full when smooth is enabled", async () => {
     render(
       <TextMessagePartProvider text="hello smooth" isRunning={false}>
