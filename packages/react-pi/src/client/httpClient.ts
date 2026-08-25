@@ -45,6 +45,7 @@ type PiEventListener = (event: PiClientEvent) => void;
 type PendingSnapshotEvents = {
   events: PiClientEvent[];
   joinSeq: number;
+  snapshotRetries: number;
 };
 
 type SharedSnapshotLoad = {
@@ -65,6 +66,7 @@ type SharedStream = {
 };
 
 const SNAPSHOT_LOAD_TIMEOUT_MS = 10_000;
+const MAX_SNAPSHOT_RETRIES = 1;
 
 const notifyListener = (listener: PiEventListener, event: PiClientEvent) => {
   try {
@@ -331,7 +333,7 @@ export const createPiHttpClient = (
       let stream = streams.get(streamKey);
       if (!stream) {
         const listeners = new Set<PiEventListener>();
-        const pendingEvents = new Map<PiEventListener, PiClientEvent[]>();
+        const pendingEvents = new Map<PiEventListener, PendingSnapshotEvents>();
         const createdStream: SharedStream = {
           listeners,
           pendingEvents,
@@ -352,19 +354,21 @@ export const createPiHttpClient = (
             ...(onStreamError ? { onError: onStreamError } : {}),
             onEvent: (event) => {
               const clientEvent = event as PiClientEvent;
-              createdStream.latestSeq = Math.max(
-                createdStream.latestSeq,
-                clientEvent.seq,
-              );
               if (clientEvent.type === "snapshot") {
+                createdStream.latestSeq = clientEvent.seq;
                 createdStream.snapshotEvent = clientEvent;
-                createdStream.hasEventsSinceSnapshot =
-                  createdStream.latestSeq > clientEvent.seq;
-              } else if (
-                createdStream.snapshotEvent &&
-                clientEvent.seq > createdStream.snapshotEvent.seq
-              ) {
-                createdStream.hasEventsSinceSnapshot = true;
+                createdStream.hasEventsSinceSnapshot = false;
+              } else {
+                createdStream.latestSeq = Math.max(
+                  createdStream.latestSeq,
+                  clientEvent.seq,
+                );
+                if (
+                  createdStream.snapshotEvent &&
+                  clientEvent.seq > createdStream.snapshotEvent.seq
+                ) {
+                  createdStream.hasEventsSinceSnapshot = true;
+                }
               }
               for (const listener of [...listeners]) {
                 const pending = pendingEvents.get(listener);
@@ -390,6 +394,7 @@ export const createPiHttpClient = (
         stream.pendingEvents.set(listener, {
           events: [],
           joinSeq: stream.latestSeq,
+          snapshotRetries: 0,
         });
 
         const commitSnapshot = (snapshotEvent: PiSnapshotEvent) => {
@@ -418,9 +423,23 @@ export const createPiHttpClient = (
           notifyListener(pendingListener, snapshotEvent);
           for (const event of pending.events) {
             if (!stream.listeners.has(pendingListener)) break;
-            if (event.seq > snapshotEvent.seq) {
+            if (event.type === "error" || event.seq > snapshotEvent.seq) {
               notifyListener(pendingListener, event);
             }
+          }
+        };
+
+        const flushPendingEvents = (
+          pendingListener: PiEventListener,
+          errorEvent?: PiClientEvent,
+        ) => {
+          const pending = stream.pendingEvents.get(pendingListener);
+          stream.pendingEvents.delete(pendingListener);
+          if (!stream.listeners.has(pendingListener)) return;
+          if (errorEvent) notifyListener(pendingListener, errorEvent);
+          for (const event of pending?.events ?? []) {
+            if (!stream.listeners.has(pendingListener)) break;
+            notifyListener(pendingListener, event);
           }
         };
 
@@ -437,14 +456,7 @@ export const createPiHttpClient = (
           const snapshotLoad = stopSnapshotLoad();
           if (!snapshotLoad) return;
           for (const pendingListener of snapshotLoad.listeners) {
-            const pending = stream.pendingEvents.get(pendingListener);
-            stream.pendingEvents.delete(pendingListener);
-            if (!stream.listeners.has(pendingListener)) continue;
-            if (errorEvent) notifyListener(pendingListener, errorEvent);
-            for (const event of pending?.events ?? []) {
-              if (!stream.listeners.has(pendingListener)) break;
-              notifyListener(pendingListener, event);
-            }
+            flushPendingEvents(pendingListener, errorEvent);
           }
         };
 
@@ -493,7 +505,12 @@ export const createPiHttpClient = (
           for (const pendingListener of snapshotLoad.listeners) {
             const pending = stream.pendingEvents.get(pendingListener);
             if (pending && snapshotEvent.seq < pending.joinSeq) {
-              retryListeners.push(pendingListener);
+              if (pending.snapshotRetries < MAX_SNAPSHOT_RETRIES) {
+                pending.snapshotRetries += 1;
+                retryListeners.push(pendingListener);
+              } else {
+                flushPendingEvents(pendingListener);
+              }
             } else {
               finishSnapshotLoad(pendingListener, snapshotEvent);
             }
