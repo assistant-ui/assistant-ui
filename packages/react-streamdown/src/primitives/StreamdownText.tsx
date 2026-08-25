@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  useAui,
-  useAuiState,
-  useMessagePartText,
-  useSmooth,
-} from "@assistant-ui/react";
+import { useMessagePartText, useSmooth } from "@assistant-ui/react";
 import { harden } from "rehype-harden";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, {
@@ -35,15 +30,16 @@ import type {
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
 
-const useStreamRevision = (text: string, part: unknown) => {
-  const [state, setState] = useState({ text, part, revision: 0 });
-  if (state.text === text && state.part === part) return state.revision;
+// Streamdown 2.5 memoizes code nodes by source position, so equal-length
+// replacements need a new subtree while ordinary prefix appends stay mounted.
+const useStreamRevision = (text: string) => {
+  const [state, setState] = useState({ text, revision: 0 });
+  if (state.text === text) return state.revision;
 
-  const revision =
-    state.part === part && text.startsWith(state.text)
-      ? state.revision
-      : state.revision + 1;
-  setState({ text, part, revision });
+  const revision = text.startsWith(state.text)
+    ? state.revision
+    : state.revision + 1;
+  setState({ text, revision });
   return revision;
 };
 
@@ -178,10 +174,7 @@ export const StreamdownTextPrimitive = forwardRef<
     },
     ref,
   ) => {
-    const aui = useAui();
-    const part = useAuiState(() => aui.part);
     const messagePart = useMessagePartText();
-    const streamRevision = useStreamRevision(messagePart.text, part);
 
     const processedPart = useMemo(
       () =>
@@ -195,6 +188,7 @@ export const StreamdownTextPrimitive = forwardRef<
 
     const deferredText = useDeferredValue(text);
     const processedText = defer ? deferredText : text;
+    const streamRevision = useStreamRevision(processedText);
 
     const shouldTailRemend =
       mode === "streaming" &&

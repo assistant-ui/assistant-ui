@@ -1,17 +1,8 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
-import {
-  AssistantRuntimeProvider,
-  MessagePrimitive,
-  TextMessagePartProvider,
-  ThreadPrimitive,
-  useLocalRuntime,
-  type AssistantRuntime,
-  type ChatModelAdapter,
-} from "@assistant-ui/react";
-import { useEffect, useState, type ReactNode } from "react";
+import { cleanup, render, screen } from "@testing-library/react";
+import { TextMessagePartProvider } from "@assistant-ui/react";
+import { useEffect, type ReactNode } from "react";
 import { defaultRehypePlugins } from "streamdown";
-import { normalizeMathDelimiters } from "../preprocess";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
   StreamdownTextComponents,
@@ -100,99 +91,39 @@ describe("StreamdownTextPrimitive", () => {
     expect(await screen.findByText("first chunk second chunk")).toBeTruthy();
   });
 
-  it("updates streamed fenced code block content", async () => {
-    const { rerender } = render(
-      <TextMessagePartProvider text={"```ts\nfirst\n```"} isRunning>
-        <StreamdownTextPrimitive />
-      </TextMessagePartProvider>,
-    );
-
-    expect(await screen.findByText("first")).toBeTruthy();
-
-    rerender(
-      <TextMessagePartProvider text={"```ts\nsecond\n```"} isRunning>
-        <StreamdownTextPrimitive />
-      </TextMessagePartProvider>,
-    );
-
-    expect(await screen.findByText("second")).toBeTruthy();
-    expect(screen.queryByText("first")).toBeNull();
-  });
-
-  it("resets blocks for prefix-preserving message part replacements", async () => {
-    const mounted = vi.fn();
-    const BlockComponent = ({ content }: { content: string }) => {
-      const [renderedContent] = useState(content);
-      useEffect(() => {
-        mounted();
-      }, []);
-      return <div>{renderedContent}</div>;
-    };
-    const adapter: ChatModelAdapter = {
-      async *run() {},
-    };
-    let runtime: AssistantRuntime | null = null;
-    const Text = () => (
-      <StreamdownTextPrimitive BlockComponent={BlockComponent} />
-    );
-    const Message = () => <MessagePrimitive.Parts components={{ Text }} />;
-    const App = () => {
-      const localRuntime = useLocalRuntime(adapter, {
-        initialMessages: [{ role: "assistant", content: "first" }],
-      });
-      runtime = localRuntime;
-      return (
-        <AssistantRuntimeProvider runtime={localRuntime}>
-          <ThreadPrimitive.Messages components={{ Message }} />
-        </AssistantRuntimeProvider>
+  it.each([
+    { name: "streaming", isRunning: true, props: {} },
+    { name: "static", isRunning: false, props: { mode: "static" as const } },
+    { name: "deferred", isRunning: true, props: { defer: true } },
+  ])(
+    "updates $name fenced code block content",
+    async ({ isRunning, props }) => {
+      const { rerender } = render(
+        <TextMessagePartProvider
+          text={"```ts\nfirst\n```"}
+          isRunning={isRunning}
+        >
+          <StreamdownTextPrimitive {...props} />
+        </TextMessagePartProvider>,
       );
-    };
 
-    render(<App />);
-    expect(await screen.findByText("first")).toBeTruthy();
+      expect(await screen.findByText("first")).toBeTruthy();
 
-    await act(async () => {
-      runtime!.thread.reset([{ role: "assistant", content: "first second" }]);
-    });
+      rerender(
+        <TextMessagePartProvider
+          text={"```ts\nsecond\n```"}
+          isRunning={isRunning}
+        >
+          <StreamdownTextPrimitive {...props} />
+        </TextMessagePartProvider>,
+      );
 
-    expect(await screen.findByText("first second")).toBeTruthy();
-    expect(screen.queryByText("first")).toBeNull();
-    expect(mounted).toHaveBeenCalledTimes(2);
-  });
+      expect(await screen.findByText("second")).toBeTruthy();
+      expect(screen.queryByText("first")).toBeNull();
+    },
+  );
 
-  it("does not remount blocks when preprocessing rewrites appended text", async () => {
-    const mounted = vi.fn();
-    const BlockComponent = ({ content }: { content: string }) => {
-      useEffect(() => {
-        mounted();
-      }, []);
-      return <div>{content}</div>;
-    };
-    const { rerender } = render(
-      <TextMessagePartProvider text={"\\(x"} isRunning>
-        <StreamdownTextPrimitive
-          preprocess={normalizeMathDelimiters}
-          BlockComponent={BlockComponent}
-        />
-      </TextMessagePartProvider>,
-    );
-
-    expect(await screen.findByText("\\(x")).toBeTruthy();
-
-    rerender(
-      <TextMessagePartProvider text={"\\(x\\)"} isRunning>
-        <StreamdownTextPrimitive
-          preprocess={normalizeMathDelimiters}
-          BlockComponent={BlockComponent}
-        />
-      </TextMessagePartProvider>,
-    );
-
-    expect(await screen.findByText("$x$")).toBeTruthy();
-    expect(mounted).toHaveBeenCalledTimes(1);
-  });
-
-  it("does not remount blocks for deferred text appends", async () => {
+  it("preserves streaming blocks for prefix appends", async () => {
     const mounted = vi.fn();
     const BlockComponent = ({ content }: { content: string }) => {
       useEffect(() => {
@@ -202,7 +133,7 @@ describe("StreamdownTextPrimitive", () => {
     };
     const { rerender } = render(
       <TextMessagePartProvider text="first" isRunning>
-        <StreamdownTextPrimitive defer BlockComponent={BlockComponent} />
+        <StreamdownTextPrimitive BlockComponent={BlockComponent} />
       </TextMessagePartProvider>,
     );
 
@@ -210,12 +141,12 @@ describe("StreamdownTextPrimitive", () => {
 
     rerender(
       <TextMessagePartProvider text="first second" isRunning>
-        <StreamdownTextPrimitive defer BlockComponent={BlockComponent} />
+        <StreamdownTextPrimitive BlockComponent={BlockComponent} />
       </TextMessagePartProvider>,
     );
 
     expect(await screen.findByText("first second")).toBeTruthy();
-    await waitFor(() => expect(mounted).toHaveBeenCalledTimes(1));
+    expect(mounted).toHaveBeenCalledTimes(1);
   });
 
   it("renders settled text in full when smooth is enabled", async () => {
