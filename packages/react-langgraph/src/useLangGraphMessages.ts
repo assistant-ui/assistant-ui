@@ -21,6 +21,7 @@ import {
   type UIMessage,
 } from "./types";
 import { useAui } from "@assistant-ui/store";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
 import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
 
 const DEFAULT_UI_STATE_KEY = "ui";
@@ -37,27 +38,12 @@ type LangGraphEventCallbackName =
   | "onSubgraphError"
   | "onCustomEvent";
 
-const reportCallbackError = (
+const invokeEventCallback = <TArgs extends readonly unknown[]>(
   name: LangGraphEventCallbackName,
-  error: unknown,
-) => {
-  console.error(`[react-langgraph] ${name} callback threw an error`, error);
-};
-
-const invokeEventCallback = <TArgs extends unknown[]>(
-  name: LangGraphEventCallbackName,
-  callback: ((...args: TArgs) => void | Promise<void>) | undefined,
+  callback: ((...args: TArgs) => unknown) | undefined,
   ...args: TArgs
-) => {
-  if (!callback) return;
-
-  try {
-    void Promise.resolve(callback(...args)).catch((error) => {
-      reportCallbackError(name, error);
-    });
-  } catch (error) {
-    reportCallbackError(name, error);
-  }
+): void => {
+  void invokeUserCallback("react-langgraph", name, callback, ...args);
 };
 
 const parseEventType = (

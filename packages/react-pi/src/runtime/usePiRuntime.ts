@@ -14,6 +14,7 @@ import type {
   ThreadMessage,
   ThreadMessageLike,
 } from "@assistant-ui/react";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
 import {
   useEffect,
   useEffectEvent,
@@ -93,20 +94,11 @@ export const NOOP_CONTROLLER: PiThreadControllerLike = {
   dispose: () => {},
 };
 
-const reportPiCallbackError = (callbackError: unknown) => {
-  console.error("[react-pi] onError callback threw an error", callbackError);
-};
-
 const invokePiErrorCallback = (
   onError: PiRuntimeOptions["onError"],
   error: unknown,
 ) => {
-  if (!onError) return;
-  try {
-    void Promise.resolve(onError(error)).catch(reportPiCallbackError);
-  } catch (callbackError) {
-    reportPiCallbackError(callbackError);
-  }
+  void invokeUserCallback("react-pi", "onError", onError, error);
 };
 
 const buildExtras = (

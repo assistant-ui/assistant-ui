@@ -10,7 +10,10 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import { MessageRepository } from "@assistant-ui/core/internal";
+import {
+  invokeUserCallback,
+  MessageRepository,
+} from "@assistant-ui/core/internal";
 import type { A2AClient } from "./A2AClient";
 import type {
   A2AArtifact,
@@ -48,32 +51,12 @@ const FALLBACK_USER_STATUS = {
 
 type A2ARuntimeCallbackName = "onError" | "onCancel" | "onArtifactComplete";
 
-const reportCallbackError = (name: A2ARuntimeCallbackName, error: unknown) => {
-  console.error(`[react-a2a] ${name} callback threw an error`, error);
-};
-
-const invokeRuntimeCallback = <TArgs extends unknown[]>(
+const invokeRuntimeCallback = <TArgs extends readonly unknown[]>(
   name: A2ARuntimeCallbackName,
-  callback: ((...args: TArgs) => void) | undefined,
+  callback: ((...args: TArgs) => unknown) | undefined,
   ...args: TArgs
-) => {
-  if (!callback) return;
-
-  try {
-    const result = callback(...args) as unknown;
-    if (
-      result !== null &&
-      (typeof result === "object" || typeof result === "function") &&
-      "then" in result &&
-      typeof result.then === "function"
-    ) {
-      void Promise.resolve(result).catch((error) => {
-        reportCallbackError(name, error);
-      });
-    }
-  } catch (error) {
-    reportCallbackError(name, error);
-  }
+): void => {
+  void invokeUserCallback("react-a2a", name, callback, ...args);
 };
 
 function normalizeArtifact(artifact: A2AArtifact): A2AArtifact {

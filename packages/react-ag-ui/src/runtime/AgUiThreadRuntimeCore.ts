@@ -20,7 +20,10 @@ import type {
   ThreadMessage,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
-import { MessageRepository } from "@assistant-ui/core/internal";
+import {
+  invokeUserCallback,
+  MessageRepository,
+} from "@assistant-ui/core/internal";
 import type {
   AbstractAgent,
   AgentSubscriber,
@@ -99,32 +102,12 @@ const FALLBACK_USER_STATUS = { type: "complete", reason: "unknown" } as const;
 
 type AgUiRuntimeCallbackName = "onError" | "onCancel";
 
-const reportCallbackError = (name: AgUiRuntimeCallbackName, error: unknown) => {
-  console.error(`[react-ag-ui] ${name} callback threw an error`, error);
-};
-
-const invokeRuntimeCallback = <TArgs extends unknown[]>(
+const invokeRuntimeCallback = <TArgs extends readonly unknown[]>(
   name: AgUiRuntimeCallbackName,
-  callback: ((...args: TArgs) => void) | undefined,
+  callback: ((...args: TArgs) => unknown) | undefined,
   ...args: TArgs
-) => {
-  if (!callback) return;
-
-  try {
-    const result = callback(...args) as unknown;
-    if (
-      result !== null &&
-      (typeof result === "object" || typeof result === "function") &&
-      "then" in result &&
-      typeof result.then === "function"
-    ) {
-      void Promise.resolve(result).catch((error) => {
-        reportCallbackError(name, error);
-      });
-    }
-  } catch (error) {
-    reportCallbackError(name, error);
-  }
+): void => {
+  void invokeUserCallback("react-ag-ui", name, callback, ...args);
 };
 
 // The aggregator sends only the agui keys it owns (interrupts and

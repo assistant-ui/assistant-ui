@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { useAui } from "@assistant-ui/store";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
 import { contentToParts } from "./contentToParts";
 import type {
@@ -28,24 +29,12 @@ export type UseAdkMessagesOptions = {
 
 type AdkRuntimeCallbackName = "onError" | "onCustomEvent" | "onAgentTransfer";
 
-const reportCallbackError = (name: AdkRuntimeCallbackName, error: unknown) => {
-  console.error(`[react-google-adk] ${name} callback threw an error`, error);
-};
-
-const invokeAdkRuntimeCallback = <TArgs extends unknown[]>(
+const invokeAdkRuntimeCallback = <TArgs extends readonly unknown[]>(
   name: AdkRuntimeCallbackName,
-  callback: ((...args: TArgs) => void | Promise<void>) | undefined,
+  callback: ((...args: TArgs) => unknown) | undefined,
   ...args: TArgs
-) => {
-  if (!callback) return;
-
-  try {
-    void Promise.resolve(callback(...args)).catch((error) => {
-      reportCallbackError(name, error);
-    });
-  } catch (error) {
-    reportCallbackError(name, error);
-  }
+): void => {
+  void invokeUserCallback("react-google-adk", name, callback, ...args);
 };
 
 export const useAdkMessages = ({
