@@ -21,12 +21,14 @@ describe("RunAggregator", () => {
   const createAggregator = (
     showThinking: boolean,
     onServerMessageId?: (id: string) => void,
+    onTextMessageStart?: (id: string) => void,
   ) =>
     new RunAggregator({
       showThinking,
       logger: makeLogger(),
       emit: (update) => results.push(update),
       ...(onServerMessageId ? { onServerMessageId } : {}),
+      ...(onTextMessageStart ? { onTextMessageStart } : {}),
     });
 
   it("streams text content", () => {
@@ -1386,6 +1388,114 @@ describe("RunAggregator", () => {
 
     expect(onServerMessageId).toHaveBeenCalledTimes(1);
     expect(onServerMessageId).toHaveBeenCalledWith("srv-1");
+  });
+
+  it("notifies onTextMessageStart and drops prior parts for a later text id", () => {
+    const onTextMessageStart = vi.fn();
+    const aggregator = createAggregator(false, undefined, onTextMessageStart);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "call-1",
+      toolCallName: "get_weather",
+      parentMessageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_END",
+      toolCallId: "call-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "srv-2",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "srv-2",
+      delta: "Beijing: 26C",
+    } as AgUiEvent);
+
+    expect(onTextMessageStart).toHaveBeenCalledTimes(1);
+    expect(onTextMessageStart).toHaveBeenCalledWith("srv-2");
+    const last = results.at(-1);
+    expect(last?.content).toEqual([{ type: "text", text: "Beijing: 26C" }]);
+  });
+
+  it("splits on TEXT_MESSAGE_CONTENT when START omitted the later id", () => {
+    const onTextMessageStart = vi.fn();
+    const aggregator = createAggregator(false, undefined, onTextMessageStart);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "srv-2",
+      delta: "follow-up",
+    } as AgUiEvent);
+
+    expect(onTextMessageStart).toHaveBeenCalledWith("srv-2");
+    const last = results.at(-1);
+    expect(last?.content).toEqual([{ type: "text", text: "follow-up" }]);
+  });
+
+  it("records a later CHUNK id even when the opening frame has no delta", () => {
+    const onTextMessageStart = vi.fn();
+    const aggregator = createAggregator(false, undefined, onTextMessageStart);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CHUNK",
+      messageId: "srv-2",
+      delta: "",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CHUNK",
+      messageId: "srv-2",
+      delta: "follow-up",
+    } as AgUiEvent);
+
+    expect(onTextMessageStart).toHaveBeenCalledTimes(1);
+    expect(onTextMessageStart).toHaveBeenCalledWith("srv-2");
+    const last = results.at(-1);
+    expect(last?.content).toEqual([{ type: "text", text: "follow-up" }]);
+  });
+
+  it("splits after a tool-only first message", () => {
+    const onTextMessageStart = vi.fn();
+    const aggregator = createAggregator(false, undefined, onTextMessageStart);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "call-1",
+      toolCallName: "get_weather",
+      parentMessageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "srv-2",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "srv-2",
+      delta: "follow-up",
+    } as AgUiEvent);
+
+    expect(onTextMessageStart).toHaveBeenCalledTimes(1);
+    expect(onTextMessageStart).toHaveBeenCalledWith("srv-2");
+    const last = results.at(-1);
+    expect(last?.content).toEqual([{ type: "text", text: "follow-up" }]);
   });
 
   it("re-arms server messageId reporting across runs", () => {

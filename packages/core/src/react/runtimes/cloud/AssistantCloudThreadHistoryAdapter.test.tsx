@@ -188,6 +188,98 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
     );
   });
 
+  it("reports frontend and MCP sources for ai-sdk/v6 tool calls", () => {
+    mocks.aui = mocks.makeClient("thread-1");
+    const cloud = makeCloud();
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    const formatted = result.current.withFormat({
+      format: "ai-sdk/v6",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message: { id: string }) => message.id,
+    });
+
+    formatted.reportTelemetry([
+      {
+        parentId: null,
+        message: {
+          id: "message-1",
+          role: "assistant",
+          parts: [
+            { type: "step-start" },
+            {
+              type: "tool-search",
+              toolCallId: "static-1",
+              input: { query: "test" },
+              output: { result: "ok" },
+            },
+            {
+              type: "dynamic-tool",
+              toolName: "mcp-search",
+              toolCallId: "dynamic-1",
+              input: { query: "test" },
+              output: { result: "ok" },
+            },
+            { type: "step-start" },
+            {
+              type: "tool-search",
+              toolCallId: "static-2",
+              input: { query: "again" },
+              output: { result: "ok" },
+            },
+          ],
+        },
+      },
+    ]);
+
+    expect(cloud.runs.report).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tool_calls: [
+          expect.objectContaining({
+            tool_call_id: "static-1",
+            tool_source: "frontend",
+          }),
+          expect.objectContaining({
+            tool_call_id: "dynamic-1",
+            tool_source: "mcp",
+          }),
+          expect.objectContaining({
+            tool_call_id: "static-2",
+            tool_source: "frontend",
+          }),
+        ],
+        steps: [
+          {
+            tool_calls: [
+              expect.objectContaining({
+                tool_call_id: "static-1",
+                tool_source: "frontend",
+              }),
+              expect.objectContaining({
+                tool_call_id: "dynamic-1",
+                tool_source: "mcp",
+              }),
+            ],
+          },
+          {
+            tool_calls: [
+              expect.objectContaining({
+                tool_call_id: "static-2",
+                tool_source: "frontend",
+              }),
+            ],
+          },
+        ],
+      }),
+    );
+  });
+
   it("initializes the pinned item instead of the new main thread", async () => {
     mocks.aui = mocks.makeClient(undefined, "new-thread", "thread-1");
     const cloud = makeCloud();
