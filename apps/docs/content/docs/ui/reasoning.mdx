@@ -5,6 +5,7 @@ platforms: ["react"]
 ---
 
 import { ReasoningSample, ReasoningStreamingSample } from "@/components/pages/docs/samples/reasoning";
+import { ReasoningLongSample } from "@/components/pages/docs/samples/reasoning/long-reasoning";
 
 <ReasoningSample />
 
@@ -154,6 +155,12 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
 The response shows partial reasoning and stays active. Select Stop to cancel the response and return the composer to its idle state.
 
 <ReasoningStreamingSample />
+
+### Long Reasoning
+
+The `defaultOpen` prop opens the disclosure when the page loads. `ReasoningText` holds long reasoning in a `max-h-64` scroll area. Scroll the text. Then collapse and expand the disclosure.
+
+<ReasoningLongSample />
 
 ## API Reference
 

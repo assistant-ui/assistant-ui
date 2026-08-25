@@ -519,6 +519,7 @@ export class ToolInvocationTracker {
     // The host already set the result (via the live snapshot's
     // `setResponse` path). Suppress the executor's redundant emit.
     if (entry?.hasResult) return;
+    if (entry.skipExecute) return;
 
     this._invokeOnResult({
       type: "add-tool-result",
@@ -793,6 +794,8 @@ export class ToolInvocationTracker {
             content.result !== undefined,
           );
         }
+
+        if (content.approval !== undefined) entry.skipExecute = true;
 
         this._processArgsText(entry, content);
 
