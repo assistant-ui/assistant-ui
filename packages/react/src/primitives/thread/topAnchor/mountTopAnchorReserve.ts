@@ -101,6 +101,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
   const clearRestore = () => {
     restoreScrollTop = null;
     lastAppliedTarget = null;
+    lastLayoutChangeAt = -Infinity;
   };
 
   const onGesture = () => {
@@ -259,6 +260,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     if (anchorId === undefined || anchorId !== lastScrolledAnchorId) {
       restoreScrollTop = null;
       restoredThisTurn = false;
+      lastLayoutChangeAt = -Infinity;
       if (Math.abs(viewport.scrollTop - targetScrollTop) > 1) {
         viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
       }
