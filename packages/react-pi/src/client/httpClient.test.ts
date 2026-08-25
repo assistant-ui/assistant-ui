@@ -582,9 +582,17 @@ describe("createPiHttpClient", () => {
       threadId: "t1",
       seq: 4,
     } satisfies PiAnyClientEvent;
-    streamControllers[0]!.enqueue(
-      new TextEncoder().encode(`data: ${JSON.stringify(agentEnd)}\n\n`),
-    );
+    const staleError = {
+      type: "error",
+      threadId: "t1",
+      seq: 2,
+      error: "stale failure",
+    } satisfies PiAnyClientEvent;
+    for (const event of [staleError, agentEnd]) {
+      streamControllers[0]!.enqueue(
+        new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
+      );
+    }
     const currentSnapshot = {
       type: "snapshot",
       threadId: "t1",
@@ -597,15 +605,149 @@ describe("createPiHttpClient", () => {
     streamControllers[1]!.enqueue(
       new TextEncoder().encode(`data: ${JSON.stringify(currentSnapshot)}\n\n`),
     );
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(4));
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(5));
     await vi.waitFor(() => expect(secondEvents).toEqual(firstEvents));
     await vi.waitFor(() =>
       expect(thirdEvents).toEqual([currentSnapshot, agentEnd]),
     );
 
+    const fourthEvents: PiAnyClientEvent[] = [];
+    const fifthEvents: PiAnyClientEvent[] = [];
+    const unsubscribeFourth = client.subscribe("t1", (event) => {
+      fourthEvents.push(event);
+    });
+    const unsubscribeFifth = client.subscribe("t1", (event) => {
+      fifthEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+
+    const latestSnapshot = {
+      type: "snapshot",
+      threadId: "t1",
+      seq: 4,
+      snapshot: {
+        metadata: { id: "t1", status: "idle", messageCount: 1 },
+        messages: [messageStart.message],
+      },
+    } satisfies PiAnyClientEvent;
+    streamControllers[2]!.enqueue(
+      new TextEncoder().encode(`data: ${JSON.stringify(latestSnapshot)}\n\n`),
+    );
+    await vi.waitFor(() => expect(fourthEvents).toEqual([latestSnapshot]));
+    await vi.waitFor(() => expect(fifthEvents).toEqual([latestSnapshot]));
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+
     unsubscribeFirst();
     unsubscribeSecond();
     unsubscribeThird();
+    unsubscribeFourth();
+    unsubscribeFifth();
+  });
+
+  it("falls back to live events when a snapshot refresh fails", async () => {
+    const streamControllers: ReadableStreamDefaultController<Uint8Array>[] = [];
+    const fetchImpl = vi.fn(
+      async () =>
+        new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              streamControllers.push(controller);
+            },
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "text/event-stream" },
+          },
+        ),
+    ) as unknown as typeof fetch;
+    const client = createPiHttpClient({
+      fetchImpl,
+      streamCloseDelayMs: 0,
+    });
+
+    const firstEvents: PiAnyClientEvent[] = [];
+    const unsubscribeFirst = client.subscribe("t1", (event) => {
+      firstEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    const send = (
+      controller: ReadableStreamDefaultController<Uint8Array>,
+      event: PiAnyClientEvent,
+    ) => {
+      controller.enqueue(
+        new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
+      );
+    };
+    send(streamControllers[0]!, {
+      type: "snapshot",
+      threadId: "t1",
+      seq: 1,
+      snapshot,
+    });
+    send(streamControllers[0]!, {
+      type: "agent_start",
+      threadId: "t1",
+      seq: 2,
+    });
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+
+    const lateEvents: PiAnyClientEvent[] = [];
+    const unsubscribeLate = client.subscribe("t1", (event) => {
+      lateEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+
+    const liveEvent = {
+      type: "agent_end",
+      threadId: "t1",
+      seq: 3,
+    } satisfies PiAnyClientEvent;
+    const snapshotError = {
+      type: "error",
+      threadId: "t1",
+      seq: 0,
+      error: "snapshot unavailable",
+    } satisfies PiAnyClientEvent;
+    send(streamControllers[0]!, liveEvent);
+    send(streamControllers[1]!, snapshotError);
+    await vi.waitFor(() =>
+      expect(lateEvents).toEqual([snapshotError, liveEvent]),
+    );
+
+    const nextLiveEvent = {
+      type: "agent_start",
+      threadId: "t1",
+      seq: 4,
+    } satisfies PiAnyClientEvent;
+    send(streamControllers[0]!, nextLiveEvent);
+    await vi.waitFor(() =>
+      expect(lateEvents).toEqual([snapshotError, liveEvent, nextLiveEvent]),
+    );
+
+    const timeoutEvents: PiAnyClientEvent[] = [];
+    let unsubscribeTimeout = () => {};
+    vi.useFakeTimers();
+    try {
+      unsubscribeTimeout = client.subscribe("t1", (event) => {
+        timeoutEvents.push(event);
+      });
+      expect(fetchImpl).toHaveBeenCalledTimes(3);
+      await vi.advanceTimersByTimeAsync(10_000);
+    } finally {
+      vi.useRealTimers();
+    }
+
+    const postTimeoutEvent = {
+      type: "agent_end",
+      threadId: "t1",
+      seq: 5,
+    } satisfies PiAnyClientEvent;
+    send(streamControllers[0]!, postTimeoutEvent);
+    await vi.waitFor(() => expect(timeoutEvents).toEqual([postTimeoutEvent]));
+
+    unsubscribeFirst();
+    unsubscribeLate();
+    unsubscribeTimeout();
   });
 
   it("can subscribe to live events without an initial snapshot", async () => {

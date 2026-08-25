@@ -215,6 +215,9 @@ degrade rather than crash.
 - Every (re)connect is **snapshot-first**: the server re-sends an authoritative
   `snapshot` event, then live events apply on top. There is no event replay in the
   MVP; the snapshot is authoritative.
+- Browser subscribers share the long-lived SSE connection. A subscriber joining
+  late receives the current snapshot first; when the cached snapshot is behind,
+  one short-lived snapshot request is shared by all subscribers waiting for it.
 - Cold/historical threads load via a **read-only session-file snapshot** — opening
   a thread to read it does **not** spin up a live `AgentSession`. A live runtime is
   created only when you send, cancel, change model/thinking, answer host UI, or
