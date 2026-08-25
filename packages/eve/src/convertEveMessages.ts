@@ -579,14 +579,14 @@ export const findEveInputRequest = (
 /**
  * Converts an assistant-ui tool approval response into an Eve input response.
  *
- * The originating input request, carried on the tool part as
- * `providerMetadata.eve.inputRequest`, is what the response is mapped
- * against, so every returned response carries either an
+ * When `inputRequest` is known, every returned response carries either an
  * option the request declares or a free-form answer. A literal option match
  * wins, then the `"approve"` / `"cancel"` option the response's boolean decision
  * names, then the response's `reason` text when the request takes a free-form
  * answer (`display: "text"`, `allowFreeform`, or no options at all, and never
  * `display: "confirmation"`) and the response is not a refusal.
+ * A one-argument call, or a part with no request, still forwards a caller
+ * `optionId` as it always has, including ids the request never declared.
  *
  * A response the known request cannot record as the answer it asked for throws
  * instead of being submitted, because eve resolves a request the moment any
