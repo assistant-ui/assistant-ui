@@ -7,7 +7,7 @@ import {
 } from "@/components/pages/docs/assistant/composer";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
 import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { MODELS } from "@/constants/model";
+import { MODELS } from "@/lib/model";
 import { SparklesIcon, XIcon } from "lucide-react";
 import Image from "next/image";
 import { ComposerPrimitive, useAuiState } from "@assistant-ui/react";

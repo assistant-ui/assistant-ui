@@ -34,9 +34,9 @@
   },
   "dependencies": {
     "@ai-sdk/provider": "^4.0.7",
-    "@assistant-ui/core": "^0.3.14",
+    "@assistant-ui/core": "^0.3.15",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.38"
+    "assistant-stream": "^0.3.39"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -52,7 +52,7 @@
     "@types/json-schema": "^7.0.15",
     "@types/react": "^19.2.18",
     "react": "^19.2.8",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public",

@@ -662,7 +662,7 @@ function toAssistantSnapshotMessage(
 }
 
 function toUserOrSystemSnapshotMessage(
-  role: "user" | "system",
+  role: "user" | "system" | "developer",
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const messageName = getString(rawMessage, "name");
@@ -670,10 +670,23 @@ function toUserOrSystemSnapshotMessage(
     role === "user" ? toSnapshotAttachments(rawMessage.content) : [];
   return {
     id: getString(rawMessage, "id") ?? generateId(),
-    role,
+    // The internal message model has no developer role; it rides as a system
+    // message with its wire role kept in metadata so the export restores it.
+    role: role === "developer" ? "system" : role,
     content: extractText(rawMessage.content),
     ...(messageName !== undefined ? { name: messageName } : {}),
     ...(attachments.length > 0 ? { attachments } : {}),
+    ...(role === "developer"
+      ? {
+          metadata: {
+            custom: {
+              [AG_UI_METADATA_NAMESPACE]: {
+                role: "developer",
+              } satisfies AgUiCustomMetadata,
+            },
+          },
+        }
+      : {}),
   };
 }
 
@@ -939,7 +952,7 @@ export function fromAgUiMessages(
       continue;
     }
 
-    if (role === "user" || role === "system") {
+    if (role === "user" || role === "system" || role === "developer") {
       converted.push(toUserOrSystemSnapshotMessage(role, rawMessage));
     }
   }
@@ -1137,9 +1150,21 @@ export function toAgUiMessages(
     }
 
     if (message.role === "system" || message.role === "developer") {
+      const custom = isObject(message.metadata)
+        ? message.metadata.custom
+        : undefined;
+      const namespaced = isObject(custom)
+        ? custom[AG_UI_METADATA_NAMESPACE]
+        : undefined;
+      const wireRole =
+        message.role === "system" &&
+        isObject(namespaced) &&
+        namespaced.role === "developer"
+          ? ("developer" as const)
+          : message.role;
       converted.push({
         id: message.id,
-        role: message.role,
+        role: wireRole,
         content: extractText(message.content),
         ...(message.name ? { name: message.name } : {}),
       });

@@ -1,7 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import type { FC } from "react";
-import { CodeOverride } from "./CodeOverride";
+import { CodeOverride, compareComponentsByLanguage } from "./CodeOverride";
 import { PreContext } from "./PreOverride";
 import type {
   CodeComponent,
@@ -87,5 +87,73 @@ describe("CodeOverride language extraction", () => {
     );
     const html = render("", undefined, CodeHeader);
     expect(html).toContain(`data-testid="header" data-language=""`);
+  });
+});
+
+describe("compareComponentsByLanguage", () => {
+  const Highlighter = makeHighlighter("stable");
+
+  it("treats structurally equal fresh objects as equal", () => {
+    expect(
+      compareComponentsByLanguage(
+        { mermaid: { SyntaxHighlighter: Highlighter } },
+        { mermaid: { SyntaxHighlighter: Highlighter } },
+      ),
+    ).toBe(true);
+  });
+
+  it("detects changed and added languages", () => {
+    const Other = makeHighlighter("other");
+    expect(
+      compareComponentsByLanguage(
+        { mermaid: { SyntaxHighlighter: Highlighter } },
+        { mermaid: { SyntaxHighlighter: Other } },
+      ),
+    ).toBe(false);
+    expect(
+      compareComponentsByLanguage(
+        { mermaid: { SyntaxHighlighter: Highlighter } },
+        {
+          mermaid: { SyntaxHighlighter: Highlighter },
+          python: { SyntaxHighlighter: Other },
+        },
+      ),
+    ).toBe(false);
+  });
+
+  it("distinguishes same-sized maps with different keys and undefined entries", () => {
+    expect(
+      compareComponentsByLanguage(
+        { a: undefined },
+        { b: { SyntaxHighlighter: Highlighter } },
+      ),
+    ).toBe(false);
+    expect(
+      compareComponentsByLanguage(
+        { mermaid: undefined },
+        { mermaid: { SyntaxHighlighter: Highlighter } },
+      ),
+    ).toBe(false);
+    expect(
+      compareComponentsByLanguage({ a: undefined }, { a: undefined }),
+    ).toBe(true);
+  });
+
+  it("does not read inherited keys off the next map", () => {
+    expect(
+      compareComponentsByLanguage(
+        { toString: { SyntaxHighlighter: Highlighter } },
+        { other: { SyntaxHighlighter: Highlighter } },
+      ),
+    ).toBe(false);
+  });
+
+  it("handles absent maps by identity", () => {
+    expect(compareComponentsByLanguage(undefined, undefined)).toBe(true);
+    expect(
+      compareComponentsByLanguage(undefined, {
+        mermaid: { SyntaxHighlighter: Highlighter },
+      }),
+    ).toBe(false);
   });
 });

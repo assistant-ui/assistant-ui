@@ -56,7 +56,7 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     "components/assistant-ui/tool-fallback.tsx": toolFallbackShim(),
     "components/assistant-ui/tooltip-icon-button.tsx": tooltipIconButtonShim(),
     "components/docs/assistant/docs-model-options.ts": docsModelOptionsShim(),
-    "constants/model.ts": 'export const DEFAULT_MODEL_ID = "gpt-5.6-luna";\n',
+    "lib/model.ts": 'export const DEFAULT_MODEL_ID = "gpt-5.6-luna";\n',
     "public/favicon/icon.svg": faviconSvg(),
     [`components/examples/${manifest.slug}.tsx`]: demoSource,
   };

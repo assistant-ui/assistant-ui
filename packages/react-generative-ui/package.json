@@ -75,7 +75,7 @@
     "@types/react": "^19.2.18",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "vitest": "^4.1.10",
+    "vitest": "^4.1.11",
     "zod": "^4.4.3"
   },
   "publishConfig": {

@@ -23,7 +23,7 @@ import {
   getThreadMessageTokenUsage,
   type ThreadTokenUsage,
 } from "@assistant-ui/ai-sdk";
-import { getContextWindow } from "@/constants/model";
+import { getContextWindow } from "@/lib/model";
 import { Button } from "@/components/ui/button";
 import {
   PaletteIcon,

@@ -21,7 +21,7 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/assistant-ui/tabs";
-import { useStoryPhases } from "@/components/demo/hooks/use-demo";
+import { useStoryPhases } from "@/components/demo/use-demo";
 import type { StandaloneComponent } from "@/lib/standalone";
 
 const FRUITS = [

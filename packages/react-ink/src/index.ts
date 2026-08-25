@@ -52,6 +52,8 @@ export type {
   VoiceSessionControls,
   VoiceSessionHelpers,
   SuggestionAdapter,
+  SuggestionAdapterGenerateOptions,
+  CreateSuggestionAdapterOptions,
   // Other
   Unsubscribe,
 } from "@assistant-ui/core";
@@ -65,6 +67,7 @@ export type {
 export { InMemoryThreadListAdapter } from "@assistant-ui/core";
 export { createVoiceSession } from "@assistant-ui/core";
 export { fromThreadMessageLike, generateId } from "@assistant-ui/core";
+export { createSuggestionAdapter } from "@assistant-ui/core";
 
 // Attachment adapter implementations
 export {

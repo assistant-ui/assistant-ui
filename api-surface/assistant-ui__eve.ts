@@ -1159,6 +1159,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
@@ -1381,6 +1382,10 @@ type ToolCallMessagePartMcpMetadata = {
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
   readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "tool-calls";
+  readonly error?: ReadonlyJSONValue;
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {

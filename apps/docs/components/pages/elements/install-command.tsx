@@ -1,9 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { mono } from "@/components/elements/surfaces";
 import { CopyButton } from "@/components/shared/copy-button";
+import {
+  createPersistedPreference,
+  usePersistedPreference,
+} from "@/lib/persisted-preference";
 
 const MANAGERS = [
   { key: "npm", runner: "npx", install: "npm install" },
@@ -14,7 +17,11 @@ const MANAGERS = [
 
 type ManagerKey = (typeof MANAGERS)[number]["key"];
 
-const STORAGE_KEY = "aui-elements-pm";
+const managerPreference = createPersistedPreference<ManagerKey>({
+  key: "aui-elements-pm",
+  fallback: "npm",
+  read: (raw) => MANAGERS.find((entry) => entry.key === raw)?.key ?? null,
+});
 
 export function InstallCommand({
   registryName,
@@ -23,14 +30,7 @@ export function InstallCommand({
   registryName?: string;
   npmPackage?: string;
 }) {
-  const [manager, setManager] = useState<ManagerKey>("npm");
-
-  useEffect(() => {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (MANAGERS.some((entry) => entry.key === stored)) {
-      setManager(stored as ManagerKey);
-    }
-  }, []);
+  const manager = usePersistedPreference(managerPreference);
 
   const active = MANAGERS.find((entry) => entry.key === manager)!;
   const command = npmPackage
@@ -49,10 +49,7 @@ export function InstallCommand({
                 key={entry.key}
                 type="button"
                 aria-pressed={selected}
-                onClick={() => {
-                  setManager(entry.key);
-                  localStorage.setItem(STORAGE_KEY, entry.key);
-                }}
+                onClick={() => managerPreference.set(entry.key)}
                 className={cn(
                   mono,
                   "h-6 rounded-full px-2.5 transition-[color,background-color] duration-150 motion-reduce:transition-none",

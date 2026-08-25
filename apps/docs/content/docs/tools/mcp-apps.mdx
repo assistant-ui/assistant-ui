@@ -90,6 +90,23 @@ const mcpApp = McpAppRenderer({
 
 `openLink` is auto-wired to `window.open(url, "_blank", "noopener,noreferrer")`. `sendMessage` is auto-wired to append a user message to the current thread (accepts `string`, `{ prompt }`, `{ text }`, or `{ message }`).
 
+Pass `handlers` when the widget needs host-side UI or lifecycle callbacks. The capabilities are advertised during mount, so provide the handlers before the widget initializes:
+
+```tsx
+McpAppRenderer({
+  host: McpAppsRemoteHost({ url: "/api/mcp-apps" }),
+  handlers: {
+    requestDisplayMode: ({ mode }) => applyHostDisplayMode(mode),
+    updateModelContext: applyHostModelContext,
+    openLink: ({ url }) => window.open(url, "_blank", "noopener,noreferrer"),
+  },
+});
+```
+
+`requestDisplayMode` should update host chrome and return the mode that was actually honored. Echoing `{ mode }` without applying it tells the widget the change succeeded while the host stays `inline`.
+
+Caller handlers override the default `openLink` and `sendMessage` behavior and can provide `requestDisplayMode`, `updateModelContext`, and lifecycle hooks such as `onInitialized` and `onSizeChange`. `callTool`, `readResource`, and `listResources` remain bound to the configured `host`; use a custom host to change those data-plane operations.
+
 ### Route handler
 
 The route accepts `POST` requests with `{ method, params }` JSON bodies. Dispatch by method name and return the result as JSON. Example for Next.js App Router:

@@ -105,7 +105,7 @@ export const createMergeStream = () => {
       return errored;
     },
     seal() {
-      if (cancelled || errored) return;
+      if (sealed || cancelled || errored) return;
       sealed = true;
       if (list.length === 0) controller.close();
     },

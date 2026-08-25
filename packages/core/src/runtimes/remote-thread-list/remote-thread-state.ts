@@ -11,6 +11,7 @@ export type RemoteThreadData =
       readonly status: "new";
       readonly title: undefined;
       readonly custom: undefined;
+      readonly localOrigin?: true;
     }
   | {
       readonly id: string;
@@ -20,6 +21,7 @@ export type RemoteThreadData =
       readonly status: "regular" | "archived";
       readonly title?: string | undefined;
       readonly custom: undefined;
+      readonly localOrigin?: true;
     }
   | {
       readonly id: string;
@@ -30,6 +32,7 @@ export type RemoteThreadData =
       readonly title?: string | undefined;
       readonly lastMessageAt?: Date | undefined;
       readonly custom?: Record<string, unknown> | undefined;
+      readonly localOrigin?: true;
     };
 
 export type THREAD_MAPPING_ID = string & { __brand: "THREAD_MAPPING_ID" };
@@ -37,6 +40,8 @@ export type THREAD_MAPPING_ID = string & { __brand: "THREAD_MAPPING_ID" };
 export function createThreadMappingId(id: string): THREAD_MAPPING_ID {
   return id as THREAD_MAPPING_ID;
 }
+
+export const LOCAL_THREAD_ID_PREFIX = "__LOCALID_";
 
 export const normalizeCursor = (c: string | undefined): string | undefined =>
   c || undefined;
@@ -97,6 +102,79 @@ export type RemoteThreadState = {
   readonly threadIdMap: Readonly<Record<string, THREAD_MAPPING_ID>>;
   readonly threadData: Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
 };
+
+// A list() response predating a mid-flight local transition (a thread
+// initialized while the request was running) omits that thread, and the
+// completed-optimistic replay cannot re-add it because the merged threadData
+// already carries the final status. Threads whose status moved from new (or
+// nonexistent) at request time to regular/archived are re-inserted at the
+// top, in the order the pre-response lists carried them: updateStatusReducer
+// prepends as transitions happen, so the pre-response lists hold newest
+// first, which threadData insertion order need not match. Threads the server already knew stay governed by the response, so
+// a server-side deletion is not resurrected — and a thread unknown to the
+// snapshot is only rescued when it carries the localOrigin marker stamped at
+// draft creation, so a deep-linked thread the fetch path deliberately
+// appended at the tail is not hoisted, whatever its remote id looks like.
+export const preserveMidLoadTransitions = (
+  state: RemoteThreadState,
+  priorOrder: Pick<RemoteThreadState, "threadIds" | "archivedThreadIds">,
+  statusAtRequest: ReadonlyMap<string, RemoteThreadData["status"]>,
+): RemoteThreadState => {
+  const regular = new Set(state.threadIds);
+  const archived = new Set(state.archivedThreadIds);
+  const rescuedRegular: RemoteThreadData[] = [];
+  const rescuedArchived: RemoteThreadData[] = [];
+
+  const contains = (ids: ReadonlySet<string>, data: RemoteThreadData) =>
+    ids.has(data.id) || (data.remoteId !== undefined && ids.has(data.remoteId));
+
+  for (const data of Object.values(state.threadData)) {
+    const before = statusAtRequest.get(data.id);
+    if (before !== undefined && before !== "new") continue;
+    if (before === undefined && data.localOrigin !== true) continue;
+
+    if (data.status === "regular" && !contains(regular, data)) {
+      rescuedRegular.push(data);
+      regular.add(data.id);
+    } else if (data.status === "archived" && !contains(archived, data)) {
+      rescuedArchived.push(data);
+      archived.add(data.id);
+    }
+  }
+
+  if (rescuedRegular.length === 0 && rescuedArchived.length === 0) return state;
+
+  const position = (ids: readonly string[], data: RemoteThreadData) => {
+    const byId = ids.indexOf(data.id);
+    if (byId !== -1) return byId;
+    const byRemoteId =
+      data.remoteId !== undefined ? ids.indexOf(data.remoteId) : -1;
+    return byRemoteId !== -1 ? byRemoteId : Number.MAX_SAFE_INTEGER;
+  };
+  rescuedRegular.sort(
+    (a, b) =>
+      position(priorOrder.threadIds, a) - position(priorOrder.threadIds, b),
+  );
+  rescuedArchived.sort(
+    (a, b) =>
+      position(priorOrder.archivedThreadIds, a) -
+      position(priorOrder.archivedThreadIds, b),
+  );
+
+  return {
+    ...state,
+    threadIds: [...rescuedRegular.map((d) => d.id), ...state.threadIds],
+    archivedThreadIds: [
+      ...rescuedArchived.map((d) => d.id),
+      ...state.archivedThreadIds,
+    ],
+  };
+};
+
+export const statusSnapshot = (
+  state: RemoteThreadState,
+): ReadonlyMap<string, RemoteThreadData["status"]> =>
+  new Map(Object.values(state.threadData).map((d) => [d.id, d.status]));
 
 export const getThreadData = (
   state: RemoteThreadState,

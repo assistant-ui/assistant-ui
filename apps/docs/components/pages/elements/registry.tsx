@@ -3,123 +3,123 @@ import {
   GenerationLoaderDemo,
   GenerationLoaderRoundedDemo,
   GenerationLoaderSquaresDemo,
-} from "@/components/demo/elements/loading-state";
-import { DataTableDemo } from "@/components/demo/elements/data-table";
-import { RecommendationCardDemo } from "@/components/demo/elements/recommendation-card";
-import { NumberTickerDemo } from "@/components/demo/elements/number-ticker";
-import { ChatPanelDemo } from "@/components/demo/elements/chat-panel";
-import { ThinkingIndicatorDemo } from "@/components/demo/elements/thinking-indicator";
-import { ReasoningPanelDemo } from "@/components/demo/elements/reasoning-panel";
-import { StreamingTextDemo } from "@/components/demo/elements/streaming-text";
+} from "@/components/pages/elements/demos/loading-state";
+import { DataTableDemo } from "@/components/pages/elements/demos/data-table";
+import { RecommendationCardDemo } from "@/components/pages/elements/demos/recommendation-card";
+import { NumberTickerDemo } from "@/components/pages/elements/demos/number-ticker";
+import { ChatPanelDemo } from "@/components/pages/elements/demos/chat-panel";
+import { ThinkingIndicatorDemo } from "@/components/pages/elements/demos/thinking-indicator";
+import { ReasoningPanelDemo } from "@/components/pages/elements/demos/reasoning-panel";
+import { StreamingTextDemo } from "@/components/pages/elements/demos/streaming-text";
 import {
   TypingIndicatorBareDemo,
   TypingIndicatorDemo,
-} from "@/components/demo/elements/typing-indicator";
+} from "@/components/pages/elements/demos/typing-indicator";
 import {
   MessagePairDemo,
   MessagePairFlatDemo,
-} from "@/components/demo/elements/message-pair";
-import { MessageBranchesDemo } from "@/components/demo/elements/message-branches";
-import { MessageActionsDemo } from "@/components/demo/elements/message-actions";
+} from "@/components/pages/elements/demos/message-pair";
+import { MessageBranchesDemo } from "@/components/pages/elements/demos/message-branches";
+import { MessageActionsDemo } from "@/components/pages/elements/demos/message-actions";
 import {
   SuggestionsDemo,
   SuggestionsListDemo,
-} from "@/components/demo/elements/suggestions";
-import { ErrorStateDemo } from "@/components/demo/elements/error-state";
-import { ToolCallDemo } from "@/components/demo/elements/tool-call";
-import { ToolTimelineDemo } from "@/components/demo/elements/tool-timeline";
+} from "@/components/pages/elements/demos/suggestions";
+import { ErrorStateDemo } from "@/components/pages/elements/demos/error-state";
+import { ToolCallDemo } from "@/components/pages/elements/demos/tool-call";
+import { ToolTimelineDemo } from "@/components/pages/elements/demos/tool-timeline";
 import {
   TerminalBlockDemo,
   TerminalBlockInkDemo,
-} from "@/components/demo/elements/terminal-block";
-import { CodeDiffDemo } from "@/components/demo/elements/code-diff";
-import { WebSearchDemo } from "@/components/demo/elements/web-search";
-import { SourcesDemo } from "@/components/demo/elements/sources";
-import { InlineCitationDemo } from "@/components/demo/elements/inline-citation";
-import { ImageGenerationDemo } from "@/components/demo/elements/image-generation";
-import { AgentPlanDemo } from "@/components/demo/elements/agent-plan";
-import { SubagentListDemo } from "@/components/demo/elements/subagent-list";
-import { AgentStatusDemo } from "@/components/demo/elements/agent-status";
-import { ApprovalCardDemo } from "@/components/demo/elements/approval-card";
-import { ArtifactCardDemo } from "@/components/demo/elements/artifact-card";
-import { ComposerDemo } from "@/components/demo/elements/composer";
-import { ComposerSlashDemo } from "@/components/demo/elements/composer-slash";
-import { ComposerMentionsDemo } from "@/components/demo/elements/composer-mentions";
-import { ComposerAttachmentsDemo } from "@/components/demo/elements/composer-attachments";
-import { ComposerModelsDemo } from "@/components/demo/elements/composer-models";
-import { ComposerVoiceDemo } from "@/components/demo/elements/composer-voice";
-import { ComposerContextDemo } from "@/components/demo/elements/composer-context";
-import { EmptyStateDemo } from "@/components/demo/elements/empty-state";
-import { ThreadListDemo } from "@/components/demo/elements/thread-list";
-import { ScrollAnchorDemo } from "@/components/demo/elements/scroll-anchor";
-import { TodoListDemo } from "@/components/demo/elements/todo-list";
-import { MessageQueueDemo } from "@/components/demo/elements/message-queue";
-import { MessageAttachmentDemo } from "@/components/demo/elements/message-attachment";
-import { ReviewableDiffDemo } from "@/components/demo/elements/reviewable-diff";
-import { FileTreeDemo } from "@/components/demo/elements/file-tree";
-import { ElicitationFormDemo } from "@/components/demo/elements/elicitation-form";
-import { RetrievalChunksDemo } from "@/components/demo/elements/retrieval-chunks";
+} from "@/components/pages/elements/demos/terminal-block";
+import { CodeDiffDemo } from "@/components/pages/elements/demos/code-diff";
+import { WebSearchDemo } from "@/components/pages/elements/demos/web-search";
+import { SourcesDemo } from "@/components/pages/elements/demos/sources";
+import { InlineCitationDemo } from "@/components/pages/elements/demos/inline-citation";
+import { ImageGenerationDemo } from "@/components/pages/elements/demos/image-generation";
+import { AgentPlanDemo } from "@/components/pages/elements/demos/agent-plan";
+import { SubagentListDemo } from "@/components/pages/elements/demos/subagent-list";
+import { AgentStatusDemo } from "@/components/pages/elements/demos/agent-status";
+import { ApprovalCardDemo } from "@/components/pages/elements/demos/approval-card";
+import { ArtifactCardDemo } from "@/components/pages/elements/demos/artifact-card";
+import { ComposerDemo } from "@/components/pages/elements/demos/composer";
+import { ComposerSlashDemo } from "@/components/pages/elements/demos/composer-slash";
+import { ComposerMentionsDemo } from "@/components/pages/elements/demos/composer-mentions";
+import { ComposerAttachmentsDemo } from "@/components/pages/elements/demos/composer-attachments";
+import { ComposerModelsDemo } from "@/components/pages/elements/demos/composer-models";
+import { ComposerVoiceDemo } from "@/components/pages/elements/demos/composer-voice";
+import { ComposerContextDemo } from "@/components/pages/elements/demos/composer-context";
+import { EmptyStateDemo } from "@/components/pages/elements/demos/empty-state";
+import { ThreadListDemo } from "@/components/pages/elements/demos/thread-list";
+import { ScrollAnchorDemo } from "@/components/pages/elements/demos/scroll-anchor";
+import { TodoListDemo } from "@/components/pages/elements/demos/todo-list";
+import { MessageQueueDemo } from "@/components/pages/elements/demos/message-queue";
+import { MessageAttachmentDemo } from "@/components/pages/elements/demos/message-attachment";
+import { ReviewableDiffDemo } from "@/components/pages/elements/demos/reviewable-diff";
+import { FileTreeDemo } from "@/components/pages/elements/demos/file-tree";
+import { ElicitationFormDemo } from "@/components/pages/elements/demos/elicitation-form";
+import { RetrievalChunksDemo } from "@/components/pages/elements/demos/retrieval-chunks";
 import {
   ChartBarsDemo,
   ChartDemo,
   ChartLineDemo,
-} from "@/components/demo/elements/chart";
-import { TraceWaterfallDemo } from "@/components/demo/elements/trace-waterfall";
-import { CanvasSplitDemo } from "@/components/demo/elements/canvas-split";
-import { VoiceConversationDemo } from "@/components/demo/elements/voice-conversation";
-import { ReadAloudDemo } from "@/components/demo/elements/read-aloud";
-import { McpServerPanelDemo } from "@/components/demo/elements/mcp-server-panel";
-import { FeedbackDialogDemo } from "@/components/demo/elements/feedback-dialog";
-import { QuoteReplyDemo } from "@/components/demo/elements/quote-reply";
-import { EditMessageDemo } from "@/components/demo/elements/edit-message";
-import { ConnectionStateDemo } from "@/components/demo/elements/connection-state";
-import { StoppedRunDemo } from "@/components/demo/elements/stopped-run";
-import { AgentCardDemo } from "@/components/demo/elements/agent-card";
-import { WebPreviewDemo } from "@/components/demo/elements/web-preview";
-import { MessageTimingDemo } from "@/components/demo/elements/message-timing";
-import { DraftRestoreDemo } from "@/components/demo/elements/draft-restore";
-import { DiagramDemo } from "@/components/demo/elements/diagram";
-import { FlowGraphDemo } from "@/components/demo/elements/flow-graph";
-import { ActivityGraphDemo } from "@/components/demo/elements/activity-graph";
-import { ToolGroupDemo } from "@/components/demo/elements/tool-group";
-import { ContextBreakdownDemo } from "@/components/demo/elements/context-breakdown";
-import { ModelPickerDemo } from "@/components/demo/elements/model-picker";
-import { ReasoningEffortDemo } from "@/components/demo/elements/reasoning-effort";
-import { GuardrailNoticeDemo } from "@/components/demo/elements/guardrail-notice";
-import { DaySeparatorDemo } from "@/components/demo/elements/day-separator";
-import { SpeakerIdentityDemo } from "@/components/demo/elements/speaker-identity";
-import { RegenerateMenuDemo } from "@/components/demo/elements/regenerate-menu";
-import { ConfidenceMarkerDemo } from "@/components/demo/elements/confidence-marker";
-import { ToolErrorDemo } from "@/components/demo/elements/tool-error";
-import { PermissionGrantDemo } from "@/components/demo/elements/permission-grant";
-import { ComputerUseDemo } from "@/components/demo/elements/computer-use";
-import { CodeRunnerDemo } from "@/components/demo/elements/code-runner";
-import { DocumentReferenceDemo } from "@/components/demo/elements/document-reference";
-import { MemoryChipsDemo } from "@/components/demo/elements/memory-chips";
-import { ResearchReportDemo } from "@/components/demo/elements/research-report";
-import { MapAnswerDemo } from "@/components/demo/elements/map-answer";
-import { MathBlockDemo } from "@/components/demo/elements/math-block";
-import { SpecSheetDemo } from "@/components/demo/elements/spec-sheet";
-import { ComparisonCardDemo } from "@/components/demo/elements/comparison-card";
-import { TimelineDemo } from "@/components/demo/elements/timeline";
-import { JobProgressDemo } from "@/components/demo/elements/job-progress";
-import { ScoreBreakdownDemo } from "@/components/demo/elements/score-breakdown";
-import { CostMeterDemo } from "@/components/demo/elements/cost-meter";
-import { QuotaBannerDemo } from "@/components/demo/elements/quota-banner";
-import { AgentHandoffDemo } from "@/components/demo/elements/agent-handoff";
-import { BackgroundInboxDemo } from "@/components/demo/elements/background-inbox";
-import { CheckpointHistoryDemo } from "@/components/demo/elements/checkpoint-history";
-import { ScheduleCardDemo } from "@/components/demo/elements/schedule-card";
-import { PromptLibraryDemo } from "@/components/demo/elements/prompt-library";
-import { CommandPaletteDemo } from "@/components/demo/elements/command-palette";
-import { SharedConversationDemo } from "@/components/demo/elements/shared-conversation";
-import { ConversationSearchDemo } from "@/components/demo/elements/conversation-search";
-import { ThreadSearchDemo } from "@/components/demo/elements/thread-search";
-import { LauncherBubbleDemo } from "@/components/demo/elements/launcher-bubble";
-import { SettingsPanelDemo } from "@/components/demo/elements/settings-panel";
-import { OnboardingDemo } from "@/components/demo/elements/onboarding";
-import { MobileComposerDemo } from "@/components/demo/elements/mobile-composer";
-import * as generativeDemos from "@/components/demo/elements/generative-demos";
+} from "@/components/pages/elements/demos/chart";
+import { TraceWaterfallDemo } from "@/components/pages/elements/demos/trace-waterfall";
+import { CanvasSplitDemo } from "@/components/pages/elements/demos/canvas-split";
+import { VoiceConversationDemo } from "@/components/pages/elements/demos/voice-conversation";
+import { ReadAloudDemo } from "@/components/pages/elements/demos/read-aloud";
+import { McpServerPanelDemo } from "@/components/pages/elements/demos/mcp-server-panel";
+import { FeedbackDialogDemo } from "@/components/pages/elements/demos/feedback-dialog";
+import { QuoteReplyDemo } from "@/components/pages/elements/demos/quote-reply";
+import { EditMessageDemo } from "@/components/pages/elements/demos/edit-message";
+import { ConnectionStateDemo } from "@/components/pages/elements/demos/connection-state";
+import { StoppedRunDemo } from "@/components/pages/elements/demos/stopped-run";
+import { AgentCardDemo } from "@/components/pages/elements/demos/agent-card";
+import { WebPreviewDemo } from "@/components/pages/elements/demos/web-preview";
+import { MessageTimingDemo } from "@/components/pages/elements/demos/message-timing";
+import { DraftRestoreDemo } from "@/components/pages/elements/demos/draft-restore";
+import { DiagramDemo } from "@/components/pages/elements/demos/diagram";
+import { FlowGraphDemo } from "@/components/pages/elements/demos/flow-graph";
+import { ActivityGraphDemo } from "@/components/pages/elements/demos/activity-graph";
+import { ToolGroupDemo } from "@/components/pages/elements/demos/tool-group";
+import { ContextBreakdownDemo } from "@/components/pages/elements/demos/context-breakdown";
+import { ModelPickerDemo } from "@/components/pages/elements/demos/model-picker";
+import { ReasoningEffortDemo } from "@/components/pages/elements/demos/reasoning-effort";
+import { GuardrailNoticeDemo } from "@/components/pages/elements/demos/guardrail-notice";
+import { DaySeparatorDemo } from "@/components/pages/elements/demos/day-separator";
+import { SpeakerIdentityDemo } from "@/components/pages/elements/demos/speaker-identity";
+import { RegenerateMenuDemo } from "@/components/pages/elements/demos/regenerate-menu";
+import { ConfidenceMarkerDemo } from "@/components/pages/elements/demos/confidence-marker";
+import { ToolErrorDemo } from "@/components/pages/elements/demos/tool-error";
+import { PermissionGrantDemo } from "@/components/pages/elements/demos/permission-grant";
+import { ComputerUseDemo } from "@/components/pages/elements/demos/computer-use";
+import { CodeRunnerDemo } from "@/components/pages/elements/demos/code-runner";
+import { DocumentReferenceDemo } from "@/components/pages/elements/demos/document-reference";
+import { MemoryChipsDemo } from "@/components/pages/elements/demos/memory-chips";
+import { ResearchReportDemo } from "@/components/pages/elements/demos/research-report";
+import { MapAnswerDemo } from "@/components/pages/elements/demos/map-answer";
+import { MathBlockDemo } from "@/components/pages/elements/demos/math-block";
+import { SpecSheetDemo } from "@/components/pages/elements/demos/spec-sheet";
+import { ComparisonCardDemo } from "@/components/pages/elements/demos/comparison-card";
+import { TimelineDemo } from "@/components/pages/elements/demos/timeline";
+import { JobProgressDemo } from "@/components/pages/elements/demos/job-progress";
+import { ScoreBreakdownDemo } from "@/components/pages/elements/demos/score-breakdown";
+import { CostMeterDemo } from "@/components/pages/elements/demos/cost-meter";
+import { QuotaBannerDemo } from "@/components/pages/elements/demos/quota-banner";
+import { AgentHandoffDemo } from "@/components/pages/elements/demos/agent-handoff";
+import { BackgroundInboxDemo } from "@/components/pages/elements/demos/background-inbox";
+import { CheckpointHistoryDemo } from "@/components/pages/elements/demos/checkpoint-history";
+import { ScheduleCardDemo } from "@/components/pages/elements/demos/schedule-card";
+import { PromptLibraryDemo } from "@/components/pages/elements/demos/prompt-library";
+import { CommandPaletteDemo } from "@/components/pages/elements/demos/command-palette";
+import { SharedConversationDemo } from "@/components/pages/elements/demos/shared-conversation";
+import { ConversationSearchDemo } from "@/components/pages/elements/demos/conversation-search";
+import { ThreadSearchDemo } from "@/components/pages/elements/demos/thread-search";
+import { LauncherBubbleDemo } from "@/components/pages/elements/demos/launcher-bubble";
+import { SettingsPanelDemo } from "@/components/pages/elements/demos/settings-panel";
+import { OnboardingDemo } from "@/components/pages/elements/demos/onboarding";
+import { MobileComposerDemo } from "@/components/pages/elements/demos/mobile-composer";
+import * as generativeDemos from "@/components/pages/elements/demos/generative-demos";
 import { GENERATIVE_ELEMENTS } from "@/lib/generative-elements";
 
 export interface ElementVariant {
