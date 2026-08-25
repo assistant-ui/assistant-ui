@@ -114,10 +114,8 @@ export class ExternalStoreThreadRuntimeCore
   }
   // Unlike `isLoading`: pass `undefined` through to preserve the `getThreadState` fallback.
   public get isRunning(): boolean | undefined {
-    if (!this._store.unstable_enableToolInvocations) {
-      return this._store.isRunning;
-    }
-    return this._getEffectiveIsRunning(this._store);
+    if (this._hasExecutingTools(this._store)) return true;
+    return this._store.isRunning;
   }
 
   protected override _getBaseMessages(): readonly ThreadMessage[] {
@@ -162,15 +160,44 @@ export class ExternalStoreThreadRuntimeCore
   private _toolInvocations: ToolInvocationTracker | null = null;
   private _toolStatuses: ReadonlyMap<string, ToolExecutionStatus> = new Map();
   private _effectiveIsRunning = false;
+  private _inTrackerUpdate = false;
+  private _pendingRunningRefresh = false;
+
+  /**
+   * Tracker mutations initiated by this class (setState, reset) can publish
+   * status changes synchronously. Re-entering the snapshot pipeline from
+   * inside them would feed the tracker a stale snapshot and consume the
+   * restore arming a reset just installed, so the running refresh is
+   * deferred until the mutation returns and stays off the tracker.
+   */
+  private _runTrackerUpdate(fn: () => void): void {
+    this._inTrackerUpdate = true;
+    try {
+      fn();
+    } finally {
+      this._inTrackerUpdate = false;
+    }
+    if (this._pendingRunningRefresh) {
+      this._pendingRunningRefresh = false;
+      this._refreshEffectiveIsRunning();
+    }
+  }
+
+  private _refreshEffectiveIsRunning(): void {
+    const isRunning = this._getEffectiveIsRunning(this._store);
+    if (this._effectiveIsRunning === isRunning) return;
+    this._effectiveIsRunning = isRunning;
+    this._notifyEventSubscribers(isRunning ? "runStart" : "runEnd", {});
+    this._notifySubscribers();
+  }
 
   private _hasExecutingTools(store: ExternalStoreAdapter<any>): boolean {
-    return (
-      store.unstable_enableToolInvocations === true &&
-      this._toolInvocations !== null &&
-      [...this._toolStatuses.values()].some(
-        (status) => status.type === "executing",
-      )
-    );
+    if (store.unstable_enableToolInvocations !== true) return false;
+    if (this._toolInvocations === null) return false;
+    for (const status of this._toolStatuses.values()) {
+      if (status.type === "executing") return true;
+    }
+    return false;
   }
 
   private _getEffectiveIsRunning(store: ExternalStoreAdapter<any>): boolean {
@@ -402,7 +429,7 @@ export class ExternalStoreThreadRuntimeCore
 
     this._messages = this.repository.getMessages();
 
-    this._driveToolInvocations();
+    this._runTrackerUpdate(() => this._driveToolInvocations());
 
     this._notifySubscribers();
   }
@@ -471,7 +498,11 @@ export class ExternalStoreThreadRuntimeCore
               this._store.setToolStatuses?.(Object.fromEntries(statuses));
             } finally {
               if (hadExecutingTools !== this._hasExecutingTools(this._store)) {
-                this._updateStoreSnapshot(this._store);
+                if (this._inTrackerUpdate) {
+                  this._pendingRunningRefresh = true;
+                } else {
+                  this._updateStoreSnapshot(this._store);
+                }
               }
             }
           },
@@ -705,7 +736,7 @@ export class ExternalStoreThreadRuntimeCore
     // back here via __internal_setAdapter. The tracker publishes the
     // cleared status map itself, so adapter-side statuses reset only when
     // the tracker is the source of truth.
-    this._toolInvocations?.reset();
+    this._runTrackerUpdate(() => this._toolInvocations?.reset());
 
     this._store.onLoadExternalState(state);
   }
@@ -716,7 +747,7 @@ export class ExternalStoreThreadRuntimeCore
    * without run-cancel semantics (`onCancel`, composer draft restoration).
    */
   public unstable_notifySessionReset(): void {
-    this._toolInvocations?.reset();
+    this._runTrackerUpdate(() => this._toolInvocations?.reset());
     this._store.queue?.__internal_notifyCancelled?.();
   }
 

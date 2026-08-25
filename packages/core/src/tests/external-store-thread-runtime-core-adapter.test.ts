@@ -879,6 +879,66 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       expect(core.isRunning).toBe(true);
     });
 
+    it("passes an undefined adapter running value through when no tool is executing", () => {
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({ unstable_enableToolInvocations: true }),
+      );
+
+      expect(core.isRunning).toBeUndefined();
+    });
+
+    it("stops running when the session resets during a tool execution", async () => {
+      const execute = vi.fn(() => new Promise<never>(() => {}));
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        },
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+        }),
+      );
+      const onRunEnd = vi.fn();
+      core.unstable_on("runEnd", onRunEnd);
+
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+          messages: [
+            {
+              ...createAssistantMessage("a1"),
+              status: { type: "requires-action", reason: "tool-calls" },
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tc1",
+                  toolName: "weatherSearch",
+                  args: { city: "London" },
+                  argsText: '{"city":"London"}',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      await vi.waitFor(() => expect(core.isRunning).toBe(true));
+
+      core.unstable_notifySessionReset();
+
+      expect(core.isRunning).toBe(false);
+      expect(onRunEnd).toHaveBeenCalledOnce();
+    });
+
     it("handles rejected automatic tool result callbacks", async () => {
       const error = new Error("tool result failed");
       const consoleError = vi
