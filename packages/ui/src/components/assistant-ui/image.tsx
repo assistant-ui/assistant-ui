@@ -383,6 +383,7 @@ function RegenerateButton({
         setIsRegenerating(true);
         try {
           await onRegenerate();
+        } catch {
         } finally {
           setIsRegenerating(false);
         }
