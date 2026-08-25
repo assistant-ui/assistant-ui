@@ -104,13 +104,18 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       onSwitchToNewThread: onSwitchToNewThread
         ? async () => {
             await onSwitchToNewThread();
+            // Apply first so the abort inside resetContext finds an already
+            // cleared repository and cannot persist the old thread's partial
+            // assistant message.
             core.applyExternalMessages([]);
+            core.resetContext();
           }
         : undefined,
       onSwitchToThread: onSwitchToThread
         ? async (threadId: string) => {
             const result = await onSwitchToThread(threadId);
             core.applyExternalMessages(result.messages);
+            core.resetContext();
           }
         : undefined,
     };
