@@ -530,30 +530,44 @@ describe("createPiHttpClient", () => {
     );
     await vi.waitFor(() => expect(firstEvents).toEqual([initialSnapshot]));
 
+    const replayTasks: (() => void)[] = [];
+    const queueMicrotaskSpy = vi
+      .spyOn(globalThis, "queueMicrotask")
+      .mockImplementation((task) => replayTasks.push(task));
     const secondEvents: PiAnyClientEvent[] = [];
     const unsubscribeSecond = client.subscribe("t1", (event) => {
       secondEvents.push(event);
     });
 
-    await vi.waitFor(() => expect(secondEvents).toEqual(firstEvents));
-    expect(fetchImpl).toHaveBeenCalledTimes(1);
+    expect(replayTasks).toHaveLength(1);
+    queueMicrotaskSpy.mockRestore();
 
     const agentStart = {
       type: "agent_start",
       threadId: "t1",
       seq: 2,
     } satisfies PiAnyClientEvent;
+    streamControllers[0]!.enqueue(
+      new TextEncoder().encode(`data: ${JSON.stringify(agentStart)}\n\n`),
+    );
+    await vi.waitFor(() =>
+      expect(firstEvents).toEqual([initialSnapshot, agentStart]),
+    );
+    expect(secondEvents).toEqual([]);
+
+    replayTasks[0]!();
+    await vi.waitFor(() => expect(secondEvents).toEqual(firstEvents));
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
     const messageStart = {
       type: "message_start",
       threadId: "t1",
       seq: 3,
       message: { role: "user", content: "hello", timestamp: 1 },
     } satisfies PiAnyClientEvent;
-    for (const event of [agentStart, messageStart]) {
-      streamControllers[0]!.enqueue(
-        new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
-      );
-    }
+    streamControllers[0]!.enqueue(
+      new TextEncoder().encode(`data: ${JSON.stringify(messageStart)}\n\n`),
+    );
     await vi.waitFor(() => expect(firstEvents).toHaveLength(3));
     await vi.waitFor(() => expect(secondEvents).toEqual(firstEvents));
 
