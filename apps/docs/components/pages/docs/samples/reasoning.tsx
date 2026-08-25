@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import type { VariantProps } from "class-variance-authority";
-import { PlayIcon } from "lucide-react";
+import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
+import { useCallback } from "react";
+import { Thread } from "@/components/assistant-ui/thread";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
-import { Button } from "@/components/ui/button";
 import {
   ReasoningRoot,
   ReasoningTrigger,
@@ -54,76 +54,76 @@ export function ReasoningSample() {
   );
 }
 
-function ReasoningGroupDemo() {
-  const [isStreaming, setIsStreaming] = useState(false);
-  const [isOpen, setIsOpen] = useState(false);
-  const [streamedText, setStreamedText] = useState("");
-
-  const fullText =
-    "Let me think about this step by step...\n\nFirst, I need to analyze the problem carefully. The key factors to consider are the constraints and requirements.\n\nAfter evaluating all options, the best approach would be to implement a solution that balances performance and maintainability.";
-
-  useEffect(() => {
-    if (!isStreaming) return;
-
-    setIsOpen(true);
-    setStreamedText("");
-    let index = 0;
-    const interval = setInterval(() => {
-      if (index < fullText.length) {
-        setStreamedText(fullText.slice(0, index + 1));
-        index++;
-      } else {
-        setIsStreaming(false);
-        clearInterval(interval);
+function ReasoningStreamingThread() {
+  const runtime = useLocalRuntime({
+    // The first run yields partial reasoning and stays running until the
+    // user stops it. Follow-up prompts finish with a short reply.
+    async *run({ messages, abortSignal }) {
+      if (messages.length > 1) {
+        yield {
+          content: [
+            {
+              type: "reasoning",
+              text: "A short reply is enough here; the streamed run above already shows the live reasoning state.",
+            },
+            {
+              type: "text",
+              text: "This is a demo. The streamed run above shows how reasoning parts render while a response is active.",
+            },
+          ],
+        };
+        return;
       }
-    }, 20);
-    return () => clearInterval(interval);
-  }, [isStreaming]);
+      yield {
+        content: [
+          {
+            type: "reasoning",
+            text: "Weighing the trade-offs between the available approaches...",
+          },
+        ],
+      };
+      yield {
+        content: [
+          {
+            type: "reasoning",
+            text: "Weighing the trade-offs between the available approaches...\n\nA smaller change surface is easier to review and revert, so I will rank the options by how little they touch.",
+          },
+        ],
+      };
+      await new Promise<void>((resolve) => {
+        abortSignal.addEventListener("abort", () => resolve(), { once: true });
+      });
+    },
+  });
 
-  const handleStart = () => {
-    setStreamedText("");
-    setIsStreaming(true);
-  };
+  // Defer the append one tick so the strict-mode mount/unmount cycle cannot
+  // abort the run before the first yield. The cleanup cancels the timer if
+  // the sample unmounts first.
+  const startRun = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (!node) return;
+      const timeout = setTimeout(() => {
+        if (runtime.thread.getState().messages.length > 0) return;
+        runtime.thread.append("Compare the available approaches.");
+      }, 0);
+      return () => clearTimeout(timeout);
+    },
+    [runtime],
+  );
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex items-center gap-2">
-        <Button
-          size="sm"
-          variant="outline"
-          onClick={handleStart}
-          disabled={isStreaming}
-          className="gap-1.5"
-        >
-          <PlayIcon className="size-3" />
-          {isStreaming ? "Streaming..." : "Start Reasoning"}
-        </Button>
+    <AssistantRuntimeProvider runtime={runtime}>
+      <div ref={startRun} className="h-full">
+        <Thread />
       </div>
-      <ReasoningRoot
-        variant="muted"
-        open={isOpen}
-        onOpenChange={setIsOpen}
-        className="mb-0"
-      >
-        <ReasoningTrigger active={isStreaming} />
-        <ReasoningContent>
-          <ReasoningText className="whitespace-pre-wrap">
-            {streamedText || (
-              <span className="text-muted-foreground/50 italic">
-                Click &quot;Start Reasoning&quot; to see the streaming effect
-              </span>
-            )}
-          </ReasoningText>
-        </ReasoningContent>
-      </ReasoningRoot>
-    </div>
+    </AssistantRuntimeProvider>
   );
 }
 
-export function ReasoningGroupSample() {
+export function ReasoningStreamingSample() {
   return (
-    <SampleFrame className="h-auto p-4">
-      <ReasoningGroupDemo />
+    <SampleFrame className="bg-muted/40 h-120 overflow-hidden">
+      <ReasoningStreamingThread />
     </SampleFrame>
   );
 }

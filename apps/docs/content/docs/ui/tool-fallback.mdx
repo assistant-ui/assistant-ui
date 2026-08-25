@@ -6,10 +6,12 @@ platforms: ["react"]
 
 import {
   ToolFallbackSample,
+  ToolFallbackCompletedSample,
   ToolFallbackCancelledSample,
   ToolFallbackStreamingSample,
-  ToolFallbackRequiresActionSample,
 } from "@/components/pages/docs/samples/tool-fallback";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { ToolFallbackApprovalSample } from "@/components/pages/docs/samples/tool-fallback/approval";
 
 <ToolFallbackSample />
 
@@ -59,17 +61,28 @@ Interactive demo showing the full tool call lifecycle: running → complete.
 
 <ToolFallbackStreamingSample />
 
+### Completed With Result
+
+Shows the arguments and the structured result for the completed call.
+
+<ToolFallbackCompletedSample />
+
 ### Cancelled State
 
-Shows a muted appearance when a tool call was cancelled.
+The "Cancelled tool" label has a line through it. The arguments are muted after you open the call.
 
 <ToolFallbackCancelledSample />
 
 ### Approval State
 
-Shows the default Allow / Deny buttons rendered when a tool call enters `requires-action`. A tool call whose approval gate is already decided renders no buttons. The block auto-expands so the decision is visible without a click. Edit your project's copy of `tool-fallback.tsx` to add trust escalation, edit-args, custom labels, or analytics hooks — the shadcn philosophy is you own the file.
+Select Allow or Deny. The `resume` callback records the choice, removes the buttons, and shows the result. The block opens automatically for `requires-action`, so you can select a decision without an extra click. A tool call whose approval gate is decided shows no buttons. Edit your project's copy of `tool-fallback.tsx` to add trust escalation, edit-args, custom labels, or analytics hooks.
 
-<ToolFallbackRequiresActionSample />
+<PreviewCode
+  file="components/pages/docs/samples/tool-fallback/approval"
+  name="ToolWithApproval"
+>
+  <ToolFallbackApprovalSample />
+</PreviewCode>
 
 ## Composable API
 

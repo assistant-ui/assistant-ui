@@ -371,6 +371,122 @@ describe("A2AThreadRuntimeCore", () => {
     });
   });
 
+  describe("updateOptions", () => {
+    it("keeps the server-assigned contextId across re-renders", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Answer");
+      });
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.append(createUserAppendMessage("First"));
+
+      // useA2ARuntime re-applies its options on every render, including the
+      // renders triggered by the stream's own notifyUpdate calls.
+      core.updateOptions({ client, contextId: undefined });
+
+      await core.append(createUserAppendMessage("Second"));
+
+      const secondSend = streamMessage.mock.calls[1]?.[0];
+      expect(secondSend?.contextId).toBe("ctx-1");
+    });
+
+    it("resets the contextId when the thread is switched", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Answer");
+      });
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.append(createUserAppendMessage("First"));
+      core.applyExternalMessages([]);
+      core.resetContext();
+      await core.append(createUserAppendMessage("Fresh thread"));
+
+      const secondSend = streamMessage.mock.calls[1]?.[0];
+      expect(secondSend?.contextId).toBeUndefined();
+    });
+
+    it("does not persist a partial message when switching away mid-run", async () => {
+      let releaseStream!: () => void;
+      const gate = new Promise<void>((resolve) => {
+        releaseStream = resolve;
+      });
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("working");
+        await gate;
+      });
+      const history = {
+        load: vi.fn().mockResolvedValue({ messages: [] }),
+        append: vi.fn().mockResolvedValue(undefined),
+      };
+      const core = createCore({ streamMessage }, { history });
+
+      const run = core.append(createUserAppendMessage("First"));
+      await vi.waitFor(() => {
+        expect(streamMessage).toHaveBeenCalledTimes(1);
+      });
+      history.append.mockClear();
+
+      core.applyExternalMessages([]);
+      core.resetContext();
+      releaseStream();
+      await run.catch(() => {});
+
+      const cancelledAppend = history.append.mock.calls.find((call) => {
+        const entry = call[0] as
+          | { message?: { status?: { reason?: string } } }
+          | undefined;
+        return entry?.message?.status?.reason === "cancelled";
+      });
+      expect(cancelledAppend).toBeUndefined();
+    });
+
+    it("keeps the contextId across a bare external apply", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Answer");
+      });
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.append(createUserAppendMessage("First"));
+      // Branch switches, deletes, and cancel resyncs route through
+      // applyExternalMessages without a thread switch.
+      core.applyExternalMessages(core.getMessages());
+      await core.append(createUserAppendMessage("Second"));
+
+      const secondSend = streamMessage.mock.calls[1]?.[0];
+      expect(secondSend?.contextId).toBe("ctx-1");
+    });
+
+    it("applies a changed contextId option", async () => {
+      const streamMessage = vi.fn().mockImplementation(async function* () {
+        yield statusUpdateEvent("completed", "Answer");
+      });
+      const client = createMockClient({ streamMessage });
+      const core = new A2AThreadRuntimeCore({
+        client,
+        notifyUpdate: notifyUpdate as unknown as () => void,
+      });
+
+      await core.append(createUserAppendMessage("First"));
+      core.updateOptions({ client, contextId: "ctx-override" });
+      await core.append(createUserAppendMessage("Second"));
+
+      const secondSend = streamMessage.mock.calls[1]?.[0];
+      expect(secondSend?.contextId).toBe("ctx-override");
+    });
+  });
+
   // --- Edit & Reload ---
 
   describe("edit", () => {
