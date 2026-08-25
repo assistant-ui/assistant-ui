@@ -131,6 +131,41 @@ describe("unstable_runPendingTools", () => {
     });
   });
 
+  it("skips tool calls that carry a result without a state", async () => {
+    const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "fresh");
+    const message: AssistantMessage = {
+      role: "assistant",
+      status: { type: "requires-action", reason: "tool-calls" },
+      parts: [
+        {
+          type: "tool-call",
+          toolCallId: "settled",
+          toolName: "echo",
+          args: {},
+          result: "stored",
+        } as ToolCallPart,
+      ],
+      content: [],
+      metadata: {
+        unstable_state: {},
+        unstable_data: [],
+        unstable_annotations: [],
+        steps: [],
+        custom: {},
+      },
+    };
+
+    const settled = await unstable_runPendingTools(
+      message,
+      { echo: { parameters: { type: "object", properties: {} }, execute } },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(settled).toBe(message);
+  });
+
   it("removes the abort listener after tool execution settles", async () => {
     const abortController = new AbortController();
     const addEventListener = vi.spyOn(
