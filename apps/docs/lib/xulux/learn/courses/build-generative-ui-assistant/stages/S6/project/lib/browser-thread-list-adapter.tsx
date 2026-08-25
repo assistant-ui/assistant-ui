@@ -68,7 +68,7 @@ function createHistoryProvider(prefix: string) {
     const aui = useAui();
     const history = useMemo<ThreadHistoryAdapter>(() => {
       const key = () => {
-        const remoteId = aui.threadListItem().getState().remoteId;
+        const remoteId = aui.threadListItem.getState().remoteId;
         return `${prefix}messages:${remoteId ?? "new"}`;
       };
       const load: ThreadHistoryAdapter["load"] = async () =>
