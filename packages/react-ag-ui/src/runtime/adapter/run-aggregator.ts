@@ -767,7 +767,7 @@ export class RunAggregator {
 
       if (part.kind === "text") {
         const entry = this.textParts.get(part.key);
-        if (entry?.touched) {
+        if (entry?.touched && entry.buffer.trim().length > 0) {
           pushSnapshotPart({ type: "text", text: entry.buffer } as const);
         }
         continue;

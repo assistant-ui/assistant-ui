@@ -1410,6 +1410,59 @@ describe("RunAggregator", () => {
     expect(types).toEqual(["text", "tool-call", "text"]);
   });
 
+  it("omits content-free text messages while retaining parent-linked tool calls", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "mA",
+      role: "assistant",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "mA",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc1",
+      toolCallName: "search",
+      parentMessageId: "mA",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_ARGS",
+      toolCallId: "tc1",
+      delta: '{"q":"x"}',
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_END",
+      toolCallId: "tc1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "mB",
+      role: "assistant",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "mB",
+      delta: "Here it is.",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "mB",
+    } as AgUiEvent);
+
+    const content = results.at(-1)?.content ?? [];
+    expect(content.map((part) => part.type)).toEqual(["tool-call", "text"]);
+    expect(content.filter((part) => part.type === "text")).toEqual([
+      { type: "text", text: "Here it is." },
+    ]);
+    expect(
+      (content.find((part) => part.type === "tool-call") as any).parentId,
+    ).toBe("mA");
+  });
+
   it("leaves an already in-order tool call under its parent untouched", () => {
     const aggregator = createAggregator(false);
 
