@@ -937,6 +937,33 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
 
       expect(core.isRunning).toBe(false);
       expect(onRunEnd).toHaveBeenCalledOnce();
+
+      execute.mockClear();
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+          messages: [
+            {
+              ...createAssistantMessage("a2"),
+              status: { type: "requires-action", reason: "tool-calls" },
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tc2",
+                  toolName: "weatherSearch",
+                  args: { city: "Paris" },
+                  argsText: '{"city":"Paris"}',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(execute).not.toHaveBeenCalled();
+      expect(core.isRunning).toBe(false);
     });
 
     it("handles rejected automatic tool result callbacks", async () => {
