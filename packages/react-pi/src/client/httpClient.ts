@@ -478,7 +478,7 @@ export const createPiHttpClient = (
                 } else if (
                   clientEvent.type !== "snapshot" ||
                   rebaseSnapshot ||
-                  (createdStream.snapshotSeqs.get(listener) ?? 0) <
+                  (createdStream.snapshotSeqs.get(listener) ?? -1) <
                     clientEvent.seq
                 ) {
                   deliverEvent(createdStream, listener, clientEvent);
