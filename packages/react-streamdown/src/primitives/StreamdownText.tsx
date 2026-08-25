@@ -30,16 +30,28 @@ import type {
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
 
-// Streamdown 2.5 memoizes code nodes by source position, so equal-length
-// replacements need a new subtree while ordinary prefix appends stay mounted.
-const useStreamRevision = (text: string) => {
-  const [state, setState] = useState({ text, revision: 0 });
-  if (state.text === text) return state.revision;
+// Streamdown 2.5 memoizes fenced code nodes by source position. Raw text
+// replacements reset that subtree once their rendered text is ready.
+const useStreamRevision = (rawText: string, renderedText: string) => {
+  const [state, setState] = useState({
+    rawText,
+    renderedText,
+    pendingReset: false,
+    revision: 0,
+  });
+  if (state.rawText === rawText && state.renderedText === renderedText) {
+    return state.revision;
+  }
 
-  const revision = text.startsWith(state.text)
-    ? state.revision
-    : state.revision + 1;
-  setState({ text, revision });
+  let pendingReset =
+    state.pendingReset ||
+    (state.rawText !== rawText && !rawText.startsWith(state.rawText));
+  let revision = state.revision;
+  if (pendingReset && state.renderedText !== renderedText) {
+    pendingReset = false;
+    revision += 1;
+  }
+  setState({ rawText, renderedText, pendingReset, revision });
   return revision;
 };
 
@@ -188,7 +200,7 @@ export const StreamdownTextPrimitive = forwardRef<
 
     const deferredText = useDeferredValue(text);
     const processedText = defer ? deferredText : text;
-    const streamRevision = useStreamRevision(processedText);
+    const streamRevision = useStreamRevision(messagePart.text, processedText);
 
     const shouldTailRemend =
       mode === "streaming" &&

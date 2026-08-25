@@ -3,6 +3,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
 import { useEffect, type ReactNode } from "react";
 import { defaultRehypePlugins } from "streamdown";
+import { normalizeMathDelimiters } from "../preprocess";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
   StreamdownTextComponents,
@@ -123,7 +124,26 @@ describe("StreamdownTextPrimitive", () => {
     },
   );
 
-  it("preserves streaming blocks for prefix appends", async () => {
+  it.each([
+    {
+      name: "plain",
+      initial: "first",
+      next: "first second",
+      props: {},
+    },
+    {
+      name: "preprocessed",
+      initial: "\\(x",
+      next: "\\(x\\)",
+      props: { preprocess: normalizeMathDelimiters },
+    },
+    {
+      name: "deferred",
+      initial: "first",
+      next: "first second",
+      props: { defer: true },
+    },
+  ])("preserves $name blocks for raw prefix appends", async (testCase) => {
     const mounted = vi.fn();
     const BlockComponent = ({ content }: { content: string }) => {
       useEffect(() => {
@@ -132,20 +152,28 @@ describe("StreamdownTextPrimitive", () => {
       return <div>{content}</div>;
     };
     const { rerender } = render(
-      <TextMessagePartProvider text="first" isRunning>
-        <StreamdownTextPrimitive BlockComponent={BlockComponent} />
+      <TextMessagePartProvider text={testCase.initial} isRunning>
+        <StreamdownTextPrimitive
+          {...testCase.props}
+          BlockComponent={BlockComponent}
+        />
       </TextMessagePartProvider>,
     );
 
-    expect(await screen.findByText("first")).toBeTruthy();
+    expect(await screen.findByText(testCase.initial)).toBeTruthy();
 
     rerender(
-      <TextMessagePartProvider text="first second" isRunning>
-        <StreamdownTextPrimitive BlockComponent={BlockComponent} />
+      <TextMessagePartProvider text={testCase.next} isRunning>
+        <StreamdownTextPrimitive
+          {...testCase.props}
+          BlockComponent={BlockComponent}
+        />
       </TextMessagePartProvider>,
     );
 
-    expect(await screen.findByText("first second")).toBeTruthy();
+    const expectedText =
+      testCase.name === "preprocessed" ? "$x$" : testCase.next;
+    expect(await screen.findByText(expectedText)).toBeTruthy();
     expect(mounted).toHaveBeenCalledTimes(1);
   });
 
