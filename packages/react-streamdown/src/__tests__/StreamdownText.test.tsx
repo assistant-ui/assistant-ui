@@ -1,8 +1,9 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import { TextMessagePartProvider } from "@assistant-ui/react";
-import type { ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 import { defaultRehypePlugins } from "streamdown";
+import { normalizeMathDelimiters } from "../preprocess";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
 import type {
   StreamdownTextComponents,
@@ -108,6 +109,64 @@ describe("StreamdownTextPrimitive", () => {
 
     expect(await screen.findByText("second")).toBeTruthy();
     expect(screen.queryByText("first")).toBeNull();
+  });
+
+  it("does not remount blocks when preprocessing rewrites appended text", async () => {
+    const mounted = vi.fn();
+    const BlockComponent = ({ content }: { content: string }) => {
+      useEffect(() => {
+        mounted();
+      }, []);
+      return <div>{content}</div>;
+    };
+    const { rerender } = render(
+      <TextMessagePartProvider text={"\\(x"} isRunning>
+        <StreamdownTextPrimitive
+          preprocess={normalizeMathDelimiters}
+          BlockComponent={BlockComponent}
+        />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("\\(x")).toBeTruthy();
+
+    rerender(
+      <TextMessagePartProvider text={"\\(x\\)"} isRunning>
+        <StreamdownTextPrimitive
+          preprocess={normalizeMathDelimiters}
+          BlockComponent={BlockComponent}
+        />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("$x$")).toBeTruthy();
+    expect(mounted).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not remount blocks for deferred text appends", async () => {
+    const mounted = vi.fn();
+    const BlockComponent = ({ content }: { content: string }) => {
+      useEffect(() => {
+        mounted();
+      }, []);
+      return <div>{content}</div>;
+    };
+    const { rerender } = render(
+      <TextMessagePartProvider text="first" isRunning>
+        <StreamdownTextPrimitive defer BlockComponent={BlockComponent} />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("first")).toBeTruthy();
+
+    rerender(
+      <TextMessagePartProvider text="first second" isRunning>
+        <StreamdownTextPrimitive defer BlockComponent={BlockComponent} />
+      </TextMessagePartProvider>,
+    );
+
+    expect(await screen.findByText("first second")).toBeTruthy();
+    await waitFor(() => expect(mounted).toHaveBeenCalledTimes(1));
   });
 
   it("renders settled text in full when smooth is enabled", async () => {

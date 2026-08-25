@@ -17,7 +17,7 @@ import {
   forwardRef,
   useDeferredValue,
   useMemo,
-  useRef,
+  useState,
 } from "react";
 import { useAdaptedComponents } from "../adapters/components-adapter";
 import { DEFAULT_SHIKI_THEME, mergePlugins } from "../defaults";
@@ -29,6 +29,17 @@ import type {
 } from "../types";
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
+
+const useStreamRevision = (text: string) => {
+  const [state, setState] = useState({ text, revision: 0 });
+  if (state.text === text) return state.revision;
+
+  const revision = text.startsWith(state.text)
+    ? state.revision
+    : state.revision + 1;
+  setState({ text, revision });
+  return revision;
+};
 
 // Streamdown extends the default sanitize schema without exporting it, so it is
 // read back off its own plugin set; a copy would fall behind on a bump. An
@@ -162,6 +173,7 @@ export const StreamdownTextPrimitive = forwardRef<
     ref,
   ) => {
     const messagePart = useMessagePartText();
+    const streamRevision = useStreamRevision(messagePart.text);
 
     const processedPart = useMemo(
       () =>
@@ -175,11 +187,6 @@ export const StreamdownTextPrimitive = forwardRef<
 
     const deferredText = useDeferredValue(text);
     const processedText = defer ? deferredText : text;
-    const streamRevisionRef = useRef({ text: processedText, revision: 0 });
-    if (!processedText.startsWith(streamRevisionRef.current.text)) {
-      streamRevisionRef.current.revision += 1;
-    }
-    streamRevisionRef.current.text = processedText;
 
     const shouldTailRemend =
       mode === "streaming" &&
@@ -263,7 +270,7 @@ export const StreamdownTextPrimitive = forwardRef<
         className={containerClass}
       >
         <Streamdown
-          key={streamRevisionRef.current.revision}
+          key={streamRevision}
           mode={mode}
           isAnimating={status.type === "running"}
           components={mergedComponents}
