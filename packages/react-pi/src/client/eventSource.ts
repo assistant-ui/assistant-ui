@@ -290,7 +290,7 @@ export const openPiEventStream = (
         }
         validateEventStreamContentType(response);
 
-        const sseDecoder = new SSEEventDecoder();
+        const sseDecoder = createSseDecoder();
         const reader = response.body.getReader();
         const textDecoder = new TextDecoder();
         const handleFrame = (frame: { event?: string; data: string }) => {
@@ -339,9 +339,6 @@ export const openPiEventStream = (
             const { value, done } = result;
             if (done) {
               shouldCancel = false;
-              for (const frame of sseDecoder.push(textDecoder.decode())) {
-                handleFrame(frame);
-              }
               break;
             }
             const chunk = textDecoder.decode(value, { stream: true });
