@@ -165,16 +165,19 @@ function discriminateStreamResponse(
   if ("message" in data && isMessage(data.message)) {
     return { type: "message", message: data.message };
   }
-  if ("statusUpdate" in data && isStatusUpdate(data.statusUpdate)) {
-    return {
-      type: "statusUpdate",
-      event: data.statusUpdate as A2AStreamEvent extends {
-        type: "statusUpdate";
-        event: infer E;
-      }
-        ? E
-        : never,
-    };
+  if ("statusUpdate" in data) {
+    const statusUpdate = toWrappedStatusUpdate(data.statusUpdate);
+    if (statusUpdate) {
+      return {
+        type: "statusUpdate",
+        event: statusUpdate as A2AStreamEvent extends {
+          type: "statusUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+    }
   }
   if ("artifactUpdate" in data && isArtifactUpdate(data.artifactUpdate)) {
     return {
@@ -270,12 +273,33 @@ const isMessage = (value: unknown): value is A2AMessage =>
   Array.isArray(value.parts) &&
   value.parts.every(isRecord);
 
-const isStatusUpdate = (value: unknown): value is Record<string, unknown> =>
+const isStatusUpdate = (
+  value: unknown,
+  allowEmptyTaskId = false,
+): value is Record<string, unknown> =>
   isRecord(value) &&
   typeof value.taskId === "string" &&
-  value.taskId.length > 0 &&
+  (allowEmptyTaskId || value.taskId.length > 0) &&
   isRecord(value.status) &&
   isTaskState(value.status.state);
+
+const toWrappedStatusUpdate = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  if (!isRecord(value) || !isRecord(value.status)) return null;
+
+  const statusUpdate = {
+    ...value,
+    taskId: value.taskId === undefined ? "" : value.taskId,
+    contextId: value.contextId === undefined ? "" : value.contextId,
+    status: {
+      ...value.status,
+      state:
+        value.status.state === undefined ? "unspecified" : value.status.state,
+    },
+  };
+  return isStatusUpdate(statusUpdate, true) ? statusUpdate : null;
+};
 
 const isArtifactUpdate = (value: unknown): value is Record<string, unknown> =>
   isRecord(value) &&

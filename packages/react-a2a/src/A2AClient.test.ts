@@ -1017,6 +1017,45 @@ describe("A2AClient", () => {
       expect(evt.event.status.message?.role).toBe("agent");
     });
 
+    it("normalizes default-valued wrapped status updates", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "",
+          context_id: "",
+          status: {
+            message: {
+              message_id: "s1",
+              role: "ROLE_AGENT",
+              parts: [{ text: "Waiting..." }],
+            },
+          },
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([`data: ${sseData}`, "", ""]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      const evt = events[0] as Extract<
+        A2AStreamEvent,
+        { type: "statusUpdate" }
+      >;
+      expect(evt.event).toMatchObject({
+        taskId: "",
+        contextId: "",
+        status: {
+          state: "unspecified",
+          message: { parts: [{ text: "Waiting..." }] },
+        },
+      });
+    });
+
     it("cancels the response body when iteration stops early", async () => {
       const sseData = JSON.stringify({
         status_update: {
