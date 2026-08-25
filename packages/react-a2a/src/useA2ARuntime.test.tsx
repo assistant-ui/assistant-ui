@@ -62,6 +62,69 @@ afterEach(() => {
 });
 
 describe("useA2ARuntime", () => {
+  const createHistory = () => ({
+    load: vi.fn().mockResolvedValue({
+      headId: "restored",
+      messages: [
+        {
+          parentId: null,
+          message: {
+            id: "restored",
+            role: "user" as const,
+            content: [{ type: "text" as const, text: "hello" }],
+            createdAt: new Date(0),
+            metadata: { custom: {} },
+          },
+        },
+      ],
+    }),
+    append: vi.fn().mockResolvedValue(undefined),
+  });
+
+  it("loads a history adapter that arrives on a later render", async () => {
+    const { client } = createMockClient();
+    const history = createHistory();
+    const { result, rerender } = renderHook(
+      ({ history }: { history?: ReturnType<typeof createHistory> }) =>
+        useA2ARuntime({ client, adapters: history ? { history } : {} }),
+      { initialProps: {} },
+    );
+
+    await waitFor(() =>
+      expect(result.current.thread.getState().isLoading).toBe(false),
+    );
+    expect(history.load).not.toHaveBeenCalled();
+
+    rerender({ history });
+
+    await waitFor(() =>
+      expect(
+        result.current.thread.getState().messages.map((m) => m.id),
+      ).toEqual(["restored"]),
+    );
+    expect(history.load).toHaveBeenCalledOnce();
+  });
+
+  it("loads history through a swapped client's core", async () => {
+    const first = createMockClient();
+    const second = createMockClient();
+    const history = createHistory();
+    const { result, rerender } = renderHook(
+      ({ client }) => useA2ARuntime({ client, adapters: { history } }),
+      { initialProps: { client: first.client } },
+    );
+
+    await waitFor(() => expect(history.load).toHaveBeenCalledOnce());
+
+    rerender({ client: second.client });
+
+    await waitFor(() => expect(second.getAgentCard).toHaveBeenCalledOnce());
+    await waitFor(() => expect(history.load).toHaveBeenCalledTimes(2));
+    expect(result.current.thread.getState().messages.map((m) => m.id)).toEqual([
+      "restored",
+    ]);
+  });
+
   it("switches provided clients and aborts the previous client run", async () => {
     const first = createMockClient(true);
     const second = createMockClient();

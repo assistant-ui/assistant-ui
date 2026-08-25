@@ -72,16 +72,7 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
     });
   }, [managedClientOptionsKey, options.client, resolveHeaders]);
 
-  const core = useMemo(
-    () =>
-      new A2AThreadRuntimeCore({
-        client,
-        notifyUpdate,
-      }),
-    [client, notifyUpdate],
-  );
-
-  core.updateOptions({
+  const coreOptions = {
     client,
     contextId: options.contextId,
     configuration: options.configuration,
@@ -91,6 +82,22 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
       onArtifactComplete: options.onArtifactComplete,
     }),
     ...(historyAdapter && { history: historyAdapter }),
+  };
+  const coreOptionsRef = useRef(coreOptions);
+  coreOptionsRef.current = coreOptions;
+
+  const core = useMemo(
+    () =>
+      new A2AThreadRuntimeCore({
+        ...coreOptionsRef.current,
+        client,
+        notifyUpdate,
+      }),
+    [client, notifyUpdate],
+  );
+
+  useEffect(() => {
+    core.updateOptions(coreOptions);
   });
 
   // Thread list
