@@ -152,7 +152,7 @@ export function parseTscErrorFiles(output) {
 export function parseUnanchoredTscErrors(output) {
   return output
     .split("\n")
-    .filter((line) => /error TS\d+:/.test(line) && !TSC_ERROR.test(line));
+    .filter((line) => /^\s*error TS\d+:/.test(line) && !TSC_ERROR.test(line));
 }
 
 export function isOwnDeclarationFile(packageDir, file, cwd) {
@@ -264,6 +264,10 @@ function checkPackage(repoRoot, packageDir, pkg) {
       unanchoredLines,
     });
     if (gate === "pass") return 0;
+    if (gate === "spawn-failed") {
+      process.stdout.write(`${result.error ?? gate}\n`);
+      return 1;
+    }
     if (gate === "own-errors") {
       const ownFiles = new Set(own);
       const lines = output.split("\n").filter((line) => {

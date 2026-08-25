@@ -18,6 +18,7 @@ import {
   isExecutedAsMain,
   isOwnDeclarationFile,
   ownDeclarationDiagnostics,
+  parseUnanchoredTscErrors,
 } from "./check-built-declarations.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
@@ -179,6 +180,19 @@ test("fails when tsc cannot spawn or reports no file-anchored errors", () => {
       ],
     }),
     "unparsed-failure",
+  );
+});
+
+test("keeps only unanchored tsc error lines", () => {
+  assert.deepEqual(
+    parseUnanchoredTscErrors(
+      [
+        "error TS2688: Cannot find type definition file for 'browser-process'.",
+        "node_modules/dep/index.d.ts(1,1): error TS2307: Cannot find module 'x'.",
+        "  Type 'X' is not assignable to type 'Y'.",
+      ].join("\n"),
+    ),
+    ["error TS2688: Cannot find type definition file for 'browser-process'."],
   );
 });
 
