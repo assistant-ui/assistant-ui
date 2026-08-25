@@ -19,7 +19,7 @@ function useExampleRuntime() {
 \`\`\``;
 
   return (
-    <TextMessagePartProvider text={codeMarkdown} isRunning={false}>
+    <TextMessagePartProvider text={codeMarkdown}>
       <MarkdownText />
     </TextMessagePartProvider>
   );
