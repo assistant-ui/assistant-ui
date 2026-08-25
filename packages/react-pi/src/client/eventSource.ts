@@ -128,6 +128,8 @@ export interface PiEventStreamOptions {
   url: string;
   /** Called with each decoded `PiClientEvent`. */
   onEvent: (event: PiAnyClientEvent) => void;
+  /** Called after each successful SSE response is opened, before events. */
+  onConnect?: () => void;
   /** Non-fatal stream errors (network drop, bad JSON, reconnect-delay failures).
    * The loop reconnects after each; surface these for logging, not control flow. */
   onError?: (error: unknown) => void;
@@ -305,6 +307,7 @@ export const openPiEventStream = (
   const {
     url,
     onEvent,
+    onConnect,
     onError,
     fetchImpl = fetch,
     headers,
@@ -338,6 +341,20 @@ export const openPiEventStream = (
       reportEventCallbackError(callbackError);
     }
   };
+  const reportConnectCallbackError = (callbackError: unknown) => {
+    console.error(
+      "[react-pi] onConnect callback threw an error",
+      callbackError,
+    );
+  };
+  const emitConnect = () => {
+    if (!onConnect) return;
+    try {
+      void Promise.resolve(onConnect()).catch(reportConnectCallbackError);
+    } catch (callbackError) {
+      reportConnectCallbackError(callbackError);
+    }
+  };
 
   const run = async () => {
     while (!closed) {
@@ -356,6 +373,7 @@ export const openPiEventStream = (
           throw new Error(`Pi event stream failed: HTTP ${response.status}`);
         }
         validateEventStreamContentType(response);
+        emitConnect();
 
         const decoder = createSseDecoder();
         const reader = response.body.getReader();

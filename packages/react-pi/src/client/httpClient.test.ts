@@ -70,6 +70,7 @@ const openSharedSse = () => {
   ) as unknown as typeof fetch;
   const client = createPiHttpClient({
     fetchImpl,
+    reconnectDelay: () => Promise.resolve(),
     streamCloseDelayMs: 0,
   });
   const send = (index: number, event: PiAnyClientEvent) => {
@@ -77,7 +78,10 @@ const openSharedSse = () => {
       new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
     );
   };
-  return { client, fetchImpl, send };
+  const close = (index: number) => {
+    controllers[index]!.close();
+  };
+  return { client, fetchImpl, send, close };
 };
 
 const snapshotAt = (
@@ -785,6 +789,49 @@ describe("createPiHttpClient", () => {
     });
     await vi.waitFor(() => expect(cachedEvents).toEqual([newerHelperSnapshot]));
     expect(fetchImpl).toHaveBeenCalledTimes(2);
+
+    unsubscribeFirst();
+    unsubscribeLate();
+    unsubscribeCached();
+  });
+
+  it("rebases the cache when the main stream reconnects", async () => {
+    const { client, fetchImpl, send, close } = openSharedSse();
+    const firstEvents: PiAnyClientEvent[] = [];
+    const unsubscribeFirst = client.subscribe("t1", (event) => {
+      firstEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    send(0, snapshotAt(1));
+    send(0, { type: "agent_start", threadId: "t1", seq: 2 });
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+
+    const lateEvents: PiAnyClientEvent[] = [];
+    const unsubscribeLate = client.subscribe("t1", (event) => {
+      lateEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    const preReconnectSnapshot = snapshotAt(50);
+    send(1, preReconnectSnapshot);
+    await vi.waitFor(() => expect(lateEvents).toEqual([preReconnectSnapshot]));
+
+    close(0);
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    const reconnectSnapshot = snapshotAt(1, "running");
+    send(2, reconnectSnapshot);
+    await vi.waitFor(() =>
+      expect(firstEvents.at(-1)).toEqual(reconnectSnapshot),
+    );
+    await vi.waitFor(() =>
+      expect(lateEvents).toEqual([preReconnectSnapshot, reconnectSnapshot]),
+    );
+
+    const cachedEvents: PiAnyClientEvent[] = [];
+    const unsubscribeCached = client.subscribe("t1", (event) => {
+      cachedEvents.push(event);
+    });
+    await vi.waitFor(() => expect(cachedEvents).toEqual([reconnectSnapshot]));
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
 
     unsubscribeFirst();
     unsubscribeLate();
