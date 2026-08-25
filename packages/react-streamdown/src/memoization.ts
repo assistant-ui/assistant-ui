@@ -2,21 +2,39 @@
 
 import type { ReactNode } from "react";
 
-type ReactElement = { type: unknown; key: unknown };
+type ReactElement = {
+  type: unknown;
+  key: unknown;
+  props: { children?: ReactNode; [key: string]: unknown };
+};
 
 function isReactElement(node: unknown): node is ReactElement {
   return (
-    typeof node === "object" && node !== null && "type" in node && "key" in node
+    typeof node === "object" &&
+    node !== null &&
+    "type" in node &&
+    "key" in node &&
+    "props" in node &&
+    typeof node.props === "object" &&
+    node.props !== null
   );
 }
 
 /**
- * Compares two ReactNode values for shallow equality.
+ * Compares two ReactNode values, including nested element props.
  */
 function compareNodes(a: ReactNode, b: ReactNode): boolean {
   if (a === b) return true;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    if (!Array.isArray(a) || !Array.isArray(b) || a.length !== b.length) {
+      return false;
+    }
+    return a.every((node, index) => compareNodes(node, b[index]));
+  }
   if (!isReactElement(a) || !isReactElement(b)) return false;
-  return a.type === b.type && a.key === b.key;
+  return (
+    a.type === b.type && a.key === b.key && memoCompareNodes(a.props, b.props)
+  );
 }
 
 /**

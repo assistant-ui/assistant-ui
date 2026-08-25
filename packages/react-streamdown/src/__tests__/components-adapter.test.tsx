@@ -8,10 +8,10 @@ afterEach(cleanup);
 
 describe("useAdaptedComponents", () => {
   describe("basic behavior", () => {
-    it("returns PreOverride when no components provided", () => {
+    it("returns PreOverride and the default code wrapper when no components provided", () => {
       const { result } = renderHook(() => useAdaptedComponents({}));
       expect(result.current).toHaveProperty("pre");
-      expect(result.current).not.toHaveProperty("code");
+      expect(result.current).toHaveProperty("code");
     });
 
     it("includes user HTML components", () => {
@@ -130,8 +130,7 @@ describe("useAdaptedComponents", () => {
           componentsByLanguage: {},
         }),
       );
-      // Empty componentsByLanguage should not create code adapter
-      expect(result.current).not.toHaveProperty("code");
+      expect(result.current).toHaveProperty("code");
     });
   });
 

@@ -1,8 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
+import { memo, useMemo } from "react";
 import type { StreamdownProps } from "streamdown";
-import { createCodeAdapter, shouldUseCodeAdapter } from "./code-adapter";
+import {
+  compareCodeProps,
+  createCodeAdapter,
+  defaultStreamdownCode,
+  shouldUseCodeAdapter,
+} from "./code-adapter";
 import { PreOverride } from "./PreOverride";
 import type { ComponentsByLanguage, StreamdownTextComponents } from "../types";
 
@@ -25,8 +30,12 @@ export function useAdaptedComponents({
   componentsByLanguage,
 }: UseAdaptedComponentsOptions): StreamdownProps["components"] {
   return useMemo(() => {
-    const { SyntaxHighlighter, CodeHeader, ...htmlComponents } =
-      components ?? {};
+    const {
+      SyntaxHighlighter,
+      CodeHeader,
+      code: UserCode,
+      ...htmlComponents
+    } = components ?? {};
 
     const codeAdapterOptions = {
       SyntaxHighlighter,
@@ -34,18 +43,16 @@ export function useAdaptedComponents({
       componentsByLanguage,
     };
 
-    const baseComponents = { pre: PreOverride };
-
-    if (!shouldUseCodeAdapter(codeAdapterOptions)) {
-      return { ...htmlComponents, ...baseComponents };
-    }
-
-    const AdaptedCode = createCodeAdapter(codeAdapterOptions);
+    const code = shouldUseCodeAdapter(codeAdapterOptions)
+      ? createCodeAdapter(codeAdapterOptions)
+      : typeof UserCode === "function"
+        ? memo(UserCode, compareCodeProps)
+        : (UserCode ?? defaultStreamdownCode);
 
     return {
       ...htmlComponents,
-      ...baseComponents,
-      code: AdaptedCode,
+      pre: PreOverride,
+      code,
     };
   }, [components, componentsByLanguage]);
 }
