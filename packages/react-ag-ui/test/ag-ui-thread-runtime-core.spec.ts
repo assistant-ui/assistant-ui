@@ -212,6 +212,279 @@ describe("AGUIThreadRuntimeCore", () => {
     });
   });
 
+  it("keeps tool follow-up text on its own assistant message", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: "assistant-1" },
+        });
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-1",
+            toolCallName: "get_weather",
+            parentMessageId: "assistant-1",
+          },
+        });
+        subscriber.onToolCallArgsEvent?.({
+          event: { type: "TOOL_CALL_ARGS", toolCallId: "call-1", delta: "{}" },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            messageId: "tool-1",
+            toolCallId: "call-1",
+            content: "Beijing: 26C",
+            role: "tool",
+          },
+        });
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: "assistant-1" },
+        });
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "assistant-2",
+            delta: "Beijing: 26C",
+          },
+        });
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: "assistant-2" },
+        });
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              { id: "user-1", role: "user", content: "Weather?" },
+              {
+                id: "assistant-1",
+                role: "assistant",
+                content: "",
+                toolCalls: [
+                  {
+                    id: "call-1",
+                    type: "function",
+                    function: { name: "get_weather", arguments: "{}" },
+                  },
+                ],
+              },
+              {
+                id: "tool-1",
+                role: "tool",
+                toolCallId: "call-1",
+                content: "Beijing: 26C",
+              },
+              { id: "assistant-2", role: "assistant", content: "Beijing: 26C" },
+            ],
+          },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistants = core
+      .getMessages()
+      .filter(
+        (message) => message.role === "assistant",
+      ) as ThreadAssistantMessage[];
+    expect(assistants.map((message) => message.id)).toEqual([
+      "assistant-1",
+      "assistant-2",
+    ]);
+    expect(
+      assistants[0]?.content.filter((part) => part.type === "text"),
+    ).toEqual([]);
+    expect(assistants[0]?.content).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        result: "Beijing: 26C",
+      }),
+    );
+    expect(assistants[1]?.content).toEqual([
+      { type: "text", text: "Beijing: 26C" },
+    ]);
+    expect(
+      core
+        .getMessageRepository()
+        .messages.find((item) => item.message.id === "assistant-2")?.parentId,
+    ).toBe("assistant-1");
+  });
+
+  it("keeps the tool assistant on the head path before a snapshot", async () => {
+    let midRunIds: string[] | undefined;
+    let midRunTool: ThreadAssistantMessage | undefined;
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: "assistant-1" },
+        });
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-1",
+            toolCallName: "get_weather",
+            parentMessageId: "assistant-1",
+          },
+        });
+        subscriber.onToolCallArgsEvent?.({
+          event: { type: "TOOL_CALL_ARGS", toolCallId: "call-1", delta: "{}" },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            messageId: "tool-1",
+            toolCallId: "call-1",
+            content: "Beijing: 26C",
+            role: "tool",
+          },
+        });
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: "assistant-1" },
+        });
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
+        });
+        midRunIds = core.getMessages().map((message) => message.id);
+        midRunTool = core
+          .getMessages()
+          .find((message) => message.id === "assistant-1") as
+          | ThreadAssistantMessage
+          | undefined;
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "assistant-2",
+            delta: "Beijing: 26C",
+          },
+        });
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: "assistant-2" },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    expect(midRunIds?.slice(-2)).toEqual(["assistant-1", "assistant-2"]);
+    expect(midRunTool?.content).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        result: "Beijing: 26C",
+      }),
+    );
+    const messages = core.getMessages();
+    expect(messages.map((message) => message.role)).toEqual([
+      "user",
+      "assistant",
+      "assistant",
+    ]);
+    const assistants = messages.filter(
+      (message) => message.role === "assistant",
+    ) as ThreadAssistantMessage[];
+    expect(assistants.map((message) => message.id)).toEqual([
+      "assistant-1",
+      "assistant-2",
+    ]);
+    expect(assistants[0]?.content).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        result: "Beijing: 26C",
+      }),
+    );
+    expect(assistants[1]?.content).toEqual([
+      { type: "text", text: "Beijing: 26C" },
+    ]);
+    expect(
+      core
+        .getMessageRepository()
+        .messages.find((item) => item.message.id === "assistant-2")?.parentId,
+    ).toBe("assistant-1");
+  });
+
+  it("splits follow-up text when the run opens with a tool call", async () => {
+    const agent = {
+      runAgent: vi.fn(async (_input, subscriber) => {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "call-1",
+            toolCallName: "get_weather",
+            parentMessageId: "assistant-1",
+          },
+        });
+        subscriber.onToolCallArgsEvent?.({
+          event: { type: "TOOL_CALL_ARGS", toolCallId: "call-1", delta: "{}" },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "call-1" },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            messageId: "tool-1",
+            toolCallId: "call-1",
+            content: "Beijing: 26C",
+            role: "tool",
+          },
+        });
+        subscriber.onTextMessageStartEvent?.({
+          event: { type: "TEXT_MESSAGE_START", messageId: "assistant-2" },
+        });
+        subscriber.onTextMessageContentEvent?.({
+          event: {
+            type: "TEXT_MESSAGE_CONTENT",
+            messageId: "assistant-2",
+            delta: "Beijing: 26C",
+          },
+        });
+        subscriber.onTextMessageEndEvent?.({
+          event: { type: "TEXT_MESSAGE_END", messageId: "assistant-2" },
+        });
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    const core = createCore(agent);
+    await core.append(createAppendMessage());
+
+    const assistants = core
+      .getMessages()
+      .filter(
+        (message) => message.role === "assistant",
+      ) as ThreadAssistantMessage[];
+    expect(assistants.map((message) => message.id)).toEqual([
+      "assistant-1",
+      "assistant-2",
+    ]);
+    expect(assistants[0]?.content).toContainEqual(
+      expect.objectContaining({
+        type: "tool-call",
+        toolCallId: "call-1",
+        result: "Beijing: 26C",
+      }),
+    );
+    expect(assistants[1]?.content).toEqual([
+      { type: "text", text: "Beijing: 26C" },
+    ]);
+  });
+
   it("imports tool role messages from snapshots as assistant tool-call results", async () => {
     const agent = {
       runAgent: vi.fn(async (_input, subscriber) => {

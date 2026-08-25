@@ -311,10 +311,12 @@ export const reduceOpenCodeThreadState = (
       };
 
     case "run.started":
+      // sessionStatus stays pure server truth: runState covers the window
+      // before the first server event, and a send failure then needs no
+      // status rollback.
       return {
         ...state,
         runState: { type: "streaming" },
-        sessionStatus: { type: "busy" },
       };
 
     case "run.cancelling":

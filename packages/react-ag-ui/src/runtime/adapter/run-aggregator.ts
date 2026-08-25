@@ -28,6 +28,9 @@ export type AgUiOpaqueReasoning = {
 };
 
 export type AgUiCustomMetadata = {
+  /** Wire role restored on export for messages the internal model cannot
+   * represent (a developer record rides as a system message). */
+  role?: "developer";
   interrupts?: AgUiInterrupt[];
   opaqueReasoning?: AgUiOpaqueReasoning[];
 };
@@ -63,6 +66,7 @@ export type RunAggregatorOptions = {
   logger: Logger;
   emit: Emit;
   onServerMessageId?: (messageId: string) => void;
+  onTextMessageStart?: (messageId: string) => void;
 };
 
 /**
@@ -80,6 +84,9 @@ export class RunAggregator {
   private readonly showThinking: boolean;
   private readonly logger: Logger;
   private readonly onServerMessageId: ((messageId: string) => void) | undefined;
+  private readonly onTextMessageStart:
+    | ((messageId: string) => void)
+    | undefined;
 
   private status: ChatModelRunResult["status"] | undefined;
   private interrupts: AgUiInterrupt[] | undefined;
@@ -118,6 +125,7 @@ export class RunAggregator {
   private textPartCounter = 0;
   private serverMessageIdReported = false;
   private reportedServerMessageId: string | undefined;
+  private lastTextMessageId: string | undefined;
 
   private streamStartTime: number | undefined;
   private firstTokenTime: number | undefined;
@@ -128,6 +136,7 @@ export class RunAggregator {
     this.showThinking = options.showThinking;
     this.logger = options.logger;
     this.onServerMessageId = options.onServerMessageId;
+    this.onTextMessageStart = options.onTextMessageStart;
   }
 
   hasToolCall(toolCallId: string): boolean {
@@ -137,32 +146,10 @@ export class RunAggregator {
   handle(event: AgUiEvent): void {
     switch (event.type) {
       case "RUN_STARTED": {
-        this.clearTextParts();
-        this.reasoningParts.clear();
-        this.reasoningSignatures.clear();
-        this.reasoningMessageIds.clear();
-        this.reasoningSignatureIds.clear();
-        this.hiddenSignatures.clear();
-        this.hiddenSignatureAnchors.clear();
-        this.hiddenReasoningIds.clear();
-        this.hiddenActiveReasoning = "none";
-        // hasEmittedOpaqueReasoning survives the reset deliberately: the
-        // namespace merge only overwrites present keys, so a later run must
-        // keep emitting the (now empty) key to retract a previous run's
-        // entries from the message.
-        this.loggedDroppedOpaqueIds.clear();
-        this.anonymousReasoningKeys.clear();
-        this.activeReasoningKey = undefined;
-        this.reasoningPartCounter = 0;
-        this.toolCalls.clear();
-        this.a2uiBuckets.clear();
-        this.a2uiToolCallIds.clear();
-        this.lastResolvedToolCallId = undefined;
-        this.partOrder.length = 0;
-        this.textPartCounter = 0;
-        this.activeTextMessageId = undefined;
+        this.resetMessageParts();
         this.interrupts = undefined;
         this.serverMessageIdReported = false;
+        this.lastTextMessageId = undefined;
         this.reportedServerMessageId = undefined;
         this.streamStartTime = Date.now();
         this.firstTokenTime = undefined;
@@ -207,8 +194,10 @@ export class RunAggregator {
       }
 
       case "TEXT_MESSAGE_START": {
+        this.beginDistinctTextMessage(event.messageId);
         this.reportServerMessageId(event.messageId);
         const id = this.startTextMessage(event.messageId);
+        if (event.messageId) this.lastTextMessageId = event.messageId;
         if (id) {
           this.markTextPartTouched(id);
         }
@@ -218,7 +207,9 @@ export class RunAggregator {
       case "TEXT_MESSAGE_CONTENT":
       case "TEXT_MESSAGE_CHUNK": {
         const incomingId = "messageId" in event ? event.messageId : undefined;
+        this.beginDistinctTextMessage(incomingId);
         this.reportServerMessageId(incomingId);
+        if (incomingId) this.lastTextMessageId = incomingId;
         if (!event.delta) break;
         this.recordFirstToken();
         const id = this.resolveTextMessageId(incomingId);
@@ -477,7 +468,11 @@ export class RunAggregator {
   }
 
   private reportServerMessageId(messageId: string | undefined): void {
-    if (this.serverMessageIdReported || !messageId) return;
+    if (!messageId) return;
+    if (this.lastTextMessageId === undefined) {
+      this.lastTextMessageId = messageId;
+    }
+    if (this.serverMessageIdReported) return;
     this.serverMessageIdReported = true;
     this.reportedServerMessageId = messageId;
     this.onServerMessageId?.(messageId);
@@ -485,6 +480,43 @@ export class RunAggregator {
 
   private clearTextParts(): void {
     this.textParts.clear();
+  }
+
+  private resetMessageParts(): void {
+    this.clearTextParts();
+    this.reasoningParts.clear();
+    this.reasoningSignatures.clear();
+    this.reasoningSignatureIds.clear();
+    this.reasoningMessageIds.clear();
+    this.hiddenSignatures.clear();
+    this.hiddenSignatureAnchors.clear();
+    this.hiddenReasoningIds.clear();
+    this.hiddenActiveReasoning = "none";
+    this.loggedDroppedOpaqueIds.clear();
+    this.anonymousReasoningKeys.clear();
+    this.activeReasoningKey = undefined;
+    this.reasoningPartCounter = 0;
+    this.toolCalls.clear();
+    this.a2uiBuckets.clear();
+    this.a2uiToolCallIds.clear();
+    this.lastResolvedToolCallId = undefined;
+    this.partOrder.length = 0;
+    this.textPartCounter = 0;
+    this.activeTextMessageId = undefined;
+    this.reportedServerMessageId = undefined;
+  }
+
+  private beginDistinctTextMessage(messageId: string | undefined): void {
+    if (
+      !messageId ||
+      this.lastTextMessageId === undefined ||
+      this.lastTextMessageId === messageId ||
+      !this.onTextMessageStart
+    ) {
+      return;
+    }
+    this.resetMessageParts();
+    this.onTextMessageStart(messageId);
   }
 
   private generateTextKey(): string {

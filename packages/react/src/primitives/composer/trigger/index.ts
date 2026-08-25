@@ -21,6 +21,7 @@ export {
 } from "./TriggerPopoverItems";
 export { ComposerPrimitiveTriggerPopoverBack } from "./TriggerPopoverBack";
 export type { TriggerBehavior } from "./triggerSelectionResource";
+export type { TriggerMatch, TriggerMatcher } from "./detectTrigger";
 
 import { ComposerPrimitiveTriggerPopover as Base } from "./TriggerPopover";
 import { ComposerPrimitiveTriggerPopoverAction } from "./TriggerPopoverAction";

@@ -1,12 +1,37 @@
 import { describe, expect, it } from "vitest";
-import type { EveMessageData } from "eve/react";
+import type { EveMessageData, EveMessageInputRequest } from "eve/react";
 import { defaultMessageReducer, type EveAgentReducerEvent } from "eve/client";
 import {
   convertEveMessages,
+  findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
 import type { AppendMessage } from "@assistant-ui/core";
+
+const withApprovalPart = (eve?: {
+  kind: "tool-call";
+  name: string;
+  inputRequest?: EveMessageInputRequest;
+}): EveMessageData => ({
+  messages: [
+    {
+      id: "a1",
+      role: "assistant",
+      parts: [
+        {
+          type: "dynamic-tool",
+          state: "approval-requested",
+          toolCallId: "call_1",
+          toolName: "send_email",
+          input: {},
+          approval: { id: "req_1" },
+          ...(eve && { toolMetadata: { eve } }),
+        },
+      ],
+    },
+  ],
+});
 
 const eventMeta = (sequence: number) => ({
   at: "2026-01-01T00:00:00.000Z",
@@ -180,6 +205,62 @@ describe("convertEveMessages", () => {
         },
       ],
     });
+  });
+
+  it.each([
+    [
+      "the full input request",
+      {
+        requestId: "req_1",
+        prompt: "Which environment?",
+        kind: "question",
+        display: "select",
+        allowFreeform: true,
+        options: [
+          { id: "staging", label: "Staging", description: "Safe" },
+          { id: "production", label: "Production", style: "danger" },
+        ],
+      },
+    ],
+    [
+      "only the fields the request defines",
+      {
+        requestId: "req_1",
+        prompt: "What should the subject line be?",
+        kind: "question",
+      },
+    ],
+  ] satisfies [string, EveMessageInputRequest][])(
+    "projects %s onto providerMetadata.eve",
+    (_label, inputRequest) => {
+      const [message] = convertEveMessages(
+        withApprovalPart({
+          kind: "tool-call",
+          name: "send_email",
+          inputRequest,
+        }),
+      );
+      const part = message!.content[0];
+
+      expect(part).toMatchObject({ type: "tool-call" });
+      expect((part as { providerMetadata?: unknown }).providerMetadata).toEqual(
+        {
+          eve: { inputRequest },
+        },
+      );
+    },
+  );
+
+  it.each([
+    [
+      "eve metadata without an input request",
+      { kind: "tool-call" as const, name: "send_email" },
+    ],
+    ["no eve metadata at all", undefined],
+  ])("omits providerMetadata for a tool part with %s", (_label, eve) => {
+    const [message] = convertEveMessages(withApprovalPart(eve));
+
+    expect(message!.content[0]).not.toHaveProperty("providerMetadata");
   });
 
   it("handles denied tool parts without an approval reason", () => {
@@ -1238,6 +1319,58 @@ describe("convertEveMessages", () => {
         ).toEqual({ type: "requires-action", reason: "interrupt" });
       });
 
+      it("projects the input request onto the approval part it gates", () => {
+        const events: readonly EveAgentReducerEvent[] = [
+          ...midStreamEvents,
+          {
+            type: "input.requested",
+            data: {
+              turnId: "turn_1",
+              stepIndex: 0,
+              sequence: 3,
+              requests: [
+                {
+                  requestId: "req_1",
+                  prompt: "What should the subject line be?",
+                  kind: "question",
+                  display: "text",
+                  action: {
+                    kind: "tool-call",
+                    callId: "call_1",
+                    toolName: "ask_question",
+                    input: {},
+                  },
+                },
+              ],
+            },
+            meta: eventMeta(3),
+          },
+        ];
+
+        // Rehydration replays the *stored* event log, which has been through
+        // the wire and back, so the reloaded case is the serialized payload
+        // rather than the same objects a second time.
+        const rehydrated = JSON.parse(
+          JSON.stringify(events),
+        ) as readonly EveAgentReducerEvent[];
+
+        for (const state of [replay(events), replay(rehydrated)]) {
+          const part = state.messages
+            .find((message) => message.role === "assistant")
+            ?.parts.find((candidate) => candidate.type === "dynamic-tool");
+
+          expect(part).toMatchObject({
+            state: "approval-requested",
+            approval: { id: "req_1" },
+          });
+          expect(findEveInputRequest(state, "req_1")).toMatchObject({
+            requestId: "req_1",
+            prompt: "What should the subject line be?",
+            display: "text",
+          });
+        }
+      });
+
       it("leaves a reasoning part unsettled when a tool call follows it", () => {
         const state = replay([
           ...midStreamEvents.slice(0, 3),
@@ -1713,18 +1846,282 @@ describe("getEveMessageContent", () => {
   });
 });
 
+const approveCancel = [
+  { id: "approve", label: "Approve" },
+  { id: "cancel", label: "Cancel" },
+];
+const environments = [
+  { id: "staging", label: "Staging" },
+  { id: "production", label: "Production" },
+];
+
+const withInputRequest = (
+  overrides: Partial<EveMessageInputRequest> = {},
+): EveMessageInputRequest => ({
+  requestId: "req_1",
+  prompt: "Send the email?",
+  kind: "question",
+  ...overrides,
+});
+
 describe("toEveInputResponse", () => {
   it("maps assistant-ui approval responses to eve input responses", () => {
+    expect(
+      toEveInputResponse(
+        {
+          approvalId: "req_1",
+          approved: false,
+          reason: "Not yet",
+        },
+        withInputRequest({ display: "confirmation", options: approveCancel }),
+      ),
+    ).toEqual({
+      requestId: "req_1",
+      optionId: "cancel",
+      text: "Not yet",
+    });
+  });
+
+  it("keeps the shipped one-argument mapping when no request is available", () => {
+    expect(toEveInputResponse({ approvalId: "req_1", approved: true })).toEqual(
+      {
+        requestId: "req_1",
+        optionId: "approve",
+      },
+    );
+
     expect(
       toEveInputResponse({
         approvalId: "req_1",
         approved: false,
         reason: "Not yet",
       }),
+    ).toEqual({ requestId: "req_1", optionId: "cancel", text: "Not yet" });
+
+    expect(
+      toEveInputResponse({
+        approvalId: "req_1",
+        approved: true,
+        optionId: "staging",
+      }),
+    ).toEqual({ requestId: "req_1", optionId: "staging" });
+  });
+
+  it("keeps the confirmation mapping when the request carries approve/cancel options", () => {
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true },
+        withInputRequest({ display: "confirmation", options: approveCancel }),
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "approve" });
+  });
+
+  it("maps a select response to the chosen option id", () => {
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, optionId: "staging" },
+        withInputRequest({ display: "select", options: environments }),
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "staging" });
+  });
+
+  it.each([
+    ["a text display", { display: "text", allowFreeform: true }],
+    ["allowFreeform and no options", { allowFreeform: true }],
+    ["neither a display nor allowFreeform", {}],
+    [
+      "a select display that allows freeform",
+      { display: "select", allowFreeform: true, options: environments },
+    ],
+  ] satisfies [string, Partial<EveMessageInputRequest>][])(
+    "answers a request with %s as free-form text, not a fabricated option id",
+    (_label, overrides) => {
+      const response = toEveInputResponse(
+        { approvalId: "req_1", approved: true, reason: "Quarterly results" },
+        withInputRequest(overrides),
+      );
+
+      expect(response).toEqual({
+        requestId: "req_1",
+        text: "Quarterly results",
+      });
+      expect(response).not.toHaveProperty("optionId");
+    },
+  );
+
+  it("keeps a denial off the free-form path, which carries no answer", () => {
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, reason: "not this one" },
+        withInputRequest(),
+      ),
+    ).toThrow(/a refusal carries no answer for a free-form request/);
+  });
+
+  it("never fabricates approve for a text-display request without an answer", () => {
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true },
+        withInputRequest({ display: "text" }),
+      ),
+    ).toThrow(/pass the answer as the response reason/);
+  });
+
+  it("never fabricates approve for a select request without a chosen option", () => {
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true },
+        withInputRequest({ display: "select", options: environments }),
+      ),
+    ).toThrow(/respond with one of: staging, production/);
+  });
+
+  it("throws when the response names an option the request does not carry", () => {
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, optionId: "sandbox" },
+        withInputRequest({ display: "select", options: environments }),
+      ),
+    ).toThrow(/no option with id "sandbox".*staging, production/s);
+
+    // A named option the request does not carry outranks the decision, even
+    // when the decision names an option the request does carry: substituting
+    // the literal deny here would discard the choice the caller made.
+    expect(() =>
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, optionId: "schedule-later" },
+        withInputRequest({ display: "confirmation", options: approveCancel }),
+      ),
+    ).toThrow(/no option with id "schedule-later"/);
+  });
+
+  it("prefers a literal approve option over the free-form path on a text-display request", () => {
+    const inputRequest = withInputRequest({
+      display: "text",
+      options: approveCancel,
+    });
+
+    expect(
+      toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
+    ).toEqual({ requestId: "req_1", optionId: "approve" });
+
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, reason: "Quarterly results" },
+        inputRequest,
+      ),
     ).toEqual({
       requestId: "req_1",
-      optionId: "cancel",
-      text: "Not yet",
+      optionId: "approve",
+      text: "Quarterly results",
     });
+  });
+
+  it("answers a tool-approval by kind even when its options are missing", () => {
+    const inputRequest = withInputRequest({
+      kind: "tool-approval",
+      display: "confirmation",
+    });
+
+    expect(
+      toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
+    ).toEqual({ requestId: "req_1", optionId: "approve" });
+
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: false, reason: "not now" },
+        inputRequest,
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "cancel", text: "not now" });
+  });
+
+  it("still requires a declared option when a tool-approval carries its own", () => {
+    const inputRequest = withInputRequest({
+      kind: "tool-approval",
+      display: "confirmation",
+      options: [{ id: "schedule-later", label: "Schedule later" }],
+    });
+
+    expect(() =>
+      toEveInputResponse({ approvalId: "req_1", approved: true }, inputRequest),
+    ).toThrow(/respond with one of: schedule-later/);
+
+    expect(
+      toEveInputResponse(
+        { approvalId: "req_1", approved: true, optionId: "schedule-later" },
+        inputRequest,
+      ),
+    ).toEqual({ requestId: "req_1", optionId: "schedule-later" });
+  });
+
+  it("never answers an optionless confirmation as free-form text", () => {
+    const inputRequest = withInputRequest({ display: "confirmation" });
+
+    for (const response of [
+      { approvalId: "req_1", approved: true },
+      { approvalId: "req_1", approved: false, reason: "not now" },
+      { approvalId: "req_1", approved: true, reason: "go ahead" },
+    ]) {
+      expect(() => toEveInputResponse(response, inputRequest)).toThrow(
+        /declares no options to respond with/,
+      );
+    }
+  });
+});
+
+describe("findEveInputRequest", () => {
+  const data = {
+    messages: [
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            state: "approval-requested",
+            toolCallId: "call_1",
+            toolName: "ask_question",
+            input: {},
+            approval: { id: "req_1" },
+            toolMetadata: {
+              eve: {
+                kind: "tool-call",
+                name: "ask_question",
+                inputRequest: {
+                  requestId: "req_1",
+                  prompt: "What should the subject line be?",
+                  kind: "question",
+                  display: "text",
+                  allowFreeform: true,
+                },
+              },
+            },
+          },
+        ],
+      },
+    ],
+  } satisfies EveMessageData;
+
+  it("finds the input request by approval id", () => {
+    expect(findEveInputRequest(data, "req_1")).toMatchObject({
+      requestId: "req_1",
+      display: "text",
+    });
+  });
+
+  it("returns undefined for unknown approval ids", () => {
+    expect(findEveInputRequest(data, "req_404")).toBeUndefined();
+  });
+
+  it.each([
+    ["carries no input request", { eve: { kind: "tool-call", name: "ask" } }],
+    ["carries no eve tool metadata at all", undefined],
+  ])("returns undefined when the matching part %s", (_label, toolMetadata) => {
+    const part = { ...data.messages[0]!.parts[0]!, toolMetadata };
+    const bare = { messages: [{ ...data.messages[0]!, parts: [part] }] };
+
+    expect(
+      findEveInputRequest(bare as EveMessageData, "req_1"),
+    ).toBeUndefined();
   });
 });
