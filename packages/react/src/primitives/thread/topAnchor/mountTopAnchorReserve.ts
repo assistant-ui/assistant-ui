@@ -120,7 +120,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     const reserveChanged = setReserveHeight(reserve, reserveHeight);
 
     if (reserveChanged) {
-      if (reserveHeight < previousReserveHeight) {
+      if (previousReserveHeight > 0 && reserveHeight === 0) {
         lastScrolledAnchorId = undefined;
         lastScrolledTargetScrollTop = undefined;
       }
