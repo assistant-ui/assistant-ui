@@ -1258,3 +1258,101 @@ describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
     expect(runtime.messages.map(textOf)).toEqual(["id-less", "kept"]);
   });
 });
+
+describe("ExternalStoreThreadRuntimeCore - convertMessage auto status", () => {
+  const toolCall = (extra?: Record<string, unknown>) => ({
+    type: "tool-call" as const,
+    toolCallId: "t1",
+    toolName: "search",
+    args: {},
+    argsText: "{}",
+    ...extra,
+  });
+
+  const makeRuntime = (assistant: ThreadMessageLike, isRunning = false) =>
+    new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        isRunning,
+        messages: [{ role: "user", content: "run it" }, assistant],
+        convertMessage: (m: ThreadMessageLike) => m,
+        setMessages: vi.fn(),
+      }),
+    );
+
+  it("reports requires-action for a tool call without a result", () => {
+    const runtime = makeRuntime({ role: "assistant", content: [toolCall()] });
+    expect(runtime.messages[1]!.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+
+  it("reports an interrupt for an unresolved approval", () => {
+    const runtime = makeRuntime({
+      role: "assistant",
+      content: [toolCall({ approval: {} })],
+    });
+    expect(runtime.messages[1]!.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("reports complete once the tool call has a result", () => {
+    const runtime = makeRuntime({
+      role: "assistant",
+      content: [toolCall({ result: "ok" })],
+    });
+    expect(runtime.messages[1]!.status).toMatchObject({ type: "complete" });
+  });
+
+  it("keeps the last message running while a tool call is still pending", () => {
+    const runtime = makeRuntime(
+      { role: "assistant", content: [toolCall()] },
+      true,
+    );
+    expect(runtime.messages[1]!.status).toMatchObject({ type: "running" });
+  });
+
+  it("reuses the converted message until its auto status changes", () => {
+    const pending: ThreadMessageLike = {
+      role: "assistant",
+      content: [toolCall()],
+    };
+    const user: ThreadMessageLike = { role: "user", content: "run it" };
+    const convertMessage = vi.fn((m: ThreadMessageLike) => m);
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        isRunning: false,
+        messages: [user, pending],
+        convertMessage,
+        setMessages: vi.fn(),
+      }),
+    );
+    const first = runtime.messages[1]!;
+    expect(convertMessage).toHaveBeenCalledTimes(2);
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        isRunning: false,
+        messages: [user, pending],
+        convertMessage,
+        setMessages: vi.fn(),
+      }),
+    );
+    expect(runtime.messages[1]).toBe(first);
+    expect(convertMessage).toHaveBeenCalledTimes(2);
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        isRunning: false,
+        messages: [user, { ...pending, content: [toolCall({ result: "ok" })] }],
+        convertMessage,
+        setMessages: vi.fn(),
+      }),
+    );
+    expect(runtime.messages[1]!.status).toMatchObject({ type: "complete" });
+  });
+});

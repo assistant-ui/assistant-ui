@@ -19,7 +19,12 @@ import {
   FALLBACK_ID_PREFIX,
 } from "../../runtime/utils/external-store-message";
 import { ThreadMessageConverter } from "./thread-message-converter";
-import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
+import {
+  getAutoStatus,
+  isAutoStatus,
+  isInterruptedToolCall,
+  isPendingToolCall,
+} from "../../runtime/utils/auto-status";
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
@@ -279,20 +284,24 @@ export class ExternalStoreThreadRuntimeCore
             if (!store.convertMessage) return m;
 
             const isLast = idx === (store.messages?.length ?? 0) - 1;
-            const autoStatus = getAutoStatus(
-              isLast,
-              isRunning,
-              false,
-              false,
-              undefined,
-            );
+            const getContentAutoStatus = (
+              content: ThreadMessageLike["content"],
+            ) =>
+              getAutoStatus(
+                isLast,
+                isRunning,
+                typeof content !== "string" &&
+                  content.some(isInterruptedToolCall),
+                typeof content !== "string" && content.some(isPendingToolCall),
+                undefined,
+              );
             const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
 
             if (
               cache &&
               (cache.role !== "assistant" ||
                 !isAutoStatus(cache.status) ||
-                cache.status === autoStatus)
+                cache.status === getContentAutoStatus(cache.content))
             ) {
               if (
                 cache.id.startsWith(FALLBACK_ID_PREFIX) &&
@@ -309,7 +318,7 @@ export class ExternalStoreThreadRuntimeCore
             const newMessage = fromThreadMessageLike(
               messageLike,
               fallbackId,
-              autoStatus,
+              getContentAutoStatus(messageLike.content),
             );
             bindExternalStoreMessage(newMessage, m);
             return newMessage;
