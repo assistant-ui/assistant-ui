@@ -588,11 +588,18 @@ describe("createPiHttpClient", () => {
       seq: 0,
       error: "subscription failed",
     } satisfies PiAnyClientEvent;
-    for (const event of [outOfBandError, agentEnd]) {
+    const staleError = {
+      type: "error",
+      threadId: "t1",
+      seq: 2,
+      error: "stale failure",
+    } satisfies PiAnyClientEvent;
+    for (const event of [outOfBandError, staleError, agentEnd]) {
       streamControllers[0]!.enqueue(
         new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
       );
     }
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(6));
     const currentSnapshot = {
       type: "snapshot",
       threadId: "t1",
@@ -605,7 +612,6 @@ describe("createPiHttpClient", () => {
     streamControllers[1]!.enqueue(
       new TextEncoder().encode(`data: ${JSON.stringify(currentSnapshot)}\n\n`),
     );
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(5));
     await vi.waitFor(() => expect(secondEvents).toEqual(firstEvents));
     await vi.waitFor(() =>
       expect(thirdEvents).toEqual([currentSnapshot, outOfBandError, agentEnd]),

@@ -423,7 +423,10 @@ export const createPiHttpClient = (
           notifyListener(pendingListener, snapshotEvent);
           for (const event of pending.events) {
             if (!stream.listeners.has(pendingListener)) break;
-            if (event.type === "error" || event.seq > snapshotEvent.seq) {
+            if (
+              (event.type === "error" && event.seq === 0) ||
+              event.seq > snapshotEvent.seq
+            ) {
               notifyListener(pendingListener, event);
             }
           }
