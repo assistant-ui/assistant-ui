@@ -34,7 +34,7 @@ function toCloudThread(t: {
   };
 }
 
-const CLOUD_THREAD_PAGE_SIZE = 20;
+const CLOUD_THREAD_PAGE_SIZE = 100;
 
 async function listAllThreads(
   cloud: UseThreadsOptions["cloud"],
@@ -54,9 +54,7 @@ async function listAllThreads(
     if (response.threads.length < CLOUD_THREAD_PAGE_SIZE) return threads;
 
     const nextAfter = response.threads.at(-1)?.id;
-    if (!nextAfter || nextAfter === after) {
-      throw new Error("Cloud thread pagination did not advance");
-    }
+    if (!nextAfter || nextAfter === after) return threads;
     after = nextAfter;
   }
 }
