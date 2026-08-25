@@ -39,6 +39,29 @@ const AUTO_STATUS_INTERRUPT = Object.freeze(
 export const isAutoStatus = (status: MessageStatus) =>
   (status as any)[symbolAutoStatus] === true;
 
+type ToolCallStatusPart = {
+  readonly type: string;
+  readonly result?: unknown;
+  readonly interrupt?: unknown;
+  readonly approval?: {
+    readonly approved?: boolean | undefined;
+    readonly resolution?: string | undefined;
+  };
+};
+
+export const isPendingToolCall = (part: ToolCallStatusPart): boolean =>
+  part.type === "tool-call" && part.result === undefined;
+
+export const isInterruptedToolCall = (part: ToolCallStatusPart): boolean => {
+  if (part.type !== "tool-call" || part.result !== undefined) return false;
+  return (
+    part.interrupt != null ||
+    (part.approval != null &&
+      part.approval.approved === undefined &&
+      part.approval.resolution === undefined)
+  );
+};
+
 export const getAutoStatus = (
   isLast: boolean,
   isRunning: boolean,

@@ -12,7 +12,12 @@ import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
-import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
+import {
+  getAutoStatus,
+  isAutoStatus,
+  isInterruptedToolCall,
+  isPendingToolCall,
+} from "../../runtime/utils/auto-status";
 import type { ToolExecutionStatus } from "../../runtimes/tool-invocations/ToolInvocationTracker";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { generateErrorMessageId } from "../../utils/id";
@@ -28,24 +33,6 @@ import type { MessageTiming } from "../../types/message";
 const generatedFallbackMessages = new WeakSet<object>();
 
 export type JoinStrategy = "concat-content" | "none";
-
-type ThreadMessageLikeContentItem = Exclude<
-  ThreadMessageLike["content"],
-  string
->[number];
-
-const isPendingToolCall = (c: ThreadMessageLikeContentItem): boolean =>
-  c.type === "tool-call" && c.result === undefined;
-
-const isInterruptedToolCall = (c: ThreadMessageLikeContentItem): boolean => {
-  if (c.type !== "tool-call" || c.result !== undefined) return false;
-  return (
-    c.interrupt != null ||
-    (c.approval != null &&
-      c.approval.approved === undefined &&
-      c.approval.resolution === undefined)
-  );
-};
 
 export namespace useExternalMessageConverter {
   export type Message =

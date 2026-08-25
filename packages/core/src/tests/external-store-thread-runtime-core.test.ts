@@ -1258,3 +1258,102 @@ describe("ExternalStoreThreadRuntimeCore - id-less converted messages", () => {
     expect(runtime.messages.map(textOf)).toEqual(["id-less", "kept"]);
   });
 });
+
+describe("ExternalStoreThreadRuntimeCore - convertMessage status derivation", () => {
+  const identity = (m: ThreadMessageLike): ThreadMessageLike => m;
+
+  const toolCallMessage = (part: Record<string, unknown>): ThreadMessageLike =>
+    ({
+      id: "a1",
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "t1",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+          ...part,
+        },
+      ],
+    }) as ThreadMessageLike;
+
+  const user: ThreadMessageLike = { id: "u1", role: "user", content: "run it" };
+
+  const statusOf = (message: ThreadMessageLike, isRunning = false) => {
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages: [user, message],
+        convertMessage: identity,
+        setMessages: vi.fn(),
+        isRunning,
+      }),
+    );
+    const last = runtime.messages[1]!;
+    if (last.role !== "assistant") throw new Error("expected assistant");
+    return last.status;
+  };
+
+  it("derives requires-action for an unresolved tool call", () => {
+    expect(statusOf(toolCallMessage({}))).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+
+  it("derives requires-action interrupt for an interrupted tool call", () => {
+    expect(
+      statusOf(
+        toolCallMessage({ interrupt: { type: "human", payload: null } }),
+      ),
+    ).toMatchObject({ type: "requires-action", reason: "interrupt" });
+  });
+
+  it("derives requires-action interrupt for an unresolved approval gate", () => {
+    expect(
+      statusOf(toolCallMessage({ approval: { id: "ap-1" } })),
+    ).toMatchObject({ type: "requires-action", reason: "interrupt" });
+  });
+
+  it("keeps complete for a tool call with a result", () => {
+    expect(statusOf(toolCallMessage({ result: "ok" }))).toMatchObject({
+      type: "complete",
+    });
+  });
+
+  it("keeps running while the last message is streaming", () => {
+    expect(statusOf(toolCallMessage({}), true)).toMatchObject({
+      type: "running",
+    });
+  });
+
+  it("recomputes the cached status when the run stops", () => {
+    const messages = [user, toolCallMessage({})];
+    const runtime = new ExternalStoreThreadRuntimeCore(
+      mockContextProvider,
+      makeStore({
+        messages,
+        convertMessage: identity,
+        setMessages: vi.fn(),
+        isRunning: true,
+      }),
+    );
+    expect(runtime.messages[1]).toMatchObject({ status: { type: "running" } });
+
+    runtime.__internal_setAdapter(
+      makeStore({
+        messages,
+        convertMessage: identity,
+        setMessages: vi.fn(),
+        isRunning: false,
+      }),
+    );
+    const settled = runtime.messages[1]!;
+    if (settled.role !== "assistant") throw new Error("expected assistant");
+    expect(settled.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+  });
+});
