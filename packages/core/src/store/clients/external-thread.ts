@@ -44,6 +44,10 @@ import type { ComposerSendOptions } from "../scopes/composer";
 import { fileMatchesAccept } from "../../adapters/attachment";
 import { getThreadMessageText } from "../../utils/text";
 import { resolveToolApprovalResponse } from "../../runtime/utils/resolveToolApprovalResponse";
+import {
+  AttachmentAddOperations,
+  drainAttachmentAdd,
+} from "../../runtime/utils/attachment-add-operations";
 import { toMessagePartStatus } from "../../utils/normalizePartStatus";
 import { ModelContext } from "./model-context-client";
 import { ThreadSuggestions } from "./suggestions";
@@ -420,53 +424,6 @@ type ComposerClientResourceProps = {
   attachmentAdapter?: AttachmentAdapter | undefined;
 };
 
-type AttachmentAddOperation = {
-  cancelled: boolean;
-  attachmentIds: Set<string>;
-};
-
-class AttachmentAddOperations {
-  private readonly operations = new Set<AttachmentAddOperation>();
-
-  start() {
-    const operation: AttachmentAddOperation = {
-      cancelled: false,
-      attachmentIds: new Set(),
-    };
-    this.operations.add(operation);
-    return operation;
-  }
-
-  accept(operation: AttachmentAddOperation, attachmentId: string) {
-    if (operation.cancelled) return false;
-    operation.attachmentIds.add(attachmentId);
-    return true;
-  }
-
-  finish(operation: AttachmentAddOperation) {
-    this.operations.delete(operation);
-  }
-
-  isCancelled(operation: AttachmentAddOperation) {
-    return operation.cancelled;
-  }
-
-  cancel(attachmentId: string) {
-    for (const operation of [...this.operations]) {
-      if (!operation.attachmentIds.has(attachmentId)) continue;
-      operation.cancelled = true;
-      this.operations.delete(operation);
-    }
-  }
-
-  cancelAll() {
-    for (const operation of this.operations) {
-      operation.cancelled = true;
-    }
-    this.operations.clear();
-  }
-}
-
 const useQueueItemClient = ({
   item,
   onMove,
@@ -485,19 +442,6 @@ const useQueueItemClient = ({
 };
 
 const QueueItemClient = resource(useQueueItemClient);
-
-const drainAdapterAdd = async (
-  result: ReturnType<AttachmentAdapter["add"]>,
-  upsert: (attachment: Attachment) => boolean,
-) => {
-  if (Symbol.asyncIterator in result) {
-    for await (const attachment of result) {
-      if (!upsert(attachment)) break;
-    }
-  } else {
-    upsert(await result);
-  }
-};
 
 // State whose setter tracks the latest value in a ref, so imperative
 // call sequences (setText immediately followed by send) observe the write
@@ -672,7 +616,7 @@ const useComposerClientResource = ({
       if (!isCreateAttachment(fileOrAttachment) && attachmentAdapter) {
         const operation = attachmentAddOperations.start();
         try {
-          await drainAdapterAdd(
+          await drainAttachmentAdd(
             attachmentAdapter.add({ file: fileOrAttachment }),
             (attachment) => {
               if (!attachmentAddOperations.accept(operation, attachment.id))

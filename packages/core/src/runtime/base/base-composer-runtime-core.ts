@@ -29,14 +29,13 @@ import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 import { EMPTY_QUEUE_ITEMS, type QueueItemState } from "../queue/queue-item";
 import { generateId } from "../../utils/id";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
+import {
+  AttachmentAddOperations,
+  drainAttachmentAdd,
+} from "../utils/attachment-add-operations";
 
 const isAttachmentComplete = (a: Attachment): a is CompleteAttachment =>
   a.status.type === "complete";
-
-type AttachmentAddOperation = {
-  cancelled: boolean;
-  attachmentIds: Set<string>;
-};
 
 export abstract class BaseComposerRuntimeCore
   extends BaseSubscribable
@@ -149,21 +148,14 @@ export abstract class BaseComposerRuntimeCore
   protected _isSending = false;
   private _removedDuringSend = new Set<string>();
   private _sendGeneration = 0;
-  private _attachmentAddOperations = new Set<AttachmentAddOperation>();
+  private _attachmentAddOperations = new AttachmentAddOperations();
 
   private _cancelAttachmentAdd(attachmentId: string) {
-    for (const operation of [...this._attachmentAddOperations]) {
-      if (!operation.attachmentIds.has(attachmentId)) continue;
-      operation.cancelled = true;
-      this._attachmentAddOperations.delete(operation);
-    }
+    this._attachmentAddOperations.cancel(attachmentId);
   }
 
   private _cancelAllAttachmentAdds() {
-    for (const operation of this._attachmentAddOperations) {
-      operation.cancelled = true;
-    }
-    this._attachmentAddOperations.clear();
+    this._attachmentAddOperations.cancelAll();
   }
 
   private _emptyTextAndAttachments() {
@@ -463,16 +455,10 @@ export abstract class BaseComposerRuntimeCore
       throw err;
     }
 
-    const operation: AttachmentAddOperation = {
-      cancelled: false,
-      attachmentIds: new Set(),
-    };
-    const operations = this._attachmentAddOperations;
-    operations.add(operation);
+    const operation = this._attachmentAddOperations.start();
     const upsertAttachment = (a: PendingAttachment) => {
-      if (operation.cancelled) return false;
+      if (!this._attachmentAddOperations.accept(operation, a.id)) return false;
 
-      operation.attachmentIds.add(a.id);
       const idx = this._attachments.findIndex(
         (attachment) => attachment.id === a.id,
       );
@@ -491,18 +477,15 @@ export abstract class BaseComposerRuntimeCore
     };
     let lastAttachment: PendingAttachment | undefined;
     try {
-      const promiseOrGenerator = adapter.add({ file: fileOrAttachment });
-      if (Symbol.asyncIterator in promiseOrGenerator) {
-        for await (const r of promiseOrGenerator) {
-          lastAttachment = r;
-          if (!upsertAttachment(r)) break;
-        }
-      } else {
-        lastAttachment = await promiseOrGenerator;
-        upsertAttachment(lastAttachment);
-      }
+      await drainAttachmentAdd(
+        adapter.add({ file: fileOrAttachment }),
+        (attachment) => {
+          lastAttachment = attachment;
+          return upsertAttachment(attachment);
+        },
+      );
     } catch (e) {
-      if (operation.cancelled) return;
+      if (this._attachmentAddOperations.isCancelled(operation)) return;
       if (lastAttachment) {
         upsertAttachment({
           ...lastAttachment,
@@ -521,10 +504,10 @@ export abstract class BaseComposerRuntimeCore
       );
       throw e;
     } finally {
-      operations.delete(operation);
+      this._attachmentAddOperations.finish(operation);
     }
 
-    if (operation.cancelled) return;
+    if (this._attachmentAddOperations.isCancelled(operation)) return;
     if (
       lastAttachment?.status.type === "incomplete" &&
       lastAttachment.status.reason === "error"
