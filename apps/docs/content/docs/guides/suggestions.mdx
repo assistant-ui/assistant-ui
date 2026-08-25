@@ -15,24 +15,19 @@ The Suggestions API allows you to configure a list of suggested prompts that are
 Configure suggestions using the `Suggestions()` API in your runtime provider:
 
 ```tsx
-import { useMemo } from "react";
 import { AuiConfig, Tools, Suggestions } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
   const runtime = useChatRuntime();
-  const suggestions = useMemo(
-    () => [
-      "What can you help me with?",
-      "Tell me a joke",
-      "Explain quantum computing",
-    ],
-    [],
-  );
 
   const config = AuiConfig({
     tools: Tools({ toolkit: myToolkit }),
-    suggestions: Suggestions(suggestions),
+    suggestions: Suggestions([
+      "What can you help me with?",
+      "Tell me a joke",
+      "Explain quantum computing",
+    ]),
   });
 
   return (
