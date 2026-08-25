@@ -29,6 +29,13 @@
 import { isRecord } from "@assistant-ui/core/internal";
 import { openPiEventStream } from "./eventSource";
 import { isThreadMetadata, isThreadSnapshot } from "./validation";
+import { isKnownPiClientEventType } from "../eventTypes";
+import { piQueueItemId } from "../queueIds";
+import {
+  createPiThreadState,
+  reducePiThreadState,
+  type PiThreadState,
+} from "../runtime/threadState";
 import type {
   PiClient,
   PiClientEvent,
@@ -42,8 +49,99 @@ import type {
 
 type SharedStream = {
   listeners: Set<(event: PiClientEvent) => void>;
+  pendingEvents: Map<(event: PiClientEvent) => void, PiClientEvent[]>;
+  replayEvents: PiClientEvent[];
+  replayState: PiThreadState | undefined;
+  canCompactReplay: boolean;
   close: () => void;
   closeTimer: ReturnType<typeof setTimeout> | undefined;
+};
+
+const notifyListener = (
+  listener: (event: PiClientEvent) => void,
+  event: PiClientEvent,
+) => {
+  try {
+    listener(event);
+  } catch (error) {
+    console.error("[react-pi] Listener threw an error", error);
+  }
+};
+
+const snapshotEventFromState = (state: PiThreadState): PiClientEvent => {
+  const {
+    queuedMessages: _queuedMessages,
+    contextUsage: _contextUsage,
+    messageCount: _messageCount,
+    ...metadata
+  } = state.metadata;
+  const queuedMessages = [
+    ...state.queue.steering.map((content, index) => ({
+      id: piQueueItemId("steer", index),
+      mode: "steer" as const,
+      content,
+    })),
+    ...state.queue.followUp.map((content, index) => ({
+      id: piQueueItemId("followUp", index),
+      mode: "followUp" as const,
+      content,
+    })),
+  ];
+
+  return {
+    type: "snapshot",
+    threadId: state.threadId,
+    seq: state.lastSeq,
+    snapshot: {
+      metadata: {
+        ...metadata,
+        messageCount: state.messages.length,
+        ...(queuedMessages.length > 0 ? { queuedMessages } : {}),
+        ...(state.contextUsage !== undefined
+          ? { contextUsage: state.contextUsage }
+          : {}),
+      },
+      messages: [...state.messages],
+      ...(state.hostUiRequests.length > 0
+        ? { hostUiRequests: state.hostUiRequests }
+        : {}),
+      ...(state.readiness !== undefined ? { readiness: state.readiness } : {}),
+      ...(state.lastError !== undefined ? { lastError: state.lastError } : {}),
+    },
+  };
+};
+
+const updateReplay = (stream: SharedStream, event: PiClientEvent) => {
+  if (!stream.replayState) return;
+
+  if (event.type === "snapshot") {
+    stream.replayState = reducePiThreadState(
+      createPiThreadState(event.threadId),
+      event,
+    );
+    stream.replayEvents = [event];
+    stream.canCompactReplay = true;
+    return;
+  }
+
+  if (stream.replayEvents.length === 0) return;
+  stream.replayState = reducePiThreadState(stream.replayState, event);
+  stream.replayEvents.push(event);
+
+  if (
+    !isKnownPiClientEventType(event.type) ||
+    (event.type === "entry_appended" && event.entry.type !== "custom")
+  ) {
+    stream.canCompactReplay = false;
+  }
+
+  if (
+    stream.canCompactReplay &&
+    event.type === "agent_end" &&
+    event.willRetry !== true
+  ) {
+    stream.replayEvents = [snapshotEventFromState(stream.replayState)];
+  }
 };
 
 export interface PiHttpClientOptions {
@@ -300,11 +398,21 @@ export const createPiHttpClient = (
       let stream = streams.get(streamKey);
       if (!stream) {
         const listeners = new Set<(event: PiClientEvent) => void>();
+        const pendingEvents = new Map<
+          (event: PiClientEvent) => void,
+          PiClientEvent[]
+        >();
         const eventsUrl = `${threadUrl(threadId)}/events${
           includeSnapshot ? "" : "?snapshot=false"
         }`;
-        stream = {
+        const createdStream: SharedStream = {
           listeners,
+          pendingEvents,
+          replayEvents: [],
+          replayState: includeSnapshot
+            ? createPiThreadState(threadId)
+            : undefined,
+          canCompactReplay: true,
           closeTimer: undefined,
           close: openPiEventStream({
             url: eventsUrl,
@@ -317,28 +425,52 @@ export const createPiHttpClient = (
             ...(reconnectDelay ? { reconnectDelay } : {}),
             ...(onStreamError ? { onError: onStreamError } : {}),
             onEvent: (event) => {
+              const clientEvent = event as PiClientEvent;
+              updateReplay(createdStream, clientEvent);
               for (const listener of [...listeners]) {
-                try {
-                  listener(event as PiClientEvent);
-                } catch (error) {
-                  console.error("[react-pi] Listener threw an error", error);
+                const pending = pendingEvents.get(listener);
+                if (pending) {
+                  pending.push(clientEvent);
+                } else {
+                  notifyListener(listener, clientEvent);
                 }
               }
             },
           }),
         };
+        stream = createdStream;
         streams.set(streamKey, stream);
       } else if (stream.closeTimer) {
         clearTimeout(stream.closeTimer);
         stream.closeTimer = undefined;
       }
 
+      const isNewListener = !stream.listeners.has(listener);
       stream.listeners.add(listener);
+      if (isNewListener && includeSnapshot && stream.replayEvents.length > 0) {
+        const replayEvents = [...stream.replayEvents];
+        const pendingEvents: PiClientEvent[] = [];
+        stream.pendingEvents.set(listener, pendingEvents);
+        queueMicrotask(() => {
+          if (
+            !stream.listeners.has(listener) ||
+            stream.pendingEvents.get(listener) !== pendingEvents
+          ) {
+            return;
+          }
+          stream.pendingEvents.delete(listener);
+          for (const event of [...replayEvents, ...pendingEvents]) {
+            if (!stream.listeners.has(listener)) break;
+            notifyListener(listener, event);
+          }
+        });
+      }
 
       return () => {
         const current = streams.get(streamKey);
         if (!current) return;
         current.listeners.delete(listener);
+        current.pendingEvents.delete(listener);
         if (current.listeners.size > 0 || current.closeTimer) return;
         if (streamCloseDelayMs <= 0) {
           current.close();
