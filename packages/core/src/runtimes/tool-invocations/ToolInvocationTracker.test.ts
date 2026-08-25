@@ -47,6 +47,7 @@ const createAssistantMessage = (
     toolCallId?: string;
     toolName?: string;
     nestedMessages?: ThreadAssistantMessage[];
+    approval?: { id: string; approved?: boolean };
   },
 ): ThreadAssistantMessage => ({
   id: "m-1",
@@ -70,6 +71,7 @@ const createAssistantMessage = (
       ...(options?.result !== undefined && { result: options.result }),
       ...(options?.isError !== undefined && { isError: options.isError }),
       ...(options?.nestedMessages && { messages: options.nestedMessages }),
+      ...(options?.approval && { approval: options.approval }),
     },
   ],
 });
@@ -368,6 +370,144 @@ describe("ToolInvocationTracker", () => {
       expect(execute).not.toHaveBeenCalled();
       expect(onResult).not.toHaveBeenCalled();
     });
+  });
+
+  it("never executes a tool call that carries a provider approval", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    const gated = (approval: { id: string; approved?: boolean }) =>
+      createAssistantMessage(
+        '{"path":"/tmp/a"}',
+        { path: "/tmp/a" },
+        { toolName: "deleteFile", approval },
+      );
+
+    tracker.setState(createState([gated({ id: "approval-1" })], false));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(execute).not.toHaveBeenCalled();
+
+    tracker.setState(
+      createState([gated({ id: "approval-1", approved: true })], true),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("stops executing a live tool call once a provider approval lands", async () => {
+    const execute = vi.fn(async () => ({ deleted: true }));
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp',
+            {},
+            { toolName: "deleteFile" },
+          ),
+        ],
+        true,
+      ),
+    );
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            { toolName: "deleteFile", approval: { id: "approval-1" } },
+          ),
+        ],
+        true,
+      ),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(onResult).not.toHaveBeenCalled();
+  });
+
+  it("drops the result of an in-flight execute once a provider approval lands", async () => {
+    let resolveExecute!: (value: { deleted: boolean }) => void;
+    const execute = vi.fn(
+      () =>
+        new Promise<{ deleted: boolean }>((r) => {
+          resolveExecute = r;
+        }),
+    );
+    const getTools = () => ({
+      deleteFile: {
+        parameters: { type: "object", properties: {} },
+        execute,
+      } satisfies Tool,
+    });
+    const onResult = vi.fn();
+    const tracker = new ToolInvocationTracker(getTools, {
+      onResult,
+      onStatusesChange: () => {},
+    });
+    tracker.setState(createState([]));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            {
+              toolName: "deleteFile",
+            },
+          ),
+        ],
+        true,
+      ),
+    );
+    await waitFor(() => expect(execute).toHaveBeenCalledTimes(1));
+
+    tracker.setState(
+      createState(
+        [
+          createAssistantMessage(
+            '{"path":"/tmp/a"}',
+            { path: "/tmp/a" },
+            {
+              toolName: "deleteFile",
+              approval: { id: "approval-1" },
+            },
+          ),
+        ],
+        true,
+      ),
+    );
+    resolveExecute({ deleted: true });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(onResult).not.toHaveBeenCalled();
   });
 
   it("does not re-execute asynchronously loaded resolved tool calls after reset", async () => {
