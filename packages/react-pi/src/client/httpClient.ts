@@ -29,13 +29,6 @@
 import { isRecord } from "@assistant-ui/core/internal";
 import { openPiEventStream } from "./eventSource";
 import { isThreadMetadata, isThreadSnapshot } from "./validation";
-import { isKnownPiClientEventType } from "../eventTypes";
-import { piQueueItemId } from "../queueIds";
-import {
-  createPiThreadState,
-  reducePiThreadState,
-  type PiThreadState,
-} from "../runtime/threadState";
 import type {
   PiClient,
   PiClientEvent,
@@ -47,12 +40,14 @@ import type {
   PiThreadSnapshot,
 } from "../types";
 
+type PiSnapshotEvent = Extract<PiClientEvent, { type: "snapshot" }>;
+
 type SharedStream = {
   listeners: Set<(event: PiClientEvent) => void>;
   pendingEvents: Map<(event: PiClientEvent) => void, PiClientEvent[]>;
-  replayEvents: PiClientEvent[];
-  replayState: PiThreadState | undefined;
-  canCompactReplay: boolean;
+  snapshotEvent: PiSnapshotEvent | undefined;
+  hasEventsSinceSnapshot: boolean;
+  snapshotLoads: Map<(event: PiClientEvent) => void, () => void>;
   close: () => void;
   closeTimer: ReturnType<typeof setTimeout> | undefined;
 };
@@ -65,82 +60,6 @@ const notifyListener = (
     listener(event);
   } catch (error) {
     console.error("[react-pi] Listener threw an error", error);
-  }
-};
-
-const snapshotEventFromState = (state: PiThreadState): PiClientEvent => {
-  const {
-    queuedMessages: _queuedMessages,
-    contextUsage: _contextUsage,
-    messageCount: _messageCount,
-    ...metadata
-  } = state.metadata;
-  const queuedMessages = [
-    ...state.queue.steering.map((content, index) => ({
-      id: piQueueItemId("steer", index),
-      mode: "steer" as const,
-      content,
-    })),
-    ...state.queue.followUp.map((content, index) => ({
-      id: piQueueItemId("followUp", index),
-      mode: "followUp" as const,
-      content,
-    })),
-  ];
-
-  return {
-    type: "snapshot",
-    threadId: state.threadId,
-    seq: state.lastSeq,
-    snapshot: {
-      metadata: {
-        ...metadata,
-        messageCount: state.messages.length,
-        ...(queuedMessages.length > 0 ? { queuedMessages } : {}),
-        ...(state.contextUsage !== undefined
-          ? { contextUsage: state.contextUsage }
-          : {}),
-      },
-      messages: [...state.messages],
-      ...(state.hostUiRequests.length > 0
-        ? { hostUiRequests: state.hostUiRequests }
-        : {}),
-      ...(state.readiness !== undefined ? { readiness: state.readiness } : {}),
-      ...(state.lastError !== undefined ? { lastError: state.lastError } : {}),
-    },
-  };
-};
-
-const updateReplay = (stream: SharedStream, event: PiClientEvent) => {
-  if (!stream.replayState) return;
-
-  if (event.type === "snapshot") {
-    stream.replayState = reducePiThreadState(
-      createPiThreadState(event.threadId),
-      event,
-    );
-    stream.replayEvents = [event];
-    stream.canCompactReplay = true;
-    return;
-  }
-
-  if (stream.replayEvents.length === 0) return;
-  stream.replayState = reducePiThreadState(stream.replayState, event);
-  stream.replayEvents.push(event);
-
-  if (
-    !isKnownPiClientEventType(event.type) ||
-    (event.type === "entry_appended" && event.entry.type !== "custom")
-  ) {
-    stream.canCompactReplay = false;
-  }
-
-  if (
-    stream.canCompactReplay &&
-    event.type === "agent_end" &&
-    event.willRetry !== true
-  ) {
-    stream.replayEvents = [snapshotEventFromState(stream.replayState)];
   }
 };
 
@@ -395,6 +314,9 @@ export const createPiHttpClient = (
       const streamKey = `${base}:${threadId}:${
         includeSnapshot ? "snapshot" : "live"
       }`;
+      const eventsUrl = `${threadUrl(threadId)}/events${
+        includeSnapshot ? "" : "?snapshot=false"
+      }`;
       let stream = streams.get(streamKey);
       if (!stream) {
         const listeners = new Set<(event: PiClientEvent) => void>();
@@ -402,17 +324,12 @@ export const createPiHttpClient = (
           (event: PiClientEvent) => void,
           PiClientEvent[]
         >();
-        const eventsUrl = `${threadUrl(threadId)}/events${
-          includeSnapshot ? "" : "?snapshot=false"
-        }`;
         const createdStream: SharedStream = {
           listeners,
           pendingEvents,
-          replayEvents: [],
-          replayState: includeSnapshot
-            ? createPiThreadState(threadId)
-            : undefined,
-          canCompactReplay: true,
+          snapshotEvent: undefined,
+          hasEventsSinceSnapshot: false,
+          snapshotLoads: new Map(),
           closeTimer: undefined,
           close: openPiEventStream({
             url: eventsUrl,
@@ -426,7 +343,12 @@ export const createPiHttpClient = (
             ...(onStreamError ? { onError: onStreamError } : {}),
             onEvent: (event) => {
               const clientEvent = event as PiClientEvent;
-              updateReplay(createdStream, clientEvent);
+              if (clientEvent.type === "snapshot") {
+                createdStream.snapshotEvent = clientEvent;
+                createdStream.hasEventsSinceSnapshot = false;
+              } else if (createdStream.snapshotEvent) {
+                createdStream.hasEventsSinceSnapshot = true;
+              }
               for (const listener of [...listeners]) {
                 const pending = pendingEvents.get(listener);
                 if (pending) {
@@ -447,23 +369,60 @@ export const createPiHttpClient = (
 
       const isNewListener = !stream.listeners.has(listener);
       stream.listeners.add(listener);
-      if (isNewListener && includeSnapshot && stream.replayEvents.length > 0) {
-        const replayEvents = [...stream.replayEvents];
+      if (isNewListener && includeSnapshot && stream.snapshotEvent) {
         const pendingEvents: PiClientEvent[] = [];
         stream.pendingEvents.set(listener, pendingEvents);
-        queueMicrotask(() => {
+
+        const finishSnapshotLoad = (snapshotEvent: PiSnapshotEvent) => {
           if (
             !stream.listeners.has(listener) ||
             stream.pendingEvents.get(listener) !== pendingEvents
           ) {
             return;
           }
+
+          stream.snapshotLoads.get(listener)?.();
+          stream.snapshotLoads.delete(listener);
           stream.pendingEvents.delete(listener);
-          for (const event of [...replayEvents, ...pendingEvents]) {
-            if (!stream.listeners.has(listener)) break;
-            notifyListener(listener, event);
+          if (
+            !pendingEvents.some(
+              (event) =>
+                event.type !== "error" && event.seq > snapshotEvent.seq,
+            )
+          ) {
+            stream.snapshotEvent = snapshotEvent;
+            stream.hasEventsSinceSnapshot = false;
           }
-        });
+
+          notifyListener(listener, snapshotEvent);
+          for (const event of pendingEvents) {
+            if (!stream.listeners.has(listener)) break;
+            if (event.type === "error" || event.seq > snapshotEvent.seq) {
+              notifyListener(listener, event);
+            }
+          }
+        };
+
+        if (!stream.hasEventsSinceSnapshot) {
+          const snapshotEvent = stream.snapshotEvent;
+          queueMicrotask(() => finishSnapshotLoad(snapshotEvent));
+        } else {
+          let closeSnapshotStream = () => {};
+          closeSnapshotStream = openPiEventStream({
+            url: eventsUrl,
+            expectedThreadId: threadId,
+            fetchImpl,
+            ...(headers ? { headers } : {}),
+            ...(reconnectDelay ? { reconnectDelay } : {}),
+            ...(onStreamError ? { onError: onStreamError } : {}),
+            onEvent: (event) => {
+              if (event.type !== "snapshot") return;
+              closeSnapshotStream();
+              finishSnapshotLoad(event as PiSnapshotEvent);
+            },
+          });
+          stream.snapshotLoads.set(listener, closeSnapshotStream);
+        }
       }
 
       return () => {
@@ -471,6 +430,8 @@ export const createPiHttpClient = (
         if (!current) return;
         current.listeners.delete(listener);
         current.pendingEvents.delete(listener);
+        current.snapshotLoads.get(listener)?.();
+        current.snapshotLoads.delete(listener);
         if (current.listeners.size > 0 || current.closeTimer) return;
         if (streamCloseDelayMs <= 0) {
           current.close();

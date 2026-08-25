@@ -492,14 +492,14 @@ describe("createPiHttpClient", () => {
     );
   });
 
-  it("replays current state to late snapshot subscribers", async () => {
-    let streamController!: ReadableStreamDefaultController<Uint8Array>;
+  it("delivers authoritative state to late snapshot subscribers", async () => {
+    const streamControllers: ReadableStreamDefaultController<Uint8Array>[] = [];
     const fetchImpl = vi.fn(
       async () =>
         new Response(
           new ReadableStream<Uint8Array>({
             start(controller) {
-              streamController = controller;
+              streamControllers.push(controller);
             },
           }),
           {
@@ -519,21 +519,16 @@ describe("createPiHttpClient", () => {
     });
 
     await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
-    for (const event of [
-      { type: "snapshot", threadId: "t1", seq: 1, snapshot },
-      { type: "agent_start", threadId: "t1", seq: 2 },
-      {
-        type: "message_start",
-        threadId: "t1",
-        seq: 3,
-        message: { role: "user", content: "hello", timestamp: 1 },
-      },
-    ] satisfies PiAnyClientEvent[]) {
-      streamController.enqueue(
-        new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
-      );
-    }
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(3));
+    const initialSnapshot = {
+      type: "snapshot",
+      threadId: "t1",
+      seq: 1,
+      snapshot,
+    } satisfies PiAnyClientEvent;
+    streamControllers[0]!.enqueue(
+      new TextEncoder().encode(`data: ${JSON.stringify(initialSnapshot)}\n\n`),
+    );
+    await vi.waitFor(() => expect(firstEvents).toEqual([initialSnapshot]));
 
     const secondEvents: PiAnyClientEvent[] = [];
     const unsubscribeSecond = client.subscribe("t1", (event) => {
@@ -543,32 +538,56 @@ describe("createPiHttpClient", () => {
     await vi.waitFor(() => expect(secondEvents).toEqual(firstEvents));
     expect(fetchImpl).toHaveBeenCalledTimes(1);
 
-    streamController.enqueue(
-      new TextEncoder().encode(
-        `data: ${JSON.stringify({
-          type: "agent_end",
-          threadId: "t1",
-          seq: 4,
-        })}\n\n`,
-      ),
-    );
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(4));
+    const agentStart = {
+      type: "agent_start",
+      threadId: "t1",
+      seq: 2,
+    } satisfies PiAnyClientEvent;
+    const messageStart = {
+      type: "message_start",
+      threadId: "t1",
+      seq: 3,
+      message: { role: "user", content: "hello", timestamp: 1 },
+    } satisfies PiAnyClientEvent;
+    for (const event of [agentStart, messageStart]) {
+      streamControllers[0]!.enqueue(
+        new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
+      );
+    }
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(3));
     await vi.waitFor(() => expect(secondEvents).toEqual(firstEvents));
 
     const thirdEvents: PiAnyClientEvent[] = [];
     const unsubscribeThird = client.subscribe("t1", (event) => {
       thirdEvents.push(event);
     });
-    await vi.waitFor(() => expect(thirdEvents).toHaveLength(1));
-    expect(thirdEvents[0]).toMatchObject({
-      type: "snapshot",
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+
+    const agentEnd = {
+      type: "agent_end",
       threadId: "t1",
       seq: 4,
+    } satisfies PiAnyClientEvent;
+    streamControllers[0]!.enqueue(
+      new TextEncoder().encode(`data: ${JSON.stringify(agentEnd)}\n\n`),
+    );
+    const currentSnapshot = {
+      type: "snapshot",
+      threadId: "t1",
+      seq: 3,
       snapshot: {
-        metadata: { id: "t1", status: "idle", messageCount: 1 },
-        messages: [{ role: "user", content: "hello", timestamp: 1 }],
+        metadata: { id: "t1", status: "running", messageCount: 1 },
+        messages: [messageStart.message],
       },
-    });
+    } satisfies PiAnyClientEvent;
+    streamControllers[1]!.enqueue(
+      new TextEncoder().encode(`data: ${JSON.stringify(currentSnapshot)}\n\n`),
+    );
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(4));
+    await vi.waitFor(() => expect(secondEvents).toEqual(firstEvents));
+    await vi.waitFor(() =>
+      expect(thirdEvents).toEqual([currentSnapshot, agentEnd]),
+    );
 
     unsubscribeFirst();
     unsubscribeSecond();
