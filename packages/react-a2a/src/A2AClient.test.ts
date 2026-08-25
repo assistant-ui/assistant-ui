@@ -1020,8 +1020,6 @@ describe("A2AClient", () => {
     it("normalizes default-valued wrapped status updates", async () => {
       const sseData = JSON.stringify({
         status_update: {
-          task_id: "",
-          context_id: "",
           status: {
             message: {
               message_id: "s1",
@@ -1054,6 +1052,106 @@ describe("A2AClient", () => {
           message: { parts: [{ text: "Waiting..." }] },
         },
       });
+    });
+
+    it("normalizes null-valued wrapped status defaults", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: null,
+          context_id: null,
+          status: { state: null },
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([`data: ${sseData}`, "", ""]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toMatchObject([
+        {
+          type: "statusUpdate",
+          event: {
+            taskId: "",
+            contextId: "",
+            status: { state: "unspecified" },
+          },
+        },
+      ]);
+    });
+
+    it("normalizes ProtoJSON defaults across wrapped event types", async () => {
+      const frames = [
+        {
+          task: {
+            id: "t1",
+            status: {
+              message: {
+                message_id: "m1",
+                role: "ROLE_AGENT",
+                parts: [{ text: "Working..." }],
+              },
+            },
+          },
+        },
+        {
+          message: {
+            message_id: "m2",
+            role: "ROLE_AGENT",
+          },
+        },
+        {
+          artifact_update: {
+            artifact: {},
+          },
+        },
+      ];
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse(
+          frames
+            .flatMap((frame) => [`data: ${JSON.stringify(frame)}`, ""])
+            .concat(""),
+        ),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toMatchObject([
+        {
+          type: "task",
+          task: {
+            id: "t1",
+            contextId: "",
+            status: { state: "unspecified" },
+          },
+        },
+        {
+          type: "message",
+          message: {
+            messageId: "m2",
+            contextId: "",
+            taskId: "",
+            role: "agent",
+            parts: [],
+          },
+        },
+        {
+          type: "artifactUpdate",
+          event: {
+            taskId: "",
+            contextId: "",
+            artifact: { artifactId: "", parts: [] },
+          },
+        },
+      ]);
     });
 
     it("cancels the response body when iteration stops early", async () => {
