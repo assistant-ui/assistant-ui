@@ -161,7 +161,7 @@ function ToolFallbackTrigger({
       <span
         data-slot="tool-fallback-trigger-label"
         className={cn(
-          "aui-tool-fallback-trigger-label-wrapper relative inline-block text-start leading-none",
+          "aui-tool-fallback-trigger-label-wrapper inline-block text-start leading-none",
           isCancelled && "text-muted-foreground line-through",
           isRunning && "shimmer motion-reduce:animate-none",
         )}

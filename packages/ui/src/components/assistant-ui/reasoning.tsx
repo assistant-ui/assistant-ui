@@ -196,7 +196,7 @@ function ReasoningTrigger({
       <span
         data-slot="reasoning-trigger-label"
         className={cn(
-          "aui-reasoning-trigger-label-wrapper relative inline-block leading-none tabular-nums",
+          "aui-reasoning-trigger-label-wrapper inline-block leading-none tabular-nums",
           active && "shimmer motion-reduce:animate-none",
         )}
       >
