@@ -26,6 +26,7 @@ import type {
 import {
   unstable_useTriggerPopoverRootContextOptional,
   type Unstable_RegisteredTrigger,
+  type Unstable_TriggerMatcher,
 } from "@assistant-ui/react";
 
 export type DirectivePluginProps = {
@@ -39,11 +40,22 @@ type TriggerMatch = {
   endOffset: number;
 };
 
-type TriggerMatcher = (
+function isUsableTriggerMatch(
   text: string,
-  triggerChar: string,
+  trigger: string,
   cursorPosition: number,
-) => { readonly query: string; readonly offset: number } | null;
+  match: { query: string; offset: number; endOffset: number } | null,
+): match is { query: string; offset: number; endOffset: number } {
+  if (match === null) return false;
+  if (match.offset < 0 || match.offset + trigger.length > cursorPosition) {
+    return false;
+  }
+  if (!text.startsWith(trigger, match.offset)) return false;
+  return (
+    match.endOffset >= match.offset + trigger.length &&
+    match.endOffset <= text.length
+  );
+}
 
 const WHITESPACE_RE = /\s/u;
 
@@ -110,18 +122,19 @@ export function findTriggerMatch(
   trigger: string,
   node: TextNode,
   anchorOffset: number,
-  matcher?: TriggerMatcher | undefined,
+  matcher?: Unstable_TriggerMatcher | undefined,
 ): TriggerMatch | null {
   const text = node.getTextContent();
-
   if (matcher) {
     const match = matcher(text, trigger, anchorOffset);
-    if (!match) return null;
+    if (!isUsableTriggerMatch(text, trigger, anchorOffset, match)) {
+      return null;
+    }
     return {
       query: match.query,
       node,
       startOffset: match.offset,
-      endOffset: anchorOffset,
+      endOffset: match.endOffset,
     };
   }
 

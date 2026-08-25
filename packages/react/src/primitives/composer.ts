@@ -29,4 +29,7 @@ export { useTriggerPopoverScopeContextOptional as unstable_useTriggerPopoverScop
 export { useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers } from "./composer/trigger";
 export { useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional } from "./composer/trigger";
 export type { RegisteredTrigger as Unstable_RegisteredTrigger } from "./composer/trigger";
-export type { TriggerMatcher as Unstable_TriggerMatcher } from "./composer/trigger";
+export type {
+  TriggerMatch as Unstable_TriggerMatch,
+  TriggerMatcher as Unstable_TriggerMatcher,
+} from "./composer/trigger";

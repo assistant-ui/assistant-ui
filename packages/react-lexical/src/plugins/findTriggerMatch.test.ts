@@ -14,6 +14,7 @@ const matchFromLastTrigger: Unstable_TriggerMatcher = (
   return {
     query: textUpToCursor.slice(offset + triggerChar.length),
     offset,
+    endOffset: cursorPosition,
   };
 };
 
@@ -73,6 +74,32 @@ describe("findTriggerMatch", () => {
       endOffset: 11,
     });
   });
+
+  it("uses the matcher endOffset instead of the caret", () => {
+    const matchSpan: Unstable_TriggerMatcher = () => ({
+      query: "example",
+      offset: 0,
+      endOffset: 11,
+    });
+    const node = mockTextNode("@Example UK extra");
+    expect(findTriggerMatch("@", node, 17, matchSpan)).toEqual({
+      query: "example",
+      node,
+      startOffset: 0,
+      endOffset: 11,
+    });
+  });
+
+  it("rejects a matcher whose offset is not the trigger", () => {
+    const match: Unstable_TriggerMatcher = () => ({
+      query: "x",
+      offset: 0,
+      endOffset: 2,
+    });
+    const node = mockTextNode("hello @x");
+    expect(findTriggerMatch("@", node, 8, match)).toBeNull();
+  });
+
 
   it("stops at newline", () => {
     const node = mockTextNode("@foo\nbar");

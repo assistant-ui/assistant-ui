@@ -71,7 +71,7 @@ export namespace ComposerPrimitiveTriggerPopover {
   > & {
     /** The character(s) that activate this trigger (e.g. `"@"`, `"/"`). Also serves as the trigger identity within the root. */
     readonly char: string;
-    /** Overrides trigger detection for custom query syntax such as multi-word mentions. The same matcher is used by textarea and Lexical inputs. */
+    /** Overrides trigger detection for both textarea and Lexical inputs. `endOffset` is the exclusive replace bound. An inline function is safe; identity is stabilized. */
     readonly matcher?: TriggerMatcher | undefined;
     /** Adapter providing categories and items. */
     readonly adapter?: Unstable_TriggerAdapter | undefined;
@@ -126,6 +126,16 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
     const aui = useAui();
     const text = useAuiState((s) => s.composer.text);
     const popoverId = useId();
+    const matcherRef = useRef(matcher);
+    matcherRef.current = matcher;
+    const stableMatcher = useMemo(
+      () =>
+        matcher === undefined
+          ? undefined
+          : (text: string, triggerChar: string, cursorPosition: number) =>
+              matcherRef.current!(text, triggerChar, cursorPosition),
+      [matcher === undefined],
+    );
 
     // Track in state (for resource reactivity) + ref (dev warning on duplicate registrations).
     const behaviorRef = useRef<TriggerBehavior | null>(null);
@@ -169,7 +179,7 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
         adapter,
         text,
         triggerChar: char,
-        matcher,
+        matcher: stableMatcher,
         behavior: behavior ?? undefined,
         aui,
         popoverId,
@@ -183,11 +193,11 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
     useEffect(() => {
       return root.register({
         char,
-        ...(matcher ? { matcher } : {}),
+        ...(stableMatcher ? { matcher: stableMatcher } : {}),
         ...(behavior ? { behavior } : {}),
         resource: getResource(),
       });
-    }, [root, char, matcher, behavior]);
+    }, [root, char, stableMatcher, behavior]);
 
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     useEffect(() => {
