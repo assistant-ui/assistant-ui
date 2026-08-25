@@ -7,6 +7,7 @@ import {
   type FileMessagePart,
   type MessagePartStreamStatus,
   type MessageStatus,
+  type PartProviderMetadata,
   type RespondToToolApprovalOptions,
   type ThreadAssistantMessagePart,
   type ThreadMessage,
@@ -187,10 +188,41 @@ const toApproval = (
   };
 };
 
+const toJsonSafeInputRequest = (
+  inputRequest: EveMessageInputRequest,
+): PartProviderMetadata[string] => ({
+  requestId: inputRequest.requestId,
+  prompt: inputRequest.prompt,
+  kind: inputRequest.kind,
+  ...(inputRequest.display !== undefined && { display: inputRequest.display }),
+  ...(inputRequest.allowFreeform !== undefined && {
+    allowFreeform: inputRequest.allowFreeform,
+  }),
+  ...(inputRequest.options && {
+    options: inputRequest.options.map((option) => ({
+      id: option.id,
+      label: option.label,
+      ...(option.description !== undefined && {
+        description: option.description,
+      }),
+      ...(option.style !== undefined && { style: option.style }),
+    })),
+  }),
+});
+
+const toToolProviderMetadata = (
+  part: EveDynamicToolPart,
+): PartProviderMetadata | undefined => {
+  const inputRequest = part.toolMetadata?.eve?.inputRequest;
+  if (!inputRequest) return undefined;
+  return { eve: { inputRequest: toJsonSafeInputRequest(inputRequest) } };
+};
+
 const convertDynamicToolPart = (
   part: EveDynamicToolPart,
 ): ToolCallMessagePart => {
   const approval = toApproval(part);
+  const providerMetadata = toToolProviderMetadata(part);
   const toolCall: ToolCallMessagePart = {
     type: "tool-call",
     toolCallId: part.toolCallId,
@@ -198,6 +230,7 @@ const convertDynamicToolPart = (
     args: toJsonObject(part.input),
     argsText: stringifyArgs(part.input),
     ...(approval && { approval }),
+    ...(providerMetadata && { providerMetadata }),
   };
 
   switch (part.state) {
@@ -526,12 +559,109 @@ export const getEveMessageContent = (
 };
 
 /**
+ * Finds the pending input request answered by the given approval id, so the
+ * response mapping can honor the request's display mode.
+ */
+export const findEveInputRequest = (
+  data: EveMessageData,
+  approvalId: string,
+): EveMessageInputRequest | undefined => {
+  for (const message of data.messages) {
+    for (const part of message.parts) {
+      if (part.type === "dynamic-tool" && part.approval?.id === approvalId) {
+        return part.toolMetadata?.eve?.inputRequest;
+      }
+    }
+  }
+  return undefined;
+};
+
+/**
  * Converts an assistant-ui tool approval response into an Eve input response.
+ *
+ * When `inputRequest` is known, every returned response carries either an
+ * option the request declares or a free-form answer. A literal option match
+ * wins, then the `"approve"` / `"cancel"` option the response's boolean decision
+ * names, then the response's `reason` text when the request takes a free-form
+ * answer (`display: "text"`, `allowFreeform`, or no options at all, and never
+ * `display: "confirmation"`) and the response is not a refusal.
+ * A one-argument call, or a part with no request, still forwards a caller
+ * `optionId` as it always has, including ids the request never declared.
+ *
+ * A response the known request cannot record as the answer it asked for throws
+ * instead of being submitted, because eve resolves a request the moment any
+ * response for it arrives, and an empty one is recorded as an answer with no
+ * content. Not sending leaves the request pending, so the caller can retry or
+ * the user can answer it as an ordinary message.
+ *
+ * With no request to map against — a one-argument call, or a part carrying no
+ * `toolMetadata.eve.inputRequest` — the response maps as it always has, to the
+ * literal `"approve"` / `"cancel"` option every eve approval declares. Guessing
+ * a display mode is what this mapper stopped doing; an unknown request is not
+ * a guess about one.
  */
 export const toEveInputResponse = (
   response: RespondToToolApprovalOptions,
-): InputResponse => ({
-  requestId: response.approvalId,
-  optionId: response.optionId ?? (response.approved ? "approve" : "cancel"),
-  ...(response.reason && { text: response.reason }),
-});
+  inputRequest?: EveMessageInputRequest,
+): InputResponse => {
+  const requestId = response.approvalId;
+  const options = inputRequest?.options;
+  const text = response.reason;
+
+  if (response.optionId !== undefined) {
+    if (
+      !inputRequest ||
+      options?.some((option) => option.id === response.optionId)
+    ) {
+      return {
+        requestId,
+        optionId: response.optionId,
+        ...(text && { text }),
+      };
+    }
+    throw new Error(
+      `Eve input request "${requestId}" has no option with id "${response.optionId}"; respond with one of: ${
+        options?.length
+          ? options.map((option) => option.id).join(", ")
+          : "(the request carries no options)"
+      }`,
+    );
+  }
+
+  const decisionOptionId = response.approved ? "approve" : "cancel";
+  // Eve's harness always declares `approve`/`cancel` on a `tool-approval`
+  // request, so honoring the kind when the options were dropped keeps a
+  // non-spec approval payload answerable rather than stuck. A tool-approval
+  // that declares its own options still requires one of them.
+  if (
+    !inputRequest ||
+    (inputRequest.kind === "tool-approval" && !options?.length) ||
+    options?.some((option) => option.id === decisionOptionId)
+  ) {
+    return { requestId, optionId: decisionOptionId, ...(text && { text }) };
+  }
+
+  // Eve recognises an approval by its literal two-option `approve`/`cancel`
+  // shape, so past this point the request is a question and the boolean
+  // carries no decision eve would act on.
+  const acceptsText =
+    inputRequest.display !== "confirmation" &&
+    (inputRequest.display === "text" ||
+      inputRequest.allowFreeform === true ||
+      !options?.length);
+  if (acceptsText && text && response.approved !== false) {
+    return { requestId, text };
+  }
+
+  throw new Error(
+    `Eve input request "${requestId}" (${inputRequest.prompt}) was not answered by this response; ${
+      options?.length
+        ? `respond with one of: ${options.map((option) => option.id).join(", ")}`
+        : !acceptsText
+          ? "the request declares no options to respond with"
+          : response.approved === false
+            ? "a refusal carries no answer for a free-form request; resend with `approved` unset or true and the answer in the response reason"
+            : "pass the answer as the response reason, because the request takes a free-form answer"
+    }`,
+  );
+};

@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import type { CompleteAttachment } from "../../types/attachment";
-import type { ThreadAssistantMessage } from "../../types/message";
+import type {
+  ThreadAssistantMessage,
+  ToolCallMessagePartStatus,
+} from "../../types/message";
 import type { ThreadRuntimeCoreBinding } from "./thread-runtime";
 import {
   MessageRuntimeImpl,
@@ -171,6 +174,30 @@ describe("toMessagePartStatus", () => {
     expect(toMessagePartStatus(resolved, 0, resolved.content[0]!)).toEqual({
       type: "complete",
     });
+  });
+
+  it("preserves incomplete tool-call status on unresolved tool calls", () => {
+    const incompleteStatus = {
+      type: "incomplete",
+      reason: "tool-calls",
+      error: { message: "Tool execution did not finish" },
+    } satisfies ToolCallMessagePartStatus;
+    const message = createAssistantMessage(
+      [
+        {
+          type: "tool-call",
+          toolCallId: "call-1",
+          toolName: "weather",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+      incompleteStatus,
+    );
+
+    expect(toMessagePartStatus(message, 0, message.content[0]!)).toEqual(
+      incompleteStatus,
+    );
   });
 
   it.each([

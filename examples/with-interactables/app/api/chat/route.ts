@@ -5,7 +5,7 @@ import {
   frontendTools,
   type FrontendTools,
   unstable_injectInteractableContext,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 
 export const maxDuration = 30;
 

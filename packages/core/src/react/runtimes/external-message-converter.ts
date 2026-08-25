@@ -6,6 +6,7 @@ import {
   getExternalStoreMessages,
   symbolInnerMessage,
   bindExternalStoreMessage,
+  FALLBACK_ID_PREFIX,
 } from "../../runtime/utils/external-store-message";
 import {
   fromThreadMessageLike,
@@ -21,6 +22,10 @@ import type {
   ToolCallMessagePart,
 } from "../../types/message";
 import type { MessageTiming } from "../../types/message";
+
+// Generatedness is tracked by identity, not by id shape: a caller-supplied id
+// that happens to match the generated pattern must never be rewritten.
+const generatedFallbackMessages = new WeakSet<object>();
 
 export type JoinStrategy = "concat-content" | "none";
 
@@ -412,7 +417,7 @@ export const convertExternalMessages = <T extends WeakKey>(
     );
     const newMessage = fromThreadMessageLike(
       joined,
-      idx.toString(),
+      `${FALLBACK_ID_PREFIX}${idx}`,
       autoStatus,
     );
     bindExternalStoreMessage(newMessage, message.inputs);
@@ -522,6 +527,8 @@ export const useExternalMessageConverter = <T extends WeakKey>({
           isLast ? state.metadata.error : undefined,
         );
 
+        const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
+
         if (
           cache &&
           (cache.role !== "assistant" ||
@@ -530,15 +537,28 @@ export const useExternalMessageConverter = <T extends WeakKey>({
         ) {
           const inputs = getExternalStoreMessages<T>(cache);
           if (shallowArrayEqual(inputs, message.inputs)) {
+            // A positional fallback id goes stale when messages are prepended
+            // or reordered; serving it unchanged makes two messages collide on
+            // one id and the dedup downstream drops one of them.
+            if (
+              generatedFallbackMessages.has(cache) &&
+              cache.id !== fallbackId
+            ) {
+              const updated = { ...cache, id: fallbackId };
+              generatedFallbackMessages.add(updated);
+              bindExternalStoreMessage(updated, message.inputs);
+              return updated;
+            }
             return cache;
           }
         }
 
         const newMessage = fromThreadMessageLike(
           joined,
-          idx.toString(),
+          fallbackId,
           autoStatus,
         );
+        if (joined.id == null) generatedFallbackMessages.add(newMessage);
         bindExternalStoreMessage(newMessage, message.inputs);
         return newMessage;
       },

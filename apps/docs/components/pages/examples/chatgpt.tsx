@@ -11,11 +11,10 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
   useAui,
-  useAuiState,
 } from "@assistant-ui/react";
-import { useEffect, useState, type FC } from "react";
+import { type FC } from "react";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
-import { useShallow } from "zustand/shallow";
+import { useAttachmentSrc } from "./use-attachment-src";
 import {
   ArrowUpIcon,
   AudioLines,
@@ -402,41 +401,6 @@ const BranchPicker: FC<{ className?: string }> = ({ className }) => {
       </BranchPickerPrimitive.Next>
     </BranchPickerPrimitive.Root>
   );
-};
-
-const useFileSrc = (file: File | undefined) => {
-  const [src, setSrc] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    if (!file) {
-      setSrc(undefined);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    setSrc(objectUrl);
-
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [file]);
-
-  return src;
-};
-
-const useAttachmentSrc = () => {
-  const { file, src } = useAuiState(
-    useShallow((s): { file?: File; src?: string } => {
-      if (s.attachment.type !== "image") return {};
-      if (s.attachment.file) return { file: s.attachment.file };
-      const src = s.attachment.content?.filter((c) => c.type === "image")[0]
-        ?.image;
-      if (!src) return {};
-      return { src };
-    }),
-  );
-
-  return useFileSrc(file) ?? src;
 };
 
 const ChatGPTAttachmentUI: FC = () => {

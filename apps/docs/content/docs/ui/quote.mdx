@@ -97,7 +97,7 @@ Quote data is stored in message metadata, **not** in message content. Use `injec
 
 ```typescript title="app/api/chat/route.ts" {2,9}
 import { convertToModelMessages, streamText } from "ai";
-import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
+import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 
 export async function POST(req: Request) {
   const { messages } = await req.json();
@@ -180,7 +180,7 @@ Quote preview inside the composer. Only renders when a quote is set.
 ### `injectQuoteContext`
 
 ```typescript
-import { injectQuoteContext } from "@assistant-ui/react-ai-sdk";
+import { injectQuoteContext } from "@assistant-ui/ai-sdk";
 
 injectQuoteContext(messages: UIMessage[]): UIMessage[]
 ```

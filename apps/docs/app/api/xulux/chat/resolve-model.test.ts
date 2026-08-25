@@ -1,4 +1,4 @@
-import { DEFAULT_MODEL_ID } from "@/constants/model";
+import { DEFAULT_MODEL_ID } from "@/lib/model";
 import { resolveXuluxModel } from "./resolve-model";
 
 describe("resolveXuluxModel", () => {

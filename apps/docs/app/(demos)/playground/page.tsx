@@ -45,7 +45,7 @@ import {
   type ViewportPreset,
 } from "@/lib/playground-url-state";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
-import { PlaygroundRuntimeProvider } from "@/contexts/PlaygroundRuntimeProvider";
+import { PlaygroundRuntimeProvider } from "@/runtimes/playground";
 
 const XuluxApp = isAiPlaygroundEnabled
   ? dynamic(() =>

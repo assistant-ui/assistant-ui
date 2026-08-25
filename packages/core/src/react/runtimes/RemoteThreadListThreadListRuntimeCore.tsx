@@ -13,6 +13,9 @@ import {
   getThreadData,
   normalizeCursor,
   updateStatusReducer,
+  preserveMidLoadTransitions,
+  statusSnapshot,
+  LOCAL_THREAD_ID_PREFIX,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type {
   RemoteThreadListAdapter,
@@ -63,7 +66,7 @@ const EMPTY_REMOTE_STATE: RemoteThreadState = {
 const addNewThread = (state: RemoteThreadState) => {
   let id: string;
   do {
-    id = `__LOCALID_${generateId()}`;
+    id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
   } while (state.threadIdMap[id]);
 
   const mappingId = createThreadMappingId(id);
@@ -85,6 +88,7 @@ const addNewThread = (state: RemoteThreadState) => {
           externalId: undefined,
           title: undefined,
           custom: undefined,
+          localOrigin: true,
         } satisfies RemoteThreadData,
       },
     },
@@ -158,6 +162,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!this._loadThreadsPromise) {
       const generation = this._loadGeneration;
       let replacedList = false;
+      const statusAtRequest = statusSnapshot(this._state.baseValue);
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
           execute: () => this._options.adapter.list(),
@@ -186,7 +191,7 @@ export class RemoteThreadListThreadListRuntimeCore
               threadIdMap: {},
               threadData: {},
             });
-            return {
+            const merged = {
               ...state,
               isLoading: false,
               cursor: normalizeCursor(l.nextCursor),
@@ -195,6 +200,7 @@ export class RemoteThreadListThreadListRuntimeCore
               threadIdMap: { ...state.threadIdMap, ...fresh.threadIdMap },
               threadData: { ...state.threadData, ...fresh.threadData },
             };
+            return preserveMidLoadTransitions(merged, state, statusAtRequest);
           },
         })
         .catch((error: unknown) => {
@@ -857,17 +863,22 @@ export class RemoteThreadListThreadListRuntimeCore
     for await (const result of messageStream) {
       if (adapterGeneration !== this._adapterGeneration) return;
       const newTitle = result.parts.filter((c) => c.type === "text")[0]?.text;
-      const state = this._state.baseValue;
-      const currentData = getThreadData(state, data.id);
-      if (!currentData) continue;
-      this._state.update({
-        ...state,
-        threadData: {
-          ...state.threadData,
-          [currentData.id]: {
-            ...currentData,
-            title: newTitle,
-          },
+      await this._state.optimisticUpdate({
+        execute: async () => {},
+        optimistic: (state) => {
+          if (adapterGeneration !== this._adapterGeneration) return state;
+          const currentData = getThreadData(state, data.id);
+          if (!currentData) return state;
+          return {
+            ...state,
+            threadData: {
+              ...state.threadData,
+              [currentData.id]: {
+                ...currentData,
+                title: newTitle,
+              },
+            },
+          };
         },
       });
     }

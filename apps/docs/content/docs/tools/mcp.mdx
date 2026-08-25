@@ -164,7 +164,7 @@ the server-side MCP readiness flow (`createMCPClient()` plus `tools()`) before
 a bad URL or hanging local process can stall the route.
 
 ```ts title="app/api/chat/route.ts"
-import { AISDKToolkit } from "@assistant-ui/react-ai-sdk";
+import { AISDKToolkit } from "@assistant-ui/ai-sdk";
 import { openai } from "@ai-sdk/openai";
 import { streamText, convertToModelMessages } from "ai";
 import type { UIMessage } from "ai";
@@ -370,7 +370,7 @@ Register the toolkit once with `Tools({ toolkit })`. Renderer keys such as
 "use client";
 
 import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import type { ReactNode } from "react";
 
 import { toolkit } from "./GitHubIssueToolUI";

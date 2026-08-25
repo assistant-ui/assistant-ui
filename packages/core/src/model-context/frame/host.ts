@@ -90,7 +90,7 @@ export class AssistantFrameHost implements ModelContextProvider {
       case "tool-result": {
         const pending = this._pendingRequests.get(message.id);
         if (pending) {
-          if (message.error) {
+          if (typeof message.error === "string") {
             pending.reject(new Error(message.error));
           } else {
             pending.resolve(message.result);

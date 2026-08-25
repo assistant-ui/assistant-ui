@@ -5,11 +5,13 @@ import { CheckIcon, CopyIcon } from "lucide-react";
 import ShikiHighlighter from "react-shiki";
 import { cn } from "@/lib/utils";
 import { useFlavor } from "@/components/pages/docs/contexts/flavor";
+import { analytics } from "@/lib/analytics";
 
 type Tab = "preview" | "code";
 
 type PreviewCodeClientProps = {
   code: string;
+  codeVariant: "base" | "radix";
   baseCode?: string;
   children: React.ReactNode;
   base?: React.ReactNode;
@@ -43,6 +45,7 @@ function TabButton({ label, value, currentTab, onSelect }: TabButtonProps) {
 
 export function PreviewCodeClient({
   code,
+  codeVariant,
   baseCode,
   children,
   base,
@@ -52,11 +55,15 @@ export function PreviewCodeClient({
   const [copied, setCopied] = useState(false);
   const flavor = useFlavor();
 
-  const activeCode =
-    flavor === "base" && baseCode !== undefined ? baseCode : code;
+  const copiedBaseSource = flavor === "base" && baseCode !== undefined;
+  const activeCode = copiedBaseSource ? baseCode : code;
 
   const handleCopy = async () => {
     await navigator.clipboard.writeText(activeCode);
+    analytics.code.blockCopied(
+      "tsx",
+      `docs_preview_${copiedBaseSource ? "base" : codeVariant}`,
+    );
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

@@ -29,16 +29,16 @@
   },
   "devDependencies": {
     "@assistant-ui/x-changelog": "workspace:*",
-    "@changesets/cli": "^3.0.0",
+    "@changesets/cli": "^3.0.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.3.0",
-    "oxfmt": "^0.63.0",
-    "oxlint": "^1.78.0",
+    "oxfmt": "^0.64.0",
+    "oxlint": "~1.78.0",
     "pkg-pr-new": "^0.0.88",
-    "turbo": "^2.10.10",
+    "turbo": "^2.10.11",
     "typescript": "^7.0.2"
   },
-  "packageManager": "pnpm@11.10.0",
+  "packageManager": "pnpm@11.23.0",
   "lint-staged": {
     "*.{js,jsx,ts,tsx,cjs,mjs,cts,mts,json,jsonc}": [
       "oxlint --fix --no-error-on-unmatched-pattern",

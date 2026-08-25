@@ -69,7 +69,7 @@ const config: NextConfig = {
   skipTrailingSlashRedirect: true,
   outputFileTracingIncludes: {
     "/elements/[slug]": [
-      "./components/demo/elements/*.tsx",
+      "./components/pages/elements/demos/*.tsx",
       "../../packages/ui/src/components/elements/*.tsx",
     ],
   },
@@ -128,6 +128,11 @@ const config: NextConfig = {
     {
       source: "/docs/standalone/:slug",
       destination: "/standalone/:slug",
+      permanent: true,
+    },
+    {
+      source: "/docs/api-reference/integrations/react-ai-sdk",
+      destination: "/docs/api-reference/integrations/ai-sdk",
       permanent: true,
     },
     {

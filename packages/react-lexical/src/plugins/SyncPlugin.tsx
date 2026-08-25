@@ -494,11 +494,15 @@ export function SyncPlugin({
           const rootNode = $getRoot();
           let fullText = "";
 
+          // One newline per paragraph boundary; empty paragraphs are lines
+          // too.
+          let lineIndex = 0;
           for (const paragraph of rootNode.getChildren()) {
-            if (fullText.length > 0) {
+            if (!$isElementNode(paragraph)) continue;
+            if (lineIndex > 0) {
               fullText += "\n";
             }
-            if (!$isElementNode(paragraph)) continue;
+            lineIndex++;
             for (const child of paragraph.getChildren()) {
               fullText += child.getTextContent();
             }

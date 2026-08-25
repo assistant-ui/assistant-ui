@@ -15,7 +15,6 @@ import {
 } from "@/components/pages/docs/platform/context";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
-import { analytics } from "@/lib/analytics";
 import { PlatformSwitcher } from "@/components/pages/docs/platform/switcher";
 import {
   buildPlatformSections,
@@ -57,14 +56,7 @@ function SectionItem({
         {item.index ? (
           <Link
             href={item.index.url}
-            onClick={() => {
-              analytics.docs.navigationClicked(
-                String(item.name),
-                item.index!.url,
-                depth,
-              );
-              onNavigate();
-            }}
+            onClick={onNavigate}
             data-active={isActive ? "true" : "false"}
             className={cn(
               "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150",
@@ -103,10 +95,7 @@ function SectionItem({
   return (
     <Link
       href={item.url}
-      onClick={() => {
-        analytics.docs.navigationClicked(String(item.name), item.url, depth);
-        onNavigate();
-      }}
+      onClick={onNavigate}
       data-active={isActive ? "true" : "false"}
       className={cn(
         "flex items-center gap-2 rounded-md px-2 py-1.5 text-[13px] transition-colors duration-150",
@@ -296,9 +285,7 @@ export function SidebarContent({
             isOpen={openSectionId === section.$id}
             onToggle={() => {
               const id = section.$id ?? null;
-              const willOpen = openSectionId !== id;
-              analytics.docs.folderToggled(String(section.name), willOpen, 0);
-              setOpenSectionId(willOpen ? id : null);
+              setOpenSectionId(openSectionId !== id ? id : null);
             }}
             onNavigate={onNavigate}
             platform={platform}

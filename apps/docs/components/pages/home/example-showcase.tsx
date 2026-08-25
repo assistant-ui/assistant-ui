@@ -5,10 +5,9 @@ import { Claude } from "@/components/pages/examples/claude";
 import { Perplexity } from "@/components/pages/examples/perplexity";
 import { Base } from "@/components/pages/examples/base";
 import { Tab } from "@/components/shared/tab";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { DocsRuntimeProvider } from "@/runtimes/docs";
 import { Gemini } from "@/components/pages/examples/gemini";
 import { Grok } from "@/components/pages/examples/grok";
-import { analytics } from "@/lib/analytics";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { ArrowUpRightIcon, Maximize2Icon, XIcon } from "lucide-react";
@@ -251,9 +250,8 @@ export function ExampleShowcase() {
             tabs={EXAMPLE_TABS}
             className="h-full"
             variant="ghost"
-            onTabChange={(label, index) => {
+            onTabChange={(_label, index) => {
               setActiveIndex(index);
-              analytics.example.tabSwitched(label);
             }}
             actions={
               <>

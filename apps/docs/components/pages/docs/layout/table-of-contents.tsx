@@ -179,7 +179,6 @@ export function TableOfContents({
             const id = item.url.slice(1);
             const isActive = activeId === id;
             const indent = Math.max(0, item.depth - 2) * 12;
-            const titleText = typeof item.title === "string" ? item.title : id;
 
             return (
               <li key={item.url} data-toc-id={id}>
@@ -192,9 +191,6 @@ export function TableOfContents({
                       ? "text-foreground font-medium"
                       : "text-muted-foreground hover:text-foreground",
                   )}
-                  onClick={() =>
-                    analytics.toc.linkClicked(titleText, item.depth)
-                  }
                 >
                   {item.title}
                 </a>

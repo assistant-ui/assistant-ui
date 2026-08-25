@@ -23,6 +23,9 @@ import {
   updateStatusReducer,
   type RemoteThreadData,
   type RemoteThreadState,
+  preserveMidLoadTransitions,
+  statusSnapshot,
+  LOCAL_THREAD_ID_PREFIX,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type {
   RemoteThreadInitializeResponse,
@@ -91,11 +94,11 @@ const toInitializeResult = (
 
 const applyTitleStream = async (
   stream: Parameters<typeof AssistantMessageStream.fromAssistantStream>[0],
-  onTitle: (title: string | undefined) => void,
+  onTitle: (title: string | undefined) => Promise<void>,
 ) => {
   const messageStream = AssistantMessageStream.fromAssistantStream(stream);
   for await (const result of messageStream) {
-    onTitle(result.parts.filter((part) => part.type === "text")[0]?.text);
+    await onTitle(result.parts.filter((part) => part.type === "text")[0]?.text);
   }
 };
 
@@ -104,7 +107,7 @@ const seedNewThread = (
 ): { id: string; state: RemoteThreadState } => {
   let id: string;
   do {
-    id = `__LOCALID_${generateId()}`;
+    id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
   } while (state.threadIdMap[id]);
   const mappingId = createThreadMappingId(id);
   return {
@@ -125,6 +128,7 @@ const seedNewThread = (
           externalId: undefined,
           title: undefined,
           custom: undefined,
+          localOrigin: true,
         },
       },
     },
@@ -424,6 +428,7 @@ const useRemoteThreadList = (
     if (session.loadPromise) return session.loadPromise;
     const generation = session.loadGeneration;
     const adapter = session.adapter;
+    const statusAtRequest = statusSnapshot(store.baseValue);
     session.loadPromise = store
       .optimisticUpdate({
         execute: () => adapter.list(),
@@ -437,7 +442,7 @@ const useRemoteThreadList = (
             threadIdMap: {},
             threadData: {},
           });
-          return {
+          const merged = {
             ...state,
             isLoading: false,
             cursor: normalizeCursor(page.nextCursor),
@@ -452,6 +457,7 @@ const useRemoteThreadList = (
               ...fresh.threadData,
             },
           };
+          return preserveMidLoadTransitions(merged, state, statusAtRequest);
         },
       })
       .catch((error: unknown) => {
@@ -985,19 +991,23 @@ const useRemoteThreadList = (
       if (!messages) return;
       const stream = await currentAdapter.generateTitle(remoteId, messages);
       requireAdapterGeneration(adapterGeneration);
-      await applyTitleStream(stream, (newTitle) => {
-        if (adapterGeneration !== session.adapterGeneration) return;
-        const state = store.baseValue;
-        const current = getThreadData(state, data.id);
-        if (!current) return;
-        store.update({
-          ...state,
-          threadData: {
-            ...state.threadData,
-            [current.id]: {
-              ...current,
-              title: newTitle,
-            },
+      await applyTitleStream(stream, async (newTitle) => {
+        await store.optimisticUpdate({
+          execute: async () => {},
+          optimistic: (state) => {
+            if (adapterGeneration !== session.adapterGeneration) return state;
+            const current = getThreadData(state, data.id);
+            if (!current) return state;
+            return {
+              ...state,
+              threadData: {
+                ...state.threadData,
+                [current.id]: {
+                  ...current,
+                  title: newTitle,
+                },
+              },
+            };
           },
         });
       });

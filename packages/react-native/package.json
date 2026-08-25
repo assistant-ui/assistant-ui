@@ -56,13 +56,13 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@babel/core": "^7.29.7",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
+    "@types/react-dom": "^19.2.5",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "react-native": "^0.87.0",
     "react-native-web": "^0.21.2",
-    "vitest": "^4.1.10"
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public",

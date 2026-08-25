@@ -37,14 +37,14 @@ pnpm --filter with-expo start
 
 ### Runtime Setup
 
-The runtime uses `useChatRuntime` from `@assistant-ui/react-ai-sdk` with an `AssistantChatTransport` that connects to a chat API endpoint:
+The runtime uses `useChatRuntime` from `@assistant-ui/ai-sdk` with an `AssistantChatTransport` that connects to a chat API endpoint:
 
 ```tsx title="hooks/use-app-runtime.ts"
 import { useMemo } from "react";
 import {
   useChatRuntime,
   AssistantChatTransport,
-} from "@assistant-ui/react-ai-sdk";
+} from "@assistant-ui/ai-sdk";
 import { Platform } from "react-native";
 import {
   createAnonymousSessionFetch,
