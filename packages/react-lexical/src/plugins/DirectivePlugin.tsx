@@ -26,7 +26,6 @@ import type {
 import {
   unstable_useTriggerPopoverRootContextOptional,
   type Unstable_RegisteredTrigger,
-  type Unstable_TriggerMatcher,
 } from "@assistant-ui/react";
 
 export type DirectivePluginProps = {
@@ -122,7 +121,15 @@ export function findTriggerMatch(
   trigger: string,
   node: TextNode,
   anchorOffset: number,
-  matcher?: Unstable_TriggerMatcher | undefined,
+  matcher?: (
+    text: string,
+    triggerChar: string,
+    cursorPosition: number,
+  ) => {
+    readonly query: string;
+    readonly offset: number;
+    readonly endOffset: number;
+  } | null,
 ): TriggerMatch | null {
   const text = node.getTextContent();
   if (matcher) {

@@ -71,7 +71,7 @@ export namespace ComposerPrimitiveTriggerPopover {
   > & {
     /** The character(s) that activate this trigger (e.g. `"@"`, `"/"`). Also serves as the trigger identity within the root. */
     readonly char: string;
-    /** Overrides trigger detection for both textarea and Lexical inputs. `endOffset` is the exclusive replace bound. An inline function is safe; identity is stabilized. */
+    /** Overrides trigger detection for both textarea and Lexical inputs. `endOffset` is the exclusive replace bound. */
     readonly matcher?: TriggerMatcher | undefined;
     /** Adapter providing categories and items. */
     readonly adapter?: Unstable_TriggerAdapter | undefined;
