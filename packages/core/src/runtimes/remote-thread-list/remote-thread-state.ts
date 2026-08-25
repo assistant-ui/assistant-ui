@@ -2,6 +2,7 @@ import type {
   RemoteThreadInitializeResponse,
   RemoteThreadMetadata,
 } from "./types";
+import { generateId } from "../../utils/id";
 
 export type RemoteThreadData =
   | {
@@ -101,6 +102,50 @@ export type RemoteThreadState = {
   readonly archivedThreadIds: readonly string[];
   readonly threadIdMap: Readonly<Record<string, THREAD_MAPPING_ID>>;
   readonly threadData: Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
+};
+
+export const createEmptyRemoteThreadState = (): RemoteThreadState => ({
+  isLoading: true,
+  isLoadingMore: false,
+  cursor: undefined,
+  newThreadId: undefined,
+  threadIds: [],
+  archivedThreadIds: [],
+  threadIdMap: {},
+  threadData: {},
+});
+
+export const seedNewThread = (
+  state: RemoteThreadState,
+): { id: string; state: RemoteThreadState } => {
+  let id: string;
+  do {
+    id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
+  } while (state.threadIdMap[id]);
+  const mappingId = createThreadMappingId(id);
+  return {
+    id,
+    state: {
+      ...state,
+      newThreadId: id,
+      threadIdMap: {
+        ...state.threadIdMap,
+        [id]: mappingId,
+      },
+      threadData: {
+        ...state.threadData,
+        [mappingId]: {
+          status: "new",
+          id,
+          remoteId: undefined,
+          externalId: undefined,
+          title: undefined,
+          custom: undefined,
+          localOrigin: true,
+        } satisfies RemoteThreadData,
+      },
+    },
+  };
 };
 
 // A list() response predating a mid-flight local transition (a thread

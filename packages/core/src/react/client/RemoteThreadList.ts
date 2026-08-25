@@ -13,10 +13,10 @@ import {
   useClientResource,
 } from "@assistant-ui/store/client";
 import { isDevelopment, useThreadSelectionEvents } from "../../store/internal";
-import { generateId } from "../../utils/id";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import {
   classifyThreads,
+  createEmptyRemoteThreadState,
   createThreadMappingId,
   getThreadData,
   normalizeCursor,
@@ -24,8 +24,8 @@ import {
   type RemoteThreadData,
   type RemoteThreadState,
   preserveMidLoadTransitions,
+  seedNewThread,
   statusSnapshot,
-  LOCAL_THREAD_ID_PREFIX,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type {
   RemoteThreadInitializeResponse,
@@ -43,16 +43,7 @@ import { AdaptedRemoteThread } from "./AdaptedRemoteThread";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
-const EMPTY_LIST: RemoteThreadState = {
-  isLoading: true,
-  isLoadingMore: false,
-  cursor: undefined,
-  newThreadId: undefined,
-  threadIds: [],
-  archivedThreadIds: [],
-  threadIdMap: {},
-  threadData: {},
-};
+const EMPTY_LIST = createEmptyRemoteThreadState();
 
 export type RemoteThreadListProps = {
   /**
@@ -100,39 +91,6 @@ const applyTitleStream = async (
   for await (const result of messageStream) {
     await onTitle(result.parts.filter((part) => part.type === "text")[0]?.text);
   }
-};
-
-const seedNewThread = (
-  state: RemoteThreadState,
-): { id: string; state: RemoteThreadState } => {
-  let id: string;
-  do {
-    id = `${LOCAL_THREAD_ID_PREFIX}${generateId()}`;
-  } while (state.threadIdMap[id]);
-  const mappingId = createThreadMappingId(id);
-  return {
-    id,
-    state: {
-      ...state,
-      newThreadId: id,
-      threadIdMap: {
-        ...state.threadIdMap,
-        [id]: mappingId,
-      },
-      threadData: {
-        ...state.threadData,
-        [mappingId]: {
-          status: "new",
-          id,
-          remoteId: undefined,
-          externalId: undefined,
-          title: undefined,
-          custom: undefined,
-          localOrigin: true,
-        },
-      },
-    },
-  };
 };
 
 const useThreadListItemClient = (props: {
