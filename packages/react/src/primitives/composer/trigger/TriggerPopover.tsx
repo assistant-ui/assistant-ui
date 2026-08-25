@@ -127,12 +127,14 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
     const text = useAuiState((s) => s.composer.text);
     const popoverId = useId();
     const matcherRef = useRef(matcher);
-    matcherRef.current = matcher;
-    const [stableWrapper] = useState(
+    useEffect(() => {
+      matcherRef.current = matcher;
+    });
+    const [registeredMatcher] = useState(
       () => (nextText: string, triggerChar: string, cursorPosition: number) =>
         matcherRef.current!(nextText, triggerChar, cursorPosition),
     );
-    const stableMatcher = matcher !== undefined ? stableWrapper : undefined;
+    const hasMatcher = matcher !== undefined;
 
     // Track in state (for resource reactivity) + ref (dev warning on duplicate registrations).
     const behaviorRef = useRef<TriggerBehavior | null>(null);
@@ -176,7 +178,7 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
         adapter,
         text,
         triggerChar: char,
-        matcher: stableMatcher,
+        matcher,
         behavior: behavior ?? undefined,
         aui,
         popoverId,
@@ -190,11 +192,11 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
     useEffect(() => {
       return root.register({
         char,
-        ...(stableMatcher ? { matcher: stableMatcher } : {}),
+        ...(hasMatcher ? { matcher: registeredMatcher } : {}),
         ...(behavior ? { behavior } : {}),
         resource: getResource(),
       });
-    }, [root, char, stableMatcher, behavior]);
+    }, [root, char, hasMatcher, behavior]);
 
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     useEffect(() => {
