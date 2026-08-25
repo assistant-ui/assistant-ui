@@ -9,7 +9,6 @@ import {
   ToolFallbackContent,
   ToolFallbackArgs,
   ToolFallbackResult,
-  ToolFallbackApproval,
 } from "@/components/assistant-ui/tool-fallback";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,27 @@ export function ToolFallbackSample() {
   return (
     <SampleFrame className="flex h-auto items-center p-6">
       <ToolFallbackRoot>
+        <ToolFallbackTrigger
+          toolName="get_weather"
+          status={{ type: "complete" }}
+        />
+        <ToolFallbackContent>
+          <ToolFallbackArgs
+            argsText={JSON.stringify({ location: "San Francisco" }, null, 2)}
+          />
+          <ToolFallbackResult
+            result={{ temperature: 72, condition: "Sunny", humidity: 45 }}
+          />
+        </ToolFallbackContent>
+      </ToolFallbackRoot>
+    </SampleFrame>
+  );
+}
+
+export function ToolFallbackCompletedSample() {
+  return (
+    <SampleFrame className="flex h-auto items-center p-6">
+      <ToolFallbackRoot defaultOpen>
         <ToolFallbackTrigger
           toolName="get_weather"
           status={{ type: "complete" }}
@@ -65,33 +85,6 @@ export function ToolFallbackCancelledSample() {
           <ToolFallbackArgs
             argsText={JSON.stringify({ task: "process_data" }, null, 2)}
             className="opacity-60"
-          />
-        </ToolFallbackContent>
-      </ToolFallbackRoot>
-    </SampleFrame>
-  );
-}
-
-export function ToolFallbackRequiresActionSample() {
-  return (
-    <SampleFrame className="flex h-auto items-center p-6">
-      <ToolFallbackRoot defaultOpen>
-        <ToolFallbackTrigger
-          toolName="delete_file"
-          status={{ type: "requires-action", reason: "interrupt" }}
-        />
-        <ToolFallbackContent>
-          <ToolFallbackArgs
-            argsText={JSON.stringify(
-              { path: "/tmp/work-in-progress.txt" },
-              null,
-              2,
-            )}
-          />
-          <ToolFallbackApproval
-            addResult={() => {}}
-            resume={() => {}}
-            interrupt={{ type: "human", payload: {} }}
           />
         </ToolFallbackContent>
       </ToolFallbackRoot>

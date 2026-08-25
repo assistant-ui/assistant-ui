@@ -10,7 +10,7 @@ declare const AISDKChat: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, 
 
 type AISDKChatOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatThreadOptions<UI_MESSAGE>;
 
-type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
+type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ExternalStoreSharedOptions & {
   adapters?: (NonNullable<ExternalStoreAdapter["adapters"]> & {
     history?: ThreadHistoryAdapter | undefined;
     suggestion?: SuggestionAdapter | undefined;
@@ -20,6 +20,8 @@ type AISDKRuntimeAdapter = ExternalStoreSharedOptions & {
   onResume?: ExternalStoreAdapter["onResume"];
   onResumeToolCall?: ExternalStoreAdapter["onResumeToolCall"];
   joinStrategy?: JoinStrategy | undefined;
+  messageRepository?: MessageFormatRepository<UI_MESSAGE>;
+  unstable_onBranchChange?: ExternalStoreAdapter["unstable_onBranchChange"];
 };
 
 declare const AISDKThreads: <UI_MESSAGE extends UIMessage$1 = UIMessage$1<unknown, import("ai").UIDataTypes, import("ai").UITools>>(options?: AISDKThreadsOptions<UI_MESSAGE> | undefined) => ResourceElement<ClientOutput<"threads">>;
@@ -539,6 +541,8 @@ type ChatThreadOptions<UI_MESSAGE extends UIMessage$1 = UIMessage$1> = ChatInit<
   onResumeToolCall?: AISDKRuntimeAdapter["onResumeToolCall"];
   onResumeError?: ((error: unknown) => void) | undefined;
   joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
+  messageRepository?: AISDKRuntimeAdapter<UI_MESSAGE>["messageRepository"];
+  unstable_onBranchChange?: AISDKRuntimeAdapter["unstable_onBranchChange"];
 };
 
 type ClientError<E extends string> = {
@@ -2192,7 +2196,7 @@ declare const useAISDKChat: <UI_MESSAGE extends UIMessage = UIMessage>() => UseC
 
 declare const useAISDKError: () => Error | undefined;
 
-declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter) => AssistantRuntime;
+declare const useAISDKRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(chatHelpers: ReturnType<typeof useChat<UI_MESSAGE>>, adapter?: AISDKRuntimeAdapter<UI_MESSAGE>) => AssistantRuntime;
 
 declare const useChatRuntime: <UI_MESSAGE extends UIMessage$1 = UIMessage$1>(_param2?: UseChatRuntimeOptions<UI_MESSAGE>) => AssistantRuntime;
 
