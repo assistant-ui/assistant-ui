@@ -83,7 +83,12 @@ export {
 } from "@assistant-ui/core";
 
 // --- adapters/suggestion ---
-export type { SuggestionAdapter } from "@assistant-ui/core";
+export type {
+  SuggestionAdapter,
+  SuggestionAdapterGenerateOptions,
+  CreateSuggestionAdapterOptions,
+} from "@assistant-ui/core";
+export { createSuggestionAdapter } from "@assistant-ui/core";
 
 // --- adapters/RuntimeAdapterProvider ---
 export {
@@ -475,6 +480,8 @@ export {
   useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers,
   useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional,
   type RegisteredTrigger as Unstable_RegisteredTrigger,
+  type TriggerMatch as Unstable_TriggerMatch,
+  type TriggerMatcher as Unstable_TriggerMatcher,
   type TriggerBehavior as Unstable_TriggerBehavior,
 } from "./primitives/composer/trigger";
 export type {

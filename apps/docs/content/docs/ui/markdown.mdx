@@ -6,8 +6,10 @@ platforms: ["react"]
 
 import { MarkdownSample } from "@/components/pages/docs/samples/markdown";
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { MarkdownCodeBlockSample } from "@/components/pages/docs/samples/markdown/code-block-and-copy";
 import { MarkdownRichDocumentSample } from "@/components/pages/docs/samples/markdown/rich-document";
 import { MarkdownStreamingSample } from "@/components/pages/docs/samples/markdown/streaming-markdown";
+import { MarkdownGfmSample } from "@/components/pages/docs/samples/markdown/gfm-extras";
 
 <MarkdownSample />
 
@@ -59,6 +61,14 @@ const AssistantMessage: FC = () => {
 
 ## Examples
 
+### Code Block and Copy
+
+Fenced code blocks get a language header and a copy button, and inline code keeps compact styling. The preview also uses [syntax highlighting](/docs/ui/syntax-highlighting), which the copied component does not include by default.
+
+<PreviewCode file="components/pages/docs/samples/markdown/code-block-and-copy" name="MarkdownWithCode">
+  <MarkdownCodeBlockSample />
+</PreviewCode>
+
 ### Rich Document
 
 The renderer shows headings, emphasis, links, nested lists, a blockquote, a divider, and a table from one completed response.
@@ -73,6 +83,14 @@ Select Replay. The markdown increases in steps, and the text part shows a runnin
 
 <PreviewCode file="components/pages/docs/samples/markdown/streaming-markdown" name="StreamingMarkdown">
   <MarkdownStreamingSample />
+</PreviewCode>
+
+### GitHub Flavored Markdown
+
+Task-list checkboxes, strikethrough text, a bare autolink, and an aligned table show through the built-in GFM support.
+
+<PreviewCode file="components/pages/docs/samples/markdown/gfm-extras" name="GfmMarkdown">
+  <MarkdownGfmSample />
 </PreviewCode>
 
 ## Syntax highlighting

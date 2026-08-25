@@ -234,6 +234,19 @@ export const useExternalHistory = <TMessage>(
       }, 0);
     });
 
+    const initialThreadState = runtimeRef.current.thread.getState();
+    wasRunningRef.current = initialThreadState.isRunning;
+    if (initialThreadState.isRunning) {
+      if (runStartRef.current == null) {
+        runStartRef.current = Date.now();
+        stepBoundariesRef.current = [];
+        toolCallCountRef.current = 0;
+        adapter.pin?.();
+      }
+    } else if (initialThreadState.messages.length > 0) {
+      persistSettled(true);
+    }
+
     function persistSettled(ignoreRunning: boolean) {
       persistTimerRef.current = null;
       const latest = runtimeRef.current.thread.getState();

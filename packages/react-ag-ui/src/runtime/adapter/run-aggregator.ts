@@ -97,6 +97,19 @@ export class RunAggregator {
   private activeTextMessageId: string | undefined;
   private readonly reasoningParts = new Map<string, string>(); // key → buffer
   private readonly reasoningSignatures = new Map<string, string>();
+  private readonly reasoningSignatureIds = new Map<string, string>();
+  // Signatures captured while thinking is hidden have no block to live on;
+  // they are transport state that must survive to the next run input. The
+  // claim rules mirror the visible path: an id-carrying block, or an open
+  // anonymous one.
+  private readonly hiddenSignatures = new Map<string, string>();
+  private readonly hiddenSignatureAnchors = new Map<string, number>();
+  private readonly hiddenBlockAnchors = new Map<string, number>();
+  private hiddenAnonymousAnchor: number | undefined;
+  private readonly hiddenReasoningIds = new Set<string>();
+  private hiddenActiveReasoning: "none" | "anonymous" | "identified" = "none";
+  private hasEmittedOpaqueReasoning = false;
+  private readonly loggedDroppedOpaqueIds = new Set<string>();
   private readonly reasoningMessageIds = new Map<string, string>();
   private readonly anonymousReasoningKeys = new Set<string>();
   private activeReasoningKey: string | undefined;
@@ -113,6 +126,7 @@ export class RunAggregator {
   )[] = [];
   private textPartCounter = 0;
   private serverMessageIdReported = false;
+  private reportedServerMessageId: string | undefined;
   private lastTextMessageId: string | undefined;
 
   private streamStartTime: number | undefined;
@@ -138,6 +152,7 @@ export class RunAggregator {
         this.interrupts = undefined;
         this.serverMessageIdReported = false;
         this.lastTextMessageId = undefined;
+        this.reportedServerMessageId = undefined;
         this.streamStartTime = Date.now();
         this.firstTokenTime = undefined;
         this.totalChunks = 0;
@@ -239,13 +254,31 @@ export class RunAggregator {
           // entityId names any message, not necessarily a reasoning one, so an
           // unmatched id may only claim a block that has no id to contradict it.
           const active = this.activeReasoningKey;
-          const key = this.reasoningParts.has(event.entityId)
-            ? event.entityId
-            : active !== undefined && this.anonymousReasoningKeys.has(active)
-              ? active
-              : undefined;
+          const key = this.showThinking
+            ? this.reasoningParts.has(event.entityId)
+              ? event.entityId
+              : active !== undefined && this.anonymousReasoningKeys.has(active)
+                ? active
+                : undefined
+            : undefined;
           if (key !== undefined) {
             this.reasoningSignatures.set(key, event.encryptedValue);
+            this.reasoningSignatureIds.set(key, event.entityId);
+            this.emit();
+          } else if (
+            !this.showThinking &&
+            event.entityId.trim().length > 0 &&
+            event.encryptedValue.trim().length > 0 &&
+            (this.hiddenReasoningIds.has(event.entityId) ||
+              this.hiddenActiveReasoning === "anonymous")
+          ) {
+            this.hiddenSignatures.set(event.entityId, event.encryptedValue);
+            this.hiddenSignatureAnchors.set(
+              event.entityId,
+              this.hiddenBlockAnchors.get(event.entityId) ??
+                this.hiddenAnonymousAnchor ??
+                this.partOrder.length,
+            );
             this.emit();
           }
         }
@@ -443,6 +476,7 @@ export class RunAggregator {
     }
     if (this.serverMessageIdReported) return;
     this.serverMessageIdReported = true;
+    this.reportedServerMessageId = messageId;
     this.onServerMessageId?.(messageId);
   }
 
@@ -454,7 +488,15 @@ export class RunAggregator {
     this.clearTextParts();
     this.reasoningParts.clear();
     this.reasoningSignatures.clear();
+    this.reasoningSignatureIds.clear();
     this.reasoningMessageIds.clear();
+    this.hiddenSignatures.clear();
+    this.hiddenSignatureAnchors.clear();
+    this.hiddenBlockAnchors.clear();
+    this.hiddenAnonymousAnchor = undefined;
+    this.hiddenReasoningIds.clear();
+    this.hiddenActiveReasoning = "none";
+    this.loggedDroppedOpaqueIds.clear();
     this.anonymousReasoningKeys.clear();
     this.activeReasoningKey = undefined;
     this.reasoningPartCounter = 0;
@@ -465,6 +507,7 @@ export class RunAggregator {
     this.partOrder.length = 0;
     this.textPartCounter = 0;
     this.activeTextMessageId = undefined;
+    this.reportedServerMessageId = undefined;
   }
 
   private beginDistinctTextMessage(messageId: string | undefined): void {
@@ -675,7 +718,22 @@ export class RunAggregator {
       new Set(this.toolCalls.keys()),
     );
 
-    for (const part of this.partOrder) {
+    const opaqueCandidates: (AgUiOpaqueReasoning & { anchor: number })[] =
+      Array.from(this.hiddenSignatures, ([id, encryptedValue]) => ({
+        id,
+        encryptedValue,
+        anchor: this.hiddenSignatureAnchors.get(id)!,
+      }));
+
+    let currentIndex = -1;
+    let lastMaterializedIndex = -1;
+    const pushSnapshotPart = (part: (typeof snapshot)[number]) => {
+      snapshot.push(part);
+      lastMaterializedIndex = currentIndex;
+    };
+
+    for (const [index, part] of this.partOrder.entries()) {
+      currentIndex = index;
       if (part.kind === "reasoning") {
         if (this.showThinking) {
           const buffer = this.reasoningParts.get(part.key) ?? "";
@@ -686,13 +744,22 @@ export class RunAggregator {
               ...(reasoningId !== undefined ? { reasoningId } : {}),
               ...(encryptedValue !== undefined ? { encryptedValue } : {}),
             };
-            snapshot.push({
+            pushSnapshotPart({
               type: "reasoning",
               text: buffer,
               ...(Object.keys(meta).length > 0
                 ? { providerMetadata: { [AG_UI_METADATA_NAMESPACE]: meta } }
                 : {}),
             } as const);
+          } else {
+            // A retracted empty block still carries transport state: without
+            // a part to live on, its signature rides the message metadata,
+            // matching the shape a snapshot reload produces.
+            const encryptedValue = this.reasoningSignatures.get(part.key);
+            const id = this.reasoningSignatureIds.get(part.key);
+            if (id?.trim() && encryptedValue?.trim()) {
+              opaqueCandidates.push({ id, encryptedValue, anchor: index + 1 });
+            }
           }
         }
         continue;
@@ -701,13 +768,13 @@ export class RunAggregator {
       if (part.kind === "text") {
         const entry = this.textParts.get(part.key);
         if (entry?.touched) {
-          snapshot.push({ type: "text", text: entry.buffer } as const);
+          pushSnapshotPart({ type: "text", text: entry.buffer } as const);
         }
         continue;
       }
 
       if (part.kind === "data") {
-        snapshot.push({
+        pushSnapshotPart({
           type: "data",
           name: part.name,
           data: part.value,
@@ -747,17 +814,57 @@ export class RunAggregator {
           ? { unstable_toolMessageId: entry.toolMessageId }
           : {}),
       } as ToolCallMessagePart & { unstable_toolMessageId?: string };
-      snapshot.push(toolPart);
+      pushSnapshotPart(toolPart);
     }
 
+    // An anonymous claim promotes the signature's entityId to a wire message
+    // id; when that id actually names a text message or the adopted assistant
+    // message id (which can also arrive via TOOL_CALL_START.parentMessageId),
+    // replaying it as its own record would put two wire records under one id,
+    // so such entries are dropped instead — the same outcome the visible
+    // path's claim guard produces for a signature that is "not for this
+    // block". Entries with no materialized part after their anchor trail the
+    // assistant record, matching the snapshot path's anchor/after
+    // bookkeeping.
+    const toolMessageIds = new Set<string>();
+    for (const call of this.toolCalls.values()) {
+      if (call.toolMessageId) toolMessageIds.add(call.toolMessageId);
+    }
+    opaqueCandidates.sort((a, b) => a.anchor - b.anchor);
+    const publishableOpaqueReasoning = opaqueCandidates
+      .filter((entry) => {
+        const collides =
+          this.textParts.has(entry.id) ||
+          entry.id === this.reportedServerMessageId ||
+          toolMessageIds.has(entry.id);
+        if (collides && !this.loggedDroppedOpaqueIds.has(entry.id)) {
+          this.loggedDroppedOpaqueIds.add(entry.id);
+          this.logger.debug?.(
+            "[agui] aggregator dropped opaque reasoning signature: id collides with a message id",
+            entry.id,
+          );
+        }
+        return !collides;
+      })
+      .map(({ anchor, ...entry }) =>
+        lastMaterializedIndex < anchor ? { ...entry, after: true } : entry,
+      );
+    if (publishableOpaqueReasoning.length > 0)
+      this.hasEmittedOpaqueReasoning = true;
+    // Once an opaque entry has been published this run, the key keeps being
+    // emitted (empty when withdrawn) so the namespace merge can retract it.
+    const includeOpaque = this.hasEmittedOpaqueReasoning;
     const timing = this.getTiming();
     const metadata = {
       ...(timing ? { timing } : {}),
-      ...(this.interrupts
+      ...(this.interrupts || includeOpaque
         ? {
             custom: {
               [AG_UI_METADATA_NAMESPACE]: {
-                interrupts: this.interrupts,
+                ...(this.interrupts ? { interrupts: this.interrupts } : {}),
+                ...(includeOpaque
+                  ? { opaqueReasoning: publishableOpaqueReasoning }
+                  : {}),
               } satisfies AgUiCustomMetadata,
             },
           }
@@ -813,7 +920,18 @@ export class RunAggregator {
   }
 
   private handleReasoningStart(messageId?: string, isMessageId = false): void {
-    if (!this.showThinking) return;
+    if (!this.showThinking) {
+      const anchor = this.partOrder.length;
+      if (messageId === undefined) {
+        this.hiddenActiveReasoning = "anonymous";
+        this.hiddenAnonymousAnchor = anchor;
+      } else {
+        this.hiddenReasoningIds.add(messageId);
+        this.hiddenBlockAnchors.set(messageId, anchor);
+        this.hiddenActiveReasoning = "identified";
+      }
+      return;
+    }
     // A reasoning block acts as a boundary: anonymous text arriving after it
     // should be a new part, not appended to any pre-reasoning text.
     this.activeTextMessageId = undefined;
@@ -839,7 +957,15 @@ export class RunAggregator {
     messageId?: string,
     isMessageId = false,
   ): void {
-    if (!this.showThinking || !delta) return;
+    if (!delta) return;
+    if (!this.showThinking) {
+      // Content without a preceding START still names the block (the visible
+      // path opens it lazily); register it so a signature can claim it.
+      if (this.hiddenActiveReasoning === "none") {
+        this.handleReasoningStart(messageId, isMessageId);
+      }
+      return;
+    }
     if (!this.activeReasoningKey) {
       // Content arrived without a preceding START — create the slot lazily.
       this.handleReasoningStart(messageId, isMessageId);
@@ -851,7 +977,10 @@ export class RunAggregator {
   }
 
   private handleReasoningEnd(): void {
-    if (!this.showThinking) return;
+    if (!this.showThinking) {
+      this.hiddenActiveReasoning = "none";
+      return;
+    }
     this.activeReasoningKey = undefined;
     this.emit();
   }

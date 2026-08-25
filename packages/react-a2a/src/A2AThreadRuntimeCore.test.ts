@@ -150,6 +150,95 @@ describe("A2AThreadRuntimeCore", () => {
     });
   }
 
+  describe("late history loading", () => {
+    const flush = () => new Promise((resolve) => setTimeout(resolve, 0));
+
+    function createLateHistory() {
+      const user = createHistoryMessage("user", "user", "Question");
+      return {
+        user,
+        history: {
+          load: vi.fn().mockResolvedValue({
+            headId: user.id,
+            messages: [{ parentId: null, message: user }],
+          }),
+          append: vi.fn().mockResolvedValue(undefined),
+        },
+      };
+    }
+
+    it("loads history when the adapter arrives after the first load", async () => {
+      const client = createMockClient();
+      const core = createCore(client);
+      const { user, history } = createLateHistory();
+
+      await core.__internal_load();
+      expect(history.load).not.toHaveBeenCalled();
+      expect(core.getMessages()).toEqual([]);
+
+      core.updateOptions({ client, history });
+      await flush();
+
+      expect(history.load).toHaveBeenCalledOnce();
+      expect(core.getMessages().map((message) => message.id)).toEqual([
+        user.id,
+      ]);
+      expect(core.isLoading).toBe(false);
+    });
+
+    it("fetches the agent card once across the early load and the late history load", async () => {
+      const agentCard = { name: "Agent", url: "https://agent.example" };
+      const client = createMockClient({
+        getAgentCard: vi.fn().mockResolvedValue(agentCard),
+      });
+      const core = createCore(client);
+      const { history } = createLateHistory();
+
+      await core.__internal_load();
+      expect(core.getAgentCard()).toEqual(agentCard);
+
+      core.updateOptions({ client, history });
+      await flush();
+
+      expect(client.getAgentCard).toHaveBeenCalledOnce();
+      expect(history.load).toHaveBeenCalledOnce();
+    });
+
+    it("does not load late history over a thread that already has messages", async () => {
+      const client = createMockClient();
+      const core = createCore(client);
+      const { history } = createLateHistory();
+
+      await core.__internal_load();
+      await core.append({
+        ...createUserAppendMessage("Typed"),
+        startRun: false,
+      } as AppendMessage);
+      expect(core.getMessages()).toHaveLength(1);
+
+      core.updateOptions({ client, history });
+      await flush();
+
+      expect(history.load).not.toHaveBeenCalled();
+      expect(core.getMessages()).toHaveLength(1);
+    });
+
+    it("does not reload when the adapter is replaced after a completed load", async () => {
+      const client = createMockClient();
+      const { history } = createLateHistory();
+      const core = createCore(client, { history });
+      const replacement = createLateHistory().history;
+
+      await core.__internal_load();
+      expect(history.load).toHaveBeenCalledOnce();
+
+      core.updateOptions({ client, history: replacement });
+      await flush();
+
+      expect(replacement.load).not.toHaveBeenCalled();
+    });
+  });
+
   // --- Basic state ---
 
   describe("initial state", () => {

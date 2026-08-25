@@ -1,4 +1,5 @@
 import { mkdir, writeFile } from "node:fs/promises";
+import { fileURLToPath } from "node:url";
 import { Resvg } from "@resvg/resvg-js";
 import satori from "satori";
 
@@ -7,7 +8,7 @@ import satori from "satori";
 const WIDTH = 1600;
 const HEIGHT = 900;
 
-const OUTPUT_DIR = new URL("../dist", import.meta.url).pathname;
+const OUTPUT_DIR = fileURLToPath(new URL("../dist", import.meta.url));
 
 async function loadFont(): Promise<ArrayBuffer> {
   const res = await fetch(

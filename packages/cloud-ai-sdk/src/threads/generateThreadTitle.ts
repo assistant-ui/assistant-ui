@@ -16,7 +16,9 @@ export async function generateThreadTitle(
     return messages;
   };
 
-  const messages = await loadMessages();
+  // The list endpoint returns newest-first; the title model needs the
+  // conversation in chronological order.
+  const messages = (await loadMessages()).slice().reverse();
   if (messages.length === 0) return null;
 
   const aiSdkMessages = messages.filter(

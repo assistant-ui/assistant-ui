@@ -1,6 +1,5 @@
 "use client";
 
-import type { VariantProps } from "class-variance-authority";
 import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
 import { useCallback } from "react";
 import { Thread } from "@/components/assistant-ui/thread";
@@ -10,46 +9,23 @@ import {
   ReasoningTrigger,
   ReasoningContent,
   ReasoningText,
-  type reasoningVariants,
 } from "@/components/assistant-ui/reasoning";
-
-function ReasoningDemo({ variant }: VariantProps<typeof reasoningVariants>) {
-  return (
-    <ReasoningRoot variant={variant} className="mb-0">
-      <ReasoningTrigger />
-      <ReasoningContent>
-        <ReasoningText>
-          <p>Let me think about this step by step...</p>
-          <p>
-            First, I need to consider the main factors involved in this problem.
-          </p>
-        </ReasoningText>
-      </ReasoningContent>
-    </ReasoningRoot>
-  );
-}
-
-function VariantRow({
-  label,
-  variant,
-}: {
-  label: string;
-  variant?: "outline" | "ghost" | "muted";
-}) {
-  return (
-    <div className="flex flex-col gap-2">
-      <span className="text-muted-foreground text-xs font-medium">{label}</span>
-      <ReasoningDemo variant={variant} />
-    </div>
-  );
-}
 
 export function ReasoningSample() {
   return (
-    <SampleFrame className="flex h-auto flex-col gap-4 p-4">
-      <VariantRow label="Outline (default)" variant="outline" />
-      <VariantRow label="Ghost" variant="ghost" />
-      <VariantRow label="Muted" variant="muted" />
+    <SampleFrame className="h-auto p-4">
+      <ReasoningRoot defaultOpen className="mb-0">
+        <ReasoningTrigger />
+        <ReasoningContent>
+          <ReasoningText>
+            <p>Let me think about this step by step...</p>
+            <p>
+              First, I need to consider the main factors involved in this
+              problem.
+            </p>
+          </ReasoningText>
+        </ReasoningContent>
+      </ReasoningRoot>
     </SampleFrame>
   );
 }
