@@ -163,6 +163,18 @@ export function ownDeclarationDiagnostics(packageDir, output, cwd) {
   );
 }
 
+export function declarationGateResult({
+  spawnError,
+  status,
+  ownFiles,
+  parsedFiles,
+}) {
+  if (spawnError || status == null) return "spawn-failed";
+  if (ownFiles.length > 0) return "own-errors";
+  if (status !== 0 && parsedFiles.length === 0) return "unparsed-failure";
+  return "pass";
+}
+
 function collectPackages(repoRoot, filteredPackageNames) {
   const packagesRoot = path.join(repoRoot, "packages");
   return readdirSync(packagesRoot, { withFileTypes: true })
@@ -222,14 +234,25 @@ function checkPackage(repoRoot, packageDir, pkg) {
       "false",
     ]);
     const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
+    const parsedFiles = parseTscErrorFiles(output);
     const own = ownDeclarationDiagnostics(packageDir, output, repoRoot);
-    if (own.length === 0) return 0;
-    const ownFiles = new Set(own);
-    const lines = output.split("\n").filter((line) => {
-      const match = TSC_ERROR.exec(line);
-      return match !== null && ownFiles.has(match[1]);
+    const gate = declarationGateResult({
+      spawnError: result.error,
+      status: result.status,
+      ownFiles: own,
+      parsedFiles,
     });
-    process.stdout.write(`${lines.join("\n")}\n`);
+    if (gate === "pass") return 0;
+    if (gate === "own-errors") {
+      const ownFiles = new Set(own);
+      const lines = output.split("\n").filter((line) => {
+        const match = TSC_ERROR.exec(line);
+        return match !== null && ownFiles.has(match[1]);
+      });
+      process.stdout.write(`${lines.join("\n")}\n`);
+      return 1;
+    }
+    process.stdout.write(output || `${gate}\n`);
     return 1;
   } finally {
     probe.remove();

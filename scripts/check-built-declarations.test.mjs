@@ -14,6 +14,7 @@ import test from "node:test";
 import {
   collectDeclarationEntries,
   createDeclarationProbe,
+  declarationGateResult,
   isOwnDeclarationFile,
   ownDeclarationDiagnostics,
 } from "./check-built-declarations.mjs";
@@ -136,4 +137,34 @@ test("expands a single-directory wildcard types target", () => {
   } finally {
     rmSync(packageDir, { recursive: true, force: true });
   }
+});
+
+test("fails when tsc cannot spawn or reports no file-anchored errors", () => {
+  assert.equal(
+    declarationGateResult({
+      spawnError: new Error("ENOENT"),
+      status: null,
+      ownFiles: [],
+      parsedFiles: [],
+    }),
+    "spawn-failed",
+  );
+  assert.equal(
+    declarationGateResult({
+      spawnError: undefined,
+      status: 1,
+      ownFiles: [],
+      parsedFiles: [],
+    }),
+    "unparsed-failure",
+  );
+  assert.equal(
+    declarationGateResult({
+      spawnError: undefined,
+      status: 2,
+      ownFiles: [],
+      parsedFiles: ["node_modules/dep/index.d.ts"],
+    }),
+    "pass",
+  );
 });
