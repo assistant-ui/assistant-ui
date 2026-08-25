@@ -7,6 +7,7 @@ import {
 } from "./types";
 import { notifySubscribers as notifyStateSubscribers } from "../subscribable/subscribable";
 import { CompositeContextProvider } from "../utils/composite-context-provider";
+import type { Unsubscribe } from "../types/unsubscribe";
 import type {
   ModelContextRegistryToolHandle,
   ModelContextRegistryInstructionHandle,
