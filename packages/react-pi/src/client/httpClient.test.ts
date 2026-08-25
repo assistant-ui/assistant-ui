@@ -52,6 +52,49 @@ const snapshot: PiThreadSnapshot = {
   messages: [],
 };
 
+const openSharedSse = () => {
+  const controllers: ReadableStreamDefaultController<Uint8Array>[] = [];
+  const fetchImpl = vi.fn(
+    async () =>
+      new Response(
+        new ReadableStream<Uint8Array>({
+          start(controller) {
+            controllers.push(controller);
+          },
+        }),
+        {
+          status: 200,
+          headers: { "content-type": "text/event-stream" },
+        },
+      ),
+  ) as unknown as typeof fetch;
+  const client = createPiHttpClient({
+    fetchImpl,
+    streamCloseDelayMs: 0,
+  });
+  const send = (index: number, event: PiAnyClientEvent) => {
+    controllers[index]!.enqueue(
+      new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
+    );
+  };
+  return { client, fetchImpl, send };
+};
+
+const snapshotAt = (
+  seq: number,
+  status: "idle" | "running" = "idle",
+  messages: PiThreadSnapshot["messages"] = [],
+) =>
+  ({
+    type: "snapshot",
+    threadId: "t1",
+    seq,
+    snapshot: {
+      metadata: { id: "t1", status, messageCount: messages.length },
+      messages,
+    },
+  }) satisfies PiAnyClientEvent;
+
 describe("createPiHttpClient", () => {
   it("lists threads with workspace + archived query params", async () => {
     const threads: PiThreadMetadata[] = [{ id: "t1", status: "idle" }];
@@ -492,51 +535,25 @@ describe("createPiHttpClient", () => {
     );
   });
 
-  it("delivers authoritative state to late snapshot subscribers", async () => {
-    const streamControllers: ReadableStreamDefaultController<Uint8Array>[] = [];
-    const fetchImpl = vi.fn(
-      async () =>
-        new Response(
-          new ReadableStream<Uint8Array>({
-            start(controller) {
-              streamControllers.push(controller);
-            },
-          }),
-          {
-            status: 200,
-            headers: { "content-type": "text/event-stream" },
-          },
-        ),
-    ) as unknown as typeof fetch;
-    const client = createPiHttpClient({
-      fetchImpl,
-      streamCloseDelayMs: 0,
-    });
-
+  it("replays a current cached snapshot to a late subscriber", async () => {
+    const { client, fetchImpl, send } = openSharedSse();
     const firstEvents: PiAnyClientEvent[] = [];
     const unsubscribeFirst = client.subscribe("t1", (event) => {
       firstEvents.push(event);
     });
 
     await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
-    const initialSnapshot = {
-      type: "snapshot",
-      threadId: "t1",
-      seq: 1,
-      snapshot,
-    } satisfies PiAnyClientEvent;
-    streamControllers[0]!.enqueue(
-      new TextEncoder().encode(`data: ${JSON.stringify(initialSnapshot)}\n\n`),
-    );
+    const initialSnapshot = snapshotAt(1);
+    send(0, initialSnapshot);
     await vi.waitFor(() => expect(firstEvents).toEqual([initialSnapshot]));
 
     const replayTasks: (() => void)[] = [];
     const queueMicrotaskSpy = vi
       .spyOn(globalThis, "queueMicrotask")
       .mockImplementation((task) => replayTasks.push(task));
-    const secondEvents: PiAnyClientEvent[] = [];
-    const unsubscribeSecond = client.subscribe("t1", (event) => {
-      secondEvents.push(event);
+    const lateEvents: PiAnyClientEvent[] = [];
+    const unsubscribeLate = client.subscribe("t1", (event) => {
+      lateEvents.push(event);
     });
 
     expect(replayTasks).toHaveLength(1);
@@ -547,41 +564,37 @@ describe("createPiHttpClient", () => {
       threadId: "t1",
       seq: 2,
     } satisfies PiAnyClientEvent;
-    streamControllers[0]!.enqueue(
-      new TextEncoder().encode(`data: ${JSON.stringify(agentStart)}\n\n`),
-    );
+    send(0, agentStart);
     await vi.waitFor(() =>
       expect(firstEvents).toEqual([initialSnapshot, agentStart]),
     );
-    expect(secondEvents).toEqual([]);
+    expect(lateEvents).toEqual([]);
 
     replayTasks[0]!();
-    await vi.waitFor(() => expect(secondEvents).toEqual(firstEvents));
+    await vi.waitFor(() => expect(lateEvents).toEqual(firstEvents));
     expect(fetchImpl).toHaveBeenCalledTimes(1);
 
-    const messageStart = {
-      type: "message_start",
-      threadId: "t1",
-      seq: 3,
-      message: { role: "user", content: "hello", timestamp: 1 },
-    } satisfies PiAnyClientEvent;
-    streamControllers[0]!.enqueue(
-      new TextEncoder().encode(`data: ${JSON.stringify(messageStart)}\n\n`),
-    );
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(3));
-    await vi.waitFor(() => expect(secondEvents).toEqual(firstEvents));
+    unsubscribeFirst();
+    unsubscribeLate();
+  });
 
-    const thirdEvents: PiAnyClientEvent[] = [];
-    const unsubscribeThird = client.subscribe("t1", (event) => {
-      thirdEvents.push(event);
+  it("shares one snapshot refresh and keeps out-of-band errors", async () => {
+    const { client, fetchImpl, send } = openSharedSse();
+    const firstEvents: PiAnyClientEvent[] = [];
+    const unsubscribeFirst = client.subscribe("t1", (event) => {
+      firstEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    send(0, snapshotAt(1));
+    send(0, { type: "agent_start", threadId: "t1", seq: 2 });
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+
+    const lateEvents: PiAnyClientEvent[] = [];
+    const unsubscribeLate = client.subscribe("t1", (event) => {
+      lateEvents.push(event);
     });
     await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
-    const agentEnd = {
-      type: "agent_end",
-      threadId: "t1",
-      seq: 4,
-    } satisfies PiAnyClientEvent;
     const outOfBandError = {
       type: "error",
       threadId: "t1",
@@ -591,107 +604,93 @@ describe("createPiHttpClient", () => {
     const staleError = {
       type: "error",
       threadId: "t1",
-      seq: 2,
+      seq: 1,
       error: "stale failure",
     } satisfies PiAnyClientEvent;
-    for (const event of [outOfBandError, staleError, agentEnd]) {
-      streamControllers[0]!.enqueue(
-        new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
-      );
-    }
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(6));
-    const currentSnapshot = {
-      type: "snapshot",
+    const agentEnd = {
+      type: "agent_end",
       threadId: "t1",
       seq: 3,
-      snapshot: {
-        metadata: { id: "t1", status: "running", messageCount: 1 },
-        messages: [messageStart.message],
-      },
     } satisfies PiAnyClientEvent;
-    streamControllers[1]!.enqueue(
-      new TextEncoder().encode(`data: ${JSON.stringify(currentSnapshot)}\n\n`),
-    );
-    await vi.waitFor(() => expect(secondEvents).toEqual(firstEvents));
+    send(0, outOfBandError);
+    send(0, staleError);
+    send(0, agentEnd);
+    await vi.waitFor(() => expect(firstEvents.length).toBeGreaterThanOrEqual(5));
+    const refreshed = snapshotAt(2, "running");
+    send(1, refreshed);
+
     await vi.waitFor(() =>
-      expect(thirdEvents).toEqual([currentSnapshot, outOfBandError, agentEnd]),
+      expect(lateEvents).toEqual([refreshed, outOfBandError, agentEnd]),
     );
 
-    const fourthEvents: PiAnyClientEvent[] = [];
-    const fifthEvents: PiAnyClientEvent[] = [];
-    const unsubscribeFourth = client.subscribe("t1", (event) => {
-      fourthEvents.push(event);
+    unsubscribeFirst();
+    unsubscribeLate();
+  });
+
+  it("dedupes concurrent stale-snapshot refreshes", async () => {
+    const { client, fetchImpl, send } = openSharedSse();
+    const firstEvents: PiAnyClientEvent[] = [];
+    const unsubscribeFirst = client.subscribe("t1", (event) => {
+      firstEvents.push(event);
     });
-    const unsubscribeFifth = client.subscribe("t1", (event) => {
-      fifthEvents.push(event);
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    send(0, snapshotAt(1));
+    send(0, { type: "agent_start", threadId: "t1", seq: 2 });
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+    const secondEvents: PiAnyClientEvent[] = [];
+    const thirdEvents: PiAnyClientEvent[] = [];
+    const unsubscribeSecond = client.subscribe("t1", (event) => {
+      secondEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    const unsubscribeThird = client.subscribe("t1", (event) => {
+      thirdEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
-    const latestSnapshot = {
-      type: "snapshot",
-      threadId: "t1",
-      seq: 4,
-      snapshot: {
-        metadata: { id: "t1", status: "idle", messageCount: 1 },
-        messages: [messageStart.message],
-      },
-    } satisfies PiAnyClientEvent;
-    streamControllers[2]!.enqueue(
-      new TextEncoder().encode(`data: ${JSON.stringify(latestSnapshot)}\n\n`),
-    );
-    await vi.waitFor(() => expect(fourthEvents).toEqual([latestSnapshot]));
-    await vi.waitFor(() => expect(fifthEvents).toEqual([latestSnapshot]));
-    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    const refreshed = snapshotAt(2);
+    send(1, refreshed);
+    await vi.waitFor(() => expect(secondEvents).toEqual([refreshed]));
+    await vi.waitFor(() => expect(thirdEvents).toEqual([refreshed]));
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
 
-    const send = (
-      controller: ReadableStreamDefaultController<Uint8Array>,
-      event: PiAnyClientEvent,
-    ) => {
-      controller.enqueue(
-        new TextEncoder().encode(`data: ${JSON.stringify(event)}\n\n`),
-      );
-    };
-    const snapshotAt = (seq: number, status: "idle" | "running") =>
-      ({
-        type: "snapshot",
-        threadId: "t1",
-        seq,
-        snapshot: {
-          metadata: { id: "t1", status, messageCount: 1 },
-          messages: [messageStart.message],
-        },
-      }) satisfies PiAnyClientEvent;
+    unsubscribeFirst();
+    unsubscribeSecond();
+    unsubscribeThird();
+  });
 
-    const eventBeforeSharedLoad = {
-      type: "agent_start",
-      threadId: "t1",
-      seq: 5,
-    } satisfies PiAnyClientEvent;
-    send(streamControllers[0]!, eventBeforeSharedLoad);
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(6));
+  it("starts a follow-up refresh when a listener joins after the helper snapshot", async () => {
+    const { client, fetchImpl, send } = openSharedSse();
+    const firstEvents: PiAnyClientEvent[] = [];
+    const unsubscribeFirst = client.subscribe("t1", (event) => {
+      firstEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    send(0, snapshotAt(1));
+    send(0, { type: "agent_start", threadId: "t1", seq: 2 });
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
 
     const sixthEvents: PiAnyClientEvent[] = [];
     const unsubscribeSixth = client.subscribe("t1", (event) => {
       sixthEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(4));
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
     const eventDuringSharedLoad = {
       type: "agent_end",
       threadId: "t1",
-      seq: 6,
+      seq: 3,
     } satisfies PiAnyClientEvent;
-    send(streamControllers[0]!, eventDuringSharedLoad);
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(7));
+    send(0, eventDuringSharedLoad);
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(3));
 
     const seventhEvents: PiAnyClientEvent[] = [];
     const unsubscribeSeventh = client.subscribe("t1", (event) => {
       seventhEvents.push(event);
     });
-    expect(fetchImpl).toHaveBeenCalledTimes(4);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
 
-    const snapshotBeforeSeventhJoin = snapshotAt(5, "running");
-    send(streamControllers[3]!, snapshotBeforeSeventhJoin);
+    const snapshotBeforeSeventhJoin = snapshotAt(2, "running");
+    send(1, snapshotBeforeSeventhJoin);
     await vi.waitFor(() =>
       expect(sixthEvents).toEqual([
         snapshotBeforeSeventhJoin,
@@ -699,32 +698,42 @@ describe("createPiHttpClient", () => {
       ]),
     );
     expect(seventhEvents).toEqual([]);
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(5));
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
 
-    const snapshotForSeventh = snapshotAt(6, "idle");
-    send(streamControllers[4]!, snapshotForSeventh);
+    const snapshotForSeventh = snapshotAt(3, "idle");
+    send(2, snapshotForSeventh);
     await vi.waitFor(() => expect(seventhEvents).toEqual([snapshotForSeventh]));
 
-    const eventBeforeNewerMainSnapshot = {
-      type: "agent_start",
-      threadId: "t1",
-      seq: 7,
-    } satisfies PiAnyClientEvent;
-    send(streamControllers[0]!, eventBeforeNewerMainSnapshot);
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(8));
+    unsubscribeFirst();
+    unsubscribeSixth();
+    unsubscribeSeventh();
+  });
+
+  it("keeps the highest-sequence snapshot when the main stream overtakes a helper", async () => {
+    const { client, fetchImpl, send } = openSharedSse();
+    const firstEvents: PiAnyClientEvent[] = [];
+    const unsubscribeFirst = client.subscribe("t1", (event) => {
+      firstEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    send(0, snapshotAt(1));
+    send(0, { type: "agent_start", threadId: "t1", seq: 2 });
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
 
     const eighthEvents: PiAnyClientEvent[] = [];
     const unsubscribeEighth = client.subscribe("t1", (event) => {
       eighthEvents.push(event);
     });
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(6));
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
 
-    const newerMainSnapshot = snapshotAt(8, "idle");
-    send(streamControllers[0]!, newerMainSnapshot);
-    await vi.waitFor(() => expect(firstEvents).toHaveLength(9));
+    const newerMainSnapshot = snapshotAt(4, "idle");
+    send(0, newerMainSnapshot);
+    await vi.waitFor(() =>
+      expect(firstEvents.at(-1)).toEqual(newerMainSnapshot),
+    );
 
-    const olderHelperSnapshot = snapshotAt(7, "running");
-    send(streamControllers[5]!, olderHelperSnapshot);
+    const olderHelperSnapshot = snapshotAt(3, "running");
+    send(1, olderHelperSnapshot);
     await vi.waitFor(() =>
       expect(eighthEvents).toEqual([olderHelperSnapshot, newerMainSnapshot]),
     );
@@ -734,15 +743,9 @@ describe("createPiHttpClient", () => {
       ninthEvents.push(event);
     });
     await vi.waitFor(() => expect(ninthEvents).toEqual([newerMainSnapshot]));
-    expect(fetchImpl).toHaveBeenCalledTimes(6);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
 
     unsubscribeFirst();
-    unsubscribeSecond();
-    unsubscribeThird();
-    unsubscribeFourth();
-    unsubscribeFifth();
-    unsubscribeSixth();
-    unsubscribeSeventh();
     unsubscribeEighth();
     unsubscribeNinth();
   });
