@@ -7,6 +7,7 @@ platforms: ["react"]
 import { MarkdownSample } from "@/components/pages/docs/samples/markdown";
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import { MarkdownRichDocumentSample } from "@/components/pages/docs/samples/markdown/rich-document";
+import { MarkdownStreamingSample } from "@/components/pages/docs/samples/markdown/streaming-markdown";
 
 <MarkdownSample />
 
@@ -64,6 +65,14 @@ The renderer shows headings, emphasis, links, nested lists, a blockquote, a divi
 
 <PreviewCode file="components/pages/docs/samples/markdown/rich-document" name="MarkdownDocument">
   <MarkdownRichDocumentSample />
+</PreviewCode>
+
+### Streaming Markdown
+
+Select Replay. The markdown increases in steps, and the text part shows a running status until the last chunk.
+
+<PreviewCode file="components/pages/docs/samples/markdown/streaming-markdown" name="StreamingMarkdown">
+  <MarkdownStreamingSample />
 </PreviewCode>
 
 ## Syntax highlighting

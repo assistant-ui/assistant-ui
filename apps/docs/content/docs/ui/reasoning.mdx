@@ -6,6 +6,7 @@ platforms: ["react"]
 
 import { ReasoningSample, ReasoningStreamingSample } from "@/components/pages/docs/samples/reasoning";
 import { ReasoningCompletedSample } from "@/components/pages/docs/samples/reasoning/completed-with-duration";
+import { ReasoningLongSample } from "@/components/pages/docs/samples/reasoning/long-reasoning";
 
 <ReasoningSample />
 
@@ -161,6 +162,12 @@ The response shows partial reasoning and stays active. Select Stop to cancel the
 Set `duration` (in seconds) on `ReasoningTrigger` to show the completed reasoning duration in the trigger label. The disclosure starts closed because `defaultOpen` is `false`. Select the trigger to open or close the reasoning text.
 
 <ReasoningCompletedSample />
+
+### Long Reasoning
+
+The `defaultOpen` prop opens the disclosure when the page loads. `ReasoningText` holds long reasoning in a `max-h-64` scroll area. Scroll the text. Then collapse and expand the disclosure.
+
+<ReasoningLongSample />
 
 ## API Reference
 
