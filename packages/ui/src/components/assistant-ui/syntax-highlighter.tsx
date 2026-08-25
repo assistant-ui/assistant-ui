@@ -27,15 +27,13 @@ const syntaxHighlighterCustomStyle = {
 const LightSyntaxHighlighter = makePrismAsyncLightSyntaxHighlighter({
   style: coldarkCold,
   customStyle: syntaxHighlighterCustomStyle,
-  className:
-    "dark:hidden mt-0 rounded-t-none border-border/50 border border-t-0",
+  className: "dark:hidden bg-muted! mt-0 rounded-t-none",
 });
 
 const DarkSyntaxHighlighter = makePrismAsyncLightSyntaxHighlighter({
   style: coldarkDark,
   customStyle: syntaxHighlighterCustomStyle,
-  className:
-    "hidden dark:block mt-0 rounded-t-none border-border/50 border border-t-0",
+  className: "hidden bg-muted! mt-0 rounded-t-none dark:block",
 });
 
 export const SyntaxHighlighter = (props: SyntaxHighlighterProps) => (
