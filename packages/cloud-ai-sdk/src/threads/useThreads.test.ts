@@ -279,12 +279,59 @@ describe("useThreads", () => {
       await result.current.refresh();
     });
 
-    expect(list).toHaveBeenNthCalledWith(1, { is_archived: false });
-    expect(list).toHaveBeenNthCalledWith(2, { is_archived: true });
+    expect(list).toHaveBeenNthCalledWith(1, {
+      is_archived: false,
+      limit: 20,
+    });
+    expect(list).toHaveBeenNthCalledWith(2, {
+      is_archived: true,
+      limit: 20,
+    });
     expect(result.current.threads).toMatchObject([
       { id: "archived", status: "archived" },
       { id: "active", status: "regular" },
     ]);
+  });
+
+  it("loads every page of active threads", async () => {
+    const firstPage = Array.from(
+      { length: 20 },
+      (_, index) =>
+        createThreadListResponse(`Thread ${index}`, `thread-${index}`)
+          .threads[0]!,
+    );
+    const lastThread = createThreadListResponse("Thread 20", "thread-20")
+      .threads[0]!;
+    const list = vi
+      .fn()
+      .mockResolvedValueOnce({ threads: firstPage })
+      .mockResolvedValueOnce({ threads: [lastThread] });
+    const cloud = {
+      threads: {
+        list,
+        get: vi.fn(),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    } as never;
+    const { result } = renderHook(() => useThreads({ cloud, enabled: false }));
+
+    await act(async () => {
+      expect(await result.current.refresh()).toBe(true);
+    });
+
+    expect(list).toHaveBeenNthCalledWith(1, {
+      is_archived: false,
+      limit: 20,
+    });
+    expect(list).toHaveBeenNthCalledWith(2, {
+      is_archived: false,
+      limit: 20,
+      after: "thread-19",
+    });
+    expect(result.current.threads).toHaveLength(21);
+    expect(result.current.threads.at(-1)?.id).toBe("thread-20");
   });
 
   it("deduplicates threads returned by both archive filters", async () => {
