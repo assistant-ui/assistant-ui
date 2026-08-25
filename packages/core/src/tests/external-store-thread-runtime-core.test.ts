@@ -1291,7 +1291,7 @@ describe("ExternalStoreThreadRuntimeCore - convertMessage auto status", () => {
   it("reports an interrupt for an unresolved approval", () => {
     const runtime = makeRuntime({
       role: "assistant",
-      content: [toolCall({ approval: {} })],
+      content: [toolCall({ approval: { id: "a1" } })],
     });
     expect(runtime.messages[1]!.status).toMatchObject({
       type: "requires-action",
