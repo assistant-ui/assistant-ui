@@ -424,17 +424,14 @@ describe("A2AThreadRuntimeCore", () => {
       });
       const history = {
         load: vi.fn().mockResolvedValue({ messages: [] }),
-        append: vi.fn(),
+        append: vi.fn().mockResolvedValue(undefined),
       };
-      const client = createMockClient({ streamMessage });
-      const core = new A2AThreadRuntimeCore({
-        client,
-        notifyUpdate: notifyUpdate as unknown as () => void,
-        history,
-      } as never);
+      const core = createCore({ streamMessage }, { history });
 
       const run = core.append(createUserAppendMessage("First"));
-      await Promise.resolve();
+      await vi.waitFor(() => {
+        expect(streamMessage).toHaveBeenCalledTimes(1);
+      });
       history.append.mockClear();
 
       core.applyExternalMessages([]);
