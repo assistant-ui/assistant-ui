@@ -149,6 +149,12 @@ export function parseTscErrorFiles(output) {
   return files;
 }
 
+export function parseUnanchoredTscErrors(output) {
+  return output
+    .split("\n")
+    .filter((line) => /error TS\d+:/.test(line) && !TSC_ERROR.test(line));
+}
+
 export function isOwnDeclarationFile(packageDir, file, cwd) {
   const resolved = path.resolve(cwd, file);
   const root = path.resolve(packageDir);
@@ -169,10 +175,16 @@ export function declarationGateResult({
   status,
   ownFiles,
   parsedFiles,
+  unanchoredLines = [],
 }) {
   if (spawnError || status == null) return "spawn-failed";
   if (ownFiles.length > 0) return "own-errors";
-  if (status !== 0 && parsedFiles.length === 0) return "unparsed-failure";
+  if (
+    status !== 0 &&
+    (parsedFiles.length === 0 || unanchoredLines.length > 0)
+  ) {
+    return "unparsed-failure";
+  }
   return "pass";
 }
 
@@ -242,12 +254,14 @@ function checkPackage(repoRoot, packageDir, pkg) {
     ]);
     const output = `${result.stdout ?? ""}${result.stderr ?? ""}`;
     const parsedFiles = parseTscErrorFiles(output);
+    const unanchoredLines = parseUnanchoredTscErrors(output);
     const own = ownDeclarationDiagnostics(packageDir, output, repoRoot);
     const gate = declarationGateResult({
       spawnError: result.error,
       status: result.status,
       ownFiles: own,
       parsedFiles,
+      unanchoredLines,
     });
     if (gate === "pass") return 0;
     if (gate === "own-errors") {

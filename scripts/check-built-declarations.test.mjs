@@ -168,6 +168,18 @@ test("fails when tsc cannot spawn or reports no file-anchored errors", () => {
     }),
     "pass",
   );
+  assert.equal(
+    declarationGateResult({
+      spawnError: undefined,
+      status: 2,
+      ownFiles: [],
+      parsedFiles: ["node_modules/dep/index.d.ts"],
+      unanchoredLines: [
+        "error TS2688: Cannot find type definition file for 'browser-process'.",
+      ],
+    }),
+    "unparsed-failure",
+  );
 });
 
 test("treats symlink-equivalent paths as the main module", () => {
