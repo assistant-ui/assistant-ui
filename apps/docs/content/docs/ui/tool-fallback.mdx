@@ -12,6 +12,7 @@ import {
 } from "@/components/pages/docs/samples/tool-fallback";
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import { ToolFallbackApprovalSample } from "@/components/pages/docs/samples/tool-fallback/approval";
+import { ToolFallbackErrorSample } from "@/components/pages/docs/samples/tool-fallback/failed-with-error";
 
 <ToolFallbackSample />
 
@@ -66,6 +67,12 @@ Interactive demo showing the full tool call lifecycle: running → complete.
 Shows the arguments and the structured result for the completed call.
 
 <ToolFallbackCompletedSample />
+
+### Failed With Error State
+
+Shows a service error above its arguments.
+
+<ToolFallbackErrorSample />
 
 ### Cancelled State
 

@@ -16,9 +16,11 @@ import {
 } from "../ComposerInputPluginContext";
 import type { TriggerPopoverResourceOutput } from "./TriggerPopoverResource";
 import type { TriggerBehavior } from "./triggerSelectionResource";
+import type { TriggerMatcher } from "./detectTrigger";
 
 export type RegisteredTrigger = {
   readonly char: string;
+  readonly matcher?: TriggerMatcher | undefined;
   /** Behavior contributed by a child `TriggerPopover.Directive` / `.Action`. */
   readonly behavior?: TriggerBehavior;
   readonly resource: TriggerPopoverResourceOutput;

@@ -837,3 +837,103 @@ function MyComponent() {
     });
   });
 });
+
+describe("elements that cannot be migrated stay intact", () => {
+  it.each([
+    [
+      "spread attributes",
+      `<ThreadPrimitive.If {...props}>
+      <div>Content</div>
+    </ThreadPrimitive.If>`,
+    ],
+    [
+      "unknown props",
+      `<MessagePrimitive.If user asChild>
+      <div>Content</div>
+    </MessagePrimitive.If>`,
+    ],
+    [
+      "no props",
+      `<ThreadPrimitive.If>
+      <div>Content</div>
+    </ThreadPrimitive.If>`,
+    ],
+    [
+      "dynamic prop values",
+      `<ThreadPrimitive.If running={someFlag}>
+      <div>Content</div>
+    </ThreadPrimitive.If>`,
+    ],
+    [
+      "namespaced attributes",
+      `<ThreadPrimitive.If empty xml:lang="en">
+      <div>Content</div>
+    </ThreadPrimitive.If>`,
+    ],
+    [
+      "fixed-condition components with props",
+      `<ThreadPrimitive.Empty asChild>
+      <div>Content</div>
+    </ThreadPrimitive.Empty>`,
+    ],
+  ])("leaves an element with %s unchanged", (_label, jsx) => {
+    const input = `
+import { ThreadPrimitive, MessagePrimitive } from "@assistant-ui/react";
+
+function MyComponent({ someFlag }: { someFlag: boolean }) {
+  return (
+    ${jsx}
+  );
+}
+`;
+
+    expect(applyTransform(input)).toBeNull();
+  });
+
+  it("converts only the migratable element and keeps the output parseable", () => {
+    const input = `
+import { ThreadPrimitive } from "@assistant-ui/react";
+
+function MyComponent(props: Record<string, unknown>) {
+  return (
+    <>
+      <ThreadPrimitive.If empty>
+        <div>Empty</div>
+      </ThreadPrimitive.If>
+      <ThreadPrimitive.If {...props}>
+        <div>Dynamic</div>
+      </ThreadPrimitive.If>
+    </>
+  );
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).not.toBeNull();
+    expect(() => j(output!)).not.toThrow();
+    expect(output).toContain("</AuiIf>");
+    expect(output).toContain("</ThreadPrimitive.If>");
+    expect(output).toContain("<ThreadPrimitive.If {...props}>");
+  });
+});
+
+describe("null literal prop values", () => {
+  it("maps submittedFeedback={null} to the null comparison", () => {
+    const input = `
+import { MessagePrimitive } from "@assistant-ui/react";
+
+function MyComponent() {
+  return (
+    <MessagePrimitive.If submittedFeedback={null}>
+      <div>Content</div>
+    </MessagePrimitive.If>
+  );
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain(
+      "(s.message.metadata.submittedFeedback?.type ?? null) === null",
+    );
+  });
+});

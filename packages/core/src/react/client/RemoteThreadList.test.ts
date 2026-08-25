@@ -234,6 +234,37 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("keeps a thread initialized during the list() flight after switching away", async () => {
+    const listDeferred =
+      deferred<Awaited<ReturnType<RemoteThreadListAdapter["list"]>>>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => listDeferred.promise),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+
+    const loadPromise = aui.threads.getLoadThreadsPromise();
+    const initializedId = aui.threads.getState().mainThreadId;
+    await aui.threads.item("main").initialize();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toContain(initializedId);
+    });
+
+    listDeferred.resolve({
+      threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+    });
+    await loadPromise;
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).not.toBe(initializedId);
+    });
+
+    expect(aui.threads.getState().threadIds[0]).toBe(initializedId);
+    expect(aui.threads.getState().threadIds).toContain("t1");
+    handle.destroy();
+  });
+
   it("switches to a listed thread and back to a new thread", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({

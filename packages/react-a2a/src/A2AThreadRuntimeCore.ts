@@ -110,6 +110,8 @@ export class A2AThreadRuntimeCore {
   private readonly recordedHistoryIds = new Set<string>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
+  private _loadRequested = false;
+  private _agentCardPromise: Promise<void> | undefined;
 
   private lastOptionsContextId: string | undefined;
 
@@ -139,7 +141,18 @@ export class A2AThreadRuntimeCore {
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.onArtifactComplete = options.onArtifactComplete;
+    const previousHistory = this.history;
     this.history = options.history;
+
+    if (
+      this._loadRequested &&
+      !this._loadPromise &&
+      !previousHistory &&
+      options.history &&
+      this.repository.getMessages().length === 0
+    ) {
+      void this.__internal_load();
+    }
   }
 
   /** Thread-boundary reset: applyExternalMessages alone also serves branch
@@ -262,18 +275,24 @@ export class A2AThreadRuntimeCore {
   }
 
   __internal_load(): Promise<void> {
+    this._loadRequested = true;
+    this._agentCardPromise ??= this.client
+      .getAgentCard()
+      .then((agentCard) => {
+        this.agentCardValue = agentCard;
+        this.notifyUpdate();
+      })
+      .catch(() => undefined);
+
     if (this._loadPromise) return this._loadPromise;
+    if (!this.history) return this._agentCardPromise;
 
     this._isLoading = true;
 
-    const historyPromise = this.history?.load() ?? Promise.resolve(null);
-    const agentCardPromise = this.client.getAgentCard().catch(() => undefined);
+    const historyPromise = this.history.load();
 
-    this._loadPromise = Promise.all([historyPromise, agentCardPromise])
-      .then(([repo, agentCard]) => {
-        if (agentCard) {
-          this.agentCardValue = agentCard;
-        }
+    this._loadPromise = Promise.all([historyPromise, this._agentCardPromise])
+      .then(([repo]) => {
         if (repo) {
           this.applyExternalMessageRepository(repo);
         }

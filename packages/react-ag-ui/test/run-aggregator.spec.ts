@@ -122,6 +122,469 @@ describe("RunAggregator", () => {
     ]);
   });
 
+  it("keeps the signature of an empty signed reasoning block as opaque metadata", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "sig-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "answer",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.content?.some((part) => part.type === "reasoning")).toBe(
+      false,
+    );
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
+      { id: "m1", encryptedValue: "sig-1" },
+    ]);
+  });
+
+  it("keeps signatures when thinking is hidden", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "hidden thought",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "sig-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.content?.some((part) => part.type === "reasoning")).toBe(
+      false,
+    );
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
+      { id: "m1", encryptedValue: "sig-1", after: true },
+    ]);
+  });
+
+  it("ignores a hidden signature that no reasoning block can claim", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "answer",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "assistant-message-id",
+      encryptedValue: "not-reasoning",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
+  it("captures a hidden signature claimed by an open anonymous block", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "sig-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_END" } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
+      { id: "m1", encryptedValue: "sig-1", after: true },
+    ]);
+  });
+
+  it("withdraws an opaque entry when the block reopens with content", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "sig-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "late thought",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    const reasoningPart = last?.content?.find(
+      (part) => part.type === "reasoning",
+    );
+    expect((reasoningPart as any)?.providerMetadata?.agui?.encryptedValue).toBe(
+      "sig-1",
+    );
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([]);
+  });
+
+  it("drops a signature naming the assistant id adopted from a tool call", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tc1",
+      toolCallName: "search",
+      parentMessageId: "srv-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "srv-1",
+      encryptedValue: "sig-t",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
+  it("marks a trailing signed block with after and a leading one without", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "lead",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "lead",
+      encryptedValue: "sig-lead",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "lead",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "answer",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "trail",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "trail",
+      encryptedValue: "sig-trail",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "trail",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
+      { id: "lead", encryptedValue: "sig-lead" },
+      { id: "trail", encryptedValue: "sig-trail", after: true },
+    ]);
+  });
+
+  it("ignores blank values on a retracted visible block", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "",
+      encryptedValue: "sig",
+    } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_END" } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
+  it("ignores hidden signatures with blank values", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "   ",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
+  it("drops a signature naming a tool message id", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t1",
+      toolCallName: "search",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_END",
+      toolCallId: "t1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t1",
+      content: '"ok"',
+      messageId: "tm-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "tm-1",
+      encryptedValue: "sig",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
+  it("closes the anonymous claim when an identified hidden block opens", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m2",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "unrelated",
+      encryptedValue: "sig-x",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
+  it("registers a hidden block opened lazily by content", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "hidden thought",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "sig-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
+      { id: "m1", encryptedValue: "sig-1", after: true },
+    ]);
+  });
+
+  it("anchors a late hidden signature to the block open, not arrival time", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "answer",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "sig-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([
+      { id: "m1", encryptedValue: "sig-1" },
+    ]);
+  });
+
+  it("drops an anonymous-claimed signature whose id names a text message", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "t1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "t1",
+      delta: "answer",
+    } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "t1",
+      encryptedValue: "sig-t",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
+  it("clears captured signatures when a new run starts", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "sig-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+    expect(
+      (results.at(-1)?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toEqual([{ id: "m1", encryptedValue: "sig-1", after: true }]);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r2" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "second run",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r2" } as AgUiEvent);
+
+    // The empty key keeps being emitted so the namespace merge retracts the
+    // previous run's entries.
+    const last = results.at(-1);
+    expect((last?.metadata?.custom as any)?.agui?.opaqueReasoning).toEqual([]);
+  });
+
+  it("keeps an inline signature on a visible reasoning part without duplicating it", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_START",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "deep thought",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "m1",
+      encryptedValue: "sig-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_MESSAGE_END",
+      messageId: "m1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    const reasoningPart = last?.content?.find(
+      (part) => part.type === "reasoning",
+    );
+    expect((reasoningPart as any)?.providerMetadata?.agui?.encryptedValue).toBe(
+      "sig-1",
+    );
+    expect(
+      (last?.metadata?.custom as any)?.agui?.opaqueReasoning,
+    ).toBeUndefined();
+  });
+
   it("maps thinking events to reasoning part when enabled", () => {
     const aggregator = createAggregator(true);
 
