@@ -20,6 +20,36 @@ function isReactElement(node: unknown): node is ReactElement {
   );
 }
 
+function sameHastPosition(a: unknown, b: unknown): boolean {
+  if (a === b) return true;
+  if (
+    typeof a !== "object" ||
+    a === null ||
+    typeof b !== "object" ||
+    b === null
+  ) {
+    return false;
+  }
+  const prev = a as {
+    position?: {
+      start?: { line?: number; column?: number };
+      end?: { line?: number; column?: number };
+    };
+  };
+  const next = b as {
+    position?: {
+      start?: { line?: number; column?: number };
+      end?: { line?: number; column?: number };
+    };
+  };
+  return (
+    prev.position?.start?.line === next.position?.start?.line &&
+    prev.position?.start?.column === next.position?.start?.column &&
+    prev.position?.end?.line === next.position?.end?.line &&
+    prev.position?.end?.column === next.position?.end?.column
+  );
+}
+
 /**
  * Compares two ReactNode values, including nested element props.
  */
@@ -49,6 +79,10 @@ export function memoCompareNodes<
 
   if (prevKeys.length !== nextKeys.length) return false;
   for (const key of prevKeys) {
+    if (key === "node") {
+      if (!sameHastPosition(prev[key], next[key])) return false;
+      continue;
+    }
     if (prev[key] !== next[key]) return false;
   }
 

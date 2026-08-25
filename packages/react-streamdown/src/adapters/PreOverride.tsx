@@ -4,6 +4,7 @@ import type { Element } from "hast";
 import {
   type ComponentPropsWithoutRef,
   type ReactElement,
+  type ReactNode,
   cloneElement,
   createContext,
   isValidElement,
@@ -11,6 +12,40 @@ import {
   useContext,
 } from "react";
 import { memoCompareNodes } from "../memoization";
+
+type CodeChildProps = {
+  "data-block"?: string;
+  node?: Element;
+  children?: ReactNode;
+};
+
+function fencedCodeText(children: ReactNode): string | undefined {
+  if (!isValidElement<CodeChildProps>(children)) return undefined;
+  const inner = children.props.children;
+  if (typeof inner === "string") return inner;
+  if (typeof inner === "number") return String(inner);
+  return undefined;
+}
+
+function hashText(text: string): number {
+  let hash = 0;
+  for (let i = 0; i < text.length; i++) {
+    hash = (Math.imul(31, hash) + text.charCodeAt(i)) | 0;
+  }
+  return (hash >>> 0) + 1;
+}
+
+function nodeWithContent(node: Element, text: string): Element {
+  const end = node.position?.end;
+  if (!node.position || !end) return node;
+  return {
+    ...node,
+    position: {
+      ...node.position,
+      end: { ...end, column: hashText(text) },
+    },
+  };
+}
 
 type PreOverrideProps = ComponentPropsWithoutRef<"pre"> & {
   node?: Element | undefined;
@@ -47,9 +82,13 @@ export const PreOverride = memo(function PreOverride({
   node,
   ...rest
 }: PreOverrideProps) {
-  const childWithBlock = isValidElement(children)
-    ? cloneElement(children as ReactElement<{ "data-block"?: string }>, {
+  const text = fencedCodeText(children);
+  const childWithBlock = isValidElement<CodeChildProps>(children)
+    ? cloneElement(children, {
         "data-block": "true",
+        ...(text !== undefined && children.props.node
+          ? { node: nodeWithContent(children.props.node, text) }
+          : {}),
       })
     : children;
 

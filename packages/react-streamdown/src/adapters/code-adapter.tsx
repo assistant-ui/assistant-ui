@@ -8,7 +8,6 @@ import {
   memo,
   type ReactNode,
 } from "react";
-import { CodeBlock } from "streamdown";
 import type {
   CodeHeaderProps,
   ComponentsByLanguage,
@@ -55,36 +54,6 @@ export function compareCodeProps(prev: CodeProps, next: CodeProps): boolean {
     prev.node?.position?.end.line === next.node?.position?.end.line
   );
 }
-
-function DefaultStreamdownCode({
-  node: _node,
-  className,
-  children,
-  "data-block": dataBlock,
-  ...props
-}: CodeProps) {
-  if (!dataBlock) {
-    return (
-      <code className={className} {...props}>
-        {children}
-      </code>
-    );
-  }
-
-  const language = className?.match(LANGUAGE_REGEX)?.[1] ?? "";
-  return (
-    <CodeBlock
-      code={extractCode(children)}
-      language={language}
-      className={className}
-    />
-  );
-}
-
-export const defaultStreamdownCode = memo(
-  DefaultStreamdownCode,
-  compareCodeProps,
-);
 
 function DefaultPre({ node: _, ...props }: PreProps): ReactNode {
   return <pre {...props} />;
