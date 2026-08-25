@@ -5,7 +5,6 @@ import {
   useCallback,
   useContext,
   useEffect,
-  useSyncExternalStore,
   type ReactNode,
 } from "react";
 import { usePathname } from "next/navigation";
@@ -15,6 +14,10 @@ import {
   PLATFORMS,
   type Platform,
 } from "@/lib/constants";
+import {
+  createPersistedPreference,
+  usePersistedPreference,
+} from "@/lib/persisted-preference";
 
 export { DEFAULT_PLATFORM, PLATFORM_LABELS, PLATFORMS, type Platform };
 
@@ -26,6 +29,43 @@ export const PLATFORM_DOC_BASE_PATHS: Record<Platform, string> = {
 
 const STORAGE_KEY = "assistant-ui::docs:platform";
 const URL_PARAM = "platform";
+
+export function isPlatform(
+  value: string | null | undefined,
+): value is Platform {
+  return value != null && (PLATFORMS as readonly string[]).includes(value);
+}
+
+const platformPreference = createPersistedPreference<Platform>({
+  key: STORAGE_KEY,
+  fallback: DEFAULT_PLATFORM,
+  read: (raw) => (isPlatform(raw) ? raw : null),
+  url: {
+    param: URL_PARAM,
+    read: (raw) => (isPlatform(raw) ? raw : null),
+    write: (value) => (value === DEFAULT_PLATFORM ? null : value),
+  },
+});
+
+// Avoid useSearchParams so the docs layout stays statically renderable.
+function readPlatformParam(): Platform | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const value = new URLSearchParams(window.location.search).get(URL_PARAM);
+    return isPlatform(value) ? value : null;
+  } catch {
+    return null;
+  }
+}
+
+// Landing on a ?platform= url is an entry point the reader should keep for the
+// rest of the visit, so the parameter is promoted into storage instead of only
+// being read while it stays in the address bar.
+export function syncPlatformFromUrl() {
+  platformPreference.resync();
+  const fromUrl = readPlatformParam();
+  if (fromUrl !== null) platformPreference.set(fromUrl);
+}
 
 interface PlatformContextValue {
   platform: Platform;
@@ -63,52 +103,6 @@ export function PlatformScope({
   );
 }
 
-export function isPlatform(
-  value: string | null | undefined,
-): value is Platform {
-  return value != null && (PLATFORMS as readonly string[]).includes(value);
-}
-
-const isBrowser = () => typeof window !== "undefined";
-
-// Avoid useSearchParams so the docs layout stays statically renderable.
-function readUrlPlatform(): Platform | null {
-  if (!isBrowser()) return null;
-  try {
-    const value = new URLSearchParams(window.location.search).get(URL_PARAM);
-    return isPlatform(value) ? value : null;
-  } catch {
-    return null;
-  }
-}
-
-function readStoredPlatform(): Platform | null {
-  if (!isBrowser()) return null;
-  try {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    return isPlatform(stored) ? stored : null;
-  } catch {
-    return null;
-  }
-}
-
-// replaceState keeps platform selection shareable without adding noisy
-// back/forward entries for every dropdown change.
-function writeUrlPlatform(next: Platform): void {
-  if (!isBrowser()) return;
-  try {
-    const url = new URL(window.location.href);
-    if (next === DEFAULT_PLATFORM) {
-      if (!url.searchParams.has(URL_PARAM)) return;
-      url.searchParams.delete(URL_PARAM);
-    } else {
-      if (url.searchParams.get(URL_PARAM) === next) return;
-      url.searchParams.set(URL_PARAM, next);
-    }
-    window.history.replaceState(window.history.state, "", url.toString());
-  } catch {}
-}
-
 function platformDocPathSuffix(
   pathname: string,
   platform: Extract<Platform, "rn" | "ink">,
@@ -143,93 +137,23 @@ export function getPlatformSwitchHref(
   return `${PLATFORM_DOC_BASE_PATHS[nextPlatform]}${currentPlatformSuffix}`;
 }
 
-// SSR-safe localStorage backing for useSyncExternalStore, with cross-tab sync
-// via the storage event.
-class PlatformStore {
-  private listeners = new Set<() => void>();
-  private urlPlatform: Platform | null = readUrlPlatform();
-  private storedPlatform: Platform | null = readStoredPlatform();
-
-  constructor() {
-    if (isBrowser()) {
-      window.addEventListener("storage", this.handleStorage);
-    }
-  }
-
-  private refreshFromBrowser = () => {
-    this.urlPlatform = readUrlPlatform();
-    this.storedPlatform = readStoredPlatform();
-  };
-
-  private handleStorage = (e: StorageEvent) => {
-    if (e.storageArea !== window.localStorage) return;
-    if (e.key !== STORAGE_KEY) return;
-    this.storedPlatform = readStoredPlatform();
-    this.notify();
-  };
-
-  private notify = () => {
-    this.listeners.forEach((l) => {
-      l();
-    });
-  };
-
-  subscribe = (listener: () => void) => {
-    this.listeners.add(listener);
-    return () => {
-      this.listeners.delete(listener);
-    };
-  };
-
-  getSnapshot = (): Platform => {
-    return this.urlPlatform ?? this.storedPlatform ?? DEFAULT_PLATFORM;
-  };
-
-  getServerSnapshot = (): Platform => DEFAULT_PLATFORM;
-
-  setValue = (next: Platform) => {
-    if (!isBrowser()) return;
-    try {
-      window.localStorage.setItem(STORAGE_KEY, next);
-      this.storedPlatform = next;
-    } catch {}
-    writeUrlPlatform(next);
-    this.urlPlatform = next === DEFAULT_PLATFORM ? null : next;
-    this.notify();
-  };
-
-  syncUrlAndStore = () => {
-    this.refreshFromBrowser();
-    const next = this.getSnapshot();
-    if (next === this.storedPlatform) return;
-    this.setValue(next);
-  };
-}
-
-const platformStore = new PlatformStore();
-
 export function PlatformProvider({ children }: { children: ReactNode }) {
   const pathname = usePathname();
-
-  const platform = useSyncExternalStore(
-    platformStore.subscribe,
-    platformStore.getSnapshot,
-    platformStore.getServerSnapshot,
-  );
+  const platform = usePersistedPreference(platformPreference);
 
   useEffect(() => {
-    platformStore.syncUrlAndStore();
+    syncPlatformFromUrl();
   }, [pathname]);
 
   useEffect(() => {
-    window.addEventListener("popstate", platformStore.syncUrlAndStore);
+    window.addEventListener("popstate", syncPlatformFromUrl);
     return () => {
-      window.removeEventListener("popstate", platformStore.syncUrlAndStore);
+      window.removeEventListener("popstate", syncPlatformFromUrl);
     };
   }, []);
 
   const setPlatform = useCallback((next: Platform) => {
-    platformStore.setValue(next);
+    platformPreference.set(next);
   }, []);
 
   return (

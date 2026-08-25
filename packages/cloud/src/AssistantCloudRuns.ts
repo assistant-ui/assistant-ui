@@ -1,5 +1,5 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
-import type { SamplingCallData } from "./instrumentMcpSampling";
+import type { AssistantCloudRunReportToolCall } from "./runTelemetry";
 import { AssistantStream, PlainTextDecoder } from "assistant-stream";
 import {
   CloudResponseError,
@@ -13,17 +13,6 @@ type AssistantCloudRunsStreamBody = {
   messages: readonly unknown[]; // TODO type
 };
 
-type ReportToolCall = {
-  tool_name: string;
-  tool_call_id: string;
-  tool_args?: string;
-  tool_result?: string;
-  tool_source?: "mcp" | "frontend" | "backend";
-  start_ms?: number;
-  end_ms?: number;
-  sampling_calls?: SamplingCallData[];
-};
-
 // NOTE: Keep this payload shape aligned with the strict runtime validator in
 // assistant-cloud: apps/aui-cloud-api/src/endpoints/runs/create.ts
 // (createRunSchema). New telemetry fields must be added in both repos together.
@@ -31,13 +20,13 @@ export type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "incomplete" | "error";
   total_steps?: number;
-  tool_calls?: ReportToolCall[];
+  tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
     input_tokens?: number;
     output_tokens?: number;
     reasoning_tokens?: number;
     cached_input_tokens?: number;
-    tool_calls?: ReportToolCall[];
+    tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
   }[];

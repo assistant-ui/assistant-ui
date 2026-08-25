@@ -26,8 +26,8 @@ import {
   XIcon,
   Zap,
 } from "lucide-react";
-import { useEffect, useState, type FC } from "react";
-import { useShallow } from "zustand/shallow";
+import { useState, type FC } from "react";
+import { useAttachmentSrc } from "./use-attachment-src";
 import { MarkdownText } from "@/components/assistant-ui/markdown-text";
 import { CloneThreadShell } from "./clone-thread-shell";
 import { GrokIcon } from "@/components/icons/grok";
@@ -313,33 +313,6 @@ const MessageTimingDisplay: FC = () => {
       </div>
     </div>
   );
-};
-
-const useAttachmentSrc = () => {
-  const { file, src } = useAuiState(
-    useShallow((s): { file?: File; src?: string } => {
-      if (s.attachment.type !== "image") return {};
-      if (s.attachment.file) return { file: s.attachment.file };
-      const src = s.attachment.content?.filter((c) => c.type === "image")[0]
-        ?.image;
-      if (!src) return {};
-      return { src };
-    }),
-  );
-
-  const [fileSrc, setFileSrc] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    if (!file) {
-      setFileSrc(undefined);
-      return;
-    }
-    const objectUrl = URL.createObjectURL(file);
-    setFileSrc(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
-  }, [file]);
-
-  return fileSrc ?? src;
 };
 
 const GrokAttachment: FC = () => {

@@ -37,7 +37,6 @@ const useTriggerSelectionResource = ({
   behavior,
   trigger,
   aui,
-  triggerChar,
   setCursorPosition,
   onSelected,
 }: {
@@ -74,9 +73,7 @@ const useTriggerSelectionResource = ({
 
     const currentText = aui.composer.getState().text;
     const before = currentText.slice(0, trigger.offset);
-    const after = currentText.slice(
-      trigger.offset + triggerChar.length + trigger.query.length,
-    );
+    const after = currentText.slice(trigger.endOffset);
 
     const insertDirective = () => {
       const directive = behavior.formatter.serialize(item);

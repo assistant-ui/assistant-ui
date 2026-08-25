@@ -9,8 +9,8 @@ import { Grok } from "@/components/pages/examples/grok";
 import { ModalChat } from "@/components/pages/examples/modal";
 import { Perplexity } from "@/components/pages/examples/perplexity";
 import { DemoIframe } from "@/components/pages/docs/demo-iframe";
-import { ArtifactsRuntimeProvider } from "@/contexts/ArtifactsRuntimeProvider";
-import { DocsRuntimeProvider } from "@/contexts/DocsRuntimeProvider";
+import { ArtifactsRuntimeProvider } from "@/runtimes/artifacts";
+import { DocsRuntimeProvider } from "@/runtimes/docs";
 
 function ThreadPreview({ children }: { children: ReactNode }) {
   return <DocsRuntimeProvider>{children}</DocsRuntimeProvider>;

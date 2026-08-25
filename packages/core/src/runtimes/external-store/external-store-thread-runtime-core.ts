@@ -16,6 +16,7 @@ import type {
 import {
   getExternalStoreMessages,
   bindExternalStoreMessage,
+  FALLBACK_ID_PREFIX,
 } from "../../runtime/utils/external-store-message";
 import { ThreadMessageConverter } from "./thread-message-converter";
 import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
@@ -285,19 +286,29 @@ export class ExternalStoreThreadRuntimeCore
               false,
               undefined,
             );
+            const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
 
             if (
               cache &&
               (cache.role !== "assistant" ||
                 !isAutoStatus(cache.status) ||
                 cache.status === autoStatus)
-            )
+            ) {
+              if (
+                cache.id.startsWith(FALLBACK_ID_PREFIX) &&
+                cache.id !== fallbackId
+              ) {
+                const updated = { ...cache, id: fallbackId };
+                bindExternalStoreMessage(updated, m);
+                return updated;
+              }
               return cache;
+            }
 
             const messageLike = store.convertMessage(m, idx);
             const newMessage = fromThreadMessageLike(
               messageLike,
-              idx.toString(),
+              fallbackId,
               autoStatus,
             );
             bindExternalStoreMessage(newMessage, m);

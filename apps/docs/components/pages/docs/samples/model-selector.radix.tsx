@@ -13,7 +13,7 @@ import {
   ModelSelectorEffort,
   type ModelOption,
 } from "@/components/assistant-ui/model-selector.radix";
-import { DEFAULT_MODEL_ID, getContextWindow } from "@/constants/model";
+import { DEFAULT_MODEL_ID, getContextWindow } from "@/lib/model";
 import { docsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import { cn } from "@/lib/utils";

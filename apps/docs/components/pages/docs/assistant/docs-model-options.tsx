@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { MODELS } from "@/constants/model";
+import { MODELS } from "@/lib/model";
 
 export function docsModelOptions() {
   return MODELS.map((model) => ({

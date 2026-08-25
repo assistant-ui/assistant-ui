@@ -205,13 +205,13 @@ type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
   total_steps?: number;
-  tool_calls?: ReportToolCall[];
+  tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
     input_tokens?: number;
     output_tokens?: number;
     reasoning_tokens?: number;
     cached_input_tokens?: number;
-    tool_calls?: ReportToolCall[];
+    tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
   }[];
@@ -224,6 +224,17 @@ type AssistantCloudRunReport = {
   duration_ms?: number;
   output_text?: string;
   metadata?: Record<string, unknown>;
+};
+
+type AssistantCloudRunReportToolCall = {
+  tool_name: string;
+  tool_call_id: string;
+  tool_args?: string;
+  tool_result?: string;
+  tool_source?: "backend" | "frontend" | "mcp";
+  start_ms?: number;
+  end_ms?: number;
+  sampling_calls?: SamplingCallData[];
 };
 
 declare class AssistantCloudRuns {
@@ -3457,6 +3468,7 @@ type RemoteThreadData = {
   readonly status: "new";
   readonly title: undefined;
   readonly custom: undefined;
+  readonly localOrigin?: true;
 } | {
   readonly id: string;
   readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
@@ -3465,6 +3477,7 @@ type RemoteThreadData = {
   readonly status: "archived" | "regular";
   readonly title?: string | undefined;
   readonly custom: undefined;
+  readonly localOrigin?: true;
 } | {
   readonly id: string;
   readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
@@ -3474,6 +3487,7 @@ type RemoteThreadData = {
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly custom?: Record<string, unknown> | undefined;
+  readonly localOrigin?: true;
 };
 
 type RemoteThreadInitializeResponse = {
@@ -3881,17 +3895,6 @@ type RemoteThreadState = {
   readonly archivedThreadIds: readonly string[];
   readonly threadIdMap: Readonly<Record<string, THREAD_MAPPING_ID>>;
   readonly threadData: Readonly<Record<THREAD_MAPPING_ID, RemoteThreadData>>;
-};
-
-type ReportToolCall = {
-  tool_name: string;
-  tool_call_id: string;
-  tool_args?: string;
-  tool_result?: string;
-  tool_source?: "backend" | "frontend" | "mcp";
-  start_ms?: number;
-  end_ms?: number;
-  sampling_calls?: SamplingCallData[];
 };
 
 type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<T, Exclude<keyof T, Keys>> & {
@@ -4766,6 +4769,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
@@ -5346,6 +5350,10 @@ type ToolCallMessagePartProps<TArgs = any, TResult = unknown> = MessagePartState
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
   readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "tool-calls";
+  readonly error?: ReadonlyJSONValue;
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {

@@ -14,7 +14,7 @@ import {
   COMPONENT_EXAMPLES,
 } from "@/lib/component-reference";
 import { describeComponentProps } from "@/lib/component-props";
-import { demoCanvasClass } from "@/components/demo/utils/canvas";
+import { demoCanvasClass } from "@/components/pages/elements/demos/canvas";
 import { IconGlyphGrid } from "@/components/gallery/icon-glyph-grid";
 import { TemplatePreview } from "@/components/gallery/template-preview";
 import { VocabCodeTabs } from "@/components/pages/elements/vocab-code-tabs";

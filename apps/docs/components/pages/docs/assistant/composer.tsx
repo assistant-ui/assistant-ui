@@ -8,7 +8,7 @@ import {
   DEFAULT_MODEL_ID,
   resolveModelId,
   type KnownModelId,
-} from "@/constants/model";
+} from "@/lib/model";
 import { analytics } from "@/lib/analytics";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
 import {
