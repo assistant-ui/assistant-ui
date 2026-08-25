@@ -208,7 +208,7 @@ export async function unstable_runPendingTools(
   human: (toolCallId: string, payload: unknown) => Promise<unknown>,
 ) {
   const toolCallPromises = message.parts
-    .filter((part) => part.type === "tool-call")
+    .filter((part) => part.type === "tool-call" && part.state !== "result")
     .map(async (part) => {
       const promiseOrUndefined = getToolResponse(
         tools,
