@@ -371,4 +371,56 @@ describe("mountTopAnchorReserve", () => {
 
     expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
   });
+
+  it("restores the anchor after the reserve contracts and scrollTop drifts", () => {
+    const viewport = document.createElement("div");
+    const anchor = document.createElement("div");
+    const target = document.createElement("div");
+    let scrollHeight = 560;
+    document.body.append(target);
+
+    defineReadonlyNumber(viewport, "offsetTop", 0);
+    defineReadonlyNumber(viewport, "clientHeight", 400);
+    Object.defineProperty(viewport, "scrollHeight", {
+      configurable: true,
+      get: () => scrollHeight,
+    });
+    defineReadonlyNumber(anchor, "offsetTop", 220);
+    defineReadonlyNumber(anchor, "offsetHeight", 64);
+    anchor.dataset.messageId = "msg-1";
+    viewport.scrollTo = vi.fn(({ top }: ScrollToOptions) => {
+      viewport.scrollTop = top ?? 0;
+    });
+
+    const { store, setState } = makeStore({
+      turnAnchor: "top",
+      element: { viewport, anchor, target },
+      targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+
+    mountTopAnchorReserve(store);
+    vi.runOnlyPendingTimers();
+    vi.runOnlyPendingTimers();
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(1);
+
+    const reserve = document.querySelector(
+      "[data-aui-top-anchor-reserve]",
+    ) as HTMLElement;
+    defineReadonlyNumber(reserve, "offsetHeight", 60);
+
+    scrollHeight = 680;
+    viewport.scrollTop = 160;
+    setState({
+      turnAnchor: "top",
+      element: { viewport, anchor, target },
+      targetConfig: numericClamp,
+      topAnchorTurn: activeTopAnchorTurn,
+    });
+    vi.runOnlyPendingTimers();
+    vi.runOnlyPendingTimers();
+
+    expect(viewport.scrollTo).toHaveBeenCalledTimes(2);
+    expect(viewport.scrollTop).toBe(220);
+  });
 });

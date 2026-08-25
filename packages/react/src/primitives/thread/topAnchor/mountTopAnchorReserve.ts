@@ -60,6 +60,7 @@ const createFrameScheduler = (fn: () => void) => {
 export const mountTopAnchorReserve = (store: TopAnchorStore) => {
   let reserve: HTMLElement | null = null;
   let lastScrolledAnchorId: string | undefined;
+  let lastScrolledTargetScrollTop: number | undefined;
 
   function apply() {
     const state = store.getState();
@@ -109,28 +110,45 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
 
     observers.target(viewport, anchor, target);
 
-    const reserveChanged = setReserveHeight(
+    const previousReserveHeight = reserve.offsetHeight;
+    const reserveHeight = computeTopAnchorReserve({
+      viewport,
+      anchor,
       reserve,
-      computeTopAnchorReserve({ viewport, anchor, reserve, ...clamp }),
-    );
+      ...clamp,
+    });
+    const reserveChanged = setReserveHeight(reserve, reserveHeight);
 
     if (reserveChanged) {
+      if (reserveHeight < previousReserveHeight) {
+        lastScrolledAnchorId = undefined;
+        lastScrolledTargetScrollTop = undefined;
+      }
       scheduler.schedule();
       return;
     }
 
     const anchorId = getAnchorId(anchor);
-    if (anchorId !== undefined && lastScrolledAnchorId === anchorId) return;
-
     const targetScrollTop = snapScrollTop(
       computeTopAnchorTargetScrollTop({ viewport, anchor, ...clamp }),
     );
+
+    if (
+      anchorId !== undefined &&
+      lastScrolledAnchorId === anchorId &&
+      lastScrolledTargetScrollTop === targetScrollTop
+    ) {
+      return;
+    }
 
     if (Math.abs(viewport.scrollTop - targetScrollTop) > 1) {
       viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
     }
 
-    if (anchorId !== undefined) lastScrolledAnchorId = anchorId;
+    if (anchorId !== undefined) {
+      lastScrolledAnchorId = anchorId;
+      lastScrolledTargetScrollTop = targetScrollTop;
+    }
   }
 
   const scheduler = createFrameScheduler(apply);
