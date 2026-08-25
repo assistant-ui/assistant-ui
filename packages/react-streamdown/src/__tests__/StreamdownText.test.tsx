@@ -1,7 +1,15 @@
 import { describe, it, expect, vi, afterEach } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
-import { TextMessagePartProvider } from "@assistant-ui/react";
-import { useEffect, type ReactNode } from "react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  AssistantRuntimeProvider,
+  MessagePrimitive,
+  TextMessagePartProvider,
+  ThreadPrimitive,
+  useLocalRuntime,
+  type AssistantRuntime,
+  type ChatModelAdapter,
+} from "@assistant-ui/react";
+import { useEffect, useState, type ReactNode } from "react";
 import { defaultRehypePlugins } from "streamdown";
 import { normalizeMathDelimiters } from "../preprocess";
 import { StreamdownTextPrimitive } from "../primitives/StreamdownText";
@@ -109,6 +117,47 @@ describe("StreamdownTextPrimitive", () => {
 
     expect(await screen.findByText("second")).toBeTruthy();
     expect(screen.queryByText("first")).toBeNull();
+  });
+
+  it("resets blocks for prefix-preserving message part replacements", async () => {
+    const mounted = vi.fn();
+    const BlockComponent = ({ content }: { content: string }) => {
+      const [renderedContent] = useState(content);
+      useEffect(() => {
+        mounted();
+      }, []);
+      return <div>{renderedContent}</div>;
+    };
+    const adapter: ChatModelAdapter = {
+      async *run() {},
+    };
+    let runtime: AssistantRuntime | null = null;
+    const Text = () => (
+      <StreamdownTextPrimitive BlockComponent={BlockComponent} />
+    );
+    const Message = () => <MessagePrimitive.Parts components={{ Text }} />;
+    const App = () => {
+      const localRuntime = useLocalRuntime(adapter, {
+        initialMessages: [{ role: "assistant", content: "first" }],
+      });
+      runtime = localRuntime;
+      return (
+        <AssistantRuntimeProvider runtime={localRuntime}>
+          <ThreadPrimitive.Messages components={{ Message }} />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    expect(await screen.findByText("first")).toBeTruthy();
+
+    await act(async () => {
+      runtime!.thread.reset([{ role: "assistant", content: "first second" }]);
+    });
+
+    expect(await screen.findByText("first second")).toBeTruthy();
+    expect(screen.queryByText("first")).toBeNull();
+    expect(mounted).toHaveBeenCalledTimes(2);
   });
 
   it("does not remount blocks when preprocessing rewrites appended text", async () => {

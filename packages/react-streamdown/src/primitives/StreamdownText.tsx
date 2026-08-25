@@ -1,6 +1,11 @@
 "use client";
 
-import { useMessagePartText, useSmooth } from "@assistant-ui/react";
+import {
+  useAui,
+  useAuiState,
+  useMessagePartText,
+  useSmooth,
+} from "@assistant-ui/react";
 import { harden } from "rehype-harden";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, {
@@ -30,14 +35,15 @@ import type {
 
 type StreamdownTextPrimitiveElement = ComponentRef<"div">;
 
-const useStreamRevision = (text: string) => {
-  const [state, setState] = useState({ text, revision: 0 });
-  if (state.text === text) return state.revision;
+const useStreamRevision = (text: string, part: unknown) => {
+  const [state, setState] = useState({ text, part, revision: 0 });
+  if (state.text === text && state.part === part) return state.revision;
 
-  const revision = text.startsWith(state.text)
-    ? state.revision
-    : state.revision + 1;
-  setState({ text, revision });
+  const revision =
+    state.part === part && text.startsWith(state.text)
+      ? state.revision
+      : state.revision + 1;
+  setState({ text, part, revision });
   return revision;
 };
 
@@ -172,8 +178,10 @@ export const StreamdownTextPrimitive = forwardRef<
     },
     ref,
   ) => {
+    const aui = useAui();
+    const part = useAuiState(() => aui.part);
     const messagePart = useMessagePartText();
-    const streamRevision = useStreamRevision(messagePart.text);
+    const streamRevision = useStreamRevision(messagePart.text, part);
 
     const processedPart = useMemo(
       () =>
