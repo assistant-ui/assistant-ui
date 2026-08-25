@@ -615,7 +615,9 @@ describe("createPiHttpClient", () => {
     send(0, outOfBandError);
     send(0, staleError);
     send(0, agentEnd);
-    await vi.waitFor(() => expect(firstEvents.length).toBeGreaterThanOrEqual(5));
+    await vi.waitFor(() =>
+      expect(firstEvents.length).toBeGreaterThanOrEqual(5),
+    );
     const refreshed = snapshotAt(2, "running");
     send(1, refreshed);
 
