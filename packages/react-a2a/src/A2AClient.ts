@@ -159,13 +159,13 @@ function toWireMessage(msg: A2AMessage): unknown {
 function discriminateStreamResponse(
   data: Record<string, unknown>,
 ): A2AStreamEvent | null {
-  if ("task" in data && data.task) {
-    return { type: "task", task: data.task as A2ATask };
+  if ("task" in data && isTask(data.task)) {
+    return { type: "task", task: data.task };
   }
-  if ("message" in data && data.message) {
-    return { type: "message", message: data.message as A2AMessage };
+  if ("message" in data && isMessage(data.message)) {
+    return { type: "message", message: data.message };
   }
-  if ("statusUpdate" in data && data.statusUpdate) {
+  if ("statusUpdate" in data && isStatusUpdate(data.statusUpdate)) {
     return {
       type: "statusUpdate",
       event: data.statusUpdate as A2AStreamEvent extends {
@@ -176,7 +176,7 @@ function discriminateStreamResponse(
         : never,
     };
   }
-  if ("artifactUpdate" in data && data.artifactUpdate) {
+  if ("artifactUpdate" in data && isArtifactUpdate(data.artifactUpdate)) {
     return {
       type: "artifactUpdate",
       event: data.artifactUpdate as A2AStreamEvent extends {
@@ -200,8 +200,7 @@ function discriminateStreamResponse(
       if (!isMessage(flat)) break;
       return { type: "message", message: flat };
     case "status-update": {
-      if (typeof flat.taskId !== "string" || flat.taskId.length === 0) break;
-      if (!isRecord(flat.status) || !isTaskState(flat.status.state)) break;
+      if (!isStatusUpdate(flat)) break;
       const { final: _final, ...event } = flat;
       return {
         type: "statusUpdate",
@@ -214,13 +213,7 @@ function discriminateStreamResponse(
       };
     }
     case "artifact-update":
-      if (
-        !isRecord(flat.artifact) ||
-        typeof flat.artifact.artifactId !== "string" ||
-        !Array.isArray(flat.artifact.parts) ||
-        !flat.artifact.parts.every(isRecord)
-      )
-        break;
+      if (!isArtifactUpdate(flat)) break;
       return {
         type: "artifactUpdate",
         event: flat as unknown as A2AStreamEvent extends {
@@ -276,6 +269,20 @@ const isMessage = (value: unknown): value is A2AMessage =>
   isRole(value.role) &&
   Array.isArray(value.parts) &&
   value.parts.every(isRecord);
+
+const isStatusUpdate = (value: unknown): value is Record<string, unknown> =>
+  isRecord(value) &&
+  typeof value.taskId === "string" &&
+  value.taskId.length > 0 &&
+  isRecord(value.status) &&
+  isTaskState(value.status.state);
+
+const isArtifactUpdate = (value: unknown): value is Record<string, unknown> =>
+  isRecord(value) &&
+  isRecord(value.artifact) &&
+  typeof value.artifact.artifactId === "string" &&
+  Array.isArray(value.artifact.parts) &&
+  value.artifact.parts.every(isRecord);
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
