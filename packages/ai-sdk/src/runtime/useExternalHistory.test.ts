@@ -392,6 +392,7 @@ describe("useExternalHistory persistence", () => {
     options?: {
       loadMessages?: MessageFormatRepository<InnerMessage>;
       toThreadMessages?: (messages: InnerMessage[]) => ThreadMessage[];
+      initialIsRunning?: boolean;
     },
   ) => {
     const append = vi.fn(
@@ -426,7 +427,7 @@ describe("useExternalHistory persistence", () => {
     };
 
     let listener: (() => void) | undefined;
-    let isRunning = false;
+    let isRunning = options?.initialIsRunning ?? false;
     let messages: ThreadMessage[] = [];
     const getState = vi.fn(() => ({ isRunning, messages }));
     const thread = {
@@ -496,6 +497,83 @@ describe("useExternalHistory persistence", () => {
       unmount,
     };
   };
+
+  it("persists a settled turn when the history adapter becomes active after it", async () => {
+    let listener: (() => void) | undefined;
+    let isRunning = false;
+    let messages: ThreadMessage[] = [];
+    const append = vi.fn(async () => {});
+    const formattedAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+    };
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn(),
+      append: vi.fn(),
+      withFormat: vi.fn().mockReturnValue(formattedAdapter),
+    };
+    let activeAdapter: ThreadHistoryAdapter | undefined;
+    const thread = {
+      subscribe: (next: () => void) => {
+        listener = next;
+        return () => {};
+      },
+      getState: () => ({ isRunning, messages }),
+      import: vi.fn(),
+      export: vi.fn(() => ({ headId: null, messages: [] })),
+    } as unknown as AssistantRuntime["thread"];
+    const persistenceRuntimeRef = {
+      current: { thread } as AssistantRuntime,
+    };
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-1", parts: ["answer"] }],
+    );
+
+    mocks.hasThreadListItem = true;
+    mocks.remoteId = "remote-thread";
+
+    const { rerender } = renderHook(() =>
+      useExternalHistory(
+        persistenceRuntimeRef,
+        activeAdapter,
+        () => [],
+        persistenceStorageFormat,
+        () => {},
+      ),
+    );
+
+    await act(async () => {
+      messages = [message];
+      isRunning = true;
+      listener?.();
+      isRunning = false;
+      listener?.();
+    });
+
+    activeAdapter = historyAdapter;
+    await act(async () => rerender());
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+    expect(append).toHaveBeenCalledWith({
+      parentId: null,
+      message: { id: "inner-1", parts: ["answer"] },
+    });
+  });
+
+  it("persists a turn that is already running when the subscription starts", async () => {
+    const { append, step } = createPersistenceHarness(false, {
+      initialIsRunning: true,
+    });
+    const message = createAssistantMessage(
+      { type: "complete", reason: "stop" },
+      [{ id: "inner-1", parts: ["answer"] }],
+    );
+
+    await step({ isRunning: false, messages: [message] });
+
+    await waitFor(() => expect(append).toHaveBeenCalledTimes(1));
+  });
 
   it("retries a failed append on the next persistence pass", async () => {
     const consoleError = vi
