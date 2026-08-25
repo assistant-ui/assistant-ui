@@ -117,7 +117,7 @@ describe("AdkEventAccumulator - function calls", () => {
     });
   });
 
-  it("generates a UUID for functionCall without an id", () => {
+  it("generates an ID for functionCall without an id", () => {
     const acc = new AdkEventAccumulator();
     const msgs = acc.processEvent(
       makeEvent({

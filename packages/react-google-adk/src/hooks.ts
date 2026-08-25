@@ -1,5 +1,5 @@
+import { generateId } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
-import { v4 as uuidv4 } from "uuid";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import { adkExtras } from "./adkExtras";
 import { toAdkConfirmationReply } from "./adkToolApproval";
@@ -79,7 +79,7 @@ export const useAdkSubmitAuth = () => {
     adkExtras.get(aui).send(
       [
         {
-          id: uuidv4(),
+          id: generateId(),
           type: "tool",
           tool_call_id: toolCallId,
           name: "adk_request_credential",
@@ -98,7 +98,7 @@ export const useAdkSubmitInput = () => {
     adkExtras.get(aui).send(
       [
         {
-          id: uuidv4(),
+          id: generateId(),
           type: "tool",
           tool_call_id: toolCallId,
           name: "adk_request_input",

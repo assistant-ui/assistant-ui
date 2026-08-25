@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { v4 as uuidv4 } from "uuid";
+import { generateId } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
 import { AdkEventAccumulator } from "./AdkEventAccumulator";
@@ -122,7 +122,7 @@ export const useAdkMessages = ({
   const sendMessage = useCallback(
     async (newMessages: AdkMessage[], config: AdkSendMessageConfig) => {
       const newMessagesWithId = newMessages.map((m) =>
-        m.id ? m : { ...m, id: uuidv4() },
+        m.id ? m : { ...m, id: generateId() },
       ) as AdkMessage[];
 
       // A staged message is already in the thread under its own id, and the
@@ -295,7 +295,7 @@ export const messagesToEvents = (messages: AdkMessage[]): AdkEvent[] => {
   // message. Emitting it here keeps the optimistic view equal to that replay.
   if (parts.length === 0) parts.push({ text: "" });
 
-  const event: AdkEvent = { id: (human ?? run[0])?.id ?? uuidv4() };
+  const event: AdkEvent = { id: (human ?? run[0])?.id ?? generateId() };
   if (human || run.length === 0) event.author = "user";
   event.content = { role: "user", parts };
   events.splice(run.length > 0 ? runIndex : events.length, 0, event);
@@ -307,7 +307,7 @@ export const messagesToEvents = (messages: AdkMessage[]): AdkEvent[] => {
 export const messageToEvent = (msg: AdkMessage): AdkEvent => {
   if (msg.type === "human") {
     return {
-      id: msg.id ?? uuidv4(),
+      id: msg.id ?? generateId(),
       author: "user",
       content: { role: "user", parts: contentToParts(msg.content) },
     };
@@ -321,7 +321,7 @@ export const messageToEvent = (msg: AdkMessage): AdkEvent => {
       response = msg.content;
     }
     return {
-      id: msg.id ?? uuidv4(),
+      id: msg.id ?? generateId(),
       content: {
         role: "user",
         parts: [
@@ -337,7 +337,7 @@ export const messageToEvent = (msg: AdkMessage): AdkEvent => {
     };
   }
 
-  const result: AdkEvent = { id: msg.id ?? uuidv4() };
+  const result: AdkEvent = { id: msg.id ?? generateId() };
   if (msg.author != null) result.author = msg.author;
   result.content = {
     role: "model",

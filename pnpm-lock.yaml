@@ -4280,9 +4280,6 @@ importers:
       assistant-stream:
         specifier: ^0.3.39
         version: link:../assistant-stream
-      uuid:
-        specifier: ^14.0.2
-        version: 14.0.2
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -4489,9 +4486,6 @@ importers:
       assistant-stream:
         specifier: ^0.3.39
         version: link:../assistant-stream
-      uuid:
-        specifier: ^14.0.2
-        version: 14.0.2
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { v4 as uuidv4 } from "uuid";
+import { generateId } from "@assistant-ui/core";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import { abortableIterable, whenAborted } from "./abortableIterable";
 import {
@@ -264,7 +264,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
       try {
         // ensure all messages have an ID
         const newMessagesWithId = newMessages.map((m) =>
-          m.id ? m : { ...m, id: uuidv4() },
+          m.id ? m : { ...m, id: generateId() },
         );
 
         accumulator = new LangGraphMessageAccumulator({

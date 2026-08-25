@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { generateId } from "@assistant-ui/core";
 import type { MessageStatus } from "@assistant-ui/core";
 import type {
   AdkEvent,
@@ -26,10 +26,10 @@ type InProgressMessage = AdkMessage & { type: "ai" };
  * event has already opened.
  */
 const toolMessageId = (event: AdkEvent, partIndex: number): string =>
-  event.id ? `${event.id}:${partIndex}` : uuidv4();
+  event.id ? `${event.id}:${partIndex}` : generateId();
 
 const aiMessageId = (event: AdkEvent, ordinal: number): string =>
-  event.id ? `${event.id}:ai${ordinal === 0 ? "" : ordinal}` : uuidv4();
+  event.id ? `${event.id}:ai${ordinal === 0 ? "" : ordinal}` : generateId();
 
 const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
 const ADK_REQUEST_CREDENTIAL = "adk_request_credential";
@@ -370,7 +370,7 @@ export class AdkEventAccumulator {
         this.messagesMap.set(toolMsg.id, toolMsg);
       }
       if (humanParts.length > 0) {
-        const id = event.id ?? uuidv4();
+        const id = event.id ?? generateId();
         const first = humanParts[0];
         const content: string | AdkMessageContentPart[] =
           humanParts.length === 1 && first?.type === "text"
@@ -510,7 +510,7 @@ export class AdkEventAccumulator {
       if (event.partial) return;
       const msg = this.getOrCreateAiMessage(event);
       const toolCall: AdkToolCall = {
-        id: part.functionCall.id ?? uuidv4(),
+        id: part.functionCall.id ?? generateId(),
         name: part.functionCall.name,
         args: part.functionCall.args as ReadonlyJSONObject,
         argsText: JSON.stringify(part.functionCall.args),

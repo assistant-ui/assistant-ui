@@ -42,7 +42,6 @@ import {
   toAdkToolConfirmationReply,
 } from "./adkToolApproval";
 import { adkExtras } from "./adkExtras";
-import { v4 as uuidv4 } from "uuid";
 
 /** @internal — exported for unit tests. */
 export const getMessageContent = (msg: AppendMessage) => {
@@ -138,7 +137,7 @@ export const getPendingCancellations = (
     .map(
       (t) =>
         ({
-          id: uuidv4(),
+          id: generateId(),
           type: "tool",
           name: t.name,
           tool_call_id: t.id,
@@ -475,7 +474,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
         [
           ...cancellations,
           {
-            id: uuidv4(),
+            id: generateId(),
             type: "human",
             content: getMessageContent(msg),
           },
@@ -509,7 +508,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           return handleSendMessage(
             [
               {
-                id: uuidv4(),
+                id: generateId(),
                 type: "human",
                 content: getMessageContent(msg),
               },
@@ -564,7 +563,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       await handleSendMessage(
         [
           {
-            id: uuidv4(),
+            id: generateId(),
             type: "tool",
             name: toolName,
             tool_call_id: toolCallId,

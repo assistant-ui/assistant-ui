@@ -37,8 +37,7 @@
     "@assistant-ui/core": "^0.3.15",
     "@assistant-ui/store": "^0.3.10",
     "assistant-cloud": "*",
-    "assistant-stream": "^0.3.39",
-    "uuid": "^14.0.2"
+    "assistant-stream": "^0.3.39"
   },
   "peerDependencies": {
     "@langchain/langgraph-sdk": "^1.8.0",
