@@ -12,11 +12,11 @@
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-markdown": "workspace:*",
     "@tailwindcss/vite": "^4.3.3",
-    "@tanstack/react-router": "^1.170.29",
-    "@tanstack/react-start": "^1.168.46",
+    "@tanstack/react-router": "^1.170.32",
+    "@tanstack/react-start": "^1.168.49",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.31.0",
+    "lucide-react": "^1.33.0",
     "nitro": "^3.0.260311-beta",
     "openai": "^7.5.0",
     "react": "^19.2.8",
@@ -30,9 +30,9 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
-    "@types/react-dom": "^19.2.4",
-    "@vitejs/plugin-react": "^6.0.5",
+    "@types/react-dom": "^19.2.5",
+    "@vitejs/plugin-react": "^6.1.0",
     "typescript": "^7.0.2",
-    "vite": "^8.2.1"
+    "vite": "^8.2.2"
   }
 }

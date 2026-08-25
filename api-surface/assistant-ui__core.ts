@@ -3468,6 +3468,7 @@ type RemoteThreadData = {
   readonly status: "new";
   readonly title: undefined;
   readonly custom: undefined;
+  readonly localOrigin?: true;
 } | {
   readonly id: string;
   readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
@@ -3476,6 +3477,7 @@ type RemoteThreadData = {
   readonly status: "archived" | "regular";
   readonly title?: string | undefined;
   readonly custom: undefined;
+  readonly localOrigin?: true;
 } | {
   readonly id: string;
   readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
@@ -3485,6 +3487,7 @@ type RemoteThreadData = {
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly custom?: Record<string, unknown> | undefined;
+  readonly localOrigin?: true;
 };
 
 type RemoteThreadInitializeResponse = {

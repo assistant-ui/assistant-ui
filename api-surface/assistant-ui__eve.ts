@@ -2,7 +2,7 @@ import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { InputResponse } from "eve/client";
 
-import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, UseEveAgentHelpers, UseEveAgentOptions } from "eve/react";
+import { EveAuthorizationOutcome, EveAuthorizationPart, EveMessage, EveMessageData, EveMessageInputRequest, UseEveAgentHelpers, UseEveAgentOptions } from "eve/react";
 
 type AddToolResultOptions = {
   messageId: string;
@@ -1534,7 +1534,7 @@ declare namespace entry_root_exports {
   export { ConvertEveMessagesOptions, EveAuthorizationData, EveMessageContent, EveRuntimeExtras, UseEveAgentRuntimeOptions, convertEveMessage, convertEveMessages, getEveMessageContent, toEveInputResponse, useEveAgentRuntime, useEveError, useEveEvents, useEveReset, useEveSession };
 }
 
-declare const toEveInputResponse: (response: RespondToToolApprovalOptions) => InputResponse;
+declare const toEveInputResponse: (response: RespondToToolApprovalOptions, inputRequest?: EveMessageInputRequest) => InputResponse;
 
 declare const useEveAgentRuntime: (options?: UseEveAgentRuntimeOptions) => AssistantRuntime;
 

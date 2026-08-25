@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 
-import { ToolFallback } from "./tool-fallback";
+import { ToolFallback, ToolFallbackApproval } from "./tool-fallback";
 
 const stubs = vi.hoisted(() => ({
   useScrollLock: () => () => {},
@@ -14,6 +14,27 @@ vi.mock("@assistant-ui/react", async (importOriginal) => ({
   useScrollLock: stubs.useScrollLock,
   useToolCallElapsed: stubs.useToolCallElapsed,
 }));
+
+const pendingApproval = { id: "req_1" };
+
+// React reports an error thrown by an event handler through `reportError`,
+// which jsdom surfaces as a window error event rather than to the caller.
+const captureWindowErrors = () => {
+  const errors: ErrorEvent[] = [];
+  const listener = (event: ErrorEvent) => {
+    errors.push(event);
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+  window.addEventListener("error", listener, true);
+  return {
+    errors,
+    restore: () => window.removeEventListener("error", listener, true),
+  };
+};
+
+const button = (name: string) =>
+  screen.getByRole("button", { name }) as HTMLButtonElement;
 
 afterEach(cleanup);
 
@@ -174,5 +195,42 @@ describe("ToolFallback", () => {
 
     expect(screen.queryByRole("button", { name: "Allow" })).toBeNull();
     expect(addResult).not.toHaveBeenCalled();
+  });
+});
+
+describe("ToolFallbackApproval", () => {
+  it("keeps the controls actionable when the runtime refuses the response", () => {
+    let refuses = true;
+    const respondToApproval = vi.fn(() => {
+      if (refuses) throw new Error("response cannot be mapped");
+    });
+    const { errors, restore } = captureWindowErrors();
+
+    try {
+      render(
+        <ToolFallbackApproval
+          approval={pendingApproval}
+          respondToApproval={respondToApproval}
+        />,
+      );
+
+      fireEvent.click(button("Allow"));
+
+      expect(errors.map((event) => event.error?.message)).toEqual([
+        "response cannot be mapped",
+      ]);
+      expect(respondToApproval).toHaveBeenLastCalledWith({ approved: true });
+      expect(button("Allow").disabled).toBe(false);
+      expect(button("Deny").disabled).toBe(false);
+
+      refuses = false;
+      fireEvent.click(button("Deny"));
+
+      expect(respondToApproval).toHaveBeenLastCalledWith({ approved: false });
+      expect(button("Allow").disabled).toBe(true);
+      expect(button("Deny").disabled).toBe(true);
+    } finally {
+      restore();
+    }
   });
 });
