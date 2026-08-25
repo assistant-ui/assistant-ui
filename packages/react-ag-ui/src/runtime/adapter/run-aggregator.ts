@@ -66,6 +66,7 @@ export type RunAggregatorOptions = {
   logger: Logger;
   emit: Emit;
   onServerMessageId?: (messageId: string) => void;
+  onTextMessageStart?: (messageId: string) => void;
 };
 
 /**
@@ -83,6 +84,9 @@ export class RunAggregator {
   private readonly showThinking: boolean;
   private readonly logger: Logger;
   private readonly onServerMessageId: ((messageId: string) => void) | undefined;
+  private readonly onTextMessageStart:
+    | ((messageId: string) => void)
+    | undefined;
 
   private status: ChatModelRunResult["status"] | undefined;
   private interrupts: AgUiInterrupt[] | undefined;
@@ -109,6 +113,7 @@ export class RunAggregator {
   )[] = [];
   private textPartCounter = 0;
   private serverMessageIdReported = false;
+  private lastTextMessageId: string | undefined;
 
   private streamStartTime: number | undefined;
   private firstTokenTime: number | undefined;
@@ -119,6 +124,7 @@ export class RunAggregator {
     this.showThinking = options.showThinking;
     this.logger = options.logger;
     this.onServerMessageId = options.onServerMessageId;
+    this.onTextMessageStart = options.onTextMessageStart;
   }
 
   hasToolCall(toolCallId: string): boolean {
@@ -128,22 +134,10 @@ export class RunAggregator {
   handle(event: AgUiEvent): void {
     switch (event.type) {
       case "RUN_STARTED": {
-        this.clearTextParts();
-        this.reasoningParts.clear();
-        this.reasoningSignatures.clear();
-        this.reasoningMessageIds.clear();
-        this.anonymousReasoningKeys.clear();
-        this.activeReasoningKey = undefined;
-        this.reasoningPartCounter = 0;
-        this.toolCalls.clear();
-        this.a2uiBuckets.clear();
-        this.a2uiToolCallIds.clear();
-        this.lastResolvedToolCallId = undefined;
-        this.partOrder.length = 0;
-        this.textPartCounter = 0;
-        this.activeTextMessageId = undefined;
+        this.resetMessageParts();
         this.interrupts = undefined;
         this.serverMessageIdReported = false;
+        this.lastTextMessageId = undefined;
         this.streamStartTime = Date.now();
         this.firstTokenTime = undefined;
         this.totalChunks = 0;
@@ -187,8 +181,10 @@ export class RunAggregator {
       }
 
       case "TEXT_MESSAGE_START": {
+        this.beginDistinctTextMessage(event.messageId);
         this.reportServerMessageId(event.messageId);
         const id = this.startTextMessage(event.messageId);
+        if (event.messageId) this.lastTextMessageId = event.messageId;
         if (id) {
           this.markTextPartTouched(id);
         }
@@ -198,7 +194,9 @@ export class RunAggregator {
       case "TEXT_MESSAGE_CONTENT":
       case "TEXT_MESSAGE_CHUNK": {
         const incomingId = "messageId" in event ? event.messageId : undefined;
+        this.beginDistinctTextMessage(incomingId);
         this.reportServerMessageId(incomingId);
+        if (incomingId) this.lastTextMessageId = incomingId;
         if (!event.delta) break;
         this.recordFirstToken();
         const id = this.resolveTextMessageId(incomingId);
@@ -439,13 +437,47 @@ export class RunAggregator {
   }
 
   private reportServerMessageId(messageId: string | undefined): void {
-    if (this.serverMessageIdReported || !messageId) return;
+    if (!messageId) return;
+    if (this.lastTextMessageId === undefined) {
+      this.lastTextMessageId = messageId;
+    }
+    if (this.serverMessageIdReported) return;
     this.serverMessageIdReported = true;
     this.onServerMessageId?.(messageId);
   }
 
   private clearTextParts(): void {
     this.textParts.clear();
+  }
+
+  private resetMessageParts(): void {
+    this.clearTextParts();
+    this.reasoningParts.clear();
+    this.reasoningSignatures.clear();
+    this.reasoningMessageIds.clear();
+    this.anonymousReasoningKeys.clear();
+    this.activeReasoningKey = undefined;
+    this.reasoningPartCounter = 0;
+    this.toolCalls.clear();
+    this.a2uiBuckets.clear();
+    this.a2uiToolCallIds.clear();
+    this.lastResolvedToolCallId = undefined;
+    this.partOrder.length = 0;
+    this.textPartCounter = 0;
+    this.activeTextMessageId = undefined;
+  }
+
+  private beginDistinctTextMessage(messageId: string | undefined): void {
+    if (
+      !messageId ||
+      this.lastTextMessageId === undefined ||
+      this.lastTextMessageId === messageId ||
+      !this.onTextMessageStart
+    ) {
+      return;
+    }
+    this.resetMessageParts();
+    this.onTextMessageStart(messageId);
   }
 
   private generateTextKey(): string {
