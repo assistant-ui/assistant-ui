@@ -42,6 +42,10 @@ import type {
 
 type PiSnapshotEvent = Extract<PiClientEvent, { type: "snapshot" }>;
 type PiEventListener = (event: PiClientEvent) => void;
+type PendingSnapshotEvents = {
+  events: PiClientEvent[];
+  joinSeq: number;
+};
 
 type SharedSnapshotLoad = {
   listeners: Set<PiEventListener>;
@@ -51,7 +55,7 @@ type SharedSnapshotLoad = {
 
 type SharedStream = {
   listeners: Set<PiEventListener>;
-  pendingEvents: Map<PiEventListener, PiClientEvent[]>;
+  pendingEvents: Map<PiEventListener, PendingSnapshotEvents>;
   snapshotEvent: PiSnapshotEvent | undefined;
   hasEventsSinceSnapshot: boolean;
   latestSeq: number;
@@ -365,7 +369,7 @@ export const createPiHttpClient = (
               for (const listener of [...listeners]) {
                 const pending = pendingEvents.get(listener);
                 if (pending) {
-                  pending.push(clientEvent);
+                  pending.events.push(clientEvent);
                 } else {
                   notifyListener(listener, clientEvent);
                 }
@@ -383,23 +387,36 @@ export const createPiHttpClient = (
       const isNewListener = !stream.listeners.has(listener);
       stream.listeners.add(listener);
       if (isNewListener && includeSnapshot && stream.snapshotEvent) {
-        stream.pendingEvents.set(listener, []);
+        stream.pendingEvents.set(listener, {
+          events: [],
+          joinSeq: stream.latestSeq,
+        });
+
+        const commitSnapshot = (snapshotEvent: PiSnapshotEvent) => {
+          if (
+            !stream.snapshotEvent ||
+            snapshotEvent.seq >= stream.snapshotEvent.seq
+          ) {
+            stream.snapshotEvent = snapshotEvent;
+          }
+          stream.hasEventsSinceSnapshot =
+            stream.latestSeq > stream.snapshotEvent.seq;
+        };
 
         const finishSnapshotLoad = (
           pendingListener: PiEventListener,
           snapshotEvent: PiSnapshotEvent,
         ) => {
-          const pendingEvents = stream.pendingEvents.get(pendingListener);
-          if (!pendingEvents || !stream.listeners.has(pendingListener)) {
+          const pending = stream.pendingEvents.get(pendingListener);
+          if (!pending || !stream.listeners.has(pendingListener)) {
             return;
           }
 
           stream.pendingEvents.delete(pendingListener);
-          stream.snapshotEvent = snapshotEvent;
-          stream.hasEventsSinceSnapshot = stream.latestSeq > snapshotEvent.seq;
+          commitSnapshot(snapshotEvent);
 
           notifyListener(pendingListener, snapshotEvent);
-          for (const event of pendingEvents) {
+          for (const event of pending.events) {
             if (!stream.listeners.has(pendingListener)) break;
             if (event.seq > snapshotEvent.seq) {
               notifyListener(pendingListener, event);
@@ -420,33 +437,29 @@ export const createPiHttpClient = (
           const snapshotLoad = stopSnapshotLoad();
           if (!snapshotLoad) return;
           for (const pendingListener of snapshotLoad.listeners) {
-            const events = stream.pendingEvents.get(pendingListener);
+            const pending = stream.pendingEvents.get(pendingListener);
             stream.pendingEvents.delete(pendingListener);
             if (!stream.listeners.has(pendingListener)) continue;
             if (errorEvent) notifyListener(pendingListener, errorEvent);
-            for (const event of events ?? []) {
+            for (const event of pending?.events ?? []) {
               if (!stream.listeners.has(pendingListener)) break;
               notifyListener(pendingListener, event);
             }
           }
         };
 
-        const finishSharedSnapshotLoad = (snapshotEvent: PiSnapshotEvent) => {
-          const snapshotLoad = stopSnapshotLoad();
-          if (!snapshotLoad) return;
-          for (const pendingListener of snapshotLoad.listeners) {
-            finishSnapshotLoad(pendingListener, snapshotEvent);
+        const startSnapshotLoad = (
+          pendingListeners: Iterable<PiEventListener>,
+        ) => {
+          if (stream.snapshotLoad) {
+            for (const pendingListener of pendingListeners) {
+              stream.snapshotLoad.listeners.add(pendingListener);
+            }
+            return;
           }
-        };
 
-        if (!stream.hasEventsSinceSnapshot) {
-          const snapshotEvent = stream.snapshotEvent;
-          queueMicrotask(() => finishSnapshotLoad(listener, snapshotEvent));
-        } else if (stream.snapshotLoad) {
-          stream.snapshotLoad.listeners.add(listener);
-        } else {
           const snapshotLoad: SharedSnapshotLoad = {
-            listeners: new Set([listener]),
+            listeners: new Set(pendingListeners),
             close: () => {},
             timeout: undefined,
           };
@@ -470,6 +483,31 @@ export const createPiHttpClient = (
               }
             },
           });
+        };
+
+        const finishSharedSnapshotLoad = (snapshotEvent: PiSnapshotEvent) => {
+          const snapshotLoad = stopSnapshotLoad();
+          if (!snapshotLoad) return;
+          commitSnapshot(snapshotEvent);
+          const retryListeners: PiEventListener[] = [];
+          for (const pendingListener of snapshotLoad.listeners) {
+            const pending = stream.pendingEvents.get(pendingListener);
+            if (pending && snapshotEvent.seq < pending.joinSeq) {
+              retryListeners.push(pendingListener);
+            } else {
+              finishSnapshotLoad(pendingListener, snapshotEvent);
+            }
+          }
+          if (retryListeners.length > 0) {
+            startSnapshotLoad(retryListeners);
+          }
+        };
+
+        if (!stream.hasEventsSinceSnapshot) {
+          const snapshotEvent = stream.snapshotEvent;
+          queueMicrotask(() => finishSnapshotLoad(listener, snapshotEvent));
+        } else {
+          startSnapshotLoad([listener]);
         }
       }
 
