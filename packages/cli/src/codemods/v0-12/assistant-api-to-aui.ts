@@ -78,6 +78,9 @@ const migrateAssistantApiToAui = createTransformer(
     // `const api = other()` inside the same function must shadow.
     if (renamedDeclaratorIds.size > 0) {
       const patternBindsApi = (id: any): boolean => {
+        if (id && (id.type === "TSParameterProperty" || j.TSParameterProperty?.check?.(id))) {
+          return patternBindsApi(id.parameter);
+        }
         if (j.Identifier.check(id)) return id.name === "api";
         if (j.ObjectPattern.check(id)) {
           return id.properties.some((prop: any) =>
@@ -244,6 +247,8 @@ const migrateAssistantApiToAui = createTransformer(
             j.ExportNamedDeclaration.check(grandparent) &&
             grandparent.source != null
           )
+            return;
+          if (grandparent?.exportKind === "type" || parent.exportKind === "type")
             return;
           if (parent.exported === path.value && parent.local !== path.value)
             return;

@@ -717,6 +717,24 @@ export { api } from "./other-module";
     expect(output).toContain('export { api } from "./other-module"');
     expect(output).toContain("void aui.thread()");
   });
+
+  it("leaves type-only api exports untouched", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+const api = useAssistantApi();
+void api.thread();
+
+type api = { x: number };
+export type { api };
+export { type api as ApiType };
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("export type { api }");
+    expect(output).toContain("export { type api as ApiType }");
+    expect(output).toContain("void aui.thread()");
+  });
 });
 
 describe("block-scoped shadowing", () => {
@@ -774,6 +792,28 @@ function MyComponent() {
     expect(output).toContain("load(api: RemoteApi)");
     expect(output).toContain("call(api: RemoteApi)");
     expect(output?.match(/return api\.send\(\)/g)).toHaveLength(2);
+    expect(output).toContain("void aui.thread()");
+  });
+
+  it("does not rename constructor parameter properties named api", () => {
+    const input = `
+import { useAssistantApi } from "@assistant-ui/react";
+
+function MyComponent() {
+  const api = useAssistantApi();
+  void api.thread();
+  class Client {
+    constructor(public api: RemoteApi) {
+      return api.send();
+    }
+  }
+  return Client;
+}
+`;
+
+    const output = applyTransform(input);
+    expect(output).toContain("constructor(public api: RemoteApi)");
+    expect(output).toContain("return api.send()");
     expect(output).toContain("void aui.thread()");
   });
 
