@@ -6,6 +6,7 @@ platforms: ["react"]
 
 import { MarkdownSample } from "@/components/pages/docs/samples/markdown";
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { MarkdownRichDocumentSample } from "@/components/pages/docs/samples/markdown/rich-document";
 import { MarkdownGfmSample } from "@/components/pages/docs/samples/markdown/gfm-extras";
 
 <MarkdownSample />
@@ -57,6 +58,14 @@ const AssistantMessage: FC = () => {
 </Steps>
 
 ## Examples
+
+### Rich Document
+
+The renderer shows headings, emphasis, links, nested lists, a blockquote, a divider, and a table from one completed response.
+
+<PreviewCode file="components/pages/docs/samples/markdown/rich-document" name="MarkdownDocument">
+  <MarkdownRichDocumentSample />
+</PreviewCode>
 
 ### GitHub Flavored Markdown
 
