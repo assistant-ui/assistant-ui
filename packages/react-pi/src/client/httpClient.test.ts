@@ -756,7 +756,7 @@ describe("createPiHttpClient", () => {
     unsubscribeNinth();
   });
 
-  it("keeps the highest-sequence snapshot when a delayed main snapshot is older", async () => {
+  it("delivers a delayed older main snapshot only to listeners behind it", async () => {
     const { client, fetchImpl, send } = openSharedSse();
     const firstEvents: PiAnyClientEvent[] = [];
     const unsubscribeFirst = client.subscribe("t1", (event) => {
@@ -777,11 +777,16 @@ describe("createPiHttpClient", () => {
     send(1, newerHelperSnapshot);
     await vi.waitFor(() => expect(lateEvents).toEqual([newerHelperSnapshot]));
 
-    send(0, snapshotAt(3, "running"));
-    expect(firstEvents).toEqual([
-      snapshotAt(1),
-      { type: "agent_start", threadId: "t1", seq: 2 },
-    ]);
+    const delayedMainSnapshot = snapshotAt(3, "running");
+    send(0, delayedMainSnapshot);
+    await vi.waitFor(() =>
+      expect(firstEvents).toEqual([
+        snapshotAt(1),
+        { type: "agent_start", threadId: "t1", seq: 2 },
+        delayedMainSnapshot,
+      ]),
+    );
+    expect(lateEvents).toEqual([newerHelperSnapshot]);
 
     const cachedEvents: PiAnyClientEvent[] = [];
     const unsubscribeCached = client.subscribe("t1", (event) => {
