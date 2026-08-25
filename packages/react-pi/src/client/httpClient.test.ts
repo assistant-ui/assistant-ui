@@ -838,6 +838,41 @@ describe("createPiHttpClient", () => {
     unsubscribeCached();
   });
 
+  it("flushes pending listeners when a reconnect reports an error instead of a snapshot", async () => {
+    const { client, fetchImpl, send, close } = openSharedSse();
+    const firstEvents: PiAnyClientEvent[] = [];
+    const unsubscribeFirst = client.subscribe("t1", (event) => {
+      firstEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    send(0, snapshotAt(1));
+    send(0, { type: "agent_start", threadId: "t1", seq: 2 });
+    await vi.waitFor(() => expect(firstEvents).toHaveLength(2));
+
+    const lateEvents: PiAnyClientEvent[] = [];
+    const unsubscribeLate = client.subscribe("t1", (event) => {
+      lateEvents.push(event);
+    });
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+
+    close(0);
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(3));
+    const openFailure = {
+      type: "error",
+      threadId: "t1",
+      seq: 0,
+      error: "session open failed",
+    } satisfies PiAnyClientEvent;
+    send(2, openFailure);
+
+    await vi.waitFor(() => expect(lateEvents).toEqual([openFailure]));
+    expect(firstEvents.at(-1)).toEqual(openFailure);
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+
+    unsubscribeFirst();
+    unsubscribeLate();
+  });
+
   it("caps stale snapshot retries after a server sequence reset", async () => {
     const streamControllers: ReadableStreamDefaultController<Uint8Array>[] = [];
     const fetchImpl = vi.fn(

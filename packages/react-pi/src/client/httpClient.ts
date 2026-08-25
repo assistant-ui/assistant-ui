@@ -121,6 +121,20 @@ const deliverPendingSnapshots = (
   }
 };
 
+const flushStrandedPendingListeners = (stream: SharedStream) => {
+  for (const listener of [...stream.pendingEvents.keys()]) {
+    if (stream.snapshotLoad?.listeners.has(listener)) continue;
+    const pending = stream.pendingEvents.get(listener);
+    if (!pending) continue;
+    stream.pendingEvents.delete(listener);
+    if (!stream.listeners.has(listener)) continue;
+    for (const event of pending.events) {
+      if (!stream.listeners.has(listener)) break;
+      notifyListener(listener, event);
+    }
+  }
+};
+
 export interface PiHttpClientOptions {
   /** Base path/URL of the route layer. Default: `/api/pi`. */
   baseUrl?: string;
@@ -453,6 +467,13 @@ export const createPiHttpClient = (
               }
               if (rebasePending && clientEvent.type === "snapshot") {
                 deliverPendingSnapshots(createdStream, clientEvent);
+              } else if (
+                createdStream.awaitingLiveSnapshot &&
+                clientEvent.type === "error" &&
+                clientEvent.seq === 0
+              ) {
+                createdStream.awaitingLiveSnapshot = false;
+                flushStrandedPendingListeners(createdStream);
               }
             },
           }),
