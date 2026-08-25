@@ -26,10 +26,7 @@ import type {
 } from "../interfaces/composer-runtime-core";
 import type { DictationAdapter } from "../../adapters/speech";
 import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
-import {
-  EMPTY_QUEUE_ITEMS,
-  type QueueItemState,
-} from "../../store/scopes/queue-item";
+import { EMPTY_QUEUE_ITEMS, type QueueItemState } from "../queue/queue-item";
 import { generateId } from "../../utils/id";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
 

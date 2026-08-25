@@ -49,7 +49,7 @@ import {
   ToolInvocationTracker,
   type ToolExecutionStatus,
 } from "../tool-invocations/ToolInvocationTracker";
-import { EMPTY_QUEUE_ITEMS } from "../../store/scopes/queue-item";
+import { EMPTY_QUEUE_ITEMS } from "../../runtime/queue/queue-item";
 import type { QuoteInfo } from "../../types/quote";
 import {
   captureThreadRuntimeGeneration,

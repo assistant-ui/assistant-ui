@@ -3,10 +3,7 @@ import type {
   FileMessagePart,
   TextMessagePart,
 } from "../../types/message";
-import {
-  EMPTY_QUEUE_ITEMS,
-  type QueueItemState,
-} from "../../store/scopes/queue-item";
+import { EMPTY_QUEUE_ITEMS, type QueueItemState } from "./queue-item";
 import { generateId } from "../../utils/id";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import { getThreadMessageText } from "../../utils/text";

@@ -1,6 +1,6 @@
 import { type FC, type ReactNode, memo, useMemo } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
-import type { QueueItemState } from "../../../store/scopes/queue-item";
+import type { QueueItemState } from "../../../runtime/queue/queue-item";
 import { QueueItemByIndexProvider } from "../../providers/QueueItemByIndexProvider";
 
 export namespace ComposerPrimitiveQueue {

@@ -1,14 +1,10 @@
-import type { FileMessagePart, TextMessagePart } from "../../types/message";
 import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-adapter";
+import {
+  EMPTY_QUEUE_ITEMS,
+  type QueueItemState,
+} from "../../runtime/queue/queue-item";
 
-export type QueueItemState = {
-  readonly id: string;
-  /** @deprecated Derive from the text parts of `parts` instead. Removal after 2026-11-05. */
-  readonly prompt: string;
-  readonly parts: readonly (FileMessagePart | TextMessagePart)[];
-};
-
-export const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = Object.freeze([]);
+export { EMPTY_QUEUE_ITEMS, type QueueItemState };
 
 export type QueueItemMethods = {
   getState(): QueueItemState;
