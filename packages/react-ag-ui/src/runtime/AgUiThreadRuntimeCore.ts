@@ -1181,32 +1181,44 @@ export class AgUiThreadRuntimeCore {
       }
     };
 
+    const adoptServerMessageId = (
+      serverId: string,
+      startNewMessage: boolean,
+    ) => {
+      if (startNewMessage && assistantMessageId !== undefined) {
+        applyUpdate({ status: { type: "complete", reason: "unknown" } });
+        assistantMessageId = undefined;
+      }
+      const placeholder = ensureAssistant(true);
+      if (placeholder === serverId) return;
+      const reassigned = this.reassignAssistantId(placeholder, serverId);
+      // A collision drops the placeholder before revealing the existing
+      // server message as the current head. Only messages introduced during
+      // this run can replace the placeholder; regeneration must not rewrite
+      // a previous branch when the server incorrectly reuses its id.
+      const adoptsVisibleCollision =
+        !reassigned &&
+        !runStartMessageIds.has(serverId) &&
+        this.repository.headId === serverId;
+      if (reassigned || adoptsVisibleCollision) {
+        assistantMessageId = serverId;
+        if (adoptsVisibleCollision) {
+          const parentId = this.tryGetMessage(serverId)?.parentId ?? null;
+          this.markPendingAssistantHistory(serverId, parentId);
+        }
+      } else {
+        assistantCollided = true;
+      }
+    };
+
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
       logger: this.logger,
       emit: applyUpdate,
       onServerMessageId: (serverId) => {
-        const placeholder = ensureAssistant(true);
-        if (placeholder === serverId) return;
-        const reassigned = this.reassignAssistantId(placeholder, serverId);
-        // A collision drops the placeholder before revealing the existing
-        // server message as the current head. Only messages introduced during
-        // this run can replace the placeholder; regeneration must not rewrite
-        // a previous branch when the server incorrectly reuses its id.
-        const adoptsVisibleCollision =
-          !reassigned &&
-          !runStartMessageIds.has(serverId) &&
-          this.repository.headId === serverId;
-        if (reassigned || adoptsVisibleCollision) {
-          assistantMessageId = serverId;
-          if (adoptsVisibleCollision) {
-            const parentId = this.tryGetMessage(serverId)?.parentId ?? null;
-            this.markPendingAssistantHistory(serverId, parentId);
-          }
-        } else {
-          assistantCollided = true;
-        }
+        adoptServerMessageId(serverId, false);
       },
+      onTextMessageStart: (serverId) => adoptServerMessageId(serverId, true),
     });
     const dispatch = (event: AgUiEvent) =>
       this.handleEvent(aggregator, event, assistantMessageId);
