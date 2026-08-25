@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "@resvg/resvg-js": "^2.6.2",
-    "satori": "^0.29.0"
+    "satori": "^0.33.3"
   },
   "devDependencies": {
     "@types/react": "^19.2.18",

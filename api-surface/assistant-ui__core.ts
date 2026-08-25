@@ -3468,6 +3468,7 @@ type RemoteThreadData = {
   readonly status: "new";
   readonly title: undefined;
   readonly custom: undefined;
+  readonly localOrigin?: true;
 } | {
   readonly id: string;
   readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
@@ -3476,6 +3477,7 @@ type RemoteThreadData = {
   readonly status: "archived" | "regular";
   readonly title?: string | undefined;
   readonly custom: undefined;
+  readonly localOrigin?: true;
 } | {
   readonly id: string;
   readonly initializeTask: Promise<RemoteThreadInitializeResponse>;
@@ -3485,6 +3487,7 @@ type RemoteThreadData = {
   readonly title?: string | undefined;
   readonly lastMessageAt?: Date | undefined;
   readonly custom?: Record<string, unknown> | undefined;
+  readonly localOrigin?: true;
 };
 
 type RemoteThreadInitializeResponse = {
@@ -5347,6 +5350,10 @@ type ToolCallMessagePartProps<TArgs = any, TResult = unknown> = MessagePartState
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
   readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "tool-calls";
+  readonly error?: ReadonlyJSONValue;
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {

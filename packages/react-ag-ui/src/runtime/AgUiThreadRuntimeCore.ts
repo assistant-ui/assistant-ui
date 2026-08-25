@@ -127,8 +127,9 @@ const invokeRuntimeCallback = <TArgs extends unknown[]>(
   }
 };
 
-// The aggregator only ever sends the interrupts it owns, so a shallow spread at
-// the custom level would drop sibling agui state such as opaqueReasoning.
+// The aggregator sends only the agui keys it owns (interrupts and
+// opaqueReasoning, each as a full replacement), so a shallow spread at the
+// custom level would drop any sibling agui state a snapshot import attached.
 const mergeAgUiNamespace = (
   current: Record<string, unknown> | undefined,
   incoming: Record<string, unknown>,
@@ -175,6 +176,7 @@ export class AgUiThreadRuntimeCore {
   private readonly historyWrites = new Map<string, Promise<void>>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
+  private _loadRequested = false;
   private pendingResumeMessageId: string | null = null;
   private pendingA2uiResume = false;
   private pendingA2uiAction: Record<string, unknown> | undefined;
@@ -198,8 +200,19 @@ export class AgUiThreadRuntimeCore {
     this.autoCancelPendingToolCalls = options.autoCancelPendingToolCalls;
     this.onError = options.onError;
     this.onCancel = options.onCancel;
+    const previousHistory = this.history;
     this.history = options.history;
     this.installResumeShim();
+
+    if (
+      this._loadRequested &&
+      !this._loadPromise &&
+      !previousHistory &&
+      options.history &&
+      this.repository.getMessages().length === 0
+    ) {
+      void this.__internal_load();
+    }
   }
 
   attachRuntime(runtime: AssistantRuntime) {
@@ -320,9 +333,11 @@ export class AgUiThreadRuntimeCore {
   }
 
   __internal_load(): Promise<void> {
+    this._loadRequested = true;
     if (this._loadPromise) return this._loadPromise;
+    if (!this.history) return Promise.resolve();
 
-    const promise = this.history?.load() ?? Promise.resolve(null);
+    const promise = this.history.load();
 
     this._isLoading = true;
 
@@ -1181,32 +1196,50 @@ export class AgUiThreadRuntimeCore {
       }
     };
 
+    const adoptServerMessageId = (
+      serverId: string,
+      startNewMessage: boolean,
+    ) => {
+      if (startNewMessage && assistantMessageId !== undefined) {
+        applyUpdate({ status: { type: "complete", reason: "unknown" } });
+        const previousId = assistantMessageId;
+        assistantMessageId = undefined;
+        if (this.tryGetMessage(previousId)) {
+          const created = this.insertAssistantPlaceholder(previousId);
+          assistantMessageId = created;
+          this.markPendingAssistantHistory(created, previousId);
+        }
+      }
+      const placeholder = ensureAssistant(true);
+      if (placeholder === serverId) return;
+      const reassigned = this.reassignAssistantId(placeholder, serverId);
+      // A collision drops the placeholder before revealing the existing
+      // server message as the current head. Only messages introduced during
+      // this run can replace the placeholder; regeneration must not rewrite
+      // a previous branch when the server incorrectly reuses its id.
+      const adoptsVisibleCollision =
+        !reassigned &&
+        !runStartMessageIds.has(serverId) &&
+        this.repository.headId === serverId;
+      if (reassigned || adoptsVisibleCollision) {
+        assistantMessageId = serverId;
+        if (adoptsVisibleCollision) {
+          const parentId = this.tryGetMessage(serverId)?.parentId ?? null;
+          this.markPendingAssistantHistory(serverId, parentId);
+        }
+      } else {
+        assistantCollided = true;
+      }
+    };
+
     const aggregator = new RunAggregator({
       showThinking: this.showThinking,
       logger: this.logger,
       emit: applyUpdate,
       onServerMessageId: (serverId) => {
-        const placeholder = ensureAssistant(true);
-        if (placeholder === serverId) return;
-        const reassigned = this.reassignAssistantId(placeholder, serverId);
-        // A collision drops the placeholder before revealing the existing
-        // server message as the current head. Only messages introduced during
-        // this run can replace the placeholder; regeneration must not rewrite
-        // a previous branch when the server incorrectly reuses its id.
-        const adoptsVisibleCollision =
-          !reassigned &&
-          !runStartMessageIds.has(serverId) &&
-          this.repository.headId === serverId;
-        if (reassigned || adoptsVisibleCollision) {
-          assistantMessageId = serverId;
-          if (adoptsVisibleCollision) {
-            const parentId = this.tryGetMessage(serverId)?.parentId ?? null;
-            this.markPendingAssistantHistory(serverId, parentId);
-          }
-        } else {
-          assistantCollided = true;
-        }
+        adoptServerMessageId(serverId, false);
       },
+      onTextMessageStart: (serverId) => adoptServerMessageId(serverId, true),
     });
     const dispatch = (event: AgUiEvent) =>
       this.handleEvent(aggregator, event, assistantMessageId);

@@ -124,3 +124,43 @@ describe("ImageActions data URI handling", () => {
     expect(blob.type).toBe("image/png");
   });
 });
+
+describe("ImageActions regeneration", () => {
+  it("handles rejected regeneration callbacks", async () => {
+    const rejection = new Error("regeneration failed");
+    const unhandled: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => unhandled.push(reason);
+    process.on("unhandledRejection", onUnhandledRejection);
+
+    try {
+      const part = {
+        type: "image",
+        image: "data:image/png;base64,aGVsbG8=",
+        prompt: "hello",
+      } as ImageMessagePart;
+      render(
+        <ImageActions
+          part={part}
+          onRegenerate={() => Promise.reject(rejection)}
+        />,
+      );
+
+      fireEvent.click(screen.getByLabelText("Regenerate image"));
+
+      expect(
+        (screen.getByLabelText("Regenerate image") as HTMLButtonElement)
+          .disabled,
+      ).toBe(true);
+      await waitFor(() =>
+        expect(
+          (screen.getByLabelText("Regenerate image") as HTMLButtonElement)
+            .disabled,
+        ).toBe(false),
+      );
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(unhandled).toEqual([]);
+    } finally {
+      process.off("unhandledRejection", onUnhandledRejection);
+    }
+  });
+});

@@ -118,6 +118,40 @@ function SlashComposer() {
 }
 ```
 
+## Custom Query Matching
+
+By default, whitespace closes a trigger query. Pass a stable `matcher` when a picker needs different syntax, such as multi-word business names. The same matcher controls the textarea popover and Lexical directive insertion.
+
+```tsx
+import type { Unstable_TriggerMatcher } from "@assistant-ui/react";
+
+const matchMultiWord: Unstable_TriggerMatcher = (
+  text,
+  triggerChar,
+  cursorPosition,
+) => {
+  const textUpToCursor = text.slice(0, cursorPosition);
+  const offset = textUpToCursor.lastIndexOf(triggerChar);
+  if (offset === -1) return null;
+
+  const preceding = textUpToCursor[offset - 1];
+  if (preceding && !/\s/u.test(preceding)) return null;
+
+  const query = textUpToCursor.slice(offset + triggerChar.length);
+  if (/[\n\t]/u.test(query) || query.endsWith("  ")) return null;
+
+  return { query, offset, endOffset: cursorPosition };
+};
+
+<ComposerTriggerPopover
+  char="@"
+  matcher={matchMultiWord}
+  {...mention}
+/>;
+```
+
+The matcher receives the serialized composer text for a textarea and the current text node for Lexical. `offset` is the trigger index in that string. `endOffset` is the exclusive end of the span both inputs replace. `query` is the search string and may differ from that span.
+
 ## Combining Triggers
 
 Multiple popovers coexist under one `TriggerPopoverRoot`. Each reads state from its own declaration, so `@` and `/` never collide.
@@ -177,6 +211,7 @@ The popover implements the WAI-ARIA editable combobox pattern.
 | Prop | Type | Default | Description |
 | --- | --- | --- | --- |
 | `char` | `string` | — | Trigger character, e.g. `"@"` or `"/"` (required; unique within the root) |
+| `matcher` | `Unstable_TriggerMatcher` | whitespace-terminated | Overrides trigger detection and the replace span for both textarea and Lexical inputs |
 | `adapter` | `Unstable_TriggerAdapter` | — | Provides categories, items, and search (required) |
 | `directive` | `{ formatter, onInserted?, chip? }` | — | Enables directive-insert behavior. Mutually exclusive with `action`. |
 | `action` | `{ formatter, onExecute, removeOnExecute?, chip? }` | — | Enables action behavior. Mutually exclusive with `directive`. |

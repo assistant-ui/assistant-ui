@@ -328,6 +328,163 @@ describe("useEveAgentRuntime status forwarding", () => {
   });
 });
 
+describe("useEveAgentRuntime tool approval responses", () => {
+  const textRequestData: EveMessageData = {
+    messages: [
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            state: "approval-requested",
+            toolCallId: "call_1",
+            toolName: "ask_question",
+            input: {},
+            approval: { id: "req_1" },
+            toolMetadata: {
+              eve: {
+                kind: "tool-call",
+                name: "ask_question",
+                inputRequest: {
+                  requestId: "req_1",
+                  prompt: "What should the subject line be?",
+                  kind: "question",
+                  display: "text",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  const flushMicrotasks = () =>
+    new Promise((resolve) => setTimeout(resolve, 0));
+
+  const processEvents = process as unknown as {
+    on(event: "unhandledRejection", listener: (reason: unknown) => void): void;
+    off(event: "unhandledRejection", listener: (reason: unknown) => void): void;
+  };
+
+  const respondToTextRequest = (
+    result: { current: ReturnType<typeof useEveAgentRuntime> },
+    response: { approved: boolean; reason?: string; optionId?: string },
+  ) =>
+    result.current.thread
+      .getMessageById("a1")
+      .getMessagePartByToolCallId("call_1")
+      .respondToToolApproval(response);
+
+  it("keeps an unanswered free-form request pending through the default controls", async () => {
+    const rejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => rejections.push(reason);
+    processEvents.on("unhandledRejection", onUnhandledRejection);
+    const agent = createAgent({ data: textRequestData });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    try {
+      const { result } = renderHook(() => useEveAgentRuntime());
+
+      expect(() => respondToTextRequest(result, { approved: true })).toThrow(
+        /was not answered by this response/,
+      );
+
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      expect(agent.send).not.toHaveBeenCalled();
+      expect(agent.respond).not.toHaveBeenCalled();
+      expect(rejections).toEqual([]);
+    } finally {
+      processEvents.off("unhandledRejection", onUnhandledRejection);
+    }
+  });
+
+  const bareApprovalData = (toolMetadata?: {
+    eve: { kind: "tool-call"; name: string };
+  }): EveMessageData => ({
+    messages: [
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            state: "approval-requested",
+            toolCallId: "call_1",
+            toolName: "delete_file",
+            input: {},
+            approval: { id: "req_1" },
+            ...(toolMetadata && { toolMetadata }),
+          },
+        ],
+      },
+    ],
+  });
+
+  it.each([
+    ["no eve tool metadata at all", undefined],
+    [
+      "eve metadata carrying no input request",
+      { eve: { kind: "tool-call", name: "delete_file" } },
+    ],
+  ])(
+    "still answers an ordinary approval when the part has %s",
+    async (_label, toolMetadata) => {
+      const agent = createAgent({
+        data: bareApprovalData(toolMetadata as never),
+      });
+      mockUseEveAgent.mockReturnValue(agent as never);
+
+      const { result } = renderHook(() => useEveAgentRuntime());
+      expect(() =>
+        respondToTextRequest(result, { approved: true }),
+      ).not.toThrow();
+
+      await flushMicrotasks();
+
+      expect(agent.respond).toHaveBeenCalledWith([
+        { requestId: "req_1", optionId: "approve" },
+      ]);
+    },
+  );
+
+  it("maps a refusal on a request the data does not carry", async () => {
+    const agent = createAgent({ data: bareApprovalData(undefined) });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+    respondToTextRequest(result, { approved: false, reason: "not safe" });
+
+    await flushMicrotasks();
+
+    expect(agent.respond).toHaveBeenCalledWith([
+      { requestId: "req_1", optionId: "cancel", text: "not safe" },
+    ]);
+  });
+
+  it("submits a free-form answer as text without an option id", async () => {
+    const agent = createAgent({ data: textRequestData });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+    respondToTextRequest(result, {
+      approved: true,
+      reason: "Quarterly results",
+    });
+
+    await flushMicrotasks();
+
+    expect(agent.respond).toHaveBeenCalledWith([
+      { requestId: "req_1", text: "Quarterly results" },
+    ]);
+  });
+});
+
 const settledData: EveMessageData = {
   messages: [
     { id: "u1", role: "user", parts: [{ type: "text", text: "earlier" }] },

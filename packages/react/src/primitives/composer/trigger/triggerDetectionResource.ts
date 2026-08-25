@@ -1,12 +1,13 @@
 import { useMemo, useState } from "react";
 import { resource } from "@assistant-ui/tap";
-import { detectTrigger } from "./detectTrigger";
+import {
+  detectTrigger,
+  type TriggerMatch,
+  type TriggerMatcher,
+} from "./detectTrigger";
 
 /** Detected trigger position within the composer text. */
-export type DetectedTrigger = {
-  readonly offset: number;
-  readonly query: string;
-};
+export type DetectedTrigger = TriggerMatch;
 
 export type TriggerDetectionResourceOutput = {
   /** Detected trigger (or `null` when inactive). */
@@ -21,16 +22,18 @@ export type TriggerDetectionResourceOutput = {
 const useTriggerDetectionResource = ({
   text,
   triggerChar,
+  matcher,
 }: {
   text: string;
   triggerChar: string;
+  matcher?: TriggerMatcher | undefined;
 }): TriggerDetectionResourceOutput => {
   const [cursorPosition, setCursorPosition] = useState(text.length);
 
   const trigger = useMemo(() => {
     const pos = Math.min(cursorPosition, text.length);
-    return detectTrigger(text, triggerChar, pos);
-  }, [cursorPosition, text, triggerChar]);
+    return detectTrigger(text, triggerChar, pos, matcher);
+  }, [cursorPosition, matcher, text, triggerChar]);
 
   const query = trigger?.query ?? "";
 

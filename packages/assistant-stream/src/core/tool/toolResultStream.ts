@@ -7,7 +7,7 @@ import type {
 import type { StandardSchemaV1 } from "@standard-schema/spec";
 import { ToolResponse } from "./ToolResponse";
 import { ToolExecutionStream } from "./ToolExecutionStream";
-import type { AssistantMessage } from "../utils/types";
+import type { AssistantMessage, ToolCallPart } from "../utils/types";
 import type { ReadonlyJSONObject, ReadonlyJSONValue } from "../../utils";
 
 const TOOL_EXECUTION_ID = Symbol.for("assistant-stream.tool-execution-id");
@@ -201,6 +201,13 @@ function getToolStreamResponse(
   tools?.[context.toolName]?.streamCall?.(reader, executionContext);
 }
 
+const isPendingToolCall = (
+  part: AssistantMessage["parts"][number],
+): part is ToolCallPart =>
+  part.type === "tool-call" &&
+  part.state !== "result" &&
+  part.result === undefined;
+
 export async function unstable_runPendingTools(
   message: AssistantMessage,
   tools: Record<string, Tool> | undefined,
@@ -208,7 +215,7 @@ export async function unstable_runPendingTools(
   human: (toolCallId: string, payload: unknown) => Promise<unknown>,
 ) {
   const toolCallPromises = message.parts
-    .filter((part) => part.type === "tool-call")
+    .filter(isPendingToolCall)
     .map(async (part) => {
       const promiseOrUndefined = getToolResponse(
         tools,
@@ -248,7 +255,7 @@ export async function unstable_runPendingTools(
   );
 
   const updatedParts = message.parts.map((p) => {
-    if (p.type === "tool-call") {
+    if (isPendingToolCall(p)) {
       const toolResponse = toolCallResultsById[p.toolCallId];
       if (toolResponse) {
         return {
