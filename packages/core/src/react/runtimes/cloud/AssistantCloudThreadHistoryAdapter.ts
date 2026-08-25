@@ -503,9 +503,9 @@ function isDynamicToolPart(p: AiSdkV6Part): boolean {
 }
 
 function partToToolCall(p: AiSdkV6Part): AssistantCloudRunReportToolCall {
-  const toolSource: "mcp" | undefined = isDynamicToolPart(p)
+  const toolSource: "mcp" | "frontend" = isDynamicToolPart(p)
     ? "mcp"
-    : undefined;
+    : "frontend";
   return createRunTelemetryToolCall({
     toolName: p.toolName ?? p.type.slice(5),
     toolCallId: p.toolCallId!,
