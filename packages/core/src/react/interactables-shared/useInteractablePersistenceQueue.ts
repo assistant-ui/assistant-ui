@@ -112,6 +112,7 @@ export const useInteractablePersistenceQueue = <State>({
             )
               continue;
             latestSyncSeqByIdRef.current.delete(id);
+            if (prev[id] === undefined) continue;
             delete persistence[id];
             changed = true;
           }
@@ -128,6 +129,7 @@ export const useInteractablePersistenceQueue = <State>({
             )
               continue;
             latestSyncSeqByIdRef.current.delete(id);
+            if (prev[id] === undefined) continue;
             persistence[id] = { isPending: false, error: e };
             changed = true;
           }
