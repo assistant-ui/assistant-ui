@@ -3,7 +3,6 @@
 import type { Element } from "hast";
 import {
   type ComponentPropsWithoutRef,
-  type ReactElement,
   type ReactNode,
   cloneElement,
   createContext,
