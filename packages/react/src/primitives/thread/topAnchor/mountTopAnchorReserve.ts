@@ -61,10 +61,71 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
   let reserve: HTMLElement | null = null;
   let lastScrolledAnchorId: string | undefined;
 
+  // The browser clamps scrollTop synchronously when a transient layout state
+  // (e.g. a streamed subtree being swapped for its final render) shrinks
+  // scrollHeight below the pinned position; the reserve can only compensate a
+  // frame later. Track whether the user has taken over scrolling so the pin
+  // can be re-asserted after such layout-induced shifts without ever fighting
+  // a user scroll.
+  let userTookOver = false;
+  let pinScrollTarget: number | null = null;
+  let listenedViewport: HTMLElement | null = null;
+  let lastScrollTop = 0;
+  let lastScrollHeight = 0;
+
+  const releasePin = () => {
+    userTookOver = true;
+    pinScrollTarget = null;
+  };
+
+  const handleScroll = () => {
+    const viewport = listenedViewport;
+    if (!viewport) return;
+    const { scrollTop, scrollHeight } = viewport;
+    const stableHeight = scrollHeight === lastScrollHeight;
+
+    if (pinScrollTarget !== null) {
+      if (Math.abs(scrollTop - pinScrollTarget) <= 1) {
+        pinScrollTarget = null;
+      } else if (stableHeight) {
+        const approaching =
+          Math.abs(pinScrollTarget - scrollTop) <
+          Math.abs(pinScrollTarget - lastScrollTop);
+        if (!approaching) releasePin();
+      }
+    } else if (stableHeight && scrollTop !== lastScrollTop) {
+      releasePin();
+    }
+
+    lastScrollTop = scrollTop;
+    lastScrollHeight = scrollHeight;
+  };
+
+  const listenViewport = (viewport: HTMLElement | null) => {
+    if (listenedViewport === viewport) return;
+    if (listenedViewport) {
+      listenedViewport.removeEventListener("scroll", handleScroll);
+      listenedViewport.removeEventListener("wheel", releasePin);
+      listenedViewport.removeEventListener("touchstart", releasePin);
+      listenedViewport.removeEventListener("pointerdown", releasePin);
+    }
+    listenedViewport = viewport;
+    if (viewport) {
+      viewport.addEventListener("scroll", handleScroll, { passive: true });
+      viewport.addEventListener("wheel", releasePin, { passive: true });
+      viewport.addEventListener("touchstart", releasePin, { passive: true });
+      viewport.addEventListener("pointerdown", releasePin, { passive: true });
+      lastScrollTop = viewport.scrollTop;
+      lastScrollHeight = viewport.scrollHeight;
+    }
+  };
+
   function apply() {
     const state = store.getState();
     const { viewport, anchor, target } = state.element;
     const clamp = state.targetConfig;
+
+    listenViewport(state.turnAnchor === "top" ? viewport : null);
 
     if (state.turnAnchor !== "top" || !viewport) {
       observers.disconnect();
@@ -120,17 +181,26 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     }
 
     const anchorId = getAnchorId(anchor);
-    if (anchorId !== undefined && lastScrolledAnchorId === anchorId) return;
-
     const targetScrollTop = snapScrollTop(
       computeTopAnchorTargetScrollTop({ viewport, anchor, ...clamp }),
     );
+    const atTarget = Math.abs(viewport.scrollTop - targetScrollTop) <= 1;
+    if (pinScrollTarget !== null && atTarget) pinScrollTarget = null;
 
-    if (Math.abs(viewport.scrollTop - targetScrollTop) > 1) {
-      viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
+    if (anchorId === undefined || anchorId !== lastScrolledAnchorId) {
+      userTookOver = false;
+      if (!atTarget) {
+        pinScrollTarget = targetScrollTop;
+        viewport.scrollTo({ top: targetScrollTop, behavior: "smooth" });
+      }
+      if (anchorId !== undefined) lastScrolledAnchorId = anchorId;
+      return;
     }
 
-    if (anchorId !== undefined) lastScrolledAnchorId = anchorId;
+    if (!userTookOver && pinScrollTarget === null && !atTarget) {
+      pinScrollTarget = targetScrollTop;
+      viewport.scrollTo({ top: targetScrollTop, behavior: "instant" });
+    }
   }
 
   const scheduler = createFrameScheduler(apply);
@@ -143,6 +213,7 @@ export const mountTopAnchorReserve = (store: TopAnchorStore) => {
     scheduler.cancel();
     unsubscribe();
     observers.disconnect();
+    listenViewport(null);
     reserve?.remove();
   };
 };
