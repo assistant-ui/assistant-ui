@@ -92,7 +92,7 @@ export const appendLangChainChunk = (
   const newContent =
     typeof prev.content === "string"
       ? [{ type: "text" as const, text: prev.content }]
-      : [...prev.content];
+      : [...(prev.content ?? [])];
 
   if (typeof curr?.content === "string") {
     const lastIndex = newContent.length - 1;
