@@ -617,6 +617,24 @@ Only takes effect when `submitMode` resolves to `"enter"` (the default); `"ctrlE
   <ParametersTable type={ComposerPrimitiveDocs.Unstable_RegisteredTrigger?.element} parameters={ComposerPrimitiveDocs.Unstable_RegisteredTrigger.props} />
 )}
 
+### Unstable_TriggerMatch
+
+{ComposerPrimitiveDocs.Unstable_TriggerMatch?.deprecated && (
+  <Callout type="warn">
+    <strong>Deprecated.</strong> {ComposerPrimitiveDocs.Unstable_TriggerMatch.deprecated}
+  </Callout>
+)}
+
+{ComposerPrimitiveDocs.Unstable_TriggerMatch?.description}
+
+{ComposerPrimitiveDocs.Unstable_TriggerMatch?.element && (
+  <p>This primitive renders a <code>{`<${ComposerPrimitiveDocs.Unstable_TriggerMatch?.element}>`}</code> element unless <code>asChild</code> is set.</p>
+)}
+
+{ComposerPrimitiveDocs.Unstable_TriggerMatch?.props && (
+  <ParametersTable type={ComposerPrimitiveDocs.Unstable_TriggerMatch?.element} parameters={ComposerPrimitiveDocs.Unstable_TriggerMatch.props} />
+)}
+
 ### Unstable_TriggerMatcher
 
 {ComposerPrimitiveDocs.Unstable_TriggerMatcher?.deprecated && (

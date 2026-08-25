@@ -100,7 +100,6 @@ describe("findTriggerMatch", () => {
     expect(findTriggerMatch("@", node, 8, match)).toBeNull();
   });
 
-
   it("stops at newline", () => {
     const node = mockTextNode("@foo\nbar");
     expect(findTriggerMatch("@", node, 8)).toBeNull();

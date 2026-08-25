@@ -144,5 +144,4 @@ describe("TriggerSelectionResource", () => {
 
     expect(setText).toHaveBeenCalledWith("hello @file.txt tail");
   });
-
 });
