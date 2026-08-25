@@ -297,7 +297,6 @@ const toWrappedTask = (value: unknown): A2ATask | null => {
 
   const task = {
     ...value,
-    id: value.id == null ? "" : value.id,
     contextId: value.contextId == null ? "" : value.contextId,
     status,
   };
@@ -309,7 +308,6 @@ const toWrappedMessage = (value: unknown): A2AMessage | null => {
 
   const message = {
     ...value,
-    messageId: value.messageId == null ? "" : value.messageId,
     contextId: value.contextId == null ? "" : value.contextId,
     taskId: value.taskId == null ? "" : value.taskId,
     role: value.role == null ? "unspecified" : value.role,
