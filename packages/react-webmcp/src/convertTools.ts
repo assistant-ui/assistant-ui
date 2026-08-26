@@ -95,6 +95,12 @@ export const toWebMcpTool = (
       abortSignal,
     });
     if (!decision.approved) {
+      if (decision.resolution === "expired") {
+        return errorResult(`Tool call approval for "${name}" expired`);
+      }
+      if (decision.resolution === "cancelled") {
+        return errorResult(`Tool call approval for "${name}" cancelled`);
+      }
       return errorResult(
         `User declined tool call "${name}"${
           decision.reason ? `: ${decision.reason}` : ""

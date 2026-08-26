@@ -2,12 +2,13 @@ import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { ToolResponse, type Tool } from "assistant-stream";
 import type { WebMcpApprovalGate } from "./approval-gate";
-import { placeholderApprovalGate } from "./approval-gate";
 import {
   defaultWebMcpFilter,
   toMcpContent,
   toWebMcpTool,
 } from "./convertTools";
+
+const approveAllGate: WebMcpApprovalGate = async () => ({ approved: true });
 
 const jsonSchema = {
   type: "object",
@@ -31,7 +32,7 @@ describe("toWebMcpTool", () => {
     const descriptor = toWebMcpTool(
       "get_weather",
       frontendTool(),
-      placeholderApprovalGate,
+      approveAllGate,
     );
     expect(descriptor.name).toBe("get_weather");
     expect(descriptor.description).toBe("Get the weather for a city.");
@@ -42,7 +43,7 @@ describe("toWebMcpTool", () => {
     const descriptor = toWebMcpTool(
       "get_weather",
       frontendTool({ parameters: z.object({ city: z.string() }) }),
-      placeholderApprovalGate,
+      approveAllGate,
     );
     expect(descriptor.inputSchema).toMatchObject({
       type: "object",
@@ -55,7 +56,7 @@ describe("toWebMcpTool", () => {
     const descriptor = toWebMcpTool(
       "bare",
       frontendTool({ description: undefined, parameters: undefined }),
-      placeholderApprovalGate,
+      approveAllGate,
     );
     expect(descriptor.description).toBe("");
     expect(descriptor.inputSchema).toEqual({
@@ -76,7 +77,7 @@ describe("toWebMcpTool", () => {
     const descriptor = toWebMcpTool(
       "t",
       frontendTool({ execute }),
-      placeholderApprovalGate,
+      approveAllGate,
     );
 
     const result = await descriptor.execute({ city: "Berlin" });
@@ -95,7 +96,7 @@ describe("toWebMcpTool", () => {
           return "ok";
         },
       }),
-      placeholderApprovalGate,
+      approveAllGate,
     );
 
     await descriptor.execute({}, { signal: controller.signal });
@@ -110,7 +111,7 @@ describe("toWebMcpTool", () => {
           throw new Error("boom");
         },
       }),
-      placeholderApprovalGate,
+      approveAllGate,
     );
 
     await expect(descriptor.execute({})).resolves.toEqual({
@@ -134,6 +135,44 @@ describe("toWebMcpTool", () => {
     await expect(descriptor.execute({})).resolves.toEqual({
       isError: true,
       content: [{ type: "text", text: 'User declined tool call "t": not now' }],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("maps an expired approval to an error result with expired wording", async () => {
+    const execute = vi.fn(async () => "never");
+    const expiringGate: WebMcpApprovalGate = async () => ({
+      approved: false,
+      resolution: "expired",
+    });
+    const descriptor = toWebMcpTool(
+      "t",
+      frontendTool({ execute }),
+      expiringGate,
+    );
+
+    await expect(descriptor.execute({})).resolves.toEqual({
+      isError: true,
+      content: [{ type: "text", text: 'Tool call approval for "t" expired' }],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("maps a cancelled approval to an error result with cancelled wording", async () => {
+    const execute = vi.fn(async () => "never");
+    const cancellingGate: WebMcpApprovalGate = async () => ({
+      approved: false,
+      resolution: "cancelled",
+    });
+    const descriptor = toWebMcpTool(
+      "t",
+      frontendTool({ execute }),
+      cancellingGate,
+    );
+
+    await expect(descriptor.execute({})).resolves.toEqual({
+      isError: true,
+      content: [{ type: "text", text: 'Tool call approval for "t" cancelled' }],
     });
     expect(execute).not.toHaveBeenCalled();
   });

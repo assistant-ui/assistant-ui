@@ -13,7 +13,7 @@ import {
   diffRegistrations,
   type WebMcpRegistrationEntry,
 } from "./diffRegistrations";
-import { placeholderApprovalGate } from "./approval-gate";
+import { createWebMcpApprovalGate } from "./approval-gate";
 
 export type WebMcpBridgeOptions = {
   filter?: (name: string, tool: Tool<any, any>) => boolean;
@@ -53,7 +53,12 @@ export const useWebMcpBridge = (
   const [registeredToolNames, setRegisteredToolNames] =
     useState<string[]>(EMPTY_NAMES);
 
-  const { adapter: adapterOption, filter } = options;
+  const {
+    adapter: adapterOption,
+    filter,
+    approval,
+    approvalTimeoutMs,
+  } = options;
 
   useEffect(() => {
     const adapter = adapterOption ?? getDefaultWebMcpAdapter();
@@ -62,6 +67,12 @@ export const useWebMcpBridge = (
       return undefined;
     }
     setStatus("active");
+
+    const approvalGate = createWebMcpApprovalGate({
+      approval,
+      approvalTimeoutMs,
+      requestUserInteraction: adapter.requestUserInteraction?.bind(adapter),
+    });
 
     const registered = new Map<
       string,
@@ -105,7 +116,7 @@ export const useWebMcpBridge = (
         if (!target) continue;
         try {
           const dispose = adapter.registerTool(
-            toWebMcpTool(name, target.tool, placeholderApprovalGate),
+            toWebMcpTool(name, target.tool, approvalGate),
           );
           registered.set(name, { entry: target.entry, dispose });
         } catch (error) {
@@ -133,7 +144,7 @@ export const useWebMcpBridge = (
       registered.clear();
       setRegisteredToolNames(EMPTY_NAMES);
     };
-  }, [aui, adapterOption, filter]);
+  }, [aui, adapterOption, filter, approval, approvalTimeoutMs]);
 
   return { status, registeredToolNames };
 };
