@@ -118,14 +118,7 @@ const useMcpAppsRemoteHost = (
   const url = options.url;
 
   return useMemo((): McpAppsHost => {
-    const getCurrentOptions = (): McpAppsRemoteHostOptions => {
-      const current = optionsRef.current;
-      return {
-        url,
-        ...(current.fetch !== undefined ? { fetch: current.fetch } : {}),
-        ...(current.headers !== undefined ? { headers: current.headers } : {}),
-      };
-    };
+    const getCurrentOptions = () => optionsRef.current;
     return {
       loadResource: async (params) => {
         const options = getCurrentOptions();
@@ -141,6 +134,7 @@ const useMcpAppsRemoteHost = (
       listResources: (params) =>
         postToHost(getCurrentOptions(), "resources/list", params),
     };
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- URL changes replace the host identity so renderer resources reload
   }, [url]);
 };
 

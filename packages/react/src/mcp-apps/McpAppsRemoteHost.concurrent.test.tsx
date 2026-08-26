@@ -75,5 +75,70 @@ describe("McpAppsRemoteHost concurrent rendering", () => {
         params: { name: "search" },
       }),
     });
+
+    view.unmount();
+  });
+
+  it("keeps the URL and authorization from one committed options snapshot", async () => {
+    const fetch = vi.fn(async () => Response.json({ content: [] }));
+    let currentHost: McpAppsHost | undefined;
+
+    const Probe = ({
+      url,
+      authorization,
+    }: {
+      url: string;
+      authorization: string;
+    }) => {
+      const host = useResource(
+        McpAppsRemoteHost({
+          url,
+          fetch,
+          headers: { authorization },
+        }),
+      );
+      useLayoutEffect(() => {
+        currentHost = host;
+        void host.callTool({ name: "layout-request" });
+      }, [host]);
+      return null;
+    };
+
+    const view = render(
+      <Probe url="/workspace-a/mcp" authorization="Bearer workspace-a" />,
+    );
+    fetch.mockClear();
+
+    view.rerender(
+      <Probe url="/workspace-b/mcp" authorization="Bearer workspace-b" />,
+    );
+
+    expect(fetch).toHaveBeenNthCalledWith(1, "/workspace-a/mcp", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer workspace-a",
+      },
+      body: JSON.stringify({
+        method: "tools/call",
+        params: { name: "layout-request" },
+      }),
+    });
+
+    await currentHost?.callTool({ name: "committed-request" });
+
+    expect(fetch).toHaveBeenNthCalledWith(2, "/workspace-b/mcp", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: "Bearer workspace-b",
+      },
+      body: JSON.stringify({
+        method: "tools/call",
+        params: { name: "committed-request" },
+      }),
+    });
+
+    view.unmount();
   });
 });
