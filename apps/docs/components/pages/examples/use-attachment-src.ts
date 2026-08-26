@@ -1,5 +1,5 @@
 "use client";
 
-import { useAttachmentSrc } from "@assistant-ui/ui/hooks/use-attachment-src";
+import { useAttachmentSrc } from "@/hooks/use-attachment-src";
 
 export { useAttachmentSrc };

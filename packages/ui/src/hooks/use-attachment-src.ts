@@ -5,23 +5,25 @@ import { useAuiState } from "@assistant-ui/react";
 import { useShallow } from "zustand/react/shallow";
 
 const useFileSrc = (file: File | undefined) => {
-  const [src, setSrc] = useState<string | undefined>(undefined);
+  const [entry, setEntry] = useState<{ file: File; url: string } | undefined>(
+    undefined,
+  );
 
   useEffect(() => {
     if (!file) {
-      setSrc(undefined);
+      setEntry(undefined);
       return;
     }
 
     const objectUrl = URL.createObjectURL(file);
-    setSrc(objectUrl);
+    setEntry({ file, url: objectUrl });
 
     return () => {
       URL.revokeObjectURL(objectUrl);
     };
   }, [file]);
 
-  return src;
+  return entry !== undefined && entry.file === file ? entry.url : undefined;
 };
 
 export const useAttachmentSrc = () => {
