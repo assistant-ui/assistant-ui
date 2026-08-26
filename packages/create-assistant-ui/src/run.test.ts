@@ -10,7 +10,7 @@ vi.mock("cross-spawn", async (importOriginal) => ({
   spawn: mocks.spawn,
 }));
 
-import { runSpawn } from "./run";
+import { main, runSpawn } from "./run";
 
 const createChild = () =>
   Object.assign(new EventEmitter(), {
@@ -19,6 +19,7 @@ const createChild = () =>
 
 describe("runSpawn", () => {
   afterEach(() => {
+    vi.restoreAllMocks();
     vi.clearAllMocks();
   });
 
@@ -48,6 +49,7 @@ describe("runSpawn", () => {
     const child = createChild();
     mocks.spawn.mockReturnValue(child);
     const existingListeners = new Set(process.listeners("SIGTERM"));
+    const initialListeners = process.listenerCount("SIGTERM");
     const result = runSpawn("assistant-ui", ["create"]);
     const signalHandler = process
       .listeners("SIGTERM")
@@ -63,6 +65,7 @@ describe("runSpawn", () => {
       signal: "SIGTERM",
       forwarded: true,
     });
+    expect(process.listenerCount("SIGTERM")).toBe(initialListeners);
   });
 
   it("distinguishes child crash signals from forwarded signals", async () => {
@@ -90,5 +93,60 @@ describe("runSpawn", () => {
 
     expect(process.listenerCount("SIGINT")).toBe(initialSigintListeners);
     expect(process.listenerCount("SIGTERM")).toBe(initialSigtermListeners);
+  });
+});
+
+describe("main", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.clearAllMocks();
+  });
+
+  it("re-raises a signal forwarded to the child", async () => {
+    const child = createChild();
+    mocks.spawn.mockReturnValue(child);
+    const existingListeners = new Set(process.listeners("SIGTERM"));
+    const kill = vi.spyOn(process, "kill").mockReturnValue(true);
+    const removeAllListeners = vi
+      .spyOn(process, "removeAllListeners")
+      .mockReturnValue(process);
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+    const result = main();
+
+    await vi.waitFor(() => expect(mocks.spawn).toHaveBeenCalledOnce());
+    const signalHandler = process
+      .listeners("SIGTERM")
+      .find((listener) => !existingListeners.has(listener));
+    expect(signalHandler).toBeDefined();
+    signalHandler?.();
+    child.emit("close", null, "SIGTERM");
+
+    await expect(result).rejects.toThrow("process.exit");
+    expect(removeAllListeners).toHaveBeenCalledWith("SIGTERM");
+    expect(kill).toHaveBeenCalledWith(process.pid, "SIGTERM");
+    expect(exit).toHaveBeenCalledWith(143);
+  });
+
+  it("does not re-raise a signal received only by the child", async () => {
+    const child = createChild();
+    mocks.spawn.mockReturnValue(child);
+    const kill = vi.spyOn(process, "kill").mockReturnValue(true);
+    const removeAllListeners = vi
+      .spyOn(process, "removeAllListeners")
+      .mockReturnValue(process);
+    const exit = vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+    const result = main();
+
+    await vi.waitFor(() => expect(mocks.spawn).toHaveBeenCalledOnce());
+    child.emit("close", null, "SIGSEGV");
+
+    await expect(result).rejects.toThrow("process.exit");
+    expect(removeAllListeners).not.toHaveBeenCalled();
+    expect(kill).not.toHaveBeenCalled();
+    expect(exit).toHaveBeenCalledWith(139);
   });
 });
