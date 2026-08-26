@@ -28,6 +28,7 @@ type State =
   | "FINISH"
   | "INSIDE_STRING"
   | "INSIDE_STRING_ESCAPE"
+  | "INSIDE_STRING_UNICODE_ESCAPE"
   | "INSIDE_LITERAL"
   | "INSIDE_NUMBER"
   | "INSIDE_OBJECT_START"
@@ -65,6 +66,7 @@ export function fixJson(input: string): [string, string[]] {
   const stack: State[] = ["ROOT"];
   let lastValidIndex = -1;
   let literalStart: number | null = null;
+  let unicodeEscapeDigits = 0;
   const path: string[] = [];
   let currentKey: string | undefined;
 
@@ -335,10 +337,33 @@ export function fixJson(input: string): [string, string[]] {
 
       case "INSIDE_STRING_ESCAPE": {
         stack.pop();
+        const parent = stack[stack.length - 1];
 
-        if (stack[stack.length - 1] === "INSIDE_STRING") {
+        if (char === "u") {
+          stack.push("INSIDE_STRING_UNICODE_ESCAPE");
+          unicodeEscapeDigits = 0;
+        } else if (parent === "INSIDE_STRING") {
           lastValidIndex = i;
-        } else if (stack[stack.length - 1] === "INSIDE_OBJECT_KEY") {
+        }
+
+        if (parent === "INSIDE_OBJECT_KEY") {
+          currentKey += char;
+        }
+
+        break;
+      }
+
+      case "INSIDE_STRING_UNICODE_ESCAPE": {
+        unicodeEscapeDigits++;
+        const complete = unicodeEscapeDigits === 4;
+        if (complete) stack.pop();
+        const parent = stack[stack.length - (complete ? 1 : 2)];
+
+        if (complete && parent === "INSIDE_STRING") {
+          lastValidIndex = i;
+        }
+
+        if (parent === "INSIDE_OBJECT_KEY") {
           currentKey += char;
         }
 
