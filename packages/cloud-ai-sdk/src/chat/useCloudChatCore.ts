@@ -37,14 +37,6 @@ export function useCloudChatCore(
     return new CloudChatCore(cloud, latestState.options, latestState.transport);
   }, [cloud]);
 
-  // The only hook that runs before descendant layout effects: a parent's
-  // useLayoutEffect fires after its children's, and useEffect leaves a
-  // pre-passive window in which the core still answers with the previous
-  // options and transport.
-  useInsertionEffect(() => {
-    core.updateOptions(currentOptions, currentTransport);
-  });
-
   // Track component lifetime for safe async operations
   const mountedRef = useRef(true);
   useEffect(() => {
@@ -53,7 +45,15 @@ export function useCloudChatCore(
       mountedRef.current = false;
     };
   }, []);
-  core.mountedRef = mountedRef;
+
+  // The only hook that runs before descendant layout effects: a parent's
+  // useLayoutEffect fires after its children's, and useEffect leaves a
+  // pre-passive window in which the core still answers with the previous
+  // options and transport.
+  useInsertionEffect(() => {
+    core.mountedRef = mountedRef;
+    core.updateOptions(currentOptions, currentTransport);
+  });
 
   return core;
 }
