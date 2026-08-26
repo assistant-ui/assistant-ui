@@ -192,12 +192,13 @@ describe("useStreamRuntime thread options", () => {
       );
     };
 
-    const view = render(
-      <Suspense fallback={null}>
-        <Probe apiUrl="/workspace-a" suspend={false} />
-      </Suspense>,
-    );
+    let view: ReturnType<typeof render> | undefined;
     try {
+      view = render(
+        <Suspense fallback={null}>
+          <Probe apiUrl="/workspace-a" suspend={false} />
+        </Suspense>,
+      );
       await waitFor(() =>
         expect(
           mockUseStream.mock.calls.some(
@@ -236,7 +237,7 @@ describe("useStreamRuntime thread options", () => {
         ).toMatchObject({ apiUrl: "/workspace-b" }),
       );
     } finally {
-      view.unmount();
+      view?.unmount();
       mockUseStream.mockReset();
     }
   });
@@ -254,8 +255,9 @@ describe("useStreamRuntime thread options", () => {
       return <AssistantRuntimeProvider runtime={runtime} />;
     };
 
-    const view = render(<Probe revision={0} />);
+    let view: ReturnType<typeof render> | undefined;
     try {
+      view = render(<Probe revision={0} />);
       await waitFor(() => expect(mockUseStream).toHaveBeenCalled());
       const callsBeforeRerender = mockUseStream.mock.calls.length;
 
@@ -264,7 +266,7 @@ describe("useStreamRuntime thread options", () => {
 
       expect(mockUseStream).toHaveBeenCalledTimes(callsBeforeRerender);
     } finally {
-      view.unmount();
+      view?.unmount();
       mockUseStream.mockReset();
     }
   });
