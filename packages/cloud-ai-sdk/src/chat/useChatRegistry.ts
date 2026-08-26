@@ -50,11 +50,8 @@ export function useChatRegistry({
     ? (registry.getChatKeyForThread(threadId) ?? threadId)
     : freshSession.key;
 
-  const activeChat = useMemo(
-    () =>
-      registry.get(activeChatKey) ?? createRenderChat(activeChatKey, registry),
-    [activeChatKey, createRenderChat, registry],
-  );
+  const activeChat =
+    registry.get(activeChatKey) ?? createRenderChat(activeChatKey, registry);
 
   useEffect(() => {
     registry.register(activeChatKey, threadId, activeChat);
