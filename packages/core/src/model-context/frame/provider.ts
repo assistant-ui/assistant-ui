@@ -32,11 +32,8 @@ const serializeModelContext = (
 export class AssistantFrameProvider {
   private static _instance: AssistantFrameProvider | null = null;
 
-  private _providers = new Set<ModelContextProvider>();
-  private _providerUnsubscribes = new Map<
-    ModelContextProvider,
-    Unsubscribe | undefined
-  >();
+  private _providers = new Map<symbol, ModelContextProvider>();
+  private _providerUnsubscribes = new Map<symbol, Unsubscribe | undefined>();
   private _activeToolCalls = new Map<
     string,
     { abortController: AbortController; event: MessageEvent }
@@ -160,7 +157,7 @@ export class AssistantFrameProvider {
   }
 
   private getModelContext(): ModelContext {
-    const contexts = Array.from(this._providers).map((p) =>
+    const contexts = Array.from(this._providers.values()).map((p) =>
       p.getModelContext(),
     );
 
@@ -191,13 +188,10 @@ export class AssistantFrameProvider {
     }
   }
 
-  private removeProvider(
-    provider: ModelContextProvider,
-    origin: string,
-  ): Unsubscribe | undefined {
-    this._providers.delete(provider);
-    const unsubscribe = this._providerUnsubscribes.get(provider);
-    this._providerUnsubscribes.delete(provider);
+  private removeProvider(id: symbol, origin: string): Unsubscribe | undefined {
+    this._providers.delete(id);
+    const unsubscribe = this._providerUnsubscribes.get(id);
+    this._providerUnsubscribes.delete(id);
     if (origin !== "*") {
       this._strictRegistrations -= 1;
       if (this._strictRegistrations === 0) this._targetOrigin = "*";
@@ -211,7 +205,8 @@ export class AssistantFrameProvider {
   ): Unsubscribe {
     const origin = targetOrigin ?? "*";
     const instance = AssistantFrameProvider.getInstance(origin);
-    instance._providers.add(provider);
+    const id = Symbol();
+    instance._providers.set(id, provider);
     if (origin !== "*") instance._strictRegistrations += 1;
 
     try {
@@ -219,12 +214,12 @@ export class AssistantFrameProvider {
         instance.broadcastUpdate(),
       );
       if (unsubscribe) {
-        instance._providerUnsubscribes.set(provider, unsubscribe);
+        instance._providerUnsubscribes.set(id, unsubscribe);
       }
 
       instance.broadcastUpdate();
     } catch (error) {
-      const unsubscribe = instance.removeProvider(provider, origin);
+      const unsubscribe = instance.removeProvider(id, origin);
       // Rollback failures must not replace the registration error.
       try {
         unsubscribe?.();
@@ -243,7 +238,7 @@ export class AssistantFrameProvider {
     return () => {
       if (released) return;
       released = true;
-      const unsubscribe = instance.removeProvider(provider, origin);
+      const unsubscribe = instance.removeProvider(id, origin);
       let unsubscribeFailed = false;
       let unsubscribeError: unknown;
       try {

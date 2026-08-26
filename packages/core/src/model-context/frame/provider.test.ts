@@ -365,6 +365,40 @@ describe("AssistantFrameProvider", () => {
     ).not.toThrow();
   });
 
+  it("keeps an existing registration when the same provider fails to register again", async () => {
+    const execute = vi.fn(async () => "result");
+    const firstUnsubscribe = vi.fn();
+    let subscriptionCount = 0;
+    const provider = {
+      getModelContext: () => ({
+        tools: { sensitiveTool: { execute } },
+      }),
+      subscribe: () => {
+        subscriptionCount += 1;
+        if (subscriptionCount === 1) return firstUnsubscribe;
+        throw new Error("second subscribe failed");
+      },
+    };
+    const releaseFirst = AssistantFrameProvider.addModelContextProvider(
+      provider,
+      "https://parent.example",
+    );
+
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider(
+        provider,
+        "https://parent.example",
+      ),
+    ).toThrow("second subscribe failed");
+    expect(firstUnsubscribe).not.toHaveBeenCalled();
+
+    dispatchToolCall("https://parent.example");
+
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+    releaseFirst();
+    expect(firstUnsubscribe).toHaveBeenCalledOnce();
+  });
+
   it("releases a subscription when the initial broadcast fails", () => {
     const unsubscribe = vi.fn();
     expect(() =>
