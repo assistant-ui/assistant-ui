@@ -610,6 +610,27 @@ describe("MessageRepository", () => {
       });
     });
 
+    it("fromArray reports requires-action with reason tool-calls for a resultless tool call", () => {
+      const result = ExportedMessageRepository.fromArray([
+        {
+          ...pendingToolCall,
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "t1",
+              toolName: "search",
+              args: {},
+              argsText: "{}",
+            },
+          ],
+        },
+      ]);
+      expect(result.messages[0]!.message.status).toMatchObject({
+        type: "requires-action",
+        reason: "tool-calls",
+      });
+    });
+
     it("keeps complete for a resolved tool call", () => {
       const result = ExportedMessageRepository.fromArray([
         {
