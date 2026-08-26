@@ -103,12 +103,17 @@ const toCallbackOutputs = (
     if (o.role !== "tool") return true;
     if (typeof o.toolCallId === "string" && o.toolCallId.length > 0)
       return true;
-    console.warn(
-      `External message converter: dropping a tool result without a toolCallId (${stringifyForError(o)}) for input ${stringifyForError(input)}.`,
-    );
+    if (!warnedDroppedToolResults.has(o)) {
+      warnedDroppedToolResults.add(o);
+      console.warn(
+        `External message converter: dropping a tool result without a toolCallId (${stringifyForError(o)}) for input ${stringifyForError(input)}.`,
+      );
+    }
     return false;
   });
 };
+
+const warnedDroppedToolResults = new WeakSet<object>();
 
 export const convertExternalMessageCallback = <T>(
   input: T,
@@ -403,7 +408,8 @@ export const convertExternalMessageChunk = <T>(
         autoStatus.type === "incomplete" &&
         autoStatus.reason === "error" &&
         autoStatus.error !== undefined &&
-        isJSONValueEqual(cachedMessage.status.error, autoStatus.error)))
+        (cachedMessage.status.error === autoStatus.error ||
+          isJSONValueEqual(cachedMessage.status.error, autoStatus.error))))
   ) {
     const inputs = getExternalStoreMessages<T>(cachedMessage);
     if (shallowArrayEqual(inputs, message.inputs)) {
