@@ -2108,6 +2108,28 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
   });
 
+  it("normalizes a serialized approval pause that lost its auto-status marker", async () => {
+    const { thread, runs } = createImportedThread([]);
+    thread.import(
+      JSON.parse(
+        JSON.stringify(
+          ExportedMessageRepository.fromArray(pausedOnApproval({ id: "a1" })),
+        ),
+      ),
+    );
+
+    expect(thread.messages.at(-1)?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
   it("resumes the run after adding a result to an imported resultless tool call", async () => {
     const { thread, runs } = createImportedThread(pausedOnApproval(undefined));
 

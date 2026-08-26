@@ -5,7 +5,7 @@ import type {
   ChatModelRunResult,
 } from "../../runtime/utils/chat-model-adapter";
 import { shouldContinue } from "./should-continue";
-import { getAutoStatus, isAutoStatus } from "../../runtime/utils/auto-status";
+import { getAutoStatus } from "../../runtime/utils/auto-status";
 import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import { consumeSuggestionResult } from "../../adapters/suggestion";
@@ -56,7 +56,6 @@ const withLocalPauseReason = (message: ThreadMessage): ThreadMessage => {
     message.role !== "assistant" ||
     message.status.type !== "requires-action" ||
     message.status.reason !== "interrupt" ||
-    !isAutoStatus(message.status) ||
     message.content.some(
       (c) =>
         c.type === "tool-call" && c.result === undefined && c.interrupt != null,
