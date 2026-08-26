@@ -5,6 +5,7 @@ import {
   useRef,
   useCallback,
   useEffectEvent,
+  useSyncExternalStore,
 } from "react";
 import { BaseAssistantRuntimeCore } from "../../runtime/base/base-assistant-runtime-core";
 import { AssistantRuntimeImpl } from "../../runtime/api/assistant-runtime";
@@ -45,17 +46,49 @@ const useRemoteThreadListRuntimeImpl = (
   return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };
 
+const createRuntimeHookStore = (initial: () => AssistantRuntime) => {
+  let current = initial;
+  const listeners = new Set<() => void>();
+
+  return {
+    getSnapshot: () => current,
+    subscribe: (listener: () => void) => {
+      listeners.add(listener);
+      return () => {
+        listeners.delete(listener);
+      };
+    },
+    update: (next: () => AssistantRuntime) => {
+      if (current === next) return;
+      current = next;
+      for (const listener of listeners) listener();
+    },
+  };
+};
+
 export const useRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
-  const runtimeHookRef = useRef(options.runtimeHook);
-  runtimeHookRef.current = options.runtimeHook;
+  const [runtimeHookStore] = useState(() =>
+    createRuntimeHookStore(options.runtimeHook),
+  );
+  useEffect(() => {
+    runtimeHookStore.update(options.runtimeHook);
+  }, [runtimeHookStore, options.runtimeHook]);
 
   const initialThreadIdRef = useRef(options.initialThreadId);
 
-  const stableRuntimeHook = useCallback(() => {
-    return runtimeHookRef.current();
-  }, []);
+  const stableRuntimeHook = useCallback(
+    function RuntimeHook() {
+      const useCurrentRuntime = useSyncExternalStore(
+        runtimeHookStore.subscribe,
+        runtimeHookStore.getSnapshot,
+        runtimeHookStore.getSnapshot,
+      );
+      return useCurrentRuntime();
+    },
+    [runtimeHookStore],
+  );
 
   const onThreadIdChange = useEffectEvent((threadId: string | undefined) => {
     options.onThreadIdChange?.(threadId);
@@ -89,9 +122,7 @@ export const useRemoteThreadListRuntime = (
       );
     }
 
-    // If allowNesting is true and already inside a thread list context,
-    // just call the runtimeHook directly (no-op behavior)
-    return stableRuntimeHook();
+    return options.runtimeHook();
   }
 
   const runtime = useRemoteThreadListRuntimeImpl(stableOptions);

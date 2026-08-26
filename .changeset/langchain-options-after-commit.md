@@ -1,5 +1,6 @@
 ---
 "@assistant-ui/react-langchain": patch
+"@assistant-ui/core": patch
 ---
 
-fix: keep committed stream options active during interrupted renders
+fix: keep committed remote runtime options active during interrupted renders
