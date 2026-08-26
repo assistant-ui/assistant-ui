@@ -358,7 +358,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
                 );
                 break;
               }
-              setValues(chunk.data as Record<string, unknown>);
+              setValues(chunk.data ?? undefined);
               invokeEventCallback("onValues", onValues, chunk.data);
               if (Array.isArray(chunk.data?.messages)) {
                 lastValuesMessages = chunk.data.messages;

@@ -2,4 +2,4 @@
 "@assistant-ui/react-langgraph": patch
 ---
 
-fix: tolerate updates events whose payload is null or not an object
+fix: skip malformed stream payloads instead of throwing, and latch tuple mode only after a valid tuple

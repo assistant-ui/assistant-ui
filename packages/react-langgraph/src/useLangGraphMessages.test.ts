@@ -933,6 +933,29 @@ describe("useLangGraphMessages", {}, () => {
     ]);
   });
 
+  it("keeps values undefined on a null values snapshot", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "values", data: null },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human" as const, content: "hi" }],
+        {},
+      );
+    });
+
+    expect(result.current.values).toBeUndefined();
+  });
+
   it("does not replace tuple-accumulated messages with updates snapshots", async () => {
     const initialHumanMessage = {
       id: "user-1",
