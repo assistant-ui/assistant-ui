@@ -158,6 +158,24 @@ describe("toWebMcpTool", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it("maps a throwing approval gate to an isError result without running the tool", async () => {
+    const execute = vi.fn(async () => "never");
+    const throwingGate: WebMcpApprovalGate = async () => {
+      throw new Error("approval predicate exploded");
+    };
+    const descriptor = toWebMcpTool(
+      "t",
+      frontendTool({ execute }),
+      throwingGate,
+    );
+
+    await expect(descriptor.execute({})).resolves.toEqual({
+      isError: true,
+      content: [{ type: "text", text: "approval predicate exploded" }],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("maps a cancelled approval to an error result with cancelled wording", async () => {
     const execute = vi.fn(async () => "never");
     const cancellingGate: WebMcpApprovalGate = async () => ({

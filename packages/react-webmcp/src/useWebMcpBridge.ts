@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useAui } from "@assistant-ui/store";
 import type { Tool } from "assistant-stream";
 import { getDefaultWebMcpAdapter, type WebMcpAdapter } from "./webmcp-adapter";
@@ -13,7 +19,10 @@ import {
   diffRegistrations,
   type WebMcpRegistrationEntry,
 } from "./diffRegistrations";
-import { createWebMcpApprovalGate } from "./approval-gate";
+import {
+  createWebMcpApprovalGate,
+  type WebMcpApprovalGate,
+} from "./approval-gate";
 
 export type WebMcpBridgeOptions = {
   filter?: (name: string, tool: Tool<any, any>) => boolean;
@@ -38,6 +47,9 @@ export type WebMcpBridgeResult = {
 
 const EMPTY_NAMES: string[] = [];
 
+const emptySubscribe = () => () => {};
+const getServerStatus = (): WebMcpBridgeStatus => "unsupported";
+
 const toRegistrationEntry = (
   tool: Tool<any, any>,
 ): WebMcpRegistrationEntry => ({
@@ -49,50 +61,60 @@ export const useWebMcpBridge = (
   options: WebMcpBridgeOptions = {},
 ): WebMcpBridgeResult => {
   const aui = useAui();
-  const [status, setStatus] = useState<WebMcpBridgeStatus>("unsupported");
   const [registeredToolNames, setRegisteredToolNames] =
     useState<string[]>(EMPTY_NAMES);
 
-  const {
-    adapter: adapterOption,
-    filter,
-    approval,
-    approvalTimeoutMs,
-  } = options;
+  const { adapter: adapterOption } = options;
+
+  const optionsRef = useRef(options);
+  useEffect(() => {
+    optionsRef.current = options;
+  });
+
+  const status = useSyncExternalStore(
+    emptySubscribe,
+    useCallback(
+      (): WebMcpBridgeStatus =>
+        (adapterOption ?? getDefaultWebMcpAdapter()).available
+          ? "active"
+          : "unsupported",
+      [adapterOption],
+    ),
+    getServerStatus,
+  );
 
   useEffect(() => {
     const adapter = adapterOption ?? getDefaultWebMcpAdapter();
-    if (!adapter.available) {
-      setStatus("unsupported");
-      return undefined;
-    }
-    setStatus("active");
+    if (!adapter.available) return undefined;
 
-    const approvalGate = createWebMcpApprovalGate({
-      approval,
-      approvalTimeoutMs,
-      requestUserInteraction: adapter.requestUserInteraction?.bind(adapter),
-    });
+    const requestUserInteraction =
+      adapter.requestUserInteraction?.bind(adapter);
+    const approvalGate: WebMcpApprovalGate = (request) =>
+      createWebMcpApprovalGate({
+        approval: optionsRef.current.approval,
+        approvalTimeoutMs: optionsRef.current.approvalTimeoutMs,
+        requestUserInteraction,
+      })(request);
 
     const registered = new Map<
       string,
       { entry: WebMcpRegistrationEntry; dispose: () => void }
     >();
-    const effectiveFilter = filter ?? defaultWebMcpFilter;
 
     const sync = () => {
+      const filter = optionsRef.current.filter ?? defaultWebMcpFilter;
       const tools = aui.modelContext.getModelContext().tools ?? {};
       const desired = new Map<
         string,
         { tool: Tool<any, any>; entry: WebMcpRegistrationEntry }
       >();
       for (const [name, tool] of Object.entries(tools)) {
-        if (!effectiveFilter(name, tool)) continue;
         try {
+          if (!filter(name, tool)) continue;
           desired.set(name, { tool, entry: toRegistrationEntry(tool) });
         } catch (error) {
           console.warn(
-            `[assistant-ui] Skipping WebMCP registration for tool "${name}": schema conversion failed.`,
+            `[assistant-ui] Skipping WebMCP registration for tool "${name}": filter or schema conversion failed.`,
             error,
           );
         }
@@ -114,6 +136,12 @@ export const useWebMcpBridge = (
       for (const name of [...updated, ...added]) {
         const target = desired.get(name);
         if (!target) continue;
+        if (adapter.hasTool?.(name)) {
+          console.warn(
+            `[assistant-ui] Skipping WebMCP registration for tool "${name}": the name is already registered on the page's model context.`,
+          );
+          continue;
+        }
         try {
           const dispose = adapter.registerTool(
             toWebMcpTool(name, target.tool, approvalGate),
@@ -144,7 +172,7 @@ export const useWebMcpBridge = (
       registered.clear();
       setRegisteredToolNames(EMPTY_NAMES);
     };
-  }, [aui, adapterOption, filter, approval, approvalTimeoutMs]);
+  }, [aui, adapterOption]);
 
   return { status, registeredToolNames };
 };

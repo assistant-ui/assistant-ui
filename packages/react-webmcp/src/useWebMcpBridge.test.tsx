@@ -201,6 +201,85 @@ describe("useWebMcpBridge", () => {
     expect(adapter.registerCalls).toEqual([]);
   });
 
+  it("warns and skips a tool whose filter throws while registering the rest", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const adapter = createFakeWebMcpAdapter();
+    const otherTool: Tool<any, any> = {
+      ...searchTool,
+      description: "other",
+    } as Tool<any, any>;
+    const provider = createProvider({ search: searchTool, other: otherTool });
+
+    render(
+      <Harness
+        provider={provider}
+        options={{
+          adapter,
+          filter: (name) => {
+            if (name === "search") throw new Error("bad predicate");
+            return true;
+          },
+        }}
+      />,
+    );
+
+    await vi.waitFor(() => expect(adapter.registry.has("other")).toBe(true));
+    expect(adapter.registry.has("search")).toBe(false);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('"search"'),
+      expect.anything(),
+    );
+    expect(latest.registeredToolNames).toEqual(["other"]);
+  });
+
+  it("skips a collision via the adapter's enumeration capability without calling registerTool", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const adapter = createFakeWebMcpAdapter({ withEnumeration: true });
+    adapter.registry.set("search", {
+      name: "search",
+      description: "app-owned",
+      inputSchema: {},
+      execute: async () => ({ content: [] }),
+    });
+    const otherTool: Tool<any, any> = {
+      ...searchTool,
+      description: "other",
+    } as Tool<any, any>;
+    const provider = createProvider({ search: searchTool, other: otherTool });
+
+    render(<Harness provider={provider} options={{ adapter }} />);
+
+    await vi.waitFor(() => expect(adapter.registry.has("other")).toBe(true));
+    expect(adapter.registerCalls).toEqual(["other"]);
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('"search"'));
+    expect(latest.registeredToolNames).toEqual(["other"]);
+  });
+
+  it("does not tear down registrations when inline options change identity every render", async () => {
+    const adapter = createFakeWebMcpAdapter();
+    const provider = createProvider({ search: searchTool });
+
+    const view = render(
+      <Harness
+        provider={provider}
+        options={{ adapter, filter: () => true, approval: () => true }}
+      />,
+    );
+    await vi.waitFor(() => expect(adapter.registry.has("search")).toBe(true));
+    const registerCount = adapter.registerCalls.length;
+
+    view.rerender(
+      <Harness
+        provider={provider}
+        options={{ adapter, filter: () => true, approval: () => true }}
+      />,
+    );
+
+    await act(async () => {});
+    expect(adapter.registerCalls.length).toBe(registerCount);
+    expect(adapter.unregisterCalls).toEqual([]);
+  });
+
   it("warns and skips on a name collision without touching the app's registration", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const adapter = createFakeWebMcpAdapter();

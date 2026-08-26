@@ -20,12 +20,14 @@ export type WebMcpToolDescriptor = {
 export type WebMcpModelContext = {
   registerTool(tool: WebMcpToolDescriptor): { unregister?(): void } | void;
   unregisterTool?(name: string): void;
+  getTools?(): readonly { name: string }[];
   requestUserInteraction?(): Promise<void>;
 };
 
 export type WebMcpAdapter = {
   available: boolean;
   registerTool(def: WebMcpToolDescriptor): () => void;
+  hasTool?(name: string): boolean;
   requestUserInteraction?(): Promise<void>;
 };
 
@@ -64,6 +66,19 @@ export const getDefaultWebMcpAdapter = (): WebMcpAdapter => {
       };
     },
   };
+  if (typeof context.getTools === "function") {
+    const getTools = context.getTools.bind(context);
+    adapter.hasTool = (name) => {
+      try {
+        const tools = getTools();
+        return (
+          Array.isArray(tools) && tools.some((tool) => tool?.name === name)
+        );
+      } catch {
+        return false;
+      }
+    };
+  }
   const requestUserInteraction = context.requestUserInteraction?.bind(context);
   if (requestUserInteraction) {
     adapter.requestUserInteraction = requestUserInteraction;

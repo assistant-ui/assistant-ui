@@ -23,7 +23,7 @@ export const toWebMcpInputSchema = (tool: Tool<any, any>): unknown =>
 
 const textContent = (text: string): WebMcpContent => ({ type: "text", text });
 
-export const errorResult = (message: string): WebMcpCallToolResult => ({
+const errorResult = (message: string): WebMcpCallToolResult => ({
   isError: true,
   content: [textContent(message)],
 });
@@ -88,28 +88,28 @@ export const toWebMcpTool = (
   execute: async (rawArgs, context) => {
     const args = (rawArgs ?? {}) as Record<string, unknown>;
     const abortSignal = context?.signal;
-    const decision = await approvalGate({
-      toolName: name,
-      tool,
-      args,
-      abortSignal,
-    });
-    if (!decision.approved) {
-      if (decision.resolution === "expired") {
-        return errorResult(`Tool call approval for "${name}" expired`);
-      }
-      if (decision.resolution === "cancelled") {
-        return errorResult(`Tool call approval for "${name}" cancelled`);
-      }
-      return errorResult(
-        `User declined tool call "${name}"${
-          decision.reason ? `: ${decision.reason}` : ""
-        }`,
-      );
-    }
-
     const toolCallId = crypto.randomUUID();
     try {
+      const decision = await approvalGate({
+        toolName: name,
+        tool,
+        args,
+        abortSignal,
+      });
+      if (!decision.approved) {
+        if (decision.resolution === "expired") {
+          return errorResult(`Tool call approval for "${name}" expired`);
+        }
+        if (decision.resolution === "cancelled") {
+          return errorResult(`Tool call approval for "${name}" cancelled`);
+        }
+        return errorResult(
+          `User declined tool call "${name}"${
+            decision.reason ? `: ${decision.reason}` : ""
+          }`,
+        );
+      }
+
       const result = await tool.execute?.(args, {
         toolCallId,
         abortSignal: abortSignal ?? new AbortController().signal,

@@ -9,7 +9,6 @@ import {
 } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { WebMcpBridge } from "@assistant-ui/react-webmcp";
 import { TaskBoard } from "@/components/task-board";
 import { WebMcpApprovalDialog } from "@/components/webmcp-approval-dialog";
 import { WebMcpStatus } from "@/components/webmcp-status";
@@ -43,14 +42,13 @@ export default function Home() {
 
   return (
     <AssistantRuntimeProvider config={config} runtime={runtime}>
-      <WebMcpBridge />
       <WebMcpApprovalDialog />
       <div className="flex h-full flex-col">
         <header className="flex flex-col gap-1 border-b px-4 py-3">
           <h1 className="text-sm font-semibold">
             assistant-ui × WebMCP task board
           </h1>
-          <WebMcpStatus toolNames={Object.keys(toolkit)} />
+          <WebMcpStatus />
         </header>
         <div className="grid min-h-0 flex-1 md:grid-cols-[1fr_20rem]">
           <main className="min-h-0">

@@ -1,39 +1,34 @@
 "use client";
 
-import { useSyncExternalStore } from "react";
+import { useWebMcpBridge } from "@assistant-ui/react-webmcp";
 import { Badge } from "@/components/ui/badge";
 
-const emptySubscribe = () => () => {};
-const detectWebMcp = () =>
-  "modelContext" in document || "modelContext" in navigator;
-const getServerSnapshot = () => undefined;
-
-export function WebMcpStatus({ toolNames }: { toolNames: string[] }) {
-  const available = useSyncExternalStore(
-    emptySubscribe,
-    detectWebMcp,
-    getServerSnapshot,
-  );
+export function WebMcpStatus() {
+  const { status, registeredToolNames } = useWebMcpBridge();
 
   return (
     <div className="flex flex-wrap items-center gap-2 text-sm">
-      {available === undefined ? null : available ? (
+      {status === "active" ? (
         <Badge className="bg-green-600/10 text-green-700 dark:text-green-400">
-          WebMCP available
+          WebMCP active
         </Badge>
       ) : (
         <Badge variant="secondary">WebMCP unavailable</Badge>
       )}
-      {available === false && (
+      {status === "unsupported" && (
         <span className="text-muted-foreground">
           Enable chrome://flags/#enable-webmcp-testing and reload — the chat
           below works either way.
         </span>
       )}
-      {available && (
+      {status === "active" && (
         <span className="text-muted-foreground">
           Exposed tools:{" "}
-          <span className="font-mono text-xs">{toolNames.join(", ")}</span>
+          <span className="font-mono text-xs">
+            {registeredToolNames.length > 0
+              ? registeredToolNames.join(", ")
+              : "none yet"}
+          </span>
         </span>
       )}
     </div>

@@ -7,7 +7,7 @@ export type FakeWebMcpAdapter = WebMcpAdapter & {
 };
 
 export const createFakeWebMcpAdapter = (
-  options: { available?: boolean } = {},
+  options: { available?: boolean; withEnumeration?: boolean } = {},
 ): FakeWebMcpAdapter => {
   const registry = new Map<string, WebMcpToolDescriptor>();
   const registerCalls: string[] = [];
@@ -18,6 +18,9 @@ export const createFakeWebMcpAdapter = (
     registry,
     registerCalls,
     unregisterCalls,
+    ...(options.withEnumeration && {
+      hasTool: (name: string) => registry.has(name),
+    }),
     registerTool: (def) => {
       if (registry.has(def.name)) {
         throw new Error(`Tool "${def.name}" is already registered`);
