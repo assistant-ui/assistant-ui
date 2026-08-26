@@ -43,10 +43,16 @@ const useFileSrc = (file: File | undefined) => {
     if (!file) return;
 
     const objectUrl = URL.createObjectURL(file);
-    // oxlint-disable-next-line react/set-state-in-effect -- StrictMode cleanup requires publishing a fresh URL from each effect setup.
-    setSrc(objectUrl); // eslint-disable-line react-hooks/set-state-in-effect
+    let isActive = true;
+    // The active setup publishes the URL after StrictMode's simulated cleanup.
+    queueMicrotask(() => {
+      if (isActive) setSrc(objectUrl);
+    });
 
-    return () => URL.revokeObjectURL(objectUrl);
+    return () => {
+      isActive = false;
+      URL.revokeObjectURL(objectUrl);
+    };
   }, [file]);
 
   return file ? src : undefined;
