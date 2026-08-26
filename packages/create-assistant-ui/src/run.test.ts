@@ -126,6 +126,9 @@ describe("main", () => {
     await expect(result).rejects.toThrow("process.exit");
     expect(removeAllListeners).toHaveBeenCalledWith("SIGTERM");
     expect(kill).toHaveBeenCalledWith(process.pid, "SIGTERM");
+    expect(removeAllListeners.mock.invocationCallOrder[0]).toBeLessThan(
+      kill.mock.invocationCallOrder[0]!,
+    );
     expect(exit).toHaveBeenCalledWith(143);
   });
 
