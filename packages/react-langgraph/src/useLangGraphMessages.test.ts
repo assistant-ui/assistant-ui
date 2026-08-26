@@ -775,8 +775,8 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
-  it("keeps streaming after an updates event with a null payload", async () => {
-    let capturedUpdates: unknown = "unset";
+  it("keeps streaming after updates events with null or primitive payloads", async () => {
+    const capturedUpdates: unknown[] = [];
     const mockStreamCallback = mockStreamCallbackFactory([
       metadataEvent,
       { event: "updates", data: null },
@@ -800,7 +800,7 @@ describe("useLangGraphMessages", {}, () => {
         appendMessage: appendLangChainChunk,
         eventHandlers: {
           onUpdates: (updates) => {
-            capturedUpdates = updates;
+            capturedUpdates.push(updates);
           },
         },
       }),
@@ -817,7 +817,75 @@ describe("useLangGraphMessages", {}, () => {
       expect(result.current.messages).toHaveLength(2);
       expect(result.current.messages[1]!.id).toEqual("ai-2");
     });
-    expect(capturedUpdates).toBe("not-an-object");
+    expect(capturedUpdates).toEqual([null, "not-an-object"]);
+  });
+
+  it("keeps the active interrupt when a null updates payload arrives", async () => {
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "updates", data: { __interrupt__: [{ value: "approve?" }] } },
+      { event: "updates", data: null },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human" as const, content: "hi" }],
+        {},
+      );
+    });
+
+    expect(result.current.interrupt).toEqual({ value: "approve?" });
+  });
+
+  it("keeps streaming after messages events with null payloads", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "messages/partial", data: null },
+      { event: "messages", data: null },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-2",
+            content: "This is a streamed AI response",
+            type: "AIMessageChunk",
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human" as const, content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1]!.id).toEqual("ai-2");
+    });
+    expect(warnSpy).toHaveBeenCalledWith(
+      "Received invalid messages tuple format:",
+      null,
+    );
+    warnSpy.mockRestore();
   });
 
   it("does not replace tuple-accumulated messages with updates snapshots", async () => {

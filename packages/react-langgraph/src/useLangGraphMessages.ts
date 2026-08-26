@@ -124,17 +124,17 @@ const normalizeMessageType = <TMessage>(message: TMessage): TMessage => {
   return message;
 };
 
-const extractMessagesFromUpdates = <TMessage>(data: unknown): TMessage[] => {
-  if (data === null || typeof data !== "object") return [];
-  const record = data as Record<string, unknown>;
+const extractMessagesFromUpdates = <TMessage>(
+  data: Record<string, unknown>,
+): TMessage[] => {
   // { messages: [...] } shape
-  if (Array.isArray(record.messages)) {
-    return (record.messages as TMessage[]).map(normalizeMessageType);
+  if (Array.isArray(data.messages)) {
+    return (data.messages as TMessage[]).map(normalizeMessageType);
   }
 
   // { nodeName: { messages: [...] } } shape
   const messages: TMessage[] = [];
-  for (const value of Object.values(record)) {
+  for (const value of Object.values(data)) {
     if (value && typeof value === "object" && "messages" in value) {
       const nodeMessages = (value as Record<string, unknown>).messages;
       if (Array.isArray(nodeMessages)) {
@@ -314,6 +314,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
           switch (eventType) {
             case LangGraphKnownEventTypes.MessagesPartial:
             case LangGraphKnownEventTypes.MessagesComplete:
+              if (!Array.isArray(chunk.data)) break;
               onMessages?.(chunk.data, config.runConfig);
               setMessagesImmediate(accumulator.addMessages(chunk.data));
               break;
@@ -328,6 +329,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
               } else {
                 invokeEventCallback("onUpdates", onUpdates, chunk.data);
               }
+              if (chunk.data === null || typeof chunk.data !== "object") break;
               const extracted = extractMessagesFromUpdates<TMessage>(
                 chunk.data,
               );
@@ -336,7 +338,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
                 setMessagesImmediate(accumulator.addMessages(extracted));
               }
               // A subgraph update may set an interrupt but never clear one; the parent's top-level update clears it when the subgraph ends.
-              const updateInterrupt = chunk.data?.__interrupt__?.[0];
+              const updateInterrupt = chunk.data.__interrupt__?.[0];
               if (!eventNamespace || updateInterrupt !== undefined) {
                 onInterrupt?.(updateInterrupt, config.runConfig);
                 setInterrupt(updateInterrupt);
@@ -384,15 +386,16 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
               break;
             case LangGraphKnownEventTypes.Messages: {
               hasTupleMessageEvents = true;
-              const [tupleMessage, tupleMetadata] = (
-                chunk as LangChainMessageTupleEvent
-              ).data;
+              const tupleData = (chunk as LangChainMessageTupleEvent).data;
+              const [tupleMessage, tupleMetadata] = Array.isArray(tupleData)
+                ? tupleData
+                : [];
               const normalizedTupleMessage =
                 normalizeLangGraphTupleMessage(tupleMessage);
               if (!normalizedTupleMessage) {
                 console.warn(
                   "Received invalid messages tuple format:",
-                  tupleMessage,
+                  tupleData,
                 );
                 break;
               }
