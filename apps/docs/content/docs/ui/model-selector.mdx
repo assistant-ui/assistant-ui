@@ -10,6 +10,8 @@ import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavo
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import { ModelSelectorSelectedSample } from "@/components/pages/docs/samples/model-selector/selected-model";
 import * as ModelSelectorSelectedRadixSample from "@/components/pages/docs/samples/model-selector/selected-model.radix";
+import { ModelSelectorGroupedSample } from "@/components/pages/docs/samples/model-selector/provider-groups-and-availability";
+import * as ModelSelectorGroupedRadixSample from "@/components/pages/docs/samples/model-selector/provider-groups-and-availability.radix";
 
 A picker that lets users switch between AI models and choose a reasoning effort (thinking) level. It is built on Popover + Command, so search, provider grouping, and filtering compose in without being built in. The default export integrates with assistant-ui's `ModelContext` system, so the selection reaches your backend on every request with no extra wiring.
 
@@ -264,6 +266,14 @@ Keyboard navigation needs a focused input to drive it. When content is unfiltere
   refocusing cmdk's input, so the highlight only moves while a following
   <Kbd>Enter</Kbd> can act on it.
 </Callout>
+
+### Provider Groups and Availability
+
+Open the picker to compare the provider groups. Select an available model. The unavailable model stays disabled.
+
+<PreviewCode file="components/pages/docs/samples/model-selector/provider-groups-and-availability" name="GroupedModelSelector" base={<ModelSelectorGroupedSample />}>
+  <ModelSelectorGroupedRadixSample.ModelSelectorGroupedSample />
+</PreviewCode>
 
 ## Variants
 
