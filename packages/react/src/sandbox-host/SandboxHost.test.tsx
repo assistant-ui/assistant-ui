@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, startTransition, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -317,5 +317,49 @@ describe("SandboxHost", () => {
       root.unmount();
     });
     expect(rendered.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps bridge options scoped to committed renders", async () => {
+    let resolveRender!: (frame: ReturnType<typeof fakeRendered>) => void;
+    renderHtmlMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRender = resolve;
+      }),
+    );
+    const rendered = fakeRendered();
+    const bridge = { onMessage: vi.fn(), dispose: vi.fn() };
+    const createBridgeA = vi.fn(() => bridge);
+    const createBridgeB = vi.fn(() => bridge);
+    const interruptedRender = vi.fn();
+    const pending = new Promise<never>(() => {});
+    const Block = () => {
+      interruptedRender();
+      throw pending;
+    };
+    const view = (createBridge: typeof createBridgeA, blocked: boolean) => (
+      <Suspense fallback={null}>
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={createBridge}
+        />
+        {blocked ? <Block /> : null}
+      </Suspense>
+    );
+
+    await act(async () => {
+      root.render(view(createBridgeA, false));
+    });
+    act(() => {
+      startTransition(() => root.render(view(createBridgeB, true)));
+    });
+    await vi.waitFor(() => expect(interruptedRender).toHaveBeenCalled());
+    await act(async () => {
+      resolveRender(rendered);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(createBridgeA).toHaveBeenCalledTimes(1);
+    expect(createBridgeB).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,12 @@
 "use client";
 
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   type RenderedFrame,
   SafeContentFrame,
@@ -81,8 +87,15 @@ export function SandboxHost({
     undefined,
   );
 
-  const liveRef = useRef<LiveSnapshot>(null!);
-  liveRef.current = { content, sandbox, createBridge, onError };
+  const liveRef = useRef<LiveSnapshot>({
+    content,
+    sandbox,
+    createBridge,
+    onError,
+  });
+  useLayoutEffect(() => {
+    liveRef.current = { content, sandbox, createBridge, onError };
+  }, [content, sandbox, createBridge, onError]);
 
   useEffect(() => {
     const container = containerRef.current;
