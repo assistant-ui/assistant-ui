@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -114,13 +115,9 @@ function InlineRenderer({
   const aui = useAui();
   const app = getMcpAppFromToolPart(part);
   const cachedAppRef = useRef<McpAppMetadata | undefined>(undefined);
-  if (
-    app != null &&
-    (cachedAppRef.current?.resourceUri !== app.resourceUri ||
-      cachedAppRef.current?.serverId !== app.serverId)
-  ) {
-    cachedAppRef.current = app;
-  }
+  useLayoutEffect(() => {
+    if (app != null) cachedAppRef.current = app;
+  }, [app]);
   const appForRender = app ?? cachedAppRef.current;
 
   const [loadedResource, setLoadedResource] = useState<LoadedResourceState>();

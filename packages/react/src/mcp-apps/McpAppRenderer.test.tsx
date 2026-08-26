@@ -61,14 +61,22 @@ const createPart = (serverId?: string): ToolCallMessagePartProps => ({
   respondToApproval: vi.fn(),
 });
 
+const createPartWithoutApp = (): ToolCallMessagePartProps => {
+  const part = createPart();
+  delete part.mcp;
+  return part;
+};
+
 function Harness({
   host,
   serverId,
   handlers,
+  part,
 }: {
   host: McpAppsHost;
   serverId?: string;
   handlers?: McpAppRendererOptions["handlers"];
+  part?: ToolCallMessagePartProps;
 }) {
   const renderer = useResource(
     McpAppRenderer({
@@ -77,7 +85,7 @@ function Harness({
     }),
   );
   const Renderer = renderer.render;
-  return <Renderer {...createPart(serverId)} />;
+  return <Renderer {...(part ?? createPart(serverId))} />;
 }
 
 const MemoizedPart = memo(function MemoizedPart({
@@ -171,23 +179,38 @@ describe("McpAppRenderer", () => {
       }
       return null;
     };
-    const view = (serverId: string, blocked: boolean) => (
+    const view = (part: ToolCallMessagePartProps, blocked: boolean) => (
       <Suspense fallback={null}>
-        <Harness host={host} serverId={serverId} />
+        <Harness host={host} part={part} />
         <Blocker blocked={blocked} />
       </Suspense>
     );
-    const rendered = render(view("server-a", false));
+    const rendered = render(view(createPart("server-a"), false));
     await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
     const handlers = framePropsMock.mock.lastCall?.[0]
       .handlers as McpAppBridgeHandlers;
 
     act(() => {
-      startTransition(() => rendered.rerender(view("server-b", true)));
+      startTransition(() =>
+        rendered.rerender(view(createPart("server-b"), true)),
+      );
     });
     expect(interruptedRender).toHaveBeenCalled();
     await handlers.callTool?.({ name: "search" });
 
+    expect(host.callTool).toHaveBeenCalledWith({
+      name: "search",
+      serverId: "server-a",
+    });
+
+    framePropsMock.mockClear();
+    vi.mocked(host.callTool).mockClear();
+    rendered.rerender(view(createPartWithoutApp(), false));
+    await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
+    expect(framePropsMock.mock.lastCall?.[0].app.serverId).toBe("server-a");
+    const fallbackHandlers = framePropsMock.mock.lastCall?.[0]
+      .handlers as McpAppBridgeHandlers;
+    await fallbackHandlers.callTool?.({ name: "search" });
     expect(host.callTool).toHaveBeenCalledWith({
       name: "search",
       serverId: "server-a",
