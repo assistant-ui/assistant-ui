@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { AppendMessage } from "@assistant-ui/core";
+import { convertExternalMessages } from "@assistant-ui/core/react";
 import {
   convertLangChainBaseMessage,
   getMessageContent,
@@ -946,5 +947,79 @@ describe("convertLangChainBaseMessage audio transcripts", () => {
       const result = convertLangChainBaseMessage(audioMessage("", audio), {});
       expect(contentOf(result)).toEqual([{ type: "text", text: "" }]);
     }
+  });
+});
+
+describe("convertLangChainBaseMessage tool messages", () => {
+  const toolCall = {
+    type: "tool_call",
+    id: "call-1",
+    name: "search",
+    args: { query: "hello" },
+  };
+
+  const aiWithToolCall = (): LangChainBaseMessage =>
+    ({
+      _getType: () => "ai",
+      id: "msg-ai",
+      content: [],
+      tool_calls: [toolCall],
+    }) as LangChainBaseMessage;
+
+  const toolResult = (name?: string): LangChainBaseMessage =>
+    ({
+      _getType: () => "tool",
+      id: "msg-tool",
+      content: "3 results",
+      tool_call_id: "call-1",
+      ...(name !== undefined && { name }),
+    }) as LangChainBaseMessage;
+
+  it("leaves toolName absent when the message has no name", () => {
+    const result = convertLangChainBaseMessage(toolResult(), {});
+
+    expect(result.role).toBe("tool");
+    if (result.role !== "tool") throw new Error("expected a tool message");
+    expect(result.toolName).toBeUndefined();
+  });
+
+  it("keeps the name when the message carries one", () => {
+    const result = convertLangChainBaseMessage(toolResult("search"), {});
+
+    if (result.role !== "tool") throw new Error("expected a tool message");
+    expect(result.toolName).toBe("search");
+  });
+
+  // A tool message that arrives over the LangGraph v2 `messages` stream has no
+  // name: the protocol carries none, and the SDK rebuilds it as
+  // `new ToolMessage({ id, content, tool_call_id })`. Defaulting that absence
+  // to "" used to make `joinExternalMessages` throw
+  // "Tool call name ... does not match existing tool call ...", inside a
+  // render, on every render of a thread holding a completed tool call.
+  it("merges a nameless tool result into its call instead of throwing", () => {
+    const messages = convertExternalMessages(
+      [aiWithToolCall(), toolResult()],
+      (message) => convertLangChainBaseMessage(message, {}),
+      false,
+      {},
+    );
+
+    expect(messages).toHaveLength(1);
+    const part = messages[0]!.content[0]!;
+    expect(part.type).toBe("tool-call");
+    if (part.type !== "tool-call") throw new Error("expected a tool call part");
+    expect(part.toolName).toBe("search");
+    expect(part.result).toBe("3 results");
+  });
+
+  it("still rejects a result naming a different tool", () => {
+    expect(() =>
+      convertExternalMessages(
+        [aiWithToolCall(), toolResult("other_tool")],
+        (message) => convertLangChainBaseMessage(message, {}),
+        false,
+        {},
+      ),
+    ).toThrow(/does not match existing tool call/);
   });
 });

@@ -210,7 +210,13 @@ export const convertLangChainBaseMessage = (
     case "tool":
       return {
         role: "tool",
-        toolName: message.name ?? "",
+        // Left absent rather than defaulted to "": `toolName` is optional on
+        // the converter's Message type, and `joinExternalMessages` only checks
+        // it against the tool call's name when it is non-null. A tool message
+        // that arrives over the LangGraph v2 `messages` stream never has a
+        // name -- the protocol has no field for one -- so defaulting to ""
+        // manufactures a name that disagrees with every call and throws.
+        toolName: message.name,
         toolCallId: message.tool_call_id ?? "",
         result: message.content,
         artifact: message.artifact,
