@@ -3,4 +3,4 @@
 "@assistant-ui/core": patch
 ---
 
-fix: keep committed remote runtime options active during interrupted renders
+fix: publish remote runtime options after commit without duplicate thread renders
