@@ -85,11 +85,9 @@ const getConnectionDependencies = (
         : [auth.type];
 
   return [
-    props.kind,
     props.url,
     ...authDependencies,
     props.redirectUri,
-    props.connectionTimeout,
     props.cache?.defaultTtlMs,
     props.elicitation,
   ];
@@ -106,21 +104,20 @@ const McpServerSlot = resource(function useMcpServerSlot(
   props: McpServerResourceProps,
 ): ClientOutput<"mcpServer"> {
   const dependencies = getConnectionDependencies(props);
-  const connectionRef = useRef({ dependencies, generation: 0 });
-  if (
-    !areConnectionDependenciesEqual(
-      connectionRef.current.dependencies,
+  const [connection, setConnection] = useState({ dependencies, generation: 0 });
+  let currentConnection = connection;
+  if (!areConnectionDependenciesEqual(connection.dependencies, dependencies)) {
+    currentConnection = {
       dependencies,
-    )
-  ) {
-    connectionRef.current = {
-      dependencies,
-      generation: connectionRef.current.generation + 1,
+      generation: connection.generation + 1,
     };
+    setConnection(currentConnection);
   }
 
+  // Storage resources do not expose a stable scope identity and may return a
+  // fresh client on ordinary renders, so storage changes cannot key remounts.
   return useResource(
-    withKey(connectionRef.current.generation, McpServerResource(props)),
+    withKey(currentConnection.generation, McpServerResource(props)),
   );
 });
 
