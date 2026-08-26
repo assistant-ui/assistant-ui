@@ -126,6 +126,7 @@ const contentToParts = (
   metadata: LangGraphMessageConverterMetadata,
   messageId: string | undefined,
 ) => {
+  if (content == null) return [];
   if (typeof content === "string")
     return [{ type: "text" as const, text: content }];
   return content
@@ -357,7 +358,7 @@ export const convertLangChainMessages: useExternalMessageConverter.Callback<
       const normalizedContent =
         typeof message.content === "string"
           ? [{ type: "text" as const, text: message.content }]
-          : message.content;
+          : (message.content ?? []);
 
       const allContent = [
         message.additional_kwargs?.reasoning,

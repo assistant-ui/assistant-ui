@@ -355,6 +355,8 @@ const myThreads = useThreads({ cloud: myCloud });
 const { messages, sendMessage } = useCloudChat({ threads: myThreads });
 ```
 
+`useThreads` requests 20 threads per page and follows Cloud cursors until all matching threads are loaded. With `includeArchived`, active and archived pages load concurrently and the complete list is committed after both finish.
+
 **Parameters:**
 
 | Parameter | Type | Description |

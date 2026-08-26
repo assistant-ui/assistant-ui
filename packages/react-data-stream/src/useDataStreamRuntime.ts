@@ -8,6 +8,7 @@ import type {
   ChatModelRunOptions,
   ThreadMessage,
 } from "@assistant-ui/core";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
 import {
   useLocalRuntime,
   splitLocalRuntimeOptions,
@@ -30,35 +31,12 @@ type DataStreamRuntimeCallbackName =
   | "onCancel"
   | "onData";
 
-const reportCallbackError = (
+const invokeRuntimeCallback = <TArgs extends readonly unknown[]>(
   name: DataStreamRuntimeCallbackName,
-  error: unknown,
-) => {
-  console.error(`[react-data-stream] ${name} callback threw an error`, error);
-};
-
-const invokeRuntimeCallback = <TArgs extends unknown[]>(
-  name: DataStreamRuntimeCallbackName,
-  callback: ((...args: TArgs) => void) | undefined,
+  callback: ((...args: TArgs) => unknown) | undefined,
   ...args: TArgs
-) => {
-  if (!callback) return;
-
-  try {
-    const result = callback(...args) as unknown;
-    if (
-      result !== null &&
-      (typeof result === "object" || typeof result === "function") &&
-      "then" in result &&
-      typeof result.then === "function"
-    ) {
-      void Promise.resolve(result).catch((error) => {
-        reportCallbackError(name, error);
-      });
-    }
-  } catch (error) {
-    reportCallbackError(name, error);
-  }
+): void => {
+  void invokeUserCallback("react-data-stream", name, callback, ...args);
 };
 
 export type { DataStreamProtocol } from "./protocol";

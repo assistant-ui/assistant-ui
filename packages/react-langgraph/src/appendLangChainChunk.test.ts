@@ -41,6 +41,31 @@ const aiChunk = (
   tool_call_chunks: toolCallChunks,
 });
 
+describe("appendLangChainChunk content-less chunks", () => {
+  it("accumulates text after a tool-call-only first chunk", () => {
+    const first = append(undefined, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      tool_call_chunks: [
+        { id: "call-1", name: "search", args: "{}", index: 0 },
+      ],
+    } as unknown as LangChainMessageChunk);
+
+    const merged = append(first, {
+      type: "AIMessageChunk",
+      id: "ai-1",
+      content: "hello",
+    } as unknown as LangChainMessageChunk);
+
+    expect(first.content).toEqual([]);
+
+    expect(merged.content).toEqual([{ type: "text", text: "hello" }]);
+    expect(merged.tool_calls).toEqual([
+      expect.objectContaining({ id: "call-1", name: "search" }),
+    ]);
+  });
+});
+
 describe("appendLangChainChunk tool_call id merging", () => {
   it("merges chunk arriving with real id into entry that started with empty id", () => {
     let acc: AiMessage | undefined;

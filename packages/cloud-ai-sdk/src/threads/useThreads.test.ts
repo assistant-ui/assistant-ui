@@ -252,16 +252,31 @@ describe("useThreads", () => {
     expect(list).toHaveBeenCalledOnce();
   });
 
-  it("loads active and archived threads when requested", async () => {
-    const active = createThreadListResponse("Active", "active").threads[0]!;
-    const archived = {
-      ...createThreadListResponse("Archived", "archived").threads[0]!,
+  it("loads every active and archived page when requested", async () => {
+    const activePage = Array.from(
+      { length: 20 },
+      (_, index) =>
+        createThreadListResponse(`Active ${index}`, `active-${index}`)
+          .threads[0]!,
+    );
+    const archivedPage = Array.from({ length: 20 }, (_, index) => ({
+      ...createThreadListResponse(`Archived ${index}`, `archived-${index}`)
+        .threads[0]!,
+      is_archived: true,
+    }));
+    const lastArchived = {
+      ...createThreadListResponse("Newest archived", "archived-20").threads[0]!,
       is_archived: true,
       last_message_at: new Date("2026-02-01T00:00:00.000Z"),
     };
-    const list = vi.fn(async (query?: { is_archived?: boolean }) => ({
-      threads: query?.is_archived ? [archived] : [active],
-    }));
+    const list = vi.fn(
+      async (query?: { is_archived?: boolean; after?: string }) => {
+        if (query?.is_archived) {
+          return { threads: query.after ? [lastArchived] : archivedPage };
+        }
+        return { threads: query?.after ? [] : activePage };
+      },
+    );
     const cloud = {
       threads: {
         list,
@@ -279,12 +294,66 @@ describe("useThreads", () => {
       await result.current.refresh();
     });
 
-    expect(list).toHaveBeenNthCalledWith(1, { is_archived: false });
-    expect(list).toHaveBeenNthCalledWith(2, { is_archived: true });
-    expect(result.current.threads).toMatchObject([
-      { id: "archived", status: "archived" },
-      { id: "active", status: "regular" },
-    ]);
+    expect(list).toHaveBeenCalledWith({
+      is_archived: false,
+      limit: 20,
+    });
+    expect(list).toHaveBeenCalledWith({
+      is_archived: true,
+      limit: 20,
+    });
+    expect(list).toHaveBeenCalledWith({
+      is_archived: false,
+      limit: 20,
+      after: "active-19",
+    });
+    expect(list).toHaveBeenCalledWith({
+      is_archived: true,
+      limit: 20,
+      after: "archived-19",
+    });
+    expect(result.current.threads).toHaveLength(41);
+    expect(result.current.threads[0]).toMatchObject({
+      id: "archived-20",
+      status: "archived",
+    });
+  });
+
+  it("stops when thread pagination does not advance", async () => {
+    const firstPage = Array.from(
+      { length: 20 },
+      (_, index) =>
+        createThreadListResponse(`Thread ${index}`, `thread-${index}`)
+          .threads[0]!,
+    );
+    const list = vi.fn().mockResolvedValue({ threads: firstPage });
+    const cloud = {
+      threads: {
+        list,
+        get: vi.fn(),
+        create: vi.fn(),
+        delete: vi.fn(),
+        update: vi.fn(),
+      },
+    } as never;
+    const { result } = renderHook(() => useThreads({ cloud, enabled: false }));
+
+    await act(async () => {
+      expect(await result.current.refresh()).toBe(true);
+    });
+
+    expect(list).toHaveBeenNthCalledWith(1, {
+      is_archived: false,
+      limit: 20,
+    });
+    expect(list).toHaveBeenNthCalledWith(2, {
+      is_archived: false,
+      limit: 20,
+      after: "thread-19",
+    });
+    expect(list).toHaveBeenCalledTimes(2);
+    expect(result.current.error).toBeNull();
+    expect(result.current.threads).toHaveLength(20);
   });
 
   it("deduplicates threads returned by both archive filters", async () => {

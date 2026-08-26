@@ -7,12 +7,12 @@ platforms: ["react"]
 import {
   ToolFallbackSample,
   ToolFallbackCompletedSample,
-  ToolFallbackRunningSample,
   ToolFallbackCancelledSample,
   ToolFallbackStreamingSample,
 } from "@/components/pages/docs/samples/tool-fallback";
 import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import { ToolFallbackApprovalSample } from "@/components/pages/docs/samples/tool-fallback/approval";
+import { ToolFallbackErrorSample } from "@/components/pages/docs/samples/tool-fallback/failed-with-error";
 
 <ToolFallbackSample />
 
@@ -68,11 +68,11 @@ Shows the arguments and the structured result for the completed call.
 
 <ToolFallbackCompletedSample />
 
-### Running State
+### Failed With Error State
 
-Shows a loading spinner and shimmer animation while the tool is executing.
+Shows a service error above its arguments.
 
-<ToolFallbackRunningSample />
+<ToolFallbackErrorSample />
 
 ### Cancelled State
 

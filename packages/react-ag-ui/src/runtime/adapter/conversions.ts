@@ -1,6 +1,7 @@
 "use client";
 
 import type { InputContent, RunAgentParameters } from "@ag-ui/client";
+import { generateId } from "@assistant-ui/core";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
   PartProviderMetadata,
@@ -175,13 +176,6 @@ function parseJSONText(value: string): unknown {
   } catch {
     return value;
   }
-}
-
-function generateId(): string {
-  return (
-    (globalThis.crypto as { randomUUID?: () => string })?.randomUUID?.() ??
-    Math.random().toString(36).slice(2)
-  );
 }
 
 function normalizeToolCall(part: ToolCallPart): {

@@ -83,6 +83,7 @@ export const appendLangChainChunk = (
     const toolCalls = (curr.tool_call_chunks ?? []).map(chunkToToolCall);
     return {
       ...curr,
+      content: curr.content ?? [],
       type: curr.type.replace("MessageChunk", "").toLowerCase(),
       tool_call_chunks: undefined,
       ...(toolCalls.length > 0 && { tool_calls: toolCalls }),
@@ -92,7 +93,7 @@ export const appendLangChainChunk = (
   const newContent =
     typeof prev.content === "string"
       ? [{ type: "text" as const, text: prev.content }]
-      : [...prev.content];
+      : [...(prev.content ?? [])];
 
   if (typeof curr?.content === "string") {
     const lastIndex = newContent.length - 1;

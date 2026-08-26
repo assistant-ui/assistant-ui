@@ -4,7 +4,7 @@ import type { Attachment, CreateAttachment } from "../../types/attachment";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
 import type { DictationAdapter } from "../../adapters/speech";
-import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueueItemState } from "../queue/queue-item";
 import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 
 export type AttachmentAddErrorReason =

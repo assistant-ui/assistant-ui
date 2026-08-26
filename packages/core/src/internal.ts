@@ -64,6 +64,7 @@ export {
   isParsableUrl,
   parseDataUrl,
 } from "./utils/data-url";
+export { invokeUserCallback } from "./utils/invoke-user-callback";
 export { detectImageMediaType } from "./utils/image-media-type";
 export {
   resolveFileMediaType,

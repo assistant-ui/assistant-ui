@@ -1132,6 +1132,7 @@ interface PiCustomMessage {
 interface PiEventStreamOptions {
   url: string;
   onEvent: (event: PiAnyClientEvent) => void;
+  onConnect?: () => void;
   onError?: (error: unknown) => void;
   fetchImpl?: typeof fetch;
   headers?: Record<string, string>;
@@ -2202,6 +2203,10 @@ type ToolCallMessagePartMcpMetadata = {
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
   readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "tool-calls";
+  readonly error?: ReadonlyJSONValue;
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {

@@ -228,7 +228,7 @@ export function useAgUiRuntime(
         isLoading: core.isLoading,
         messageRepository: core.getMessageRepository(),
         state: core.getState(),
-        isRunning,
+        isRunning: core.isRunning(),
         extras: agUiExtras.provide({
           interrupts:
             core.getPendingInterrupts()?.interrupts ?? EMPTY_INTERRUPTS,

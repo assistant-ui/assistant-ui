@@ -15,6 +15,7 @@ import type {
   ThreadMessage,
   ThreadMessageLike,
 } from "@assistant-ui/react";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
 import { createOpencodeClient } from "@opencode-ai/sdk/v2/client";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import type {
@@ -105,21 +106,11 @@ const isOpenCodeStateRunning = (state: OpenCodeThreadState): boolean =>
   state.sessionStatus?.type === "busy" ||
   state.sessionStatus?.type === "retry";
 
-const reportErrorCallbackFailure = (error: unknown) => {
-  console.error("[react-opencode] onError callback threw an error", error);
-};
-
 const invokeErrorCallback = (
   callback: ((error: unknown) => void | Promise<void>) | undefined,
   error: unknown,
 ) => {
-  if (!callback) return;
-
-  try {
-    void Promise.resolve(callback(error)).catch(reportErrorCallbackFailure);
-  } catch (callbackError) {
-    reportErrorCallbackFailure(callbackError);
-  }
+  void invokeUserCallback("react-opencode", "onError", callback, error);
 };
 
 const sendOpenCodeMessage = (

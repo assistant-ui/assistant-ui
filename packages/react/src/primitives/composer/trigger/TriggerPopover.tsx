@@ -28,6 +28,7 @@ import {
   useTriggerPopoverAriaPublish,
   useTriggerPopoverRootContext,
 } from "./TriggerPopoverRootContext";
+import type { TriggerMatcher } from "./detectTrigger";
 
 const TriggerPopoverScopeContext =
   createContext<TriggerPopoverResourceOutput | null>(null);
@@ -70,6 +71,8 @@ export namespace ComposerPrimitiveTriggerPopover {
   > & {
     /** The character(s) that activate this trigger (e.g. `"@"`, `"/"`). Also serves as the trigger identity within the root. */
     readonly char: string;
+    /** Overrides trigger detection for both textarea and Lexical inputs. `endOffset` is the exclusive replace bound. */
+    readonly matcher?: TriggerMatcher | undefined;
     /** Adapter providing categories and items. */
     readonly adapter?: Unstable_TriggerAdapter | undefined;
     /** Whether the adapter is resolving items, surfaced to the popover scope for async sources. @default false */
@@ -111,6 +114,7 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
   (
     {
       char,
+      matcher,
       adapter,
       isLoading = false,
       "aria-label": ariaLabel,
@@ -122,6 +126,15 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
     const aui = useAui();
     const text = useAuiState((s) => s.composer.text);
     const popoverId = useId();
+    const matcherRef = useRef(matcher);
+    useEffect(() => {
+      matcherRef.current = matcher;
+    });
+    const [registeredMatcher] = useState(
+      () => (nextText: string, triggerChar: string, cursorPosition: number) =>
+        matcherRef.current!(nextText, triggerChar, cursorPosition),
+    );
+    const hasMatcher = matcher !== undefined;
 
     // Track in state (for resource reactivity) + ref (dev warning on duplicate registrations).
     const behaviorRef = useRef<TriggerBehavior | null>(null);
@@ -165,6 +178,7 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
         adapter,
         text,
         triggerChar: char,
+        matcher,
         behavior: behavior ?? undefined,
         aui,
         popoverId,
@@ -178,10 +192,11 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
     useEffect(() => {
       return root.register({
         char,
+        ...(hasMatcher ? { matcher: registeredMatcher } : {}),
         ...(behavior ? { behavior } : {}),
         resource: getResource(),
       });
-    }, [root, char, behavior]);
+    }, [root, char, hasMatcher, behavior]);
 
     const pluginRegistry = useComposerInputPluginRegistryOptional();
     useEffect(() => {

@@ -76,6 +76,96 @@ describe("unstable_runPendingTools", () => {
     expect(part.result).toBe(NO_RESULT);
   });
 
+  it("skips tool calls that already have a result", async () => {
+    const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "fresh");
+    const message: AssistantMessage = {
+      role: "assistant",
+      status: { type: "requires-action", reason: "tool-calls" },
+      parts: [
+        {
+          type: "tool-call",
+          toolCallId: "settled",
+          toolName: "echo",
+          argsText: '{"n":1}',
+          args: { n: 1 },
+          status: { type: "complete", reason: "stop" },
+          state: "result",
+          result: "stored",
+          artifact: { kept: true },
+          isError: false,
+        },
+        {
+          type: "tool-call",
+          toolCallId: "pending",
+          toolName: "echo",
+          argsText: '{"n":2}',
+          args: { n: 2 },
+          status: { type: "requires-action", reason: "tool-call-result" },
+          state: "call",
+        },
+      ],
+      content: [],
+      metadata: {
+        unstable_state: {},
+        unstable_data: [],
+        unstable_annotations: [],
+        steps: [],
+        custom: {},
+      },
+    };
+
+    const settled = await unstable_runPendingTools(
+      message,
+      { echo: { parameters: { type: "object", properties: {} }, execute } },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    expect(execute).toHaveBeenCalledTimes(1);
+    expect(execute.mock.calls[0]?.[0]).toEqual({ n: 2 });
+    expect(settled.parts[0]).toBe(message.parts[0]);
+    expect(settled.parts[1]).toMatchObject({
+      toolCallId: "pending",
+      state: "result",
+      result: "fresh",
+    });
+  });
+
+  it("skips tool calls that carry a result without a state", async () => {
+    const execute = vi.fn<NonNullable<Tool["execute"]>>(async () => "fresh");
+    const message: AssistantMessage = {
+      role: "assistant",
+      status: { type: "requires-action", reason: "tool-calls" },
+      parts: [
+        {
+          type: "tool-call",
+          toolCallId: "settled",
+          toolName: "echo",
+          args: {},
+          result: "stored",
+        } as ToolCallPart,
+      ],
+      content: [],
+      metadata: {
+        unstable_state: {},
+        unstable_data: [],
+        unstable_annotations: [],
+        steps: [],
+        custom: {},
+      },
+    };
+
+    const settled = await unstable_runPendingTools(
+      message,
+      { echo: { parameters: { type: "object", properties: {} }, execute } },
+      new AbortController().signal,
+      async () => {},
+    );
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(settled).toBe(message);
+  });
+
   it("removes the abort listener after tool execution settles", async () => {
     const abortController = new AbortController();
     const addEventListener = vi.spyOn(

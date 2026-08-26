@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { generateId } from "@assistant-ui/core";
 import type {
   LangGraphTupleMetadata,
   RemoveUIMessage,
@@ -41,7 +41,7 @@ export class LangGraphMessageAccumulator<TMessage extends { id?: string }> {
   }
 
   private ensureMessageId(message: TMessage): TMessage {
-    return message.id ? message : { ...message, id: uuidv4() };
+    return message.id ? message : { ...message, id: generateId() };
   }
 
   private upsertMessage(

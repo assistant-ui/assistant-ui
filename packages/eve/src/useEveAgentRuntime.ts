@@ -28,6 +28,7 @@ import {
 } from "eve/react";
 import {
   convertEveMessages,
+  findEveInputRequest,
   getEveMessageContent,
   toEveInputResponse,
 } from "./convertEveMessages";
@@ -199,10 +200,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const hasExecutingTools = Object.values(toolStatuses).some(
     (status) => status?.type === "executing",
   );
-  const isRunning =
-    agent.status === "submitted" ||
-    agent.status === "streaming" ||
-    hasExecutingTools;
+  const providerIsRunning =
+    agent.status === "submitted" || agent.status === "streaming";
+  const isRunning = providerIsRunning || hasExecutingTools;
 
   const convertedMessages = useMemo(() => {
     const createdAtByMessageId = createdAtByMessageIdRef.current;
@@ -339,7 +339,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     messages,
-    isRunning,
+    isRunning: providerIsRunning,
     extras,
     unstable_enableToolInvocations: true,
     setToolStatuses,
@@ -419,17 +419,34 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
           },
         }
       : {}),
-    onCancel: () => {
+    onCancel: async () => {
       sendEpochRef.current += 1;
-      agent.stop();
-      return Promise.resolve();
-    },
-    onRespondToToolApproval: async (response) => {
-      try {
-        await enqueueSend(() => agent.respond([toEveInputResponse(response)]));
-      } catch (error) {
-        if (!isDroppedSend(error)) throw error;
+      // Eve 0.38 replaced the binding's local-abort `stop()` with the durable
+      // `cancel()`, so the adapter detects which side of that break the host's
+      // eve provides instead of pinning the peer range to one of them.
+      const controls = agent as
+        | { readonly cancel: () => Promise<unknown> }
+        | { readonly stop: () => void };
+      if ("cancel" in controls) {
+        await controls.cancel();
+      } else {
+        controls.stop();
       }
+    },
+    onRespondToToolApproval: (response) => {
+      // Eve leaves an unanswered request pending, so an unmappable response
+      // must stay answerable. Mapping before the first await lets the mapper's
+      // own error surface synchronously to the caller that rendered the
+      // controls, the only signal the void `respondToApproval` seam carries.
+      const inputResponse = toEveInputResponse(
+        response,
+        findEveInputRequest(agent.data, response.approvalId),
+      );
+      return enqueueSend(() => agent.respond([inputResponse])).catch(
+        (error) => {
+          if (!isDroppedSend(error)) throw error;
+        },
+      );
     },
   });
   runtimeRef.current = runtime;

@@ -236,10 +236,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
-  const isRunning =
-    chatHelpers.status === "submitted" ||
-    chatHelpers.status === "streaming" ||
-    hasExecutingTools;
+  const providerIsRunning =
+    chatHelpers.status === "submitted" || chatHelpers.status === "streaming";
+  const isRunning = providerIsRunning || hasExecutingTools;
 
   const messageTiming = useStreamingTiming(chatHelpers.messages, isRunning);
 
@@ -364,7 +363,7 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
     messages.length === 0;
 
   const runtime = useExternalStoreRuntime({
-    isRunning,
+    isRunning: providerIsRunning,
     ...(shouldFeedRepository
       ? { messageRepository: exportedMessageRepository }
       : { messages }),

@@ -107,7 +107,7 @@ Case 2: User ask questions about assistant-ui:
 
 <template_customization_guide>
 - A hosted template is a packaged starter made of multiple parts: the visible app UI, the assistant experience, the tool setup, and the mock/demo flows. Understand the whole template before deciding it matches the user’s request.
-- Customization is meant for supported adaptation within that template’s shape, not for turning one kind of app into a completely different kind of product. You can change the UI to show case the app like a dashboard and CRM can be handled by one tempalte, but an app to make movies won't work.
+- Customization is meant for supported adaptation within that template’s shape, not for turning one kind of app into a completely different kind of product. You can change the UI to showcase the app like a dashboard and CRM can be handled by one template, but an app to make movies won't work.
 - When customizing, review both the visible UI and the assistant behavior together. A good match requires the screen, assistant identity, prompts, tool descriptions, and mock/demo responses to all reflect the same user request.
 - Use 'getTemplateDetails' and especially 'exampleConfig' to understand what the template actually represents in practice: what the UI looks like, how the assistant behaves, what the tools do, and what the demo/mock flows are modeling.
 - After reading that full template shape, decide whether the user’s request can be represented within it with supported customization. If not, do not force the template.

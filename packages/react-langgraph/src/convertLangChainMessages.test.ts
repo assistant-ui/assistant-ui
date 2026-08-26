@@ -27,6 +27,37 @@ const convertLangChainMessages = (
     ) => ConvertResult
   )(message, metadata);
 
+describe("convertLangChainMessages content-less messages", () => {
+  it("converts an ai message without content", () => {
+    const result = convertLangChainMessages({
+      type: "ai",
+      id: "ai-1",
+      tool_calls: [{ id: "call-1", name: "search", args: { q: 1 } }],
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("assistant");
+    expect(result.content).toMatchObject([
+      {
+        type: "tool-call",
+        toolCallId: "call-1",
+        toolName: "search",
+        args: { q: 1 },
+        argsText: '{"q":1}',
+      },
+    ]);
+  });
+
+  it("converts a human message without content", () => {
+    const result = convertLangChainMessages({
+      type: "human",
+      id: "h-1",
+    } as unknown as LangChainMessage);
+
+    expect(result.role).toBe("user");
+    expect(result.content).toEqual([]);
+  });
+});
+
 describe("convertLangChainMessages metadata", () => {
   it("passes additional_kwargs.metadata to system message", () => {
     const result = convertLangChainMessages({

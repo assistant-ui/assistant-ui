@@ -10,7 +10,10 @@ import type {
   ThreadHistoryAdapter,
   ThreadMessage,
 } from "@assistant-ui/core";
-import { MessageRepository } from "@assistant-ui/core/internal";
+import {
+  invokeUserCallback,
+  MessageRepository,
+} from "@assistant-ui/core/internal";
 import type { A2AClient } from "./A2AClient";
 import type {
   A2AArtifact,
@@ -48,32 +51,12 @@ const FALLBACK_USER_STATUS = {
 
 type A2ARuntimeCallbackName = "onError" | "onCancel" | "onArtifactComplete";
 
-const reportCallbackError = (name: A2ARuntimeCallbackName, error: unknown) => {
-  console.error(`[react-a2a] ${name} callback threw an error`, error);
-};
-
-const invokeRuntimeCallback = <TArgs extends unknown[]>(
+const invokeRuntimeCallback = <TArgs extends readonly unknown[]>(
   name: A2ARuntimeCallbackName,
-  callback: ((...args: TArgs) => void) | undefined,
+  callback: ((...args: TArgs) => unknown) | undefined,
   ...args: TArgs
-) => {
-  if (!callback) return;
-
-  try {
-    const result = callback(...args) as unknown;
-    if (
-      result !== null &&
-      (typeof result === "object" || typeof result === "function") &&
-      "then" in result &&
-      typeof result.then === "function"
-    ) {
-      void Promise.resolve(result).catch((error) => {
-        reportCallbackError(name, error);
-      });
-    }
-  } catch (error) {
-    reportCallbackError(name, error);
-  }
+): void => {
+  void invokeUserCallback("react-a2a", name, callback, ...args);
 };
 
 function normalizeArtifact(artifact: A2AArtifact): A2AArtifact {
@@ -110,6 +93,8 @@ export class A2AThreadRuntimeCore {
   private readonly recordedHistoryIds = new Set<string>();
   private _isLoading = false;
   private _loadPromise: Promise<void> | undefined;
+  private _loadRequested = false;
+  private _agentCardPromise: Promise<void> | undefined;
 
   private lastOptionsContextId: string | undefined;
 
@@ -139,7 +124,18 @@ export class A2AThreadRuntimeCore {
     this.onError = options.onError;
     this.onCancel = options.onCancel;
     this.onArtifactComplete = options.onArtifactComplete;
+    const previousHistory = this.history;
     this.history = options.history;
+
+    if (
+      this._loadRequested &&
+      !this._loadPromise &&
+      !previousHistory &&
+      options.history &&
+      this.repository.getMessages().length === 0
+    ) {
+      void this.__internal_load();
+    }
   }
 
   /** Thread-boundary reset: applyExternalMessages alone also serves branch
@@ -262,18 +258,24 @@ export class A2AThreadRuntimeCore {
   }
 
   __internal_load(): Promise<void> {
+    this._loadRequested = true;
+    this._agentCardPromise ??= this.client
+      .getAgentCard()
+      .then((agentCard) => {
+        this.agentCardValue = agentCard;
+        this.notifyUpdate();
+      })
+      .catch(() => undefined);
+
     if (this._loadPromise) return this._loadPromise;
+    if (!this.history) return this._agentCardPromise;
 
     this._isLoading = true;
 
-    const historyPromise = this.history?.load() ?? Promise.resolve(null);
-    const agentCardPromise = this.client.getAgentCard().catch(() => undefined);
+    const historyPromise = this.history.load();
 
-    this._loadPromise = Promise.all([historyPromise, agentCardPromise])
-      .then(([repo, agentCard]) => {
-        if (agentCard) {
-          this.agentCardValue = agentCard;
-        }
+    this._loadPromise = Promise.all([historyPromise, this._agentCardPromise])
+      .then(([repo]) => {
         if (repo) {
           this.applyExternalMessageRepository(repo);
         }

@@ -540,8 +540,19 @@ declare function createSamplingCollector(): {
   reset: () => void;
 };
 
+declare function generateThreadTitle(cloud: AssistantCloud, options: {
+  threadId: string;
+  messages: readonly {
+    role: string;
+    content: readonly {
+      type: "text";
+      text: string;
+    }[];
+  }[];
+}): Promise<string | null>;
+
 declare namespace entry_root_exports {
-  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudTelemetryConfig, CloudAPIError, CloudMessage, CloudMessagePersistence, CloudResponseError, McpSamplingHandler, MessageFormatAdapter, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, createFormattedPersistence, createRunTelemetryToolCall, createSamplingCollector, normalizeRunTelemetryUsage, truncateRunTelemetryText, wrapSamplingHandler };
+  export { AssistantCloud, AssistantCloudRunReport, AssistantCloudRunReportToolCall, AssistantCloudTelemetryConfig, CloudAPIError, CloudMessage, CloudMessagePersistence, CloudResponseError, McpSamplingHandler, MessageFormatAdapter, RunTelemetryToolCallInit, RunTelemetryUsage, RunTelemetryUsageInit, SamplingCallData, createFormattedPersistence, createRunTelemetryToolCall, createSamplingCollector, generateThreadTitle, normalizeRunTelemetryUsage, truncateRunTelemetryText, wrapSamplingHandler };
 }
 
 declare function normalizeRunTelemetryUsage(usage: RunTelemetryUsageInit): RunTelemetryUsage | undefined;

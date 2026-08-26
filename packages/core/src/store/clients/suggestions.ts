@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import { useClientLookup } from "@assistant-ui/store/client";
@@ -40,26 +40,25 @@ const useSuggestionsClient = (
 const useStaticSuggestions = (
   suggestions?: SuggestionConfig[],
 ): ClientOutput<"suggestions"> => {
-  const [state] = useState<SuggestionsState>(() => {
-    const normalizedSuggestions = (suggestions ?? []).map((s) => {
-      if (typeof s === "string") {
+  const state = useMemo<SuggestionsState>(
+    () => ({
+      suggestions: (suggestions ?? []).map((s) => {
+        if (typeof s === "string") {
+          return {
+            title: s,
+            label: "",
+            prompt: s,
+          };
+        }
         return {
-          title: s,
-          label: "",
-          prompt: s,
+          title: s.title,
+          label: s.label,
+          prompt: s.prompt,
         };
-      }
-      return {
-        title: s.title,
-        label: s.label,
-        prompt: s.prompt,
-      };
-    });
-
-    return {
-      suggestions: normalizedSuggestions,
-    };
-  });
+      }),
+    }),
+    [suggestions],
+  );
 
   return useSuggestionsClient(state);
 };

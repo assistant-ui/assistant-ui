@@ -32,7 +32,7 @@ import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-a
 import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
-} from "../../store/scopes/queue-item";
+} from "../../runtime/queue/queue-item";
 import {
   captureThreadRuntimeGeneration,
   invalidateThreadRuntime,
