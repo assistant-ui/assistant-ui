@@ -587,7 +587,7 @@ describe("MessageRepository", () => {
           toolName: "search",
           args: {},
           argsText: "{}",
-          approval: {},
+          approval: { id: "a1" },
         },
       ],
     };
