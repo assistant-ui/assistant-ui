@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useMemo, useRef, useState } from "react";
+import { memo, useId, useMemo, useRef, useState } from "react";
 import {
   InnerLine,
   Pre,
@@ -65,7 +65,7 @@ const tooltip: AnnotationHandler = {
  * transitions, changed-line marks, and auto-scroll to the changed region.
  * Must live inside a `.code-slideshow` wrapper for the codehike.css animations.
  */
-export const CodePane = ({
+export const CodePane = memo(function CodePane({
   steps,
   index,
   className,
@@ -73,7 +73,7 @@ export const CodePane = ({
   steps: CodePaneStep[];
   index: number;
   className?: string;
-}) => {
+}) {
   const [nav, setNav] = useState({ index, prevIndex: -1, epoch: 0 });
 
   const crossesCut = (from: number, to: number) =>
@@ -155,4 +155,4 @@ export const CodePane = ({
       </div>
     </div>
   );
-};
+});
