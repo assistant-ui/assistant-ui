@@ -66,6 +66,16 @@ const withLocalPauseReason = (message: ThreadMessage): ThreadMessage => {
   return { ...message, status: getAutoStatus(false, false, false, true) };
 };
 
+const withLocalPauseReasons = (
+  data: ExportedMessageRepository,
+): ExportedMessageRepository => ({
+  ...data,
+  messages: data.messages.map((item) => ({
+    ...item,
+    message: withLocalPauseReason(item.message),
+  })),
+});
+
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
   implements ThreadRuntimeCore
@@ -289,7 +299,7 @@ export class LocalThreadRuntimeCore
     this._loadPromise = promise
       .then((repo) => {
         if (!repo) return;
-        this.repository.import(repo);
+        this.repository.import(withLocalPauseReasons(repo));
         if (repo.messages.length > 0) {
           this.ensureInitialized();
         }
@@ -452,13 +462,7 @@ export class LocalThreadRuntimeCore
   }
 
   public override import(data: ExportedMessageRepository) {
-    super.import({
-      ...data,
-      messages: data.messages.map((item) => ({
-        ...item,
-        message: withLocalPauseReason(item.message),
-      })),
-    });
+    super.import(withLocalPauseReasons(data));
   }
 
   public importExternalState(): void {

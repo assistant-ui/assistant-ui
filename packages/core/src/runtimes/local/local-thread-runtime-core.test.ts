@@ -7,7 +7,10 @@ import type {
 } from "../../runtime/utils/chat-model-adapter";
 import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
-import type { ExportedMessageRepositoryItem } from "../../runtime/utils/message-repository";
+import {
+  ExportedMessageRepository,
+  type ExportedMessageRepositoryItem,
+} from "../../runtime/utils/message-repository";
 import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
 import { isMessageNotSentError } from "../../types/error";
@@ -2026,7 +2029,10 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
     },
   ];
 
-  const createImportedThread = (initialMessages: ThreadMessageLike[]) => {
+  const createImportedThread = (
+    initialMessages: ThreadMessageLike[],
+    history?: LocalRuntimeOptionsBase["adapters"]["history"],
+  ) => {
     const runs: ChatModelRunOptions[] = [];
     const core = new LocalRuntimeCore(
       {
@@ -2037,6 +2043,7 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
               return { content: [{ type: "text", text: "done" }] };
             },
           },
+          ...(history !== undefined && { history }),
         },
         unstable_humanToolNames: ["send_email"],
       },
@@ -2073,5 +2080,52 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
       type: "requires-action",
       reason: "interrupt",
     });
+  });
+
+  it("resumes the run after approving an approval restored by the history adapter", async () => {
+    const { thread, runs } = createImportedThread([], {
+      async load() {
+        return ExportedMessageRepository.fromArray(
+          pausedOnApproval({ id: "a1" }),
+        );
+      },
+      async append() {},
+      async update() {},
+    });
+
+    thread.__internal_load();
+    await flush();
+
+    expect(thread.messages.at(-1)?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
+  it("resumes the run after adding a result to an imported resultless tool call", async () => {
+    const { thread, runs } = createImportedThread(pausedOnApproval(undefined));
+
+    expect(thread.messages.at(-1)?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
   });
 });
