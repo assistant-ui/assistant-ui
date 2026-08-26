@@ -8,6 +8,7 @@ import { ModelContext } from "@assistant-ui/core/store";
 import type { ModelContextProvider } from "@assistant-ui/core";
 import type { Tool } from "assistant-stream";
 import { createFakeWebMcpAdapter } from "./webmcp-adapter.fake";
+import type { WebMcpAdapter } from "./webmcp-adapter";
 import {
   useWebMcpBridge,
   type WebMcpBridgeOptions,
@@ -199,6 +200,86 @@ describe("useWebMcpBridge", () => {
     expect(latest.status).toBe("unsupported");
     expect(latest.registeredToolNames).toEqual([]);
     expect(adapter.registerCalls).toEqual([]);
+  });
+
+  it("routes calls to the latest execute when metadata is unchanged", async () => {
+    const adapter = createFakeWebMcpAdapter();
+    const first = vi.fn(async () => "first");
+    const second = vi.fn(async () => "second");
+    const provider = createProvider({
+      search: { ...searchTool, execute: first } as Tool<any, any>,
+    });
+
+    render(
+      <Harness provider={provider} options={{ adapter, approval: "never" }} />,
+    );
+    await vi.waitFor(() => expect(adapter.registry.has("search")).toBe(true));
+    const registerCount = adapter.registerCalls.length;
+
+    act(() => {
+      provider.setTools({
+        search: { ...searchTool, execute: second } as Tool<any, any>,
+      });
+    });
+
+    expect(adapter.registerCalls.length).toBe(registerCount);
+    const result = await adapter.registry.get("search")!.execute({});
+    expect(second).toHaveBeenCalled();
+    expect(first).not.toHaveBeenCalled();
+    expect(result).toEqual({ content: [{ type: "text", text: "second" }] });
+  });
+
+  it("re-syncs when the filter changes identity without a registry notification", async () => {
+    const adapter = createFakeWebMcpAdapter();
+    const otherTool: Tool<any, any> = {
+      ...searchTool,
+      description: "other",
+    } as Tool<any, any>;
+    const provider = createProvider({ search: searchTool, other: otherTool });
+
+    const view = render(
+      <Harness provider={provider} options={{ adapter, filter: () => true }} />,
+    );
+    await vi.waitFor(() => expect(adapter.registry.size).toBe(2));
+
+    view.rerender(
+      <Harness
+        provider={provider}
+        options={{ adapter, filter: (name) => name !== "other" }}
+      />,
+    );
+
+    await vi.waitFor(() => expect(adapter.registry.has("other")).toBe(false));
+    expect(adapter.registry.has("search")).toBe(true);
+    expect(latest.registeredToolNames).toEqual(["search"]);
+  });
+
+  it("drops a registration whose promise-based registerTool later fails", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const adapter: WebMcpAdapter = {
+      available: true,
+      registerTool: (def, onError) => {
+        if (def.name === "search") {
+          queueMicrotask(() => onError?.(new Error("taken")));
+        }
+        return () => {};
+      },
+    };
+    const otherTool: Tool<any, any> = {
+      ...searchTool,
+      description: "other",
+    } as Tool<any, any>;
+    const provider = createProvider({ search: searchTool, other: otherTool });
+
+    render(<Harness provider={provider} options={{ adapter }} />);
+
+    await vi.waitFor(() =>
+      expect(latest.registeredToolNames).toEqual(["other"]),
+    );
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('"search"'),
+      expect.anything(),
+    );
   });
 
   it("warns and skips a tool whose filter throws while registering the rest", async () => {

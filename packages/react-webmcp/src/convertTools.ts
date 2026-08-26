@@ -79,13 +79,14 @@ export const toMcpContent = async (
 
 export const toWebMcpTool = (
   name: string,
-  tool: Tool<any, any>,
+  getTool: () => Tool<any, any>,
   approvalGate: WebMcpApprovalGate,
 ): WebMcpToolDescriptor => ({
   name,
-  description: tool.description ?? "",
-  inputSchema: toWebMcpInputSchema(tool),
+  description: getTool().description ?? "",
+  inputSchema: toWebMcpInputSchema(getTool()),
   execute: async (rawArgs, context) => {
+    const tool = getTool();
     const args = (rawArgs ?? {}) as Record<string, unknown>;
     const abortSignal = context?.signal;
     const toolCallId = crypto.randomUUID();

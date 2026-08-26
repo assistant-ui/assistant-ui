@@ -51,7 +51,7 @@ Since WebMCP has no CI-friendly browser environment yet, verify manually in a fl
 
 ## Notes
 
-- The bridge owns the tools it registers: it only ever unregisters names it registered. When the browser's model context exposes tool enumeration (`getTools()`), the bridge checks for an existing registration first and warns and skips on a collision; without enumeration it relies on `registerTool` throwing for duplicates, so an implementation that silently accepts duplicates can still end up with the last registration winning.
+- The bridge owns the tools it registers: it only ever unregisters names it registered. When the browser's model context exposes tool enumeration (`getTools()`), the bridge checks for an existing registration first and warns and skips on a collision; without enumeration it relies on `registerTool` throwing or rejecting for duplicates, so an implementation that silently accepts duplicates can still end up with the last registration winning.
 - Inline options are fine: passing a fresh `filter`/`approval` function or options object to `<WebMcpBridge />` on every render does not tear down and re-register the tools.
 - Tools are exposed when they are `type: "frontend"` with a local `execute` and not disabled; human tools and backend tools are never exposed.
 - Approvals time out after 2 minutes ("expired") and are cancelled if the calling agent aborts.

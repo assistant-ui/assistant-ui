@@ -101,6 +101,23 @@ describe("createWebMcpApprovalGate", () => {
     await expect(decision).resolves.toEqual({ approved: true });
   });
 
+  it("cancels without queueing when the signal aborts during requestUserInteraction", async () => {
+    const controller = new AbortController();
+    const { gate, store } = makeGate({
+      requestUserInteraction: async () => {
+        controller.abort();
+      },
+    });
+
+    const decision = gate(request({ abortSignal: controller.signal }));
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.getSnapshot()).toHaveLength(0);
+    await expect(decision).resolves.toEqual({
+      approved: false,
+      resolution: "cancelled",
+    });
+  });
+
   it("resolves kind-based options through resolveToolApprovalResponse", async () => {
     const { gate, store } = makeGate();
 

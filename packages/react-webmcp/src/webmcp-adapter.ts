@@ -18,18 +18,27 @@ export type WebMcpToolDescriptor = {
 };
 
 export type WebMcpModelContext = {
-  registerTool(tool: WebMcpToolDescriptor): { unregister?(): void } | void;
+  registerTool(
+    tool: WebMcpToolDescriptor,
+    options?: { signal?: AbortSignal },
+  ): Promise<void> | { unregister?(): void } | void;
   unregisterTool?(name: string): void;
-  getTools?(): readonly { name: string }[];
+  getTools?(): readonly { name: string }[] | Promise<unknown>;
   requestUserInteraction?(): Promise<void>;
 };
 
 export type WebMcpAdapter = {
   available: boolean;
-  registerTool(def: WebMcpToolDescriptor): () => void;
+  registerTool(
+    def: WebMcpToolDescriptor,
+    onError?: (error: unknown) => void,
+  ): () => void;
   hasTool?(name: string): boolean;
   requestUserInteraction?(): Promise<void>;
 };
+
+const isThenable = (value: unknown): value is Promise<unknown> =>
+  typeof (value as { then?: unknown } | null | undefined)?.then === "function";
 
 const resolveModelContext = (): WebMcpModelContext | undefined => {
   if (typeof document !== "undefined" && document.modelContext) {
@@ -52,12 +61,18 @@ export const getDefaultWebMcpAdapter = (): WebMcpAdapter => {
 
   const adapter: WebMcpAdapter = {
     available: true,
-    registerTool: (def) => {
-      const handle = context.registerTool(def);
+    registerTool: (def, onError) => {
+      const controller = new AbortController();
+      const handle = context.registerTool(def, { signal: controller.signal });
+      if (isThenable(handle)) {
+        handle.catch((error) => onError?.(error));
+      }
       let disposed = false;
       return () => {
         if (disposed) return;
         disposed = true;
+        controller.abort();
+        if (isThenable(handle)) return;
         if (handle && typeof handle.unregister === "function") {
           handle.unregister();
         } else {

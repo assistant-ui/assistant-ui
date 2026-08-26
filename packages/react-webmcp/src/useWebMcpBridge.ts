@@ -67,8 +67,11 @@ export const useWebMcpBridge = (
   const { adapter: adapterOption } = options;
 
   const optionsRef = useRef(options);
+  const syncRef = useRef<(() => void) | null>(null);
   useEffect(() => {
+    const filterChanged = optionsRef.current.filter !== options.filter;
     optionsRef.current = options;
+    if (filterChanged) syncRef.current?.();
   });
 
   const status = useSyncExternalStore(
@@ -96,10 +99,21 @@ export const useWebMcpBridge = (
         requestUserInteraction,
       })(request);
 
-    const registered = new Map<
-      string,
-      { entry: WebMcpRegistrationEntry; dispose: () => void }
-    >();
+    type Registration = {
+      entry: WebMcpRegistrationEntry;
+      box: { tool: Tool<any, any> };
+      dispose: () => void;
+    };
+    const registered = new Map<string, Registration>();
+
+    const publishNames = () => {
+      const names = [...registered.keys()].sort();
+      setRegisteredToolNames((prev) =>
+        prev.length === names.length && prev.every((v, i) => v === names[i])
+          ? prev
+          : names,
+      );
+    };
 
     const sync = () => {
       const filter = optionsRef.current.filter ?? defaultWebMcpFilter;
@@ -143,10 +157,25 @@ export const useWebMcpBridge = (
           continue;
         }
         try {
-          const dispose = adapter.registerTool(
-            toWebMcpTool(name, target.tool, approvalGate),
+          const registration: Registration = {
+            entry: target.entry,
+            box: { tool: target.tool },
+            dispose: () => {},
+          };
+          registration.dispose = adapter.registerTool(
+            toWebMcpTool(name, () => registration.box.tool, approvalGate),
+            (error) => {
+              if (registered.get(name) !== registration) return;
+              registration.dispose();
+              registered.delete(name);
+              console.warn(
+                `[assistant-ui] WebMCP registration for tool "${name}" failed (name may already be registered).`,
+                error,
+              );
+              publishNames();
+            },
           );
-          registered.set(name, { entry: target.entry, dispose });
+          registered.set(name, registration);
         } catch (error) {
           console.warn(
             `[assistant-ui] Skipping WebMCP registration for tool "${name}": registerTool failed (name may already be registered).`,
@@ -155,18 +184,20 @@ export const useWebMcpBridge = (
         }
       }
 
-      const names = [...registered.keys()].sort();
-      setRegisteredToolNames((prev) =>
-        prev.length === names.length && prev.every((v, i) => v === names[i])
-          ? prev
-          : names,
-      );
+      for (const [name, target] of desired) {
+        const existing = registered.get(name);
+        if (existing) existing.box.tool = target.tool;
+      }
+
+      publishNames();
     };
 
     sync();
+    syncRef.current = sync;
     const unsubscribe = aui.modelContext.subscribe?.(sync);
 
     return () => {
+      syncRef.current = null;
       unsubscribe?.();
       for (const { dispose } of registered.values()) dispose();
       registered.clear();

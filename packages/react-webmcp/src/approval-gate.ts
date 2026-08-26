@@ -114,6 +114,8 @@ export const createWebMcpApprovalGate = (
       } catch {
         // ignore: a failed attention request must not block or decide the approval
       }
+      if (abortSignal?.aborted)
+        return { approved: false, resolution: "cancelled" };
     }
 
     return new Promise<WebMcpApprovalDecision>((resolve) => {

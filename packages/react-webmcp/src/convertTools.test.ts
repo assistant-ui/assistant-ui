@@ -31,7 +31,7 @@ describe("toWebMcpTool", () => {
   it("projects name, description, and a raw JSON Schema", () => {
     const descriptor = toWebMcpTool(
       "get_weather",
-      frontendTool(),
+      () => frontendTool(),
       approveAllGate,
     );
     expect(descriptor.name).toBe("get_weather");
@@ -42,7 +42,7 @@ describe("toWebMcpTool", () => {
   it("converts a Zod v4 schema to JSON Schema", () => {
     const descriptor = toWebMcpTool(
       "get_weather",
-      frontendTool({ parameters: z.object({ city: z.string() }) }),
+      () => frontendTool({ parameters: z.object({ city: z.string() }) }),
       approveAllGate,
     );
     expect(descriptor.inputSchema).toMatchObject({
@@ -55,7 +55,7 @@ describe("toWebMcpTool", () => {
   it("defaults a missing description to an empty string and a missing schema to an empty object schema", () => {
     const descriptor = toWebMcpTool(
       "bare",
-      frontendTool({ description: undefined, parameters: undefined }),
+      () => frontendTool({ description: undefined, parameters: undefined }),
       approveAllGate,
     );
     expect(descriptor.description).toBe("");
@@ -76,7 +76,7 @@ describe("toWebMcpTool", () => {
     });
     const descriptor = toWebMcpTool(
       "t",
-      frontendTool({ execute }),
+      () => frontendTool({ execute }),
       approveAllGate,
     );
 
@@ -90,12 +90,13 @@ describe("toWebMcpTool", () => {
     let seen: AbortSignal | undefined;
     const descriptor = toWebMcpTool(
       "t",
-      frontendTool({
-        execute: async (_args, context) => {
-          seen = context.abortSignal;
-          return "ok";
-        },
-      }),
+      () =>
+        frontendTool({
+          execute: async (_args, context) => {
+            seen = context.abortSignal;
+            return "ok";
+          },
+        }),
       approveAllGate,
     );
 
@@ -106,11 +107,12 @@ describe("toWebMcpTool", () => {
   it("maps a thrown error to an isError result", async () => {
     const descriptor = toWebMcpTool(
       "t",
-      frontendTool({
-        execute: async () => {
-          throw new Error("boom");
-        },
-      }),
+      () =>
+        frontendTool({
+          execute: async () => {
+            throw new Error("boom");
+          },
+        }),
       approveAllGate,
     );
 
@@ -128,7 +130,7 @@ describe("toWebMcpTool", () => {
     });
     const descriptor = toWebMcpTool(
       "t",
-      frontendTool({ execute }),
+      () => frontendTool({ execute }),
       decliningGate,
     );
 
@@ -147,7 +149,7 @@ describe("toWebMcpTool", () => {
     });
     const descriptor = toWebMcpTool(
       "t",
-      frontendTool({ execute }),
+      () => frontendTool({ execute }),
       expiringGate,
     );
 
@@ -165,7 +167,7 @@ describe("toWebMcpTool", () => {
     };
     const descriptor = toWebMcpTool(
       "t",
-      frontendTool({ execute }),
+      () => frontendTool({ execute }),
       throwingGate,
     );
 
@@ -184,7 +186,7 @@ describe("toWebMcpTool", () => {
     });
     const descriptor = toWebMcpTool(
       "t",
-      frontendTool({ execute }),
+      () => frontendTool({ execute }),
       cancellingGate,
     );
 
