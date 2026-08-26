@@ -1,6 +1,6 @@
 ---
 title: Sources
-description: Display URL sources with favicon, title, and external link.
+description: Show URL and document sources with their titles and icons.
 platforms: ["react"]
 ---
 
@@ -89,13 +89,13 @@ The document source uses a file icon and has no link action.
 
 ### `Sources`
 
-The default export used as a `SourceMessagePartComponent`. Renders a single source part when `sourceType === "url"`. Also exposes compound sub-components for custom layouts.
+The default export is a `SourceMessagePartComponent`. It shows URL sources as external links and document sources as badges without links. It also includes compound sub-components for custom layouts.
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `url` | `string` | — | The URL of the source (provided by the runtime) |
-| `title` | `string \| undefined` | — | Display title; falls back to the domain if omitted |
-| `sourceType` | `string` | — | Must be `"url"` to render; other types are ignored |
+| `url` | `string` | — | URL for a URL source; not present for a document source |
+| `title` | `string \| undefined` | — | Display title; URL sources use the domain if the title is not present |
+| `sourceType` | `"url" \| "document"` | — | Source type; URL sources have external links, but document sources have file icons without links |
 
 #### Compound sub-components
 
