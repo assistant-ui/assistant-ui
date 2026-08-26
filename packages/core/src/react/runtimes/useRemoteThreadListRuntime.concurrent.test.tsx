@@ -64,12 +64,16 @@ describe("useRemoteThreadListRuntime concurrent rendering", () => {
       act(() => rerenderThread?.());
       expect(renderedScopes.at(-1)).toBe("workspace-a");
 
+      const rendersBeforeCommit = renderedScopes.length;
       mountedView.rerender(
         <Suspense fallback={null}>
           <Probe scope="workspace-b" suspend={false} />
         </Suspense>,
       );
       await waitFor(() => expect(renderedScopes.at(-1)).toBe("workspace-b"));
+      expect(renderedScopes.slice(rendersBeforeCommit)).toEqual([
+        "workspace-b",
+      ]);
     } finally {
       view?.unmount();
     }

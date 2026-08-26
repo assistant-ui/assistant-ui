@@ -5,8 +5,8 @@ import {
   useRef,
   useCallback,
   useEffectEvent,
-  useSyncExternalStore,
 } from "react";
+import { create } from "zustand";
 import { BaseAssistantRuntimeCore } from "../../runtime/base/base-assistant-runtime-core";
 import { AssistantRuntimeImpl } from "../../runtime/api/assistant-runtime";
 import type { RemoteThreadListOptions } from "../../runtimes/remote-thread-list/types";
@@ -46,48 +46,24 @@ const useRemoteThreadListRuntimeImpl = (
   return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };
 
-const createRuntimeHookStore = (initial: () => AssistantRuntime) => {
-  let current = initial;
-  const listeners = new Set<() => void>();
-
-  return {
-    getSnapshot: () => current,
-    subscribe: (listener: () => void) => {
-      listeners.add(listener);
-      return () => {
-        listeners.delete(listener);
-      };
-    },
-    update: (next: () => AssistantRuntime) => {
-      if (current === next) return;
-      current = next;
-      for (const listener of listeners) listener();
-    },
-  };
-};
-
 export const useRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
-  const [runtimeHookStore] = useState(() =>
-    createRuntimeHookStore(options.runtimeHook),
+  const [useRuntimeHook] = useState(() =>
+    create(() => ({ current: options.runtimeHook })),
   );
   useEffect(() => {
-    runtimeHookStore.update(options.runtimeHook);
-  }, [runtimeHookStore, options.runtimeHook]);
+    useRuntimeHook.setState({ current: options.runtimeHook }, true);
+  }, [useRuntimeHook, options.runtimeHook]);
 
   const initialThreadIdRef = useRef(options.initialThreadId);
 
   const stableRuntimeHook = useCallback(
     function RuntimeHook() {
-      const useCurrentRuntime = useSyncExternalStore(
-        runtimeHookStore.subscribe,
-        runtimeHookStore.getSnapshot,
-        runtimeHookStore.getSnapshot,
-      );
+      const useCurrentRuntime = useRuntimeHook((state) => state.current);
       return useCurrentRuntime();
     },
-    [runtimeHookStore],
+    [useRuntimeHook],
   );
 
   const onThreadIdChange = useEffectEvent((threadId: string | undefined) => {

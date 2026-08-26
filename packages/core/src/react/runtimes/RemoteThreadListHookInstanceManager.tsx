@@ -286,6 +286,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
             adapters: threadAdapters,
             publish: this._publish,
           }),
+          [runtimeHook, parentClient, threadAdapters],
         );
       }),
     );

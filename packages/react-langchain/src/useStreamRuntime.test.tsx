@@ -281,16 +281,18 @@ describe("useStreamRuntime thread options", () => {
     try {
       view = render(<Probe revision={0} />);
       await waitFor(() => expect(mockUseStream).toHaveBeenCalled());
-      const callsBeforeRerender = mockUseStream.mock.calls.length;
+      const nestedCallsBeforeRerender = mockUseStream.mock.calls.filter(
+        ([options]) => (options as { apiUrl?: string }).apiUrl === "/nested",
+      ).length;
 
       view.rerender(<Probe revision={1} />);
-      await act(async () => {});
-
-      expect(mockUseStream.mock.calls.length).toBeGreaterThan(
-        callsBeforeRerender,
-      );
-      expect(mockUseStream.mock.calls.length).toBeLessThan(
-        callsBeforeRerender + 5,
+      await waitFor(() =>
+        expect(
+          mockUseStream.mock.calls.filter(
+            ([options]) =>
+              (options as { apiUrl?: string }).apiUrl === "/nested",
+          ),
+        ).toHaveLength(nestedCallsBeforeRerender + 1),
       );
     } finally {
       view?.unmount();
