@@ -62,6 +62,8 @@ type State =
 // Example input: '{"foo":'
 // Example output: ['{}', []]
 
+const HEX_DIGIT = /[0-9a-fA-F]/;
+
 export function fixJson(input: string): [string, string[]] {
   const stack: State[] = ["ROOT"];
   let lastValidIndex = -1;
@@ -356,7 +358,8 @@ export function fixJson(input: string): [string, string[]] {
       case "INSIDE_STRING_UNICODE_ESCAPE": {
         const parent = stack[stack.length - 2];
 
-        if (!/[0-9a-fA-F]/.test(char)) {
+        // The pop guarantees the re-read lands outside this state, so the scan stays linear.
+        if (!HEX_DIGIT.test(char)) {
           stack.pop();
           i--;
           break;
