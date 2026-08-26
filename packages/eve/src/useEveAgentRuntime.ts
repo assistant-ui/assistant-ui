@@ -336,6 +336,12 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     [agent.error, agent.events, agent.session, reset],
   );
 
+  // Hosts below eve 0.44.1 expose no `resume`; leaving the capability absent
+  // keeps `threads.reloadMainThread()` on core's no-capability no-op.
+  const replaySession = (
+    agent as { readonly resume?: (() => Promise<void>) | undefined }
+  ).resume;
+
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
     messages,
@@ -433,6 +439,17 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         controls.stop();
       }
     },
+    ...(replaySession
+      ? {
+          onRefetchThread: async () => {
+            // `resume()` rejects without a session or during a turn; neither
+            // state can be stale (nothing durable yet, or the stream is already
+            // attached), so both resolve as no-ops.
+            if (agent.session === undefined || providerIsRunning) return;
+            await replaySession();
+          },
+        }
+      : {}),
     onRespondToToolApproval: (response) => {
       // Eve leaves an unanswered request pending, so an unmappable response
       // must stay answerable. Mapping before the first await lets the mapper's

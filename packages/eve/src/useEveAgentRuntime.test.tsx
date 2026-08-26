@@ -1813,3 +1813,78 @@ describe("useEveAgentRuntime cancel binding", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("useEveAgentRuntime thread refetch", () => {
+  const session = { sessionId: "s1" };
+
+  it("replays the session through eve resume when the thread is refetched", async () => {
+    const resume = vi.fn().mockResolvedValue(undefined);
+    const agent = createAgent({ session, resume });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+    expect(result.current.thread.getState().capabilities.refetchThread).toBe(
+      true,
+    );
+
+    await act(async () => {
+      await result.current.threads.reloadMainThread();
+    });
+
+    expect(resume).toHaveBeenCalledTimes(1);
+  });
+
+  it("propagates a failed replay to the refetch caller", async () => {
+    const resume = vi.fn().mockRejectedValue(new Error("replay failed"));
+    const agent = createAgent({ session, resume });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      await expect(result.current.threads.reloadMainThread()).rejects.toThrow(
+        "replay failed",
+      );
+    });
+  });
+
+  it("resolves without replaying when no session exists yet", async () => {
+    const resume = vi.fn();
+    const agent = createAgent({ session: undefined, resume });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      await result.current.threads.reloadMainThread();
+    });
+
+    expect(resume).not.toHaveBeenCalled();
+  });
+
+  it.each(["submitted", "streaming"] as const)(
+    "resolves without replaying while a turn is %s",
+    async (status) => {
+      const resume = vi.fn();
+      const agent = createAgent({ session, resume, status });
+      mockUseEveAgent.mockReturnValue(agent as never);
+      const { result } = renderHook(() => useEveAgentRuntime());
+
+      await act(async () => {
+        await result.current.threads.reloadMainThread();
+      });
+
+      expect(resume).not.toHaveBeenCalled();
+    },
+  );
+
+  it("leaves the capability absent when the installed eve has no resume", async () => {
+    const agent = createAgent({ session });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    expect(result.current.thread.getState().capabilities.refetchThread).toBe(
+      false,
+    );
+    await act(async () => {
+      await result.current.threads.reloadMainThread();
+    });
+  });
+});
