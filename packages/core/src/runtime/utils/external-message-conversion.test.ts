@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   chunkExternalMessages,
   convertExternalMessageCallback,
@@ -8,18 +8,25 @@ import {
 } from "./external-message-conversion";
 
 describe("convertExternalMessageCallback", () => {
-  it("rejects a tool message without a string toolCallId", () => {
+  it.each([
+    ["a missing toolCallId", { role: "tool", result: "ok" }],
+    ["an empty toolCallId", { role: "tool", toolCallId: "", result: "ok" }],
+  ])("warns and drops a tool message with %s", (_label, message) => {
     const input = { id: "m1" };
-    const callback = (() => ({
-      role: "tool",
-      result: "ok",
-    })) as unknown as ExternalMessageConverterCallback<typeof input>;
+    const callback = (() =>
+      message) as unknown as ExternalMessageConverterCallback<typeof input>;
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 
-    expect(() =>
-      convertExternalMessageCallback(input, callback, {}),
-    ).toThrowError(
-      /returned an invalid message \(\{"role":"tool","result":"ok"\}\) for input \{"id":"m1"\}/,
-    );
+    try {
+      const result = convertExternalMessageCallback(input, callback, {});
+      expect(result.outputs).toHaveLength(0);
+      expect(warn).toHaveBeenCalledOnce();
+      expect(warn.mock.calls[0]![0]).toMatch(
+        /dropping a tool result without a toolCallId/,
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 

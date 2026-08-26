@@ -88,7 +88,7 @@ const toCallbackOutputs = (
     const valid =
       typeof o === "object" &&
       o !== null &&
-      ((o.role === "tool" && typeof o.toolCallId === "string") ||
+      (o.role === "tool" ||
         ((o.role === "assistant" || o.role === "user" || o.role === "system") &&
           (typeof o.content === "string" || Array.isArray(o.content))));
     if (!valid)
@@ -96,7 +96,18 @@ const toCallbackOutputs = (
         `External message converter: the converter callback returned an invalid message (${stringifyForError(o)}) for input ${stringifyForError(input)}. Return an empty array to skip a message.`,
       );
   }
-  return outputs;
+  // Providers can emit tool results without a usable id (react-langchain maps
+  // a missing tool_call_id to ""); converters must not throw on those, so the
+  // result is dropped like any other orphaned tool output.
+  return outputs.filter((o) => {
+    if (o.role !== "tool") return true;
+    if (typeof o.toolCallId === "string" && o.toolCallId.length > 0)
+      return true;
+    console.warn(
+      `External message converter: dropping a tool result without a toolCallId (${stringifyForError(o)}) for input ${stringifyForError(input)}.`,
+    );
+    return false;
+  });
 };
 
 export const convertExternalMessageCallback = <T>(
