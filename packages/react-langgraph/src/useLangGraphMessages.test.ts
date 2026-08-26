@@ -933,10 +933,11 @@ describe("useLangGraphMessages", {}, () => {
     ]);
   });
 
-  it("keeps values undefined on a null values snapshot", async () => {
+  it("keeps values undefined on a non-object values snapshot", async () => {
     const mockStreamCallback = mockStreamCallbackFactory([
       metadataEvent,
       { event: "values", data: null },
+      { event: "values", data: 42 },
     ]);
 
     const { result } = renderHook(() =>
