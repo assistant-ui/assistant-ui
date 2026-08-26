@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useInsertionEffect, useMemo, useRef } from "react";
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "@ai-sdk/react";
 import { ChatRegistry } from "./ChatRegistry";
@@ -53,7 +53,7 @@ export function useChatRegistry({
   const activeChat =
     registry.get(activeChatKey) ?? createRenderChat(activeChatKey, registry);
 
-  useEffect(() => {
+  useInsertionEffect(() => {
     registry.register(activeChatKey, threadId, activeChat);
   }, [activeChat, activeChatKey, registry, threadId]);
 

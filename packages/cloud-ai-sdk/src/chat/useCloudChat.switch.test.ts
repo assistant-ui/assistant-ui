@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 
 import { act, render, renderHook } from "@testing-library/react";
-import { createElement, startTransition, Suspense } from "react";
+import {
+  createElement,
+  startTransition,
+  Suspense,
+  useLayoutEffect,
+} from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { UseThreadsResult } from "../types";
 import { CloudChatCore } from "../core/CloudChatCore";
@@ -175,6 +180,58 @@ describe("useCloudChat thread switching", () => {
     expect(transportB.reconnectToStream).not.toHaveBeenCalled();
     expect(threadsA.selectThread).toHaveBeenCalledWith("thread-1");
     expect(threadsB.selectThread).not.toHaveBeenCalled();
+  });
+
+  it("applies a committed transport before any effect in the same commit", async () => {
+    const cloud = {
+      threads: {
+        create: vi.fn().mockResolvedValue({ thread_id: "thread-1" }),
+      },
+    };
+    const threads = createThreads(cloud, null);
+    const transportA = {
+      sendMessages: vi.fn(),
+      reconnectToStream: vi.fn().mockResolvedValue(null),
+    };
+    const transportB = {
+      sendMessages: vi.fn(),
+      reconnectToStream: vi.fn().mockResolvedValue(null),
+    };
+    const registry = new ChatRegistry(() => ({}) as never);
+
+    const Probe = ({
+      transport,
+      reconnect,
+    }: {
+      transport: typeof transportA;
+      reconnect: boolean;
+    }) => {
+      const core = useCloudChatCore(cloud as never, {
+        threads,
+        chatConfig: {},
+        transport: transport as never,
+      });
+      useLayoutEffect(() => {
+        if (!reconnect) return;
+        void core
+          .createTransport("transport-chat", registry)
+          .reconnectToStream({} as never);
+      });
+      return null;
+    };
+
+    const view = render(
+      createElement(Probe, { transport: transportA, reconnect: false }),
+    );
+
+    await act(async () => {
+      view.rerender(
+        createElement(Probe, { transport: transportB, reconnect: true }),
+      );
+    });
+
+    expect(transportB.reconnectToStream).toHaveBeenCalledOnce();
+    expect(transportA.reconnectToStream).not.toHaveBeenCalled();
   });
 
   it("retries an interrupted history load when switching back to a thread", () => {

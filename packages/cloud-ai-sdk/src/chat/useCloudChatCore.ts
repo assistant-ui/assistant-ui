@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useInsertionEffect, useMemo, useRef } from "react";
 import type { UIMessage } from "@ai-sdk/react";
 import type { ChatTransport } from "ai";
 import { DefaultChatTransport } from "ai";
@@ -37,7 +37,11 @@ export function useCloudChatCore(
     return new CloudChatCore(cloud, latestState.options, latestState.transport);
   }, [cloud]);
 
-  useEffect(() => {
+  // The only hook that runs before descendant layout effects: a parent's
+  // useLayoutEffect fires after its children's, and useEffect leaves a
+  // pre-passive window in which the core still answers with the previous
+  // options and transport.
+  useInsertionEffect(() => {
     core.updateOptions(currentOptions, currentTransport);
   });
 
