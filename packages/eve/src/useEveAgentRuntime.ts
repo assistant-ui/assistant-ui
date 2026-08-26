@@ -441,11 +441,12 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       ? {
           onRefetchThread: () =>
             // `resume()` rejects during a turn, so the replay rides the send
-            // chain like every other dispatch and runs once the turn parks. A
-            // turn eve starts outside the adapter (`resume: true` on mount) is
-            // invisible to the chain and still rejects; the session is read at
-            // dispatch time because nothing durable exists before the first
-            // send lands.
+            // chain like every other dispatch and runs once the turn parks.
+            // Upstream shares one replay across concurrent `resume()` calls, so
+            // a refetch dispatched while `resume: true` is replaying on mount
+            // joins that read instead of taking a fresh one. The session is
+            // read at dispatch time because nothing durable exists before the
+            // first send lands.
             enqueueSend(async () => {
               const live = agentRef.current;
               if (live.session === undefined) return;
