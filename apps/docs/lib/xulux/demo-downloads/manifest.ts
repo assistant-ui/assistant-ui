@@ -49,7 +49,6 @@ export type DemoDownloadManifest = {
 
 const COMMON_EXTRA_SOURCE_FILES = [
   "packages/ui/src/lib/utils.ts",
-  "packages/ui/src/hooks/use-copy-to-clipboard.ts",
   "packages/ui/src/hooks/use-attachment-src.ts",
   "packages/ui/src/components/ui/base/dropdown-menu.tsx",
 ] as const;

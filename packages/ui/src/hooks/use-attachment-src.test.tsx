@@ -1,4 +1,5 @@
 import { act, renderHook } from "@testing-library/react";
+import { StrictMode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useAttachmentSrc } from "./use-attachment-src";
 
@@ -91,6 +92,28 @@ describe("useAttachmentSrc", () => {
     expect(result.current).toBe(created[1]);
     expect(rendered.slice(sliceStart)).not.toContain(firstUrl);
     expect(revoked).toEqual([firstUrl]);
+  });
+
+  it("renders only the live URL under StrictMode double effect mounting", () => {
+    mockState.current = {
+      attachment: { type: "image", file: makeFile("a.png") },
+    };
+    const rendered: (string | undefined)[] = [];
+    const { result } = renderHook(
+      () => {
+        const value = useAttachmentSrc();
+        rendered.push(value);
+        return value;
+      },
+      { wrapper: StrictMode },
+    );
+
+    expect(created.length).toBeGreaterThanOrEqual(2);
+    const liveUrl = created[created.length - 1]!;
+    expect(result.current).toBe(liveUrl);
+    for (const url of revoked) {
+      expect(rendered).not.toContain(url);
+    }
   });
 
   it("revokes the object URL on unmount", () => {
