@@ -1859,21 +1859,116 @@ describe("useEveAgentRuntime thread refetch", () => {
     expect(resume).not.toHaveBeenCalled();
   });
 
-  it.each(["submitted", "streaming"] as const)(
-    "resolves without replaying while a turn is %s",
-    async (status) => {
-      const resume = vi.fn();
-      const agent = createAgent({ session, resume, status });
-      mockUseEveAgent.mockReturnValue(agent as never);
-      const { result } = renderHook(() => useEveAgentRuntime());
+  it("waits for a turn dispatched before it to park, then replays", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    const resume = vi.fn().mockResolvedValue(undefined);
+    const agent = createAgent({ session, resume, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
 
-      await act(async () => {
-        await result.current.threads.reloadMainThread();
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
       });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
 
-      expect(resume).not.toHaveBeenCalled();
-    },
-  );
+    let settled = false;
+    await act(async () => {
+      void result.current.threads.reloadMainThread().then(() => {
+        settled = true;
+      });
+    });
+    expect(resume).not.toHaveBeenCalled();
+    expect(settled).toBe(false);
+
+    await act(async () => {
+      resolveSend();
+    });
+    await waitFor(() => expect(settled).toBe(true));
+    expect(resume).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the session at dispatch time, after the first send created it", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    const resume = vi.fn().mockResolvedValue(undefined);
+    const agent = createAgent({ session: undefined, resume, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    let settled = false;
+    await act(async () => {
+      void result.current.threads.reloadMainThread().then(() => {
+        settled = true;
+      });
+    });
+
+    mockUseEveAgent.mockReturnValue({ ...agent, session } as never);
+    rerender();
+    await act(async () => {
+      resolveSend();
+    });
+    await waitFor(() => expect(settled).toBe(true));
+    expect(resume).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a queued refetch when the run is cancelled before it dispatches", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    const resume = vi.fn();
+    const cancel = vi.fn().mockResolvedValue({ status: "cancelled" });
+    const agent = createAgent({ session, resume, send, cancel });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    let settled = false;
+    await act(async () => {
+      void result.current.threads.reloadMainThread().then(() => {
+        settled = true;
+      });
+      result.current.thread.cancelRun();
+    });
+    await act(async () => {
+      resolveSend();
+    });
+
+    await waitFor(() => expect(settled).toBe(true));
+    expect(resume).not.toHaveBeenCalled();
+  });
 
   it("leaves the capability absent when the installed eve has no resume", async () => {
     const agent = createAgent({ session });

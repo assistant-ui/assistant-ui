@@ -230,6 +230,8 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const agentRef = useRef(agent);
+  agentRef.current = agent;
 
   // Upstream `EveAgentStore` `send` and `respond` reject while a turn is in
   // flight and only resolve once the turn's stream parks, so a pending chain
@@ -437,13 +439,21 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     // keeps `threads.reloadMainThread()` on core's no-capability no-op.
     ...("resume" in agent
       ? {
-          onRefetchThread: async () => {
-            // `resume()` rejects without a session or during a turn; neither
-            // state can be stale (nothing durable yet, or the stream is already
-            // attached), so both resolve as no-ops.
-            if (agent.session === undefined || providerIsRunning) return;
-            await agent.resume();
-          },
+          onRefetchThread: () =>
+            // `resume()` rejects during a turn, so the replay rides the send
+            // chain like every other dispatch and runs once the turn parks. A
+            // turn eve starts outside the adapter (`resume: true` on mount) is
+            // invisible to the chain and still rejects; the session is read at
+            // dispatch time because nothing durable exists before the first
+            // send lands.
+            enqueueSend(async () => {
+              const live = agentRef.current;
+              if (live.session === undefined) return;
+              await live.resume();
+            }).catch((error) => {
+              if (isDroppedSend(error)) return;
+              throw error;
+            }),
         }
       : {}),
     onRespondToToolApproval: (response) => {
