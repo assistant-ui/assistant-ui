@@ -254,12 +254,7 @@ type ImageZoomProps = PropsWithChildren<{
 }>;
 
 function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
-  const [isMounted, setIsMounted] = useState(false);
   const [isOpen, setIsOpen] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
 
   const handleOpen = () => setIsOpen(true);
   const handleClose = () => setIsOpen(false);
@@ -294,8 +289,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
       >
         {children}
       </div>
-      {isMounted &&
-        isOpen &&
+      {isOpen &&
         createPortal(
           <div
             data-slot="image-zoom-overlay"

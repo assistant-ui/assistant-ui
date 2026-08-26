@@ -36,27 +36,29 @@ const fileVariants = cva(
   },
 );
 
-function getMimeTypeIcon(mimeType: string): FC<{ className?: string }> {
+const mimeTypeIcons = {
+  file: FileIcon,
+  image: ImageIcon,
+  text: FileTextIcon,
+  json: BracesIcon,
+  audio: MusicIcon,
+  video: VideoIcon,
+} as const;
+
+type MimeTypeIconName = keyof typeof mimeTypeIcons;
+
+function getMimeTypeIconName(mimeType: string): MimeTypeIconName {
   const type = mimeType.toLowerCase();
-  if (type.startsWith("image/")) {
-    return ImageIcon;
-  }
-  if (type === "application/pdf") {
-    return FileTextIcon;
-  }
-  if (type === "application/json") {
-    return BracesIcon;
-  }
-  if (type.startsWith("text/")) {
-    return FileTextIcon;
-  }
-  if (type.startsWith("audio/")) {
-    return MusicIcon;
-  }
-  if (type.startsWith("video/")) {
-    return VideoIcon;
-  }
-  return FileIcon;
+  if (type.startsWith("image/")) return "image";
+  if (type === "application/json") return "json";
+  if (type === "application/pdf" || type.startsWith("text/")) return "text";
+  if (type.startsWith("audio/")) return "audio";
+  if (type.startsWith("video/")) return "video";
+  return "file";
+}
+
+function getMimeTypeIcon(mimeType: string): FC<{ className?: string }> {
+  return mimeTypeIcons[getMimeTypeIconName(mimeType)];
 }
 
 export type FileDataKind = "data-uri" | "url" | "base64" | "id";
@@ -122,7 +124,8 @@ function FileIconDisplay({
   children,
   ...props
 }: FileIconDisplayProps) {
-  const IconComponent = mimeType ? getMimeTypeIcon(mimeType) : FileIcon;
+  const iconName = mimeType ? getMimeTypeIconName(mimeType) : "file";
+  const IconComponent = mimeTypeIcons[iconName];
 
   return (
     <span
