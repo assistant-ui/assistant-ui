@@ -174,7 +174,7 @@ export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
   throwIfFindings("Invalid emitted UI specifiers:", findings);
 }
 
-function createRegistryPayload(
+export function createRegistryPayload(
   item: RegistryBuildItem,
   useRadixVariants = false,
 ): BuiltRegistryPayload {

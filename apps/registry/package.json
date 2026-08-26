@@ -12,6 +12,7 @@
   },
   "devDependencies": {
     "@ai-sdk/openai": "^4.0.46",
+    "@typescript-eslint/parser": "8.46.3",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/eve": "workspace:*",
     "@assistant-ui/react": "workspace:*",
@@ -27,6 +28,8 @@
     "ai": "^7.0.77",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "eslint": "9.39.5",
+    "eslint-plugin-react-hooks": "7.1.1",
     "lucide-react": "^1.33.0",
     "postcss": "^8.5.26",
     "react": "^19.2.8",

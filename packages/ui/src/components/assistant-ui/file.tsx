@@ -59,6 +59,29 @@ function getMimeTypeIcon(mimeType: string): FC<{ className?: string }> {
   return FileIcon;
 }
 
+function MimeTypeIcon({ mimeType }: { mimeType?: string }) {
+  const type = mimeType?.toLowerCase() ?? "";
+  if (type.startsWith("image/")) {
+    return <ImageIcon className="size-5" />;
+  }
+  if (type === "application/pdf") {
+    return <FileTextIcon className="size-5" />;
+  }
+  if (type === "application/json") {
+    return <BracesIcon className="size-5" />;
+  }
+  if (type.startsWith("text/")) {
+    return <FileTextIcon className="size-5" />;
+  }
+  if (type.startsWith("audio/")) {
+    return <MusicIcon className="size-5" />;
+  }
+  if (type.startsWith("video/")) {
+    return <VideoIcon className="size-5" />;
+  }
+  return <FileIcon className="size-5" />;
+}
+
 export type FileDataKind = "data-uri" | "url" | "base64" | "id";
 
 function getFileDataKind(
@@ -122,15 +145,13 @@ function FileIconDisplay({
   children,
   ...props
 }: FileIconDisplayProps) {
-  const IconComponent = mimeType ? getMimeTypeIcon(mimeType) : FileIcon;
-
   return (
     <span
       data-slot="file-icon"
       className={cn("text-muted-foreground shrink-0", className)}
       {...props}
     >
-      {children ?? <IconComponent className="size-5" />}
+      {children ?? <MimeTypeIcon mimeType={mimeType} />}
     </span>
   );
 }

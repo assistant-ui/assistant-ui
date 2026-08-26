@@ -1,10 +1,14 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import "tsx/esm";
+import { ESLint } from "eslint";
+import parser from "@typescript-eslint/parser";
+import reactHooks from "eslint-plugin-react-hooks";
 
 const {
   collectAttributeSelectorValues,
   createBaseRegistryItem,
+  createRegistryPayload,
   createRadixRegistryItem,
   expandBundledRegistryDependencies,
   getRadixVariantSourcePath,
@@ -20,6 +24,8 @@ const {
   validateVariantSlotParity,
   validateVariantTreesDiffer,
 } = await import("./build-registry.ts");
+
+const { registry } = await import("../src/registry");
 
 const { generativeUiVocabularyCss } =
   await import("../../../packages/ui/src/lib/generative-ui-vocabulary-css.ts");
@@ -88,6 +94,73 @@ test("base registry item merges, rewrites, and deduplicates dependencies in orde
       "popover",
     ],
   });
+});
+
+test("emitted file and reasoning components pass the React Hooks rules", async () => {
+  const eslint = new ESLint({
+    cwd: process.cwd(),
+    overrideConfigFile: true,
+    overrideConfig: [
+      {
+        files: ["**/*.tsx"],
+        languageOptions: {
+          parser,
+          parserOptions: {
+            ecmaVersion: "latest",
+            sourceType: "module",
+            ecmaFeatures: { jsx: true },
+          },
+        },
+        plugins: { "react-hooks": reactHooks },
+        rules: reactHooks.configs.recommended.rules,
+      },
+    ],
+  });
+  const targetPaths = [
+    "components/assistant-ui/file.tsx",
+    "components/assistant-ui/reasoning.tsx",
+  ];
+
+  for (const useRadixVariants of [false, true]) {
+    for (const targetPath of targetPaths) {
+      const item = registry.find((candidate) =>
+        candidate.files?.some((file) => file.path === targetPath),
+      );
+      assert.ok(item, `registry item for ${targetPath} is present`);
+      const source = item.files?.find((file) => file.path === targetPath);
+      assert.equal(
+        source?.sourcePath,
+        `../../packages/ui/src/components/assistant-ui/${targetPath.slice(targetPath.lastIndexOf("/") + 1)}`,
+      );
+      const emitted = createRegistryPayload(
+        item,
+        useRadixVariants,
+      ).payload.files?.find((file) => file.path === targetPath);
+      assert.ok(emitted, `emitted file for ${targetPath} is present`);
+
+      const [result] = await eslint.lintText(emitted.content, {
+        filePath: targetPath,
+      });
+      const findings = result.messages
+        .filter(
+          ({ ruleId }) =>
+            ruleId === "react-hooks/refs" ||
+            ruleId === "react-hooks/static-components",
+        )
+        .map(({ line, column, ruleId, message }) => ({
+          line,
+          column,
+          ruleId,
+          message,
+        }));
+
+      assert.deepEqual(
+        findings,
+        [],
+        `${targetPath} (${useRadixVariants ? "radix" : "base"})`,
+      );
+    }
+  }
 });
 
 test("base registry item rewriting is idempotent", () => {
