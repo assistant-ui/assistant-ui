@@ -124,17 +124,17 @@ const normalizeMessageType = <TMessage>(message: TMessage): TMessage => {
   return message;
 };
 
-const extractMessagesFromUpdates = <TMessage>(
-  data: Record<string, unknown>,
-): TMessage[] => {
+const extractMessagesFromUpdates = <TMessage>(data: unknown): TMessage[] => {
+  if (data === null || typeof data !== "object") return [];
+  const record = data as Record<string, unknown>;
   // { messages: [...] } shape
-  if (Array.isArray(data.messages)) {
-    return (data.messages as TMessage[]).map(normalizeMessageType);
+  if (Array.isArray(record.messages)) {
+    return (record.messages as TMessage[]).map(normalizeMessageType);
   }
 
   // { nodeName: { messages: [...] } } shape
   const messages: TMessage[] = [];
-  for (const value of Object.values(data)) {
+  for (const value of Object.values(record)) {
     if (value && typeof value === "object" && "messages" in value) {
       const nodeMessages = (value as Record<string, unknown>).messages;
       if (Array.isArray(nodeMessages)) {
@@ -336,7 +336,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
                 setMessagesImmediate(accumulator.addMessages(extracted));
               }
               // A subgraph update may set an interrupt but never clear one; the parent's top-level update clears it when the subgraph ends.
-              const updateInterrupt = chunk.data.__interrupt__?.[0];
+              const updateInterrupt = chunk.data?.__interrupt__?.[0];
               if (!eventNamespace || updateInterrupt !== undefined) {
                 onInterrupt?.(updateInterrupt, config.runConfig);
                 setInterrupt(updateInterrupt);

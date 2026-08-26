@@ -775,6 +775,51 @@ describe("useLangGraphMessages", {}, () => {
     });
   });
 
+  it("keeps streaming after an updates event with a null payload", async () => {
+    let capturedUpdates: unknown = "unset";
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "updates", data: null },
+      { event: "updates", data: "not-an-object" },
+      {
+        event: "messages",
+        data: [
+          {
+            id: "ai-2",
+            content: "This is a streamed AI response",
+            type: "AIMessageChunk",
+          },
+          { run_attempt: 1 },
+        ],
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onUpdates: (updates) => {
+            capturedUpdates = updates;
+          },
+        },
+      }),
+    );
+
+    act(() => {
+      result.current.sendMessage(
+        [{ id: "user-1", type: "human" as const, content: "hi" }],
+        {},
+      );
+    });
+
+    await waitFor(() => {
+      expect(result.current.messages).toHaveLength(2);
+      expect(result.current.messages[1]!.id).toEqual("ai-2");
+    });
+    expect(capturedUpdates).toBe("not-an-object");
+  });
+
   it("does not replace tuple-accumulated messages with updates snapshots", async () => {
     const initialHumanMessage = {
       id: "user-1",
