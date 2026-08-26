@@ -314,7 +314,10 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
           switch (eventType) {
             case LangGraphKnownEventTypes.MessagesPartial:
             case LangGraphKnownEventTypes.MessagesComplete:
-              if (!Array.isArray(chunk.data)) break;
+              if (!Array.isArray(chunk.data)) {
+                console.warn("Received invalid messages payload:", chunk.data);
+                break;
+              }
               onMessages?.(chunk.data, config.runConfig);
               setMessagesImmediate(accumulator.addMessages(chunk.data));
               break;
@@ -385,7 +388,6 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
               }
               break;
             case LangGraphKnownEventTypes.Messages: {
-              hasTupleMessageEvents = true;
               const tupleData = (chunk as LangChainMessageTupleEvent).data;
               const [tupleMessage, tupleMetadata] = Array.isArray(tupleData)
                 ? tupleData
@@ -399,6 +401,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
                 );
                 break;
               }
+              hasTupleMessageEvents = true;
 
               const tupleMetadataWithNamespace:
                 | LangGraphTupleMetadata

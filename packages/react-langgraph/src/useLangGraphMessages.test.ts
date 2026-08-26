@@ -882,9 +882,54 @@ describe("useLangGraphMessages", {}, () => {
       expect(result.current.messages[1]!.id).toEqual("ai-2");
     });
     expect(warnSpy).toHaveBeenCalledWith(
+      "Received invalid messages payload:",
+      null,
+    );
+    expect(warnSpy).toHaveBeenCalledWith(
       "Received invalid messages tuple format:",
       null,
     );
+    warnSpy.mockRestore();
+  });
+
+  it("does not latch the tuple mode on a malformed messages event", async () => {
+    const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const mockStreamCallback = mockStreamCallbackFactory([
+      metadataEvent,
+      { event: "messages", data: null },
+      {
+        event: "values",
+        data: {
+          messages: [{ id: "ai-1", type: "ai" as const, content: "first" }],
+        },
+      },
+      {
+        event: "values",
+        data: {
+          messages: [
+            { id: "ai-1", type: "ai" as const, content: "first second" },
+          ],
+        },
+      },
+    ]);
+
+    const { result } = renderHook(() =>
+      useLangGraphMessages({
+        stream: mockStreamCallback,
+        appendMessage: appendLangChainChunk,
+      }),
+    );
+
+    await act(async () => {
+      await result.current.sendMessage(
+        [{ id: "user-1", type: "human" as const, content: "hi" }],
+        {},
+      );
+    });
+
+    expect(result.current.messages.map((m) => m.content)).toEqual([
+      "first second",
+    ]);
     warnSpy.mockRestore();
   });
 
