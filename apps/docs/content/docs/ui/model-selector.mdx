@@ -16,6 +16,8 @@ import { ModelSelectorSearchSample } from "@/components/pages/docs/samples/model
 import * as ModelSelectorSearchRadixSample from "@/components/pages/docs/samples/model-selector/search-and-filter.radix";
 import { ModelSelectorEffortSample } from "@/components/pages/docs/samples/model-selector/reasoning-effort";
 import * as ModelSelectorEffortRadixSample from "@/components/pages/docs/samples/model-selector/reasoning-effort.radix";
+import { ModelSelectorMetadataSample } from "@/components/pages/docs/samples/model-selector/capability-metadata";
+import * as ModelSelectorMetadataRadixSample from "@/components/pages/docs/samples/model-selector/capability-metadata.radix";
 
 A picker that lets users switch between AI models and choose a reasoning effort (thinking) level. It is built on Popover + Command, so search, provider grouping, and filtering compose in without being built in. The default export integrates with assistant-ui's `ModelContext` system, so the selection reaches your backend on every request with no extra wiring.
 
@@ -189,6 +191,14 @@ import { ClaudeLogo, GeminiLogo, OpenAILogo } from "@/components/assistant-ui/lo
 ```
 
 Icons are opt-in per model — omit `icon` and the entry renders text-only.
+
+### Capability Metadata
+
+Open the picker to compare model capabilities. Select a row to update the trigger.
+
+<PreviewCode file="components/pages/docs/samples/model-selector/capability-metadata" name="ModelSelectorWithMetadata" base={<ModelSelectorMetadataSample />}>
+  <ModelSelectorMetadataRadixSample.ModelSelectorMetadataSample />
+</PreviewCode>
 
 ## Search
 
