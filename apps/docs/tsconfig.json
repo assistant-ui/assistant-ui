@@ -14,6 +14,12 @@
         "./components/assistant-ui/markdown-text"
       ],
       "@/hooks/use-mobile": ["../../packages/ui/src/hooks/use-mobile"],
+      "@/hooks/use-copy-to-clipboard": [
+        "../../packages/ui/src/hooks/use-copy-to-clipboard"
+      ],
+      "@/hooks/use-attachment-src": [
+        "../../packages/ui/src/hooks/use-attachment-src"
+      ],
       "@/components/assistant-ui/*": [
         "../../packages/ui/src/components/assistant-ui/*"
       ],
