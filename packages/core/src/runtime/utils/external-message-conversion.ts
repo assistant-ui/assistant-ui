@@ -7,6 +7,7 @@ import type {
 } from "../../types/message";
 import type { MessageTiming } from "../../types/message";
 import { generateErrorMessageId } from "../../utils/id";
+import { isJSONValueEqual } from "../../utils/json/is-json-equal";
 import {
   getAutoStatus,
   isAutoStatus,
@@ -87,7 +88,7 @@ const toCallbackOutputs = (
     const valid =
       typeof o === "object" &&
       o !== null &&
-      (o.role === "tool" ||
+      ((o.role === "tool" && typeof o.toolCallId === "string") ||
         ((o.role === "assistant" || o.role === "user" || o.role === "system") &&
           (typeof o.content === "string" || Array.isArray(o.content))));
     if (!valid)
@@ -384,7 +385,14 @@ export const convertExternalMessageChunk = <T>(
     cachedMessage &&
     (cachedMessage.role !== "assistant" ||
       !isAutoStatus(cachedMessage.status) ||
-      cachedMessage.status === autoStatus)
+      cachedMessage.status === autoStatus ||
+      (cachedMessage.status.type === "incomplete" &&
+        cachedMessage.status.reason === "error" &&
+        cachedMessage.status.error !== undefined &&
+        autoStatus.type === "incomplete" &&
+        autoStatus.reason === "error" &&
+        autoStatus.error !== undefined &&
+        isJSONValueEqual(cachedMessage.status.error, autoStatus.error)))
   ) {
     const inputs = getExternalStoreMessages<T>(cachedMessage);
     if (shallowArrayEqual(inputs, message.inputs)) {
