@@ -118,7 +118,9 @@ const useMcpAppsRemoteHost = (
   const url = options.url;
 
   return useMemo((): McpAppsHost => {
-    const getCurrentOptions = () => optionsRef.current;
+    const initialOptions = options;
+    const getCurrentOptions = () =>
+      optionsRef.current.url === url ? optionsRef.current : initialOptions;
     return {
       loadResource: async (params) => {
         const options = getCurrentOptions();
@@ -134,7 +136,7 @@ const useMcpAppsRemoteHost = (
       listResources: (params) =>
         postToHost(getCurrentOptions(), "resources/list", params),
     };
-    // oxlint-disable-next-line react-hooks/exhaustive-deps -- URL changes replace the host identity so renderer resources reload
+    // oxlint-disable-next-line react/exhaustive-deps -- URL changes replace the host identity; same-URL options flow through optionsRef after commit
   }, [url]);
 };
 

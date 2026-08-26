@@ -113,11 +113,11 @@ describe("McpAppsRemoteHost concurrent rendering", () => {
       <Probe url="/workspace-b/mcp" authorization="Bearer workspace-b" />,
     );
 
-    expect(fetch).toHaveBeenNthCalledWith(1, "/workspace-a/mcp", {
+    expect(fetch).toHaveBeenNthCalledWith(1, "/workspace-b/mcp", {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        authorization: "Bearer workspace-a",
+        authorization: "Bearer workspace-b",
       },
       body: JSON.stringify({
         method: "tools/call",
