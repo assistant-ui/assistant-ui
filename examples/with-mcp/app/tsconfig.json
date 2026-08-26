@@ -12,6 +12,7 @@
       "@/components/assistant-ui/*": [
         "../../../packages/ui/src/components/assistant-ui/*"
       ],
+      "@/hooks/*": ["../../../packages/ui/src/hooks/*"],
       "@/components/ui/*": [
         "../../../packages/ui/src/components/ui/base/*",
         "../../../packages/ui/src/components/ui/radix/*"
