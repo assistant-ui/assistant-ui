@@ -9,7 +9,7 @@ import {
   ModelSelectorItem,
   type ModelOption,
 } from "@/components/assistant-ui/model-selector";
-import { Badge } from "@/components/ui/badge";
+import { Badge } from "@/components/assistant-ui/badge";
 import { cn } from "@/lib/utils";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
@@ -47,9 +47,7 @@ export function ModelSelectorWithMetadata() {
                 <span className="truncate font-medium">{option.name}</span>
                 <span className="flex gap-1">
                   {capabilities[option.id]?.map((capability) => (
-                    <Badge key={capability} variant="outline">
-                      {capability}
-                    </Badge>
+                    <Badge key={capability}>{capability}</Badge>
                   ))}
                 </span>
               </span>
