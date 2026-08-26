@@ -200,12 +200,29 @@ export class AssistantFrameProvider {
     instance._providers.add(provider);
     if (origin !== "*") instance._strictRegistrations += 1;
 
-    const unsubscribe = provider.subscribe?.(() => instance.broadcastUpdate());
-    if (unsubscribe) {
-      instance._providerUnsubscribes.set(provider, unsubscribe);
-    }
+    let unsubscribe: Unsubscribe | undefined;
+    try {
+      unsubscribe = provider.subscribe?.(() => instance.broadcastUpdate());
+      if (unsubscribe) {
+        instance._providerUnsubscribes.set(provider, unsubscribe);
+      }
 
-    instance.broadcastUpdate();
+      instance.broadcastUpdate();
+    } catch (error) {
+      instance._providers.delete(provider);
+      instance._providerUnsubscribes.delete(provider);
+      if (origin !== "*") {
+        instance._strictRegistrations -= 1;
+        if (instance._strictRegistrations === 0) instance._targetOrigin = "*";
+      }
+      try {
+        unsubscribe?.();
+      } catch {}
+      try {
+        instance.broadcastUpdate();
+      } catch {}
+      throw error;
+    }
 
     let released = false;
     return () => {

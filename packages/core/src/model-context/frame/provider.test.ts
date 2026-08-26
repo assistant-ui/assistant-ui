@@ -338,6 +338,33 @@ describe("AssistantFrameProvider", () => {
     );
   });
 
+  it("rolls back a provider when registration fails", () => {
+    const execute = vi.fn(async () => "result");
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider(
+        {
+          getModelContext: () => ({
+            tools: { sensitiveTool: { execute } },
+          }),
+          subscribe: () => {
+            throw new Error("subscribe failed");
+          },
+        },
+        "https://first.example",
+      ),
+    ).toThrow("subscribe failed");
+
+    dispatchToolCall("https://first.example");
+    expect(execute).not.toHaveBeenCalled();
+
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider(
+        { getModelContext: () => ({}) },
+        "https://second.example",
+      ),
+    ).not.toThrow();
+  });
+
   it("resets the origin policy after every provider unsubscribes", () => {
     const unsubscribe = AssistantFrameProvider.addModelContextProvider(
       { getModelContext: () => ({}) },
