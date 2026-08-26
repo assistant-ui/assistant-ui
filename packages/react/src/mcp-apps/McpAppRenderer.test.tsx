@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, waitFor } from "@testing-library/react";
 import { resource, useResource, withKey } from "@assistant-ui/tap";
-import { memo } from "react";
+import { act, memo, startTransition, Suspense } from "react";
 import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
@@ -148,6 +148,49 @@ describe("McpAppRenderer", () => {
     expect(loadResource).toHaveBeenLastCalledWith({
       uri: "ui://example/search",
       serverId: "server-b",
+    });
+  });
+
+  it("keeps bridge server ids scoped to committed renders", async () => {
+    const host: McpAppsHost = {
+      loadResource: vi.fn(async ({ uri }) => ({
+        uri,
+        mimeType: "text/html;profile=mcp-app" as const,
+        html: "",
+      })),
+      callTool: vi.fn(),
+      readResource: vi.fn(),
+      listResources: vi.fn(),
+    };
+    const interruptedRender = vi.fn();
+    const pending = new Promise<never>(() => {});
+    const Blocker = ({ blocked }: { blocked: boolean }) => {
+      if (blocked) {
+        interruptedRender();
+        throw pending;
+      }
+      return null;
+    };
+    const view = (serverId: string, blocked: boolean) => (
+      <Suspense fallback={null}>
+        <Harness host={host} serverId={serverId} />
+        <Blocker blocked={blocked} />
+      </Suspense>
+    );
+    const rendered = render(view("server-a", false));
+    await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
+    const handlers = framePropsMock.mock.lastCall?.[0]
+      .handlers as McpAppBridgeHandlers;
+
+    act(() => {
+      startTransition(() => rendered.rerender(view("server-b", true)));
+    });
+    expect(interruptedRender).toHaveBeenCalled();
+    await handlers.callTool?.({ name: "search" });
+
+    expect(host.callTool).toHaveBeenCalledWith({
+      name: "search",
+      serverId: "server-a",
     });
   });
 

@@ -128,8 +128,6 @@ function InlineRenderer({
   const host = useHostStore((state) => state.host);
   const resourceUri = appForRender?.resourceUri;
   const serverId = appForRender?.serverId;
-  const serverIdRef = useRef<string | undefined>(undefined);
-  serverIdRef.current = serverId;
   const callerHandlers = opts.handlers;
   useEffect(() => {
     if (resourceUri == null) return;
@@ -187,24 +185,24 @@ function InlineRenderer({
       callTool: (params) =>
         useHostStore.getState().host.callTool({
           ...params,
-          ...(serverIdRef.current ? { serverId: serverIdRef.current } : {}),
+          ...(serverId ? { serverId } : {}),
         }),
       readResource: (params) =>
         useHostStore.getState().host.readResource({
           ...params,
-          ...(serverIdRef.current ? { serverId: serverIdRef.current } : {}),
+          ...(serverId ? { serverId } : {}),
         }),
       listResources: (params) => {
-        if (!serverIdRef.current) {
+        if (!serverId) {
           return useHostStore.getState().host.listResources(params);
         }
         return useHostStore.getState().host.listResources({
           ...(isRecord(params) ? params : {}),
-          serverId: serverIdRef.current,
+          serverId,
         });
       },
     }),
-    [aui, callerHandlers, useHostStore],
+    [aui, callerHandlers, serverId, useHostStore],
   );
 
   const loadedResourceForApp =
