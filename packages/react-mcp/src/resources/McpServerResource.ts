@@ -41,6 +41,10 @@ export type McpServerResourceProps = {
   onRemove: () => Promise<void>;
 };
 
+type McpServerResourceInstanceProps = McpServerResourceProps & {
+  transportCloseQueueRef: { current: Promise<void> };
+};
+
 const getConnectionDependencies = (
   props: McpServerResourceProps,
 ): readonly unknown[] => {
@@ -78,7 +82,7 @@ const areConnectionDependenciesEqual = (
   left.every((value, index) => Object.is(value, right[index]));
 
 const useMcpServerResourceInstance = (
-  props: McpServerResourceProps,
+  props: McpServerResourceInstanceProps,
 ): ClientOutput<"mcpServer"> => {
   assertValidServerId(props.id);
   const [connectionState, setConnectionState] =
@@ -95,7 +99,6 @@ const useMcpServerResourceInstance = (
   const pendingTransportRef = useRef<StreamableHTTPClientTransport | null>(
     null,
   );
-  const transportCloseQueueRef = useRef(Promise.resolve());
   const connectionGenerationRef = useRef(0);
   const elicitationResolversRef = useRef(
     new Map<
@@ -124,10 +127,10 @@ const useMcpServerResourceInstance = (
   const closeQueuedTransports = (
     transports: StreamableHTTPClientTransport[],
   ): Promise<void> => {
-    const task = transportCloseQueueRef.current.then(async () => {
+    const task = props.transportCloseQueueRef.current.then(async () => {
       await Promise.all(transports.map(closeTransportSafely));
     });
-    transportCloseQueueRef.current = task;
+    props.transportCloseQueueRef.current = task;
     return task;
   };
 
@@ -168,7 +171,7 @@ const useMcpServerResourceInstance = (
     }
   };
 
-  const closeTransports = async () => {
+  const detachTransports = () => {
     cancelPendingElicitations();
     const pendingTransport = pendingTransportRef.current;
     const activeTransport = transportRef.current;
@@ -176,13 +179,18 @@ const useMcpServerResourceInstance = (
     transportRef.current = null;
     clientRef.current = null;
 
-    const transports = new Set(
-      [pendingTransport, activeTransport].filter(
-        (transport): transport is StreamableHTTPClientTransport =>
-          transport !== null,
+    return [
+      ...new Set(
+        [pendingTransport, activeTransport].filter(
+          (transport): transport is StreamableHTTPClientTransport =>
+            transport !== null,
+        ),
       ),
-    );
-    await closeQueuedTransports([...transports]);
+    ];
+  };
+
+  const closeTransports = async () => {
+    await closeQueuedTransports(detachTransports());
   };
 
   const isCurrentConnection = (generation: number) =>
@@ -535,6 +543,7 @@ const useMcpServerResourceInstance = (
 
   // Auto-connect on mount when usable auth exists.
   useEffect(() => {
+    const transportCloseQueueRef = props.transportCloseQueueRef;
     const previousDisposal = pendingDisposalRef.current;
     if (previousDisposal) previousDisposal.cancelled = true;
     const pendingDisposal = { cancelled: false };
@@ -545,14 +554,15 @@ const useMcpServerResourceInstance = (
     return () => {
       mountedRef.current = false;
       signal.cancelled = true;
-      // Defer disposal so StrictMode can replay setup before closing the transport.
-      queueMicrotask(() => {
+      const task = transportCloseQueueRef.current.then(async () => {
+        await new Promise<void>((resolve) => queueMicrotask(resolve));
         if (pendingDisposal.cancelled) return;
         connectionGenerationRef.current += 1;
-        void closeTransports();
+        await Promise.all(detachTransports().map(closeTransportSafely));
       });
+      transportCloseQueueRef.current = task;
     };
-  }, []);
+  }, [props.transportCloseQueueRef]);
 
   const state = useMemo<MCPServerState>(
     () => ({
@@ -681,6 +691,7 @@ const McpServerResourceInstance = resource(useMcpServerResourceInstance);
 export const McpServerResource = resource(function useMcpServerResource(
   props: McpServerResourceProps,
 ): ClientOutput<"mcpServer"> {
+  const transportCloseQueueRef = useRef(Promise.resolve());
   const dependencies = getConnectionDependencies(props);
   const [connection, setConnection] = useState({ dependencies, generation: 0 });
   let currentConnection = connection;
@@ -695,6 +706,9 @@ export const McpServerResource = resource(function useMcpServerResource(
   // Storage resources do not expose a stable scope identity and may return a
   // fresh client on ordinary renders, so storage changes cannot key remounts.
   return useResource(
-    withKey(currentConnection.generation, McpServerResourceInstance(props)),
+    withKey(
+      currentConnection.generation,
+      McpServerResourceInstance({ ...props, transportCloseQueueRef }),
+    ),
   );
 });

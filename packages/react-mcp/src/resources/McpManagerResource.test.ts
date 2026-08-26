@@ -167,6 +167,7 @@ describe("McpManagerResource server ids", () => {
     const root = createTapRoot(function Root() {
       return useResource(DynamicManager());
     });
+    let resolveFirstClose = () => {};
 
     try {
       await vi.waitFor(() =>
@@ -174,6 +175,12 @@ describe("McpManagerResource server ids", () => {
       );
       const firstTransport = mocks.StreamableHTTPClientTransport.mock
         .instances[0] as { close: ReturnType<typeof vi.fn> };
+      firstTransport.close.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstClose = resolve;
+          }),
+      );
 
       updateConnector(
         defineConnector({
@@ -184,15 +191,21 @@ describe("McpManagerResource server ids", () => {
         }),
       );
 
-      await vi.waitFor(() => {
-        expect(firstTransport.close).toHaveBeenCalledOnce();
-        expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledTimes(2);
-      });
+      await vi.waitFor(() =>
+        expect(firstTransport.close).toHaveBeenCalledOnce(),
+      );
+      expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledOnce();
+
+      resolveFirstClose();
+      await vi.waitFor(() =>
+        expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledTimes(2),
+      );
 
       expect(mocks.StreamableHTTPClientTransport).toHaveBeenLastCalledWith(
         new URL("https://other.example.com/docs/mcp"),
       );
     } finally {
+      resolveFirstClose();
       root.unmount();
     }
   });
