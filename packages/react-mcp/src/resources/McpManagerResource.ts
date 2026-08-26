@@ -9,10 +9,7 @@ import {
 import { useAssistantScopeEffect } from "@assistant-ui/store/client";
 import { ModelContext } from "@assistant-ui/core/store";
 import type { Tool } from "assistant-stream";
-import {
-  McpServerResource,
-  type McpServerResourceProps,
-} from "./McpServerResource";
+import { McpServerResource } from "./McpServerResource";
 import { McpLocalStorage } from "./storage/McpLocalStorage";
 import type { MCPStorage, MCPStorageElement } from "./storage/types";
 import { assertUniqueServerIds } from "../utils/serverId";
@@ -63,63 +60,6 @@ const persistCustomServers = async (
     reportCustomStorageFailure("save", error);
   }
 };
-
-const getConnectionDependencies = (
-  props: McpServerResourceProps,
-): readonly unknown[] => {
-  const auth = props.auth;
-  const authDependencies =
-    auth.type === "bearer"
-      ? [auth.type, auth.token]
-      : auth.type === "oauth"
-        ? [
-            auth.type,
-            auth.scopes?.length,
-            ...(auth.scopes ?? []),
-            auth.authorizationEndpoint,
-            auth.tokenEndpoint,
-            auth.registrationEndpoint,
-            auth.clientId,
-            auth.clientSecret,
-          ]
-        : [auth.type];
-
-  return [
-    props.url,
-    ...authDependencies,
-    props.redirectUri,
-    props.cache?.defaultTtlMs,
-    props.elicitation,
-  ];
-};
-
-const areConnectionDependenciesEqual = (
-  left: readonly unknown[],
-  right: readonly unknown[],
-) =>
-  left.length === right.length &&
-  left.every((value, index) => Object.is(value, right[index]));
-
-const McpServerSlot = resource(function useMcpServerSlot(
-  props: McpServerResourceProps,
-): ClientOutput<"mcpServer"> {
-  const dependencies = getConnectionDependencies(props);
-  const [connection, setConnection] = useState({ dependencies, generation: 0 });
-  let currentConnection = connection;
-  if (!areConnectionDependenciesEqual(connection.dependencies, dependencies)) {
-    currentConnection = {
-      dependencies,
-      generation: connection.generation + 1,
-    };
-    setConnection(currentConnection);
-  }
-
-  // Storage resources do not expose a stable scope identity and may return a
-  // fresh client on ordinary renders, so storage changes cannot key remounts.
-  return useResource(
-    withKey(currentConnection.generation, McpServerResource(props)),
-  );
-});
 
 const useMcpManagerResource = (
   props: McpManagerResourceProps,
@@ -201,7 +141,7 @@ const useMcpManagerResource = (
     const connectorElements = connectors.map((c) =>
       withKey(
         c.id,
-        McpServerSlot({
+        McpServerResource({
           id: c.id,
           kind: "connector",
           name: c.name,
@@ -225,7 +165,7 @@ const useMcpManagerResource = (
     const customElements = customServers.map((s) =>
       withKey(
         s.id,
-        McpServerSlot({
+        McpServerResource({
           id: s.id,
           kind: "custom",
           name: s.name,

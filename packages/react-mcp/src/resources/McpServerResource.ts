@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo, useEffectEvent } from "react";
-import { resource } from "@assistant-ui/tap";
+import { resource, useResource, withKey } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import {
   Client,
@@ -41,7 +41,43 @@ export type McpServerResourceProps = {
   onRemove: () => Promise<void>;
 };
 
-const useMcpServerResource = (
+const getConnectionDependencies = (
+  props: McpServerResourceProps,
+): readonly unknown[] => {
+  const auth = props.auth;
+  const authDependencies =
+    auth.type === "bearer"
+      ? [auth.type, auth.token]
+      : auth.type === "oauth"
+        ? [
+            auth.type,
+            auth.scopes?.length,
+            ...(auth.scopes ?? []),
+            auth.authorizationEndpoint,
+            auth.tokenEndpoint,
+            auth.registrationEndpoint,
+            auth.clientId,
+            auth.clientSecret,
+          ]
+        : [auth.type];
+
+  return [
+    props.url,
+    ...authDependencies,
+    props.redirectUri,
+    props.cache?.defaultTtlMs,
+    props.elicitation,
+  ];
+};
+
+const areConnectionDependenciesEqual = (
+  left: readonly unknown[],
+  right: readonly unknown[],
+) =>
+  left.length === right.length &&
+  left.every((value, index) => Object.is(value, right[index]));
+
+const useMcpServerResourceInstance = (
   props: McpServerResourceProps,
 ): ClientOutput<"mcpServer"> => {
   assertValidServerId(props.id);
@@ -640,4 +676,25 @@ const useMcpServerResource = (
   };
 };
 
-export const McpServerResource = resource(useMcpServerResource);
+const McpServerResourceInstance = resource(useMcpServerResourceInstance);
+
+export const McpServerResource = resource(function useMcpServerResource(
+  props: McpServerResourceProps,
+): ClientOutput<"mcpServer"> {
+  const dependencies = getConnectionDependencies(props);
+  const [connection, setConnection] = useState({ dependencies, generation: 0 });
+  let currentConnection = connection;
+  if (!areConnectionDependenciesEqual(connection.dependencies, dependencies)) {
+    currentConnection = {
+      dependencies,
+      generation: connection.generation + 1,
+    };
+    setConnection(currentConnection);
+  }
+
+  // Storage resources do not expose a stable scope identity and may return a
+  // fresh client on ordinary renders, so storage changes cannot key remounts.
+  return useResource(
+    withKey(currentConnection.generation, McpServerResourceInstance(props)),
+  );
+});
