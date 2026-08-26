@@ -87,6 +87,21 @@
     },
     {
       "files": [
+        "packages/ui/src/components/assistant-ui/attachment.tsx",
+        "packages/ui/src/components/assistant-ui/attachment.radix.tsx",
+        "packages/ui/src/components/assistant-ui/file.tsx",
+        "packages/ui/src/components/assistant-ui/image.tsx",
+        "packages/ui/src/components/assistant-ui/reasoning.tsx",
+        "templates/minimal/components/assistant-ui/attachment.tsx"
+      ],
+      "rules": {
+        "react/refs": "error",
+        "react/set-state-in-effect": "error",
+        "react/static-components": "error"
+      }
+    },
+    {
+      "files": [
         "packages/core/src/react/runtimes/RemoteThreadListThreadListRuntimeCore.tsx",
         "packages/core/src/react/runtimes/RemoteThreadListHookInstanceManager.tsx",
         "packages/react/src/unstable/**",

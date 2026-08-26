@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImageMessagePart } from "@assistant-ui/react";
 
-import { ImageActions } from "./image";
+import { ImageActions, ImageZoom } from "./image";
 
 class FakeClipboardItem {
   constructor(public readonly items: Record<string, Blob>) {}
@@ -162,5 +162,23 @@ describe("ImageActions regeneration", () => {
     } finally {
       process.off("unhandledRejection", onUnhandledRejection);
     }
+  });
+});
+
+describe("ImageZoom", () => {
+  it("opens and closes the portal from user interaction", () => {
+    render(
+      <ImageZoom src="https://example.com/image.png">
+        <span>Preview</span>
+      </ImageZoom>,
+    );
+
+    expect(screen.queryByLabelText("Close zoomed image")).toBeNull();
+
+    fireEvent.click(screen.getByLabelText("Click to zoom image"));
+    expect(screen.getByLabelText("Close zoomed image")).toBeTruthy();
+
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByLabelText("Close zoomed image")).toBeNull();
   });
 });
