@@ -2,9 +2,9 @@
 
 import {
   type PropsWithChildren,
+  useEffect,
   useMemo,
   useState,
-  useSyncExternalStore,
   type FC,
 } from "react";
 import {
@@ -42,47 +42,18 @@ import {
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 
-type FileSrcStore = {
-  subscribe: (onStoreChange: () => void) => () => void;
-  getSnapshot: () => string | undefined;
-};
-
-const emptyFileSrcStore: FileSrcStore = {
-  subscribe: () => () => {},
-  getSnapshot: () => undefined,
-};
-
-const createFileSrcStore = (file: File | undefined): FileSrcStore => {
-  if (!file) return emptyFileSrcStore;
-
-  let objectUrl: string | undefined;
-  let subscriberCount = 0;
-
-  return {
-    subscribe: (onStoreChange: () => void) => {
-      subscriberCount += 1;
-      if (subscriberCount === 1) objectUrl = URL.createObjectURL(file);
-      onStoreChange();
-
-      return () => {
-        subscriberCount -= 1;
-        if (subscriberCount === 0 && objectUrl) {
-          URL.revokeObjectURL(objectUrl);
-          objectUrl = undefined;
-        }
-      };
-    },
-    getSnapshot: () => objectUrl,
-  };
-};
-
 const useFileSrc = (file: File | undefined) => {
-  const store = useMemo(() => createFileSrcStore(file), [file]);
-  return useSyncExternalStore(
-    store.subscribe,
-    store.getSnapshot,
-    emptyFileSrcStore.getSnapshot,
+  const src = useMemo(
+    () => (file ? URL.createObjectURL(file) : undefined),
+    [file],
   );
+
+  useEffect(() => {
+    if (!src) return;
+    return () => URL.revokeObjectURL(src);
+  }, [src]);
+
+  return src;
 };
 
 const useAttachmentSrc = () => {
