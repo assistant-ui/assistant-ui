@@ -17,10 +17,12 @@ class SpawnExitError extends Error {
 
 class SpawnSignalError extends Error {
   signal: NodeJS.Signals;
+  forwarded: boolean;
 
-  constructor(signal: NodeJS.Signals) {
+  constructor(signal: NodeJS.Signals, forwarded: boolean) {
     super(`Process terminated by ${signal}`);
     this.signal = signal;
+    this.forwarded = forwarded;
   }
 }
 
@@ -32,7 +34,12 @@ export function runSpawn(command: string, args: string[]): Promise<void> {
     let forwardedSignal: NodeJS.Signals | null = null;
 
     const forwardSignal = (signal: NodeJS.Signals) => {
-      if (forwardedSignal !== null) return;
+      if (forwardedSignal !== null) {
+        child.kill("SIGKILL");
+        cleanup();
+        reject(new SpawnSignalError(signal, true));
+        return;
+      }
       forwardedSignal = signal;
       child.kill(signal);
     };
@@ -52,9 +59,12 @@ export function runSpawn(command: string, args: string[]): Promise<void> {
     });
     child.on("close", (code, signal) => {
       cleanup();
-      const terminationSignal = forwardedSignal ?? signal;
-      if (terminationSignal !== null) {
-        reject(new SpawnSignalError(terminationSignal));
+      if (forwardedSignal !== null) {
+        reject(new SpawnSignalError(forwardedSignal, true));
+        return;
+      }
+      if (signal !== null) {
+        reject(new SpawnSignalError(signal, false));
         return;
       }
       if (code !== 0) {
@@ -97,8 +107,10 @@ export async function main(): Promise<void> {
     await runSpawn(process.execPath, [assistantUiBinPath, ...args]);
   } catch (error) {
     if (error instanceof SpawnSignalError) {
-      process.removeAllListeners(error.signal);
-      process.kill(process.pid, error.signal);
+      if (error.forwarded) {
+        process.removeAllListeners(error.signal);
+        process.kill(process.pid, error.signal);
+      }
       process.exit(128 + (constants.signals[error.signal] ?? 0));
     }
 

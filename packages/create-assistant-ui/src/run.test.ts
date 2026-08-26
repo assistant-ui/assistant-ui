@@ -25,15 +25,57 @@ describe("runSpawn", () => {
   it("forwards termination signals to the child", async () => {
     const child = createChild();
     mocks.spawn.mockReturnValue(child);
+    const existingListeners = new Set(process.listeners("SIGTERM"));
     const initialListeners = process.listenerCount("SIGTERM");
     const result = runSpawn("assistant-ui", ["create"]);
+    const signalHandler = process
+      .listeners("SIGTERM")
+      .find((listener) => !existingListeners.has(listener));
 
-    process.emit("SIGTERM", "SIGTERM");
+    expect(signalHandler).toBeDefined();
+    signalHandler?.();
     expect(child.kill).toHaveBeenCalledWith("SIGTERM");
 
     child.emit("close", 0, null);
-    await expect(result).rejects.toMatchObject({ signal: "SIGTERM" });
+    await expect(result).rejects.toMatchObject({
+      signal: "SIGTERM",
+      forwarded: true,
+    });
     expect(process.listenerCount("SIGTERM")).toBe(initialListeners);
+  });
+
+  it("force-stops the child after a repeated termination signal", async () => {
+    const child = createChild();
+    mocks.spawn.mockReturnValue(child);
+    const existingListeners = new Set(process.listeners("SIGTERM"));
+    const result = runSpawn("assistant-ui", ["create"]);
+    const signalHandler = process
+      .listeners("SIGTERM")
+      .find((listener) => !existingListeners.has(listener));
+
+    expect(signalHandler).toBeDefined();
+    signalHandler?.();
+    signalHandler?.();
+
+    expect(child.kill).toHaveBeenNthCalledWith(1, "SIGTERM");
+    expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
+    await expect(result).rejects.toMatchObject({
+      signal: "SIGTERM",
+      forwarded: true,
+    });
+  });
+
+  it("distinguishes child crash signals from forwarded signals", async () => {
+    const child = createChild();
+    mocks.spawn.mockReturnValue(child);
+    const result = runSpawn("assistant-ui", ["create"]);
+
+    child.emit("close", null, "SIGSEGV");
+
+    await expect(result).rejects.toMatchObject({
+      signal: "SIGSEGV",
+      forwarded: false,
+    });
   });
 
   it("removes signal forwarding after normal completion", async () => {
