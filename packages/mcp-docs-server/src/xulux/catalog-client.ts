@@ -7,14 +7,15 @@ export const DEFAULT_CATALOG_URL =
   "https://www.assistant-ui.com/api/xulux/mcp-catalog";
 
 const CATALOG_TTL_MS = 5 * 60 * 1000;
+const catalogUrlSchema = z.url();
 
 const catalogVersionSchema = z.looseObject({
   id: z.string(),
   entryId: z.string(),
   name: z.string(),
   description: z.string(),
-  previewUrl: z.string(),
-  downloadUrl: z.string(),
+  previewUrl: catalogUrlSchema,
+  downloadUrl: catalogUrlSchema,
 });
 
 const catalogTemplateSchema = z.looseObject({
@@ -28,9 +29,9 @@ const catalogTemplateSchema = z.looseObject({
   features: z.array(z.string()),
   customizable: z.array(z.string()),
   versions: z.array(catalogVersionSchema),
-  previewUrl: z.string().optional(),
-  downloadUrl: z.string().optional(),
-  sandboxBaseUrl: z.string().optional(),
+  previewUrl: catalogUrlSchema.optional(),
+  downloadUrl: catalogUrlSchema.optional(),
+  sandboxBaseUrl: catalogUrlSchema.optional(),
   configRoots: z.record(z.string(), z.unknown()).optional(),
   rules: z
     .looseObject({
@@ -50,7 +51,7 @@ const catalogTemplateSchema = z.looseObject({
 const catalogSchema = z.looseObject({
   version: z.literal(1),
   generatedAt: z.string(),
-  docsOrigin: z.string(),
+  docsOrigin: catalogUrlSchema,
   templates: z.array(catalogTemplateSchema),
 });
 
