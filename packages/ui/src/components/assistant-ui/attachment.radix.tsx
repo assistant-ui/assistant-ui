@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  type PropsWithChildren,
-  useEffect,
-  useMemo,
-  useState,
-  type FC,
-} from "react";
+import { type PropsWithChildren, useEffect, useState, type FC } from "react";
 import {
   XIcon,
   PlusIcon,
@@ -43,17 +37,19 @@ import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button
 import { cn } from "@/lib/utils";
 
 const useFileSrc = (file: File | undefined) => {
-  const src = useMemo(
-    () => (file ? URL.createObjectURL(file) : undefined),
-    [file],
-  );
+  const [src, setSrc] = useState<string | undefined>(undefined);
 
   useEffect(() => {
-    if (!src) return;
-    return () => URL.revokeObjectURL(src);
-  }, [src]);
+    if (!file) return;
 
-  return src;
+    const objectUrl = URL.createObjectURL(file);
+    // oxlint-disable-next-line react/set-state-in-effect -- StrictMode cleanup requires publishing a fresh URL from each effect setup.
+    setSrc(objectUrl); // eslint-disable-line react-hooks/set-state-in-effect
+
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [file]);
+
+  return file ? src : undefined;
 };
 
 const useAttachmentSrc = () => {

@@ -2,6 +2,7 @@ import { cleanup, render, waitFor } from "@testing-library/react";
 import {
   cloneElement,
   isValidElement,
+  StrictMode,
   type PropsWithChildren,
   type ReactElement,
   type ReactNode,
@@ -117,7 +118,11 @@ afterEach(() => {
 describe("ComposerAttachments", () => {
   it("replaces and revokes object URLs when the file changes", async () => {
     mocks.file = new File(["first"], "first.png", { type: "image/png" });
-    const { rerender, unmount } = render(<ComposerAttachments />);
+    const { rerender, unmount } = render(
+      <StrictMode>
+        <ComposerAttachments />
+      </StrictMode>,
+    );
 
     const getImage = () =>
       document.querySelector<HTMLImageElement>('img[alt="Attachment preview"]');
@@ -126,6 +131,7 @@ describe("ComposerAttachments", () => {
       expect(element?.src).toContain("blob:test-");
     });
     const firstSrc = getImage()!.src;
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith(firstSrc);
     const initialUrls = vi
       .mocked(URL.createObjectURL)
       .mock.results.map(({ value }) => value);
@@ -133,9 +139,14 @@ describe("ComposerAttachments", () => {
     mocks.file = new File(["second"], "second.png", {
       type: "image/png",
     });
-    rerender(<ComposerAttachments />);
+    rerender(
+      <StrictMode>
+        <ComposerAttachments />
+      </StrictMode>,
+    );
 
     await waitFor(() => expect(getImage()?.src).not.toBe(firstSrc));
+    expect(URL.revokeObjectURL).not.toHaveBeenCalledWith(getImage()!.src);
     for (const url of initialUrls) {
       expect(URL.revokeObjectURL).toHaveBeenCalledWith(url);
     }
