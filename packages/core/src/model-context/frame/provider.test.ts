@@ -399,6 +399,29 @@ describe("AssistantFrameProvider", () => {
     expect(firstUnsubscribe).toHaveBeenCalledOnce();
   });
 
+  it("merges a provider registered more than once only once", () => {
+    const provider = {
+      getModelContext: () => ({ system: "shared system" }),
+    };
+
+    AssistantFrameProvider.addModelContextProvider(provider);
+    AssistantFrameProvider.addModelContextProvider(provider);
+
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      {
+        channel: FRAME_MESSAGE_CHANNEL,
+        message: {
+          type: "model-context-update",
+          context: {
+            system: "shared system",
+            tools: {},
+          },
+        },
+      },
+      "*",
+    );
+  });
+
   it("releases a subscription when the initial broadcast fails", () => {
     const unsubscribe = vi.fn();
     expect(() =>

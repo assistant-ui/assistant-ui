@@ -157,7 +157,7 @@ export class AssistantFrameProvider {
   }
 
   private getModelContext(): ModelContext {
-    const contexts = Array.from(this._providers.values()).map((p) =>
+    const contexts = Array.from(new Set(this._providers.values())).map((p) =>
       p.getModelContext(),
     );
 
