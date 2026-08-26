@@ -228,10 +228,14 @@ export class AssistantFrameProvider {
       // Rollback failures must not replace the registration error.
       try {
         unsubscribe?.();
-      } catch {}
+      } catch (unsubscribeError) {
+        console.error(unsubscribeError);
+      }
       try {
         instance.broadcastUpdate();
-      } catch {}
+      } catch (broadcastError) {
+        console.error(broadcastError);
+      }
       throw error;
     }
 
@@ -252,6 +256,7 @@ export class AssistantFrameProvider {
         instance.broadcastUpdate();
       } catch (error) {
         if (!unsubscribeFailed) throw error;
+        console.error(error);
       }
       if (unsubscribeFailed) throw unsubscribeError;
     };
@@ -262,20 +267,40 @@ export class AssistantFrameProvider {
       const instance = AssistantFrameProvider._instance;
       window.removeEventListener("message", instance.handleMessage);
 
-      instance._providerUnsubscribes.forEach((unsubscribe) => unsubscribe?.());
+      let cleanupFailed = false;
+      let cleanupError: unknown;
+      const runCleanup = (cleanup: () => void) => {
+        try {
+          cleanup();
+        } catch (error) {
+          if (cleanupFailed) {
+            console.error(error);
+          } else {
+            cleanupFailed = true;
+            cleanupError = error;
+          }
+        }
+      };
+
+      instance._providerUnsubscribes.forEach((unsubscribe) => {
+        if (unsubscribe) runCleanup(unsubscribe);
+      });
       instance._providerUnsubscribes.clear();
       instance._providers.clear();
       instance._activeToolCalls.forEach(({ abortController, event }, id) => {
-        abortController.abort();
-        instance.sendMessage(event, {
-          type: "tool-result",
-          id,
-          error: "AssistantFrameProvider has been disposed",
+        runCleanup(() => {
+          abortController.abort();
+          instance.sendMessage(event, {
+            type: "tool-result",
+            id,
+            error: "AssistantFrameProvider has been disposed",
+          });
         });
       });
       instance._activeToolCalls.clear();
 
       AssistantFrameProvider._instance = null;
+      if (cleanupFailed) throw cleanupError;
     }
   }
 }

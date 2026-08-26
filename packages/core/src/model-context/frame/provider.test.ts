@@ -388,6 +388,27 @@ describe("AssistantFrameProvider", () => {
     ).not.toThrow();
   });
 
+  it("reports rollback cleanup failures without replacing the original error", () => {
+    const contextError = new Error("context failed");
+    const unsubscribeError = new Error("unsubscribe failed");
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider({
+        getModelContext: () => {
+          throw contextError;
+        },
+        subscribe: () => () => {
+          throw unsubscribeError;
+        },
+      }),
+    ).toThrow(contextError);
+
+    expect(consoleError).toHaveBeenCalledWith(unsubscribeError);
+  });
+
   it("cleans up provider state when its unsubscribe throws", () => {
     const unsubscribe = vi.fn(() => {
       throw new Error("unsubscribe failed");
@@ -408,6 +429,34 @@ describe("AssistantFrameProvider", () => {
         "https://second.example",
       ),
     ).not.toThrow();
+  });
+
+  it("finishes disposal when a provider unsubscribe throws", () => {
+    const error = new Error("unsubscribe failed");
+    const firstUnsubscribe = vi.fn(() => {
+      throw error;
+    });
+    const secondUnsubscribe = vi.fn();
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({}),
+      subscribe: () => firstUnsubscribe,
+    });
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({}),
+      subscribe: () => secondUnsubscribe,
+    });
+
+    expect(() => AssistantFrameProvider.dispose()).toThrow(error);
+    expect(firstUnsubscribe).toHaveBeenCalledOnce();
+    expect(secondUnsubscribe).toHaveBeenCalledOnce();
+
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider(
+        { getModelContext: () => ({}) },
+        "https://new.example",
+      ),
+    ).not.toThrow();
+    expect(window.addEventListener).toHaveBeenCalledTimes(2);
   });
 
   it("resets the origin policy after every provider unsubscribes", () => {
