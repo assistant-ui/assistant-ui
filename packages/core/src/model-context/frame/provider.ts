@@ -191,6 +191,20 @@ export class AssistantFrameProvider {
     }
   }
 
+  private removeProvider(
+    provider: ModelContextProvider,
+    origin: string,
+  ): Unsubscribe | undefined {
+    this._providers.delete(provider);
+    const unsubscribe = this._providerUnsubscribes.get(provider);
+    this._providerUnsubscribes.delete(provider);
+    if (origin !== "*") {
+      this._strictRegistrations -= 1;
+      if (this._strictRegistrations === 0) this._targetOrigin = "*";
+    }
+    return unsubscribe;
+  }
+
   static addModelContextProvider(
     provider: ModelContextProvider,
     targetOrigin?: string,
@@ -200,21 +214,18 @@ export class AssistantFrameProvider {
     instance._providers.add(provider);
     if (origin !== "*") instance._strictRegistrations += 1;
 
-    let unsubscribe: Unsubscribe | undefined;
     try {
-      unsubscribe = provider.subscribe?.(() => instance.broadcastUpdate());
+      const unsubscribe = provider.subscribe?.(() =>
+        instance.broadcastUpdate(),
+      );
       if (unsubscribe) {
         instance._providerUnsubscribes.set(provider, unsubscribe);
       }
 
       instance.broadcastUpdate();
     } catch (error) {
-      instance._providers.delete(provider);
-      instance._providerUnsubscribes.delete(provider);
-      if (origin !== "*") {
-        instance._strictRegistrations -= 1;
-        if (instance._strictRegistrations === 0) instance._targetOrigin = "*";
-      }
+      const unsubscribe = instance.removeProvider(provider, origin);
+      // Rollback failures must not replace the registration error.
       try {
         unsubscribe?.();
       } catch {}
@@ -228,14 +239,21 @@ export class AssistantFrameProvider {
     return () => {
       if (released) return;
       released = true;
-      instance._providers.delete(provider);
-      instance._providerUnsubscribes.get(provider)?.();
-      instance._providerUnsubscribes.delete(provider);
-      if (origin !== "*") {
-        instance._strictRegistrations -= 1;
-        if (instance._strictRegistrations === 0) instance._targetOrigin = "*";
+      const unsubscribe = instance.removeProvider(provider, origin);
+      let unsubscribeFailed = false;
+      let unsubscribeError: unknown;
+      try {
+        unsubscribe?.();
+      } catch (error) {
+        unsubscribeFailed = true;
+        unsubscribeError = error;
       }
-      instance.broadcastUpdate();
+      try {
+        instance.broadcastUpdate();
+      } catch (error) {
+        if (!unsubscribeFailed) throw error;
+      }
+      if (unsubscribeFailed) throw unsubscribeError;
     };
   }
 

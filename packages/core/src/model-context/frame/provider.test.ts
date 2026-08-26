@@ -365,6 +365,51 @@ describe("AssistantFrameProvider", () => {
     ).not.toThrow();
   });
 
+  it("releases a subscription when the initial broadcast fails", () => {
+    const unsubscribe = vi.fn();
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider(
+        {
+          getModelContext: () => {
+            throw new Error("context failed");
+          },
+          subscribe: () => unsubscribe,
+        },
+        "https://first.example",
+      ),
+    ).toThrow("context failed");
+
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider(
+        { getModelContext: () => ({}) },
+        "https://second.example",
+      ),
+    ).not.toThrow();
+  });
+
+  it("cleans up provider state when its unsubscribe throws", () => {
+    const unsubscribe = vi.fn(() => {
+      throw new Error("unsubscribe failed");
+    });
+    const release = AssistantFrameProvider.addModelContextProvider(
+      {
+        getModelContext: () => ({}),
+        subscribe: () => unsubscribe,
+      },
+      "https://first.example",
+    );
+
+    expect(release).toThrow("unsubscribe failed");
+    expect(unsubscribe).toHaveBeenCalledOnce();
+    expect(() =>
+      AssistantFrameProvider.addModelContextProvider(
+        { getModelContext: () => ({}) },
+        "https://second.example",
+      ),
+    ).not.toThrow();
+  });
+
   it("resets the origin policy after every provider unsubscribes", () => {
     const unsubscribe = AssistantFrameProvider.addModelContextProvider(
       { getModelContext: () => ({}) },
