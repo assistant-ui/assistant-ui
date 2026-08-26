@@ -151,7 +151,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
 
             case "tool-call-start": {
               if (activeToolCallId !== undefined) {
-                toolCallPartRegistry.closeArgsText(activeToolCallId);
+                toolCallPartRegistry.closeArgsText(
+                  toolCallPartRegistry.get(activeToolCallId),
+                );
                 activeToolCallId = undefined;
               }
 
@@ -168,7 +170,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
             case "tool-call-delta":
               if (activeToolCallId !== undefined) {
                 toolCallPartRegistry.appendArgsText(
-                  activeToolCallId,
+                  toolCallPartRegistry.get(activeToolCallId),
                   chunk.argsText,
                 );
               }
@@ -176,7 +178,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
 
             case "tool-call-end":
               if (activeToolCallId !== undefined) {
-                toolCallPartRegistry.closeArgsText(activeToolCallId);
+                toolCallPartRegistry.closeArgsText(
+                  toolCallPartRegistry.get(activeToolCallId),
+                );
                 activeToolCallId = undefined;
               }
               break;
@@ -186,7 +190,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 activeToolCallId = undefined;
               }
               toolCallPartRegistry.setResponse(
-                chunk.toolCallId,
+                toolCallPartRegistry.get(chunk.toolCallId),
                 {
                   result: chunk.result,
                   isError: chunk.isError ?? false,
@@ -194,10 +198,6 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                     ? { messages: chunk.messages }
                     : {}),
                 },
-                () =>
-                  new Error(
-                    `Encountered tool result with unknown id: ${chunk.toolCallId}`,
-                  ),
               );
               break;
             }
@@ -244,7 +244,9 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
         },
         flush() {
           if (activeToolCallId !== undefined) {
-            toolCallPartRegistry.closeArgsText(activeToolCallId);
+            toolCallPartRegistry.closeArgsText(
+              toolCallPartRegistry.get(activeToolCallId),
+            );
           }
           toolCallPartRegistry.closeAll();
         },

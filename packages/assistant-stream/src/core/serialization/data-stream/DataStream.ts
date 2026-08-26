@@ -288,7 +288,6 @@ export class DataStreamDecoder extends PipeableTransformStream<
     const strict = options.strict ?? true;
     super((readable) => {
       const toolCallPartRegistry = createToolCallPartRegistry();
-      const closedToolCallArgs = new Set<string>();
       const warnedDroppedArgs = new Set<string>();
       const loggedDrops = new Set<string>();
       const logDropped = (key: string, message: string) => {
@@ -297,7 +296,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
         console.error(message);
       };
       const closeOpenToolCallArgs = () => {
-        toolCallPartRegistry.closeOpenArgsText(closedToolCallArgs);
+        toolCallPartRegistry.closeOpenArgsText();
       };
       const transform = new AssistantTransformStream<DataStreamChunk>({
         strict,
@@ -346,7 +345,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 ? controller.withParentId(parentId)
                 : controller;
 
-              if (toolCallPartRegistry.has(toolCallId)) {
+              if (toolCallPartRegistry.tryGet(toolCallId)) {
                 if (strict)
                   throw new Error(
                     `Encountered duplicate tool call id: ${toolCallId}`,
@@ -369,16 +368,9 @@ export class DataStreamDecoder extends PipeableTransformStream<
 
             case DataStreamStreamChunkType.ToolCallArgsTextDelta: {
               const { toolCallId, argsTextDelta, isFinal } = value;
-              if (closedToolCallArgs.has(toolCallId)) {
-                if (!warnedDroppedArgs.has(toolCallId)) {
-                  warnedDroppedArgs.add(toolCallId);
-                  console.warn(
-                    `Dropped tool-call args delta for closed args stream: ${toolCallId}`,
-                  );
-                }
-                break;
-              }
-              if (!toolCallPartRegistry.has(toolCallId)) {
+              const toolCallController =
+                toolCallPartRegistry.tryGet(toolCallId);
+              if (!toolCallController) {
                 if (strict)
                   throw new Error(
                     `Encountered tool call with unknown id: ${toolCallId}`,
@@ -389,19 +381,32 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 );
                 break;
               }
+              if (toolCallPartRegistry.isArgsTextClosed(toolCallController)) {
+                if (!warnedDroppedArgs.has(toolCallId)) {
+                  warnedDroppedArgs.add(toolCallId);
+                  console.warn(
+                    `Dropped tool-call args delta for closed args stream: ${toolCallId}`,
+                  );
+                }
+                break;
+              }
               if (argsTextDelta.length > 0) {
-                toolCallPartRegistry.appendArgsText(toolCallId, argsTextDelta);
+                toolCallPartRegistry.appendArgsText(
+                  toolCallController,
+                  argsTextDelta,
+                );
               }
               if (isFinal === true) {
-                toolCallPartRegistry.closeArgsText(toolCallId);
-                closedToolCallArgs.add(toolCallId);
+                toolCallPartRegistry.closeArgsText(toolCallController);
               }
               break;
             }
 
             case DataStreamStreamChunkType.ToolCallResult: {
               const { toolCallId, artifact, result, isError } = value;
-              if (!toolCallPartRegistry.has(toolCallId)) {
+              const toolCallController =
+                toolCallPartRegistry.tryGet(toolCallId);
+              if (!toolCallController) {
                 if (strict)
                   throw new Error(
                     `Encountered tool call result with unknown id: ${toolCallId}`,
@@ -412,37 +417,36 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 );
                 break;
               }
-              toolCallPartRegistry.setResponse(
-                toolCallId,
-                {
-                  artifact,
-                  result,
-                  isError,
-                },
-                () =>
-                  new Error(
-                    `Encountered tool call result with unknown id: ${toolCallId}`,
-                  ),
-              );
-              closedToolCallArgs.add(toolCallId);
+              toolCallPartRegistry.setResponse(toolCallController, {
+                artifact,
+                result,
+                isError,
+              });
               break;
             }
 
             case DataStreamStreamChunkType.ToolCall: {
               const { toolCallId, toolName, args } = value;
+              const toolCallController =
+                toolCallPartRegistry.tryGet(toolCallId);
 
-              if (toolCallPartRegistry.has(toolCallId)) {
-                toolCallPartRegistry.closeArgsText(toolCallId);
+              if (toolCallController) {
+                toolCallPartRegistry.closeArgsText(toolCallController);
               } else {
-                toolCallPartRegistry.start(toolCallId, () =>
-                  controller.addToolCallPart({
-                    toolCallId,
-                    toolName,
-                    args,
-                  }),
+                const toolCallController = toolCallPartRegistry.start(
+                  toolCallId,
+                  () =>
+                    controller.addToolCallPart({
+                      toolCallId,
+                      toolName,
+                    }),
                 );
+                toolCallPartRegistry.appendArgsText(
+                  toolCallController,
+                  JSON.stringify(args),
+                );
+                toolCallPartRegistry.closeArgsText(toolCallController);
               }
-              closedToolCallArgs.add(toolCallId);
               break;
             }
 

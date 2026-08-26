@@ -1,24 +1,25 @@
 import type { ToolCallStreamController } from "../modules/tool-call";
 
-type UnknownToolCallError = (toolCallId: string) => Error;
-
-const defaultUnknownToolCallError: UnknownToolCallError = (toolCallId) =>
-  new Error(`Encountered tool call with unknown id: ${toolCallId}`);
-
 export const createToolCallPartRegistry = () => {
   const toolCallControllers = new Map<string, ToolCallStreamController>();
+  const closedToolCallArgs = new Set<ToolCallStreamController>();
 
-  const get = (
-    toolCallId: string,
-    unknownError: UnknownToolCallError = defaultUnknownToolCallError,
-  ) => {
-    const toolCallController = toolCallControllers.get(toolCallId);
-    if (!toolCallController) throw unknownError(toolCallId);
+  const tryGet = (toolCallId: string) => toolCallControllers.get(toolCallId);
+
+  const get = (toolCallId: string) => {
+    const toolCallController = tryGet(toolCallId);
+    if (!toolCallController) {
+      throw new Error(`Encountered tool call with unknown id: ${toolCallId}`);
+    }
     return toolCallController;
   };
 
+  const closeArgsText = (toolCallController: ToolCallStreamController) => {
+    toolCallController.argsText.close();
+    closedToolCallArgs.add(toolCallController);
+  };
+
   return {
-    has: (toolCallId: string) => toolCallControllers.has(toolCallId),
     start: (toolCallId: string, create: () => ToolCallStreamController) => {
       if (toolCallControllers.has(toolCallId)) {
         throw new Error(`Encountered duplicate tool call id: ${toolCallId}`);
@@ -28,38 +29,37 @@ export const createToolCallPartRegistry = () => {
       return toolCallController;
     },
     get,
+    tryGet,
     appendArgsText: (
-      toolCallId: string,
+      toolCallController: ToolCallStreamController,
       argsTextDelta: string,
-      unknownError?: UnknownToolCallError,
     ) => {
-      get(toolCallId, unknownError).argsText.append(argsTextDelta);
+      toolCallController.argsText.append(argsTextDelta);
     },
-    closeArgsText: (
-      toolCallId: string,
-      unknownError?: UnknownToolCallError,
-    ) => {
-      get(toolCallId, unknownError).argsText.close();
+    closeArgsText,
+    isArgsTextClosed: (toolCallController: ToolCallStreamController) => {
+      return closedToolCallArgs.has(toolCallController);
     },
     setResponse: (
-      toolCallId: string,
+      toolCallController: ToolCallStreamController,
       response: Parameters<ToolCallStreamController["setResponse"]>[0],
-      unknownError?: UnknownToolCallError,
     ) => {
-      get(toolCallId, unknownError).setResponse(response);
+      toolCallController.setResponse(response);
+      closedToolCallArgs.add(toolCallController);
     },
-    closeOpenArgsText: (closedToolCallArgs: Set<string>) => {
-      for (const [toolCallId, toolCallController] of toolCallControllers) {
-        if (closedToolCallArgs.has(toolCallId)) continue;
-        toolCallController.argsText.close();
-        closedToolCallArgs.add(toolCallId);
+    closeOpenArgsText: () => {
+      for (const toolCallController of toolCallControllers.values()) {
+        if (closedToolCallArgs.has(toolCallController)) continue;
+        closeArgsText(toolCallController);
       }
     },
     closeAll: () => {
       toolCallControllers.forEach((toolCallController) => {
+        closedToolCallArgs.add(toolCallController);
         toolCallController.close();
       });
       toolCallControllers.clear();
+      closedToolCallArgs.clear();
     },
   };
 };
