@@ -93,8 +93,8 @@ The default export is a `SourceMessagePartComponent`. It shows URL sources as ex
 
 | Prop | Type | Default | Description |
 |------|------|---------|-------------|
-| `url` | `string` | — | URL for a URL source; not present for a document source |
-| `title` | `string \| undefined` | — | Display title; URL sources use the domain if the title is not present |
+| `url` | `string \| undefined` | — | URL of a URL source; not present for a document source |
+| `title` | `string \| undefined` | — | Display title; required for document sources, but URL sources use the domain if the title is not present |
 | `sourceType` | `"url" \| "document"` | — | Source type; URL sources have external links, but document sources have file icons without links |
 
 #### Compound sub-components
