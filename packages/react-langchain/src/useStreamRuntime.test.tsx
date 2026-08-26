@@ -10,7 +10,7 @@ import type {
 } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
 import type { LangChainBaseMessage } from "./types";
-import type { ReactNode } from "react";
+import { startTransition, Suspense, useState, type ReactNode } from "react";
 import {
   useLangChainRespond,
   useLangChainRespondAll,
@@ -166,6 +166,76 @@ const deferred = <T,>() => {
 };
 
 describe("useStreamRuntime thread options", () => {
+  it("keeps committed stream options during an interrupted render", async () => {
+    const stream = createMockStream();
+    let rerenderStream: (() => void) | undefined;
+    mockUseStream.mockImplementation(() => {
+      const [, setVersion] = useState(0);
+      rerenderStream = () => setVersion((version) => version + 1);
+      return stream;
+    });
+    const pending = new Promise<never>(() => {});
+
+    const Probe = ({
+      apiUrl,
+      suspend,
+    }: {
+      apiUrl: string;
+      suspend: boolean;
+    }) => {
+      const runtime = useStreamRuntime({ apiUrl } as never);
+      if (suspend) throw pending;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <span>{apiUrl}</span>
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const view = render(
+      <Suspense fallback={null}>
+        <Probe apiUrl="/workspace-a" suspend={false} />
+      </Suspense>,
+    );
+    await waitFor(() =>
+      expect(
+        mockUseStream.mock.calls.some(
+          ([options]) =>
+            (options as { apiUrl?: string }).apiUrl === "/workspace-a",
+        ),
+      ).toBe(true),
+    );
+
+    act(() => {
+      startTransition(() => {
+        view.rerender(
+          <Suspense fallback={null}>
+            <Probe apiUrl="/workspace-b" suspend />
+          </Suspense>,
+        );
+      });
+    });
+    expect(view.container.textContent).toBe("/workspace-a");
+
+    act(() => rerenderStream?.());
+
+    expect(
+      mockUseStream.mock.calls.at(-1)?.[0] as { apiUrl?: string },
+    ).toMatchObject({ apiUrl: "/workspace-a" });
+
+    view.rerender(
+      <Suspense fallback={null}>
+        <Probe apiUrl="/workspace-b" suspend={false} />
+      </Suspense>,
+    );
+
+    await waitFor(() =>
+      expect(
+        mockUseStream.mock.calls.at(-1)?.[0] as { apiUrl?: string },
+      ).toMatchObject({ apiUrl: "/workspace-b" }),
+    );
+  });
+
   it("keeps stream options isolated between mounted threads", async () => {
     mockUseStream.mockReturnValue(createMockStream());
     const capture: { runtime: AssistantRuntime | null } = { runtime: null };
