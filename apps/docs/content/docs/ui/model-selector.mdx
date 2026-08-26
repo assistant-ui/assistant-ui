@@ -194,6 +194,10 @@ Icons are opt-in per model — omit `icon` and the entry renders text-only.
 
 ## Capability Metadata
 
+`ModelSelector.Item` accepts custom `children` in place of the default name and description row. This demo uses that to render capability badges with the shadcn `badge` component:
+
+<InstallCommand shadcn={["badge"]} />
+
 Open the picker to compare model capabilities. Select a row to update the trigger.
 
 <PreviewCode file="components/pages/docs/samples/model-selector/capability-metadata" name="ModelSelectorWithMetadata" base={<ModelSelectorMetadataSample />}>
