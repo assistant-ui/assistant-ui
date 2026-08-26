@@ -9,6 +9,7 @@ import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import { SourcesUrlSample } from "@/components/pages/docs/samples/sources/url-sources";
 import { SourcesDocumentSample } from "@/components/pages/docs/samples/sources/document-source";
 import { SourcesFaviconFallbackSample } from "@/components/pages/docs/samples/sources/favicon-fallback";
+import { SourcesLongTitleSample } from "@/components/pages/docs/samples/sources/long-title-truncation";
 
 <SourcesSample />
 
@@ -96,6 +97,17 @@ The document source uses a file icon and has no link action.
   name="SourcesFaviconFallback"
 >
   <SourcesFaviconFallbackSample />
+</PreviewCode>
+
+### Long Title Truncation
+
+The source keeps its full title and truncates the visible text inside a narrow host.
+
+<PreviewCode
+  file="components/pages/docs/samples/sources/long-title-truncation"
+  name="SourcesLongTitle"
+>
+  <SourcesLongTitleSample />
 </PreviewCode>
 
 ## API Reference
