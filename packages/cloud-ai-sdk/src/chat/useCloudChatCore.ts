@@ -18,15 +18,31 @@ export function useCloudChatCore(
 ): CloudChatCore {
   const { threads, chatConfig, onSyncError, transport } = options;
   const currentOptions = { threads, chatConfig, onSyncError };
-  const currentOptionsRef = useRef(currentOptions);
-  currentOptionsRef.current = currentOptions;
 
-  const core = useMemo(
-    () => new CloudChatCore(cloud, currentOptionsRef.current),
-    [cloud],
+  const fallbackTransport = useRef<ChatTransport<UIMessage>>(
+    new DefaultChatTransport({}),
   );
+  const currentTransport = transport ?? fallbackTransport.current;
+  const initialStateRef = useRef({
+    options: currentOptions,
+    transport: currentTransport,
+  });
+  initialStateRef.current = {
+    options: currentOptions,
+    transport: currentTransport,
+  };
 
-  core.options = currentOptions;
+  const core = useMemo(() => {
+    const initialState = initialStateRef.current;
+    const nextCore = new CloudChatCore(cloud, initialState.options);
+    nextCore.updateOptions(initialState.options, initialState.transport);
+    return nextCore;
+  }, [cloud]);
+
+  core.setChatCreationConfig(chatConfig);
+  useEffect(() => {
+    core.updateOptions(currentOptions, currentTransport);
+  });
 
   // Track component lifetime for safe async operations
   const mountedRef = useRef(true);
@@ -37,11 +53,6 @@ export function useCloudChatCore(
     };
   }, []);
   core.mountedRef = mountedRef;
-
-  const fallbackTransport = useRef<ChatTransport<UIMessage>>(
-    new DefaultChatTransport({}),
-  );
-  core.baseTransport = transport ?? fallbackTransport.current;
 
   return core;
 }
