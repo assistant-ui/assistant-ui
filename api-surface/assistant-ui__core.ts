@@ -5865,7 +5865,7 @@ declare const consumeSuggestionResult: (result: ReturnType<SuggestionAdapter["ge
   onUpdate: (suggestions: readonly ThreadSuggestion[]) => void;
 }) => Promise<void>;
 
-declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callback: ExternalMessageConverterCallback<T>, isRunning: boolean, metadata: ExternalMessageConverterMetadata) => ThreadMessage[];
+declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callback<T>, isRunning: boolean, metadata: useExternalMessageConverter.Metadata) => ThreadMessage[];
 
 declare const createLocalStorageAdapter: (options: LocalStorageAdapterOptions) => RemoteThreadListAdapter;
 
