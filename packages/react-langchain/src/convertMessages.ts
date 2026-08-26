@@ -215,8 +215,10 @@ export const convertLangChainBaseMessage = (
         // it against the tool call's name when it is non-null. A tool message
         // that arrives over the LangGraph v2 `messages` stream never has a
         // name -- the protocol has no field for one -- so defaulting to ""
-        // manufactures a name that disagrees with every call and throws.
-        toolName: message.name,
+        // manufactures a name that disagrees with every call and throws. An
+        // empty name is not a name either, so it is normalized to absent
+        // rather than passed through into the same failure.
+        toolName: message.name || undefined,
         toolCallId: message.tool_call_id ?? "",
         result: message.content,
         artifact: message.artifact,

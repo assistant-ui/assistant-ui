@@ -1012,6 +1012,19 @@ describe("convertLangChainBaseMessage tool messages", () => {
     expect(part.result).toBe("3 results");
   });
 
+  it("treats an empty name as no name", () => {
+    const messages = convertExternalMessages(
+      [aiWithToolCall(), toolResult("")],
+      (message) => convertLangChainBaseMessage(message, {}),
+      false,
+      {},
+    );
+
+    const part = messages[0]!.content[0]!;
+    if (part.type !== "tool-call") throw new Error("expected a tool call part");
+    expect(part.toolName).toBe("search");
+  });
+
   it("still rejects a result naming a different tool", () => {
     expect(() =>
       convertExternalMessages(
