@@ -76,6 +76,21 @@ describe("registry-backed decoders", () => {
     ).toBe("Encountered tool result with unknown id: missing");
   });
 
+  it("finishes args for an argsless complete tool call before its result", async () => {
+    const chunks = await decodeDataStream([
+      '9:{"toolCallId":"t1","toolName":"search"}',
+      'a:{"toolCallId":"t1","result":"done"}',
+    ]);
+
+    const argsFinishIdx = chunks.findIndex(
+      (chunk) => chunk.type === "tool-call-args-text-finish",
+    );
+    const resultIdx = chunks.findIndex((chunk) => chunk.type === "result");
+    expect(argsFinishIdx).toBeGreaterThanOrEqual(0);
+    expect(resultIdx).toBeGreaterThanOrEqual(0);
+    expect(argsFinishIdx).toBeLessThan(resultIdx);
+  });
+
   it("closes every open controller on flush", async () => {
     const chunks = await decodeDataStream([
       'b:{"toolCallId":"t1","toolName":"search"}',
