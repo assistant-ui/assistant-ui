@@ -23,23 +23,20 @@ export function useCloudChatCore(
     new DefaultChatTransport({}),
   );
   const currentTransport = transport ?? fallbackTransport.current;
-  const initialStateRef = useRef({
+  const latestStateRef = useRef({
     options: currentOptions,
     transport: currentTransport,
   });
-  initialStateRef.current = {
+  latestStateRef.current = {
     options: currentOptions,
     transport: currentTransport,
   };
 
   const core = useMemo(() => {
-    const initialState = initialStateRef.current;
-    const nextCore = new CloudChatCore(cloud, initialState.options);
-    nextCore.updateOptions(initialState.options, initialState.transport);
-    return nextCore;
+    const latestState = latestStateRef.current;
+    return new CloudChatCore(cloud, latestState.options, latestState.transport);
   }, [cloud]);
 
-  core.setChatCreationConfig(chatConfig);
   useEffect(() => {
     core.updateOptions(currentOptions, currentTransport);
   });
