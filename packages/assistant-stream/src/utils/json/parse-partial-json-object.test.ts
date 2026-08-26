@@ -274,6 +274,12 @@ describe("parsePartialJsonObject inside a unicode escape", () => {
     expect(parsePartialJsonObject(`{"\\u00e9":"v`)).toMatchObject({ é: "v" });
   });
 
+  it("keeps malformed escapes unparseable", () => {
+    expect(parsePartialJsonObject(`{"a":"\\uZZ`)).toBeUndefined();
+    expect(parsePartialJsonObject(`{"a":"\\u"}`)).toBeUndefined();
+    expect(parsePartialJsonObject(`{"a":"\\u12"}`)).toBeUndefined();
+  });
+
   it("leaves single-char escapes unchanged", () => {
     expect(parsePartialJsonObject(`{"a":"x\\n`)).toMatchObject({ a: "x\n" });
     expect(parsePartialJsonObject(`{"a":"x\\`)).toMatchObject({ a: "x" });

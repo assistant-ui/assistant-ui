@@ -354,13 +354,20 @@ export function fixJson(input: string): [string, string[]] {
       }
 
       case "INSIDE_STRING_UNICODE_ESCAPE": {
-        unicodeEscapeDigits++;
-        const complete = unicodeEscapeDigits === 4;
-        if (complete) stack.pop();
-        const parent = stack[stack.length - (complete ? 1 : 2)];
+        const parent = stack[stack.length - 2];
 
-        if (complete && parent === "INSIDE_STRING") {
-          lastValidIndex = i;
+        if (!/[0-9a-fA-F]/.test(char)) {
+          stack.pop();
+          i--;
+          break;
+        }
+
+        unicodeEscapeDigits++;
+        if (unicodeEscapeDigits === 4) {
+          stack.pop();
+          if (parent === "INSIDE_STRING") {
+            lastValidIndex = i;
+          }
         }
 
         if (parent === "INSIDE_OBJECT_KEY") {
