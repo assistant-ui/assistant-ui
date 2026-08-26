@@ -76,6 +76,26 @@ describe("registry-backed decoders", () => {
     ).toBe("Encountered tool result with unknown id: missing");
   });
 
+  it("preserves the UI Message Stream duplicate tool-call error", async () => {
+    expect(
+      await getErrorMessage(
+        decodeUIMessageStream([
+          JSON.stringify({
+            type: "tool-call-start",
+            toolCallId: "dup",
+            toolName: "search",
+          }),
+          JSON.stringify({
+            type: "tool-call-start",
+            toolCallId: "dup",
+            toolName: "search",
+          }),
+          "[DONE]",
+        ]),
+      ),
+    ).toBe("Encountered duplicate tool call id: dup");
+  });
+
   it("finishes args for an argsless complete tool call before its result", async () => {
     const chunks = await decodeDataStream([
       '9:{"toolCallId":"t1","toolName":"search"}',
