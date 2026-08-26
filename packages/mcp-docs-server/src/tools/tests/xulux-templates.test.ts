@@ -134,6 +134,33 @@ describe("assistant-ui template MCP tools", () => {
     );
   });
 
+  it("uses the fallback catalog when a live template entry is malformed", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        jsonResponse({
+          ...LIVE_CATALOG,
+          templates: [
+            {
+              id: "broken",
+              templateId: "broken",
+              kind: "template",
+            },
+          ],
+        }),
+      ),
+    );
+
+    const result = await callTool(xuluxTemplatesListTool, {});
+    expect(result.catalogDegraded).toBe(true);
+    expect(result.catalogDegradedReason).toContain(
+      "Catalog response is malformed",
+    );
+    expect(result.templates.map((t: { id: string }) => t.id)).toContain(
+      "base-assistant-ui",
+    );
+  });
+
   it("returns details and fetches exampleConfig from the selected sandbox contract", async () => {
     const fetchMock = vi.fn(async (url: string | URL) => {
       const href = String(url);

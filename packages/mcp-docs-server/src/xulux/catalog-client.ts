@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { logger } from "../utils/logger.js";
 import { FALLBACK_CATALOG, FALLBACK_NOTE } from "./fallback-catalog.js";
 import type { XuluxCatalog, XuluxCatalogResult } from "./types.js";
@@ -7,38 +8,67 @@ export const DEFAULT_CATALOG_URL =
 
 const CATALOG_TTL_MS = 5 * 60 * 1000;
 
+const catalogVersionSchema = z.looseObject({
+  id: z.string(),
+  entryId: z.string(),
+  name: z.string(),
+  description: z.string(),
+  previewUrl: z.string(),
+  downloadUrl: z.string(),
+});
+
+const catalogTemplateSchema = z.looseObject({
+  id: z.string(),
+  templateId: z.string(),
+  versionId: z.string().nullable(),
+  kind: z.enum(["template", "example"]),
+  name: z.string(),
+  summary: z.string(),
+  assistantPlacement: z.string(),
+  features: z.array(z.string()),
+  customizable: z.array(z.string()),
+  versions: z.array(catalogVersionSchema),
+  previewUrl: z.string().optional(),
+  downloadUrl: z.string().optional(),
+  sandboxBaseUrl: z.string().optional(),
+  configRoots: z.record(z.string(), z.unknown()).optional(),
+  rules: z
+    .looseObject({
+      required: z.array(z.string()),
+      unsupported: z.array(z.string()).optional(),
+    })
+    .optional(),
+  tools: z
+    .looseObject({
+      builtIn: z.array(z.unknown()),
+      customToolSupported: z.boolean(),
+      renderers: z.array(z.unknown()),
+    })
+    .optional(),
+});
+
+const catalogSchema = z.looseObject({
+  version: z.literal(1),
+  generatedAt: z.string(),
+  docsOrigin: z.string(),
+  templates: z.array(catalogTemplateSchema),
+});
+
 export function getCatalogUrl(): string {
   const override = process.env.XULUX_CATALOG_URL?.trim();
   return override || DEFAULT_CATALOG_URL;
 }
 
 function validateCatalog(data: unknown): XuluxCatalog {
-  if (!data || typeof data !== "object" || Array.isArray(data)) {
-    throw new Error("Catalog response is not a JSON object.");
-  }
-  const catalog = data as XuluxCatalog;
-  if (catalog.version !== 1) {
+  const result = catalogSchema.safeParse(data);
+  if (!result.success) {
+    const issue = result.error.issues[0];
+    const path = issue?.path.length ? ` at ${issue.path.join(".")}` : "";
     throw new Error(
-      `Unsupported catalog version: ${String(catalog.version)}. Expected 1.`,
+      `Catalog response is malformed${path}: ${issue?.message ?? "invalid catalog"}.`,
     );
   }
-  if (!Array.isArray(catalog.templates)) {
-    throw new Error("Catalog response has no templates array.");
-  }
-  for (const template of catalog.templates) {
-    if (
-      !template ||
-      typeof template !== "object" ||
-      typeof template.id !== "string" ||
-      typeof template.templateId !== "string" ||
-      (template.kind !== "template" && template.kind !== "example")
-    ) {
-      throw new Error(
-        "Catalog response contains a malformed template entry (missing id/templateId/kind).",
-      );
-    }
-  }
-  return catalog;
+  return result.data as XuluxCatalog;
 }
 
 interface CacheEntry {
