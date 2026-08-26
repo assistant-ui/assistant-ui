@@ -145,6 +145,8 @@ const useMcpAppsRemoteHost = (
     // oxlint-disable-next-line react/exhaustive-deps -- URL changes replace the host identity; pending and same-URL options are refreshed outside the memo
   }, [url]);
 
+  // A URL mismatch identifies an unpublished WIP host. React flushes its Tap
+  // commit before that host can be reused as the matching live host.
   if (optionsRef.current.url !== url) {
     hostState.updatePendingOptions(options);
   }
