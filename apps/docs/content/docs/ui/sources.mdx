@@ -5,8 +5,10 @@ platforms: ["react"]
 ---
 
 import { SourcesSample } from "@/components/pages/docs/samples/sources";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
 import { SourcesUrlSample } from "@/components/pages/docs/samples/sources/url-sources";
 import { SourcesDocumentSample } from "@/components/pages/docs/samples/sources/document-source";
+import { SourcesFaviconFallbackSample } from "@/components/pages/docs/samples/sources/favicon-fallback";
 
 <SourcesSample />
 
@@ -84,6 +86,17 @@ One source shows its supplied title. The other source uses its domain because it
 The document source uses a file icon and has no link action.
 
 <SourcesDocumentSample />
+
+### Favicon Fallback
+
+The missing local favicon changes to the `E` domain initial.
+
+<PreviewCode
+  file="components/pages/docs/samples/sources/favicon-fallback"
+  name="SourcesFaviconFallback"
+>
+  <SourcesFaviconFallbackSample />
+</PreviewCode>
 
 ## API Reference
 
