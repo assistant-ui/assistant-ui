@@ -14,6 +14,8 @@ import { ModelSelectorGroupedSample } from "@/components/pages/docs/samples/mode
 import * as ModelSelectorGroupedRadixSample from "@/components/pages/docs/samples/model-selector/provider-groups-and-availability.radix";
 import { ModelSelectorSearchSample } from "@/components/pages/docs/samples/model-selector/search-and-filter";
 import * as ModelSelectorSearchRadixSample from "@/components/pages/docs/samples/model-selector/search-and-filter.radix";
+import { ModelSelectorEffortSample } from "@/components/pages/docs/samples/model-selector/reasoning-effort";
+import * as ModelSelectorEffortRadixSample from "@/components/pages/docs/samples/model-selector/reasoning-effort.radix";
 
 A picker that lets users switch between AI models and choose a reasoning effort (thinking) level. It is built on Popover + Command, so search, provider grouping, and filtering compose in without being built in. The default export integrates with assistant-ui's `ModelContext` system, so the selection reaches your backend on every request with no extra wiring.
 
@@ -113,6 +115,14 @@ A model that declares `efforts` shows a "Thinking" row at the bottom of the popo
 ```
 
 Omit `efforts` for models without configurable reasoning. The row is hidden while such a model is selected.
+
+### Reasoning Effort
+
+Open the picker and select an effort level. The trigger shows the selected effort after the picker closes.
+
+<PreviewCode file="components/pages/docs/samples/model-selector/reasoning-effort" name="ModelSelectorWithEffort" base={<ModelSelectorEffortSample />}>
+  <ModelSelectorEffortRadixSample.ModelSelectorEffortSample />
+</PreviewCode>
 
 ### Sticky Selection
 
