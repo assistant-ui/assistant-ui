@@ -176,7 +176,11 @@ const shallowEqualValue = (first: unknown, second: unknown): boolean => {
   const keys = Object.keys(firstRecord);
   return (
     keys.length === Object.keys(secondRecord).length &&
-    keys.every((key) => Object.is(firstRecord[key], secondRecord[key]))
+    keys.every(
+      (key) =>
+        Object.hasOwn(secondRecord, key) &&
+        Object.is(firstRecord[key], secondRecord[key]),
+    )
   );
 };
 
