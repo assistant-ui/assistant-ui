@@ -95,6 +95,30 @@ describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
     expect(core.threadIds).not.toContain("stale");
   });
 
+  it("clears loading when the superseded request never settles", async () => {
+    const listFn = vi
+      .fn<() => Promise<RemoteThreadListResponse>>()
+      .mockReturnValueOnce(new Promise<never>(() => {}))
+      .mockResolvedValueOnce({
+        threads: [
+          {
+            status: "regular",
+            remoteId: "fresh",
+            externalId: "fresh",
+            title: "Fresh",
+          },
+        ],
+      });
+    const adapter = makeAdapter({ list: listFn });
+    const core = createCore(adapter);
+
+    void core.getLoadThreadsPromise();
+    await core.reload();
+
+    expect(core.threadIds).toEqual(["fresh"]);
+    expect(core.isLoading).toBe(false);
+  });
+
   it("recovers after a failed initial load", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const listFn = vi
