@@ -1,6 +1,6 @@
-import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { createTapRoot, resource, useResource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAuthConfig } from "../mcp-scope";
 import type { MCPStorage } from "./storage/types";
@@ -443,6 +443,47 @@ describe("McpServerResource connectionTimeout", () => {
 
 describe("McpServerResource connection lifecycle", () => {
   beforeEach(resetMocks);
+
+  it("replaces direct resource connections when the server id changes", async () => {
+    const storage = createStorage();
+    let updateId = (_id: string) => {};
+    const DynamicServer = resource(function useDynamicServer() {
+      const [id, setId] = useState("docs");
+      updateId = setId;
+      return useResource(
+        McpServerResource({
+          id,
+          kind: "connector",
+          name: "Docs",
+          url: "https://example.com/mcp",
+          auth: { type: "none" },
+          storage,
+          redirectUri: "https://example.com/callback",
+          autoConnect: true,
+          onRemove: vi.fn(async () => {}),
+        }),
+      );
+    });
+    const root = createTapRoot(function Root() {
+      return useResource(DynamicServer());
+    });
+
+    try {
+      await waitForResourceUpdate(() => mocks.transports.length === 1);
+      const firstTransport = mocks.transports[0];
+
+      updateId("internal-docs");
+
+      await waitForResourceUpdate(
+        () =>
+          firstTransport.close.mock.calls.length === 1 &&
+          mocks.transports.length === 2,
+      );
+      expect(root.getValue().getState().id).toBe("internal-docs");
+    } finally {
+      root.unmount();
+    }
+  });
 
   it("closes a pending connection when the resource unmounts", async () => {
     let resolveConnect!: () => void;

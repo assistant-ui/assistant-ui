@@ -66,11 +66,12 @@ const getConnectionDependencies = (
         : [auth.type];
 
   return [
+    props.id,
     props.url,
     ...authDependencies,
     props.redirectUri,
     props.cache?.defaultTtlMs,
-    props.elicitation,
+    props.elicitation !== false,
   ];
 };
 
