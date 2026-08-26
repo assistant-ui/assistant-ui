@@ -147,6 +147,43 @@ type StreamThreadRuntimeOptions = DistributiveOmit<
   "cloud" | "unstable_threadListAdapter" | "create" | "delete"
 >;
 
+type AnyCallback = (...args: any[]) => any;
+
+const useCommittedCallback = <T extends AnyCallback>(
+  callback: T | undefined,
+): T => {
+  const callbackRef = useRef(callback);
+  useEffect(() => {
+    callbackRef.current = callback;
+  }, [callback]);
+  return useCallback(
+    ((...args: Parameters<T>) => callbackRef.current!(...args)) as T,
+    [],
+  );
+};
+
+const useCommittedStreamCallbacks = (
+  options: StreamThreadRuntimeOptions,
+): StreamThreadRuntimeOptions => {
+  const onThreadId = useCommittedCallback(options.onThreadId);
+  const onCreated = useCommittedCallback(options.onCreated);
+  const onCompleted = useCommittedCallback(options.onCompleted);
+  const onTool = useCommittedCallback(options.onTool);
+  const fetch = useCommittedCallback(options.fetch);
+  const webSocketFactory = useCommittedCallback(options.webSocketFactory);
+
+  return Object.assign(
+    {},
+    options,
+    options.onThreadId !== undefined ? { onThreadId } : {},
+    options.onCreated !== undefined ? { onCreated } : {},
+    options.onCompleted !== undefined ? { onCompleted } : {},
+    options.onTool !== undefined ? { onTool } : {},
+    options.fetch !== undefined ? { fetch } : {},
+    options.webSocketFactory !== undefined ? { webSocketFactory } : {},
+  );
+};
+
 const shallowEqualValue = (first: unknown, second: unknown): boolean => {
   if (Object.is(first, second)) return true;
   if (
@@ -708,18 +745,19 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
     onThreadIdChange,
     ...options
   } = rawOptions;
+  const committedOptions = useCommittedStreamCallbacks(options);
 
   const optionsStoreRef = useRef<ReturnType<
     typeof createStreamOptionsStore
   > | null>(null);
   if (!optionsStoreRef.current) {
-    optionsStoreRef.current = createStreamOptionsStore(options);
+    optionsStoreRef.current = createStreamOptionsStore(committedOptions);
   }
   const optionsStore = optionsStoreRef.current;
 
   useEffect(() => {
-    optionsStore.update(options);
-  });
+    optionsStore.update(committedOptions);
+  }, [optionsStore, committedOptions]);
 
   const cloudAdapter = useCloudThreadListAdapter({
     cloud,

@@ -242,8 +242,9 @@ describe("useStreamRuntime thread options", () => {
     }
   });
 
-  it("does not notify threads for equivalent inline option objects", async () => {
+  it("does not notify threads for equivalent inline objects, arrays, and callbacks", async () => {
     mockUseStream.mockReturnValue(createMockStream());
+    const tool = {};
 
     const Probe = ({ revision }: { revision: number }) => {
       void revision;
@@ -251,6 +252,8 @@ describe("useStreamRuntime thread options", () => {
         apiUrl: "/workspace-a",
         defaultHeaders: { authorization: "Bearer workspace-a" },
         adapters: {},
+        tools: [tool],
+        onCompleted: () => {},
       } as never);
       return <AssistantRuntimeProvider runtime={runtime} />;
     };
@@ -265,6 +268,43 @@ describe("useStreamRuntime thread options", () => {
       await act(async () => {});
 
       expect(mockUseStream).toHaveBeenCalledTimes(callsBeforeRerender);
+    } finally {
+      view?.unmount();
+      mockUseStream.mockReset();
+    }
+  });
+
+  it("publishes nested option key changes with undefined values", async () => {
+    mockUseStream.mockReturnValue(createMockStream());
+
+    const Probe = ({ headerName }: { headerName: string }) => {
+      const runtime = useStreamRuntime({
+        apiUrl: "/workspace-a",
+        defaultHeaders: { [headerName]: undefined },
+      } as never);
+      return <AssistantRuntimeProvider runtime={runtime} />;
+    };
+
+    let view: ReturnType<typeof render> | undefined;
+    try {
+      view = render(<Probe headerName="authorization" />);
+      await waitFor(() => expect(mockUseStream).toHaveBeenCalled());
+      const callsBeforeRerender = mockUseStream.mock.calls.length;
+
+      view.rerender(<Probe headerName="x-api-key" />);
+
+      await waitFor(() =>
+        expect(mockUseStream.mock.calls.length).toBeGreaterThan(
+          callsBeforeRerender,
+        ),
+      );
+      const latestHeaders = (
+        mockUseStream.mock.calls.at(-1)![0] as {
+          defaultHeaders?: Record<string, unknown>;
+        }
+      ).defaultHeaders!;
+      expect(Object.hasOwn(latestHeaders, "x-api-key")).toBe(true);
+      expect(Object.hasOwn(latestHeaders, "authorization")).toBe(false);
     } finally {
       view?.unmount();
       mockUseStream.mockReset();
