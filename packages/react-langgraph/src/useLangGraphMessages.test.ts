@@ -933,9 +933,12 @@ describe("useLangGraphMessages", {}, () => {
     ]);
   });
 
-  it("keeps values undefined on a non-object values snapshot", async () => {
+  it("keeps the last valid values snapshot when a malformed one follows", async () => {
+    const capturedValues: unknown[] = [];
     const mockStreamCallback = mockStreamCallbackFactory([
       metadataEvent,
+      { event: "values", data: null },
+      { event: "values", data: { step: 1 } },
       { event: "values", data: null },
       { event: "values", data: 42 },
     ]);
@@ -944,6 +947,11 @@ describe("useLangGraphMessages", {}, () => {
       useLangGraphMessages({
         stream: mockStreamCallback,
         appendMessage: appendLangChainChunk,
+        eventHandlers: {
+          onValues: (values) => {
+            capturedValues.push(values);
+          },
+        },
       }),
     );
 
@@ -954,7 +962,8 @@ describe("useLangGraphMessages", {}, () => {
       );
     });
 
-    expect(result.current.values).toBeUndefined();
+    expect(result.current.values).toEqual({ step: 1 });
+    expect(capturedValues).toEqual([null, { step: 1 }, null, 42]);
   });
 
   it("does not replace tuple-accumulated messages with updates snapshots", async () => {

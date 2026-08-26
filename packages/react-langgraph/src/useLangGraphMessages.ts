@@ -358,12 +358,9 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
                 );
                 break;
               }
-              setValues(
-                chunk.data !== null && typeof chunk.data === "object"
-                  ? chunk.data
-                  : undefined,
-              );
               invokeEventCallback("onValues", onValues, chunk.data);
+              if (chunk.data === null || typeof chunk.data !== "object") break;
+              setValues(chunk.data);
               if (Array.isArray(chunk.data?.messages)) {
                 lastValuesMessages = chunk.data.messages;
                 if (hasTupleMessageEvents) {
