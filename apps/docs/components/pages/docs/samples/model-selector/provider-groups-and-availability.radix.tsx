@@ -6,7 +6,6 @@ import {
   ModelSelectorTrigger,
   ModelSelectorContent,
   ModelSelectorList,
-  ModelSelectorEmpty,
   ModelSelectorGroup,
   ModelSelectorItem,
   ModelSelectorEffort,
@@ -34,7 +33,6 @@ export function GroupedModelSelector() {
       <ModelSelectorTrigger />
       <ModelSelectorContent searchable={false}>
         <ModelSelectorList>
-          <ModelSelectorEmpty />
           <ModelSelectorGroup heading="OpenAI">
             {openaiModels.map((option) => (
               <ModelSelectorItem key={option.id} model={option} />
