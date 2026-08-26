@@ -67,15 +67,39 @@ export const toMcpContent = async (
     return result.isError ? { isError: true, content } : { content };
   }
   if (options.tool.toModelOutput) {
-    const parts = await options.tool.toModelOutput({
-      toolCallId: options.toolCallId,
-      input: options.args,
-      output: result,
-    });
-    return { content: parts.map(mapModelContentPart) };
+    try {
+      const parts = await options.tool.toModelOutput({
+        toolCallId: options.toolCallId,
+        input: options.args,
+        output: result,
+      });
+      return { content: parts.map(mapModelContentPart) };
+    } catch (e) {
+      console.warn(
+        "[assistant-ui] toModelOutput threw; falling back to default projection.",
+        e,
+      );
+    }
   }
   return { content: primitiveContent(result) };
 };
+
+type StandardSchemaLike = {
+  "~standard": {
+    version: number;
+    validate: (
+      value: unknown,
+    ) =>
+      | { issues?: readonly unknown[] | undefined }
+      | Promise<{ issues?: readonly unknown[] | undefined }>;
+  };
+};
+
+const isStandardSchema = (schema: unknown): schema is StandardSchemaLike =>
+  typeof schema === "object" &&
+  schema !== null &&
+  "~standard" in schema &&
+  (schema as StandardSchemaLike)["~standard"].version === 1;
 
 export const toWebMcpTool = (
   name: string,
@@ -91,6 +115,22 @@ export const toWebMcpTool = (
     const abortSignal = context?.signal;
     const toolCallId = crypto.randomUUID();
     try {
+      let executeFn = tool.execute;
+      if (isStandardSchema(tool.parameters)) {
+        let validation = tool.parameters["~standard"].validate(args);
+        if (validation instanceof Promise) validation = await validation;
+        if (validation.issues) {
+          const issues = validation.issues;
+          executeFn =
+            tool.experimental_onSchemaValidationError ??
+            (() => {
+              throw new Error(
+                `Function parameter validation failed. ${JSON.stringify(issues)}`,
+              );
+            });
+        }
+      }
+
       const decision = await approvalGate({
         toolName: name,
         tool,
@@ -111,7 +151,7 @@ export const toWebMcpTool = (
         );
       }
 
-      const result = await tool.execute?.(args, {
+      const result = await executeFn?.(args, {
         toolCallId,
         abortSignal: abortSignal ?? new AbortController().signal,
         human: () =>

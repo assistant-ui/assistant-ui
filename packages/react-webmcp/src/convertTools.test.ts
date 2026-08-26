@@ -160,6 +160,47 @@ describe("toWebMcpTool", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it("rejects args failing Standard Schema validation without running the tool", async () => {
+    const execute = vi.fn(async () => "never");
+    const descriptor = toWebMcpTool(
+      "t",
+      () =>
+        frontendTool({
+          parameters: z.object({ city: z.string() }),
+          execute,
+        }),
+      approveAllGate,
+    );
+
+    const result = await descriptor.execute({ city: 42 });
+    expect(result.isError).toBe(true);
+    expect(result.content[0]).toMatchObject({
+      type: "text",
+      text: expect.stringContaining("validation failed"),
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("routes validation failures to experimental_onSchemaValidationError when present", async () => {
+    const execute = vi.fn(async () => "never");
+    const onSchemaValidationError = vi.fn(async () => "recovered");
+    const descriptor = toWebMcpTool(
+      "t",
+      () =>
+        frontendTool({
+          parameters: z.object({ city: z.string() }),
+          execute,
+          experimental_onSchemaValidationError: onSchemaValidationError,
+        } as Partial<Tool<any, any>>),
+      approveAllGate,
+    );
+
+    const result = await descriptor.execute({ city: 42 });
+    expect(result).toEqual({ content: [{ type: "text", text: "recovered" }] });
+    expect(onSchemaValidationError).toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("maps a throwing approval gate to an isError result without running the tool", async () => {
     const execute = vi.fn(async () => "never");
     const throwingGate: WebMcpApprovalGate = async () => {
@@ -291,6 +332,26 @@ describe("toMcpContent", () => {
     ).resolves.toEqual({
       content: [{ type: "text", text: "20 degrees" }],
     });
+  });
+
+  it("falls back to the default projection when toModelOutput throws", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const tool = frontendTool({
+      toModelOutput: async () => {
+        throw new Error("projection failed");
+      },
+    });
+
+    await expect(
+      toMcpContent("done", { tool, toolCallId: "c", args: {} }),
+    ).resolves.toEqual({
+      content: [{ type: "text", text: "done" }],
+    });
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining("toModelOutput threw"),
+      expect.anything(),
+    );
+    warn.mockRestore();
   });
 
   it("prefers ToolResponse modelContent over toModelOutput", async () => {
