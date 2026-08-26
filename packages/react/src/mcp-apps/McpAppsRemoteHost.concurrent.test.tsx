@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 
-import { act, render } from "@testing-library/react";
+import { act, render, waitFor } from "@testing-library/react";
 import { useResource } from "@assistant-ui/tap";
 import {
   startTransition,
@@ -140,5 +140,76 @@ describe("McpAppsRemoteHost concurrent rendering", () => {
     });
 
     view.unmount();
+  });
+
+  it("refreshes pending options when a URL switch render retries", async () => {
+    let authorization = "Bearer workspace-b-old";
+    let resumed = false;
+    let resume: (() => void) | undefined;
+    const pending = new Promise<void>((resolve) => {
+      resume = () => {
+        resumed = true;
+        resolve();
+      };
+    });
+    const fetch = vi.fn(async () => Response.json({ content: [] }));
+
+    const Probe = ({ url }: { url: string }) => {
+      const host = useResource(
+        McpAppsRemoteHost({
+          url,
+          fetch,
+          headers: {
+            authorization:
+              url === "/workspace-a/mcp" ? "Bearer workspace-a" : authorization,
+          },
+        }),
+      );
+      useLayoutEffect(() => {
+        void host.callTool({ name: "layout-request" });
+      }, [host]);
+      if (url === "/workspace-b/mcp" && !resumed) throw pending;
+      return <span>{url}</span>;
+    };
+
+    const view = render(
+      <Suspense fallback={null}>
+        <Probe url="/workspace-a/mcp" />
+      </Suspense>,
+    );
+    try {
+      fetch.mockClear();
+
+      act(() => {
+        startTransition(() => {
+          view.rerender(
+            <Suspense fallback={null}>
+              <Probe url="/workspace-b/mcp" />
+            </Suspense>,
+          );
+        });
+      });
+      expect(view.container.textContent).toBe("/workspace-a/mcp");
+
+      authorization = "Bearer workspace-b-new";
+      await act(async () => resume?.());
+      await waitFor(() =>
+        expect(view.container.textContent).toBe("/workspace-b/mcp"),
+      );
+
+      expect(fetch).toHaveBeenCalledWith("/workspace-b/mcp", {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: "Bearer workspace-b-new",
+        },
+        body: JSON.stringify({
+          method: "tools/call",
+          params: { name: "layout-request" },
+        }),
+      });
+    } finally {
+      view.unmount();
+    }
   });
 });

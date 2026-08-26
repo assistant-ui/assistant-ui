@@ -117,11 +117,11 @@ const useMcpAppsRemoteHost = (
 
   const url = options.url;
 
-  return useMemo((): McpAppsHost => {
-    const initialOptions = options;
+  const hostState = useMemo(() => {
+    let pendingOptions = options;
     const getCurrentOptions = () =>
-      optionsRef.current.url === url ? optionsRef.current : initialOptions;
-    return {
+      optionsRef.current.url === url ? optionsRef.current : pendingOptions;
+    const host: McpAppsHost = {
       loadResource: async (params) => {
         const options = getCurrentOptions();
         return parseMcpAppResource(
@@ -136,8 +136,20 @@ const useMcpAppsRemoteHost = (
       listResources: (params) =>
         postToHost(getCurrentOptions(), "resources/list", params),
     };
-    // oxlint-disable-next-line react/exhaustive-deps -- URL changes replace the host identity; same-URL options flow through optionsRef after commit
+    return {
+      host,
+      updatePendingOptions: (next: McpAppsRemoteHostOptions) => {
+        pendingOptions = next;
+      },
+    };
+    // oxlint-disable-next-line react/exhaustive-deps -- URL changes replace the host identity; pending and same-URL options are refreshed outside the memo
   }, [url]);
+
+  if (optionsRef.current.url !== url) {
+    hostState.updatePendingOptions(options);
+  }
+
+  return hostState.host;
 };
 
 export const McpAppsRemoteHost = resource(useMcpAppsRemoteHost);
