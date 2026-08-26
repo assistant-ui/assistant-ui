@@ -116,21 +116,51 @@ type FileIconDisplayProps = React.ComponentProps<"span"> & {
   mimeType?: string;
 };
 
+function MimeTypeIcon({
+  mimeType,
+  className,
+}: {
+  mimeType?: string;
+  className?: string;
+}) {
+  if (!mimeType) {
+    return <FileIcon className={className} />;
+  }
+  const type = mimeType.toLowerCase();
+  if (type.startsWith("image/")) {
+    return <ImageIcon className={className} />;
+  }
+  if (type === "application/pdf") {
+    return <FileTextIcon className={className} />;
+  }
+  if (type === "application/json") {
+    return <BracesIcon className={className} />;
+  }
+  if (type.startsWith("text/")) {
+    return <FileTextIcon className={className} />;
+  }
+  if (type.startsWith("audio/")) {
+    return <MusicIcon className={className} />;
+  }
+  if (type.startsWith("video/")) {
+    return <VideoIcon className={className} />;
+  }
+  return <FileIcon className={className} />;
+}
+
 function FileIconDisplay({
   mimeType,
   className,
   children,
   ...props
 }: FileIconDisplayProps) {
-  const IconComponent = mimeType ? getMimeTypeIcon(mimeType) : FileIcon;
-
   return (
     <span
       data-slot="file-icon"
       className={cn("text-muted-foreground shrink-0", className)}
       {...props}
     >
-      {children ?? <IconComponent className="size-5" />}
+      {children ?? <MimeTypeIcon mimeType={mimeType} className="size-5" />}
     </span>
   );
 }
