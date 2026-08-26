@@ -5,9 +5,6 @@ import {
   ModelSelectorRoot,
   ModelSelectorTrigger,
   ModelSelectorContent,
-  ModelSelectorList,
-  ModelSelectorItem,
-  ModelSelectorEffort,
   type ModelOption,
 } from "@/components/assistant-ui/model-selector.radix";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
@@ -35,15 +32,8 @@ export function ModelSelectorWithEffort() {
       effort={effort}
       onEffortChange={setEffort}
     >
-      <ModelSelectorTrigger className="w-[204px]" />
-      <ModelSelectorContent searchable={false}>
-        <ModelSelectorList>
-          {models.map((option) => (
-            <ModelSelectorItem key={option.id} model={option} />
-          ))}
-        </ModelSelectorList>
-        <ModelSelectorEffort />
-      </ModelSelectorContent>
+      <ModelSelectorTrigger className="min-w-[204px]" />
+      <ModelSelectorContent />
     </ModelSelectorRoot>
   );
 }
