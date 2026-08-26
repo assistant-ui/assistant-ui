@@ -846,6 +846,7 @@ describe("useLangGraphMessages", {}, () => {
 
   it("keeps streaming after messages events with null payloads", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    onTestFinished(() => warnSpy.mockRestore());
     const mockStreamCallback = mockStreamCallbackFactory([
       metadataEvent,
       { event: "messages/partial", data: null },
@@ -889,11 +890,11 @@ describe("useLangGraphMessages", {}, () => {
       "Received invalid messages tuple format:",
       null,
     );
-    warnSpy.mockRestore();
   });
 
   it("does not latch the tuple mode on a malformed messages event", async () => {
     const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
+    onTestFinished(() => warnSpy.mockRestore());
     const mockStreamCallback = mockStreamCallbackFactory([
       metadataEvent,
       { event: "messages", data: null },
@@ -930,7 +931,6 @@ describe("useLangGraphMessages", {}, () => {
     expect(result.current.messages.map((m) => m.content)).toEqual([
       "first second",
     ]);
-    warnSpy.mockRestore();
   });
 
   it("does not replace tuple-accumulated messages with updates snapshots", async () => {
