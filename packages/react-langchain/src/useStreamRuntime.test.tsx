@@ -229,11 +229,16 @@ describe("useStreamRuntime thread options", () => {
       </Suspense>,
     );
 
+    act(() => rerenderStream?.());
+
     await waitFor(() =>
       expect(
         mockUseStream.mock.calls.at(-1)?.[0] as { apiUrl?: string },
       ).toMatchObject({ apiUrl: "/workspace-b" }),
     );
+
+    view.unmount();
+    mockUseStream.mockReset();
   });
 
   it("keeps stream options isolated between mounted threads", async () => {

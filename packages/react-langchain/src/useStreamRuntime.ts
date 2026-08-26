@@ -1,14 +1,7 @@
 /// <reference types="@assistant-ui/core/store" />
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AppendMessage, ToolExecutionStatus } from "@assistant-ui/core";
 import {
   generateId,
@@ -142,47 +135,12 @@ type DistributiveOmit<T, K extends keyof any> = T extends unknown
   ? Omit<T, K>
   : never;
 
-type StreamThreadRuntimeOptions = DistributiveOmit<
-  UseStreamRuntimeOptions,
-  "cloud" | "unstable_threadListAdapter" | "create" | "delete"
->;
-
-const shallowEqualOptions = (
-  first: StreamThreadRuntimeOptions,
-  second: StreamThreadRuntimeOptions,
+const useStreamThreadRuntime = (
+  options: DistributiveOmit<
+    UseStreamRuntimeOptions,
+    "cloud" | "unstable_threadListAdapter" | "create" | "delete"
+  >,
 ) => {
-  const firstKeys = Object.keys(first);
-  const secondKeys = Object.keys(second);
-  return (
-    firstKeys.length === secondKeys.length &&
-    firstKeys.every((key) =>
-      Object.is(
-        first[key as keyof StreamThreadRuntimeOptions],
-        second[key as keyof StreamThreadRuntimeOptions],
-      ),
-    )
-  );
-};
-
-const createStreamOptionsStore = (initial: StreamThreadRuntimeOptions) => {
-  let current = initial;
-  const listeners = new Set<() => void>();
-
-  return {
-    getSnapshot: () => current,
-    subscribe: (listener: () => void) => {
-      listeners.add(listener);
-      return () => listeners.delete(listener);
-    },
-    update: (next: StreamThreadRuntimeOptions) => {
-      if (shallowEqualOptions(current, next)) return;
-      current = next;
-      for (const listener of listeners) listener();
-    },
-  };
-};
-
-const useStreamThreadRuntime = (options: StreamThreadRuntimeOptions) => {
   const { adapters, autoCancelPendingToolCalls, unstable_allowCancellation } =
     options;
   const aui = useAui();
@@ -676,16 +634,10 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
     ...options
   } = rawOptions;
 
-  const optionsStoreRef = useRef<ReturnType<
-    typeof createStreamOptionsStore
-  > | null>(null);
-  if (!optionsStoreRef.current) {
-    optionsStoreRef.current = createStreamOptionsStore(options);
-  }
-  const optionsStore = optionsStoreRef.current;
+  const optionsRef = useRef(options);
 
   useEffect(() => {
-    optionsStore.update(options);
+    optionsRef.current = options;
   });
 
   const cloudAdapter = useCloudThreadListAdapter({
@@ -697,16 +649,7 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
 
   return useRemoteThreadListRuntime({
     runtimeHook: function RuntimeHook() {
-      const committedOptions = useSyncExternalStore(
-        optionsStore.subscribe,
-        optionsStore.getSnapshot,
-        optionsStore.getSnapshot,
-      );
-      const threadOptions = useMemo(
-        () => Object.assign({}, committedOptions),
-        [committedOptions],
-      );
-      return useStreamThreadRuntime(threadOptions);
+      return useStreamThreadRuntime(optionsRef.current);
     },
     adapter,
     allowNesting: true,
