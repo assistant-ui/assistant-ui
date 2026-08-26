@@ -837,12 +837,19 @@ function collectModuleSpecifiers(file: RegistryOutputFile) {
 }
 
 function getLocalComponentCandidates(specifier: string) {
-  if (!specifier.startsWith("@/components/")) return null;
+  if (
+    !specifier.startsWith("@/components/") &&
+    !specifier.startsWith("@/hooks/")
+  )
+    return null;
 
   const componentPath = specifier.replace(/[?#].*$/, "").slice(2);
   const extension = path.extname(componentPath);
   if (EXPLICIT_EXTENSIONS.has(extension.toLowerCase())) return [componentPath];
-  if (!extension) return [`${componentPath}.tsx`];
+  if (!extension)
+    return MODULE_EXTENSIONS.map(
+      (moduleExtension) => `${componentPath}${moduleExtension}`,
+    );
 
   return [
     componentPath,
