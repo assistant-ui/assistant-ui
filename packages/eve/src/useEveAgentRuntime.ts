@@ -241,18 +241,22 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const sendEpochRef = useRef(0);
   // A cancel drops the queued send but keeps its draft for a later promotion;
   // only a reset discards the draft with the session, so the two need separate
-  // counters.
+  // counters. A queued read has no draft and outlives a cancel, so it waits on
+  // the reset counter instead.
   const resetEpochRef = useRef(0);
   const isMountedRef = useRef(true);
   const runtimeRef = useRef<ReturnType<typeof useExternalStoreRuntime> | null>(
     null,
   );
 
-  const enqueueSend = (dispatch: () => Promise<void>) => {
-    const epoch = sendEpochRef.current;
+  const enqueueSend = (
+    dispatch: () => Promise<void>,
+    epochRef: { current: number } = sendEpochRef,
+  ) => {
+    const epoch = epochRef.current;
     const next = sendChainRef.current.then(() => {
-      if (epoch !== sendEpochRef.current)
-        throw isMountedRef.current ? sendCancelledError : sendAbandonedError;
+      if (!isMountedRef.current) throw sendAbandonedError;
+      if (epoch !== epochRef.current) throw sendCancelledError;
       return dispatch();
     });
     sendChainRef.current = next.catch(() => {});
@@ -441,17 +445,19 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       ? {
           onRefetchThread: () =>
             // `resume()` rejects during a turn, so the replay rides the send
-            // chain like every other dispatch and runs once the turn parks.
-            // Upstream shares one replay across concurrent `resume()` calls, so
-            // a refetch dispatched while `resume: true` is replaying on mount
-            // joins that read instead of taking a fresh one. The session is
-            // read at dispatch time because nothing durable exists before the
-            // first send lands.
+            // chain like every other dispatch and runs once the turn parks; a
+            // cancel of that turn does not drop it, or the caller would be told
+            // the thread was refetched when it was not. Upstream shares one
+            // replay across concurrent `resume()` calls, so a refetch
+            // dispatched while `resume: true` is replaying on mount joins that
+            // read instead of taking a fresh one. The session is read at
+            // dispatch time because nothing durable exists before the first
+            // send lands.
             enqueueSend(async () => {
               const live = agentRef.current;
               if (live.session === undefined) return;
               await live.resume();
-            }).catch((error) => {
+            }, resetEpochRef).catch((error) => {
               if (isDroppedSend(error)) return;
               throw error;
             }),

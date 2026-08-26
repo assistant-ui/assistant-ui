@@ -1933,7 +1933,7 @@ describe("useEveAgentRuntime thread refetch", () => {
     expect(resume).toHaveBeenCalledTimes(1);
   });
 
-  it("drops a queued refetch when the run is cancelled before it dispatches", async () => {
+  it("still replays a queued refetch when the run it waited on is cancelled", async () => {
     let resolveSend!: () => void;
     const send = vi.fn(
       () =>
@@ -1941,7 +1941,7 @@ describe("useEveAgentRuntime thread refetch", () => {
           resolveSend = resolve;
         }),
     );
-    const resume = vi.fn();
+    const resume = vi.fn().mockResolvedValue(undefined);
     const cancel = vi.fn().mockResolvedValue({ status: "cancelled" });
     const agent = createAgent({ session, resume, send, cancel });
     mockUseEveAgent.mockReturnValue(agent as never);
@@ -1961,6 +1961,42 @@ describe("useEveAgentRuntime thread refetch", () => {
         settled = true;
       });
       result.current.thread.cancelRun();
+    });
+    await act(async () => {
+      resolveSend();
+    });
+
+    await waitFor(() => expect(settled).toBe(true));
+    expect(resume).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a queued refetch when the session is reset before it dispatches", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    const resume = vi.fn();
+    const agent = createAgent({ session, resume, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    let settled = false;
+    await act(async () => {
+      void result.current.threads.reloadMainThread().then(() => {
+        settled = true;
+      });
+      eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
     });
     await act(async () => {
       resolveSend();
