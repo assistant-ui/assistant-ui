@@ -1,5 +1,4 @@
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
-import type { ToolCallStreamController } from "../../modules/tool-call";
 import { AssistantTransformStream } from "../../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
 import { type DataStreamChunk, DataStreamStreamChunkType } from "./chunk-types";
@@ -13,6 +12,7 @@ import {
   AssistantMetaTransformStream,
 } from "../../utils/stream/AssistantMetaTransformStream";
 import type { AssistantStreamEncoder } from "../../AssistantStream";
+import { createToolCallPartRegistry } from "../tool-call-part-registry";
 
 type DataStreamOptions = {
   strict?: boolean | undefined;
@@ -287,7 +287,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
   constructor(options: DataStreamOptions = {}) {
     const strict = options.strict ?? true;
     super((readable) => {
-      const toolCallControllers = new Map<string, ToolCallStreamController>();
+      const toolCallPartRegistry = createToolCallPartRegistry();
       const closedToolCallArgs = new Set<string>();
       const warnedDroppedArgs = new Set<string>();
       const loggedDrops = new Set<string>();
@@ -297,11 +297,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
         console.error(message);
       };
       const closeOpenToolCallArgs = () => {
-        for (const [toolCallId, toolCallController] of toolCallControllers) {
-          if (closedToolCallArgs.has(toolCallId)) continue;
-          toolCallController.argsText.close();
-          closedToolCallArgs.add(toolCallId);
-        }
+        toolCallPartRegistry.closeOpenArgsText(closedToolCallArgs);
       };
       const transform = new AssistantTransformStream<DataStreamChunk>({
         strict,
@@ -350,7 +346,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 ? controller.withParentId(parentId)
                 : controller;
 
-              if (toolCallControllers.has(toolCallId)) {
+              if (toolCallPartRegistry.has(toolCallId)) {
                 if (strict)
                   throw new Error(
                     `Encountered duplicate tool call id: ${toolCallId}`,
@@ -362,11 +358,12 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 break;
               }
 
-              const toolCallController = ctrl.addToolCallPart({
-                toolCallId,
-                toolName,
-              });
-              toolCallControllers.set(toolCallId, toolCallController);
+              toolCallPartRegistry.start(toolCallId, () =>
+                ctrl.addToolCallPart({
+                  toolCallId,
+                  toolName,
+                }),
+              );
               break;
             }
 
@@ -381,8 +378,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 }
                 break;
               }
-              const toolCallController = toolCallControllers.get(toolCallId);
-              if (!toolCallController) {
+              if (!toolCallPartRegistry.has(toolCallId)) {
                 if (strict)
                   throw new Error(
                     `Encountered tool call with unknown id: ${toolCallId}`,
@@ -394,10 +390,10 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 break;
               }
               if (argsTextDelta.length > 0) {
-                toolCallController.argsText.append(argsTextDelta);
+                toolCallPartRegistry.appendArgsText(toolCallId, argsTextDelta);
               }
               if (isFinal === true) {
-                toolCallController.argsText.close();
+                toolCallPartRegistry.closeArgsText(toolCallId);
                 closedToolCallArgs.add(toolCallId);
               }
               break;
@@ -405,8 +401,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
 
             case DataStreamStreamChunkType.ToolCallResult: {
               const { toolCallId, artifact, result, isError } = value;
-              const toolCallController = toolCallControllers.get(toolCallId);
-              if (!toolCallController) {
+              if (!toolCallPartRegistry.has(toolCallId)) {
                 if (strict)
                   throw new Error(
                     `Encountered tool call result with unknown id: ${toolCallId}`,
@@ -417,11 +412,18 @@ export class DataStreamDecoder extends PipeableTransformStream<
                 );
                 break;
               }
-              toolCallController.setResponse({
-                artifact,
-                result,
-                isError,
-              });
+              toolCallPartRegistry.setResponse(
+                toolCallId,
+                {
+                  artifact,
+                  result,
+                  isError,
+                },
+                () =>
+                  new Error(
+                    `Encountered tool call result with unknown id: ${toolCallId}`,
+                  ),
+              );
               closedToolCallArgs.add(toolCallId);
               break;
             }
@@ -429,16 +431,16 @@ export class DataStreamDecoder extends PipeableTransformStream<
             case DataStreamStreamChunkType.ToolCall: {
               const { toolCallId, toolName, args } = value;
 
-              let toolCallController = toolCallControllers.get(toolCallId);
-              if (toolCallController) {
-                toolCallController.argsText.close();
+              if (toolCallPartRegistry.has(toolCallId)) {
+                toolCallPartRegistry.closeArgsText(toolCallId);
               } else {
-                toolCallController = controller.addToolCallPart({
-                  toolCallId,
-                  toolName,
-                  args,
-                });
-                toolCallControllers.set(toolCallId, toolCallController);
+                toolCallPartRegistry.start(toolCallId, () =>
+                  controller.addToolCallPart({
+                    toolCallId,
+                    toolName,
+                    args,
+                  }),
+                );
               }
               closedToolCallArgs.add(toolCallId);
               break;
@@ -551,8 +553,7 @@ export class DataStreamDecoder extends PipeableTransformStream<
         },
         flush() {
           closeOpenToolCallArgs();
-          toolCallControllers.forEach((controller) => controller.close());
-          toolCallControllers.clear();
+          toolCallPartRegistry.closeAll();
         },
       });
 

@@ -1,7 +1,5 @@
 import sjson from "secure-json-parse";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
-import type { ToolCallStreamController } from "../../modules/tool-call";
-import type { TextStreamController } from "../../modules/text";
 import { AssistantTransformStream } from "../../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
 import {
@@ -14,6 +12,7 @@ import type {
 } from "./chunk-types";
 import { generateId } from "../../utils/generateId";
 import type { ReadonlyJSONValue } from "../../../utils/json/json-value";
+import { createToolCallPartRegistry } from "../tool-call-part-registry";
 
 export type { UIMessageStreamChunk, UIMessageStreamDataChunk };
 
@@ -39,8 +38,8 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
 > {
   constructor(options: UIMessageStreamDecoderOptions = {}) {
     super((readable) => {
-      const toolCallControllers = new Map<string, ToolCallStreamController>();
-      let activeToolCallArgsText: TextStreamController | undefined;
+      const toolCallPartRegistry = createToolCallPartRegistry();
+      let activeToolCallId: string | undefined;
       let currentMessageId: string | undefined;
       let receivedDone = false;
       type PendingTool = {
@@ -151,52 +150,55 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               break;
 
             case "tool-call-start": {
-              activeToolCallArgsText?.close();
-              activeToolCallArgsText = undefined;
-
-              if (toolCallControllers.has(chunk.toolCallId)) {
-                throw new Error(
-                  `Encountered duplicate tool call id: ${chunk.toolCallId}`,
-                );
+              if (activeToolCallId !== undefined) {
+                toolCallPartRegistry.closeArgsText(activeToolCallId);
+                activeToolCallId = undefined;
               }
 
-              const toolCallController = controller.addToolCallPart({
-                toolCallId: chunk.toolCallId,
-                toolName: chunk.toolName,
-              });
-              toolCallControllers.set(chunk.toolCallId, toolCallController);
-              activeToolCallArgsText = toolCallController.argsText;
+              toolCallPartRegistry.start(chunk.toolCallId, () =>
+                controller.addToolCallPart({
+                  toolCallId: chunk.toolCallId,
+                  toolName: chunk.toolName,
+                }),
+              );
+              activeToolCallId = chunk.toolCallId;
               break;
             }
 
             case "tool-call-delta":
-              activeToolCallArgsText?.append(chunk.argsText);
+              if (activeToolCallId !== undefined) {
+                toolCallPartRegistry.appendArgsText(
+                  activeToolCallId,
+                  chunk.argsText,
+                );
+              }
               break;
 
             case "tool-call-end":
-              activeToolCallArgsText?.close();
-              activeToolCallArgsText = undefined;
+              if (activeToolCallId !== undefined) {
+                toolCallPartRegistry.closeArgsText(activeToolCallId);
+                activeToolCallId = undefined;
+              }
               break;
 
             case "tool-result": {
-              const toolCallController = toolCallControllers.get(
+              if (chunk.toolCallId === activeToolCallId) {
+                activeToolCallId = undefined;
+              }
+              toolCallPartRegistry.setResponse(
                 chunk.toolCallId,
+                {
+                  result: chunk.result,
+                  isError: chunk.isError ?? false,
+                  ...(chunk.messages !== undefined
+                    ? { messages: chunk.messages }
+                    : {}),
+                },
+                () =>
+                  new Error(
+                    `Encountered tool result with unknown id: ${chunk.toolCallId}`,
+                  ),
               );
-              if (!toolCallController) {
-                throw new Error(
-                  `Encountered tool result with unknown id: ${chunk.toolCallId}`,
-                );
-              }
-              if (toolCallController.argsText === activeToolCallArgsText) {
-                activeToolCallArgsText = undefined;
-              }
-              toolCallController.setResponse({
-                result: chunk.result,
-                isError: chunk.isError ?? false,
-                ...(chunk.messages !== undefined
-                  ? { messages: chunk.messages }
-                  : {}),
-              });
               break;
             }
 
@@ -241,9 +243,10 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
           }
         },
         flush() {
-          activeToolCallArgsText?.close();
-          toolCallControllers.forEach((ctrl) => ctrl.close());
-          toolCallControllers.clear();
+          if (activeToolCallId !== undefined) {
+            toolCallPartRegistry.closeArgsText(activeToolCallId);
+          }
+          toolCallPartRegistry.closeAll();
         },
       });
 
