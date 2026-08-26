@@ -1,6 +1,12 @@
 "use client";
 
-import { type PropsWithChildren, useEffect, useState, type FC } from "react";
+import {
+  type PropsWithChildren,
+  useMemo,
+  useState,
+  useSyncExternalStore,
+  type FC,
+} from "react";
 import {
   XIcon,
   PlusIcon,
@@ -36,26 +42,47 @@ import {
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { cn } from "@/lib/utils";
 
+type FileSrcStore = {
+  subscribe: (onStoreChange: () => void) => () => void;
+  getSnapshot: () => string | undefined;
+};
+
+const emptyFileSrcStore: FileSrcStore = {
+  subscribe: () => () => {},
+  getSnapshot: () => undefined,
+};
+
+const createFileSrcStore = (file: File | undefined): FileSrcStore => {
+  if (!file) return emptyFileSrcStore;
+
+  let objectUrl: string | undefined;
+  let subscriberCount = 0;
+
+  return {
+    subscribe: (onStoreChange: () => void) => {
+      subscriberCount += 1;
+      if (subscriberCount === 1) objectUrl = URL.createObjectURL(file);
+      onStoreChange();
+
+      return () => {
+        subscriberCount -= 1;
+        if (subscriberCount === 0 && objectUrl) {
+          URL.revokeObjectURL(objectUrl);
+          objectUrl = undefined;
+        }
+      };
+    },
+    getSnapshot: () => objectUrl,
+  };
+};
+
 const useFileSrc = (file: File | undefined) => {
-  const [src, setSrc] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    if (!file) return;
-
-    const objectUrl = URL.createObjectURL(file);
-    let isActive = true;
-    // The active setup publishes the URL after StrictMode's simulated cleanup.
-    queueMicrotask(() => {
-      if (isActive) setSrc(objectUrl);
-    });
-
-    return () => {
-      isActive = false;
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [file]);
-
-  return file ? src : undefined;
+  const store = useMemo(() => createFileSrcStore(file), [file]);
+  return useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    emptyFileSrcStore.getSnapshot,
+  );
 };
 
 const useAttachmentSrc = () => {
