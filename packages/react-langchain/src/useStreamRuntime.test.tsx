@@ -197,48 +197,76 @@ describe("useStreamRuntime thread options", () => {
         <Probe apiUrl="/workspace-a" suspend={false} />
       </Suspense>,
     );
-    await waitFor(() =>
-      expect(
-        mockUseStream.mock.calls.some(
-          ([options]) =>
-            (options as { apiUrl?: string }).apiUrl === "/workspace-a",
-        ),
-      ).toBe(true),
-    );
+    try {
+      await waitFor(() =>
+        expect(
+          mockUseStream.mock.calls.some(
+            ([options]) =>
+              (options as { apiUrl?: string }).apiUrl === "/workspace-a",
+          ),
+        ).toBe(true),
+      );
 
-    act(() => {
-      startTransition(() => {
-        view.rerender(
-          <Suspense fallback={null}>
-            <Probe apiUrl="/workspace-b" suspend />
-          </Suspense>,
-        );
+      act(() => {
+        startTransition(() => {
+          view.rerender(
+            <Suspense fallback={null}>
+              <Probe apiUrl="/workspace-b" suspend />
+            </Suspense>,
+          );
+        });
       });
-    });
-    expect(view.container.textContent).toBe("/workspace-a");
+      expect(view.container.textContent).toBe("/workspace-a");
 
-    act(() => rerenderStream?.());
+      act(() => rerenderStream?.());
 
-    expect(
-      mockUseStream.mock.calls.at(-1)?.[0] as { apiUrl?: string },
-    ).toMatchObject({ apiUrl: "/workspace-a" });
-
-    view.rerender(
-      <Suspense fallback={null}>
-        <Probe apiUrl="/workspace-b" suspend={false} />
-      </Suspense>,
-    );
-
-    act(() => rerenderStream?.());
-
-    await waitFor(() =>
       expect(
         mockUseStream.mock.calls.at(-1)?.[0] as { apiUrl?: string },
-      ).toMatchObject({ apiUrl: "/workspace-b" }),
-    );
+      ).toMatchObject({ apiUrl: "/workspace-a" });
 
-    view.unmount();
-    mockUseStream.mockReset();
+      view.rerender(
+        <Suspense fallback={null}>
+          <Probe apiUrl="/workspace-b" suspend={false} />
+        </Suspense>,
+      );
+
+      await waitFor(() =>
+        expect(
+          mockUseStream.mock.calls.at(-1)?.[0] as { apiUrl?: string },
+        ).toMatchObject({ apiUrl: "/workspace-b" }),
+      );
+    } finally {
+      view.unmount();
+      mockUseStream.mockReset();
+    }
+  });
+
+  it("does not notify threads for equivalent inline option objects", async () => {
+    mockUseStream.mockReturnValue(createMockStream());
+
+    const Probe = ({ revision }: { revision: number }) => {
+      void revision;
+      const runtime = useStreamRuntime({
+        apiUrl: "/workspace-a",
+        defaultHeaders: { authorization: "Bearer workspace-a" },
+        adapters: {},
+      } as never);
+      return <AssistantRuntimeProvider runtime={runtime} />;
+    };
+
+    const view = render(<Probe revision={0} />);
+    try {
+      await waitFor(() => expect(mockUseStream).toHaveBeenCalled());
+      const callsBeforeRerender = mockUseStream.mock.calls.length;
+
+      view.rerender(<Probe revision={1} />);
+      await act(async () => {});
+
+      expect(mockUseStream).toHaveBeenCalledTimes(callsBeforeRerender);
+    } finally {
+      view.unmount();
+      mockUseStream.mockReset();
+    }
   });
 
   it("keeps stream options isolated between mounted threads", async () => {
