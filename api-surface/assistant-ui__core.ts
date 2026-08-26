@@ -872,7 +872,7 @@ type BaseThreadMessage = {
   readonly attachments?: ThreadUserMessage["attachments"];
 };
 
-declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
+declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements ThreadRuntimeCore {
   #private;
   protected readonly repository: MessageRepository;
   abstract get adapters(): BaseThreadAdapters | undefined;
@@ -912,9 +912,7 @@ declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   } | undefined;
   getBranches(messageId: string): string[];
   switchToBranch(branchId: string): void;
-  protected _notifySubscribers(): void;
   _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): void;
-  subscribe(callback: () => void): Unsubscribe$1;
   submitFeedback(_param1: SubmitFeedbackOptions): void;
   speech: SpeechState | undefined;
   speak(messageId: string): void;
@@ -1788,7 +1786,7 @@ type ExternalStoreThreadListAdapter = {
   onDelete?: ((threadId: string) => Promise<void> | void) | undefined;
 };
 
-declare class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore {
+declare class ExternalStoreThreadListRuntimeCore extends BaseSubscribable implements ThreadListRuntimeCore {
   #private;
   get isLoading(): boolean;
   get newThreadId(): undefined;
@@ -1818,7 +1816,6 @@ declare class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCor
     externalId: string | undefined;
   }>;
   generateTitle(): never;
-  subscribe(callback: () => void): Unsubscribe$1;
 }
 
 declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore implements ThreadRuntimeCore {
