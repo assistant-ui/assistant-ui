@@ -1,4 +1,4 @@
-import { useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { resource } from "@assistant-ui/tap";
 import type {
   McpAppResource,
@@ -111,7 +111,9 @@ const useMcpAppsRemoteHost = (
   options: McpAppsRemoteHostOptions,
 ): McpAppsHost => {
   const optionsRef = useRef(options);
-  optionsRef.current = options;
+  useEffect(() => {
+    optionsRef.current = options;
+  });
 
   const url = options.url;
 
