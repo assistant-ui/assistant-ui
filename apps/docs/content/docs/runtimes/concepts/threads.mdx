@@ -268,7 +268,7 @@ How the refetch happens depends on the runtime, in one of three ways. When it de
 
 `useAuiState((s) => s.thread.capabilities.refetchThread)` reports which of those you would get, in place or not. It is not a signal for whether to offer a refresh at all: it is false on the remount path, where the call still does the work, and false again where the call does nothing.
 
-Both the LangGraph and Google ADK adapters register the in-place refetch capability when their runtime hook receives a `load` function; without one they fall back to the remount path. Other remote adapters take the remount path unless they provide the capability themselves.
+Both the LangGraph and Google ADK adapters register the in-place refetch capability when their runtime hook receives a `load` function; without one they fall back to the remount path. The Eve adapter registers it when the installed `eve` exposes `resume()` (0.44.1 and later), with no option to pass; on older releases it falls back like any other adapter, which for the single and in-memory thread lists it is usually paired with means the call resolves without doing anything. A refetch that lands during a run also settles differently across the three: LangGraph and Google ADK issue the load right away, so the promise settles at fetch latency and each decides on arrival how much of the snapshot a racing run leaves standing, while Eve queues the replay behind the in-flight turn, so its promise settles only once that turn parks. Other remote adapters take the remount path unless they provide the capability themselves.
 
 For an external store runtime, declare it with `onRefetchThread`, which is unrelated to `onReload` (that one re-generates an assistant message); the tap `ExternalThread` accepts the same prop:
 

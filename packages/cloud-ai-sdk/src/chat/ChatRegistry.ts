@@ -32,6 +32,15 @@ export class ChatRegistry {
     return this.chatByKey.get(chatKey);
   }
 
+  register(
+    chatKey: string,
+    threadId: string | null,
+    chat: Chat<UIMessage>,
+  ): void {
+    this.chatByKey.set(chatKey, chat);
+    this.getOrCreateMeta(chatKey, threadId);
+  }
+
   getMeta(chatKey: string): ChatMeta | undefined {
     return this.metaByKey.get(chatKey);
   }

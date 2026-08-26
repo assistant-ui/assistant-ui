@@ -47,7 +47,7 @@ function createCore() {
     onSyncError: undefined,
   };
 
-  const core = new CloudChatCore(cloud, refs);
+  const core = new CloudChatCore(cloud, refs, {} as never);
   return { core, createThread, selectThread, refresh, generateTitle };
 }
 
