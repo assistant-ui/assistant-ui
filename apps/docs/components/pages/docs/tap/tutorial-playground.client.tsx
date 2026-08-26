@@ -50,10 +50,7 @@ export const TapTutorialPlaygroundClient = ({
   const isLast = index === steps.length - 1;
 
   return (
-    <div
-      className="not-prose code-slideshow @container my-6"
-      data-testid="tap-tutorial-playground"
-    >
+    <div className="not-prose code-slideshow @container my-6">
       <div className="border-fd-border bg-fd-card overflow-hidden rounded-xl border">
         <div className="grid @3xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <CodePane
