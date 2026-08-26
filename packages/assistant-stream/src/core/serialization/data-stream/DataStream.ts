@@ -441,10 +441,12 @@ export class DataStreamDecoder extends PipeableTransformStream<
                       toolName,
                     }),
                 );
-                toolCallPartRegistry.appendArgsText(
-                  toolCallController,
-                  JSON.stringify(args),
-                );
+                if (args !== undefined) {
+                  toolCallPartRegistry.appendArgsText(
+                    toolCallController,
+                    JSON.stringify(args),
+                  );
+                }
                 toolCallPartRegistry.closeArgsText(toolCallController);
               }
               break;

@@ -189,16 +189,21 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
               if (chunk.toolCallId === activeToolCallId) {
                 activeToolCallId = undefined;
               }
-              toolCallPartRegistry.setResponse(
-                toolCallPartRegistry.get(chunk.toolCallId),
-                {
-                  result: chunk.result,
-                  isError: chunk.isError ?? false,
-                  ...(chunk.messages !== undefined
-                    ? { messages: chunk.messages }
-                    : {}),
-                },
+              const toolCallController = toolCallPartRegistry.tryGet(
+                chunk.toolCallId,
               );
+              if (!toolCallController) {
+                throw new Error(
+                  `Encountered tool result with unknown id: ${chunk.toolCallId}`,
+                );
+              }
+              toolCallPartRegistry.setResponse(toolCallController, {
+                result: chunk.result,
+                isError: chunk.isError ?? false,
+                ...(chunk.messages !== undefined
+                  ? { messages: chunk.messages }
+                  : {}),
+              });
               break;
             }
 
