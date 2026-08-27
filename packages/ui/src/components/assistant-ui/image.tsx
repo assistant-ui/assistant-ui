@@ -354,7 +354,7 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
                 e.stopPropagation();
                 handleClose();
               }}
-              className="text-muted-foreground hover:text-foreground bg-background/80 absolute top-4 right-4 cursor-pointer rounded-md p-2"
+              className="text-muted-foreground hover:text-foreground bg-background/80 absolute end-4 top-4 cursor-pointer rounded-md p-2"
             >
               <XIcon className="size-5" />
             </button>
