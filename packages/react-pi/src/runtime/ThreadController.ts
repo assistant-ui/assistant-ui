@@ -670,9 +670,7 @@ export class PiThreadController implements PiThreadControllerLike {
   private recomputeProjectedMessagesAndNotify() {
     const next = this.projectMessages();
     if (next === this.projectedMessages) {
-      // `message_end` advances state without moving the projection, so publish
-      // it here rather than stranding the snapshot behind `getState()`.
-      if (this.state !== this.stateSnapshot) this.notifyMetadataListeners();
+      if (this.state !== this.stateSnapshot) this.publishState();
       return;
     }
     this.projectedMessages = next;
@@ -694,6 +692,16 @@ export class PiThreadController implements PiThreadControllerLike {
 
   private bumpVersion() {
     this.version += 1;
+  }
+
+  /** `message_end` advances state without moving the projection, so neither
+   * the metadata nor the message channel describes what changed. Publishing on
+   * `all` alone reaches every state subscriber without redefining what
+   * `subscribeMetadata` fires for. */
+  private publishState() {
+    this.stateSnapshot = this.state;
+    this.bumpVersion();
+    notifyListeners(this.allListeners);
   }
 
   private notifyMetadataListeners() {

@@ -852,7 +852,9 @@ describe("PiThreadController state snapshot", () => {
       scheduleNotify: (flush) => scheduled.push(flush),
     });
     const notify = vi.fn();
+    const notifyMetadata = vi.fn();
     controller.subscribe(notify);
+    controller.subscribeMetadata(notifyMetadata);
     controller.connect();
 
     client.emit(
@@ -876,6 +878,7 @@ describe("PiThreadController state snapshot", () => {
     scheduled.at(-1)!();
     const projection = controller.getMessageRepository();
     notify.mockClear();
+    notifyMetadata.mockClear();
 
     client.emit(
       ev({ type: "message_end", message: assistantMessage("a", 1) }, 3),
@@ -885,6 +888,7 @@ describe("PiThreadController state snapshot", () => {
     expect(controller.getState().streamingMessageIndex).toBeUndefined();
     expect(controller.getStateSnapshot()).toBe(controller.getState());
     expect(notify).toHaveBeenCalledTimes(1);
+    expect(notifyMetadata).not.toHaveBeenCalled();
   });
 
   it("does not notify when neither the projection nor state moved", () => {
