@@ -6,8 +6,8 @@ import {
 } from "@assistant-ui/core";
 import {
   createToolCallCancellationStub,
-  httpUrlPattern,
   parseDataUrl,
+  resolveFilePartSource,
   scanPendingToolCalls,
 } from "@assistant-ui/core/internal";
 import type { AdkMessage } from "./types";
@@ -25,11 +25,12 @@ export const getMessageContent = (msg: AppendMessage) => {
         return { type: "text" as const, text: part.text };
       case "image":
         return { type: "image_url" as const, url: part.image };
-      case "file":
-        if (part.sourceType === "url" || httpUrlPattern.test(part.data)) {
+      case "file": {
+        const source = resolveFilePartSource(part);
+        if (source.kind === "url") {
           return {
             type: "file_url" as const,
-            url: part.data,
+            url: source.url,
             mimeType: part.mimeType,
           };
         }
@@ -38,9 +39,10 @@ export const getMessageContent = (msg: AppendMessage) => {
           mimeType: part.mimeType,
           // Lands in Gemini `inlineData.data`, which takes bare base64, so a
           // data URL envelope is stripped rather than forwarded.
-          data: parseDataUrl(part.data)?.data ?? part.data,
+          data: source.data,
           ...(part.filename != null && { filename: part.filename }),
         };
+      }
       case "audio": {
         const parsed = parseDataUrl(part.audio.data);
         return {

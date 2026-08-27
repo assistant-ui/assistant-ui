@@ -1,7 +1,10 @@
 "use client";
 
 import type { MessageStatus, ThreadAssistantMessage } from "@assistant-ui/core";
-import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
+import {
+  parseDataUrl,
+  resolveFilePartSource,
+} from "@assistant-ui/core/internal";
 import type { A2AMessage, A2APart, A2ATaskState } from "./types";
 
 function isImageMediaType(mediaType?: string): boolean {
@@ -134,9 +137,14 @@ export function contentPartsToA2AParts(
         case "file": {
           if (typeof part.data !== "string" || !part.data) return null;
           const declaredMimeType = part.mimeType || fallbackMimeType;
-          if (part.sourceType === "url" || httpUrlPattern.test(part.data)) {
+          const source = resolveFilePartSource({
+            data: part.data,
+            mimeType: declaredMimeType ?? "application/octet-stream",
+            sourceType: part.sourceType,
+          });
+          if (source.kind === "url") {
             return {
-              url: part.data,
+              url: source.url,
               ...(declaredMimeType && { mediaType: declaredMimeType }),
               ...(part.filename && { filename: part.filename }),
             };
@@ -144,8 +152,8 @@ export function contentPartsToA2AParts(
           const parsed = parseDataUrl(part.data);
           if (parsed) {
             return {
-              raw: parsed.data,
-              mediaType: parsed.mimeType,
+              raw: source.data,
+              mediaType: source.mimeType,
               ...(part.filename && { filename: part.filename }),
             };
           }
@@ -157,7 +165,7 @@ export function contentPartsToA2AParts(
             };
           }
           return {
-            raw: part.data,
+            raw: source.data,
             ...(declaredMimeType && { mediaType: declaredMimeType }),
             ...(part.filename && { filename: part.filename }),
           };

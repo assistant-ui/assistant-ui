@@ -4,7 +4,10 @@ import type {
   ThreadAssistantMessage,
   ThreadUserMessage,
 } from "@assistant-ui/core";
-import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
+import {
+  parseDataUrl,
+  resolveFilePartSource,
+} from "@assistant-ui/core/internal";
 import type { StreamingTimingAccessors } from "@assistant-ui/core/react";
 
 /** Known content block types from @langchain/core messages. */
@@ -200,32 +203,32 @@ export const getMessageContent = (msg: AppendMessage) => {
             source_type: "id" as const,
           };
         }
-        if (part.sourceType === "url" || httpUrlPattern.test(part.data)) {
+        const source = resolveFilePartSource(part);
+        if (source.kind === "url") {
           return {
             type: "file" as const,
-            url: part.data,
+            url: source.url,
             mime_type: part.mimeType,
             filename: metadata.filename,
             metadata,
             source_type: "url" as const,
           };
         }
-        const parsed = parseDataUrl(part.data);
         const audioMimeType = audioBlockMimeTypes.get(
-          (parsed?.mimeType ?? part.mimeType).toLowerCase(),
+          source.mimeType.toLowerCase(),
         );
         if (audioMimeType) {
           return {
             type: "audio" as const,
-            data: parsed?.data ?? part.data,
+            data: source.data,
             mime_type: audioMimeType,
             source_type: "base64" as const,
           };
         }
         return {
           type: "file" as const,
-          data: parsed?.data ?? part.data,
-          mime_type: parsed?.mimeType ?? part.mimeType,
+          data: source.data,
+          mime_type: source.mimeType,
           filename: metadata.filename,
           metadata,
           source_type: "base64" as const,

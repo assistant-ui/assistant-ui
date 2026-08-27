@@ -16,7 +16,10 @@ import {
   type ToolApprovalOption,
   type ToolCallMessagePart,
 } from "@assistant-ui/core";
-import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
+import {
+  httpUrlPattern,
+  resolveFilePartSource,
+} from "@assistant-ui/core/internal";
 import type {
   EveAuthorizationOutcome,
   EveAuthorizationPart,
@@ -526,11 +529,13 @@ export const getEveMessageContent = (
         // envelope is rebuilt from the typed format rather than forwarded.
         const mediaType = `audio/${part.audio.format}`;
         const data = part.audio.data;
+        const source = resolveFilePartSource({ data, mimeType: mediaType });
         return {
           type: "file" as const,
-          data: httpUrlPattern.test(data)
-            ? data
-            : `data:${mediaType};base64,${parseDataUrl(data)?.data ?? data}`,
+          data:
+            source.kind === "url"
+              ? source.url
+              : `data:${mediaType};base64,${source.data}`,
           mediaType,
         };
       }

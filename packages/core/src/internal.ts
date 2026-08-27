@@ -60,9 +60,11 @@ export { isJSONValue, isRecord } from "./utils/json/is-json";
 // outbound part conversion lives in one place.
 export {
   dataUrlMediaType,
+  type FilePartSource,
   httpUrlPattern,
   isParsableUrl,
   parseDataUrl,
+  resolveFilePartSource,
 } from "./utils/data-url";
 export { invokeUserCallback } from "./utils/invoke-user-callback";
 export { detectImageMediaType } from "./utils/image-media-type";
