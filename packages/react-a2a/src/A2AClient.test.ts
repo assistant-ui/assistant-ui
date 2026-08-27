@@ -1017,6 +1017,50 @@ describe("A2AClient", () => {
       expect(evt.event.status.message?.role).toBe("agent");
     });
 
+    it("drops a wrapped status update whose contextId is not a string", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: 999,
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([`data: ${sseData}`, "", ""]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toEqual([]);
+    });
+
+    it("drops a wrapped artifact update whose ids are not strings", async () => {
+      const artifact = { artifact_id: "a1", parts: [{ text: "hi" }] };
+      for (const ids of [
+        { task_id: 12345, context_id: "c1" },
+        { task_id: "t1", context_id: { nested: "object" } },
+      ]) {
+        const sseData = JSON.stringify({
+          artifact_update: { ...ids, artifact },
+        });
+
+        fetchMock.mockResolvedValue(
+          mockSSEResponse([`data: ${sseData}`, "", ""]),
+        );
+
+        const events: A2AStreamEvent[] = [];
+        for await (const event of client.streamMessage(userMessage)) {
+          events.push(event);
+        }
+
+        expect(events).toEqual([]);
+      }
+    });
+
     it("normalizes default-valued wrapped status updates", async () => {
       const sseData = JSON.stringify({
         status_update: {

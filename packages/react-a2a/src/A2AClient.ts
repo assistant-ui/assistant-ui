@@ -326,6 +326,12 @@ const isStatusUpdate = (
   isRecord(value.status) &&
   isTaskState(value.status.state);
 
+// Filling a null id with the ProtoJSON default does not make it a string: the
+// published event types declare taskId and contextId as required strings, and
+// the runtime reads both straight into task state.
+const hasWireIds = (value: Record<string, unknown>): boolean =>
+  typeof value.taskId === "string" && typeof value.contextId === "string";
+
 const toWrappedStatusUpdate = (
   value: unknown,
 ): Record<string, unknown> | null => {
@@ -337,15 +343,19 @@ const toWrappedStatusUpdate = (
     contextId: value.contextId == null ? "" : value.contextId,
     status: toWrappedTaskStatus(value.status),
   };
-  return isStatusUpdate(statusUpdate, true) ? statusUpdate : null;
+  return isStatusUpdate(statusUpdate, true) && hasWireIds(statusUpdate)
+    ? statusUpdate
+    : null;
 };
 
-const isArtifactUpdate = (value: unknown): value is Record<string, unknown> =>
+const isArtifact = (value: unknown): value is Record<string, unknown> =>
   isRecord(value) &&
-  isRecord(value.artifact) &&
-  typeof value.artifact.artifactId === "string" &&
-  Array.isArray(value.artifact.parts) &&
-  value.artifact.parts.every(isRecord);
+  typeof value.artifactId === "string" &&
+  Array.isArray(value.parts) &&
+  value.parts.every(isRecord);
+
+const isArtifactUpdate = (value: unknown): value is Record<string, unknown> =>
+  isRecord(value) && isArtifact(value.artifact);
 
 const toWrappedArtifact = (value: unknown): Record<string, unknown> | null => {
   if (!isRecord(value)) return null;
@@ -355,12 +365,7 @@ const toWrappedArtifact = (value: unknown): Record<string, unknown> | null => {
     artifactId: value.artifactId == null ? "" : value.artifactId,
     parts: value.parts == null ? [] : value.parts,
   };
-  return isRecord(artifact) &&
-    typeof artifact.artifactId === "string" &&
-    Array.isArray(artifact.parts) &&
-    artifact.parts.every(isRecord)
-    ? artifact
-    : null;
+  return isArtifact(artifact) ? artifact : null;
 };
 
 const toWrappedArtifactUpdate = (
@@ -376,7 +381,9 @@ const toWrappedArtifactUpdate = (
     contextId: value.contextId == null ? "" : value.contextId,
     artifact,
   };
-  return isArtifactUpdate(artifactUpdate) ? artifactUpdate : null;
+  return isArtifactUpdate(artifactUpdate) && hasWireIds(artifactUpdate)
+    ? artifactUpdate
+    : null;
 };
 
 const isStringArray = (value: unknown): value is string[] =>
