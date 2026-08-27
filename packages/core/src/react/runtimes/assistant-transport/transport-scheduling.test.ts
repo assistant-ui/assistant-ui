@@ -85,9 +85,11 @@ const useTransportSchedulingHarness = (
 };
 
 describe("assistant transport scheduling contracts", () => {
-  it("uses current callbacks when scheduled by a descendant layout effect", async () => {
+  it("uses current callbacks when scheduled by a descendant layout effect", () => {
     const onRunA = vi.fn(async () => {});
     const onRunB = vi.fn(async () => {});
+    // act flushes passive effects before real microtasks, so preserve the
+    // browser's microtask-before-passive-effect ordering at the layout boundary.
     const queueMicrotaskSpy = vi
       .spyOn(globalThis, "queueMicrotask")
       .mockImplementation((callback) => callback());
@@ -124,7 +126,7 @@ describe("assistant transport scheduling contracts", () => {
       );
       view.rerender(createElement(Probe, { enabled: true, onRun: onRunB }));
 
-      await waitFor(() => expect(onRunB).toHaveBeenCalledTimes(1));
+      expect(onRunB).toHaveBeenCalledTimes(1);
       expect(onRunA).not.toHaveBeenCalled();
     } finally {
       queueMicrotaskSpy.mockRestore();
