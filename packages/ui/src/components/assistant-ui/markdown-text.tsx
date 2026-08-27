@@ -4,24 +4,34 @@ import "@assistant-ui/react-markdown/styles/dot.css";
 
 import {
   type CodeHeaderProps,
+  type MarkdownTextPrimitiveProps,
   MarkdownTextPrimitive,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
-import { type FC, memo } from "react";
+import { type FC, memo, useMemo } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
 import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
-const MarkdownTextImpl = () => {
+type MarkdownTextProps = {
+  components?: MarkdownTextPrimitiveProps["components"];
+};
+
+const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
+  const markdownComponents = useMemo(() => {
+    if (!components) return defaultComponents;
+    return { ...defaultComponents, ...components };
+  }, [components]);
+
   return (
     <MarkdownTextPrimitive
       remarkPlugins={[remarkGfm]}
       className="aui-md"
-      components={defaultComponents}
+      components={markdownComponents}
       defer
     />
   );
