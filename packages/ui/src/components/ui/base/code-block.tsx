@@ -34,7 +34,11 @@ function CopyButton({
       type="button"
       aria-label="Copy code"
       onClick={async () => {
-        await navigator.clipboard.writeText(getText());
+        try {
+          await navigator.clipboard.writeText(getText());
+        } catch {
+          return;
+        }
         onCopied?.();
         setCopied(true);
         setTimeout(() => setCopied(false), 1500);
@@ -93,7 +97,7 @@ export function CodeBlock({
         <CopyButton
           getText={getText}
           onCopied={onCopied}
-          className="bg-background/80 absolute top-2 right-2 z-10 opacity-0 backdrop-blur-sm transition-opacity group-hover/code:opacity-100 focus-visible:opacity-100"
+          className="bg-background/80 absolute top-2 right-2 z-10 opacity-0 backdrop-blur-sm transition-opacity group-hover/code:opacity-100 focus-visible:opacity-100 [@media(pointer:coarse)]:opacity-100"
         />
       )}
       <div

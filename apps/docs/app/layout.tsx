@@ -1,6 +1,6 @@
 import "@/styles/globals.css";
 import type { ReactNode } from "react";
-import { Instrument_Sans, JetBrains_Mono, Public_Sans } from "next/font/google";
+import { JetBrains_Mono, Public_Sans } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
@@ -14,11 +14,6 @@ import { umamiBootstrapScript } from "@/lib/umami-sampling";
 
 const publicSans = Public_Sans({
   variable: "--font-public-sans",
-  subsets: ["latin"],
-});
-
-const instrumentSans = Instrument_Sans({
-  variable: "--font-instrument-sans",
   subsets: ["latin"],
 });
 
@@ -98,7 +93,6 @@ export default function Layout({ children }: { children: ReactNode }) {
         className={cn(
           "flex min-h-screen flex-col font-sans antialiased",
           publicSans.variable,
-          instrumentSans.variable,
           jetbrainsMono.variable,
         )}
       >

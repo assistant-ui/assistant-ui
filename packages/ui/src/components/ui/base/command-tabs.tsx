@@ -53,7 +53,10 @@ export function CommandTabs({
 
   useEffect(() => {
     if (!storageKey) return;
-    const stored = localStorage.getItem(storageKey);
+    let stored: string | null = null;
+    try {
+      stored = localStorage.getItem(storageKey);
+    } catch {}
     if (stored && stored in commandsRef.current) setActive(stored);
 
     const onSync = (event: Event) => {
@@ -69,7 +72,9 @@ export function CommandTabs({
       setActive(value);
       onValueChange?.(value);
       if (!storageKey) return;
-      localStorage.setItem(storageKey, value);
+      try {
+        localStorage.setItem(storageKey, value);
+      } catch {}
       window.dispatchEvent(
         new CustomEvent(syncEventName(storageKey), { detail: value }),
       );
@@ -77,7 +82,8 @@ export function CommandTabs({
     [storageKey, onValueChange],
   );
 
-  const command = commands[active] ?? "";
+  const activeLabel = active in commands ? active : (labels[0] ?? "");
+  const command = commands[activeLabel] ?? "";
 
   return (
     <figure
@@ -89,7 +95,7 @@ export function CommandTabs({
     >
       <div className="border-foreground/10 flex h-9 shrink-0 items-center justify-between gap-2 border-b py-0 ps-1.5 pe-2">
         <div
-          role="tablist"
+          role="group"
           aria-label="Command variants"
           className="flex h-full min-w-0 items-center gap-1 overflow-x-auto"
         >
@@ -97,12 +103,11 @@ export function CommandTabs({
             <button
               key={label}
               type="button"
-              role="tab"
-              aria-selected={label === active}
+              aria-pressed={label === activeLabel}
               onClick={() => select(label)}
               className={cn(
                 "after:bg-foreground relative flex h-full shrink-0 items-center px-2 font-mono text-[11px] font-medium tracking-wide transition-colors after:absolute after:inset-x-2 after:bottom-0 after:h-0.5 after:opacity-0 after:transition-opacity",
-                label === active
+                label === activeLabel
                   ? "text-foreground after:opacity-100"
                   : "text-muted-foreground hover:text-foreground",
               )}
@@ -115,7 +120,11 @@ export function CommandTabs({
           type="button"
           aria-label="Copy command"
           onClick={async () => {
-            await navigator.clipboard.writeText(command);
+            try {
+              await navigator.clipboard.writeText(command);
+            } catch {
+              return;
+            }
             setCopied(true);
             clearTimeout(copyTimer.current);
             copyTimer.current = setTimeout(() => setCopied(false), 1500);

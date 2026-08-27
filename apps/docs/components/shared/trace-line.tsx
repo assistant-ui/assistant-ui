@@ -10,8 +10,10 @@ export function useToolDuration(isRunning: boolean): number | null {
   useEffect(() => {
     if (isRunning && startTimeRef.current === null) {
       startTimeRef.current = Date.now();
+      setDuration(null);
     } else if (!isRunning && startTimeRef.current !== null) {
       setDuration(Date.now() - startTimeRef.current);
+      startTimeRef.current = null;
     }
   }, [isRunning]);
 

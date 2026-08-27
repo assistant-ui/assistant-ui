@@ -8,6 +8,12 @@ const TINT_DEFAULT = 106;
 export function TintKnob() {
   const [tint, setTint] = useState(TINT_DEFAULT);
 
+  useEffect(() => {
+    return () => {
+      document.documentElement.style.removeProperty("--tint");
+    };
+  }, []);
+
   const apply = (next: number) => {
     setTint(next);
     if (next === TINT_DEFAULT) {
@@ -58,9 +64,12 @@ export function MotionSample({ kind }: { kind: MotionKind }) {
   const ref = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    setReduced(window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduced(mql.matches);
+    const onChange = () => setReduced(mql.matches);
+    mql.addEventListener("change", onChange);
     const el = ref.current;
-    if (!el) return;
+    if (!el) return () => mql.removeEventListener("change", onChange);
     const io = new IntersectionObserver(
       ([entry]) => {
         if (entry?.isIntersecting) {
@@ -71,7 +80,10 @@ export function MotionSample({ kind }: { kind: MotionKind }) {
       { threshold: 0.5 },
     );
     io.observe(el);
-    return () => io.disconnect();
+    return () => {
+      io.disconnect();
+      mql.removeEventListener("change", onChange);
+    };
   }, []);
 
   return (
@@ -160,7 +172,13 @@ function Sample({ kind, live }: { kind: MotionKind; live: boolean }) {
           }
         >
           <span className="line bg-foreground/20 block h-1 w-8" />
-          <span className="line line-hot block h-1 w-8" />
+          <span
+            className={
+              live
+                ? "line line-hot block h-1 w-8"
+                : "line line-hot block h-1 w-8 bg-blue-500/8 shadow-[inset_2px_0_0_#3b82f6] dark:bg-blue-500/15"
+            }
+          />
           <span className="line bg-foreground/20 block h-1 w-7" />
         </span>
       );

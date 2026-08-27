@@ -86,12 +86,12 @@ export function Footer(): React.ReactElement {
             <span aria-hidden>·</span>
             <FooterLink href="/terms-of-service">Terms</FooterLink>
           </div>
-          <div className="flex flex-wrap items-center gap-4">
+          <div className="flex flex-wrap items-center gap-1.5">
             <a
               href="https://x.com/assistantui"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
               aria-label="X (Twitter)"
             >
               <svg
@@ -107,7 +107,7 @@ export function Footer(): React.ReactElement {
               href="https://github.com/assistant-ui/assistant-ui"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
               aria-label="GitHub"
             >
               <GitHubIcon className="size-4" />
@@ -116,12 +116,12 @@ export function Footer(): React.ReactElement {
               href="https://discord.gg/S9dwgCNEFs"
               target="_blank"
               rel="noopener noreferrer"
-              className="hover:text-foreground transition-colors"
+              className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
               aria-label="Discord"
             >
               <DiscordIcon className="size-4" />
             </a>
-            <ThemeToggle className="hover:text-foreground size-4" />
+            <ThemeToggle className="hover:text-foreground" />
           </div>
         </div>
       </div>

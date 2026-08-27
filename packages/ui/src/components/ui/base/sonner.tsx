@@ -11,6 +11,8 @@ import { useTheme } from "next-themes";
 import { Toaster as Sonner, type ToasterProps } from "sonner";
 
 const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
+  const { classNames: userClassNames, ...toastOptionsRest } =
+    toastOptions ?? {};
   const { theme = "system" } = useTheme() as {
     theme: "light" | "dark" | "system";
   };
@@ -47,8 +49,9 @@ const Toaster = ({ toastOptions, ...props }: ToasterProps) => {
             "text-muted-foreground hover:text-foreground ms-auto h-6 shrink-0 cursor-pointer rounded-md px-2 text-xs transition-colors",
           closeButton:
             "text-muted-foreground hover:text-foreground order-last ms-2 grid size-5 shrink-0 cursor-pointer place-items-center rounded-md transition-colors",
+          ...userClassNames,
         },
-        ...toastOptions,
+        ...toastOptionsRest,
       }}
       {...props}
     />

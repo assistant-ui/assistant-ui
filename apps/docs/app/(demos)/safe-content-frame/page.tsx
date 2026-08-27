@@ -225,6 +225,7 @@ export default function SafeContentFramePage() {
               <button
                 type="button"
                 onClick={() => {
+                  generationRef.current += 1;
                   frameRef.current?.dispose();
                   frameRef.current = null;
                   containerRef.current?.replaceChildren();

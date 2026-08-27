@@ -160,9 +160,9 @@ export function SubProjectLayout({
         </div>
       </header>
 
-      <main className={cn("flex-1", fullHeight && "min-h-0 overflow-hidden")}>
+      <div className={cn("flex-1", fullHeight && "min-h-0 overflow-hidden")}>
         {children}
-      </main>
+      </div>
 
       {!hideFooter && (
         <footer className="relative px-4 py-8">

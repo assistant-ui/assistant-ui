@@ -180,7 +180,7 @@ export function GlassTextHero({ bg }: { bg: string }) {
 
       {/* Current bg — always visible underneath */}
       <p
-        className="pointer-events-auto inline text-9xl"
+        className="pointer-events-auto inline text-6xl sm:text-8xl lg:text-9xl"
         style={textBgStyle(bg)}
       >
         {HERO_TEXT}
@@ -190,7 +190,7 @@ export function GlassTextHero({ bg }: { bg: string }) {
       {fadingBg && (
         <span
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 text-9xl"
+          className="pointer-events-none absolute inset-0 text-6xl sm:text-8xl lg:text-9xl"
           style={{
             ...textBgStyle(fadingBg),
             animation: "glass-text-fade-out 600ms ease-out forwards",
@@ -203,7 +203,7 @@ export function GlassTextHero({ bg }: { bg: string }) {
       {/* Lighting overlay: filter uses constant SourceAlpha — no flicker */}
       <span
         aria-hidden="true"
-        className="pointer-events-none absolute inset-0 text-9xl"
+        className="pointer-events-none absolute inset-0 text-6xl sm:text-8xl lg:text-9xl"
         style={{
           filter: `url(#${filterId})`,
           color: "white",

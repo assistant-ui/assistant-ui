@@ -267,6 +267,17 @@ export function TrustedBy() {
     });
   }, [fading]);
 
+  useEffect(() => {
+    if (fading === null) return;
+    const fallback = window.setTimeout(() => {
+      setLit((current) =>
+        current.map((on, index) => (index === fading ? true : on)),
+      );
+      setFading(null);
+    }, 900);
+    return () => window.clearTimeout(fallback);
+  }, [fading]);
+
   const handleSlotFadeEnd = (
     index: number,
     event: TransitionEvent<HTMLDivElement>,

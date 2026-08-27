@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { HomeThread } from "@/components/pages/home/home-thread";
 import { DocsRuntimeProvider } from "@/runtimes/docs";
@@ -8,9 +8,15 @@ import Link from "next/link";
 
 export function ThreadSpecimen() {
   const [expanded, setExpanded] = useState(false);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (!expanded) return;
+    const previouslyFocused =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    overlayRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
       setExpanded(false);
@@ -20,6 +26,7 @@ export function ThreadSpecimen() {
     return () => {
       document.removeEventListener("keydown", onKey);
       document.documentElement.style.overflow = "";
+      previouslyFocused?.focus();
     };
   }, [expanded]);
 
@@ -36,7 +43,14 @@ export function ThreadSpecimen() {
         <DocsRuntimeProvider devtools={false}>
           {expanded
             ? createPortal(
-                <div className="bg-background fixed inset-0 z-[60] overflow-hidden">
+                <div
+                  ref={overlayRef}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label="Thread fullscreen"
+                  tabIndex={-1}
+                  className="bg-background fixed inset-0 z-[60] overflow-hidden outline-none"
+                >
                   {thread}
                 </div>,
                 document.body,

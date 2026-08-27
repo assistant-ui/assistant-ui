@@ -223,6 +223,7 @@ function getNavigation() {
     docs: source.pageTree.children.map(serializeNode),
     examples: examples.pageTree.children.map(serializeNode),
     design: design.pageTree.children.map(serializeNode),
+    standalone: standalone.pageTree.children.map(serializeNode),
     tapDocs: tapDocs.pageTree.children.map(serializeNode),
   };
 }

@@ -42,7 +42,7 @@ function DropdownMenuContent({
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
         className={cn(
-          "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in ring-foreground/10 z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-(--radius-surface) p-1.5 ring-1 duration-100",
+          "data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 bg-popover text-popover-foreground data-[state=closed]:animate-out data-[state=open]:animate-in ring-foreground/10 z-50 max-h-(--radix-dropdown-menu-content-available-height) min-w-[8rem] origin-(--radix-dropdown-menu-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-[var(--radius-surface,var(--radius-lg))] p-1.5 ring-1 duration-100",
           className,
         )}
         {...props}

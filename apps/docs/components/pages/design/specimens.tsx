@@ -651,7 +651,7 @@ export function InputWithButtonSpecimen(): ReactNode {
   return (
     <SampleFrame className={frameClass}>
       <div className="flex w-full max-w-72 items-center gap-2">
-        <Input type="email" placeholder="you@example.com" />
+        <Input type="email" aria-label="Email" placeholder="you@example.com" />
         <Button>Invite</Button>
       </div>
     </SampleFrame>

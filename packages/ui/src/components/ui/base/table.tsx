@@ -47,7 +47,7 @@ export function TableHead({ className, ...props }: ComponentProps<"th">) {
   return (
     <th
       className={cn(
-        "text-muted-foreground h-9 px-3 text-left align-middle font-mono text-[11px] font-medium tracking-wide whitespace-nowrap first:ps-0 last:pe-0",
+        "text-muted-foreground h-9 px-3 text-start align-middle font-mono text-[11px] font-medium tracking-wide whitespace-nowrap first:ps-0 last:pe-0",
         className,
       )}
       {...props}
@@ -74,7 +74,7 @@ export function TableCaption({
   return (
     <caption
       className={cn(
-        "text-muted-foreground mt-3 text-left font-mono text-[11px] tracking-wide",
+        "text-muted-foreground mt-3 text-start font-mono text-[11px] tracking-wide",
         className,
       )}
       {...props}

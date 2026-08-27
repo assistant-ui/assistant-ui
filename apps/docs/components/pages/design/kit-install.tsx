@@ -9,7 +9,6 @@ const IGNORED_DEPS = new Set([
   "lucide-react",
   "clsx",
   "tailwind-merge",
-  "class-variance-authority",
 ]);
 
 function readFlavor(name: string, flavor: "base" | "radix") {

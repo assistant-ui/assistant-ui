@@ -11,12 +11,16 @@ export function AskAiBall() {
   const [armed, setArmed] = useState(false);
 
   useEffect(() => {
-    setArmed(localStorage.getItem(STORAGE_KEY) === "1");
+    try {
+      setArmed(localStorage.getItem(STORAGE_KEY) === "1");
+    } catch {}
   }, []);
 
   useEffect(() => {
     if (!open) return;
-    localStorage.setItem(STORAGE_KEY, "1");
+    try {
+      localStorage.setItem(STORAGE_KEY, "1");
+    } catch {}
     setArmed(true);
   }, [open]);
 
@@ -38,7 +42,9 @@ export function AskAiBall() {
       <button
         type="button"
         onClick={() => {
-          localStorage.removeItem(STORAGE_KEY);
+          try {
+            localStorage.removeItem(STORAGE_KEY);
+          } catch {}
           setArmed(false);
         }}
         aria-label="Dismiss Ask AI"

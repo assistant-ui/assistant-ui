@@ -656,13 +656,15 @@ export function HeatGraphDemo() {
       </div>
 
       <figure>
-        <div className="border-foreground/10 flex justify-center overflow-x-auto border px-4 py-8">
-          {activeTheme === "Contributions" && (
-            <ContributionsGraph data={contributions} />
-          )}
-          {activeTheme === "Steps Walked" && <StepsGraph data={steps} />}
-          {activeTheme === "Gym Tracker" && <GymGraph data={gym} />}
-          {activeTheme === "Mood Tracker" && <MoodGraph data={mood} />}
+        <div className="border-foreground/10 overflow-x-auto border px-4 py-8">
+          <div className="mx-auto w-max">
+            {activeTheme === "Contributions" && (
+              <ContributionsGraph data={contributions} />
+            )}
+            {activeTheme === "Steps Walked" && <StepsGraph data={steps} />}
+            {activeTheme === "Gym Tracker" && <GymGraph data={gym} />}
+            {activeTheme === "Mood Tracker" && <MoodGraph data={mood} />}
+          </div>
         </div>
         <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
           <span>fig. 01 · {activeTheme.toLowerCase()}</span>

@@ -246,7 +246,7 @@ export default function BrandPage() {
 
         <Section eyebrow="The voice">
           <div className="divide-foreground/10 mt-4 flex flex-col divide-y">
-            <VoiceRow name="Display" face="Instrument Sans · 500–550">
+            <VoiceRow name="Display" face="System sans · 500–550">
               <p className={typeSection}>The frontend library for AI agents.</p>
             </VoiceRow>
             <VoiceRow name="Text" face="Public Sans · 400–500">

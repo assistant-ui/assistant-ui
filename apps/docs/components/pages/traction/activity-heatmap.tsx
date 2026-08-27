@@ -125,6 +125,7 @@ export function ActivityHeatmap({
         </div>
         <div className="flex items-center" style={{ gap: 4 }}>
           <span
+            className="inline-block"
             style={{
               width: 10,
               height: 10,

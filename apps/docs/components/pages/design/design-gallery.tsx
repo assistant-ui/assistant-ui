@@ -69,7 +69,7 @@ function DesignCard({
       <p className="text-muted-foreground mb-2 text-[13px] leading-relaxed">
         {component.description}
       </p>
-      <div className="min-w-0 [&_.not-prose]:my-0">
+      <div className="min-w-0 overflow-x-auto [&_.not-prose]:my-0">
         {Preview ? <Preview /> : null}
       </div>
     </div>

@@ -5,6 +5,7 @@ import {
   useRef,
   useState,
   type ComponentType,
+  type FocusEvent,
   type SVGProps,
 } from "react";
 import Link from "next/link";
@@ -157,6 +158,12 @@ function useAutoCycle(count: number) {
     hold: {
       onMouseEnter: () => setHovered(true),
       onMouseLeave: () => setHovered(false),
+      onFocus: () => setHovered(true),
+      onBlur: (event: FocusEvent<HTMLElement>) => {
+        if (!event.currentTarget.contains(event.relatedTarget)) {
+          setHovered(false);
+        }
+      },
     },
   };
 }

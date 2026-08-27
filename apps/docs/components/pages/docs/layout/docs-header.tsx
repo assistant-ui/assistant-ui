@@ -171,12 +171,20 @@ export function DocsHeader({
         >
           <div className="flex min-w-0 flex-1 items-center">
             <HeaderBrandLink labelClassName="hidden sm:inline" />
-            <span className="text-muted-foreground/40 mx-3 max-md:hidden">
+            <span
+              className={cn(
+                "text-muted-foreground/40 mx-3",
+                mobileSectionTree && "max-md:hidden",
+              )}
+            >
               /
             </span>
             <Link
               href={sectionHref}
-              className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors max-md:hidden"
+              className={cn(
+                "text-foreground hover:text-foreground/80 text-sm font-medium transition-colors",
+                mobileSectionTree && "max-md:hidden",
+              )}
             >
               {section}
             </Link>

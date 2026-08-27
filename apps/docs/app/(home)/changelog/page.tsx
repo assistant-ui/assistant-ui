@@ -49,7 +49,10 @@ export default async function ChangelogPage({
     : allGroups;
 
   const totalPages = Math.max(1, Math.ceil(groups.length / PER_PAGE));
-  const current = Math.min(Math.max(1, Number(page) || 1), totalPages);
+  const current = Math.min(
+    Math.max(1, Math.floor(Number(page)) || 1),
+    totalPages,
+  );
   const visible = groups.slice((current - 1) * PER_PAGE, current * PER_PAGE);
 
   return (
