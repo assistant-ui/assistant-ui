@@ -990,12 +990,6 @@ describe("convertLangChainBaseMessage tool messages", () => {
     expect(result.toolName).toBe("search");
   });
 
-  // A tool message that arrives over the LangGraph v2 `messages` stream has no
-  // name: the protocol carries none, and the SDK rebuilds it as
-  // `new ToolMessage({ id, content, tool_call_id })`. Defaulting that absence
-  // to "" used to make `joinExternalMessages` throw
-  // "Tool call name ... does not match existing tool call ...", inside a
-  // render, on every render of a thread holding a completed tool call.
   it("merges a nameless tool result into its call instead of throwing", () => {
     const messages = convertExternalMessages(
       [aiWithToolCall(), toolResult()],
