@@ -1,4 +1,8 @@
-import { boundSpec, clampReasonDetail } from "../convert/boundSpec";
+import {
+  MAX_TRAVERSAL_DEPTH,
+  boundSpec,
+  clampReasonDetail,
+} from "../convert/boundSpec";
 import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
 import {
@@ -28,7 +32,6 @@ import {
   INPUT_LABEL_CAP,
   INTERACTIVE_TEXT_CAP,
   MARKDOWN_TEXT_BUDGET,
-  MAX_TRAVERSAL_DEPTH,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
   PLACEHOLDER_TEXT_CAP,

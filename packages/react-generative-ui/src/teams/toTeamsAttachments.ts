@@ -1,15 +1,14 @@
+import { boundSpec, clampReasonDetail } from "../convert/boundSpec";
 import { isElement } from "../convert/isElement";
 import {
   normalizeSpec,
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
-import { boundSpec } from "../convert/boundSpec";
 import {
   CAROUSEL_ATTACHMENT_CAP,
   PAYLOAD_SOFT_CAP,
   buildAttachment,
-  clampReasonDetail,
   utf8ByteLength,
 } from "./constants";
 import {

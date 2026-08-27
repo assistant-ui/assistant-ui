@@ -11,13 +11,6 @@ import type {
   SlackTextObject,
 } from "./types";
 
-export {
-  CHILDREN_CAP,
-  MAX_ELEMENT_DEPTH,
-  MAX_TRAVERSAL_DEPTH,
-  NODE_BUDGET,
-} from "../convert/boundSpec";
-
 /** The block limit for a Slack message. */
 export const MESSAGE_BLOCK_CAP = 50;
 

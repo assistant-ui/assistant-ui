@@ -1,10 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { CHILDREN_CAP, NODE_BUDGET } from "../convert/boundSpec";
 import { toAdaptiveCard } from "./toAdaptiveCard";
 import { toTeamsAttachments } from "./toTeamsAttachments";
 import {
   CAROUSEL_ATTACHMENT_CAP,
-  CHILDREN_CAP,
-  NODE_BUDGET,
   PAYLOAD_SOFT_CAP,
   PRIMARY_ACTION_CAP,
   TABLE_COLUMN_CAP,

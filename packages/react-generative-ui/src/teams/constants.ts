@@ -17,15 +17,6 @@ export const ADAPTIVE_CARD_SCHEMA =
 export const ATTACHMENT_CONTENT_TYPE =
   "application/vnd.microsoft.card.adaptive";
 
-export {
-  CHILDREN_CAP,
-  clampReasonDetail,
-  MAX_ELEMENT_DEPTH,
-  MAX_TRAVERSAL_DEPTH,
-  NODE_BUDGET,
-} from "../convert/boundSpec";
-export type { ClampReason } from "../convert/boundSpec";
-
 /** The maximum number of attachments produced from a root-level Carousel. */
 export const CAROUSEL_ATTACHMENT_CAP = 10;
 

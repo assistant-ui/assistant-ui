@@ -1,3 +1,8 @@
+import {
+  MAX_TRAVERSAL_DEPTH,
+  boundSpec,
+  clampReasonDetail,
+} from "../convert/boundSpec";
 import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
 import {
@@ -5,17 +10,14 @@ import {
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
-import { boundSpec } from "../convert/boundSpec";
 import {
   CHOICE_OPTION_CAP,
-  MAX_TRAVERSAL_DEPTH,
   PAYLOAD_SOFT_CAP,
   PRIMARY_ACTION_CAP,
   TABLE_COLUMN_CAP,
   TABLE_ROW_CAP,
   buildCard,
   buildSubmitAction,
-  clampReasonDetail,
   utf8ByteLength,
 } from "./constants";
 import type {

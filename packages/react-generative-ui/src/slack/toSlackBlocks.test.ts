@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { CHILDREN_CAP, NODE_BUDGET } from "../convert/boundSpec";
 import { toSlackBlocks } from "./toSlackBlocks";
 import {
   ACTION_ID_CAP,
@@ -9,7 +10,6 @@ import {
   CARD_SUBTEXT_CAP,
   CARD_TITLE_CAP,
   CAROUSEL_CARD_CAP,
-  CHILDREN_CAP,
   CONTEXT_ELEMENT_CAP,
   CONTEXT_TEXT_CAP,
   DATA_TABLE_CHAR_BUDGET,
@@ -23,7 +23,6 @@ import {
   MARKDOWN_TEXT_BUDGET,
   MESSAGE_BLOCK_CAP,
   MODAL_BLOCK_CAP,
-  NODE_BUDGET,
   PLACEHOLDER_TEXT_CAP,
   RADIO_OPTION_CAP,
   SECTION_TEXT_CAP,
