@@ -851,7 +851,8 @@ describe("PiThreadController state snapshot", () => {
     const controller = new PiThreadController(client, THREAD, {
       scheduleNotify: (flush) => scheduled.push(flush),
     });
-    controller.subscribe(() => {});
+    const notify = vi.fn();
+    controller.subscribe(notify);
     controller.connect();
 
     client.emit(
@@ -874,6 +875,7 @@ describe("PiThreadController state snapshot", () => {
     );
     scheduled.at(-1)!();
     const projection = controller.getMessageRepository();
+    notify.mockClear();
 
     client.emit(
       ev({ type: "message_end", message: assistantMessage("a", 1) }, 3),
@@ -881,6 +883,31 @@ describe("PiThreadController state snapshot", () => {
 
     expect(controller.getMessageRepository()).toBe(projection);
     expect(controller.getState().streamingMessageIndex).toBeUndefined();
+    expect(controller.getStateSnapshot()).toBe(controller.getState());
+    expect(notify).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not notify when neither the projection nor state moved", () => {
+    const client = createFakeClient();
+    const scheduled: Array<() => void> = [];
+    const controller = new PiThreadController(client, THREAD, {
+      scheduleNotify: (flush) => scheduled.push(flush),
+    });
+    const notify = vi.fn();
+    controller.subscribe(notify);
+    controller.connect();
+
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("", 1) }, 1),
+    );
+    notify.mockClear();
+
+    // A stale-seq event the reducer drops entirely.
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("", 1) }, 0),
+    );
+
+    expect(notify).not.toHaveBeenCalled();
     expect(controller.getStateSnapshot()).toBe(controller.getState());
   });
 

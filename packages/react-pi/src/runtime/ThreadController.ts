@@ -668,11 +668,13 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   private recomputeProjectedMessagesAndNotify() {
-    // `message_end` advances state without moving the projection, and the
-    // early return below skips the notification that would publish it.
-    this.stateSnapshot = this.state;
     const next = this.projectMessages();
-    if (next === this.projectedMessages) return;
+    if (next === this.projectedMessages) {
+      // `message_end` advances state without moving the projection, so publish
+      // it here rather than stranding the snapshot behind `getState()`.
+      if (this.state !== this.stateSnapshot) this.notifyMetadataListeners();
+      return;
+    }
     this.projectedMessages = next;
     // `fromArray` chains messages linearly and keeps their stable `pi-msg:N`
     // ids (its generated id is only a fallback for id-less messages).
@@ -702,6 +704,7 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   private notifyMessageListeners() {
+    this.stateSnapshot = this.state;
     this.bumpVersion();
     notifyListeners(this.messageListeners);
     notifyListeners(this.allListeners);

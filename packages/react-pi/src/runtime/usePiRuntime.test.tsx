@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   adapters: [] as ExternalStoreAdapter[],
   repository: undefined as unknown,
   state: undefined as unknown,
+  liveState: undefined as unknown,
   threadListItem: {
     id: "t1",
     remoteId: "t1" as string | undefined,
@@ -50,7 +51,7 @@ vi.mock("./ThreadController", async (importOriginal) => {
   const original = await importOriginal<typeof import("./ThreadController")>();
 
   class PiThreadController {
-    getState = () => mocks.state;
+    getState = () => mocks.liveState ?? mocks.state;
     getStateSnapshot = () => mocks.state;
     getProjectedMessages = () => [];
     getMessageRepository = () => mocks.repository;
@@ -102,6 +103,7 @@ afterEach(() => {
     status: "regular",
   };
   mocks.mainThreadId = "t1";
+  mocks.liveState = undefined;
   mocks.allListeners.clear();
   mocks.messageListeners.clear();
   vi.clearAllMocks();
@@ -222,6 +224,24 @@ describe("usePiRuntime controller subscriptions", () => {
     expect(after.isRunning).toBe(true);
     expect(after.extras).toMatchObject({ state: runningState });
     expect(renderCount()).toBe(rendersAfterMount + 1);
+  });
+
+  it("publishes the snapshot, not the state running ahead of it", async () => {
+    const settled = createPiThreadState("t1");
+    mocks.state = settled;
+    mocks.repository = ExportedMessageRepository.fromArray([]);
+
+    await renderRuntime();
+    expect(mocks.adapters.at(-1)!.extras).toMatchObject({ state: settled });
+
+    // a coalesced message frame has reduced but not yet notified
+    mocks.liveState = { ...settled, runStatus: "running" as const };
+    await act(async () => {
+      for (const listener of [...mocks.allListeners]) listener();
+    });
+
+    expect(mocks.adapters.at(-1)!.isRunning).toBe(false);
+    expect(mocks.adapters.at(-1)!.extras).toMatchObject({ state: settled });
   });
 
   it("republishes the repository on a message notification", async () => {
