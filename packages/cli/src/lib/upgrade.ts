@@ -42,6 +42,7 @@ export async function upgrade(options: TransformOptions) {
     {
       format: "Progress |{bar}| {percentage}% | ETA: {eta}s || {status}",
       hideCursor: true,
+      gracefulExit: true,
     },
     Presets.shades_classic,
   );
