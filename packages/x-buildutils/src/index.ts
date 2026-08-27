@@ -32,6 +32,60 @@ const shimBase = isReactless
   : "@assistant-ui/tap/react-shim";
 const packageImportExternals = Object.keys(pkg.imports ?? {});
 
+// A package whose exports map targets `.cjs` files ships a bundled
+// CommonJS/node build (a Metro babel transformer must be `require`d
+// synchronously). Entries derive from the exports subpaths; declared
+// dependencies and peers stay external while workspace devDependencies are
+// bundled in, so an ESM-only workspace dependency can ride inside the CJS
+// artifact.
+const exportTargets = Object.entries(pkg.exports ?? {}).map(([key, value]) => ({
+  key,
+  target:
+    typeof value === "string"
+      ? value
+      : ((value as Record<string, unknown> | null)?.default as
+          | string
+          | undefined),
+}));
+const cjsTargets = exportTargets.filter(
+  ({ target }) => typeof target === "string" && target.endsWith(".cjs"),
+);
+if (cjsTargets.length > 0 && cjsTargets.length !== exportTargets.length) {
+  throw new Error(
+    "Exports map mixes .cjs and non-.cjs targets; a package builds as either CommonJS or ESM, not both.",
+  );
+}
+
+if (cjsTargets.length > 0) {
+  const externalDeps = Object.keys({
+    ...pkg.dependencies,
+    ...pkg.peerDependencies,
+  });
+  const bundledWorkspaceDevDeps = Object.entries(
+    (pkg.devDependencies ?? {}) as Record<string, string>,
+  )
+    .filter(([, range]) => range.startsWith("workspace:"))
+    .map(([name]) => name);
+
+  await build({
+    entry: cjsTargets.map(({ key }) =>
+      key === "." ? "src/index.ts" : `src/${key.slice(2)}.ts`,
+    ),
+    format: "cjs",
+    platform: "node",
+    dts: isDev ? false : { sourcemap: true },
+    sourcemap: true,
+    watch: isDev,
+    ...(onSuccess ? { onSuccess } : {}),
+    deps: {
+      alwaysBundle: bundledWorkspaceDevDeps,
+      neverBundle: [/^node:/, ...externalDeps, ...packageImportExternals],
+    },
+    plugins: [preserveReferenceDirectives()],
+  });
+  process.exit(0);
+}
+
 await build({
   entry: [
     "src/**/*.{ts,tsx}",

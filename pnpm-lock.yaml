@@ -3963,9 +3963,6 @@ importers:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
-      tsdown:
-        specifier: ^0.22.14
-        version: 0.22.14(@typescript/typescript6@6.0.2)(tsx@4.23.12)
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
