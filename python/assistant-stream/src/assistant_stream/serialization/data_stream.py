@@ -106,7 +106,9 @@ class DataStreamEncoder(StreamEncoder):
         def warn(reason: str, detail: str) -> None:
             logger.warning("Dropped data-stream chunk (%s): %s", reason, detail)
 
-        def finish_tool_call_args(tool_call_id: str, args_text_delta: str) -> list[str]:
+        def finish_tool_call_args(
+            tool_call_id: str, args_text_delta: str, _: bool
+        ) -> list[str]:
             finish = self.encode_chunk(
                 ToolCallArgsTextFinishChunk(
                     tool_call_id=tool_call_id,
@@ -117,7 +119,11 @@ class DataStreamEncoder(StreamEncoder):
                 return [finish]
             return []
 
-        tool_call_args = ToolCallArgsSettler(finish_tool_call_args, warn)
+        tool_call_args = ToolCallArgsSettler(
+            finish_tool_call_args,
+            warn,
+            emit_empty_args_text=True,
+        )
 
         async for chunk in stream:
             if chunk.type in ("step-finish", "error"):

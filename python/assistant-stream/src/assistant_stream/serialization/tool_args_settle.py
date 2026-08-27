@@ -8,11 +8,14 @@ Frame = TypeVar("Frame")
 class ToolCallArgsSettler(Generic[Frame]):
     def __init__(
         self,
-        finish_frames: Callable[[str, str], list[Frame]],
+        finish_frames: Callable[[str, str, bool], list[Frame]],
         warn: Callable[[str, str], None],
+        *,
+        emit_empty_args_text: bool,
     ) -> None:
         self._finish_frames = finish_frames
         self._warn = warn
+        self._emit_empty_args_text = emit_empty_args_text
         self._open: dict[str, bool] = {}
         self._settled: set[str] = set()
         self._warned_reasons: set[str] = set()
@@ -43,9 +46,16 @@ class ToolCallArgsSettler(Generic[Frame]):
         if has_args_text is None:
             return []
         self._settled.add(tool_call_id)
-        if not args_text_delta and not has_args_text:
+        if (
+            self._emit_empty_args_text
+            and not args_text_delta
+            and not has_args_text
+        ):
+            # A decoder that predates `isFinal` appends this delta and settles
+            # on what it has, skipping its own empty-object default once any
+            # delta has arrived. The frame must therefore carry the default.
             args_text_delta = "{}"
-        return self._finish_frames(tool_call_id, args_text_delta)
+        return self._finish_frames(tool_call_id, args_text_delta, has_args_text)
 
     def finish_open(self) -> list[Frame]:
         frames: list[Frame] = []

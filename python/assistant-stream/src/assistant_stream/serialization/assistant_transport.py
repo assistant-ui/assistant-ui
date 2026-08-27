@@ -44,7 +44,11 @@ class _Canonicalizer:
         self._part_counter = 0
         self._append_part: tuple[str, list[int], str | None] | None = None
         self._tool_paths: dict[str, list[int]] = {}
-        self._tool_args = ToolCallArgsSettler(self._finish_tool_call_args, self._warn)
+        self._tool_args = ToolCallArgsSettler(
+            self._finish_tool_call_args,
+            self._warn,
+            emit_empty_args_text=False,
+        )
         self._warned_reasons: set[str] = set()
 
     def _warn(self, reason: str, detail: str) -> None:
@@ -162,9 +166,11 @@ class _Canonicalizer:
         return [result, *self._tool_args.finish(chunk.tool_call_id)]
 
     def _finish_tool_call_args(
-        self, tool_call_id: str, args_text_delta: str
+        self, tool_call_id: str, args_text_delta: str, has_args_text: bool
     ) -> list[dict[str, Any]]:
-        path = self._tool_paths[tool_call_id]
+        path = self._tool_paths.get(tool_call_id)
+        if path is None:
+            return []
         frames: list[dict[str, Any]] = []
         if args_text_delta:
             frames.append(
@@ -174,14 +180,22 @@ class _Canonicalizer:
                     "path": path,
                 }
             )
-        frames.extend(self._close_tool_part(path))
+        frames.extend(
+            self._close_tool_part(path, has_args_text or bool(args_text_delta))
+        )
         return frames
 
-    def _close_tool_part(self, path: list[int]) -> list[dict[str, Any]]:
-        return [
+    def _close_tool_part(
+        self, path: list[int], has_args_text: bool
+    ) -> list[dict[str, Any]]:
+        frames: list[dict[str, Any]] = []
+        if not has_args_text:
+            frames.append({"type": "text-delta", "textDelta": "{}", "path": path})
+        frames.extend([
             {"type": "tool-call-args-text-finish", "path": path},
             {"type": "part-finish", "path": path},
-        ]
+        ])
+        return frames
 
     def _source(self, chunk: SourceChunk) -> list[dict[str, Any]]:
         frames = self._close_append_part()
