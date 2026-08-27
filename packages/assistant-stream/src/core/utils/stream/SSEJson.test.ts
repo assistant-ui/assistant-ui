@@ -77,6 +77,28 @@ describe("createSSEJsonDecoder", () => {
     expect(chunks).toEqual([{ a: 1 }]);
   });
 
+  it("invokes the done callback when the marker arrives", async () => {
+    const onDone = vi.fn();
+    await collectChunks(
+      createSSEJsonDecoder({
+        parse: jsonParse,
+        done: { marker: "[DONE]", onDone },
+      })(fromSSEText('data: {"a":1}\n\ndata: [DONE]\n\n')),
+    );
+    expect(onDone).toHaveBeenCalledOnce();
+  });
+
+  it("invokes the missing callback when the stream ends without the marker", async () => {
+    const onMissing = vi.fn();
+    await collectChunks(
+      createSSEJsonDecoder({
+        parse: jsonParse,
+        done: { marker: "[DONE]", onMissing },
+      })(fromSSEText('data: {"a":1}\n\n')),
+    );
+    expect(onMissing).toHaveBeenCalledOnce();
+  });
+
   it("throws on unknown event names in strict mode", async () => {
     await expect(
       collectChunks(
