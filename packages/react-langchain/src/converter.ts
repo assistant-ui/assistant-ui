@@ -336,3 +336,31 @@ export const createLangChainStreamingTimingAccessors = <
     getToolCallCount,
   };
 };
+
+/**
+ * Group the graph's accumulated `UIMessage`s by the assistant message they
+ * belong to. Non-array state and entries without a parent link are dropped.
+ * The parent id comes from `metadata.message_id` (Python SDK) or
+ * `metadata.id` (JS SDK).
+ */
+export const groupUIMessagesByParent = <
+  T extends {
+    metadata?: { message_id?: string; id?: string } | undefined;
+  },
+>(
+  value: unknown,
+): Map<string, T[]> => {
+  const map = new Map<string, T[]>();
+  if (!Array.isArray(value)) return map;
+  for (const ui of value as T[]) {
+    const parentId = ui.metadata?.message_id ?? ui.metadata?.id;
+    if (!parentId) continue;
+    const existing = map.get(parentId);
+    if (existing) {
+      existing.push(ui);
+    } else {
+      map.set(parentId, [ui]);
+    }
+  }
+  return map;
+};

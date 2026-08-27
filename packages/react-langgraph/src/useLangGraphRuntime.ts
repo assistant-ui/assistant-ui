@@ -8,9 +8,9 @@ import {
 } from "react";
 import type {
   LangChainMessage,
-  UIMessage,
   UseLangGraphRuntimeOptions,
 } from "./types";
+import { groupUIMessagesByParent } from "@assistant-ui/react-langchain/converter";
 import {
   pickExternalStoreSharedOptions,
   createMessageQueue,
@@ -354,20 +354,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     effectiveIsRunning,
   );
 
-  const uiMessagesByParent = useMemo(() => {
-    const map = new Map<string, UIMessage[]>();
-    for (const ui of uiMessages) {
-      const parentId = ui.metadata?.message_id;
-      if (!parentId) continue;
-      const existing = map.get(parentId);
-      if (existing) {
-        existing.push(ui);
-      } else {
-        map.set(parentId, [ui]);
-      }
-    }
-    return map;
-  }, [uiMessages]);
+  const uiMessagesByParent = useMemo(
+    () => groupUIMessagesByParent(uiMessages),
+    [uiMessages],
+  );
 
   // fresh metadata identity invalidates the converter cache; each UI event re-converts all messages
   const converterMetadata = useMemo(

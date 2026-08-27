@@ -19,7 +19,6 @@ import type {
   A2AArtifact,
   A2AAgentCard,
   A2AMessage,
-  A2APart,
   A2ASendMessageConfiguration,
   A2AStreamEvent,
   A2ATask,
@@ -28,8 +27,8 @@ import type {
 } from "./types";
 import {
   a2aMessageToContent,
-  contentPartsToA2AParts,
   isTerminalTaskState,
+  threadMessageToA2AMessage,
   taskStateToMessageStatus,
 } from "./conversions";
 
@@ -367,7 +366,14 @@ export class A2AThreadRuntimeCore {
       this.abortController = null;
     }
 
-    const a2aMessage = this.threadMessageToA2AMessage(userThreadMessage);
+    const a2aMessage = threadMessageToA2AMessage(userThreadMessage, {
+      contextId: this.contextId,
+      taskId:
+        this.currentTask?.id &&
+        !isTerminalTaskState(this.currentTask.status.state)
+          ? this.currentTask.id
+          : undefined,
+    });
 
     // Clear task if previous task reached terminal state
     if (
@@ -638,41 +644,6 @@ export class A2AThreadRuntimeCore {
   }
 
   // --- Message helpers ---
-
-  private threadMessageToA2AMessage(message: ThreadMessage): A2AMessage {
-    const parts: A2APart[] = [];
-
-    if (message.role === "user") {
-      parts.push(...contentPartsToA2AParts(message.content));
-      for (const attachment of message.attachments ?? []) {
-        parts.push(
-          ...contentPartsToA2AParts(
-            attachment.content ?? [],
-            attachment.contentType,
-          ),
-        );
-      }
-    }
-
-    const a2aMsg: A2AMessage = {
-      messageId: message.id,
-      role: "user",
-      parts,
-    };
-
-    if (this.contextId) {
-      a2aMsg.contextId = this.contextId;
-    }
-    // Only attach taskId if current task is NOT in terminal state
-    if (
-      this.currentTask?.id &&
-      !isTerminalTaskState(this.currentTask.status.state)
-    ) {
-      a2aMsg.taskId = this.currentTask.id;
-    }
-
-    return a2aMsg;
-  }
 
   private insertAssistantPlaceholder(parentId: string): string {
     const id = generateId();

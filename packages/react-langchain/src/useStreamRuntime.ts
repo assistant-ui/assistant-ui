@@ -29,6 +29,8 @@ import type {
   UIMessage,
   UseStreamRuntimeOptions,
 } from "./types";
+import { groupUIMessagesByParent } from "./converter";
+export { groupUIMessagesByParent } from "./converter";
 import {
   convertLangChainBaseMessage,
   getMessageContent,
@@ -51,30 +53,6 @@ export const runConfigToSubmitOptions = (
 type NormalizedRunConfigOptions = NonNullable<
   ReturnType<typeof runConfigToSubmitOptions>
 >;
-
-/**
- * Group the graph's accumulated `UIMessage`s by the assistant message they
- * belong to. Non-array state and entries without a parent link are dropped.
- * The parent id comes from `metadata.message_id` (Python SDK) or
- * `metadata.id` (JS SDK).
- */
-export const groupUIMessagesByParent = (
-  value: unknown,
-): Map<string, UIMessage[]> => {
-  const map = new Map<string, UIMessage[]>();
-  if (!Array.isArray(value)) return map;
-  for (const ui of value as UIMessage[]) {
-    const parentId = ui.metadata?.message_id ?? ui.metadata?.id;
-    if (!parentId) continue;
-    const existing = map.get(parentId);
-    if (existing) {
-      existing.push(ui);
-    } else {
-      map.set(parentId, [ui]);
-    }
-  }
-  return map;
-};
 
 const getPendingToolCalls = (
   messages: readonly LangChainBaseMessage[],
@@ -197,7 +175,8 @@ const useStreamThreadRuntime = (
   const convertWithUI = useMemo<
     useExternalMessageConverter.Callback<LangChainBaseMessage>
   >(() => {
-    const uiMessagesByParent = groupUIMessagesByParent(mergedUiMessages);
+    const uiMessagesByParent =
+      groupUIMessagesByParent<UIMessage>(mergedUiMessages);
     return (message, metadata) =>
       convertLangChainBaseMessage(message, {
         ...metadata,

@@ -1,6 +1,10 @@
 "use client";
 
-import type { MessageStatus, ThreadAssistantMessage } from "@assistant-ui/core";
+import type {
+  MessageStatus,
+  ThreadAssistantMessage,
+  ThreadMessage,
+} from "@assistant-ui/core";
 import {
   parseDataUrl,
   resolveFilePartSource,
@@ -192,4 +196,41 @@ export function a2aMessageToContent(
   message: A2AMessage,
 ): ThreadAssistantMessage["content"] {
   return a2aPartsToContent(message?.parts ?? []);
+}
+
+export function threadMessageToA2AMessage(
+  message: ThreadMessage,
+  options: {
+    contextId?: string | undefined;
+    taskId?: string | undefined;
+  } = {},
+): A2AMessage {
+  const parts: A2APart[] = [];
+
+  if (message.role === "user") {
+    parts.push(...contentPartsToA2AParts(message.content));
+    for (const attachment of message.attachments ?? []) {
+      parts.push(
+        ...contentPartsToA2AParts(
+          attachment.content ?? [],
+          attachment.contentType,
+        ),
+      );
+    }
+  }
+
+  const a2aMsg: A2AMessage = {
+    messageId: message.id,
+    role: "user",
+    parts,
+  };
+
+  if (options.contextId) {
+    a2aMsg.contextId = options.contextId;
+  }
+  if (options.taskId) {
+    a2aMsg.taskId = options.taskId;
+  }
+
+  return a2aMsg;
 }
