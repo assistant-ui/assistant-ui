@@ -19,7 +19,7 @@ import { DirectiveTextSample } from "@/components/pages/docs/samples/directive-t
 
 <InstallCommand shadcn={["directive-text"]} />
 
-This adds `/components/assistant-ui/directive-text.tsx` with `DirectiveText` and the `createDirectiveText(formatter, options?)` factory.
+This adds `/components/assistant-ui/elements/directive-text.tsx` with `DirectiveText` and the `createDirectiveText(formatter, options?)` factory.
 
   </Step>
   <Step>
@@ -28,8 +28,8 @@ This adds `/components/assistant-ui/directive-text.tsx` with `DirectiveText` and
 
 Pass `DirectiveText` as the `Text` component in `MessagePrimitive.Parts`:
 
-```tsx title="components/assistant-ui/thread.tsx"
-import { DirectiveText } from "@/components/assistant-ui/directive-text";
+```tsx title="components/assistant-ui/elements/thread.tsx"
+import { DirectiveText } from "@/components/assistant-ui/elements/directive-text";
 
 const UserMessage = () => (
   <MessagePrimitive.Root>
@@ -48,7 +48,7 @@ Keep your markdown renderer (e.g. `MarkdownText`) for assistant messages — ass
 `DirectiveText` ships icon-free by default — every parsed segment renders as a plain label chip regardless of its `type`. To add icons, use the `createDirectiveText` factory and pass an `iconMap` that routes each `type` string to an icon component, plus an optional `fallbackIcon` for unmapped types:
 
 ```tsx
-import { createDirectiveText } from "@/components/assistant-ui/directive-text";
+import { createDirectiveText } from "@/components/assistant-ui/elements/directive-text";
 import { unstable_defaultDirectiveFormatter } from "@assistant-ui/react";
 import { FileTextIcon, SparklesIcon, UserIcon, WrenchIcon } from "lucide-react";
 
@@ -75,7 +75,7 @@ The default format is `:type[label]{name=id}`. For a different format, build a c
 
 ```tsx
 import type { Unstable_DirectiveFormatter } from "@assistant-ui/react";
-import { createDirectiveText } from "@/components/assistant-ui/directive-text";
+import { createDirectiveText } from "@/components/assistant-ui/elements/directive-text";
 
 const slashFormatter: Unstable_DirectiveFormatter = {
   serialize: (item) => `/${item.id}`,

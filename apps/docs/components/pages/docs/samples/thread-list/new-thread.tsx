@@ -7,7 +7,7 @@ import {
   type ExternalStoreThreadData,
   type ThreadMessage,
 } from "@assistant-ui/react";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.kit";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function EmptyThreadList() {

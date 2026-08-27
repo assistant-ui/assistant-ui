@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import { cn } from "@/lib/utils";
-import { demoCanvasClass } from "@/components/pages/elements/demos/canvas";
-import { DemoStage } from "@/components/demo/demo-stage";
+import { demoFrameClass } from "@/components/demo/utils/canvas";
+import { DemoStage } from "@/components/demo/elements/demo-stage";
 import type { ElementVariant } from "./registry";
 
 export function DemoVariants({
@@ -18,13 +18,17 @@ export function DemoVariants({
     variants.find((variant) => variant.key === key) ?? variants[0]!;
 
   return (
-    <div className={cn(demoCanvasClass, "mt-8 h-[400px] flex-col")}>
-      <div className="flex min-h-0 w-full flex-1 items-center justify-center">
+    <div className={cn(demoFrameClass, "h-[360px] flex-col items-stretch")}>
+      <div className="flex min-h-0 flex-1 items-center justify-center p-5 md:p-6">
         <DemoStage key={active.key} replay={replay}>
           <active.Component />
         </DemoStage>
       </div>
-      <div className="-mb-3 flex flex-wrap justify-center gap-1 pt-4 md:-mb-7">
+      <div
+        role="group"
+        aria-label="Variants"
+        className="border-foreground/10 flex h-9 shrink-0 items-center gap-0.5 border-t px-1.5"
+      >
         {variants.map((variant) => {
           const selected = variant.key === active.key;
           return (
@@ -34,10 +38,10 @@ export function DemoVariants({
               aria-pressed={selected}
               onClick={() => setKey(variant.key)}
               className={cn(
-                "h-7 rounded-full px-3 text-[12.5px] transition-[color,background-color,scale] duration-150 ease-[cubic-bezier(0.23,1,0.32,1)] active:scale-[0.96] motion-reduce:transition-none",
+                "h-6 rounded-(--radius-sm) px-2 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors motion-reduce:transition-none",
                 selected
-                  ? "bg-foreground/[0.05] text-foreground dark:bg-foreground/[0.08] font-medium"
-                  : "text-foreground/45 hover:text-foreground/90",
+                  ? "bg-foreground/[0.06] text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
               )}
             >
               {variant.label}

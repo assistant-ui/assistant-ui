@@ -75,7 +75,7 @@ function HeaderSearch() {
   );
 }
 
-const CONDENSED_HIDDEN = new Set(["Showcase", "Pricing"]);
+const CONDENSED_HIDDEN = new Set(["Pricing"]);
 
 function MobileSectionBreadcrumb({
   tree,

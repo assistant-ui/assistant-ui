@@ -101,3 +101,5 @@ apps/docs/app/api/xulux/CLAUDE.md
 .specify/
 specs/*
 .test-output/
+
+.claude-shots/

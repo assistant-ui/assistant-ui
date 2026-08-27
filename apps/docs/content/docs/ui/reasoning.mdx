@@ -20,7 +20,7 @@ import { ReasoningVariantsSample } from "@/components/pages/docs/samples/reasoni
 
 <InstallCommand shadcn={["reasoning"]} />
 
-This adds a `/components/assistant-ui/reasoning.tsx` file to your project.
+This adds a `/components/assistant-ui/elements/reasoning.tsx` file to your project.
 
   </Step>
   <Step>
@@ -33,17 +33,17 @@ Render reasoning parts through `MessagePrimitive.GroupedParts`. Group consecutiv
 
 While reasoning is streaming, `part.status.type === "running"`. Pass that to `streaming` so the accordion auto-opens during streaming with a bottom-pinned live preview of the newest tokens, and permanently defers to the first manual toggle. `streaming` only holds the disclosure open; when it ends the accordion returns to `defaultOpen`, which is `false` by default and therefore collapses. Pass `defaultOpen` to keep reasoning expanded once the run finishes.
 
-```tsx title="/app/components/assistant-ui/thread.tsx"
+```tsx title="/app/components/assistant-ui/elements/thread.tsx"
 import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback";
 import {
   Reasoning,
   ReasoningContent,
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-} from "@/components/assistant-ui/reasoning"; // [!code ++]
+} from "@/components/assistant-ui/elements/reasoning"; // [!code ++]
 
 const AssistantMessage: FC = () => {
   return (
@@ -149,7 +149,7 @@ The `defaultOpen` prop opens the disclosure when the page loads. `ReasoningText`
 `ReasoningGroup` is kept for existing code that still uses the deprecated `components.ReasoningGroup` prop on `MessagePrimitive.Parts`. New code should use `MessagePrimitive.GroupedParts` and compose the root/trigger/content pieces directly.
 
 ```tsx
-import { ReasoningGroup } from "@/components/assistant-ui/reasoning";
+import { ReasoningGroup } from "@/components/assistant-ui/elements/reasoning";
 
 const ReasoningGroupImpl: ReasoningGroupComponent = ({
   children,
@@ -198,7 +198,7 @@ import {
   ReasoningContent,
   ReasoningText,
   ReasoningFade,
-} from "@/components/assistant-ui/reasoning";
+} from "@/components/assistant-ui/elements/reasoning";
 
 <ReasoningRoot variant="muted">
   <ReasoningTrigger active={isStreaming} />

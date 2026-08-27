@@ -5,9 +5,9 @@ import { MessagePrimitive } from "@assistant-ui/react";
 // names is used, so grouping these with MessagePrimitive would show a list
 // wrapper and a fixture type the extracted snippet never uses.
 import { ThreadPrimitive, type ThreadMessageLike } from "@assistant-ui/react";
-import { UserMessageAttachments } from "@/components/assistant-ui/attachment.radix";
-import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
-import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-runtime-provider";
+import { UserMessageAttachments } from "@/components/assistant-ui/elements/attachment.radix";
+import { SampleFrame } from "../sample-frame";
+import { SampleRuntimeProvider } from "../sample-runtime-provider";
 
 export function UserMessageWithAttachments() {
   return (

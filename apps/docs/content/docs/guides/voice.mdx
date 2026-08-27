@@ -240,13 +240,13 @@ The fastest path is the styled `voice` registry component. It ships a `VoiceCont
 
 <InstallCommand shadcn={["voice"]} />
 
-This adds `/components/assistant-ui/voice.tsx` to your project. Adjust styling as needed.
+This adds `/components/assistant-ui/elements/voice.tsx` to your project. Adjust styling as needed.
 
 ### Use with a runtime
 
 ```tsx title="app/page.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
-import { VoiceControl } from "@/components/assistant-ui/voice";
+import { Thread } from "@/components/assistant-ui/elements/thread";
+import { VoiceControl } from "@/components/assistant-ui/elements/voice";
 import { AuiIf } from "@assistant-ui/react";
 
 export default function Chat() {

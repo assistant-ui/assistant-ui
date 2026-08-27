@@ -30,8 +30,8 @@ A picker that lets users switch between AI models and choose a reasoning effort 
 
 Place the `ModelSelector` inside your thread component, typically in the composer area. Each model needs an `id` and a display `name`; everything else is optional:
 
-```tsx title="/components/assistant-ui/thread.tsx" {1,6-15}
-import { ModelSelector } from "@/components/assistant-ui/model-selector";
+```tsx title="/components/assistant-ui/elements/thread.tsx" {1,6-15}
+import { ModelSelector } from "@/components/assistant-ui/elements/model-selector";
 
 const ComposerAction: FC = () => {
   return (
@@ -108,7 +108,7 @@ The effort selection survives model switches. Switching to a model that doesn't 
 `ModelSelector.Effort` lays the levels out as horizontal segments, which overflows the popover width once a model has more than a few. For those cases, or for a different layout such as a slider or a sub-dropdown, build your own control with the `useModelSelectorEfforts` hook. It exposes the selected model's levels and the active selection:
 
 ```tsx
-import { useModelSelectorEfforts } from "@/components/assistant-ui/model-selector";
+import { useModelSelectorEfforts } from "@/components/assistant-ui/elements/model-selector";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -152,7 +152,7 @@ Each model's `icon` accepts any `ReactNode` and renders in the trigger and the d
 <InstallCommand shadcn={["logos"]} />
 
 ```tsx
-import { ClaudeLogo, GeminiLogo, OpenAILogo } from "@/components/assistant-ui/logos";
+import { ClaudeLogo, GeminiLogo, OpenAILogo } from "@/components/assistant-ui/elements/logos";
 
 <ModelSelector
   models={[
@@ -190,7 +190,7 @@ import {
   ModelSelectorGroup,
   ModelSelectorItem,
   ModelSelectorEffort,
-} from "@/components/assistant-ui/model-selector";
+} from "@/components/assistant-ui/elements/model-selector";
 
 <ModelSelectorRoot
   models={models}

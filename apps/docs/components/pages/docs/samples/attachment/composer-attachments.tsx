@@ -12,9 +12,9 @@ import {
 import {
   ComposerAddAttachment,
   ComposerAttachments,
-} from "@/components/assistant-ui/attachment";
-import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
-import { SampleRuntimeProvider } from "@/components/pages/docs/samples/sample-runtime-provider";
+} from "@/components/assistant-ui/elements/attachment";
+import { SampleFrame } from "../sample-frame";
+import { SampleRuntimeProvider } from "../sample-runtime-provider";
 
 export function ComposerWithAttachments() {
   return (

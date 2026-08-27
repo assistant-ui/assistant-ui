@@ -12,7 +12,7 @@ import { PartGroupingSample } from "@/components/pages/docs/samples/part-groupin
 
 For adjacent grouping, use `MessagePrimitive.GroupedParts`. For the common case — grouping by `part.type` — pass `groupPartByType` to map each part type to a group-key path. Adjacent parts that share a group key are coalesced and rendered through the group case.
 
-```tsx title="/components/assistant-ui/thread.tsx"
+```tsx title="/components/assistant-ui/elements/thread.tsx"
 import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
 
 const AssistantMessage: FC = () => {

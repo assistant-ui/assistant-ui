@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { source, getTapDocsPages, blog, examples, careers } from "@/lib/source";
 import { ELEMENTS } from "@/components/pages/elements/registry";
 import { DEMOS } from "@/lib/demos";
-import { STANDALONE_COMPONENTS } from "@/lib/standalone";
+import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
 import { BASE_URL, PRODUCTS } from "@/lib/constants";
 
 export default function sitemap(): MetadataRoute.Sitemap {
@@ -23,7 +23,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     },
     {
-      url: `${BASE_URL}/standalone`,
+      url: `${BASE_URL}/design`,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${BASE_URL}/design/components`,
       changeFrequency: "weekly",
       priority: 0.7,
     },
@@ -84,13 +89,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  const standalonePages: MetadataRoute.Sitemap = STANDALONE_COMPONENTS.map(
-    (item) => ({
-      url: `${BASE_URL}/standalone/${item.slug}`,
-      changeFrequency: "weekly" as const,
-      priority: 0.6,
-    }),
-  );
+  const designPages: MetadataRoute.Sitemap = DESIGN_COMPONENTS.map((item) => ({
+    url: `${BASE_URL}/design/components/${item.slug}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
 
   const demoPages: MetadataRoute.Sitemap = DEMOS.map((demo) => ({
     url: `${BASE_URL}/demos/${demo.slug}`,
@@ -113,7 +116,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...blogPages,
     ...examplePages,
     ...elementPages,
-    ...standalonePages,
+    ...designPages,
     ...demoPages,
     ...careerPages,
   ];

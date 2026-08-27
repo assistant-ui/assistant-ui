@@ -30,7 +30,7 @@ export const GROUPS: {
     links: [
       { label: "Agent skills", href: "/docs/llm" },
       { label: "Examples", href: "/examples" },
-      { label: "Standalone", href: "/standalone" },
+      { label: "Design", href: "/design" },
     ],
   },
 ];

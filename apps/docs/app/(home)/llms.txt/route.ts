@@ -1,4 +1,4 @@
-import { examples, source, standalone, getTapDocsPages } from "@/lib/source";
+import { design, examples, source, getTapDocsPages } from "@/lib/source";
 import { buildLLMSIndex } from "@/lib/llms-index";
 
 export const revalidate = false;
@@ -9,7 +9,7 @@ export async function GET() {
       source.getPages(),
       getTapDocsPages(),
       examples.getPages(),
-      standalone.getPages(),
+      design.getPages(),
     ),
     {
       headers: {

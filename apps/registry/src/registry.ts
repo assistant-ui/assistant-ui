@@ -62,8 +62,8 @@ const createElementRegistryItem = (
   files: [
     {
       type: "registry:component",
-      path: `components/elements/${entry.file}`,
-      sourcePath: `../../packages/ui/src/components/elements/${entry.file}`,
+      path: `components/assistant-ui/elements/${entry.file}`,
+      sourcePath: `../../packages/ui/src/components/assistant-ui/elements/${entry.file}`,
     },
   ],
   registryDependencies: [
@@ -86,8 +86,9 @@ const elementsRegistryItems: RegistryItem[] = [
     files: [
       {
         type: "registry:lib",
-        path: "components/elements/surfaces.tsx",
-        sourcePath: "../../packages/ui/src/components/elements/surfaces.tsx",
+        path: "components/assistant-ui/elements/surfaces.standalone.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/elements/surfaces.standalone.tsx",
       },
     ],
     dependencies: ["tw-shimmer"],
@@ -104,8 +105,9 @@ const elementsRegistryItems: RegistryItem[] = [
     files: [
       {
         type: "registry:lib",
-        path: "components/elements/range.ts",
-        sourcePath: "../../packages/ui/src/components/elements/range.ts",
+        path: "components/assistant-ui/utils/range.ts",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/utils/range.ts",
       },
     ],
   },
@@ -114,21 +116,21 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Loading state",
     description:
       "A pixel matrix that keeps time while the model has nothing to show yet.",
-    file: "loading-state.tsx",
+    file: "loading-state.standalone.tsx",
   }),
   createElementRegistryItem({
     slug: "thinking-indicator",
     title: "Thinking indicator",
     description:
       "A live status line that names what the agent is doing right now, with elapsed time.",
-    file: "thinking-indicator.tsx",
+    file: "thinking-indicator.standalone.tsx",
   }),
   createElementRegistryItem({
     slug: "reasoning-panel",
     title: "Reasoning panel",
     description:
       "A collapsible trace that streams reasoning steps along a timeline, then settles into a summary.",
-    file: "reasoning-panel.tsx",
+    file: "reasoning-panel.standalone.tsx",
     dependencies: ["lucide-react"],
     usesCollapsible: true,
     usesElements: ["range"],
@@ -138,7 +140,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Streaming text",
     description:
       "Tokens arrive softly: the newest words land in blue and settle into ink.",
-    file: "streaming-text.tsx",
+    file: "streaming-text.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -146,14 +148,14 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Typing indicator",
     description:
       "The classic three dots, tuned to read as presence rather than noise.",
-    file: "typing-indicator.tsx",
+    file: "typing-indicator.standalone.tsx",
   }),
   createElementRegistryItem({
     slug: "message-pair",
     title: "Message pair",
     description:
       "A user bubble and a streaming assistant reply, with actions that appear on hover.",
-    file: "message-pair.tsx",
+    file: "message-pair.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -162,7 +164,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Message branches",
     description:
       "Navigate between regenerated versions of the same answer without losing your place.",
-    file: "message-branches.tsx",
+    file: "message-branches.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -170,7 +172,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Message actions",
     description:
       "Copy, rate, and regenerate. Each action confirms itself with a small state change.",
-    file: "message-actions.tsx",
+    file: "message-actions.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -178,14 +180,14 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Follow-up suggestions",
     description:
       "Prompt pills that stagger in after a reply and invite the next turn.",
-    file: "suggestions.tsx",
+    file: "suggestions.standalone.tsx",
   }),
   createElementRegistryItem({
     slug: "error-state",
     title: "Error state",
     description:
       "A quiet failure banner with a retry path, not a modal in your face.",
-    file: "error-state.tsx",
+    file: "error-state.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -193,7 +195,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Tool call",
     description:
       "One tool invocation with its request and result tucked behind a disclosure.",
-    file: "tool-call.tsx",
+    file: "tool-call.standalone.tsx",
     dependencies: ["lucide-react"],
     usesCollapsible: true,
   }),
@@ -202,7 +204,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Tool timeline",
     description:
       "A whole working session summarized as verbs, targets, and file stats.",
-    file: "tool-timeline.tsx",
+    file: "tool-timeline.standalone.tsx",
     dependencies: ["lucide-react"],
     usesCollapsible: true,
     usesElements: ["range"],
@@ -212,7 +214,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Terminal block",
     description:
       "Command output that streams line by line and ends with an exit status.",
-    file: "terminal-block.tsx",
+    file: "terminal-block.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -221,14 +223,14 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Code diff",
     description:
       "A unified diff with tinted additions and removals, sized for chat.",
-    file: "code-diff.tsx",
+    file: "code-diff.standalone.tsx",
   }),
   createElementRegistryItem({
     slug: "web-search",
     title: "Web search",
     description:
       "A search query and its results landing one by one as the agent reads.",
-    file: "web-search.tsx",
+    file: "web-search.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -237,7 +239,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Sources",
     description:
       "Citations collapsed into a pill, expanding into scannable source cards.",
-    file: "sources.tsx",
+    file: "sources.standalone.tsx",
     dependencies: ["lucide-react"],
     usesCollapsible: true,
   }),
@@ -246,7 +248,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Inline citation",
     description:
       "Numbered references inside a sentence, each with a hover preview of its source.",
-    file: "inline-citation.tsx",
+    file: "inline-citation.standalone.tsx",
     dependencies: ["@base-ui/react"],
   }),
   createElementRegistryItem({
@@ -254,27 +256,27 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Image generation",
     description:
       "A dot grid holds the frame while the image resolves out of a blur.",
-    file: "image-generation.tsx",
+    file: "image-generation.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
     slug: "data-table",
     title: "Data table",
     description: "A small comparison table the model can answer with directly.",
-    file: "data-table.tsx",
+    file: "data-table.standalone.tsx",
   }),
   createElementRegistryItem({
     slug: "number-ticker",
     title: "Number ticker",
     description: "Digits that roll into place as a count updates in real time.",
-    file: "number-ticker.tsx",
+    file: "number-ticker.standalone.tsx",
   }),
   createElementRegistryItem({
     slug: "agent-plan",
     title: "Agent plan",
     description:
       "A checklist the agent works through, with progress you can glance.",
-    file: "agent-plan.tsx",
+    file: "agent-plan.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -283,7 +285,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Subagent list",
     description:
       "Parallel workers with their own progress, models, and completions.",
-    file: "subagent-list.tsx",
+    file: "subagent-list.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -292,7 +294,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Agent status",
     description:
       "One pill that always answers: what is it doing, and for how long.",
-    file: "agent-status.tsx",
+    file: "agent-status.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -300,7 +302,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Approval card",
     description:
       "Human in the loop: the agent asks before it runs anything with side effects.",
-    file: "approval-card.tsx",
+    file: "approval-card.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -308,7 +310,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Recommendation card",
     description:
       "The agent proposes a change with its confidence, and waits for a yes.",
-    file: "recommendation-card.tsx",
+    file: "recommendation-card.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -316,7 +318,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Artifact card",
     description:
       "A generated document as a tangible object, written live and versioned.",
-    file: "artifact-card.tsx",
+    file: "artifact-card.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -324,7 +326,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Composer",
     description:
       "The unified input: attachments, commands, mentions, models, voice, and context in one surface.",
-    file: "composer.tsx",
+    file: "composer.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -333,7 +335,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Chat panel",
     description:
       "The whole family working together: a message, a pause, a streamed reply.",
-    file: "chat-panel.tsx",
+    file: "chat-panel.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -341,7 +343,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Empty state",
     description:
       "The first screen: a greeting, three ways in, and the composer front and center.",
-    file: "empty-state.tsx",
+    file: "empty-state.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -349,7 +351,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Thread list",
     description:
       "Conversation history with unread marks and actions that wait for hover.",
-    file: "thread-list.tsx",
+    file: "thread-list.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -357,7 +359,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Scroll anchor",
     description:
       "Streaming never steals your scroll position; a pill offers the way back down.",
-    file: "scroll-anchor.tsx",
+    file: "scroll-anchor.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -365,7 +367,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Todo list",
     description:
       "The agent's own working list, rewritten mid-run as it discovers what else is needed.",
-    file: "todo-list.tsx",
+    file: "todo-list.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -373,7 +375,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Message queue",
     description:
       "Turns you typed while a run was in flight, stacked and cancelable until it finishes.",
-    file: "message-queue.tsx",
+    file: "message-queue.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -381,7 +383,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Attachments in a message",
     description:
       "Files as received rather than staged: an image to open, a document with its page count.",
-    file: "message-attachment.tsx",
+    file: "message-attachment.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -389,7 +391,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Reviewable diff",
     description:
       "The same diff, but each hunk is a decision: keep it, discard it, apply what survived.",
-    file: "reviewable-diff.tsx",
+    file: "reviewable-diff.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["code-diff"],
   }),
@@ -398,7 +400,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "File tree",
     description:
       "Everything a run touched, as a tree, with the churn spelled out per file.",
-    file: "file-tree.tsx",
+    file: "file-tree.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -407,7 +409,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Elicitation form",
     description:
       "A server pausing mid-tool-call to ask you for the fields it still needs.",
-    file: "elicitation-form.tsx",
+    file: "elicitation-form.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -415,7 +417,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Retrieval chunks",
     description:
       "The passages a retrieval answer stands on, scored, before the answer itself arrives.",
-    file: "retrieval-chunks.tsx",
+    file: "retrieval-chunks.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -424,7 +426,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Chart",
     description:
       "Area, line, and bars, with points landing one at a time as the series streams in.",
-    file: "chart.tsx",
+    file: "chart.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -432,7 +434,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Trace waterfall",
     description:
       "Every span in a run on one time axis, nested, so you can see where it actually went.",
-    file: "trace-waterfall.tsx",
+    file: "trace-waterfall.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -440,7 +442,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Canvas",
     description:
       "The thread steps aside and the document takes the room, still being written as you read.",
-    file: "canvas-split.tsx",
+    file: "canvas-split.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -448,7 +450,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Voice conversation",
     description:
       "A live call: the orb tracks your voice, the caption names the turn, the transcript follows.",
-    file: "voice-conversation.tsx",
+    file: "voice-conversation.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -457,7 +459,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Read aloud",
     description:
       "An answer played back, the spoken word lit as it goes, speed under your thumb.",
-    file: "read-aloud.tsx",
+    file: "read-aloud.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -466,7 +468,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Server panel",
     description:
       "Which servers are connected, what each one brought, and which is still waiting on you.",
-    file: "mcp-server-panel.tsx",
+    file: "mcp-server-panel.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -474,7 +476,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Feedback dialog",
     description:
       "A thumbs-down that asks why, so the signal arrives with a reason attached.",
-    file: "feedback-dialog.tsx",
+    file: "feedback-dialog.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -482,7 +484,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Quote reply",
     description:
       "Select a phrase in an answer and a toolbar offers to quote, explain, or rewrite it.",
-    file: "quote-reply.tsx",
+    file: "quote-reply.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -490,7 +492,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Edit a sent message",
     description:
       "Rewrite a turn in place, told up front how many replies the edit throws away.",
-    file: "edit-message.tsx",
+    file: "edit-message.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -498,7 +500,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Stopped run",
     description:
       "You pressed stop. The half-written answer stays, and continuing is one tap away.",
-    file: "stopped-run.tsx",
+    file: "stopped-run.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -506,14 +508,14 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Timing footer",
     description:
       "What the turn cost: time to first token, throughput, tokens, money.",
-    file: "message-timing.tsx",
+    file: "message-timing.standalone.tsx",
   }),
   createElementRegistryItem({
     slug: "connection-state",
     title: "Connection state",
     description:
       "The socket drops, the run keeps going on the server, and the stream is picked back up.",
-    file: "connection-state.tsx",
+    file: "connection-state.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -521,7 +523,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Agent card",
     description:
       "Who you are about to talk to: its skills, its model, and the endpoint behind it.",
-    file: "agent-card.tsx",
+    file: "agent-card.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -529,7 +531,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Web preview",
     description:
       "Chrome for a sandboxed preview: a URL bar, reload, and open-in-new around a frame you isolate.",
-    file: "web-preview.tsx",
+    file: "web-preview.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -537,7 +539,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Draft restore",
     description:
       "Come back to a thread and the sentence you never sent is still waiting.",
-    file: "draft-restore.tsx",
+    file: "draft-restore.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -545,7 +547,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Diagram",
     description:
       "A drawn answer with zoom, reset, and a full-bleed view; you hand it the rendered graphic.",
-    file: "diagram.tsx",
+    file: "diagram.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -553,7 +555,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Flow graph",
     description:
       "Work as a graph rather than a list: branches that fan out and rejoin.",
-    file: "flow-graph.tsx",
+    file: "flow-graph.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -561,7 +563,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Activity graph",
     description:
       "A half-year of runs as a calendar of cells, dense where the work was.",
-    file: "activity-graph.tsx",
+    file: "activity-graph.standalone.tsx",
     dependencies: ["heat-graph"],
   }),
   createElementRegistryItem({
@@ -569,7 +571,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Parallel tools",
     description:
       "Calls that went out together, collapsed to one row until you want the detail.",
-    file: "tool-group.tsx",
+    file: "tool-group.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -577,7 +579,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Context breakdown",
     description:
       "Where the window actually went: prompt, tools, files, conversation, and what's left.",
-    file: "context-breakdown.tsx",
+    file: "context-breakdown.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -585,7 +587,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Model picker",
     description:
       "The full list rather than the rail: grouped by family, priced, with what each one can do.",
-    file: "model-picker.tsx",
+    file: "model-picker.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -593,7 +595,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Reasoning effort",
     description:
       "How hard to think, and how much of that budget the run actually spent.",
-    file: "reasoning-effort.tsx",
+    file: "reasoning-effort.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -601,21 +603,21 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Guardrail notice",
     description:
       "A refusal in its own shape, with the nearest thing it can do instead.",
-    file: "guardrail-notice.tsx",
+    file: "guardrail-notice.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
     slug: "day-separator",
     title: "Timestamps",
     description: "Chronology in a long thread: days marked, times on hover.",
-    file: "day-separator.tsx",
+    file: "day-separator.standalone.tsx",
   }),
   createElementRegistryItem({
     slug: "speaker-identity",
     title: "Speaker identity",
     description:
       "Who is talking, once a thread holds more than a user and one model.",
-    file: "speaker-identity.tsx",
+    file: "speaker-identity.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -623,7 +625,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Regenerate with",
     description:
       "Fork the same turn to a different model instead of rolling the same dice.",
-    file: "regenerate-menu.tsx",
+    file: "regenerate-menu.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -631,14 +633,14 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Confidence",
     description:
       "Which claims came from a source, which were inferred, and which are guesses.",
-    file: "confidence-marker.tsx",
+    file: "confidence-marker.standalone.tsx",
   }),
   createElementRegistryItem({
     slug: "tool-error",
     title: "Tool failure",
     description:
       "One call failed. The error, the attempt count, and a retry that doesn't restart the turn.",
-    file: "tool-error.tsx",
+    file: "tool-error.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -646,7 +648,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Permission grant",
     description:
       "Granting a capability rather than approving one action, with the reach spelled out.",
-    file: "permission-grant.tsx",
+    file: "permission-grant.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -654,7 +656,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Computer use",
     description:
       "The screen the agent is driving, with a cursor trail and what it is doing right now.",
-    file: "computer-use.tsx",
+    file: "computer-use.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -663,7 +665,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Code runner",
     description:
       "A snippet with a run button, and the output it produced attached below it.",
-    file: "code-runner.tsx",
+    file: "code-runner.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -671,7 +673,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Document reference",
     description:
       "A document the answer leans on, with the quoted passage and the page to jump to.",
-    file: "document-reference.tsx",
+    file: "document-reference.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -679,7 +681,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Memory",
     description:
       "What it now remembers about you, written during the turn and removable.",
-    file: "memory-chips.tsx",
+    file: "memory-chips.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -687,7 +689,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Research report",
     description:
       "An outline that fills in section by section, each carrying the sources behind it.",
-    file: "research-report.tsx",
+    file: "research-report.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -695,14 +697,14 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Map",
     description:
       "A location answer: pins, a route between them, and the list they came from.",
-    file: "map-answer.tsx",
+    file: "map-answer.standalone.tsx",
   }),
   createElementRegistryItem({
     slug: "math-block",
     title: "Math",
     description:
       "Rendered expressions with the working shown, one step at a time.",
-    file: "math-block.tsx",
+    file: "math-block.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -710,7 +712,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Spec sheet",
     description:
       "The most common structured answer after a table: one object, labeled.",
-    file: "spec-sheet.tsx",
+    file: "spec-sheet.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -718,7 +720,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Comparison",
     description:
       "Two options weighed side by side, with the pick named and argued.",
-    file: "comparison-card.tsx",
+    file: "comparison-card.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -726,7 +728,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Timeline",
     description:
       "Events on a time axis, with what already happened and what is still coming.",
-    file: "timeline.tsx",
+    file: "timeline.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -734,7 +736,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Long job",
     description:
       "Work measured in minutes: weighted stages, an ETA, and a way out.",
-    file: "job-progress.tsx",
+    file: "job-progress.standalone.tsx",
     dependencies: ["lucide-react"],
     usesElements: ["range"],
   }),
@@ -743,7 +745,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Score breakdown",
     description:
       "A verdict with its arithmetic shown: criteria, weights, and what pulled it down.",
-    file: "score-breakdown.tsx",
+    file: "score-breakdown.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -751,7 +753,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Cost meter",
     description:
       "What the run spent, split by model, against the session total.",
-    file: "cost-meter.tsx",
+    file: "cost-meter.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -759,7 +761,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Quota",
     description:
       "How much is left, when it comes back, and the way to get more.",
-    file: "quota-banner.tsx",
+    file: "quota-banner.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -767,7 +769,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Handoff",
     description:
       "Control passing between agents, with the reason and what came along.",
-    file: "agent-handoff.tsx",
+    file: "agent-handoff.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -775,7 +777,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Background runs",
     description:
       "Work still going somewhere else, and the results waiting to be collected.",
-    file: "background-inbox.tsx",
+    file: "background-inbox.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -783,7 +785,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Checkpoints",
     description:
       "Points you can fall back to, with what each one would give back.",
-    file: "checkpoint-history.tsx",
+    file: "checkpoint-history.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -791,7 +793,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Schedule",
     description:
       "A run that repeats on its own, with its cadence and how it has been doing.",
-    file: "schedule-card.tsx",
+    file: "schedule-card.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -799,7 +801,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Prompt library",
     description:
       "Prompts you saved, searchable, with their variables shown before you insert one.",
-    file: "prompt-library.tsx",
+    file: "prompt-library.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -807,7 +809,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Command palette",
     description:
       "Everything the app can do, one keystroke away and grouped by where it acts.",
-    file: "command-palette.tsx",
+    file: "command-palette.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -815,7 +817,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Shared conversation",
     description:
       "A read-only transcript someone sent you, with a way to pick it up yourself.",
-    file: "shared-conversation.tsx",
+    file: "shared-conversation.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -823,7 +825,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Search in conversation",
     description:
       "Find inside a long thread, with every hit marked down the scrollbar.",
-    file: "conversation-search.tsx",
+    file: "conversation-search.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -831,14 +833,14 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Thread search",
     description:
       "History you can actually get back into: pinned first, then grouped by when.",
-    file: "thread-search.tsx",
+    file: "thread-search.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
     slug: "launcher-bubble",
     title: "Launcher",
     description: "The floating entry point, and the panel it opens into.",
-    file: "launcher-bubble.tsx",
+    file: "launcher-bubble.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
   createElementRegistryItem({
@@ -846,7 +848,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Settings",
     description:
       "Model, system prompt, temperature, and what the assistant is allowed to do.",
-    file: "settings-panel.tsx",
+    file: "settings-panel.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -854,7 +856,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Onboarding",
     description:
       "First run: three moves that teach what this assistant is actually for.",
-    file: "onboarding.tsx",
+    file: "onboarding.standalone.tsx",
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -862,7 +864,7 @@ const elementsRegistryItems: RegistryItem[] = [
     title: "Mobile composer",
     description:
       "The bottom sheet: keyboard-aware, quick actions above, thumb-sized targets.",
-    file: "mobile-composer.tsx",
+    file: "mobile-composer.standalone.tsx",
     dependencies: ["lucide-react"],
   }),
 ];
@@ -999,8 +1001,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/thread.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/thread.tsx",
+        path: "components/assistant-ui/elements/thread.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/elements/thread.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1027,8 +1030,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/voice.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/voice.tsx",
+        path: "components/assistant-ui/elements/voice.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/elements/voice.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1059,9 +1063,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/markdown-text.tsx",
+        path: "components/assistant-ui/elements/markdown-text.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/markdown-text.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/markdown-text.tsx",
       },
     ],
     registryDependencies: [
@@ -1084,9 +1088,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/reasoning.tsx",
+        path: "components/assistant-ui/elements/reasoning.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/reasoning.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/reasoning.tsx",
       },
     ],
     registryDependencies: [
@@ -1113,9 +1117,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/message-timing.tsx",
+        path: "components/assistant-ui/elements/message-timing.kit.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/message-timing.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/message-timing.kit.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react"],
@@ -1130,9 +1134,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/context-display.tsx",
+        path: "components/assistant-ui/elements/context-display.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/context-display.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/context-display.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "@assistant-ui/ai-sdk"],
@@ -1147,9 +1151,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/thread-list.tsx",
+        path: "components/assistant-ui/elements/thread-list.kit.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/thread-list.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/thread-list.kit.tsx",
       },
     ],
     registryDependencies: ["button", "input", "skeleton"],
@@ -1164,9 +1168,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/mcp-config.tsx",
+        path: "components/assistant-ui/elements/mcp-config.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/mcp-config.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/mcp-config.tsx",
       },
     ],
     registryDependencies: [
@@ -1206,9 +1210,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/attachment.tsx",
+        path: "components/assistant-ui/elements/attachment.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/attachment.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/attachment.tsx",
       },
     ],
     registryDependencies: [
@@ -1229,9 +1233,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/follow-up-suggestions.tsx",
+        path: "components/assistant-ui/elements/follow-up-suggestions.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/follow-up-suggestions.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/follow-up-suggestions.tsx",
       },
     ],
     registryDependencies: [],
@@ -1246,9 +1250,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/tooltip-icon-button.tsx",
+        path: "components/assistant-ui/elements/tooltip-icon-button.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/tooltip-icon-button.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/tooltip-icon-button.tsx",
       },
     ],
     radixDependencies: ["radix-ui"],
@@ -1262,9 +1266,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/syntax-highlighter.tsx",
+        path: "components/assistant-ui/elements/syntax-highlighter.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/syntax-highlighter.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/syntax-highlighter.tsx",
       },
     ],
     dependencies: [
@@ -1282,9 +1286,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/assistant-modal.tsx",
+        path: "components/assistant-ui/elements/assistant-modal.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/assistant-modal.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/assistant-modal.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1303,9 +1307,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/assistant-sidebar.tsx",
+        path: "components/assistant-ui/elements/assistant-sidebar.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/assistant-sidebar.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/assistant-sidebar.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react"],
@@ -1322,9 +1326,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/tool-fallback.tsx",
+        path: "components/assistant-ui/elements/tool-fallback.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/tool-fallback.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/tool-fallback.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
@@ -1342,9 +1346,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/tool-group.tsx",
+        path: "components/assistant-ui/elements/tool-group.kit.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/tool-group.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/tool-group.kit.tsx",
       },
     ],
     dependencies: [
@@ -1367,9 +1371,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/shiki-highlighter.tsx",
+        path: "components/assistant-ui/elements/shiki-highlighter.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/shiki-highlighter.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/shiki-highlighter.tsx",
       },
     ],
     dependencies: [
@@ -1387,9 +1391,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/mermaid-diagram.tsx",
+        path: "components/assistant-ui/elements/mermaid-diagram.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/mermaid-diagram.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/mermaid-diagram.tsx",
       },
     ],
     dependencies: [
@@ -1401,15 +1405,14 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "diff-viewer",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Diff Viewer",
     description: "Render code diffs with highlighted additions and deletions.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/diff-viewer.tsx",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/diff-viewer.tsx",
+        type: "registry:ui",
+        path: "components/ui/diff-viewer.tsx",
+        sourcePath: "../../packages/ui/src/components/ui/base/diff-viewer.tsx",
       },
     ],
     dependencies: [
@@ -1427,9 +1430,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/threadlist-sidebar.tsx",
+        path: "components/assistant-ui/elements/threadlist-sidebar.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/threadlist-sidebar.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/threadlist-sidebar.tsx",
       },
       {
         type: "registry:component",
@@ -1452,8 +1455,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/quote.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/quote.tsx",
+        path: "components/assistant-ui/elements/quote.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/elements/quote.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1468,8 +1472,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/sources.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/sources.tsx",
+        path: "components/assistant-ui/elements/sources.kit.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/elements/sources.kit.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1484,8 +1489,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/image.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/image.tsx",
+        path: "components/assistant-ui/elements/image.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/elements/image.tsx",
       },
     ],
     dependencies: [
@@ -1504,8 +1510,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/file.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/file.tsx",
+        path: "components/assistant-ui/elements/file.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/elements/file.tsx",
       },
     ],
     dependencies: [
@@ -1523,9 +1530,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/model-selector.tsx",
+        path: "components/assistant-ui/elements/model-selector.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/model-selector.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/model-selector.tsx",
       },
     ],
     dependencies: [
@@ -1545,8 +1552,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/logos.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/logos.tsx",
+        path: "components/assistant-ui/elements/logos.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui/elements/logos.tsx",
       },
     ],
     dependencies: [],
@@ -1554,18 +1562,18 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "select",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Select",
     description:
-      "Dropdown select styled for the assistant UI, with composable sub components.",
+      "Dropdown select with composable trigger, content, and item components.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/select.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/select.tsx",
+        type: "registry:ui",
+        path: "components/ui/select.tsx",
+        sourcePath: "../../packages/ui/src/components/ui/base/select.tsx",
       },
     ],
-    dependencies: ["lucide-react", "class-variance-authority"],
+    dependencies: ["lucide-react"],
     radixDependencies: ["radix-ui"],
     baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
@@ -1588,14 +1596,14 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "badge",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Badge",
     description: "Small label for status, categories, and metadata.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/badge.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/badge.tsx",
+        type: "registry:ui",
+        path: "components/ui/badge.tsx",
+        sourcePath: "../../packages/ui/src/components/ui/base/badge.tsx",
       },
     ],
     dependencies: ["class-variance-authority"],
@@ -1605,14 +1613,14 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "tabs",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Tabs",
     description: "Tabs for organizing content into switchable panels.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/tabs.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/tabs.tsx",
+        type: "registry:ui",
+        path: "components/ui/tabs.tsx",
+        sourcePath: "../../packages/ui/src/components/ui/base/tabs.tsx",
       },
     ],
     dependencies: ["class-variance-authority"],
@@ -1622,18 +1630,17 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "accordion",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Accordion",
     description: "Stacked headings that reveal or hide content sections.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/accordion.tsx",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/accordion.tsx",
+        type: "registry:ui",
+        path: "components/ui/accordion.tsx",
+        sourcePath: "../../packages/ui/src/components/ui/base/accordion.tsx",
       },
     ],
-    dependencies: ["lucide-react", "class-variance-authority"],
+    dependencies: ["lucide-react"],
     radixDependencies: ["radix-ui"],
     baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
@@ -1641,15 +1648,14 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "dot-matrix",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Dot Matrix",
     description: "5x5 dot matrix indicator with state specific blink patterns.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/dot-matrix.tsx",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/dot-matrix.tsx",
+        type: "registry:ui",
+        path: "components/ui/dot-matrix.tsx",
+        sourcePath: "../../packages/ui/src/components/ui/base/dot-matrix.tsx",
       },
     ],
     dependencies: [],
@@ -1657,16 +1663,15 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "number-roll",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Number Roll",
     description:
       "Animated number that rolls its digits odometer style when the value changes.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/number-roll.tsx",
-        sourcePath:
-          "../../packages/ui/src/components/assistant-ui/number-roll.tsx",
+        type: "registry:ui",
+        path: "components/ui/number-roll.tsx",
+        sourcePath: "../../packages/ui/src/components/ui/base/number-roll.tsx",
       },
     ],
     dependencies: [],
@@ -1680,9 +1685,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/heat-graph.tsx",
+        path: "components/assistant-ui/elements/heat-graph.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/heat-graph.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/heat-graph.tsx",
       },
     ],
     dependencies: ["heat-graph"],
@@ -1697,9 +1702,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/composer-trigger-popover.tsx",
+        path: "components/assistant-ui/elements/composer-trigger-popover.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/composer-trigger-popover.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/composer-trigger-popover.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1713,9 +1718,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/directive-text.tsx",
+        path: "components/assistant-ui/elements/directive-text.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/directive-text.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/directive-text.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1737,9 +1742,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/generative-ui.tsx",
+        path: "components/assistant-ui/elements/generative-ui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/generative-ui.tsx",
+          "../../packages/ui/src/components/assistant-ui/elements/generative-ui.tsx",
       },
     ],
     dependencies: [

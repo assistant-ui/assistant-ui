@@ -1,7 +1,7 @@
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
-import { McpConfigDialog } from "@/components/assistant-ui/mcp-config";
+import { Thread } from "@/components/assistant-ui/elements/thread";
+import { McpConfigDialog } from "@/components/assistant-ui/elements/mcp-config";
 import { Providers } from "./providers";
 
 export default function Home() {

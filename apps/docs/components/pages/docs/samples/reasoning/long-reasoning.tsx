@@ -6,7 +6,7 @@ import {
   ReasoningTrigger,
   ReasoningContent,
   ReasoningText,
-} from "@/components/assistant-ui/reasoning";
+} from "@/components/assistant-ui/elements/reasoning";
 
 export function ReasoningLongSample() {
   return (

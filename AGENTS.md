@@ -59,9 +59,9 @@ How a package couples to its upstream decides how it bumps; the posture is chose
 
 Every publishable package builds with `aui-build` (`@assistant-ui/x-buildutils`). Do not add a per-package build config or use tsup, unbuild, swc, or the tsc CLI. Exports maps are ESM-only and types-first (`"types"` before `"default"`), with `type: module` and `sideEffects: false`.
 
-`packages/ui/src/components/assistant-ui` is the canonical UI source. Templates and examples alias it through tsconfig (`@/components/*`, `@/hooks/*`, `@/lib/utils`) and carry no byte-equal copies of it — except `minimal`, which ships its own (examples may still hold intentional forks). `pnpm sync-templates` keeps minimal's copies byte-equal with the source; declare intentional divergence in the `OVERRIDES` array in `scripts/sync-templates.sh`.
+`packages/ui/src/components/assistant-ui/elements` is the canonical UI source. Templates and examples alias it through tsconfig (`@/components/*`, `@/hooks/*`, `@/lib/utils`) and carry no byte-equal copies of it, except `minimal`, which ships its own (examples may still hold intentional forks). `pnpm sync-templates` keeps minimal's copies byte-equal with the source; declare intentional divergence in the `OVERRIDES` array in `scripts/sync-templates.sh`.
 
-`components/ui/` uses parallel `radix/` and `base/` directories because every primitive exists in both flavors; `components/assistant-ui/` (and the direction pair in `ui/radix/`) uses sparse variant suffixes where the unmarked file is the Base UI source and a `.radix.tsx` sibling holds the Radix variant.
+`components/ui/` uses parallel `radix/` and `base/` directories because every primitive exists in both flavors; `components/assistant-ui/elements/` (and the direction pair in `ui/radix/`) uses sparse variant suffixes where the unmarked file is the Base UI source and a `.radix.tsx` sibling holds the Radix variant.
 
 Run `pnpm check:resource-memo` when bumping `@babel/core`, `babel-plugin-react-compiler`, or `react-compiler`; a green build does not prove the compiler toolchain is intact. A package the published dist imports at runtime belongs in `dependencies`, not `devDependencies`, so the bundler externalizes it (a devDep gets inlined and drags unresolvable transitive imports into consumer builds). A registry item must be self-contained: enumerate every `@/components/*` import and CSS `@import` as `registryDependencies`, so `shadcn add` never lands a file with an unresolvable import.
 
@@ -84,6 +84,12 @@ Everything under `apps/docs/content/docs/(reference)/api-reference/` is owned by
 - A fully hand-maintained page must carry `{/* api-reference:skip-auto-generation */}` immediately after the frontmatter. That marker keeps the page in the section `meta.json` sidebar list and exempts it from pruning; without it, an unexpected non-generated page is reported as an unmanaged stale page (and fails `--strict` / CI).
 - Section and root `meta.json` files under that tree are generated too. Do not hand-edit them.
 - CI job "API Reference Drift" regenerates in strict mode and fails if the tree drifts.
+
+## Design
+
+Any change that draws a surface follows the house design law in `apps/docs/content/design.md`, published at https://www.assistant-ui.com/design.md. That covers the documentation site, marketing and product pages, a component in `packages/ui`, and a chat UI built on the primitives. Read it before styling, not after.
+
+It is the single source for the print register, the sand palette, type roles, the line budget, motion, and the closed token and component API. Do not restate one of its rules in another file, and when a ruling changes, change it there.
 
 ## Lint, format, and comments
 

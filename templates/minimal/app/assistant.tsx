@@ -3,7 +3,7 @@
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread";
 
 export const Assistant = () => {
   const runtime = useChatRuntime({

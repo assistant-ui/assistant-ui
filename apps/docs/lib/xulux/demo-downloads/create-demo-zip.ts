@@ -51,10 +51,12 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     "app/page.tsx": pageTsx(manifest),
     "app/api/chat/route.ts": chatRouteTs(),
     "components/runtime/demo-runtime-provider.tsx": runtimeProviderTsx(),
-    "components/assistant-ui/markdown-text.tsx": markdownTextShim(),
-    "components/assistant-ui/shiki-highlighter.tsx": shikiHighlighterShim(),
-    "components/assistant-ui/tool-fallback.tsx": toolFallbackShim(),
-    "components/assistant-ui/tooltip-icon-button.tsx": tooltipIconButtonShim(),
+    "components/assistant-ui/elements/markdown-text.tsx": markdownTextShim(),
+    "components/assistant-ui/elements/shiki-highlighter.tsx":
+      shikiHighlighterShim(),
+    "components/assistant-ui/elements/tool-fallback.tsx": toolFallbackShim(),
+    "components/assistant-ui/elements/tooltip-icon-button.tsx":
+      tooltipIconButtonShim(),
     "components/docs/assistant/docs-model-options.ts": docsModelOptionsShim(),
     "lib/model.ts": 'export const DEFAULT_MODEL_ID = "gpt-5.6-luna";\n',
     "public/favicon/icon.svg": faviconSvg(),

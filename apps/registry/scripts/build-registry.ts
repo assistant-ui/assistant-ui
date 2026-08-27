@@ -98,6 +98,10 @@ function throwIfFindings(header: string, findings: Set<string>): void {
 export function getRadixVariantSourcePath(sourcePath: string) {
   if (!sourcePath.endsWith(".tsx")) return null;
 
+  if (sourcePath.includes("/components/ui/base/")) {
+    return sourcePath.replace("/components/ui/base/", "/components/ui/radix/");
+  }
+
   return `${sourcePath.slice(0, -4)}.radix.tsx`;
 }
 
@@ -896,10 +900,10 @@ const EXPLICIT_EXTENSIONS = new Set([
  * extension, an extensionless module, a directory index, or the TypeScript
  * source behind a `.js` specifier. A dot in a basename is only treated as an
  * explicit extension when it is one of the recognized module or asset
- * extensions; a dotted module name (`./tool.config`) keeps the literal
- * candidate and probes module and index forms too. `null` means the specifier
- * points outside the installed tree, where no closure file can ever satisfy
- * it.
+ * extensions; a dotted module name (`./badge.kit`) probes module and index
+ * forms only, since closure files always carry a real extension. `null` means
+ * the specifier points outside the installed tree, where no closure file can
+ * ever satisfy it.
  */
 export function getRelativeImportCandidates(
   specifier: string,
@@ -923,7 +927,6 @@ export function getRelativeImportCandidates(
       }
     }
   } else {
-    if (extension) candidates.add(resolved);
     for (const moduleExtension of MODULE_EXTENSIONS) {
       candidates.add(`${resolved}${moduleExtension}`);
     }

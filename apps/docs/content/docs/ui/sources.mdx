@@ -25,8 +25,8 @@ import { SourcesUrlSample } from "@/components/pages/docs/samples/sources/url-so
 
 Pass `Sources` to `MessagePrimitive.Parts`:
 
-```tsx title="/components/assistant-ui/thread.tsx" {1,8}
-import { Sources } from "@/components/assistant-ui/sources";
+```tsx title="/components/assistant-ui/elements/thread.tsx" {1,8}
+import { Sources } from "@/components/assistant-ui/elements/sources.kit";
 
 const AssistantMessage: FC = () => {
   return (
@@ -93,7 +93,7 @@ The default export used as a `SourceMessagePartComponent`. Renders a single sour
 #### Compound sub-components
 
 ```tsx
-import { Sources } from "@/components/assistant-ui/sources";
+import { Sources } from "@/components/assistant-ui/elements/sources.kit";
 
 <Sources.Root href="https://example.com">
   <Sources.Icon url="https://example.com" />
@@ -161,7 +161,7 @@ Truncated title text rendered as a `<span>`.
 The underlying CVA variant function used to generate badge class names. Use this when building custom source-like components that need to match the built-in styling.
 
 ```tsx
-import { sourceVariants } from "@/components/assistant-ui/sources";
+import { sourceVariants } from "@/components/assistant-ui/elements/sources.kit";
 
 <span className={sourceVariants({ variant: "info", size: "sm" })}>
   Custom badge
@@ -173,7 +173,7 @@ import { sourceVariants } from "@/components/assistant-ui/sources";
 Use the named exports to build fully custom source layouts:
 
 ```tsx
-import { Source, SourceIcon, SourceTitle } from "@/components/assistant-ui/sources";
+import { Source, SourceIcon, SourceTitle } from "@/components/assistant-ui/elements/sources.kit";
 
 <Source href="https://example.com" variant="muted" className="gap-2">
   <SourceIcon url="https://example.com" className="size-4" />

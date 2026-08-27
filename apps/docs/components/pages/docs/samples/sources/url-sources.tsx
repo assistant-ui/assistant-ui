@@ -1,7 +1,7 @@
 "use client";
 
 import type { SourceMessagePartProps } from "@assistant-ui/react";
-import { Sources } from "@/components/assistant-ui/sources";
+import { Sources } from "@/components/assistant-ui/elements/sources.kit";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
 export function SourcesUrlSample() {

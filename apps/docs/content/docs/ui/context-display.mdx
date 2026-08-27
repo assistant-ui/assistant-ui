@@ -21,7 +21,7 @@ import { ContextDisplaySample } from "@/components/pages/docs/samples/context-di
 
 <InstallCommand shadcn={["context-display"]} />
 
-This adds a `/components/assistant-ui/context-display.tsx` file to your project.
+This adds a `/components/assistant-ui/elements/context-display.tsx` file to your project.
 
   </Step>
   <Step>
@@ -64,8 +64,8 @@ export async function POST(req: Request) {
 
 Pick a variant and place it in your thread footer, composer, or sidebar. Pass `modelContextWindow` with your model's token limit.
 
-```tsx title="/components/assistant-ui/thread.tsx" {1,8}
-import { ContextDisplay } from "@/components/assistant-ui/context-display";
+```tsx title="/components/assistant-ui/elements/thread.tsx" {1,8}
+import { ContextDisplay } from "@/components/assistant-ui/elements/context-display";
 
 const ThreadFooter: FC = () => {
   return (
@@ -101,7 +101,7 @@ All presets accept `className` for styling overrides and `side` to control toolt
 For custom visualizations, use the building blocks directly:
 
 ```tsx
-import { ContextDisplay } from "@/components/assistant-ui/context-display";
+import { ContextDisplay } from "@/components/assistant-ui/elements/context-display";
 
 <ContextDisplay.Root modelContextWindow={128000}>
   <ContextDisplay.Trigger aria-label="Context usage">

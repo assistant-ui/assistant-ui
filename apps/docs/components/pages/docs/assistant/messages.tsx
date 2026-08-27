@@ -8,7 +8,7 @@ import {
   type ToolCallMessagePartProps,
 } from "@assistant-ui/react";
 import { type ComponentType, type ReactNode } from "react";
-import { Reasoning } from "@/components/assistant-ui/reasoning";
+import { Reasoning } from "@/components/assistant-ui/elements/reasoning";
 import {
   TraceLine,
   formatDuration,
