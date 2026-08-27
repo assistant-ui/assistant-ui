@@ -14,7 +14,9 @@
  *
  * A reported `length` is normalized the way `ToLength` does before it reaches
  * `count`, because a fractional one would otherwise reach `items.length` and
- * throw `RangeError` where `slice` returns a bounded result.
+ * throw `RangeError` where `slice` returns a bounded result. `truncated` reads
+ * that same normalized figure, so a `length` whose `valueOf` answers differently
+ * on a second conversion cannot separate the warning from the bound.
  */
 export const copyBounded = (
   value: unknown[],
@@ -32,5 +34,5 @@ export const copyBounded = (
     if (index in value) items[index] = value[index];
   }
   items.length = count;
-  return { items, truncated: reported > cap };
+  return { items, truncated: usable > cap };
 };

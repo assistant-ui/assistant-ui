@@ -89,7 +89,9 @@ describe("copyBounded", () => {
         expect(items).toEqual(
           Array.prototype.slice.call(lying(length), 0, cap),
         );
-        expect(truncated).toBe(lying(length).length > cap);
+        expect(truncated).toBe(
+          Array.prototype.slice.call(lying(length), 0, cap + 1).length > cap,
+        );
       }
     }
   });
