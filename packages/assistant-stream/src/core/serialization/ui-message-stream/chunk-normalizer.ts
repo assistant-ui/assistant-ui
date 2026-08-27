@@ -4,7 +4,7 @@ import type { UIMessageStreamChunk } from "./chunk-types";
 
 export const createChunkNormalizer = (): {
   normalize(
-    chunk: any,
+    chunk: { type: string } & Record<string, any>,
     controller: TransformStreamDefaultController<UIMessageStreamChunk>,
   ): void;
   flush(
@@ -52,12 +52,17 @@ export const createChunkNormalizer = (): {
     normalize(chunk, controller) {
       if (chunk.type === "text-delta" && chunk.textDelta === undefined) {
         const { delta, ...rest } = chunk;
-        controller.enqueue({ ...rest, textDelta: delta ?? "" });
+        controller.enqueue({
+          ...rest,
+          type: "text-delta",
+          textDelta: delta ?? "",
+        });
         return;
       }
       if (chunk.type === "start") {
         controller.enqueue({
           ...chunk,
+          type: "start",
           messageId: chunk.messageId ?? generateId(),
         });
         return;
@@ -86,6 +91,7 @@ export const createChunkNormalizer = (): {
       if (chunk.type === "finish-step") {
         controller.enqueue({
           ...chunk,
+          type: "finish-step",
           finishReason: chunk.finishReason ?? "unknown",
           usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
           isContinued: chunk.isContinued ?? false,
@@ -95,6 +101,7 @@ export const createChunkNormalizer = (): {
       if (chunk.type === "finish") {
         controller.enqueue({
           ...chunk,
+          type: "finish",
           finishReason: chunk.finishReason ?? "unknown",
           usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
         });
@@ -178,7 +185,7 @@ export const createChunkNormalizer = (): {
         return;
       }
 
-      controller.enqueue(chunk);
+      controller.enqueue(chunk as UIMessageStreamChunk);
     },
     flush(controller) {
       for (const tool of pendingTools.values()) {
