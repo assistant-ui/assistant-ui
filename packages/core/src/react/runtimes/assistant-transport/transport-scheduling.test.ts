@@ -85,7 +85,7 @@ const useTransportSchedulingHarness = (
 };
 
 describe("assistant transport scheduling contracts", () => {
-  it("uses current callbacks when scheduled by a descendant layout effect", () => {
+  it("uses current callbacks when scheduled by a descendant layout effect", async () => {
     const onRunA = vi.fn(async () => {});
     const onRunB = vi.fn(async () => {});
     // act flushes passive effects before real microtasks, so preserve the
@@ -125,6 +125,7 @@ describe("assistant transport scheduling contracts", () => {
         createElement(Probe, { enabled: false, onRun: onRunA }),
       );
       view.rerender(createElement(Probe, { enabled: true, onRun: onRunB }));
+      await act(async () => {});
 
       expect(onRunB).toHaveBeenCalledTimes(1);
       expect(onRunA).not.toHaveBeenCalled();
