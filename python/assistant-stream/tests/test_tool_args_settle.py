@@ -32,8 +32,11 @@ def test_tool_call_args_settler_tracks_begin_append_and_finish() -> None:
 
     settler.begin("t1")
 
-    assert settler.append("t1") is True
-    assert settler.finish("t1", "}") == ["t1:}"]
+    appended = settler.append("t1")
+    frames = settler.finish("t1", "}")
+
+    assert appended is True
+    assert frames == ["t1:}"]
     assert finished == [("t1", "}", True)]
 
 
@@ -58,8 +61,11 @@ def test_tool_call_args_settler_drops_settled_ids_and_warns_once() -> None:
     settler.begin("t1")
     settler.finish("t1")
 
-    assert settler.append("t1") is False
-    assert settler.append("t1") is False
+    first_append = settler.append("t1")
+    second_append = settler.append("t1")
+
+    assert first_append is False
+    assert second_append is False
     assert warnings == [("settled-tool-call-id", "tool-call-delta for t1")]
 
 
@@ -68,7 +74,8 @@ def test_tool_call_args_settler_flushes_open_calls() -> None:
 
     settler.begin("first")
     settler.begin("second")
-    assert settler.append("second") is True
+    appended = settler.append("second")
 
+    assert appended is True
     assert settler.finish_open() == ["first:{}", "second:"]
     assert finished == [("first", "{}", False), ("second", "", True)]
