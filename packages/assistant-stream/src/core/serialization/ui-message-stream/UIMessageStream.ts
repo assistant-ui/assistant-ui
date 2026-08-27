@@ -253,187 +253,175 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
         },
       });
 
-      return readable
-        .pipeThrough(
-          createSSEJsonDecoder<UIMessageStreamChunk>({
-            strict: true,
-            parse(data, controller) {
-              let chunk;
-              try {
-                chunk = sjson.parse(data);
-              } catch {
-                chunk = undefined;
-              }
-              if (
-                typeof chunk !== "object" ||
-                chunk === null ||
-                Array.isArray(chunk) ||
-                typeof chunk.type !== "string"
-              ) {
-                console.warn(
-                  `Dropped invalid UIMessageStream chunk: ${data.slice(0, 200)}`,
-                );
-                return;
-              }
-              if (
-                chunk.type === "text-delta" &&
-                chunk.textDelta === undefined
-              ) {
-                const { delta, ...rest } = chunk;
-                controller.enqueue({ ...rest, textDelta: delta ?? "" });
-                return;
-              }
-              if (chunk.type === "start") {
-                controller.enqueue({
-                  ...chunk,
-                  messageId: chunk.messageId ?? generateId(),
-                });
-                return;
-              }
-              if (chunk.type === "source-url") {
-                controller.enqueue({
-                  type: "source",
-                  source: {
-                    sourceType: "url",
-                    id: chunk.sourceId,
-                    url: chunk.url,
-                    ...(chunk.title && { title: chunk.title }),
-                  },
-                });
-                return;
-              }
-              if (chunk.type === "source" && chunk.source == null) return;
-              if (chunk.type === "file" && chunk.file == null) {
-                if (chunk.url === undefined) return;
-                controller.enqueue({
-                  type: "file",
-                  file: { mimeType: chunk.mediaType, data: chunk.url },
-                });
-                return;
-              }
-              if (chunk.type === "finish-step") {
-                controller.enqueue({
-                  ...chunk,
-                  finishReason: chunk.finishReason ?? "unknown",
-                  usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
-                  isContinued: chunk.isContinued ?? false,
-                });
-                return;
-              }
-              if (chunk.type === "finish") {
-                controller.enqueue({
-                  ...chunk,
-                  finishReason: chunk.finishReason ?? "unknown",
-                  usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
-                });
-                return;
-              }
-              if (chunk.type === "tool-input-start") {
-                if (typeof chunk.toolCallId !== "string") return;
-                if (pendingTools.has(chunk.toolCallId)) return;
-                pendingTools.set(chunk.toolCallId, {
-                  toolCallId: chunk.toolCallId,
-                  toolName:
-                    typeof chunk.toolName === "string" ? chunk.toolName : "",
-                  deltas: [],
-                  emitted: false,
-                  resultEmitted: false,
-                });
-                return;
-              }
-              if (chunk.type === "tool-input-delta") {
-                if (typeof chunk.toolCallId !== "string") return;
-                if (typeof chunk.inputTextDelta !== "string") return;
-                const tool = pendingTools.get(chunk.toolCallId);
-                if (!tool || tool.emitted) return;
-                tool.deltas.push(chunk.inputTextDelta);
-                return;
-              }
-              if (
-                chunk.type === "tool-input-available" ||
-                chunk.type === "tool-input-error"
-              ) {
-                if (typeof chunk.toolCallId !== "string") return;
-                let tool = pendingTools.get(chunk.toolCallId);
-                if (!tool) {
-                  tool = {
-                    toolCallId: chunk.toolCallId,
-                    toolName:
-                      typeof chunk.toolName === "string" ? chunk.toolName : "",
-                    deltas: [],
-                    emitted: false,
-                    resultEmitted: false,
-                  };
-                  pendingTools.set(chunk.toolCallId, tool);
-                }
-                if (tool.emitted) return;
-                if (chunk.input !== undefined) {
-                  tool.deltas = [
-                    typeof chunk.input === "string"
-                      ? chunk.input
-                      : JSON.stringify(chunk.input),
-                  ];
-                }
-                if (chunk.type === "tool-input-error") {
-                  tool.pendingResult = {
+      return createSSEJsonDecoder<UIMessageStreamChunk>({
+        strict: true,
+        parse(data, controller) {
+          let chunk;
+          try {
+            chunk = sjson.parse(data);
+          } catch {
+            chunk = undefined;
+          }
+          if (
+            typeof chunk !== "object" ||
+            chunk === null ||
+            Array.isArray(chunk) ||
+            typeof chunk.type !== "string"
+          ) {
+            console.warn(
+              `Dropped invalid UIMessageStream chunk: ${data.slice(0, 200)}`,
+            );
+            return;
+          }
+          if (chunk.type === "text-delta" && chunk.textDelta === undefined) {
+            const { delta, ...rest } = chunk;
+            controller.enqueue({ ...rest, textDelta: delta ?? "" });
+            return;
+          }
+          if (chunk.type === "start") {
+            controller.enqueue({
+              ...chunk,
+              messageId: chunk.messageId ?? generateId(),
+            });
+            return;
+          }
+          if (chunk.type === "source-url") {
+            controller.enqueue({
+              type: "source",
+              source: {
+                sourceType: "url",
+                id: chunk.sourceId,
+                url: chunk.url,
+                ...(chunk.title && { title: chunk.title }),
+              },
+            });
+            return;
+          }
+          if (chunk.type === "source" && chunk.source == null) return;
+          if (chunk.type === "file" && chunk.file == null) {
+            if (chunk.url === undefined) return;
+            controller.enqueue({
+              type: "file",
+              file: { mimeType: chunk.mediaType, data: chunk.url },
+            });
+            return;
+          }
+          if (chunk.type === "finish-step") {
+            controller.enqueue({
+              ...chunk,
+              finishReason: chunk.finishReason ?? "unknown",
+              usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
+              isContinued: chunk.isContinued ?? false,
+            });
+            return;
+          }
+          if (chunk.type === "finish") {
+            controller.enqueue({
+              ...chunk,
+              finishReason: chunk.finishReason ?? "unknown",
+              usage: chunk.usage ?? { inputTokens: 0, outputTokens: 0 },
+            });
+            return;
+          }
+          if (chunk.type === "tool-input-start") {
+            if (typeof chunk.toolCallId !== "string") return;
+            if (pendingTools.has(chunk.toolCallId)) return;
+            pendingTools.set(chunk.toolCallId, {
+              toolCallId: chunk.toolCallId,
+              toolName:
+                typeof chunk.toolName === "string" ? chunk.toolName : "",
+              deltas: [],
+              emitted: false,
+              resultEmitted: false,
+            });
+            return;
+          }
+          if (chunk.type === "tool-input-delta") {
+            if (typeof chunk.toolCallId !== "string") return;
+            if (typeof chunk.inputTextDelta !== "string") return;
+            const tool = pendingTools.get(chunk.toolCallId);
+            if (!tool || tool.emitted) return;
+            tool.deltas.push(chunk.inputTextDelta);
+            return;
+          }
+          if (
+            chunk.type === "tool-input-available" ||
+            chunk.type === "tool-input-error"
+          ) {
+            if (typeof chunk.toolCallId !== "string") return;
+            let tool = pendingTools.get(chunk.toolCallId);
+            if (!tool) {
+              tool = {
+                toolCallId: chunk.toolCallId,
+                toolName:
+                  typeof chunk.toolName === "string" ? chunk.toolName : "",
+                deltas: [],
+                emitted: false,
+                resultEmitted: false,
+              };
+              pendingTools.set(chunk.toolCallId, tool);
+            }
+            if (tool.emitted) return;
+            if (chunk.input !== undefined) {
+              tool.deltas = [
+                typeof chunk.input === "string"
+                  ? chunk.input
+                  : JSON.stringify(chunk.input),
+              ];
+            }
+            if (chunk.type === "tool-input-error") {
+              tool.pendingResult = {
+                result:
+                  typeof chunk.errorText === "string" ? chunk.errorText : "",
+                isError: true,
+              };
+            }
+            emitPendingTool(controller, tool);
+            return;
+          }
+          if (
+            chunk.type === "tool-output-available" ||
+            chunk.type === "tool-output-error"
+          ) {
+            if (typeof chunk.toolCallId !== "string") return;
+            if (chunk.type === "tool-output-available" && chunk.preliminary) {
+              return;
+            }
+            const tool = pendingTools.get(chunk.toolCallId);
+            if (!tool || tool.resultEmitted) return;
+            tool.pendingResult =
+              chunk.type === "tool-output-error"
+                ? {
                     result:
                       typeof chunk.errorText === "string"
                         ? chunk.errorText
                         : "",
                     isError: true,
+                  }
+                : {
+                    result: chunk.output as ReadonlyJSONValue,
+                    isError: false,
                   };
-                }
-                emitPendingTool(controller, tool);
-                return;
-              }
-              if (
-                chunk.type === "tool-output-available" ||
-                chunk.type === "tool-output-error"
-              ) {
-                if (typeof chunk.toolCallId !== "string") return;
-                if (
-                  chunk.type === "tool-output-available" &&
-                  chunk.preliminary
-                ) {
-                  return;
-                }
-                const tool = pendingTools.get(chunk.toolCallId);
-                if (!tool || tool.resultEmitted) return;
-                tool.pendingResult =
-                  chunk.type === "tool-output-error"
-                    ? {
-                        result:
-                          typeof chunk.errorText === "string"
-                            ? chunk.errorText
-                            : "",
-                        isError: true,
-                      }
-                    : {
-                        result: chunk.output as ReadonlyJSONValue,
-                        isError: false,
-                      };
-                if (tool.emitted) emitPendingTool(controller, tool);
-                return;
-              }
+            if (tool.emitted) emitPendingTool(controller, tool);
+            return;
+          }
 
-              controller.enqueue(chunk);
-            },
-            done: {
-              marker: "[DONE]",
-              onDone(controller) {
-                for (const tool of pendingTools.values()) {
-                  emitPendingTool(controller, tool);
-                }
-              },
-              onMissing() {
-                throw new Error(
-                  "Stream ended abruptly without receiving [DONE] marker",
-                );
-              },
-            },
-          }),
-        )
-        .pipeThrough(transform);
+          controller.enqueue(chunk);
+        },
+        done: {
+          marker: "[DONE]",
+          onDone(controller) {
+            for (const tool of pendingTools.values()) {
+              emitPendingTool(controller, tool);
+            }
+          },
+          onMissing() {
+            throw new Error(
+              "Stream ended abruptly without receiving [DONE] marker",
+            );
+          },
+        },
+      })(readable).pipeThrough(transform);
     });
   }
 }

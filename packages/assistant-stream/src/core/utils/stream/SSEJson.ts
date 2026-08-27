@@ -1,8 +1,13 @@
-import { PipeableTransformStream } from "./PipeableTransformStream";
 import {
   SSEEventDecoderStream,
   type PipelineSSEEvent,
 } from "./SSEEventDecoderStream";
+
+export const SSE_HEADERS = {
+  "Content-Type": "text/event-stream",
+  "Cache-Control": "no-cache",
+  Connection: "keep-alive",
+};
 
 type SSEJsonDoneOptions<T> = {
   marker: string;
@@ -16,12 +21,17 @@ type SSEJsonDecoderOptions<T> = {
     controller: TransformStreamDefaultController<T>,
   ) => void;
   done?: SSEJsonDoneOptions<T>;
-  strict?: boolean | undefined;
-  onUnknownEvent?: (event: string) => void;
-};
+} & (
+  | { strict: true }
+  | {
+      strict?: false;
+      onUnknownEvent?: (event: string) => void;
+    }
+);
 
-export const createSSEJsonEncoder = <T>(doneMarker?: string) =>
-  new PipeableTransformStream<T, Uint8Array<ArrayBuffer>>((readable) =>
+export const createSSEJsonEncoder =
+  <T>(doneMarker?: string) =>
+  (readable: ReadableStream<T>) =>
     readable
       .pipeThrough(
         new TransformStream<T, string>({
@@ -35,47 +45,44 @@ export const createSSEJsonEncoder = <T>(doneMarker?: string) =>
           },
         }),
       )
-      .pipeThrough(new TextEncoderStream()),
-  );
+      .pipeThrough(new TextEncoderStream());
 
-export const createSSEJsonDecoder = <T>({
-  parse,
-  done,
-  strict = true,
-  onUnknownEvent,
-}: SSEJsonDecoderOptions<T>) => {
-  let receivedDone = false;
+export const createSSEJsonDecoder =
+  <T>(options: SSEJsonDecoderOptions<T>) =>
+  (readable: ReadableStream<Uint8Array<ArrayBuffer>>) => {
+    let receivedDone = false;
 
-  return new PipeableTransformStream<Uint8Array<ArrayBuffer>, T>((readable) =>
-    readable
+    return readable
       .pipeThrough(new TextDecoderStream())
       .pipeThrough(new SSEEventDecoderStream())
       .pipeThrough(
         new TransformStream<PipelineSSEEvent, T>({
           transform(event, controller) {
             if (event.event !== "message") {
-              if (strict) {
+              if (options.strict) {
                 throw new Error(`Unknown SSE event type: ${event.event}`);
               }
-              onUnknownEvent?.(event.event);
+              options.onUnknownEvent?.(event.event);
               return;
             }
 
-            if (done !== undefined && event.data === done.marker) {
-              done.onDone?.(controller);
+            if (
+              options.done !== undefined &&
+              event.data === options.done.marker
+            ) {
+              options.done.onDone?.(controller);
               receivedDone = true;
               controller.terminate();
               return;
             }
 
-            parse(event.data, controller);
+            options.parse(event.data, controller);
           },
           flush() {
-            if (done !== undefined && !receivedDone) {
-              done.onMissing?.();
+            if (options.done !== undefined && !receivedDone) {
+              options.done.onMissing?.();
             }
           },
         }),
-      ),
-  );
-};
+      );
+  };

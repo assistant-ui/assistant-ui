@@ -1,10 +1,10 @@
 import sjson from "secure-json-parse";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
-import { SSEEncoder } from "../../utils/stream/SSE";
 import {
   createSSEJsonDecoder,
   createSSEJsonEncoder,
+  SSE_HEADERS,
 } from "../../utils/stream/SSEJson";
 import type { AssistantStreamEncoder } from "../../AssistantStream";
 
@@ -80,14 +80,10 @@ export class AssistantTransportEncoder
   extends PipeableTransformStream<AssistantStreamChunk, Uint8Array<ArrayBuffer>>
   implements AssistantStreamEncoder
 {
-  headers = new Headers(SSEEncoder.headers);
+  headers = new Headers(SSE_HEADERS);
 
   constructor() {
-    super((readable) =>
-      readable.pipeThrough(
-        createSSEJsonEncoder<AssistantStreamChunk>("[DONE]"),
-      ),
-    );
+    super(createSSEJsonEncoder<AssistantStreamChunk>("[DONE]"));
   }
 }
 
@@ -101,46 +97,47 @@ export class AssistantTransportDecoder extends PipeableTransformStream<
 > {
   constructor(options: { strict?: boolean | undefined } = {}) {
     const strict = options.strict ?? true;
-    super((readable) => {
-      const warnedReasons = new Set<string>();
-
-      return readable.pipeThrough(
-        createSSEJsonDecoder<AssistantStreamChunk>({
-          strict,
-          parse(data, controller) {
-            const chunk = parseChunk(data);
-            if (typeof chunk === "string") {
-              if (!warnedReasons.has(chunk)) {
-                warnedReasons.add(chunk);
-                console.warn(
-                  `Dropped invalid assistant-transport chunk (${chunk}): ${data.slice(0, 200)}`,
-                );
-              }
-            } else {
-              controller.enqueue(chunk);
-            }
-          },
-          done: {
-            marker: "[DONE]",
-            onMissing() {
-              if (strict) {
-                throw new Error(
-                  "Stream ended abruptly without receiving [DONE] marker",
-                );
-              }
+    const warnedReasons = new Set<string>();
+    super(
+      createSSEJsonDecoder<AssistantStreamChunk>({
+        parse(data, controller) {
+          const chunk = parseChunk(data);
+          if (typeof chunk === "string") {
+            if (!warnedReasons.has(chunk)) {
+              warnedReasons.add(chunk);
               console.warn(
+                `Dropped invalid assistant-transport chunk (${chunk}): ${data.slice(0, 200)}`,
+              );
+            }
+          } else {
+            controller.enqueue(chunk);
+          }
+        },
+        done: {
+          marker: "[DONE]",
+          onMissing() {
+            if (strict) {
+              throw new Error(
                 "Stream ended abruptly without receiving [DONE] marker",
               );
-            },
-          },
-          onUnknownEvent(event) {
-            if (!warnedReasons.has(`event:${event}`)) {
-              warnedReasons.add(`event:${event}`);
-              console.error(`Ignored unknown SSE event type: ${event}`);
             }
+            console.warn(
+              "Stream ended abruptly without receiving [DONE] marker",
+            );
           },
-        }),
-      );
-    });
+        },
+        ...(strict
+          ? { strict: true }
+          : {
+              strict: false,
+              onUnknownEvent(event) {
+                if (!warnedReasons.has(`event:${event}`)) {
+                  warnedReasons.add(`event:${event}`);
+                  console.error(`Ignored unknown SSE event type: ${event}`);
+                }
+              },
+            }),
+      }),
+    );
   }
 }
