@@ -59,6 +59,7 @@ const BASE_EXTRA_SOURCE_FILES = [
   "packages/ui/src/components/assistant-ui/composer-trigger-popover.tsx",
   "packages/ui/src/components/assistant-ui/directive-text.tsx",
   "packages/ui/src/components/assistant-ui/dot-matrix.tsx",
+  "packages/ui/src/components/ui/base/dot-matrix.tsx",
   "packages/ui/src/components/assistant-ui/message-timing.tsx",
   "packages/ui/src/components/assistant-ui/model-selector.tsx",
   "packages/ui/src/components/assistant-ui/quote.tsx",
