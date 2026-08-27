@@ -100,9 +100,9 @@ export const convertLangChainContentBlock = (
       return {
         type: "reasoning" as const,
         text:
-          part.summary?.map((s) => s?.text ?? "").join("\n\n\n") ??
-          part.reasoning ??
-          "",
+          part.summary && part.summary.length > 0
+            ? part.summary.map((s) => s?.text ?? "").join("\n\n\n")
+            : (part.reasoning ?? ""),
       };
     case "tool_use":
     case "input_json_delta":
