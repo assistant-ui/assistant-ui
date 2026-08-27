@@ -2,4 +2,4 @@
 "@assistant-ui/react-generative-ui": patch
 ---
 
-refactor: share one contiguous-run helper between the Slack and Teams sequence converters
+refactor: share one contiguous-run helper and one element predicate across the converters

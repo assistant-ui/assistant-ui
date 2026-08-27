@@ -1,7 +1,5 @@
 import type { NormalizedUIElement, NormalizedUINode } from "../ir";
-
-const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
-  typeof node === "object" && node !== null && !Array.isArray(node);
+import { isElement } from "./isElement";
 
 export function takeRun(
   nodes: readonly (NormalizedUINode | undefined)[],

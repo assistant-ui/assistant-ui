@@ -1,3 +1,4 @@
+import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
 import {
   normalizeSpec,
@@ -44,9 +45,6 @@ export interface ConversionContext {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
-  isRecord(node);
 
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
