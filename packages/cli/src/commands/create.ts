@@ -597,22 +597,26 @@ export const create = new Command()
     );
 
     // Clean up partial project directory on unexpected exit (e.g. Ctrl+C)
+    let cleanupArmed = true;
     const cleanupOnExit = () => {
+      if (!cleanupArmed) return;
+      cleanupArmed = false;
       fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
     };
-    // Node emits no "exit" when a signal kills the process; re-raise only when
-    // no runSpawn listener is left to drive termination itself.
-    const cleanupOnSignal = (signal: NodeJS.Signals) => {
-      removeCleanupListeners();
-      cleanupOnExit();
-      if (process.listenerCount(signal) === 0) {
-        process.kill(process.pid, signal);
-      }
-    };
-    const removeCleanupListeners = () => {
+    const disarmCleanup = () => {
+      cleanupArmed = false;
       process.removeListener("exit", cleanupOnExit);
       process.removeListener("SIGINT", cleanupOnSignal);
       process.removeListener("SIGTERM", cleanupOnSignal);
+    };
+    // Node emits no "exit" when a signal kills the process. An in-flight
+    // runSpawn forwards the signal itself, so the directory is removed on the
+    // error path once the child is reaped rather than while it is still writing.
+    const cleanupOnSignal = (signal: NodeJS.Signals) => {
+      if (process.listenerCount(signal) > 1) return;
+      cleanupOnExit();
+      disarmCleanup();
+      process.kill(process.pid, signal);
     };
 
     process.once("exit", cleanupOnExit);
@@ -681,12 +685,13 @@ export const create = new Command()
         }
       } catch (err) {
         // Clean up partially created project directory
-        fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+        cleanupOnExit();
+        disarmCleanup();
         throw err;
       }
 
       if (transformResult.registryInstallFailure) {
-        removeCleanupListeners();
+        disarmCleanup();
         logger.break();
         logger.error("Project created with missing components.");
         logger.info("Retry the component install with:");
@@ -722,7 +727,7 @@ export const create = new Command()
         }
       }
 
-      removeCleanupListeners();
+      disarmCleanup();
 
       logger.break();
       logger.success("Project created successfully!");
@@ -755,7 +760,11 @@ export const create = new Command()
       logger.info(`  # Set up your environment variables in ${envFile}`);
       logger.info(`  ${runCmd} ${devScript}`);
     } catch (error) {
-      if (error instanceof SpawnSignalError) throw error;
+      if (error instanceof SpawnSignalError) {
+        cleanupOnExit();
+        disarmCleanup();
+        throw error;
+      }
       if (error instanceof SpawnExitError) {
         logger.error(`Project creation failed with code ${error.code}`);
         process.exit(error.code);
