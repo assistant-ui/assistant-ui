@@ -8,7 +8,7 @@ import {
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ImageMessagePart } from "@assistant-ui/react";
 
-import { ImageActions } from "./image";
+import { ImageActions, ImageZoom } from "./image";
 
 class FakeClipboardItem {
   constructor(public readonly items: Record<string, Blob>) {}
@@ -162,5 +162,94 @@ describe("ImageActions regeneration", () => {
     } finally {
       process.off("unhandledRejection", onUnhandledRejection);
     }
+  });
+});
+
+describe("ImageZoom modal behavior", () => {
+  const renderZoom = () => {
+    render(
+      <>
+        <button type="button">Outside</button>
+        <ImageZoom src="image.png" alt="Mountain landscape">
+          <span>Thumbnail</span>
+        </ImageZoom>
+      </>,
+    );
+
+    return screen.getByRole("button", { name: "Click to zoom image" });
+  };
+
+  const openZoom = async () => {
+    const trigger = renderZoom();
+    trigger.focus();
+    fireEvent.click(trigger);
+    const dialog = await screen.findByRole("dialog", {
+      name: "Zoomed image",
+    });
+    const closeButton = screen.getByRole("button", {
+      name: "Close zoomed image",
+    });
+    await waitFor(() => expect(document.activeElement).toBe(closeButton));
+    return { trigger, dialog, closeButton };
+  };
+
+  it("exposes dialog semantics, focuses close, and restores trigger focus", async () => {
+    const { trigger, dialog, closeButton } = await openZoom();
+
+    expect(dialog.getAttribute("aria-modal")).toBe("true");
+    expect(document.activeElement).toBe(closeButton);
+
+    fireEvent.click(closeButton);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("keeps Tab focus inside the dialog and restores focus on Escape", async () => {
+    const { trigger, closeButton } = await openZoom();
+
+    const tabEvent = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Tab",
+    });
+    document.dispatchEvent(tabEvent);
+
+    expect(tabEvent.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(closeButton);
+
+    const reverseTabEvent = new KeyboardEvent("keydown", {
+      bubbles: true,
+      cancelable: true,
+      key: "Tab",
+      shiftKey: true,
+    });
+    document.dispatchEvent(reverseTabEvent);
+
+    expect(reverseTabEvent.defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(closeButton);
+
+    fireEvent.keyDown(document, { key: "Escape" });
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+  });
+
+  it("restores focus after backdrop and image dismissal", async () => {
+    const { trigger, dialog } = await openZoom();
+
+    fireEvent.click(dialog);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
+
+    fireEvent.click(trigger);
+    const image = await screen.findByRole("img", {
+      name: "Mountain landscape",
+    });
+    fireEvent.click(image);
+
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(trigger);
   });
 });
