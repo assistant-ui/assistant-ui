@@ -74,6 +74,26 @@ describe("copyBounded", () => {
     expect(truncated).toBe(true);
   });
 
+  it("matches slice for every shape of reported length", () => {
+    const reportedLengths = [2.5, Infinity, NaN, -1, "3", 2, 0, -0.5, 1e21];
+    const lying = (length: unknown) =>
+      new Proxy(["a", "b", "c"], {
+        get: (target, prop, receiver) =>
+          prop === "length" ? length : Reflect.get(target, prop, receiver),
+      });
+
+    for (const cap of [0, 1, 2, 5]) {
+      for (const length of reportedLengths) {
+        const { items, truncated } = copyBounded(lying(length), cap);
+
+        expect(items).toEqual(
+          Array.prototype.slice.call(lying(length), 0, cap),
+        );
+        expect(truncated).toBe(lying(length).length > cap);
+      }
+    }
+  });
+
   it("bounds an array whose reported length is fabricated", () => {
     const hostile = new Proxy(["a", "b"], {
       get: (target, prop, receiver) =>

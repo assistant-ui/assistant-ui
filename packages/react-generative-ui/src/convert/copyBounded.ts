@@ -11,18 +11,26 @@
  * input, so callers that skip holes still skip them. `truncated` comes from the
  * same `length` read as the bound, so an input cannot report one figure to the
  * cap and another to the caller's warning.
+ *
+ * A reported `length` is normalized the way `ToLength` does before it reaches
+ * `count`, because a fractional one would otherwise reach `items.length` and
+ * throw `RangeError` where `slice` returns a bounded result.
  */
 export const copyBounded = (
   value: unknown[],
   cap: number,
 ): { readonly items: unknown[]; readonly truncated: boolean } => {
-  const length = value.length;
-  const usable = typeof length === "number" && length > 0 ? length : 0;
+  const reported = value.length;
+  const integral = Math.trunc(Number(reported));
+  const usable =
+    Number.isNaN(integral) || integral <= 0
+      ? 0
+      : Math.min(integral, Number.MAX_SAFE_INTEGER);
   const count = Math.min(cap, usable);
   const items: unknown[] = [];
   for (let index = 0; index < count; index += 1) {
     if (index in value) items[index] = value[index];
   }
   items.length = count;
-  return { items, truncated: usable > cap };
+  return { items, truncated: reported > cap };
 };
