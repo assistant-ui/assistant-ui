@@ -8,18 +8,21 @@
  * indices consults neither, so it is the only form that bounds a hostile array.
  *
  * Absent indices stay absent, matching what `slice` produces for a sparse
- * input, so callers that skip holes still skip them.
+ * input, so callers that skip holes still skip them. `truncated` comes from the
+ * same `length` read as the bound, so an input cannot report one figure to the
+ * cap and another to the caller's warning.
  */
-export const copyBounded = (value: unknown[], cap: number): unknown[] => {
+export const copyBounded = (
+  value: unknown[],
+  cap: number,
+): { readonly items: unknown[]; readonly truncated: boolean } => {
   const length = value.length;
-  const count = Math.min(
-    cap,
-    typeof length === "number" && length > 0 ? length : 0,
-  );
+  const usable = typeof length === "number" && length > 0 ? length : 0;
+  const count = Math.min(cap, usable);
   const items: unknown[] = [];
   for (let index = 0; index < count; index += 1) {
     if (index in value) items[index] = value[index];
   }
   items.length = count;
-  return items;
+  return { items, truncated: usable > cap };
 };

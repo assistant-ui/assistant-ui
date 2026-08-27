@@ -73,8 +73,8 @@ function boundNode(
       return null;
     }
     ancestors.add(value);
-    const bounded = copyBounded(value, CHILDREN_CAP);
-    if (value.length > CHILDREN_CAP) onClamp("children");
+    const { items: bounded, truncated } = copyBounded(value, CHILDREN_CAP);
+    if (truncated) onClamp("children");
     const result = bounded.map((item) =>
       boundNode(item, depth + 1, onClamp, state, ancestors),
     );

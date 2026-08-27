@@ -44,7 +44,7 @@ const clampArray = (
   cap: number,
 ): { readonly items: unknown[]; readonly truncated: boolean } => {
   if (!Array.isArray(value)) return { items: [], truncated: false };
-  return { items: copyBounded(value, cap), truncated: value.length > cap };
+  return copyBounded(value, cap);
 };
 
 const boundedArray = (
@@ -237,9 +237,10 @@ const checkboxFrom = (element: Record<string, unknown>): UIElement => {
     : [];
   const firstValue =
     isRecord(first) && typeof first["value"] === "string" ? first["value"] : "";
-  const firstChecked = copyBounded(initialOptions, SELECT_OPTION_CAP).some(
-    (option) => isRecord(option) && option["value"] === firstValue,
-  );
+  const firstChecked = copyBounded(
+    initialOptions,
+    SELECT_OPTION_CAP,
+  ).items.some((option) => isRecord(option) && option["value"] === firstValue);
   return {
     $type: "Checkbox",
     label: isRecord(first) ? textOf(first["text"]) : "",
