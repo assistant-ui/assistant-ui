@@ -61,10 +61,17 @@ export function unstable_useSlashCommandAdapter(
   const { commands, removeOnExecute } = options;
 
   const commandsRef = useRef(commands);
-  // Publish committed callbacks before layout effects without exposing abandoned renders.
+  const committedItemsRef = useRef<readonly Unstable_TriggerItem[]>(undefined);
+  const nextItems = commands.map(toItem);
+  const items = areTriggerItemsEqual(committedItemsRef.current, nextItems)
+    ? committedItemsRef.current
+    : nextItems;
+
+  // Publish committed callbacks and search metadata before layout effects without exposing abandoned renders.
   useInsertionEffect(() => {
     commandsRef.current = commands;
-  });
+    committedItemsRef.current = items;
+  }, [commands, items]);
 
   const adapter = useMemo<Unstable_TriggerAdapter>(
     () => ({
@@ -72,10 +79,10 @@ export function unstable_useSlashCommandAdapter(
       categoryItems: () => [],
       search: (query: string) => {
         const lower = query.toLowerCase();
-        return commands.filter((c) => matchesQuery(c, lower)).map(toItem);
+        return items.filter((item) => matchesQuery(item, lower));
       },
     }),
-    [commands],
+    [items],
   );
 
   const action = useMemo<Unstable_SlashCommandAction>(
@@ -115,4 +122,22 @@ function matchesQuery(cmd: Unstable_SlashCommand, lower: string): boolean {
   if (cmd.label?.toLowerCase().includes(lower)) return true;
   if (cmd.description?.toLowerCase().includes(lower)) return true;
   return false;
+}
+
+function areTriggerItemsEqual(
+  previous: readonly Unstable_TriggerItem[] | undefined,
+  next: readonly Unstable_TriggerItem[],
+): previous is readonly Unstable_TriggerItem[] {
+  if (!previous || previous.length !== next.length) return false;
+
+  return previous.every((item, index) => {
+    const nextItem = next[index];
+    return (
+      nextItem !== undefined &&
+      item.id === nextItem.id &&
+      item.label === nextItem.label &&
+      item.description === nextItem.description &&
+      item.metadata?.icon === nextItem.metadata?.icon
+    );
+  });
 }

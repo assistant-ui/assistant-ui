@@ -100,4 +100,26 @@ describe("unstable_useSlashCommandAdapter", () => {
     expect(executeA).not.toHaveBeenCalled();
     expect(executeB).toHaveBeenCalledOnce();
   });
+
+  it("keeps the adapter stable for equivalent inline commands", () => {
+    const executeA = vi.fn();
+    const executeB = vi.fn();
+    const { result, rerender } = renderHook(
+      ({ execute }) =>
+        unstable_useSlashCommandAdapter({
+          commands: [{ id: "run", label: "Run", execute }],
+        }),
+      { initialProps: { execute: executeA } },
+    );
+    const initialAdapter = result.current.adapter;
+
+    rerender({ execute: executeB });
+
+    expect(result.current.adapter).toBe(initialAdapter);
+    act(() =>
+      result.current.action.onExecute(result.current.adapter.search!("")[0]!),
+    );
+    expect(executeA).not.toHaveBeenCalled();
+    expect(executeB).toHaveBeenCalledOnce();
+  });
 });
