@@ -9,7 +9,11 @@ type CalculateFibonacciResult = {
   value: string;
 };
 
-export default defineToolkit({
+type ToolkitArgs = {
+  calculate_fibonacci: { index: number };
+};
+
+export default defineToolkit<ToolkitArgs>({
   calculate_fibonacci: {
     description: "Calculate a Fibonacci number exactly",
     parameters: z.object({
@@ -22,9 +26,6 @@ export default defineToolkit({
     }),
     execute: async ({ index }) => {
       "use client";
-      if (typeof index !== "number" || !Number.isSafeInteger(index)) {
-        throw new TypeError("Fibonacci index must be an integer");
-      }
       return { index, value: calculateFibonacci(index) };
     },
     render: ({ args, result, status }) => {

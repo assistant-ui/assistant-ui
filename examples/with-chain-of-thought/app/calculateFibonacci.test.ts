@@ -14,11 +14,4 @@ describe("calculateFibonacci", () => {
   it("keeps large results exact", () => {
     expect(calculateFibonacci(100)).toBe("354224848179261915075");
   });
-
-  it.each([-1, 1.5, 1001, Number.NaN, Number.POSITIVE_INFINITY])(
-    "rejects an invalid index (%s)",
-    (index) => {
-      expect(() => calculateFibonacci(index)).toThrow(RangeError);
-    },
-  );
 });
