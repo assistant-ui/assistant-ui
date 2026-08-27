@@ -3,6 +3,7 @@ import {
   boundSpec,
   clampReasonDetail,
 } from "../convert/boundSpec";
+import { copyBounded } from "../convert/copyBounded";
 import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
 import {
@@ -244,7 +245,11 @@ const toActionElement = (
       const rawOptions = Array.isArray(props["options"])
         ? props["options"]
         : [];
-      if (rawOptions.length > SELECT_OPTION_CAP) {
+      const { items: takenOptions, truncated } = copyBounded(
+        rawOptions,
+        SELECT_OPTION_CAP,
+      );
+      if (truncated) {
         warn(
           context,
           "clamped",
@@ -252,7 +257,6 @@ const toActionElement = (
           `options were clamped to ${SELECT_OPTION_CAP} entries.`,
         );
       }
-      const takenOptions = rawOptions.slice(0, SELECT_OPTION_CAP);
       const options = takenOptions
         .map((option) => optionFrom(option, "Select", context))
         .filter((option): option is SlackOption => option !== undefined);
@@ -319,7 +323,11 @@ const toActionElement = (
       const rawOptions = Array.isArray(props["options"])
         ? props["options"]
         : [];
-      if (rawOptions.length > RADIO_OPTION_CAP) {
+      const { items: takenOptions, truncated } = copyBounded(
+        rawOptions,
+        RADIO_OPTION_CAP,
+      );
+      if (truncated) {
         warn(
           context,
           "clamped",
@@ -327,7 +335,6 @@ const toActionElement = (
           `options were clamped to ${RADIO_OPTION_CAP} entries.`,
         );
       }
-      const takenOptions = rawOptions.slice(0, RADIO_OPTION_CAP);
       const options = takenOptions
         .map((option) => optionFrom(option, "RadioGroup", context))
         .filter((option): option is SlackOption => option !== undefined);
@@ -548,7 +555,11 @@ const assembleCleanCard = (
           ),
         }
       : undefined;
-  if (buttons.length > CARD_ACTIONS_CAP) {
+  const { items: boundedButtons, truncated } = copyBounded(
+    buttons,
+    CARD_ACTIONS_CAP,
+  );
+  if (truncated) {
     warn(
       context,
       "clamped",
@@ -563,9 +574,7 @@ const assembleCleanCard = (
       : {}),
     ...(body !== undefined ? { body } : {}),
     ...(subtext !== undefined ? { subtext } : {}),
-    ...(buttons.length > 0
-      ? { actions: buttons.slice(0, CARD_ACTIONS_CAP) }
-      : {}),
+    ...(boundedButtons.length > 0 ? { actions: boundedButtons } : {}),
   });
 };
 
@@ -758,7 +767,11 @@ const contextRow = (
   if (allChildren.length === 0 || children.length !== allChildren.length) {
     return undefined;
   }
-  if (children.length > CONTEXT_ELEMENT_CAP) {
+  const { items: boundedChildren, truncated } = copyBounded(
+    children,
+    CONTEXT_ELEMENT_CAP,
+  );
+  if (truncated) {
     warn(
       context,
       "clamped",
@@ -769,7 +782,7 @@ const contextRow = (
   return [
     {
       type: "context",
-      elements: children.slice(0, CONTEXT_ELEMENT_CAP).map((child) => ({
+      elements: boundedChildren.map((child) => ({
         type: "mrkdwn",
         text: clampText(
           asString(child.props["value"]),
@@ -874,7 +887,11 @@ const convertCarousel = (
       `${droppedCards} non-card ${droppedCards === 1 ? "child was" : "children were"} dropped.`,
     );
   }
-  if (cardChildren.length > CAROUSEL_CARD_CAP) {
+  const { items: boundedCards, truncated } = copyBounded(
+    cardChildren,
+    CAROUSEL_CARD_CAP,
+  );
+  if (truncated) {
     warn(
       context,
       "clamped",
@@ -882,8 +899,7 @@ const convertCarousel = (
       `cards were clamped to ${CAROUSEL_CARD_CAP} entries.`,
     );
   }
-  const cards = cardChildren
-    .slice(0, CAROUSEL_CARD_CAP)
+  const cards = boundedCards
     .map((card) => convertCarouselCard(card, context, depth + 1))
     .filter((card): card is SlackCardBlock => card !== undefined);
   if (cards.length < CAROUSEL_CARD_MIN) {
@@ -921,7 +937,15 @@ const convertTable = (
   const rawRows = Array.isArray(element.props["rows"])
     ? element.props["rows"]
     : [];
-  if (rawColumns.length > DATA_TABLE_COLUMN_CAP) {
+  const { items: takenColumns, truncated: columnsTruncated } = copyBounded(
+    rawColumns,
+    DATA_TABLE_COLUMN_CAP,
+  );
+  const { items: takenRows, truncated: rowsTruncated } = copyBounded(
+    rawRows,
+    DATA_TABLE_ROW_CAP,
+  );
+  if (columnsTruncated) {
     warn(
       context,
       "clamped",
@@ -929,7 +953,7 @@ const convertTable = (
       `columns were clamped to ${DATA_TABLE_COLUMN_CAP} entries.`,
     );
   }
-  if (rawRows.length > DATA_TABLE_ROW_CAP) {
+  if (rowsTruncated) {
     warn(
       context,
       "clamped",
@@ -938,7 +962,6 @@ const convertTable = (
     );
   }
 
-  const takenColumns = rawColumns.slice(0, DATA_TABLE_COLUMN_CAP);
   const unlabeled = takenColumns.filter(
     (column) => !isRecord(column) || typeof column["label"] !== "string",
   ).length;
@@ -954,16 +977,15 @@ const convertTable = (
     type: "raw_text" as const,
     text: isRecord(column) ? asString(column["label"]) : "",
   }));
-  const dataRows: SlackDataTableCell[][] = rawRows
-    .slice(0, DATA_TABLE_ROW_CAP)
-    .map((row) =>
-      (Array.isArray(row) ? row : [])
-        .slice(0, DATA_TABLE_COLUMN_CAP)
-        .map(
-          (value) =>
-            toDataTableCell(value) ?? { type: "raw_text" as const, text: "" },
-        ),
-    );
+  const dataRows: SlackDataTableCell[][] = takenRows.map((row) =>
+    (Array.isArray(row)
+      ? copyBounded(row, DATA_TABLE_COLUMN_CAP).items
+      : []
+    ).map(
+      (value) =>
+        toDataTableCell(value) ?? { type: "raw_text" as const, text: "" },
+    ),
+  );
   const width = Math.max(
     columnHeaderRow.length,
     0,

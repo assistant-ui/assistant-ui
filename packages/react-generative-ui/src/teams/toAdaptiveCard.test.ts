@@ -4,6 +4,7 @@ import { toAdaptiveCard } from "./toAdaptiveCard";
 import { toTeamsAttachments } from "./toTeamsAttachments";
 import {
   CAROUSEL_ATTACHMENT_CAP,
+  CHOICE_OPTION_CAP,
   PAYLOAD_SOFT_CAP,
   PRIMARY_ACTION_CAP,
   TABLE_COLUMN_CAP,
@@ -23,6 +24,32 @@ import type {
   TeamsCardElement,
   TeamsTextBlock,
 } from "./types";
+
+const hostileSpecies = <T>(
+  source: T[],
+  injected: unknown[],
+  onDispatch: () => void,
+): T[] => {
+  function HostileCtor() {
+    return {
+      map: () => {
+        onDispatch();
+        return injected;
+      },
+      [Symbol.iterator]: function* () {
+        onDispatch();
+        yield* injected;
+      },
+    };
+  }
+  const constructor = { [Symbol.species]: HostileCtor };
+  return new Proxy(source, {
+    get: (target, prop, receiver) =>
+      prop === "constructor"
+        ? constructor
+        : Reflect.get(target, prop, receiver),
+  });
+};
 
 describe("toAdaptiveCard", () => {
   describe("Header", () => {
@@ -452,6 +479,29 @@ describe("toAdaptiveCard", () => {
     it('falls back to id "select" when name is absent', () => {
       const { card } = toAdaptiveCard({ $type: "Select", options: [] });
       expect((card.body[0] as TeamsInputChoiceSet).id).toBe("select");
+    });
+
+    it("does not dispatch a prop array through Symbol.species", () => {
+      let dispatches = 0;
+      const injected = Array.from(
+        { length: CHOICE_OPTION_CAP + 1 },
+        (_, i) => ({ label: `injected-${i}`, value: `injected-${i}` }),
+      );
+      const { card, warnings } = toAdaptiveCard({
+        $type: "Select",
+        options: hostileSpecies(
+          [{ label: "Kept", value: "kept" }],
+          injected,
+          () => {
+            dispatches += 1;
+          },
+        ),
+      });
+      expect((card.body[0] as TeamsInputChoiceSet).choices).toEqual([
+        { title: "Kept", value: "kept" },
+      ]);
+      expect(dispatches).toBe(0);
+      expect(warnings).toEqual([]);
     });
 
     it("appends a companion submit ActionSet with a fallback warning when $action is present", () => {
@@ -1152,6 +1202,29 @@ describe("toAdaptiveCard", () => {
         component: "Table",
         detail: `rows were clamped to ${TABLE_ROW_CAP} entries.`,
       });
+    });
+
+    it("does not dispatch a row array through Symbol.species", () => {
+      let dispatches = 0;
+      const row = hostileSpecies(
+        ["kept"],
+        ["injected", "also-injected"],
+        () => {
+          dispatches += 1;
+        },
+      );
+      const { card } = toAdaptiveCard({
+        $type: "Table",
+        columns: [{ label: "A" }],
+        rows: [row],
+      });
+      const table = card.body[0] as TeamsTable;
+      expect(table.rows).toHaveLength(2);
+      expect(table.rows[1]?.cells).toHaveLength(1);
+      expect(table.rows[1]?.cells[0]?.items).toEqual([
+        { type: "TextBlock", text: "kept", wrap: true },
+      ]);
+      expect(dispatches).toBe(0);
     });
   });
 

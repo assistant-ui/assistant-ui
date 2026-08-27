@@ -3,6 +3,7 @@ import {
   boundSpec,
   clampReasonDetail,
 } from "../convert/boundSpec";
+import { copyBounded } from "../convert/copyBounded";
 import { isElement } from "../convert/isElement";
 import { takeRun } from "../convert/takeRun";
 import {
@@ -126,7 +127,7 @@ function reservedSafeId(
 }
 
 /**
- * The shared bounded-iteration primitive: slices `value` to `cap` entries
+ * The shared bounded-iteration primitive: copies `value` to `cap` entries
  * without ever reading past that many indices, so a hostile array (sparse or
  * proxied with a fabricated `length`) cannot stall the event loop.
  */
@@ -135,7 +136,7 @@ const clampArray = (
   cap: number,
 ): { readonly items: unknown[]; readonly truncated: boolean } => {
   if (!Array.isArray(value)) return { items: [], truncated: false };
-  return { items: value.slice(0, cap), truncated: value.length > cap };
+  return copyBounded(value, cap);
 };
 
 const normalizedList = (
@@ -338,12 +339,13 @@ function convertTable(
     : undefined;
   const dataRows: TeamsTableRow[] = rawRows.map((row) => ({
     type: "TableRow",
-    cells: (Array.isArray(row) ? row.slice(0, TABLE_COLUMN_CAP) : []).map(
-      (cell) => ({
-        type: "TableCell" as const,
-        items: [textBlock(stringifyCell(cell))],
-      }),
-    ),
+    cells: (Array.isArray(row)
+      ? copyBounded(row, TABLE_COLUMN_CAP).items
+      : []
+    ).map((cell) => ({
+      type: "TableCell" as const,
+      items: [textBlock(stringifyCell(cell))],
+    })),
   }));
 
   return {

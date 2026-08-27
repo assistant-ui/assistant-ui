@@ -43,6 +43,32 @@ import type {
   SlackStaticSelectElement,
 } from "./types";
 
+const hostileSpecies = <T>(
+  source: T[],
+  injected: unknown[],
+  onDispatch: () => void,
+): T[] => {
+  function HostileCtor() {
+    return {
+      map: () => {
+        onDispatch();
+        return injected;
+      },
+      [Symbol.iterator]: function* () {
+        onDispatch();
+        yield* injected;
+      },
+    };
+  }
+  const constructor = { [Symbol.species]: HostileCtor };
+  return new Proxy(source, {
+    get: (target, prop, receiver) =>
+      prop === "constructor"
+        ? constructor
+        : Reflect.get(target, prop, receiver),
+  });
+};
+
 describe("toSlackBlocks", () => {
   describe("Header", () => {
     it("renders a header block", () => {
@@ -386,6 +412,32 @@ describe("toSlackBlocks", () => {
         component: "Select",
         detail: `options were clamped to ${SELECT_OPTION_CAP} entries.`,
       });
+    });
+
+    it("does not dispatch a prop array through Symbol.species", () => {
+      let dispatches = 0;
+      const injected = Array.from(
+        { length: SELECT_OPTION_CAP + 1 },
+        (_, i) => ({ label: `injected-${i}`, value: `injected-${i}` }),
+      );
+      const { blocks, warnings } = toSlackBlocks({
+        $type: "Select",
+        options: hostileSpecies(
+          [{ label: "kept", value: "kept" }],
+          injected,
+          () => {
+            dispatches += 1;
+          },
+        ),
+        $action: { type: "pick" },
+      });
+      const element = (blocks[0] as SlackActionsBlock)
+        .elements[0] as SlackStaticSelectElement;
+      expect(element.options).toEqual([
+        { text: { type: "plain_text", text: "kept" }, value: "kept" },
+      ]);
+      expect(dispatches).toBe(0);
+      expect(warnings).toEqual([]);
     });
 
     it(`clamps an option label to ${INTERACTIVE_TEXT_CAP} characters and warns`, () => {
@@ -1682,6 +1734,35 @@ describe("toSlackBlocks", () => {
       expect(warnings.some((w) => w.detail.includes("table budget"))).toBe(
         false,
       );
+    });
+
+    it("does not dispatch columns, rows, or row arrays through Symbol.species", () => {
+      const dispatches = { columns: 0, rows: 0, row: 0 };
+      const row = hostileSpecies(
+        ["kept"],
+        ["injected", "also-injected"],
+        () => {
+          dispatches.row += 1;
+        },
+      );
+      const { blocks } = toSlackBlocks({
+        $type: "Table",
+        columns: hostileSpecies(
+          [{ label: "Kept" }],
+          [{ label: "Injected" }, { label: "Also injected" }],
+          () => {
+            dispatches.columns += 1;
+          },
+        ),
+        rows: hostileSpecies([row], [row, row], () => {
+          dispatches.rows += 1;
+        }),
+      });
+      const table = blocks[0] as SlackDataTableBlock;
+      expect(table.rows).toHaveLength(2);
+      expect(table.rows[0]).toEqual([{ type: "raw_text", text: "Kept" }]);
+      expect(table.rows[1]).toEqual([{ type: "raw_text", text: "kept" }]);
+      expect(dispatches).toEqual({ columns: 0, rows: 0, row: 0 });
     });
 
     it(`clamps rows to fit the ${DATA_TABLE_CHAR_BUDGET}-character table budget, always keeping the header row`, () => {

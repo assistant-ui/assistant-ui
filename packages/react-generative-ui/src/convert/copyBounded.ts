@@ -18,10 +18,10 @@
  * that same normalized figure, so a `length` whose `valueOf` answers differently
  * on a second conversion cannot separate the warning from the bound.
  */
-export const copyBounded = (
-  value: unknown[],
+export const copyBounded = <T>(
+  value: readonly T[],
   cap: number,
-): { readonly items: unknown[]; readonly truncated: boolean } => {
+): { readonly items: T[]; readonly truncated: boolean } => {
   const reported = value.length;
   const integral = Math.trunc(Number(reported));
   const usable =
@@ -29,9 +29,9 @@ export const copyBounded = (
       ? 0
       : Math.min(integral, Number.MAX_SAFE_INTEGER);
   const count = Math.min(cap, usable);
-  const items: unknown[] = [];
+  const items: T[] = [];
   for (let index = 0; index < count; index += 1) {
-    if (index in value) items[index] = value[index];
+    if (index in value) items[index] = value[index] as T;
   }
   items.length = count;
   return { items, truncated: usable > cap };
