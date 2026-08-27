@@ -10,6 +10,7 @@ vi.mock("./run-spawn", async (importOriginal) => ({
 }));
 
 import { transform } from "./transform";
+import { SpawnExitError } from "./run-spawn";
 
 describe("transform", () => {
   it("runs codemods asynchronously and reports progress", async () => {
@@ -38,5 +39,24 @@ describe("transform", () => {
       "npx",
       expect.arrayContaining(["jscodeshift", "--dry"]),
     );
+  });
+
+  it("surfaces the codemod's stderr when it exits nonzero", async () => {
+    mocks.runSpawnCapture.mockResolvedValue({
+      code: 1,
+      signal: null,
+      stdout: "",
+      stderr: "SyntaxError: Unexpected token\n",
+    });
+
+    const failure = transform(
+      "v0-8/ui-package-split",
+      "/tmp/project",
+      { dry: true },
+      { logStatus: false, relevantFiles: ["/tmp/project/app.tsx"] },
+    );
+
+    await expect(failure).rejects.toBeInstanceOf(SpawnExitError);
+    await expect(failure).rejects.toThrow("SyntaxError: Unexpected token");
   });
 });

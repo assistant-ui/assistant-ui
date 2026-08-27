@@ -138,7 +138,7 @@ export async function transform(
     throw new SpawnSignalError(result.signal, false);
   }
   if (!options.onProgress && result.code !== 0) {
-    throw new SpawnExitError(result.code || 1);
+    throw new SpawnExitError(result.code || 1, result.stderr);
   }
 
   const { stdout } = result;
