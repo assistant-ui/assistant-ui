@@ -264,8 +264,8 @@ const isRole = (value: unknown): value is A2ARole =>
   typeof value === "string" && ROLES.has(value);
 
 // Ids reach task state and the next request body unchecked by anything
-// downstream, so a present id of the wrong type is rejected at the decoder.
-// An omitted id keeps the acceptance each path already had.
+// downstream, so an id that is present and not null must be a string.
+// An omitted or null id keeps the acceptance each path already had.
 const hasOptionalStringIds = (
   value: Record<string, unknown>,
   keys: readonly string[],
