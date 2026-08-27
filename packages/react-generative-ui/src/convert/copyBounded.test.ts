@@ -28,6 +28,34 @@ describe("copyBounded", () => {
     expect(copyBounded(input, 5)).not.toBe(input);
   });
 
+  it("leaves an absent index absent, as slice does", () => {
+    const sparse: unknown[] = [];
+    sparse[0] = "a";
+    sparse[2] = "c";
+
+    const result = copyBounded(sparse, 5);
+
+    expect(result).toHaveLength(3);
+    expect(1 in result).toBe(false);
+    expect(result).toEqual(sparse.slice(0, 5));
+  });
+
+  it("does not read an index the input reports as absent", () => {
+    const reads: string[] = [];
+    const probe = new Proxy(["a", "b"], {
+      has: (target, prop) => prop !== "1" && Reflect.has(target, prop),
+      get: (target, prop, receiver) => {
+        if (typeof prop === "string" && /^\d+$/.test(prop)) reads.push(prop);
+        return Reflect.get(target, prop, receiver);
+      },
+    });
+
+    const result = copyBounded(probe, 2);
+
+    expect(reads).toEqual(["0"]);
+    expect(1 in result).toBe(false);
+  });
+
   it("bounds an array whose reported length is fabricated", () => {
     const hostile = new Proxy(["a", "b"], {
       get: (target, prop, receiver) =>

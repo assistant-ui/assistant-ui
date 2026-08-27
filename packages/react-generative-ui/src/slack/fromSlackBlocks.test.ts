@@ -1156,6 +1156,20 @@ it("bounds static-select options when an array replaces its slice", () => {
   });
 });
 
+it("skips a hole in a section fields array instead of decoding a blank fact", () => {
+  const fields: unknown[] = [];
+  fields[0] = { type: "mrkdwn", text: "*A*\nyes" };
+  fields[2] = { type: "mrkdwn", text: "*C*\nyes" };
+
+  const { nodes, warnings } = fromSlackBlocks([{ type: "section", fields }]);
+
+  expect(warnings).toEqual([]);
+  expect(nodes.filter(Boolean)).toEqual([
+    { $type: "Fact", label: "A", value: "yes" },
+    { $type: "Fact", label: "C", value: "yes" },
+  ]);
+});
+
 it("bounds static-select options when an array redirects Symbol.species", () => {
   function HostileCtor() {
     return {

@@ -6,6 +6,9 @@
  * `constructor` with a `@@species` whose `[[Construct]]` returns an arbitrary
  * object, which then supplies the `map` or `some` the caller runs next. Reading
  * indices consults neither, so it is the only form that bounds a hostile array.
+ *
+ * Absent indices stay absent, matching what `slice` produces for a sparse
+ * input, so callers that skip holes still skip them.
  */
 export const copyBounded = (value: unknown[], cap: number): unknown[] => {
   const length = value.length;
@@ -14,6 +17,9 @@ export const copyBounded = (value: unknown[], cap: number): unknown[] => {
     typeof length === "number" && length > 0 ? length : 0,
   );
   const items: unknown[] = [];
-  for (let index = 0; index < count; index += 1) items.push(value[index]);
+  for (let index = 0; index < count; index += 1) {
+    if (index in value) items[index] = value[index];
+  }
+  items.length = count;
   return items;
 };
