@@ -99,6 +99,26 @@ describe("AssistantFrameProvider", () => {
     await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
   });
 
+  it("defaults to the current origin", async () => {
+    const execute = vi.fn(async () => "result");
+    AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({
+        tools: { sensitiveTool: { execute } },
+      }),
+    });
+
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      window.location.origin,
+    );
+
+    dispatchToolCall("https://untrusted.example");
+    expect(execute).not.toHaveBeenCalled();
+
+    dispatchToolCall(window.location.origin);
+    await vi.waitFor(() => expect(execute).toHaveBeenCalledOnce());
+  });
+
   it("reports a failure even when the thrown error has an empty message", async () => {
     const execute = vi.fn(async () => {
       throw new Error();
@@ -111,7 +131,7 @@ describe("AssistantFrameProvider", () => {
       }),
     });
 
-    dispatchToolCall("https://parent.example");
+    dispatchToolCall(window.location.origin);
 
     await vi.waitFor(() => {
       const frame = (
@@ -145,10 +165,10 @@ describe("AssistantFrameProvider", () => {
       }),
     });
 
-    dispatchToolCall("*");
+    dispatchToolCall(window.location.origin);
     await vi.waitFor(() => expect(toolSignal).toBeDefined());
 
-    dispatchToolCancel("*");
+    dispatchToolCancel(window.location.origin);
 
     expect(toolSignal?.aborted).toBe(true);
     await new Promise((resolve) => setTimeout(resolve, 0));
@@ -181,11 +201,11 @@ describe("AssistantFrameProvider", () => {
       getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
     });
 
-    dispatchToolCall("*", parentWindow, "tool-a");
-    dispatchToolCall("*", parentWindow, "tool-b");
+    dispatchToolCall(window.location.origin, parentWindow, "tool-a");
+    dispatchToolCall(window.location.origin, parentWindow, "tool-b");
     await vi.waitFor(() => expect(signals.size).toBe(2));
 
-    dispatchToolCancel("*", parentWindow, "tool-a");
+    dispatchToolCancel(window.location.origin, parentWindow, "tool-a");
 
     expect(signals.get("tool-a")?.aborted).toBe(true);
     expect(signals.get("tool-b")?.aborted).toBe(false);
@@ -209,9 +229,9 @@ describe("AssistantFrameProvider", () => {
       getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
     });
 
-    dispatchToolCall("*", parentWindow, "duplicate");
+    dispatchToolCall(window.location.origin, parentWindow, "duplicate");
     await vi.waitFor(() => expect(signals).toHaveLength(1));
-    dispatchToolCall("*", parentWindow, "duplicate");
+    dispatchToolCall(window.location.origin, parentWindow, "duplicate");
     await vi.waitFor(() => expect(signals).toHaveLength(2));
 
     expect(signals[0]?.aborted).toBe(true);
@@ -236,7 +256,7 @@ describe("AssistantFrameProvider", () => {
       getModelContext: () => ({ tools: { sensitiveTool: { execute } } }),
     });
 
-    dispatchToolCall("*");
+    dispatchToolCall(window.location.origin);
     await vi.waitFor(() => expect(toolSignal).toBeDefined());
 
     AssistantFrameProvider.dispose();
@@ -251,7 +271,7 @@ describe("AssistantFrameProvider", () => {
           error: "AssistantFrameProvider has been disposed",
         },
       },
-      { targetOrigin: "*" },
+      { targetOrigin: window.location.origin },
     );
     await new Promise((resolve) => setTimeout(resolve, 0));
     const toolResults = vi
@@ -418,7 +438,7 @@ describe("AssistantFrameProvider", () => {
           },
         },
       },
-      "*",
+      window.location.origin,
     );
   });
 
@@ -516,7 +536,7 @@ describe("AssistantFrameProvider", () => {
     expect(window.addEventListener).toHaveBeenCalledTimes(2);
   });
 
-  it("resets the origin policy after every provider unsubscribes", () => {
+  it("returns to the same-origin policy after every provider unsubscribes", () => {
     const unsubscribe = AssistantFrameProvider.addModelContextProvider(
       { getModelContext: () => ({}) },
       "https://first.example",
@@ -526,7 +546,7 @@ describe("AssistantFrameProvider", () => {
 
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       expect.anything(),
-      "*",
+      window.location.origin,
     );
 
     expect(() =>
@@ -564,7 +584,7 @@ describe("AssistantFrameProvider", () => {
 
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       expect.anything(),
-      "*",
+      window.location.origin,
     );
   });
 
@@ -579,6 +599,37 @@ describe("AssistantFrameProvider", () => {
     );
 
     unsubscribeStrict();
+
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      "*",
+    );
+  });
+
+  it("returns to the same-origin policy after a wildcard provider unsubscribes", () => {
+    const unsubscribe = AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "*",
+    );
+
+    unsubscribe();
+
+    expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      window.location.origin,
+    );
+  });
+
+  it("allows opting back into a wildcard policy after every provider unsubscribes", () => {
+    const unsubscribe = AssistantFrameProvider.addModelContextProvider({
+      getModelContext: () => ({}),
+    });
+    unsubscribe();
+
+    AssistantFrameProvider.addModelContextProvider(
+      { getModelContext: () => ({}) },
+      "*",
+    );
 
     expect(parentWindow.postMessage).toHaveBeenLastCalledWith(
       expect.anything(),

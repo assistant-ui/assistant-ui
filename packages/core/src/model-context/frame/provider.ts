@@ -29,6 +29,8 @@ const serializeModelContext = (
   }),
 });
 
+const getDefaultTargetOrigin = () => window.location.origin;
+
 export class AssistantFrameProvider {
   private static _instance: AssistantFrameProvider | null = null;
 
@@ -40,8 +42,9 @@ export class AssistantFrameProvider {
   >();
   private _targetOrigin: string;
   private _strictRegistrations = 0;
+  private _wildcardRegistrations = 0;
 
-  private constructor(targetOrigin: string = "*") {
+  private constructor(targetOrigin: string = getDefaultTargetOrigin()) {
     this._targetOrigin = targetOrigin;
     this.handleMessage = this.handleMessage.bind(this);
     window.addEventListener("message", this.handleMessage);
@@ -60,8 +63,17 @@ export class AssistantFrameProvider {
     return AssistantFrameProvider._instance;
   }
 
-  private reconcileTargetOrigin(targetOrigin: string = "*") {
-    if (targetOrigin === "*" || targetOrigin === this._targetOrigin) return;
+  private reconcileTargetOrigin(
+    targetOrigin: string = getDefaultTargetOrigin(),
+  ) {
+    if (targetOrigin === this._targetOrigin) return;
+
+    if (this._providers.size === 0) {
+      this._targetOrigin = targetOrigin;
+      return;
+    }
+
+    if (targetOrigin === "*") return;
 
     if (this._targetOrigin === "*") {
       this._targetOrigin = targetOrigin;
@@ -192,9 +204,20 @@ export class AssistantFrameProvider {
     this._providers.delete(id);
     const unsubscribe = this._providerUnsubscribes.get(id);
     this._providerUnsubscribes.delete(id);
-    if (origin !== "*") {
+    if (origin === "*") {
+      this._wildcardRegistrations -= 1;
+      if (
+        this._wildcardRegistrations === 0 &&
+        this._strictRegistrations === 0
+      ) {
+        this._targetOrigin = getDefaultTargetOrigin();
+      }
+    } else {
       this._strictRegistrations -= 1;
-      if (this._strictRegistrations === 0) this._targetOrigin = "*";
+      if (this._strictRegistrations === 0) {
+        this._targetOrigin =
+          this._wildcardRegistrations > 0 ? "*" : getDefaultTargetOrigin();
+      }
     }
     return unsubscribe;
   }
@@ -203,11 +226,15 @@ export class AssistantFrameProvider {
     provider: ModelContextProvider,
     targetOrigin?: string,
   ): Unsubscribe {
-    const origin = targetOrigin ?? "*";
+    const origin = targetOrigin ?? getDefaultTargetOrigin();
     const instance = AssistantFrameProvider.getInstance(origin);
     const id = Symbol();
     instance._providers.set(id, provider);
-    if (origin !== "*") instance._strictRegistrations += 1;
+    if (origin === "*") {
+      instance._wildcardRegistrations += 1;
+    } else {
+      instance._strictRegistrations += 1;
+    }
 
     try {
       const unsubscribe = provider.subscribe?.(() =>
