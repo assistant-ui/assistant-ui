@@ -9,11 +9,12 @@ import {
 } from "@/components/assistant-ui/model-selector";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
+const models: ModelOption[] = [
+  { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
+  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", efforts: true },
+];
+
 export function SelectableModel() {
-  const models: ModelOption[] = [
-    { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
-    { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", efforts: true },
-  ];
   const [model, setModel] = useState("gpt-5.6-sol");
 
   return (
