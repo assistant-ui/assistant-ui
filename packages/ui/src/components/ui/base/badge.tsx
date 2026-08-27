@@ -32,14 +32,14 @@ function Badge({
   render,
   ...props
 }: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
+  const defaultProps = {
+    "data-slot": "badge",
+    className: cn(badgeVariants({ variant }), className),
+  };
+
   return useRender({
     defaultTagName: "span",
-    props: mergeProps<"span">(
-      {
-        className: cn(badgeVariants({ variant }), className),
-      },
-      props,
-    ),
+    props: mergeProps<"span">(defaultProps, props),
     render,
     state: {
       slot: "badge",
