@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { renderHook, waitFor } from "@testing-library/react";
+import {
+  createElement,
+  Suspense,
+  startTransition,
+  type PropsWithChildren,
+} from "react";
+import { act, renderHook, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => {
@@ -98,6 +104,57 @@ describe("useMcpOAuthCallback", () => {
       });
     },
   );
+
+  it("keeps callbacks scoped to committed renders", async () => {
+    let resolveAuth!: () => void;
+    mocks.completeAuth.mockReturnValueOnce(
+      new Promise<void>((resolve) => {
+        resolveAuth = resolve;
+      }),
+    );
+    const onCompleteA = vi.fn();
+    const onCompleteB = vi.fn();
+    const interruptedRender = vi.fn();
+    const pending = new Promise<never>(() => {});
+    let blocked = false;
+    const Blocker = () => {
+      if (blocked) {
+        interruptedRender();
+        throw pending;
+      }
+      return null;
+    };
+    const Wrapper = ({ children }: PropsWithChildren) =>
+      createElement(
+        Suspense,
+        { fallback: null },
+        children,
+        createElement(Blocker),
+      );
+
+    const { rerender } = renderHook(
+      ({ onComplete }) => useMcpOAuthCallback({ url: callbackUrl, onComplete }),
+      {
+        initialProps: { onComplete: onCompleteA },
+        wrapper: Wrapper,
+      },
+    );
+    await waitFor(() => expect(mocks.completeAuth).toHaveBeenCalledOnce());
+
+    act(() => {
+      blocked = true;
+      startTransition(() => rerender({ onComplete: onCompleteB }));
+    });
+    expect(interruptedRender).toHaveBeenCalled();
+
+    await act(async () => {
+      resolveAuth();
+      await Promise.resolve();
+    });
+
+    expect(onCompleteB).not.toHaveBeenCalled();
+    expect(onCompleteA).toHaveBeenCalledWith("docs");
+  });
 });
 
 describe("createMcpOAuthCallbackError", () => {
