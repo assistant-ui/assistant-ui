@@ -42,7 +42,9 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
   const threadListAdapter = options.adapters?.threadList;
 
   const headersRef = useRef(options.headers);
-  headersRef.current = options.headers;
+  useEffect(() => {
+    headersRef.current = options.headers;
+  }, [options.headers]);
   const resolveHeaders = useCallback(() => {
     const headers = headersRef.current;
     return typeof headers === "function" ? headers() : (headers ?? {});
