@@ -125,6 +125,18 @@ describe("registered tools", () => {
     });
   });
 
+  it("getExample maps full URLs to their pathname before prefixing", async () => {
+    const fetchImpl = fetchReturning({ result: okResult });
+    await toolByName(fetchImpl, "getExample").execute({
+      path: "https://assistant-ui.com/examples/ai-sdk",
+    });
+
+    expect(sentRequest(fetchImpl).body.params).toEqual({
+      name: "read_page",
+      arguments: { path: "examples/ai-sdk" },
+    });
+  });
+
   it("getExample leaves examples paths untouched", async () => {
     const fetchImpl = fetchReturning({ result: okResult });
     await toolByName(fetchImpl, "getExample").execute({
