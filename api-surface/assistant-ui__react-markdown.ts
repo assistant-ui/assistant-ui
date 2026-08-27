@@ -188,10 +188,7 @@ type MarkdownTextPrimitiveProps = Omit<Options, "children" | "components"> & {
     SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
     CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
   }) | undefined;
-  componentsByLanguage?: Record<string, {
-    CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
-    SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
-  }> | undefined;
+  componentsByLanguage?: ComponentsByLanguage | undefined;
   smooth?: boolean | SmoothOptions | undefined;
   defer?: boolean | undefined;
   preprocess?: (text: string) => string;
