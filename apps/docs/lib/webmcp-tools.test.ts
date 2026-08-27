@@ -137,6 +137,25 @@ describe("registered tools", () => {
     });
   });
 
+  it("getExample passes cross-origin URLs through for the route to reject", async () => {
+    vi.stubGlobal("window", {
+      location: { origin: "https://assistant-ui.com" },
+    });
+    try {
+      const fetchImpl = fetchReturning({ result: okResult });
+      await toolByName(fetchImpl, "getExample").execute({
+        path: "https://evil.example/examples/ai-sdk",
+      });
+
+      expect(sentRequest(fetchImpl).body.params).toEqual({
+        name: "read_page",
+        arguments: { path: "https://evil.example/examples/ai-sdk" },
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
   it("getExample leaves examples paths untouched", async () => {
     const fetchImpl = fetchReturning({ result: okResult });
     await toolByName(fetchImpl, "getExample").execute({
@@ -255,13 +274,19 @@ describe("registerWebMcpTools lifecycle", () => {
     expect(signals.every((signal) => signal?.aborted)).toBe(true);
   });
 
-  it("swallows registration rejections", async () => {
-    const modelContext: WebMcpModelContext = {
-      registerTool: vi.fn(() => Promise.reject(new Error("duplicate"))),
-    };
-    registerWebMcpTools(modelContext, fetchReturning({ result: okResult }));
-    await vi.waitFor(() => {
-      expect(modelContext.registerTool).toHaveBeenCalledTimes(3);
-    });
+  it("swallows registration rejections with a dev warning", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      const modelContext: WebMcpModelContext = {
+        registerTool: vi.fn(() => Promise.reject(new Error("duplicate"))),
+      };
+      registerWebMcpTools(modelContext, fetchReturning({ result: okResult }));
+      await vi.waitFor(() => {
+        expect(modelContext.registerTool).toHaveBeenCalledTimes(3);
+        expect(warn).toHaveBeenCalledTimes(3);
+      });
+    } finally {
+      warn.mockRestore();
+    }
   });
 });

@@ -119,11 +119,20 @@ function examplePath(path: string) {
   let normalized = path;
   // read_page accepts same-origin URLs; map them to their pathname before
   // prefixing so a URL read off the page doesn't become examples/https://...
+  // Cross-origin URLs pass through untouched so the route's own same-origin
+  // check rejects them instead of silently reading a local page.
   if (/^https?:\/\//i.test(normalized)) {
     try {
-      normalized = new URL(normalized).pathname;
+      const parsed = new URL(normalized);
+      if (
+        typeof window !== "undefined" &&
+        parsed.origin !== window.location.origin
+      ) {
+        return path;
+      }
+      normalized = parsed.pathname;
     } catch {
-      // leave it for the server to reject
+      return path;
     }
   }
   while (normalized.startsWith("/")) normalized = normalized.slice(1);
@@ -136,7 +145,7 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
   return [
     {
       name: "searchDocs",
-      description: `Search the assistant-ui documentation, examples, and Tap docs by title, description, or URL. Returns up to ${SEARCH_DOCS_RESULT_LIMIT} matching pages.`,
+      description: `${searchDocsTool.description} Returns up to ${SEARCH_DOCS_RESULT_LIMIT} matching pages.`,
       inputSchema: {
         type: "object",
         properties: {
@@ -220,7 +229,13 @@ export function registerWebMcpTools(
   for (const tool of webMcpTools(fetchImpl)) {
     Promise.resolve(
       modelContext.registerTool(tool, { signal: controller.signal }),
-    ).catch(() => {});
+    ).catch((error) => {
+      // Registration failures (permissions policy, duplicate names, spec
+      // drift) must not break the page, but should be visible in development.
+      if (process.env.NODE_ENV !== "production") {
+        console.warn(`WebMCP: failed to register ${tool.name}`, error);
+      }
+    });
   }
   return () => {
     controller.abort();
