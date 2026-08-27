@@ -33,6 +33,12 @@ export interface SpawnResult {
   stderr: string;
 }
 
+let activeSpawns = 0;
+
+// A spawn that is forwarding a signal owns termination for that window, so
+// callers with their own cleanup listeners defer to it instead of racing it.
+export const hasActiveSpawn = (): boolean => activeSpawns > 0;
+
 function spawnProcess(
   command: string,
   args: string[],
@@ -61,6 +67,7 @@ function spawnProcess(
     }
 
     const cleanup = () => {
+      activeSpawns -= 1;
       process.off("SIGINT", onSigint);
       process.off("SIGTERM", onSigterm);
     };
@@ -84,6 +91,7 @@ function spawnProcess(
     const onSigint = () => forwardSignal("SIGINT");
     const onSigterm = () => forwardSignal("SIGTERM");
 
+    activeSpawns += 1;
     process.on("SIGINT", onSigint);
     process.on("SIGTERM", onSigterm);
 

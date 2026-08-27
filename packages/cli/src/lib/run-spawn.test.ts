@@ -12,6 +12,7 @@ vi.mock("cross-spawn", async (importOriginal) => ({
 }));
 
 import {
+  hasActiveSpawn,
   runSpawn,
   runSpawnCapture,
   SpawnExitError,
@@ -72,6 +73,20 @@ describe("runSpawn", () => {
     expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
     await expect(result).rejects.toBeInstanceOf(SpawnSignalError);
     expect(process.listenerCount("SIGTERM")).toBe(sigterm.count);
+  });
+
+  it("reports an active spawn only while the child is running", async () => {
+    const child = createChild();
+    mocks.spawn.mockReturnValue(child);
+
+    expect(hasActiveSpawn()).toBe(false);
+    const result = runSpawn("assistant-ui", ["create"]);
+    expect(hasActiveSpawn()).toBe(true);
+
+    child.emit("close", 0, null);
+    await result;
+
+    expect(hasActiveSpawn()).toBe(false);
   });
 
   it("preserves normal child exit handling", async () => {

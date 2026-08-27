@@ -13,7 +13,12 @@ import {
   transformProject,
   type TransformResult,
 } from "../lib/create-project";
-import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
+import {
+  hasActiveSpawn,
+  runSpawn,
+  SpawnExitError,
+  SpawnSignalError,
+} from "../lib/run-spawn";
 import { resolvePackageManagerForCwd } from "../lib/utils/package-manager";
 import {
   buildSkillsAddCommand,
@@ -613,7 +618,7 @@ export const create = new Command()
     // runSpawn forwards the signal itself, so the directory is removed on the
     // error path once the child is reaped rather than while it is still writing.
     const cleanupOnSignal = (signal: NodeJS.Signals) => {
-      if (process.listenerCount(signal) > 1) return;
+      if (hasActiveSpawn()) return;
       cleanupOnExit();
       disarmCleanup();
       process.kill(process.pid, signal);
