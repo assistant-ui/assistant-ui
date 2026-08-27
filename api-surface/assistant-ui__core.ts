@@ -2916,6 +2916,12 @@ declare class MessageRepository {
   import(_param9: ExportedMessageRepository): void;
 }
 
+type MessageRepositorySession = ReturnType<typeof createMessageRepositorySession>;
+
+type MessageRepositorySessionOptions = {
+  decorateExport?: (exported: ExportedMessageRepository, repository: MessageRepository) => ExportedMessageRepository;
+};
+
 type MessageRole = ThreadMessage["role"];
 
 type MessageRuntime = {
@@ -5916,6 +5922,27 @@ declare const createMessageConverter: <T extends object>(callback: useExternalMe
 
 declare const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController;
 
+declare const createMessageRepositorySession: (options?: MessageRepositorySessionOptions) => {
+  getMessages: () => readonly ThreadMessage[];
+  readonly headId: string | null;
+  export: () => ExportedMessageRepository;
+  tryGetMessage: (messageId: string) => {
+    parentId: string | null;
+    message: ThreadMessage;
+    index: number;
+  } | undefined;
+  tryGetMessages: (messageId: string) => readonly ThreadMessage[] | undefined;
+  hasMessage: (messageId: string) => boolean;
+  addOrUpdateMessage: (parentId: string | null, message: ThreadMessage) => void;
+  deleteMessage: (messageId: string, replacementId?: string | null) => void;
+  tryDeleteMessage: (messageId: string) => boolean;
+  switchToBranch: (messageId: string) => void;
+  resetHead: (messageId: string | null) => void;
+  clear: () => void;
+  updateMessage: (messageId: string, updater: (message: ThreadMessage) => ThreadMessage) => boolean;
+  applyExternalMessageRepository: (loaded: ExportedMessageRepository) => void;
+};
+
 declare function createRequestHeaders(headersValue: Record<string, string> | Headers | (() => Promise<Record<string, string> | Headers>)): Promise<Headers>;
 
 declare const createRuntimeExtras: <T extends object>(runtimeName: string) => RuntimeExtras<T>;
@@ -6039,7 +6066,7 @@ declare namespace entry_store_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { AbortableThreadLoadPurpose, AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolInvocationTracker, consumeSuggestionResult, createAbortableThreadLoad, createCloudThreadListAdapterCreateFallback, createThreadMappingId, createToolCallCancellationStub, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, invokeUserCallback, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isParsableUrl, isRecord, notifyEventListeners, parseDataUrl, resolveFileMediaType, resolveImageMediaType, resolveToolApprovalResponse, scanPendingToolCalls, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer };
+  export { AbortableThreadLoadPurpose, AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRepositorySession, MessageRepositorySessionOptions, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolInvocationTracker, consumeSuggestionResult, createAbortableThreadLoad, createCloudThreadListAdapterCreateFallback, createMessageRepositorySession, createThreadMappingId, createToolCallCancellationStub, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, invokeUserCallback, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isParsableUrl, isRecord, notifyEventListeners, parseDataUrl, resolveFileMediaType, resolveImageMediaType, resolveToolApprovalResponse, scanPendingToolCalls, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer };
 }
 
 declare namespace entry_store_internal_exports {
