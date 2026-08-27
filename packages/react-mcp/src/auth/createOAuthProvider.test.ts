@@ -1,5 +1,5 @@
 import type { OAuthDiscoveryState } from "@modelcontextprotocol/client";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { MCPStorage } from "../resources/storage/types";
 import type { MCPPersistedAuthState } from "./types";
 import { createOAuthProvider } from "./createOAuthProvider";
@@ -83,4 +83,86 @@ describe("createOAuthProvider discovery state", () => {
       );
     },
   );
+});
+
+describe("createOAuthProvider persistence", () => {
+  it("loads persisted auth state once for concurrent reads", async () => {
+    let resolveLoad!: (value: MCPPersistedAuthState | null) => void;
+    const loadAuthState = vi.fn(
+      () =>
+        new Promise<MCPPersistedAuthState | null>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    const { storage } = createStorage();
+    storage.loadAuthState = loadAuthState;
+    const provider = createProvider(storage);
+
+    const tokens = provider.tokens();
+    const clientInformation = provider.clientInformation();
+
+    expect(loadAuthState).toHaveBeenCalledTimes(1);
+    resolveLoad(null);
+    await Promise.all([tokens, clientInformation]);
+  });
+
+  it("serializes writes so newer auth state is not overwritten", async () => {
+    const { storage } = createStorage();
+    const pendingWrites: Array<() => void> = [];
+    let persisted: MCPPersistedAuthState | null = null;
+    storage.saveAuthState = async (_serverId, next) => {
+      await new Promise<void>((resolve) => pendingWrites.push(resolve));
+      persisted = next;
+    };
+    const provider = createProvider(storage);
+    await provider.tokens();
+
+    const tokenSave = provider.saveTokens({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+    await vi.waitFor(() => expect(pendingWrites).toHaveLength(1));
+
+    const verifierSave = provider.saveCodeVerifier("pkce-verifier");
+    await Promise.resolve();
+    expect(pendingWrites).toHaveLength(1);
+
+    pendingWrites.shift()!();
+    await vi.waitFor(() => expect(pendingWrites).toHaveLength(1));
+    pendingWrites.shift()!();
+    await Promise.all([tokenSave, verifierSave]);
+
+    expect(persisted).toEqual({
+      tokens: { access_token: "access-token", token_type: "bearer" },
+      codeVerifier: "pkce-verifier",
+    });
+  });
+
+  it("continues persisting after a failed auth state write", async () => {
+    const { storage } = createStorage();
+    const failure = new Error("storage unavailable");
+    let saveCount = 0;
+    let persisted: MCPPersistedAuthState | null = null;
+    storage.saveAuthState = async (_serverId, next) => {
+      saveCount += 1;
+      if (saveCount === 1) throw failure;
+      persisted = next;
+    };
+    const provider = createProvider(storage);
+    await provider.tokens();
+
+    const tokenSave = provider.saveTokens({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+    const verifierSave = provider.saveCodeVerifier("pkce-verifier");
+
+    await expect(tokenSave).rejects.toBe(failure);
+    await expect(verifierSave).resolves.toBeUndefined();
+    expect(saveCount).toBe(2);
+    expect(persisted).toEqual({
+      tokens: { access_token: "access-token", token_type: "bearer" },
+      codeVerifier: "pkce-verifier",
+    });
+  });
 });
