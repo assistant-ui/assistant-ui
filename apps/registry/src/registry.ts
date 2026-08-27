@@ -1070,7 +1070,7 @@ export const registry: RegistryItem[] = [
     ],
     dependencies: [
       "@assistant-ui/react",
-      "@assistant-ui/react-markdown",
+      "@assistant-ui/react-markdown@^0.14.13",
       "lucide-react",
       "remark-gfm",
     ],

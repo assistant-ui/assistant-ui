@@ -1497,3 +1497,18 @@ test("install validation resolves a sibling against the registryDependency insta
     /imports "\.\/badge", but no file or registryDependency provides/,
   );
 });
+
+test("install validation accepts a versioned package dependency", () => {
+  const item = componentItem(
+    [
+      {
+        path: "components/assistant-ui/markdown-text.tsx",
+        content:
+          'import { MarkdownText } from "@assistant-ui/react-markdown";\n',
+      },
+    ],
+    { dependencies: ["@assistant-ui/react-markdown@^0.14.13"] },
+  );
+
+  assert.equal(findingsFrom([item]), null);
+});

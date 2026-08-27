@@ -770,11 +770,12 @@ export function createBaseRegistryItem(item: RegistryItem): RegistryBuildItem {
 }
 
 function getPackageName(specifier: string) {
-  if (specifier.startsWith("@")) {
-    return specifier.split("/").slice(0, 2).join("/");
+  if (!specifier.startsWith("@")) {
+    return specifier.split("@")[0]!.split("/")[0]!;
   }
 
-  return specifier.split("/")[0]!;
+  const [scope, name] = specifier.split("/");
+  return `${scope}/${name!.split("@")[0]}`;
 }
 
 function isStringLiteralLike(
@@ -969,10 +970,11 @@ function collectInstallContext(
   const files = new Set(
     item.files?.map((file) => file.target ?? file.path) ?? [],
   );
-  const packages = new Set([
-    ...(item.dependencies ?? []),
-    ...(item.devDependencies ?? []),
-  ]);
+  const packages = new Set(
+    [...(item.dependencies ?? []), ...(item.devDependencies ?? [])].map(
+      getPackageName,
+    ),
+  );
 
   for (const dependency of item.registryDependencies ?? []) {
     const assistantDependencyName =
