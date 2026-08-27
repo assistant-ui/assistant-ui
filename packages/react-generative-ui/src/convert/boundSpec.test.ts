@@ -57,6 +57,17 @@ describe("boundSpec", () => {
     expect(result as unknown[]).toHaveLength(CHILDREN_CAP);
   });
 
+  it("bounds an array that hijacks its own slice", () => {
+    const hostile = new Proxy(["a", "b"], {
+      get: (target, prop, receiver) =>
+        prop === "slice"
+          ? () => Array(CHILDREN_CAP * 2).fill("x")
+          : Reflect.get(target, prop, receiver),
+    });
+
+    expect(walk(hostile).result).toEqual(["a", "b"]);
+  });
+
   it("accepts nesting exactly at the element-depth ceiling", () => {
     expect(walk(nest(MAX_ELEMENT_DEPTH)).reasons).toEqual([]);
   });
