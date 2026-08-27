@@ -61,36 +61,42 @@ export function unstable_useSlashCommandAdapter(
   const { commands, removeOnExecute } = options;
 
   const commandsRef = useRef(commands);
+  // Publish committed callbacks before layout effects without exposing abandoned renders.
   useInsertionEffect(() => {
     commandsRef.current = commands;
   });
 
-  return useMemo(() => {
-    const adapter: Unstable_TriggerAdapter = {
+  const adapter = useMemo<Unstable_TriggerAdapter>(
+    () => ({
       categories: () => [],
       categoryItems: () => [],
       search: (query: string) => {
         const lower = query.toLowerCase();
-        return commandsRef.current
-          .filter((c) => matchesQuery(c, lower))
-          .map(toItem);
+        return commands.filter((c) => matchesQuery(c, lower)).map(toItem);
       },
-    };
+    }),
+    [commands],
+  );
 
-    const action: Unstable_SlashCommandAction = {
+  const action = useMemo<Unstable_SlashCommandAction>(
+    () => ({
       onExecute: (item) => {
         commandsRef.current.find((c) => c.id === item.id)?.execute();
       },
       ...(removeOnExecute !== undefined ? { removeOnExecute } : {}),
-    };
+    }),
+    [removeOnExecute],
+  );
 
-    return {
+  return useMemo(
+    () => ({
       adapter,
       action,
       ...(options.iconMap ? { iconMap: options.iconMap } : {}),
       ...(options.fallbackIcon ? { fallbackIcon: options.fallbackIcon } : {}),
-    };
-  }, [removeOnExecute, options.iconMap, options.fallbackIcon]);
+    }),
+    [adapter, action, options.iconMap, options.fallbackIcon],
+  );
 }
 
 function toItem(cmd: Unstable_SlashCommand): Unstable_TriggerItem {

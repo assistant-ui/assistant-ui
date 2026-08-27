@@ -73,7 +73,7 @@ describe("unstable_useSlashCommandAdapter", () => {
     expect(executeB).not.toHaveBeenCalled();
   });
 
-  it("updates stable adapters after commands commit", () => {
+  it("updates search while keeping actions stable after commands commit", () => {
     const executeA = vi.fn();
     const executeB = vi.fn();
     const commandsA = [command("Workspace A", executeA)];
@@ -86,7 +86,7 @@ describe("unstable_useSlashCommandAdapter", () => {
 
     rerender({ commands: commandsB });
 
-    expect(result.current.adapter).toBe(initial.adapter);
+    expect(result.current.adapter).not.toBe(initial.adapter);
     expect(result.current.action).toBe(initial.action);
     expect(result.current.adapter.search?.("")).toEqual([
       { id: "run", type: "command", label: "Workspace B" },
