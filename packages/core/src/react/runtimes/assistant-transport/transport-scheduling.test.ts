@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { createElement, StrictMode, useRef } from "react";
+import { createElement, StrictMode, useLayoutEffect, useRef } from "react";
 import { useCommandQueue } from "./commandQueue";
 import { useRunManager } from "./runManager";
 import type { AssistantTransportCommand } from "./types";
+import { useLatestRef } from "./useLatestRef";
 
 const createMessageCommand = (id: string): AssistantTransportCommand => ({
   type: "add-message",
@@ -84,7 +85,62 @@ const useTransportSchedulingHarness = (
   };
 };
 
+const LayoutRead = ({
+  generation,
+  latestRef,
+  onRead,
+}: {
+  generation: number;
+  latestRef: { current: unknown };
+  onRead: (value: unknown) => void;
+}) => {
+  useLayoutEffect(() => {
+    if (generation > 0) onRead(latestRef.current);
+  }, [generation, latestRef, onRead]);
+  return null;
+};
+
+const LatestRefTimingProbe = ({
+  generation,
+  value,
+  onRead,
+}: {
+  generation: number;
+  value: unknown;
+  onRead: (value: unknown) => void;
+}) => {
+  const latestRef = useLatestRef(value);
+  return createElement(LayoutRead, {
+    generation,
+    latestRef,
+    onRead,
+  });
+};
+
 describe("assistant transport scheduling contracts", () => {
+  it("publishes the latest value before a descendant layout effect reads it", () => {
+    const valueA = Symbol("value-a");
+    const valueB = Symbol("value-b");
+    const seen: unknown[] = [];
+    const view = render(
+      createElement(LatestRefTimingProbe, {
+        generation: 0,
+        value: valueA,
+        onRead: (value) => seen.push(value),
+      }),
+    );
+
+    view.rerender(
+      createElement(LatestRefTimingProbe, {
+        generation: 1,
+        value: valueB,
+        onRead: (value) => seen.push(value),
+      }),
+    );
+
+    expect(seen).toEqual([valueB]);
+  });
+
   it("runs in single-flight mode and schedules exactly one follow-up run", async () => {
     const gate = createDeferred();
     const { result } = renderHook(() =>
