@@ -41,7 +41,7 @@ export function CopyCommandButton({
   };
 
   const wrapperClassName =
-    "group border-border/60 bg-muted/30 hover:border-border hover:bg-muted/50 inline-flex w-fit items-center gap-1.5 rounded-md border px-3 py-1.5 font-mono text-sm transition-all";
+    "group border-border/60 bg-muted/30 hover:border-border hover:bg-muted/50 inline-flex h-8 w-fit items-center gap-1.5 rounded-(--radius-control) border px-3 font-mono text-sm transition-all";
 
   const copyIcon = (
     <div className="text-muted-foreground relative flex size-4 items-center justify-center">
@@ -65,7 +65,6 @@ export function CopyCommandButton({
   if (!withPromptOption) {
     return (
       <button type="button" onClick={copyCommand} className={wrapperClassName}>
-        <span className="text-muted-foreground/70">$</span>
         <span>{command}</span>
         <div className="ml-1">{copyIcon}</div>
       </button>
@@ -83,7 +82,6 @@ export function CopyCommandButton({
           />
         }
       >
-        <span className="text-muted-foreground/70">$</span>
         <span>{command}</span>
         <div className="ml-1">{copyIcon}</div>
       </Menu.Trigger>

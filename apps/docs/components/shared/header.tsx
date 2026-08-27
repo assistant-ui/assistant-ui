@@ -2,11 +2,8 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Menu, X, ArrowUpRight, ArrowRight, Search } from "lucide-react";
-import { usePersistentBoolean } from "@/hooks/use-persistent-boolean";
-import { usePathname } from "next/navigation";
+import { Menu, X, ArrowUpRight, Search } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { formatCompact } from "@/lib/format";
 import { SearchDialog } from "./search-dialog";
 import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
@@ -59,131 +56,53 @@ function SearchButton({ onToggle }: { onToggle: () => void }) {
   );
 }
 
-function HiringBanner({ onDismiss }: { onDismiss: () => void }) {
-  return (
-    <div className="relative flex justify-center">
-      <div className="border-border/50 bg-background/60 relative flex items-center gap-3 rounded-full border px-4 py-1.5 backdrop-blur-md">
-        <Link
-          href="/careers"
-          className="group inline-flex items-center gap-1.5 text-xs"
-        >
-          <span className="shimmer text-muted-foreground group-hover:text-foreground transition-colors">
-            We&apos;re hiring. Build the future of agentic UI.
-          </span>
-          <ArrowRight className="text-muted-foreground group-hover:text-foreground size-3 transition-all group-hover:translate-x-0.5" />
-        </Link>
-        <button
-          type="button"
-          aria-label="Dismiss"
-          onClick={onDismiss}
-          className="text-muted-foreground hover:bg-muted hover:text-foreground flex size-5 items-center justify-center rounded-full transition-colors"
-        >
-          <X className="size-3" />
-        </button>
-      </div>
-    </div>
-  );
-}
-
-export function Header({ stars }: { stars: number | null }) {
+export function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [mounted, setMounted] = useState(false);
-  const pathname = usePathname();
   const { toggle } = useAssistantPanel();
-  const [dismissed, setDismissed] = usePersistentBoolean(
-    "homepage-hiring-banner-dismissed",
-  );
-  const [visited, setVisited] = usePersistentBoolean("homepage-visited");
-  const [returningVisitor, setReturningVisitor] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  useEffect(() => {
-    if (pathname !== "/") return;
-    // Show the banner only from the second homepage visit onward.
-    setReturningVisitor(visited);
-    if (!visited) setVisited(true);
-    // oxlint-disable-next-line react/exhaustive-deps
-  }, [pathname]);
-
-  const isHome = pathname === "/";
-  const showBanner = mounted && isHome && returningVisitor && !dismissed;
   const scrolled = useScrolled();
 
   return (
-    <header className="sticky top-0 z-50 w-full">
+    <header className="sticky top-0 z-50 w-full rounded-(--radius-page)">
       <NavItemsRoot>
         <div
           className={headerBarClassName(
             scrolled,
-            "mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4",
+            "mx-auto flex h-12 w-full max-w-7xl items-center justify-between px-4 md:grid md:grid-cols-[1fr_auto_1fr]",
           )}
         >
-          <div className="flex items-center gap-4">
-            <HeaderBrandLink />
+          <HeaderBrandLink className="justify-self-start" />
 
-            <NavItems
-              items={NAV_ITEMS}
-              className="hidden items-center md:flex"
-              contentClassName="mx-auto max-w-7xl"
-            />
-          </div>
+          <NavItems
+            items={NAV_ITEMS}
+            className="hidden items-center md:flex"
+            contentClassName="mx-auto max-w-7xl"
+          />
 
-          <div className="flex items-center gap-2">
-            {!isHome && (
-              <>
-                <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
-                <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
-              </>
-            )}
+          <div className="flex items-center justify-end gap-2">
+            <SearchButton onToggle={() => setSearchOpen((prev) => !prev)} />
+            <SearchDialog open={searchOpen} onOpenChange={setSearchOpen} />
 
-            {isHome && (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={toggle}
-                className="hidden md:inline-flex"
-                aria-label="Ask AI (⌘I)"
-              >
-                Ask AI
-                <KbdGroup className="hidden lg:inline-flex">
-                  <Kbd>⌘</Kbd>
-                  <Kbd>I</Kbd>
-                </KbdGroup>
-              </Button>
-            )}
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggle}
+              aria-label="Ask AI (⌘I)"
+            >
+              Ask AI
+              <KbdGroup className="hidden lg:inline-flex">
+                <Kbd>⌘</Kbd>
+                <Kbd>I</Kbd>
+              </KbdGroup>
+            </Button>
             <Button
               size="sm"
               nativeButton={false}
-              className="hidden md:inline-flex"
               render={
                 <a href={CLOUD_URL} target="_blank" rel="noopener noreferrer" />
               }
             >
               Cloud
-            </Button>
-
-            <Button
-              variant="ghost"
-              size="sm"
-              nativeButton={false}
-              className="text-muted-foreground hidden px-1.5 sm:inline-flex"
-              render={
-                <a
-                  href="https://github.com/assistant-ui/assistant-ui"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="GitHub"
-                />
-              }
-            >
-              <GitHubIcon />
-              {stars !== null && (
-                <span className="tabular-nums">{formatCompact(stars)}</span>
-              )}
             </Button>
 
             <button
@@ -240,7 +159,7 @@ export function Header({ stars }: { stars: number | null }) {
                   </span>
                   {item.groups.map((group) => (
                     <div key={group.label} className="flex flex-col">
-                      <span className="text-muted-foreground py-3 text-sm">
+                      <span className="text-muted-foreground py-3 font-mono text-sm tracking-wide uppercase">
                         {group.label}
                       </span>
                       {group.items.map((link) =>
@@ -310,12 +229,6 @@ export function Header({ stars }: { stars: number | null }) {
             </div>
           </div>
         </div>
-
-        {showBanner && (
-          <div className="absolute top-full right-0 left-0">
-            <HiringBanner onDismiss={() => setDismissed(true)} />
-          </div>
-        )}
       </NavItemsRoot>
     </header>
   );
