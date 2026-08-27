@@ -24,8 +24,11 @@ type MarkdownTextProps = Partial<TextMessagePartProps> & {
 
 const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
   const markdownComponents = useMemo(() => {
-    if (!components) return defaultComponents;
-    return { ...defaultComponents, ...components };
+    if (!components) return memoizedDefaultComponents;
+    return memoizeMarkdownComponents({
+      ...rawDefaultComponents,
+      ...components,
+    });
   }, [components]);
 
   return (
@@ -64,7 +67,7 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   );
 };
 
-const defaultComponents = memoizeMarkdownComponents({
+const rawDefaultComponents = {
   h1: ({ className, ...props }) => (
     <h1
       className={cn(
@@ -244,4 +247,7 @@ const defaultComponents = memoizeMarkdownComponents({
     );
   },
   CodeHeader,
-});
+};
+
+const memoizedDefaultComponents =
+  memoizeMarkdownComponents(rawDefaultComponents);
