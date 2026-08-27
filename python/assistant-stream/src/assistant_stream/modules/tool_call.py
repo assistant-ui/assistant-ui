@@ -88,8 +88,4 @@ async def create_tool_call(
     queue = asyncio.Queue()
     controller = ToolCallController(queue, tool_name, tool_call_id, parent_id)
 
-    async def stream():
-        async for chunk in queue_stream(controller.queue):
-            yield chunk
-
-    return stream(), controller
+    return queue_stream(controller.queue), controller

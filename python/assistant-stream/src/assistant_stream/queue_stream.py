@@ -17,6 +17,7 @@ async def queue_stream(queue: asyncio.Queue[T | None]) -> AsyncGenerator[T, None
     while True:
         item = await queue.get()
         if item is None:
+            queue.task_done()
             break
         yield item
         queue.task_done()
