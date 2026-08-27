@@ -240,6 +240,22 @@ describe("registered tools", () => {
     expect((rejection as DOMException).name).toBe("AbortError");
   });
 
+  it("propagates non-Error AbortError rejections without wrapping them", async () => {
+    const abortValue = { name: "AbortError" };
+    const aborting = vi.fn(async () => {
+      throw abortValue;
+    });
+    const rejection = await toolByName(aborting as never, "searchDocs")
+      .execute({ query: "x" })
+      .then(
+        () => {
+          throw new Error("expected rejection");
+        },
+        (error: unknown) => error,
+      );
+    expect(rejection).toBe(abortValue);
+  });
+
   it("rejects on route-level isError results, surfacing the error text", async () => {
     const fetchImpl = fetchReturning({
       result: {
