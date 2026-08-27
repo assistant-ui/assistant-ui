@@ -23,6 +23,15 @@ const createChild = () =>
     kill: vi.fn(() => true),
   });
 
+const trackSignal = (signal: NodeJS.Signals) => {
+  const before = new Set(process.listeners(signal));
+  return {
+    count: before.size,
+    added: () =>
+      process.listeners(signal).find((listener) => !before.has(listener)),
+  };
+};
+
 describe("runSpawn", () => {
   afterEach(() => {
     vi.restoreAllMocks();
@@ -32,15 +41,12 @@ describe("runSpawn", () => {
   it("forwards the first termination signal and cleans up listeners", async () => {
     const child = createChild();
     mocks.spawn.mockReturnValue(child);
-    const existingListeners = new Set(process.listeners("SIGTERM"));
-    const initialListeners = process.listenerCount("SIGTERM");
+    const sigterm = trackSignal("SIGTERM");
     const result = runSpawn("assistant-ui", ["create"]);
-    const signalHandler = process
-      .listeners("SIGTERM")
-      .find((listener) => !existingListeners.has(listener));
+    const signalHandler = sigterm.added();
 
     expect(signalHandler).toBeDefined();
-    signalHandler?.();
+    signalHandler?.("SIGTERM");
     expect(child.kill).toHaveBeenCalledWith("SIGTERM");
 
     child.emit("close", null, "SIGTERM");
@@ -48,23 +54,24 @@ describe("runSpawn", () => {
       signal: "SIGTERM",
       forwarded: true,
     });
-    expect(process.listenerCount("SIGTERM")).toBe(initialListeners);
+    expect(process.listenerCount("SIGTERM")).toBe(sigterm.count);
   });
 
   it("escalates a repeated termination signal", async () => {
     const child = createChild();
     mocks.spawn.mockReturnValue(child);
-    const initialListeners = process.listenerCount("SIGTERM");
+    const sigterm = trackSignal("SIGTERM");
     const result = runSpawn("assistant-ui", ["create"]);
-    const signalHandler = process.listeners("SIGTERM").at(-1);
+    const signalHandler = sigterm.added();
 
-    signalHandler?.();
-    signalHandler?.();
+    expect(signalHandler).toBeDefined();
+    signalHandler?.("SIGTERM");
+    signalHandler?.("SIGTERM");
 
     expect(child.kill).toHaveBeenNthCalledWith(1, "SIGTERM");
     expect(child.kill).toHaveBeenNthCalledWith(2, "SIGKILL");
     await expect(result).rejects.toBeInstanceOf(SpawnSignalError);
-    expect(process.listenerCount("SIGTERM")).toBe(initialListeners);
+    expect(process.listenerCount("SIGTERM")).toBe(sigterm.count);
   });
 
   it("preserves normal child exit handling", async () => {
