@@ -32,11 +32,8 @@ const serializeModelContext = (
 export class AssistantFrameProvider {
   private static _instance: AssistantFrameProvider | null = null;
 
-  private _providers = new Set<ModelContextProvider>();
-  private _providerUnsubscribes = new Map<
-    ModelContextProvider,
-    Unsubscribe | undefined
-  >();
+  private _providers = new Map<symbol, ModelContextProvider>();
+  private _providerUnsubscribes = new Map<symbol, Unsubscribe | undefined>();
   private _activeToolCalls = new Map<
     string,
     { abortController: AbortController; event: MessageEvent }
@@ -160,7 +157,7 @@ export class AssistantFrameProvider {
   }
 
   private getModelContext(): ModelContext {
-    const contexts = Array.from(this._providers).map((p) =>
+    const contexts = Array.from(new Set(this._providers.values())).map((p) =>
       p.getModelContext(),
     );
 
@@ -191,34 +188,72 @@ export class AssistantFrameProvider {
     }
   }
 
+  private removeProvider(id: symbol, origin: string): Unsubscribe | undefined {
+    this._providers.delete(id);
+    const unsubscribe = this._providerUnsubscribes.get(id);
+    this._providerUnsubscribes.delete(id);
+    if (origin !== "*") {
+      this._strictRegistrations -= 1;
+      if (this._strictRegistrations === 0) this._targetOrigin = "*";
+    }
+    return unsubscribe;
+  }
+
   static addModelContextProvider(
     provider: ModelContextProvider,
     targetOrigin?: string,
   ): Unsubscribe {
     const origin = targetOrigin ?? "*";
     const instance = AssistantFrameProvider.getInstance(origin);
-    instance._providers.add(provider);
+    const id = Symbol();
+    instance._providers.set(id, provider);
     if (origin !== "*") instance._strictRegistrations += 1;
 
-    const unsubscribe = provider.subscribe?.(() => instance.broadcastUpdate());
-    if (unsubscribe) {
-      instance._providerUnsubscribes.set(provider, unsubscribe);
-    }
+    try {
+      const unsubscribe = provider.subscribe?.(() =>
+        instance.broadcastUpdate(),
+      );
+      if (unsubscribe) {
+        instance._providerUnsubscribes.set(id, unsubscribe);
+      }
 
-    instance.broadcastUpdate();
+      instance.broadcastUpdate();
+    } catch (error) {
+      const unsubscribe = instance.removeProvider(id, origin);
+      // Rollback failures must not replace the registration error.
+      try {
+        unsubscribe?.();
+      } catch (unsubscribeError) {
+        console.error(unsubscribeError);
+      }
+      try {
+        instance.broadcastUpdate();
+      } catch (broadcastError) {
+        console.error(broadcastError);
+      }
+      throw error;
+    }
 
     let released = false;
     return () => {
       if (released) return;
       released = true;
-      instance._providers.delete(provider);
-      instance._providerUnsubscribes.get(provider)?.();
-      instance._providerUnsubscribes.delete(provider);
-      if (origin !== "*") {
-        instance._strictRegistrations -= 1;
-        if (instance._strictRegistrations === 0) instance._targetOrigin = "*";
+      const unsubscribe = instance.removeProvider(id, origin);
+      let unsubscribeFailed = false;
+      let unsubscribeError: unknown;
+      try {
+        unsubscribe?.();
+      } catch (error) {
+        unsubscribeFailed = true;
+        unsubscribeError = error;
       }
-      instance.broadcastUpdate();
+      try {
+        instance.broadcastUpdate();
+      } catch (error) {
+        if (!unsubscribeFailed) throw error;
+        console.error(error);
+      }
+      if (unsubscribeFailed) throw unsubscribeError;
     };
   }
 
@@ -227,20 +262,40 @@ export class AssistantFrameProvider {
       const instance = AssistantFrameProvider._instance;
       window.removeEventListener("message", instance.handleMessage);
 
-      instance._providerUnsubscribes.forEach((unsubscribe) => unsubscribe?.());
+      let cleanupFailed = false;
+      let cleanupError: unknown;
+      const runCleanup = (cleanup: () => void) => {
+        try {
+          cleanup();
+        } catch (error) {
+          if (cleanupFailed) {
+            console.error(error);
+          } else {
+            cleanupFailed = true;
+            cleanupError = error;
+          }
+        }
+      };
+
+      instance._providerUnsubscribes.forEach((unsubscribe) => {
+        if (unsubscribe) runCleanup(unsubscribe);
+      });
       instance._providerUnsubscribes.clear();
       instance._providers.clear();
       instance._activeToolCalls.forEach(({ abortController, event }, id) => {
-        abortController.abort();
-        instance.sendMessage(event, {
-          type: "tool-result",
-          id,
-          error: "AssistantFrameProvider has been disposed",
+        runCleanup(() => {
+          abortController.abort();
+          instance.sendMessage(event, {
+            type: "tool-result",
+            id,
+            error: "AssistantFrameProvider has been disposed",
+          });
         });
       });
       instance._activeToolCalls.clear();
 
       AssistantFrameProvider._instance = null;
+      if (cleanupFailed) throw cleanupError;
     }
   }
 }

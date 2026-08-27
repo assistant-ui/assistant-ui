@@ -26,6 +26,17 @@
     "./styles/typeset.css": {
       "style": "./styles/typeset.css",
       "default": "./styles/typeset.css"
+    },
+    "./code-fence": {
+      "types": "./dist/code-fence.d.ts",
+      "default": "./dist/code-fence.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "code-fence": [
+        "./dist/code-fence.d.ts"
+      ]
     }
   },
   "main": "./dist/index.js",
@@ -48,6 +59,7 @@
   "dependencies": {
     "@radix-ui/react-primitive": "^2.1.10",
     "@radix-ui/react-use-callback-ref": "^1.1.4",
+    "@types/hast": "^3.0.5",
     "classnames": "^2.5.1",
     "react-markdown": "^10.1.0"
   },
@@ -64,7 +76,6 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/hast": "^3.0.5",
     "@types/react": "^19.2.18",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
