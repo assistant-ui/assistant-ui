@@ -145,8 +145,12 @@ const useMcpAppsRemoteHost = (
     // oxlint-disable-next-line react/exhaustive-deps -- URL changes replace the host identity; pending and same-URL options are refreshed outside the memo
   }, [url]);
 
-  // A URL mismatch identifies an unpublished WIP host. React flushes its Tap
-  // commit before that host can be reused as the matching live host.
+  // The pending snapshot is read only while the committed ref still lags this
+  // host's URL, and every write to it carries that same render's options, so
+  // no render can pair one URL with another's credentials. A committed host can
+  // be written here (a child layout effect re-rendering synchronously runs
+  // before passive effects publish the ref), which stays coherent for the same
+  // reason.
   if (optionsRef.current.url !== url) {
     hostState.updatePendingOptions(options);
   }
