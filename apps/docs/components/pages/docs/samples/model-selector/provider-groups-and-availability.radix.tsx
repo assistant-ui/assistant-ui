@@ -13,7 +13,7 @@ import {
 } from "@/components/assistant-ui/model-selector.radix";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 
-export function GroupedModelSelector() {
+export function ModelAvailabilitySelector() {
   const openaiModels: ModelOption[] = [
     { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
     { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", efforts: true },
@@ -53,7 +53,7 @@ export function GroupedModelSelector() {
 export function ModelSelectorGroupedSample() {
   return (
     <SampleFrame className="flex h-auto min-h-48 items-center justify-center p-8">
-      <GroupedModelSelector />
+      <ModelAvailabilitySelector />
     </SampleFrame>
   );
 }
