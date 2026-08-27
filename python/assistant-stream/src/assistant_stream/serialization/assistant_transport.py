@@ -21,21 +21,12 @@ from assistant_stream.serialization.heartbeat import (
     HeartbeatOption,
 )
 from assistant_stream.serialization.stream_encoder import StreamEncoder
-from assistant_stream.state_proxy import StateProxy
+from assistant_stream.state_proxy import StateProxyJSONEncoder
 from typing import AsyncGenerator, Any
 import json
 import logging
 
 logger = logging.getLogger(__name__)
-
-
-class StateProxyJSONEncoder(json.JSONEncoder):
-    """Custom JSON encoder that can handle StateProxy objects."""
-
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, StateProxy):
-            return obj._get_value()
-        return super().default(obj)
 
 
 class _Canonicalizer:
