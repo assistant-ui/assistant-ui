@@ -263,10 +263,20 @@ const ROLES: ReadonlySet<string> = new Set(
 const isRole = (value: unknown): value is A2ARole =>
   typeof value === "string" && ROLES.has(value);
 
+// Ids reach task state and the next request body unchecked by anything
+// downstream, so a present id of the wrong type is rejected at the decoder.
+// An omitted id keeps the acceptance each path already had.
+const hasOptionalStringIds = (
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean =>
+  keys.every((key) => value[key] == null || typeof value[key] === "string");
+
 const isTask = (value: unknown): value is A2ATask =>
   isRecord(value) &&
   typeof value.id === "string" &&
   value.id.length > 0 &&
+  hasOptionalStringIds(value, ["contextId"]) &&
   isRecord(value.status) &&
   isTaskState(value.status.state);
 
@@ -274,6 +284,7 @@ const isMessage = (value: unknown): value is A2AMessage =>
   isRecord(value) &&
   typeof value.messageId === "string" &&
   value.messageId.length > 0 &&
+  hasOptionalStringIds(value, ["contextId", "taskId"]) &&
   isRole(value.role) &&
   Array.isArray(value.parts) &&
   value.parts.every(isRecord);
@@ -333,6 +344,7 @@ const isStatusUpdate = (
   isRecord(value) &&
   typeof value.taskId === "string" &&
   (allowEmptyTaskId || value.taskId.length > 0) &&
+  hasOptionalStringIds(value, ["contextId"]) &&
   isRecord(value.status) &&
   isTaskState(value.status.state);
 
@@ -360,7 +372,9 @@ const isArtifact = (value: unknown): value is Record<string, unknown> =>
   value.parts.every(isRecord);
 
 const isArtifactUpdate = (value: unknown): value is Record<string, unknown> =>
-  isRecord(value) && isArtifact(value.artifact);
+  isRecord(value) &&
+  hasOptionalStringIds(value, ["contextId", "taskId"]) &&
+  isArtifact(value.artifact);
 
 const toWrappedArtifact = (value: unknown): Record<string, unknown> | null => {
   if (!isRecord(value)) return null;

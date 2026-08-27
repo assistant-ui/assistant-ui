@@ -743,6 +743,20 @@ describe("A2AClient", () => {
         "Invalid A2A tasks:get response: expected a valid task payload.",
       );
     });
+
+    it("rejects a non-string contextId", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          id: "t1",
+          contextId: 999,
+          status: { state: "completed" },
+        }),
+      );
+
+      await expect(client.getTask("t1")).rejects.toThrow(
+        "Invalid A2A tasks:get response: expected a valid task payload.",
+      );
+    });
   });
 
   // --- listTasks ---
@@ -2231,6 +2245,122 @@ describe("A2AClient", () => {
 
       expect(events).toHaveLength(1);
       expect(events[0]!.type).toBe("statusUpdate");
+    });
+
+    it("skips kind-discriminated frames whose ids are not strings", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            contextId: 999,
+            status: { state: "working" },
+          }),
+          "",
+          rpc({
+            kind: "artifact-update",
+            taskId: "t1",
+            contextId: 999,
+            artifact: {
+              artifactId: "a1",
+              parts: [{ kind: "text", text: "x" }],
+            },
+          }),
+          "",
+          rpc({
+            kind: "task",
+            id: "t1",
+            contextId: 999,
+            status: { state: "working" },
+          }),
+          "",
+          rpc({
+            kind: "message",
+            messageId: "m1",
+            contextId: 999,
+            role: "agent",
+            parts: [{ kind: "text", text: "x" }],
+          }),
+          "",
+          rpc({
+            kind: "message",
+            messageId: "m2",
+            taskId: 999,
+            role: "agent",
+            parts: [{ kind: "text", text: "x" }],
+          }),
+          "",
+          rpc({
+            kind: "artifact-update",
+            taskId: 999,
+            artifact: {
+              artifactId: "a1",
+              parts: [{ kind: "text", text: "x" }],
+            },
+          }),
+          "",
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            contextId: "ctx-1",
+            status: { state: "working" },
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe("statusUpdate");
+    });
+
+    it("accepts kind-discriminated frames that omit contextId", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            status: { state: "working" },
+          }),
+          "",
+          rpc({
+            kind: "artifact-update",
+            taskId: "t1",
+            artifact: {
+              artifactId: "a1",
+              parts: [{ kind: "text", text: "x" }],
+            },
+          }),
+          "",
+          rpc({ kind: "task", id: "t1", status: { state: "working" } }),
+          "",
+          rpc({
+            kind: "message",
+            messageId: "m1",
+            role: "agent",
+            parts: [{ kind: "text", text: "x" }],
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events.map((event) => event.type)).toEqual([
+        "statusUpdate",
+        "artifactUpdate",
+        "task",
+        "message",
+      ]);
     });
 
     it("parses flat message and artifact-update results", async () => {
