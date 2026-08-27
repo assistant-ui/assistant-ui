@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import { createElement, StrictMode, useRef } from "react";
+import { createElement, StrictMode, useLayoutEffect, useRef } from "react";
 import { useCommandQueue } from "./commandQueue";
+import { useLatestRef } from "./useLatestRef";
 import { useRunManager } from "./runManager";
 import type { AssistantTransportCommand } from "./types";
 
@@ -85,6 +86,38 @@ const useTransportSchedulingHarness = (
 };
 
 describe("assistant transport scheduling contracts", () => {
+  it("publishes current callbacks before descendant layout effects", () => {
+    const callbackA = vi.fn();
+    const callbackB = vi.fn();
+    const seen: unknown[] = [];
+
+    const Reader = ({
+      read,
+      callbackRef,
+    }: {
+      read: boolean;
+      callbackRef: { current: unknown };
+    }) => {
+      useLayoutEffect(() => {
+        if (read) seen.push(callbackRef.current);
+      }, [read, callbackRef]);
+      return null;
+    };
+    const Probe = ({ read, callback }: { read: boolean; callback: unknown }) =>
+      createElement(Reader, {
+        read,
+        callbackRef: useLatestRef(callback),
+      });
+
+    const view = render(
+      createElement(Probe, { read: false, callback: callbackA }),
+    );
+    view.rerender(createElement(Probe, { read: true, callback: callbackB }));
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]).toBe(callbackB);
+  });
+
   it("runs in single-flight mode and schedules exactly one follow-up run", async () => {
     const gate = createDeferred();
     const { result } = renderHook(() =>
