@@ -1,5 +1,86 @@
 # @assistant-ui/core
 
+## 0.3.16
+
+### Patch Changes
+
+- [#6224](https://github.com/assistant-ui/assistant-ui/pull/6224) [`c70c911`](https://github.com/assistant-ui/assistant-ui/commit/c70c911d9537e6f3e87da44768e3363d65e6a19d) - docs: name `@assistant-ui/ai-sdk` in JSDoc examples ([@okisdev](https://github.com/okisdev))
+  
+  the import examples on `injectQuoteContext`, `unstable_injectInteractableContext`, and the interactable and message JSDoc pointed at `@assistant-ui/react-ai-sdk`. they now name the framework-neutral package, which is where these live; the old package re-exports it, so both imports resolve.
+
+- [#6360](https://github.com/assistant-ui/assistant-ui/pull/6360) [`e0fa1e6`](https://github.com/assistant-ui/assistant-ui/commit/e0fa1e63d068c142ab3154eeddf6bbdb203ba463) - fix: roll back AssistantFrame providers on registration, release, and disposal failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6346](https://github.com/assistant-ui/assistant-ui/pull/6346) [`b2f148e`](https://github.com/assistant-ui/assistant-ui/commit/b2f148ef81681745eeeb931a56f3c54719cb50e4) - refactor: share the attachment add cancellation machinery between the composer core and the store client. ([@okisdev](https://github.com/okisdev))
+
+- [#6365](https://github.com/assistant-ui/assistant-ui/pull/6365) [`9dabbce`](https://github.com/assistant-ui/assistant-ui/commit/9dabbce426e284886e617f3178a7f50a2fbcbb94) - refactor: notify every thread runtime subscriber before rethrowing a subscriber error. ([@okisdev](https://github.com/okisdev))
+
+- [#6262](https://github.com/assistant-ui/assistant-ui/pull/6262) [`5a3e9f7`](https://github.com/assistant-ui/assistant-ui/commit/5a3e9f7c26c85af640a806fa8174508cbf3fb031) - refactor: move the run report tool call shape and its serialization into assistant-cloud ([@okisdev](https://github.com/okisdev))
+
+- [#6297](https://github.com/assistant-ui/assistant-ui/pull/6297) [`43d52ad`](https://github.com/assistant-ui/assistant-ui/commit/43d52adfc7fb1b94d854454f36fedc40cb16e246) - fix: keep prepended id-less messages in the external message converter ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6268](https://github.com/assistant-ui/assistant-ui/pull/6268) [`cdfc34d`](https://github.com/assistant-ui/assistant-ui/commit/cdfc34d57e86422666a12f4410e05bbe1c48dbdc) - fix: tag static ai-sdk/v6 tool calls as frontend in cloud run telemetry ([@okisdev](https://github.com/okisdev))
+
+- [#6222](https://github.com/assistant-ui/assistant-ui/pull/6222) [`4000eed`](https://github.com/assistant-ui/assistant-ui/commit/4000eed17a9bb97d854a44eb61d9d5b72634e66c) - fix: cancelling an edit session cancels its in-flight attachment adds and removes its non-complete attachments through the attachment adapter ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6329](https://github.com/assistant-ui/assistant-ui/pull/6329) [`8217a6e`](https://github.com/assistant-ui/assistant-ui/commit/8217a6e7105b682871211e5c93b1965f25198624) - refactor: derive executing-tool running state inside the external-store runtime; adapters now pass raw provider isRunning. ([@okisdev](https://github.com/okisdev))
+  the assistant transport runtime enables tool invocations too, so it now keeps the thread running while a client tool executes instead of reporting idle.
+
+- [#6369](https://github.com/assistant-ui/assistant-ui/pull/6369) [`3fcf338`](https://github.com/assistant-ui/assistant-ui/commit/3fcf3383ec002b4e43e27bd96f0b9a4148d7e6cd) - refactor: collapse the external message converter's duplicate derivation chains into one pure module. ([@okisdev](https://github.com/okisdev))
+
+- [#6324](https://github.com/assistant-ui/assistant-ui/pull/6324) [`4802d23`](https://github.com/assistant-ui/assistant-ui/commit/4802d238dd7411589a0ce40102c1c7e90fe53fc0) - fix: derive requires-action for pending and interrupted tool calls in the external-store convertMessage path; messages with unresolved tool calls now report requires-action instead of complete ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#6174](https://github.com/assistant-ui/assistant-ui/pull/6174) [`c3fd2b3`](https://github.com/assistant-ui/assistant-ui/commit/c3fd2b30443ac58019c6c22693c46e18deed18b4) - fix: evict deleted external-store messages so no phantom branch survives. the setMessages path evicts immediately; the onDelete path evicts at the confirming host snapshot ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6271](https://github.com/assistant-ui/assistant-ui/pull/6271) [`231d148`](https://github.com/assistant-ui/assistant-ui/commit/231d14896f3a2b2bb65d7844e65eca17f9151399) - fix: keep prepended history when convertMessage returns no id ([@okisdev](https://github.com/okisdev))
+
+- [#6439](https://github.com/assistant-ui/assistant-ui/pull/6439) [`7e03b66`](https://github.com/assistant-ui/assistant-ui/commit/7e03b669d08b4cadaf4b381a4d1e57c2fc22d139) - refactor: share the file part source resolution branch ([@okisdev](https://github.com/okisdev))
+
+- [#6236](https://github.com/assistant-ui/assistant-ui/pull/6236) [`1263c1f`](https://github.com/assistant-ui/assistant-ui/commit/1263c1fb8870ff1ba0a1c0e0ec3f3ea53a4c53da) - fix: report frame tool failures whose error message is empty ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6458](https://github.com/assistant-ui/assistant-ui/pull/6458) [`465a7a6`](https://github.com/assistant-ui/assistant-ui/commit/465a7a68c9870e440040e70e9fe2cd062413de8e) - fix: default assistant frame messaging to the current origin ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6197](https://github.com/assistant-ui/assistant-ui/pull/6197) [`5355528`](https://github.com/assistant-ui/assistant-ui/commit/5355528559bb575e11bbfbf6cac80203196cedaf) - fix: preserve incomplete tool-call part statuses ([@Gujiassh](https://github.com/Gujiassh))
+
+- [#6199](https://github.com/assistant-ui/assistant-ui/pull/6199) [`e97f7c6`](https://github.com/assistant-ui/assistant-ui/commit/e97f7c61365ef0f73686c7b596751802f1a1ddd2) - fix: resolve InMemoryThreadList index selectors within the archived/regular subset ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6345](https://github.com/assistant-ui/assistant-ui/pull/6345) [`a6d2da5`](https://github.com/assistant-ui/assistant-ui/commit/a6d2da5a0c021fbcd46ac3b56d5e4086edda1f64) - refactor: share the interactable persistence scheduler between the tap client and the legacy surface. ([@okisdev](https://github.com/okisdev))
+  a save that settles after its interactable unregistered no longer recreates the removed persistence-status entry.
+
+- [#6328](https://github.com/assistant-ui/assistant-ui/pull/6328) [`6b797ca`](https://github.com/assistant-ui/assistant-ui/commit/6b797ca09fd63ac988dc7a2e60117ca2fe231f97) - refactor: share the runtime lifecycle callback invoker from core internal. ([@okisdev](https://github.com/okisdev))
+  callback errors continue to be reported and swallowed through the shared invoker.
+
+- [#6257](https://github.com/assistant-ui/assistant-ui/pull/6257) [`bea47ed`](https://github.com/assistant-ui/assistant-ui/commit/bea47edbf19aa0258506ade5d73e9096e510b858) - fix: type MCP app metadata in ThreadMessageLike tool calls ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6325](https://github.com/assistant-ui/assistant-ui/pull/6325) [`546dae8`](https://github.com/assistant-ui/assistant-ui/commit/546dae8c474463a0c228696e16d250bb9a3578ae) - fix: derive requires-action for pending and interrupted tool calls when importing messages into the repository, and resume local runs after approving an imported pending approval ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#6430](https://github.com/assistant-ui/assistant-ui/pull/6430) [`a06be56`](https://github.com/assistant-ui/assistant-ui/commit/a06be56bfe75f869bb44f1d92949e35516f64686) - refactor: share the message repository session layer between a2a and ag-ui ([@okisdev](https://github.com/okisdev))
+
+- [#6237](https://github.com/assistant-ui/assistant-ui/pull/6237) [`96d4ddf`](https://github.com/assistant-ui/assistant-ui/commit/96d4ddf53398e2e952f3bc365539f2d6f6fd85e4) - fix: preserve generated thread titles across overlapping optimistic updates ([@dawNotPoi](https://github.com/dawNotPoi))
+
+- [#6333](https://github.com/assistant-ui/assistant-ui/pull/6333) [`c8db434`](https://github.com/assistant-ui/assistant-ui/commit/c8db4344d5b597cec7484defc9224a65e41e38d8) - refactor: move queue item state ownership into the runtime layer. ([@okisdev](https://github.com/okisdev))
+
+- [#6293](https://github.com/assistant-ui/assistant-ui/pull/6293) [`bc55058`](https://github.com/assistant-ui/assistant-ui/commit/bc550585b16f1ae0379fb45dd01bd90ce7faf0eb) - docs: `ToolApprovalOption.kind` no longer says the default kit skips custom `_`-prefixed kinds; the kit renders them and answers with an explicit `approved` value alongside the `optionId` ([@samdickson22](https://github.com/samdickson22))
+
+- [#6344](https://github.com/assistant-ui/assistant-ui/pull/6344) [`0221348`](https://github.com/assistant-ui/assistant-ui/commit/0221348df3770f590b34ef45e2c175e8de385e16) - refactor: back ModelContextRegistry's provider handling with CompositeContextProvider. ([@okisdev](https://github.com/okisdev))
+
+- [#6203](https://github.com/assistant-ui/assistant-ui/pull/6203) [`c415384`](https://github.com/assistant-ui/assistant-ui/commit/c415384e392426384c857f1ca00c69128075bf57) - fix: keep threads initialized during a list() flight in the thread list when the stale response lands ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6347](https://github.com/assistant-ui/assistant-ui/pull/6347) [`5bba723`](https://github.com/assistant-ui/assistant-ui/commit/5bba723caa79600c1c568d0deb937fca8acb0b54) - refactor: share the remote thread list empty state and local thread seeding. ([@okisdev](https://github.com/okisdev))
+
+- [#6246](https://github.com/assistant-ui/assistant-ui/pull/6246) [`0188899`](https://github.com/assistant-ui/assistant-ui/commit/018889996bbc9aefcfc503e12159dfe76f793b40) - fix: preserve streamed RemoteThreadList titles across optimistic replays ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6409](https://github.com/assistant-ui/assistant-ui/pull/6409) [`027f5e2`](https://github.com/assistant-ui/assistant-ui/commit/027f5e20e927b49fac5644283bd622a9725cf346) - refactor: share the pending tool-call scan, abortable thread load, and cloud create fallback via core. ([@okisdev](https://github.com/okisdev))
+
+- [#6227](https://github.com/assistant-ui/assistant-ui/pull/6227) [`ebabca4`](https://github.com/assistant-ui/assistant-ui/commit/ebabca49de57630a2040af0ed59c058da95483d7) - fix: reject archived index selectors on SingleThreadList instead of resolving the regular thread ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6332](https://github.com/assistant-ui/assistant-ui/pull/6332) [`fc7f72f`](https://github.com/assistant-ui/assistant-ui/commit/fc7f72f0f846848e8c88eaba2131d4ef0005feab) - fix: refresh static suggestions when their configuration changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6282](https://github.com/assistant-ui/assistant-ui/pull/6282) [`0064d1e`](https://github.com/assistant-ui/assistant-ui/commit/0064d1e859171e271c11cec07f4dcde7d0d023bc) - fix: never execute a frontend tool on a tool call that carries a provider approval ([@ShobhitPatra](https://github.com/ShobhitPatra))
+- Updated dependencies [[`8626c1f`](https://github.com/assistant-ui/assistant-ui/commit/8626c1ffe1c6d56ec75073e795aa9fbf7493c3ed), [`531f61a`](https://github.com/assistant-ui/assistant-ui/commit/531f61a4d2f5fcee16821a6401d9d11394bf8339), [`dfaa94f`](https://github.com/assistant-ui/assistant-ui/commit/dfaa94fca3ecdd8b0b0ab202f08dafd03c1e2ed5), [`a4bc54a`](https://github.com/assistant-ui/assistant-ui/commit/a4bc54afa976423b6310a2d5be350df0f3b41e42), [`fd471e9`](https://github.com/assistant-ui/assistant-ui/commit/fd471e94babf7b6580e06bbea2b7a8cdd4882869), [`ac7ec15`](https://github.com/assistant-ui/assistant-ui/commit/ac7ec15e118a9279dd60521b839ecc38983675c5), [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d), [`f96e22f`](https://github.com/assistant-ui/assistant-ui/commit/f96e22ffa8c85cbfc4a878db4f371c510070066d), [`bfc8bef`](https://github.com/assistant-ui/assistant-ui/commit/bfc8bef9f1ee6cb4cb25f83488a0e4ce1a393ff3), [`2cd5cbc`](https://github.com/assistant-ui/assistant-ui/commit/2cd5cbcf78c586b7557421b00e9c996c62bd7f43), [`105af3e`](https://github.com/assistant-ui/assistant-ui/commit/105af3eaea2093df271d9c44642e1c04d5f5cf7c), [`4c3194a`](https://github.com/assistant-ui/assistant-ui/commit/4c3194aca4470753a2a37e244cb5e3fb27cbc76b)]:
+  - assistant-stream@0.3.40
+
 ## 0.3.15
 
 ### Patch Changes

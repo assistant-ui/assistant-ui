@@ -1,5 +1,11 @@
 # @assistant-ui/react-devtools
 
+## 1.2.16
+
+### Patch Changes
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
 ## 1.2.15
 
 ### Patch Changes
