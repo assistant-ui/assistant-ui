@@ -269,29 +269,24 @@ describe("useLangGraphRuntime", () => {
   });
 
   it("attaches UI messages carrying JS SDK parent IDs", async () => {
-    const streamMock = vi
-      .fn()
-      .mockImplementation(() =>
-        mockStreamCallbackFactory([
-          {
-            event: "custom",
-            data: {
-              type: "ui",
-              id: "ui-1",
-              name: "chart",
-              props: { series: [1, 2, 3] },
-              metadata: { id: "ai-1" },
-            },
+    const streamMock = vi.fn().mockImplementation(() =>
+      mockStreamCallbackFactory([
+        {
+          event: "custom",
+          data: {
+            type: "ui",
+            id: "ui-1",
+            name: "chart",
+            props: { series: [1, 2, 3] },
+            metadata: { id: "ai-1" },
           },
-          {
-            event: "messages",
-            data: [
-              { type: "ai", id: "ai-1", content: "Here's your chart." },
-              {},
-            ],
-          },
-        ])(),
-      );
+        },
+        {
+          event: "messages",
+          data: [{ type: "ai", id: "ai-1", content: "Here's your chart." }, {}],
+        },
+      ])(),
+    );
 
     const { result: runtimeResult } = renderHook(() =>
       useLangGraphRuntime({ stream: streamMock }),

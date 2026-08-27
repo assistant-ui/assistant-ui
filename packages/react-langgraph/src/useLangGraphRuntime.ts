@@ -6,10 +6,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type {
-  LangChainMessage,
-  UseLangGraphRuntimeOptions,
-} from "./types";
+import type { LangChainMessage, UseLangGraphRuntimeOptions } from "./types";
 import { groupUIMessagesByParent } from "@assistant-ui/react-langchain/converter";
 import {
   pickExternalStoreSharedOptions,
