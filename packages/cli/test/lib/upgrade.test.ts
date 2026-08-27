@@ -5,6 +5,15 @@ const mocks = vi.hoisted(() => ({
   transform: vi.fn(() => []),
   installEdgeLib: vi.fn(),
   installAiSdkLib: vi.fn(),
+  logger: {
+    info: vi.fn(),
+    success: vi.fn(),
+  },
+  bar: {
+    start: vi.fn(),
+    update: vi.fn(),
+    stop: vi.fn(),
+  },
 }));
 
 vi.mock("../../src/lib/transform", async (importOriginal) => ({
@@ -29,10 +38,20 @@ vi.mock("cli-progress", async (importOriginal) => ({
   ...(await importOriginal<typeof import("cli-progress")>()),
   Presets: { shades_classic: {} },
   SingleBar: class {
-    start() {}
-    update() {}
-    stop() {}
+    start(...args: unknown[]) {
+      mocks.bar.start(...args);
+    }
+    update(...args: unknown[]) {
+      mocks.bar.update(...args);
+    }
+    stop(...args: unknown[]) {
+      mocks.bar.stop(...args);
+    }
   },
+}));
+
+vi.mock("../../src/lib/utils/logger", () => ({
+  logger: mocks.logger,
 }));
 
 vi.mock("debug", async (importOriginal) => ({
@@ -61,5 +80,20 @@ describe("upgrade", () => {
     ]);
     expect(mocks.installEdgeLib).toHaveBeenCalledOnce();
     expect(mocks.installAiSdkLib).toHaveBeenCalledOnce();
+  });
+
+  it("stops after a codemod failure without installing dependencies", async () => {
+    const failure = new Error("codemod failed");
+    mocks.transform.mockImplementationOnce(() => {
+      throw failure;
+    });
+
+    await expect(upgrade({ dry: true })).rejects.toBe(failure);
+
+    expect(mocks.transform).toHaveBeenCalledOnce();
+    expect(mocks.installEdgeLib).not.toHaveBeenCalled();
+    expect(mocks.installAiSdkLib).not.toHaveBeenCalled();
+    expect(mocks.logger.success).not.toHaveBeenCalled();
+    expect(mocks.bar.stop).toHaveBeenCalledOnce();
   });
 });

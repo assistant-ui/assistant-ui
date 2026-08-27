@@ -5,6 +5,7 @@ import type { TransformOptions } from "./transform-options";
 import { fileURLToPath } from "node:url";
 import * as fs from "node:fs";
 import { sync as globSync } from "glob";
+import { SpawnExitError } from "./run-spawn";
 
 const log = debug("codemod:transform");
 const error = debug("codemod:transform:error");
@@ -106,6 +107,28 @@ function parseErrors(transform: string, output: string): TransformErrors {
   return errors;
 }
 
+type ProcessResult = {
+  error?: Error | null | undefined;
+  status?: number | null | undefined;
+  stdout?: string | Buffer | null | undefined;
+  stderr?: string | Buffer | null | undefined;
+};
+
+function throwProcessFailure(result: ProcessResult): never {
+  const details = [result.stderr, result.stdout, result.error?.message]
+    .map((output) => output?.toString().trim())
+    .filter(Boolean)
+    .join("\n");
+
+  throw new SpawnExitError(result.status || 1, details);
+}
+
+function throwIfProcessFailed(result: ProcessResult): void {
+  if (result.error || result.status !== 0) {
+    throwProcessFailure(result);
+  }
+}
+
 export function transform(
   codemod: string,
   source: string,
@@ -139,6 +162,7 @@ export function transform(
       encoding: "utf8",
       stdio: ["ignore", "pipe", "pipe"],
     });
+    throwIfProcessFailed(result);
 
     const stdout = result.stdout || "";
 
@@ -159,10 +183,21 @@ export function transform(
     return errors;
   } else {
     // Use the original synchronous approach if no progress callback
-    const stdout = execFileSync(command[0]!, command.slice(1), {
-      encoding: "utf8",
-      stdio: "pipe",
-    });
+    let stdout: string;
+    try {
+      stdout = execFileSync(command[0]!, command.slice(1), {
+        encoding: "utf8",
+        stdio: ["ignore", "pipe", "pipe"],
+      });
+    } catch (caught) {
+      const result = caught as ProcessResult & Error;
+      throwProcessFailure({
+        error: result,
+        status: result.status,
+        stdout: result.stdout,
+        stderr: result.stderr,
+      });
+    }
     const errors = parseErrors(codemod, stdout);
     if (options.logStatus && errors.length > 0) {
       errors.forEach(({ transform, filename, summary }) => {

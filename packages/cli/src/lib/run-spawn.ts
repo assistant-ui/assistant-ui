@@ -2,10 +2,16 @@ import { spawn } from "cross-spawn";
 
 export class SpawnExitError extends Error {
   code: number;
+  details: string;
 
-  constructor(code: number) {
-    super(`Process exited with code ${code}`);
+  constructor(code: number, details = "") {
+    super(
+      details
+        ? `Process exited with code ${code}\n${details}`
+        : `Process exited with code ${code}`,
+    );
     this.code = code;
+    this.details = details;
   }
 }
 
