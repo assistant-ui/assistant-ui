@@ -343,6 +343,10 @@ export const createLangChainStreamingTimingAccessors = <
  * The parent id comes from `metadata.message_id` (Python SDK) or
  * `metadata.id` (JS SDK).
  */
+export const getUIMessageParentId = (ui: {
+  metadata?: { message_id?: string; id?: string } | undefined;
+}): string | undefined => ui.metadata?.message_id ?? ui.metadata?.id;
+
 export const groupUIMessagesByParent = <
   T extends {
     metadata?: { message_id?: string; id?: string } | undefined;
@@ -353,7 +357,7 @@ export const groupUIMessagesByParent = <
   const map = new Map<string, T[]>();
   if (!Array.isArray(value)) return map;
   for (const ui of value as T[]) {
-    const parentId = ui.metadata?.message_id ?? ui.metadata?.id;
+    const parentId = getUIMessageParentId(ui);
     if (!parentId) continue;
     const existing = map.get(parentId);
     if (existing) {

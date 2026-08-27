@@ -1,3 +1,4 @@
+import { getUIMessageParentId } from "@assistant-ui/react-langchain/converter";
 import {
   getExternalStoreMessages,
   type ThreadMessage,
@@ -91,8 +92,8 @@ export const filterUIMessagesBySurvivingIds = (
     if (m.id) survivingIds.add(m.id);
   }
   return uiMessages.filter((ui) => {
-    const parentId = ui.metadata?.message_id;
-    // orphans (no message_id) represent global UI, cleared only via delete_ui_message
+    const parentId = getUIMessageParentId(ui);
+    // orphans (no parent id) represent global UI, cleared only via delete_ui_message
     if (!parentId) return true;
     return survivingIds.has(parentId);
   });
