@@ -11,16 +11,7 @@ export function Provider({ children }: { children: ReactNode }) {
     <NuqsAdapter>
       <RootProvider search={{ SearchDialog }}>{children}</RootProvider>
 
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          classNames: {
-            toast: "!rounded-xl !border !bg-popover !text-popover-foreground",
-            title: "!text-sm !font-medium",
-            description: "!text-sm !text-muted-foreground",
-          },
-        }}
-      />
+      <Toaster position="top-center" />
     </NuqsAdapter>
   );
 }

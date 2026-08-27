@@ -83,10 +83,10 @@ function findMatchingBrace(source: string, startIndex: number): number {
 
 function extractFunctionCode(source: string, functionName: string): string {
   const functionRegex = new RegExp(
-    `export\\s+function\\s+${functionName}\\s*\\([^)]*\\)\\s*\\{`,
+    `export\\s+function\\s+${functionName}\\s*\\([^)]*\\)\\s*(?::[^{=]+)?\\{`,
   );
   const constRegex = new RegExp(
-    `export\\s+const\\s+${functionName}\\s*=\\s*(?:function\\s*)?\\([^)]*\\)\\s*(?:=>\\s*)?\\{?`,
+    `export\\s+const\\s+${functionName}\\s*=\\s*(?:function\\s*)?\\([^)]*\\)\\s*(?::[^{=]+)?(?:=>\\s*)?\\{?`,
   );
 
   let match = functionRegex.exec(source);

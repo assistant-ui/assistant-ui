@@ -1,8 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { CheckIcon, CopyIcon } from "lucide-react";
 import ShikiHighlighter from "react-shiki";
+import { CodeBlock } from "@/components/ui/code-block";
 import { cn } from "@/lib/utils";
 import { useFlavor } from "@/components/pages/docs/contexts/flavor";
 import { analytics } from "@/lib/analytics";
@@ -32,10 +32,10 @@ function TabButton({ label, value, currentTab, onSelect }: TabButtonProps) {
       type="button"
       onClick={() => onSelect(value)}
       className={cn(
-        "rounded-md px-2.5 py-1 text-xs transition-colors",
+        "after:bg-foreground relative pb-1 text-xs font-medium transition-colors after:absolute after:inset-x-0 after:bottom-0 after:h-0.5 after:opacity-0 after:transition-opacity",
         isActive
-          ? "bg-muted text-foreground font-medium"
-          : "text-muted-foreground hover:bg-muted/50 hover:text-foreground",
+          ? "text-foreground after:opacity-100"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       {label}
@@ -52,25 +52,14 @@ export function PreviewCodeClient({
   className,
 }: PreviewCodeClientProps) {
   const [tab, setTab] = useState<Tab>("preview");
-  const [copied, setCopied] = useState(false);
   const flavor = useFlavor();
 
   const copiedBaseSource = flavor === "base" && baseCode !== undefined;
   const activeCode = copiedBaseSource ? baseCode : code;
 
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(activeCode);
-    analytics.code.blockCopied(
-      "tsx",
-      `docs_preview_${copiedBaseSource ? "base" : codeVariant}`,
-    );
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   return (
     <div className="not-prose my-4">
-      <div className="flex justify-end gap-1 pb-2">
+      <div className="flex justify-end gap-4 pb-2">
         <TabButton
           label="Preview"
           value="preview"
@@ -88,7 +77,7 @@ export function PreviewCodeClient({
       {tab === "preview" ? (
         <div
           className={cn(
-            "preview-code-preview border-border/50 flex items-center justify-center rounded-xl border p-6",
+            "preview-code-preview border-foreground/10 flex items-center justify-center rounded-(--radius-document) border p-6",
             className,
           )}
         >
@@ -97,30 +86,26 @@ export function PreviewCodeClient({
           </div>
         </div>
       ) : (
-        <div className="preview-code-block relative overflow-hidden rounded-xl">
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="text-muted-foreground hover:bg-background hover:text-foreground absolute top-2 right-2 z-10 flex size-7 items-center justify-center rounded-md opacity-50 transition-all hover:opacity-100"
-            aria-label={copied ? "Copied" : "Copy code"}
+        <CodeBlock
+          className="my-0"
+          copyText={activeCode}
+          viewportClassName="max-h-96"
+          onCopied={() =>
+            analytics.code.blockCopied(
+              "tsx",
+              `docs_preview_${copiedBaseSource ? "base" : codeVariant}`,
+            )
+          }
+        >
+          <ShikiHighlighter
+            language="tsx"
+            theme={{ dark: "catppuccin-mocha", light: "catppuccin-latte" }}
+            addDefaultStyles={false}
+            showLanguage={false}
           >
-            {copied ? (
-              <CheckIcon className="size-3.5" />
-            ) : (
-              <CopyIcon className="size-3.5" />
-            )}
-          </button>
-          <div className="max-h-96 scrollbar-none overflow-auto py-3.5 text-[0.8125rem] leading-[1.65]">
-            <ShikiHighlighter
-              language="tsx"
-              theme={{ dark: "catppuccin-mocha", light: "catppuccin-latte" }}
-              addDefaultStyles={false}
-              showLanguage={false}
-            >
-              {activeCode.trim()}
-            </ShikiHighlighter>
-          </div>
-        </div>
+            {activeCode.trim()}
+          </ShikiHighlighter>
+        </CodeBlock>
       )}
     </div>
   );
