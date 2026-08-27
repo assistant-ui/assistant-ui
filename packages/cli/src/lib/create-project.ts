@@ -439,7 +439,14 @@ async function installShadcnRegistry(
   const [cmd, dlxArgs] = dlxCommand(pm);
   // For npm, dlxArgs may already include `--yes` for npx auto-install.
   // The trailing `--yes` is for shadcn's own confirmation prompt.
-  const retryArgs = [...dlxArgs, "shadcn@latest", "add", ...components];
+  const npmPeerDependencyArgs = pm === "npm" ? ["--legacy-peer-deps"] : [];
+  const retryArgs = [
+    ...dlxArgs,
+    ...npmPeerDependencyArgs,
+    "shadcn@latest",
+    "add",
+    ...components,
+  ];
   const addArgs = [...retryArgs, "--yes"];
 
   try {

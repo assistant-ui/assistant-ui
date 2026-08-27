@@ -536,6 +536,7 @@ describe("transformProject — hasLocalComponents: false", () => {
       expect(args).toContain("@assistant-ui/thread");
       expect(args).not.toContain("button.tsx");
       expect(args).not.toContain("@assistant-ui/thread.tsx");
+      expect(args).not.toContain("--legacy-peer-deps");
     });
 
     it("skips shadcn when skipInstall is true even without local components", async () => {
@@ -574,6 +575,49 @@ describe("transformProject — install behavior", () => {
 });
 
 describe("installShadcnRegistry behavior", () => {
+  it("uses npm legacy peer dependency mode for the install and retry", async () => {
+    (spawn as Mock).mockImplementationOnce(() => {
+      const ee = new EventEmitter();
+      setTimeout(() => ee.emit("close", 0), 0);
+      return ee;
+    });
+    (spawn as Mock).mockImplementationOnce(() => {
+      const ee = new EventEmitter();
+      setTimeout(() => ee.emit("close", 1), 0);
+      return ee;
+    });
+
+    writeJSON("package.json", { name: "test", dependencies: {} });
+    writeFile(
+      "app/page.tsx",
+      'import { Button } from "@/components/ui/button";\n',
+    );
+
+    const result = await transformProject(testDir, {
+      skipInstall: false,
+      hasLocalComponents: false,
+      packageManager: "npm",
+    });
+
+    expect(spawn).toHaveBeenNthCalledWith(
+      2,
+      "npx",
+      [
+        "--yes",
+        "--legacy-peer-deps",
+        "shadcn@latest",
+        "add",
+        "button",
+        "utils",
+        "--yes",
+      ],
+      expect.objectContaining({ cwd: testDir }),
+    );
+    expect(result.registryInstallFailure?.retryCommand).toBe(
+      "npx --yes --legacy-peer-deps shadcn@latest add button utils",
+    );
+  });
+
   it("reports the failure when shadcn exits non-zero", async () => {
     // First spawn call is `pm install` (skipInstall: false); let it succeed.
     (spawn as Mock).mockImplementationOnce(() => {
