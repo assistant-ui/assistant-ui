@@ -63,6 +63,20 @@ describe("MarkdownText component overrides", () => {
     expect(mocks.components?.SyntaxHighlighter).not.toBe(SyntaxHighlighter);
   });
 
+  it("keeps the composed map referentially stable across equal inline overrides", () => {
+    const SyntaxHighlighter = ({ code }: { code: string }) => (
+      <div data-testid="syntax-highlighter">{code}</div>
+    );
+
+    const { rerender } = render(
+      <MarkdownText components={{ SyntaxHighlighter }} />,
+    );
+    const first = mocks.components;
+    rerender(<MarkdownText components={{ SyntaxHighlighter }} />);
+
+    expect(mocks.components).toBe(first);
+  });
+
   it("keeps the default html renderers in the composed map with overrides", () => {
     const SyntaxHighlighter = ({ code }: { code: string }) => (
       <div data-testid="syntax-highlighter">{code}</div>
