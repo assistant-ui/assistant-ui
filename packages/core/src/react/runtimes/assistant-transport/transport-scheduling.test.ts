@@ -4,7 +4,6 @@ import { act, render, renderHook, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { createElement, StrictMode, useLayoutEffect, useRef } from "react";
 import { useCommandQueue } from "./commandQueue";
-import { useLatestRef } from "./useLatestRef";
 import { useRunManager } from "./runManager";
 import type { AssistantTransportCommand } from "./types";
 
@@ -86,36 +85,50 @@ const useTransportSchedulingHarness = (
 };
 
 describe("assistant transport scheduling contracts", () => {
-  it("publishes current callbacks before descendant layout effects", () => {
-    const callbackA = vi.fn();
-    const callbackB = vi.fn();
-    const seen: unknown[] = [];
+  it("uses current callbacks when scheduled by a descendant layout effect", async () => {
+    const onRunA = vi.fn(async () => {});
+    const onRunB = vi.fn(async () => {});
+    const queueMicrotaskSpy = vi
+      .spyOn(globalThis, "queueMicrotask")
+      .mockImplementation((callback) => callback());
 
-    const Reader = ({
-      read,
-      callbackRef,
+    const Scheduler = ({
+      schedule,
+      enabled,
     }: {
-      read: boolean;
-      callbackRef: { current: unknown };
+      schedule: () => void;
+      enabled: boolean;
     }) => {
       useLayoutEffect(() => {
-        if (read) seen.push(callbackRef.current);
-      }, [read, callbackRef]);
+        if (enabled) schedule();
+      }, [enabled, schedule]);
       return null;
     };
-    const Probe = ({ read, callback }: { read: boolean; callback: unknown }) =>
-      createElement(Reader, {
-        read,
-        callbackRef: useLatestRef(callback),
+    const Probe = ({
+      enabled,
+      onRun,
+    }: {
+      enabled: boolean;
+      onRun: (signal: AbortSignal) => Promise<void>;
+    }) => {
+      const runManager = useRunManager({ onRun });
+      return createElement(Scheduler, {
+        enabled,
+        schedule: runManager.schedule,
       });
+    };
 
-    const view = render(
-      createElement(Probe, { read: false, callback: callbackA }),
-    );
-    view.rerender(createElement(Probe, { read: true, callback: callbackB }));
+    try {
+      const view = render(
+        createElement(Probe, { enabled: false, onRun: onRunA }),
+      );
+      view.rerender(createElement(Probe, { enabled: true, onRun: onRunB }));
 
-    expect(seen).toHaveLength(1);
-    expect(seen[0]).toBe(callbackB);
+      await waitFor(() => expect(onRunB).toHaveBeenCalledTimes(1));
+      expect(onRunA).not.toHaveBeenCalled();
+    } finally {
+      queueMicrotaskSpy.mockRestore();
+    }
   });
 
   it("runs in single-flight mode and schedules exactly one follow-up run", async () => {
