@@ -91,12 +91,10 @@ export const getContentAutoStatus = (
   content: ThreadMessageLike["content"],
   isLast: boolean,
   isRunning: boolean,
-  error?: ReadonlyJSONValue,
 ): MessageStatus =>
   getAutoStatus(
     isLast,
     isRunning,
     typeof content !== "string" && content.some(isInterruptedToolCall),
     typeof content !== "string" && content.some(isPendingToolCall),
-    error,
   );

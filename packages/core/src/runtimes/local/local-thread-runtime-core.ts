@@ -51,6 +51,9 @@ class AbortError extends Error {
   }
 }
 
+// `shouldContinue` resumes only on `tool-calls` and `resumeToolCall` throws, so
+// an imported `interrupt` with no interrupt payload would be stranded here.
+// Provenance cannot gate it: a repository that went through JSON has no marker.
 const withLocalPauseReason = (message: ThreadMessage): ThreadMessage => {
   if (
     message.role !== "assistant" ||
