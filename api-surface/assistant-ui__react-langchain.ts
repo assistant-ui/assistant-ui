@@ -541,6 +541,8 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
 
 type ComposerState = ThreadComposerState | EditComposerState;
 
+type ConvertedContentPart = ThreadUserMessage["content"][number] | ThreadAssistantMessage["content"][number];
+
 type CreateAppendMessage = string | {
   parentId?: string | null | undefined;
   sourceId?: string | null | undefined;
@@ -1587,6 +1589,12 @@ type StartRunConfig = {
   runConfig: RunConfig;
 };
 
+type StreamingTimingAccessors<TMessage> = {
+  readonly getAssistantMessageId: (messages: readonly TMessage[]) => string | undefined;
+  readonly getTextLength: (messages: readonly TMessage[], messageId: string) => number;
+  readonly getToolCallCount: (messages: readonly TMessage[], messageId: string) => number;
+};
+
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
 type TextMessagePart = {
@@ -2127,6 +2135,96 @@ type VoiceSessionState = {
 
 declare const convertLangChainBaseMessage: (message: LangChainBaseMessage, metadata?: LangChainMessageConverterMetadata) => useExternalMessageConverter.Message;
 
+declare const convertLangChainContentBlock: (part: LangChainContentBlock) => ConvertedContentPart | null | undefined;
+
+declare namespace entry_converter_exports {
+  export { convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, uiMessageToDataPart, withAudioTranscript };
+}
+
+declare const createLangChainStreamingTimingAccessors: <TMessage extends {
+  id?: string | undefined;
+  content?: unknown;
+  tool_calls?: readonly unknown[] | undefined;
+}>(getType: (message: TMessage) => string) => StreamingTimingAccessors<TMessage>;
+
+declare const getCustomMetadata: (additionalKwargs: Record<string, unknown> | undefined) => Record<string, unknown>;
+
+declare const getMessageContent: (msg: AppendMessage) => string | ({
+  type: "text";
+  text: string;
+  image_url?: never;
+  id?: never;
+  mime_type?: never;
+  filename?: never;
+  metadata?: never;
+  source_type?: never;
+  url?: never;
+  data?: never;
+} | {
+  type: "image_url";
+  image_url: {
+    url: string;
+  };
+  text?: never;
+  id?: never;
+  mime_type?: never;
+  filename?: never;
+  metadata?: never;
+  source_type?: never;
+  url?: never;
+  data?: never;
+} | {
+  type: "file";
+  id: string;
+  mime_type: string;
+  filename: string;
+  metadata: {
+    filename: string;
+  };
+  source_type: "id";
+  text?: never;
+  image_url?: never;
+  url?: never;
+  data?: never;
+} | {
+  type: "file";
+  url: string;
+  mime_type: string;
+  filename: string;
+  metadata: {
+    filename: string;
+  };
+  source_type: "url";
+  text?: never;
+  image_url?: never;
+  id?: never;
+  data?: never;
+} | {
+  type: "file";
+  data: string;
+  mime_type: string;
+  filename: string;
+  metadata: {
+    filename: string;
+  };
+  source_type: "base64";
+  text?: never;
+  image_url?: never;
+  id?: never;
+  url?: never;
+} | {
+  type: "audio";
+  data: string;
+  mime_type: string;
+  source_type: "base64";
+  text?: never;
+  image_url?: never;
+  id?: never;
+  filename?: never;
+  metadata?: never;
+  url?: never;
+})[];
+
 declare global {
   interface Window {
     SpeechRecognition?: SpeechRecognitionConstructor;
@@ -2137,6 +2235,11 @@ declare global {
 declare namespace entry_root_exports {
   export { LangChainBaseMessage, LangChainContentBlock, LangChainToolCall, RemoveUIMessage, SubagentDiscoverySnapshot$1 as SubagentDiscoverySnapshot, SubgraphDiscoverySnapshot$1 as SubgraphDiscoverySnapshot, UIMessage, UseStreamRuntimeOptions, convertLangChainBaseMessage, useLangChainError, useLangChainInterruptState, useLangChainInterrupts, useLangChainRespond, useLangChainRespondAll, useLangChainSend, useLangChainSendCommand, useLangChainState, useLangChainStream, useLangChainStreamingTiming, useLangChainSubagents, useLangChainSubgraphs, useLangChainSubmit, useLangChainToolCalls, useStreamRuntime };
 }
+
+declare const uiMessageToDataPart: <TUIMessage extends {
+  name: string;
+  props: Record<string, unknown>;
+}>(ui: TUIMessage) => DataMessagePart;
 
 declare namespace useExternalMessageConverter {
   type Message = ExternalMessageConverterMessage;
@@ -2189,4 +2292,12 @@ declare const useLangChainToolCalls: () => readonly AssembledToolCall<string, un
 
 declare const useStreamRuntime: (rawOptions: UseStreamRuntimeOptions) => AssistantRuntime;
 
-export { entry_root_exports as entry_root };
+declare const withAudioTranscript: <T extends {
+  type: string;
+  text?: unknown;
+}>(parts: readonly T[], additionalKwargs: Record<string, unknown> | undefined) => readonly (T | {
+  type: "text";
+  text: string;
+})[];
+
+export { entry_converter_exports as entry_converter, entry_root_exports as entry_root };
