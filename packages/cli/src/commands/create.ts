@@ -13,7 +13,7 @@ import {
   transformProject,
   type TransformResult,
 } from "../lib/create-project";
-import { runSpawn, SpawnExitError } from "../lib/run-spawn";
+import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import { resolvePackageManagerForCwd } from "../lib/utils/package-manager";
 import {
   buildSkillsAddCommand,
@@ -655,7 +655,8 @@ export const create = new Command()
           });
           try {
             await runSpawn(skillsCmd, skillsArgs, absoluteProjectDir);
-          } catch {
+          } catch (error) {
+            if (error instanceof SpawnSignalError) throw error;
             logger.warn(
               `Could not add assistant-ui agent skills. You can add them later with:\n  ${skillsCmd} ${skillsArgs.join(" ")}`,
             );
@@ -696,7 +697,8 @@ export const create = new Command()
             ],
             absoluteProjectDir,
           );
-        } catch {
+        } catch (error) {
+          if (error instanceof SpawnSignalError) throw error;
           logger.warn(
             `Preset application failed. You can retry manually with:\n  ${dlxCmd} ${[...dlxArgs, "shadcn@latest", "add", presetUrl].join(" ")}`,
           );
@@ -736,6 +738,7 @@ export const create = new Command()
       logger.info(`  # Set up your environment variables in ${envFile}`);
       logger.info(`  ${runCmd} ${devScript}`);
     } catch (error) {
+      if (error instanceof SpawnSignalError) throw error;
       if (error instanceof SpawnExitError) {
         logger.error(`Project creation failed with code ${error.code}`);
         process.exit(error.code);

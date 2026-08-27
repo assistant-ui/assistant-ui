@@ -53,7 +53,7 @@ export async function upgrade(options: TransformOptions) {
     bar.update(completedWork, { status: `Running ${codemod}...` });
 
     // Use a custom progress callback to update the progress bar
-    const errors = transform(codemod, cwd, options, {
+    const errors = await transform(codemod, cwd, options, {
       logStatus: false,
       onProgress: (processedFiles: number) => {
         completedWork = bundle.indexOf(codemod) * fileCount + processedFiles;

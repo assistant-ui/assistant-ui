@@ -7,7 +7,7 @@ import {
   type ParseError,
 } from "jsonc-parser";
 import { logger } from "./utils/logger";
-import { runSpawn, SpawnExitError } from "./run-spawn";
+import { runSpawn, SpawnExitError, SpawnSignalError } from "./run-spawn";
 import { type PackageManagerName } from "./utils/package-manager";
 import { readProjectFiles } from "./utils/file-scanner";
 
@@ -419,6 +419,9 @@ async function installDependencies(
   try {
     await runSpawn(pm, args, projectDir);
   } catch (error) {
+    if (error instanceof SpawnSignalError) {
+      throw error;
+    }
     if (error instanceof SpawnExitError) {
       throw new Error(`${pm} install exited with code ${error.code}`);
     }
@@ -443,6 +446,9 @@ async function installShadcnRegistry(
     await runSpawn(cmd, addArgs, projectDir);
     return undefined;
   } catch (error) {
+    if (error instanceof SpawnSignalError) {
+      throw error;
+    }
     if (error instanceof SpawnExitError) {
       logger.warn(`shadcn exited with code ${error.code}.`);
       return { retryCommand: `${cmd} ${retryArgs.join(" ")}` };

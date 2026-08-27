@@ -1,9 +1,9 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { spawnSync } from "node:child_process";
 import { detect } from "detect-package-manager";
 import * as readline from "node:readline";
 import { logger } from "./logger";
+import { runSpawn, SpawnSignalError } from "../run-spawn";
 
 export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
 
@@ -94,19 +94,10 @@ export async function installPackage(
 ): Promise<boolean> {
   try {
     const { command, args } = await getInstallCommand(packageName, cwd);
-    const result = spawnSync(command, args, { stdio: "inherit", cwd });
-
-    if (result.error || result.status !== 0) {
-      logger.error(
-        `Installation failed${
-          result.error ? `: ${String(result.error)}` : "."
-        }`,
-      );
-      return false;
-    }
-
+    await runSpawn(command, args, cwd);
     return true;
   } catch (e) {
+    if (e instanceof SpawnSignalError) throw e;
     logger.error(`Installation failed: ${String(e)}`);
     return false;
   }

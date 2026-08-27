@@ -2,7 +2,7 @@ import { Command, Option } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import { dlxCommand, resolvePackageManager } from "../lib/create-project";
-import { runSpawn, SpawnExitError } from "../lib/run-spawn";
+import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import { logger } from "../lib/utils/logger";
 import { resolvePackageManagerForCwd } from "../lib/utils/package-manager";
 import {
@@ -132,6 +132,7 @@ export const init = new Command()
       logger.success("Project initialized successfully!");
       logger.info("You can now add more components with 'assistant-ui add'");
     } catch (error) {
+      if (error instanceof SpawnSignalError) throw error;
       if (error instanceof SpawnExitError) {
         logger.error(`Initialization failed with code ${error.code}`);
         process.exit(error.code);

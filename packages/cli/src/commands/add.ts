@@ -6,7 +6,7 @@ import {
   resolveRegistryItemUrl,
 } from "../lib/utils/registry";
 import { dlxCommand, resolvePackageManager } from "../lib/create-project";
-import { runSpawn, SpawnExitError } from "../lib/run-spawn";
+import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import {
   type PackageManagerName,
   resolvePackageManagerForCwd,
@@ -91,6 +91,7 @@ export const add = new Command()
     try {
       await runSpawn(command, args, opts.cwd);
     } catch (error) {
+      if (error instanceof SpawnSignalError) throw error;
       if (error instanceof SpawnExitError) {
         logger.error(`Process exited with code ${error.code}`);
         process.exit(error.code);
