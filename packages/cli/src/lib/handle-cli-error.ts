@@ -6,6 +6,8 @@ export function handleCliError(error: unknown): void {
     process.exitCode = 128 + (constants.signals[error.signal] ?? 0);
     if (error.forwarded) {
       process.kill(process.pid, error.signal);
+    } else {
+      console.error(error.message);
     }
     return;
   }

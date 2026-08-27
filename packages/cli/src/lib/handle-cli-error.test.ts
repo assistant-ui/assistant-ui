@@ -27,13 +27,28 @@ describe("handleCliError", () => {
     expect(kill).toHaveBeenCalledWith(process.pid, "SIGTERM");
   });
 
-  it("does not re-raise a signal the child raised on itself", () => {
+  it("reports a signal the child raised on itself without re-raising it", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
     const kill = vi.spyOn(process, "kill").mockReturnValue(true);
 
-    handleCliError(new SpawnSignalError("SIGSEGV", false));
+    handleCliError(new SpawnSignalError("SIGKILL", false));
 
-    expect(process.exitCode).toBe(139);
+    expect(process.exitCode).toBe(137);
     expect(kill).not.toHaveBeenCalled();
+    expect(consoleError).toHaveBeenCalledWith("Process terminated by SIGKILL");
+  });
+
+  it("stays silent on a signal the user sent", () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    vi.spyOn(process, "kill").mockReturnValue(true);
+
+    handleCliError(new SpawnSignalError("SIGINT", true));
+
+    expect(consoleError).not.toHaveBeenCalled();
   });
 
   it("reports any other failure as exit 1", () => {
