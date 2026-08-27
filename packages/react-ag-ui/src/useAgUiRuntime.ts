@@ -81,14 +81,16 @@ export function useAgUiRuntime(
   }
 
   const core = coreRef.current;
-  core.updateOptions({
-    agent: options.agent,
-    logger,
-    showThinking: options.showThinking ?? true,
-    autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
-    ...(options.onError && { onError: options.onError }),
-    ...(options.onCancel && { onCancel: options.onCancel }),
-    ...(historyAdapter && { history: historyAdapter }),
+  useEffect(() => {
+    core.updateOptions({
+      agent: options.agent,
+      logger,
+      showThinking: options.showThinking ?? true,
+      autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
+      ...(options.onError && { onError: options.onError }),
+      ...(options.onCancel && { onCancel: options.onCancel }),
+      ...(historyAdapter && { history: historyAdapter }),
+    });
   });
 
   const [toolStatuses, setToolStatuses] = useState<

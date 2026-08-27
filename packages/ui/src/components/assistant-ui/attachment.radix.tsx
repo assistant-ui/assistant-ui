@@ -1,6 +1,11 @@
 "use client";
 
-import { type PropsWithChildren, useEffect, useState, type FC } from "react";
+import {
+  type PropsWithChildren,
+  useState,
+  type FC,
+  isValidElement,
+} from "react";
 import {
   XIcon,
   PlusIcon,
@@ -15,7 +20,6 @@ import {
   useAuiState,
   useAui,
 } from "@assistant-ui/react";
-import { useShallow } from "zustand/react/shallow";
 import {
   Tooltip,
   TooltipContent,
@@ -34,42 +38,8 @@ import {
   AvatarFallback,
 } from "@/components/ui/radix/avatar";
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { useAttachmentSrc } from "@/hooks/use-attachment-src";
 import { cn } from "@/lib/utils";
-
-const useFileSrc = (file: File | undefined) => {
-  const [src, setSrc] = useState<string | undefined>(undefined);
-
-  useEffect(() => {
-    if (!file) {
-      setSrc(undefined);
-      return;
-    }
-
-    const objectUrl = URL.createObjectURL(file);
-    setSrc(objectUrl);
-
-    return () => {
-      URL.revokeObjectURL(objectUrl);
-    };
-  }, [file]);
-
-  return src;
-};
-
-const useAttachmentSrc = () => {
-  const { file, src } = useAuiState(
-    useShallow((s): { file?: File; src?: string } => {
-      if (s.attachment.type !== "image") return {};
-      if (s.attachment.file) return { file: s.attachment.file };
-      const src = s.attachment.content?.filter((c) => c.type === "image")[0]
-        ?.image;
-      if (!src) return {};
-      return { src };
-    }),
-  );
-
-  return useFileSrc(file) ?? src;
-};
 
 type AttachmentPreviewProps = {
   src: string;
@@ -103,7 +73,11 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
         className="aui-attachment-preview-trigger cursor-zoom-in"
         asChild
       >
-        {children}
+        {isValidElement(children) ? (
+          children
+        ) : (
+          <button type="button">{children}</button>
+        )}
       </DialogTrigger>
       <DialogContent className="aui-attachment-preview-dialog-content [&>button]:bg-foreground/60 [&>button]:hover:bg-foreground/80 [&_svg]:text-background p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0!">
         <DialogTitle className="aui-sr-only sr-only">

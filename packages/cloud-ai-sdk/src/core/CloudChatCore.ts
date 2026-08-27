@@ -30,16 +30,19 @@ export class CloudChatCore {
   readonly titlePolicy: TitlePolicy;
   readonly telemetryReporter: CloudTelemetryReporter;
 
-  /** Updated by the React wrapper each render. */
   options: CloudChatCoreOptions;
   /** Set by the React wrapper. */
   mountedRef: { current: boolean } = { current: true };
-  /** Set by the React wrapper. */
-  baseTransport!: ChatTransport<UIMessage>;
+  private baseTransport: ChatTransport<UIMessage>;
 
-  constructor(cloud: AssistantCloud, options: CloudChatCoreOptions) {
+  constructor(
+    cloud: AssistantCloud,
+    options: CloudChatCoreOptions,
+    baseTransport: ChatTransport<UIMessage>,
+  ) {
     this.cloud = cloud;
     this.options = options;
+    this.baseTransport = baseTransport;
     this.persistence = new MessagePersistence(
       cloud,
       this.handleSyncError.bind(this),
@@ -47,6 +50,14 @@ export class CloudChatCore {
     this.sessionManager = new ThreadSessionManager();
     this.titlePolicy = new TitlePolicy();
     this.telemetryReporter = new CloudTelemetryReporter(cloud);
+  }
+
+  updateOptions(
+    options: CloudChatCoreOptions,
+    baseTransport: ChatTransport<UIMessage>,
+  ): void {
+    this.options = options;
+    this.baseTransport = baseTransport;
   }
 
   async ensureThreadId(
@@ -179,7 +190,11 @@ export class CloudChatCore {
     };
   }
 
-  createChat(chatKey: string, registry: ChatRegistry): Chat<UIMessage> {
+  createChat(
+    chatKey: string,
+    registry: ChatRegistry,
+    chatConfig: CloudChatConfig = this.options.chatConfig,
+  ): Chat<UIMessage> {
     const {
       onFinish: _onFinish,
       onData: _onData,
@@ -188,7 +203,7 @@ export class CloudChatCore {
       sendAutomaticallyWhen: _sendAutomaticallyWhen,
       id: _id,
       ...chatInit
-    } = this.options.chatConfig;
+    } = chatConfig;
 
     return new Chat<UIMessage>({
       ...chatInit,

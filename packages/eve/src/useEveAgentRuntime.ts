@@ -230,6 +230,8 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
+  const agentRef = useRef(agent);
+  agentRef.current = agent;
 
   // Upstream `EveAgentStore` `send` and `respond` reject while a turn is in
   // flight and only resolve once the turn's stream parks, so a pending chain
@@ -239,18 +241,22 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const sendEpochRef = useRef(0);
   // A cancel drops the queued send but keeps its draft for a later promotion;
   // only a reset discards the draft with the session, so the two need separate
-  // counters.
+  // counters. A queued read has no draft and outlives a cancel, so it waits on
+  // the reset counter instead.
   const resetEpochRef = useRef(0);
   const isMountedRef = useRef(true);
   const runtimeRef = useRef<ReturnType<typeof useExternalStoreRuntime> | null>(
     null,
   );
 
-  const enqueueSend = (dispatch: () => Promise<void>) => {
-    const epoch = sendEpochRef.current;
+  const enqueueSend = (
+    dispatch: () => Promise<void>,
+    epochRef: { current: number } = sendEpochRef,
+  ) => {
+    const epoch = epochRef.current;
     const next = sendChainRef.current.then(() => {
-      if (epoch !== sendEpochRef.current)
-        throw isMountedRef.current ? sendCancelledError : sendAbandonedError;
+      if (!isMountedRef.current) throw sendAbandonedError;
+      if (epoch !== epochRef.current) throw sendCancelledError;
       return dispatch();
     });
     sendChainRef.current = next.catch(() => {});
@@ -433,6 +439,30 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
         controls.stop();
       }
     },
+    // Hosts below eve 0.44.1 expose no `resume`; leaving the capability absent
+    // keeps `threads.reloadMainThread()` on core's no-capability no-op.
+    ...("resume" in agent
+      ? {
+          onRefetchThread: () =>
+            // `resume()` rejects during a turn, so the replay rides the send
+            // chain like every other dispatch and runs once the turn parks; a
+            // cancel of that turn does not drop it, or the caller would be told
+            // the thread was refetched when it was not. Upstream shares one
+            // replay across concurrent `resume()` calls, so a refetch
+            // dispatched while `resume: true` is replaying on mount joins that
+            // read instead of taking a fresh one. The session is read at
+            // dispatch time because nothing durable exists before the first
+            // send lands.
+            enqueueSend(async () => {
+              const live = agentRef.current;
+              if (live.session === undefined) return;
+              await live.resume();
+            }, resetEpochRef).catch((error) => {
+              if (isDroppedSend(error)) return;
+              throw error;
+            }),
+        }
+      : {}),
     onRespondToToolApproval: (response) => {
       // Eve leaves an unanswered request pending, so an unmappable response
       // must stay answerable. Mapping before the first await lets the mapper's

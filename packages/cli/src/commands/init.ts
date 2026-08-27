@@ -1,13 +1,10 @@
 import { Command, Option } from "commander";
 import fs from "node:fs";
 import path from "node:path";
-import {
-  dlxCommand,
-  resolvePackageManager,
-  resolvePackageManagerForCwd,
-} from "../lib/create-project";
+import { dlxCommand, resolvePackageManager } from "../lib/create-project";
 import { runSpawn, SpawnExitError } from "../lib/run-spawn";
 import { logger } from "../lib/utils/logger";
+import { resolvePackageManagerForCwd } from "../lib/utils/package-manager";
 import {
   getComponentsJsonStyle,
   resolveQuickStartRegistryUrl,

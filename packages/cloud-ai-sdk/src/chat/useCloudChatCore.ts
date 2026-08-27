@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useInsertionEffect, useMemo, useRef } from "react";
 import type { UIMessage } from "@ai-sdk/react";
 import type { ChatTransport } from "ai";
 import { DefaultChatTransport } from "ai";
@@ -18,15 +18,24 @@ export function useCloudChatCore(
 ): CloudChatCore {
   const { threads, chatConfig, onSyncError, transport } = options;
   const currentOptions = { threads, chatConfig, onSyncError };
-  const currentOptionsRef = useRef(currentOptions);
-  currentOptionsRef.current = currentOptions;
 
-  const core = useMemo(
-    () => new CloudChatCore(cloud, currentOptionsRef.current),
-    [cloud],
+  const fallbackTransport = useRef<ChatTransport<UIMessage>>(
+    new DefaultChatTransport({}),
   );
+  const currentTransport = transport ?? fallbackTransport.current;
+  const latestStateRef = useRef({
+    options: currentOptions,
+    transport: currentTransport,
+  });
+  latestStateRef.current = {
+    options: currentOptions,
+    transport: currentTransport,
+  };
 
-  core.options = currentOptions;
+  const core = useMemo(() => {
+    const latestState = latestStateRef.current;
+    return new CloudChatCore(cloud, latestState.options, latestState.transport);
+  }, [cloud]);
 
   // Track component lifetime for safe async operations
   const mountedRef = useRef(true);
@@ -36,12 +45,15 @@ export function useCloudChatCore(
       mountedRef.current = false;
     };
   }, []);
-  core.mountedRef = mountedRef;
 
-  const fallbackTransport = useRef<ChatTransport<UIMessage>>(
-    new DefaultChatTransport({}),
-  );
-  core.baseTransport = transport ?? fallbackTransport.current;
+  // The only hook that runs before descendant layout effects: a parent's
+  // useLayoutEffect fires after its children's, and useEffect leaves a
+  // pre-passive window in which the core still answers with the previous
+  // options and transport.
+  useInsertionEffect(() => {
+    core.mountedRef = mountedRef;
+    core.updateOptions(currentOptions, currentTransport);
+  });
 
   return core;
 }

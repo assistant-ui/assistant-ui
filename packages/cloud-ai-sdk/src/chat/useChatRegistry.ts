@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useInsertionEffect, useMemo, useRef } from "react";
 import type { Chat } from "@ai-sdk/react";
 import type { UIMessage } from "@ai-sdk/react";
 import { ChatRegistry } from "./ChatRegistry";
@@ -14,6 +14,9 @@ type UseChatRegistryOptions = {
   scope: object;
   threadId: string | null;
   createChat: (chatKey: string, registry: ChatRegistry) => Chat<UIMessage>;
+  createRenderChat?:
+    | ((chatKey: string, registry: ChatRegistry) => Chat<UIMessage>)
+    | undefined;
 };
 
 function createRegistry(
@@ -28,6 +31,7 @@ export function useChatRegistry({
   scope,
   threadId,
   createChat,
+  createRenderChat = createChat,
 }: UseChatRegistryOptions): {
   registry: ChatRegistry;
   activeChat: Chat<UIMessage>;
@@ -46,7 +50,12 @@ export function useChatRegistry({
     ? (registry.getChatKeyForThread(threadId) ?? threadId)
     : freshSession.key;
 
-  const activeChat = registry.getOrCreate(activeChatKey, threadId);
+  const activeChat =
+    registry.get(activeChatKey) ?? createRenderChat(activeChatKey, registry);
+
+  useInsertionEffect(() => {
+    registry.register(activeChatKey, threadId, activeChat);
+  }, [activeChat, activeChatKey, registry, threadId]);
 
   const committedRegistryRef = useRef(registry);
   useEffect(() => {

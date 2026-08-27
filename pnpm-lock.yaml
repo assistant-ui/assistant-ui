@@ -3842,6 +3842,9 @@ importers:
       '@types/cross-spawn':
         specifier: ^6.0.6
         version: 6.0.6
+      vitest:
+        specifier: ^4.1.11
+        version: 4.1.11(@opentelemetry/api@1.9.1)(@types/node@26.2.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/eve:
     dependencies:
@@ -3963,9 +3966,6 @@ importers:
       '@types/node':
         specifier: ^26.2.0
         version: 26.2.0
-      tsdown:
-        specifier: ^0.22.14
-        version: 0.22.14(@typescript/typescript6@6.0.2)(tsx@4.23.12)
       typescript:
         specifier: npm:@typescript/typescript6@^6.0.2
         version: '@typescript/typescript6@6.0.2'
@@ -4477,6 +4477,9 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.15
         version: link:../core
+      '@assistant-ui/react-langchain':
+        specifier: ^0.0.27
+        version: link:../react-langchain
       '@assistant-ui/store':
         specifier: ^0.3.10
         version: link:../store

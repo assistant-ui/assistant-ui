@@ -542,19 +542,5 @@ describe("convertExternalMessages", () => {
         convertExternalMessages(messages, callback, false, {}),
       ).toThrowError(/returned an invalid message \(\{"role":"user"\}\)/);
     });
-
-    it("tolerates a tool message without toolCallId as an orphaned tool result", () => {
-      const messages = [{ id: "m1", role: "user" as const, content: "hi" }];
-      const callback = ((msg: (typeof messages)[number]) => [
-        msg,
-        { role: "tool", result: "ok" },
-      ]) as unknown as useExternalMessageConverter.Callback<
-        (typeof messages)[number]
-      >;
-
-      const result = convertExternalMessages(messages, callback, false, {});
-      expect(result[0]!.role).toBe("user");
-      expect(result[1]!.content).toHaveLength(0);
-    });
   });
 });

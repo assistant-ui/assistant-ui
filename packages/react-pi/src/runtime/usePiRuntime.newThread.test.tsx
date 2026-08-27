@@ -18,9 +18,11 @@ vi.mock("./ThreadController", async (importOriginal) => {
   const original = await importOriginal<typeof import("./ThreadController")>();
 
   class PiThreadController {
-    getState = () => createPiThreadState("t-new");
+    state = createPiThreadState("t-new");
+    repository = ExportedMessageRepository.fromArray([]);
+    getState = () => this.state;
     getProjectedMessages = () => [];
-    getMessageRepository = () => ExportedMessageRepository.fromArray([]);
+    getMessageRepository = () => this.repository;
     getVersion = () => 0;
     subscribe = () => () => {};
     subscribeMetadata = () => () => {};

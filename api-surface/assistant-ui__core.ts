@@ -24,6 +24,15 @@ interface ScopeRegistry {
     unstable_interactables: Unstable_InteractablesClientSchema;
 }
 
+type AbortableThreadLoadOptions = {
+  purpose?: AbortableThreadLoadPurpose;
+  load: (signal: AbortSignal) => Promise<void>;
+  onSettled: () => void;
+  onInitialError: (error: unknown) => void;
+};
+
+type AbortableThreadLoadPurpose = "initial" | "reload";
+
 type AddMessageCommand = {
   readonly type: "add-message";
   readonly message: UserMessage | AssistantMessage;
@@ -872,7 +881,7 @@ type BaseThreadMessage = {
   readonly attachments?: ThreadUserMessage["attachments"];
 };
 
-declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
+declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements ThreadRuntimeCore {
   #private;
   protected readonly repository: MessageRepository;
   abstract get adapters(): BaseThreadAdapters | undefined;
@@ -912,9 +921,7 @@ declare abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   } | undefined;
   getBranches(messageId: string): string[];
   switchToBranch(branchId: string): void;
-  protected _notifySubscribers(): void;
   _notifyEventSubscribers<E extends ThreadRuntimeEventType>(event: E, payload: ThreadRuntimeEventPayload[E]): void;
-  subscribe(callback: () => void): Unsubscribe$1;
   submitFeedback(_param1: SubmitFeedbackOptions): void;
   speech: SpeechState | undefined;
   speak(messageId: string): void;
@@ -1697,6 +1704,28 @@ type ExportedMessageRepositoryItem = {
   runConfig?: RunConfig;
 };
 
+type ExternalMessageConverterCallback<T> = (message: T, metadata: ExternalMessageConverterMetadata) => ExternalMessageConverterMessage | ExternalMessageConverterMessage[];
+
+type ExternalMessageConverterMessage = (ThreadMessageLike & {
+  readonly convertConfig?: {
+    readonly joinStrategy?: JoinStrategy;
+  };
+}) | {
+  role: "tool";
+  toolCallId: string;
+  toolName?: string | undefined;
+  result: any;
+  artifact?: any;
+  isError?: boolean;
+  messages?: readonly ThreadMessage[];
+};
+
+type ExternalMessageConverterMetadata = {
+  readonly toolStatuses?: Record<string, ToolExecutionStatus>;
+  readonly error?: ReadonlyJSONValue;
+  readonly messageTiming?: Record<string, MessageTiming>;
+};
+
 type ExternalStoreAdapter<T = ThreadMessage> = ExternalStoreAdapterBase<T> & (T extends ThreadMessage ? object : ExternalStoreMessageConverterAdapter<T>);
 
 type ExternalStoreAdapterBase<T> = {
@@ -1788,7 +1817,7 @@ type ExternalStoreThreadListAdapter = {
   onDelete?: ((threadId: string) => Promise<void> | void) | undefined;
 };
 
-declare class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore {
+declare class ExternalStoreThreadListRuntimeCore extends BaseSubscribable implements ThreadListRuntimeCore {
   #private;
   get isLoading(): boolean;
   get newThreadId(): undefined;
@@ -1818,7 +1847,6 @@ declare class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCor
     externalId: string | undefined;
   }>;
   generateTitle(): never;
-  subscribe(callback: () => void): Unsubscribe$1;
 }
 
 declare class ExternalStoreThreadRuntimeCore extends BaseThreadRuntimeCore implements ThreadRuntimeCore {
@@ -1939,6 +1967,15 @@ type FileMessagePart = {
 type FileMessagePartComponent = ComponentType<FileMessagePartProps>;
 
 type FileMessagePartProps = MessagePartState & FileMessagePart;
+
+type FilePartSource = {
+  kind: "url";
+  url: string;
+} | {
+  kind: "data";
+  data: string;
+  mimeType: string;
+};
 
 type FrameMessage = {
   type: "model-context-request";
@@ -2452,6 +2489,7 @@ declare class LocalThreadRuntimeCore extends BaseThreadRuntimeCore implements Th
   deleteMessage(messageId: string): Promise<void>;
   resumeRun(_param4: ResumeRunConfig): Promise<void>;
   exportExternalState(): any;
+  import(data: ExportedMessageRepository): void;
   importExternalState(): void;
   unstable_notifySessionReset(): void;
   startRun(_param5: StartRunConfig, runCallback?: ChatModelAdapter["run"]): Promise<void>;
@@ -2888,6 +2926,12 @@ declare class MessageRepository {
   import(_param9: ExportedMessageRepository): void;
 }
 
+type MessageRepositorySession = ReturnType<typeof createMessageRepositorySession>;
+
+type MessageRepositorySessionOptions = {
+  decorateExport?: (exported: ExportedMessageRepository, repository: MessageRepository) => ExportedMessageRepository;
+};
+
 type MessageRole = ThreadMessage["role"];
 
 type MessageRuntime = {
@@ -3259,6 +3303,12 @@ type PendingAttachmentStatus = {
   reason: "error" | "upload-paused";
   message?: string;
 };
+
+type PendingToolCallMessage<TToolCall> = {
+  toolCalls: readonly TToolCall[];
+} | {
+  toolCallId: string;
+} | undefined;
 
 type PropFieldStatus = "complete" | "streaming";
 
@@ -4396,6 +4446,10 @@ type ThreadData$1 = {
   externalId: string | undefined;
 };
 
+type ThreadData$2 = {
+  externalId: string | undefined;
+};
+
 type ThreadEvents = {
   "thread.runStart": {
     threadId: string;
@@ -4429,6 +4483,11 @@ declare const ThreadListClient: Resource<ClientOutput<"threads">, [
     __internal_assistantRuntime: AssistantRuntime;
   }
 ]>;
+
+type ThreadListItem = {
+  source: unknown;
+  initialize: () => Promise<ThreadData$2>;
+};
 
 declare const ThreadListItemByIndexProvider: FC<PropsWithChildren<{
   index: number;
@@ -5848,10 +5907,17 @@ declare const consumeSuggestionResult: (result: ReturnType<SuggestionAdapter["ge
 
 declare const convertExternalMessages: <T extends WeakKey>(messages: T[], callback: useExternalMessageConverter.Callback<T>, isRunning: boolean, metadata: useExternalMessageConverter.Metadata) => ThreadMessage[];
 
+declare const createAbortableThreadLoad: () => {
+  abort(purpose?: AbortableThreadLoadPurpose): void;
+  run(_param14: AbortableThreadLoadOptions): Promise<void>;
+};
+
+declare const createCloudThreadListAdapterCreateFallback: (create: (() => Promise<ThreadData$2>) | undefined, threadListItem: ThreadListItem) => (() => Promise<ThreadData$2>);
+
 declare const createLocalStorageAdapter: (options: LocalStorageAdapterOptions) => RemoteThreadListAdapter;
 
 declare const createMessageConverter: <T extends object>(callback: useExternalMessageConverter.Callback<T>) => {
-  useThreadMessages: (_param14: {
+  useThreadMessages: (_param15: {
     messages: T[];
     isRunning: boolean;
     joinStrategy?: JoinStrategy | undefined;
@@ -5866,6 +5932,27 @@ declare const createMessageConverter: <T extends object>(callback: useExternalMe
 
 declare const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController;
 
+declare const createMessageRepositorySession: (options?: MessageRepositorySessionOptions) => {
+  getMessages: () => readonly ThreadMessage[];
+  readonly headId: string | null;
+  export: () => ExportedMessageRepository;
+  tryGetMessage: (messageId: string) => {
+    parentId: string | null;
+    message: ThreadMessage;
+    index: number;
+  } | undefined;
+  tryGetMessages: (messageId: string) => readonly ThreadMessage[] | undefined;
+  hasMessage: (messageId: string) => boolean;
+  addOrUpdateMessage: (parentId: string | null, message: ThreadMessage) => void;
+  deleteMessage: (messageId: string, replacementId?: string | null) => void;
+  tryDeleteMessage: (messageId: string) => boolean;
+  switchToBranch: (messageId: string) => void;
+  resetHead: (messageId: string | null) => void;
+  clear: () => void;
+  updateMessage: (messageId: string, updater: (message: ThreadMessage) => ThreadMessage) => boolean;
+  applyExternalMessageRepository: (loaded: ExportedMessageRepository) => void;
+};
+
 declare function createRequestHeaders(headersValue: Record<string, string> | Headers | (() => Promise<Record<string, string> | Headers>)): Promise<Headers>;
 
 declare const createRuntimeExtras: <T extends object>(runtimeName: string) => RuntimeExtras<T>;
@@ -5877,6 +5964,17 @@ declare const createSimpleTitleAdapter: () => TitleGenerationAdapter;
 declare const createSuggestionAdapter: (options: CreateSuggestionAdapterOptions) => SuggestionAdapter;
 
 declare function createThreadMappingId(id: string): THREAD_MAPPING_ID;
+
+declare const createToolCallCancellationStub: (toolCall: {
+  readonly id: string;
+  readonly name: string;
+}) => {
+  type: "tool";
+  name: string;
+  tool_call_id: string;
+  content: string;
+  status: "error";
+};
 
 declare function createVoiceSession(options: {
   abortSignal?: AbortSignal;
@@ -5891,8 +5989,8 @@ declare const defaultComponents: {
   Image: () => null;
   File: () => null;
   Unstable_Audio: () => null;
-  ToolGroup: (_param15: PropsWithChildren) => ReactNode;
-  ReasoningGroup: (_param16: PropsWithChildren) => ReactNode;
+  ToolGroup: (_param16: PropsWithChildren) => ReactNode;
+  ReasoningGroup: (_param17: PropsWithChildren) => ReactNode;
 };
 
 declare function defineMcpToolkit(definition: McpToolkitDefinition): Toolkit;
@@ -5978,7 +6076,7 @@ declare namespace entry_store_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolInvocationTracker, consumeSuggestionResult, createThreadMappingId, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, invokeUserCallback, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isParsableUrl, isRecord, notifyEventListeners, parseDataUrl, resolveFileMediaType, resolveImageMediaType, resolveToolApprovalResponse, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer };
+  export { AbortableThreadLoadPurpose, AssistantRuntimeImpl, AttachmentRuntimeImpl, BaseAssistantRuntimeCore, BaseComposerRuntimeCore, BaseSubject, BaseSubscribable, BaseThreadRuntimeCore, ComposerRuntimeCoreBinding, ComposerRuntimeImpl, CompositeContextProvider, ConverterCallback, DefaultEditComposerRuntimeCore, DefaultThreadComposerRuntimeCore, EMPTY_THREAD_CORE, EditComposerAttachmentRuntimeImpl, EditComposerRuntimeCoreBinding, EditComposerRuntimeImpl, EventSubscribable, EventSubscriptionSubject, ExportedMessageRepository, ExportedMessageRepositoryItem, ExternalStoreRuntimeCore, ExternalStoreThreadFactory, ExternalStoreThreadListRuntimeCore, ExternalStoreThreadRuntimeCore, FilePartSource, LazyMemoizeSubject, LocalRuntimeCore, LocalRuntimeOptionsBase, LocalThreadFactory, LocalThreadListRuntimeCore, LocalThreadRuntimeCore, MessageAttachmentRuntimeImpl, MessagePartRuntimeImpl, MessageRepository, MessageRepositorySession, MessageRepositorySessionOptions, MessageRuntimeImpl, MessageStateBinding, NestedSubscribable, NestedSubscriptionSubject, OptimisticState, ReadonlyThreadRuntimeCore, RemoteThreadData, RemoteThreadInitializeResponse, RemoteThreadListOptions, RemoteThreadState, SKIP_UPDATE, SKIP_UPDATE as SKIP_UPDATE_TYPE, ShallowMemoizeSubject, Subscribable, SubscribableWithState, THREAD_MAPPING_ID, ThreadComposerAttachmentRuntimeImpl, ThreadComposerRuntimeCoreBinding, ThreadComposerRuntimeImpl, ThreadListItemRuntimeBinding, ThreadListItemRuntimeImpl, ThreadListItemStateBinding, ThreadListRuntimeCoreBinding, ThreadListRuntimeImpl, ThreadMessageConverter, ThreadRuntimeCoreBinding, ThreadRuntimeImpl, ToolInvocationTracker, consumeSuggestionResult, createAbortableThreadLoad, createCloudThreadListAdapterCreateFallback, createMessageRepositorySession, createThreadMappingId, createToolCallCancellationStub, dataUrlMediaType, detectImageMediaType, fileMatchesAccept, fromThreadMessageLike, generateErrorMessageId, generateId, getAutoStatus, getFileDataURL, getThreadData, getThreadMessageText, getThreadState, hasUpcomingMessage, httpUrlPattern, invokeUserCallback, isAutoStatus, isCreateAttachment, isErrorMessageId, isJSONValue, isParsableUrl, isRecord, notifyEventListeners, parseDataUrl, resolveFileMediaType, resolveFilePartSource, resolveImageMediaType, resolveToolApprovalResponse, scanPendingToolCalls, shouldContinue, stableStringifyToolArgs, symbolInnerMessage, toMediaWireUrl, toMessagePartStatus, trackToolArgsKeyOrder, updateStatusReducer };
 }
 
 declare namespace entry_store_internal_exports {
@@ -6028,6 +6126,12 @@ declare function providerTool(_config: ProviderToolConfig): never;
 
 declare function resolveFileMediaType(data: string, mimeType?: string | undefined): string;
 
+declare const resolveFilePartSource: (part: {
+  data: string;
+  mimeType: string;
+  sourceType?: string | undefined;
+}) => FilePartSource;
+
 declare function resolveImageMediaType(image: string, contentType?: string | undefined): string;
 
 declare const resolveToolApprovalResponse: (approval: {
@@ -6036,6 +6140,8 @@ declare const resolveToolApprovalResponse: (approval: {
 }, response: ToolApprovalResponse) => RespondToToolApprovalOptions;
 
 declare const runtimeAdapterTransformScopes: (scopes: ScopesConfig, parent: AssistantClient) => void;
+
+declare const scanPendingToolCalls: <TMessage, TToolCall>(messages: readonly TMessage[], getMessage: (message: TMessage) => PendingToolCallMessage<TToolCall>, getToolCallId: (toolCall: TToolCall) => string) => TToolCall[];
 
 declare const shouldContinue: (result: ThreadAssistantMessage, humanToolNames: string[] | undefined) => boolean;
 
@@ -6140,7 +6246,7 @@ declare const unstable_useThreadMessageIds: () => readonly string[];
 
 declare const updateStatusReducer: (state: RemoteThreadState, threadIdOrRemoteId: string, newStatus: "archived" | "deleted" | "regular") => RemoteThreadState;
 
-declare const useActionBarCopy: (_param17?: UseActionBarCopyOptions) => {
+declare const useActionBarCopy: (_param18?: UseActionBarCopyOptions) => {
   copy: () => void;
   disabled: boolean;
   isCopied: boolean;
@@ -6212,7 +6318,7 @@ declare const useBranchPickerPrevious: () => {
 
 declare const useCloudThreadListAdapter: (adapter: CloudThreadListAdapterOptions) => RemoteThreadListAdapter;
 
-declare function useCloudThreadListRuntime(_param18: CloudThreadListAdapter): AssistantRuntime;
+declare function useCloudThreadListRuntime(_param19: CloudThreadListAdapter): AssistantRuntime;
 
 declare const useComposerAddAttachment: () => {
   addAttachment: (file: File | CreateAttachment) => Promise<void>;
@@ -6244,28 +6350,12 @@ declare const useEditComposerSend: () => {
 };
 
 declare namespace useExternalMessageConverter {
-  type Message = (ThreadMessageLike & {
-    readonly convertConfig?: {
-      readonly joinStrategy?: JoinStrategy;
-    };
-  }) | {
-    role: "tool";
-    toolCallId: string;
-    toolName?: string | undefined;
-    result: any;
-    artifact?: any;
-    isError?: boolean;
-    messages?: readonly ThreadMessage[];
-  };
-  type Metadata = {
-    readonly toolStatuses?: Record<string, ToolExecutionStatus>;
-    readonly error?: ReadonlyJSONValue;
-    readonly messageTiming?: Record<string, MessageTiming>;
-  };
-  type Callback<T> = (message: T, metadata: Metadata) => Message | Message[];
+  type Message = ExternalMessageConverterMessage;
+  type Metadata = ExternalMessageConverterMetadata;
+  type Callback<T> = ExternalMessageConverterCallback<T>;
 }
 
-declare const useExternalMessageConverter: <T extends WeakKey>(_param19: {
+declare const useExternalMessageConverter: <T extends WeakKey>(_param20: {
   callback: useExternalMessageConverter.Callback<T>;
   messages: T[];
   isRunning: boolean;
@@ -6290,7 +6380,7 @@ declare const useInteractableState: <TState>(id: string, fallback: TState) => [
   }
 ];
 
-declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param20?: LocalRuntimeOptions) => AssistantRuntime;
+declare const useLocalRuntime: (chatModel: ChatModelAdapter, _param21?: LocalRuntimeOptions) => AssistantRuntime;
 
 declare const useMessageBranching: () => {
   branchNumber: number;
@@ -6312,7 +6402,7 @@ declare const useRuntimeAdapters: () => RuntimeAdapters | null;
 
 declare const useStreamingTiming: <TMessage>(messages: readonly TMessage[], isRunning: boolean, accessors: StreamingTimingAccessors<TMessage>, options?: StreamingTimingOptions) => Record<string, MessageTiming>;
 
-declare const useSuggestionTrigger: (_param21: UseSuggestionTriggerOptions) => {
+declare const useSuggestionTrigger: (_param22: UseSuggestionTriggerOptions) => {
   trigger: () => void;
   disabled: boolean;
 };

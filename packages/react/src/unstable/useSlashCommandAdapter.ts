@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import type {
   Unstable_TriggerAdapter,
   Unstable_TriggerItem,
@@ -61,34 +61,51 @@ export function unstable_useSlashCommandAdapter(
   const { commands, removeOnExecute } = options;
 
   const commandsRef = useRef(commands);
-  commandsRef.current = commands;
+  const committedItemsRef = useRef<readonly Unstable_TriggerItem[]>(undefined);
+  const nextItems = commands.map(toItem);
+  // A referential cache, never state: `items` is always structurally equal to
+  // `nextItems`, so the render-time read cannot change what the adapter shows.
+  const items = areTriggerItemsEqual(committedItemsRef.current, nextItems)
+    ? committedItemsRef.current
+    : nextItems;
 
-  return useMemo(() => {
-    const adapter: Unstable_TriggerAdapter = {
+  // The adapter's callbacks must only observe commands from committed renders.
+  useLayoutEffect(() => {
+    commandsRef.current = commands;
+    committedItemsRef.current = items;
+  }, [commands, items]);
+
+  const adapter = useMemo<Unstable_TriggerAdapter>(
+    () => ({
       categories: () => [],
       categoryItems: () => [],
       search: (query: string) => {
         const lower = query.toLowerCase();
-        return commandsRef.current
-          .filter((c) => matchesQuery(c, lower))
-          .map(toItem);
+        return items.filter((item) => matchesQuery(item, lower));
       },
-    };
+    }),
+    [items],
+  );
 
-    const action: Unstable_SlashCommandAction = {
+  const action = useMemo<Unstable_SlashCommandAction>(
+    () => ({
       onExecute: (item) => {
         commandsRef.current.find((c) => c.id === item.id)?.execute();
       },
       ...(removeOnExecute !== undefined ? { removeOnExecute } : {}),
-    };
+    }),
+    [removeOnExecute],
+  );
 
-    return {
+  return useMemo(
+    () => ({
       adapter,
       action,
       ...(options.iconMap ? { iconMap: options.iconMap } : {}),
       ...(options.fallbackIcon ? { fallbackIcon: options.fallbackIcon } : {}),
-    };
-  }, [removeOnExecute, options.iconMap, options.fallbackIcon]);
+    }),
+    [adapter, action, options.iconMap, options.fallbackIcon],
+  );
 }
 
 function toItem(cmd: Unstable_SlashCommand): Unstable_TriggerItem {
@@ -101,10 +118,28 @@ function toItem(cmd: Unstable_SlashCommand): Unstable_TriggerItem {
   };
 }
 
-function matchesQuery(cmd: Unstable_SlashCommand, lower: string): boolean {
+function matchesQuery(item: Unstable_TriggerItem, lower: string): boolean {
   if (!lower) return true;
-  if (cmd.id.toLowerCase().includes(lower)) return true;
-  if (cmd.label?.toLowerCase().includes(lower)) return true;
-  if (cmd.description?.toLowerCase().includes(lower)) return true;
+  if (item.id.toLowerCase().includes(lower)) return true;
+  if (item.label.toLowerCase().includes(lower)) return true;
+  if (item.description?.toLowerCase().includes(lower)) return true;
   return false;
+}
+
+function areTriggerItemsEqual(
+  previous: readonly Unstable_TriggerItem[] | undefined,
+  next: readonly Unstable_TriggerItem[],
+): previous is readonly Unstable_TriggerItem[] {
+  if (!previous || previous.length !== next.length) return false;
+
+  return previous.every((item, index) => {
+    const nextItem = next[index];
+    return (
+      nextItem !== undefined &&
+      item.id === nextItem.id &&
+      item.label === nextItem.label &&
+      item.description === nextItem.description &&
+      item.metadata?.icon === nextItem.metadata?.icon
+    );
+  });
 }

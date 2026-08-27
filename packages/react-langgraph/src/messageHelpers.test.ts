@@ -3,6 +3,7 @@ import {
   getPendingToolCallGroups,
   getPendingToolCalls,
   pendingToolCallGroupKey,
+  filterUIMessagesBySurvivingIds,
 } from "./messageHelpers";
 import type { LangChainMessage } from "./types";
 
@@ -135,5 +136,63 @@ describe("getPendingToolCalls", () => {
       { id: "tc-1", name: "a", args: {} },
       { id: "tc-2", name: "b", args: {} },
     ]);
+  });
+});
+
+describe("filterUIMessagesBySurvivingIds", () => {
+  const survivors = [{ type: "ai" as const, id: "ai-1", content: "" }];
+
+  it("prunes ui messages whose python sdk parent no longer survives", () => {
+    const kept = filterUIMessagesBySurvivingIds(
+      [
+        {
+          type: "ui",
+          id: "u1",
+          name: "w",
+          props: {},
+          metadata: { message_id: "ai-1" },
+        },
+        {
+          type: "ui",
+          id: "u2",
+          name: "w",
+          props: {},
+          metadata: { message_id: "gone" },
+        },
+      ],
+      survivors,
+    );
+    expect(kept.map((ui) => ui.id)).toEqual(["u1"]);
+  });
+
+  it("prunes ui messages whose js sdk parent no longer survives", () => {
+    const kept = filterUIMessagesBySurvivingIds(
+      [
+        {
+          type: "ui",
+          id: "u1",
+          name: "w",
+          props: {},
+          metadata: { id: "ai-1" },
+        },
+        {
+          type: "ui",
+          id: "u2",
+          name: "w",
+          props: {},
+          metadata: { id: "gone" },
+        },
+      ],
+      survivors,
+    );
+    expect(kept.map((ui) => ui.id)).toEqual(["u1"]);
+  });
+
+  it("keeps orphan ui messages without a parent id", () => {
+    const kept = filterUIMessagesBySurvivingIds(
+      [{ type: "ui", id: "u1", name: "w", props: {}, metadata: {} }],
+      survivors,
+    );
+    expect(kept.map((ui) => ui.id)).toEqual(["u1"]);
   });
 });

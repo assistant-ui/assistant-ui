@@ -736,6 +736,23 @@ describe("convertLangChainBaseMessage reasoning content parts", () => {
     ]);
   });
 
+  it("falls back to the reasoning string when summary is empty", () => {
+    const result = convertLangChainBaseMessage(
+      aiMessage([
+        {
+          type: "reasoning",
+          summary: [],
+          reasoning: "thinking out loud",
+        },
+      ]),
+      {},
+    );
+
+    expect(contentOf(result)).toEqual([
+      { type: "reasoning", text: "thinking out loud" },
+    ]);
+  });
+
   it("does not throw when a reasoning block omits both summary and reasoning", () => {
     const result = convertLangChainBaseMessage(
       aiMessage([{ type: "reasoning" }]),
