@@ -77,6 +77,24 @@ export const examples = defineCollections({
   },
 });
 
+export const design = defineCollections({
+  type: "doc",
+  dir: "content/design",
+  schema: frontmatterSchema.extend({
+    links: z
+      .array(
+        z.object({
+          label: z.string(),
+          url: z.string(),
+        }),
+      )
+      .optional(),
+  }),
+  postprocess: {
+    includeProcessedMarkdown: true,
+  },
+});
+
 export const standalone = defineCollections({
   type: "doc",
   dir: "content/standalone",

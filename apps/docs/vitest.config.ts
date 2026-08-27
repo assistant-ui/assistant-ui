@@ -16,6 +16,19 @@ export default {
         __dirname,
         "../../packages/ui/src/hooks/use-mobile",
       ),
+      "@/components/ui": resolve(
+        __dirname,
+        "../../packages/ui/src/components/ui/base",
+      ),
+      "@/components/assistant-ui/markdown-text": resolve(
+        __dirname,
+        "./components/assistant-ui/markdown-text",
+      ),
+      "@/components/assistant-ui": resolve(
+        __dirname,
+        "../../packages/ui/src/components/assistant-ui",
+      ),
+      "@/lib/utils": resolve(__dirname, "../../packages/ui/src/lib/utils"),
       "@": resolve(__dirname),
     },
   },
