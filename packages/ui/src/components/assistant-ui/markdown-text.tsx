@@ -4,7 +4,6 @@ import "@assistant-ui/react-markdown/styles/dot.css";
 
 import {
   type CodeHeaderProps,
-  type MarkdownTextPrimitiveProps,
   MarkdownTextPrimitive,
   unstable_memoizeMarkdownComponents as memoizeMarkdownComponents,
   useIsMarkdownCodeBlock,
@@ -19,7 +18,7 @@ import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
 type MarkdownTextProps = Partial<TextMessagePartProps> & {
-  components?: MarkdownTextPrimitiveProps["components"];
+  components?: Parameters<typeof memoizeMarkdownComponents>[0];
 };
 
 const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
@@ -67,7 +66,7 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   );
 };
 
-const rawDefaultComponents = {
+const rawDefaultComponents: Parameters<typeof memoizeMarkdownComponents>[0] = {
   h1: ({ className, ...props }) => (
     <h1
       className={cn(
