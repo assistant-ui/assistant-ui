@@ -34,6 +34,8 @@
     "test:watch": "vitest"
   },
   "dependencies": {
+    "@assistant-ui/react-markdown": "^0.14.12",
+    "@types/hast": "^3.0.5",
     "rehype-harden": "^1.1.8",
     "rehype-raw": "^7.0.0",
     "rehype-sanitize": "^6.0.0",
@@ -71,7 +73,6 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@streamdown/code": "^1.1.1",
     "@testing-library/react": "^16.3.2",
-    "@types/hast": "^3.0.5",
     "@types/react": "^19.2.18",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",

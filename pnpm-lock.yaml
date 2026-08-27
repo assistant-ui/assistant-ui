@@ -4566,6 +4566,9 @@ importers:
       '@radix-ui/react-use-callback-ref':
         specifier: ^1.1.4
         version: 1.1.4(@types/react@19.2.18)(react@19.2.8)
+      '@types/hast':
+        specifier: ^3.0.5
+        version: 3.0.5
       classnames:
         specifier: ^2.5.1
         version: 2.5.1
@@ -4579,9 +4582,6 @@ importers:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
         version: link:../x-buildutils
-      '@types/hast':
-        specifier: ^3.0.5
-        version: 3.0.5
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18
@@ -4809,6 +4809,9 @@ importers:
 
   packages/react-streamdown:
     dependencies:
+      '@assistant-ui/react-markdown':
+        specifier: ^0.14.12
+        version: link:../react-markdown
       '@streamdown/cjk':
         specifier: ^1.0.0
         version: 1.0.3(@types/mdast@4.0.4)(micromark-util-types@2.0.2)(micromark@4.0.2(supports-color@10.2.2))(react@19.2.8)(supports-color@10.2.2)(unified@11.0.5)
@@ -4818,6 +4821,9 @@ importers:
       '@streamdown/mermaid':
         specifier: ^1.0.0
         version: 1.0.2(react@19.2.8)
+      '@types/hast':
+        specifier: ^3.0.5
+        version: 3.0.5
       rehype-harden:
         specifier: ^1.1.8
         version: 1.1.8
@@ -4846,9 +4852,6 @@ importers:
       '@testing-library/react':
         specifier: ^16.3.2
         version: 16.3.2(@testing-library/dom@10.4.1)(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
-      '@types/hast':
-        specifier: ^3.0.5
-        version: 3.0.5
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18

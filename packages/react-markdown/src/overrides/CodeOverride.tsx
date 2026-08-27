@@ -13,6 +13,7 @@ import type {
   SyntaxHighlighterProps,
 } from "./types";
 import { DefaultCodeBlock } from "./CodeBlock";
+import { parseLanguageClass } from "../code-fence";
 import { useCallbackRef } from "@radix-ui/react-use-callback-ref";
 import { withDefaultProps } from "./withDefaults";
 import { DefaultCodeBlockContent } from "./defaultComponents";
@@ -41,8 +42,7 @@ const CodeBlockOverride: FC<CodeOverrideProps> = ({
     <Code {...getCodeProps(props)} />
   ));
 
-  const language =
-    /language-([^\s]+)/.exec(codeProps.className || "")?.[1] ?? "";
+  const language = parseLanguageClass(codeProps.className);
 
   // if the code content is not string (due to rehype plugins), return a default code block
   if (typeof children !== "string") {
