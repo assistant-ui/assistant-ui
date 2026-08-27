@@ -40,11 +40,11 @@ const useShallowStable = <T extends Record<string, unknown> | undefined>(
 const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
   const stableComponents = useShallowStable(components);
   const markdownComponents = useMemo(() => {
-    if (!stableComponents) return memoizedDefaultComponents;
-    return memoizeMarkdownComponents({
-      ...rawDefaultComponents,
-      ...stableComponents,
-    });
+    if (!stableComponents) return defaultComponents;
+    return {
+      ...defaultComponents,
+      ...memoizeMarkdownComponents(stableComponents),
+    };
   }, [stableComponents]);
 
   return (
@@ -83,7 +83,7 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   );
 };
 
-const rawDefaultComponents: Parameters<typeof memoizeMarkdownComponents>[0] = {
+const defaultComponents = memoizeMarkdownComponents({
   h1: ({ className, ...props }) => (
     <h1
       className={cn(
@@ -263,7 +263,4 @@ const rawDefaultComponents: Parameters<typeof memoizeMarkdownComponents>[0] = {
     );
   },
   CodeHeader,
-};
-
-const memoizedDefaultComponents =
-  memoizeMarkdownComponents(rawDefaultComponents);
+});
