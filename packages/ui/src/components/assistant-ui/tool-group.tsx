@@ -124,22 +124,14 @@ function ToolGroupTrigger({
       <span
         data-slot="tool-group-trigger-label"
         className={cn(
-          "aui-tool-group-trigger-label-wrapper relative inline-block text-start leading-none font-medium",
+          "aui-tool-group-trigger-label-wrapper inline-block text-start text-xs leading-none font-medium",
           "group-data-[variant=ghost]/tool-group-root:font-normal",
           "group-data-[variant=outline]/tool-group-root:grow",
           "group-data-[variant=muted]/tool-group-root:grow",
+          active && "shimmer motion-reduce:animate-none",
         )}
       >
-        <span className="text-xs">{label}</span>
-        {active && (
-          <span
-            aria-hidden
-            data-slot="tool-group-trigger-shimmer"
-            className="aui-tool-group-trigger-shimmer shimmer pointer-events-none absolute inset-0 text-xs motion-reduce:animate-none"
-          >
-            {label}
-          </span>
-        )}
+        {label}
       </span>
       <ChevronDownIcon
         data-slot="tool-group-trigger-chevron"

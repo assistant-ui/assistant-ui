@@ -37,6 +37,9 @@ export const LoadingElapsedTime = ({
   useEffect(() => {
     if (!isRunning) return;
 
+    fallbackStartTimeRef.current = Date.now();
+    setNow(fallbackStartTimeRef.current);
+
     const interval = setInterval(() => {
       setNow(Date.now());
     }, 1000);

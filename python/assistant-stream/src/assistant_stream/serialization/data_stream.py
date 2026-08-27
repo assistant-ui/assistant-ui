@@ -14,17 +14,10 @@ from assistant_stream.serialization.heartbeat import (
     HeartbeatOption,
 )
 from assistant_stream.serialization.stream_encoder import StreamEncoder
-from assistant_stream.state_proxy import StateProxy
+from assistant_stream.serialization.tool_args_settle import ToolCallArgsSettler
+from assistant_stream.state_proxy import StateProxyJSONEncoder
 
 logger = logging.getLogger(__name__)
-
-
-class StateProxyJSONEncoder(json.JSONEncoder):
-    """Custom JSON encoder that can handle StateProxy objects."""
-    def default(self, obj: Any) -> Any:
-        if isinstance(obj, StateProxy):
-            return obj._get_value()
-        return super().default(obj)
 
 
 class DataStreamEncoder(StreamEncoder):
@@ -110,31 +103,12 @@ class DataStreamEncoder(StreamEncoder):
     async def encode_stream(
         self, stream: AsyncGenerator[AssistantStreamChunk, None]
     ) -> AsyncGenerator[str, None]:
-        open_tool_call_args: dict[str, bool] = {}
-        settled_tool_call_args: set[str] = set()
-        warned_reasons: set[str] = set()
-
-        def warn_once(reason: str, detail: str) -> None:
-            if reason in warned_reasons:
-                return
-            warned_reasons.add(reason)
+        def warn(reason: str, detail: str) -> None:
             logger.warning("Dropped data-stream chunk (%s): %s", reason, detail)
 
         def finish_tool_call_args(
-            tool_call_id: str, args_text_delta: str = ""
+            tool_call_id: str, args_text_delta: str, _: bool
         ) -> list[str]:
-            has_args_text = open_tool_call_args.pop(tool_call_id, None)
-            if has_args_text is None:
-                return []
-            settled_tool_call_args.add(tool_call_id)
-            if not args_text_delta and not has_args_text:
-                args_text_delta = "{}"
-
-            frames: list[str] = []
-            # A decoder that predates `isFinal` appends this delta and settles
-            # on what it has, and it skips its own empty-object default once
-            # any delta has arrived. The frame therefore has to carry the
-            # default itself rather than leave it to the decoder.
             finish = self.encode_chunk(
                 ToolCallArgsTextFinishChunk(
                     tool_call_id=tool_call_id,
@@ -142,37 +116,28 @@ class DataStreamEncoder(StreamEncoder):
                 )
             )
             if finish is not None:
-                frames.append(finish)
-            return frames
+                return [finish]
+            return []
 
-        def finish_open_tool_call_args() -> list[str]:
-            frames: list[str] = []
-            for tool_call_id in tuple(open_tool_call_args):
-                frames.extend(finish_tool_call_args(tool_call_id))
-            return frames
+        tool_call_args = ToolCallArgsSettler(
+            finish_tool_call_args,
+            warn,
+            emit_empty_args_text=True,
+        )
 
         async for chunk in stream:
             if chunk.type in ("step-finish", "error"):
-                for finish in finish_open_tool_call_args():
+                for finish in tool_call_args.finish_open():
                     yield finish
             if chunk.type == "tool-call-begin":
-                settled_tool_call_args.discard(chunk.tool_call_id)
-                open_tool_call_args[chunk.tool_call_id] = False
+                tool_call_args.begin(chunk.tool_call_id)
             elif chunk.type == "tool-result":
-                settled_tool_call_args.add(chunk.tool_call_id)
-                open_tool_call_args.pop(chunk.tool_call_id, None)
+                tool_call_args.settle_without_emitting(chunk.tool_call_id)
             elif chunk.type == "tool-call-delta":
-                if chunk.tool_call_id not in open_tool_call_args:
-                    warn_once(
-                        "settled-tool-call-id"
-                        if chunk.tool_call_id in settled_tool_call_args
-                        else "unknown-tool-call-id",
-                        f"tool-call-delta for {chunk.tool_call_id}",
-                    )
+                if not tool_call_args.append(chunk.tool_call_id):
                     continue
-                open_tool_call_args[chunk.tool_call_id] = True
             elif chunk.type == "tool-call-args-text-finish":
-                frames = finish_tool_call_args(
+                frames = tool_call_args.finish(
                     chunk.tool_call_id, chunk.args_text_delta
                 )
                 if not frames:
@@ -184,7 +149,7 @@ class DataStreamEncoder(StreamEncoder):
             if encoded is None:
                 continue
             yield encoded
-        for finish in finish_open_tool_call_args():
+        for finish in tool_call_args.finish_open():
             yield finish
 
 

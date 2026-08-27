@@ -34,6 +34,31 @@ function toCloudThread(t: {
   };
 }
 
+const CLOUD_THREAD_PAGE_SIZE = 20;
+
+async function listAllThreads(
+  cloud: UseThreadsOptions["cloud"],
+  isArchived: boolean,
+) {
+  const threads: Parameters<typeof toCloudThread>[0][] = [];
+  let after: string | undefined;
+
+  while (true) {
+    const response = await cloud.threads.list({
+      is_archived: isArchived,
+      limit: CLOUD_THREAD_PAGE_SIZE,
+      ...(after ? { after } : {}),
+    });
+    threads.push(...response.threads);
+
+    if (response.threads.length < CLOUD_THREAD_PAGE_SIZE) return threads;
+
+    const nextAfter = response.threads.at(-1)?.id;
+    if (!nextAfter || nextAfter === after) return threads;
+    after = nextAfter;
+  }
+}
+
 export function useThreads(options: UseThreadsOptions): UseThreadsResult {
   const { cloud, includeArchived = false, enabled = true } = options;
   const includeArchivedRef = useRef(includeArchived);
@@ -140,17 +165,15 @@ export function useThreads(options: UseThreadsOptions): UseThreadsResult {
         async (commit) => {
           // Keep includeArchived refreshes atomic; withAction preserves the
           // previous complete list and exposes either request's failure.
-          const responses = includeArchived
+          const threadGroups = includeArchived
             ? await Promise.all([
-                cloud.threads.list({ is_archived: false }),
-                cloud.threads.list({ is_archived: true }),
+                listAllThreads(cloud, false),
+                listAllThreads(cloud, true),
               ])
-            : [await cloud.threads.list({ is_archived: false })];
+            : [await listAllThreads(cloud, false)];
           const nextThreads = Array.from(
             new Map(
-              responses
-                .flatMap((response) => response.threads)
-                .map((thread) => [thread.id, thread] as const),
+              threadGroups.flat().map((thread) => [thread.id, thread] as const),
             ).values(),
             toCloudThread,
           );

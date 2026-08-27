@@ -63,6 +63,37 @@ const OPAQUE_FIELDS = new Set([
   "scopes",
 ]);
 
+const JSONRPC_STATE_MAP: Record<string, string> = {
+  "input-required": "input_required",
+  "auth-required": "auth_required",
+  unknown: "unspecified",
+};
+
+// JSON-RPC file parts nest the payload under `file`; the internal A2APart is
+// flat, so the nested fields map onto url/raw/mediaType/filename.
+function normalizeParts(value: unknown[]): unknown[] {
+  return value.map((raw) => {
+    const part = normalizeKeys(raw, false);
+    if (part === null || typeof part !== "object" || Array.isArray(part))
+      return part;
+    const record = part as Record<string, unknown>;
+    if (record.kind === undefined) return part;
+    const { kind, ...rest } = record;
+    const file = rest.file;
+    if (kind !== "file" || file === null || typeof file !== "object")
+      return rest;
+    const { file: _file, ...others } = rest;
+    const nested = file as Record<string, unknown>;
+    return {
+      ...others,
+      ...(nested.uri !== undefined ? { url: nested.uri } : {}),
+      ...(nested.bytes !== undefined ? { raw: nested.bytes } : {}),
+      ...(nested.mimeType !== undefined ? { mediaType: nested.mimeType } : {}),
+      ...(nested.name !== undefined ? { filename: nested.name } : {}),
+    };
+  });
+}
+
 function normalizeKeys(obj: unknown, opaque = false): unknown {
   if (Array.isArray(obj)) return obj.map((v) => normalizeKeys(v, opaque));
   if (obj !== null && typeof obj === "object") {
@@ -80,12 +111,15 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
       const camelKey = toCamelCase(key);
       const isOpaqueChild = OPAQUE_FIELDS.has(camelKey);
 
-      if (
-        camelKey === "state" &&
-        typeof value === "string" &&
-        value.startsWith("TASK_STATE_")
-      ) {
-        result[camelKey] = value.slice(11).toLowerCase();
+      if (camelKey === "state" && typeof value === "string") {
+        // Proto-style (TASK_STATE_WORKING) and the JSON-RPC state names map
+        // onto the internal snake_case states; anything unrecognized is
+        // preserved verbatim.
+        if (value.startsWith("TASK_STATE_")) {
+          result[camelKey] = value.slice(11).toLowerCase();
+        } else {
+          result[camelKey] = JSONRPC_STATE_MAP[value] ?? value;
+        }
       } else if (
         camelKey === "role" &&
         typeof value === "string" &&
@@ -94,9 +128,11 @@ function normalizeKeys(obj: unknown, opaque = false): unknown {
         result[camelKey] = value.slice(5).toLowerCase();
       } else if (camelKey === "content" && Array.isArray(value)) {
         // v0.3 servers used "content" for message/artifact parts; normalize to "parts" for backward compat
-        result.parts = normalizeKeys(value, false);
-      } else if (camelKey !== "parts" || !("parts" in result)) {
+        result.parts = normalizeParts(value);
+      } else if (camelKey === "parts" && Array.isArray(value)) {
         // dedup: "content" was already mapped to parts above; don't overwrite
+        if (!("parts" in result)) result.parts = normalizeParts(value);
+      } else if (camelKey !== "parts" || !("parts" in result)) {
         result[camelKey] = isOpaqueChild ? value : normalizeKeys(value, false);
       }
     }
@@ -123,33 +159,78 @@ function toWireMessage(msg: A2AMessage): unknown {
 function discriminateStreamResponse(
   data: Record<string, unknown>,
 ): A2AStreamEvent | null {
-  if ("task" in data && data.task) {
-    return { type: "task", task: data.task as A2ATask };
+  if ("task" in data) {
+    const task = toWrappedTask(data.task);
+    if (task) return { type: "task", task };
   }
-  if ("message" in data && data.message) {
-    return { type: "message", message: data.message as A2AMessage };
+  if ("message" in data) {
+    const message = toWrappedMessage(data.message);
+    if (message) return { type: "message", message };
   }
-  if ("statusUpdate" in data && data.statusUpdate) {
-    return {
-      type: "statusUpdate",
-      event: data.statusUpdate as A2AStreamEvent extends {
-        type: "statusUpdate";
-        event: infer E;
-      }
-        ? E
-        : never,
-    };
+  if ("statusUpdate" in data) {
+    const statusUpdate = toWrappedStatusUpdate(data.statusUpdate);
+    if (statusUpdate) {
+      return {
+        type: "statusUpdate",
+        event: statusUpdate as A2AStreamEvent extends {
+          type: "statusUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+    }
   }
-  if ("artifactUpdate" in data && data.artifactUpdate) {
-    return {
-      type: "artifactUpdate",
-      event: data.artifactUpdate as A2AStreamEvent extends {
-        type: "artifactUpdate";
-        event: infer E;
-      }
-        ? E
-        : never,
-    };
+  if ("artifactUpdate" in data) {
+    const artifactUpdate = toWrappedArtifactUpdate(data.artifactUpdate);
+    if (artifactUpdate) {
+      return {
+        type: "artifactUpdate",
+        event: artifactUpdate as A2AStreamEvent extends {
+          type: "artifactUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+    }
+  }
+  // JSON-RPC streaming results are the event itself, flat, discriminated by
+  // `kind` (per the A2A JSON-RPC schema), rather than wrapped in a
+  // REST-style single-key envelope. The field sets cannot collide with the
+  // wrapper keys above, so this is a pure fallthrough.
+  const { kind, ...flat } = data;
+  switch (kind) {
+    case "task":
+      if (!isTask(flat)) break;
+      return { type: "task", task: flat };
+    case "message":
+      if (!isMessage(flat)) break;
+      return { type: "message", message: flat };
+    case "status-update": {
+      if (!isStatusUpdate(flat)) break;
+      const { final: _final, ...event } = flat;
+      return {
+        type: "statusUpdate",
+        event: event as unknown as A2AStreamEvent extends {
+          type: "statusUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+    }
+    case "artifact-update":
+      if (!isArtifactUpdate(flat)) break;
+      return {
+        type: "artifactUpdate",
+        event: flat as unknown as A2AStreamEvent extends {
+          type: "artifactUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
   }
   return null;
 }
@@ -197,8 +278,137 @@ const isMessage = (value: unknown): value is A2AMessage =>
   Array.isArray(value.parts) &&
   value.parts.every(isRecord);
 
+// Legacy wrappers use ProtoJSON, where omitted and null fields decode to proto
+// defaults. Normalize those defaults before enforcing semantic requirements.
+// Filling a null id with the ProtoJSON default does not make it a string, and
+// the shape guards below check the fields they name rather than the ids. The
+// runtime reads these straight into task state and the next request body.
+const hasStringIds = (
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean => keys.every((key) => typeof value[key] === "string");
+
+const toWrappedTaskStatus = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  if (!isRecord(value)) return null;
+  return {
+    ...value,
+    state: value.state == null ? "unspecified" : value.state,
+  };
+};
+
+const toWrappedTask = (value: unknown): A2ATask | null => {
+  if (!isRecord(value)) return null;
+  const status = toWrappedTaskStatus(value.status);
+  if (!status) return null;
+
+  const task = {
+    ...value,
+    contextId: value.contextId == null ? "" : value.contextId,
+    status,
+  };
+  return isTask(task) && hasStringIds(task, ["contextId"]) ? task : null;
+};
+
+const toWrappedMessage = (value: unknown): A2AMessage | null => {
+  if (!isRecord(value)) return null;
+
+  const message = {
+    ...value,
+    contextId: value.contextId == null ? "" : value.contextId,
+    taskId: value.taskId == null ? "" : value.taskId,
+    role: value.role == null ? "unspecified" : value.role,
+    parts: value.parts == null ? [] : value.parts,
+  };
+  return isMessage(message) && hasStringIds(message, ["contextId", "taskId"])
+    ? message
+    : null;
+};
+
+const isStatusUpdate = (
+  value: unknown,
+  allowEmptyTaskId = false,
+): value is Record<string, unknown> =>
+  isRecord(value) &&
+  typeof value.taskId === "string" &&
+  (allowEmptyTaskId || value.taskId.length > 0) &&
+  isRecord(value.status) &&
+  isTaskState(value.status.state);
+
+const toWrappedStatusUpdate = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  if (!isRecord(value) || !isRecord(value.status)) return null;
+
+  const statusUpdate = {
+    ...value,
+    taskId: value.taskId == null ? "" : value.taskId,
+    contextId: value.contextId == null ? "" : value.contextId,
+    status: toWrappedTaskStatus(value.status),
+  };
+  return isStatusUpdate(statusUpdate, true) &&
+    hasStringIds(statusUpdate, ["taskId", "contextId"])
+    ? statusUpdate
+    : null;
+};
+
+const isArtifact = (value: unknown): value is Record<string, unknown> =>
+  isRecord(value) &&
+  typeof value.artifactId === "string" &&
+  Array.isArray(value.parts) &&
+  value.parts.every(isRecord);
+
+const isArtifactUpdate = (value: unknown): value is Record<string, unknown> =>
+  isRecord(value) && isArtifact(value.artifact);
+
+const toWrappedArtifact = (value: unknown): Record<string, unknown> | null => {
+  if (!isRecord(value)) return null;
+
+  const artifact = {
+    ...value,
+    artifactId: value.artifactId == null ? "" : value.artifactId,
+    parts: value.parts == null ? [] : value.parts,
+  };
+  return isArtifact(artifact) ? artifact : null;
+};
+
+const toWrappedArtifactUpdate = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  if (!isRecord(value)) return null;
+  const artifact = toWrappedArtifact(value.artifact);
+  if (!artifact) return null;
+
+  const artifactUpdate = {
+    ...value,
+    taskId: value.taskId == null ? "" : value.taskId,
+    contextId: value.contextId == null ? "" : value.contextId,
+    artifact,
+  };
+  return isArtifactUpdate(artifactUpdate) &&
+    hasStringIds(artifactUpdate, ["taskId", "contextId"])
+    ? artifactUpdate
+    : null;
+};
+
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");
+
+const toJsonRpcError = (error: unknown): A2AError => {
+  const rpcError = error as { code?: number; message?: string; data?: unknown };
+  return new A2AError({
+    code: rpcError.code ?? -1,
+    status: "JSONRPC_ERROR",
+    message: rpcError.message ?? "A2A JSON-RPC error",
+    details:
+      rpcError.data === undefined
+        ? undefined
+        : Array.isArray(rpcError.data)
+          ? rpcError.data
+          : [rpcError.data],
+  });
+};
 
 const invalidAgentCard = (): never => {
   throw new Error(
@@ -522,6 +732,19 @@ export class A2AClient {
       await this.throwResponseError(response);
     }
     const json = await response.json();
+    if (json && typeof json === "object" && "jsonrpc" in json) {
+      if ("error" in json && json.error) {
+        throw toJsonRpcError(json.error);
+      }
+      if ("result" in json) {
+        const result = normalizeKeys(json.result);
+        if (isRecord(result) && typeof result.kind === "string") {
+          const { kind: _kind, ...rest } = result;
+          return rest as T;
+        }
+        return result as T;
+      }
+    }
     return normalizeKeys(json) as T;
   }
 
@@ -798,13 +1021,13 @@ export class A2AClient {
       try {
         let parsed = JSON.parse(event.data);
 
-        if (
-          parsed &&
-          typeof parsed === "object" &&
-          "jsonrpc" in parsed &&
-          "result" in parsed
-        ) {
-          parsed = parsed.result;
+        if (parsed && typeof parsed === "object" && "jsonrpc" in parsed) {
+          if ("error" in parsed && parsed.error) {
+            throw toJsonRpcError(parsed.error);
+          }
+          if ("result" in parsed) {
+            parsed = parsed.result;
+          }
         }
 
         const normalized = normalizeKeys(parsed) as Record<string, unknown>;
@@ -812,6 +1035,7 @@ export class A2AClient {
         if (!streamEvent) noteSkip(event.data, "unrecognized event shape");
         return streamEvent;
       } catch (error) {
+        if (error instanceof A2AError) throw error;
         noteSkip(
           event.data,
           error instanceof Error ? error.message : String(error),

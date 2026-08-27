@@ -505,6 +505,45 @@ describe("openPiEventStream", () => {
     expect(errors).toHaveLength(1);
   });
 
+  it("notifies each successful connection before its events", async () => {
+    let calls = 0;
+    const onConnect = vi.fn();
+    const fetchImpl = (async () => {
+      calls += 1;
+      if (calls === 1) {
+        return new Response(
+          new ReadableStream<Uint8Array>({
+            start(controller) {
+              controller.close();
+            },
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "text/event-stream" },
+          },
+        );
+      }
+      return sseResponse([
+        sseFrame({ type: "agent_start", threadId: "t1", seq: 1 }),
+      ]);
+    }) as unknown as typeof fetch;
+
+    await new Promise<void>((resolve) => {
+      const close = openPiEventStream({
+        url: "/events",
+        fetchImpl,
+        reconnectDelay: () => Promise.resolve(),
+        onConnect,
+        onEvent: () => {
+          close();
+          resolve();
+        },
+      });
+    });
+
+    expect(onConnect).toHaveBeenCalledTimes(2);
+  });
+
   it("releases a completed response body before reconnecting", async () => {
     const body = new ReadableStream<Uint8Array>({
       start(controller) {

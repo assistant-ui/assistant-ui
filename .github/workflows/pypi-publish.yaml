@@ -31,7 +31,7 @@ jobs:
     steps:
       - name: Resolve release commit SHA
         id: release-sha
-        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
         with:
           script: |
             const dispatchReleaseShaRaw = context.payload?.client_payload?.releaseSha;
@@ -103,7 +103,7 @@ jobs:
       DEFAULT_BRANCH: ${{ needs.approve.outputs.default_branch }}
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 0
           ref: ${{ env.RELEASE_SHA }}
@@ -232,14 +232,14 @@ jobs:
       VERSION: ${{ needs.summary.outputs.version }}
     steps:
       - name: Checkout code repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
           fetch-depth: 1
           fetch-tags: true
           ref: ${{ env.RELEASE_SHA }}
 
       - name: Install uv
-        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # ratchet:astral-sh/setup-uv@v10.0.1
         with:
           # No cache - hardened against cache poisoning for sensitive publish operations
           enable-cache: false
@@ -268,7 +268,7 @@ jobs:
       # PyPI trusted publishing requires this workflow filename and the
       # `pypi publish` environment to match the project's trusted-publisher config.
       - name: Publish to PyPI via OIDC
-        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # v1.14.2
+        uses: pypa/gh-action-pypi-publish@dc37677b2e1c63e2034f94d8a5b11f265b73ba33 # ratchet:pypa/gh-action-pypi-publish@v1.14.2
         with:
           packages-dir: ${{ env.PYTHON_PACKAGE_DIR }}/dist
 

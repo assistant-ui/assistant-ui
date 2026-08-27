@@ -1132,6 +1132,7 @@ interface PiCustomMessage {
 interface PiEventStreamOptions {
   url: string;
   onEvent: (event: PiAnyClientEvent) => void;
+  onConnect?: () => void;
   onError?: (error: unknown) => void;
   fetchImpl?: typeof fetch;
   headers?: Record<string, string>;
@@ -1383,6 +1384,7 @@ declare class PiThreadController implements PiThreadControllerLike {
     scheduleNotify?: PiNotificationScheduler;
   });
   getState(): PiThreadState;
+  getStateSnapshot(): PiThreadState;
   getProjectedMessages(): readonly ThreadMessageLike[];
   getMessageRepository(): ExportedMessageRepository;
   getVersion(): number;
@@ -1411,6 +1413,7 @@ declare class PiThreadController implements PiThreadControllerLike {
 
 interface PiThreadControllerLike {
   getState(): PiThreadState;
+  getStateSnapshot?(): PiThreadState;
   getProjectedMessages(): readonly ThreadMessageLike[];
   getMessageRepository(): ExportedMessageRepository;
   getVersion(): number;
@@ -2202,6 +2205,10 @@ type ToolCallMessagePartMcpMetadata = {
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
   readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "tool-calls";
+  readonly error?: ReadonlyJSONValue;
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {

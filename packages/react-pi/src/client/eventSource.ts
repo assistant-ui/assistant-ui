@@ -6,9 +6,9 @@
  * format and reconnection live here.
  *
  * Two pieces:
- * - `createSseDecoder()` — a pure, incremental SSE frame parser. Feed it text
- *   chunks (which may split a frame mid-line); it returns the complete frames so
- *   far. This is the unit-tested core, with no network or browser dependency.
+ * - `createSseDecoder()` — an incremental SSE frame parser wrapping
+ *   assistant-stream's `SSEEventDecoder`. Feed it text chunks (which may split
+ *   a frame mid-line); it returns the complete frames so far.
  * - `openPiEventStream()` — a `fetch` + `ReadableStream` loop that feeds the
  *   decoder and emits parsed `PiAnyClientEvent`s. Snapshot-first reconnect: the
  *   server re-sends a `snapshot` on every (re)connect, so a dropped stream
@@ -17,6 +17,7 @@
  *
  * Browser-safe: imports no `@earendil-works/pi-*`.
  */
+import { SSEEventDecoder } from "assistant-stream/utils";
 import { isRecord } from "@assistant-ui/core/internal";
 import { isKnownPiClientEventType } from "../eventTypes";
 import type { PiAnyClientEvent } from "../types";
@@ -39,86 +40,18 @@ export interface SseFrame {
 
 /**
  * Incremental SSE frame parser. `push(chunk)` returns every frame completed by
- * that chunk; partial trailing data is buffered until its terminating blank
- * line arrives. Handles LF, CRLF, and CR line endings, `:`-comment heartbeats,
- * and multi-line `data:`.
+ * that chunk; partial trailing data is buffered by the shared decoder until its
+ * terminating blank line arrives.
  */
 export const createSseDecoder = () => {
-  let buffer = "";
-  let skipNextLineFeed = false;
-  let dataLines: string[] = [];
-  let eventName: string | undefined;
-  let lastId: string | undefined;
-
-  const resetFrame = () => {
-    dataLines = [];
-    eventName = undefined;
-  };
-
-  const handleLine = (line: string, out: SseFrame[]) => {
-    if (line === "") {
-      // Blank line dispatches the frame. A frame with no data lines (e.g. a
-      // lone `:` heartbeat followed by a blank line) is discarded.
-      if (dataLines.length === 0) {
-        resetFrame();
-        return;
-      }
-      const frame: SseFrame = { data: dataLines.join("\n") };
-      if (eventName !== undefined) frame.event = eventName;
-      if (lastId !== undefined) frame.id = lastId;
-      out.push(frame);
-      resetFrame();
-      return;
-    }
-    // Comment line (used for keep-alive); ignore.
-    if (line.startsWith(":")) return;
-
-    const colon = line.indexOf(":");
-    const field = colon === -1 ? line : line.slice(0, colon);
-    let value = colon === -1 ? "" : line.slice(colon + 1);
-    if (value.startsWith(" ")) value = value.slice(1);
-
-    switch (field) {
-      case "data":
-        dataLines.push(value);
-        break;
-      case "event":
-        eventName = value;
-        break;
-      case "id":
-        lastId = value;
-        break;
-      // `retry:` is ignored — reconnect cadence is owned by openPiEventStream.
-    }
-  };
-
+  const decoder = new SSEEventDecoder();
   return {
     push(chunk: string): SseFrame[] {
-      const out: SseFrame[] = [];
-      let lineStart = 0;
-
-      for (let index = 0; index < chunk.length; index++) {
-        const character = chunk[index]!;
-
-        if (skipNextLineFeed) {
-          skipNextLineFeed = false;
-          if (character === "\n") {
-            lineStart = index + 1;
-            continue;
-          }
-        }
-
-        if (character === "\n" || character === "\r") {
-          buffer += chunk.slice(lineStart, index);
-          handleLine(buffer, out);
-          buffer = "";
-          skipNextLineFeed = character === "\r";
-          lineStart = index + 1;
-        }
-      }
-
-      buffer += chunk.slice(lineStart);
-      return out;
+      return decoder.push(chunk).map(({ data, event, id }) => ({
+        ...(event === undefined ? {} : { event }),
+        data,
+        ...(id === undefined ? {} : { id }),
+      }));
     },
   };
 };
@@ -128,6 +61,8 @@ export interface PiEventStreamOptions {
   url: string;
   /** Called with each decoded `PiClientEvent`. */
   onEvent: (event: PiAnyClientEvent) => void;
+  /** Called after each successful SSE response is opened, before events. */
+  onConnect?: () => void;
   /** Non-fatal stream errors (network drop, bad JSON, reconnect-delay failures).
    * The loop reconnects after each; surface these for logging, not control flow. */
   onError?: (error: unknown) => void;
@@ -305,6 +240,7 @@ export const openPiEventStream = (
   const {
     url,
     onEvent,
+    onConnect,
     onError,
     fetchImpl = fetch,
     headers,
@@ -338,6 +274,20 @@ export const openPiEventStream = (
       reportEventCallbackError(callbackError);
     }
   };
+  const reportConnectCallbackError = (callbackError: unknown) => {
+    console.error(
+      "[react-pi] onConnect callback threw an error",
+      callbackError,
+    );
+  };
+  const emitConnect = () => {
+    if (!onConnect) return;
+    try {
+      void Promise.resolve(onConnect()).catch(reportConnectCallbackError);
+    } catch (callbackError) {
+      reportConnectCallbackError(callbackError);
+    }
+  };
 
   const run = async () => {
     while (!closed) {
@@ -356,10 +306,32 @@ export const openPiEventStream = (
           throw new Error(`Pi event stream failed: HTTP ${response.status}`);
         }
         validateEventStreamContentType(response);
+        emitConnect();
 
-        const decoder = createSseDecoder();
+        const sseDecoder = createSseDecoder();
         const reader = response.body.getReader();
         const textDecoder = new TextDecoder();
+        const handleFrame = (frame: { event?: string; data: string }) => {
+          if (frame.event === "ping" || frame.data === "") return;
+          let parsed: PiAnyClientEvent;
+          try {
+            parsed = parseEventStreamPayload(frame.data, expectedThreadId);
+          } catch (error) {
+            if (error instanceof InvalidKnownEventStreamPayloadError) {
+              needsSnapshotRecovery = true;
+              throw error;
+            }
+            reportError(error);
+            return;
+          }
+          if (
+            requestUrl === snapshotRecoveryUrl &&
+            parsed.type === "snapshot"
+          ) {
+            needsSnapshotRecovery = false;
+          }
+          if (!closed) emitEvent(parsed);
+        };
 
         let shouldCancel = true;
         let cancelPromise: Promise<void> | undefined;
@@ -388,26 +360,8 @@ export const openPiEventStream = (
               break;
             }
             const chunk = textDecoder.decode(value, { stream: true });
-            for (const frame of decoder.push(chunk)) {
-              if (frame.event === "ping" || frame.data === "") continue;
-              let parsed: PiAnyClientEvent;
-              try {
-                parsed = parseEventStreamPayload(frame.data, expectedThreadId);
-              } catch (error) {
-                if (error instanceof InvalidKnownEventStreamPayloadError) {
-                  needsSnapshotRecovery = true;
-                  throw error;
-                }
-                reportError(error);
-                continue;
-              }
-              if (
-                requestUrl === snapshotRecoveryUrl &&
-                parsed.type === "snapshot"
-              ) {
-                needsSnapshotRecovery = false;
-              }
-              if (!closed) emitEvent(parsed);
+            for (const frame of sseDecoder.push(chunk)) {
+              handleFrame(frame);
             }
           }
         } finally {

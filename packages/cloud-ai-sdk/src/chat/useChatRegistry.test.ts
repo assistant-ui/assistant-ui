@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
-import { renderHook } from "@testing-library/react";
+import { act, render, renderHook } from "@testing-library/react";
+import { createElement, startTransition, Suspense } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { useChatRegistry } from "./useChatRegistry";
 
@@ -141,5 +142,62 @@ describe("useChatRegistry", () => {
     rerender();
 
     expect(stop).not.toHaveBeenCalled();
+  });
+
+  it("does not register chats from abandoned renders", () => {
+    const scope = {};
+    const pending = new Promise<never>(() => {});
+    const createChat = vi.fn().mockImplementation((chatKey: string) => ({
+      id: chatKey,
+      messages: [],
+      source: "committed fallback",
+    }));
+
+    const Probe = ({
+      threadId,
+      source,
+      suspend,
+    }: {
+      threadId: string;
+      source: string;
+      suspend: boolean;
+    }) => {
+      const { activeChat } = useChatRegistry({
+        scope,
+        threadId,
+        createChat: createChat as never,
+        createRenderChat: ((chatKey: string) => ({
+          id: chatKey,
+          messages: [],
+          source,
+        })) as never,
+      });
+      if (suspend) throw pending;
+      return createElement(
+        "span",
+        null,
+        (activeChat as unknown as { source: string }).source,
+      );
+    };
+    const renderProbe = (threadId: string, source: string, suspend: boolean) =>
+      createElement(
+        Suspense,
+        { fallback: null },
+        createElement(Probe, { threadId, source, suspend }),
+      );
+
+    const view = render(renderProbe("thread-a", "account-a", false));
+
+    act(() => {
+      startTransition(() => {
+        view.rerender(renderProbe("thread-b", "abandoned", true));
+      });
+    });
+
+    expect(view.container.textContent).toBe("account-a");
+
+    view.rerender(renderProbe("thread-b", "committed", false));
+
+    expect(view.container.textContent).toBe("committed");
   });
 });

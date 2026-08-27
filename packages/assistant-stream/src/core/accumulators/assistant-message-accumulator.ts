@@ -17,6 +17,26 @@ import { GorpStreamAccumulator } from "../gorp/GorpStreamAccumulator";
 import type { ReadonlyJSONValue } from "../../utils";
 import { TimingTracker } from "./TimingTracker";
 
+/**
+ * Object spread materializes the deprecated `content` alias into a data
+ * property, so it is redefined after `parts` to keep tracking the replacement.
+ */
+const withParts = (
+  message: AssistantMessage,
+  parts: AssistantMessage["parts"],
+): AssistantMessage => ({
+  ...message,
+  parts,
+  get content() {
+    return this.parts;
+  },
+});
+
+const appendPart = (
+  message: AssistantMessage,
+  part: AssistantMessagePart,
+): AssistantMessage => withParts(message, [...message.parts, part]);
+
 export const createInitialMessage = ({
   unstable_state = null,
 }: {
@@ -60,17 +80,11 @@ const updatePartForPath = (
   const partIndex = chunk.path[0]!;
   const updatedPart = updater(part);
   if (updatedPart === part) return message;
-  return {
-    ...message,
-    parts: [
-      ...message.parts.slice(0, partIndex),
-      updatedPart,
-      ...message.parts.slice(partIndex + 1),
-    ],
-    get content() {
-      return this.parts;
-    },
-  };
+  return withParts(message, [
+    ...message.parts.slice(0, partIndex),
+    updatedPart,
+    ...message.parts.slice(partIndex + 1),
+  ]);
 };
 
 const handlePartStart = (
@@ -90,13 +104,7 @@ const handlePartStart = (
         : undefined),
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newTextPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newTextPart);
   } else if (partInit.type === "tool-call") {
     const newToolCallPart: ToolCallPart = {
       type: "tool-call",
@@ -109,13 +117,7 @@ const handlePartStart = (
       timing: { startedAt: Date.now() },
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newToolCallPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newToolCallPart);
   } else if (partInit.type === "source") {
     const newSourcePart: SourcePart = {
       type: "source",
@@ -125,13 +127,7 @@ const handlePartStart = (
       ...(partInit.title ? { title: partInit.title } : undefined),
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newSourcePart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newSourcePart);
   } else if (partInit.type === "file") {
     const newFilePart: FilePart = {
       type: "file",
@@ -139,13 +135,7 @@ const handlePartStart = (
       data: partInit.data,
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newFilePart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newFilePart);
   } else if (partInit.type === "data") {
     const newDataPart: DataPart = {
       type: "data",
@@ -153,13 +143,7 @@ const handlePartStart = (
       data: partInit.data,
       ...(partInit.parentId && { parentId: partInit.parentId }),
     };
-    return {
-      ...message,
-      parts: [...message.parts, newDataPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, newDataPart);
   } else {
     const unsupportedType = String((partInit as { type?: unknown }).type);
     warnOnce(
@@ -172,13 +156,7 @@ const handlePartStart = (
       text: "",
       status: { type: "running" },
     };
-    return {
-      ...message,
-      parts: [...message.parts, placeholderPart],
-      get content() {
-        return this.parts;
-      },
-    };
+    return appendPart(message, placeholderPart);
   }
 };
 

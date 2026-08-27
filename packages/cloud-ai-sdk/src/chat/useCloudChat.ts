@@ -50,10 +50,16 @@ export function useCloudChat(
       core.createChat(chatKey, registry),
     [core],
   );
+  const createRenderChat = useCallback(
+    (chatKey: string, registry: ChatRegistry) =>
+      core.createChat(chatKey, registry, chatConfig),
+    [chatConfig, core],
+  );
   const { registry, activeChat } = useChatRegistry({
     scope: threads.cloud,
     threadId: threads.threadId,
     createChat,
+    createRenderChat,
   });
 
   useThreadMessageLoader(threads.threadId, registry, core);

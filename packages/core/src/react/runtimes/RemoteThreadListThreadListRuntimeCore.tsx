@@ -1,5 +1,4 @@
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
-import { generateId } from "../../utils/id";
 import { BaseSubscribable } from "../../subscribable/subscribable";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
@@ -9,10 +8,14 @@ import type {
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import {
   classifyThreads,
+  createEmptyRemoteThreadState,
   createThreadMappingId,
   getThreadData,
   normalizeCursor,
   updateStatusReducer,
+  preserveMidLoadTransitions,
+  seedNewThread,
+  statusSnapshot,
 } from "../../runtimes/remote-thread-list/remote-thread-state";
 import type {
   RemoteThreadListAdapter,
@@ -49,47 +52,7 @@ const threadStatusError = (
     `Thread "${threadIdOrRemoteId}" has status "${status}", so it cannot ${action}.`,
   );
 
-const EMPTY_REMOTE_STATE: RemoteThreadState = {
-  isLoading: true,
-  isLoadingMore: false,
-  cursor: undefined,
-  newThreadId: undefined,
-  threadIds: [],
-  archivedThreadIds: [],
-  threadIdMap: {},
-  threadData: {},
-};
-
-const addNewThread = (state: RemoteThreadState) => {
-  let id: string;
-  do {
-    id = `__LOCALID_${generateId()}`;
-  } while (state.threadIdMap[id]);
-
-  const mappingId = createThreadMappingId(id);
-  return {
-    id,
-    state: {
-      ...state,
-      newThreadId: id,
-      threadIdMap: {
-        ...state.threadIdMap,
-        [id]: mappingId,
-      },
-      threadData: {
-        ...state.threadData,
-        [mappingId]: {
-          status: "new",
-          id,
-          remoteId: undefined,
-          externalId: undefined,
-          title: undefined,
-          custom: undefined,
-        } satisfies RemoteThreadData,
-      },
-    },
-  };
-};
+const EMPTY_REMOTE_STATE = createEmptyRemoteThreadState();
 
 export class RemoteThreadListThreadListRuntimeCore
   extends BaseSubscribable
@@ -158,6 +121,7 @@ export class RemoteThreadListThreadListRuntimeCore
     if (!this._loadThreadsPromise) {
       const generation = this._loadGeneration;
       let replacedList = false;
+      const statusAtRequest = statusSnapshot(this._state.baseValue);
       this._loadThreadsPromise = this._state
         .optimisticUpdate({
           execute: () => this._options.adapter.list(),
@@ -186,7 +150,7 @@ export class RemoteThreadListThreadListRuntimeCore
               threadIdMap: {},
               threadData: {},
             });
-            return {
+            const merged = {
               ...state,
               isLoading: false,
               cursor: normalizeCursor(l.nextCursor),
@@ -195,6 +159,7 @@ export class RemoteThreadListThreadListRuntimeCore
               threadIdMap: { ...state.threadIdMap, ...fresh.threadIdMap },
               threadData: { ...state.threadData, ...fresh.threadData },
             };
+            return preserveMidLoadTransitions(merged, state, statusAtRequest);
           },
         })
         .catch((error: unknown) => {
@@ -437,7 +402,7 @@ export class RemoteThreadListThreadListRuntimeCore
       if (preservedDraft !== undefined) {
         this._mainThreadId = preservedDraft;
       } else {
-        const seeded = addNewThread(nextState);
+        const seeded = seedNewThread(nextState);
         this._mainThreadId = seeded.id;
         nextState = seeded.state;
       }
@@ -762,7 +727,7 @@ export class RemoteThreadListThreadListRuntimeCore
     const state = this._state.baseValue;
     let id: string | undefined = this._state.value.newThreadId;
     if (id === undefined) {
-      const next = addNewThread(state);
+      const next = seedNewThread(state);
       id = next.id;
       this._state.update(next.state);
     }

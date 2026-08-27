@@ -19,7 +19,6 @@ minimumReleaseAgeExclude:
   - '@assistant-ui/*'
   - '@next/*'
   - '@openuidev/assistant-ui'
-  - '@openuidev/react-headless@0.9.8'
   - '@typescript/typescript-*'
   - assistant-cloud
   - assistant-stream

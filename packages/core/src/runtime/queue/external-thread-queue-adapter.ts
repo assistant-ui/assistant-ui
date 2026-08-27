@@ -1,5 +1,5 @@
 import type { AppendMessage } from "../../types/message";
-import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueueItemState } from "./queue-item";
 
 export type QueuePlacement = {
   readonly lane?: "queue" | "steer";

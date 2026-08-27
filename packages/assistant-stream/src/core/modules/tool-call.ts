@@ -4,6 +4,11 @@ import { NO_RESULT, type ToolResponseLike } from "../tool/ToolResponse";
 import type { ReadonlyJSONValue } from "../../utils/json/json-value";
 import type { UnderlyingReadable } from "../utils/stream/UnderlyingReadable";
 import { createTextStream, type TextStreamController } from "./text";
+import { closeIfOpen, enqueueIfOpen } from "../utils/stream/controller-guards";
+import {
+  createControllerStream,
+  createControllerStreamPair,
+} from "../utils/stream/createControllerStream";
 
 export type ToolCallStreamController = {
   argsText: TextStreamController;
@@ -18,17 +23,6 @@ export type ToolCallStreamController = {
 
 class ToolCallStreamControllerImpl implements ToolCallStreamController {
   private _isClosed = false;
-
-  // enqueue() throwing TypeError is the portable termination signal for
-  // ReadableStream controllers; after the consumer cancels, writes are
-  // intentionally discarded instead of surfacing as unhandled rejections.
-  private _enqueue(chunk: AssistantStreamChunk) {
-    try {
-      this._controller.enqueue(chunk);
-    } catch (error) {
-      if (!(error instanceof TypeError)) throw error;
-    }
-  }
 
   private _mergeTask: Promise<void>;
   private _controller: ReadableStreamDefaultController<AssistantStreamChunk>;
@@ -50,19 +44,19 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
           switch (chunk.type) {
             case "text-delta":
               hasArgsText = true;
-              this._enqueue(chunk);
+              enqueueIfOpen(this._controller, chunk);
               break;
 
             case "part-finish":
               if (!hasArgsText) {
                 // if no argsText was provided, assume empty object
-                this._enqueue({
+                enqueueIfOpen(this._controller, {
                   type: "text-delta",
                   textDelta: "{}",
                   path: [],
                 });
               }
-              this._enqueue({
+              enqueueIfOpen(this._controller, {
                 type: "tool-call-args-text-finish",
                 path: [],
               });
@@ -90,7 +84,7 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     // indistinguishable from one that never finished.
     const result = response.result;
 
-    this._enqueue({
+    enqueueIfOpen(this._controller, {
       type: "result",
       path: [],
       ...(response.artifact !== undefined
@@ -115,40 +109,26 @@ class ToolCallStreamControllerImpl implements ToolCallStreamController {
     this._argsTextController.close();
     await this._mergeTask;
 
-    this._enqueue({
+    enqueueIfOpen(this._controller, {
       type: "part-finish",
       path: [],
     });
-    try {
-      this._controller.close();
-    } catch (error) {
-      if (!(error instanceof TypeError)) throw error;
-    }
+    closeIfOpen(this._controller);
   }
 }
 
 export const createToolCallStream = (
   readable: UnderlyingReadable<ToolCallStreamController>,
 ): AssistantStream => {
-  return new ReadableStream({
-    start(c) {
-      return readable.start?.(new ToolCallStreamControllerImpl(c));
-    },
-    pull(c) {
-      return readable.pull?.(new ToolCallStreamControllerImpl(c));
-    },
-    cancel(c) {
-      return readable.cancel?.(c);
-    },
-  });
+  return createControllerStream(
+    readable,
+    (controller) => new ToolCallStreamControllerImpl(controller),
+  );
 };
 
 export const createToolCallStreamController = () => {
-  let controller!: ToolCallStreamController;
-  const stream = createToolCallStream({
-    start(c) {
-      controller = c;
-    },
-  });
-  return [stream, controller] as const;
+  return createControllerStreamPair<
+    AssistantStreamChunk,
+    ToolCallStreamController
+  >((controller) => new ToolCallStreamControllerImpl(controller));
 };

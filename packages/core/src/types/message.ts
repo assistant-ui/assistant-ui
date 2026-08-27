@@ -168,9 +168,9 @@ export type ToolApprovalOption = {
   readonly id: string;
   /**
    * Decision class. Drives approved-resolution and default rendering.
-   * Open union: `_`-prefixed custom kinds are never auto-resolved and the
-   * default kit skips them; they must be answered with an explicit
-   * `approved` value (optionally alongside the `optionId`).
+   * Open union: `_`-prefixed custom kinds are never auto-resolved; they must
+   * be answered with an explicit `approved` value (optionally alongside the
+   * `optionId`), which is what the default kit sends when one is chosen.
    */
   readonly kind: ToolApprovalOptionKind | (string & {});
   /** Human label. Renderers supply defaults per kind when omitted. */
@@ -305,6 +305,11 @@ export type ToolCallMessagePartStatus =
       readonly type: "requires-action";
       /** Reason the tool call requires action. */
       readonly reason: "tool-calls" | "interrupt";
+    }
+  | {
+      readonly type: "incomplete";
+      readonly reason: "tool-calls";
+      readonly error?: ReadonlyJSONValue;
     }
   | MessagePartStatus;
 

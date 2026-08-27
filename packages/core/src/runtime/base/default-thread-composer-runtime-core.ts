@@ -8,10 +8,7 @@ import type {
 import type { ThreadRuntimeCore } from "../interfaces/thread-runtime-core";
 import { getThreadRuntimeCoreIsRunning } from "../api/thread-runtime";
 import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
-import {
-  EMPTY_QUEUE_ITEMS,
-  type QueueItemState,
-} from "../../store/scopes/queue-item";
+import { EMPTY_QUEUE_ITEMS, type QueueItemState } from "../queue/queue-item";
 import { BaseComposerRuntimeCore } from "./base-composer-runtime-core";
 
 const isCancelable = (runtime: Omit<ThreadRuntimeCore, "composer">) => {

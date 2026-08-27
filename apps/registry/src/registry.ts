@@ -1038,6 +1038,19 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "use-copy-to-clipboard",
+    type: "registry:hook",
+    title: "Use Copy To Clipboard",
+    description: "Copy text to the clipboard with a temporary copied state.",
+    files: [
+      {
+        type: "registry:hook",
+        path: "hooks/use-copy-to-clipboard.ts",
+        sourcePath: "../../packages/ui/src/hooks/use-copy-to-clipboard.ts",
+      },
+    ],
+  },
+  {
     name: "markdown-text",
     type: "registry:component",
     title: "Markdown Text",
@@ -1053,8 +1066,10 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/tooltip-icon-button.json",
+      "https://r.assistant-ui.com/use-copy-to-clipboard.json",
     ],
     dependencies: [
+      "@assistant-ui/react",
       "@assistant-ui/react-markdown",
       "lucide-react",
       "remark-gfm",
@@ -1137,12 +1152,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/thread-list.tsx",
       },
     ],
-    registryDependencies: [
-      "button",
-      "input",
-      "skeleton",
-      "https://r.assistant-ui.com/tooltip-icon-button.json",
-    ],
+    registryDependencies: ["button", "input", "skeleton"],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {
@@ -1174,6 +1184,20 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "use-attachment-src",
+    type: "registry:hook",
+    title: "Use Attachment Src",
+    description: "Resolve an image attachment to a preview source URL.",
+    files: [
+      {
+        type: "registry:hook",
+        path: "hooks/use-attachment-src.ts",
+        sourcePath: "../../packages/ui/src/hooks/use-attachment-src.ts",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "zustand"],
+  },
+  {
     name: "attachment",
     type: "registry:component",
     title: "Attachment",
@@ -1192,8 +1216,9 @@ export const registry: RegistryItem[] = [
       "tooltip",
       "avatar",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
+      "https://r.assistant-ui.com/use-attachment-src.json",
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react", "zustand"],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {
     name: "follow-up-suggestions",

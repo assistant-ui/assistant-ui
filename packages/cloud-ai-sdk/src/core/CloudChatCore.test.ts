@@ -57,7 +57,7 @@ function createCore(overrides?: {
     onSyncError: onSyncError as ((error: Error) => void) | undefined,
   };
 
-  const core = new CloudChatCore({} as never, refs);
+  const core = new CloudChatCore({} as never, refs, {} as never);
   return core;
 }
 
@@ -88,6 +88,22 @@ describe("CloudChatCore", () => {
 
     expect(onToolCall).toHaveBeenCalledWith({ toolCall: {} });
     expect(result).toBe(completion);
+  });
+
+  it("uses the current render config when creating a chat", () => {
+    const initialMessages = [{ id: "initial" }];
+    const currentMessages = [{ id: "current" }];
+    const core = createCore({ chatConfig: { messages: initialMessages } });
+
+    core.createChat(
+      "chat-1",
+      {} as never,
+      {
+        messages: currentMessages,
+      } as never,
+    );
+
+    expect(chatOptionsRef.current?.messages).toBe(currentMessages);
   });
 
   it("preserves synchronous finish callback failures", () => {

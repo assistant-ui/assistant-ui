@@ -40,10 +40,8 @@ vi.mock("detect-package-manager", () => ({
 // Import the mocks after vi.mock so we can inspect calls
 import { spawn } from "cross-spawn";
 import { downloadTemplate } from "giget";
-import {
-  dlxCommand,
-  type PackageManagerName,
-} from "../../src/lib/create-project";
+import { dlxCommand } from "../../src/lib/create-project";
+import { type PackageManagerName } from "../../src/lib/utils/package-manager";
 
 const TEST_PM: PackageManagerName = "pnpm";
 const [TEST_DLX_CMD] = dlxCommand(TEST_PM);

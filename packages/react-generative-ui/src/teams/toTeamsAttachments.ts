@@ -1,14 +1,14 @@
+import { boundSpec, clampReasonDetail } from "../convert/boundSpec";
+import { isElement } from "../convert/isElement";
 import {
   normalizeSpec,
   type NormalizedUIElement,
   type NormalizedUINode,
 } from "../ir";
-import { boundSpec } from "./boundSpec";
 import {
   CAROUSEL_ATTACHMENT_CAP,
   PAYLOAD_SOFT_CAP,
   buildAttachment,
-  clampReasonDetail,
   utf8ByteLength,
 } from "./constants";
 import {
@@ -22,12 +22,6 @@ import type {
   TeamsConversionWarning,
   ToAdaptiveCardOptions,
 } from "./types";
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
-  isRecord(node);
 
 const normalizedList = (
   node: NormalizedUINode | undefined,

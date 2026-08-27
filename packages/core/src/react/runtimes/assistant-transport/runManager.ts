@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { invokeUserCallback } from "../../../utils/invoke-user-callback";
 import { useLatestRef } from "./useLatestRef";
 
 export type RunManager = Readonly<{
@@ -11,25 +12,11 @@ const disposeReason = Symbol("assistant-transport-dispose");
 
 type LifecycleCallbackName = "onCancel" | "onError" | "onFinish";
 
-const reportCallbackError = (name: LifecycleCallbackName, error: unknown) => {
-  console.error(
-    `[assistant-ui] Assistant transport ${name} callback threw an error`,
-    error,
-  );
-};
-
-const invokeCallback = async (
+const invokeCallback = (
   name: LifecycleCallbackName,
   callback: (() => unknown) | undefined,
-): Promise<void> => {
-  try {
-    await callback?.();
-  } catch (error) {
-    try {
-      reportCallbackError(name, error);
-    } catch {}
-  }
-};
+) =>
+  invokeUserCallback("assistant-ui", `Assistant transport ${name}`, callback);
 
 export function useRunManager(config: {
   onRun: (signal: AbortSignal) => Promise<void>;

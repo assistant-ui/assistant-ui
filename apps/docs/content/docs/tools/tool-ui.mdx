@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { ToolUISample } from "@/components/pages/docs/samples/tool-ui";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { ToolUIRendererSample } from "@/components/pages/docs/samples/tool-ui/custom-renderer";
 
 Create custom UI components for AI tool calls, providing visual feedback and interactive experiences when tools are executed.
 
@@ -109,7 +111,14 @@ const toolkit = defineToolkit({
 
 ## Quick Start Example
 
-This example shows how to implement the UI-only approach with a backend toolkit entry:
+This example uses a backend toolkit entry for a tool that the server defines. The preview uses a shorter renderer than the steps below.
+
+<PreviewCode
+  file="components/pages/docs/samples/tool-ui/custom-renderer"
+  name="WeatherToolUI"
+>
+  <ToolUIRendererSample />
+</PreviewCode>
 
 <Steps>
   <Step>
@@ -178,12 +187,15 @@ const WeatherToolUI: ToolCallMessagePartComponent<
 
 ### Register the Tool UI
 
-Put the renderer on the matching backend toolkit entry:
+Put the renderer on the related backend toolkit entry.
+
+Set `display` to `"standalone"` to keep the tool UI outside the collapsed tool group. A backend tool uses the inline display by default.
 
 ```tsx
 const toolkit = defineToolkit({
   getWeather: {
     type: "backend",
+    display: "standalone",
     render: WeatherToolUI,
   },
 });
@@ -613,7 +625,7 @@ Renderers respond with the chosen option instead of a boolean; the option's kind
 respondToApproval({ optionId: "session" });
 ```
 
-The runtime receives `{ approvalId, approved, optionId, reason? }`, so a host that persists "always allow" decisions can key its store off `optionId`. Persistence is entirely host-owned: assistant-ui never stores a decision and never auto-answers future approvals. `grants` lists the patterns an option would persist (shown to the user before they commit), and `confirm` opts the option into a confirmation step. Options with custom `_`-prefixed kinds are skipped by the default `ToolFallback` bar and must be answered with an explicit `approved` value, optionally alongside the `optionId` so the chosen option is still recorded.
+The runtime receives `{ approvalId, approved, optionId, reason? }`, so a host that persists "always allow" decisions can key its store off `optionId`. Persistence is entirely host-owned: assistant-ui never stores a decision and never auto-answers future approvals. `grants` lists the patterns an option would persist (shown to the user before they commit), and `confirm` opts the option into a confirmation step. Options with custom `_`-prefixed kinds must be answered with an explicit `approved` value, optionally alongside the `optionId` so the chosen option is still recorded. The default `ToolFallback` bar renders them next to the known kinds and sends `{ optionId, approved: true }` when one is chosen, since picking a declared option is an answer rather than a refusal; it also keeps a Deny control available whenever the request declares no reject-kind option.
 
 Approvals that end without a decision (a cancelled run or an expired request) are recorded by the host as `approval.resolution: "cancelled" | "expired"`, which closes the gate without recording a deny.
 

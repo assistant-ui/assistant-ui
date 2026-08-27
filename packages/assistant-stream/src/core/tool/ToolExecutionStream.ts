@@ -5,6 +5,7 @@ import {
   AssistantMetaTransformStream,
 } from "../utils/stream/AssistantMetaTransformStream";
 import { PipeableTransformStream } from "../utils/stream/PipeableTransformStream";
+import { enqueueIfOpen } from "../utils/stream/controller-guards";
 import type {
   ReadonlyJSONObject,
   ReadonlyJSONValue,
@@ -104,18 +105,6 @@ const withExecutionId = <T extends object>(
     enumerable: true,
   });
   return result;
-};
-
-const enqueueIfOpen = (
-  controller: TransformStreamDefaultController<AssistantStreamChunk>,
-  chunk: AssistantStreamChunk,
-) => {
-  try {
-    controller.enqueue(chunk);
-  } catch (error) {
-    // enqueue() throwing TypeError is the portable termination signal for TransformStream controllers.
-    if (!(error instanceof TypeError)) throw error;
-  }
 };
 
 export class ToolExecutionStream extends PipeableTransformStream<

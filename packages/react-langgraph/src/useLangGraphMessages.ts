@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from "react";
-import { v4 as uuidv4 } from "uuid";
+import { generateId } from "@assistant-ui/core";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import { abortableIterable, whenAborted } from "./abortableIterable";
 import {
@@ -21,6 +21,7 @@ import {
   type UIMessage,
 } from "./types";
 import { useAui } from "@assistant-ui/store";
+import { invokeUserCallback } from "@assistant-ui/core/internal";
 import { normalizeLangGraphTupleMessage } from "./normalizeLangGraphTupleMessage";
 
 const DEFAULT_UI_STATE_KEY = "ui";
@@ -37,27 +38,12 @@ type LangGraphEventCallbackName =
   | "onSubgraphError"
   | "onCustomEvent";
 
-const reportCallbackError = (
+const invokeEventCallback = <TArgs extends readonly unknown[]>(
   name: LangGraphEventCallbackName,
-  error: unknown,
-) => {
-  console.error(`[react-langgraph] ${name} callback threw an error`, error);
-};
-
-const invokeEventCallback = <TArgs extends unknown[]>(
-  name: LangGraphEventCallbackName,
-  callback: ((...args: TArgs) => void | Promise<void>) | undefined,
+  callback: ((...args: TArgs) => unknown) | undefined,
   ...args: TArgs
-) => {
-  if (!callback) return;
-
-  try {
-    void Promise.resolve(callback(...args)).catch((error) => {
-      reportCallbackError(name, error);
-    });
-  } catch (error) {
-    reportCallbackError(name, error);
-  }
+): void => {
+  void invokeUserCallback("react-langgraph", name, callback, ...args);
 };
 
 const parseEventType = (
@@ -278,7 +264,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
       try {
         // ensure all messages have an ID
         const newMessagesWithId = newMessages.map((m) =>
-          m.id ? m : { ...m, id: uuidv4() },
+          m.id ? m : { ...m, id: generateId() },
         );
 
         accumulator = new LangGraphMessageAccumulator({
@@ -328,6 +314,10 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
           switch (eventType) {
             case LangGraphKnownEventTypes.MessagesPartial:
             case LangGraphKnownEventTypes.MessagesComplete:
+              if (!Array.isArray(chunk.data)) {
+                console.warn("Received invalid messages payload:", chunk.data);
+                break;
+              }
               onMessages?.(chunk.data, config.runConfig);
               setMessagesImmediate(accumulator.addMessages(chunk.data));
               break;
@@ -342,6 +332,7 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
               } else {
                 invokeEventCallback("onUpdates", onUpdates, chunk.data);
               }
+              if (chunk.data === null || typeof chunk.data !== "object") break;
               const extracted = extractMessagesFromUpdates<TMessage>(
                 chunk.data,
               );
@@ -367,8 +358,9 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
                 );
                 break;
               }
-              setValues(chunk.data as Record<string, unknown>);
               invokeEventCallback("onValues", onValues, chunk.data);
+              if (chunk.data === null || typeof chunk.data !== "object") break;
+              setValues(chunk.data);
               if (Array.isArray(chunk.data?.messages)) {
                 lastValuesMessages = chunk.data.messages;
                 if (hasTupleMessageEvents) {
@@ -397,19 +389,20 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
               }
               break;
             case LangGraphKnownEventTypes.Messages: {
-              hasTupleMessageEvents = true;
-              const [tupleMessage, tupleMetadata] = (
-                chunk as LangChainMessageTupleEvent
-              ).data;
+              const tupleData = (chunk as LangChainMessageTupleEvent).data;
+              const [tupleMessage, tupleMetadata] = Array.isArray(tupleData)
+                ? tupleData
+                : [];
               const normalizedTupleMessage =
                 normalizeLangGraphTupleMessage(tupleMessage);
               if (!normalizedTupleMessage) {
                 console.warn(
                   "Received invalid messages tuple format:",
-                  tupleMessage,
+                  tupleData,
                 );
                 break;
               }
+              hasTupleMessageEvents = true;
 
               const tupleMetadataWithNamespace:
                 | LangGraphTupleMetadata

@@ -3,7 +3,7 @@ import type { MessageRole } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
-import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueueItemState } from "../queue/queue-item";
 import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 import {
   LazyMemoizeSubject,
