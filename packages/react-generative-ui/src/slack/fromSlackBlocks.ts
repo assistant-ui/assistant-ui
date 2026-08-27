@@ -36,16 +36,17 @@ const warn = (
 /**
  * The shared bounded-iteration primitive: slices `value` to `cap` entries
  * without ever reading past that many indices, so a hostile array (sparse or
- * proxied with a fabricated `length`) cannot stall the event loop. `slice`
- * itself performs the bounded read; only its own reported length is
- * inspected to detect truncation.
+ * proxied with a fabricated `length`) cannot stall the event loop.
  */
 const clampArray = (
   value: unknown,
   cap: number,
 ): { readonly items: unknown[]; readonly truncated: boolean } => {
   if (!Array.isArray(value)) return { items: [], truncated: false };
-  return { items: value.slice(0, cap), truncated: value.length > cap };
+  return {
+    items: Array.prototype.slice.call(value, 0, cap),
+    truncated: value.length > cap,
+  };
 };
 
 const boundedArray = (
@@ -238,8 +239,8 @@ const checkboxFrom = (element: Record<string, unknown>): UIElement => {
     : [];
   const firstValue =
     isRecord(first) && typeof first["value"] === "string" ? first["value"] : "";
-  const firstChecked = initialOptions
-    .slice(0, SELECT_OPTION_CAP)
+  const firstChecked = Array.prototype.slice
+    .call(initialOptions, 0, SELECT_OPTION_CAP)
     .some((option) => isRecord(option) && option["value"] === firstValue);
   return {
     $type: "Checkbox",
