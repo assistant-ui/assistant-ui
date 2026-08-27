@@ -740,8 +740,8 @@ describe("AssistantMessageAccumulator content alias", () => {
           type: "part-start",
           path: [5],
           part: { type: "totally-unknown" },
-        },
-      ] as AssistantStreamChunk[]);
+        } as unknown as AssistantStreamChunk,
+      ]);
 
       expect(messages.at(-1)?.parts).toHaveLength(6);
       for (const message of messages) {
@@ -779,7 +779,7 @@ describe("AssistantMessageAccumulator content alias", () => {
         finishReason: "stop",
         usage: { inputTokens: 1, outputTokens: 1 },
       },
-    ] as AssistantStreamChunk[]);
+    ]);
 
     for (const message of messages) {
       expect(message.content).toBe(message.parts);
