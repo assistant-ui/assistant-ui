@@ -48,6 +48,10 @@ export type PiSendOptions = {
 
 export type PiNotificationScheduler = (flush: () => void) => void;
 
+/** `getStateSnapshot` (or `getState` where it is absent) and
+ * `getMessageRepository` are read as `useSyncExternalStore` snapshots, so an
+ * implementation must return a reference that changes only when a subscribed
+ * channel notifies; a freshly built value per call loops React. */
 export interface PiThreadControllerLike {
   getState(): PiThreadState;
   /** The state as of the last listener notification. `getState()` can run
@@ -664,6 +668,9 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   private recomputeProjectedMessagesAndNotify() {
+    // `message_end` advances state without moving the projection, and the
+    // early return below skips the notification that would publish it.
+    this.stateSnapshot = this.state;
     const next = this.projectMessages();
     if (next === this.projectedMessages) return;
     this.projectedMessages = next;
@@ -695,7 +702,6 @@ export class PiThreadController implements PiThreadControllerLike {
   }
 
   private notifyMessageListeners() {
-    this.stateSnapshot = this.state;
     this.bumpVersion();
     notifyListeners(this.messageListeners);
     notifyListeners(this.allListeners);

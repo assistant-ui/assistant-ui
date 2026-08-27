@@ -845,6 +845,45 @@ describe("PiThreadController state snapshot", () => {
     expect(seen[1]).toBe(controller.getState());
   });
 
+  it("publishes state when a message event leaves the projection unchanged", () => {
+    const client = createFakeClient();
+    const scheduled: Array<() => void> = [];
+    const controller = new PiThreadController(client, THREAD, {
+      scheduleNotify: (flush) => scheduled.push(flush),
+    });
+    controller.subscribe(() => {});
+    controller.connect();
+
+    client.emit(
+      ev({ type: "message_start", message: assistantMessage("", 1) }, 1),
+    );
+    client.emit(
+      ev(
+        {
+          type: "message_update",
+          message: assistantMessage("a", 1),
+          assistantMessageEvent: {
+            type: "text_delta",
+            contentIndex: 0,
+            delta: "a",
+            partial: assistantMessage("a", 1),
+          },
+        },
+        2,
+      ),
+    );
+    scheduled.at(-1)!();
+    const projection = controller.getMessageRepository();
+
+    client.emit(
+      ev({ type: "message_end", message: assistantMessage("a", 1) }, 3),
+    );
+
+    expect(controller.getMessageRepository()).toBe(projection);
+    expect(controller.getState().streamingMessageIndex).toBeUndefined();
+    expect(controller.getStateSnapshot()).toBe(controller.getState());
+  });
+
   it("starts the snapshot at the initial state", () => {
     const controller = new PiThreadController(createFakeClient(), THREAD);
     expect(controller.getStateSnapshot()).toBe(controller.getState());
