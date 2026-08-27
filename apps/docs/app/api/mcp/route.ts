@@ -17,33 +17,16 @@ import {
   tapDocs,
 } from "@/lib/source";
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
+import {
+  SEARCH_DOCS_RESULT_LIMIT,
+  getNavigationTool,
+  listPagesTool,
+  readPageTool,
+  searchDocsTool,
+  toolDefinitions,
+} from "./tool-definitions";
 
 export const revalidate = false;
-
-const toolDefinitions = [
-  {
-    name: "list_pages",
-    description:
-      "List assistant-ui documentation pages. Optionally filter by a URL path prefix such as /docs/tools, /examples, /design, /standalone, or /tap/docs.",
-  },
-  {
-    name: "get_navigation",
-    description: "Return the assistant-ui docs navigation tree.",
-  },
-  {
-    name: "search_docs",
-    description:
-      "Search assistant-ui docs, examples, design components, and Tap docs by title, description, or URL.",
-  },
-  {
-    name: "read_page",
-    description:
-      "Read one assistant-ui docs, examples, design, or Tap docs page as markdown. Accepts a slug, path, .md URL, or same-origin URL.",
-  },
-] as const;
-
-const [listPagesTool, getNavigationTool, searchDocsTool, readPageTool] =
-  toolDefinitions;
 
 function pageSummary(page: {
   url: string;
@@ -239,7 +222,7 @@ function searchDocs(query: string) {
         value.toLowerCase().includes(normalized),
       ),
     )
-    .slice(0, 20);
+    .slice(0, SEARCH_DOCS_RESULT_LIMIT);
 }
 
 async function readPage(path: string | undefined, requestUrl: string) {

@@ -2,7 +2,13 @@
 // draft that has already moved attachment points (navigator.modelContext ->
 // document.modelContext), so the API surface is feature-detected and typed
 // locally. Chrome additionally gates it behind an origin trial through Chrome
-// 156; the Origin-Trial header placeholder lives in next.config.ts.
+// 156; the Origin-Trial header wiring lives in next.config.ts.
+
+import {
+  SEARCH_DOCS_RESULT_LIMIT,
+  readPageTool,
+  searchDocsTool,
+} from "@/app/api/mcp/tool-definitions";
 
 type WebMcpToolResult = {
   content: { type: string; text?: string }[];
@@ -111,6 +117,15 @@ function stringArg(args: Record<string, unknown>, key: string) {
 
 function examplePath(path: string) {
   let normalized = path;
+  // read_page accepts same-origin URLs; map them to their pathname before
+  // prefixing so a URL read off the page doesn't become examples/https://...
+  if (/^https?:\/\//i.test(normalized)) {
+    try {
+      normalized = new URL(normalized).pathname;
+    } catch {
+      // leave it for the server to reject
+    }
+  }
   while (normalized.startsWith("/")) normalized = normalized.slice(1);
   return normalized === "examples" || normalized.startsWith("examples/")
     ? normalized
@@ -121,8 +136,7 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
   return [
     {
       name: "searchDocs",
-      description:
-        "Search the assistant-ui documentation, examples, and Tap docs by title, description, or URL. Returns up to 20 matching pages.",
+      description: `Search the assistant-ui documentation, examples, and Tap docs by title, description, or URL. Returns up to ${SEARCH_DOCS_RESULT_LIMIT} matching pages.`,
       inputSchema: {
         type: "object",
         properties: {
@@ -136,7 +150,7 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
         if (!query) return errorResult("query is required");
         return callMcpRoute(
           fetchImpl,
-          "search_docs",
+          searchDocsTool.name,
           { query },
           context?.signal,
         );
@@ -161,7 +175,12 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
       execute: async (args, context) => {
         const path = stringArg(args, "path");
         if (!path) return errorResult("path is required");
-        return callMcpRoute(fetchImpl, "read_page", { path }, context?.signal);
+        return callMcpRoute(
+          fetchImpl,
+          readPageTool.name,
+          { path },
+          context?.signal,
+        );
       },
     },
     {
@@ -184,7 +203,7 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
         if (!path) return errorResult("path is required");
         return callMcpRoute(
           fetchImpl,
-          "read_page",
+          readPageTool.name,
           { path: examplePath(path) },
           context?.signal,
         );

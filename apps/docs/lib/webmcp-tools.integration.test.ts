@@ -5,6 +5,7 @@ import {
 } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { normalizeMcpRequestHeaders } from "@/app/api/mcp/normalize-mcp-headers";
+import { searchDocsTool } from "@/app/api/mcp/tool-definitions";
 import {
   registerWebMcpTools,
   type FetchLike,
@@ -16,16 +17,18 @@ import {
 // configured exactly like the route's POST handler: stateless (no session id),
 // enableJsonResponse, request normalized through normalizeMcpRequestHeaders.
 // The requests come from the real callMcpRoute code path via registerWebMcpTools,
-// which locks in the wire contract: a bare tools/call with no initialize
-// handshake is accepted, and the transport answers with a JSON body (not SSE)
-// despite the client's "application/json, text/event-stream" Accept header.
+// and the fixture registers its tool from the same tool-definitions module the
+// route imports, which locks in the transport contract: a bare tools/call with
+// no initialize handshake is accepted, and the transport answers with a JSON
+// body (not SSE) despite the client's "application/json, text/event-stream"
+// Accept header.
 
 function buildSearchServer() {
   const server = new McpServer({ name: "assistant-ui-docs", version: "1.0.0" });
   server.registerTool(
-    "search_docs",
+    searchDocsTool.name,
     {
-      description: "Search docs.",
+      description: searchDocsTool.description,
       inputSchema: z.object({ query: z.string() }).strict(),
     },
     ({ query }) => ({
@@ -63,7 +66,7 @@ describe("callMcpRoute against a live streamable-HTTP transport", () => {
     return transport.handleRequest(await normalizeMcpRequestHeaders(request));
   };
 
-  function searchDocsTool() {
+  function registeredSearchDocsTool() {
     const tools: Parameters<WebMcpModelContext["registerTool"]>[0][] = [];
     registerWebMcpTools(
       {
@@ -80,7 +83,7 @@ describe("callMcpRoute against a live streamable-HTTP transport", () => {
   }
 
   it("accepts a bare tools/call with no initialize handshake", async () => {
-    const result = await searchDocsTool().execute({ query: "tools" });
+    const result = await registeredSearchDocsTool().execute({ query: "tools" });
 
     expect(result.isError).toBeUndefined();
     expect(result.content).toEqual([
@@ -99,7 +102,7 @@ describe("callMcpRoute against a live streamable-HTTP transport", () => {
         jsonrpc: "2.0",
         id: 1,
         method: "tools/call",
-        params: { name: "search_docs", arguments: { query: "x" } },
+        params: { name: searchDocsTool.name, arguments: { query: "x" } },
       }),
     });
 
