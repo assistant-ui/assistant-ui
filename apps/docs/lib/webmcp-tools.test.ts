@@ -196,6 +196,29 @@ describe("registered tools", () => {
     ).execute({ query: "x" });
     expect(malformed.isError).toBe(true);
   });
+
+  it("maps malformed 200 responses to error results instead of throwing", async () => {
+    const invalidJson = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new SyntaxError("Unexpected end of JSON input");
+      },
+    }));
+    const invalid = await toolByName(invalidJson, "searchDocs").execute({
+      query: "x",
+    });
+    expect(invalid.isError).toBe(true);
+    expect(invalid.content[0]?.text).toContain("invalid JSON");
+
+    for (const payload of [null, "ok", { result: { content: "text" } }]) {
+      const result = await toolByName(
+        fetchReturning(payload),
+        "searchDocs",
+      ).execute({ query: "x" });
+      expect(result.isError, JSON.stringify(payload)).toBe(true);
+    }
+  });
 });
 
 describe("registerWebMcpTools lifecycle", () => {

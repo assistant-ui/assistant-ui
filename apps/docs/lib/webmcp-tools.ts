@@ -83,14 +83,22 @@ async function callMcpRoute(
     return errorResult(`Docs request failed with status ${response.status}`);
   }
 
-  const payload = (await response.json()) as {
-    result?: WebMcpToolResult;
-    error?: { message?: string };
-  };
+  let payload;
+  try {
+    payload = (await response.json()) as {
+      result?: WebMcpToolResult;
+      error?: { message?: string };
+    } | null;
+  } catch {
+    return errorResult("Docs request returned invalid JSON");
+  }
+  if (typeof payload !== "object" || payload === null) {
+    return errorResult("Docs request returned an unexpected response");
+  }
   if (payload.error) {
     return errorResult(payload.error.message ?? "Docs request failed");
   }
-  if (!payload.result?.content) {
+  if (!Array.isArray(payload.result?.content)) {
     return errorResult("Docs request returned an unexpected response");
   }
   return payload.result;
