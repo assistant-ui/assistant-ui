@@ -18,8 +18,39 @@ export function ThreadSpecimen() {
         : null;
     overlayRef.current?.focus();
     const onKey = (event: KeyboardEvent) => {
-      if (event.key !== "Escape" || event.defaultPrevented) return;
-      setExpanded(false);
+      if (event.defaultPrevented) return;
+      if (event.key === "Escape") {
+        setExpanded(false);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const root = overlayRef.current;
+      if (!root) return;
+      const focusables = Array.from(
+        root.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])',
+        ),
+      );
+      if (focusables.length === 0) {
+        event.preventDefault();
+        root.focus();
+        return;
+      }
+      const first = focusables[0]!;
+      const last = focusables[focusables.length - 1]!;
+      const current = document.activeElement;
+      if (!(current instanceof HTMLElement) || !root.contains(current)) {
+        event.preventDefault();
+        first.focus();
+        return;
+      }
+      if (event.shiftKey && (current === first || current === root)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && current === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener("keydown", onKey);
     document.documentElement.style.overflow = "hidden";

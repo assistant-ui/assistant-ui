@@ -57,11 +57,11 @@ export function CommandTabs({
     try {
       stored = localStorage.getItem(storageKey);
     } catch {}
-    if (stored && stored in commandsRef.current) setActive(stored);
+    if (stored && Object.hasOwn(commandsRef.current, stored)) setActive(stored);
 
     const onSync = (event: Event) => {
       const value = (event as CustomEvent<string>).detail;
-      if (value in commandsRef.current) setActive(value);
+      if (Object.hasOwn(commandsRef.current, value)) setActive(value);
     };
     window.addEventListener(syncEventName(storageKey), onSync);
     return () => window.removeEventListener(syncEventName(storageKey), onSync);
@@ -82,7 +82,9 @@ export function CommandTabs({
     [storageKey, onValueChange],
   );
 
-  const activeLabel = active in commands ? active : (labels[0] ?? "");
+  const activeLabel = Object.hasOwn(commands, active)
+    ? active
+    : (labels[0] ?? "");
   const command = commands[activeLabel] ?? "";
 
   return (
