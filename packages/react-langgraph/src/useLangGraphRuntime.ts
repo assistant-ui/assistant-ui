@@ -22,6 +22,11 @@ import {
 import type { ToolExecutionStatus } from "@assistant-ui/core";
 import type { QueueItemState } from "@assistant-ui/core/store";
 import {
+  createAbortableThreadLoad,
+  createCloudThreadListAdapterCreateFallback,
+  createToolCallCancellationStub,
+} from "@assistant-ui/core/internal";
+import {
   type DataMessagePartComponent,
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
@@ -338,11 +343,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   const queueRef = useRef<MessageQueueController | null>(null);
   // The purpose rides along because only a refetch may be superseded by a
   // send: aborting an initial load would strand its history and loading flag.
-  const loadControllerRef = useRef<{
-    controller: AbortController;
-    purpose: "initial" | "reload";
-    promise?: Promise<void>;
-  } | null>(null);
+  const loadController = useMemo(createAbortableThreadLoad, []);
   const hasExecutingTools = Object.values(toolStatuses).some(
     (s) => s?.type === "executing",
   );
@@ -427,9 +428,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     config: LangGraphSendMessageConfig,
   ) => {
     // Only a refetch: its landing snapshot would erase the message just sent.
-    if (loadControllerRef.current?.purpose === "reload") {
-      loadControllerRef.current.controller.abort();
-    }
+    loadController.abort("reload");
     seedMessageOwnership(langGraphMessagesRef.current);
     const state = pendingStateRef.current;
     pendingStateRef.current = undefined;
@@ -479,13 +478,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       autoCancelPendingToolCalls !== false
         ? getPendingToolCalls(messages).map(
             (t) =>
-              ({
-                type: "tool",
-                name: t.name,
-                tool_call_id: t.id,
-                content: JSON.stringify({ cancelled: true }),
-                status: "error",
-              }) satisfies LangChainMessage & { type: "tool" },
+              createToolCallCancellationStub(t) satisfies LangChainMessage & {
+                type: "tool";
+              },
           )
         : [];
 
@@ -611,44 +606,36 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
 
       // The initial load is already fetching what a refetch would ask for,
       // and taking it over strands its history if the refetch then fails.
-      if (
-        purpose === "reload" &&
-        loadControllerRef.current?.purpose === "initial"
-      )
-        // Settle with the load deferred to, so awaiting a refetch still means
-        // the thread is fresh.
-        return loadControllerRef.current.promise ?? Promise.resolve();
-
-      loadControllerRef.current?.controller.abort();
-      const controller = new AbortController();
-      const record: NonNullable<typeof loadControllerRef.current> = {
-        controller,
+      // Settle with the load deferred to, so awaiting a refetch still means
+      // the thread is fresh.
+      // The load rejects so a refetch deferring to it learns of the failure;
+      // only the initial load's caller swallows it.
+      return loadController.run({
         purpose,
-      };
-      loadControllerRef.current = record;
+        load: async (signal) => {
+          const messagesAtLoadStart = langGraphMessagesRef.current;
+          const uiMessagesAtLoadStart = uiMessagesRef.current;
+          const interruptAtLoadStart = interruptRef.current;
 
-      const messagesAtLoadStart = langGraphMessagesRef.current;
-      const uiMessagesAtLoadStart = uiMessagesRef.current;
-      const interruptAtLoadStart = interruptRef.current;
-
-      if (purpose === "initial") {
-        toolResultBufferRef.current.clear();
-        pendingStateRef.current = undefined;
-        effectiveStateRef.current = undefined;
-        runConfigByMessageIdRef.current.clear();
-        runConfigByToolCallIdRef.current.clear();
-        runIdByMessageIdRef.current.clear();
-        runIdByToolCallIdRef.current.clear();
-        interruptRunConfigRef.current = undefined;
-        setOptimisticState(undefined);
-        setValues(undefined);
-        setIsLoadingThread(true);
-      }
-      // A refetch touches nothing else: the load boundary already decides
-      // what a run started since keeps, so it needs no reset and no cancel.
-      const task = load(externalId, { signal: controller.signal })
-        .then(({ messages, interrupts, uiMessages }) => {
-          if (controller.signal.aborted) return;
+          if (purpose === "initial") {
+            toolResultBufferRef.current.clear();
+            pendingStateRef.current = undefined;
+            effectiveStateRef.current = undefined;
+            runConfigByMessageIdRef.current.clear();
+            runConfigByToolCallIdRef.current.clear();
+            runIdByMessageIdRef.current.clear();
+            runIdByToolCallIdRef.current.clear();
+            interruptRunConfigRef.current = undefined;
+            setOptimisticState(undefined);
+            setValues(undefined);
+            setIsLoadingThread(true);
+          }
+          // A refetch touches nothing else: the load boundary already decides
+          // what a run started since keeps, so it needs no reset and no cancel.
+          const { messages, interrupts, uiMessages } = await load(externalId, {
+            signal,
+          });
+          if (signal.aborted) return;
           // Only an initial load is the whole thread; a refetch can race
           // output the server has not stored yet.
           const opts = { snapshotIsComplete: purpose === "initial" };
@@ -656,28 +643,18 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
           seedMessageOwnership(messages);
           reconcileUIMessages(uiMessages ?? [], uiMessagesAtLoadStart, opts);
           reconcileInterrupt(interrupts?.[0], interruptAtLoadStart);
-        })
-        .catch((error) => {
-          if (controller.signal.aborted) return;
-          throw error;
-        })
-        .finally(() => {
-          if (loadControllerRef.current?.controller === controller) {
-            loadControllerRef.current = null;
-          }
-          if (controller.signal.aborted) return;
+        },
+        onSettled: () => {
           setIsLoadingThread(false);
-        });
-      // `task` rejects so a refetch deferring to it learns of the failure;
-      // only the initial load's caller swallows it.
-      record.promise = task;
-      if (purpose === "reload") return task;
-      return task.catch((error) => {
-        console.warn("useLangGraphRuntime: load handler rejected", error);
+        },
+        onInitialError: (error) => {
+          console.warn("useLangGraphRuntime: load handler rejected", error);
+        },
       });
     },
     [
       threadListItem,
+      loadController,
       setValues,
       reconcileMessages,
       seedMessageOwnership,
@@ -691,10 +668,10 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
       // the ref, and one in flight at unmount must be aborted too.
-      loadControllerRef.current?.controller.abort();
+      loadController.abort();
       setIsLoadingThread(false);
     };
-  }, [runLoad]);
+  }, [loadController, runLoad]);
 
   useEffect(() => cancelActiveRun, [cancelActiveRun]);
 
@@ -902,17 +879,10 @@ export const useLangGraphRuntime = ({
   const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
     cloud,
-    create: async () => {
-      if (create) {
-        return create();
-      }
-
-      if (aui.threadListItem.source) {
-        return aui.threadListItem.initialize();
-      }
-
-      return { externalId: undefined };
-    },
+    create: createCloudThreadListAdapterCreateFallback(
+      create,
+      aui.threadListItem,
+    ),
     delete: deleteFn,
   });
 

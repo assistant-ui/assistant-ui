@@ -13,7 +13,14 @@ import {
   type ToolExecutionStatus,
   generateId,
 } from "@assistant-ui/core";
-import { httpUrlPattern, parseDataUrl } from "@assistant-ui/core/internal";
+import {
+  createAbortableThreadLoad,
+  createCloudThreadListAdapterCreateFallback,
+  createToolCallCancellationStub,
+  httpUrlPattern,
+  parseDataUrl,
+  scanPendingToolCalls,
+} from "@assistant-ui/core/internal";
 import {
   useCloudThreadListAdapter,
   useRemoteThreadListRuntime,
@@ -104,18 +111,19 @@ export const getMessageContent = (msg: AppendMessage) => {
 
 /** @internal — exported for unit tests. */
 export const getPendingToolCalls = (messages: AdkMessage[]) => {
-  const pending = new Map<string, { id: string; name: string }>();
-  for (const msg of messages) {
-    if (msg.type === "ai" && msg.tool_calls) {
-      for (const tc of msg.tool_calls) {
-        pending.set(tc.id, tc);
+  return scanPendingToolCalls(
+    messages,
+    (message) => {
+      if (message.type === "ai") {
+        return { toolCalls: message.tool_calls ?? [] };
       }
-    }
-    if (msg.type === "tool") {
-      pending.delete(msg.tool_call_id);
-    }
-  }
-  return [...pending.values()];
+      if (message.type === "tool") {
+        return { toolCallId: message.tool_call_id };
+      }
+      return undefined;
+    },
+    (toolCall) => toolCall.id,
+  );
 };
 
 /**
@@ -138,11 +146,7 @@ export const getPendingCancellations = (
       (t) =>
         ({
           id: generateId(),
-          type: "tool",
-          name: t.name,
-          tool_call_id: t.id,
-          content: JSON.stringify({ cancelled: true }),
-          status: "error",
+          ...createToolCallCancellationStub(t),
         }) satisfies AdkMessage & { type: "tool" },
     );
 };
@@ -256,11 +260,7 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
   const loadRef = useRef(load);
   loadRef.current = load;
-  const loadControllerRef = useRef<{
-    controller: AbortController;
-    purpose: "initial" | "reload";
-    promise?: Promise<void> | undefined;
-  } | null>(null);
+  const loadController = useMemo(createAbortableThreadLoad, []);
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const [isLoadingThread, setIsLoadingThread] = useState(
@@ -372,26 +372,17 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
 
       // The initial load is already fetching what a refetch would ask for, and
       // taking it over strands the thread's history if the refetch then fails.
-      if (
-        purpose === "reload" &&
-        loadControllerRef.current?.purpose === "initial"
-      )
-        return loadControllerRef.current.promise ?? Promise.resolve();
-
-      loadControllerRef.current?.controller.abort();
-      const controller = new AbortController();
-      const record: NonNullable<typeof loadControllerRef.current> = {
-        controller,
+      // Aborting a load the runtime no longer needs is not a failure.
+      // A refetch reports the failure to whoever awaited it; the initial load
+      // has no caller to tell.
+      return loadController.run({
         purpose,
-      };
-      loadControllerRef.current = record;
+        load: async (signal) => {
+          const messagesAtLoadStart = messagesRef.current;
+          if (purpose === "initial") setIsLoadingThread(true);
 
-      const messagesAtLoadStart = messagesRef.current;
-      if (purpose === "initial") setIsLoadingThread(true);
-
-      const task = loadFn(externalId, { signal: controller.signal })
-        .then((snapshot) => {
-          if (controller.signal.aborted) return;
+          const snapshot = await loadFn(externalId, { signal });
+          if (signal.aborted) return;
           // A snapshot the session assembled before a run cannot speak for what
           // that run has since produced, and an ADK id cannot correlate a
           // message sent optimistically with the one the session stored for it,
@@ -405,29 +396,16 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
           )
             return;
           applySnapshot(snapshot);
-        })
-        .catch((error: unknown) => {
-          // Aborting a load the runtime no longer needs is not a failure.
-          if (controller.signal.aborted) return;
-          throw error;
-        })
-        .finally(() => {
-          if (loadControllerRef.current?.controller === controller) {
-            loadControllerRef.current = null;
-          }
-          if (controller.signal.aborted) return;
+        },
+        onSettled: () => {
           setIsLoadingThread(false);
-        });
-      record.promise = task;
-
-      // A refetch reports the failure to whoever awaited it; the initial load
-      // has no caller to tell.
-      if (purpose === "reload") return task;
-      return task.catch((e: unknown) => {
-        console.warn("Failed to load ADK session:", e);
+        },
+        onInitialError: (error) => {
+          console.warn("Failed to load ADK session:", error);
+        },
       });
     },
-    [threadListItem, applySnapshot],
+    [threadListItem, loadController, applySnapshot],
   );
 
   useEffect(() => {
@@ -435,10 +413,10 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     return () => {
       // Whatever is current, not this effect's own controller: a refetch swaps
       // the ref, and one in flight at unmount must be aborted too.
-      loadControllerRef.current?.controller.abort();
+      loadController.abort();
       setIsLoadingThread(false);
     };
-  }, [runLoad]);
+  }, [loadController, runLoad]);
 
   const runtime = useExternalStoreRuntime({
     ...pickExternalStoreSharedOptions(options),
@@ -605,11 +583,10 @@ export const useAdkRuntime = ({
   const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
     cloud,
-    create: async () => {
-      if (create) return create();
-      if (aui.threadListItem.source) return aui.threadListItem.initialize();
-      return { externalId: undefined };
-    },
+    create: createCloudThreadListAdapterCreateFallback(
+      create,
+      aui.threadListItem,
+    ),
     delete: deleteFn,
   });
 

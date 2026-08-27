@@ -2,6 +2,7 @@ import {
   getExternalStoreMessages,
   type ThreadMessage,
 } from "@assistant-ui/core";
+import { scanPendingToolCalls } from "@assistant-ui/core/internal";
 import type { LangChainMessage, LangChainToolCall, UIMessage } from "./types";
 
 export type PendingToolCallGroup = {
@@ -24,23 +25,28 @@ export const getPendingToolCallGroups = (
     message: Extract<LangChainMessage, { type: "ai" }>,
   ) => string | undefined = pendingToolCallGroupKey,
 ): PendingToolCallGroup[] => {
-  const pendingToolCalls = new Map<
-    string,
-    { toolCall: LangChainToolCall; groupKey: string }
-  >();
-  for (const message of messages) {
-    if (message.type === "ai") {
-      const groupKey =
-        resolveGroupKey(message) ?? pendingToolCallGroupKey(message);
-      if (!groupKey) continue;
-      for (const toolCall of message.tool_calls ?? []) {
-        pendingToolCalls.set(toolCall.id, { toolCall, groupKey });
+  const pendingToolCalls = scanPendingToolCalls(
+    messages,
+    (message) => {
+      if (message.type === "ai") {
+        const groupKey =
+          resolveGroupKey(message) ?? pendingToolCallGroupKey(message);
+        return {
+          toolCalls: groupKey
+            ? (message.tool_calls ?? []).map((toolCall) => ({
+                toolCall,
+                groupKey,
+              }))
+            : [],
+        };
       }
-    }
-    if (message.type === "tool") {
-      pendingToolCalls.delete(message.tool_call_id);
-    }
-  }
+      if (message.type === "tool") {
+        return { toolCallId: message.tool_call_id };
+      }
+      return undefined;
+    },
+    ({ toolCall }) => toolCall.id,
+  );
 
   const groups = new Map<string, LangChainToolCall[]>();
   for (const { toolCall, groupKey } of pendingToolCalls.values()) {

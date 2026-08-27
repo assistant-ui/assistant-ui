@@ -71,6 +71,15 @@ export {
   resolveImageMediaType,
   toMediaWireUrl,
 } from "./utils/wire-media";
+export {
+  createToolCallCancellationStub,
+  scanPendingToolCalls,
+} from "./runtime/utils/pending-tool-calls";
+export {
+  createAbortableThreadLoad,
+  type AbortableThreadLoadPurpose,
+} from "./runtime/utils/abortable-thread-load";
+export { createCloudThreadListAdapterCreateFallback } from "./react/runtimes/cloud/createCloudThreadListAdapterCreateFallback";
 
 export * from "./runtime/internal";
 export * from "./runtimes/internal";

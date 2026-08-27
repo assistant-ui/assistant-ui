@@ -10,6 +10,11 @@ import {
 } from "@assistant-ui/core";
 import type { ThreadMessage } from "@assistant-ui/core";
 import {
+  createCloudThreadListAdapterCreateFallback,
+  createToolCallCancellationStub,
+  scanPendingToolCalls,
+} from "@assistant-ui/core/internal";
+import {
   useCloudThreadListAdapter,
   useExternalStoreRuntime,
   useExternalMessageConverter,
@@ -73,18 +78,19 @@ export const groupUIMessagesByParent = (
 
 const getPendingToolCalls = (
   messages: readonly LangChainBaseMessage[],
-): LangChainToolCall[] => {
-  const pending = new Map<string, LangChainToolCall>();
-  for (const m of messages) {
-    const type = getMessageType(m);
-    if (type === "ai") {
-      for (const tc of m.tool_calls ?? []) pending.set(tc.id, tc);
-    } else if (type === "tool" && m.tool_call_id) {
-      pending.delete(m.tool_call_id);
-    }
-  }
-  return [...pending.values()];
-};
+): LangChainToolCall[] =>
+  scanPendingToolCalls(
+    messages,
+    (message) => {
+      const type = getMessageType(message);
+      if (type === "ai") return { toolCalls: message.tool_calls ?? [] };
+      if (type === "tool" && message.tool_call_id) {
+        return { toolCallId: message.tool_call_id };
+      }
+      return undefined;
+    },
+    (toolCall) => toolCall.id,
+  );
 
 const toStagedHumanMessage = (
   msg: AppendMessage,
@@ -430,13 +436,7 @@ const useStreamThreadRuntime = (
         autoCancelPendingToolCalls !== false
           ? getPendingToolCalls(
               streamRef.current.messages as readonly LangChainBaseMessage[],
-            ).map((t) => ({
-              type: "tool" as const,
-              name: t.name,
-              tool_call_id: t.id,
-              content: JSON.stringify({ cancelled: true }),
-              status: "error" as const,
-            }))
+            ).map(createToolCallCancellationStub)
           : [];
       // A null threadId is not a no-op for the SDK: it rebinds the controller
       // away from its self-created thread and forces a fresh one, so the
@@ -637,9 +637,13 @@ export const useStreamRuntime = (rawOptions: UseStreamRuntimeOptions) => {
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
+  const aui = useAui();
   const cloudAdapter = useCloudThreadListAdapter({
     cloud,
-    create,
+    create: createCloudThreadListAdapterCreateFallback(
+      create,
+      aui.threadListItem,
+    ),
     delete: deleteFn,
   });
   const adapter = unstable_threadListAdapter ?? cloudAdapter;
