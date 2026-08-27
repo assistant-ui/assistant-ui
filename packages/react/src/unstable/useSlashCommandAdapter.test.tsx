@@ -101,6 +101,22 @@ describe("unstable_useSlashCommandAdapter", () => {
     expect(executeB).toHaveBeenCalledOnce();
   });
 
+  it("matches the displayed label for a command with no explicit label", () => {
+    const { result } = renderHook(() =>
+      unstable_useSlashCommandAdapter({
+        commands: [{ id: "summarize", execute: vi.fn() }],
+      }),
+    );
+
+    expect(result.current.adapter.search?.("/")).toEqual([
+      { id: "summarize", type: "command", label: "/summarize" },
+    ]);
+    expect(result.current.adapter.search?.("sum")).toEqual([
+      { id: "summarize", type: "command", label: "/summarize" },
+    ]);
+    expect(result.current.adapter.search?.("nope")).toEqual([]);
+  });
+
   it("keeps the adapter stable for equivalent inline commands", () => {
     const executeA = vi.fn();
     const executeB = vi.fn();

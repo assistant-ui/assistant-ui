@@ -1,6 +1,6 @@
 "use client";
 
-import { useInsertionEffect, useMemo, useRef } from "react";
+import { useLayoutEffect, useMemo, useRef } from "react";
 import type {
   Unstable_TriggerAdapter,
   Unstable_TriggerItem,
@@ -63,12 +63,14 @@ export function unstable_useSlashCommandAdapter(
   const commandsRef = useRef(commands);
   const committedItemsRef = useRef<readonly Unstable_TriggerItem[]>(undefined);
   const nextItems = commands.map(toItem);
+  // A referential cache, never state: `items` is always structurally equal to
+  // `nextItems`, so the render-time read cannot change what the adapter shows.
   const items = areTriggerItemsEqual(committedItemsRef.current, nextItems)
     ? committedItemsRef.current
     : nextItems;
 
-  // Publish committed callbacks and search metadata before layout effects without exposing abandoned renders.
-  useInsertionEffect(() => {
+  // The adapter's callbacks must only observe commands from committed renders.
+  useLayoutEffect(() => {
     commandsRef.current = commands;
     committedItemsRef.current = items;
   }, [commands, items]);
@@ -116,11 +118,11 @@ function toItem(cmd: Unstable_SlashCommand): Unstable_TriggerItem {
   };
 }
 
-function matchesQuery(cmd: Unstable_TriggerItem, lower: string): boolean {
+function matchesQuery(item: Unstable_TriggerItem, lower: string): boolean {
   if (!lower) return true;
-  if (cmd.id.toLowerCase().includes(lower)) return true;
-  if (cmd.label?.toLowerCase().includes(lower)) return true;
-  if (cmd.description?.toLowerCase().includes(lower)) return true;
+  if (item.id.toLowerCase().includes(lower)) return true;
+  if (item.label.toLowerCase().includes(lower)) return true;
+  if (item.description?.toLowerCase().includes(lower)) return true;
   return false;
 }
 
