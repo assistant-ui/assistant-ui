@@ -7,6 +7,7 @@ import type {
 } from "../../types/message";
 import type { MessageTiming } from "../../types/message";
 import { generateErrorMessageId } from "../../utils/id";
+import { isJSONValueEqual } from "../../utils/json/is-json-equal";
 import {
   getAutoStatus,
   isAutoStatus,
@@ -95,8 +96,24 @@ const toCallbackOutputs = (
         `External message converter: the converter callback returned an invalid message (${stringifyForError(o)}) for input ${stringifyForError(input)}. Return an empty array to skip a message.`,
       );
   }
-  return outputs;
+  // Providers can emit tool results without a usable id (react-langchain maps
+  // a missing tool_call_id to ""); converters must not throw on those, so the
+  // result is dropped like any other orphaned tool output.
+  return outputs.filter((o) => {
+    if (o.role !== "tool") return true;
+    if (typeof o.toolCallId === "string" && o.toolCallId.length > 0)
+      return true;
+    if (!warnedDroppedToolResults.has(o)) {
+      warnedDroppedToolResults.add(o);
+      console.warn(
+        `External message converter: dropping a tool result without a toolCallId (${stringifyForError(o)}) for input ${stringifyForError(input)}.`,
+      );
+    }
+    return false;
+  });
 };
+
+const warnedDroppedToolResults = new WeakSet<object>();
 
 export const convertExternalMessageCallback = <T>(
   input: T,
@@ -384,7 +401,15 @@ export const convertExternalMessageChunk = <T>(
     cachedMessage &&
     (cachedMessage.role !== "assistant" ||
       !isAutoStatus(cachedMessage.status) ||
-      cachedMessage.status === autoStatus)
+      cachedMessage.status === autoStatus ||
+      (cachedMessage.status.type === "incomplete" &&
+        cachedMessage.status.reason === "error" &&
+        cachedMessage.status.error !== undefined &&
+        autoStatus.type === "incomplete" &&
+        autoStatus.reason === "error" &&
+        autoStatus.error !== undefined &&
+        (cachedMessage.status.error === autoStatus.error ||
+          isJSONValueEqual(cachedMessage.status.error, autoStatus.error))))
   ) {
     const inputs = getExternalStoreMessages<T>(cachedMessage);
     if (shallowArrayEqual(inputs, message.inputs)) {

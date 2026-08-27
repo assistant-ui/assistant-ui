@@ -1,6 +1,11 @@
 "use client";
 
-import { type PropsWithChildren, useState, type FC } from "react";
+import {
+  type PropsWithChildren,
+  useState,
+  type FC,
+  isValidElement,
+} from "react";
 import {
   XIcon,
   PlusIcon,
@@ -68,7 +73,11 @@ const AttachmentPreviewDialog: FC<PropsWithChildren> = ({ children }) => {
         className="aui-attachment-preview-trigger cursor-zoom-in"
         asChild
       >
-        {children}
+        {isValidElement(children) ? (
+          children
+        ) : (
+          <button type="button">{children}</button>
+        )}
       </DialogTrigger>
       <DialogContent className="aui-attachment-preview-dialog-content [&>button]:bg-foreground/60 [&>button]:hover:bg-foreground/80 [&_svg]:text-background p-2 sm:max-w-3xl [&>button]:rounded-full [&>button]:p-1 [&>button]:opacity-100 [&>button]:ring-0!">
         <DialogTitle className="aui-sr-only sr-only">

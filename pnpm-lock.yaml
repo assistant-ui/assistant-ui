@@ -4477,6 +4477,9 @@ importers:
       '@assistant-ui/core':
         specifier: ^0.3.15
         version: link:../core
+      '@assistant-ui/react-langchain':
+        specifier: ^0.0.27
+        version: link:../react-langchain
       '@assistant-ui/store':
         specifier: ^0.3.10
         version: link:../store

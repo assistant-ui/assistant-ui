@@ -5,13 +5,12 @@ import {
   getComponentsJsonStyle,
   resolveRegistryItemUrl,
 } from "../lib/utils/registry";
-import {
-  dlxCommand,
-  resolvePackageManager,
-  resolvePackageManagerForCwd,
-  type PackageManagerName,
-} from "../lib/create-project";
+import { dlxCommand, resolvePackageManager } from "../lib/create-project";
 import { runSpawn, SpawnExitError } from "../lib/run-spawn";
+import {
+  type PackageManagerName,
+  resolvePackageManagerForCwd,
+} from "../lib/utils/package-manager";
 
 export interface AddComponentsPlan {
   command: string;

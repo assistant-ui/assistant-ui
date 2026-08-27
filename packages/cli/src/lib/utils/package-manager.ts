@@ -5,6 +5,8 @@ import { detect } from "detect-package-manager";
 import * as readline from "node:readline";
 import { logger } from "./logger";
 
+export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
+
 export function askQuestion(query: string): Promise<string> {
   return new Promise((resolve) => {
     const rl = readline.createInterface({
@@ -59,6 +61,30 @@ export async function getInstallCommand(
       return { command: "bun", args: ["add", ...packages] };
     default:
       return { command: "npm", args: ["install", ...packages] };
+  }
+}
+
+function detectFromUserAgent(): PackageManagerName | undefined {
+  const ua = process.env.npm_config_user_agent;
+  if (!ua) return undefined;
+  if (ua.startsWith("bun/")) return "bun";
+  if (ua.startsWith("pnpm/")) return "pnpm";
+  if (ua.startsWith("yarn/")) return "yarn";
+  if (ua.startsWith("npm/")) return "npm";
+  return undefined;
+}
+
+export async function resolvePackageManagerForCwd(
+  cwd: string,
+  packageManager?: PackageManagerName,
+): Promise<PackageManagerName> {
+  if (packageManager) return packageManager;
+  const fromAgent = detectFromUserAgent();
+  if (fromAgent) return fromAgent;
+  try {
+    return await detect({ cwd });
+  } catch {
+    return "npm";
   }
 }
 

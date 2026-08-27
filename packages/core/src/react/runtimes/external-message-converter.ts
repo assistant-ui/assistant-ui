@@ -6,7 +6,7 @@ import {
   completeExternalMessageConversion,
   convertExternalMessageCallback,
   convertExternalMessageChunk,
-  convertExternalMessages,
+  convertExternalMessages as convertExternalMessagesInternal,
   shallowArrayEqual,
   type ExternalMessageConverterCallback,
   type ExternalMessageConverterCallbackResult,
@@ -17,12 +17,12 @@ import {
 } from "../../runtime/utils/external-message-conversion";
 import { bindExternalStoreMessage } from "../../runtime/utils/external-store-message";
 import { ThreadMessageConverter } from "../../runtimes/external-store/thread-message-converter";
+import type { ThreadMessage } from "../../types/message";
 
 // Generatedness is tracked by identity, not by id shape: a caller-supplied id
 // that happens to match the generated pattern must never be rewritten.
 const generatedFallbackMessages = new WeakSet<object>();
 
-export { convertExternalMessages };
 export type { JoinStrategy };
 
 export namespace useExternalMessageConverter {
@@ -30,6 +30,13 @@ export namespace useExternalMessageConverter {
   export type Metadata = ExternalMessageConverterMetadata;
   export type Callback<T> = ExternalMessageConverterCallback<T>;
 }
+
+export const convertExternalMessages: <T extends WeakKey>(
+  messages: T[],
+  callback: useExternalMessageConverter.Callback<T>,
+  isRunning: boolean,
+  metadata: useExternalMessageConverter.Metadata,
+) => ThreadMessage[] = convertExternalMessagesInternal;
 
 type CallbackCacheEntry<T> = ExternalMessageConverterCallbackResult<T> & {
   metadata: useExternalMessageConverter.Metadata;

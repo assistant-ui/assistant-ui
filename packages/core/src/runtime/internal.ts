@@ -56,3 +56,8 @@ export {
   MessageRepository,
 } from "./utils/message-repository";
 export type { ExportedMessageRepositoryItem } from "./utils/message-repository";
+export { createMessageRepositorySession } from "./utils/message-repository-session";
+export type {
+  MessageRepositorySession,
+  MessageRepositorySessionOptions,
+} from "./utils/message-repository-session";

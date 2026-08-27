@@ -1069,6 +1069,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/use-copy-to-clipboard.json",
     ],
     dependencies: [
+      "@assistant-ui/react",
       "@assistant-ui/react-markdown",
       "lucide-react",
       "remark-gfm",
@@ -1151,12 +1152,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/thread-list.tsx",
       },
     ],
-    registryDependencies: [
-      "button",
-      "input",
-      "skeleton",
-      "https://r.assistant-ui.com/tooltip-icon-button.json",
-    ],
+    registryDependencies: ["button", "input", "skeleton"],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {

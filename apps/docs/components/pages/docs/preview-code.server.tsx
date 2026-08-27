@@ -147,7 +147,7 @@ function extractImports(source: string): string[] {
 
 function filterRelevantImports(imports: string[], code: string): string[] {
   return imports.filter((imp) => {
-    const namedMatch = imp.match(/import\s+\{([^}]+)\}/);
+    const namedMatch = imp.match(/import\s+(?:type\s+)?\{([^}]+)\}/);
     const defaultMatch = imp.match(/import\s+(\w+)\s+from/);
 
     if (namedMatch?.[1]) {
