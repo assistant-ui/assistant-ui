@@ -600,7 +600,24 @@ export const create = new Command()
     const cleanupOnExit = () => {
       fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
     };
+    // Node emits no "exit" when a signal kills the process; re-raise only when
+    // no runSpawn listener is left to drive termination itself.
+    const cleanupOnSignal = (signal: NodeJS.Signals) => {
+      removeCleanupListeners();
+      cleanupOnExit();
+      if (process.listenerCount(signal) === 0) {
+        process.kill(process.pid, signal);
+      }
+    };
+    const removeCleanupListeners = () => {
+      process.removeListener("exit", cleanupOnExit);
+      process.removeListener("SIGINT", cleanupOnSignal);
+      process.removeListener("SIGTERM", cleanupOnSignal);
+    };
+
     process.once("exit", cleanupOnExit);
+    process.on("SIGINT", cleanupOnSignal);
+    process.on("SIGTERM", cleanupOnSignal);
 
     try {
       // 3. Resolve latest release ref (started before prompts)
@@ -669,7 +686,7 @@ export const create = new Command()
       }
 
       if (transformResult.registryInstallFailure) {
-        process.removeListener("exit", cleanupOnExit);
+        removeCleanupListeners();
         logger.break();
         logger.error("Project created with missing components.");
         logger.info("Retry the component install with:");
@@ -705,7 +722,7 @@ export const create = new Command()
         }
       }
 
-      process.removeListener("exit", cleanupOnExit);
+      removeCleanupListeners();
 
       logger.break();
       logger.success("Project created successfully!");
