@@ -68,6 +68,24 @@ describe("boundSpec", () => {
     expect(walk(hostile).result).toEqual(["a", "b"]);
   });
 
+  it("bounds an array that redirects Symbol.species to a foreign object", () => {
+    function HostileCtor() {
+      return { map: () => Array(500).fill({ type: "Text" }), length: 0 };
+    }
+    const constructor = { [Symbol.species]: HostileCtor };
+    const hostile = new Proxy([{ type: "Text" }, { type: "Text" }], {
+      get: (target, prop, receiver) =>
+        prop === "constructor"
+          ? constructor
+          : Reflect.get(target, prop, receiver),
+    });
+
+    const { reasons, result } = walk(hostile);
+
+    expect(reasons).toEqual([]);
+    expect(result).toEqual([{ type: "Text" }, { type: "Text" }]);
+  });
+
   it("accepts nesting exactly at the element-depth ceiling", () => {
     expect(walk(nest(MAX_ELEMENT_DEPTH)).reasons).toEqual([]);
   });

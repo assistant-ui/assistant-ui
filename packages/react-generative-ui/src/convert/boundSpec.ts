@@ -1,3 +1,5 @@
+import { copyBounded } from "./copyBounded";
+
 /** The maximum traversal depth, counted in visited values, not tree levels. */
 export const MAX_TRAVERSAL_DEPTH = 64;
 
@@ -71,11 +73,7 @@ function boundNode(
       return null;
     }
     ancestors.add(value);
-    const bounded = Array.prototype.slice.call(
-      value,
-      0,
-      CHILDREN_CAP,
-    ) as unknown[];
+    const bounded = copyBounded(value, CHILDREN_CAP);
     if (value.length > CHILDREN_CAP) onClamp("children");
     const result = bounded.map((item) =>
       boundNode(item, depth + 1, onClamp, state, ancestors),
@@ -116,8 +114,8 @@ function boundNode(
  * `children` array walks the full reported length of a hostile proxied
  * array before any per-field cap downstream ever applies. Every array
  * (root, or `children` at any depth) is capped to {@link CHILDREN_CAP}
- * entries via `Array.prototype.slice`, which bounds even a proxy with a
- * fabricated `length`; recursion itself is capped at
+ * entries by index, which bounds a proxy however it fabricates `length` or
+ * replaces its array methods; recursion itself is capped at
  * {@link MAX_TRAVERSAL_DEPTH}. `onClamp` fires once per level that was
  * truncated, receiving the reason for that truncation: `"children"`,
  * `"depth"`, `"budget"`, or `"cycle"`. The walk also spends a total budget of

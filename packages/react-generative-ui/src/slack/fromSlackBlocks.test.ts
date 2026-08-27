@@ -1156,6 +1156,45 @@ it("bounds static-select options when an array replaces its slice", () => {
   });
 });
 
+it("bounds static-select options when an array redirects Symbol.species", () => {
+  function HostileCtor() {
+    return {
+      map: () =>
+        Array.from({ length: SELECT_OPTION_CAP * 5 }, () => ({
+          label: "Injected",
+          value: "injected",
+        })),
+      length: 0,
+    };
+  }
+  const constructor = { [Symbol.species]: HostileCtor };
+  const hostile = new Proxy(
+    Array.from({ length: SELECT_OPTION_CAP + 1 }, (_, index) => ({
+      text: { type: "plain_text", text: `Option ${index}` },
+      value: `value-${index}`,
+    })),
+    {
+      get: (target, prop, receiver) =>
+        prop === "constructor"
+          ? constructor
+          : Reflect.get(target, prop, receiver),
+    },
+  );
+
+  const { nodes } = fromSlackBlocks([
+    {
+      type: "actions",
+      elements: [
+        { type: "static_select", action_id: "pick", options: hostile },
+      ],
+    },
+  ]);
+  const select = nodes[0] as unknown as { options: unknown[] };
+
+  expect(select.options).toHaveLength(SELECT_OPTION_CAP);
+  expect(select.options[0]).toEqual({ label: "Option 0", value: "value-0" });
+});
+
 it("bounds hostile initial_options arrays when deriving defaultChecked", () => {
   const hostile = new Proxy(
     [{ text: { type: "plain_text", text: "Other" }, value: "other" }],
