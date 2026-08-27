@@ -25,6 +25,7 @@
   "devDependencies": {
     "@types/node": "^26.2.0",
     "@types/react": "^19.2.18",
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "vercel": "59.5.0"
   }
 }
