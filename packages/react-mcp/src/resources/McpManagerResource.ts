@@ -8,6 +8,7 @@ import {
 } from "@assistant-ui/store";
 import { useAssistantScopeEffect } from "@assistant-ui/store/client";
 import { ModelContext } from "@assistant-ui/core/store";
+import { createMcpId } from "../utils/createMcpId";
 import type { Tool } from "assistant-stream";
 import { McpServerResource } from "./McpServerResource";
 import { McpLocalStorage } from "./storage/McpLocalStorage";
@@ -275,10 +276,7 @@ const useMcpManagerResource = (
       elicitation,
     }) => {
       const record: MCPCustomServerRecord = {
-        id:
-          typeof crypto !== "undefined" && "randomUUID" in crypto
-            ? crypto.randomUUID()
-            : `mcp-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+        id: createMcpId(),
         name,
         url,
         auth: auth as MCPAuthConfig,

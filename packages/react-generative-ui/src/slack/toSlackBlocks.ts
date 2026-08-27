@@ -1,4 +1,6 @@
 import { boundSpec, clampReasonDetail } from "../convert/boundSpec";
+import { isElement } from "../convert/isElement";
+import { takeRun } from "../convert/takeRun";
 import {
   normalizeSpec,
   type NormalizedUIElement,
@@ -84,9 +86,6 @@ const DATE_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
-  isRecord(node);
 
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
@@ -1263,32 +1262,20 @@ function convertSequence(
       continue;
     }
     if (isElement(current) && current.type === "Fact") {
-      const facts: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (!candidate || !isElement(candidate) || candidate.type !== "Fact") {
-          break;
-        }
-        facts.push(candidate);
-        index += 1;
-      }
+      const { run: facts, next } = takeRun(
+        nodes,
+        index,
+        (candidate) => candidate.type === "Fact",
+      );
+      index = next;
       blocks.push(...convertFacts(facts, context));
       continue;
     }
     if (isElement(current) && INTERACTIVE_TYPES.has(current.type)) {
-      const controls: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (
-          !candidate ||
-          !isElement(candidate) ||
-          !INTERACTIVE_TYPES.has(candidate.type)
-        ) {
-          break;
-        }
-        controls.push(candidate);
-        index += 1;
-      }
+      const { run: controls, next } = takeRun(nodes, index, (candidate) =>
+        INTERACTIVE_TYPES.has(candidate.type),
+      );
+      index = next;
       blocks.push(...convertActions(controls, context));
       continue;
     }

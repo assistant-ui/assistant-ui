@@ -1,3 +1,5 @@
+import { isElement } from "../convert/isElement";
+import { takeRun } from "../convert/takeRun";
 import {
   normalizeSpec,
   type NormalizedUIElement,
@@ -43,9 +45,6 @@ export interface ConversionContext {
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null && !Array.isArray(value);
-
-const isElement = (node: NormalizedUINode): node is NormalizedUIElement =>
-  isRecord(node);
 
 const asString = (value: unknown): string =>
   typeof value === "string" ? value : "";
@@ -729,32 +728,22 @@ export function convertSequence(
       continue;
     }
     if (isElement(current) && current.type === "Fact") {
-      const facts: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (!candidate || !isElement(candidate) || candidate.type !== "Fact") {
-          break;
-        }
-        facts.push(candidate);
-        index += 1;
-      }
+      const { run: facts, next } = takeRun(
+        nodes,
+        index,
+        (candidate) => candidate.type === "Fact",
+      );
+      index = next;
       emit([convertFacts(facts)]);
       continue;
     }
     if (isElement(current) && current.type === "Button") {
-      const buttons: NormalizedUIElement[] = [];
-      while (index < nodes.length) {
-        const candidate = nodes[index];
-        if (
-          !candidate ||
-          !isElement(candidate) ||
-          candidate.type !== "Button"
-        ) {
-          break;
-        }
-        buttons.push(candidate);
-        index += 1;
-      }
+      const { run: buttons, next } = takeRun(
+        nodes,
+        index,
+        (candidate) => candidate.type === "Button",
+      );
+      index = next;
       emit([convertButtons(buttons, context)]);
       continue;
     }

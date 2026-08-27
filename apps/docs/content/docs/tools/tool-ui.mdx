@@ -5,6 +5,8 @@ platforms: ["react"]
 ---
 
 import { ToolUISample } from "@/components/pages/docs/samples/tool-ui";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { ToolUIRendererSample } from "@/components/pages/docs/samples/tool-ui/custom-renderer";
 
 Create custom UI components for AI tool calls, providing visual feedback and interactive experiences when tools are executed.
 
@@ -109,7 +111,14 @@ const toolkit = defineToolkit({
 
 ## Quick Start Example
 
-This example shows how to implement the UI-only approach with a backend toolkit entry:
+This example uses a backend toolkit entry for a tool that the server defines. The preview uses a shorter renderer than the steps below.
+
+<PreviewCode
+  file="components/pages/docs/samples/tool-ui/custom-renderer"
+  name="WeatherToolUI"
+>
+  <ToolUIRendererSample />
+</PreviewCode>
 
 <Steps>
   <Step>
@@ -178,12 +187,15 @@ const WeatherToolUI: ToolCallMessagePartComponent<
 
 ### Register the Tool UI
 
-Put the renderer on the matching backend toolkit entry:
+Put the renderer on the related backend toolkit entry.
+
+Set `display` to `"standalone"` to keep the tool UI outside the collapsed tool group. A backend tool uses the inline display by default.
 
 ```tsx
 const toolkit = defineToolkit({
   getWeather: {
     type: "backend",
+    display: "standalone",
     render: WeatherToolUI,
   },
 });

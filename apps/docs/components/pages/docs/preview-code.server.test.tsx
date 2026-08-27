@@ -51,4 +51,16 @@ describe("PreviewCode", () => {
     );
     expect(code).toContain("function MermaidSample()");
   });
+
+  it("keeps only the type import used by the preview function", async () => {
+    const { code } = await getPreviewCode(
+      "components/pages/docs/samples/tool-ui/custom-renderer",
+      "WeatherToolUI",
+    );
+
+    expect(code).toContain(
+      'import type { ToolCallMessagePartProps } from "@assistant-ui/react";',
+    );
+    expect(code).not.toContain("AssistantRuntime");
+  });
 });

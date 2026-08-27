@@ -3,7 +3,7 @@ import {
   getMessageContent,
   getPendingCancellations,
   getPendingToolCalls,
-} from "./useAdkRuntime";
+} from "./convertToAdkMessages";
 import { convertAdkMessage } from "./convertAdkMessages";
 import type { AppendMessage } from "@assistant-ui/core";
 import type { AdkMessage } from "./types";
