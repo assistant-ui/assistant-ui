@@ -2,10 +2,7 @@ import sjson from "secure-json-parse";
 import type { AssistantStreamChunk } from "../../AssistantStreamChunk";
 import { AssistantTransformStream } from "../../utils/stream/AssistantTransformStream";
 import { PipeableTransformStream } from "../../utils/stream/PipeableTransformStream";
-import {
-  SSEEventDecoderStream,
-  type PipelineSSEEvent,
-} from "../../utils/stream/SSEEventDecoderStream";
+import { createSSEJsonDecoder } from "../../utils/stream/SSEJson";
 import type {
   UIMessageStreamChunk,
   UIMessageStreamDataChunk,
@@ -41,7 +38,6 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
       const toolCallPartRegistry = createToolCallPartRegistry();
       let activeToolCallId: string | undefined;
       let currentMessageId: string | undefined;
-      let receivedDone = false;
       type PendingTool = {
         toolCallId: string;
         toolName: string;
@@ -258,27 +254,13 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
       });
 
       return readable
-        .pipeThrough(new TextDecoderStream())
-        .pipeThrough(new SSEEventDecoderStream())
         .pipeThrough(
-          new TransformStream<PipelineSSEEvent, UIMessageStreamChunk>({
-            transform(event, controller) {
-              if (event.event !== "message") {
-                throw new Error(`Unknown SSE event type: ${event.event}`);
-              }
-
-              if (event.data === "[DONE]") {
-                for (const tool of pendingTools.values()) {
-                  emitPendingTool(controller, tool);
-                }
-                receivedDone = true;
-                controller.terminate();
-                return;
-              }
-
+          createSSEJsonDecoder<UIMessageStreamChunk>({
+            strict: true,
+            parse(data, controller) {
               let chunk;
               try {
-                chunk = sjson.parse(event.data);
+                chunk = sjson.parse(data);
               } catch {
                 chunk = undefined;
               }
@@ -289,7 +271,7 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
                 typeof chunk.type !== "string"
               ) {
                 console.warn(
-                  `Dropped invalid UIMessageStream chunk: ${event.data.slice(0, 200)}`,
+                  `Dropped invalid UIMessageStream chunk: ${data.slice(0, 200)}`,
                 );
                 return;
               }
@@ -436,12 +418,18 @@ export class UIMessageStreamDecoder extends PipeableTransformStream<
 
               controller.enqueue(chunk);
             },
-            flush() {
-              if (!receivedDone) {
+            done: {
+              marker: "[DONE]",
+              onDone(controller) {
+                for (const tool of pendingTools.values()) {
+                  emitPendingTool(controller, tool);
+                }
+              },
+              onMissing() {
                 throw new Error(
                   "Stream ended abruptly without receiving [DONE] marker",
                 );
-              }
+              },
             },
           }),
         )

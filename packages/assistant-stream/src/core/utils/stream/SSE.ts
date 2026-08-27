@@ -1,9 +1,6 @@
 import sjson from "secure-json-parse";
 import { PipeableTransformStream } from "./PipeableTransformStream";
-import {
-  SSEEventDecoderStream,
-  type PipelineSSEEvent,
-} from "./SSEEventDecoderStream";
+import { createSSEJsonDecoder, createSSEJsonEncoder } from "./SSEJson";
 
 export class SSEEncoder<T> extends PipeableTransformStream<
   T,
@@ -18,17 +15,7 @@ export class SSEEncoder<T> extends PipeableTransformStream<
   headers = SSEEncoder.headers;
 
   constructor() {
-    super((readable) =>
-      readable
-        .pipeThrough(
-          new TransformStream<T, string>({
-            transform(chunk, controller) {
-              controller.enqueue(`data: ${JSON.stringify(chunk)}\n\n`);
-            },
-          }),
-        )
-        .pipeThrough(new TextEncoderStream()),
-    );
+    super((readable) => readable.pipeThrough(createSSEJsonEncoder<T>()));
   }
 }
 
@@ -40,39 +27,29 @@ export class SSEDecoder<T> extends PipeableTransformStream<
     const strict = options.strict ?? true;
     const ignoredEvents = new Set<string>();
     super((readable) =>
-      readable
-        .pipeThrough(new TextDecoderStream())
-        .pipeThrough(new SSEEventDecoderStream())
-        .pipeThrough(
-          new TransformStream<PipelineSSEEvent, T>({
-            transform(event, controller) {
-              switch (event.event) {
-                case "message": {
-                  let value;
-                  try {
-                    value = sjson.parse(event.data);
-                  } catch {
-                    console.warn(
-                      `Dropped invalid SSE message: ${event.data.slice(0, 200)}`,
-                    );
-                    break;
-                  }
-                  controller.enqueue(value);
-                  break;
-                }
-                default:
-                  if (strict)
-                    throw new Error(`Unknown SSE event type: ${event.event}`);
-                  if (!ignoredEvents.has(event.event)) {
-                    ignoredEvents.add(event.event);
-                    console.error(
-                      `Ignored unknown SSE event type: ${event.event}`,
-                    );
-                  }
-              }
-            },
-          }),
-        ),
+      readable.pipeThrough(
+        createSSEJsonDecoder<T>({
+          strict,
+          parse(data, controller) {
+            let value;
+            try {
+              value = sjson.parse(data);
+            } catch {
+              console.warn(
+                `Dropped invalid SSE message: ${data.slice(0, 200)}`,
+              );
+              return;
+            }
+            controller.enqueue(value);
+          },
+          onUnknownEvent(event) {
+            if (!ignoredEvents.has(event)) {
+              ignoredEvents.add(event);
+              console.error(`Ignored unknown SSE event type: ${event}`);
+            }
+          },
+        }),
+      ),
     );
   }
 }
