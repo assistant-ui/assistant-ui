@@ -53,7 +53,7 @@ const catalogTemplateSchema = z.looseObject({
 });
 
 const catalogSchema = z.looseObject({
-  version: z.literal(1),
+  version: z.literal(XULUX_MCP_CATALOG_VERSION),
   // Not read anywhere in the package; validated for shape only, so an unused
   // field cannot veto the whole catalog.
   generatedAt: z.string(),
