@@ -1,21 +1,17 @@
 import type { ReactNode } from "react";
 import { Header } from "@/components/shared/header";
 import { Footer } from "@/components/shared/footer";
-import { HomeAssistant } from "@/components/pages/home/home-assistant";
-import { getRepo } from "@/lib/github";
 
-export default async function Layout({
+export default function Layout({
   children,
 }: {
   children: ReactNode;
-}): Promise<React.ReactElement> {
-  const repo = await getRepo();
-
+}): React.ReactElement {
   return (
-    <HomeAssistant>
-      <Header stars={repo?.stars ?? null} />
+    <div className="flex min-h-screen flex-col">
+      <Header />
       {children}
       <Footer />
-    </HomeAssistant>
+    </div>
   );
 }
