@@ -79,6 +79,9 @@ async function callMcpRoute(
       ...(signal ? { signal } : {}),
     });
   } catch (error) {
+    // Propagate cancellation untouched so a caller can tell an abort it
+    // requested (name === "AbortError") from a transport failure.
+    if (error instanceof Error && error.name === "AbortError") throw error;
     throw new Error(
       `Docs request failed: ${error instanceof Error ? error.message : String(error)}`,
     );
