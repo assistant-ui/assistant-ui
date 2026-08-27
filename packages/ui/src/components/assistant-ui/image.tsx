@@ -283,9 +283,9 @@ function ImageZoom({ src, alt = "Image preview", children }: ImageZoomProps) {
       const focusables = overlayRef.current?.querySelectorAll<HTMLElement>(
         'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
       );
-      if (!focusables?.length) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
+      const first = focusables?.[0];
+      const last = focusables?.[focusables.length - 1];
+      if (!first || !last) return;
       if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();
