@@ -81,22 +81,31 @@ const config: NextConfig = {
           key: "Content-Security-Policy",
           value: cspHeader.replace(/\n/g, ""),
         },
-        // WebMCP's registerTool() rejects with SecurityError unless the agent
-        // cluster is origin-keyed (webmachinelearning/webmcp index.bs, register
-        // steps). Chrome defaults to origin-keyed clusters, but sending the
-        // header guarantees it in every browser; verify window.originAgentCluster
-        // === true on a deployment.
-        {
-          key: "Origin-Agent-Cluster",
-          value: "?1",
-        },
-        // Chrome gates WebMCP (document.modelContext, used by
-        // components/shared/webmcp-tools.tsx) behind an origin trial through
-        // Chrome 156. The site owner enables it by setting this env var to the
-        // token registered for assistant-ui.com at
-        // https://developer.chrome.com/origintrials/#/trials/active.
+        // Both WebMCP headers are gated on the site owner opting in via
+        // WEBMCP_ORIGIN_TRIAL_TOKEN, so the prototype is inert by default and
+        // never changes production response headers on its own. Origin-keying
+        // in particular is sticky (a browser decides it from the first response
+        // and holds it for the origin for the session), so it must not ship as
+        // a side effect of an off-by-default feature.
         ...(process.env.WEBMCP_ORIGIN_TRIAL_TOKEN
           ? [
+              // WebMCP requires an origin-keyed agent cluster: registerTool()
+              // (and getTools()/executeTool()) "return a promise rejected with
+              // a SecurityError DOMException" when the surrounding agent
+              // cluster's is origin-keyed is false and the origin's scheme is
+              // not "file" (webmachinelearning/webmcp index.bs). Chrome
+              // defaults to origin-keyed since 111, but the default is
+              // enterprise-policy flippable and not universal, so send the
+              // header explicitly wherever the feature is enabled.
+              {
+                key: "Origin-Agent-Cluster",
+                value: "?1",
+              },
+              // Chrome gates WebMCP (document.modelContext, used by
+              // components/shared/webmcp-tools.tsx) behind an origin trial
+              // through Chrome 156. The site owner enables it by setting this
+              // env var to the token registered for assistant-ui.com at
+              // https://developer.chrome.com/origintrials/#/trials/active.
               {
                 key: "Origin-Trial",
                 value: process.env.WEBMCP_ORIGIN_TRIAL_TOKEN,
