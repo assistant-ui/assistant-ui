@@ -201,6 +201,25 @@ describe("toWebMcpTool", () => {
     expect(execute).not.toHaveBeenCalled();
   });
 
+  it("does not execute when the signal is already aborted after approval", async () => {
+    const execute = vi.fn(async () => "ran");
+    const controller = new AbortController();
+    controller.abort();
+    const descriptor = toWebMcpTool(
+      "t",
+      () => frontendTool({ execute }),
+      approveAllGate,
+    );
+
+    await expect(
+      descriptor.execute({}, { signal: controller.signal }),
+    ).resolves.toEqual({
+      isError: true,
+      content: [{ type: "text", text: "Tool execution was cancelled." }],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("maps a throwing approval gate to an isError result without running the tool", async () => {
     const execute = vi.fn(async () => "never");
     const throwingGate: WebMcpApprovalGate = async () => {
@@ -276,9 +295,9 @@ describe("toMcpContent", () => {
     });
   });
 
-  it("stringifies an undefined result without throwing", async () => {
+  it("normalizes an undefined result to the canonical placeholder", async () => {
     await expect(toMcpContent(undefined, context)).resolves.toEqual({
-      content: [{ type: "text", text: "undefined" }],
+      content: [{ type: "text", text: "<no result>" }],
     });
   });
 
@@ -332,6 +351,38 @@ describe("toMcpContent", () => {
     ).resolves.toEqual({
       content: [{ type: "text", text: "20 degrees" }],
     });
+  });
+
+  it("projects a successful ToolResponse without modelContent through toModelOutput", async () => {
+    const tool = frontendTool({
+      toModelOutput: async ({ output }) => {
+        expect(output).toEqual({ secret: "raw" });
+        return [{ type: "text", text: "redacted" }];
+      },
+    });
+    const response = new ToolResponse({ result: { secret: "raw" } });
+
+    await expect(
+      toMcpContent(response, { tool, toolCallId: "c", args: {} }),
+    ).resolves.toEqual({
+      content: [{ type: "text", text: "redacted" }],
+    });
+  });
+
+  it("does not run toModelOutput for a ToolResponse error", async () => {
+    const toModelOutput = vi.fn(async () => [
+      { type: "text" as const, text: "never" },
+    ]);
+    const tool = frontendTool({ toModelOutput });
+    const response = new ToolResponse({ result: "failed", isError: true });
+
+    await expect(
+      toMcpContent(response, { tool, toolCallId: "c", args: {} }),
+    ).resolves.toEqual({
+      isError: true,
+      content: [{ type: "text", text: "failed" }],
+    });
+    expect(toModelOutput).not.toHaveBeenCalled();
   });
 
   it("falls back to the default projection when toModelOutput throws", async () => {

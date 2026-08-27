@@ -60,18 +60,17 @@ export const toMcpContent = async (
     args: Record<string, unknown>;
   },
 ): Promise<WebMcpCallToolResult> => {
-  if (result instanceof ToolResponse) {
-    const content = result.modelContent
-      ? result.modelContent.map(mapModelContentPart)
-      : primitiveContent(result.result);
-    return result.isError ? { isError: true, content } : { content };
+  const response = ToolResponse.toResponse(result);
+  if (response.modelContent) {
+    const content = response.modelContent.map(mapModelContentPart);
+    return response.isError ? { isError: true, content } : { content };
   }
-  if (options.tool.toModelOutput) {
+  if (!response.isError && options.tool.toModelOutput) {
     try {
       const parts = await options.tool.toModelOutput({
         toolCallId: options.toolCallId,
         input: options.args,
-        output: result,
+        output: response.result,
       });
       return { content: parts.map(mapModelContentPart) };
     } catch (e) {
@@ -81,7 +80,8 @@ export const toMcpContent = async (
       );
     }
   }
-  return { content: primitiveContent(result) };
+  const content = primitiveContent(response.result);
+  return response.isError ? { isError: true, content } : { content };
 };
 
 type StandardSchemaLike = {
@@ -149,6 +149,10 @@ export const toWebMcpTool = (
             decision.reason ? `: ${decision.reason}` : ""
           }`,
         );
+      }
+
+      if (abortSignal?.aborted) {
+        return errorResult("Tool execution was cancelled.");
       }
 
       const result = await executeFn?.(args, {
