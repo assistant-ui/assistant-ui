@@ -2130,6 +2130,28 @@ describe("LocalThreadRuntimeCore imported approvals", () => {
     expect(thread.messages.at(-1)?.status?.type).toBe("complete");
   });
 
+  it("completes an imported interrupt that has nothing left to act on", () => {
+    const { thread } = createImportedThread([
+      { role: "user", content: [{ type: "text", text: "send an email" }] },
+      {
+        role: "assistant",
+        status: { type: "requires-action", reason: "interrupt" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-send_email",
+            toolName: "send_email",
+            args: {},
+            argsText: "{}",
+            result: { sent: true },
+          },
+        ],
+      } as ThreadMessageLike,
+    ]);
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
   it("resumes the run after adding a result to an imported resultless tool call", async () => {
     const { thread, runs } = createImportedThread(pausedOnApproval(undefined));
 
