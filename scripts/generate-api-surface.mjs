@@ -881,14 +881,6 @@ async function main() {
         repoRoot,
         collectTurboFilteredPackageNames(repoRoot, turboFilters, {
           failureMessage: "Failed to list packages for API surface filter",
-          getPackageName(item) {
-            if (typeof item.name !== "string") {
-              throw new Error(
-                "Turbo package list included an item without a name.",
-              );
-            }
-            return item.name;
-          },
         }),
         compareStrings,
       )

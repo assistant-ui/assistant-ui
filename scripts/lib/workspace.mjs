@@ -35,7 +35,7 @@ export function collectPackages(
 export function collectTurboFilteredPackageNames(
   repoRoot,
   filters,
-  { failureMessage, getPackageName, skipWithoutFilters = false },
+  { failureMessage, skipWithoutFilters = false },
 ) {
   if (skipWithoutFilters && filters.length === 0) return null;
 
@@ -60,5 +60,12 @@ export function collectTurboFilteredPackageNames(
   }
 
   const output = JSON.parse(result.stdout.slice(jsonStart));
-  return new Set(output.packages.items.map(getPackageName));
+  return new Set(
+    output.packages.items.map((item) => {
+      if (typeof item.name !== "string") {
+        throw new Error("Turbo package list included an item without a name.");
+      }
+      return item.name;
+    }),
+  );
 }

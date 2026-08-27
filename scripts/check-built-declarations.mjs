@@ -253,7 +253,6 @@ function main() {
     filters,
     {
       failureMessage: "Failed to list filtered packages",
-      getPackageName: (item) => item.name,
       skipWithoutFilters: true,
     },
   );
