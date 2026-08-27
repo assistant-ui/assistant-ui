@@ -116,7 +116,7 @@ function toItem(cmd: Unstable_SlashCommand): Unstable_TriggerItem {
   };
 }
 
-function matchesQuery(cmd: Unstable_SlashCommand, lower: string): boolean {
+function matchesQuery(cmd: Unstable_TriggerItem, lower: string): boolean {
   if (!lower) return true;
   if (cmd.id.toLowerCase().includes(lower)) return true;
   if (cmd.label?.toLowerCase().includes(lower)) return true;
