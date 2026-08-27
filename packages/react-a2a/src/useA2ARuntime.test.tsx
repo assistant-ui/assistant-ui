@@ -224,6 +224,7 @@ describe("useA2ARuntime", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const interruptedRender = vi.fn();
+    const renderedToken = vi.fn();
     const pending = new Promise<never>(() => {});
     let blocked = false;
     const Blocker = ({ blocked }: { blocked: boolean }) => {
@@ -241,11 +242,13 @@ describe("useA2ARuntime", () => {
     );
 
     const { result, rerender } = renderHook(
-      ({ token }) =>
-        useA2ARuntime({
+      ({ token }) => {
+        renderedToken(token);
+        return useA2ARuntime({
           baseUrl: "https://agent.test",
           headers: { Authorization: `Bearer ${token}` },
-        }),
+        });
+      },
       {
         initialProps: { token: "workspace-a" },
         wrapper: Wrapper,
@@ -260,6 +263,7 @@ describe("useA2ARuntime", () => {
       });
     });
     expect(interruptedRender).toHaveBeenCalled();
+    expect(renderedToken).toHaveBeenCalledWith("workspace-b");
 
     act(() => {
       result.current.thread.append({

@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   useExternalStoreRuntime,
   useExternalStoreSharedOptions,
@@ -42,9 +49,9 @@ export function useA2ARuntime(options: UseA2ARuntimeOptions): AssistantRuntime {
   const threadListAdapter = options.adapters?.threadList;
 
   const headersRef = useRef(options.headers);
-  useEffect(() => {
+  useInsertionEffect(() => {
     headersRef.current = options.headers;
-  }, [options.headers]);
+  });
   const resolveHeaders = useCallback(() => {
     const headers = headersRef.current;
     return typeof headers === "function" ? headers() : (headers ?? {});
