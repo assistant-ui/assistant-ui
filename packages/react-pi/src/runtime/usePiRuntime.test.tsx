@@ -84,7 +84,11 @@ vi.mock("./ThreadController", async (importOriginal) => {
 
 import { ExportedMessageRepository } from "@assistant-ui/react";
 import { createPiThreadState } from "./threadState";
-import { usePiRuntime } from "./usePiRuntime";
+import {
+  NOOP_CONTROLLER,
+  usePiControllerStateSelector,
+  usePiRuntime,
+} from "./usePiRuntime";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -275,5 +279,36 @@ describe("usePiRuntime controller subscriptions", () => {
     });
 
     expect(mocks.adapters.at(-1)!).toBe(before);
+  });
+});
+
+describe("usePiControllerStateSelector", () => {
+  it("supports selectors that allocate objects and arrays", async () => {
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+    const container = document.createElement("div");
+    const App = () => {
+      const view = usePiControllerStateSelector(NOOP_CONTROLLER, (state) => ({
+        status: state.runStatus,
+        queued: state.queue.followUp.length,
+      }));
+      const requests = usePiControllerStateSelector(NOOP_CONTROLLER, (state) =>
+        state.hostUiRequests.filter(() => true),
+      );
+      return createElement(
+        "div",
+        null,
+        `${view.status}:${view.queued}:${requests.length}`,
+      );
+    };
+
+    root = createRoot(container);
+    await act(async () => root!.render(createElement(App)));
+
+    expect(container.textContent).toBe("idle:0:0");
+    expect(consoleError.mock.calls.flat().join(" ")).not.toContain(
+      "getSnapshot should be cached",
+    );
   });
 });

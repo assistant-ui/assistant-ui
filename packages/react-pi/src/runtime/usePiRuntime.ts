@@ -182,12 +182,10 @@ const usePiControllerMessageRepository = (
 export const usePiControllerStateSelector = <T>(
   controller: PiThreadControllerLike,
   selector: (state: PiThreadState) => T,
-): T =>
-  useSyncExternalStore(
-    useCallback((listener) => controller.subscribe(listener), [controller]),
-    () => selector(stateSnapshotOf(controller)),
-    () => selector(EMPTY_THREAD_STATE),
-  );
+): T => {
+  const state = usePiControllerState(controller);
+  return useMemo(() => selector(state), [selector, state]);
+};
 
 const isPiStateRunning = (state: PiThreadState): boolean =>
   state.runStatus === "running" ||
