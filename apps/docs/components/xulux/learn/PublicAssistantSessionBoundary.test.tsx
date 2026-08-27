@@ -1,11 +1,16 @@
+// @vitest-environment jsdom
+
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
-  effect: undefined as undefined | (() => void | (() => void)),
   ensureAnonymousSession: vi.fn<() => Promise<void>>(),
-  sessionState: "loading" as "loading" | "ready" | "error",
-  setAttempt: vi.fn(),
-  setSessionState: vi.fn(),
 }));
 
 vi.mock("@/lib/anonymous-session-client", async (importOriginal) => ({
@@ -13,22 +18,10 @@ vi.mock("@/lib/anonymous-session-client", async (importOriginal) => ({
   ensureAnonymousSession: mocks.ensureAnonymousSession,
 }));
 
-vi.mock("react", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("react")>()),
-  useEffect: ((effect: () => void | (() => void)) => {
-    mocks.effect = effect;
-  }) as typeof import("react").useEffect,
-  useState: ((initial: unknown) =>
-    initial === "loading"
-      ? [mocks.sessionState, mocks.setSessionState]
-      : [0, mocks.setAttempt]) as typeof import("react").useState,
-}));
-
 import { PublicAssistantSessionBoundary } from "./PublicAssistantSessionBoundary";
 
 afterEach(() => {
-  mocks.effect = undefined;
-  mocks.sessionState = "loading";
+  cleanup();
   vi.clearAllMocks();
 });
 
@@ -40,22 +33,40 @@ describe("PublicAssistantSessionBoundary", () => {
         resolveSession = resolve;
       }),
     );
-    const runtime = <div>Preview runtime</div>;
-    const loading = PublicAssistantSessionBoundary({ children: runtime });
 
-    expect(loading).not.toBe(runtime);
-    expect(mocks.effect).toBeTypeOf("function");
+    render(
+      <PublicAssistantSessionBoundary>
+        <div>Preview runtime</div>
+      </PublicAssistantSessionBoundary>,
+    );
 
-    mocks.effect?.();
     expect(mocks.ensureAnonymousSession).toHaveBeenCalledTimes(1);
-    expect(mocks.setSessionState).not.toHaveBeenCalled();
+    expect(screen.queryByText("Preview runtime")).toBeNull();
 
-    resolveSession();
-    await Promise.resolve();
+    await act(async () => {
+      resolveSession();
+    });
 
-    expect(mocks.setSessionState).toHaveBeenCalledWith("ready");
+    expect(screen.getByText("Preview runtime")).toBeTruthy();
+  });
 
-    mocks.sessionState = "ready";
-    expect(PublicAssistantSessionBoundary({ children: runtime })).toBe(runtime);
+  it("shows session failures and retries before mounting the runtime", async () => {
+    mocks.ensureAnonymousSession
+      .mockRejectedValueOnce(new Error("session unavailable"))
+      .mockResolvedValueOnce();
+
+    render(
+      <PublicAssistantSessionBoundary>
+        <div>Preview runtime</div>
+      </PublicAssistantSessionBoundary>,
+    );
+
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(screen.queryByText("Preview runtime")).toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Try again" }));
+
+    expect(mocks.ensureAnonymousSession).toHaveBeenCalledTimes(2);
+    expect(await screen.findByText("Preview runtime")).toBeTruthy();
   });
 });
