@@ -50,12 +50,6 @@ import {
 } from "./adkToolApproval";
 import { adkExtras } from "./adkExtras";
 
-export {
-  getMessageContent,
-  getPendingCancellations,
-  getPendingToolCalls,
-} from "./convertToAdkMessages";
-
 export type UseAdkRuntimeOptions = ExternalStoreSharedOptions & {
   stream: AdkStreamCallback;
   /**
