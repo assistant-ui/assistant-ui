@@ -23,13 +23,10 @@ import { TimingTracker } from "./TimingTracker";
  */
 const withParts = (
   message: AssistantMessage,
-  createParts: () => AssistantMessage["parts"],
+  parts: AssistantMessage["parts"],
 ): AssistantMessage => ({
   ...message,
-  // Deferred so the caller's `message.parts` expressions run here, after the
-  // spread. AssistantMessageAccumulator takes an initialMessage from outside,
-  // so `parts` can be an accessor and both when and how often it is read show.
-  parts: createParts(),
+  parts,
   get content() {
     return this.parts;
   },
@@ -38,7 +35,7 @@ const withParts = (
 const appendPart = (
   message: AssistantMessage,
   part: AssistantMessagePart,
-): AssistantMessage => withParts(message, () => [...message.parts, part]);
+): AssistantMessage => withParts(message, [...message.parts, part]);
 
 export const createInitialMessage = ({
   unstable_state = null,
@@ -83,7 +80,7 @@ const updatePartForPath = (
   const partIndex = chunk.path[0]!;
   const updatedPart = updater(part);
   if (updatedPart === part) return message;
-  return withParts(message, () => [
+  return withParts(message, [
     ...message.parts.slice(0, partIndex),
     updatedPart,
     ...message.parts.slice(partIndex + 1),
