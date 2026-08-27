@@ -248,16 +248,8 @@ describe("registerWebMcpTools lifecycle", () => {
       registerTool: vi.fn(() => Promise.reject(new Error("duplicate"))),
     };
     registerWebMcpTools(modelContext, fetchReturning({ result: okResult }));
-    await vi.waitFor(() => {});
-  });
-
-  it("calls unregister on handle-returning implementations", () => {
-    const unregister = vi.fn();
-    const modelContext: WebMcpModelContext = {
-      registerTool: vi.fn(() => ({ unregister })),
-    };
-
-    registerWebMcpTools(modelContext, fetchReturning({ result: okResult }))();
-    expect(unregister).toHaveBeenCalledTimes(3);
+    await vi.waitFor(() => {
+      expect(modelContext.registerTool).toHaveBeenCalledTimes(3);
+    });
   });
 });

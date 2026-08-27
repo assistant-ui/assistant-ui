@@ -23,7 +23,7 @@ export type WebMcpModelContext = {
   registerTool: (
     tool: WebMcpToolDescriptor,
     options?: { signal?: AbortSignal },
-  ) => Promise<void> | { unregister?: () => void } | void;
+  ) => Promise<void> | void;
 };
 
 export function getWebMcpModelContext(): WebMcpModelContext | undefined {
@@ -193,25 +193,17 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
   ];
 }
 
-const isThenable = (value: unknown): value is Promise<unknown> =>
-  typeof (value as { then?: unknown } | null | undefined)?.then === "function";
-
 export function registerWebMcpTools(
   modelContext: WebMcpModelContext,
   fetchImpl: FetchLike,
 ): () => void {
   const controller = new AbortController();
-  const handles = webMcpTools(fetchImpl).map((tool) => {
-    const handle = modelContext.registerTool(tool, {
-      signal: controller.signal,
-    });
-    if (isThenable(handle)) handle.catch(() => {});
-    return handle;
-  });
+  for (const tool of webMcpTools(fetchImpl)) {
+    Promise.resolve(
+      modelContext.registerTool(tool, { signal: controller.signal }),
+    ).catch(() => {});
+  }
   return () => {
     controller.abort();
-    for (const handle of handles) {
-      if (!isThenable(handle)) handle?.unregister?.();
-    }
   };
 }
