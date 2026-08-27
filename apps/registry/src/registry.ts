@@ -1069,6 +1069,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/use-copy-to-clipboard.json",
     ],
     dependencies: [
+      "@assistant-ui/react",
       "@assistant-ui/react-markdown",
       "lucide-react",
       "remark-gfm",

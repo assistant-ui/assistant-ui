@@ -62,4 +62,28 @@ describe("MarkdownText component overrides", () => {
     expect(SyntaxHighlighter).toHaveBeenCalledOnce();
     expect(mocks.components?.SyntaxHighlighter).not.toBe(SyntaxHighlighter);
   });
+
+  it("keeps the default html renderers in the composed map with overrides", () => {
+    const SyntaxHighlighter = ({ code }: { code: string }) => (
+      <div data-testid="syntax-highlighter">{code}</div>
+    );
+
+    render(<MarkdownText components={{ SyntaxHighlighter }} />);
+
+    expect(mocks.components?.h1).toBeDefined();
+    expect(mocks.components?.p).toBeDefined();
+  });
+
+  it("renders the default map with kit classes when no overrides are given", () => {
+    mocks.messagePartText.text = "# Heading\n\nparagraph";
+    try {
+      render(<MarkdownText />);
+
+      const heading = screen.getByText("Heading");
+      expect(heading.closest(".aui-md-h1")).not.toBeNull();
+      expect(screen.getByText("paragraph").closest(".aui-md-p")).not.toBeNull();
+    } finally {
+      mocks.messagePartText.text = "```tsx\nconst answer = 42;\n```";
+    }
+  });
 });
