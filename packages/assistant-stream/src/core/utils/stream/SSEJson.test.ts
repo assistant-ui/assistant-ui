@@ -115,6 +115,7 @@ describe("createSSEJsonDecoder", () => {
     const chunks = await collectChunks(
       createSSEJsonDecoder({
         parse: jsonParse,
+        strict: false,
         onUnknownEvent,
       })(fromSSEText('event: custom\ndata: {"a":1}\n\ndata: {"b":2}\n\n')),
     );

@@ -22,9 +22,9 @@ type SSEJsonDecoderOptions<T> = {
   ) => void;
   done?: SSEJsonDoneOptions<T>;
 } & (
-  | { strict: true }
+  | { strict?: true }
   | {
-      strict?: false;
+      strict: false;
       onUnknownEvent?: (event: string) => void;
     }
 );
@@ -59,7 +59,7 @@ export const createSSEJsonDecoder =
         new TransformStream<PipelineSSEEvent, T>({
           transform(event, controller) {
             if (event.event !== "message") {
-              if (options.strict) {
+              if (options.strict !== false) {
                 throw new Error(`Unknown SSE event type: ${event.event}`);
               }
               options.onUnknownEvent?.(event.event);
