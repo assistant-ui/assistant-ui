@@ -3,18 +3,21 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { HighlightedCode } from "codehike/code";
-import type * as CodeSlideshowClient from "@/components/docs/code-slideshow/client";
+import type * as CodeSlideshowClient from "@/components/pages/docs/code-slideshow/client";
 import {
   TapTutorialPlaygroundClient,
   type TapTutorialClientStep,
 } from "./tutorial-playground.client";
 
-vi.mock("@/components/docs/code-slideshow/client", async (importOriginal) => ({
-  ...(await importOriginal<typeof CodeSlideshowClient>()),
-  CodePane: ({ index }: { index: number }) => (
-    <div data-testid="code-pane" data-index={index} />
-  ),
-}));
+vi.mock(
+  "@/components/pages/docs/code-slideshow/client",
+  async (importOriginal) => ({
+    ...(await importOriginal<typeof CodeSlideshowClient>()),
+    CodePane: ({ index }: { index: number }) => (
+      <div data-testid="code-pane" data-index={index} />
+    ),
+  }),
+);
 
 const step = (title: string): TapTutorialClientStep => ({
   title,

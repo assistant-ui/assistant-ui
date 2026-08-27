@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import type { HighlightedCode } from "codehike/code";
 import { Button } from "@/components/ui/button";
-import { CodePane } from "@/components/docs/code-slideshow/client";
+import { CodePane } from "@/components/pages/docs/code-slideshow/client";
 import type { TapTutorialStep } from "./tutorial-data";
 
 export type TapTutorialClientStep = Omit<
