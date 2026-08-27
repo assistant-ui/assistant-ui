@@ -1,7 +1,5 @@
 import { Client, StreamMode } from "@langchain/langgraph-sdk";
 
-import "@langchain/react";
-
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
 import { ComponentType } from "react";
