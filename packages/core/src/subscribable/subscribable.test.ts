@@ -32,6 +32,30 @@ const createBinding = (initialState: TestState) => {
   };
 };
 
+// Mirrors runtime bindings such as `getThreadListState`, which assemble a new
+// object on every read while the underlying values keep their identity.
+const createRebuildingBinding = (initialState: TestState) => {
+  let state = initialState;
+  const subscribers = new Set<() => void>();
+
+  const binding: SubscribableWithState<TestState, null> = {
+    path: null,
+    getState: () => ({ ...state }),
+    subscribe: (callback) => {
+      subscribers.add(callback);
+      return () => subscribers.delete(callback);
+    },
+  };
+
+  return {
+    binding,
+    update(nextState: TestState) {
+      state = nextState;
+      for (const callback of subscribers) callback();
+    },
+  };
+};
+
 describe("ShallowMemoizeSubject", () => {
   it("notifies subscribers when a state key is removed", () => {
     const source = createBinding({
@@ -130,5 +154,31 @@ describe("LazyMemoizeSubject", () => {
 
     expect(subject.getState()).toEqual({ status: "ready" });
     reconnect();
+  });
+
+  it("keeps one reference while unconnected and the state is unchanged", () => {
+    // A consumer that reads without subscribing (React's useSyncExternalStore
+    // calls getSnapshot outside the subscription) must not see a new object on
+    // every call: React compares snapshots with Object.is, so a fresh reference
+    // reads as a change and re-renders forever.
+    const source = createRebuildingBinding({ status: "ready" });
+    const subject = new LazyMemoizeSubject(source.binding);
+
+    const first = subject.getState();
+
+    expect(subject.getState()).toBe(first);
+    expect(subject.getState()).toBe(first);
+  });
+
+  it("returns a new reference once the unchanged state actually changes", () => {
+    const source = createRebuildingBinding({ status: "ready" });
+    const subject = new LazyMemoizeSubject(source.binding);
+
+    const first = subject.getState();
+    source.update({ status: "done" });
+
+    const second = subject.getState();
+    expect(second).not.toBe(first);
+    expect(second).toEqual({ status: "done" });
   });
 });
