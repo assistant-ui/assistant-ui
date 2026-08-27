@@ -211,11 +211,13 @@ export default defineToolkit({
   notepad: unstable_interactableTool({
     description:
       "A live notepad whose drafted text the user sees and can edit. Open one " +
-      "whenever you write or draft prose for the user — a note, message, post, " +
-      "release notes, a description — and revise it with `update_notepad` " +
-      "rather than opening a new one. Opening the notepad and every " +
-      "`update_notepad` call display the latest draft to the user directly, so " +
-      "keep the text in the notepad and never repeat it in your reply.",
+      "only when the user asks you to draft prose they will reuse — a note, " +
+      "message, post, release notes, a description — and revise it with " +
+      "`update_notepad` rather than opening a new one. Never open it for code, " +
+      "code blocks, tables, or technical answers; those belong in your reply " +
+      "as markdown. Opening the notepad and every `update_notepad` call " +
+      "display the latest draft to the user directly, so keep the text in the " +
+      "notepad and never repeat it in your reply.",
     stateSchema: notepadSchema,
     render: (props) => <Notepad {...props} />,
   }),

@@ -2,8 +2,6 @@
 
 import { Button } from "@/components/ui/button";
 import { useCurrentPage } from "@/components/pages/docs/contexts/current-page";
-import { ModelSelector } from "@/components/assistant-ui/model-selector";
-import { docsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
 import {
   DEFAULT_MODEL_ID,
   resolveModelId,
@@ -46,8 +44,6 @@ const setSharedDocsModelName = (modelName: KnownModelId) => {
   sharedDocsModelName = modelName;
   modelStoreListeners.forEach((listener) => listener());
 };
-
-const models = docsModelOptions();
 
 export function useComposerSubmitHandler(onSubmitProp?: () => void) {
   const aui = useAui();
@@ -119,11 +115,13 @@ export function AssistantComposer({
   className,
   placeholder = "Ask a question...",
   modelSelector,
+  autoFocus = false,
 }: {
   onSubmit?: () => void;
   className?: string;
   placeholder?: string;
   modelSelector?: ReactNode;
+  autoFocus?: boolean;
 } = {}): ReactNode {
   const handleSubmit = useComposerSubmitHandler(onSubmitProp);
 
@@ -132,34 +130,21 @@ export function AssistantComposer({
       onSubmit={handleSubmit}
       className={cn("pb-2.5", className)}
     >
-      <div className="bg-muted/55 focus-within:bg-muted/75 rounded-3xl border border-transparent transition-colors">
+      <div className="border-foreground/10 bg-muted/30 focus-within:border-foreground/25 rounded-(--radius-thread) border transition-colors">
         <ComposerPrimitive.Input asChild>
           <textarea
             placeholder={placeholder}
+            autoFocus={autoFocus}
             className="placeholder:text-muted-foreground field-sizing-content max-h-32 w-full resize-none bg-transparent px-3.5 pt-3 pb-2 text-sm leading-5 focus:outline-none"
             rows={1}
           />
         </ComposerPrimitive.Input>
         <div className="flex items-center justify-between px-2 pb-2">
-          {modelSelector ?? <DefaultDocsModelSelector />}
+          <div className="flex items-center">{modelSelector}</div>
           <AssistantComposerAction />
         </div>
       </div>
     </ComposerPrimitive.Root>
-  );
-}
-
-function DefaultDocsModelSelector(): ReactNode {
-  const { modelValue, onModelChange } = useSharedDocsModelSelection();
-
-  return (
-    <ModelSelector
-      models={models}
-      value={modelValue}
-      onValueChange={onModelChange}
-      variant="ghost"
-      size="sm"
-    />
   );
 }
 
