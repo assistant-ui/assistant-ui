@@ -83,12 +83,17 @@ const config: NextConfig = {
         },
         // Chrome gates WebMCP (document.modelContext, used by
         // components/shared/webmcp-tools.tsx) behind an origin trial through
-        // Chrome 156. Uncomment with the token registered for assistant-ui.com
-        // at https://developer.chrome.com/origintrials/#/trials/active.
-        // {
-        //   key: "Origin-Trial",
-        //   value: "<webmcp-origin-trial-token>",
-        // },
+        // Chrome 156. The site owner enables it by setting this env var to the
+        // token registered for assistant-ui.com at
+        // https://developer.chrome.com/origintrials/#/trials/active.
+        ...(process.env.WEBMCP_ORIGIN_TRIAL_TOKEN
+          ? [
+              {
+                key: "Origin-Trial",
+                value: process.env.WEBMCP_ORIGIN_TRIAL_TOKEN,
+              },
+            ]
+          : []),
       ],
     },
     ...apiCatalogDiscoveryPaths.map((source) => ({
