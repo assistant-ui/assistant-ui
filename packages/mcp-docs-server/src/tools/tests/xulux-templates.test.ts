@@ -161,6 +161,19 @@ describe("assistant-ui template MCP tools", () => {
     );
   });
 
+  it("names the version when the live catalog is a newer revision", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => jsonResponse({ ...LIVE_CATALOG, version: 2 })),
+    );
+
+    const result = await callTool(xuluxTemplatesListTool, {});
+    expect(result.catalogDegraded).toBe(true);
+    expect(result.catalogDegradedReason).toContain(
+      "Unsupported catalog version: 2. Expected 1.",
+    );
+  });
+
   it("uses the fallback catalog when a live template URL is malformed", async () => {
     vi.stubGlobal(
       "fetch",

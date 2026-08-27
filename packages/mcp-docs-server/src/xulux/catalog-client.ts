@@ -1,7 +1,11 @@
 import { z } from "zod";
 import { logger } from "../utils/logger.js";
 import { FALLBACK_CATALOG, FALLBACK_NOTE } from "./fallback-catalog.js";
-import type { XuluxCatalog, XuluxCatalogResult } from "./types.js";
+import {
+  XULUX_MCP_CATALOG_VERSION,
+  type XuluxCatalog,
+  type XuluxCatalogResult,
+} from "./types.js";
 
 export const DEFAULT_CATALOG_URL =
   "https://www.assistant-ui.com/api/xulux/mcp-catalog";
@@ -61,6 +65,14 @@ export function getCatalogUrl(): string {
 }
 
 function validateCatalog(data: unknown): XuluxCatalog {
+  // Checked ahead of the schema so a catalog rollout reports its version
+  // rather than reading as a malformed payload.
+  const version = (data as { version?: unknown } | null)?.version;
+  if (version !== undefined && version !== XULUX_MCP_CATALOG_VERSION) {
+    throw new Error(
+      `Unsupported catalog version: ${String(version)}. Expected ${XULUX_MCP_CATALOG_VERSION}.`,
+    );
+  }
   const result = catalogSchema.safeParse(data);
   if (!result.success) {
     const issue = result.error.issues[0];
@@ -69,7 +81,7 @@ function validateCatalog(data: unknown): XuluxCatalog {
       `Catalog response is malformed${path}: ${issue?.message ?? "invalid catalog"}.`,
     );
   }
-  return result.data as XuluxCatalog;
+  return result.data;
 }
 
 interface CacheEntry {
