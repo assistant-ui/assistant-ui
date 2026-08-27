@@ -6,7 +6,11 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { LangChainMessage, UseLangGraphRuntimeOptions } from "./types";
+import type {
+  LangChainMessage,
+  UIMessage,
+  UseLangGraphRuntimeOptions,
+} from "./types";
 import { groupUIMessagesByParent } from "@assistant-ui/react-langchain/converter";
 import {
   pickExternalStoreSharedOptions,
@@ -352,7 +356,7 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   );
 
   const uiMessagesByParent = useMemo(
-    () => groupUIMessagesByParent(uiMessages),
+    () => groupUIMessagesByParent<UIMessage>(uiMessages),
     [uiMessages],
   );
 
