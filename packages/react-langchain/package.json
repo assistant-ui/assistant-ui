@@ -18,6 +18,17 @@
     ".": {
       "types": "./dist/index.d.ts",
       "default": "./dist/index.js"
+    },
+    "./converter": {
+      "types": "./dist/converter.d.ts",
+      "default": "./dist/converter.js"
+    }
+  },
+  "typesVersions": {
+    "*": {
+      "converter": [
+        "./dist/converter.d.ts"
+      ]
     }
   },
   "main": "./dist/index.js",
@@ -45,6 +56,9 @@
     "react": "^18 || ^19"
   },
   "peerDependenciesMeta": {
+    "@langchain/react": {
+      "optional": true
+    },
     "@types/react": {
       "optional": true
     }
