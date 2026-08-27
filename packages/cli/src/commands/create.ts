@@ -9,12 +9,12 @@ import {
   downloadProject,
   resolveLatestReleaseRef,
   resolvePackageManager,
-  resolvePackageManagerForCwd,
   scaffoldProject,
   transformProject,
   type TransformResult,
 } from "../lib/create-project";
 import { runSpawn, SpawnExitError } from "../lib/run-spawn";
+import { resolvePackageManagerForCwd } from "../lib/utils/package-manager";
 import {
   buildSkillsAddCommand,
   resolveSkillsInstall,

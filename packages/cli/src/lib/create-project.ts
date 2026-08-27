@@ -1,8 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { downloadTemplate } from "giget";
-import { sync as globSync } from "glob";
-import { detect } from "detect-package-manager";
 import {
   parse as parseJsonc,
   printParseErrorCode,
@@ -10,8 +8,8 @@ import {
 } from "jsonc-parser";
 import { logger } from "./utils/logger";
 import { runSpawn, SpawnExitError } from "./run-spawn";
-
-export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
+import { type PackageManagerName } from "./utils/package-manager";
+import { readProjectFiles } from "./utils/file-scanner";
 
 export function dlxCommand(pm: PackageManagerName): [string, string[]] {
   switch (pm) {
@@ -183,30 +181,6 @@ export async function scaffoldProject(
       );
     }
     throw error;
-  }
-}
-
-function detectFromUserAgent(): PackageManagerName | undefined {
-  const ua = process.env.npm_config_user_agent;
-  if (!ua) return undefined;
-  if (ua.startsWith("bun/")) return "bun";
-  if (ua.startsWith("pnpm/")) return "pnpm";
-  if (ua.startsWith("yarn/")) return "yarn";
-  if (ua.startsWith("npm/")) return "npm";
-  return undefined;
-}
-
-export async function resolvePackageManagerForCwd(
-  cwd: string,
-  packageManager?: PackageManagerName,
-): Promise<PackageManagerName> {
-  if (packageManager) return packageManager;
-  const fromAgent = detectFromUserAgent();
-  if (fromAgent) return fromAgent;
-  try {
-    return await detect({ cwd });
-  } catch {
-    return "npm";
   }
 }
 
@@ -383,16 +357,11 @@ function transformTsConfig(projectDir: string): void {
 }
 
 function transformCssFiles(projectDir: string): void {
-  const cssFiles = globSync("**/*.css", {
+  for (const { fullPath, content } of readProjectFiles("**/*.css", {
     cwd: projectDir,
     ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
-  });
-
-  for (const file of cssFiles) {
-    const fullPath = path.join(projectDir, file);
+  })) {
     try {
-      const content = fs.readFileSync(fullPath, "utf-8");
-
       const newContent = content.replace(
         /@source\s+["'][^"']*packages\/ui\/src[^"']*["'];\s*\n?/g,
         "",
@@ -402,7 +371,7 @@ function transformCssFiles(projectDir: string): void {
         fs.writeFileSync(fullPath, newContent);
       }
     } catch {
-      // Ignore files that cannot be read/written
+      continue;
     }
   }
 }
@@ -417,31 +386,22 @@ function stripImportExtension(component: string): string {
 }
 
 function scanRequiredComponents(projectDir: string): RequiredComponents {
-  const files = globSync("**/*.{ts,tsx}", {
-    cwd: projectDir,
-    ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
-  });
-
   const assistantUIComponents = new Set<string>();
   const shadcnUIComponents = new Set<string>();
 
-  for (const file of files) {
-    const fullPath = path.join(projectDir, file);
-    try {
-      const content = fs.readFileSync(fullPath, "utf-8");
+  for (const { content } of readProjectFiles("**/*.{ts,tsx}", {
+    cwd: projectDir,
+    ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
+  })) {
+    const assistantUIRegex =
+      /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
+    for (const match of content.matchAll(assistantUIRegex)) {
+      assistantUIComponents.add(stripImportExtension(match[1]!));
+    }
 
-      const assistantUIRegex =
-        /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
-      for (const match of content.matchAll(assistantUIRegex)) {
-        assistantUIComponents.add(stripImportExtension(match[1]!));
-      }
-
-      const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;
-      for (const match of content.matchAll(uiRegex)) {
-        shadcnUIComponents.add(stripImportExtension(match[1]!));
-      }
-    } catch {
-      // Ignore files that cannot be read
+    const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;
+    for (const match of content.matchAll(uiRegex)) {
+      shadcnUIComponents.add(stripImportExtension(match[1]!));
     }
   }
 
