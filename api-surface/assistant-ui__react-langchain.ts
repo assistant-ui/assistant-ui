@@ -2138,7 +2138,7 @@ declare const convertLangChainBaseMessage: (message: LangChainBaseMessage, metad
 declare const convertLangChainContentBlock: (part: LangChainContentBlock) => ConvertedContentPart | null | undefined;
 
 declare namespace entry_converter_exports {
-  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, groupUIMessagesByParent, uiMessageToDataPart, withAudioTranscript };
+  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getUIMessageParentId, groupUIMessagesByParent, uiMessageToDataPart, withAudioTranscript };
 }
 
 declare const createLangChainStreamingTimingAccessors: <TMessage extends {
@@ -2224,6 +2224,13 @@ declare const getMessageContent: (msg: AppendMessage) => string | ({
   metadata?: never;
   url?: never;
 })[];
+
+declare const getUIMessageParentId: (ui: {
+  metadata?: {
+    message_id?: string;
+    id?: string;
+  } | undefined;
+}) => string | undefined;
 
 declare global {
   interface Window {
