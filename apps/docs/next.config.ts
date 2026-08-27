@@ -81,6 +81,15 @@ const config: NextConfig = {
           key: "Content-Security-Policy",
           value: cspHeader.replace(/\n/g, ""),
         },
+        // WebMCP's registerTool() rejects with SecurityError unless the agent
+        // cluster is origin-keyed (webmachinelearning/webmcp index.bs, register
+        // steps). Chrome defaults to origin-keyed clusters, but sending the
+        // header guarantees it in every browser; verify window.originAgentCluster
+        // === true on a deployment.
+        {
+          key: "Origin-Agent-Cluster",
+          value: "?1",
+        },
         // Chrome gates WebMCP (document.modelContext, used by
         // components/shared/webmcp-tools.tsx) behind an origin trial through
         // Chrome 156. The site owner enables it by setting this env var to the

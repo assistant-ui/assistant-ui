@@ -12,13 +12,16 @@ import {
 
 type WebMcpToolResult = {
   content: { type: string; text?: string }[];
-  isError?: boolean;
 };
 
+// Per the spec, a fulfilled execute promise is a successful tool call and a
+// rejected one is a failure — there is no isError channel — so every failure
+// path in this module throws rather than resolving with an error payload.
 type WebMcpToolDescriptor = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
+  annotations?: { readOnlyHint?: boolean };
   execute: (
     args: Record<string, unknown>,
     context?: { signal?: AbortSignal },
@@ -41,10 +44,6 @@ export function getWebMcpModelContext(): WebMcpModelContext | undefined {
     .modelContext;
   if (navigatorContext?.registerTool) return navigatorContext;
   return undefined;
-}
-
-function errorResult(text: string): WebMcpToolResult {
-  return { content: [{ type: "text", text }], isError: true };
 }
 
 export type FetchLike = (
@@ -80,34 +79,42 @@ async function callMcpRoute(
       ...(signal ? { signal } : {}),
     });
   } catch (error) {
-    return errorResult(
+    throw new Error(
       `Docs request failed: ${error instanceof Error ? error.message : String(error)}`,
     );
   }
 
   if (!response.ok) {
-    return errorResult(`Docs request failed with status ${response.status}`);
+    throw new Error(`Docs request failed with status ${response.status}`);
   }
 
   let payload;
   try {
     payload = (await response.json()) as {
-      result?: WebMcpToolResult;
+      result?: WebMcpToolResult & { isError?: boolean };
       error?: { message?: string };
     } | null;
   } catch {
-    return errorResult("Docs request returned invalid JSON");
+    throw new Error("Docs request returned invalid JSON");
   }
   if (typeof payload !== "object" || payload === null) {
-    return errorResult("Docs request returned an unexpected response");
+    throw new Error("Docs request returned an unexpected response");
   }
   if (payload.error) {
-    return errorResult(payload.error.message ?? "Docs request failed");
+    throw new Error(payload.error.message ?? "Docs request failed");
   }
   if (!Array.isArray(payload.result?.content)) {
-    return errorResult("Docs request returned an unexpected response");
+    throw new Error("Docs request returned an unexpected response");
   }
-  return payload.result;
+  // The route reports tool-level failures (e.g. page not found) as MCP
+  // isError results on a 200; surface those as rejections too.
+  if (payload.result.isError) {
+    const text = payload.result.content.find(
+      (item) => typeof item.text === "string",
+    )?.text;
+    throw new Error(text ?? "Docs request failed");
+  }
+  return { content: payload.result.content };
 }
 
 function stringArg(args: Record<string, unknown>, key: string) {
@@ -154,9 +161,10 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
         required: ["query"],
         additionalProperties: false,
       },
+      annotations: { readOnlyHint: true },
       execute: async (args, context) => {
         const query = stringArg(args, "query");
-        if (!query) return errorResult("query is required");
+        if (!query) throw new Error("query is required");
         return callMcpRoute(
           fetchImpl,
           searchDocsTool.name,
@@ -181,9 +189,10 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
         required: ["path"],
         additionalProperties: false,
       },
+      annotations: { readOnlyHint: true },
       execute: async (args, context) => {
         const path = stringArg(args, "path");
-        if (!path) return errorResult("path is required");
+        if (!path) throw new Error("path is required");
         return callMcpRoute(
           fetchImpl,
           readPageTool.name,
@@ -207,9 +216,10 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
         required: ["path"],
         additionalProperties: false,
       },
+      annotations: { readOnlyHint: true },
       execute: async (args, context) => {
         const path = stringArg(args, "path");
-        if (!path) return errorResult("path is required");
+        if (!path) throw new Error("path is required");
         return callMcpRoute(
           fetchImpl,
           readPageTool.name,

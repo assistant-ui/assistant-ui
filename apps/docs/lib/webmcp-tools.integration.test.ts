@@ -85,10 +85,9 @@ describe("callMcpRoute against a live streamable-HTTP transport", () => {
   it("accepts a bare tools/call with no initialize handshake", async () => {
     const result = await registeredSearchDocsTool().execute({ query: "tools" });
 
-    expect(result.isError).toBeUndefined();
-    expect(result.content).toEqual([
-      { type: "text", text: "results for tools" },
-    ]);
+    expect(result).toEqual({
+      content: [{ type: "text", text: "results for tools" }],
+    });
   });
 
   it("answers with a parseable JSON body despite the SSE Accept header", async () => {

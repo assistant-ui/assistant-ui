@@ -83,6 +83,7 @@ describe("registered tools", () => {
       expect(tool.description).toBeTruthy();
       expect(tool.inputSchema["type"]).toBe("object");
       expect(tool.inputSchema["required"]).toHaveLength(1);
+      expect(tool.annotations).toEqual({ readOnlyHint: true });
     }
   });
 
@@ -183,52 +184,59 @@ describe("registered tools", () => {
     expect(init.signal).toBe(controller.signal);
   });
 
-  it("returns an error result for missing arguments without fetching", async () => {
+  it("rejects on missing arguments without fetching", async () => {
     const fetchImpl = fetchReturning({ result: okResult });
-    for (const [name, result] of [
-      ["searchDocs", await toolByName(fetchImpl, "searchDocs").execute({})],
-      ["getDoc", await toolByName(fetchImpl, "getDoc").execute({ path: "  " })],
-      ["getExample", await toolByName(fetchImpl, "getExample").execute({})],
-    ] as const) {
-      expect(result.isError, name).toBe(true);
-    }
+    await expect(
+      toolByName(fetchImpl, "searchDocs").execute({}),
+    ).rejects.toThrow("query is required");
+    await expect(
+      toolByName(fetchImpl, "getDoc").execute({ path: "  " }),
+    ).rejects.toThrow("path is required");
+    await expect(
+      toolByName(fetchImpl, "getExample").execute({}),
+    ).rejects.toThrow("path is required");
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("maps fetch failures, HTTP errors, and JSON-RPC errors to error results", async () => {
+  it("rejects on fetch failures, HTTP errors, and JSON-RPC errors", async () => {
     const rejecting = vi.fn(async () => {
       throw new Error("offline");
     });
-    const offline = await toolByName(rejecting as never, "searchDocs").execute({
-      query: "x",
-    });
-    expect(offline.isError).toBe(true);
-    expect(offline.content[0]?.text).toContain("offline");
+    await expect(
+      toolByName(rejecting as never, "searchDocs").execute({ query: "x" }),
+    ).rejects.toThrow("offline");
 
-    const httpError = await toolByName(
-      fetchReturning({}, false, 500),
-      "searchDocs",
-    ).execute({ query: "x" });
-    expect(httpError.isError).toBe(true);
-    expect(httpError.content[0]?.text).toContain("500");
+    await expect(
+      toolByName(fetchReturning({}, false, 500), "searchDocs").execute({
+        query: "x",
+      }),
+    ).rejects.toThrow("500");
 
-    const rpcError = await toolByName(
-      fetchReturning({ error: { message: "nope" } }),
-      "searchDocs",
-    ).execute({ query: "x" });
-    expect(rpcError).toEqual({
-      content: [{ type: "text", text: "nope" }],
-      isError: true,
-    });
+    await expect(
+      toolByName(
+        fetchReturning({ error: { message: "nope" } }),
+        "searchDocs",
+      ).execute({ query: "x" }),
+    ).rejects.toThrow("nope");
 
-    const malformed = await toolByName(
-      fetchReturning({}),
-      "searchDocs",
-    ).execute({ query: "x" });
-    expect(malformed.isError).toBe(true);
+    await expect(
+      toolByName(fetchReturning({}), "searchDocs").execute({ query: "x" }),
+    ).rejects.toThrow("unexpected response");
   });
 
-  it("maps malformed 200 responses to error results instead of throwing", async () => {
+  it("rejects on route-level isError results, surfacing the error text", async () => {
+    const fetchImpl = fetchReturning({
+      result: {
+        content: [{ type: "text", text: "Page not found: nope" }],
+        isError: true,
+      },
+    });
+    await expect(
+      toolByName(fetchImpl, "getDoc").execute({ path: "/docs/nope" }),
+    ).rejects.toThrow("Page not found: nope");
+  });
+
+  it("rejects on malformed 200 responses", async () => {
     const invalidJson = vi.fn(async () => ({
       ok: true,
       status: 200,
@@ -236,18 +244,17 @@ describe("registered tools", () => {
         throw new SyntaxError("Unexpected end of JSON input");
       },
     }));
-    const invalid = await toolByName(invalidJson, "searchDocs").execute({
-      query: "x",
-    });
-    expect(invalid.isError).toBe(true);
-    expect(invalid.content[0]?.text).toContain("invalid JSON");
+    await expect(
+      toolByName(invalidJson, "searchDocs").execute({ query: "x" }),
+    ).rejects.toThrow("invalid JSON");
 
     for (const payload of [null, "ok", { result: { content: "text" } }]) {
-      const result = await toolByName(
-        fetchReturning(payload),
-        "searchDocs",
-      ).execute({ query: "x" });
-      expect(result.isError, JSON.stringify(payload)).toBe(true);
+      await expect(
+        toolByName(fetchReturning(payload), "searchDocs").execute({
+          query: "x",
+        }),
+        JSON.stringify(payload),
+      ).rejects.toThrow("unexpected response");
     }
   });
 });
