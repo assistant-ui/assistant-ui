@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef } from "react";
+import { useInsertionEffect, useMemo, useRef } from "react";
 import type {
   Unstable_TriggerAdapter,
   Unstable_TriggerItem,
@@ -61,7 +61,9 @@ export function unstable_useSlashCommandAdapter(
   const { commands, removeOnExecute } = options;
 
   const commandsRef = useRef(commands);
-  commandsRef.current = commands;
+  useInsertionEffect(() => {
+    commandsRef.current = commands;
+  });
 
   return useMemo(() => {
     const adapter: Unstable_TriggerAdapter = {
