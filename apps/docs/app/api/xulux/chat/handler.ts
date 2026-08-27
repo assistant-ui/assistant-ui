@@ -242,6 +242,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         );
       }
       const sessionId = resolvedSessionId.trim();
+      const budgetSessionId = `${publicSession.id}:${sessionId}`;
 
       const isFirstUserTurn =
         prunedMessages.filter((m) => m.role === "user").length === 1 &&
@@ -277,7 +278,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       const xuluxTools: ToolSet = preparedTools;
 
       const distinctId = getDistinctId(req);
-      const budget = await beginTurn(sessionId, publicSession.id);
+      const budget = await beginTurn(budgetSessionId, publicSession.id);
       if (budget.denied) {
         const payload = await budget.denied
           .clone()
@@ -375,7 +376,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
           : {}),
         onFinish: async ({ usage, response }) => {
           await finishTurn(
-            sessionId,
+            budgetSessionId,
             publicSession.id,
             usage,
             response.modelId,

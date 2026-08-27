@@ -149,7 +149,7 @@ describe("createXuluxChatHandler access boundary", () => {
 
     expect(response.status).toBe(200);
     expect(mocks.beginTurn).toHaveBeenCalledWith(
-      "xulux-chat-session",
+      `${publicSession.id}:xulux-chat-session`,
       publicSession.id,
     );
     expect(mocks.beginTurn).not.toHaveBeenCalledWith(
@@ -167,7 +167,7 @@ describe("createXuluxChatHandler access boundary", () => {
     await options.onFinish({ usage, response: { modelId: "test-model" } });
 
     expect(mocks.finishTurn).toHaveBeenCalledWith(
-      "xulux-chat-session",
+      `${publicSession.id}:xulux-chat-session`,
       publicSession.id,
       usage,
       "test-model",
