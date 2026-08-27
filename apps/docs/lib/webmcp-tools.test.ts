@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import {
-  createWebMcpTools,
   getWebMcpModelContext,
   registerWebMcpTools,
+  type FetchLike,
   type WebMcpModelContext,
 } from "./webmcp-tools";
 
@@ -18,11 +18,22 @@ function fetchReturning(payload: unknown, ok = true, status = 200) {
   }));
 }
 
-function toolByName(
-  fetchImpl: ReturnType<typeof fetchReturning>,
-  name: string,
-) {
-  const tool = createWebMcpTools(fetchImpl).find((t) => t.name === name);
+function registeredTools(fetchImpl: FetchLike) {
+  const tools: Parameters<WebMcpModelContext["registerTool"]>[0][] = [];
+  registerWebMcpTools(
+    {
+      registerTool: (tool) => {
+        tools.push(tool);
+        return Promise.resolve();
+      },
+    },
+    fetchImpl,
+  );
+  return tools;
+}
+
+function toolByName(fetchImpl: FetchLike, name: string) {
+  const tool = registeredTools(fetchImpl).find((t) => t.name === name);
   if (!tool) throw new Error(`missing tool ${name}`);
   return tool;
 }
@@ -30,9 +41,9 @@ function toolByName(
 function sentRequest(fetchImpl: ReturnType<typeof fetchReturning>) {
   const [url, init] = (fetchImpl.mock.calls[0] ?? []) as unknown as [
     string,
-    { body: string },
+    { headers: Record<string, string>; body: string },
   ];
-  return { url, body: JSON.parse(init.body) };
+  return { url, headers: init.headers, body: JSON.parse(init.body) };
 }
 
 describe("getWebMcpModelContext", () => {
@@ -60,9 +71,9 @@ describe("getWebMcpModelContext", () => {
   });
 });
 
-describe("createWebMcpTools", () => {
-  it("defines the three tools with required string inputs", () => {
-    const tools = createWebMcpTools(fetchReturning({ result: okResult }));
+describe("registered tools", () => {
+  it("registers the three tools with required string inputs", () => {
+    const tools = registeredTools(fetchReturning({ result: okResult }));
     expect(tools.map((t) => t.name)).toEqual([
       "searchDocs",
       "getDoc",
@@ -82,8 +93,9 @@ describe("createWebMcpTools", () => {
     });
 
     expect(result).toEqual(okResult);
-    const { url, body } = sentRequest(fetchImpl);
+    const { url, headers, body } = sentRequest(fetchImpl);
     expect(url).toBe("/api/mcp");
+    expect(headers["Accept"]).toBe("application/json, text/event-stream");
     expect(body.method).toBe("tools/call");
     expect(body.params).toEqual({
       name: "search_docs",
@@ -123,6 +135,21 @@ describe("createWebMcpTools", () => {
       name: "read_page",
       arguments: { path: "examples/ai-sdk" },
     });
+  });
+
+  it("forwards the execute AbortSignal to fetch", async () => {
+    const fetchImpl = fetchReturning({ result: okResult });
+    const controller = new AbortController();
+    await toolByName(fetchImpl, "searchDocs").execute(
+      { query: "x" },
+      { signal: controller.signal },
+    );
+
+    const [, init] = fetchImpl.mock.calls[0] as unknown as [
+      string,
+      { signal?: AbortSignal },
+    ];
+    expect(init.signal).toBe(controller.signal);
   });
 
   it("returns an error result for missing arguments without fetching", async () => {
@@ -171,11 +198,14 @@ describe("createWebMcpTools", () => {
   });
 });
 
-describe("registerWebMcpTools", () => {
-  it("registers all tools and unregisters them on cleanup", () => {
-    const unregister = vi.fn();
+describe("registerWebMcpTools lifecycle", () => {
+  it("registers with a shared AbortSignal and aborts it on cleanup", () => {
+    const signals: (AbortSignal | undefined)[] = [];
     const modelContext: WebMcpModelContext = {
-      registerTool: vi.fn(() => ({ unregister })),
+      registerTool: vi.fn((_tool, options) => {
+        signals.push(options?.signal);
+        return Promise.resolve();
+      }),
     };
 
     const cleanup = registerWebMcpTools(
@@ -183,19 +213,28 @@ describe("registerWebMcpTools", () => {
       fetchReturning({ result: okResult }),
     );
     expect(modelContext.registerTool).toHaveBeenCalledTimes(3);
+    expect(signals).toHaveLength(3);
+    expect(signals.every((signal) => signal && !signal.aborted)).toBe(true);
 
     cleanup();
-    expect(unregister).toHaveBeenCalledTimes(3);
+    expect(signals.every((signal) => signal?.aborted)).toBe(true);
   });
 
-  it("tolerates registerTool returning no handle", () => {
+  it("swallows registration rejections", async () => {
     const modelContext: WebMcpModelContext = {
-      registerTool: vi.fn(() => undefined),
+      registerTool: vi.fn(() => Promise.reject(new Error("duplicate"))),
     };
-    const cleanup = registerWebMcpTools(
-      modelContext,
-      fetchReturning({ result: okResult }),
-    );
-    expect(cleanup).not.toThrow();
+    registerWebMcpTools(modelContext, fetchReturning({ result: okResult }));
+    await vi.waitFor(() => {});
+  });
+
+  it("calls unregister on handle-returning implementations", () => {
+    const unregister = vi.fn();
+    const modelContext: WebMcpModelContext = {
+      registerTool: vi.fn(() => ({ unregister })),
+    };
+
+    registerWebMcpTools(modelContext, fetchReturning({ result: okResult }))();
+    expect(unregister).toHaveBeenCalledTimes(3);
   });
 });

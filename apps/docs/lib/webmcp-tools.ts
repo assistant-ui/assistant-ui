@@ -1,17 +1,8 @@
-/**
- * WebMCP (https://github.com/webmachinelearning/webmcp) tool registration for
- * the docs site. Browsing agents (Chrome's origin trial, the ChatGPT desktop
- * browser) discover tools registered on `document.modelContext` and call them
- * instead of scraping HTML. The tools proxy to the existing /api/mcp route, so
- * search and page content stay server-side and the client bundle carries no
- * docs index.
- *
- * The spec is an early W3C CG draft that has already moved once (from
- * `navigator.modelContext` to `document.modelContext`), so everything is
- * feature-detected and typed locally; when the API is absent this module does
- * nothing. Chrome additionally requires an origin-trial token (trial 149-156),
- * served as the commented Origin-Trial header placeholder in next.config.ts.
- */
+// WebMCP (https://github.com/webmachinelearning/webmcp) is an early W3C CG
+// draft that has already moved attachment points (navigator.modelContext ->
+// document.modelContext), so the API surface is feature-detected and typed
+// locally. Chrome additionally gates it behind an origin trial through Chrome
+// 156; the Origin-Trial header placeholder lives in next.config.ts.
 
 type WebMcpToolResult = {
   content: { type: string; text?: string }[];
@@ -22,13 +13,17 @@ type WebMcpToolDescriptor = {
   name: string;
   description: string;
   inputSchema: Record<string, unknown>;
-  execute: (args: Record<string, unknown>) => Promise<WebMcpToolResult>;
+  execute: (
+    args: Record<string, unknown>,
+    context?: { signal?: AbortSignal },
+  ) => Promise<WebMcpToolResult>;
 };
 
 export type WebMcpModelContext = {
   registerTool: (
     tool: WebMcpToolDescriptor,
-  ) => { unregister?: () => void } | undefined | void;
+    options?: { signal?: AbortSignal },
+  ) => Promise<void> | { unregister?: () => void } | void;
 };
 
 export function getWebMcpModelContext(): WebMcpModelContext | undefined {
@@ -46,27 +41,37 @@ function errorResult(text: string): WebMcpToolResult {
   return { content: [{ type: "text", text }], isError: true };
 }
 
-type FetchLike = (
+export type FetchLike = (
   url: string,
-  init: { method: string; headers: Record<string, string>; body: string },
+  init: {
+    method: string;
+    headers: Record<string, string>;
+    body: string;
+    signal?: AbortSignal;
+  },
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
 async function callMcpRoute(
   fetchImpl: FetchLike,
   toolName: string,
   args: Record<string, unknown>,
+  signal?: AbortSignal,
 ): Promise<WebMcpToolResult> {
   let response;
   try {
     response = await fetchImpl("/api/mcp", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json, text/event-stream",
+      },
       body: JSON.stringify({
         jsonrpc: "2.0",
         id: 1,
         method: "tools/call",
         params: { name: toolName, arguments: args },
       }),
+      ...(signal ? { signal } : {}),
     });
   } catch (error) {
     return errorResult(
@@ -104,9 +109,7 @@ function examplePath(path: string) {
     : `examples/${normalized}`;
 }
 
-export function createWebMcpTools(
-  fetchImpl: FetchLike,
-): WebMcpToolDescriptor[] {
+function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
   return [
     {
       name: "searchDocs",
@@ -120,10 +123,15 @@ export function createWebMcpTools(
         required: ["query"],
         additionalProperties: false,
       },
-      execute: async (args) => {
+      execute: async (args, context) => {
         const query = stringArg(args, "query");
         if (!query) return errorResult("query is required");
-        return callMcpRoute(fetchImpl, "search_docs", { query });
+        return callMcpRoute(
+          fetchImpl,
+          "search_docs",
+          { query },
+          context?.signal,
+        );
       },
     },
     {
@@ -142,10 +150,10 @@ export function createWebMcpTools(
         required: ["path"],
         additionalProperties: false,
       },
-      execute: async (args) => {
+      execute: async (args, context) => {
         const path = stringArg(args, "path");
         if (!path) return errorResult("path is required");
-        return callMcpRoute(fetchImpl, "read_page", { path });
+        return callMcpRoute(fetchImpl, "read_page", { path }, context?.signal);
       },
     },
     {
@@ -163,27 +171,39 @@ export function createWebMcpTools(
         required: ["path"],
         additionalProperties: false,
       },
-      execute: async (args) => {
+      execute: async (args, context) => {
         const path = stringArg(args, "path");
         if (!path) return errorResult("path is required");
-        return callMcpRoute(fetchImpl, "read_page", {
-          path: examplePath(path),
-        });
+        return callMcpRoute(
+          fetchImpl,
+          "read_page",
+          { path: examplePath(path) },
+          context?.signal,
+        );
       },
     },
   ];
 }
 
+const isThenable = (value: unknown): value is Promise<unknown> =>
+  typeof (value as { then?: unknown } | null | undefined)?.then === "function";
+
 export function registerWebMcpTools(
   modelContext: WebMcpModelContext,
   fetchImpl: FetchLike,
 ): () => void {
-  const registrations = createWebMcpTools(fetchImpl).map((tool) =>
-    modelContext.registerTool(tool),
-  );
+  const controller = new AbortController();
+  const handles = webMcpTools(fetchImpl).map((tool) => {
+    const handle = modelContext.registerTool(tool, {
+      signal: controller.signal,
+    });
+    if (isThenable(handle)) handle.catch(() => {});
+    return handle;
+  });
   return () => {
-    for (const registration of registrations) {
-      registration?.unregister?.();
+    controller.abort();
+    for (const handle of handles) {
+      if (!isThenable(handle)) handle?.unregister?.();
     }
   };
 }
