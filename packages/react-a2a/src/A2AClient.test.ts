@@ -1017,6 +1017,47 @@ describe("A2AClient", () => {
       expect(evt.event.status.message?.role).toBe("agent");
     });
 
+    it("drops a wrapped task or message whose ids are not strings", async () => {
+      const frames = [
+        {
+          task: {
+            id: "t1",
+            context_id: 999,
+            status: { state: "TASK_STATE_WORKING" },
+          },
+        },
+        {
+          message: {
+            message_id: "m1",
+            context_id: 42,
+            role: "ROLE_AGENT",
+            parts: [{ text: "hi" }],
+          },
+        },
+        {
+          message: {
+            message_id: "m2",
+            task_id: { nested: "object" },
+            role: "ROLE_AGENT",
+            parts: [{ text: "hi" }],
+          },
+        },
+      ];
+
+      for (const frame of frames) {
+        fetchMock.mockResolvedValue(
+          mockSSEResponse([`data: ${JSON.stringify(frame)}`, "", ""]),
+        );
+
+        const events: A2AStreamEvent[] = [];
+        for await (const event of client.streamMessage(userMessage)) {
+          events.push(event);
+        }
+
+        expect(events).toEqual([]);
+      }
+    });
+
     it("drops a wrapped status update whose contextId is not a string", async () => {
       const sseData = JSON.stringify({
         status_update: {

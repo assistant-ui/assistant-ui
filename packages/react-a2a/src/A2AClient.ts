@@ -280,6 +280,14 @@ const isMessage = (value: unknown): value is A2AMessage =>
 
 // Legacy wrappers use ProtoJSON, where omitted and null fields decode to proto
 // defaults. Normalize those defaults before enforcing semantic requirements.
+// Filling a null id with the ProtoJSON default does not make it a string, and
+// the shape guards below check the fields they name rather than the ids. The
+// runtime reads these straight into task state and the next request body.
+const hasStringIds = (
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean => keys.every((key) => typeof value[key] === "string");
+
 const toWrappedTaskStatus = (
   value: unknown,
 ): Record<string, unknown> | null => {
@@ -300,7 +308,7 @@ const toWrappedTask = (value: unknown): A2ATask | null => {
     contextId: value.contextId == null ? "" : value.contextId,
     status,
   };
-  return isTask(task) ? task : null;
+  return isTask(task) && hasStringIds(task, ["contextId"]) ? task : null;
 };
 
 const toWrappedMessage = (value: unknown): A2AMessage | null => {
@@ -313,7 +321,9 @@ const toWrappedMessage = (value: unknown): A2AMessage | null => {
     role: value.role == null ? "unspecified" : value.role,
     parts: value.parts == null ? [] : value.parts,
   };
-  return isMessage(message) ? message : null;
+  return isMessage(message) && hasStringIds(message, ["contextId", "taskId"])
+    ? message
+    : null;
 };
 
 const isStatusUpdate = (
@@ -326,12 +336,6 @@ const isStatusUpdate = (
   isRecord(value.status) &&
   isTaskState(value.status.state);
 
-// Filling a null id with the ProtoJSON default does not make it a string: the
-// published event types declare taskId and contextId as required strings, and
-// the runtime reads both straight into task state.
-const hasWireIds = (value: Record<string, unknown>): boolean =>
-  typeof value.taskId === "string" && typeof value.contextId === "string";
-
 const toWrappedStatusUpdate = (
   value: unknown,
 ): Record<string, unknown> | null => {
@@ -343,7 +347,8 @@ const toWrappedStatusUpdate = (
     contextId: value.contextId == null ? "" : value.contextId,
     status: toWrappedTaskStatus(value.status),
   };
-  return isStatusUpdate(statusUpdate, true) && hasWireIds(statusUpdate)
+  return isStatusUpdate(statusUpdate, true) &&
+    hasStringIds(statusUpdate, ["taskId", "contextId"])
     ? statusUpdate
     : null;
 };
@@ -381,7 +386,8 @@ const toWrappedArtifactUpdate = (
     contextId: value.contextId == null ? "" : value.contextId,
     artifact,
   };
-  return isArtifactUpdate(artifactUpdate) && hasWireIds(artifactUpdate)
+  return isArtifactUpdate(artifactUpdate) &&
+    hasStringIds(artifactUpdate, ["taskId", "contextId"])
     ? artifactUpdate
     : null;
 };
