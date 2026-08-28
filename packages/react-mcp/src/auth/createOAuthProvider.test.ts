@@ -2,7 +2,10 @@ import type { OAuthDiscoveryState } from "@modelcontextprotocol/client";
 import { describe, expect, it, vi } from "vitest";
 import type { MCPStorage } from "../resources/storage/types";
 import type { MCPPersistedAuthState } from "./types";
-import { createOAuthProvider } from "./createOAuthProvider";
+import {
+  clearOAuthProviderAuthState,
+  createOAuthProvider,
+} from "./createOAuthProvider";
 
 const discoveryState: OAuthDiscoveryState = {
   authorizationServerUrl: "https://auth.example.com",
@@ -97,9 +100,10 @@ describe("createOAuthProvider persistence", () => {
     const { storage } = createStorage();
     storage.loadAuthState = loadAuthState;
     const provider = createProvider(storage);
+    const replacementProvider = createProvider(storage);
 
     const tokens = provider.tokens();
-    const clientInformation = provider.clientInformation();
+    const clientInformation = replacementProvider.clientInformation();
 
     expect(loadAuthState).toHaveBeenCalledTimes(1);
     resolveLoad(null);
@@ -196,5 +200,102 @@ describe("createOAuthProvider persistence", () => {
       tokens: { access_token: "access-token", token_type: "bearer" },
       codeVerifier: "pkce-verifier",
     });
+  });
+
+  it("serializes writes across provider instances", async () => {
+    const { storage } = createStorage();
+    const pendingWrites: Array<() => void> = [];
+    let persisted: MCPPersistedAuthState | null = null;
+    storage.saveAuthState = async (_serverId, next) => {
+      await new Promise<void>((resolve) => pendingWrites.push(resolve));
+      persisted = next;
+    };
+    const providerA = createProvider(storage);
+    const providerB = createProvider(storage);
+    await Promise.all([providerA.tokens(), providerB.tokens()]);
+
+    const tokenSave = providerA.saveTokens({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+    await vi.waitFor(() => expect(pendingWrites).toHaveLength(1));
+
+    const verifierSave = providerB.saveCodeVerifier("pkce-verifier");
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(pendingWrites).toHaveLength(1);
+
+    pendingWrites.shift()!();
+    await vi.waitFor(() => expect(pendingWrites).toHaveLength(1));
+    pendingWrites.shift()!();
+    await Promise.all([tokenSave, verifierSave]);
+
+    expect(persisted).toEqual({
+      tokens: { access_token: "access-token", token_type: "bearer" },
+      codeVerifier: "pkce-verifier",
+    });
+  });
+
+  it("clears after a pending write and fences discarded providers", async () => {
+    const { storage, getState } = createStorage();
+    const pendingWrites: Array<() => void> = [];
+    const saveAuthState = storage.saveAuthState;
+    storage.saveAuthState = async (serverId, next) => {
+      await new Promise<void>((resolve) => pendingWrites.push(resolve));
+      await saveAuthState(serverId, next);
+    };
+    const clearAuthState = vi.spyOn(storage, "clearAuthState");
+    const provider = createProvider(storage);
+    await provider.tokens();
+    const save = provider.saveTokens({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+    await vi.waitFor(() => expect(pendingWrites).toHaveLength(1));
+
+    const clear = clearOAuthProviderAuthState(storage, "docs");
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(clearAuthState).not.toHaveBeenCalled();
+    pendingWrites.shift()!();
+    await expect(save).resolves.toBeUndefined();
+    await clear;
+    expect(clearAuthState).toHaveBeenCalledTimes(1);
+    expect(getState()).toBeNull();
+
+    await provider.saveCodeVerifier("late-verifier");
+    expect(getState()).toBeNull();
+
+    storage.saveAuthState = saveAuthState;
+    const replacementProvider = createProvider(storage);
+    await replacementProvider.saveCodeVerifier("new-verifier");
+    expect(getState()).toEqual({ codeVerifier: "new-verifier" });
+  });
+
+  it("clears after hydration before fencing its pending save", async () => {
+    let resolveLoad!: (value: MCPPersistedAuthState | null) => void;
+    const { storage } = createStorage();
+    const loadAuthState = vi.fn(
+      () =>
+        new Promise<MCPPersistedAuthState | null>((resolve) => {
+          resolveLoad = resolve;
+        }),
+    );
+    storage.loadAuthState = loadAuthState;
+    storage.saveAuthState = vi.fn(async () => {});
+    const clearAuthState = vi.spyOn(storage, "clearAuthState");
+    const provider = createProvider(storage);
+
+    const save = provider.saveTokens({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+    expect(loadAuthState).toHaveBeenCalledTimes(1);
+    const clear = clearOAuthProviderAuthState(storage, "docs");
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(clearAuthState).not.toHaveBeenCalled();
+
+    resolveLoad(null);
+    await Promise.all([save, clear]);
+    expect(clearAuthState).toHaveBeenCalledTimes(1);
+    expect(storage.saveAuthState).not.toHaveBeenCalled();
   });
 });

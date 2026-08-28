@@ -57,6 +57,75 @@ export type CreateOAuthProviderOptions = {
   onAuthorizationUrl: (url: URL) => void;
 };
 
+type OAuthProviderCache = {
+  tokens?: OAuthTokens | undefined;
+  clientInformation?: OAuthClientInformationFull | undefined;
+  codeVerifier?: string | undefined;
+  discoveryState?: OAuthDiscoveryState | undefined;
+};
+
+type OAuthProviderPersistence = {
+  cached: OAuthProviderCache | null;
+  cachePromise: Promise<OAuthProviderCache> | null;
+  persistenceQueue: Promise<void>;
+  invalidated: boolean;
+};
+
+const persistenceByStorage = new WeakMap<
+  MCPStorage,
+  Map<string, OAuthProviderPersistence>
+>();
+
+const getPersistence = (
+  storage: MCPStorage,
+  serverId: string,
+): OAuthProviderPersistence => {
+  let persistenceByServer = persistenceByStorage.get(storage);
+  if (!persistenceByServer) {
+    persistenceByServer = new Map();
+    persistenceByStorage.set(storage, persistenceByServer);
+  }
+
+  let persistence = persistenceByServer.get(serverId);
+  if (!persistence) {
+    persistence = {
+      cached: null,
+      cachePromise: null,
+      persistenceQueue: Promise.resolve(),
+      invalidated: false,
+    };
+    persistenceByServer.set(serverId, persistence);
+  }
+  return persistence;
+};
+
+export const clearOAuthProviderAuthState = async (
+  storage: MCPStorage,
+  serverId: string,
+): Promise<void> => {
+  const persistence = getPersistence(storage, serverId);
+  persistence.invalidated = true;
+
+  const hydration =
+    persistence.cachePromise?.catch(() => undefined) ?? Promise.resolve();
+  const task = Promise.all([hydration, persistence.persistenceQueue]).then(() =>
+    storage.clearAuthState(serverId),
+  );
+  persistence.persistenceQueue = task.catch(() => {});
+
+  try {
+    await task;
+  } finally {
+    const persistenceByServer = persistenceByStorage.get(storage);
+    if (persistenceByServer?.get(serverId) === persistence) {
+      persistenceByServer.delete(serverId);
+      if (persistenceByServer.size === 0) {
+        persistenceByStorage.delete(storage);
+      }
+    }
+  }
+};
+
 /**
  * Builds an OAuthClientProvider for the MCP SDK, backed by MCPStorage.
  * Token refresh and DCR are handled by the SDK; this provider only mediates
@@ -66,24 +135,15 @@ export function createOAuthProvider(
   opts: CreateOAuthProviderOptions,
 ): OAuthClientProvider {
   const { serverId, config, storage, redirectUri, onAuthorizationUrl } = opts;
+  const persistence = getPersistence(storage, serverId);
 
-  type Cache = {
-    tokens?: OAuthTokens | undefined;
-    clientInformation?: OAuthClientInformationFull | undefined;
-    codeVerifier?: string | undefined;
-    discoveryState?: OAuthDiscoveryState | undefined;
-  };
-  let cached: Cache | null = null;
-  let cachePromise: Promise<Cache> | null = null;
-  let persistenceQueue = Promise.resolve();
+  const loadCache = (): Promise<OAuthProviderCache> => {
+    if (persistence.cached) return Promise.resolve(persistence.cached);
+    if (persistence.cachePromise) return persistence.cachePromise;
 
-  const loadCache = (): Promise<Cache> => {
-    if (cached) return Promise.resolve(cached);
-    if (cachePromise) return cachePromise;
-
-    cachePromise = storage.loadAuthState(serverId).then(
+    persistence.cachePromise = storage.loadAuthState(serverId).then(
       (persisted) => {
-        const initial: Cache = {};
+        const initial: OAuthProviderCache = {};
         if (persisted?.tokens) initial.tokens = persisted.tokens;
         if (config.clientId) {
           const ci: OAuthClientInformationFull = {
@@ -99,20 +159,21 @@ export function createOAuthProvider(
           initial.codeVerifier = persisted.codeVerifier;
         if (persisted?.discoveryState)
           initial.discoveryState = persisted.discoveryState;
-        cached = initial;
+        persistence.cached = initial;
         return initial;
       },
       (error) => {
-        cachePromise = null;
+        persistence.cachePromise = null;
         throw error;
       },
     );
-    return cachePromise;
+    return persistence.cachePromise;
   };
 
   const persist = () => {
-    const task = persistenceQueue.then(async () => {
-      const c = cached;
+    const task = persistence.persistenceQueue.then(async () => {
+      if (persistence.invalidated) return;
+      const c = persistence.cached;
       if (!c) return;
       const next: Parameters<typeof storage.saveAuthState>[1] = {};
       if (c.tokens) next.tokens = c.tokens;
@@ -121,7 +182,7 @@ export function createOAuthProvider(
       if (c.discoveryState) next.discoveryState = c.discoveryState;
       await storage.saveAuthState(serverId, next);
     });
-    persistenceQueue = task.catch(() => {});
+    persistence.persistenceQueue = task.catch(() => {});
     return task;
   };
 
