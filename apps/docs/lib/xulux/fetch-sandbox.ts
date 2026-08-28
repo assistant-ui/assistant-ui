@@ -1,5 +1,5 @@
 const SANDBOX_FETCH_HEADERS = {
-  Accept: "application/zip, application/octet-stream, */*",
+  Accept: "application/json, application/zip, application/octet-stream, */*",
   // Blaxel preview hosts intermittently reset Node's default fetch path.
   "User-Agent": "curl/8.7.1",
 };

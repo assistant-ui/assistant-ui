@@ -16,6 +16,12 @@ import {
   standalone,
   tapDocs,
 } from "@/lib/source";
+import { buildXuluxMcpCatalog } from "@/lib/xulux/mcp-catalog";
+import {
+  createTemplatePreview,
+  getTemplateDetails,
+  listTemplates,
+} from "@/lib/xulux/template-service";
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
 export const revalidate = false;
@@ -40,10 +46,58 @@ const toolDefinitions = [
     description:
       "Read one assistant-ui docs, examples, design, or Tap docs page as markdown. Accepts a slug, path, .md URL, or same-origin URL.",
   },
+  {
+    name: "list_templates",
+    description:
+      "List the hosted assistant-ui app templates and fixed demos with their features, customizable surfaces, and versions. Call this first for any assistant-ui app-building request. If customizable is empty, the entry is a fixed demo that should be used as-is rather than configured. Call read_template on the chosen template before requesting a preview.",
+  },
+  {
+    name: "read_template",
+    description:
+      "Get the full authoring surface for one hosted assistant-ui template: configRoots schemas (types, defaults, enums), rules, built-in tool contracts, and an exampleConfig. Fixed demos return no configRoots; use those as-is. Use this before preview_template to understand exactly what config to write. If preview_template returns validationWarnings, cross-reference configRoots here to correct the config.",
+  },
+  {
+    name: "preview_template",
+    description:
+      "Return preview and download URLs for a hosted assistant-ui template. Passing config creates a preview session on the template sandbox and the returned URLs reflect that configuration. Do not pass config for fixed demos that have no configRoots in read_template. Show the previewUrl to the user or open it with an available browser tool if your client provides one.",
+  },
 ] as const;
 
-const [listPagesTool, getNavigationTool, searchDocsTool, readPageTool] =
-  toolDefinitions;
+const [
+  listPagesTool,
+  getNavigationTool,
+  searchDocsTool,
+  readPageTool,
+  listTemplatesTool,
+  readTemplateTool,
+  previewTemplateTool,
+] = toolDefinitions;
+
+const templateWorkflowPrompt = {
+  name: "assistant-ui-template-workflow",
+  description:
+    "How to use the assistant-ui template tools to discover hosted templates, inspect their customization contracts, and retrieve preview/download URLs.",
+  text: `You have access to assistant-ui template tools for hosted app templates.
+
+<workflow>
+Follow this template-first workflow for any assistant-ui app-building request:
+
+1. Call **list_templates** FIRST. Never decide on a template or claim one exists without listing.
+2. Call **read_template** on any candidate template before deciding whether it fits.
+   - Review the whole template shape: features, assistantPlacement, configRoots schemas, rules, built-in tools, renderers, and exampleConfig.
+   - If \`customizable\` is empty, the entry is a fixed demo. Use it as-is; never pass a config for it.
+3. Decide one of three paths:
+   - The template fits as-is: call **preview_template** with templateId and optional versionId.
+   - The template fits with supported customization: author a config using the configRoots schemas and rules from read_template, then call **preview_template** with that config.
+   - No template fits: do NOT call preview_template. Do not force the request into a template or fake domain content with mock config. Instead, ground yourself in the assistant-ui docs (list_pages, search_docs, read_page) and produce an honest, docs-grounded build guide or prompt for the user.
+</workflow>
+
+<important_constraints>
+- Only use URLs copied exactly from tool results. Never guess, fabricate, or use placeholder URLs.
+- If preview_template returns validationWarnings or an error, call read_template again and correct the config against configRoots. Pass only the documented top-level config roots.
+- Customization is for supported adaptation within a template's shape, not for turning it into a completely different kind of product.
+</important_constraints>`,
+} as const;
 
 function pageSummary(page: {
   url: string;
@@ -317,6 +371,38 @@ const readPageInputSchema = z
   })
   .strict();
 
+const listTemplatesInputSchema = z.object({}).strict();
+
+const readTemplateInputSchema = z
+  .object({
+    templateId: z.string().describe("The template id from list_templates"),
+    versionId: z
+      .string()
+      .optional()
+      .describe(
+        "Optional version id. When provided, exampleConfig reflects that version's resolved defaults.",
+      ),
+  })
+  .strict();
+
+const previewTemplateInputSchema = z
+  .object({
+    templateId: z.string().describe("The template id from list_templates"),
+    versionId: z
+      .string()
+      .optional()
+      .describe("Version id to use. Uses the template default if omitted."),
+    config: z
+      .record(z.string(), z.unknown())
+      .optional()
+      .describe(
+        "Customization config for the preview. Must contain only the top-level keys: hostUi, assistant, and brandTheme. " +
+          "Use the schemas from read_template.configRoots as the source of truth for each root. " +
+          "Do not pass any other root keys.",
+      ),
+  })
+  .strict();
+
 function templateVarToPath(value: string | string[] | undefined): string {
   return Array.isArray(value) ? value.join("/") : (value ?? "");
 }
@@ -370,6 +456,7 @@ function buildMcpServer(requestUrl: string) {
     name: "assistant-ui-docs",
     version: "1.0.0",
   });
+  const requestOrigin = new URL(requestUrl).origin;
 
   server.registerTool(
     listPagesTool.name,
@@ -405,6 +492,52 @@ function buildMcpServer(requestUrl: string) {
       inputSchema: readPageInputSchema,
     },
     ({ path }) => toolResult(() => readPage(path, requestUrl)),
+  );
+
+  server.registerTool(
+    listTemplatesTool.name,
+    {
+      description: listTemplatesTool.description,
+      inputSchema: listTemplatesInputSchema,
+    },
+    () => toolResult(() => listTemplates(buildXuluxMcpCatalog(requestOrigin))),
+  );
+
+  server.registerTool(
+    readTemplateTool.name,
+    {
+      description: readTemplateTool.description,
+      inputSchema: readTemplateInputSchema,
+    },
+    (input) =>
+      toolResult(() =>
+        getTemplateDetails(buildXuluxMcpCatalog(requestOrigin), input),
+      ),
+  );
+
+  server.registerTool(
+    previewTemplateTool.name,
+    {
+      description: previewTemplateTool.description,
+      inputSchema: previewTemplateInputSchema,
+    },
+    (input) =>
+      toolResult(() =>
+        createTemplatePreview(buildXuluxMcpCatalog(requestOrigin), input),
+      ),
+  );
+
+  server.registerPrompt(
+    templateWorkflowPrompt.name,
+    { description: templateWorkflowPrompt.description },
+    () => ({
+      messages: [
+        {
+          role: "user" as const,
+          content: { type: "text" as const, text: templateWorkflowPrompt.text },
+        },
+      ],
+    }),
   );
 
   registerResources(server, requestUrl);
