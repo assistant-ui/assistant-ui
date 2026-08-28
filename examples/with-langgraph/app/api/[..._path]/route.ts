@@ -12,7 +12,8 @@ function isSameOriginRequest(req: NextRequest) {
   if (origin === null) return true;
 
   try {
-    return new URL(origin).origin === req.nextUrl.origin;
+    const requestHost = req.headers.get("host") ?? req.nextUrl.host;
+    return new URL(origin).host === requestHost.toLowerCase();
   } catch {
     return false;
   }

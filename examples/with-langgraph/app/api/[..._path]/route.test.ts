@@ -24,20 +24,24 @@ describe("LangGraph proxy", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("rejects cross-scheme origins when Fetch Metadata is unavailable", async () => {
-    const fetchMock = vi.fn();
+  it("accepts a public origin when a proxy uses an internal URL", async () => {
+    vi.stubEnv("LANGGRAPH_API_URL", "https://agent.example");
+    const fetchMock = vi.fn().mockResolvedValue(Response.json({}));
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await POST(
-      new NextRequest("https://app.example/api/threads", {
+      new NextRequest("http://app.internal/api/threads", {
         method: "POST",
-        headers: { origin: "http://app.example" },
+        headers: {
+          host: "app.example",
+          origin: "https://app.example",
+        },
         body: "{}",
       }),
     );
 
-    expect(response.status).toBe(403);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("preserves same-origin proxy requests without exposing CORS or cookies", async () => {
