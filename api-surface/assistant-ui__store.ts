@@ -51,9 +51,9 @@ type AssistantEventSelector<TEvent extends AssistantEventName> = TEvent | {
   event: TEvent;
 };
 
-type AssistantState = ScopeStates & {
+type AssistantState = ScopeStates$1 & {
   readonly optional: {
-    readonly [K in keyof ScopeStates]: ScopeStates[K] | undefined;
+    readonly [K in keyof ScopeStates$1]: ScopeStates$1[K] | undefined;
   };
 };
 
@@ -63,7 +63,7 @@ type AuiConfig = AuiConfig.Input & {
 
 declare namespace AuiConfig {
   type Input = {
-    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+    [K in ClientNames]?: ClientElement<K> | DerivedElement<K> | undefined;
   };
 }
 
@@ -200,7 +200,9 @@ interface ScopeRegistry {
   [key: string]: { methods: any; meta?: any; events?: any };
 }
 
-type ScopeStates = {
+type ScopeStates = Partial<Record<ClientNames, unknown>>;
+
+type ScopeStates$1 = {
   [K in ClientNames]: ClientSchemas[K]["methods"] extends {
     getState: () => infer S;
   } ? S : never;
@@ -209,6 +211,7 @@ type ScopeStates = {
 type ScopedAuiClient = {
   client: AssistantClient;
   effects?: () => void;
+  states?: ScopeStates;
 };
 
 type ScopesConfig = {
@@ -328,7 +331,11 @@ declare function useAui(clients: useAui.Props): AssistantClient;
 
 declare const useAuiEvent: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>) => void;
 
-declare const useAuiState: <T>(selector: (state: AssistantState) => T) => T;
+declare function useAuiState<K extends ClientNames>(scope: K): AssistantState[K];
+
+declare function useAuiState<K extends ClientNames, T>(scope: K, selector: (state: AssistantState[K]) => T): T;
+
+declare function useAuiState<T>(selector: (state: AssistantState) => T): T;
 
 declare const useClientList: <TData, TMethods extends ClientMethods>(props: useClientList.Props<TData, TMethods>) => {
   state: InferClientState<TMethods>[];

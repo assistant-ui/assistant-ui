@@ -605,7 +605,7 @@ type AuiConfig = AuiConfig.Input & {
 
 declare namespace AuiConfig {
   type Input = {
-    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+    [K in ClientNames]?: ClientElement<K> | DerivedElement<K> | undefined;
   };
 }
 
@@ -4798,7 +4798,11 @@ declare function useAui(clients: useAui.Props): AssistantClient;
 
 declare const useAuiEvent: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>, callback: AssistantEventCallback<TEvent>) => void;
 
-declare const useAuiState: <T>(selector: (state: AssistantState) => T) => T;
+declare function useAuiState<K extends ClientNames>(scope: K): AssistantState[K];
+
+declare function useAuiState<K extends ClientNames, T>(scope: K, selector: (state: AssistantState[K]) => T): T;
+
+declare function useAuiState<T>(selector: (state: AssistantState) => T): T;
 
 declare function useAuiToolOverrides(overrides: AuiToolOverrides): void;
 

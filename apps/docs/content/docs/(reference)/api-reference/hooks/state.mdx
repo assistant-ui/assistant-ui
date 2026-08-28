@@ -68,21 +68,6 @@ useAuiEvent("thread.modelContextUpdate", ({ threadId }) => {
 
 ### useAuiState
 
-Subscribes to a slice of [AssistantState](/docs/api-reference/primitives/assistant-if#assistantstate) and re-renders the
-component whenever that slice changes.
-
-The `selector` is called on every store update; its return value is
-compared by `Object.is`, and the component re-renders only when the
-selected slice changes. Returning the entire state object is not
-supported and throws at runtime — select a specific field instead, or
-compose multiple `useAuiState` calls. Returning a new object or array
-literal, including spreading `s.thread` into a new object, causes a
-re-render on every store update; either select primitives or return a
-memoized reference.
-
-Scopes that may be unavailable can be read via `s.optional.<scope>`,
-which resolves to `undefined` instead of throwing.
-
 {/* api-example:useAuiState:start */}
 ```tsx
 import { useAuiState } from "@assistant-ui/react";
