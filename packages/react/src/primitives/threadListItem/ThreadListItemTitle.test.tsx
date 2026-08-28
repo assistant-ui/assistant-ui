@@ -3,6 +3,16 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { ReactNode } from "react";
 import { ThreadListItemPrimitiveTitle } from "./ThreadListItemTitle";
 
+const toSelector = (
+  scopeOrSelector: unknown,
+  selector?: (s: unknown) => unknown,
+): ((state: Record<string, unknown>) => unknown) =>
+  typeof scopeOrSelector === "function"
+    ? (scopeOrSelector as (state: Record<string, unknown>) => unknown)
+    : (state) => {
+        const scoped = state[scopeOrSelector as string];
+        return selector ? selector(scoped) : scoped;
+      };
 const mockUseAuiState = vi.fn();
 type UseAuiStateSelector = Parameters<
   (typeof import("@assistant-ui/store"))["useAuiState"]
@@ -12,7 +22,10 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
-    useAuiState: (selector: UseAuiStateSelector) => mockUseAuiState(selector),
+    useAuiState: (
+      scopeOrSelector: unknown,
+      selector?: (s: unknown) => unknown,
+    ) => mockUseAuiState(toSelector(scopeOrSelector, selector)),
   };
 });
 

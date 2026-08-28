@@ -40,8 +40,18 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof AssistantStore>();
   return {
     ...actual,
-    useAuiState: <T,>(selector: (state: StoreState) => T) =>
-      selector(storeState),
+    useAuiState: (
+      scopeOrSelector: unknown,
+      selector?: (s: unknown) => unknown,
+    ) => {
+      if (typeof scopeOrSelector === "function") {
+        return scopeOrSelector(storeState);
+      }
+      const scoped = (storeState as Record<string, unknown>)[
+        scopeOrSelector as string
+      ];
+      return selector ? selector(scoped) : scoped;
+    },
   };
 });
 

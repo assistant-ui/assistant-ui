@@ -104,6 +104,11 @@ vi.mock("@assistant-ui/store", async () => {
     }: {
       children: (getItem: () => unknown) => unknown;
     }) => children(() => h.itemState),
+    RenderChildrenWithScope: ({
+      children,
+    }: {
+      children: (getItem: () => unknown) => unknown;
+    }) => children(() => h.itemState),
   };
 });
 

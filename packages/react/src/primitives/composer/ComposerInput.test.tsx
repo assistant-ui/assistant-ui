@@ -57,8 +57,15 @@ vi.mock("@assistant-ui/store", () => {
   }) => T;
   return {
     useAui: () => aui,
-    useAuiState: <T,>(selector: Selector<T>) =>
-      selector({ composer: composerState, thread: threadState }),
+    useAuiState: <T,>(
+      scopeOrSelector: "composer" | "thread" | Selector<T>,
+      selector?: (s: unknown) => T,
+    ) => {
+      const state = { composer: composerState, thread: threadState };
+      if (typeof scopeOrSelector === "function") return scopeOrSelector(state);
+      const scoped = state[scopeOrSelector];
+      return selector ? selector(scoped) : scoped;
+    },
   };
 });
 

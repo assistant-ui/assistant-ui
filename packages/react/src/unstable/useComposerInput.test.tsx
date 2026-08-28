@@ -24,8 +24,11 @@ vi.mock("@assistant-ui/store", () => ({
       send: composerSend,
     },
   }),
-  useAuiState: (selector: (s: unknown) => unknown) =>
-    selector({
+  useAuiState: (
+    scopeOrSelector: unknown,
+    selector?: (s: unknown) => unknown,
+  ) => {
+    const state: Record<string, unknown> = {
       composer: {
         isEditing: fixture.composer.isEditing,
         text: fixture.composer.text,
@@ -34,7 +37,11 @@ vi.mock("@assistant-ui/store", () => ({
           : undefined,
       },
       thread: { isDisabled: fixture.threadDisabled },
-    }),
+    };
+    if (typeof scopeOrSelector === "function") return scopeOrSelector(state);
+    const scoped = state[scopeOrSelector as string];
+    return selector ? selector(scoped) : scoped;
+  },
 }));
 vi.mock("@assistant-ui/tap", () => ({
   flushTapSync: (fn: () => void) => flushTapSync(fn),
