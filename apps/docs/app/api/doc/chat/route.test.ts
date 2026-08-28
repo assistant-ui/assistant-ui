@@ -162,9 +162,17 @@ describe("withReadDocSources", () => {
         toolCallId: "b",
         output: { url: "/repo" },
       },
+      {
+        type: "message-metadata",
+        messageMetadata: { custom: { usage: { totalTokens: 42 } } },
+      },
     ] as UIMessageChunk[]);
 
     expect(out.filter((chunk) => chunk.type === "source-url")).toEqual([]);
-    expect(out).toHaveLength(4);
+    expect(out).toHaveLength(5);
+    expect(out).toContainEqual({
+      type: "message-metadata",
+      messageMetadata: { custom: { usage: { totalTokens: 42 } } },
+    });
   });
 });

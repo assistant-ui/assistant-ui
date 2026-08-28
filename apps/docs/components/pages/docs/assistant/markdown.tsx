@@ -17,6 +17,7 @@ import {
   type ReactNode,
   memo,
   useEffect,
+  useId,
   useRef,
   useState,
 } from "react";
@@ -71,6 +72,7 @@ const CollapsibleCode: FC<{ children: ReactNode }> = ({ children }) => {
   const [overflowing, setOverflowing] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const contentId = useId();
 
   useEffect(() => {
     const content = contentRef.current;
@@ -93,6 +95,7 @@ const CollapsibleCode: FC<{ children: ReactNode }> = ({ children }) => {
     >
       <div
         ref={contentRef}
+        id={contentId}
         className={cn(overflowing && !expanded && "max-h-64 overflow-hidden")}
       >
         {children}
@@ -104,6 +107,7 @@ const CollapsibleCode: FC<{ children: ReactNode }> = ({ children }) => {
             <button
               type="button"
               aria-expanded={false}
+              aria-controls={contentId}
               onClick={() => setExpanded(true)}
               className="text-muted-foreground hover:text-foreground bg-background/90 pointer-events-auto rounded-full border px-3 py-1 text-xs backdrop-blur"
             >
@@ -117,6 +121,7 @@ const CollapsibleCode: FC<{ children: ReactNode }> = ({ children }) => {
           <button
             type="button"
             aria-expanded={true}
+            aria-controls={contentId}
             onClick={() => {
               setExpanded(false);
               containerRef.current?.scrollIntoView({ block: "nearest" });
