@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
 import { Suggestions } from "@assistant-ui/core/store";
-import { AISDKChat } from "@assistant-ui/ai-sdk";
+import { AISDKThreads } from "@assistant-ui/ai-sdk";
 
 const config = AuiConfig({
-  threads: AISDKChat(),
+  threads: AISDKThreads(),
   suggestions: Suggestions([
     {
       title: "Check the weather",
@@ -28,7 +28,10 @@ const config = AuiConfig({
 <template>
   <AuiProvider :config="config">
     <RegisterToolUIs>
-      <Thread />
+      <div class="bg-background flex h-full">
+        <ThreadListSidebar />
+        <Thread />
+      </div>
     </RegisterToolUIs>
   </AuiProvider>
 </template>
