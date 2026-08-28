@@ -61,6 +61,25 @@ describe("ElevenLabs token route", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
+  it("reports an invalid configured public origin", async () => {
+    vi.stubEnv("APP_ORIGIN", "app.example");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new Request("http://app.internal/api/scribe-token", {
+        method: "POST",
+        headers: { origin: "https://app.example" },
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "APP_ORIGIN must be an absolute HTTP(S) origin.",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("rejects requests marked cross-site by the browser", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
