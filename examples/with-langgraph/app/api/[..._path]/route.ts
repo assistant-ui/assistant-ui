@@ -4,9 +4,18 @@ const ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 
 function isAllowedRequestContext(req: NextRequest) {
   const fetchSite = req.headers.get("sec-fetch-site");
-  return (
-    fetchSite === null || fetchSite === "same-origin" || fetchSite === "none"
-  );
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
+  }
+
+  const origin = req.headers.get("origin");
+  if (origin === null) return true;
+
+  try {
+    return new URL(origin).origin === req.nextUrl.origin;
+  } catch {
+    return false;
+  }
 }
 
 function crossOriginResponse() {
