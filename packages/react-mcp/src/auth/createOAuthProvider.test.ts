@@ -124,7 +124,7 @@ describe("createOAuthProvider persistence", () => {
     await vi.waitFor(() => expect(pendingWrites).toHaveLength(1));
 
     const verifierSave = provider.saveCodeVerifier("pkce-verifier");
-    await Promise.resolve();
+    for (let i = 0; i < 10; i++) await Promise.resolve();
     expect(pendingWrites).toHaveLength(1);
 
     pendingWrites.shift()!();
