@@ -1,4 +1,7 @@
+// @vitest-environment jsdom
+
 import { describe, expect, it, vi } from "vitest";
+import { renderHook } from "@testing-library/react";
 import type { AssistantCloud } from "assistant-cloud";
 import { createCloudThreadListAdapter } from "./createCloudThreadListAdapter";
 
@@ -63,5 +66,23 @@ describe("createCloudThreadListAdapter", () => {
 
     expect(adapter.unstable_useAdapters).toBeTypeOf("function");
     expect(adapter.unstable_Provider).toBeUndefined();
+  });
+
+  it("constructs stable history and attachment adapters when the hook runs", () => {
+    const cloud = makeCloud();
+    const adapter = createCloudThreadListAdapter({ cloud });
+    const { result, rerender } = renderHook(() =>
+      adapter.unstable_useAdapters!(),
+    );
+    const first = result.current!;
+    expect(first.history).toBeDefined();
+    expect((first.history as { withFormat?: unknown }).withFormat).toBeTypeOf(
+      "function",
+    );
+    expect(first.attachments).toBeDefined();
+
+    rerender();
+    expect(result.current!.history).toBe(first.history);
+    expect(result.current!.attachments).toBe(first.attachments);
   });
 });
