@@ -15,8 +15,17 @@ import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
 import { createLastValidCache, createStaleReporter } from "./lastValidCache";
 
-const hasMessage = (aui: AssistantClient, id: string) =>
-  aui.thread.getState().messages.some((message) => message.id === id);
+const idSets = new WeakMap<readonly { id: string }[], Set<string>>();
+
+const hasMessage = (aui: AssistantClient, id: string) => {
+  const messages = aui.thread.getState().messages;
+  let set = idSets.get(messages);
+  if (!set) {
+    set = new Set(messages.map((message) => message.id));
+    idSets.set(messages, set);
+  }
+  return set.has(id);
+};
 
 /**
  * Scopes the subtree to the thread message with `id`: descendants read the
