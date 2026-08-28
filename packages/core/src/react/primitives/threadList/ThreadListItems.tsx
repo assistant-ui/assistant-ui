@@ -64,8 +64,8 @@ const ThreadListPrimitiveItemsInner: FC<{
   archived: boolean;
   children: (value: { threadListItem: ThreadListItemState }) => ReactNode;
 }> = ({ archived, children }) => {
-  const contentLength = useAuiState((s) =>
-    archived ? s.threads.archivedThreadIds.length : s.threads.threadIds.length,
+  const contentLength = useAuiState("threads", (s) =>
+    archived ? s.archivedThreadIds.length : s.threadIds.length,
   );
 
   return useMemo(

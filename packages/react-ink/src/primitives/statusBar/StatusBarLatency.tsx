@@ -20,10 +20,8 @@ export const StatusBarPrimitiveLatency = ({
   format = defaultFormat,
   ...textProps
 }: StatusBarPrimitiveLatency.Props) => {
-  const tokensPerSecond = useAuiState((s) => {
-    const lastAssistant = s.thread.messages.findLast(
-      (m) => m.role === "assistant",
-    );
+  const tokensPerSecond = useAuiState("thread", (s) => {
+    const lastAssistant = s.messages.findLast((m) => m.role === "assistant");
     return lastAssistant?.metadata?.timing?.tokensPerSecond;
   });
 

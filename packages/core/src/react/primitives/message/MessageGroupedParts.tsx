@@ -251,13 +251,16 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
   indicator = "no-text",
   children,
 }: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode => {
-  const parts = useAuiState(useShallow((s) => s.message.parts));
+  const parts = useAuiState(
+    "message",
+    useShallow((s) => s.parts),
+  );
   // Handed to `groupBy` as its `context` argument (see GroupByContext).
-  const toolUIs = useAuiState((s) => s.tools.toolUIs);
+  const toolUIs = useAuiState("tools", (s) => s.toolUIs);
   // Subscribe to a boolean, not the status object: the tree only needs to
   // re-render when running-ness flips, and `"never"` opts out entirely.
-  const isRunning = useAuiState((s) =>
-    indicator === "never" ? false : s.message.status?.type === "running",
+  const isRunning = useAuiState("message", (s) =>
+    indicator === "never" ? false : s.status?.type === "running",
   );
 
   // Helpers like `groupPartByType` tag the function with `GROUPBY_MEMO_KEY`

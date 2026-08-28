@@ -14,7 +14,7 @@ export const ChainOfThoughtByIndicesProvider: FC<
     endIndex: number;
   }>
 > = ({ startIndex, endIndex, children }) => {
-  const parts = useAuiState((s) => s.message.parts).slice(
+  const parts = useAuiState("message", (s) => s.parts).slice(
     startIndex,
     endIndex + 1,
   ) as ChainOfThoughtPart[];

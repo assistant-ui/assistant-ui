@@ -23,9 +23,9 @@ export const LoadingElapsedTime = ({
   format = defaultFormat,
   ...textProps
 }: LoadingElapsedTimeProps) => {
-  const isRunning = useAuiState((s) => s.thread.isRunning);
-  const streamStartTime = useAuiState((s) => {
-    const lastMessage = s.thread.messages.at(-1);
+  const isRunning = useAuiState("thread", (s) => s.isRunning);
+  const streamStartTime = useAuiState("thread", (s) => {
+    const lastMessage = s.messages.at(-1);
 
     if (lastMessage?.role !== "assistant") return undefined;
     if (lastMessage.status?.type !== "running") return undefined;

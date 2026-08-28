@@ -141,8 +141,8 @@ export function useAssistantTransportState<T>(
 export function useAssistantTransportState<T>(
   selector: (state: UserExternalState) => T = (t) => t as T,
 ): T | UserExternalState {
-  return useAuiState((s) =>
-    selector(asAssistantTransportExtras(s.thread.extras).state),
+  return useAuiState("thread", (s) =>
+    selector(asAssistantTransportExtras(s.extras).state),
   );
 }
 

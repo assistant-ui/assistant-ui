@@ -154,8 +154,8 @@ type ThreadMessageComponentProps = {
 const ThreadMessageComponent: FC<ThreadMessageComponentProps> = ({
   components,
 }) => {
-  const role = useAuiState((s) => s.message.role);
-  const isEditing = useAuiState((s) => s.message.composer.isEditing);
+  const role = useAuiState("message", (s) => s.role);
+  const isEditing = useAuiState("message", (s) => s.composer.isEditing);
   const Component = getComponent(components, role, isEditing);
 
   return <Component />;
@@ -219,8 +219,8 @@ export namespace ThreadPrimitiveUnstable_MessageById {
 export const ThreadPrimitiveUnstable_MessageById: FC<ThreadPrimitiveUnstable_MessageById.Props> =
   memo(
     ({ messageId, components }) => {
-      const exists = useAuiState((s) =>
-        hasMessageId(s.thread.messages, messageId),
+      const exists = useAuiState("thread", (s) =>
+        hasMessageId(s.messages, messageId),
       );
       if (!exists) return null;
 
@@ -241,7 +241,7 @@ ThreadPrimitiveUnstable_MessageById.displayName =
 const ThreadPrimitiveMessagesInner: FC<{
   children: (value: { message: MessageState }) => ReactNode;
 }> = ({ children }) => {
-  const messagesLength = useAuiState((s) => s.thread.messages.length);
+  const messagesLength = useAuiState("thread", (s) => s.messages.length);
 
   return useMemo(() => {
     if (messagesLength === 0) return null;

@@ -6,11 +6,26 @@ import { mockPart, renderFrame, type UseAuiStateSelector } from "./helpers";
 
 const mockUseAuiState = vi.fn();
 
+const { toSelector } = vi.hoisted(() => ({
+  toSelector:
+    (scopeOrSelector: unknown, selector?: (s: unknown) => unknown) =>
+    (state: unknown) => {
+      if (typeof scopeOrSelector !== "string") {
+        return (scopeOrSelector as (s: unknown) => unknown)(state);
+      }
+      const scoped = (state as Record<string, unknown>)[scopeOrSelector];
+      return selector ? selector(scoped) : scoped;
+    },
+}));
+
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
-    useAuiState: (selector: UseAuiStateSelector) => mockUseAuiState(selector),
+    useAuiState: (
+      scopeOrSelector: unknown,
+      selector?: (s: unknown) => unknown,
+    ) => mockUseAuiState(toSelector(scopeOrSelector, selector)),
   };
 });
 

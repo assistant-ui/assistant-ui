@@ -50,7 +50,7 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: ComposerAttachmentsComponentConfig | undefined;
 }> = ({ components }) => {
-  const attachment = useAuiState((s) => s.attachment);
+  const attachment = useAuiState("attachment");
   if (!attachment) return null;
 
   const Component = getComponent(components, attachment);
@@ -91,7 +91,7 @@ ComposerPrimitiveAttachmentByIndex.displayName =
 const ComposerPrimitiveAttachmentsInner: FC<{
   children: (value: { attachment: Attachment }) => ReactNode;
 }> = ({ children }) => {
-  const attachmentsCount = useAuiState((s) => s.composer.attachments.length);
+  const attachmentsCount = useAuiState("composer", (s) => s.attachments.length);
 
   return useMemo(
     () =>

@@ -14,9 +14,9 @@ export namespace MessagePartPrimitiveImage {
 export const MessagePartPrimitiveImage = (
   props: MessagePartPrimitiveImage.Props,
 ) => {
-  const label = useAuiState((s) => {
-    if (s.part.type !== "image") return "";
-    return s.part.filename ? `[image: ${s.part.filename}]` : "[image]";
+  const label = useAuiState("part", (s) => {
+    if (s.type !== "image") return "";
+    return s.filename ? `[image: ${s.filename}]` : "[image]";
   });
   return <Text {...props}>{label}</Text>;
 };

@@ -46,7 +46,7 @@ export type ToolArgsStatus<
 export const useToolArgsStatus = <
   TArgs extends Record<string, unknown> = Record<string, unknown>,
 >(): ToolArgsStatus<TArgs> => {
-  const part = useAuiState((s) => s.part);
+  const part = useAuiState("part");
 
   return useMemo(() => {
     const statusType = part.status.type;

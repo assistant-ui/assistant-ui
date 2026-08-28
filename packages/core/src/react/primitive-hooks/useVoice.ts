@@ -3,7 +3,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 import type { VoiceSessionState } from "../../runtime/interfaces/thread-runtime-core";
 
 export const useVoiceState = (): VoiceSessionState | undefined => {
-  return useAuiState((s) => s.thread.voice);
+  return useAuiState("thread", (s) => s.voice);
 };
 
 const getServerVolume = () => 0;

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef } from "react";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState, type AssistantState } from "@assistant-ui/store";
 import { actionBarCopyDisabled } from "../../store/primitive-predicates";
 
 export type UseActionBarCopyOptions = {
@@ -12,10 +12,12 @@ export const useActionBarCopy = ({
   copyToClipboard,
 }: UseActionBarCopyOptions = {}) => {
   const aui = useAui();
-  const disabled = useAuiState(actionBarCopyDisabled);
-  const isCopied = useAuiState((s) => s.message.isCopied);
-  const isEditing = useAuiState((s) => s.composer.isEditing);
-  const composerValue = useAuiState((s) => s.composer.text);
+  const disabled = useAuiState("message", (message) =>
+    actionBarCopyDisabled({ message } as AssistantState),
+  );
+  const isCopied = useAuiState("message", (s) => s.isCopied);
+  const isEditing = useAuiState("composer", (s) => s.isEditing);
+  const composerValue = useAuiState("composer", (s) => s.text);
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );

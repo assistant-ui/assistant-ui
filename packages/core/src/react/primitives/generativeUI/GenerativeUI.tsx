@@ -162,12 +162,8 @@ export namespace MessagePrimitiveGenerativeUI {
 export const MessagePrimitiveGenerativeUI: FC<
   MessagePrimitiveGenerativeUI.Props
 > = ({ components, spec, Fallback }) => {
-  // Selector reads store state only — combining with the `spec` prop inside
-  // the selector closes over a value that may change identity per render and
-  // would trigger spurious tearing-detection re-renders in
-  // `useSyncExternalStore`.
-  const storeSpec = useAuiState((s) => {
-    const part = s.part as { type?: string; spec?: GenerativeUISpec };
+  const storeSpec = useAuiState("part", (s) => {
+    const part = s as { type?: string; spec?: GenerativeUISpec };
     return part?.type === "generative-ui" ? part.spec : undefined;
   });
   const partSpec = spec ?? storeSpec;

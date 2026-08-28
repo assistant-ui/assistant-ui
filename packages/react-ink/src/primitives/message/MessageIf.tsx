@@ -19,7 +19,7 @@ export const MessageIf = ({
   running,
   last,
 }: MessageIfProps) => {
-  const message = useAuiState((s) => s.message);
+  const message = useAuiState("message");
 
   if (user !== undefined) {
     if (user !== (message.role === "user")) return null;

@@ -1,10 +1,12 @@
 import { useCallback } from "react";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState, type AssistantState } from "@assistant-ui/store";
 import { composerCancelDisabled } from "../../store/primitive-predicates";
 
 export const useComposerCancel = () => {
   const aui = useAui();
-  const disabled = useAuiState(composerCancelDisabled);
+  const disabled = useAuiState("composer", (composer) =>
+    composerCancelDisabled({ composer } as AssistantState),
+  );
 
   const cancel = useCallback(() => {
     aui.composer.cancel();

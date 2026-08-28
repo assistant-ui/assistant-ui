@@ -20,11 +20,26 @@ vi.mock("@assistant-ui/core/react", () => ({
   useThreadListItemTrigger: () => ({ switchTo: h.switchTo }),
 }));
 
+const { toSelector } = vi.hoisted(() => ({
+  toSelector:
+    (scopeOrSelector: unknown, selector?: (s: unknown) => unknown) =>
+    (state: unknown) => {
+      if (typeof scopeOrSelector !== "string") {
+        return (scopeOrSelector as (s: unknown) => unknown)(state);
+      }
+      const scoped = (state as Record<string, unknown>)[scopeOrSelector];
+      return selector ? selector(scoped) : scoped;
+    },
+}));
+
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
-    useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
+    useAuiState: (
+      scopeOrSelector: unknown,
+      selector?: (s: unknown) => unknown,
+    ) => toSelector(scopeOrSelector, selector)(h.state),
   };
 });
 

@@ -14,9 +14,9 @@ export namespace MessagePartPrimitiveReasoning {
 export const MessagePartPrimitiveReasoning = (
   props: MessagePartPrimitiveReasoning.Props,
 ) => {
-  const reasoning = useAuiState((s) => {
-    if (s.part.type !== "reasoning") return "";
-    return s.part.text;
+  const reasoning = useAuiState("part", (s) => {
+    if (s.type !== "reasoning") return "";
+    return s.text;
   });
   return <Text {...props}>{reasoning}</Text>;
 };

@@ -21,7 +21,7 @@ export const ComposerInput = ({
   ...boxProps
 }: ComposerInputProps) => {
   const aui = useAui();
-  const storeText = useAuiState((s) => s.composer.text);
+  const storeText = useAuiState("composer", (s) => s.text);
 
   const submit = (submittedText: string) => {
     if (onSubmit) {

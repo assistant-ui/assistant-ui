@@ -10,7 +10,7 @@ export const SuggestionDescription = ({
   children,
   ...textProps
 }: SuggestionDescriptionProps) => {
-  const label = useAuiState((s) => s.suggestion.label);
+  const label = useAuiState("suggestion", (s) => s.label);
 
   return <Text {...textProps}>{children ?? label}</Text>;
 };

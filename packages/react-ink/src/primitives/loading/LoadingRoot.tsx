@@ -7,7 +7,7 @@ export type LoadingRootProps = ComponentProps<typeof Box> & {
 };
 
 export const LoadingRoot = ({ children, ...boxProps }: LoadingRootProps) => {
-  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const isRunning = useAuiState("thread", (s) => s.isRunning);
 
   if (!isRunning) return null;
 

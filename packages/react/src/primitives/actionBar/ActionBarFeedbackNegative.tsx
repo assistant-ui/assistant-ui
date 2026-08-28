@@ -22,7 +22,8 @@ export const ActionBarPrimitiveFeedbackNegative = forwardRef<
   ActionBarPrimitiveFeedbackNegative.Props
 >(({ onClick, disabled, ...props }, forwardedRef) => {
   const isSubmitted = useAuiState(
-    (s) => s.message.metadata.submittedFeedback?.type === "negative",
+    "message",
+    (s) => s.metadata.submittedFeedback?.type === "negative",
   );
   const callback = useActionBarFeedbackNegative();
   return (

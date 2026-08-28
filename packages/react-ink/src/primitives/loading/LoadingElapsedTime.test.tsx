@@ -5,16 +5,30 @@ const h = vi.hoisted(() => ({
   isRunning: false,
 }));
 
+const { toSelector } = vi.hoisted(() => ({
+  toSelector:
+    (scopeOrSelector: unknown, selector?: (s: unknown) => unknown) =>
+    (state: unknown) => {
+      if (typeof scopeOrSelector !== "string") {
+        return (scopeOrSelector as (s: unknown) => unknown)(state);
+      }
+      const scoped = (state as Record<string, unknown>)[scopeOrSelector];
+      return selector ? selector(scoped) : scoped;
+    },
+}));
+
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
-    useAuiState: <T,>(
-      selector: (state: {
-        thread: { isRunning: boolean; messages: never[] };
-      }) => T,
+    useAuiState: (
+      scopeOrSelector: unknown,
+      selector?: (s: unknown) => unknown,
     ) =>
-      selector({
+      toSelector(
+        scopeOrSelector,
+        selector,
+      )({
         thread: { isRunning: h.isRunning, messages: [] },
       }),
   };

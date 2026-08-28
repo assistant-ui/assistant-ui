@@ -14,9 +14,9 @@ export namespace MessagePartPrimitiveFile {
 export const MessagePartPrimitiveFile = (
   props: MessagePartPrimitiveFile.Props,
 ) => {
-  const label = useAuiState((s) => {
-    if (s.part.type !== "file") return "";
-    const { filename, mimeType } = s.part;
+  const label = useAuiState("part", (s) => {
+    if (s.type !== "file") return "";
+    const { filename, mimeType } = s;
     return filename ? `[file: ${filename} ${mimeType}]` : `[file: ${mimeType}]`;
   });
   return <Text {...props}>{label}</Text>;

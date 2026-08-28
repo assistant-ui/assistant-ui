@@ -74,7 +74,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
 const useMessagePartsGrouped = (
   groupingFunction: GroupingFunction,
 ): MessagePartGroup[] => {
-  const parts = useAuiState((s) => s.message.parts);
+  const parts = useAuiState("message", (s) => s.parts);
 
   return useMemo(() => {
     if (parts.length === 0) {
@@ -236,7 +236,8 @@ const ToolUIDisplay = ({
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
   const Render = useAuiState(
-    (s) => s.tools.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
+    "tools",
+    (s) => s.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
   );
   if (!Render) return null;
   return <Render {...props} />;
@@ -248,8 +249,8 @@ const DataUIDisplay = ({
 }: {
   Fallback: DataMessagePartComponent | undefined;
 } & DataMessagePartProps) => {
-  const Render = useAuiState((s) => {
-    const Render = s.dataRenderers.renderers[props.name] ?? Fallback;
+  const Render = useAuiState("dataRenderers", (s) => {
+    const Render = s.renderers[props.name] ?? Fallback;
     if (Array.isArray(Render)) return Render[0] ?? Fallback;
     return Render;
   });
@@ -291,7 +292,7 @@ const MessagePartComponent: FC<MessagePartComponentProps> = ({
   } = {},
 }) => {
   const aui = useAui();
-  const part = useAuiState((s) => s.part);
+  const part = useAuiState("part");
 
   const type = part.type;
   if (type === "tool-call") {
@@ -397,7 +398,8 @@ const COMPLETE_STATUS: MessagePartStatus = Object.freeze({
 
 const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
   const status = useAuiState(
-    (s) => (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus,
+    "message",
+    (s) => (s.status ?? COMPLETE_STATUS) as MessagePartStatus,
   );
 
   if (components?.Empty) return <components.Empty status={status} />;
@@ -453,7 +455,7 @@ const EmptyParts = memo(
 export const MessagePrimitiveUnstable_PartsGrouped: FC<
   MessagePrimitiveUnstable_PartsGrouped.Props
 > = ({ groupingFunction, components }) => {
-  const contentLength = useAuiState((s) => s.message.parts.length);
+  const contentLength = useAuiState("message", (s) => s.parts.length);
   const messageGroups = useMessagePartsGrouped(groupingFunction);
 
   const partsElements = useMemo(() => {

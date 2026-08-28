@@ -13,8 +13,10 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof Store>();
   return {
     ...actual,
-    useAuiState: <T,>(selector: (s: { thread: typeof h.thread }) => T) =>
-      selector({ thread: h.thread }),
+    useAuiState: (scope: string, selector?: (s: never) => unknown) => {
+      const state = ({ thread: h.thread } as Record<string, unknown>)[scope];
+      return selector ? selector(state as never) : state;
+    },
   };
 });
 

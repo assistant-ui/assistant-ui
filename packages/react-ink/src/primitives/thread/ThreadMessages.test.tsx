@@ -35,11 +35,26 @@ vi.mock("ink", async (importOriginal) => {
   };
 });
 
+const { toSelector } = vi.hoisted(() => ({
+  toSelector:
+    (scopeOrSelector: unknown, selector?: (s: unknown) => unknown) =>
+    (state: unknown) => {
+      if (typeof scopeOrSelector !== "string") {
+        return (scopeOrSelector as (s: unknown) => unknown)(state);
+      }
+      const scoped = (state as Record<string, unknown>)[scopeOrSelector];
+      return selector ? selector(scoped) : scoped;
+    },
+}));
+
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
-    useAuiState: (selector: (s: unknown) => unknown) => {
+    useAuiState: (
+      scopeOrSelector: unknown,
+      selector?: (s: unknown) => unknown,
+    ) => {
       const state = {
         thread: { messages: { length: hoisted.state.messagesLength } },
         threads: { mainThreadId: hoisted.state.mainThreadId },
@@ -49,7 +64,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
           parts: [],
         },
       };
-      return selector(state);
+      return toSelector(scopeOrSelector, selector)(state);
     },
     RenderChildrenWithAccessor: ({
       children,

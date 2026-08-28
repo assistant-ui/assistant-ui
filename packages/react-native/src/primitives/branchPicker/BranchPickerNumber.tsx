@@ -4,6 +4,6 @@ import { useAuiState } from "@assistant-ui/store";
 export type BranchPickerNumberProps = TextProps;
 
 export const BranchPickerNumber = (props: BranchPickerNumberProps) => {
-  const branchNumber = useAuiState((s) => s.message.branchNumber);
+  const branchNumber = useAuiState("message", (s) => s.branchNumber);
   return <Text {...props}>{branchNumber}</Text>;
 };

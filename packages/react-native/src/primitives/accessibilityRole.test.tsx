@@ -32,20 +32,17 @@ vi.mock("@assistant-ui/store", () => ({
     composer: { setQuote: vi.fn() },
     queueItem: { remove: vi.fn(), steer: vi.fn() },
   }),
-  useAuiState: <T,>(
-    selector: (s: {
-      suggestion: { prompt: string };
-      chainOfThought: { collapsed: boolean };
-      threads: { newThreadId: string | null; mainThreadId: string };
-      threadListItem: { id: string };
-    }) => T,
-  ) =>
-    selector({
-      suggestion: { prompt: "p" },
-      chainOfThought: { collapsed: false },
-      threads: { newThreadId: null, mainThreadId: "main" },
-      threadListItem: { id: "thread" },
-    }),
+  useAuiState: (scope: string, selector?: (s: never) => unknown) => {
+    const state = (
+      {
+        suggestion: { prompt: "p" },
+        chainOfThought: { collapsed: false },
+        threads: { newThreadId: null, mainThreadId: "main" },
+        threadListItem: { id: "thread" },
+      } as Record<string, unknown>
+    )[scope];
+    return selector ? selector(state as never) : state;
+  },
 }));
 
 vi.mock("@assistant-ui/core/react", () => ({

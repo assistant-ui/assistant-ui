@@ -33,7 +33,7 @@ export const ComposerPrimitiveQuote = forwardRef<
   ComposerPrimitiveQuote.Element,
   ComposerPrimitiveQuote.Props
 >((props, forwardedRef) => {
-  const quote = useAuiState((s) => s.composer.quote);
+  const quote = useAuiState("composer", (s) => s.quote);
   if (!quote) return null;
 
   return <Primitive.div {...props} ref={forwardedRef} />;
@@ -60,7 +60,7 @@ export const ComposerPrimitiveQuoteText = forwardRef<
   ComposerPrimitiveQuoteText.Element,
   ComposerPrimitiveQuoteText.Props
 >(({ children, ...props }, forwardedRef) => {
-  const text = useAuiState((s) => s.composer.quote?.text);
+  const text = useAuiState("composer", (s) => s.quote?.text);
   if (!text) return null;
 
   return (

@@ -27,9 +27,9 @@ const formatSource = ({
 export const MessagePartPrimitiveSource = (
   props: MessagePartPrimitiveSource.Props,
 ) => {
-  const label = useAuiState((s) => {
-    if (s.part.type !== "source") return "";
-    return formatSource(s.part);
+  const label = useAuiState("part", (s) => {
+    if (s.type !== "source") return "";
+    return formatSource(s);
   });
   return <Text {...props}>{label}</Text>;
 };

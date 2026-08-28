@@ -19,8 +19,12 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@assistant-ui/store", () => ({
-  useAuiState: <T,>(selector: (s: { suggestion: typeof h.suggestion }) => T) =>
-    selector({ suggestion: h.suggestion }),
+  useAuiState: (scope: string, selector?: (s: never) => unknown) => {
+    const state = ({ suggestion: h.suggestion } as Record<string, unknown>)[
+      scope
+    ];
+    return selector ? selector(state as never) : state;
+  },
 }));
 
 vi.mock("@assistant-ui/core/react", () => ({

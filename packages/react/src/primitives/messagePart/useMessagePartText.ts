@@ -35,12 +35,10 @@ const EMPTY_TEXT_PART: MessagePartState & TextMessagePart = Object.freeze({
 export const useMessagePartText = () => {
   // Runs inside useSyncExternalStore's getSnapshot, where a throw tears down
   // the React root; the module-level frozen sentinel keeps snapshots stable.
-  const text = useAuiState((s) => {
-    if (s.part.type !== "text" && s.part.type !== "reasoning")
-      return EMPTY_TEXT_PART;
+  const text = useAuiState("part", (s) => {
+    if (s.type !== "text" && s.type !== "reasoning") return EMPTY_TEXT_PART;
 
-    return s.part as MessagePartState &
-      (TextMessagePart | ReasoningMessagePart);
+    return s as MessagePartState & (TextMessagePart | ReasoningMessagePart);
   });
 
   return text;

@@ -8,8 +8,12 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@assistant-ui/store", () => ({
-  useAuiState: <T,>(selector: (s: { attachment: typeof h.attachment }) => T) =>
-    selector({ attachment: h.attachment }),
+  useAuiState: (scope: string, selector?: (s: never) => unknown) => {
+    const state = ({ attachment: h.attachment } as Record<string, unknown>)[
+      scope
+    ];
+    return selector ? selector(state as never) : state;
+  },
 }));
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;

@@ -113,13 +113,14 @@ type Snapshot = {
  * bell-on-every-transition behavior; pass `false` for a key to suppress one.
  */
 export const useNotification = (config: NotificationConfig = {}) => {
-  const snapshotKey = useAuiState((s) => {
-    const last = s.thread.messages.findLast((m) => m.role === "assistant");
+  const threadId = useAuiState("threadListItem", (s) => s.id);
+  const snapshotKey = useAuiState("thread", (s) => {
+    const last = s.messages.findLast((m) => m.role === "assistant");
     const statusReason =
       last?.status && "reason" in last.status ? last.status.reason : "";
     return JSON.stringify({
-      isRunning: s.thread.isRunning,
-      threadId: s.threadListItem.id,
+      isRunning: s.isRunning,
+      threadId,
       messageId: last?.id ?? "",
       statusType: last?.status?.type ?? "",
       statusReason,

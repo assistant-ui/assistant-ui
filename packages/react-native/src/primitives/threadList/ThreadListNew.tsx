@@ -24,7 +24,8 @@ export const ThreadListNew = ({
   ...pressableProps
 }: ThreadListNewProps) => {
   const isActive = useAuiState(
-    (s) => s.threads.newThreadId === s.threads.mainThreadId,
+    "threads",
+    (s) => s.newThreadId === s.mainThreadId,
   );
   const { switchToNewThread } = useThreadListNew();
 

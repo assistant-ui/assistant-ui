@@ -3,9 +3,7 @@ import type { ReactElement } from "react";
 import { MessagePrimitiveAttachments } from "./MessageAttachments";
 
 const mockUseAuiState = vi.fn();
-type UseAuiStateSelector = Parameters<
-  (typeof import("@assistant-ui/store"))["useAuiState"]
->[0];
+type UseAuiStateSelector = (state: never) => unknown;
 type AttachmentsElement = ReactElement<{ children: () => null }>;
 
 vi.mock("react", async (importOriginal) => {
@@ -20,7 +18,8 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
-    useAuiState: (selector: UseAuiStateSelector) => mockUseAuiState(selector),
+    useAuiState: (scope: string, selector: UseAuiStateSelector) =>
+      mockUseAuiState(scope, selector),
   };
 });
 
@@ -35,13 +34,12 @@ const renderAttachmentsInner = () => {
 
 describe("MessagePrimitiveAttachments", () => {
   it("treats missing user message attachments as empty", () => {
-    mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
-      selector({
-        message: {
+    mockUseAuiState.mockImplementation(
+      (_scope: string, selector: UseAuiStateSelector) =>
+        selector({
           role: "user",
           attachments: undefined,
-        },
-      } as never),
+        } as never),
     );
 
     expect(() => renderAttachmentsInner()).not.toThrow();

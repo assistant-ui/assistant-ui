@@ -36,17 +36,17 @@ export function unstable_useMessageStallDetection(
 ): Unstable_MessageStallDetection {
   const thresholdMs = options?.thresholdMs ?? 2000;
 
-  const fingerprint = useAuiState((s) => {
-    if (s.message.status?.type !== "running") return undefined;
+  const fingerprint = useAuiState("message", (s) => {
+    if (s.status?.type !== "running") return undefined;
     let size = 0;
-    for (const part of s.message.content) {
+    for (const part of s.content) {
       if (part.type === "text" || part.type === "reasoning") {
         size += part.text.length;
       } else if (part.type === "tool-call") {
         size += part.argsText.length + (part.result !== undefined ? 1 : 0);
       }
     }
-    return `${s.message.content.length}:${size}`;
+    return `${s.content.length}:${size}`;
   });
 
   const running = fingerprint !== undefined;

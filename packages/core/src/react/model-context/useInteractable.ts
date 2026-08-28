@@ -149,9 +149,10 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
   const { setState } = methods;
 
   const versionValue = useAuiState(
+    "thread",
     useJSONEqual((s) => {
       if (!internalScope || !myToolCallId) return undefined;
-      const versions = getInteractableVersions(s.thread.messages, id, name);
+      const versions = getInteractableVersions(s.messages, id, name);
       if (!versions.some((v) => v.origin === "create" && v.toolCallId === id)) {
         return undefined;
       }

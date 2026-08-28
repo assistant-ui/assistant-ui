@@ -3,7 +3,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 
 export const useMessageReload = () => {
   const aui = useAui();
-  const canReload = useAuiState((s) => s.message.role === "assistant");
+  const canReload = useAuiState("message", (s) => s.role === "assistant");
 
   const reload = useCallback(() => {
     aui.message.reload();

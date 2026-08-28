@@ -35,10 +35,10 @@ const EMPTY_SOURCE_PART: MessagePartState & SourceMessagePart = Object.freeze({
  */
 export const useMessagePartSource = () => {
   // Sentinel instead of throw: see useMessagePartText for the invariant.
-  const source = useAuiState((s) => {
-    if (s.part.type !== "source") return EMPTY_SOURCE_PART;
+  const source = useAuiState("part", (s) => {
+    if (s.type !== "source") return EMPTY_SOURCE_PART;
 
-    return s.part as MessagePartState & SourceMessagePart;
+    return s as MessagePartState & SourceMessagePart;
   });
 
   return source;

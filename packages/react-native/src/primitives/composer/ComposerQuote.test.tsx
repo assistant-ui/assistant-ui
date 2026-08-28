@@ -16,8 +16,10 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   return {
     ...actual,
     useAui: () => ({ composer: { setQuote: h.setQuote } }),
-    useAuiState: <T,>(selector: (state: { composer: typeof h }) => T) =>
-      selector({ composer: h }),
+    useAuiState: (scope: string, selector?: (s: never) => unknown) => {
+      const state = ({ composer: h } as Record<string, unknown>)[scope];
+      return selector ? selector(state as never) : state;
+    },
   };
 });
 

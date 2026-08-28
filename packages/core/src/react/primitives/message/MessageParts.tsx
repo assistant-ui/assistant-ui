@@ -174,11 +174,13 @@ const useMessagePartsGroups = (
   useChainOfThought: boolean,
 ): { ranges: MessagePartRange[]; partIds: (string | undefined)[] } => {
   const messageTypes = useAuiState(
-    useShallow((s) => s.message.parts.map((c: any) => c.type)),
+    "message",
+    useShallow((s) => s.parts.map((c: any) => c.type)),
   );
   const partIds = useAuiState(
+    "message",
     useShallow((s) =>
-      s.message.parts.map((c: any) =>
+      s.parts.map((c: any) =>
         c.type === "tool-call" ? c.toolCallId : undefined,
       ),
     ),
@@ -354,7 +356,8 @@ const ToolUIDisplay = ({
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
   const Render = useAuiState(
-    (s) => s.tools.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
+    "tools",
+    (s) => s.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
   );
   if (!Render) return null;
   return <Render {...props} />;
@@ -376,8 +379,8 @@ const DataUIDisplay = ({
 }: {
   Fallback: DataMessagePartComponent | undefined;
 } & DataMessagePartProps) => {
-  const Render = useAuiState((s) =>
-    getDataRenderer(s.dataRenderers, props.name, Fallback),
+  const Render = useAuiState("dataRenderers", (s) =>
+    getDataRenderer(s, props.name, Fallback),
   );
   if (!Render) return null;
   return <Render {...props} />;
@@ -416,7 +419,7 @@ export const MessagePartComponent: FC<MessagePartComponentProps> = ({
   } = {},
 }) => {
   const aui = useAui();
-  const part = useAuiState((s) => s.part);
+  const part = useAuiState("part");
 
   const type = part.type;
   if (type === "tool-call") {
@@ -557,7 +560,8 @@ const RUNNING_STATUS: MessagePartStatus = Object.freeze({
 
 const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
   const status = useAuiState(
-    (s) => (s.message.status ?? COMPLETE_STATUS) as MessagePartStatus,
+    "message",
+    (s) => (s.status ?? COMPLETE_STATUS) as MessagePartStatus,
   );
 
   if (components?.Empty) return <components.Empty status={status} />;
@@ -583,11 +587,11 @@ const ConditionalEmptyImpl: FC<{
   components: MessagePrimitiveParts.Props["components"];
   enabled: boolean;
 }> = ({ components, enabled }) => {
-  const shouldShowEmpty = useAuiState((s) => {
+  const shouldShowEmpty = useAuiState("message", (s) => {
     if (!enabled) return false;
-    if (s.message.parts.length === 0) return false;
+    if (s.parts.length === 0) return false;
 
-    const lastPart = s.message.parts[s.message.parts.length - 1];
+    const lastPart = s.parts[s.parts.length - 1];
     return lastPart?.type !== "text" && lastPart?.type !== "reasoning";
   });
 
@@ -606,7 +610,9 @@ const ConditionalEmpty = memo(
 const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
   Quote,
 }) => {
-  const quoteInfo = useAuiState(getMessageQuote);
+  const quoteInfo = useAuiState("message", (message) =>
+    getMessageQuote({ message }),
+  );
   if (!quoteInfo) return null;
   return <Quote text={quoteInfo.text} messageId={quoteInfo.messageId} />;
 };
@@ -631,10 +637,10 @@ function resolveToolRender(
  */
 const RegisteredToolUI: FC = () => {
   const aui = useAui();
-  const part = useAuiState((s) => s.part);
-  const Render = useAuiState((s) =>
-    s.part.type === "tool-call" ? resolveToolRender(s.tools, s.part) : null,
-  );
+  const part = useAuiState("part");
+  const tools = useAuiState("tools");
+  const Render =
+    part.type === "tool-call" ? resolveToolRender(tools, part) : null;
 
   if (!Render || part.type !== "tool-call") return null;
 
@@ -653,12 +659,12 @@ const RegisteredToolUI: FC = () => {
  * for the current part context.
  */
 const RegisteredDataRendererUI: FC = () => {
-  const part = useAuiState((s) => s.part);
-  const Render = useAuiState((s) =>
-    s.part.type === "data"
-      ? (getDataRenderer(s.dataRenderers, s.part.name, undefined) ?? null)
-      : null,
-  );
+  const part = useAuiState("part");
+  const dataRenderers = useAuiState("dataRenderers");
+  const Render =
+    part.type === "data"
+      ? (getDataRenderer(dataRenderers, part.name, undefined) ?? null)
+      : null;
 
   if (!Render || part.type !== "data") return null;
 
@@ -679,7 +685,7 @@ const RegisteredDataRendererUI: FC = () => {
  * To explicitly render nothing (suppressing registered UIs), return <></>.
  */
 const DefaultPartFallback: FC = () => {
-  const partType = useAuiState((s) => s.part.type);
+  const partType = useAuiState("part", (s) => s.type);
 
   if (partType === "tool-call") return <RegisteredToolUI />;
   if (partType === "data") return <RegisteredDataRendererUI />;
@@ -743,7 +749,7 @@ const MessagePartChildrenInner: FC<
   const aui = useAui();
   // Subscribed (not snapshotted like `tools`) so fallbacks registered
   // after the first render trigger a re-render and `hasUI` re-evaluates.
-  const dataRenderers = useAuiState((s) => s.dataRenderers);
+  const dataRenderers = useAuiState("dataRenderers");
 
   return (
     <RenderChildrenWithAccessor
@@ -796,9 +802,10 @@ export const MessagePartChildren: FC<MessagePartChildrenProps> = ({
 const MessagePrimitivePartsInner: FC<{
   children: (value: { part: EnrichedPartState }) => ReactNode;
 }> = ({ children }) => {
-  const contentLength = useAuiState((s) => s.message.parts.length);
+  const contentLength = useAuiState("message", (s) => s.parts.length);
   const isRunning = useAuiState(
-    (s) => (s.message.status?.type ?? "complete") === "running",
+    "message",
+    (s) => (s.status?.type ?? "complete") === "running",
   );
   const isEmptyRunning = contentLength === 0 && isRunning;
 
@@ -850,7 +857,7 @@ const MessagePrimitivePartsCompat: FC<{
   components: MessagePrimitiveParts.Props["components"];
   unstable_showEmptyOnNonTextEnd: boolean;
 }> = ({ components, unstable_showEmptyOnNonTextEnd }) => {
-  const contentLength = useAuiState((s) => s.message.parts.length);
+  const contentLength = useAuiState("message", (s) => s.parts.length);
   const useChainOfThought = !!components?.ChainOfThought;
   const { ranges: messageRanges, partIds } =
     useMessagePartsGroups(useChainOfThought);

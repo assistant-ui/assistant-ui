@@ -17,8 +17,10 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   return {
     ...actual,
     useAui: () => ({ queueItem: { remove: h.remove, steer: h.steer } }),
-    useAuiState: <T,>(selector: (state: { queueItem: typeof h }) => T) =>
-      selector({ queueItem: h }),
+    useAuiState: (scope: string, selector?: (s: never) => unknown) => {
+      const state = ({ queueItem: h } as Record<string, unknown>)[scope];
+      return selector ? selector(state as never) : state;
+    },
   };
 });
 

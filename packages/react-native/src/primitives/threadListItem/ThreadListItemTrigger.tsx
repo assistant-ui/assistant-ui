@@ -23,9 +23,9 @@ export const ThreadListItemTrigger = ({
   accessibilityState,
   ...pressableProps
 }: ThreadListItemTriggerProps) => {
-  const isActive = useAuiState(
-    (s) => s.threads.mainThreadId === s.threadListItem.id,
-  );
+  const mainThreadId = useAuiState("threads", (s) => s.mainThreadId);
+  const threadId = useAuiState("threadListItem", (s) => s.id);
+  const isActive = mainThreadId === threadId;
   const { switchTo } = useThreadListItemTrigger();
 
   return (

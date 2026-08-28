@@ -6,9 +6,7 @@ const mockUseAui = vi.fn();
 const mockUseAuiState = vi.fn();
 const mockUseFocus = vi.fn();
 
-type UseAuiStateSelector = Parameters<
-  (typeof import("@assistant-ui/store"))["useAuiState"]
->[0];
+type UseAuiStateSelector = (state: never) => unknown;
 
 type InputHandler = (
   input: string,
@@ -17,12 +15,27 @@ type InputHandler = (
 
 let inputHandler: InputHandler | undefined;
 
+const { toSelector } = vi.hoisted(() => ({
+  toSelector:
+    (scopeOrSelector: unknown, selector?: (s: unknown) => unknown) =>
+    (state: unknown) => {
+      if (typeof scopeOrSelector !== "string") {
+        return (scopeOrSelector as (s: unknown) => unknown)(state);
+      }
+      const scoped = (state as Record<string, unknown>)[scopeOrSelector];
+      return selector ? selector(scoped) : scoped;
+    },
+}));
+
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
     useAui: () => mockUseAui(),
-    useAuiState: (selector: UseAuiStateSelector) => mockUseAuiState(selector),
+    useAuiState: (
+      scopeOrSelector: unknown,
+      selector?: (s: unknown) => unknown,
+    ) => mockUseAuiState(toSelector(scopeOrSelector, selector)),
   };
 });
 

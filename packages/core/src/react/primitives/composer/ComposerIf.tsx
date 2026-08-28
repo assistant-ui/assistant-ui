@@ -19,11 +19,11 @@ export type RequireAtLeastOne<T, Keys extends keyof T = keyof T> = Pick<
 export type UseComposerIfProps = RequireAtLeastOne<ComposerIfFilters>;
 
 const useComposerIf = (props: UseComposerIfProps) => {
-  return useAuiState((s) => {
-    if (props.editing === true && !s.composer.isEditing) return false;
-    if (props.editing === false && s.composer.isEditing) return false;
+  return useAuiState("composer", (s) => {
+    if (props.editing === true && !s.isEditing) return false;
+    if (props.editing === false && s.isEditing) return false;
 
-    const isDictating = s.composer.dictation != null;
+    const isDictating = s.dictation != null;
     if (props.dictation === true && !isDictating) return false;
     if (props.dictation === false && isDictating) return false;
 

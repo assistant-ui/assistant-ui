@@ -14,9 +14,9 @@ export namespace MessagePartPrimitiveData {
 export const MessagePartPrimitiveData = (
   props: MessagePartPrimitiveData.Props,
 ) => {
-  const label = useAuiState((s) => {
-    if (s.part.type !== "data") return "";
-    return `[data: ${s.part.name}]`;
+  const label = useAuiState("part", (s) => {
+    if (s.type !== "data") return "";
+    return `[data: ${s.name}]`;
   });
   return <Text {...props}>{label}</Text>;
 };

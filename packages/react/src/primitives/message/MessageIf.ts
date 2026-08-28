@@ -20,7 +20,7 @@ type MessageIfFilters = {
 type UseMessageIfProps = RequireAtLeastOne<MessageIfFilters>;
 
 const useMessageIf = (props: UseMessageIfProps) => {
-  return useAuiState((s) => {
+  return useAuiState("message", (s) => {
     const {
       role,
       attachments,
@@ -30,7 +30,7 @@ const useMessageIf = (props: UseMessageIfProps) => {
       speech,
       isCopied,
       isHovering,
-    } = s.message;
+    } = s;
 
     if (props.hasBranches === true && branchCount < 2) return false;
 
@@ -64,8 +64,7 @@ const useMessageIf = (props: UseMessageIfProps) => {
 
     if (
       props.submittedFeedback !== undefined &&
-      (s.message.metadata.submittedFeedback?.type ?? null) !==
-        props.submittedFeedback
+      (s.metadata.submittedFeedback?.type ?? null) !== props.submittedFeedback
     )
       return false;
 

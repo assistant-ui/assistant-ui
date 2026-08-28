@@ -4,7 +4,8 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 export const useThreadListLoadMore = () => {
   const aui = useAui();
   const disabled = useAuiState(
-    (s) => !s.threads.hasMore || s.threads.isLoading || s.threads.isLoadingMore,
+    "threads",
+    (s) => !s.hasMore || s.isLoading || s.isLoadingMore,
   );
 
   const loadMore = useCallback(() => {

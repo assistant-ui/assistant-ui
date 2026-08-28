@@ -39,8 +39,13 @@ const mocks = vi.hoisted(() => {
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
   useAui: () => mocks.aui,
-  useAuiState: ((selector: (state: typeof mocks.state) => unknown) =>
-    selector(mocks.state)) as typeof import("@assistant-ui/store").useAuiState,
+  useAuiState: ((
+    scope: keyof typeof mocks.state,
+    selector?: (state: unknown) => unknown,
+  ) =>
+    selector
+      ? selector(mocks.state[scope])
+      : mocks.state[scope]) as typeof import("@assistant-ui/store").useAuiState,
 }));
 
 import { useSuggestionTrigger } from "./useSuggestionTrigger";

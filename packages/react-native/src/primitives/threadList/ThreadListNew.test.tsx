@@ -22,7 +22,10 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
-    useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
+    useAuiState: (scope: string, selector?: (s: never) => unknown) => {
+      const state = (h.state as Record<string, unknown>)[scope];
+      return selector ? selector(state as never) : state;
+    },
   };
 });
 

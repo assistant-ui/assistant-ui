@@ -13,7 +13,7 @@ export namespace ThreadPrimitiveEmpty {
 export const ThreadPrimitiveEmpty: FC<ThreadPrimitiveEmpty.Props> = ({
   children,
 }) => {
-  const empty = useAuiState((s) => s.thread.isEmpty);
+  const empty = useAuiState("thread", (s) => s.isEmpty);
   return empty ? children : null;
 };
 

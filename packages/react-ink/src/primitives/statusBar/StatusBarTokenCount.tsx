@@ -19,8 +19,8 @@ export const StatusBarPrimitiveTokenCount = ({
   format = defaultFormat,
   ...textProps
 }: StatusBarPrimitiveTokenCount.Props) => {
-  const totalTokens = useAuiState((s) =>
-    s.thread.messages.reduce((sum, msg) => {
+  const totalTokens = useAuiState("thread", (s) =>
+    s.messages.reduce((sum, msg) => {
       if (msg.role !== "assistant") return sum;
       return sum + (msg.metadata?.timing?.tokenCount ?? 0);
     }, 0),

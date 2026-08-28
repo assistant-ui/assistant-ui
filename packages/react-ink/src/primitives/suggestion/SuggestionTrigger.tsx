@@ -18,7 +18,7 @@ export const SuggestionTrigger = ({
   disabled: disabledProp,
   ...pressableProps
 }: SuggestionTriggerProps) => {
-  const prompt = useAuiState((s) => s.suggestion.prompt);
+  const prompt = useAuiState("suggestion", (s) => s.prompt);
   const { trigger, disabled } = useSuggestionTrigger({
     prompt,
     send,

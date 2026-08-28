@@ -21,8 +21,7 @@ export namespace PartPrimitiveMessages {
 }
 
 const usePartMessages = (): readonly ThreadMessage[] | undefined => {
-  return useAuiState((s) => {
-    const part = s.part;
+  return useAuiState("part", (part) => {
     if (part.type !== "tool-call") return undefined;
     return "messages" in part
       ? (part.messages as readonly ThreadMessage[] | undefined)

@@ -26,9 +26,12 @@ vi.mock("@assistant-ui/store", () => {
   const aui = { composer, thread };
   return {
     useAui: () => aui,
-    useAuiState: <T,>(
-      selector: (s: { composer: typeof h.composerState }) => T,
-    ) => selector({ composer: h.composerState }),
+    useAuiState: (scope: string, selector?: (s: never) => unknown) => {
+      const state = ({ composer: h.composerState } as Record<string, unknown>)[
+        scope
+      ];
+      return selector ? selector(state as never) : state;
+    },
   };
 });
 

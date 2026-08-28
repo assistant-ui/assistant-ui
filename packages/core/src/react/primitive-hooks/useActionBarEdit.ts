@@ -1,10 +1,12 @@
 import { useCallback } from "react";
-import { useAui, useAuiState } from "@assistant-ui/store";
+import { useAui, useAuiState, type AssistantState } from "@assistant-ui/store";
 import { actionBarEditDisabled } from "../../store/primitive-predicates";
 
 export const useActionBarEdit = () => {
   const aui = useAui();
-  const disabled = useAuiState(actionBarEditDisabled);
+  const disabled = useAuiState("composer", (composer) =>
+    actionBarEditDisabled({ composer } as AssistantState),
+  );
 
   const edit = useCallback(() => {
     aui.composer.beginEdit();

@@ -8,7 +8,7 @@ export type ThreadListItemsProps = {
 };
 
 export const ThreadListItems = ({ renderItem }: ThreadListItemsProps) => {
-  const threadIds = useAuiState((s) => s.threads.threadIds);
+  const threadIds = useAuiState("threads", (s) => s.threadIds);
 
   return (
     <Box flexDirection="column">

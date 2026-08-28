@@ -50,7 +50,7 @@ const getComponent = (
 const AttachmentComponent: FC<{
   components: MessageAttachmentsComponentConfig | undefined;
 }> = ({ components }) => {
-  const attachment = useAuiState((s) => s.attachment);
+  const attachment = useAuiState("attachment");
   if (!attachment) return null;
 
   const Component = getComponent(components, attachment as CompleteAttachment);
@@ -91,9 +91,9 @@ MessagePrimitiveAttachmentByIndex.displayName =
 const MessagePrimitiveAttachmentsInner: FC<{
   children: (value: { attachment: CompleteAttachment }) => ReactNode;
 }> = ({ children }) => {
-  const attachmentsCount = useAuiState((s) => {
-    if (s.message.role !== "user") return 0;
-    return (s.message.attachments ?? []).length;
+  const attachmentsCount = useAuiState("message", (s) => {
+    if (s.role !== "user") return 0;
+    return (s.attachments ?? []).length;
   });
 
   return useMemo(

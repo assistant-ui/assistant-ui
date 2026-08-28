@@ -13,8 +13,10 @@ const h = vi.hoisted(() => ({
 }));
 
 vi.mock("@assistant-ui/store", () => ({
-  useAuiState: <T,>(selector: (s: { message: typeof h.message }) => T) =>
-    selector({ message: h.message }),
+  useAuiState: (scope: string, selector?: (s: never) => unknown) => {
+    const state = ({ message: h.message } as Record<string, unknown>)[scope];
+    return selector ? selector(state as never) : state;
+  },
 }));
 
 (globalThis as Record<string, unknown>).IS_REACT_ACT_ENVIRONMENT = true;

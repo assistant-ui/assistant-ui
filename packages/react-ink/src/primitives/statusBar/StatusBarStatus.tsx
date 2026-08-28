@@ -21,12 +21,10 @@ export const StatusBarPrimitiveStatus = ({
   format = defaultFormat,
   ...textProps
 }: StatusBarPrimitiveStatus.Props) => {
-  const status = useAuiState((s): StatusType => {
-    if (s.thread.isRunning) return "running";
+  const status = useAuiState("thread", (s): StatusType => {
+    if (s.isRunning) return "running";
 
-    const lastAssistant = s.thread.messages.findLast(
-      (m) => m.role === "assistant",
-    );
+    const lastAssistant = s.messages.findLast((m) => m.role === "assistant");
     if (lastAssistant?.status?.type === "incomplete") {
       if (lastAssistant.status.reason === "error") return "error";
       if (lastAssistant.status.reason === "cancelled") return "cancelled";

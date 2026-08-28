@@ -28,7 +28,10 @@ vi.mock("@assistant-ui/store", () => {
   const aui = { message };
   return {
     useAui: () => aui,
-    useAuiState: <T,>(selector: (s: typeof h.state) => T) => selector(h.state),
+    useAuiState: (scope: string, selector?: (s: never) => unknown) => {
+      const state = (h.state as Record<string, unknown>)[scope];
+      return selector ? selector(state as never) : state;
+    },
   };
 });
 

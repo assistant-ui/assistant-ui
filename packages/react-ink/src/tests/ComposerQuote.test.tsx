@@ -16,13 +16,27 @@ type InputHandler = (
 
 let inputHandlers: InputHandler[] = [];
 
+const { toSelector } = vi.hoisted(() => ({
+  toSelector:
+    (scopeOrSelector: unknown, selector?: (s: unknown) => unknown) =>
+    (state: unknown) => {
+      if (typeof scopeOrSelector !== "string") {
+        return (scopeOrSelector as (s: unknown) => unknown)(state);
+      }
+      const scoped = (state as Record<string, unknown>)[scopeOrSelector];
+      return selector ? selector(scoped) : scoped;
+    },
+}));
+
 vi.mock("@assistant-ui/store", async (importOriginal) => {
   const actual = await importOriginal<typeof import("@assistant-ui/store")>();
   return {
     ...actual,
     useAui: () => mockUseAui(),
-    useAuiState: (selector: (s: unknown) => unknown) =>
-      mockUseAuiState(selector),
+    useAuiState: (
+      scopeOrSelector: unknown,
+      selector?: (s: unknown) => unknown,
+    ) => mockUseAuiState(toSelector(scopeOrSelector, selector)),
   };
 });
 
