@@ -11,6 +11,10 @@ import { isAttrDisabled } from "./attrDisabled";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
+/**
+ * A button that loads more threads. Stays mounted and disabled while no
+ * more threads are available or a load is in flight.
+ */
 export const ThreadListPrimitiveLoadMore = defineComponent({
   name: "ThreadListPrimitiveLoadMore",
   inheritAttrs: false,
@@ -63,16 +67,19 @@ const threadListItemAction = (
     },
   });
 
+/** A button that archives the current thread list item. */
 export const ThreadListItemPrimitiveArchive = threadListItemAction(
   "ThreadListItemPrimitiveArchive",
   (aui) => aui.threadListItem.archive(),
 );
 
+/** A button that unarchives the current thread list item. */
 export const ThreadListItemPrimitiveUnarchive = threadListItemAction(
   "ThreadListItemPrimitiveUnarchive",
   (aui) => aui.threadListItem.unarchive(),
 );
 
+/** A button that deletes the current thread list item. */
 export const ThreadListItemPrimitiveDelete = threadListItemAction(
   "ThreadListItemPrimitiveDelete",
   (aui) => aui.threadListItem.delete(),

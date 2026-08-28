@@ -8,6 +8,7 @@ import {
 import { messageErrorText } from "@assistant-ui/core/store/internal";
 import { useAuiState } from "../useAuiState";
 
+/** A wrapper element for the current message's error state. */
 export const ErrorPrimitiveRoot = defineComponent({
   name: "ErrorPrimitiveRoot",
   inheritAttrs: false,
@@ -18,6 +19,10 @@ export const ErrorPrimitiveRoot = defineComponent({
   },
 });
 
+/**
+ * Renders the current assistant message's error text (raw text, slot
+ * override supported); renders nothing while the message has no error.
+ */
 export const ErrorPrimitiveMessage = defineComponent({
   name: "ErrorPrimitiveMessage",
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,

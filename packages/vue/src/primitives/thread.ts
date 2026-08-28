@@ -9,6 +9,10 @@ import {
 } from "vue";
 import { useAui } from "../useAui";
 
+/**
+ * A wrapper element for the thread. While mounted, Escape stops an active
+ * speech synthesis run.
+ */
 export const ThreadPrimitiveRoot = defineComponent({
   name: "ThreadPrimitiveRoot",
   inheritAttrs: false,

@@ -9,6 +9,11 @@ import {
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 
+/**
+ * A wrapper element for one message. Sets `data-message-id` and tracks
+ * pointer hover into `s.message.isHovering`, including an element already
+ * under the pointer when it mounts.
+ */
 export const MessagePrimitiveRoot = defineComponent({
   name: "MessagePrimitiveRoot",
   inheritAttrs: false,

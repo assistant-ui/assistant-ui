@@ -46,6 +46,7 @@ const createTestRuntime = ({ hasMore = false } = {}) => {
   let archivedThreads: DemoThread[] = [{ id: "ta", title: "Archived thread" }];
   let hasMoreValue = hasMore;
   let isLoading = false;
+  let isLoadingMoreValue = false;
   let core!: ExternalStoreRuntimeCore;
   const sync = () => core.setAdapter(makeAdapter());
   const onArchive = vi.fn((threadId: string) => {
@@ -110,7 +111,7 @@ const createTestRuntime = ({ hasMore = false } = {}) => {
     },
     isLoadingMore: {
       configurable: true,
-      get: () => false,
+      get: () => isLoadingMoreValue,
     },
     loadMore: {
       configurable: true,
@@ -130,11 +131,16 @@ const createTestRuntime = ({ hasMore = false } = {}) => {
     isLoading = value;
     sync();
   };
+  const setLoadingMore = (value: boolean) => {
+    isLoadingMoreValue = value;
+    sync();
+  };
   return {
     runtime,
     append,
     setHasMore,
     setLoading,
+    setLoadingMore,
     loadMore,
     onArchive,
     onUnarchive,
@@ -306,9 +312,10 @@ describe("structural primitives", () => {
   });
 
   it("keeps load more mounted, disables it when unavailable, and calls the runtime", async () => {
-    const { runtime, loadMore, setHasMore, setLoading } = createTestRuntime({
-      hasMore: true,
-    });
+    const { runtime, loadMore, setHasMore, setLoading, setLoadingMore } =
+      createTestRuntime({
+        hasMore: true,
+      });
     const View = defineComponent({
       setup: () => () =>
         h(
@@ -338,6 +345,14 @@ describe("structural primitives", () => {
       ).toBe(true);
     });
     flushTapSync(() => setLoading(false));
+    flushTapSync(() => setLoadingMore(true));
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(
+        el.querySelector<HTMLButtonElement>("button.load-more")!.disabled,
+      ).toBe(true);
+    });
+    flushTapSync(() => setLoadingMore(false));
     flushTapSync(() => setHasMore(false));
     await vi.waitFor(async () => {
       await nextTick();

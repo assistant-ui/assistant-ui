@@ -1,3 +1,4 @@
+import type { ReadonlyJSONValue } from "assistant-stream/utils";
 import type { AssistantState } from "@assistant-ui/store";
 
 /**
@@ -42,7 +43,9 @@ export const suggestionTriggerDisabled = (
   s.thread.isDisabled ||
   (send && s.thread.isRunning && !s.thread.capabilities.queue);
 
-export const messageErrorText = (s: AssistantState): unknown => {
+export const messageErrorText = (
+  s: AssistantState,
+): ReadonlyJSONValue | undefined => {
   if (
     s.message.status?.type !== "incomplete" ||
     s.message.status.reason !== "error"
