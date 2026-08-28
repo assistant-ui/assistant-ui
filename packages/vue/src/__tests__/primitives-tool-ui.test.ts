@@ -33,6 +33,8 @@ type DemoMessage = {
 const createTestRuntime = () => {
   let messages: DemoMessage[] = [];
   const onAddToolResult = vi.fn();
+  const onResumeToolCall = vi.fn();
+  const onRespondToToolApproval = vi.fn();
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages,
     isRunning: false,
@@ -42,6 +44,8 @@ const createTestRuntime = () => {
     }),
     onNew: async () => {},
     onAddToolResult,
+    onResumeToolCall,
+    onRespondToToolApproval,
   });
   const core = new ExternalStoreRuntimeCore(makeAdapter());
   const runtime = new AssistantRuntimeImpl(core);
@@ -49,7 +53,13 @@ const createTestRuntime = () => {
     messages = [...messages, message];
     core.setAdapter(makeAdapter());
   };
-  return { runtime, append, onAddToolResult };
+  return {
+    runtime,
+    append,
+    onAddToolResult,
+    onResumeToolCall,
+    onRespondToToolApproval,
+  };
 };
 
 const mountChat = (runtime: AssistantRuntimeImpl, view: Component) => {
@@ -135,22 +145,55 @@ describe("MessagePrimitiveParts tool UI registry", () => {
     unmount();
   });
 
-  it("routes addResult from the registered tool UI to the adapter's onAddToolResult", async () => {
-    const { runtime, append, onAddToolResult } = createTestRuntime();
+  it("routes addResult, resume, and respondToApproval from the registered tool UI to the adapter callbacks", async () => {
+    const {
+      runtime,
+      append,
+      onAddToolResult,
+      onResumeToolCall,
+      onRespondToToolApproval,
+    } = createTestRuntime();
     const { el, client, unmount } = mountChat(runtime, PartsWithToolSlot);
 
-    const ResultTool = defineComponent({
+    const CallbackTool = defineComponent({
       props: ["part", "addResult", "resume", "respondToApproval"],
-      setup: (props: ToolUIProps) => () =>
+      setup: (props: ToolUIProps) => () => [
         h(
           "button",
           { class: "add-result", onClick: () => props.addResult("72F") },
           "add",
         ),
+        h(
+          "button",
+          { class: "resume", onClick: () => props.resume("continue") },
+          "resume",
+        ),
+        h(
+          "button",
+          {
+            class: "approve",
+            onClick: () => props.respondToApproval({ approved: true }),
+          },
+          "approve",
+        ),
+      ],
     });
 
-    flushTapSync(() => client().tools.setToolUI("weather", ResultTool));
-    flushTapSync(() => append(toolCallMessage("weather")));
+    flushTapSync(() => client().tools.setToolUI("weather", CallbackTool));
+    flushTapSync(() =>
+      append({
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: { city: "sf" },
+            approval: { id: "approval-1" },
+          },
+        ],
+      }),
+    );
 
     await vi.waitFor(async () => {
       await nextTick();
@@ -165,6 +208,24 @@ describe("MessagePrimitiveParts tool UI registry", () => {
       toolCallId: "call-1",
       toolName: "weather",
       result: "72F",
+    });
+
+    (el.querySelector("button.resume") as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(onResumeToolCall).toHaveBeenCalledTimes(1);
+    });
+    expect(onResumeToolCall.mock.calls[0]![0]).toMatchObject({
+      toolCallId: "call-1",
+      payload: "continue",
+    });
+
+    (el.querySelector("button.approve") as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(onRespondToToolApproval).toHaveBeenCalledTimes(1);
+    });
+    expect(onRespondToToolApproval.mock.calls[0]![0]).toMatchObject({
+      approvalId: "approval-1",
+      approved: true,
     });
 
     unmount();

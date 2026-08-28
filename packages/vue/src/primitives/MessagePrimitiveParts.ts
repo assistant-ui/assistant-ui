@@ -15,9 +15,12 @@ export const clearPartWarningsForTesting = () => warnedTypes.clear();
  * Props passed to a tool UI registered in the `tools` scope. Vue passes the
  * part state as a single `part` prop where React spreads it; spreading in Vue
  * would leak undeclared props onto the component's root element through
- * `$attrs`. The tools scope stores renderers untyped across frameworks today;
- * this type is the Vue-facing contract until the scope's renderer type goes
- * framework-generic.
+ * `$attrs`. The tools scope declares renderers as React's
+ * `ToolCallMessagePartComponent`, so the Vue face bridges the seam with casts
+ * at registration and render; a genuine React renderer arriving through a
+ * shared toolkit type-checks at `setToolUI` and then fails when invoked as a
+ * Vue component. This type is the Vue-facing contract until the scope's
+ * renderer type goes framework-generic.
  */
 export type ToolUIProps = {
   part: Extract<AssistantState["part"], { type: "tool-call" }>;
