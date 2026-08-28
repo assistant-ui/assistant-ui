@@ -3,11 +3,9 @@ import type {
   FileMessagePart,
   TextMessagePart,
 } from "../../types/message";
-import {
-  EMPTY_QUEUE_ITEMS,
-  type QueueItemState,
-} from "../../store/scopes/queue-item";
+import { EMPTY_QUEUE_ITEMS, type QueueItemState } from "./queue-item";
 import { generateId } from "../../utils/id";
+import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import { getThreadMessageText } from "../../utils/text";
 import type {
   ExternalThreadQueueAdapter,
@@ -87,7 +85,7 @@ export const createMessageQueue = (
   let interrupting = false;
 
   const notify = () => {
-    for (const callback of subscribers) callback();
+    notifyEventListeners(subscribers, undefined, "Message queue");
   };
 
   const setLanes = (next: Record<Lane, readonly QueueItemState[]>) => {

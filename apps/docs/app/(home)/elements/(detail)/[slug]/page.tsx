@@ -9,17 +9,17 @@ import {
   highlightElementSource,
   readElementSource,
 } from "@/lib/element-source";
-import { CopyButton } from "@/components/elements/copy-button";
-import { demoCanvasClass } from "@/components/elements/canvas";
-import { DemoStage } from "@/components/elements/demo-stage";
-import { DemoVariants } from "@/components/elements/demo-variants";
-import { InstallCommand } from "@/components/elements/install-command";
-import { ELEMENT_DOCS } from "@/components/elements/element-docs";
+import { CopyButton } from "@/components/shared/copy-button";
+import { demoCanvasClass } from "@/components/pages/elements/demos/canvas";
+import { DemoStage } from "@/components/demo/demo-stage";
+import { DemoVariants } from "@/components/pages/elements/demo-variants";
+import { InstallCommand } from "@/components/pages/elements/install-command";
+import { ELEMENT_DOCS } from "@/components/pages/elements/element-docs";
 import {
   ELEMENT_COUNT,
   ELEMENTS,
   getElement,
-} from "@/components/elements/registry";
+} from "@/components/pages/elements/registry";
 import { getGenerativeElement } from "@/lib/generative-elements";
 
 const GENERATIVE_USAGE = `import { renderGenerativeUI } from "@assistant-ui/react-generative-ui";
@@ -114,7 +114,7 @@ export default async function ElementPage({
   return (
     <>
       <header className="mt-8 lg:mt-0">
-        <p className={cn(mono, "text-foreground/35 tabular-nums")}>
+        <p className="text-foreground/35 font-mono text-[11px] tracking-tight tabular-nums">
           {String(element.index).padStart(2, "0")} /{" "}
           {String(ELEMENT_COUNT).padStart(2, "0")} · {element.section}
         </p>

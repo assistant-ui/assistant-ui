@@ -112,6 +112,22 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+describe("BaseThreadRuntimeCore subscriptions", () => {
+  it("notifies later subscribers when an earlier subscriber throws", () => {
+    const runtime = new TestRuntime(createVoiceAdapter());
+    const error = new Error("subscriber failed");
+    const laterSubscriber = vi.fn();
+
+    runtime.subscribe(() => {
+      throw error;
+    });
+    runtime.subscribe(laterSubscriber);
+
+    expect(() => runtime.reset()).toThrow(error);
+    expect(laterSubscriber).toHaveBeenCalledOnce();
+  });
+});
+
 describe("BaseThreadRuntimeCore voice volume subscriptions", () => {
   it("continues notifying subscribers when one throws", () => {
     const consoleError = vi

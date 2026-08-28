@@ -2,42 +2,46 @@
 
 import { defineToolkit } from "@assistant-ui/react";
 import { z } from "zod";
+import { calculateFibonacci } from "./calculateFibonacci";
 
-type ExecuteJsResult =
-  | { success: true; result: string }
-  | { success: false; error: string };
+type CalculateFibonacciResult = {
+  index: number;
+  value: string;
+};
 
-export default defineToolkit({
-  execute_js: {
-    description: "Execute JavaScript code and return the result",
+type ToolkitArgs = {
+  calculate_fibonacci: { index: number };
+};
+
+export default defineToolkit<ToolkitArgs>({
+  calculate_fibonacci: {
+    description: "Calculate a Fibonacci number exactly",
     parameters: z.object({
-      code: z.string().describe("The JavaScript code to execute"),
+      index: z
+        .number()
+        .int()
+        .min(0)
+        .max(1000)
+        .describe("The zero-based Fibonacci index to calculate"),
     }),
-    execute: async ({ code }) => {
+    execute: async ({ index }) => {
       "use client";
-      try {
-        const result = eval(code);
-        return { success: true, result: String(result) };
-      } catch (e) {
-        return { success: false, error: String(e) };
-      }
+      return { index, value: calculateFibonacci(index) };
     },
     render: ({ args, result, status }) => {
-      const output = result as ExecuteJsResult | undefined;
+      const output = result as CalculateFibonacciResult | undefined;
       return (
         <div className="bg-muted/30 my-2 rounded-lg border p-4 text-sm">
-          <p className="mb-1 font-semibold">execute_js</p>
-          <pre className="bg-background rounded p-2 font-mono text-xs whitespace-pre-wrap">
-            {args.code}
-          </pre>
+          <p className="mb-1 font-semibold">calculate_fibonacci</p>
+          <div className="bg-background rounded p-2 font-mono text-xs">
+            F({args.index ?? "…"})
+          </div>
           {status.type !== "running" && output && (
             <div className="mt-2 border-t pt-2">
-              <p className="text-muted-foreground font-semibold">
-                {output.success ? "Result:" : "Error:"}
-              </p>
-              <pre className="font-mono text-xs whitespace-pre-wrap">
-                {output.success ? output.result : output.error}
-              </pre>
+              <p className="text-muted-foreground font-semibold">Result:</p>
+              <output className="font-mono text-xs break-all">
+                {output.value}
+              </output>
             </div>
           )}
         </div>

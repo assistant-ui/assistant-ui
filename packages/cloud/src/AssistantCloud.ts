@@ -33,6 +33,6 @@ export class AssistantCloud {
         ? { enabled: false }
         : t === true || t === undefined
           ? { enabled: true }
-          : { enabled: t.enabled !== false, ...t };
+          : { ...t, enabled: t.enabled !== false };
   }
 }

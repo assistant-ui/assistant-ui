@@ -4,7 +4,10 @@ description: Collapsible UI for displaying AI reasoning and thinking messages.
 platforms: ["react"]
 ---
 
-import { ReasoningSample, ReasoningGroupSample } from "@/components/docs/samples/reasoning";
+import { ReasoningSample, ReasoningStreamingSample } from "@/components/pages/docs/samples/reasoning";
+import { ReasoningCompletedSample } from "@/components/pages/docs/samples/reasoning/completed-with-duration";
+import { ReasoningLongSample } from "@/components/pages/docs/samples/reasoning/long-reasoning";
+import { ReasoningVariantsSample } from "@/components/pages/docs/samples/reasoning/variant-showcase";
 
 <ReasoningSample />
 
@@ -115,11 +118,35 @@ Use the `variant` prop on `ReasoningRoot` to change the visual style:
 | `ghost`   | No additional styling                        |
 | `muted`   | Muted background                             |
 
+## Examples
+
+### Variant Showcase
+
+Each variant renders in its closed and open state side by side. Select a trigger to toggle that disclosure.
+
+<ReasoningVariantsSample />
+
+### Streaming Reasoning
+
+The response shows partial reasoning and stays active. Select Stop to cancel the response and return the composer to its idle state.
+
+<ReasoningStreamingSample />
+
+### Completed with Duration
+
+Set `duration` in seconds on `ReasoningTrigger` to show the completed reasoning time in the trigger label. The disclosure starts closed because `defaultOpen` is `false`. Select the trigger to open or close the reasoning text.
+
+<ReasoningCompletedSample />
+
+### Long Reasoning
+
+The `defaultOpen` prop opens the disclosure when the page loads. `ReasoningText` holds long reasoning in a `max-h-64` scroll area. Scroll the text. Then collapse and expand the disclosure.
+
+<ReasoningLongSample />
+
 ## Legacy ReasoningGroup
 
 `ReasoningGroup` is kept for existing code that still uses the deprecated `components.ReasoningGroup` prop on `MessagePrimitive.Parts`. New code should use `MessagePrimitive.GroupedParts` and compose the root/trigger/content pieces directly.
-
-<ReasoningGroupSample />
 
 ```tsx
 import { ReasoningGroup } from "@/components/assistant-ui/reasoning";
@@ -148,6 +175,7 @@ const ReasoningGroupImpl: ReasoningGroupComponent = ({
   );
 };
 ```
+
 
 ## API Reference
 

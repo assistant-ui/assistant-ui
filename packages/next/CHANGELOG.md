@@ -1,5 +1,29 @@
 # @assistant-ui/next
 
+## 0.0.18
+
+### Patch Changes
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d), [`bb1e79a`](https://github.com/assistant-ui/assistant-ui/commit/bb1e79aef77b9c3519663e9dd5ffec6d60b5deb9)]:
+  - @assistant-ui/x-generative-compiler@0.0.15
+
+## 0.0.17
+
+### Patch Changes
+
+- [#6079](https://github.com/assistant-ui/assistant-ui/pull/6079) [`ce68614`](https://github.com/assistant-ui/assistant-ui/commit/ce68614d62215757ef485705353d0ddfe9b715e7) - feat: add a `backendless` compile option for apps without their own backend (e.g. cloud-hosted runs), keeping `"use generative"` frontend/human tool schemas and `JSONGenerativeUI` component-library schemas uploadable from the client instead of assuming the backend already knows them ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`ce68614`](https://github.com/assistant-ui/assistant-ui/commit/ce68614d62215757ef485705353d0ddfe9b715e7)]:
+  - @assistant-ui/x-generative-compiler@0.0.14
+
+## 0.0.16
+
+### Patch Changes
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e)]:
+  - @assistant-ui/x-generative-compiler@0.0.13
+
 ## 0.0.15
 
 ### Patch Changes

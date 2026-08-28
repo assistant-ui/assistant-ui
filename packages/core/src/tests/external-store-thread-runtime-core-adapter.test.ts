@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
   ExternalStoreThreadRuntimeCore,
   hasUpcomingMessage,
@@ -8,6 +8,7 @@ import type { ModelContextProvider } from "../model-context/types";
 import type { AppendMessage, ThreadMessage } from "../types/message";
 import { createMessageQueue } from "../runtime/queue/message-queue";
 import { getThreadMessageText } from "../utils/text";
+import { invalidateThreadRuntime } from "../runtime/utils/thread-runtime-lifecycle";
 
 const createContextProvider = (): ModelContextProvider => ({
   getModelContext: () => ({}),
@@ -49,11 +50,32 @@ const createBaseAdapter = (
   ...overrides,
 });
 
+const captureUnhandledRejections = async (
+  run: () => Promise<void>,
+): Promise<unknown[]> => {
+  const rejections: unknown[] = [];
+  const onUnhandledRejection = (reason: unknown) => {
+    rejections.push(reason);
+  };
+  process.on("unhandledRejection", onUnhandledRejection);
+  try {
+    await run();
+    await new Promise((resolve) => setImmediate(resolve));
+  } finally {
+    process.removeListener("unhandledRejection", onUnhandledRejection);
+  }
+  return rejections;
+};
+
 describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
   let contextProvider: ModelContextProvider;
 
   beforeEach(() => {
     contextProvider = createContextProvider();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("hasUpcomingMessage is true only while running without an assistant tail", () => {
@@ -281,6 +303,25 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       const texts = lastCall.map(getThreadMessageText);
       expect(texts).toContain("partial answer (stopped)");
       expect(texts).not.toContain("partial answer");
+    });
+
+    it("does not resync after the runtime is invalidated", async () => {
+      const setMessages = vi.fn();
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          messages: [createAssistantMessage("a1", "partial answer")],
+          isRunning: true,
+          onCancel: vi.fn(),
+          setMessages,
+        }),
+      );
+
+      core.cancelRun();
+      invalidateThreadRuntime(core);
+
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(setMessages).not.toHaveBeenCalled();
     });
 
     it("re-applies the user leaf rollback when the store updates before the flush", async () => {
@@ -757,6 +798,339 @@ describe("ExternalStoreThreadRuntimeCore adapter contract", () => {
       ).toThrow(
         "ExternalStoreAdapter must provide either 'messages' or 'messageRepository'",
       );
+    });
+  });
+
+  describe("tool callbacks", () => {
+    it("keeps the runtime running until an executing client tool settles", async () => {
+      let resolveTool!: (value: { forecast: string }) => void;
+      const execute = vi.fn(
+        () =>
+          new Promise<{ forecast: string }>((resolve) => {
+            resolveTool = resolve;
+          }),
+      );
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        },
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+        }),
+      );
+      const onRunEnd = vi.fn();
+      const onUpdate = vi.fn();
+      core.unstable_on("runEnd", onRunEnd);
+      core.subscribe(onUpdate);
+
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+          messages: [
+            {
+              ...createAssistantMessage("a1"),
+              status: { type: "requires-action", reason: "tool-calls" },
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tc1",
+                  toolName: "weatherSearch",
+                  args: { city: "London" },
+                  argsText: '{"city":"London"}',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      await vi.waitFor(() => expect(core.isRunning).toBe(true));
+      expect(onRunEnd).not.toHaveBeenCalled();
+
+      onUpdate.mockClear();
+      resolveTool({ forecast: "sunny" });
+
+      await vi.waitFor(() => expect(core.isRunning).toBe(false));
+      expect(onRunEnd).toHaveBeenCalledOnce();
+      expect(onUpdate).toHaveBeenCalled();
+    });
+
+    it("mirrors the adapter running value when tool invocations are disabled", () => {
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter(),
+      );
+
+      expect(core.isRunning).toBeUndefined();
+
+      core.__internal_setAdapter(createBaseAdapter({ isRunning: false }));
+      expect(core.isRunning).toBe(false);
+
+      core.__internal_setAdapter(createBaseAdapter({ isRunning: true }));
+      expect(core.isRunning).toBe(true);
+    });
+
+    it("passes an undefined adapter running value through when no tool is executing", () => {
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({ unstable_enableToolInvocations: true }),
+      );
+
+      expect(core.isRunning).toBeUndefined();
+    });
+
+    it("stops running when the session resets during a tool execution", async () => {
+      const execute = vi.fn(() => new Promise<never>(() => {}));
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        },
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+        }),
+      );
+      const onRunEnd = vi.fn();
+      core.unstable_on("runEnd", onRunEnd);
+
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+          messages: [
+            {
+              ...createAssistantMessage("a1"),
+              status: { type: "requires-action", reason: "tool-calls" },
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tc1",
+                  toolName: "weatherSearch",
+                  args: { city: "London" },
+                  argsText: '{"city":"London"}',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      await vi.waitFor(() => expect(core.isRunning).toBe(true));
+
+      core.unstable_notifySessionReset();
+
+      expect(core.isRunning).toBe(false);
+      expect(onRunEnd).toHaveBeenCalledOnce();
+
+      execute.mockClear();
+      core.__internal_setAdapter(
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          isRunning: false,
+          messages: [
+            {
+              ...createAssistantMessage("a2"),
+              status: { type: "requires-action", reason: "tool-calls" },
+              content: [
+                {
+                  type: "tool-call",
+                  toolCallId: "tc2",
+                  toolName: "weatherSearch",
+                  args: { city: "Paris" },
+                  argsText: '{"city":"Paris"}',
+                },
+              ],
+            },
+          ],
+        }),
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, 10));
+      expect(execute).not.toHaveBeenCalled();
+      expect(core.isRunning).toBe(false);
+    });
+
+    it("handles rejected automatic tool result callbacks", async () => {
+      const error = new Error("tool result failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      const execute = vi.fn(async () => ({ forecast: "sunny" }));
+      let callbackCalls = 0;
+      const onAddToolResult = () => {
+        callbackCalls += 1;
+        return Promise.reject(error);
+      };
+      const core = new ExternalStoreThreadRuntimeCore(
+        {
+          getModelContext: () => ({
+            tools: {
+              weatherSearch: {
+                parameters: { type: "object", properties: {} },
+                execute,
+              },
+            },
+          }),
+        },
+        createBaseAdapter({
+          unstable_enableToolInvocations: true,
+          onAddToolResult,
+        }),
+      );
+
+      const rejections = await captureUnhandledRejections(async () => {
+        core.__internal_setAdapter(
+          createBaseAdapter({
+            unstable_enableToolInvocations: true,
+            isRunning: true,
+            messages: [
+              {
+                ...createAssistantMessage("a1"),
+                status: { type: "requires-action", reason: "tool-calls" },
+                content: [
+                  {
+                    type: "tool-call",
+                    toolCallId: "tc1",
+                    toolName: "weatherSearch",
+                    args: { city: "London" },
+                    argsText: '{"city":"London"}',
+                  },
+                ],
+              },
+            ],
+            onAddToolResult,
+          }),
+        );
+
+        await vi.waitFor(() =>
+          expect(consoleError).toHaveBeenCalledWith(
+            "[ExternalStoreThreadRuntimeCore] onAddToolResult callback rejected",
+            error,
+          ),
+        );
+      });
+
+      expect(execute).toHaveBeenCalledOnce();
+      expect(callbackCalls).toBe(1);
+      expect(rejections).toEqual([]);
+    });
+
+    it("handles rejected direct tool result callbacks", async () => {
+      const error = new Error("tool result failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      let callbackCalls = 0;
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          onAddToolResult: () => {
+            callbackCalls += 1;
+            return Promise.reject(error);
+          },
+        }),
+      );
+
+      const rejections = await captureUnhandledRejections(async () => {
+        core.addToolResult({
+          messageId: "m1",
+          toolName: "weatherSearch",
+          toolCallId: "tc1",
+          result: { forecast: "sunny" },
+          isError: false,
+        });
+
+        await vi.waitFor(() =>
+          expect(consoleError).toHaveBeenCalledWith(
+            "[ExternalStoreThreadRuntimeCore] onAddToolResult callback rejected",
+            error,
+          ),
+        );
+      });
+
+      expect(callbackCalls).toBe(1);
+      expect(rejections).toEqual([]);
+    });
+
+    it("handles rejected onRespondToToolApproval callbacks", async () => {
+      const error = new Error("approval failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      let callbackCalls = 0;
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          onRespondToToolApproval: () => {
+            callbackCalls += 1;
+            return Promise.reject(error);
+          },
+        }),
+      );
+
+      const rejections = await captureUnhandledRejections(async () => {
+        core.respondToToolApproval({
+          approvalId: "approval-1",
+          approved: true,
+        });
+
+        await vi.waitFor(() =>
+          expect(consoleError).toHaveBeenCalledWith(
+            "[ExternalStoreThreadRuntimeCore] onRespondToToolApproval callback rejected",
+            error,
+          ),
+        );
+      });
+
+      expect(callbackCalls).toBe(1);
+      expect(rejections).toEqual([]);
+    });
+
+    it("handles rejected onCancel callbacks", async () => {
+      const error = new Error("cancel failed");
+      const consoleError = vi
+        .spyOn(console, "error")
+        .mockImplementation(() => {});
+      let callbackCalls = 0;
+      const core = new ExternalStoreThreadRuntimeCore(
+        contextProvider,
+        createBaseAdapter({
+          onCancel: () => {
+            callbackCalls += 1;
+            return Promise.reject(error);
+          },
+        }),
+      );
+
+      const rejections = await captureUnhandledRejections(async () => {
+        core.cancelRun();
+
+        await vi.waitFor(() =>
+          expect(consoleError).toHaveBeenCalledWith(
+            "[ExternalStoreThreadRuntimeCore] onCancel callback rejected",
+            error,
+          ),
+        );
+      });
+
+      expect(callbackCalls).toBe(1);
+      expect(rejections).toEqual([]);
     });
   });
 

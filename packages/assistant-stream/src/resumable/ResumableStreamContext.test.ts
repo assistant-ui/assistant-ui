@@ -247,9 +247,11 @@ describe("createResumableStreamContext", () => {
     });
   });
 
-  it("propagates producer errors to consumers", async () => {
+  it("propagates producer errors and releases the source reader", async () => {
+    const tasks: Promise<unknown>[] = [];
     const ctx = createResumableStreamContext({
       store: createInMemoryResumableStreamStore(),
+      waitUntil: (task) => tasks.push(task),
     });
     const failing = new ReadableStream<Uint8Array>({
       start(controller) {
@@ -259,7 +261,9 @@ describe("createResumableStreamContext", () => {
     });
     const stream = await ctx.run("a", () => failing);
     await expect(collect(stream)).rejects.toThrow("oops");
+    await Promise.all(tasks);
     expect(await ctx.status("a")).toBe("error");
+    expect(failing.locked).toBe(false);
   });
 
   it("waitUntil receives the producer task promise", async () => {

@@ -16,7 +16,7 @@ import type {
   EditComposerRuntimeCore,
   ThreadComposerRuntimeCore,
 } from "./composer-runtime-core";
-import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueueItemState } from "../queue/queue-item";
 import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 
 export type RuntimeCapabilities = {
@@ -72,6 +72,11 @@ export type SubmitFeedbackOptions = {
 };
 
 export type ThreadSuggestion = {
+  /** Display heading for the suggestion. Falls back to the prompt when absent. */
+  title?: string;
+  /** Secondary display text shown alongside the title. */
+  label?: string;
+  /** The message text sent when the suggestion is selected. */
   prompt: string;
 };
 

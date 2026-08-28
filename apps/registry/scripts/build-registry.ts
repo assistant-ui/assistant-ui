@@ -7,13 +7,15 @@ import {
   type CssDeclarationBlock,
   type CssMediaBlock,
 } from "@assistant-ui/ui/lib/generative-ui-vocabulary-css.ts";
-import { registry } from "../src/registry";
+import { registry, vueRegistry } from "../src/registry";
 import { registrySchema, type RegistryItem } from "../src/schema";
 
 const REGISTRY_PATH = path.join(process.cwd(), "dist");
 const BASE_REGISTRY_PATH = path.join(REGISTRY_PATH, "base");
+const VUE_REGISTRY_PATH = path.join(REGISTRY_PATH, "vue");
 const REGISTRY_INDEX_PATH = path.join(REGISTRY_PATH, "registry.json");
 const BASE_REGISTRY_INDEX_PATH = path.join(BASE_REGISTRY_PATH, "registry.json");
+const VUE_REGISTRY_INDEX_PATH = path.join(VUE_REGISTRY_PATH, "registry.json");
 const REGISTRY_ITEM_SCHEMA_URL =
   "https://ui.shadcn.com/schema/registry-item.json";
 const ASSISTANT_REGISTRY_DEPENDENCY_RE =
@@ -39,6 +41,7 @@ const PROJECT_PACKAGE_IMPORTS = new Set([
   "next-themes",
   "react",
   "react-dom",
+  "vue",
 ]);
 
 type RegistryFile = NonNullable<RegistryItem["files"]>[number];
@@ -156,6 +159,56 @@ export function validateBaseTreeRadixImports(
   }
 
   throwIfFindings("Invalid base tree imports:", findings);
+}
+
+const VUE_FORBIDDEN_PACKAGES = [
+  "react",
+  "react-dom",
+  "lucide-react",
+  "radix-ui",
+  "@radix-ui",
+  "@base-ui",
+  "@assistant-ui/react",
+];
+const VUE_FORBIDDEN_PREFIXES = ["@assistant-ui/react-"];
+
+function isVueForbiddenPackage(specifier: string) {
+  return (
+    VUE_FORBIDDEN_PACKAGES.some(
+      (packageName) =>
+        specifier === packageName || specifier.startsWith(`${packageName}/`),
+    ) || VUE_FORBIDDEN_PREFIXES.some((prefix) => specifier.startsWith(prefix))
+  );
+}
+
+export function validateVueFlavorContent(vueBuilt: BuiltRegistryPayload[]) {
+  const findings = new Set<string>();
+
+  for (const { payload } of vueBuilt) {
+    for (const file of payload.files ?? []) {
+      for (const script of getScriptContents(file)) {
+        if (
+          script.lang !== undefined &&
+          script.lang !== "ts" &&
+          script.lang !== "js"
+        ) {
+          findings.add(
+            `${payload.name}: vue tree file ${file.path} has unsupported script lang "${script.lang}"`,
+          );
+        }
+      }
+
+      for (const specifier of collectModuleSpecifiers(file)) {
+        if (isVueForbiddenPackage(specifier)) {
+          findings.add(
+            `${payload.name}: vue tree file ${file.path} imports forbidden "${specifier}"`,
+          );
+        }
+      }
+    }
+  }
+
+  throwIfFindings("Invalid vue flavor content:", findings);
 }
 
 export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
@@ -784,6 +837,7 @@ function isStringLiteralLike(
 }
 
 function getScriptKind(filePath: string) {
+  if (filePath.endsWith(".vue")) return ts.ScriptKind.TS;
   if (filePath.endsWith(".tsx")) return ts.ScriptKind.TSX;
   if (filePath.endsWith(".jsx")) return ts.ScriptKind.JSX;
   if (filePath.endsWith(".ts")) return ts.ScriptKind.TS;
@@ -791,58 +845,171 @@ function getScriptKind(filePath: string) {
   return ts.ScriptKind.Unknown;
 }
 
-function collectModuleSpecifiers(file: RegistryOutputFile) {
-  const sourceFile = ts.createSourceFile(
-    file.path,
-    file.content,
-    ts.ScriptTarget.Latest,
-    true,
-    getScriptKind(file.path),
+function getVueScriptLanguage(attributes: string) {
+  const match = attributes.match(
+    /(?:^|\s)lang\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
   );
+  return match?.[1] ?? match?.[2] ?? match?.[3];
+}
+
+function getScriptContents(file: RegistryOutputFile) {
+  if (!file.path.endsWith(".vue")) return [{ content: file.content }];
+
+  return [
+    ...file.content.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script\b[^>]*>/gi),
+  ].map((match) => ({
+    content: match[2] ?? "",
+    lang: getVueScriptLanguage(match[1] ?? ""),
+  }));
+}
+
+function collectModuleSpecifiers(file: RegistryOutputFile) {
   const specifiers = new Set<string>();
 
-  const visit = (node: ts.Node) => {
-    if (
-      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-      node.moduleSpecifier &&
-      isStringLiteralLike(node.moduleSpecifier)
-    ) {
-      specifiers.add(node.moduleSpecifier.text);
-    }
+  for (const { content } of getScriptContents(file)) {
+    const sourceFile = ts.createSourceFile(
+      file.path,
+      content,
+      ts.ScriptTarget.Latest,
+      true,
+      getScriptKind(file.path),
+    );
 
-    if (
-      ts.isCallExpression(node) &&
-      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
-      node.arguments.length === 1
-    ) {
-      const importArgument = node.arguments[0];
-      if (importArgument && isStringLiteralLike(importArgument)) {
-        specifiers.add(importArgument.text);
+    const visit = (node: ts.Node) => {
+      if (
+        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        node.moduleSpecifier &&
+        isStringLiteralLike(node.moduleSpecifier)
+      ) {
+        specifiers.add(node.moduleSpecifier.text);
       }
-    }
 
-    if (
-      ts.isImportTypeNode(node) &&
-      ts.isLiteralTypeNode(node.argument) &&
-      isStringLiteralLike(node.argument.literal)
-    ) {
-      specifiers.add(node.argument.literal.text);
-    }
+      if (
+        ts.isCallExpression(node) &&
+        node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+        node.arguments.length === 1
+      ) {
+        const importArgument = node.arguments[0];
+        if (importArgument && isStringLiteralLike(importArgument)) {
+          specifiers.add(importArgument.text);
+        }
+      }
 
-    ts.forEachChild(node, visit);
-  };
+      if (
+        ts.isImportTypeNode(node) &&
+        ts.isLiteralTypeNode(node.argument) &&
+        isStringLiteralLike(node.argument.literal)
+      ) {
+        specifiers.add(node.argument.literal.text);
+      }
 
-  visit(sourceFile);
+      ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+  }
+
   return specifiers;
 }
 
-function getLocalComponentPath(specifier: string) {
-  if (!specifier.startsWith("@/components/")) return null;
+function getLocalComponentCandidates(specifier: string) {
+  if (
+    !specifier.startsWith("@/components/") &&
+    !specifier.startsWith("@/hooks/")
+  )
+    return null;
 
-  const componentPath = specifier.slice(2);
-  if (path.extname(componentPath)) return componentPath;
+  const componentPath = specifier.replace(/[?#].*$/, "").slice(2);
+  const extension = path.extname(componentPath);
+  if (EXPLICIT_EXTENSIONS.has(extension.toLowerCase())) return [componentPath];
+  if (!extension)
+    return MODULE_EXTENSIONS.map(
+      (moduleExtension) => `${componentPath}${moduleExtension}`,
+    );
 
-  return `${componentPath}.tsx`;
+  return [
+    componentPath,
+    ...MODULE_EXTENSIONS.map(
+      (moduleExtension) => `${componentPath}${moduleExtension}`,
+    ),
+    ...MODULE_EXTENSIONS.map(
+      (moduleExtension) => `${componentPath}/index${moduleExtension}`,
+    ),
+  ];
+}
+
+const MODULE_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
+
+const EXPLICIT_EXTENSIONS = new Set([
+  ...MODULE_EXTENSIONS,
+  ".mjs",
+  ".cjs",
+  ".mts",
+  ".cts",
+  ".css",
+  ".json",
+  ".svg",
+  ".png",
+  ".jpg",
+  ".jpeg",
+  ".gif",
+  ".webp",
+  ".avif",
+  ".ico",
+  ".woff",
+  ".woff2",
+  ".ttf",
+  ".otf",
+  ".md",
+  ".mdx",
+  ".vue",
+  ".txt",
+]);
+
+/**
+ * The install paths a relative specifier may resolve to once the item is
+ * installed. A specifier is satisfied when the install closure provides any one
+ * of them, which is what a bundler in the user's project will do: an explicit
+ * extension, an extensionless module, a directory index, or the TypeScript
+ * source behind a `.js` specifier. A dot in a basename is only treated as an
+ * explicit extension when it is one of the recognized module or asset
+ * extensions; a dotted module name (`./tool.config`) keeps the literal
+ * candidate and probes module and index forms too. `null` means the specifier
+ * points outside the installed tree, where no closure file can ever satisfy
+ * it.
+ */
+export function getRelativeImportCandidates(
+  specifier: string,
+  fromPath: string,
+) {
+  const modulePath = specifier.replace(/[?#].*$/, "");
+  const resolved = path.posix.normalize(
+    path.posix.join(path.posix.dirname(fromPath), modulePath),
+  );
+  if (resolved === ".." || resolved.startsWith("../")) return null;
+
+  const extension = path.posix.extname(resolved).toLowerCase();
+  const candidates = new Set<string>();
+
+  if (EXPLICIT_EXTENSIONS.has(extension)) {
+    candidates.add(resolved);
+    if (extension === ".js" || extension === ".jsx") {
+      const base = resolved.slice(0, -extension.length);
+      for (const moduleExtension of MODULE_EXTENSIONS) {
+        candidates.add(`${base}${moduleExtension}`);
+      }
+    }
+  } else {
+    if (extension) candidates.add(resolved);
+    for (const moduleExtension of MODULE_EXTENSIONS) {
+      candidates.add(`${resolved}${moduleExtension}`);
+    }
+    for (const moduleExtension of MODULE_EXTENSIONS) {
+      candidates.add(`${resolved}/index${moduleExtension}`);
+    }
+  }
+
+  return [...candidates];
 }
 
 function collectCssPackageImports(value: unknown, imports = new Set<string>()) {
@@ -876,7 +1043,9 @@ function collectInstallContext(
 
   seen.add(item.name);
 
-  const files = new Set(item.files?.map((file) => file.path) ?? []);
+  const files = new Set(
+    item.files?.map((file) => file.target ?? file.path) ?? [],
+  );
   const packages = new Set([
     ...(item.dependencies ?? []),
     ...(item.devDependencies ?? []),
@@ -906,7 +1075,9 @@ function collectInstallContext(
   return { files, packages };
 }
 
-function validateRegistryInstallMetadata(payloads: RegistryOutputItem[]) {
+export function validateRegistryInstallMetadata(
+  payloads: RegistryOutputItem[],
+) {
   const itemByName = new Map(payloads.map((item) => [item.name, item]));
   const findings = new Set<string>();
 
@@ -926,19 +1097,46 @@ function validateRegistryInstallMetadata(payloads: RegistryOutputItem[]) {
 
     for (const file of item.files ?? []) {
       for (const specifier of collectModuleSpecifiers(file)) {
-        const localComponentPath = getLocalComponentPath(specifier);
+        const localCandidates = getLocalComponentCandidates(specifier);
 
-        if (localComponentPath) {
-          if (!installContext.files.has(localComponentPath)) {
+        if (localCandidates) {
+          if (
+            !localCandidates.some((candidate) =>
+              installContext.files.has(candidate),
+            )
+          ) {
             findings.add(
-              `${item.name}: ${file.path} imports "${specifier}", but no file or registryDependency provides ${localComponentPath}`,
+              `${item.name}: ${file.path} imports "${specifier}", but no file or registryDependency provides ${localCandidates.join(" or ")}`,
             );
           }
 
           continue;
         }
 
-        if (specifier.startsWith(".") || specifier.startsWith("@/")) {
+        if (specifier.startsWith(".")) {
+          const installedPath = file.target ?? file.path;
+          const candidates = getRelativeImportCandidates(
+            specifier,
+            installedPath,
+          );
+
+          if (
+            candidates === null ||
+            !candidates.some((candidate) => installContext.files.has(candidate))
+          ) {
+            findings.add(
+              `${item.name}: ${installedPath} imports "${specifier}", but no file or registryDependency provides ${
+                candidates === null
+                  ? "a file outside the installed tree"
+                  : candidates.join(" or ")
+              }`,
+            );
+          }
+
+          continue;
+        }
+
+        if (specifier.startsWith("@/")) {
           continue;
         }
 
@@ -1008,8 +1206,12 @@ export function validateUniversalItems(
   throwIfFindings("Invalid universal registry items:", findings);
 }
 
-async function buildRegistry(registry: RegistryItem[]) {
+export async function buildRegistry(
+  registry: RegistryItem[],
+  vueRegistry: RegistryItem[],
+) {
   validateRegistrySchema(registry);
+  validateRegistrySchema(vueRegistry);
 
   const universalNames = new Set(
     registry
@@ -1041,6 +1243,7 @@ async function buildRegistry(registry: RegistryItem[]) {
   const baseBuilt = baseRegistry.map((item) =>
     createRegistryPayload(item, false),
   );
+  const vueBuilt = vueRegistry.map((item) => createRegistryPayload(item));
   validateBaseVariantContent(radixBuilt, baseBuilt);
   validateBaseTreeRadixImports(baseBuilt);
   validateEmittedSpecifierHygiene([...radixBuilt, ...baseBuilt]);
@@ -1049,14 +1252,18 @@ async function buildRegistry(registry: RegistryItem[]) {
   validateVariantSlotParity(radixBuilt, baseBuilt);
   validateVariantExportParity(radixBuilt, baseBuilt);
   validateStyleScopedDependencies(radixBuilt, baseBuilt);
+  validateVueFlavorContent(vueBuilt);
 
   const payloads = radixBuilt.map((built) => built.payload);
   const basePayloads = baseBuilt.map((built) => built.payload);
+  const vuePayloads = vueBuilt.map((built) => built.payload);
   validateRegistryInstallMetadata(payloads);
   validateRegistryInstallMetadata(basePayloads);
+  validateRegistryInstallMetadata(vuePayloads);
 
   await fs.mkdir(REGISTRY_PATH, { recursive: true });
   await fs.mkdir(BASE_REGISTRY_PATH, { recursive: true });
+  await fs.mkdir(VUE_REGISTRY_PATH, { recursive: true });
 
   for (const payload of payloads) {
     const p = path.join(REGISTRY_PATH, `${payload.name}.json`);
@@ -1067,6 +1274,13 @@ async function buildRegistry(registry: RegistryItem[]) {
 
   for (const payload of basePayloads) {
     const p = path.join(BASE_REGISTRY_PATH, `${payload.name}.json`);
+    await fs.mkdir(path.dirname(p), { recursive: true });
+
+    await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
+  }
+
+  for (const payload of vuePayloads) {
+    const p = path.join(VUE_REGISTRY_PATH, `${payload.name}.json`);
     await fs.mkdir(path.dirname(p), { recursive: true });
 
     await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
@@ -1090,6 +1304,12 @@ async function buildRegistry(registry: RegistryItem[]) {
     JSON.stringify({ ...registryIndex, items: baseRegistry }, null, 2),
     "utf8",
   );
+
+  await fs.writeFile(
+    VUE_REGISTRY_INDEX_PATH,
+    JSON.stringify({ ...registryIndex, items: vueRegistry }, null, 2),
+    "utf8",
+  );
 }
 
 const entrypoint = process.argv[1];
@@ -1097,5 +1317,5 @@ if (
   entrypoint &&
   import.meta.url === pathToFileURL(path.resolve(entrypoint)).href
 ) {
-  await buildRegistry(registry);
+  await buildRegistry(registry, vueRegistry);
 }

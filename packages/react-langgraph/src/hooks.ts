@@ -49,7 +49,7 @@ export const useLangGraphSend = () => {
     langGraphExtras.get(aui).send(messages, config);
 };
 
-/** Submit a LangGraph command (e.g. an interrupt resume). */
+/** Submit a LangGraph command (for example an interrupt resume). The command reuses the interrupted run's runConfig. */
 export const useLangGraphSendCommand = () => {
   const send = useLangGraphSend();
   return (command: LangGraphCommand) => send([], { command });

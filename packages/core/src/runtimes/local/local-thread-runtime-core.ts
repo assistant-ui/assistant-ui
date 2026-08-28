@@ -5,6 +5,8 @@ import type {
   ChatModelRunResult,
 } from "../../runtime/utils/chat-model-adapter";
 import { shouldContinue } from "./should-continue";
+import { getAutoStatus } from "../../runtime/utils/auto-status";
+import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import { consumeSuggestionResult } from "../../adapters/suggestion";
 import type {
@@ -21,8 +23,8 @@ import type {
   AppendMessage,
   ThreadAssistantMessage,
 } from "../../types/message";
-import type { RunConfig } from "../../types/message";
-import { toAssistantError } from "../../types/error";
+import type { RunConfig, ThreadMessage } from "../../types/message";
+import { MessageNotSentError, toAssistantError } from "../../types/error";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
   createMessageQueue,
@@ -32,7 +34,7 @@ import type { QueuePlacement } from "../../runtime/queue/external-thread-queue-a
 import {
   EMPTY_QUEUE_ITEMS,
   type QueueItemState,
-} from "../../store/scopes/queue-item";
+} from "../../runtime/queue/queue-item";
 import {
   captureThreadRuntimeGeneration,
   invalidateThreadRuntime,
@@ -48,6 +50,45 @@ class AbortError extends Error {
     this.detach = detach;
   }
 }
+
+// `shouldContinue` resumes only on `tool-calls` and `resumeToolCall` throws, so
+// an imported `interrupt` with no interrupt payload would be stranded here.
+// Provenance cannot gate it: a repository that went through JSON has no marker.
+// The replacement stays content-derived, so a message with nothing resultless
+// left to act on lands on `complete` rather than an unactionable pause.
+const withLocalPauseReason = (message: ThreadMessage): ThreadMessage => {
+  if (
+    message.role !== "assistant" ||
+    message.status.type !== "requires-action" ||
+    message.status.reason !== "interrupt" ||
+    message.content.some(
+      (c) =>
+        c.type === "tool-call" && c.result === undefined && c.interrupt != null,
+    )
+  )
+    return message;
+  return {
+    ...message,
+    status: getAutoStatus(
+      false,
+      false,
+      false,
+      message.content.some(
+        (c) => c.type === "tool-call" && c.result === undefined,
+      ),
+    ),
+  };
+};
+
+const withLocalPauseReasons = (
+  data: ExportedMessageRepository,
+): ExportedMessageRepository => ({
+  ...data,
+  messages: data.messages.map((item) => ({
+    ...item,
+    message: withLocalPauseReason(item.message),
+  })),
+});
 
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
@@ -167,6 +208,7 @@ export class LocalThreadRuntimeCore
   public __internal_setOptions(options: LocalRuntimeOptionsBase) {
     if (this._options === options) return;
 
+    const previousHistory = this._options?.adapters.history;
     this._options = options;
 
     let hasUpdates = false;
@@ -239,13 +281,31 @@ export class LocalThreadRuntimeCore
     }
 
     if (hasUpdates) this._notifySubscribers();
+
+    if (
+      this._loadRequested &&
+      !this._loadPromise &&
+      !previousHistory &&
+      options.adapters.history &&
+      this.messages.length === 0
+    ) {
+      void this.__internal_load().catch((error: unknown) => {
+        console.error(
+          "[assistant-ui] local thread history load failed:",
+          error,
+        );
+      });
+    }
   }
 
   private _loadPromise: Promise<void> | undefined;
+  private _loadRequested = false;
   public __internal_load() {
+    this._loadRequested = true;
     if (this._loadPromise) return this._loadPromise;
+    if (!this.adapters.history) return Promise.resolve();
 
-    const promise = this.adapters.history?.load() ?? Promise.resolve(null);
+    const promise = this.adapters.history.load();
 
     this._isLoading = true;
     this._notifySubscribers();
@@ -253,7 +313,7 @@ export class LocalThreadRuntimeCore
     this._loadPromise = promise
       .then((repo) => {
         if (!repo) return;
-        this.repository.import(repo);
+        this.repository.import(withLocalPauseReasons(repo));
         if (repo.messages.length > 0) {
           this.ensureInitialized();
         }
@@ -317,6 +377,15 @@ export class LocalThreadRuntimeCore
     this._queue?.adapter.remove(queueItemId);
   }
 
+  private _rollbackAppend(messageId: string) {
+    try {
+      this.repository.deleteMessage(messageId);
+    } catch {
+      return;
+    }
+    this._notifySubscribers();
+  }
+
   private async _runAppend(rawMessage: AppendMessage): Promise<void> {
     // Stamped here rather than in `append` so a queued message is gated after
     // the flush re-pointed its parentId at the current tail.
@@ -324,33 +393,56 @@ export class LocalThreadRuntimeCore
     const message = this.enrichAppendMetadata(rawMessage);
     this.ensureInitialized();
 
-    const initPromise = this._getInitializePromise?.();
-    if (initPromise) {
-      await initPromise;
-    }
-    if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
-
     const newMessage = fromThreadMessageLike(message, generateId(), {
       type: "complete",
       reason: "unknown",
     });
     this.repository.addOrUpdateMessage(message.parentId, newMessage);
-    this._options.adapters.history?.append({
+    this._notifySubscribers();
+
+    // Initialization only gates the history write and the run; the message
+    // is already on screen. A failed barrier rolls the optimistic message
+    // back and rejects as an unsent message so the composer restores the
+    // draft; a thread invalidated mid-wait rolls back silently.
+    try {
+      const initPromise = this._getInitializePromise?.();
+      if (initPromise) {
+        await initPromise;
+      }
+    } catch (error) {
+      this._rollbackAppend(newMessage.id);
+      if (!isThreadRuntimeGenerationCurrent(this, generation)) return;
+      const notSent = new MessageNotSentError();
+      notSent.cause = error;
+      throw notSent;
+    }
+    if (!isThreadRuntimeGenerationCurrent(this, generation)) {
+      this._rollbackAppend(newMessage.id);
+      return;
+    }
+    const historyWrite = this._options.adapters.history?.append({
       parentId: message.parentId,
       message: newMessage,
       ...(message.runConfig !== undefined && { runConfig: message.runConfig }),
     });
+    void historyWrite?.catch(() => {});
 
     const startRun = message.startRun ?? message.role === "user";
     if (startRun) {
-      await this.startRun({
-        parentId: newMessage.id,
-        sourceId: message.sourceId,
-        runConfig: message.runConfig ?? {},
-      });
+      const [runResult, historyResult] = await Promise.allSettled([
+        this.startRun({
+          parentId: newMessage.id,
+          sourceId: message.sourceId,
+          runConfig: message.runConfig ?? {},
+        }),
+        historyWrite,
+      ]);
+      if (runResult.status === "rejected") throw runResult.reason;
+      if (historyResult.status === "rejected") throw historyResult.reason;
     } else {
       this.repository.resetHead(newMessage.id);
       this._notifySubscribers();
+      await historyWrite;
     }
   }
 
@@ -381,6 +473,10 @@ export class LocalThreadRuntimeCore
 
   public exportExternalState(): any {
     throw new Error("Runtime does not support exporting external states.");
+  }
+
+  public override import(data: ExportedMessageRepository) {
+    super.import(withLocalPauseReasons(data));
   }
 
   public importExternalState(): void {
@@ -450,9 +546,11 @@ export class LocalThreadRuntimeCore
           message,
           runConfig,
           alreadyPersisted,
+          run,
           runCallback,
         );
         runCallback = undefined;
+        if (this._activeRun !== run) break;
       } while (shouldContinue(message, this._options.unstable_humanToolNames));
     } finally {
       this._notifyEventSubscribers("runEnd", {});
@@ -497,6 +595,7 @@ export class LocalThreadRuntimeCore
     message: ThreadAssistantMessage,
     runConfig: RunConfig | undefined,
     alreadyPersisted: boolean,
+    run: { cancelled: boolean },
     runCallback?: ChatModelAdapter["run"],
   ) {
     const messages = parentId ? this.repository.getMessages(parentId) : [];
@@ -511,7 +610,23 @@ export class LocalThreadRuntimeCore
     const initialData = message.metadata?.unstable_data;
     const initialSteps = message.metadata?.steps;
     const initialCustom = message.metadata?.custom;
+    let hasStoredMessage = true;
+    try {
+      this.repository.getMessage(message.id);
+    } catch {
+      hasStoredMessage = false;
+    }
+    // Other writers replace the stored message object, so identity distinguishes this run from a newer owner.
+    const ownsMessage = () => {
+      if (!hasStoredMessage) return this._activeRun === run;
+      try {
+        return this.repository.getMessage(message.id).message === message;
+      } catch {
+        return false;
+      }
+    };
     const updateMessage = (m: Partial<ChatModelRunResult>) => {
+      if (!ownsMessage()) return;
       const newSteps = m.metadata?.steps;
       const steps = newSteps
         ? [...(initialSteps ?? []), ...newSteps]
@@ -558,6 +673,7 @@ export class LocalThreadRuntimeCore
           : undefined),
       };
       this.repository.addOrUpdateMessage(parentId, message);
+      hasStoredMessage = true;
       this._notifySubscribers();
     };
 
@@ -596,6 +712,12 @@ export class LocalThreadRuntimeCore
         this.adapters.chatModel.run.bind(this.adapters.chatModel);
 
       const abortSignal = abortController.signal;
+      const shouldCancelMessage = () =>
+        abortSignal.aborted &&
+        (message.status.type === "running" ||
+          (message.status.type === "requires-action" &&
+            (this._activeRun !== run ||
+              shouldContinue(message, this._options.unstable_humanToolNames))));
       const threadId = this._getThreadId?.();
       const promiseOrGenerator = runCallback({
         messages,
@@ -614,9 +736,11 @@ export class LocalThreadRuntimeCore
       if (Symbol.asyncIterator in promiseOrGenerator) {
         for await (const r of promiseOrGenerator) {
           if (abortSignal.aborted) {
-            updateMessage({
-              status: { type: "incomplete", reason: "cancelled" },
-            });
+            if (shouldCancelMessage()) {
+              updateMessage({
+                status: { type: "incomplete", reason: "cancelled" },
+              });
+            }
             break;
           }
 
@@ -626,11 +750,13 @@ export class LocalThreadRuntimeCore
         updateMessage(await promiseOrGenerator);
       }
 
-      if (message.status.type === "running") {
+      if (shouldCancelMessage()) {
         updateMessage({
-          status: abortSignal.aborted
-            ? { type: "incomplete", reason: "cancelled" }
-            : { type: "complete", reason: "unknown" },
+          status: { type: "incomplete", reason: "cancelled" },
+        });
+      } else if (message.status.type === "running") {
+        updateMessage({
+          status: { type: "complete", reason: "unknown" },
         });
       }
     } catch (e) {
@@ -673,7 +799,7 @@ export class LocalThreadRuntimeCore
 
       // Pauses are written only for adapters that can rewrite the entry later;
       // an append-only adapter would strand a half-finished run in history.
-      if (isTerminal || (isPausing && history?.update)) {
+      if (ownsMessage() && (isTerminal || (isPausing && history?.update))) {
         const write =
           alreadyPersisted && history?.update
             ? history.update.bind(history)

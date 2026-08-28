@@ -1,4 +1,3 @@
-import type { Unsubscribe } from "../../types/unsubscribe";
 import type { ExternalStoreThreadRuntimeCore } from "./external-store-thread-runtime-core";
 import type {
   ThreadListItemCoreState,
@@ -6,6 +5,7 @@ import type {
 } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { ExternalStoreThreadListAdapter } from "./external-store-adapter";
 import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 
 export type ExternalStoreThreadFactory = () => ExternalStoreThreadRuntimeCore;
 
@@ -23,7 +23,10 @@ const DEFAULT_THREAD_DATA = Object.freeze({
   [DEFAULT_THREAD_ID]: DEFAULT_THREAD,
 });
 
-export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore {
+export class ExternalStoreThreadListRuntimeCore
+  extends BaseSubscribable
+  implements ThreadListRuntimeCore
+{
   private _mainThreadId: string = DEFAULT_THREAD_ID;
   private _threads: readonly string[] = DEFAULT_THREADS;
   private _archivedThreads: readonly string[] = EMPTY_ARRAY;
@@ -67,6 +70,7 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
     adapter: ExternalStoreThreadListAdapter = {},
     threadFactory: ExternalStoreThreadFactory,
   ) {
+    super();
     this.threadFactory = threadFactory;
     this.__internal_setAdapter(adapter, true);
   }
@@ -260,16 +264,5 @@ export class ExternalStoreThreadListRuntimeCore implements ThreadListRuntimeCore
 
   public generateTitle(): never {
     throw new Error("Method not implemented.");
-  }
-
-  private _subscriptions = new Set<() => void>();
-
-  public subscribe(callback: () => void): Unsubscribe {
-    this._subscriptions.add(callback);
-    return () => this._subscriptions.delete(callback);
-  }
-
-  private _notifySubscribers() {
-    for (const callback of this._subscriptions) callback();
   }
 }

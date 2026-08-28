@@ -1,19 +1,24 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import "tsx/esm";
 
 const {
   collectAttributeSelectorValues,
+  buildRegistry,
   createBaseRegistryItem,
   createRadixRegistryItem,
   expandBundledRegistryDependencies,
   getRadixVariantSourcePath,
+  getRelativeImportCandidates,
+  validateRegistryInstallMetadata,
   validateBasePassDidNotReadRadixSources,
   validateBaseTreeRadixImports,
   validateBaseVariantContent,
   validateEmittedSpecifierHygiene,
   validateStyleScopedDependencies,
   validateUniversalItems,
+  validateVueFlavorContent,
   validateVariantExportParity,
   validateVariantSlotParity,
   validateVariantTreesDiffer,
@@ -56,6 +61,162 @@ const createBuilt = (
   sourceContentsByOutputPath:
     sourceContentsByOutputPath ??
     new Map(files.map(([filePath, content]) => [filePath, content])),
+});
+
+test("vue registry build emits a self-contained thread with its type-only dependency", async () => {
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
+
+  const [registryContent, threadContent] = await Promise.all([
+    readFile("dist/vue/registry.json", "utf8"),
+    readFile("dist/vue/thread.json", "utf8"),
+  ]);
+  const vueIndex = JSON.parse(registryContent);
+  const thread = JSON.parse(threadContent);
+  const threadFile = thread.files.find(
+    (file) => file.path === "components/assistant-ui/thread.vue",
+  );
+
+  assert.ok(
+    threadFile,
+    "vue thread registry output includes components/assistant-ui/thread.vue",
+  );
+  assert.deepEqual(
+    vueIndex.items.map((item) => item.name),
+    ["thread"],
+  );
+  assert.deepEqual(thread.dependencies, [
+    "@assistant-ui/core",
+    "@assistant-ui/vue",
+    "@lucide/vue",
+    "markdown-it",
+  ]);
+  assert.deepEqual(thread.devDependencies, ["@types/markdown-it"]);
+  assert.equal("target" in threadFile, false);
+  assert.match(
+    threadFile.content,
+    /import Message from "@\/components\/assistant-ui\/message\.vue"/,
+  );
+});
+
+test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async () => {
+  const { parse, compileScript } = await import("@vue/compiler-sfc");
+  const thread = JSON.parse(await readFile("dist/vue/thread.json", "utf8"));
+  const emitted = thread.files.map((file) => [file.path, file.content]);
+  assert.deepEqual(emitted.map(([outputPath]) => outputPath).sort(), [
+    "components/assistant-ui/markdown-text.vue",
+    "components/assistant-ui/message.vue",
+    "components/assistant-ui/thread.vue",
+  ]);
+
+  for (const [outputPath, content] of emitted) {
+    const { descriptor, errors } = parse(content, { filename: outputPath });
+    assert.deepEqual(errors, []);
+    const compiled = compileScript(descriptor, { id: outputPath });
+    assert.ok(compiled.content.length > 0);
+  }
+
+  validateVueFlavorContent([createBuilt("thread", emitted)]);
+});
+
+test("the production vue registry stays empty until the publish flip", async () => {
+  const { registry, vueRegistry } = await import("../src/registry.ts");
+  assert.deepEqual(vueRegistry, []);
+  await buildRegistry(registry, vueRegistry);
+  const vueIndex = JSON.parse(await readFile("dist/vue/registry.json", "utf8"));
+  assert.deepEqual(vueIndex.items, []);
+});
+
+test("vue flavor content validation rejects forbidden package subpaths", () => {
+  assert.throws(
+    () =>
+      validateVueFlavorContent([
+        createBuilt("thread", [
+          [
+            "components/assistant-ui/thread.vue",
+            '<script setup lang="ts">\nimport { jsx } from "react/jsx-runtime";\nimport "react-dom/client";\nimport "@assistant-ui/react/runtime";\nimport { CopyIcon } from "lucide-react";\nimport "@assistant-ui/react-ui/lib/utils";\n</script>',
+          ],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid vue flavor content:/);
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "react/jsx-runtime"',
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "react-dom/client"',
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "@assistant-ui/react/runtime"',
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "lucide-react"',
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "@assistant-ui/react-ui/lib/utils"',
+        ),
+      );
+      return true;
+    },
+  );
+});
+
+test("vue flavor content validation scans script tags closed with whitespace", () => {
+  assert.throws(
+    () =>
+      validateVueFlavorContent([
+        createBuilt("thread", [
+          [
+            "components/assistant-ui/thread.vue",
+            '<script setup lang="ts">\nimport { createElement } from "react";\n</script \t\nbar>',
+          ],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid vue flavor content:/);
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "react"',
+        ),
+      );
+      return true;
+    },
+  );
+});
+
+test("vue flavor content validation rejects unsupported script languages", () => {
+  assert.throws(
+    () =>
+      validateVueFlavorContent([
+        createBuilt("thread", [
+          [
+            "components/assistant-ui/thread.vue",
+            '<script setup lang="tsx">\nconst thread = <div />;\n</script>',
+          ],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid vue flavor content:/);
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue has unsupported script lang "tsx"',
+        ),
+      );
+      return true;
+    },
+  );
 });
 
 test("base registry item merges, rewrites, and deduplicates dependencies in order", () => {
@@ -1240,4 +1401,258 @@ test("every element's sibling imports are declared as registry dependencies", as
       );
     }
   }
+});
+
+test("relative import candidates cover extensions, directory indexes, and .js sources", () => {
+  const from = "components/assistant-ui/sources.tsx";
+
+  assert.deepEqual(getRelativeImportCandidates("./badge", from), [
+    "components/assistant-ui/badge.tsx",
+    "components/assistant-ui/badge.ts",
+    "components/assistant-ui/badge.jsx",
+    "components/assistant-ui/badge.js",
+    "components/assistant-ui/badge/index.tsx",
+    "components/assistant-ui/badge/index.ts",
+    "components/assistant-ui/badge/index.jsx",
+    "components/assistant-ui/badge/index.js",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./badge.tsx", from), [
+    "components/assistant-ui/badge.tsx",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./styles.css", from), [
+    "components/assistant-ui/styles.css",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./badge.js", from), [
+    "components/assistant-ui/badge.js",
+    "components/assistant-ui/badge.tsx",
+    "components/assistant-ui/badge.ts",
+    "components/assistant-ui/badge.jsx",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./icon.svg?url", from), [
+    "components/assistant-ui/icon.svg",
+  ]);
+
+  assert.equal(
+    getRelativeImportCandidates("../icons/github", from)[0],
+    "components/icons/github.tsx",
+  );
+
+  assert.equal(
+    getRelativeImportCandidates("../../../outside/thing", from),
+    null,
+  );
+});
+
+test("a dotted basename without a recognized extension probes module and index forms", () => {
+  const from = "components/assistant-ui/thread.tsx";
+
+  assert.deepEqual(getRelativeImportCandidates("./tool.config", from), [
+    "components/assistant-ui/tool.config",
+    "components/assistant-ui/tool.config.tsx",
+    "components/assistant-ui/tool.config.ts",
+    "components/assistant-ui/tool.config.jsx",
+    "components/assistant-ui/tool.config.js",
+    "components/assistant-ui/tool.config/index.tsx",
+    "components/assistant-ui/tool.config/index.ts",
+    "components/assistant-ui/tool.config/index.jsx",
+    "components/assistant-ui/tool.config/index.js",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./thread.v2", from), [
+    "components/assistant-ui/thread.v2",
+    "components/assistant-ui/thread.v2.tsx",
+    "components/assistant-ui/thread.v2.ts",
+    "components/assistant-ui/thread.v2.jsx",
+    "components/assistant-ui/thread.v2.js",
+    "components/assistant-ui/thread.v2/index.tsx",
+    "components/assistant-ui/thread.v2/index.ts",
+    "components/assistant-ui/thread.v2/index.jsx",
+    "components/assistant-ui/thread.v2/index.js",
+  ]);
+});
+
+test("a recognized asset extension resolves to the literal file only", () => {
+  const from = "components/assistant-ui/thread.tsx";
+
+  assert.deepEqual(getRelativeImportCandidates("./globals.css", from), [
+    "components/assistant-ui/globals.css",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./logo.png", from), [
+    "components/assistant-ui/logo.png",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./tool.config.json", from), [
+    "components/assistant-ui/tool.config.json",
+  ]);
+
+  assert.deepEqual(getRelativeImportCandidates("./logo.PNG", from), [
+    "components/assistant-ui/logo.PNG",
+  ]);
+});
+
+test("an uppercase module extension still probes TypeScript sources", () => {
+  const from = "components/assistant-ui/thread.tsx";
+
+  assert.deepEqual(getRelativeImportCandidates("./legacy.JS", from), [
+    "components/assistant-ui/legacy.JS",
+    "components/assistant-ui/legacy.tsx",
+    "components/assistant-ui/legacy.ts",
+    "components/assistant-ui/legacy.jsx",
+    "components/assistant-ui/legacy.js",
+  ]);
+});
+
+test("a sibling whose name begins with dots stays inside the installed tree", () => {
+  assert.deepEqual(getRelativeImportCandidates("./..rc.json", "config.tsx"), [
+    "..rc.json",
+  ]);
+
+  assert.equal(getRelativeImportCandidates("..", "config.tsx"), null);
+  assert.equal(getRelativeImportCandidates("../outside", "config.tsx"), null);
+});
+
+const componentItem = (files, extra = {}) => ({
+  name: "demo",
+  type: "registry:component",
+  files,
+  ...extra,
+});
+
+const findingsFrom = (payloads) => {
+  try {
+    validateRegistryInstallMetadata(payloads);
+  } catch (error) {
+    return error.message;
+  }
+  return null;
+};
+
+test("install validation flags a relative import with no providing file", () => {
+  const findings = findingsFrom([
+    componentItem([
+      {
+        path: "components/assistant-ui/thread.tsx",
+        content: 'import { Badge } from "./badge";\n',
+      },
+    ]),
+  ]);
+
+  assert.match(findings, /thread\.tsx imports "\.\/badge"/);
+  assert.match(findings, /components\/assistant-ui\/badge\.tsx/);
+});
+
+test("install validation resolves a sibling through file.target, not file.path", () => {
+  const files = [
+    {
+      path: "packages/ui/src/components/assistant-ui/thread.tsx",
+      target: "components/assistant-ui/thread.tsx",
+      content: 'import { Badge } from "./badge";\n',
+    },
+    {
+      path: "packages/ui/src/components/assistant-ui/badge.tsx",
+      target: "components/assistant-ui/badge.tsx",
+      content: "export const Badge = () => null;\n",
+    },
+  ];
+
+  assert.equal(findingsFrom([componentItem(files)]), null);
+
+  // Without targets both paths fall back to their authored locations, which are
+  // still siblings, so only a mismatched target proves the target is what wins.
+  const withoutTargets = files.map(({ path, content }) => ({ path, content }));
+  assert.equal(findingsFrom([componentItem(withoutTargets)]), null);
+
+  const targetMismatch = [
+    files[0],
+    { ...files[1], target: "components/elsewhere/badge.tsx" },
+  ];
+  assert.match(
+    findingsFrom([componentItem(targetMismatch)]),
+    /imports "\.\/badge"/,
+  );
+});
+
+test("install validation reports an import that escapes the installed tree", () => {
+  const findings = findingsFrom([
+    componentItem([
+      {
+        path: "components/assistant-ui/thread.tsx",
+        content: 'import { helper } from "../../../outside/helper";\n',
+      },
+    ]),
+  ]);
+
+  assert.match(findings, /a file outside the installed tree/);
+});
+
+test("install validation resolves a dotted alias basename to its shipped source", () => {
+  const importer = {
+    path: "components/assistant-ui/thread.tsx",
+    content:
+      'import { toolConfig } from "@/components/assistant-ui/tool.config";\n',
+  };
+
+  for (const providerPath of [
+    "components/assistant-ui/tool.config.tsx",
+    "components/assistant-ui/tool.config.ts",
+    "components/assistant-ui/tool.config/index.tsx",
+  ]) {
+    assert.equal(
+      findingsFrom([
+        componentItem([
+          importer,
+          { path: providerPath, content: "export const toolConfig = {};\n" },
+        ]),
+      ]),
+      null,
+    );
+  }
+
+  assert.match(
+    findingsFrom([componentItem([importer])]),
+    /provides components\/assistant-ui\/tool\.config or components\/assistant-ui\/tool\.config\.tsx/,
+  );
+});
+
+test("install validation resolves an alias asset import behind a query suffix", () => {
+  const importer = {
+    path: "components/assistant-ui/thread.tsx",
+    content: 'import logoUrl from "@/components/assistant-ui/logo.svg?url";\n',
+  };
+
+  assert.equal(
+    findingsFrom([
+      componentItem([
+        importer,
+        { path: "components/assistant-ui/logo.svg", content: "<svg />\n" },
+      ]),
+    ]),
+    null,
+  );
+
+  assert.match(
+    findingsFrom([componentItem([importer])]),
+    /provides components\/assistant-ui\/logo\.svg/,
+  );
+});
+
+test("install validation resolves a sibling against the registryDependency install path", () => {
+  // A shadcn registryDependency installs to components/ui/<name>.tsx, so it
+  // satisfies a sibling import only from inside that directory.
+  const importing = (path) =>
+    componentItem([{ path, content: 'import { Badge } from "./badge";\n' }], {
+      registryDependencies: ["badge"],
+    });
+
+  assert.equal(findingsFrom([importing("components/ui/menu.tsx")]), null);
+
+  assert.match(
+    findingsFrom([importing("components/assistant-ui/thread.tsx")]),
+    /imports "\.\/badge", but no file or registryDependency provides/,
+  );
 });

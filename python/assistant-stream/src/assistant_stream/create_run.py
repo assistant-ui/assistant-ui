@@ -21,6 +21,7 @@ from assistant_stream.modules.tool_call import (
     ToolCallController,
     generate_openai_style_tool_call_id,
 )
+from assistant_stream.queue_stream import enqueue_threadsafe, queue_stream
 from assistant_stream.state_manager import StateManager
 
 logger = logging.getLogger(__name__)
@@ -183,7 +184,7 @@ class RunController:
 
         This is used as a callback for the StateManager.
         """
-        self._loop.call_soon_threadsafe(self._queue.put_nowait, chunk)
+        enqueue_threadsafe(self._loop, self._queue, chunk)
 
     def _flush_and_put_chunk(self, chunk):
         """Helper method to flush state operations and put a chunk in the queue.
@@ -193,7 +194,7 @@ class RunController:
         # Flush any pending state operations first
         self._state_manager.flush()
         # Add the chunk to the queue
-        self._loop.call_soon_threadsafe(self._queue.put_nowait, chunk)
+        enqueue_threadsafe(self._loop, self._queue, chunk)
 
     @property
     def state(self):
@@ -268,19 +269,15 @@ async def create_run(
                 for task in controller._stream_tasks:
                     await task
             finally:
-                asyncio.get_running_loop().call_soon_threadsafe(queue.put_nowait, None)
+                enqueue_threadsafe(asyncio.get_running_loop(), queue, None)
 
     task = asyncio.create_task(background_task())
     ended_normally = False
 
     try:
-        while True:
-            chunk = await controller._queue.get()
-            if chunk is None:
-                ended_normally = True
-                break
+        async for chunk in queue_stream(controller._queue):
             yield chunk
-            controller._queue.task_done()
+        ended_normally = True
     finally:
         if ended_normally:
             # The `None` sentinel is queued at the end of `background_task`, so

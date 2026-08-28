@@ -46,13 +46,10 @@ export function PromptInput({
       <div
         data-slot="aui_composer-shell"
         className={cn(
-          "bg-background border-border/60 dark:border-muted-foreground/15 dark:bg-muted/30",
+          "bg-background border-foreground/10 dark:bg-muted/30",
           "flex w-full flex-col gap-2 rounded-3xl border p-2",
-          "shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)]",
-          "transition-[border-color,box-shadow]",
-          "focus-within:border-border dark:focus-within:border-muted-foreground/30",
-          "focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.05)]",
-          "dark:shadow-none",
+          "transition-colors",
+          "focus-within:border-foreground/20",
         )}
       >
         <textarea

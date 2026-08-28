@@ -178,7 +178,16 @@ export class AssistantCloudAPIKeyAuthStrategy implements AssistantCloudAuthStrat
   }
 }
 
-const AUI_REFRESH_TOKEN_NAME = "aui:refresh_token";
+const LEGACY_AUI_REFRESH_TOKEN_NAME = "aui:refresh_token";
+
+const getRefreshTokenName = (baseUrl: string): string =>
+  `${LEGACY_AUI_REFRESH_TOKEN_NAME}:${baseUrl}`;
+
+const removeLegacyRefreshToken = (storage: Storage): void => {
+  try {
+    storage.removeItem(LEGACY_AUI_REFRESH_TOKEN_NAME);
+  } catch {}
+};
 
 const getLocalStorage = (): Storage | null => {
   if (!("localStorage" in globalThis)) return null;
@@ -189,33 +198,99 @@ const getLocalStorage = (): Storage | null => {
   }
 };
 
-const readRefreshToken = (): RefreshToken | undefined => {
+const readRefreshToken = (baseUrl: string): RefreshToken | undefined => {
   const storage = getLocalStorage();
   if (!storage) return undefined;
   try {
-    const value = storage.getItem(AUI_REFRESH_TOKEN_NAME);
-    return value
-      ? (JSON.parse(value) as { token: string; expires_at: string })
-      : undefined;
+    const name = getRefreshTokenName(baseUrl);
+    const value = storage.getItem(name);
+    if (value) {
+      removeLegacyRefreshToken(storage);
+      return JSON.parse(value) as RefreshToken;
+    }
+
+    const legacyValue = storage.getItem(LEGACY_AUI_REFRESH_TOKEN_NAME);
+    if (!legacyValue) return undefined;
+
+    let refreshToken: RefreshToken;
+    try {
+      refreshToken = JSON.parse(legacyValue) as RefreshToken;
+    } catch {
+      removeLegacyRefreshToken(storage);
+      return undefined;
+    }
+
+    storage.setItem(name, legacyValue);
+    removeLegacyRefreshToken(storage);
+    return refreshToken;
   } catch {
     return undefined;
   }
 };
 
-const writeRefreshToken = (refreshToken: RefreshToken): void => {
+const writeRefreshToken = (
+  baseUrl: string,
+  refreshToken: RefreshToken,
+): void => {
   const storage = getLocalStorage();
   if (!storage) return;
   try {
-    storage.setItem(AUI_REFRESH_TOKEN_NAME, JSON.stringify(refreshToken));
+    storage.setItem(getRefreshTokenName(baseUrl), JSON.stringify(refreshToken));
   } catch {}
 };
 
-const removeRefreshToken = (): void => {
+const removeRefreshToken = (baseUrl: string): void => {
   const storage = getLocalStorage();
   if (!storage) return;
   try {
-    storage.removeItem(AUI_REFRESH_TOKEN_NAME);
+    storage.removeItem(getRefreshTokenName(baseUrl));
   } catch {}
+};
+
+// In-flight sharing follows refresh-token storage scope to isolate server requests.
+const anonymousAuthTokenRequests = new WeakMap<
+  Storage,
+  Map<string, Promise<string | null>>
+>();
+
+const getWebLockManager = (): LockManager | null => {
+  if (!("navigator" in globalThis)) return null;
+  return (
+    (globalThis as { navigator?: { locks?: LockManager } }).navigator?.locks ??
+    null
+  );
+};
+
+const getAnonymousAuthLockName = (baseUrl: string): string =>
+  `assistant-cloud:anonymous-auth:${baseUrl}`;
+
+const getSharedAnonymousAuthToken = (
+  baseUrl: string,
+  requestToken: () => Promise<string | null>,
+): Promise<string | null> => {
+  const storage = getLocalStorage();
+  if (!storage) return requestToken();
+
+  let storageRequests = anonymousAuthTokenRequests.get(storage);
+  if (!storageRequests) {
+    storageRequests = new Map();
+    anonymousAuthTokenRequests.set(storage, storageRequests);
+  }
+
+  const activeRequest = storageRequests.get(baseUrl);
+  if (activeRequest) return activeRequest;
+
+  const locks = getWebLockManager();
+  const request = locks
+    ? locks.request(getAnonymousAuthLockName(baseUrl), requestToken)
+    : requestToken();
+  const sharedRequest = request.finally(() => {
+    if (storageRequests.get(baseUrl) === sharedRequest) {
+      storageRequests.delete(baseUrl);
+    }
+  });
+  storageRequests.set(baseUrl, sharedRequest);
+  return sharedRequest;
 };
 
 export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthStrategy {
@@ -226,9 +301,9 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    this.jwtStrategy = new AssistantCloudJWTAuthStrategy(async () => {
+    const requestAuthToken = async (): Promise<string | null> => {
       const currentTime = Date.now();
-      const storedRefreshToken = readRefreshToken();
+      const storedRefreshToken = readRefreshToken(this.baseUrl);
 
       if (storedRefreshToken) {
         const refreshExpiry = new Date(storedRefreshToken.expires_at).getTime();
@@ -249,6 +324,7 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
             );
             if (data.refresh_token != null) {
               writeRefreshToken(
+                this.baseUrl,
                 readRefreshTokenResponse(
                   data.refresh_token,
                   "refresh auth token response.refresh_token",
@@ -257,8 +333,14 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
             }
             return accessToken;
           }
+
+          if (response.status === 429 || response.status >= 500) {
+            throw new Error(
+              `Assistant Cloud token refresh failed with status ${response.status}`,
+            );
+          }
         } else {
-          removeRefreshToken();
+          removeRefreshToken(this.baseUrl);
         }
       }
 
@@ -275,13 +357,17 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
       );
 
       writeRefreshToken(
+        this.baseUrl,
         readRefreshTokenResponse(
           data.refresh_token,
           "anonymous auth token response.refresh_token",
         ),
       );
       return accessToken;
-    });
+    };
+    this.jwtStrategy = new AssistantCloudJWTAuthStrategy(() =>
+      getSharedAnonymousAuthToken(this.baseUrl, requestAuthToken),
+    );
   }
 
   public async getAuthHeaders(): Promise<Record<string, string> | false> {

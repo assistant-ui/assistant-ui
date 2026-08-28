@@ -38,7 +38,7 @@ npx assistant-ui@latest init     # add to existing project
 Or install the packages directly:
 
 ```bash
-npm install @assistant-ui/react @assistant-ui/react-ai-sdk
+npm install @assistant-ui/react @assistant-ui/ai-sdk
 ```
 
 ## Usage
@@ -47,7 +47,7 @@ npm install @assistant-ui/react @assistant-ui/react-ai-sdk
 "use client";
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 import { Thread } from "@/components/assistant-ui/thread";
 
 export function Chat() {
@@ -75,7 +75,7 @@ export function Chat() {
 
 | Integration                            | Package                                                          |
 | -------------------------------------- | ---------------------------------------------------------------- |
-| Vercel AI SDK                          | `@assistant-ui/react-ai-sdk`                                     |
+| Vercel AI SDK                          | `@assistant-ui/ai-sdk`                                           |
 | LangGraph / LangChain                  | `@assistant-ui/react-langgraph`, `@assistant-ui/react-langchain` |
 | AG-UI / A2A protocols                  | `@assistant-ui/react-ag-ui`, `@assistant-ui/react-a2a`           |
 | Google ADK / OpenCode                  | `@assistant-ui/react-google-adk`, `@assistant-ui/react-opencode` |

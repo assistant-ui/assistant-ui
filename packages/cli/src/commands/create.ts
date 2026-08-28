@@ -9,12 +9,17 @@ import {
   downloadProject,
   resolveLatestReleaseRef,
   resolvePackageManager,
-  resolvePackageManagerForCwd,
   scaffoldProject,
   transformProject,
   type TransformResult,
 } from "../lib/create-project";
-import { runSpawn, SpawnExitError } from "../lib/run-spawn";
+import {
+  hasActiveSpawn,
+  runSpawn,
+  SpawnExitError,
+  SpawnSignalError,
+} from "../lib/run-spawn";
+import { resolvePackageManagerForCwd } from "../lib/utils/package-manager";
 import {
   buildSkillsAddCommand,
   resolveSkillsInstall,
@@ -597,10 +602,31 @@ export const create = new Command()
     );
 
     // Clean up partial project directory on unexpected exit (e.g. Ctrl+C)
+    let cleanupArmed = true;
     const cleanupOnExit = () => {
+      if (!cleanupArmed) return;
+      cleanupArmed = false;
       fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
     };
+    const disarmCleanup = () => {
+      cleanupArmed = false;
+      process.removeListener("exit", cleanupOnExit);
+      process.removeListener("SIGINT", cleanupOnSignal);
+      process.removeListener("SIGTERM", cleanupOnSignal);
+    };
+    // Node emits no "exit" when a signal kills the process. An in-flight
+    // runSpawn forwards the signal itself, so the directory is removed on the
+    // error path once the child is reaped rather than while it is still writing.
+    const cleanupOnSignal = (signal: NodeJS.Signals) => {
+      if (hasActiveSpawn()) return;
+      cleanupOnExit();
+      disarmCleanup();
+      process.kill(process.pid, signal);
+    };
+
     process.once("exit", cleanupOnExit);
+    process.on("SIGINT", cleanupOnSignal);
+    process.on("SIGTERM", cleanupOnSignal);
 
     try {
       // 3. Resolve latest release ref (started before prompts)
@@ -655,7 +681,8 @@ export const create = new Command()
           });
           try {
             await runSpawn(skillsCmd, skillsArgs, absoluteProjectDir);
-          } catch {
+          } catch (error) {
+            if (error instanceof SpawnSignalError) throw error;
             logger.warn(
               `Could not add assistant-ui agent skills. You can add them later with:\n  ${skillsCmd} ${skillsArgs.join(" ")}`,
             );
@@ -663,12 +690,13 @@ export const create = new Command()
         }
       } catch (err) {
         // Clean up partially created project directory
-        fs.rmSync(absoluteProjectDir, { recursive: true, force: true });
+        cleanupOnExit();
+        disarmCleanup();
         throw err;
       }
 
       if (transformResult.registryInstallFailure) {
-        process.removeListener("exit", cleanupOnExit);
+        disarmCleanup();
         logger.break();
         logger.error("Project created with missing components.");
         logger.info("Retry the component install with:");
@@ -696,14 +724,15 @@ export const create = new Command()
             ],
             absoluteProjectDir,
           );
-        } catch {
+        } catch (error) {
+          if (error instanceof SpawnSignalError) throw error;
           logger.warn(
             `Preset application failed. You can retry manually with:\n  ${dlxCmd} ${[...dlxArgs, "shadcn@latest", "add", presetUrl].join(" ")}`,
           );
         }
       }
 
-      process.removeListener("exit", cleanupOnExit);
+      disarmCleanup();
 
       logger.break();
       logger.success("Project created successfully!");
@@ -736,6 +765,11 @@ export const create = new Command()
       logger.info(`  # Set up your environment variables in ${envFile}`);
       logger.info(`  ${runCmd} ${devScript}`);
     } catch (error) {
+      if (error instanceof SpawnSignalError) {
+        cleanupOnExit();
+        disarmCleanup();
+        throw error;
+      }
       if (error instanceof SpawnExitError) {
         logger.error(`Project creation failed with code ${error.code}`);
         process.exit(error.code);

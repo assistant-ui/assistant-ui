@@ -1,5 +1,65 @@
 # assistant-stream
 
+## 0.3.40
+
+### Patch Changes
+
+- [#6235](https://github.com/assistant-ui/assistant-ui/pull/6235) [`8626c1f`](https://github.com/assistant-ui/assistant-ui/commit/8626c1ffe1c6d56ec75073e795aa9fbf7493c3ed) - fix: encode file parts on the data stream ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6249](https://github.com/assistant-ui/assistant-ui/pull/6249) [`531f61a`](https://github.com/assistant-ui/assistant-ui/commit/531f61a4d2f5fcee16821a6401d9d11394bf8339) - fix: reject non-canonical gorp array indices ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6243](https://github.com/assistant-ui/assistant-ui/pull/6243) [`dfaa94f`](https://github.com/assistant-ui/assistant-ui/commit/dfaa94fca3ecdd8b0b0ab202f08dafd03c1e2ed5) - fix: make merge stream seal idempotent ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6394](https://github.com/assistant-ui/assistant-ui/pull/6394) [`a4bc54a`](https://github.com/assistant-ui/assistant-ui/commit/a4bc54afa976423b6310a2d5be350df0f3b41e42) - refactor: build accumulated assistant messages through one part-append helper ([@samdickson22](https://github.com/samdickson22))
+
+- [#6355](https://github.com/assistant-ui/assistant-ui/pull/6355) [`fd471e9`](https://github.com/assistant-ui/assistant-ui/commit/fd471e94babf7b6580e06bbea2b7a8cdd4882869) - fix: keep partial tool args parseable while a `\uXXXX` escape is still streaming ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#6319](https://github.com/assistant-ui/assistant-ui/pull/6319) [`ac7ec15`](https://github.com/assistant-ui/assistant-ui/commit/ac7ec15e118a9279dd60521b839ecc38983675c5) - fix: unstable_runPendingTools no longer re-executes tool calls that already have a result ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6417](https://github.com/assistant-ui/assistant-ui/pull/6417) [`f96e22f`](https://github.com/assistant-ui/assistant-ui/commit/f96e22ffa8c85cbfc4a878db4f371c510070066d) - refactor: split the ui message stream chunk normalizer out of the decoder ([@okisdev](https://github.com/okisdev))
+
+- [#6414](https://github.com/assistant-ui/assistant-ui/pull/6414) [`bfc8bef`](https://github.com/assistant-ui/assistant-ui/commit/bfc8bef9f1ee6cb4cb25f83488a0e4ce1a393ff3) - refactor: share the sse pipeline, stream factory, and closed-stream drop scaffolding. ([@okisdev](https://github.com/okisdev))
+
+- [#6316](https://github.com/assistant-ui/assistant-ui/pull/6316) [`2cd5cbc`](https://github.com/assistant-ui/assistant-ui/commit/2cd5cbcf78c586b7557421b00e9c996c62bd7f43) - fix: TextStreamController.close() no longer throws after the consumer cancels ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#6242](https://github.com/assistant-ui/assistant-ui/pull/6242) [`105af3e`](https://github.com/assistant-ui/assistant-ui/commit/105af3eaea2093df271d9c44642e1c04d5f5cf7c) - fix: guard tool-call stream writes after consumer cancellation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6368](https://github.com/assistant-ui/assistant-ui/pull/6368) [`4c3194a`](https://github.com/assistant-ui/assistant-ui/commit/4c3194aca4470753a2a37e244cb5e3fb27cbc76b) - refactor: share the decoder tool-call controller registry between data-stream and ui-message-stream. ([@okisdev](https://github.com/okisdev))
+
+## 0.3.39
+
+### Patch Changes
+
+- [#6155](https://github.com/assistant-ui/assistant-ui/pull/6155) [`19e52c4`](https://github.com/assistant-ui/assistant-ui/commit/19e52c4012a6a8c32e514134af9ce4eee1146864) - fix: decode AI SDK v6 tool-input/tool-output chunks in UIMessageStreamDecoder ([@okisdev](https://github.com/okisdev))
+
+## 0.3.38
+
+### Patch Changes
+
+- [#5938](https://github.com/assistant-ui/assistant-ui/pull/5938) [`0e91e27`](https://github.com/assistant-ui/assistant-ui/commit/0e91e277ebe218e891d1c318a18eec230ee4f981) - fix: cancel invalid Gorp stream responses ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5974](https://github.com/assistant-ui/assistant-ui/pull/5974) [`c5bc8ed`](https://github.com/assistant-ui/assistant-ui/commit/c5bc8ed0c78e8fb66a6c21c596765caeccef3aec) - fix: release merged stream child readers after completion and cancellation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5703](https://github.com/assistant-ui/assistant-ui/pull/5703) [`f0d1d48`](https://github.com/assistant-ui/assistant-ui/commit/f0d1d48842b61c8f781771375e3893d189321c2d) - fix: await merged stream cleanup during cancellation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5524](https://github.com/assistant-ui/assistant-ui/pull/5524) [`ab7f49f`](https://github.com/assistant-ui/assistant-ui/commit/ab7f49fcb91b8a9d96408426da3259c99f619649) - fix: keep partial tool-call args parseable when a negative number is cut before its digits ([@VihaanAgarwal](https://github.com/VihaanAgarwal))
+  
+  `fixJson` treated the `-` that opens an array element as a complete value, so a stream cut at `{"a":[-` repaired to `{"a":[-]}`. That is not valid JSON, `parsePartialJsonObject` fell into its catch and returned `undefined`, and callers that fall back to `{}` dropped every field streamed so far until the next delta landed.
+  
+  The `INSIDE_ARRAY_START` default branch advanced `lastValidIndex` before delegating to `processValueStart`, which deliberately leaves it alone for `-` because a lone minus carries no value yet. Every other value-start site already lets `processValueStart` own that index, which is why `{"a":-` and `{"a":[1,-` truncated correctly and only the first element of an array did not.
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5927](https://github.com/assistant-ui/assistant-ui/pull/5927) [`a2ab997`](https://github.com/assistant-ui/assistant-ui/commit/a2ab997dc645923fa8ebbca5e8e050d467a69cf4) - fix: isolate overlapping tool executions that reuse a toolCallId ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#5427](https://github.com/assistant-ui/assistant-ui/pull/5427) [`e8997d9`](https://github.com/assistant-ui/assistant-ui/commit/e8997d922d15d0de0d20558ce0735fa3e844f27f) - fix: cancel and release assistant message stream readers when iteration ends ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5975](https://github.com/assistant-ui/assistant-ui/pull/5975) [`44e574f`](https://github.com/assistant-ui/assistant-ui/commit/44e574f8c17dd5603933ec74821eecd08e94e371) - fix: release resumable producer readers after stream failures ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5515](https://github.com/assistant-ui/assistant-ui/pull/5515) [`14c3b5a`](https://github.com/assistant-ui/assistant-ui/commit/14c3b5a25afe2b2f37760dfe8003818b2e4f72d3) - fix: prevent stale data from leaking into reacquired Redis streams ([@Kinfe123](https://github.com/Kinfe123))
+
 ## 0.3.37
 
 ### Patch Changes

@@ -161,22 +161,12 @@ function ToolFallbackTrigger({
       <span
         data-slot="tool-fallback-trigger-label"
         className={cn(
-          "aui-tool-fallback-trigger-label-wrapper relative inline-block text-start leading-none",
+          "aui-tool-fallback-trigger-label-wrapper inline-block text-start leading-none",
           isCancelled && "text-muted-foreground line-through",
+          isRunning && "shimmer motion-reduce:animate-none",
         )}
       >
-        <span>
-          {label}: <b>{toolName}</b>
-        </span>
-        {isRunning && (
-          <span
-            aria-hidden
-            data-slot="tool-fallback-trigger-shimmer"
-            className="aui-tool-fallback-trigger-shimmer shimmer pointer-events-none absolute inset-0 motion-reduce:animate-none"
-          >
-            {label}: <b>{toolName}</b>
-          </span>
-        )}
+        {label}: <b>{toolName}</b>
       </span>
       <ToolFallbackDuration />
       <ChevronDownIcon
@@ -208,8 +198,7 @@ function ToolFallbackContent({
         "data-open:animate-collapsible-down",
         "data-closed:fill-mode-forwards",
         "data-closed:pointer-events-none",
-        "data-open:duration-(--animation-duration)",
-        "data-closed:duration-(--animation-duration)",
+        "[--tw-duration:var(--animation-duration)]",
         className,
       )}
       {...props}
@@ -219,7 +208,7 @@ function ToolFallbackContent({
           "flex flex-col gap-2 ps-6 pt-1 pb-2 ease-[cubic-bezier(0.32,0.72,0,1)] motion-reduce:animate-none",
           "group-data-open/collapsible-content:animate-in group-data-open/collapsible-content:fade-in-0 group-data-open/collapsible-content:blur-in-[2px] group-data-open/collapsible-content:slide-in-from-top-1",
           "group-data-closed/collapsible-content:animate-out group-data-closed/collapsible-content:fade-out-0 group-data-closed/collapsible-content:blur-out-[2px] group-data-closed/collapsible-content:slide-out-to-top-1",
-          "group-data-closed/collapsible-content:duration-(--animation-duration) group-data-open/collapsible-content:duration-(--animation-duration)",
+          "group-data-closed/collapsible-content:animation-duration-(--animation-duration) group-data-open/collapsible-content:animation-duration-(--animation-duration)",
         )}
       >
         {children}
@@ -322,15 +311,28 @@ const APPROVAL_OPTION_DEFAULT_LABELS: Record<string, string> = {
   "reject-always": "Always deny",
 };
 
+const isKnownKind = (kind: string) =>
+  Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, kind);
+
 const isAllowKind = (kind: string) =>
   kind === "allow-once" || kind === "allow-always";
 
 const approvalOptionLabel = (option: ToolApprovalOption) =>
   option.label ??
-  (Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, option.kind)
+  (isKnownKind(option.kind)
     ? APPROVAL_OPTION_DEFAULT_LABELS[option.kind]
     : undefined) ??
   option.id;
+
+const offersInterruptAction = (
+  status: ToolCallMessagePartStatus | undefined,
+  approval: ToolCallMessagePart["approval"],
+  interrupt: ToolCallMessagePart["interrupt"],
+) =>
+  status?.type !== "requires-action" ||
+  status.reason !== "interrupt" ||
+  approval != null ||
+  interrupt != null;
 
 function ToolFallbackApproval({
   className,
@@ -339,10 +341,14 @@ function ToolFallbackApproval({
   interrupt,
   approval,
   respondToApproval,
+  status,
   ...props
 }: React.ComponentProps<"div"> &
   Partial<
-    Pick<ToolCallMessagePartProps, "addResult" | "resume" | "respondToApproval">
+    Pick<
+      ToolCallMessagePartProps,
+      "addResult" | "resume" | "respondToApproval" | "status"
+    >
   > & {
     interrupt?: ToolCallMessagePart["interrupt"];
     approval?: ToolCallMessagePart["approval"];
@@ -356,14 +362,11 @@ function ToolFallbackApproval({
   )
     return null;
 
-  // Custom (`_`-prefixed) kinds cannot be resolved to a boolean by the kit;
-  // hosts using custom kinds render their own bar. A declared option list is
-  // a host constraint: the kit never adds an approval path beyond it, but
-  // always preserves a refusal path.
+  if (!offersInterruptAction(status, approval, interrupt)) return null;
+
+  // A declared option list is a host constraint: the kit never adds an
+  // approval path beyond it, but always preserves a refusal path.
   const declaredOptions = respondToApproval ? approval?.options : undefined;
-  const options = declaredOptions?.filter((o) =>
-    Object.hasOwn(APPROVAL_OPTION_DEFAULT_LABELS, o.kind),
-  );
 
   const respond = (approved: boolean) => {
     if (submitted) return;
@@ -375,6 +378,11 @@ function ToolFallbackApproval({
       respondToApproval({ approved });
     } else if (interrupt) {
       resume?.({ approved });
+    } else if (
+      status?.type === "requires-action" &&
+      status.reason === "interrupt"
+    ) {
+      return;
     } else {
       addResult?.(approved ? APPROVED_RESULT : DENIED_RESULT);
     }
@@ -383,7 +391,14 @@ function ToolFallbackApproval({
 
   const respondWithOption = (option: ToolApprovalOption) => {
     if (submitted) return;
-    respondToApproval?.({ optionId: option.id });
+    // A custom kind has no decision class for the runtime to derive, and
+    // responding without one throws; picking a declared option is an answer,
+    // so it resolves as approved.
+    respondToApproval?.(
+      isKnownKind(option.kind)
+        ? { optionId: option.id }
+        : { optionId: option.id, approved: true },
+    );
     setSubmitted(true);
     setConfirmingId(null);
   };
@@ -398,7 +413,7 @@ function ToolFallbackApproval({
 
   const confirming =
     confirmingId != null
-      ? options?.find((o) => o.id === confirmingId)
+      ? declaredOptions?.find((o) => o.id === confirmingId)
       : undefined;
 
   if (confirming) {
@@ -458,8 +473,11 @@ function ToolFallbackApproval({
   }
 
   if (declaredOptions && declaredOptions.length > 0) {
-    const allowOptions = options?.filter((o) => isAllowKind(o.kind)) ?? [];
-    const rejectOptions = options?.filter((o) => !isAllowKind(o.kind)) ?? [];
+    const allowOptions = declaredOptions.filter((o) => isAllowKind(o.kind));
+    const customOptions = declaredOptions.filter((o) => !isKnownKind(o.kind));
+    const rejectOptions = declaredOptions.filter(
+      (o) => isKnownKind(o.kind) && !isAllowKind(o.kind),
+    );
     return (
       <div
         data-slot="tool-fallback-approval"
@@ -469,7 +487,7 @@ function ToolFallbackApproval({
         )}
         {...props}
       >
-        {[...allowOptions, ...rejectOptions].map((option) => (
+        {[...allowOptions, ...customOptions, ...rejectOptions].map((option) => (
           <Button
             key={option.id}
             size="sm"
@@ -540,6 +558,8 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
   const isCancelled =
     status?.type === "incomplete" && status.reason === "cancelled";
   const isRequiresAction = status?.type === "requires-action";
+  const shouldRenderApproval =
+    isRequiresAction && offersInterruptAction(status, approval, interrupt);
 
   const [open, setOpen] = useState(isRequiresAction);
   const [prevRequiresAction, setPrevRequiresAction] =
@@ -558,13 +578,14 @@ const ToolFallbackImpl: ToolCallMessagePartComponent = ({
           argsText={argsText}
           className={cn(isCancelled && "opacity-60")}
         />
-        {isRequiresAction && (
+        {shouldRenderApproval && (
           <ToolFallbackApproval
             addResult={addResult}
             resume={resume}
             interrupt={interrupt}
             approval={approval}
             respondToApproval={respondToApproval}
+            status={status}
           />
         )}
         {!isCancelled && <ToolFallbackResult result={result} />}

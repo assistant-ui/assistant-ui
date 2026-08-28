@@ -1,5 +1,44 @@
 # assistant-ui
 
+## 0.0.113
+
+### Patch Changes
+
+- [#6224](https://github.com/assistant-ui/assistant-ui/pull/6224) [`c70c911`](https://github.com/assistant-ui/assistant-ui/commit/c70c911d9537e6f3e87da44768e3363d65e6a19d) - chore: install `@assistant-ui/ai-sdk` instead of `@assistant-ui/react-ai-sdk` ([@okisdev](https://github.com/okisdev))
+  
+  the AI SDK and edge install helpers now add the framework-neutral package. an import of the previous name still installs that package, since the two are separate npm packages and the neutral one would not make the old import resolvable. `assistant-ui info` reports both names while users are split across them.
+
+- [#6425](https://github.com/assistant-ui/assistant-ui/pull/6425) [`34a31cb`](https://github.com/assistant-ui/assistant-ui/commit/34a31cb82257ddd186d048d779b84946ba2ad423) - refactor: consolidate the package manager resolver and project file iteration ([@okisdev](https://github.com/okisdev))
+
+- [#6452](https://github.com/assistant-ui/assistant-ui/pull/6452) [`71f76b1`](https://github.com/assistant-ui/assistant-ui/commit/71f76b17623923a6ac6eefa82b2762027c056ca0) - fix: preserve CLI termination signals and child cleanup ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6219](https://github.com/assistant-ui/assistant-ui/pull/6219) [`b70a714`](https://github.com/assistant-ui/assistant-ui/commit/b70a714a5569710e2ea87c81bc1a652a5161d4f1) - fix: stop the v0-12 codemods from emitting mismatched JSX, dropping dynamic conditions, and renaming unrelated api bindings ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d)]:
+  - @assistant-ui/agent-launcher@0.1.13
+
+## 0.0.112
+
+### Patch Changes
+
+- Updated dependencies [[`2c4b33d`](https://github.com/assistant-ui/assistant-ui/commit/2c4b33d981f850600f5a1d0b39206e5e822f21a3)]:
+  - @assistant-ui/agent-launcher@0.1.12
+
+## 0.0.111
+
+### Patch Changes
+
+- [#5956](https://github.com/assistant-ui/assistant-ui/pull/5956) [`4a1e7b6`](https://github.com/assistant-ui/assistant-ui/commit/4a1e7b60fb9be53b21645ba52def3d240514c5a5) - fix: avoid installing the incompatible legacy React UI package during upgrades ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5963](https://github.com/assistant-ui/assistant-ui/pull/5963) [`abea286`](https://github.com/assistant-ui/assistant-ui/commit/abea286d275c53588d9acf0f30648a0eef0b3980) - feat: register the with-openui example in `npx assistant-ui create` now that `@openuidev/react-headless` widened its `ai` peer to `^6 || ^7` ([@okisdev](https://github.com/okisdev))
+
+- [#5929](https://github.com/assistant-ui/assistant-ui/pull/5929) [`0f6e9e9`](https://github.com/assistant-ui/assistant-ui/commit/0f6e9e9b56c648249781cef7689f4587209948d0) - chore: replace stale example model ids with gpt-5.6-luna ([@okisdev](https://github.com/okisdev))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e)]:
+  - @assistant-ui/agent-launcher@0.1.11
+
 ## 0.0.110
 
 ### Patch Changes

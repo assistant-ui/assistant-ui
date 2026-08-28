@@ -5,14 +5,20 @@ import {
   mkdirSync,
   readFileSync,
   readdirSync,
+  realpathSync,
   rmSync,
   writeFileSync,
 } from "node:fs";
 import { createRequire } from "node:module";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { pathToFileURL } from "node:url";
-import { optionArgs, optionValues } from "./lib/script-options.mjs";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { optionValues } from "./lib/script-options.mjs";
+import {
+  collectPackages,
+  collectTurboFilteredPackageNames,
+  posixPath,
+} from "./lib/workspace.mjs";
 
 const repoRoot = process.cwd();
 const packagesRoot = path.join(repoRoot, "packages");
@@ -27,20 +33,12 @@ const requireFromBuildUtils = createRequire(
 const { build } = await import(requireFromBuildUtils.resolve("tsdown"));
 const ts = requireFromBuildUtils("typescript");
 
-function readJson(file) {
-  return JSON.parse(readFileSync(file, "utf8"));
-}
-
 function packageFileName(packageName) {
   return `${packageName.replace(/^@/, "").replaceAll("/", "__")}.ts`;
 }
 
 function packageEntryName(packageName) {
   return packageFileName(packageName).replace(/\.ts$/, "");
-}
-
-function posixPath(file) {
-  return file.replaceAll("\\", "/");
 }
 
 function relativeImport(fromDir, toFile) {
@@ -112,66 +110,6 @@ function declarationFilesForTarget(packageDir, typePath) {
     );
   }
   return files;
-}
-
-function collectPackages() {
-  const filteredPackageNames = turboFilters.length
-    ? collectTurboFilteredPackageNames(turboFilters)
-    : undefined;
-
-  return readdirSync(packagesRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(packagesRoot, entry.name, "package.json"))
-    .filter((packageJsonPath) => existsSync(packageJsonPath))
-    .map((packageJsonPath) => {
-      const pkg = readJson(packageJsonPath);
-      return {
-        packageDir: path.dirname(packageJsonPath),
-        pkg,
-      };
-    })
-    .filter(({ pkg }) => !pkg.private)
-    .filter(
-      ({ pkg }) => !filteredPackageNames || filteredPackageNames.has(pkg.name),
-    )
-    .sort((a, b) => compareStrings(a.pkg.name, b.pkg.name));
-}
-
-function collectTurboFilteredPackageNames(filters) {
-  const result = spawnSync(
-    "pnpm",
-    [
-      "exec",
-      "turbo",
-      "ls",
-      ...optionArgs("--filter", filters),
-      "--output=json",
-    ],
-    {
-      cwd: repoRoot,
-      encoding: "utf8",
-    },
-  );
-  if (result.status !== 0) {
-    throw new Error(
-      `Failed to list packages for API surface filter:\n${result.stdout}${result.stderr}`,
-    );
-  }
-
-  const jsonStart = result.stdout.indexOf("{");
-  if (jsonStart === -1) {
-    throw new Error(`Turbo did not return JSON output:\n${result.stdout}`);
-  }
-
-  const output = JSON.parse(result.stdout.slice(jsonStart));
-  return new Set(
-    output.packages.items.map((item) => {
-      if (typeof item.name !== "string") {
-        throw new Error("Turbo package list included an item without a name.");
-      }
-      return item.name;
-    }),
-  );
 }
 
 function collectDeclarationEntries(packageDir, pkg) {
@@ -918,8 +856,35 @@ function writeOrCheck(file, content, changedFiles) {
   if (!checkMode) writeFileSync(file, content);
 }
 
+// A filtered run cannot judge files for unselected packages, but a file
+// matching no current publishable package (deleted, renamed, privatized) is
+// stale under any filter; only the unfiltered run may treat
+// not-regenerated-this-run as stale.
+export function selectStaleSurfaceFiles({
+  files,
+  generatedFiles,
+  knownFiles,
+  filtered,
+}) {
+  return files.filter(
+    (file) =>
+      file.endsWith(".ts") &&
+      !generatedFiles.has(file) &&
+      !(filtered && knownFiles.has(file)),
+  );
+}
+
 async function main() {
-  const packages = collectPackages();
+  const allPackages = collectPackages(repoRoot, undefined, compareStrings);
+  const packages = turboFilters.length
+    ? collectPackages(
+        repoRoot,
+        collectTurboFilteredPackageNames(repoRoot, turboFilters, {
+          failureMessage: "Failed to list packages for API surface filter",
+        }),
+        compareStrings,
+      )
+    : allPackages;
   const generatedFiles = new Set();
   const changedFiles = [];
 
@@ -945,11 +910,21 @@ async function main() {
       writeOrCheck(outputFile, content, changedFiles);
     }
 
-    // Filtered checks only know about selected packages; stale cleanup needs the full package set.
-    if (turboFilters.length === 0 && existsSync(apiSurfaceRoot)) {
-      for (const entry of readdirSync(apiSurfaceRoot)) {
-        const file = path.join(apiSurfaceRoot, entry);
-        if (!entry.endsWith(".ts") || generatedFiles.has(file)) continue;
+    if (existsSync(apiSurfaceRoot)) {
+      const knownFiles = new Set(
+        allPackages.map(({ pkg }) =>
+          path.join(apiSurfaceRoot, packageFileName(pkg.name)),
+        ),
+      );
+      const stale = selectStaleSurfaceFiles({
+        files: readdirSync(apiSurfaceRoot).map((entry) =>
+          path.join(apiSurfaceRoot, entry),
+        ),
+        generatedFiles,
+        knownFiles,
+        filtered: turboFilters.length > 0,
+      });
+      for (const file of stale) {
         if (checkMode) {
           changedFiles.push({
             file: path.relative(repoRoot, file).replaceAll("\\", "/"),
@@ -979,6 +954,20 @@ async function main() {
   }
 }
 
-if (import.meta.main) {
+// import.meta.main requires Node >= 24.2; on older runtimes it is undefined
+// and the script would silently no-op with exit code 0. Both sides are
+// realpath'd because Node resolves the main module through symlinks while
+// argv keeps the invoked path (e.g. /tmp vs /private/tmp on macOS).
+const realPath = (file) => {
+  try {
+    return realpathSync.native(file);
+  } catch {
+    return path.resolve(file);
+  }
+};
+const isMainEntry =
+  process.argv[1] !== undefined &&
+  realPath(process.argv[1]) === realPath(fileURLToPath(import.meta.url));
+if (isMainEntry) {
   await main();
 }

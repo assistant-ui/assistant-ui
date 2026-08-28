@@ -909,7 +909,7 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/ai-sdk-backend.json",
       "https://r.assistant-ui.com/thread.json",
     ],
-    dependencies: ["@assistant-ui/react-ai-sdk"],
+    dependencies: ["@assistant-ui/ai-sdk"],
     meta: {
       importSpecifier: "Assistant",
       moduleSpecifier: "@/app/assistant",
@@ -929,7 +929,7 @@ export const registry: RegistryItem[] = [
         target: "app/api/chat/route.ts",
       },
     ],
-    dependencies: ["ai", "@ai-sdk/openai", "@assistant-ui/react-ai-sdk"],
+    dependencies: ["ai", "@ai-sdk/openai", "@assistant-ui/ai-sdk"],
   },
   {
     name: "ai-sdk-backend-resumable",
@@ -962,7 +962,7 @@ export const registry: RegistryItem[] = [
     dependencies: [
       "ai",
       "@ai-sdk/openai",
-      "@assistant-ui/react-ai-sdk",
+      "@assistant-ui/ai-sdk",
       "assistant-stream",
       "next",
     ],
@@ -1006,6 +1006,7 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
       "button",
+      "skeleton",
       "https://r.assistant-ui.com/attachment.json",
       "https://r.assistant-ui.com/file.json",
       "https://r.assistant-ui.com/follow-up-suggestions.json",
@@ -1037,6 +1038,19 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "use-copy-to-clipboard",
+    type: "registry:hook",
+    title: "Use Copy To Clipboard",
+    description: "Copy text to the clipboard with a temporary copied state.",
+    files: [
+      {
+        type: "registry:hook",
+        path: "hooks/use-copy-to-clipboard.ts",
+        sourcePath: "../../packages/ui/src/hooks/use-copy-to-clipboard.ts",
+      },
+    ],
+  },
+  {
     name: "markdown-text",
     type: "registry:component",
     title: "Markdown Text",
@@ -1052,8 +1066,10 @@ export const registry: RegistryItem[] = [
     ],
     registryDependencies: [
       "https://r.assistant-ui.com/tooltip-icon-button.json",
+      "https://r.assistant-ui.com/use-copy-to-clipboard.json",
     ],
     dependencies: [
+      "@assistant-ui/react",
       "@assistant-ui/react-markdown",
       "lucide-react",
       "remark-gfm",
@@ -1119,7 +1135,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/context-display.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react", "@assistant-ui/react-ai-sdk"],
+    dependencies: ["@assistant-ui/react", "@assistant-ui/ai-sdk"],
     registryDependencies: ["tooltip"],
   },
   {
@@ -1136,12 +1152,7 @@ export const registry: RegistryItem[] = [
           "../../packages/ui/src/components/assistant-ui/thread-list.tsx",
       },
     ],
-    registryDependencies: [
-      "button",
-      "input",
-      "skeleton",
-      "https://r.assistant-ui.com/tooltip-icon-button.json",
-    ],
+    registryDependencies: ["button", "input", "skeleton"],
     dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {
@@ -1173,6 +1184,20 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "use-attachment-src",
+    type: "registry:hook",
+    title: "Use Attachment Src",
+    description: "Resolve an image attachment to a preview source URL.",
+    files: [
+      {
+        type: "registry:hook",
+        path: "hooks/use-attachment-src.ts",
+        sourcePath: "../../packages/ui/src/hooks/use-attachment-src.ts",
+      },
+    ],
+    dependencies: ["@assistant-ui/react", "zustand"],
+  },
+  {
     name: "attachment",
     type: "registry:component",
     title: "Attachment",
@@ -1191,8 +1216,9 @@ export const registry: RegistryItem[] = [
       "tooltip",
       "avatar",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
+      "https://r.assistant-ui.com/use-attachment-src.json",
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react", "zustand"],
+    dependencies: ["@assistant-ui/react", "lucide-react"],
   },
   {
     name: "follow-up-suggestions",
@@ -1724,5 +1750,49 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "https://r.assistant-ui.com/generative-ui-style.json",
     ],
+  },
+];
+
+export const vueRegistry: RegistryItem[] = [];
+
+/**
+ * Vue items staged for the `@assistant-ui/vue` publish flip. The build
+ * machinery and tests exercise them, but they stay out of the emitted
+ * registry until the package they install is public.
+ */
+export const stagedVueRegistry: RegistryItem[] = [
+  {
+    name: "thread",
+    type: "registry:component",
+    title: "Thread",
+    description:
+      "Chat container with message list, composer, auto scroll, and accessibility built in.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/thread.vue",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui-vue/thread.vue",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/message.vue",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui-vue/message.vue",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/markdown-text.vue",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui-vue/markdown-text.vue",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/core",
+      "@assistant-ui/vue",
+      "@lucide/vue",
+      "markdown-it",
+    ],
+    devDependencies: ["@types/markdown-it"],
   },
 ];

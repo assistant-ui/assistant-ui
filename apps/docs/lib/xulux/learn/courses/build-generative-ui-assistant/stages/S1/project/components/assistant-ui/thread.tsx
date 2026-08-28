@@ -19,7 +19,7 @@ export function Thread() {
       </header>
 
       <ThreadPrimitive.Viewport className="flex min-w-0 flex-1 flex-col overflow-y-auto">
-        <ThreadPrimitive.Empty>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
           <div className="flex flex-1 items-center justify-center p-6 text-center">
             <div>
               <h1 className="text-2xl font-semibold">How can I help?</h1>
@@ -28,7 +28,7 @@ export function Thread() {
               </p>
             </div>
           </div>
-        </ThreadPrimitive.Empty>
+        </AuiIf>
 
         <ThreadPrimitive.Messages
           components={{

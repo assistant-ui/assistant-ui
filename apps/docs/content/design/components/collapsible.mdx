@@ -1,0 +1,81 @@
+---
+title: "Collapsible"
+description: "One region that folds open and closed in place."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/collapsible.tsx
+  - label: Base UI Collapsible
+    url: https://base-ui.com/react/components/collapsible
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  CollapsibleSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="CollapsibleSpecimen" base={<CollapsibleSpecimen />}>
+  <RadixSpecimens.CollapsibleSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="collapsible" />
+
+## Usage
+
+```tsx
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return (
+    <Collapsible>
+      <CollapsibleTrigger render={<Button variant="ghost">What ran</Button>} />
+      <CollapsibleContent>Three tool calls.</CollapsibleContent>
+    </Collapsible>
+  );
+}
+```
+
+## API Reference
+
+The parts wrap Base UI's Collapsible primitives and accept their props.
+
+### Collapsible
+
+<ParametersTable
+  type="CollapsibleProps"
+  parameters={[
+    {
+      name: "open",
+      type: "boolean",
+      description: "Controlled open state, the way reasoning sections open while a model is thinking and fold when it settles.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description: "Called when the open state changes.",
+    },
+    {
+      name: "defaultOpen",
+      type: "boolean",
+      default: "false",
+      description: "Uncontrolled initial open state.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      default: "false",
+      description: "Prevents toggling.",
+    },
+  ]}
+/>

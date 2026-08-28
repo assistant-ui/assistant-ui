@@ -48,8 +48,13 @@ export const useDevToolsClient = (
 
   const switchToThread = useCallback(
     (apiId: number, threadId: string) => {
-      if (client.switchToThread) {
-        return client.switchToThread(apiId, threadId);
+      if (!client.switchToThread) return;
+      try {
+        return Promise.resolve(client.switchToThread(apiId, threadId)).catch(
+          () => {},
+        );
+      } catch {
+        return;
       }
     },
     [client],

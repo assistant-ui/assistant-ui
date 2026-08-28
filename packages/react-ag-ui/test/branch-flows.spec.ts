@@ -450,7 +450,7 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     expect(append).not.toHaveBeenCalled();
   });
 
-  it("does not duplicate snapshot assistants with append-only history", async () => {
+  it("persists snapshot assistants with append-only history", async () => {
     const serverAssistantId = "assistant-server";
     const append = vi.fn().mockResolvedValue(undefined);
     const agent = {
@@ -482,6 +482,161 @@ describe("AgUiThreadRuntimeCore branch flows", () => {
     const core = createCore(agent, { history: historyAdapter });
 
     await core.append(createAppendMessage());
+
+    expect(
+      append.mock.calls.some(([item]) => item.message.id === serverAssistantId),
+    ).toBe(true);
+  });
+
+  it("retains persisted assistants after a snapshot clears the visible path", async () => {
+    const serverAssistantId = "assistant-server";
+    let runCount = 0;
+    const append = vi.fn().mockResolvedValue(undefined);
+    const agent = {
+      runAgent: vi.fn(async (_input: any, subscriber: any) => {
+        runCount++;
+        emitAssistantText(
+          subscriber,
+          serverAssistantId,
+          runCount === 1 ? "first" : "second",
+        );
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.append(createAppendMessage());
+    core.applyExternalMessages([]);
+    await core.reload(null);
+
+    expect(
+      append.mock.calls.filter(
+        ([item]) => item.message.id === serverAssistantId,
+      ),
+    ).toHaveLength(1);
+  });
+
+  it("retries a failed append on the next persistable transition", async () => {
+    const serverAssistantId = "assistant-server";
+    let assistantAppends = 0;
+    const append = vi.fn().mockImplementation(({ message }: any) => {
+      if (message.id === serverAssistantId && ++assistantAppends === 1) {
+        return Promise.reject(new Error("write failed"));
+      }
+      return Promise.resolve(undefined);
+    });
+    const agent = {
+      runAgent: vi.fn(async (_input: any, subscriber: any) => {
+        emitAssistantText(subscriber, serverAssistantId, "answer");
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.append(createAppendMessage());
+    await vi.waitFor(() => expect(assistantAppends).toBe(1));
+
+    core.applyExternalMessages([]);
+    await core.reload(null);
+    await vi.waitFor(() => expect(assistantAppends).toBe(2));
+
+    core.applyExternalMessages([]);
+    await core.reload(null);
+    expect(assistantAppends).toBe(2);
+  });
+
+  it("does not start a second append while one is in flight", async () => {
+    const serverAssistantId = "assistant-server";
+    let resolveAppend = () => {};
+    const gate = new Promise<void>((resolve) => {
+      resolveAppend = resolve;
+    });
+    const append = vi.fn().mockImplementation(({ message }: any) => {
+      if (message.id === serverAssistantId) return gate;
+      return Promise.resolve(undefined);
+    });
+    const agent = {
+      runAgent: vi.fn(async (_input: any, subscriber: any) => {
+        emitAssistantText(subscriber, serverAssistantId, "answer");
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    const assistantAppends = () =>
+      append.mock.calls.filter(
+        ([item]: any[]) => item.message.id === serverAssistantId,
+      ).length;
+
+    await core.append(createAppendMessage());
+    expect(assistantAppends()).toBe(1);
+
+    core.applyExternalMessages([]);
+    await core.reload(null);
+    expect(assistantAppends()).toBe(1);
+
+    resolveAppend();
+    core.applyExternalMessages([]);
+    await core.reload(null);
+    expect(assistantAppends()).toBe(1);
+  });
+
+  it("retries a failed update and keeps routing persisted ids to update", async () => {
+    const serverAssistantId = "assistant-server";
+    let updates = 0;
+    const update = vi.fn().mockImplementation(() => {
+      updates++;
+      if (updates === 1) return Promise.reject(new Error("write failed"));
+      return Promise.resolve(undefined);
+    });
+    const append = vi.fn().mockResolvedValue(undefined);
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        const userId = input.messages.find(
+          ({ role }: { role: string }) => role === "user",
+        )?.id;
+        subscriber.onMessagesSnapshotEvent?.({
+          event: {
+            type: "MESSAGES_SNAPSHOT",
+            messages: [
+              ...(userId ? [{ id: userId, role: "user", content: "hi" }] : []),
+              {
+                id: serverAssistantId,
+                role: "assistant",
+                content: "snapshot",
+              },
+            ],
+          },
+        });
+        emitAssistantText(subscriber, serverAssistantId, " after");
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+    const historyAdapter: ThreadHistoryAdapter = {
+      load: vi.fn().mockResolvedValue({ messages: [] }),
+      append,
+      update,
+    };
+    const core = createCore(agent, { history: historyAdapter });
+
+    await core.append(createAppendMessage());
+    await vi.waitFor(() => expect(updates).toBe(1));
+
+    core.applyExternalMessages([]);
+    await core.reload(null);
+    await vi.waitFor(() => expect(updates).toBe(2));
 
     expect(
       append.mock.calls.some(([item]) => item.message.id === serverAssistantId),

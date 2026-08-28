@@ -17,6 +17,7 @@ type EmitFn = <TEvent extends Exclude<AssistantEventName, "*">>(
 export type AssistantTapContextValue = {
   clientRef: { parent: AssistantClient; current: AssistantClient | null };
   emit: EmitFn;
+  destroySignal?: AbortSignal | undefined;
 };
 
 const AssistantTapContext = createContext<AssistantTapContextValue | null>(
@@ -41,6 +42,15 @@ const useAssistantTapContext = () => {
 
 export const useAssistantClientRef = () => {
   return useAssistantTapContext().clientRef;
+};
+
+/**
+ * Returns the permanent teardown signal for a standalone assistant client.
+ * React-hosted clients do not expose a distinct destroy lifecycle.
+ */
+export const useAssistantClientDestroySignal = (): AbortSignal | undefined => {
+  const ctx = use(AssistantTapContext);
+  return ctx?.destroySignal;
 };
 
 /**

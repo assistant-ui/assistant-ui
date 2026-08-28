@@ -81,14 +81,16 @@ export function useAgUiRuntime(
   }
 
   const core = coreRef.current;
-  core.updateOptions({
-    agent: options.agent,
-    logger,
-    showThinking: options.showThinking ?? true,
-    autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
-    ...(options.onError && { onError: options.onError }),
-    ...(options.onCancel && { onCancel: options.onCancel }),
-    ...(historyAdapter && { history: historyAdapter }),
+  useEffect(() => {
+    core.updateOptions({
+      agent: options.agent,
+      logger,
+      showThinking: options.showThinking ?? true,
+      autoCancelPendingToolCalls: options.autoCancelPendingToolCalls,
+      ...(options.onError && { onError: options.onError }),
+      ...(options.onCancel && { onCancel: options.onCancel }),
+      ...(historyAdapter && { history: historyAdapter }),
+    });
   });
 
   const [toolStatuses, setToolStatuses] = useState<
@@ -228,7 +230,7 @@ export function useAgUiRuntime(
         isLoading: core.isLoading,
         messageRepository: core.getMessageRepository(),
         state: core.getState(),
-        isRunning,
+        isRunning: core.isRunning(),
         extras: agUiExtras.provide({
           interrupts:
             core.getPendingInterrupts()?.interrupts ?? EMPTY_INTERRUPTS,
@@ -255,6 +257,10 @@ export function useAgUiRuntime(
           core.cancel();
         },
         onAddToolResult: (options) => core.addToolResult(options),
+        onRespondToToolApproval: (options) =>
+          core.respondToToolApproval(options).catch((error: unknown) => {
+            core.reportError(error);
+          }),
         onResume: (config) => core.resume(config),
         setMessages: (messages: readonly ThreadMessage[]) =>
           core.applyExternalMessages(messages),

@@ -203,7 +203,7 @@ export type OpenCodeRuntimeOptions = ExternalStoreSharedOptions & {
       }
     | undefined;
   defaultAgent?: string | undefined;
-  onError?: (error: unknown) => void;
+  onError?: (error: unknown) => void | Promise<void>;
   adapters?:
     | {
         attachments?: AttachmentAdapter;

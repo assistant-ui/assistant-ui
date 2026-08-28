@@ -1,23 +1,16 @@
 import type { AssistantCloudAPI } from "./AssistantCloudAPI";
-import type { SamplingCallData } from "./instrumentMcpSampling";
+import type { AssistantCloudRunReportToolCall } from "./runTelemetry";
 import { AssistantStream, PlainTextDecoder } from "assistant-stream";
-import { CloudResponseError } from "./cloudResponse";
+import {
+  CloudResponseError,
+  readCloudRecord,
+  readCloudString,
+} from "./cloudResponse";
 
 type AssistantCloudRunsStreamBody = {
   thread_id: string;
   assistant_id: "system/thread_title";
   messages: readonly unknown[]; // TODO type
-};
-
-type ReportToolCall = {
-  tool_name: string;
-  tool_call_id: string;
-  tool_args?: string;
-  tool_result?: string;
-  tool_source?: "mcp" | "frontend" | "backend";
-  start_ms?: number;
-  end_ms?: number;
-  sampling_calls?: SamplingCallData[];
 };
 
 // NOTE: Keep this payload shape aligned with the strict runtime validator in
@@ -27,13 +20,13 @@ export type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "incomplete" | "error";
   total_steps?: number;
-  tool_calls?: ReportToolCall[];
+  tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
     input_tokens?: number;
     output_tokens?: number;
     reasoning_tokens?: number;
     cached_input_tokens?: number;
-    tool_calls?: ReportToolCall[];
+    tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
   }[];
@@ -113,6 +106,11 @@ export class AssistantCloudRuns {
   public async report(
     body: AssistantCloudRunReport,
   ): Promise<{ run_id: string }> {
-    return this.cloud.makeRequest("/runs", { method: "POST", body });
+    const response = readCloudRecord(
+      await this.cloud.makeRequest("/runs", { method: "POST", body }),
+      "run report response",
+    );
+
+    return { run_id: readCloudString(response.run_id, "run_id") };
   }
 }

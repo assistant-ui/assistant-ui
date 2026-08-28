@@ -657,12 +657,16 @@ function referencedLocalTypes(node: TsNode, typeText: string): string[] {
   ];
   if (referencedNames.length === 0) return [];
   const declarationsByName = getLocalTypeDeclarations(node.getSourceFile());
-  return referencedNames.flatMap((name) =>
-    (declarationsByName.get(name) ?? [])
-      .map(resolveAliasedDeclaration)
-      .map(localTypeSignature)
-      .filter((line): line is string => Boolean(line)),
-  );
+  return [
+    ...new Set(
+      referencedNames.flatMap((name) =>
+        (declarationsByName.get(name) ?? [])
+          .map(resolveAliasedDeclaration)
+          .map(localTypeSignature)
+          .filter((line): line is string => Boolean(line)),
+      ),
+    ),
+  ];
 }
 
 function variableSignature(node: TsNode, name: string): string | undefined {

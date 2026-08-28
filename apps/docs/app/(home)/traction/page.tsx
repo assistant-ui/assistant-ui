@@ -1,20 +1,12 @@
 import type { Metadata } from "next";
+import { LiveDot } from "@/components/shared/live-dot";
+import type { ReactNode } from "react";
 import Link from "next/link";
-import {
-  ArrowRight,
-  ArrowUpRight,
-  Bot,
-  GitFork,
-  GitCommit,
-  Network,
-  Package,
-  Star,
-  Users,
-  Sparkles,
-} from "lucide-react";
-import { Button, buttonVariants } from "@/components/ui/button";
-import { GitHubIcon } from "@/components/icons/github";
+import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { cn } from "@/lib/utils";
 import {
   PACKAGES,
   TIMELINE_PACKAGES,
@@ -30,28 +22,19 @@ import {
 import { getCommitStats, getDependents, getRepo } from "@/lib/github";
 import { FLAGSHIP_PACKAGE } from "@/lib/npm";
 import { formatCompact, formatNumber } from "@/lib/format";
-import { ActivityHeatmap } from "@/components/traction/activity-heatmap";
-import { DownloadsChart } from "@/components/traction/downloads-chart";
-import { StarHistoryChart } from "@/components/traction/star-history-chart";
-import { WeeklyDownloadsStat } from "@/components/traction/weekly-downloads-stat";
+import { ActivityHeatmap } from "@/components/pages/traction/activity-heatmap";
+import { DownloadsChart } from "@/components/pages/traction/downloads-chart";
+import { StarHistoryChart } from "@/components/pages/traction/star-history-chart";
+import { WeeklyDownloadsStat } from "@/components/pages/traction/weekly-downloads-stat";
 
 const title = "Traction";
 const description =
-  "GitHub momentum, package coverage, and the numbers behind assistant-ui.";
+  "Stars, downloads, and shipping cadence behind assistant-ui. Live from GitHub and npm.";
 
 export const metadata: Metadata = {
   title,
   description,
   ...createOgMetadata(title, description),
-};
-
-const REPO_URL = "https://github.com/assistant-ui/assistant-ui";
-
-type HeroStat = {
-  label: string;
-  value: string | null;
-  caption: string;
-  icon: typeof Star;
 };
 
 export default async function TractionPage() {
@@ -82,321 +65,245 @@ export default async function TractionPage() {
   const flagshipWeekly = npm.perPackage[FLAGSHIP_PACKAGE]?.weekly ?? 0;
   const publicPackages = PACKAGES.filter((pkg) => !pkg.deprecated).length;
 
-  const heroStats: HeroStat[] = [
+  const extraStats = [
     {
-      label: "GitHub stars",
-      value: repo ? formatCompact(repo.stars) : null,
-      caption: "and counting",
-      icon: Star,
-    },
-    {
-      label: "Public packages",
       value: publicPackages.toString(),
+      label: "Public packages",
       caption: "shipped on npm",
-      icon: Package,
     },
-    {
-      label: "Weekly downloads",
-      value: flagshipWeekly > 0 ? formatCompact(flagshipWeekly) : "—",
-      caption: FLAGSHIP_PACKAGE,
-      icon: ArrowUpRight,
-    },
-    {
-      label: "Contributors",
-      value: contributors ? contributors.length.toString() : null,
-      caption: "from the community",
-      icon: Users,
-    },
-  ];
-
-  const detailStats = [
-    {
-      label: "Forks",
-      value: repo ? formatNumber(repo.forks) : null,
-      icon: GitFork,
-    },
-    {
-      label: "Total commits",
-      value:
-        commitStats.total != null ? commitStats.total.toLocaleString() : null,
-      icon: GitCommit,
-    },
-    {
-      label: "Days building in the open",
-      value: commitStats.firstCommitDate
-        ? daysSince(commitStats.firstCommitDate).toLocaleString()
-        : null,
-      icon: Sparkles,
-    },
+    ...(repo
+      ? [
+          {
+            value: formatNumber(repo.forks),
+            label: "Forks",
+            caption: "of the main repo",
+          },
+        ]
+      : []),
+    ...(commitStats.total != null
+      ? [
+          {
+            value: commitStats.total.toLocaleString(),
+            label: "Commits",
+            caption: "on assistant-ui/assistant-ui",
+          },
+        ]
+      : []),
+    ...(commitStats.firstCommitDate
+      ? [
+          {
+            value: daysSince(commitStats.firstCommitDate).toLocaleString(),
+            label: "Days in the open",
+            caption: "since the first commit",
+          },
+        ]
+      : []),
     ...(dependents && dependents.repos > 0
       ? [
           {
-            label: "Public dependents",
             value: formatNumber(dependents.repos),
-            icon: Network,
+            label: "Public dependents",
+            caption: "repos on GitHub",
           },
         ]
       : []),
   ];
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-4 pt-14 pb-16 md:pb-24">
-      <header className="mb-16 max-w-3xl">
-        <p className="text-muted-foreground mb-3 text-sm">Traction</p>
-        <h1 className="text-3xl font-medium tracking-tight md:text-4xl">
-          The receipts behind assistant-ui.
-        </h1>
-        <p className="text-muted-foreground mt-3 md:text-lg">
-          assistant-ui is the open-source UX layer for AI chat. Here are the
-          numbers, the packages, and the teams shipping with it today.
+    <PageFrame pad="sub">
+      <header className="max-w-2xl">
+        <h1 className={typePage}>The numbers.</h1>
+        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+          Stars, downloads, and shipping cadence, pulled straight from GitHub
+          and npm.
         </p>
-        <div className="mt-6 flex flex-wrap items-center gap-3">
-          <a
-            href={REPO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            <GitHubIcon className="size-4" />
-            Star on GitHub
-          </a>
-          <Button size="sm" nativeButton={false} render={<Link href="/docs" />}>
-            Get started <ArrowRight />
-          </Button>
-        </div>
+        <p className="text-muted-foreground mt-6 flex items-center gap-2 font-mono text-[11px] tracking-wide">
+          <LiveDot />
+          live · refreshes hourly
+        </p>
       </header>
 
-      <section className="mb-20">
-        <div className="grid grid-cols-2 gap-8 md:grid-cols-4 md:gap-12">
-          {heroStats.map((stat) => {
-            if (stat.label === "Weekly downloads") {
-              return (
-                <WeeklyDownloadsStat
-                  key={stat.label}
-                  flagship={{
-                    value: flagshipWeekly,
-                    caption: FLAGSHIP_PACKAGE,
-                  }}
-                  total={{
-                    value: npm.totalWeekly,
-                    caption: "across all packages",
-                  }}
-                />
-              );
-            }
-            const Icon = stat.icon;
-            return (
-              <div key={stat.label} className="flex flex-col gap-3">
-                <Icon className="text-muted-foreground size-4" />
-                <div className="text-3xl font-medium tracking-tight tabular-nums md:text-4xl">
-                  {stat.value ?? "—"}
-                </div>
-                <div className="flex flex-col gap-0.5">
-                  <span className="text-sm">{stat.label}</span>
-                  <span className="text-muted-foreground text-xs">
-                    {stat.caption}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-        <div className="mt-6 flex justify-center">
-          <Link
-            href="/packages"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            See packages detail
-            <ArrowRight />
-          </Link>
-        </div>
+      <section className="mt-12 grid grid-cols-2 gap-x-8 gap-y-10 md:mt-16 md:grid-cols-4 md:gap-x-12">
+        <Stat
+          value={repo ? formatCompact(repo.stars) : "—"}
+          label="GitHub stars"
+          caption="and counting"
+        />
+        <WeeklyDownloadsStat
+          flagship={{
+            value: flagshipWeekly,
+            caption: FLAGSHIP_PACKAGE,
+          }}
+          total={{
+            value: npm.totalWeekly,
+            caption: "across all packages",
+          }}
+        />
+        <Stat
+          value={contributors ? contributors.length.toString() : "—"}
+          label="Contributors"
+          caption="from the community"
+        />
+        {extraStats.map((stat) => (
+          <Stat key={stat.label} {...stat} />
+        ))}
       </section>
 
-      <section className="mb-20 grid gap-12 lg:grid-cols-2">
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-medium tracking-tight">
-              Stars over time
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              Sampled directly from the GitHub stargazers API.
-            </p>
+      <div className="border-foreground/10 mt-16 border-t md:mt-20">
+        <section className="border-foreground/10 border-b py-10 md:py-12">
+          <p className={typeEyebrow}>The curves</p>
+          <div className="mt-6 grid gap-6 lg:grid-cols-2">
+            <Plate
+              fig="01"
+              caption="stars over time · sampled from the stargazers api"
+            >
+              <StarHistoryChart data={starHistory} />
+            </Plate>
+            <Plate
+              fig="02"
+              caption={`monthly npm downloads · ${TIMELINE_PACKAGES.length} core packages`}
+            >
+              <DownloadsChart timeline={downloadsTimeline} />
+            </Plate>
           </div>
-          <StarHistoryChart data={starHistory} />
-        </div>
-        <div className="flex flex-col gap-4">
-          <div className="flex flex-col gap-1">
-            <h2 className="text-xl font-medium tracking-tight">
-              Ecosystem downloads
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              Monthly npm downloads for the {TIMELINE_PACKAGES.length} core
-              packages.
-            </p>
-          </div>
-          <DownloadsChart timeline={downloadsTimeline} />
-        </div>
-      </section>
-
-      <section className="mb-20 flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <h2 className="text-xl font-medium tracking-tight">
-            Shipping cadence
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            Daily commits over the last year. A dot marks the days we shipped a
-            release.
-          </p>
-        </div>
-        <ActivityHeatmap commits={commitActivity} releases={releaseActivity} />
-      </section>
-
-      <section className="mb-20">
-        <div className="mb-8 flex flex-col gap-1">
-          <h2 className="text-xl font-medium tracking-tight">
-            Repository momentum
-          </h2>
-          <p className="text-muted-foreground text-sm">
-            Live from the assistant-ui/assistant-ui GitHub repository.
-          </p>
-        </div>
-        <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-4">
-          {detailStats.map((stat) => {
-            const Icon = stat.icon;
-            return (
-              <div
-                key={stat.label}
-                className="border-border flex items-start gap-4 rounded-lg border p-5"
-              >
-                <Icon className="text-muted-foreground mt-1 size-4" />
-                <div className="flex flex-col">
-                  <span className="text-2xl font-medium tracking-tight tabular-nums">
-                    {stat.value ?? "—"}
-                  </span>
-                  <span className="text-muted-foreground text-sm">
-                    {stat.label}
-                  </span>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-
-      {contributors && contributors.length > 0 ? (
-        <section className="mb-20">
-          <div className="mb-8 flex flex-col gap-1">
-            <h2 className="text-xl font-medium tracking-tight">
-              Built by {contributors.length} contributors
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              Thanks to everyone who has shipped code to assistant-ui.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {contributors.map((c) => (
-              <a
-                key={c.login}
-                href={c.htmlUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                title={`${c.login} · ${c.contributions.toLocaleString()} commit${c.contributions === 1 ? "" : "s"}`}
-                className="block transition-transform hover:scale-110"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={c.avatarUrl}
-                  alt={c.login}
-                  width={32}
-                  height={32}
-                  loading="lazy"
-                  className="border-border size-8 rounded-full border"
-                />
-              </a>
-            ))}
-          </div>
-          {botCoAuthors.length > 0 ? (
-            <div className="mt-8 flex flex-col gap-3">
-              <div className="text-muted-foreground flex items-center gap-1.5 text-sm">
-                <Bot className="size-4" />
-                <span>With bot</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {botCoAuthors.map((c) => (
-                  <a
-                    key={c.login}
-                    href={c.htmlUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={`${c.login} · co-authored ${c.contributions.toLocaleString()} commit${c.contributions === 1 ? "" : "s"}`}
-                    className="block transition-transform hover:scale-110"
-                  >
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={c.avatarUrl}
-                      alt={c.login}
-                      width={32}
-                      height={32}
-                      loading="lazy"
-                      className="border-border size-8 rounded-full border"
-                    />
-                  </a>
-                ))}
-              </div>
-            </div>
-          ) : null}
         </section>
-      ) : null}
 
-      <section className="border-border mb-20 rounded-xl border p-8 md:p-12">
-        <div className="grid gap-8 md:grid-cols-[1fr_auto] md:items-center">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-xl font-medium tracking-tight">
-              Used by teams shipping AI in production.
-            </h2>
-            <p className="text-muted-foreground text-sm">
-              From early-stage startups to LangChain, Mastra, and Y
-              Combinator-backed teams. Browse public deployments in the
-              showcase.
+        <section className="border-foreground/10 border-b py-10 md:py-12">
+          <p className={typeEyebrow}>The cadence</p>
+          <div className="mt-6">
+            <Plate
+              fig="03"
+              caption="a year of commits · a dot marks a release day"
+            >
+              <ActivityHeatmap
+                commits={commitActivity}
+                releases={releaseActivity}
+              />
+            </Plate>
+          </div>
+        </section>
+
+        {contributors && contributors.length > 0 ? (
+          <section className="border-foreground/10 border-b py-10 md:py-12">
+            <div className="flex items-baseline justify-between">
+              <p className={typeEyebrow}>The people</p>
+              <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+                {contributors.length}
+              </span>
+            </div>
+            <p className="text-muted-foreground mt-6 text-sm">
+              Everyone who has shipped code to assistant-ui.
             </p>
-          </div>
-          <div className="flex flex-wrap gap-3 md:justify-end">
-            <Link
-              href="/showcase"
-              className={buttonVariants({ variant: "outline", size: "sm" })}
-            >
-              See the showcase
-            </Link>
-            <Button
-              size="sm"
-              nativeButton={false}
-              render={<Link href="/docs" />}
-            >
-              Read the docs <ArrowRight />
-            </Button>
-          </div>
-        </div>
-      </section>
+            <div className="mt-5 flex flex-wrap gap-1.5">
+              {contributors.map((c) => (
+                <a
+                  key={c.login}
+                  href={c.htmlUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${c.login} · ${c.contributions.toLocaleString()} commit${c.contributions === 1 ? "" : "s"}`}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={c.avatarUrl}
+                    alt={c.login}
+                    width={32}
+                    height={32}
+                    loading="lazy"
+                    className="size-8"
+                  />
+                </a>
+              ))}
+            </div>
+            {botCoAuthors.length > 0 ? (
+              <div className="mt-8 flex flex-col gap-3">
+                <p className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+                  also co-authored by
+                </p>
+                <div className="flex flex-wrap gap-1.5">
+                  {botCoAuthors.map((c) => (
+                    <a
+                      key={c.login}
+                      href={c.htmlUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      title={`${c.login} · co-authored ${c.contributions.toLocaleString()} commit${c.contributions === 1 ? "" : "s"}`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={c.avatarUrl}
+                        alt={c.login}
+                        width={32}
+                        height={32}
+                        loading="lazy"
+                        className="size-8"
+                      />
+                    </a>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </section>
+        ) : null}
+      </div>
 
-      <section className="flex flex-col items-center gap-6 py-8 text-center">
-        <p className="text-2xl font-medium tracking-tight">
-          Build on a library teams already trust.
-        </p>
-        <div className="flex items-center gap-3">
-          <Button size="sm" nativeButton={false} render={<Link href="/docs" />}>
-            Get started <ArrowRight />
-          </Button>
-          <a
-            href={REPO_URL}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={buttonVariants({ variant: "outline", size: "sm" })}
-          >
-            <GitHubIcon className="size-4" />
-            {repo ? `${formatCompact(repo.stars)} on GitHub` : "Star on GitHub"}
-          </a>
-        </div>
-      </section>
-    </main>
+      <footer className="mt-16 flex flex-wrap items-center gap-x-8 gap-y-3">
+        <Link
+          href="/packages"
+          className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
+        >
+          Every package on npm
+          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </Link>
+        <Link
+          href="/showcase"
+          className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
+        >
+          Shipped in production
+          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </Link>
+      </footer>
+    </PageFrame>
+  );
+}
+
+function Stat({
+  value,
+  label,
+  caption,
+}: {
+  value: string;
+  label: string;
+  caption: string;
+}) {
+  return (
+    <div className="flex flex-col">
+      <div className="text-3xl font-medium tracking-tight tabular-nums md:text-4xl">
+        {value}
+      </div>
+      <div className="mt-2 text-sm">{label}</div>
+      <div className="text-muted-foreground/70 mt-1 font-mono text-[11px] tracking-wide">
+        {caption}
+      </div>
+    </div>
+  );
+}
+
+function Plate({
+  fig,
+  caption,
+  children,
+}: {
+  fig: string;
+  caption: string;
+  children: ReactNode;
+}) {
+  return (
+    <figure className="flex flex-col gap-3">
+      <div className="border-foreground/10 border p-4 md:p-5">{children}</div>
+      <figcaption className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+        fig. {fig} · {caption}
+      </figcaption>
+    </figure>
   );
 }

@@ -1,9 +1,9 @@
+import { generateId } from "@assistant-ui/core";
 import type {
   RespondToToolApprovalOptions,
   ToolCallMessagePart,
 } from "@assistant-ui/core";
 import type { ReadonlyJSONValue } from "assistant-stream/utils";
-import { v4 as uuidv4 } from "uuid";
 import type { AdkMessage } from "./types";
 
 export type AdkToolApproval = NonNullable<ToolCallMessagePart["approval"]>;
@@ -185,7 +185,7 @@ export const toAdkConfirmationReply = (
   confirmed: boolean,
   payload?: ReadonlyJSONValue,
 ): AdkMessage & { type: "tool" } => ({
-  id: uuidv4(),
+  id: generateId(),
   type: "tool",
   tool_call_id: toolCallId,
   name: ADK_REQUEST_CONFIRMATION,

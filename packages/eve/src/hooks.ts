@@ -14,13 +14,15 @@ export const useEveError = () => eveExtras.use((e) => e.error, undefined);
  * resume the session later via `initialSession`. `undefined` when no session
  * exists yet or outside an Eve runtime.
  */
-export const useEveSession = () => eveExtras.use((e) => e.session, undefined);
+export const useEveSession = (): EveRuntimeExtras["session"] | undefined =>
+  eveExtras.use((e) => e.session, undefined);
 
 /**
  * Read the authoritative Eve server event stream from the runtime extras.
  * Defaults to an empty array outside an Eve runtime.
  */
-export const useEveEvents = () => eveExtras.use((e) => e.events, EMPTY_EVENTS);
+export const useEveEvents = (): EveRuntimeExtras["events"] =>
+  eveExtras.use((e) => e.events, EMPTY_EVENTS);
 
 /**
  * Returns a function that resets the Eve session: aborts any in-flight turn,

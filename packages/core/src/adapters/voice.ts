@@ -72,7 +72,17 @@ export function createVoiceSession(
   let currentStatus: RealtimeVoiceAdapter.Status = { type: "starting" };
   let isMuted = false;
   let disposed = false;
+  let disconnected = false;
   let controls: VoiceSessionControls | null = null;
+  const abortSignal = options.abortSignal;
+  let abortHandler: (() => void) | undefined;
+
+  const detachAbortHandler = () => {
+    if (abortHandler) {
+      abortSignal?.removeEventListener("abort", abortHandler);
+      abortHandler = undefined;
+    }
+  };
 
   const cleanup = () => {
     disposed = true;
@@ -117,8 +127,18 @@ export function createVoiceSession(
       return isMuted;
     },
     disconnect: () => {
-      controls?.disconnect();
-      cleanup();
+      if (disconnected) return;
+      disconnected = true;
+      detachAbortHandler();
+      if (currentStatus.type !== "ended") {
+        currentStatus = { type: "ended", reason: "cancelled" };
+        notifyEventListeners(statusCbs, currentStatus, "Voice session");
+      }
+      try {
+        controls?.disconnect();
+      } finally {
+        cleanup();
+      }
     },
     mute: () => {
       controls?.mute();
@@ -146,10 +166,13 @@ export function createVoiceSession(
     },
   };
 
-  if (options.abortSignal) {
-    options.abortSignal.addEventListener("abort", () => session.disconnect(), {
-      once: true,
-    });
+  if (abortSignal) {
+    abortHandler = () => session.disconnect();
+    abortSignal.addEventListener("abort", abortHandler, { once: true });
+    if (abortSignal.aborted) {
+      session.disconnect();
+      return session;
+    }
   }
 
   const doSetup = async () => {

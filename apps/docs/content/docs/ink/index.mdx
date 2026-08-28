@@ -127,6 +127,7 @@ Use primitives to compose your terminal chat interface:
 ```tsx title="components/thread.tsx"
 import { Box, Text } from "ink";
 import {
+  AuiIf,
   ThreadPrimitive,
   ComposerPrimitive,
   LoadingPrimitive,
@@ -170,11 +171,11 @@ const StatusIndicator = () => (
 export const Thread = () => {
   return (
     <ThreadPrimitive.Root>
-      <ThreadPrimitive.Empty>
+      <AuiIf condition={(s) => s.thread.isEmpty}>
         <Box marginBottom={1}>
           <Text dimColor>No messages yet. Start typing below!</Text>
         </Box>
-      </ThreadPrimitive.Empty>
+      </AuiIf>
 
       <ThreadPrimitive.Messages>
         {() => <Message />}

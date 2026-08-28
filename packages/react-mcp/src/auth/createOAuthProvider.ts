@@ -2,6 +2,7 @@ import type {
   OAuthClientProvider,
   OAuthClientInformationFull,
   OAuthClientMetadata,
+  OAuthDiscoveryState,
   OAuthTokens,
 } from "@modelcontextprotocol/client";
 import type { MCPStorage } from "../resources/storage/types";
@@ -56,6 +57,78 @@ export type CreateOAuthProviderOptions = {
   onAuthorizationUrl: (url: URL) => void;
 };
 
+type OAuthProviderCache = {
+  tokens?: OAuthTokens | undefined;
+  clientInformation?: OAuthClientInformationFull | undefined;
+  codeVerifier?: string | undefined;
+  discoveryState?: OAuthDiscoveryState | undefined;
+};
+
+type OAuthProviderPersistence = {
+  cached: OAuthProviderCache | null;
+  cachePromise: Promise<OAuthProviderCache> | null;
+  queue: Promise<void>;
+  invalidated: boolean;
+};
+
+// McpServerResource builds a fresh provider for every transport, so the cache,
+// the in-flight load, and the write queue have to outlive any one provider.
+// saveAuthState replaces the whole record, so two providers writing their own
+// snapshots concurrently would drop whichever field the loser had added.
+const persistenceByStorage = new WeakMap<
+  MCPStorage,
+  Map<string, OAuthProviderPersistence>
+>();
+
+const getPersistence = (
+  storage: MCPStorage,
+  serverId: string,
+): OAuthProviderPersistence => {
+  let byServerId = persistenceByStorage.get(storage);
+  if (!byServerId) {
+    byServerId = new Map();
+    persistenceByStorage.set(storage, byServerId);
+  }
+
+  let persistence = byServerId.get(serverId);
+  if (!persistence) {
+    persistence = {
+      cached: null,
+      cachePromise: null,
+      queue: Promise.resolve(),
+      invalidated: false,
+    };
+    byServerId.set(serverId, persistence);
+  }
+  return persistence;
+};
+
+/**
+ * Clears persisted OAuth state after the in-flight load and every queued write
+ * for that server have settled, so a discarded provider cannot recreate the
+ * record it was mid-save on.
+ */
+export const clearOAuthProviderAuthState = async (
+  storage: MCPStorage,
+  serverId: string,
+): Promise<void> => {
+  const byServerId = persistenceByStorage.get(storage);
+  const persistence = byServerId?.get(serverId);
+  if (!byServerId || !persistence) {
+    await storage.clearAuthState(serverId);
+    return;
+  }
+
+  // Detaching the entry before awaiting keeps a provider built during the clear
+  // on a fresh generation instead of inheriting the fenced one.
+  persistence.invalidated = true;
+  byServerId.delete(serverId);
+  if (byServerId.size === 0) persistenceByStorage.delete(storage);
+
+  await Promise.allSettled([persistence.cachePromise, persistence.queue]);
+  await storage.clearAuthState(serverId);
+};
+
 /**
  * Builds an OAuthClientProvider for the MCP SDK, backed by MCPStorage.
  * Token refresh and DCR are handled by the SDK; this provider only mediates
@@ -65,42 +138,63 @@ export function createOAuthProvider(
   opts: CreateOAuthProviderOptions,
 ): OAuthClientProvider {
   const { serverId, config, storage, redirectUri, onAuthorizationUrl } = opts;
+  const persistence = getPersistence(storage, serverId);
 
-  type Cache = {
-    tokens?: OAuthTokens | undefined;
-    clientInformation?: OAuthClientInformationFull | undefined;
-    codeVerifier?: string | undefined;
+  // The cache is shared with every other provider for this (storage, serverId),
+  // so a statically configured client stays a read-time overlay owned by this
+  // provider. Writing it into the cache would leak this provider's registration
+  // to a replacement built for a different, or absent, clientId.
+  const staticClientInformation = (():
+    | OAuthClientInformationFull
+    | undefined => {
+    if (!config.clientId) return undefined;
+    const ci: OAuthClientInformationFull = {
+      client_id: config.clientId,
+      redirect_uris: [redirectUri],
+    };
+    if (config.clientSecret) ci.client_secret = config.clientSecret;
+    return ci;
+  })();
+
+  const loadCache = (): Promise<OAuthProviderCache> => {
+    if (persistence.cached) return Promise.resolve(persistence.cached);
+    if (persistence.cachePromise) return persistence.cachePromise;
+
+    persistence.cachePromise = storage.loadAuthState(serverId).then(
+      (persisted) => {
+        const initial: OAuthProviderCache = {};
+        if (persisted?.tokens) initial.tokens = persisted.tokens;
+        if (persisted?.clientInformation)
+          initial.clientInformation = persisted.clientInformation;
+        if (persisted?.codeVerifier)
+          initial.codeVerifier = persisted.codeVerifier;
+        if (persisted?.discoveryState)
+          initial.discoveryState = persisted.discoveryState;
+        persistence.cached = initial;
+        return initial;
+      },
+      (error) => {
+        persistence.cachePromise = null;
+        throw error;
+      },
+    );
+    return persistence.cachePromise;
   };
-  let cached: Cache | null = null;
 
-  const loadCache = async (): Promise<Cache> => {
-    if (cached) return cached;
-    const persisted = await storage.loadAuthState(serverId);
-    const initial: Cache = {};
-    if (persisted?.tokens) initial.tokens = persisted.tokens;
-    if (config.clientId) {
-      const ci: OAuthClientInformationFull = {
-        client_id: config.clientId,
-        redirect_uris: [redirectUri],
-      };
-      if (config.clientSecret) ci.client_secret = config.clientSecret;
-      initial.clientInformation = ci;
-    } else if (persisted?.clientInformation) {
-      initial.clientInformation = persisted.clientInformation;
-    }
-    if (persisted?.codeVerifier) initial.codeVerifier = persisted.codeVerifier;
-    cached = initial;
-    return cached;
-  };
-
-  const persist = async () => {
-    const c = cached;
-    if (!c) return;
-    const next: Parameters<typeof storage.saveAuthState>[1] = {};
-    if (c.tokens) next.tokens = c.tokens;
-    if (c.clientInformation) next.clientInformation = c.clientInformation;
-    if (c.codeVerifier) next.codeVerifier = c.codeVerifier;
-    await storage.saveAuthState(serverId, next);
+  const persist = () => {
+    const task = persistence.queue.then(async () => {
+      if (persistence.invalidated) return;
+      const c = persistence.cached;
+      if (!c) return;
+      const next: Parameters<typeof storage.saveAuthState>[1] = {};
+      if (c.tokens) next.tokens = c.tokens;
+      if (c.clientInformation) next.clientInformation = c.clientInformation;
+      if (c.codeVerifier) next.codeVerifier = c.codeVerifier;
+      if (c.discoveryState) next.discoveryState = c.discoveryState;
+      await storage.saveAuthState(serverId, next);
+    });
+    persistence.queue = task.catch(() => {});
+    return task;
   };
 
   const clientMetadata: OAuthClientMetadata = {
@@ -130,7 +224,7 @@ export function createOAuthProvider(
     },
     async clientInformation() {
       const c = await loadCache();
-      return c.clientInformation;
+      return staticClientInformation ?? c.clientInformation;
     },
     async saveClientInformation(info) {
       const c = await loadCache();
@@ -161,11 +255,21 @@ export function createOAuthProvider(
       }
       return c.codeVerifier;
     },
+    async saveDiscoveryState(discoveryState) {
+      const c = await loadCache();
+      c.discoveryState = discoveryState;
+      await persist();
+    },
+    async discoveryState() {
+      const c = await loadCache();
+      return c.discoveryState;
+    },
     async invalidateCredentials(scope) {
       const c = await loadCache();
       if (scope === "all" || scope === "tokens") delete c.tokens;
       if (scope === "all" || scope === "client") delete c.clientInformation;
       if (scope === "all" || scope === "verifier") delete c.codeVerifier;
+      if (scope === "all" || scope === "discovery") delete c.discoveryState;
       await persist();
     },
   };

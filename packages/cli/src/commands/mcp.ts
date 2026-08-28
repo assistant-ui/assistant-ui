@@ -2,8 +2,8 @@ import { Command } from "commander";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
-import { spawn } from "cross-spawn";
 import { logger } from "../lib/utils/logger";
+import { runSpawn, SpawnExitError, SpawnSignalError } from "../lib/run-spawn";
 import * as p from "@clack/prompts";
 
 type MCPTarget =
@@ -152,9 +152,8 @@ async function installForTarget(target: MCPTarget): Promise<void> {
     logger.info("Installing MCP server for Claude Code...");
     logger.break();
 
-    const child = spawn(
-      "claude",
-      [
+    try {
+      await runSpawn("claude", [
         "mcp",
         "add",
         "assistant-ui",
@@ -162,35 +161,26 @@ async function installForTarget(target: MCPTarget): Promise<void> {
         "npx",
         "-y",
         "@assistant-ui/mcp-docs-server",
-      ],
-      {
-        stdio: "inherit",
-      },
-    );
-
-    return new Promise((resolve, reject) => {
-      child.on("error", (error) => {
+      ]);
+    } catch (error) {
+      if (error instanceof SpawnSignalError) throw error;
+      if (error instanceof SpawnExitError) {
+        logger.error(`Installation failed with code ${error.code}`);
+      } else if (error instanceof Error) {
         logger.error(`Failed to install: ${error.message}`);
         logger.info(
           "Make sure Claude Code CLI is installed: https://docs.anthropic.com/en/docs/claude-code",
         );
-        reject(error);
-      });
+      }
+      throw error;
+    }
 
-      child.on("close", (code) => {
-        if (code !== 0) {
-          logger.error(`Installation failed with code ${code}`);
-          reject(new Error(`Exit code ${code}`));
-        } else {
-          logger.break();
-          logger.success("MCP server installed for Claude Code!");
-          logger.info(
-            "The server starts automatically. Try asking about assistant-ui!",
-          );
-          resolve();
-        }
-      });
-    });
+    logger.break();
+    logger.success("MCP server installed for Claude Code!");
+    logger.info(
+      "The server starts automatically. Try asking about assistant-ui!",
+    );
+    return;
   }
 
   if (target === "claude-desktop" && process.platform === "linux") {
@@ -288,7 +278,8 @@ export const mcp = new Command()
     for (const target of targets) {
       try {
         await installForTarget(target);
-      } catch {
+      } catch (error) {
+        if (error instanceof SpawnSignalError) throw error;
         process.exit(1);
       }
     }

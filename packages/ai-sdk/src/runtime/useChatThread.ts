@@ -27,10 +27,12 @@ import {
   useRef,
   useSyncExternalStore,
 } from "react";
+import { useResourceCleanup } from "./useResourceCleanup";
 
 export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
   ChatInit<UI_MESSAGE> &
     ExternalStoreSharedOptions & {
+      throttle?: number | undefined;
       adapters?: AISDKRuntimeAdapter["adapters"] | undefined;
       toCreateMessage?: CustomToCreateMessageFunction;
       onResume?: AISDKRuntimeAdapter["onResume"];
@@ -43,12 +45,15 @@ export type ChatThreadOptions<UI_MESSAGE extends UIMessage = UIMessage> =
        */
       onResumeError?: ((error: unknown) => void) | undefined;
       joinStrategy?: AISDKRuntimeAdapter["joinStrategy"];
+      messageRepository?: AISDKRuntimeAdapter<UI_MESSAGE>["messageRepository"];
+      unstable_onBranchChange?: AISDKRuntimeAdapter["unstable_onBranchChange"];
     };
 
 export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
   id: string;
   isMainThread: boolean;
   getThreadListItem: () => InitializableThreadListItem | undefined;
+  stopOnClientDestroy?: boolean;
   /**
    * An externally owned chat instance. State lives on the instance, so it
    * survives the hosting resource unmounting; construction options are read
@@ -120,6 +125,7 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
   const {
     adapters,
     transport,
+    throttle,
     toCreateMessage,
     isDisabled: _isDisabled,
     isSendDisabled: _isSendDisabled,
@@ -129,6 +135,8 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
     onResumeToolCall,
     onResumeError,
     joinStrategy,
+    messageRepository,
+    unstable_onBranchChange,
     ...chatInit
   } = options ?? {};
   // peel guard: any shared key left in `chatInit` collapses this to `never`
@@ -139,11 +147,14 @@ export const splitChatThreadOptions = <UI_MESSAGE extends UIMessage>(
   return {
     adapters,
     transport,
+    throttle,
     toCreateMessage,
     onResume,
     onResumeToolCall,
     onResumeError,
     joinStrategy,
+    messageRepository,
+    unstable_onBranchChange,
     chatInit,
   };
 };
@@ -155,15 +166,24 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
   const {
     adapters,
     transport: transportOptions,
+    throttle,
     toCreateMessage,
     onResume,
     onResumeToolCall,
     onResumeError,
     joinStrategy,
+    messageRepository,
+    unstable_onBranchChange,
     chatInit: chatOptions,
   } = splitChatThreadOptions(options);
 
-  const { id, isMainThread, getThreadListItem, chat: externalChat } = env;
+  const {
+    id,
+    isMainThread,
+    getThreadListItem,
+    stopOnClientDestroy = false,
+    chat: externalChat,
+  } = env;
 
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
   const sourceTransport = transportOptions ?? defaultTransport;
@@ -173,7 +193,12 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...chatOptions,
     id,
     transport,
+    ...(throttle !== undefined && { throttle }),
     ...(externalChat !== undefined && { chat: externalChat }),
+  });
+
+  useResourceCleanup(stopOnClientDestroy, () => {
+    void chat.stop().catch(() => {});
   });
 
   const runtime = useAISDKRuntime(chat, {
@@ -183,6 +208,8 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(onResume && { onResume }),
     ...(onResumeToolCall && { onResumeToolCall }),
     ...(joinStrategy && { joinStrategy }),
+    ...(messageRepository && { messageRepository }),
+    ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
 
   if (sourceTransport instanceof AssistantChatTransport) {

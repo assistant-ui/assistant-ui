@@ -4,6 +4,8 @@ import "@standard-schema/spec";
 
 import "radix-ui";
 
+import "radix-ui/internal";
+
 import { ComponentProps, ComponentPropsWithoutRef, ComponentType, ElementType, ForwardRefExoticComponent, RefAttributes } from "react";
 
 import { Options } from "react-markdown";
@@ -114,6 +116,11 @@ type Components = {
   CodeHeader?: ComponentType<Omit<CodeHeaderProps, "node">> | undefined;
 };
 
+type ComponentsByLanguage = Record<string, {
+  CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
+  SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
+}>;
+
 interface Data extends Data$1 {
 }
 
@@ -181,10 +188,7 @@ type MarkdownTextPrimitiveProps = Omit<Options, "children" | "components"> & {
     SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
     CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
   }) | undefined;
-  componentsByLanguage?: Record<string, {
-    CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
-    SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
-  }> | undefined;
+  componentsByLanguage?: ComponentsByLanguage | undefined;
   smooth?: boolean | SmoothOptions | undefined;
   defer?: boolean | undefined;
   preprocess?: (text: string) => string;
@@ -956,6 +960,10 @@ type WildcardPayload = {
   };
 }[Extract<keyof ClientEventMap, string>];
 
+declare namespace entry_code_fence_exports {
+  export { CodeComponent, CodeHeaderProps, ComponentsByLanguage, PreComponent, SyntaxHighlighterProps, parseLanguageClass };
+}
+
 declare function escapeCurrencyDollars(text: string): string;
 
 declare global {
@@ -983,10 +991,12 @@ declare const memoizeMarkdownComponents: (components?: Components) => {
 
 declare function normalizeMathDelimiters(text: string): string;
 
+declare const parseLanguageClass: (className: string | undefined) => string;
+
 declare function rewriteCustomMathTags(text: string): string;
 
 declare function rewriteLatexBracketDelimiters(text: string): string;
 
 declare const useIsMarkdownCodeBlock: () => boolean;
 
-export { entry_root_exports as entry_root };
+export { entry_code_fence_exports as entry_code_fence, entry_root_exports as entry_root };

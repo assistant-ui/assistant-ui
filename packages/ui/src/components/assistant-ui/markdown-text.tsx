@@ -9,18 +9,49 @@ import {
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
-import { type FC, memo, useState } from "react";
+import { type FC, memo, useMemo, useRef } from "react";
+import type { TextMessagePartProps } from "@assistant-ui/react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 
 import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { useCopyToClipboard } from "@/hooks/use-copy-to-clipboard";
 import { cn } from "@/lib/utils";
 
-const MarkdownTextImpl = () => {
+type MarkdownTextProps = Partial<TextMessagePartProps> & {
+  components?: Parameters<typeof memoizeMarkdownComponents>[0];
+};
+
+const useShallowStable = <T extends Record<string, unknown> | undefined>(
+  value: T,
+): T => {
+  const ref = useRef(value);
+  if (value !== ref.current) {
+    const prev = ref.current;
+    const stable =
+      value !== undefined &&
+      prev !== undefined &&
+      Object.keys(prev).length === Object.keys(value).length &&
+      Object.keys(value).every((key) => prev[key] === value[key]);
+    if (!stable) ref.current = value;
+  }
+  return ref.current;
+};
+
+const MarkdownTextImpl: FC<MarkdownTextProps> = ({ components }) => {
+  const stableComponents = useShallowStable(components);
+  const markdownComponents = useMemo(() => {
+    if (!stableComponents) return defaultComponents;
+    return {
+      ...defaultComponents,
+      ...memoizeMarkdownComponents(stableComponents),
+    };
+  }, [stableComponents]);
+
   return (
     <MarkdownTextPrimitive
       remarkPlugins={[remarkGfm]}
       className="aui-md"
-      components={defaultComponents}
+      components={markdownComponents}
       defer
     />
   );
@@ -50,30 +81,6 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
       </TooltipIconButton>
     </div>
   );
-};
-
-const useCopyToClipboard = ({
-  copiedDuration = 3000,
-}: {
-  copiedDuration?: number;
-} = {}) => {
-  const [isCopied, setIsCopied] = useState<boolean>(false);
-
-  const copyToClipboard = (value: string) => {
-    if (!value || typeof navigator === "undefined" || !navigator.clipboard) {
-      return;
-    }
-
-    navigator.clipboard.writeText(value).then(
-      () => {
-        setIsCopied(true);
-        setTimeout(() => setIsCopied(false), copiedDuration);
-      },
-      () => {},
-    );
-  };
-
-  return { isCopied, copyToClipboard };
 };
 
 const defaultComponents = memoizeMarkdownComponents({

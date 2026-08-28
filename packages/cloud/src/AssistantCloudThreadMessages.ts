@@ -89,10 +89,17 @@ export class AssistantCloudThreadMessages {
     threadId: string,
     body: AssistantCloudThreadMessageCreateBody,
   ): Promise<AssistantCloudMessageCreateResponse> {
-    return this.cloud.makeRequest(
-      `/threads/${encodeURIComponent(threadId)}/messages`,
-      { method: "POST", body },
+    const response = readCloudRecord(
+      await this.cloud.makeRequest(
+        `/threads/${encodeURIComponent(threadId)}/messages`,
+        { method: "POST", body },
+      ),
+      "thread message create response",
     );
+
+    return {
+      message_id: readCloudString(response.message_id, "message_id"),
+    };
   }
 
   public async update(

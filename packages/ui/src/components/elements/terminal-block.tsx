@@ -30,9 +30,7 @@ export function TerminalBlock({
     <div
       data-slot="terminal-block"
       className={cn(
-        ink
-          ? "bg-foreground dark:bg-popover shadow-[0_12px_32px_-16px_rgba(0,0,0,0.35)] dark:shadow-none"
-          : paper,
+        ink ? "bg-foreground dark:bg-popover" : paper,
         "w-full max-w-md overflow-hidden rounded-2xl font-mono text-xs",
         className,
       )}

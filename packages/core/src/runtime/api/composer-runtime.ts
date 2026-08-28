@@ -3,7 +3,7 @@ import type { MessageRole } from "../../types/message";
 import type { QuoteInfo } from "../../types/quote";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import type { RunConfig } from "../../types/message";
-import type { QueueItemState } from "../../store/scopes/queue-item";
+import type { QueueItemState } from "../queue/queue-item";
 import type { QueuePlacement } from "../queue/external-thread-queue-adapter";
 import {
   LazyMemoizeSubject,
@@ -42,6 +42,11 @@ export type {
 };
 
 type BaseComposerState = {
+  /**
+   * Whether the composer can cancel the current run. `true` when the runtime
+   * supports cancel and a run is in flight, not merely when cancel is a
+   * capability.
+   */
   readonly canCancel: boolean;
   readonly canSend: boolean;
   readonly isEditing: boolean;

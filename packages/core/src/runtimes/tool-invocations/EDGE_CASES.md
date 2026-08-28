@@ -78,6 +78,23 @@ sees only the first result.
 ### A.7. Previously-resolved tool loses its `result` (back to undefined)
 Silently ignored. The entry stays in the resolved phase internally.
 
+### A.8. Tool call carries a provider `approval`
+The entry is marked `skipExecute`, exactly like a call observed with
+a `result`, whether the gate is present when the call is first observed
+or lands on an already-active entry. A gate belongs to the provider:
+`approved === true` means the provider is producing the result, `false`
+means it records the denial, so the frontend `execute` never fires for
+that `toolCallId` once the gate is present. `streamCall` still fires
+once and the backend result flows through A.5 when it lands.
+
+If the gate lands after the args stream has closed but before an
+in-flight `execute` resolves, the execute runs to completion (its side
+effects happen) but its result chunk is dropped: `onResult` never fires,
+and the `executing` status, plus any `human()` interrupt the execution
+parked, stays up until the promise settles. Only a gate that lands after
+the result chunk has already been emitted is fully too late; the adapter
+must project the gate before that (#6285).
+
 ## B. Tool call disappears from snapshot
 
 ### B.1. Tool call removed entirely (rollback, branch switch)

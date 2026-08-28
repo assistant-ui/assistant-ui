@@ -1,4 +1,4 @@
-import { v4 as uuidv4 } from "uuid";
+import { generateId } from "@assistant-ui/core";
 import type { MessageStatus } from "@assistant-ui/core";
 import type {
   AdkEvent,
@@ -26,10 +26,10 @@ type InProgressMessage = AdkMessage & { type: "ai" };
  * event has already opened.
  */
 const toolMessageId = (event: AdkEvent, partIndex: number): string =>
-  event.id ? `${event.id}:${partIndex}` : uuidv4();
+  event.id ? `${event.id}:${partIndex}` : generateId();
 
 const aiMessageId = (event: AdkEvent, ordinal: number): string =>
-  event.id ? `${event.id}:ai${ordinal === 0 ? "" : ordinal}` : uuidv4();
+  event.id ? `${event.id}:ai${ordinal === 0 ? "" : ordinal}` : generateId();
 
 const ADK_REQUEST_CONFIRMATION = "adk_request_confirmation";
 const ADK_REQUEST_CREDENTIAL = "adk_request_credential";
@@ -191,6 +191,8 @@ export class AdkEventAccumulator {
   private messagesMap = new Map<string, AdkMessage>();
   private currentMessageId: string | null = null;
   private partialTextBuffer = "";
+  private finalTextReplacedThisEvent = false;
+  private finalReasoningReplacedThisEvent = false;
   private partialReasoningBuffer = "";
   private accumulatedStateDelta: Record<string, unknown> = {};
   private accumulatedArtifactDelta: Record<string, number> = {};
@@ -368,7 +370,7 @@ export class AdkEventAccumulator {
         this.messagesMap.set(toolMsg.id, toolMsg);
       }
       if (humanParts.length > 0) {
-        const id = event.id ?? uuidv4();
+        const id = event.id ?? generateId();
         const first = humanParts[0];
         const content: string | AdkMessageContentPart[] =
           humanParts.length === 1 && first?.type === "text"
@@ -387,6 +389,11 @@ export class AdkEventAccumulator {
       }
     }
 
+    // Replace-semantics close out the streamed partial buffer, which only
+    // the first final text/reasoning part of an event may do; later parts
+    // of the same event are distinct content and append.
+    this.finalTextReplacedThisEvent = false;
+    this.finalReasoningReplacedThisEvent = false;
     for (const [index, part] of parts.entries()) {
       this.processPart(part, event, index);
     }
@@ -472,9 +479,12 @@ export class AdkEventAccumulator {
       if (event.partial) {
         this.partialReasoningBuffer += part.text;
         this.replaceLastReasoningContent(msg, this.partialReasoningBuffer);
-      } else {
+      } else if (!this.finalReasoningReplacedThisEvent) {
+        this.finalReasoningReplacedThisEvent = true;
         this.partialReasoningBuffer = "";
         this.replaceLastReasoningContent(msg, part.text);
+      } else {
+        this.appendContent(msg, { type: "reasoning", text: part.text });
       }
       return;
     }
@@ -485,9 +495,12 @@ export class AdkEventAccumulator {
       if (event.partial) {
         this.partialTextBuffer += part.text;
         this.replaceLastTextContent(msg, this.partialTextBuffer);
-      } else {
+      } else if (!this.finalTextReplacedThisEvent) {
+        this.finalTextReplacedThisEvent = true;
         this.partialTextBuffer = "";
         this.replaceLastTextContent(msg, part.text);
+      } else {
+        this.appendContent(msg, { type: "text", text: part.text });
       }
       return;
     }
@@ -497,7 +510,7 @@ export class AdkEventAccumulator {
       if (event.partial) return;
       const msg = this.getOrCreateAiMessage(event);
       const toolCall: AdkToolCall = {
-        id: part.functionCall.id ?? uuidv4(),
+        id: part.functionCall.id ?? generateId(),
         name: part.functionCall.name,
         args: part.functionCall.args as ReadonlyJSONObject,
         argsText: JSON.stringify(part.functionCall.args),

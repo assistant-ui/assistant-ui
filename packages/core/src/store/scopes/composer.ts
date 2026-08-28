@@ -27,6 +27,11 @@ export type ComposerState = {
   readonly attachments: readonly Attachment[];
   readonly runConfig: RunConfig;
   readonly isEditing: boolean;
+  /**
+   * Whether the composer can cancel the current run. `true` when the runtime
+   * supports cancel and a run is in flight, not merely when cancel is a
+   * capability.
+   */
   readonly canCancel: boolean;
   /**
    * Whether the composer is currently willing to send. `true` when the

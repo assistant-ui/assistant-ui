@@ -1,4 +1,4 @@
-import { AbstractAgent } from "@ag-ui/client";
+import { AbstractAgent, InputContent } from "@ag-ui/client";
 
 import { StandardSchemaV1 } from "@standard-schema/spec";
 
@@ -29,6 +29,35 @@ type AgUiInterrupt = {
 
 type AgUiInterruptReason = "tool_call" | "input_required" | "confirmation" | (string & {});
 
+type AgUiMessage = {
+  id: string;
+  role: "user";
+  content: string | InputContent[];
+  name?: string;
+} | {
+  id: string;
+  role: "assistant";
+  content: string;
+  name?: string;
+  toolCalls?: AgUiToolCall[];
+} | {
+  id: string;
+  role: "developer" | "system";
+  content: string;
+  name?: string;
+} | {
+  id: string;
+  role: "reasoning";
+  content: string;
+  encryptedValue?: string;
+} | {
+  id: string;
+  role: "tool";
+  content: string;
+  toolCallId: string;
+  error?: string;
+};
+
 type AgUiResumeEntry = {
   interruptId: string;
   status: "cancelled" | "resolved";
@@ -40,6 +69,15 @@ type AgUiRunFinishedOutcome = {
 } | {
   type: "interrupt";
   interrupts: AgUiInterrupt[];
+};
+
+type AgUiToolCall = {
+  id: string;
+  type: "function";
+  function: {
+    name: string;
+    arguments: string;
+  };
 };
 
 type AppendMessage = Omit<ThreadMessage, "id"> & {
@@ -79,6 +117,12 @@ type AttachmentAddErrorEvent = {
 };
 
 type AttachmentAddErrorReason = "adapter-error" | "no-adapter" | "not-accepted";
+
+type AttachmentLike = {
+  name?: string | undefined;
+  contentType?: string | undefined;
+  content?: readonly unknown[] | undefined;
+};
 
 type AttachmentRuntime<TSource extends AttachmentRuntimeSource = AttachmentRuntimeSource> = {
   readonly path: AttachmentRuntimePath & {
@@ -514,6 +558,7 @@ type GenerativeUISpec = {
 
 type GenericThreadHistoryAdapter<TMessage> = {
   load(): Promise<MessageFormatRepository<TMessage>>;
+  pin?(): void;
   append(item: MessageFormatItem<TMessage>): Promise<void>;
   update?(item: MessageFormatItem<TMessage>, localMessageId: string): Promise<void>;
   delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
@@ -1227,6 +1272,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
@@ -1256,6 +1302,17 @@ type ThreadMessageLike = {
     readonly isOptimistic?: boolean | undefined;
     readonly custom?: Record<string, unknown> | undefined;
   } | undefined;
+};
+
+type ThreadMessageLike$1 = {
+  id?: string;
+  role: string;
+  content: unknown;
+  metadata?: unknown;
+  name?: string;
+  toolCallId?: string;
+  error?: string;
+  attachments?: readonly AttachmentLike[];
 };
 
 type ThreadRuntime = {
@@ -1332,6 +1389,8 @@ type ThreadStep = {
 };
 
 type ThreadSuggestion = {
+  title?: string;
+  label?: string;
   prompt: string;
 };
 
@@ -1446,7 +1505,11 @@ type ToolCallMessagePartMcpMetadata = {
 
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
-  readonly reason: "interrupt";
+  readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "tool-calls";
+  readonly error?: ReadonlyJSONValue;
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
@@ -1603,8 +1666,10 @@ declare global {
 }
 
 declare namespace entry_root_exports {
-  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiResumeEntry, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
+  export { AgUiAssistantRuntime, AgUiInterrupt, AgUiInterruptReason, AgUiMessage, AgUiResumeEntry, AgUiRunFinishedOutcome, FromAgUiMessagesOptions, UseAgUiRuntimeAdapters, UseAgUiRuntimeOptions, UseAgUiThreadListAdapter, fromAgUiMessages, toAgUiMessages, useAgUiInterrupts, useAgUiRuntime, useAgUiSendA2uiAction, useAgUiSetState, useAgUiState, useAgUiSteerAway, useAgUiSubmitInterruptResponses };
 }
+
+declare function toAgUiMessages(messages: readonly ThreadMessageLike$1[]): AgUiMessage[];
 
 declare const useAgUiInterrupts: () => readonly AgUiInterrupt[];
 

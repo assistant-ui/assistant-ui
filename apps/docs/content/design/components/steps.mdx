@@ -1,0 +1,51 @@
+---
+title: "Steps"
+description: "A numbered rail for processes that happen in order."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/steps.tsx
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import { StepsSpecimen } from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="StepsSpecimen" base={<StepsSpecimen />}>
+  <RadixSpecimens.StepsSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="steps" />
+
+## Usage
+
+```tsx
+import { Step, Steps } from "@/components/ui/steps";
+
+export function Example() {
+  return (
+    <Steps>
+      <Step>Install the package.</Step>
+      <Step>Wrap your app in the provider.</Step>
+      <Step>Send a message.</Step>
+    </Steps>
+  );
+}
+```
+
+The numbers come from a CSS counter, so steps renumber themselves when one is added or removed.
+
+## API Reference
+
+### Steps
+
+The container; resets the counter. Accepts `div` props.
+
+### Step
+
+One entry on the rail; increments the counter and draws the connecting line to the next step. Accepts `div` props.

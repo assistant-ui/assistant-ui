@@ -1,15 +1,26 @@
 import "@/styles/globals.css";
 import type { ReactNode } from "react";
-import { GeistSans } from "geist/font/sans";
-import { GeistMono } from "geist/font/mono";
+import { JetBrains_Mono, Public_Sans } from "next/font/google";
 import Script from "next/script";
 import { Analytics } from "@vercel/analytics/next";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { Provider } from "./provider";
+import { SiteAssistant } from "@/components/pages/docs/assistant/site-assistant";
 import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";
 import { galleryStagingCss } from "@/components/gallery/gallery-staging";
+import { umamiBootstrapScript } from "@/lib/umami-sampling";
+
+const publicSans = Public_Sans({
+  variable: "--font-public-sans",
+  subsets: ["latin"],
+});
+
+const jetbrainsMono = JetBrains_Mono({
+  variable: "--font-jetbrains-mono",
+  subsets: ["latin"],
+});
 
 const getMetadataBase = () => {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL;
@@ -32,15 +43,15 @@ export const viewport = {
 export const metadata = {
   metadataBase: getMetadataBase(),
   title: {
-    template: "%s — assistant-ui",
-    default: "assistant-ui - React Chat UI for AI Apps",
+    template: "%s · assistant-ui",
+    default: "assistant-ui · The frontend library for AI agents",
   },
   description:
-    "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
+    "Open-source React components and runtimes for building AI chat. Streaming, tools, and persistence in TypeScript.",
   openGraph: {
     title: "assistant-ui",
     description:
-      "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
+      "Open-source React components and runtimes for building AI chat. Streaming, tools, and persistence in TypeScript.",
     siteName: "assistant-ui",
     type: "website",
     images: [
@@ -56,7 +67,7 @@ export const metadata = {
     card: "summary_large_image",
     title: "assistant-ui",
     description:
-      "Open-source React components and runtimes for building AI chat — ChatGPT-style UIs, copilots, and agents in TypeScript with streaming, tools, and persistence.",
+      "Open-source React components and runtimes for building AI chat. Streaming, tools, and persistence in TypeScript.",
     images: ["/api/og?variant=home"],
   },
 };
@@ -67,12 +78,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <head>
         <GenerativeUIStyle />
         <style>{galleryStagingCss}</style>
-        <script
-          defer
-          src="/umami/script.js"
-          data-website-id="6f07c001-46a2-411f-9241-4f7f5afb60ee"
-          data-domains="www.assistant-ui.com"
-        ></script>
+        <script dangerouslySetInnerHTML={{ __html: umamiBootstrapScript }} />
         <Script
           id="vector-script"
           dangerouslySetInnerHTML={{
@@ -85,9 +91,9 @@ export default function Layout({ children }: { children: ReactNode }) {
       </head>
       <body
         className={cn(
-          "flex min-h-screen flex-col antialiased",
-          GeistSans.className,
-          GeistMono.variable,
+          "flex min-h-screen flex-col font-sans antialiased",
+          publicSans.variable,
+          jetbrainsMono.variable,
         )}
       >
         <div aria-hidden="true" className="sr-only">
@@ -98,7 +104,9 @@ export default function Layout({ children }: { children: ReactNode }) {
           . Use .md for canonical markdown pages; .mdx is kept as a
           backwards-compatible alias on supported URL paths.
         </div>
-        <Provider>{children}</Provider>
+        <Provider>
+          <SiteAssistant>{children}</SiteAssistant>
+        </Provider>
         <Analytics />
         <SpeedInsights />
       </body>

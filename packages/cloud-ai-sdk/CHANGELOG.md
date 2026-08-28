@@ -1,5 +1,51 @@
 # @assistant-ui/cloud-ai-sdk
 
+## 0.1.36
+
+### Patch Changes
+
+- [#6217](https://github.com/assistant-ui/assistant-ui/pull/6217) [`030b49e`](https://github.com/assistant-ui/assistant-ui/commit/030b49e72c5e966c224fc50ce1e05f61e2b387ef) - fix: preserve active chats when Cloud scope renders are interrupted ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6361](https://github.com/assistant-ui/assistant-ui/pull/6361) [`0dd8eec`](https://github.com/assistant-ui/assistant-ui/commit/0dd8eecbf3097c0d54888c4969bdc405df36e0a1) - fix: keep committed Cloud chat options active across interrupted renders ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6262](https://github.com/assistant-ui/assistant-ui/pull/6262) [`5a3e9f7`](https://github.com/assistant-ui/assistant-ui/commit/5a3e9f7c26c85af640a806fa8174508cbf3fb031) - refactor: move the run report tool call shape and its serialization into assistant-cloud ([@okisdev](https://github.com/okisdev))
+
+- [#6340](https://github.com/assistant-ui/assistant-ui/pull/6340) [`7adf047`](https://github.com/assistant-ui/assistant-ui/commit/7adf047d12e56d1e8faab67364b99fa0f3f38e39) - refactor: provide thread title generation from assistant-cloud; cloud-ai-sdk keeps only the format-specific half. ([@okisdev](https://github.com/okisdev))
+
+- [#6253](https://github.com/assistant-ui/assistant-ui/pull/6253) [`3679c8f`](https://github.com/assistant-ui/assistant-ui/commit/3679c8f5e7488b42fee35a2f9b892c8b5acd6caf) - fix: feed title generation the conversation in chronological order ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6352](https://github.com/assistant-ui/assistant-ui/pull/6352) [`5c08cd9`](https://github.com/assistant-ui/assistant-ui/commit/5c08cd9683704b9f1043aa32f81a776d3b1acc32) - fix: load every Cloud thread list page ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6218](https://github.com/assistant-ui/assistant-ui/pull/6218) [`622ac53`](https://github.com/assistant-ui/assistant-ui/commit/622ac53047acc988b6408cab80a0e71521cf9d73) - fix: clear selected Cloud threads hidden by remote archival ([@Kinfe123](https://github.com/Kinfe123))
+- Updated dependencies [[`0f0ebb6`](https://github.com/assistant-ui/assistant-ui/commit/0f0ebb6eb56a15d4976336839d2d74780e3bad4c), [`5a3e9f7`](https://github.com/assistant-ui/assistant-ui/commit/5a3e9f7c26c85af640a806fa8174508cbf3fb031), [`d24bcb2`](https://github.com/assistant-ui/assistant-ui/commit/d24bcb27a92701f614b10fd113941591d609ab1f), [`7adf047`](https://github.com/assistant-ui/assistant-ui/commit/7adf047d12e56d1e8faab67364b99fa0f3f38e39), [`1743d19`](https://github.com/assistant-ui/assistant-ui/commit/1743d1996e87421bba7f559f47673d695d3ecf30), [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d)]:
+  - assistant-cloud@0.1.42
+
+## 0.1.35
+
+### Patch Changes
+
+- [#6091](https://github.com/assistant-ui/assistant-ui/pull/6091) [`9a7aa0a`](https://github.com/assistant-ui/assistant-ui/commit/9a7aa0a75fd45286cd2cfc533016e0dfff688bfb) - fix: clear thread selections after refresh confirms their deletion ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6124](https://github.com/assistant-ui/assistant-ui/pull/6124) [`06b04a7`](https://github.com/assistant-ui/assistant-ui/commit/06b04a7976d10fac3af40ae9ca59b52385ef2ae2) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 0.1.34
+
+### Patch Changes
+
+- [#5976](https://github.com/assistant-ui/assistant-ui/pull/5976) [`7f74516`](https://github.com/assistant-ui/assistant-ui/commit/7f74516a41cb64067979aa13f622ac1c8a4260a6) - fix: stop abandoned chats when the Cloud scope changes ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5929](https://github.com/assistant-ui/assistant-ui/pull/5929) [`0f6e9e9`](https://github.com/assistant-ui/assistant-ui/commit/0f6e9e9b56c648249781cef7689f4587209948d0) - chore: replace stale example model ids with gpt-5.6-luna ([@okisdev](https://github.com/okisdev))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
+- [#5863](https://github.com/assistant-ui/assistant-ui/pull/5863) [`dae3488`](https://github.com/assistant-ui/assistant-ui/commit/dae3488563836b8b7ae35e4bf075e3c9da1f1923) - fix: isolate Cloud synchronization error callbacks ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+- Updated dependencies [[`bd01e8b`](https://github.com/assistant-ui/assistant-ui/commit/bd01e8bd38493565727644326997e1dd0c817d90), [`4a2a76f`](https://github.com/assistant-ui/assistant-ui/commit/4a2a76f8ef3a9bb4d61e84e834bf22868c54b200), [`04e967c`](https://github.com/assistant-ui/assistant-ui/commit/04e967cb32eaea5c265533d3616845639dfcf3a2), [`d79b87d`](https://github.com/assistant-ui/assistant-ui/commit/d79b87df08d4a7684831e1fa4a2ba8acea3938ff), [`645c56b`](https://github.com/assistant-ui/assistant-ui/commit/645c56bedafc493c022b782724e44872f9b6e4a9), [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e), [`72a6272`](https://github.com/assistant-ui/assistant-ui/commit/72a6272434a1e5964047c7158c49db37295e5f4e)]:
+  - assistant-cloud@0.1.41
+
 ## 0.1.33
 
 ### Patch Changes

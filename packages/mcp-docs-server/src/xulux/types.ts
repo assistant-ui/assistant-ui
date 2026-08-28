@@ -24,19 +24,23 @@ export interface XuluxCatalogTemplate {
   features: string[];
   customizable: string[];
   versions: XuluxCatalogVersion[];
-  previewUrl?: string;
-  downloadUrl?: string;
-  sandboxBaseUrl?: string;
-  configRoots?: Record<string, unknown>;
-  rules?: {
-    required: string[];
-    unsupported?: string[];
-  };
-  tools?: {
-    builtIn: unknown[];
-    customToolSupported: boolean;
-    renderers: unknown[];
-  };
+  previewUrl?: string | undefined;
+  downloadUrl?: string | undefined;
+  sandboxBaseUrl?: string | undefined;
+  configRoots?: Record<string, unknown> | undefined;
+  rules?:
+    | {
+        required: string[];
+        unsupported?: string[] | undefined;
+      }
+    | undefined;
+  tools?:
+    | {
+        builtIn: unknown[];
+        customToolSupported: boolean;
+        renderers: unknown[];
+      }
+    | undefined;
 }
 
 export interface XuluxCatalog {

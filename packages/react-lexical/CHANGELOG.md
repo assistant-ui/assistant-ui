@@ -1,5 +1,21 @@
 # @assistant-ui/react-lexical
 
+## 0.2.11
+
+### Patch Changes
+
+- [#6226](https://github.com/assistant-ui/assistant-ui/pull/6226) [`fd2fc2b`](https://github.com/assistant-ui/assistant-ui/commit/fd2fc2b1110dee79015a1b0d472d2dbd43cfe9db) - fix: keep leading blank lines when reading composer text back from the editor ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6284](https://github.com/assistant-ui/assistant-ui/pull/6284) [`1424afb`](https://github.com/assistant-ui/assistant-ui/commit/1424afb52b1139af5233c1b905d1cee4a951f131) - feat: allow trigger popovers to override query matching ([@dawNotPoi](https://github.com/dawNotPoi))
+
+## 0.2.10
+
+### Patch Changes
+
+- [#6088](https://github.com/assistant-ui/assistant-ui/pull/6088) [`4b4808e`](https://github.com/assistant-ui/assistant-ui/commit/4b4808ef9cd18c7be62e049e9e673f0d3c690376) - fix: reparse an unedited composer draft when directive formatters register ([@okisdev](https://github.com/okisdev))
+
 ## 0.2.9
 
 ### Patch Changes

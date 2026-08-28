@@ -9,7 +9,11 @@ export {
   type AssistantConfigSource,
 } from "./createAssistantClient";
 
-export { DefaultAssistantClient } from "./utils/react-assistant-context";
+export {
+  DefaultAssistantClient,
+  useAssistantContextProvider,
+} from "./utils/react-assistant-context";
+export { useConfiguredAui } from "./useAui";
 export { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 export {
   useAssistantClientRef,

@@ -1,8 +1,8 @@
-import "@radix-ui/react-primitive";
-
 import "@standard-schema/spec";
 
 import "radix-ui";
+
+import "radix-ui/internal";
 
 import { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
 
@@ -106,6 +106,10 @@ type ClientSchemas = keyof ScopeRegistry extends never ? {
 type ClientScopes = {
   [K in ClientNames]: AssistantClientAccessor<K>;
 };
+
+type CodeComponent = ComponentType<ComponentPropsWithoutRef<"code"> & {
+  node?: Element | undefined;
+}>;
 
 type CodeHeaderProps = {
   node?: Element | undefined;
@@ -247,6 +251,10 @@ interface Position {
   start: Point;
   end: Point;
 }
+
+type PreComponent = ComponentType<ComponentPropsWithoutRef<"pre"> & {
+  node?: Element | undefined;
+}>;
 
 type PreOverrideProps = ComponentPropsWithoutRef<"pre"> & {
   node?: Element | undefined;
@@ -1028,12 +1036,8 @@ type StreamdownTextPrimitiveProps = Omit<StreamdownProps$2, "BlockComponent" | "
 type SyntaxHighlighterProps = {
   node?: Element | undefined;
   components: {
-    Pre: ComponentType<ComponentPropsWithoutRef<"pre"> & {
-      node?: Element | undefined;
-    }>;
-    Code: ComponentType<ComponentPropsWithoutRef<"code"> & {
-      node?: Element | undefined;
-    }>;
+    Pre: PreComponent;
+    Code: CodeComponent;
   };
   language: string;
   code: string;

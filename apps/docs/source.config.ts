@@ -77,12 +77,50 @@ export const examples = defineCollections({
   },
 });
 
+export const design = defineCollections({
+  type: "doc",
+  dir: "content/design",
+  schema: frontmatterSchema.extend({
+    links: z
+      .array(
+        z.object({
+          label: z.string(),
+          url: z.string(),
+        }),
+      )
+      .optional(),
+  }),
+  postprocess: {
+    includeProcessedMarkdown: true,
+  },
+});
+
+export const standalone = defineCollections({
+  type: "doc",
+  dir: "content/standalone",
+  schema: frontmatterSchema.extend({
+    links: z
+      .array(
+        z.object({
+          label: z.string(),
+          url: z.string(),
+        }),
+      )
+      .optional(),
+    platforms: z.array(platformSchema).optional(),
+  }),
+  postprocess: {
+    includeProcessedMarkdown: true,
+  },
+});
+
 export const blog = defineCollections({
   type: "doc",
   dir: "content/blog",
   schema: frontmatterSchema.extend({
     author: z.string(),
     date: z.coerce.date().optional(),
+    externalUrl: z.string().url().optional(),
   }),
   postprocess: {
     includeProcessedMarkdown: true,

@@ -6,10 +6,10 @@ import { getMDXComponents } from "@/mdx-components";
 import { source } from "@/lib/source";
 import { getPageTreePeers } from "fumadocs-core/page-tree";
 import { getDocsNeighbours } from "@/lib/docs-neighbours";
-import { Card, Cards } from "@/components/docs/fumadocs/card";
-import { TableOfContents } from "@/components/docs/layout/table-of-contents";
-import { DocsFooter } from "@/components/docs/layout/docs-footer";
-import { DocsPager } from "@/components/docs/layout/docs-pager";
+import { Card, Cards } from "@/components/pages/docs/fumadocs/card";
+import { TableOfContents } from "@/components/pages/docs/layout/table-of-contents";
+import { DocsFooter } from "@/components/pages/docs/layout/docs-footer";
+import { DocsPager } from "@/components/pages/docs/layout/docs-pager";
 import { ArrowUpRight } from "lucide-react";
 import { Badge } from "@/components/assistant-ui/badge";
 
@@ -73,7 +73,7 @@ export default async function Page(props: {
         enabled: false,
       }}
     >
-      <DocsBody>
+      <DocsBody data-page-content="">
         <header className="not-prose mb-8">
           <div className="flex items-center justify-between gap-4">
             <h1 className="text-xl font-medium tracking-tight md:text-2xl">
@@ -86,7 +86,7 @@ export default async function Page(props: {
             />
           </div>
           {page.data.description && (
-            <p className="text-muted-foreground mt-2 text-sm md:text-base">
+            <p className="text-muted-foreground mt-2 max-w-2xl text-sm md:text-base">
               {page.data.description}
             </p>
           )}

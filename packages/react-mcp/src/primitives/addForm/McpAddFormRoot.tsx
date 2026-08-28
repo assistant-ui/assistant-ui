@@ -11,6 +11,7 @@ import { Primitive } from "@radix-ui/react-primitive";
 import { useAui } from "@assistant-ui/store";
 import { AddFormContext, type AddFormState } from "./context";
 import type { MCPAuthConfig } from "../../mcp-scope";
+import { invokeMcpCallback } from "../../utils/invokeMcpCallback";
 
 const INITIAL: AddFormState = {
   name: "",
@@ -106,7 +107,7 @@ export const McpAddFormPrimitiveRoot = forwardRef<
         auth: buildAuth(),
       });
       setState(INITIAL);
-      onSubmitted?.(id);
+      invokeMcpCallback("onSubmitted", onSubmitted, id);
     } catch (err) {
       setState((p) => ({
         ...p,

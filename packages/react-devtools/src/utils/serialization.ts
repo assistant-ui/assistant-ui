@@ -22,7 +22,7 @@ export const sanitizeForMessage = (
     return "[Function]";
   }
   if (value instanceof Date) {
-    return value.toISOString();
+    return Number.isNaN(value.getTime()) ? String(value) : value.toISOString();
   }
   if (value instanceof Map) {
     if (seen.has(value)) return "[Circular]";

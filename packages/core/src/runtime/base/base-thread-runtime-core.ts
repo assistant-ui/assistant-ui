@@ -36,6 +36,7 @@ import type { RealtimeVoiceAdapter } from "../../adapters/voice";
 import type { ThreadMessageLike } from "../utils/thread-message-like";
 import { notifyEventListeners } from "../../utils/notify-event-listeners";
 import { gateInteractableComposerMetadata } from "../../model-context/interactable-composer-metadata";
+import { BaseSubscribable } from "../../subscribable/subscribable";
 
 type BaseThreadAdapters = {
   speech?: SpeechSynthesisAdapter | undefined;
@@ -44,8 +45,10 @@ type BaseThreadAdapters = {
   voice?: RealtimeVoiceAdapter | undefined;
 };
 
-export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
-  private _subscriptions = new Set<() => void>();
+export abstract class BaseThreadRuntimeCore
+  extends BaseSubscribable
+  implements ThreadRuntimeCore
+{
   private _isInitialized = false;
 
   protected readonly repository = new MessageRepository();
@@ -118,6 +121,7 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
   private readonly _contextProvider: ModelContextProvider;
 
   constructor(_contextProvider: ModelContextProvider) {
+    super();
     this._contextProvider = _contextProvider;
   }
 
@@ -213,10 +217,6 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     this._notifySubscribers();
   }
 
-  protected _notifySubscribers() {
-    for (const callback of this._subscriptions) callback();
-  }
-
   public _notifyEventSubscribers<E extends ThreadRuntimeEventType>(
     event: E,
     payload: ThreadRuntimeEventPayload[E],
@@ -225,11 +225,6 @@ export abstract class BaseThreadRuntimeCore implements ThreadRuntimeCore {
     if (!subscribers) return;
 
     notifyEventListeners(subscribers, payload, `Thread runtime "${event}"`);
-  }
-
-  public subscribe(callback: () => void): Unsubscribe {
-    this._subscriptions.add(callback);
-    return () => this._subscriptions.delete(callback);
   }
 
   public submitFeedback({ messageId, type }: SubmitFeedbackOptions) {

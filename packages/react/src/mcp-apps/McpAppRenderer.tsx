@@ -2,6 +2,7 @@
 
 import {
   useEffect,
+  useLayoutEffect,
   useMemo,
   useRef,
   useState,
@@ -47,6 +48,14 @@ export type McpAppRendererOptions = {
   hostInfo?: McpAppHostInfo;
   /** Delivered to the widget on initialize and pushed via `notifications/host_context/changed` on change. */
   hostContext?: McpAppHostContext;
+  /**
+   * Optional widget interaction and lifecycle handlers. Data-plane handlers
+   * (`callTool`, `readResource`, `listResources`) always use `host`.
+   */
+  handlers?: Omit<
+    McpAppBridgeHandlers,
+    "callTool" | "readResource" | "listResources"
+  >;
   /** Rendered when no MCP app is on the part, or while load is in flight / failed (unless overridden). */
   fallback?: ReactNode;
   /** Rendered while the resource is loading. Defaults to `fallback`. */
@@ -106,13 +115,9 @@ function InlineRenderer({
   const aui = useAui();
   const app = getMcpAppFromToolPart(part);
   const cachedAppRef = useRef<McpAppMetadata | undefined>(undefined);
-  if (
-    app != null &&
-    (cachedAppRef.current?.resourceUri !== app.resourceUri ||
-      cachedAppRef.current?.serverId !== app.serverId)
-  ) {
-    cachedAppRef.current = app;
-  }
+  useLayoutEffect(() => {
+    if (app != null) cachedAppRef.current = app;
+  }, [app]);
   const appForRender = app ?? cachedAppRef.current;
 
   const [loadedResource, setLoadedResource] = useState<LoadedResourceState>();
@@ -120,8 +125,7 @@ function InlineRenderer({
   const host = useHostStore((state) => state.host);
   const resourceUri = appForRender?.resourceUri;
   const serverId = appForRender?.serverId;
-  const serverIdRef = useRef<string | undefined>(undefined);
-  serverIdRef.current = serverId;
+  const callerHandlers = opts.handlers;
   useEffect(() => {
     if (resourceUri == null) return;
     let cancelled = false;
@@ -165,34 +169,37 @@ function InlineRenderer({
 
   const bridgeHandlers = useMemo<McpAppBridgeHandlers>(
     () => ({
-      openLink: defaultOpenLink,
-      sendMessage: (params) => {
-        const text = extractSendMessageText(params);
-        if (!text) return { ok: false, reason: "unrecognised params shape" };
-        aui.thread.append({ content: [{ type: "text", text }] });
-        return { ok: true };
-      },
+      ...callerHandlers,
+      openLink: callerHandlers?.openLink ?? defaultOpenLink,
+      sendMessage:
+        callerHandlers?.sendMessage ??
+        ((params) => {
+          const text = extractSendMessageText(params);
+          if (!text) return { ok: false, reason: "unrecognised params shape" };
+          aui.thread.append({ content: [{ type: "text", text }] });
+          return { ok: true };
+        }),
       callTool: (params) =>
         useHostStore.getState().host.callTool({
           ...params,
-          ...(serverIdRef.current ? { serverId: serverIdRef.current } : {}),
+          ...(serverId ? { serverId } : {}),
         }),
       readResource: (params) =>
         useHostStore.getState().host.readResource({
           ...params,
-          ...(serverIdRef.current ? { serverId: serverIdRef.current } : {}),
+          ...(serverId ? { serverId } : {}),
         }),
       listResources: (params) => {
-        if (!serverIdRef.current) {
+        if (!serverId) {
           return useHostStore.getState().host.listResources(params);
         }
         return useHostStore.getState().host.listResources({
           ...(isRecord(params) ? params : {}),
-          serverId: serverIdRef.current,
+          serverId,
         });
       },
     }),
-    [aui, useHostStore],
+    [aui, callerHandlers, serverId, useHostStore],
   );
 
   const loadedResourceForApp =

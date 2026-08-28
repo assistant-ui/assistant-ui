@@ -48,6 +48,7 @@ export class OptimisticState<TState> extends BaseSubscribable {
     [];
 
   private _nextTransformOrder = 0;
+  private _epoch = 0;
 
   private _baseValue: TState;
   private _cachedValue: TState;
@@ -95,9 +96,20 @@ export class OptimisticState<TState> extends BaseSubscribable {
     this._updateState();
   }
 
+  public reset(state: TState): void {
+    // In-flight optimisticUpdate calls must not write into the replacement state.
+    this._epoch++;
+    this._pendingTransforms.length = 0;
+    this._completedOptimistics.length = 0;
+    this._baseValue = state;
+    this._cachedValue = state;
+    this._notifySubscribers();
+  }
+
   public async optimisticUpdate<TResult>(
     transform: Transform<TState, TResult>,
   ): Promise<TResult> {
+    const epoch = this._epoch;
     const order = this._nextTransformOrder++;
     const task = transform.execute();
     const pendingTransform = {
@@ -110,6 +122,7 @@ export class OptimisticState<TState> extends BaseSubscribable {
       this._updateState();
 
       const result = await task;
+      if (epoch !== this._epoch) return result;
       this._baseValue = pipeTransforms(this._baseValue, result, [
         transform.optimistic,
         transform.then,

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { source } from "@/lib/source";
-import { DocsRootLayout } from "@/components/docs/layout/docs-root-layout";
+import { DocsRootLayout } from "@/components/pages/docs/layout/docs-root-layout";
 
 export default function Layout({ children }: { children: ReactNode }) {
   return (

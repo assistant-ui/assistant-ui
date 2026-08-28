@@ -8,13 +8,12 @@ import {
   memo,
   type ReactNode,
 } from "react";
+import { parseLanguageClass } from "@assistant-ui/react-markdown/code-fence";
 import type {
   CodeHeaderProps,
   ComponentsByLanguage,
   SyntaxHighlighterProps,
 } from "../types";
-
-const LANGUAGE_REGEX = /language-([^\s]+)/;
 
 type CodeProps = ComponentPropsWithoutRef<"code"> & {
   node?: Element | undefined;
@@ -86,8 +85,7 @@ export function createCodeAdapter(options: CodeAdapterOptions) {
     }
 
     // Block code - extract language and code content
-    const match = className?.match(LANGUAGE_REGEX);
-    const language = match?.[1] ?? "";
+    const language = parseLanguageClass(className);
     const code = extractCode(children);
 
     // Get language-specific or fallback components

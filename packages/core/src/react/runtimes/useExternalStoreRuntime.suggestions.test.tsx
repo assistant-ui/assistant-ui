@@ -52,20 +52,30 @@ afterEach(() => {
 describe("useExternalStoreRuntime suggestions scope", () => {
   it("exposes runtime suggestions on the suggestions scope", () => {
     render(
-      <App suggestions={[{ prompt: "Tell me a joke" }, { prompt: "Help" }]} />,
+      <App
+        suggestions={[
+          { title: "Weather", label: "in SF", prompt: "What's the weather?" },
+          { prompt: "Help" },
+        ]}
+      />,
     );
 
     expect(scopeSuggestions).toEqual([
-      { title: "Tell me a joke", label: "", prompt: "Tell me a joke" },
+      { title: "Weather", label: "in SF", prompt: "What's the weather?" },
       { title: "Help", label: "", prompt: "Help" },
     ]);
+    expect(aui.suggestions.suggestion({ index: 0 }).getState()).toEqual({
+      title: "Weather",
+      label: "in SF",
+      prompt: "What's the weather?",
+    });
     expect(aui.suggestions.suggestion({ index: 1 }).getState()).toEqual({
       title: "Help",
       label: "",
       prompt: "Help",
     });
     expect(aui.thread.getState().suggestions).toEqual([
-      { prompt: "Tell me a joke" },
+      { title: "Weather", label: "in SF", prompt: "What's the weather?" },
       { prompt: "Help" },
     ]);
   });

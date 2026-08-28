@@ -76,9 +76,9 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
       const focusables = overlayRef.current?.querySelectorAll<HTMLElement>(
         'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
       );
-      if (!focusables?.length) return;
-      const first = focusables[0];
-      const last = focusables[focusables.length - 1];
+      const first = focusables?.[0];
+      const last = focusables?.[focusables.length - 1];
+      if (!first || !last) return;
       if (e.shiftKey && document.activeElement === first) {
         e.preventDefault();
         last.focus();
@@ -208,7 +208,7 @@ function MermaidZoom({ svg, children }: MermaidZoomProps) {
             </div>
             <div
               data-slot="mermaid-zoom-toolbar"
-              className="aui-mermaid-zoom-toolbar border-border bg-background absolute top-4 right-4 flex items-center gap-1 rounded-lg border p-1 shadow-sm"
+              className="aui-mermaid-zoom-toolbar border-border bg-background absolute top-4 right-4 flex items-center gap-1 rounded-lg border p-1"
             >
               <button
                 type="button"

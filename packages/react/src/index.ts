@@ -43,7 +43,7 @@ export type {
   ThreadListItemState,
 } from "@assistant-ui/core";
 
-export { useCloudThreadListRuntime } from "./legacy-runtime/cloud/useCloudThreadListRuntime";
+export { useCloudThreadListRuntime } from "@assistant-ui/core/react";
 export { AssistantCloud } from "assistant-cloud";
 
 // --- adapters/attachment ---
@@ -83,7 +83,12 @@ export {
 } from "@assistant-ui/core";
 
 // --- adapters/suggestion ---
-export type { SuggestionAdapter } from "@assistant-ui/core";
+export type {
+  SuggestionAdapter,
+  SuggestionAdapterGenerateOptions,
+  CreateSuggestionAdapterOptions,
+} from "@assistant-ui/core";
+export { createSuggestionAdapter } from "@assistant-ui/core";
 
 // --- adapters/RuntimeAdapterProvider ---
 export {
@@ -107,13 +112,13 @@ export {
   useAssistantTransportRuntime,
   useAssistantTransportSendCommand,
   useAssistantTransportState,
-} from "./legacy-runtime/runtime-cores/assistant-transport/useAssistantTransportRuntime";
+} from "./assistant-transport";
 export type {
   AssistantTransportConnectionMetadata,
   AssistantTransportCommand,
   AssistantTransportProtocol,
   SendCommandsRequestBody,
-} from "./legacy-runtime/runtime-cores/assistant-transport/types";
+} from "./assistant-transport";
 
 // --- core ---
 export type {
@@ -431,6 +436,10 @@ export {
   InMemoryThreadList,
   type InMemoryThreadListProps,
 } from "@assistant-ui/core/store";
+export {
+  RemoteThreadList,
+  type RemoteThreadListProps,
+} from "@assistant-ui/core/store";
 export { SingleThreadList } from "@assistant-ui/core/store";
 
 export * as INTERNAL from "./internal";
@@ -471,6 +480,8 @@ export {
   useTriggerPopoverTriggers as unstable_useTriggerPopoverTriggers,
   useTriggerPopoverTriggersOptional as unstable_useTriggerPopoverTriggersOptional,
   type RegisteredTrigger as Unstable_RegisteredTrigger,
+  type TriggerMatch as Unstable_TriggerMatch,
+  type TriggerMatcher as Unstable_TriggerMatcher,
   type TriggerBehavior as Unstable_TriggerBehavior,
 } from "./primitives/composer/trigger";
 export type {
@@ -516,6 +527,7 @@ export type {
   McpAppsHost,
   McpAppsRemoteHostOptions,
   McpAppToolCallParams,
+  McpAppBridgeHandlers,
   ToolCallMessagePartMcpMetadata,
 } from "./mcp-apps";
 export type { McpAppResourceOutput } from "@assistant-ui/core/react";

@@ -13,12 +13,18 @@
       "@/components/assistant-ui/markdown-text": [
         "./components/assistant-ui/markdown-text"
       ],
+      "@/hooks/use-mobile": ["../../packages/ui/src/hooks/use-mobile"],
+      "@/hooks/use-copy-to-clipboard": [
+        "../../packages/ui/src/hooks/use-copy-to-clipboard"
+      ],
+      "@/hooks/use-attachment-src": [
+        "../../packages/ui/src/hooks/use-attachment-src"
+      ],
       "@/components/assistant-ui/*": [
         "../../packages/ui/src/components/assistant-ui/*"
       ],
       "@/components/elements/*": [
-        "../../packages/ui/src/components/elements/*",
-        "./components/elements/*"
+        "../../packages/ui/src/components/elements/*"
       ],
       "@/*": ["./*"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
@@ -27,6 +33,7 @@
         "../../packages/react-generative-ui/src/*"
       ],
       "@assistant-ui/store/client": ["../../packages/store/src/client"],
+      "@assistant-ui/store/internal": ["../../packages/store/src/internal"],
       "@assistant-ui/*": ["../../packages/*/src"],
       "@assistant-ui/core/*": ["../../packages/core/src/*"],
       "@assistant-ui/react/*": ["../../packages/react/src/*"],

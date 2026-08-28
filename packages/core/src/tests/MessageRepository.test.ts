@@ -180,6 +180,24 @@ describe("MessageRepository", () => {
   });
 
   describe("Branch management", () => {
+    const createLongBranchMessages = (
+      messageCount: number,
+    ): Array<{ message: ThreadMessage; parentId: string | null }> => {
+      const messages: Array<{
+        message: ThreadMessage;
+        parentId: string | null;
+      }> = [{ message: createTestMessage({ id: "root" }), parentId: null }];
+
+      for (let index = 0; index < messageCount; index++) {
+        messages.push({
+          message: createTestMessage({ id: `branch-${index}` }),
+          parentId: index === 0 ? "root" : `branch-${index - 1}`,
+        });
+      }
+
+      return messages;
+    };
+
     it("should create multiple branches from a parent message", () => {
       const parent = createTestMessage({ id: "parent-id" });
       const branch1 = createTestMessage({ id: "branch1-id" });
@@ -221,6 +239,36 @@ describe("MessageRepository", () => {
       const messages2 = repository.getMessages();
       expect(messages2.map((m) => m.id)).toEqual(["parent-id", "branch2-id"]);
     });
+
+    it("should operate on a long message history without overflowing the stack", () => {
+      const messageCount = 30_000;
+      const messages = createLongBranchMessages(messageCount);
+
+      messages.push({
+        message: createTestMessage({ id: "alternate" }),
+        parentId: "root",
+      });
+
+      repository.import({ headId: "alternate", messages });
+      repository.switchToBranch("branch-0");
+
+      expect(repository.headId).toBe(`branch-${messageCount - 1}`);
+
+      repository.deleteMessage("branch-0", "root");
+
+      expect(repository.getMessage("branch-1")).toMatchObject({
+        parentId: "root",
+        index: 1,
+      });
+      expect(repository.headId).toBe(`branch-${messageCount - 1}`);
+
+      repository.resetHead("root");
+
+      expect(repository.getMessages().map((message) => message.id)).toEqual([
+        "root",
+      ]);
+      expect(() => repository.getMessage("branch-1")).toThrow();
+    }, 20_000);
 
     it("should throw error when switching to a non-existent branch", () => {
       expect(() => {
@@ -525,6 +573,83 @@ describe("MessageRepository", () => {
     it("should handle empty message arrays", () => {
       const result = ExportedMessageRepository.fromArray([]);
       expect(result.messages).toHaveLength(0);
+    });
+  });
+
+  describe("ExportedMessageRepository auto status", () => {
+    const pendingToolCall: ThreadMessageLike = {
+      id: "a1",
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "t1",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+          approval: { id: "a1" },
+        },
+      ],
+    };
+
+    it("fromArray reports requires-action for an unresolved approval", () => {
+      const result = ExportedMessageRepository.fromArray([pendingToolCall]);
+      expect(result.messages[0]!.message.status).toMatchObject({
+        type: "requires-action",
+        reason: "interrupt",
+      });
+    });
+
+    it("fromBranchableArray reports requires-action for an unresolved approval", () => {
+      const result = ExportedMessageRepository.fromBranchableArray([
+        { message: pendingToolCall, parentId: null },
+      ]);
+      expect(result.messages[0]!.message.status).toMatchObject({
+        type: "requires-action",
+        reason: "interrupt",
+      });
+    });
+
+    it("fromArray reports requires-action with reason tool-calls for a resultless tool call", () => {
+      const result = ExportedMessageRepository.fromArray([
+        {
+          ...pendingToolCall,
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "t1",
+              toolName: "search",
+              args: {},
+              argsText: "{}",
+            },
+          ],
+        },
+      ]);
+      expect(result.messages[0]!.message.status).toMatchObject({
+        type: "requires-action",
+        reason: "tool-calls",
+      });
+    });
+
+    it("keeps complete for a resolved tool call", () => {
+      const result = ExportedMessageRepository.fromArray([
+        {
+          ...pendingToolCall,
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "t1",
+              toolName: "search",
+              args: {},
+              argsText: "{}",
+              result: "ok",
+            },
+          ],
+        },
+      ]);
+      expect(result.messages[0]!.message.status).toMatchObject({
+        type: "complete",
+      });
     });
   });
 

@@ -1,0 +1,22 @@
+---
+title: "Scrollbar"
+description: "A quiet overlay scrollbar for panes that keep their own scroll."
+links:
+  - label: Docs
+    url: /docs/ui/scrollbar
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { ScrollbarSample } from "@/components/pages/docs/samples/scrollbar";
+
+<PreviewCode file="components/pages/docs/samples/scrollbar" name="ScrollbarSample">
+  <ScrollbarSample />
+</PreviewCode>
+
+## Installation
+
+The scrollbar ships with the assistant-ui thread styles. The docs page covers wiring it into your own scroll containers.
+
+## Usage
+
+Any pane that owns its scroll, like a thread viewport or a sidebar, renders the overlay scrollbar instead of the native one so the hairline stays quiet until you scroll.

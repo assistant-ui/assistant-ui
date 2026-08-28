@@ -9,7 +9,10 @@ export { PartByIndexProvider } from "./primitives/PartByIndexProvider";
 export { ThreadPrimitiveMessages } from "./primitives/ThreadPrimitiveMessages";
 export { ThreadPrimitiveViewport } from "./primitives/ThreadPrimitiveViewport";
 export { ThreadPrimitiveScrollToBottom } from "./primitives/ThreadPrimitiveScrollToBottom";
-export { MessagePrimitiveParts } from "./primitives/MessagePrimitiveParts";
+export {
+  MessagePrimitiveParts,
+  type ToolUIProps,
+} from "./primitives/MessagePrimitiveParts";
 export { ComposerPrimitiveInput } from "./primitives/ComposerPrimitiveInput";
 export { ComposerPrimitiveSend } from "./primitives/ComposerPrimitiveSend";
 export { ComposerPrimitiveCancel } from "./primitives/ComposerPrimitiveCancel";
@@ -38,6 +41,28 @@ export {
   ThreadListItemPrimitiveTrigger,
   ThreadListItemPrimitiveTitle,
 } from "./primitives/threadList";
+export { AttachmentByIndexProvider } from "./primitives/AttachmentByIndexProvider";
+export {
+  AttachmentPrimitiveRoot,
+  AttachmentPrimitiveName,
+  AttachmentPrimitiveThumb,
+  AttachmentPrimitiveRemove,
+} from "./primitives/attachment";
+export {
+  ComposerPrimitiveAttachments,
+  ComposerPrimitiveAddAttachment,
+  ComposerPrimitiveAttachmentDropzone,
+} from "./primitives/composerAttachments";
+export { MessagePrimitiveAttachments } from "./primitives/messageAttachments";
+export { ErrorPrimitiveRoot, ErrorPrimitiveMessage } from "./primitives/error";
+export { ThreadPrimitiveRoot } from "./primitives/thread";
+export { MessagePrimitiveRoot } from "./primitives/message";
+export {
+  ThreadListPrimitiveLoadMore,
+  ThreadListItemPrimitiveArchive,
+  ThreadListItemPrimitiveUnarchive,
+  ThreadListItemPrimitiveDelete,
+} from "./primitives/threadListStructural";
 
 export {
   AuiConfig,

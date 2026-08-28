@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import { render, waitFor } from "@testing-library/react";
 import { resource, useResource, withKey } from "@assistant-ui/tap";
-import { memo } from "react";
+import { act, memo, startTransition, Suspense } from "react";
 import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
@@ -29,7 +29,7 @@ vi.mock("./app-frame", () => ({
   },
 }));
 
-import { McpAppRenderer } from "./McpAppRenderer";
+import { McpAppRenderer, type McpAppRendererOptions } from "./McpAppRenderer";
 import { McpAppsRemoteHost } from "./McpAppsRemoteHost";
 
 const useHost = ({ host }: { host: McpAppsHost }) => host;
@@ -61,14 +61,31 @@ const createPart = (serverId?: string): ToolCallMessagePartProps => ({
   respondToApproval: vi.fn(),
 });
 
-function Harness({ host, serverId }: { host: McpAppsHost; serverId?: string }) {
+const createPartWithoutApp = (): ToolCallMessagePartProps => {
+  const part = createPart();
+  delete part.mcp;
+  return part;
+};
+
+function Harness({
+  host,
+  serverId,
+  handlers,
+  part,
+}: {
+  host: McpAppsHost;
+  serverId?: string;
+  handlers?: McpAppRendererOptions["handlers"];
+  part?: ToolCallMessagePartProps;
+}) {
   const renderer = useResource(
     McpAppRenderer({
       host: Host({ host }),
+      ...(handlers === undefined ? {} : { handlers }),
     }),
   );
   const Renderer = renderer.render;
-  return <Renderer {...createPart(serverId)} />;
+  return <Renderer {...(part ?? createPart(serverId))} />;
 }
 
 const MemoizedPart = memo(function MemoizedPart({
@@ -139,6 +156,64 @@ describe("McpAppRenderer", () => {
     expect(loadResource).toHaveBeenLastCalledWith({
       uri: "ui://example/search",
       serverId: "server-b",
+    });
+  });
+
+  it("keeps bridge server ids scoped to committed renders", async () => {
+    const host: McpAppsHost = {
+      loadResource: vi.fn(async ({ uri }) => ({
+        uri,
+        mimeType: "text/html;profile=mcp-app" as const,
+        html: "",
+      })),
+      callTool: vi.fn(),
+      readResource: vi.fn(),
+      listResources: vi.fn(),
+    };
+    const interruptedRender = vi.fn();
+    const pending = new Promise<never>(() => {});
+    const Blocker = ({ blocked }: { blocked: boolean }) => {
+      if (blocked) {
+        interruptedRender();
+        throw pending;
+      }
+      return null;
+    };
+    const view = (part: ToolCallMessagePartProps, blocked: boolean) => (
+      <Suspense fallback={null}>
+        <Harness host={host} part={part} />
+        <Blocker blocked={blocked} />
+      </Suspense>
+    );
+    const rendered = render(view(createPart("server-a"), false));
+    await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
+    const handlers = framePropsMock.mock.lastCall?.[0]
+      .handlers as McpAppBridgeHandlers;
+
+    act(() => {
+      startTransition(() =>
+        rendered.rerender(view(createPart("server-b"), true)),
+      );
+    });
+    expect(interruptedRender).toHaveBeenCalled();
+    await handlers.callTool?.({ name: "search" });
+
+    expect(host.callTool).toHaveBeenCalledWith({
+      name: "search",
+      serverId: "server-a",
+    });
+
+    framePropsMock.mockClear();
+    vi.mocked(host.callTool).mockClear();
+    rendered.rerender(view(createPartWithoutApp(), false));
+    await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
+    expect(framePropsMock.mock.lastCall?.[0].app.serverId).toBe("server-a");
+    const fallbackHandlers = framePropsMock.mock.lastCall?.[0]
+      .handlers as McpAppBridgeHandlers;
+    await fallbackHandlers.callTool?.({ name: "search" });
+    expect(host.callTool).toHaveBeenCalledWith({
+      name: "search",
+      serverId: "server-a",
     });
   });
 
@@ -396,5 +471,59 @@ describe("McpAppRenderer", () => {
 
     await handlers.listResources?.(params);
     expect(listResources).toHaveBeenCalledWith(params);
+  });
+
+  it("uses caller UI handlers and keeps data-plane handlers on the host", async () => {
+    const host: McpAppsHost = {
+      loadResource: vi.fn(async ({ uri }) => ({
+        uri,
+        mimeType: "text/html;profile=mcp-app" as const,
+        html: "",
+      })),
+      callTool: vi.fn(),
+      readResource: vi.fn(),
+      listResources: vi.fn(),
+    };
+    const requestDisplayMode = vi.fn(({ mode }) => ({ mode }));
+    const updateModelContext = vi.fn();
+    const openLink = vi.fn();
+    const sendMessage = vi.fn();
+    const onInitialized = vi.fn();
+
+    render(
+      <Harness
+        host={host}
+        handlers={{
+          requestDisplayMode,
+          updateModelContext,
+          openLink,
+          sendMessage,
+          onInitialized,
+        }}
+      />,
+    );
+    await waitFor(() => expect(framePropsMock).toHaveBeenCalled());
+    const handlers = framePropsMock.mock.lastCall?.[0]
+      .handlers as McpAppBridgeHandlers;
+
+    expect(await handlers.requestDisplayMode?.({ mode: "fullscreen" })).toEqual(
+      { mode: "fullscreen" },
+    );
+    await handlers.updateModelContext?.({ text: "context" });
+    await handlers.openLink?.({ url: "https://example.com" });
+    await handlers.sendMessage?.({ text: "hello" });
+    handlers.onInitialized?.();
+    await handlers.callTool?.({ name: "search" });
+    await handlers.readResource?.({ uri: "ui://resource" });
+    await handlers.listResources?.();
+
+    expect(requestDisplayMode).toHaveBeenCalledWith({ mode: "fullscreen" });
+    expect(updateModelContext).toHaveBeenCalledWith({ text: "context" });
+    expect(openLink).toHaveBeenCalledWith({ url: "https://example.com" });
+    expect(sendMessage).toHaveBeenCalledWith({ text: "hello" });
+    expect(onInitialized).toHaveBeenCalledOnce();
+    expect(host.callTool).toHaveBeenCalledWith({ name: "search" });
+    expect(host.readResource).toHaveBeenCalledWith({ uri: "ui://resource" });
+    expect(host.listResources).toHaveBeenCalledWith(undefined);
   });
 });

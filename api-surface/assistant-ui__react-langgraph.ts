@@ -129,13 +129,13 @@ type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
   total_steps?: number;
-  tool_calls?: ReportToolCall[];
+  tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
     input_tokens?: number;
     output_tokens?: number;
     reasoning_tokens?: number;
     cached_input_tokens?: number;
-    tool_calls?: ReportToolCall[];
+    tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
   }[];
@@ -148,6 +148,17 @@ type AssistantCloudRunReport = {
   duration_ms?: number;
   output_text?: string;
   metadata?: Record<string, unknown>;
+};
+
+type AssistantCloudRunReportToolCall = {
+  tool_name: string;
+  tool_call_id: string;
+  tool_args?: string;
+  tool_result?: string;
+  tool_source?: "backend" | "frontend" | "mcp";
+  start_ms?: number;
+  end_ms?: number;
+  sampling_calls?: SamplingCallData[];
 };
 
 declare class AssistantCloudRuns {
@@ -671,6 +682,34 @@ declare const ExportedMessageRepository: {
   }) => ExportedMessageRepository;
 };
 
+type ExportedMessageRepositoryItem = {
+  message: ThreadMessage;
+  parentId: string | null;
+  runConfig?: RunConfig;
+};
+
+type ExternalMessageConverterCallback<T> = (message: T, metadata: ExternalMessageConverterMetadata) => ExternalMessageConverterMessage | ExternalMessageConverterMessage[];
+
+type ExternalMessageConverterMessage = (ThreadMessageLike & {
+  readonly convertConfig?: {
+    readonly joinStrategy?: JoinStrategy;
+  };
+}) | {
+  role: "tool";
+  toolCallId: string;
+  toolName?: string | undefined;
+  result: any;
+  artifact?: any;
+  isError?: boolean;
+  messages?: readonly ThreadMessage[];
+};
+
+type ExternalMessageConverterMetadata = {
+  readonly toolStatuses?: Record<string, ToolExecutionStatus>;
+  readonly error?: ReadonlyJSONValue;
+  readonly messageTiming?: Record<string, MessageTiming>;
+};
+
 type ExternalStoreAdapter<T = ThreadMessage> = ExternalStoreAdapterBase<T> & (T extends ThreadMessage ? object : ExternalStoreMessageConverterAdapter<T>);
 
 type ExternalStoreAdapterBase<T> = {
@@ -823,6 +862,21 @@ type GenerativeUINode = string | {
 
 type GenerativeUISpec = {
   readonly root: GenerativeUINode | readonly GenerativeUINode[];
+};
+
+type GenericThreadHistoryAdapter<TMessage> = {
+  load(): Promise<MessageFormatRepository<TMessage>>;
+  pin?(): void;
+  append(item: MessageFormatItem<TMessage>): Promise<void>;
+  update?(item: MessageFormatItem<TMessage>, localMessageId: string): Promise<void>;
+  delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
+  reportTelemetry?(items: MessageFormatItem<TMessage>[], options?: {
+    durationMs?: number;
+    stepTimestamps?: {
+      start_ms: number;
+      end_ms: number;
+    }[];
+  }): void;
 };
 
 type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
@@ -1207,6 +1261,23 @@ type MessageContentToolUse = {
   type: "input_json_delta" | "tool_use";
 };
 
+interface MessageFormatAdapter<TMessage, TStorageFormat extends Record<string, unknown>> {
+  format: string;
+  encode(item: MessageFormatItem<TMessage>): TStorageFormat;
+  decode(stored: MessageStorageEntry<TStorageFormat>): MessageFormatItem<TMessage>;
+  getId(message: TMessage): string;
+}
+
+interface MessageFormatItem<TMessage> {
+  parentId: string | null;
+  message: TMessage;
+}
+
+interface MessageFormatRepository<TMessage> {
+  headId?: string | null;
+  messages: MessageFormatItem<TMessage>[];
+}
+
 type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
@@ -1307,6 +1378,13 @@ type MessageStatus = {
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other" | "tool-calls";
   readonly error?: ReadonlyJSONValue;
 };
+
+interface MessageStorageEntry<TPayload> {
+  id: string;
+  parent_id: string | null;
+  format: string;
+  content: TPayload;
+}
 
 type MessageTiming = {
   readonly streamStartTime: number;
@@ -1523,6 +1601,7 @@ type RemoteThreadListAdapter = {
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
+  unstable_useAdapters?: (() => RuntimeAdapters | null | undefined) | undefined;
 };
 
 type RemoteThreadListPageOptions = {
@@ -1554,17 +1633,6 @@ type RemoveUIMessage = {
   id: string;
 };
 
-type ReportToolCall = {
-  tool_name: string;
-  tool_call_id: string;
-  tool_args?: string;
-  tool_result?: string;
-  tool_source?: "backend" | "frontend" | "mcp";
-  start_ms?: number;
-  end_ms?: number;
-  sampling_calls?: SamplingCallData[];
-};
-
 type RespondToToolApprovalOptions = {
   approvalId: string;
   approved: boolean;
@@ -1578,6 +1646,12 @@ type ResumeRunConfig = StartRunConfig & {
 
 type RunConfig = {
   readonly custom?: Record<string, unknown>;
+};
+
+type RuntimeAdapters = {
+  modelContext?: ModelContextProvider | undefined;
+  history?: ThreadHistoryAdapter | undefined;
+  attachments?: AttachmentAdapter | undefined;
 };
 
 type RuntimeCapabilities = {
@@ -1727,6 +1801,18 @@ type ThreadComposerState = BaseComposerState & {
   readonly type: "thread";
 };
 
+type ThreadHistoryAdapter = {
+  load(): Promise<ExportedMessageRepository & {
+    state?: ReadonlyJSONValue;
+    unstable_resume?: boolean;
+  }>;
+  resume?(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void, unknown>;
+  append(item: ExportedMessageRepositoryItem): Promise<void>;
+  update?(item: ExportedMessageRepositoryItem): Promise<void>;
+  delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
+  withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage>;
+};
+
 type ThreadListItemEventCallback<E extends ThreadListItemEventType> = (payload: ThreadListItemEventPayload[E]) => void;
 
 type ThreadListItemEventPayload = {
@@ -1838,6 +1924,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
@@ -1943,6 +2030,8 @@ type ThreadStep = {
 };
 
 type ThreadSuggestion = {
+  title?: string;
+  label?: string;
   prompt: string;
 };
 
@@ -2057,7 +2146,11 @@ type ToolCallMessagePartMcpMetadata = {
 
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
-  readonly reason: "interrupt";
+  readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "tool-calls";
+  readonly error?: ReadonlyJSONValue;
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
@@ -2264,25 +2357,9 @@ declare namespace entry_root_exports {
 declare const unstable_createLangGraphStream: (_param3: CreateLangGraphStreamOptions) => LangGraphStreamCallback<LangChainMessage>;
 
 declare namespace useExternalMessageConverter {
-  type Message = (ThreadMessageLike & {
-    readonly convertConfig?: {
-      readonly joinStrategy?: JoinStrategy;
-    };
-  }) | {
-    role: "tool";
-    toolCallId: string;
-    toolName?: string | undefined;
-    result: any;
-    artifact?: any;
-    isError?: boolean;
-    messages?: readonly ThreadMessage[];
-  };
-  type Metadata = {
-    readonly toolStatuses?: Record<string, ToolExecutionStatus>;
-    readonly error?: ReadonlyJSONValue;
-    readonly messageTiming?: Record<string, MessageTiming>;
-  };
-  type Callback<T> = (message: T, metadata: Metadata) => Message | Message[];
+  type Message = ExternalMessageConverterMessage;
+  type Metadata = ExternalMessageConverterMetadata;
+  type Callback<T> = ExternalMessageConverterCallback<T>;
 }
 
 declare const useExternalMessageConverter: <T extends WeakKey>(_param4: {
@@ -2321,7 +2398,7 @@ declare const useLangGraphMessages: <TMessage extends {
   messages: TMessage[];
   messageMetadata: Map<string, LangGraphTupleMetadata>;
   uiMessages: UIMessage[];
-  sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: () => void) => Promise<void>;
+  sendMessage: (newMessages: TMessage[], config: LangGraphSendMessageConfig, onComplete?: (() => void) | undefined) => Promise<void>;
   cancel: () => void;
   setInterrupt: import("react").Dispatch<import("react").SetStateAction<LangGraphInterruptState | undefined>>;
   setValues: import("react").Dispatch<import("react").SetStateAction<Record<string, unknown> | undefined>>;

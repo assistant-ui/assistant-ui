@@ -1,5 +1,33 @@
 # @assistant-ui/react-generative-ui
 
+## 0.0.16
+
+### Patch Changes
+
+- [#6289](https://github.com/assistant-ui/assistant-ui/pull/6289) [`fd42628`](https://github.com/assistant-ui/assistant-ui/commit/fd42628727e34723cc4f627352cc0fed70863ad7) - fix: allow ListViewItem actions to fire from the row trigger ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6392](https://github.com/assistant-ui/assistant-ui/pull/6392) [`e3bbc32`](https://github.com/assistant-ui/assistant-ui/commit/e3bbc322286eb251c22bbc1ccf0c24136deb9e6a) - refactor: share one contiguous-run helper and one element predicate across the converters ([@samdickson22](https://github.com/samdickson22))
+
+- [#6436](https://github.com/assistant-ui/assistant-ui/pull/6436) [`ae40ac8`](https://github.com/assistant-ui/assistant-ui/commit/ae40ac88368843034ed9ceb2b1a28451513c99e4) - fix: bound outbound prop arrays by index before conversion ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6397](https://github.com/assistant-ui/assistant-ui/pull/6397) [`563fd25`](https://github.com/assistant-ui/assistant-ui/commit/563fd2518cf64288fe0ccb71394d4ff37d5cf40a) - refactor: share one spec-bounding pre-pass between the Slack and Teams converters ([@samdickson22](https://github.com/samdickson22))
+
+- [#6426](https://github.com/assistant-ui/assistant-ui/pull/6426) [`4b98f3b`](https://github.com/assistant-ui/assistant-ui/commit/4b98f3b59ce55e5563e2025c54105283e5f2cc28) - fix: bound the Slack decoder and the spec pre-pass by index so a replaced slice or Symbol.species cannot defeat their caps ([@rupic-app](https://github.com/apps/rupic-app))
+- Updated dependencies [[`8626c1f`](https://github.com/assistant-ui/assistant-ui/commit/8626c1ffe1c6d56ec75073e795aa9fbf7493c3ed), [`531f61a`](https://github.com/assistant-ui/assistant-ui/commit/531f61a4d2f5fcee16821a6401d9d11394bf8339), [`dfaa94f`](https://github.com/assistant-ui/assistant-ui/commit/dfaa94fca3ecdd8b0b0ab202f08dafd03c1e2ed5), [`a4bc54a`](https://github.com/assistant-ui/assistant-ui/commit/a4bc54afa976423b6310a2d5be350df0f3b41e42), [`fd471e9`](https://github.com/assistant-ui/assistant-ui/commit/fd471e94babf7b6580e06bbea2b7a8cdd4882869), [`ac7ec15`](https://github.com/assistant-ui/assistant-ui/commit/ac7ec15e118a9279dd60521b839ecc38983675c5), [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d), [`f96e22f`](https://github.com/assistant-ui/assistant-ui/commit/f96e22ffa8c85cbfc4a878db4f371c510070066d), [`bfc8bef`](https://github.com/assistant-ui/assistant-ui/commit/bfc8bef9f1ee6cb4cb25f83488a0e4ce1a393ff3), [`2cd5cbc`](https://github.com/assistant-ui/assistant-ui/commit/2cd5cbcf78c586b7557421b00e9c996c62bd7f43), [`105af3e`](https://github.com/assistant-ui/assistant-ui/commit/105af3eaea2093df271d9c44642e1c04d5f5cf7c), [`4c3194a`](https://github.com/assistant-ui/assistant-ui/commit/4c3194aca4470753a2a37e244cb5e3fb27cbc76b)]:
+  - assistant-stream@0.3.40
+
+## 0.0.15
+
+### Patch Changes
+
+- [#5934](https://github.com/assistant-ui/assistant-ui/pull/5934) [`f858321`](https://github.com/assistant-ui/assistant-ui/commit/f8583212387716e965dda0f0f6c31b8366527dbc) - fix: default untoned Teams alerts to info ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6012](https://github.com/assistant-ui/assistant-ui/pull/6012) [`9ffbd99`](https://github.com/assistant-ui/assistant-ui/commit/9ffbd99ee94e2d24e006decbb40f15aa2d254343) - docs: name the slack, teams, and a2ui converter subpaths in the README ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`0e91e27`](https://github.com/assistant-ui/assistant-ui/commit/0e91e277ebe218e891d1c318a18eec230ee4f981), [`c5bc8ed`](https://github.com/assistant-ui/assistant-ui/commit/c5bc8ed0c78e8fb66a6c21c596765caeccef3aec), [`f0d1d48`](https://github.com/assistant-ui/assistant-ui/commit/f0d1d48842b61c8f781771375e3893d189321c2d), [`ab7f49f`](https://github.com/assistant-ui/assistant-ui/commit/ab7f49fcb91b8a9d96408426da3259c99f619649), [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e), [`a2ab997`](https://github.com/assistant-ui/assistant-ui/commit/a2ab997dc645923fa8ebbca5e8e050d467a69cf4), [`e8997d9`](https://github.com/assistant-ui/assistant-ui/commit/e8997d922d15d0de0d20558ce0735fa3e844f27f), [`44e574f`](https://github.com/assistant-ui/assistant-ui/commit/44e574f8c17dd5603933ec74821eecd08e94e371), [`14c3b5a`](https://github.com/assistant-ui/assistant-ui/commit/14c3b5a25afe2b2f37760dfe8003818b2e4f72d3)]:
+  - assistant-stream@0.3.38
+
 ## 0.0.14
 
 ### Patch Changes

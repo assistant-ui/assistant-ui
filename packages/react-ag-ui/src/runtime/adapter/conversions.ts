@@ -1,6 +1,7 @@
 "use client";
 
 import type { InputContent, RunAgentParameters } from "@ag-ui/client";
+import { generateId } from "@assistant-ui/core";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
   PartProviderMetadata,
@@ -9,8 +10,8 @@ import type {
 } from "@assistant-ui/core";
 import {
   getAutoStatus,
-  httpUrlPattern,
   parseDataUrl,
+  resolveFilePartSource,
 } from "@assistant-ui/core/internal";
 import { type Tool, toToolsJSONSchema } from "assistant-stream";
 import type { ReadonlyJSONObject } from "assistant-stream/utils";
@@ -27,6 +28,7 @@ import {
   type A2uiSurfaceState,
 } from "@assistant-ui/react-generative-ui/a2ui";
 import type { AgUiInterrupt } from "../types";
+import { projectAgUiToolApprovals } from "./tool-approval";
 import {
   parseMcpToolCallResult,
   readMcpAppResourceUri,
@@ -41,7 +43,7 @@ type AttachmentLike = {
 };
 
 type ThreadMessageLike = {
-  id: string;
+  id?: string;
   role: string;
   content: unknown;
   metadata?: unknown;
@@ -50,6 +52,8 @@ type ThreadMessageLike = {
   error?: string;
   attachments?: readonly AttachmentLike[];
 };
+
+type NormalizedThreadMessageLike = ThreadMessageLike & { id: string };
 
 type AgUiToolCall = {
   id: string;
@@ -60,10 +64,22 @@ type AgUiToolCall = {
 export type AgUiMessage =
   | {
       id: string;
-      role: string;
+      role: "user";
       content: string | InputContent[];
       name?: string;
+    }
+  | {
+      id: string;
+      role: "assistant";
+      content: string;
+      name?: string;
       toolCalls?: AgUiToolCall[];
+    }
+  | {
+      id: string;
+      role: "system" | "developer";
+      content: string;
+      name?: string;
     }
   | {
       id: string;
@@ -162,13 +178,6 @@ function parseJSONText(value: string): unknown {
   }
 }
 
-function generateId(): string {
-  return (
-    (globalThis.crypto as { randomUUID?: () => string })?.randomUUID?.() ??
-    Math.random().toString(36).slice(2)
-  );
-}
-
 function normalizeToolCall(part: ToolCallPart): {
   id: string;
   call: AgUiToolCall;
@@ -227,17 +236,20 @@ function buildInputSource(
   declaredMimeType: string | undefined,
   sourceType?: string,
 ): InputContentSource {
-  if (sourceType === "url" || httpUrlPattern.test(value)) {
+  const source = resolveFilePartSource({
+    data: value,
+    mimeType: declaredMimeType ?? "application/octet-stream",
+    sourceType,
+  });
+  if (source.kind === "url") {
     return declaredMimeType !== undefined
-      ? { type: "url", value, mimeType: declaredMimeType }
-      : { type: "url", value };
+      ? { type: "url", value: source.url, mimeType: declaredMimeType }
+      : { type: "url", value: source.url };
   }
-  const parsed = parseDataUrl(value);
   return {
     type: "data",
-    value: parsed?.data ?? value,
-    mimeType:
-      parsed?.mimeType ?? declaredMimeType ?? "application/octet-stream",
+    value: source.data,
+    mimeType: source.mimeType,
   };
 }
 
@@ -606,13 +618,27 @@ function toAssistantSnapshotMessage(
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const text = extractText(rawMessage.content);
-  const toolCallParts = extractAssistantToolCalls(rawMessage);
+  const interrupts = readPersistedInterrupts(rawMessage.metadata);
+  const restoredToolCalls = extractAssistantToolCalls(rawMessage);
+  const approvals = projectAgUiToolApprovals(
+    interrupts,
+    new Set(
+      restoredToolCalls
+        .map((part) => part.toolCallId)
+        .filter((id): id is string => !!id),
+    ),
+  );
+  const toolCallParts = restoredToolCalls.map((part) => {
+    const approval = part.toolCallId
+      ? approvals.get(part.toolCallId)
+      : undefined;
+    return approval ? { ...part, approval } : part;
+  });
   const assistantContent = [
     ...(text.length > 0 ? [{ type: "text" as const, text }] : []),
     ...toolCallParts,
   ];
   const messageName = getString(rawMessage, "name");
-  const interrupts = readPersistedInterrupts(rawMessage.metadata);
   return {
     id: getString(rawMessage, "id") ?? generateId(),
     role: "assistant",
@@ -633,7 +659,7 @@ function toAssistantSnapshotMessage(
 }
 
 function toUserOrSystemSnapshotMessage(
-  role: "user" | "system",
+  role: "user" | "system" | "developer",
   rawMessage: Record<string, unknown>,
 ): CoreThreadMessageLike {
   const messageName = getString(rawMessage, "name");
@@ -641,10 +667,23 @@ function toUserOrSystemSnapshotMessage(
     role === "user" ? toSnapshotAttachments(rawMessage.content) : [];
   return {
     id: getString(rawMessage, "id") ?? generateId(),
-    role,
+    // The internal message model has no developer role; it rides as a system
+    // message with its wire role kept in metadata so the export restores it.
+    role: role === "developer" ? "system" : role,
     content: extractText(rawMessage.content),
     ...(messageName !== undefined ? { name: messageName } : {}),
     ...(attachments.length > 0 ? { attachments } : {}),
+    ...(role === "developer"
+      ? {
+          metadata: {
+            custom: {
+              [AG_UI_METADATA_NAMESPACE]: {
+                role: "developer",
+              } satisfies AgUiCustomMetadata,
+            },
+          },
+        }
+      : {}),
   };
 }
 
@@ -910,7 +949,7 @@ export function fromAgUiMessages(
       continue;
     }
 
-    if (role === "user" || role === "system") {
+    if (role === "user" || role === "system" || role === "developer") {
       converted.push(toUserOrSystemSnapshotMessage(role, rawMessage));
     }
   }
@@ -960,7 +999,7 @@ export function fromAgUiMessages(
 }
 
 function convertAssistantMessage(
-  message: ThreadMessageLike,
+  message: NormalizedThreadMessageLike,
   converted: AgUiMessage[],
 ): void {
   const content = extractText(message.content);
@@ -1012,18 +1051,15 @@ function convertAssistantMessage(
     return;
   }
 
-  const assistantMessage: AgUiMessage = {
+  converted.push({
     id: message.id,
     role: "assistant",
     content,
-  };
-  if (message.name) {
-    assistantMessage.name = message.name;
-  }
-  if (toolCalls.length > 0) {
-    assistantMessage.toolCalls = toolCalls.map((entry) => entry.call);
-  }
-  converted.push(assistantMessage);
+    ...(message.name ? { name: message.name } : {}),
+    ...(toolCalls.length > 0
+      ? { toolCalls: toolCalls.map((entry) => entry.call) }
+      : {}),
+  });
 
   for (const { id: toolCallId, part } of toolCalls) {
     if (part.result === undefined) continue;
@@ -1035,36 +1071,30 @@ function convertAssistantMessage(
           ? part.result
           : JSON.stringify(part.result);
 
-    const toolMessage: AgUiMessage = {
+    converted.push({
       id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,
       role: "tool",
       content: resultContent,
       toolCallId,
-    };
-    if (part.isError) {
-      toolMessage.error = resultContent;
-    }
-    converted.push(toolMessage);
+      ...(part.isError ? { error: resultContent } : {}),
+    });
   }
 }
 
 function convertToolMessage(
-  message: ThreadMessageLike,
+  message: NormalizedThreadMessageLike,
   converted: AgUiMessage[],
 ): void {
   const content = extractText(message.content);
   const toolCallId = message.toolCallId ?? generateId();
 
-  const toolMessage: AgUiMessage = {
+  converted.push({
     id: message.id,
     role: "tool",
     content,
     toolCallId,
-  };
-  if (typeof message.error === "string") {
-    toolMessage.error = message.error;
-  }
-  converted.push(toolMessage);
+    ...(typeof message.error === "string" ? { error: message.error } : {}),
+  });
 }
 
 export function toAgUiMessages(
@@ -1072,7 +1102,11 @@ export function toAgUiMessages(
 ): AgUiMessage[] {
   const converted: AgUiMessage[] = [];
 
-  for (const message of messages) {
+  for (const rawMessage of messages) {
+    const message: NormalizedThreadMessageLike = {
+      ...rawMessage,
+      id: rawMessage.id ?? generateId(),
+    };
     const opaqueReasoning = readOpaqueReasoning(message.metadata);
     const toOpaqueRecord = (entry: AgUiOpaqueReasoning): AgUiMessage => ({
       id: entry.id,
@@ -1101,18 +1135,50 @@ export function toAgUiMessages(
       continue;
     }
 
-    const genericMessage: AgUiMessage = {
-      id: message.id,
-      role: message.role,
-      content:
-        message.role === "user"
-          ? buildUserContent(message)
-          : extractText(message.content),
-    };
-    if (message.name) {
-      genericMessage.name = message.name;
+    if (message.role === "user") {
+      converted.push({
+        id: message.id,
+        role: "user",
+        content: buildUserContent(message),
+        ...(message.name ? { name: message.name } : {}),
+      });
+      flushTrailingOpaqueReasoning();
+      continue;
     }
-    converted.push(genericMessage);
+
+    if (message.role === "system" || message.role === "developer") {
+      const custom = isObject(message.metadata)
+        ? message.metadata.custom
+        : undefined;
+      const namespaced = isObject(custom)
+        ? custom[AG_UI_METADATA_NAMESPACE]
+        : undefined;
+      const wireRole =
+        message.role === "system" &&
+        isObject(namespaced) &&
+        namespaced.role === "developer"
+          ? ("developer" as const)
+          : message.role;
+      converted.push({
+        id: message.id,
+        role: wireRole,
+        content: extractText(message.content),
+        ...(message.name ? { name: message.name } : {}),
+      });
+      flushTrailingOpaqueReasoning();
+      continue;
+    }
+
+    if (message.role === "reasoning") {
+      converted.push({
+        id: message.id,
+        role: "reasoning",
+        content: extractText(message.content),
+      });
+      flushTrailingOpaqueReasoning();
+      continue;
+    }
+
     flushTrailingOpaqueReasoning();
   }
 

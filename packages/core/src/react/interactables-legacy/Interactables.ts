@@ -16,8 +16,8 @@ import type {
 import { toJSONSchema, toPartialJSONSchema } from "assistant-stream";
 import { ModelContext } from "../../store";
 import { buildInteractableModelContext } from "./interactable-model-context";
-
-const PERSISTENCE_DEBOUNCE_MS = 500;
+import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
+import { useInteractablePersistenceQueue } from "../interactables-shared/useInteractablePersistenceQueue";
 
 const useInteractables = (): ClientOutput<"interactables"> => {
   const [state, setState] = useState<InteractablesState>(() => ({
@@ -28,9 +28,15 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const clientRef = useAssistantClientRef();
 
   const stateRef = useRef(state);
-  useEffect(() => {
-    stateRef.current = state;
-  }, [state]);
+
+  const setStateAndRef = useCallback(
+    (updater: (prev: InteractablesState) => InteractablesState) => {
+      const next = updater(stateRef.current);
+      stateRef.current = next;
+      setState(next);
+    },
+    [],
+  );
 
   const subscribersRef = useRef(new Set<() => void>());
   const partialSchemaCacheRef = useRef(
@@ -41,101 +47,6 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   const adapterRef = useRef<InteractablePersistenceAdapter | undefined>(
     undefined,
   );
-  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
-  const syncSeqRef = useRef(0);
-  const hasPendingLocalChangeRef = useRef(false);
-  const flushResolversRef = useRef<Array<() => void>>([]);
-  const dirtyIdsRef = useRef(new Set<string>());
-
-  const runPersistence = useCallback(async () => {
-    const adapter = adapterRef.current;
-    if (!adapter) {
-      for (const resolve of flushResolversRef.current) resolve();
-      flushResolversRef.current = [];
-      return;
-    }
-
-    const seq = ++syncSeqRef.current;
-    const dirtyIds = new Set(dirtyIdsRef.current);
-    dirtyIdsRef.current.clear();
-    hasPendingLocalChangeRef.current = true;
-
-    // Snapshot before any await so unregistered definitions are still included.
-    const exported = stateRef.current.definitions;
-    const payload: InteractablePersistedState = {};
-    for (const [id, def] of Object.entries(exported)) {
-      payload[id] = { name: def.name, state: def.state };
-    }
-
-    setState((prev) => ({
-      ...prev,
-      persistence: {
-        ...prev.persistence,
-        ...Object.fromEntries(
-          [...dirtyIds].map((id) => [
-            id,
-            { isPending: true, error: undefined },
-          ]),
-        ),
-      },
-    }));
-
-    try {
-      await adapter.save(payload);
-      if (syncSeqRef.current === seq) {
-        hasPendingLocalChangeRef.current = false;
-        setState((prev) => {
-          const persistence = { ...prev.persistence };
-          for (const id of dirtyIds) delete persistence[id];
-          return { ...prev, persistence };
-        });
-      }
-    } catch (e) {
-      if (syncSeqRef.current === seq) {
-        hasPendingLocalChangeRef.current = false;
-        setState((prev) => ({
-          ...prev,
-          persistence: {
-            ...prev.persistence,
-            ...Object.fromEntries(
-              [...dirtyIds].map((id) => [id, { isPending: false, error: e }]),
-            ),
-          },
-        }));
-      }
-    } finally {
-      if (dirtyIdsRef.current.size > 0 && adapterRef.current) {
-        runPersistence();
-      } else {
-        for (const resolve of flushResolversRef.current) resolve();
-        flushResolversRef.current = [];
-      }
-    }
-  }, []);
-
-  const schedulePersistence = useCallback(
-    (id: string) => {
-      if (!adapterRef.current) return;
-      dirtyIdsRef.current.add(id);
-      if (debounceTimerRef.current !== undefined) {
-        clearTimeout(debounceTimerRef.current);
-      }
-      debounceTimerRef.current = setTimeout(() => {
-        debounceTimerRef.current = undefined;
-        if (!hasPendingLocalChangeRef.current) {
-          runPersistence();
-        } else {
-          debounceTimerRef.current = setTimeout(() => {
-            debounceTimerRef.current = undefined;
-            runPersistence();
-          }, PERSISTENCE_DEBOUNCE_MS);
-        }
-      }, PERSISTENCE_DEBOUNCE_MS);
-    },
-    [runPersistence],
-  );
 
   const exportState = useCallback((): InteractablePersistedState => {
     const result: InteractablePersistedState = {};
@@ -145,58 +56,60 @@ const useInteractables = (): ClientOutput<"interactables"> => {
     return result;
   }, []);
 
-  const importState = useCallback((saved: InteractablePersistedState) => {
-    for (const [id, entry] of Object.entries(saved)) {
-      detachedStateRef.current.set(id, entry.state);
-    }
-    setState((prev) => {
-      let changed = false;
-      const definitions = { ...prev.definitions };
-      for (const [id, entry] of Object.entries(saved)) {
-        if (definitions[id]) {
-          definitions[id] = { ...definitions[id], state: entry.state };
-          changed = true;
-        }
-      }
-      return changed ? { ...prev, definitions } : prev;
+  const updatePersistenceStatus = useCallback(
+    (
+      updater: (
+        prev: InteractablesState["persistence"],
+      ) => InteractablesState["persistence"],
+    ) => {
+      setStateAndRef((prev) => {
+        const persistence = updater(prev.persistence);
+        return persistence === prev.persistence
+          ? prev
+          : { ...prev, persistence };
+      });
+    },
+    [setStateAndRef],
+  );
+
+  const { flushIfPending, schedulePersistence, flush } =
+    useInteractablePersistenceQueue({
+      adapterRef,
+      snapshot: exportState,
+      updatePersistenceStatus,
     });
-  }, []);
+
+  const importState = useCallback(
+    (saved: InteractablePersistedState) => {
+      for (const [id, entry] of Object.entries(saved)) {
+        detachedStateRef.current.set(id, entry.state);
+      }
+      setStateAndRef((prev) => {
+        let changed = false;
+        const definitions = { ...prev.definitions };
+        for (const [id, entry] of Object.entries(saved)) {
+          if (definitions[id]) {
+            definitions[id] = { ...definitions[id], state: entry.state };
+            changed = true;
+          }
+        }
+        return changed ? { ...prev, definitions } : prev;
+      });
+    },
+    [setStateAndRef],
+  );
 
   const setPersistenceAdapter = useCallback(
     (adapter: InteractablePersistenceAdapter | undefined) => {
+      if (adapterRef.current !== adapter) flushIfPending();
       adapterRef.current = adapter;
     },
-    [],
+    [flushIfPending],
   );
-
-  const flush = useCallback(async () => {
-    if (debounceTimerRef.current !== undefined) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = undefined;
-    }
-    if (!adapterRef.current) return;
-    if (!hasPendingLocalChangeRef.current && dirtyIdsRef.current.size === 0)
-      return;
-    const p = new Promise<void>((resolve) => {
-      flushResolversRef.current.push(resolve);
-    });
-    if (!hasPendingLocalChangeRef.current) {
-      runPersistence();
-    }
-    return p;
-  }, [runPersistence]);
-
-  const flushIfPending = useCallback(() => {
-    if (adapterRef.current && debounceTimerRef.current !== undefined) {
-      clearTimeout(debounceTimerRef.current);
-      debounceTimerRef.current = undefined;
-      runPersistence();
-    }
-  }, [runPersistence]);
 
   const setDefState = useCallback(
     (id: string, updater: (prev: unknown) => unknown) => {
-      setState((prev) => {
+      setStateAndRef((prev) => {
         const existing = prev.definitions[id];
         if (!existing) return prev;
         return {
@@ -209,22 +122,25 @@ const useInteractables = (): ClientOutput<"interactables"> => {
       });
       if (stateRef.current.definitions[id]) schedulePersistence(id);
     },
-    [schedulePersistence],
+    [schedulePersistence, setStateAndRef],
   );
 
-  const setDefSelected = useCallback((id: string, selected: boolean) => {
-    setState((prev) => {
-      const existing = prev.definitions[id];
-      if (!existing) return prev;
-      return {
-        ...prev,
-        definitions: {
-          ...prev.definitions,
-          [id]: { ...existing, selected },
-        },
-      };
-    });
-  }, []);
+  const setDefSelected = useCallback(
+    (id: string, selected: boolean) => {
+      setStateAndRef((prev) => {
+        const existing = prev.definitions[id];
+        if (!existing) return prev;
+        return {
+          ...prev,
+          definitions: {
+            ...prev.definitions,
+            [id]: { ...existing, selected },
+          },
+        };
+      });
+    },
+    [setStateAndRef],
+  );
 
   const provider = useMemo(
     () => ({
@@ -249,7 +165,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
   );
 
   useEffect(() => {
-    for (const cb of subscribersRef.current) cb();
+    notifyStateSubscribers(subscribersRef.current);
   }, [state]);
 
   useAssistantScopeEffect(
@@ -276,7 +192,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
       const detached = detachedStateRef.current.get(def.id);
       detachedStateRef.current.delete(def.id);
 
-      setState((prev) => ({
+      setStateAndRef((prev) => ({
         ...prev,
         definitions: {
           ...prev.definitions,
@@ -294,7 +210,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
 
       return () => {
         flushIfPending();
-        setState((prev) => {
+        setStateAndRef((prev) => {
           const existing = prev.definitions[def.id];
           if (existing) {
             detachedStateRef.current.set(def.id, existing.state);
@@ -306,7 +222,7 @@ const useInteractables = (): ClientOutput<"interactables"> => {
         });
       };
     },
-    [flushIfPending],
+    [flushIfPending, setStateAndRef],
   );
 
   return {

@@ -112,7 +112,7 @@ export function FeedbackDialog({
             aria-label="Anything else?"
             className={cn(
               field,
-              "text-foreground/80 placeholder:text-foreground/30 focus-visible:ring-foreground/20 resize-none rounded-xl px-3 py-2 text-xs outline-none focus-visible:ring-2",
+              "text-foreground/80 placeholder:text-foreground/30 focus-visible:ring-foreground/20 resize-none rounded-xl px-3 py-2 text-xs outline-none focus-visible:ring-1",
             )}
           />
 

@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, startTransition, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -229,6 +229,67 @@ describe("SandboxHost", () => {
     expect(onError.mock.calls[0]![0].message).toBe("boom");
   });
 
+  it("does not report render failures after unmount", async () => {
+    let rejectRender!: (error: Error) => void;
+    renderHtmlMock.mockReturnValue(
+      new Promise((_, reject) => {
+        rejectRender = reject;
+      }),
+    );
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+          onError={onError}
+        />,
+      );
+    });
+
+    await act(async () => {
+      root.unmount();
+    });
+    rejectRender(new Error("late failure"));
+    await flush();
+
+    expect(onError).not.toHaveBeenCalled();
+  });
+
+  it("contains failures thrown by onError", async () => {
+    const renderError = new Error("render failed");
+    const callbackError = new Error("error callback failed");
+    renderHtmlMock.mockRejectedValue(renderError);
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => {});
+
+    try {
+      await act(async () => {
+        root.render(
+          <SandboxHost
+            content={{ html: "" }}
+            contentKey="k"
+            createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+            onError={() => {
+              throw callbackError;
+            }}
+          />,
+        );
+      });
+      await flush();
+
+      expect(consoleError).toHaveBeenCalledWith(
+        "[assistant-ui] SandboxHost onError callback threw an error",
+        callbackError,
+      );
+    } finally {
+      consoleError.mockRestore();
+    }
+  });
+
   it("disposes the rendered frame when bridge creation fails", async () => {
     const rendered = fakeRendered();
     renderHtmlMock.mockResolvedValue(rendered);
@@ -256,5 +317,49 @@ describe("SandboxHost", () => {
       root.unmount();
     });
     expect(rendered.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps bridge options scoped to committed renders", async () => {
+    let resolveRender!: (frame: ReturnType<typeof fakeRendered>) => void;
+    renderHtmlMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRender = resolve;
+      }),
+    );
+    const rendered = fakeRendered();
+    const bridge = { onMessage: vi.fn(), dispose: vi.fn() };
+    const createBridgeA = vi.fn(() => bridge);
+    const createBridgeB = vi.fn(() => bridge);
+    const interruptedRender = vi.fn();
+    const pending = new Promise<never>(() => {});
+    const Block = () => {
+      interruptedRender();
+      throw pending;
+    };
+    const view = (createBridge: typeof createBridgeA, blocked: boolean) => (
+      <Suspense fallback={null}>
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={createBridge}
+        />
+        {blocked ? <Block /> : null}
+      </Suspense>
+    );
+
+    await act(async () => {
+      root.render(view(createBridgeA, false));
+    });
+    act(() => {
+      startTransition(() => root.render(view(createBridgeB, true)));
+    });
+    await vi.waitFor(() => expect(interruptedRender).toHaveBeenCalled());
+    await act(async () => {
+      resolveRender(rendered);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(createBridgeA).toHaveBeenCalledTimes(1);
+    expect(createBridgeB).not.toHaveBeenCalled();
   });
 });

@@ -33,6 +33,7 @@ export {
 // Message utilities
 export { getThreadMessageText } from "./utils/text";
 export { toMessagePartStatus } from "./utils/normalizePartStatus";
+export { notifyEventListeners } from "./utils/notify-event-listeners";
 export { resolveToolApprovalResponse } from "./runtime/utils/resolveToolApprovalResponse";
 export { consumeSuggestionResult } from "./adapters/suggestion";
 
@@ -59,16 +60,28 @@ export { isJSONValue, isRecord } from "./utils/json/is-json";
 // outbound part conversion lives in one place.
 export {
   dataUrlMediaType,
+  type FilePartSource,
   httpUrlPattern,
   isParsableUrl,
   parseDataUrl,
+  resolveFilePartSource,
 } from "./utils/data-url";
+export { invokeUserCallback } from "./utils/invoke-user-callback";
 export { detectImageMediaType } from "./utils/image-media-type";
 export {
   resolveFileMediaType,
   resolveImageMediaType,
   toMediaWireUrl,
 } from "./utils/wire-media";
+export {
+  createToolCallCancellationStub,
+  scanPendingToolCalls,
+} from "./runtime/utils/pending-tool-calls";
+export {
+  createAbortableThreadLoad,
+  type AbortableThreadLoadPurpose,
+} from "./runtime/utils/abortable-thread-load";
+export { createCloudThreadListAdapterCreateFallback } from "./react/runtimes/cloud/createCloudThreadListAdapterCreateFallback";
 
 export * from "./runtime/internal";
 export * from "./runtimes/internal";

@@ -130,6 +130,41 @@ describe("ADK runtime callbacks", () => {
   });
 });
 
+describe("ADK stream lifecycle", () => {
+  it("aborts the active stream when the hook unmounts", async () => {
+    let runSignal: AbortSignal | undefined;
+    let resolveStarted!: () => void;
+    const started = new Promise<void>((resolve) => {
+      resolveStarted = resolve;
+    });
+    const stream: AdkStreamCallback = async function* (
+      _messages,
+      { abortSignal },
+    ) {
+      runSignal = abortSignal;
+      resolveStarted();
+      await new Promise<void>((resolve) => {
+        abortSignal.addEventListener("abort", () => resolve(), { once: true });
+      });
+    };
+    const { result, unmount } = renderHook(() => useAdkMessages({ stream }));
+
+    let sendPromise!: Promise<void>;
+    act(() => {
+      sendPromise = result.current.sendMessage(
+        [{ id: "user", type: "human", content: "hello" }],
+        {},
+      );
+    });
+    await started;
+
+    unmount();
+
+    expect(runSignal?.aborted).toBe(true);
+    await expect(sendPromise).resolves.toBeUndefined();
+  });
+});
+
 describe("optimistic confirmation replies", () => {
   const confirmationCall = (id: string): AdkMessage => ({
     id: `ai-${id}`,

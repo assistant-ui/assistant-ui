@@ -11,6 +11,8 @@ import type {
   CodeHeaderProps,
 } from "../types";
 
+Element.prototype.scrollTo ??= function scrollTo() {};
+
 afterEach(cleanup);
 
 describe("StreamdownTextPrimitive", () => {
@@ -277,6 +279,72 @@ describe("StreamdownTextPrimitive", () => {
     );
 
     expect(container.querySelector("mark")?.textContent).toBe("keep");
+  });
+
+  describe("default fenced code updates", () => {
+    it.each([
+      { name: "streaming", isRunning: true, props: {} },
+      { name: "static", isRunning: false, props: { mode: "static" as const } },
+      { name: "deferred", isRunning: true, props: { defer: true } },
+    ])(
+      "updates $name fenced code from a prefix append",
+      async ({ isRunning, props }) => {
+        const { rerender } = render(
+          <TextMessagePartProvider
+            text={"```ts\nfir\n```"}
+            isRunning={isRunning}
+          >
+            <StreamdownTextPrimitive {...props} />
+          </TextMessagePartProvider>,
+        );
+
+        expect(await screen.findByText("fir")).toBeTruthy();
+
+        rerender(
+          <TextMessagePartProvider
+            text={"```ts\nfirst\n```"}
+            isRunning={isRunning}
+          >
+            <StreamdownTextPrimitive {...props} />
+          </TextMessagePartProvider>,
+        );
+
+        expect(await screen.findByText("first")).toBeTruthy();
+        expect(screen.queryByText("fir")).toBeNull();
+      },
+    );
+
+    it.each([
+      { name: "streaming", isRunning: true, props: {} },
+      { name: "static", isRunning: false, props: { mode: "static" as const } },
+      { name: "deferred", isRunning: true, props: { defer: true } },
+    ])(
+      "replaces $name fenced code without leaving the previous body",
+      async ({ isRunning, props }) => {
+        const { rerender } = render(
+          <TextMessagePartProvider
+            text={"```ts\nfirst\n```"}
+            isRunning={isRunning}
+          >
+            <StreamdownTextPrimitive {...props} />
+          </TextMessagePartProvider>,
+        );
+
+        expect(await screen.findByText("first")).toBeTruthy();
+
+        rerender(
+          <TextMessagePartProvider
+            text={"```ts\nsecond\n```"}
+            isRunning={isRunning}
+          >
+            <StreamdownTextPrimitive {...props} />
+          </TextMessagePartProvider>,
+        );
+
+        expect(await screen.findByText("second")).toBeTruthy();
+        expect(screen.queryByText("first")).toBeNull();
+      },
+    );
   });
 
   describe("code adapter with custom components", () => {

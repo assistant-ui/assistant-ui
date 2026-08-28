@@ -1,5 +1,29 @@
 # @assistant-ui/react-devtools
 
+## 1.2.16
+
+### Patch Changes
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+## 1.2.15
+
+### Patch Changes
+
+- [#6163](https://github.com/assistant-ui/assistant-ui/pull/6163) [`cef6d73`](https://github.com/assistant-ui/assistant-ui/commit/cef6d731ebebc3c2d4d406f606a22228d650c396) - fix: contain failed DevTools conversation switches ([@okisdev](https://github.com/okisdev))
+  
+  Custom `DevToolsClient.switchToThread` implementations can reject. React does not observe promises returned from click handlers, so a rejection becomes an unhandledRejection. `useDevToolsClient` now consumes both synchronous throws and rejected promises at the client boundary, matching `createInProcessClient`.
+
+## 1.2.14
+
+### Patch Changes
+
+- [#5957](https://github.com/assistant-ui/assistant-ui/pull/5957) [`b2f91b6`](https://github.com/assistant-ui/assistant-ui/commit/b2f91b67c1bfab271f5b1b40c708fa163523f165) - fix: sanitize circular collections and non-JSON primitives ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6029](https://github.com/assistant-ui/assistant-ui/pull/6029) [`fedc2ce`](https://github.com/assistant-ui/assistant-ui/commit/fedc2ce49efb41eabdf102c6adaffced2715b233) - fix: sanitize invalid dates in inspected runtime values ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#5774](https://github.com/assistant-ui/assistant-ui/pull/5774) [`61d29f4`](https://github.com/assistant-ui/assistant-ui/commit/61d29f4157b525d3e36ac721d1fcef7d1baf987e) - chore: update dependencies ([@Yonom](https://github.com/Yonom))
+
 ## 1.2.13
 
 ### Patch Changes

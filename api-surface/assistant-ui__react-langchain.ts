@@ -127,13 +127,13 @@ type AssistantCloudRunReport = {
   thread_id: string;
   status: "completed" | "error" | "incomplete";
   total_steps?: number;
-  tool_calls?: ReportToolCall[];
+  tool_calls?: AssistantCloudRunReportToolCall[];
   steps?: {
     input_tokens?: number;
     output_tokens?: number;
     reasoning_tokens?: number;
     cached_input_tokens?: number;
-    tool_calls?: ReportToolCall[];
+    tool_calls?: AssistantCloudRunReportToolCall[];
     start_ms?: number;
     end_ms?: number;
   }[];
@@ -146,6 +146,17 @@ type AssistantCloudRunReport = {
   duration_ms?: number;
   output_text?: string;
   metadata?: Record<string, unknown>;
+};
+
+type AssistantCloudRunReportToolCall = {
+  tool_name: string;
+  tool_call_id: string;
+  tool_args?: string;
+  tool_result?: string;
+  tool_source?: "backend" | "frontend" | "mcp";
+  start_ms?: number;
+  end_ms?: number;
+  sampling_calls?: SamplingCallData[];
 };
 
 declare class AssistantCloudRuns {
@@ -530,6 +541,8 @@ type ComposerRuntimePath = (ThreadRuntimePath & {
 
 type ComposerState = ThreadComposerState | EditComposerState;
 
+type ConvertedContentPart = ThreadUserMessage["content"][number] | ThreadAssistantMessage["content"][number];
+
 type CreateAppendMessage = string | {
   parentId?: string | null | undefined;
   sourceId?: string | null | undefined;
@@ -648,6 +661,34 @@ declare const ExportedMessageRepository: {
   }[], options?: {
     headId?: string | null;
   }) => ExportedMessageRepository;
+};
+
+type ExportedMessageRepositoryItem = {
+  message: ThreadMessage;
+  parentId: string | null;
+  runConfig?: RunConfig;
+};
+
+type ExternalMessageConverterCallback<T> = (message: T, metadata: ExternalMessageConverterMetadata) => ExternalMessageConverterMessage | ExternalMessageConverterMessage[];
+
+type ExternalMessageConverterMessage = (ThreadMessageLike & {
+  readonly convertConfig?: {
+    readonly joinStrategy?: JoinStrategy;
+  };
+}) | {
+  role: "tool";
+  toolCallId: string;
+  toolName?: string | undefined;
+  result: any;
+  artifact?: any;
+  isError?: boolean;
+  messages?: readonly ThreadMessage[];
+};
+
+type ExternalMessageConverterMetadata = {
+  readonly toolStatuses?: Record<string, ToolExecutionStatus>;
+  readonly error?: ReadonlyJSONValue;
+  readonly messageTiming?: Record<string, MessageTiming>;
 };
 
 type ExternalStoreAdapter<T = ThreadMessage> = ExternalStoreAdapterBase<T> & (T extends ThreadMessage ? object : ExternalStoreMessageConverterAdapter<T>);
@@ -802,6 +843,21 @@ type GenerativeUINode = string | {
 
 type GenerativeUISpec = {
   readonly root: GenerativeUINode | readonly GenerativeUINode[];
+};
+
+type GenericThreadHistoryAdapter<TMessage> = {
+  load(): Promise<MessageFormatRepository<TMessage>>;
+  pin?(): void;
+  append(item: MessageFormatItem<TMessage>): Promise<void>;
+  update?(item: MessageFormatItem<TMessage>, localMessageId: string): Promise<void>;
+  delete?(items: MessageFormatItem<TMessage>[]): Promise<void>;
+  reportTelemetry?(items: MessageFormatItem<TMessage>[], options?: {
+    durationMs?: number;
+    stepTimestamps?: {
+      start_ms: number;
+      end_ms: number;
+    }[];
+  }): void;
 };
 
 type HumanTool<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> = ToolBase<TArgs, TResult> & {
@@ -1064,6 +1120,23 @@ type MessageCommonProps = {
   readonly createdAt: Date;
 };
 
+interface MessageFormatAdapter<TMessage, TStorageFormat extends Record<string, unknown>> {
+  format: string;
+  encode(item: MessageFormatItem<TMessage>): TStorageFormat;
+  decode(stored: MessageStorageEntry<TStorageFormat>): MessageFormatItem<TMessage>;
+  getId(message: TMessage): string;
+}
+
+interface MessageFormatItem<TMessage> {
+  parentId: string | null;
+  message: TMessage;
+}
+
+interface MessageFormatRepository<TMessage> {
+  headId?: string | null;
+  messages: MessageFormatItem<TMessage>[];
+}
+
 type MessagePartRuntime = {
   addToolResult(result: any | ToolResponse<any>): void;
   resumeToolCall(payload: unknown): void;
@@ -1164,6 +1237,13 @@ type MessageStatus = {
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other" | "tool-calls";
   readonly error?: ReadonlyJSONValue;
 };
+
+interface MessageStorageEntry<TPayload> {
+  id: string;
+  parent_id: string | null;
+  format: string;
+  content: TPayload;
+}
 
 type MessageTiming = {
   readonly streamStartTime: number;
@@ -1360,6 +1440,7 @@ type RemoteThreadListAdapter = {
   generateTitle(remoteId: string, unstable_messages: readonly ThreadMessage[]): Promise<AssistantStream>;
   fetch(threadId: string): Promise<RemoteThreadMetadata>;
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
+  unstable_useAdapters?: (() => RuntimeAdapters | null | undefined) | undefined;
 };
 
 type RemoteThreadListPageOptions = {
@@ -1391,17 +1472,6 @@ type RemoveUIMessage = {
   id: string;
 };
 
-type ReportToolCall = {
-  tool_name: string;
-  tool_call_id: string;
-  tool_args?: string;
-  tool_result?: string;
-  tool_source?: "backend" | "frontend" | "mcp";
-  start_ms?: number;
-  end_ms?: number;
-  sampling_calls?: SamplingCallData[];
-};
-
 type RespondToToolApprovalOptions = {
   approvalId: string;
   approved: boolean;
@@ -1415,6 +1485,12 @@ type ResumeRunConfig = StartRunConfig & {
 
 type RunConfig = {
   readonly custom?: Record<string, unknown>;
+};
+
+type RuntimeAdapters = {
+  modelContext?: ModelContextProvider | undefined;
+  history?: ThreadHistoryAdapter | undefined;
+  attachments?: AttachmentAdapter | undefined;
 };
 
 type RuntimeCapabilities = {
@@ -1513,6 +1589,12 @@ type StartRunConfig = {
   runConfig: RunConfig;
 };
 
+type StreamingTimingAccessors<TMessage> = {
+  readonly getAssistantMessageId: (messages: readonly TMessage[]) => string | undefined;
+  readonly getTextLength: (messages: readonly TMessage[], messageId: string) => number;
+  readonly getToolCallCount: (messages: readonly TMessage[], messageId: string) => number;
+};
+
 declare const TOOL_RESPONSE_SYMBOL: unique symbol;
 
 type TextMessagePart = {
@@ -1560,6 +1642,18 @@ type ThreadComposerRuntime = Omit<ComposerRuntime, "getAttachmentByIndex" | "get
 
 type ThreadComposerState = BaseComposerState & {
   readonly type: "thread";
+};
+
+type ThreadHistoryAdapter = {
+  load(): Promise<ExportedMessageRepository & {
+    state?: ReadonlyJSONValue;
+    unstable_resume?: boolean;
+  }>;
+  resume?(options: ChatModelRunOptions): AsyncGenerator<ChatModelRunResult, void, unknown>;
+  append(item: ExportedMessageRepositoryItem): Promise<void>;
+  update?(item: ExportedMessageRepositoryItem): Promise<void>;
+  delete?(items: ExportedMessageRepositoryItem[]): Promise<void>;
+  withFormat?<TMessage, TStorageFormat extends Record<string, unknown>>(formatAdapter: MessageFormatAdapter<TMessage, TStorageFormat>): GenericThreadHistoryAdapter<TMessage>;
 };
 
 type ThreadListItemEventCallback<E extends ThreadListItemEventType> = (payload: ThreadListItemEventPayload[E]) => void;
@@ -1673,6 +1767,7 @@ type ThreadMessageLike = {
       payload: unknown;
     };
     readonly timing?: ToolCallTiming;
+    readonly mcp?: ToolCallMessagePartMcpMetadata;
     readonly providerMetadata?: PartProviderMetadata;
     readonly approval?: {
       readonly id: string;
@@ -1778,6 +1873,8 @@ type ThreadStep = {
 };
 
 type ThreadSuggestion = {
+  title?: string;
+  label?: string;
   prompt: string;
 };
 
@@ -1892,7 +1989,11 @@ type ToolCallMessagePartMcpMetadata = {
 
 type ToolCallMessagePartStatus = {
   readonly type: "requires-action";
-  readonly reason: "interrupt";
+  readonly reason: "interrupt" | "tool-calls";
+} | {
+  readonly type: "incomplete";
+  readonly reason: "tool-calls";
+  readonly error?: ReadonlyJSONValue;
 } | MessagePartStatus;
 
 interface ToolCallReader<TArgs extends Record<string, unknown> = Record<string, unknown>, TResult = unknown> {
@@ -2034,6 +2135,103 @@ type VoiceSessionState = {
 
 declare const convertLangChainBaseMessage: (message: LangChainBaseMessage, metadata?: LangChainMessageConverterMetadata) => useExternalMessageConverter.Message;
 
+declare const convertLangChainContentBlock: (part: LangChainContentBlock) => ConvertedContentPart | null | undefined;
+
+declare namespace entry_converter_exports {
+  export { LangChainContentBlock, convertLangChainContentBlock, createLangChainStreamingTimingAccessors, getCustomMetadata, getMessageContent, getUIMessageParentId, groupUIMessagesByParent, uiMessageToDataPart, withAudioTranscript };
+}
+
+declare const createLangChainStreamingTimingAccessors: <TMessage extends {
+  id?: string | undefined;
+  content?: unknown;
+  tool_calls?: readonly unknown[] | undefined;
+}>(getType: (message: TMessage) => string) => StreamingTimingAccessors<TMessage>;
+
+declare const getCustomMetadata: (additionalKwargs: Record<string, unknown> | undefined) => Record<string, unknown>;
+
+declare const getMessageContent: (msg: AppendMessage) => string | ({
+  type: "text";
+  text: string;
+  image_url?: never;
+  id?: never;
+  mime_type?: never;
+  filename?: never;
+  metadata?: never;
+  source_type?: never;
+  url?: never;
+  data?: never;
+} | {
+  type: "image_url";
+  image_url: {
+    url: string;
+  };
+  text?: never;
+  id?: never;
+  mime_type?: never;
+  filename?: never;
+  metadata?: never;
+  source_type?: never;
+  url?: never;
+  data?: never;
+} | {
+  type: "file";
+  id: string;
+  mime_type: string;
+  filename: string;
+  metadata: {
+    filename: string;
+  };
+  source_type: "id";
+  text?: never;
+  image_url?: never;
+  url?: never;
+  data?: never;
+} | {
+  type: "file";
+  url: string;
+  mime_type: string;
+  filename: string;
+  metadata: {
+    filename: string;
+  };
+  source_type: "url";
+  text?: never;
+  image_url?: never;
+  id?: never;
+  data?: never;
+} | {
+  type: "file";
+  data: string;
+  mime_type: string;
+  filename: string;
+  metadata: {
+    filename: string;
+  };
+  source_type: "base64";
+  text?: never;
+  image_url?: never;
+  id?: never;
+  url?: never;
+} | {
+  type: "audio";
+  data: string;
+  mime_type: string;
+  source_type: "base64";
+  text?: never;
+  image_url?: never;
+  id?: never;
+  filename?: never;
+  metadata?: never;
+  url?: never;
+})[];
+
+declare const getUIMessageParentId: (ui: {
+  metadata?: {
+    message_id?: string;
+    id?: string;
+  } | undefined;
+}) => string | undefined;
+
 declare global {
   interface Window {
     SpeechRecognition?: SpeechRecognitionConstructor;
@@ -2041,30 +2239,26 @@ declare global {
   }
 }
 
+declare const groupUIMessagesByParent: <T extends {
+  metadata?: {
+    message_id?: string;
+    id?: string;
+  } | undefined;
+}>(value: unknown) => Map<string, T[]>;
+
 declare namespace entry_root_exports {
   export { LangChainBaseMessage, LangChainContentBlock, LangChainToolCall, RemoveUIMessage, SubagentDiscoverySnapshot$1 as SubagentDiscoverySnapshot, SubgraphDiscoverySnapshot$1 as SubgraphDiscoverySnapshot, UIMessage, UseStreamRuntimeOptions, convertLangChainBaseMessage, useLangChainError, useLangChainInterruptState, useLangChainInterrupts, useLangChainRespond, useLangChainRespondAll, useLangChainSend, useLangChainSendCommand, useLangChainState, useLangChainStream, useLangChainStreamingTiming, useLangChainSubagents, useLangChainSubgraphs, useLangChainSubmit, useLangChainToolCalls, useStreamRuntime };
 }
 
+declare const uiMessageToDataPart: <TUIMessage extends {
+  name: string;
+  props: Record<string, unknown>;
+}>(ui: TUIMessage) => DataMessagePart;
+
 declare namespace useExternalMessageConverter {
-  type Message = (ThreadMessageLike & {
-    readonly convertConfig?: {
-      readonly joinStrategy?: JoinStrategy;
-    };
-  }) | {
-    role: "tool";
-    toolCallId: string;
-    toolName?: string | undefined;
-    result: any;
-    artifact?: any;
-    isError?: boolean;
-    messages?: readonly ThreadMessage[];
-  };
-  type Metadata = {
-    readonly toolStatuses?: Record<string, ToolExecutionStatus>;
-    readonly error?: ReadonlyJSONValue;
-    readonly messageTiming?: Record<string, MessageTiming>;
-  };
-  type Callback<T> = (message: T, metadata: Metadata) => Message | Message[];
+  type Message = ExternalMessageConverterMessage;
+  type Metadata = ExternalMessageConverterMetadata;
+  type Callback<T> = ExternalMessageConverterCallback<T>;
 }
 
 declare const useExternalMessageConverter: <T extends WeakKey>(_param2: {
@@ -2112,4 +2306,12 @@ declare const useLangChainToolCalls: () => readonly AssembledToolCall<string, un
 
 declare const useStreamRuntime: (rawOptions: UseStreamRuntimeOptions) => AssistantRuntime;
 
-export { entry_root_exports as entry_root };
+declare const withAudioTranscript: <T extends {
+  type: string;
+  text?: unknown;
+}>(parts: readonly T[], additionalKwargs: Record<string, unknown> | undefined) => readonly (T | {
+  type: "text";
+  text: string;
+})[];
+
+export { entry_converter_exports as entry_converter, entry_root_exports as entry_root };

@@ -4,7 +4,13 @@ description: Stream-ready React chat container with message list, composer, auto
 platforms: ["react"]
 ---
 
-import { ThreadSample } from "@/components/docs/samples/thread";
+import { ThreadSample } from "@/components/pages/docs/samples/thread";
+import { ThreadHistorySample } from "@/components/pages/docs/samples/thread/thread-history";
+import { ThreadActionsSample } from "@/components/pages/docs/samples/thread/message-actions";
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { ThreadWelcomeSuggestionsSample } from "@/components/pages/docs/samples/thread/welcome-with-suggestions";
+import { ThreadBranchSample } from "@/components/pages/docs/samples/thread/branching-response";
+import { ThreadRunningSample } from "@/components/pages/docs/samples/thread/running-response";
 
 A complete chat interface that combines message rendering, auto-scrolling, composer input,
 attachments, and conditional UI states. Fully customizable and composable.
@@ -90,6 +96,13 @@ export default function Chat() {
 </AuiIf>
 ```
 
+### Thread with History
+
+The thread shows a completed multi-turn conversation. The composer stays below the
+messages, ready for the next input.
+
+<ThreadHistorySample />
+
 ### Conditional Send/Cancel Button
 
 ```tsx
@@ -106,9 +119,22 @@ export default function Chat() {
 </AuiIf>
 ```
 
+While the last assistant response runs, the composer shows the cancel action, not the send action, and the action bar of the response stays hidden. Click the stop button to cancel the run. The composer then shows the send action again.
+
+<ThreadRunningSample />
+
 ### Suggestions
 
 Display suggested prompts using the Suggestions API. See the [Suggestions guide](/docs/guides/suggestions) for detailed configuration.
+
+An empty thread centers the welcome screen and shows the configured suggestion chips. When you select a chip, the thread sends its prompt.
+
+<PreviewCode
+  file="components/pages/docs/samples/thread/welcome-with-suggestions"
+  name="ChatWithSuggestions"
+>
+  <ThreadWelcomeSuggestionsSample />
+</PreviewCode>
 
 ```tsx
 import type { ReactNode } from "react";
@@ -119,7 +145,7 @@ import {
   Suggestions,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import { useChatRuntime } from "@assistant-ui/react-ai-sdk";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
 // Configure suggestions in your runtime provider
 const config = AuiConfig({
@@ -151,6 +177,27 @@ const SuggestionItem = () => (
   </SuggestionPrimitive.Trigger>
 );
 ```
+
+### Branching Response
+
+Select the refresh action below the assistant response to make an alternate branch. The built-in branch picker then shows `2 / 2` with arrows that switch between the two branches.
+
+<PreviewCode
+  file="components/pages/docs/samples/thread/branching-response"
+  name="Chat"
+>
+  <ThreadBranchSample />
+</PreviewCode>
+
+### Message Actions
+
+Hover over the first assistant response to show its action bar. When the thread is idle, the last response always shows its actions. The copied `Thread` component sets `hideWhenRunning` and `autohide="not-last"` on `ActionBarPrimitive.Root`. Refer to the [ActionBar primitive](/docs/primitives/action-bar) to change this behavior.
+
+<ThreadActionsSample />
+
+## Composer Focus
+
+Set `autoFocus={false}` to keep the page focus. This setting stops composer focus when the thread mounts, starts a run, changes threads, or scrolls to the bottom. The default value is `true`.
 
 ## Component Overrides
 

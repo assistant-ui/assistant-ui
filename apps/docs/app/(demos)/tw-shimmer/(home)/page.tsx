@@ -1,489 +1,266 @@
-"use client";
+import type { ReactNode } from "react";
+import Link from "next/link";
+import { ArrowUpRight } from "lucide-react";
+import { CopyCommandButton } from "@/components/shared/copy-command-button";
+import { Highlight } from "@/components/shared/highlight";
+import { CodeBlock } from "@/components/ui/code-block";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { cn } from "@/lib/utils";
 
-import { useState, useCallback } from "react";
-import { Copy, Check, FileCode, Sparkle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
-import {
-  transformerMetaHighlight,
-  transformerMetaWordHighlight,
-} from "@shikijs/transformers";
+const ANALYTICS_PAGE = "tw-shimmer" as const;
 
-const HIGHLIGHT_STYLES = `
-  .highlighted {
-    background: rgba(59, 130, 246, 0.15);
-    display: block;
-  }
-  .dark .highlighted {
-    background: rgba(147, 197, 253, 0.25);
-  }
-  .highlighted-word {
-    background: rgba(59, 130, 246, 0.2);
-    color: rgb(30, 58, 138);
-    padding: 0 0.125rem;
-    border-radius: 0.125rem;
-    font-style: normal;
-    font-weight: inherit;
-  }
-  .dark .highlighted-word {
-    background: rgba(147, 197, 253, 0.3);
-    color: rgb(165, 180, 252);
-  }
-`;
-
-function HighlightStyles() {
-  return (
-    <style jsx global>
-      {HIGHLIGHT_STYLES}
-    </style>
-  );
-}
+const HIGHLIGHTS = [
+  {
+    title: "CSS only",
+    description: "No JavaScript runtime. Import the plugin and add a class.",
+  },
+  {
+    title: "Text and skeletons",
+    description: "The same utilities cover labels and loading placeholders.",
+  },
+  {
+    title: "Auto-sizing",
+    description:
+      "Container queries derive speed and spread from width. No measuring.",
+  },
+  {
+    title: "Customizable",
+    description: "Speed, spread, angle, color, duration, and repeat delay.",
+  },
+] as const;
 
 export default function TwShimmerPage() {
-  const [copied, setCopied] = useState(false);
-
-  const copyToClipboard = useCallback(async (text: string) => {
-    if (typeof navigator === "undefined" || !navigator.clipboard) return;
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {}
-  }, []);
-
   return (
-    <div className="container mx-auto max-w-7xl space-y-16 px-4 py-12">
-      <HighlightStyles />
-      <div className="mx-auto flex w-fit flex-col items-center space-y-6 text-center">
-        <div className="bg-border flex cursor-default rounded-full p-px">
-          <div className="bg-background flex items-center gap-2 rounded-full px-4 py-1.5 text-sm">
-            <Sparkle className="size-4 opacity-50" />
-            <span className="text-foreground/60">Tailwind CSS v4 Plugin</span>
+    <PageFrame pad="sub">
+      <header className="max-w-2xl">
+        <h1 className={cn(typePage, "shimmer text-foreground/50")}>
+          Loading, pure CSS.
+        </h1>
+        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+          Zero-dependency shimmer for Tailwind CSS v4. Sine-eased gradients,
+          OKLCH color mixing, text and skeletons, pure CSS.
+        </p>
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+          <CopyCommandButton
+            command="npm install tw-shimmer"
+            analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
+          />
+          <Link
+            href="/docs/utilities/tw-shimmer"
+            className="text-muted-foreground hover:text-foreground text-sm transition-colors"
+          >
+            Read the docs
+          </Link>
+        </div>
+      </header>
+
+      <figure className="mt-12 md:mt-16">
+        <div className="border-foreground/10 border px-6 py-8 md:px-10 md:py-10">
+          <div className="shimmer-container mx-auto flex max-w-md flex-col gap-6">
+            <div className="shimmer shimmer-bg bg-muted h-9 w-44 self-end rounded-[16px] [--shimmer-x:240] [--shimmer-y:0]" />
+            <div className="flex flex-col gap-2">
+              <div className="shimmer shimmer-bg bg-muted h-4 w-full rounded [--shimmer-x:0] [--shimmer-y:50]" />
+              <div className="shimmer shimmer-bg bg-muted h-4 w-11/12 rounded [--shimmer-x:0] [--shimmer-y:74]" />
+              <div className="shimmer shimmer-bg bg-muted h-4 w-3/5 rounded [--shimmer-x:0] [--shimmer-y:98]" />
+            </div>
+            <p className="shimmer text-foreground/45 font-mono text-[12px] tracking-wide">
+              &gt; thinking
+            </p>
           </div>
         </div>
+        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+          <span>fig. 01</span>
+          <span>what loading looks like in assistant-ui</span>
+        </figcaption>
+      </figure>
 
-        <div className="flex flex-col gap-5">
-          <div className="pointer-events-none text-5xl font-bold tracking-tight select-none lg:text-7xl">
-            <h1 className="shimmer text-foreground/50 inline">tw-shimmer</h1>
-          </div>
+      <div className="border-foreground/10 mt-16 border-t md:mt-20">
+        <section className="divide-foreground/10 border-foreground/10 grid gap-8 border-b py-10 md:grid-cols-2 md:gap-y-10 lg:grid-cols-4 lg:gap-0 lg:divide-x lg:py-12">
+          {HIGHLIGHTS.map((item) => (
+            <div
+              key={item.title}
+              className="lg:px-8 lg:first:ps-0 lg:last:pe-0"
+            >
+              <h2 className="text-sm font-medium">{item.title}</h2>
+              <p className="text-muted-foreground mt-2 text-sm leading-relaxed text-pretty">
+                {item.description}
+              </p>
+            </div>
+          ))}
+        </section>
 
-          <p className="text-muted-foreground max-w-[520px] text-lg font-light text-balance">
-            Zero-dependency CSS-only shimmer. Simple, beautiful, and
-            lightweight.
-          </p>
-        </div>
-      </div>
-
-      <div id="installation" className="space-y-8">
-        <div className="text-center">
-          <h2 className="text-3xl font-medium">Installation</h2>
-        </div>
-
-        <div className="mx-auto max-w-3xl space-y-6">
-          <Box>
-            <BoxContent>
-              <div className="flex items-center justify-between">
-                <code className="text-sm">npm install tw-shimmer</code>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => copyToClipboard("npm install tw-shimmer")}
-                >
-                  {copied ? (
-                    <Check className="size-4" />
-                  ) : (
-                    <Copy className="size-4" />
-                  )}
-                </Button>
-              </div>
-            </BoxContent>
-          </Box>
-
-          <Box>
-            <BoxCodeHeader fileName="styles/globals.css" />
-            <BoxCode>
-              <CodeBlock
-                language="css"
-                code={`@import "tailwindcss";
+        <DemoSection
+          id="installation"
+          title="Install"
+          description="Add the plugin, then import it next to Tailwind."
+        >
+          <Snippet
+            lang="css"
+            title="app/globals.css"
+            code={`@import "tailwindcss";
 @import "tw-shimmer";`}
-                highlight="tw-shimmer"
-                highlightMode="line"
-              />
-            </BoxCode>
-          </Box>
-        </div>
-      </div>
+          />
+        </DemoSection>
 
-      <div className="space-y-8">
-        <div className="text-center">
-          <h2 className="mb-2 text-3xl font-medium">Text Shimmer</h2>
-          <p className="text-muted-foreground text-xl">
-            Add shimmer effects to text elements.
-          </p>
-        </div>
+        <DemoSection
+          title="Text"
+          description="The highlight is invisible on solid black or white. Use a muted or semi-transparent color."
+        >
+          <Example
+            title="shimmer"
+            description="Base utility. Needs a text color lighter or darker than the page so the sweep can show."
+            code='<span class="shimmer text-foreground/60">Shimmer Effect</span>'
+          >
+            <span className="shimmer text-foreground/80 dark:text-foreground/60 text-xl font-medium">
+              Shimmer Effect
+            </span>
+          </Example>
 
-        <div className="mx-auto max-w-3xl space-y-6">
-          <div className="border border-dashed border-blue-500/20 bg-blue-500/5 p-4 text-sm">
-            <p className="mb-1 font-semibold">💡 Important</p>
-            <p className="text-muted-foreground">
-              You won&apos;t see the shimmer if your text color is{" "}
-              <span className="dark:hidden">black</span>
-              <span className="hidden dark:inline">white</span>. Set a{" "}
-              <span className="dark:hidden">lighter</span>
-              <span className="hidden dark:inline">darker</span> or
-              semi-transparent text color.
-            </p>
-          </div>
+          <Example
+            title="shimmer-invert"
+            description="Fades the other way, so you can keep a stronger text color and still get a stark highlight."
+            code='<span class="shimmer shimmer-invert text-foreground/60">Shimmer</span>'
+          >
+            <span className="shimmer shimmer-invert text-foreground/60 dark:text-foreground/80 text-xl font-medium">
+              Shimmer Effect
+            </span>
+          </Example>
 
-          <Box>
-            <BoxTitle
-              title="shimmer"
-              description="Base utility for shimmer effect. Requires text color to be visible."
-            />
-            <BoxCode>
-              <CodeBlock
-                language="html"
-                code='<span class="shimmer text-foreground/60">Shimmer Effect</span>'
-                highlight="shimmer"
-                highlightMode="text"
-              />
-            </BoxCode>
-            <BoxContent>
-              <span className="shimmer text-foreground/80 dark:text-foreground/60 text-xl font-semibold">
-                Shimmer Effect
+          <Example
+            title="Automatic color"
+            description="The highlight mixes from the current text color."
+            code='<span class="shimmer text-blue-600">Blue Shimmer</span>'
+          >
+            <span className="shimmer text-xl font-medium text-blue-600">
+              Blue Shimmer
+            </span>
+          </Example>
+
+          <Example
+            title="shimmer-color-{color}"
+            description="Override the automatic highlight with any Tailwind color."
+            code='<span class="shimmer shimmer-color-orange-500 text-foreground/40">Orange Shimmer</span>'
+          >
+            <span className="shimmer shimmer-color-orange-500 text-foreground/40 text-xl font-medium">
+              Orange Shimmer
+            </span>
+          </Example>
+
+          <Example
+            title="shimmer-spread-{value}"
+            description="Width of the highlight. Default is 120px."
+            code='<span class="shimmer shimmer-spread-200 text-foreground/40">Wide Shimmer</span>'
+          >
+            <div className="flex flex-col items-start gap-2">
+              <span className="shimmer shimmer-spread-60 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+                Shimmer Effect (60px)
               </span>
-            </BoxContent>
-          </Box>
-
-          <Box>
-            <BoxTitle
-              title="shimmer-invert"
-              description={
-                <>
-                  Fades text <span className="dark:hidden">lighter</span>
-                  <span className="hidden dark:inline">darker</span> instead.
-                  Allows you to use <span className="dark:hidden">darker</span>
-                  <span className="hidden dark:inline">brighter</span> text
-                  colors and still get a stark shimmer effect.
-                </>
-              }
-            />
-            <BoxCode>
-              <CodeBlock
-                language="html"
-                code='<span class="shimmer shimmer-invert text-foreground/60">Shimmer</span>'
-                highlight="shimmer-invert"
-                highlightMode="text"
-              />
-            </BoxCode>
-            <BoxContent>
-              <span className="shimmer shimmer-invert text-foreground/60 dark:text-foreground/80 text-xl font-semibold">
-                Shimmer Effect
+              <span className="shimmer shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+                Shimmer Effect (120px)
               </span>
-            </BoxContent>
-          </Box>
-
-          <Box>
-            <BoxTitle
-              title="Automatic Color"
-              description="Shimmer automatically picks a color based on your text color."
-            />
-            <BoxCode>
-              <CodeBlock
-                language="html"
-                code='<span class="shimmer text-blue-600">Blue Shimmer</span>'
-                highlight="text-blue"
-                highlightMode="text"
-              />
-            </BoxCode>
-            <BoxContent>
-              <span className="shimmer text-xl font-semibold text-blue-600">
-                Blue Shimmer
+              <span className="shimmer shimmer-spread-200 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+                Shimmer Effect (200px)
               </span>
-            </BoxContent>
-          </Box>
+            </div>
+          </Example>
 
-          <Box>
-            <BoxTitle
-              title="shimmer-color-{color}"
-              description="Override the automatic color with a custom shimmer color."
-            />
-            <BoxCode>
-              <CodeBlock
-                language="html"
-                code='<span class="shimmer shimmer-color-orange-500 text-foreground/40">Orange Shimmer</span>'
-                highlight="shimmer-color"
-                highlightMode="text"
-              />
-            </BoxCode>
-            <BoxContent>
-              <span className="shimmer shimmer-color-orange-500 text-foreground/40 text-xl font-semibold">
-                Orange Shimmer
+          <Example
+            title="shimmer-angle-{value}"
+            description="Sweep angle in degrees. Default is 15deg. Higher values cut more diagonally."
+            code='<span class="shimmer shimmer-angle-75 text-foreground/40">Diagonal Shimmer</span>'
+          >
+            <div className="flex flex-col items-start gap-2">
+              <span className="shimmer shimmer-angle-0 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+                Shimmer Effect (0deg)
               </span>
-            </BoxContent>
-          </Box>
-
-          <Box>
-            <BoxTitle
-              title="shimmer-spread-{value}"
-              description="Width of the shimmer highlight in pixels. Default: 120px."
-            />
-            <BoxCode>
-              <CodeBlock
-                language="html"
-                code='<span class="shimmer shimmer-spread-200 text-foreground/40">Wide Shimmer</span>'
-                highlight="shimmer-spread"
-                highlightMode="text"
-              />
-            </BoxCode>
-            <BoxContent>
-              <div className="flex flex-col items-start gap-2">
-                <span className="shimmer shimmer-spread-60 shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
-                  Shimmer Effect (60px)
-                </span>
-                <span className="shimmer shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
-                  Shimmer Effect (120px)
-                </span>
-                <span className="shimmer shimmer-spread-200 shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
-                  Shimmer Effect (200px)
-                </span>
-              </div>
-            </BoxContent>
-          </Box>
-
-          <Box>
-            <BoxTitle
-              title="shimmer-angle-{value}"
-              description="Angle of the shimmer sweep in degrees. Default: 15deg (resulting in a 105deg gradient). Higher values create a more diagonal sweep."
-            />
-            <BoxCode>
-              <CodeBlock
-                language="html"
-                code='<span class="shimmer shimmer-angle-75 text-foreground/40">Diagonal Shimmer</span>'
-                highlight="shimmer-angle"
-                highlightMode="text"
-              />
-            </BoxCode>
-            <BoxContent>
-              <div className="flex flex-col items-start gap-2">
-                <span className="shimmer shimmer-angle-0 shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
-                  Shimmer Effect (0deg)
-                </span>
-                <span className="shimmer shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
-                  Shimmer Effect (15deg)
-                </span>
-                <span className="shimmer shimmer-angle-75 shimmer-duration-5000 text-foreground/40 text-xl font-semibold">
-                  Shimmer Effect (75deg)
-                </span>
-              </div>
-            </BoxContent>
-          </Box>
-        </div>
-      </div>
-
-      <div className="space-y-8">
-        <div className="text-center">
-          <h2 className="mb-2 text-3xl font-medium">Animation Timing</h2>
-          <p className="text-muted-foreground text-xl">
-            Control how long the shimmer animation takes.
-          </p>
-        </div>
-
-        <div className="mx-auto max-w-3xl space-y-6">
-          <div className="rounded-md border border-dashed p-6">
-            <p className="text-muted-foreground mb-4 text-center text-sm">
-              Total animation cycle
-            </p>
-            <div className="flex items-center justify-center gap-2">
-              <div className="flex flex-col items-center gap-1">
-                <div className="rounded bg-blue-500/20 px-4 py-2 font-mono text-sm">
-                  shimmer animation
-                </div>
-                <span className="text-muted-foreground text-xs">
-                  (duration or speed)
-                </span>
-              </div>
-              <span className="text-muted-foreground font-mono text-xl">+</span>
-              <div className="flex flex-col items-center gap-1">
-                <div className="rounded bg-orange-500/20 px-4 py-2 font-mono text-sm">
-                  repeat delay
-                </div>
-                <span className="text-muted-foreground text-xs">
-                  (default: 1000ms)
-                </span>
-              </div>
+              <span className="shimmer shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+                Shimmer Effect (15deg)
+              </span>
+              <span className="shimmer shimmer-angle-75 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+                Shimmer Effect (75deg)
+              </span>
             </div>
-          </div>
+          </Example>
+        </DemoSection>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <div className="space-y-2">
-              <p className="text-muted-foreground text-sm font-medium">
-                Option A
-              </p>
-              <Box>
-                <div className="bg-muted/40 space-y-2 p-6">
-                  <h3 className="font-mono text-lg">
-                    shimmer-duration-{"{ms}"}
-                  </h3>
-                  <p className="text-muted-foreground max-w-[70ch] text-sm">
-                    Fixed duration in milliseconds. Larger elements will appear
-                    to move faster since they cover more distance in the same
-                    time.
-                  </p>
-                </div>
-                <BoxCode>
-                  <CodeBlock
-                    language="html"
-                    code='<span class="shimmer shimmer-duration-2000">...</span>'
-                    highlight="shimmer-duration"
-                    highlightMode="text"
-                  />
-                </BoxCode>
-                <BoxContent>
-                  <div className="flex flex-col items-start gap-2">
-                    <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-semibold">
-                      Short
-                    </span>
-                    <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-semibold">
-                      Medium Length Text
-                    </span>
-                    <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-semibold">
-                      This Is A Much Longer Text
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground mt-4 text-xs">
-                    Same duration, different perceived speeds
-                  </p>
-                </BoxContent>
-              </Box>
+        <DemoSection
+          title="Timing"
+          description="A cycle is the sweep plus the pause. Duration is a fixed time. Speed is pixels per second."
+        >
+          <Example
+            title="shimmer-duration-{ms}"
+            description="Fixed duration. Wider text covers more distance in the same time, so it looks faster."
+            code='<span class="shimmer shimmer-duration-2000">...</span>'
+          >
+            <div className="flex flex-col items-start gap-2">
+              <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-medium">
+                Short
+              </span>
+              <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-medium">
+                Medium Length Text
+              </span>
+              <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-medium">
+                This Is A Much Longer Text
+              </span>
             </div>
+          </Example>
 
-            <div className="space-y-2">
-              <p className="text-muted-foreground text-sm font-medium">
-                Option B
-              </p>
-              <Box>
-                <div className="bg-muted/40 space-y-2 p-6">
-                  <h3 className="font-mono text-lg">
-                    shimmer-speed-{"{px/s}"}
-                  </h3>
-                  <p className="text-muted-foreground max-w-[70ch] text-sm">
-                    Speed in pixels per second. All elements sweep at the same
-                    visual speed regardless of width. Default: 200px/s.
-                  </p>
-                </div>
-                <BoxCode>
-                  <CodeBlock
-                    language="html"
-                    code='<span class="shimmer shimmer-speed-200">...</span>'
-                    highlight="shimmer-speed"
-                    highlightMode="text"
-                  />
-                </BoxCode>
-                <BoxContent>
-                  <div className="flex flex-col items-start gap-2">
-                    <span className="shimmer shimmer-speed-200 shimmer-repeat-delay-1975 text-foreground/40 text-xl font-semibold [--shimmer-track-width:50px]">
-                      Short
-                    </span>
-                    <span className="shimmer shimmer-speed-200 shimmer-repeat-delay-1300 text-foreground/40 text-xl font-semibold [--shimmer-track-width:185px]">
-                      Medium Length Text
-                    </span>
-                    <span className="shimmer shimmer-speed-200 text-foreground/40 text-xl font-semibold [--shimmer-track-width:245px]">
-                      This Is A Much Longer Text
-                    </span>
-                  </div>
-                  <p className="text-muted-foreground mt-4 text-xs">
-                    Same speed, different durations
-                  </p>
-                </BoxContent>
-              </Box>
+          <Example
+            title="shimmer-speed-{px/s}"
+            description="Same visual speed on every width. Default is 200px/s. CSS cannot read text width, so pass --shimmer-track-width or it defaults to 200px."
+            code='<span class="shimmer shimmer-speed-200">...</span>'
+          >
+            <div className="flex flex-col items-start gap-2">
+              <span className="shimmer shimmer-speed-200 shimmer-repeat-delay-1975 text-foreground/40 text-xl font-medium [--shimmer-track-width:50px]">
+                Short
+              </span>
+              <span className="shimmer shimmer-speed-200 shimmer-repeat-delay-1300 text-foreground/40 text-xl font-medium [--shimmer-track-width:185px]">
+                Medium Length Text
+              </span>
+              <span className="shimmer shimmer-speed-200 text-foreground/40 text-xl font-medium [--shimmer-track-width:245px]">
+                This Is A Much Longer Text
+              </span>
             </div>
-          </div>
+          </Example>
 
-          <div className="grid gap-6 md:grid-cols-2">
-            <div />
-            <div className="border border-dashed border-amber-500/20 bg-amber-500/5 p-4 text-sm">
-              <p className="mb-1 font-semibold">
-                Width Required for shimmer-speed
-              </p>
-              <p className="text-muted-foreground">
-                CSS can&apos;t read text width, so you need to measure it with
-                JavaScript and pass it in. Without it, defaults to 200px.
-              </p>
-              <code className="bg-muted mt-2 block rounded px-2 py-1 text-xs">
-                {'style={{ "--shimmer-track-width": width }}'}
-              </code>
+          <Example
+            title="shimmer-repeat-delay-{value}"
+            description="Pause between cycles. Default is 1000ms. Use 0 for a continuous sweep."
+            code='<span class="shimmer shimmer-repeat-delay-0">No Delay</span>'
+          >
+            <div className="flex flex-col items-start gap-2 [--shimmer-track-height:28px]">
+              <span className="shimmer shimmer-repeat-delay-0 shimmer-duration-3000 text-foreground/40 text-xl font-medium">
+                Shimmer Effect (0ms)
+              </span>
+              <span className="shimmer shimmer-duration-3000 text-foreground/40 text-xl font-medium">
+                Shimmer Effect (1000ms)
+              </span>
+              <span className="shimmer shimmer-repeat-delay-2000 shimmer-duration-3000 text-foreground/40 text-xl font-medium">
+                Shimmer Effect (2000ms)
+              </span>
             </div>
-          </div>
+          </Example>
+        </DemoSection>
 
-          <Box>
-            <BoxTitle
-              title="shimmer-repeat-delay-{value}"
-              description="Delay between animation cycles in milliseconds. Default: 1000ms. Use 0 for continuous shimmer without pause."
-            />
-            <BoxCode>
-              <CodeBlock
-                language="html"
-                code='<span class="shimmer shimmer-repeat-delay-0">No Delay</span>'
-                highlight="shimmer-repeat-delay"
-                highlightMode="text"
-              />
-            </BoxCode>
-            <BoxContent>
-              <div className="flex flex-col items-start gap-2 [--shimmer-track-height:28px]">
-                <span className="shimmer shimmer-repeat-delay-0 shimmer-duration-3000 text-foreground/40 text-xl font-semibold">
-                  Shimmer Effect (0ms)
-                </span>
-                <span className="shimmer shimmer-duration-3000 text-foreground/40 text-xl font-semibold">
-                  Shimmer Effect (1000ms)
-                </span>
-                <span className="shimmer shimmer-repeat-delay-2000 shimmer-duration-3000 text-foreground/40 text-xl font-semibold">
-                  Shimmer Effect (2000ms)
-                </span>
-              </div>
-            </BoxContent>
-          </Box>
-        </div>
-      </div>
+        <DemoSection
+          title="Background"
+          description="For skeletons, use shimmer and shimmer-bg together. Wrap a group in shimmer-container to share timing."
+        >
+          <Example
+            title="shimmer shimmer-bg"
+            description="Background sweep for a single placeholder."
+            code='<div class="shimmer shimmer-bg h-4 w-64 rounded bg-muted" />'
+          >
+            <div className="shimmer-container">
+              <div className="shimmer shimmer-bg bg-muted h-4 w-64 rounded" />
+            </div>
+          </Example>
 
-      <div className="space-y-8">
-        <div className="text-center">
-          <h2 className="mb-2 text-3xl font-medium">Background Shimmer</h2>
-          <p className="text-muted-foreground text-xl">
-            Add shimmer to skeleton components and non-text elements.
-          </p>
-        </div>
-
-        <div className="mx-auto max-w-3xl space-y-6">
-          <Box>
-            <BoxTitle
-              title="shimmer shimmer-bg"
-              description="Background shimmer for skeleton loaders. Apply both shimmer and shimmer-bg classes."
-            />
-            <BoxCode>
-              <CodeBlock
-                language="html"
-                code='<div class="shimmer shimmer-bg h-4 w-64 rounded bg-muted" />'
-                highlight="shimmer-bg"
-                highlightMode="text"
-              />
-            </BoxCode>
-            <BoxContent>
-              <div className="shimmer-container">
-                <div className="shimmer shimmer-bg bg-muted h-4 w-64 rounded" />
-              </div>
-            </BoxContent>
-          </Box>
-
-          <Box>
-            <BoxTitle
-              title="Skeleton Card Example"
-              description="Wrap skeleton elements in shimmer-container for automatic width detection. Use --shimmer-x and --shimmer-y to coordinate timing across the diagonal sweep."
-            />
-            <BoxCode>
-              <CodeBlock
-                language="html"
-                code={`<div class="shimmer-container flex gap-3">
+          <Example
+            title="shimmer-container"
+            description="Auto-sizing for a group. --shimmer-x and --shimmer-y line the sweep up across the diagonal."
+            code={`<div class="shimmer-container flex gap-3">
   <div class="shimmer shimmer-bg [--shimmer-x:0] [--shimmer-y:0] size-12 rounded-full bg-muted" />
   <div class="flex-1 space-y-1">
     <div class="shimmer shimmer-bg [--shimmer-x:60] [--shimmer-y:0] h-4 w-1/4 rounded bg-muted" />
@@ -491,175 +268,144 @@ export default function TwShimmerPage() {
     <div class="shimmer shimmer-bg [--shimmer-x:60] [--shimmer-y:40] h-4 w-4/5 rounded bg-muted" />
   </div>
 </div>`}
-                highlight={["--shimmer-x", "--shimmer-y"]}
-                highlightMode="text"
-              />
-            </BoxCode>
-            <BoxContent>
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="space-y-2">
-                  <p className="text-muted-foreground text-sm font-medium">
-                    Uncoordinated
-                  </p>
-                  <div className="shimmer-container flex gap-3">
-                    <div className="shimmer shimmer-bg bg-muted size-12 shrink-0 rounded-full" />
-                    <div className="flex-1 space-y-1">
-                      <div className="shimmer shimmer-bg bg-muted h-4 w-1/4 rounded" />
-                      <div className="shimmer shimmer-bg bg-muted h-4 w-full rounded" />
-                      <div className="shimmer shimmer-bg bg-muted h-4 w-4/5 rounded" />
-                    </div>
-                  </div>
-                </div>
-                <div className="space-y-2">
-                  <p className="text-muted-foreground text-sm font-medium">
-                    Synchronized with x/y coordinates
-                  </p>
-                  <div className="shimmer-container flex gap-3">
-                    <div className="shimmer shimmer-bg bg-muted size-12 shrink-0 rounded-full [--shimmer-x:0] [--shimmer-y:0]" />
-                    <div className="flex-1 space-y-1">
-                      <div className="shimmer shimmer-bg bg-muted h-4 w-1/4 rounded [--shimmer-x:60] [--shimmer-y:0]" />
-                      <div className="shimmer shimmer-bg bg-muted h-4 w-full rounded [--shimmer-x:60] [--shimmer-y:20]" />
-                      <div className="shimmer shimmer-bg bg-muted h-4 w-4/5 rounded [--shimmer-x:60] [--shimmer-y:40]" />
-                    </div>
+          >
+            <div className="grid gap-8 sm:grid-cols-2">
+              <div className="flex flex-col gap-3">
+                <p className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+                  uncoordinated
+                </p>
+                <div className="shimmer-container flex gap-3">
+                  <div className="shimmer shimmer-bg bg-muted size-12 shrink-0 rounded-full" />
+                  <div className="flex-1 space-y-1">
+                    <div className="shimmer shimmer-bg bg-muted h-4 w-1/4 rounded" />
+                    <div className="shimmer shimmer-bg bg-muted h-4 w-full rounded" />
+                    <div className="shimmer shimmer-bg bg-muted h-4 w-4/5 rounded" />
                   </div>
                 </div>
               </div>
-            </BoxContent>
-          </Box>
+              <div className="flex flex-col gap-3">
+                <p className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+                  synchronized with x/y
+                </p>
+                <div className="shimmer-container flex gap-3">
+                  <div className="shimmer shimmer-bg bg-muted size-12 shrink-0 rounded-full [--shimmer-x:0] [--shimmer-y:0]" />
+                  <div className="flex-1 space-y-1">
+                    <div className="shimmer shimmer-bg bg-muted h-4 w-1/4 rounded [--shimmer-x:60] [--shimmer-y:0]" />
+                    <div className="shimmer shimmer-bg bg-muted h-4 w-full rounded [--shimmer-x:60] [--shimmer-y:20]" />
+                    <div className="shimmer shimmer-bg bg-muted h-4 w-4/5 rounded [--shimmer-x:60] [--shimmer-y:40]" />
+                  </div>
+                </div>
+              </div>
+            </div>
+          </Example>
 
-          <Box>
-            <BoxTitle
-              title="Color Customization"
-              description="Override the shimmer highlight color with shimmer-color-{color}. Default: text color at 20% alpha."
-            />
-            <BoxCode>
-              <CodeBlock
-                language="html"
-                code={`<div class="shimmer shimmer-bg shimmer-color-blue-300/30 ..." />
+          <Example
+            title="shimmer-color-{color}"
+            description="Override the highlight. Default is the text color at 20% alpha."
+            code={`<div class="shimmer shimmer-bg shimmer-color-blue-300/30 ..." />
 <div class="shimmer shimmer-bg shimmer-color-amber-200/30 ..." />`}
-                highlight="shimmer-color"
-                highlightMode="text"
-              />
-            </BoxCode>
-            <BoxContent>
+          >
+            <div className="flex flex-col gap-6">
               <div className="shimmer-container space-y-1">
                 <div className="shimmer shimmer-bg shimmer-color-blue-300/30 bg-muted h-4 w-48 rounded" />
                 <div className="shimmer shimmer-bg shimmer-color-amber-200/30 bg-muted h-4 w-48 rounded" />
               </div>
-              <p className="text-muted-foreground mt-4 mb-2 text-sm font-medium">
-                With custom background color
-              </p>
               <div className="shimmer-container space-y-1">
                 <div className="shimmer shimmer-bg shimmer-color-sky-300/20 dark:shimmer-color-sky-900 h-4 w-48 rounded bg-sky-200 dark:bg-sky-800" />
                 <div className="shimmer shimmer-bg shimmer-color-violet-300/20 dark:shimmer-color-violet-900 h-4 w-48 rounded bg-violet-200 dark:bg-violet-800" />
               </div>
-            </BoxContent>
-          </Box>
-        </div>
+            </div>
+          </Example>
+        </DemoSection>
       </div>
-    </div>
+
+      <footer className="mt-16 flex flex-col gap-3">
+        <p className="text-muted-foreground text-sm">
+          The refraction sibling:{" "}
+          <Link
+            href="/tw-glass"
+            className="text-foreground font-medium transition-colors"
+          >
+            tw-glass
+          </Link>
+          .
+        </p>
+        <Link
+          href="/docs/utilities/tw-shimmer"
+          className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
+        >
+          Full API on the docs
+          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </Link>
+      </footer>
+    </PageFrame>
   );
 }
 
-interface CodeBlockProps {
-  language: string;
-  code: string;
-  highlight?: string | string[];
-  highlightMode?: "line" | "text";
-}
-
-interface BoxTitleProps {
+function DemoSection({
+  id,
+  title,
+  description,
+  children,
+}: {
+  id?: string;
   title: string;
-  description: React.ReactNode;
+  description: string;
+  children: ReactNode;
+}) {
+  return (
+    <section
+      id={id}
+      className="border-foreground/10 scroll-mt-24 border-b py-10 md:grid md:grid-cols-[180px_minmax(0,1fr)] md:gap-12 md:py-12"
+    >
+      <div className="mb-6 md:sticky md:top-24 md:mb-0 md:self-start">
+        <h2 className={typeEyebrow}>{title}</h2>
+        <p className="text-muted-foreground/70 mt-2 max-w-[22ch] text-[13px] leading-relaxed">
+          {description}
+        </p>
+      </div>
+      <div className="flex flex-col gap-12">{children}</div>
+    </section>
+  );
 }
 
-interface BoxCodeHeaderProps {
-  fileName: string;
-}
-
-function CodeBlock({
-  language,
+function Example({
+  title,
+  description,
   code,
-  highlight,
-  highlightMode = "line",
-}: CodeBlockProps) {
-  let metaProps = {};
-
-  if (highlight) {
-    const highlights = Array.isArray(highlight) ? highlight : [highlight];
-
-    if (highlightMode === "text") {
-      const patterns = highlights.map((h) => `/${h}/`).join(" ");
-      metaProps = { meta: { __raw: patterns } };
-    } else if (highlightMode === "line") {
-      const lines = code.split("\n");
-      const lineNumbers = lines
-        .map((line, index) =>
-          highlights.some((h) => line.includes(h)) ? index + 1 : null,
-        )
-        .filter((n): n is number => n !== null);
-
-      if (lineNumbers.length > 0) {
-        metaProps = { meta: { __raw: `{${lineNumbers.join(",")}}` } };
-      }
-    }
-  }
-
+  children,
+}: {
+  title: string;
+  description: string;
+  code: string;
+  children: ReactNode;
+}) {
   return (
-    <SyntaxHighlighter
-      language={language}
-      code={code}
-      {...metaProps}
-      addDefaultStyles={false}
-      className="[--padding-left:1.5rem] [&_code]:block [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:bg-transparent! [&_pre]:px-0 [&_pre]:py-4"
-      transformers={[
-        transformerMetaHighlight(),
-        transformerMetaWordHighlight(),
-      ]}
-      components={{
-        Pre: ({ className, ...props }: any) => (
-          <pre className={className} {...props} />
-        ),
-        Code: ({ className, ...props }: any) => (
-          <code className={className} {...props} />
-        ),
-      }}
-    />
-  );
-}
-
-function Box({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="rounded-md border border-dashed [&>*:not(:last-child)]:border-b [&>*:not(:last-child)]:border-dashed">
-      {children}
+    <div className="flex flex-col gap-4">
+      <div>
+        <h3 className="font-mono text-[14px] font-medium">{title}</h3>
+        <p className="text-muted-foreground mt-1 max-w-[60ch] text-sm leading-relaxed text-pretty">
+          {description}
+        </p>
+      </div>
+      <div className="border-foreground/10 border px-5 py-6">{children}</div>
+      <Snippet lang="html" code={code} />
     </div>
   );
 }
 
-function BoxTitle({ title, description }: BoxTitleProps) {
+function Snippet({
+  lang,
+  code,
+  title,
+}: {
+  lang: string;
+  code: string;
+  title?: string;
+}) {
   return (
-    <div className="bg-muted/40 space-y-2 p-6">
-      <h3 className="font-mono text-lg">{title}</h3>
-      <p className="text-muted-foreground max-w-[70ch] text-sm">
-        {description}
-      </p>
-    </div>
+    <CodeBlock {...(title ? { title } : {})} className="my-0">
+      <Highlight code={code} language={lang} />
+    </CodeBlock>
   );
-}
-
-function BoxContent({ children }: { children: React.ReactNode }) {
-  return <div className="p-6">{children}</div>;
-}
-
-function BoxCodeHeader({ fileName }: BoxCodeHeaderProps) {
-  return (
-    <div className="flex items-center gap-2 px-6 py-4 font-mono text-sm font-medium">
-      <FileCode className="text-muted-foreground size-4" />
-      {fileName}
-    </div>
-  );
-}
-
-function BoxCode({ children }: { children: React.ReactNode }) {
-  return <div className="p-2 text-sm">{children}</div>;
 }

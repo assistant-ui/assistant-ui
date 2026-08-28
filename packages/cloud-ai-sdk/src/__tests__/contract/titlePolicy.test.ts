@@ -32,7 +32,7 @@ function createCore() {
     onSyncError: undefined,
   };
 
-  const core = new CloudChatCore({} as never, refs);
+  const core = new CloudChatCore({} as never, refs, {} as never);
   return { core, generateTitle };
 }
 

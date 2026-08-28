@@ -32,7 +32,7 @@ describe("useExternalStoreRuntime lifecycle", () => {
     expect(onNew).toHaveBeenCalledTimes(1);
   });
 
-  it("drops an append left pending across unmount", async () => {
+  it("dispatches an append before unmount", async () => {
     let resolveInitialization!: () => void;
     const initialization = new Promise<void>((resolve) => {
       resolveInitialization = resolve;
@@ -71,10 +71,13 @@ describe("useExternalStoreRuntime lifecycle", () => {
       createdAt: new Date(0),
     });
     await Promise.resolve();
+
+    expect(onNew).toHaveBeenCalledTimes(1);
+
     view.unmount();
     resolveInitialization();
 
     await appendPromise;
-    expect(onNew).not.toHaveBeenCalled();
+    expect(onNew).toHaveBeenCalledTimes(1);
   });
 });

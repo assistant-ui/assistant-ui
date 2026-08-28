@@ -25,4 +25,32 @@ describe("signature text cleanup", () => {
   it("keeps property type cleanup separate from signature cleanup", () => {
     expect(cleanTypeText("Error | undefined")).toBe("Error");
   });
+
+  it("deduplicates imported and re-exported local types", () => {
+    const project = new Project({ useInMemoryFileSystem: true });
+    project.createSourceFile(
+      "/dedupe/adapters.ts",
+      "export type WidgetAdapters = { foo?: string };",
+    );
+    const sourceFile = project.createSourceFile(
+      "/dedupe/hook.ts",
+      [
+        'import type { WidgetAdapters } from "./adapters";',
+        'export { WidgetAdapters } from "./adapters";',
+        "export const useWidget = (): WidgetAdapters => ({});",
+      ].join("\n"),
+    );
+
+    expect(
+      extractSignature(
+        sourceFile.getVariableDeclarationOrThrow("useWidget"),
+        "useWidget",
+      ),
+    ).toBe(
+      [
+        "type WidgetAdapters = { foo?: string };",
+        "const useWidget: () => WidgetAdapters;",
+      ].join("\n\n"),
+    );
+  });
 });

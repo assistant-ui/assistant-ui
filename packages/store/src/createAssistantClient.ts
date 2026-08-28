@@ -141,6 +141,7 @@ export const createAssistantClient = (
     parent: parentSource.getClient(),
     current: null,
   };
+  const destroyController = new AbortController();
   const notifications = createNotificationManager();
 
   const root = createTapRoot(
@@ -158,7 +159,13 @@ export const createAssistantClient = (
       const entries = Object.entries(
         applyTransformScopes(currentConfig, parent),
       ) as ScopeEntry[];
-      const result = useAuiRoot({ parent, entries, clientRef, notifications });
+      const result = useAuiRoot({
+        parent,
+        entries,
+        clientRef,
+        notifications,
+        destroySignal: destroyController.signal,
+      });
       // Seeded during render, before the commit runs mount effects that read it
       if (clientRef.current === null) {
         clientRef.current = result.client;
@@ -227,6 +234,7 @@ export const createAssistantClient = (
     destroy: () => {
       if (destroyed) return;
       destroyed = true;
+      destroyController.abort();
       // Wired: flushTapSync lands the soft unmount before returning. Already
       // released: the soft unmount tap scheduled then completes on its task
       if (unwire) flushTapSync(unwire);

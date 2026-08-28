@@ -1,11 +1,18 @@
 "use client";
 
-import { type CSSProperties, useEffect, useRef, useState } from "react";
+import {
+  type CSSProperties,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   type RenderedFrame,
   SafeContentFrame,
   type SandboxOption,
 } from "safe-content-frame";
+import { invokeCallbackSafely } from "../utils/invokeCallbackSafely";
 
 const DEFAULT_PRODUCT = "assistant-ui-sandbox";
 const DEFAULT_MAX_HEIGHT = 800;
@@ -80,8 +87,15 @@ export function SandboxHost({
     undefined,
   );
 
-  const liveRef = useRef<LiveSnapshot>(null!);
-  liveRef.current = { content, sandbox, createBridge, onError };
+  const liveRef = useRef<LiveSnapshot>({
+    content,
+    sandbox,
+    createBridge,
+    onError,
+  });
+  useLayoutEffect(() => {
+    liveRef.current = { content, sandbox, createBridge, onError };
+  }, [content, sandbox, createBridge, onError]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -147,10 +161,13 @@ export function SandboxHost({
         window.addEventListener("message", onMessage);
       })
       .catch((err) => {
+        if (cancelled) return;
         frame?.dispose();
         frame = null;
-        liveRef.current.onError?.(
-          err instanceof Error ? err : new Error(String(err)),
+        const error = err instanceof Error ? err : new Error(String(err));
+        invokeCallbackSafely(
+          () => liveRef.current.onError?.(error),
+          "SandboxHost onError",
         );
       });
 

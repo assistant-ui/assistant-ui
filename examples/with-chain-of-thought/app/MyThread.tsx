@@ -19,6 +19,7 @@ import {
   ToolGroupTrigger,
 } from "@/components/assistant-ui/tool-group";
 import {
+  AuiIf,
   ComposerPrimitive,
   groupPartByType,
   MessagePrimitive,
@@ -35,9 +36,9 @@ export const MyThread: FC = () => {
       style={{ ["--thread-max-width" as string]: "44rem" }}
     >
       <ThreadPrimitive.Viewport className="flex flex-1 flex-col overflow-y-scroll scroll-smooth px-4 pt-8">
-        <ThreadPrimitive.Empty>
+        <AuiIf condition={(s) => s.thread.isEmpty}>
           <ThreadWelcome />
-        </ThreadPrimitive.Empty>
+        </AuiIf>
 
         <ThreadPrimitive.Messages>
           {({ message }) => {

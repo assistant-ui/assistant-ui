@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { createAdkStream } from "./AdkClient";
+import { adkEventStream } from "./server/adkEventStream";
 import type { AdkEvent, AdkMessage, AdkSendMessageConfig } from "./types";
 
 // ── Helpers ──
@@ -445,6 +446,142 @@ describe("createAdkStream - SSE parsing", () => {
     expect(collected).toHaveLength(2);
     expect(collected[0]!.id).toBe("e1");
     expect(collected[1]!.id).toBe("e2");
+  });
+
+  it.each(["{}", "null", "[]", '["event"]', '"event"'])(
+    "rejects empty or non-object stream events: %s",
+    async (payload) => {
+      mockFetch.mockResolvedValueOnce(
+        sseResponse(sseBody(`data: ${payload}\n\n`)),
+      );
+
+      const stream = createAdkStream({ api: "/api/adk" });
+      const consume = async () => {
+        const gen = await stream(
+          [{ id: "m1", type: "human", content: "Hi" }],
+          makeConfig(),
+        );
+        for await (const _event of gen) {
+          void _event;
+        }
+      };
+
+      await expect(consume()).rejects.toThrow(
+        "Invalid ADK stream event: expected a non-empty object.",
+      );
+    },
+  );
+
+  it("reports invalid JSON as an ADK stream event error", async () => {
+    mockFetch.mockResolvedValueOnce(sseResponse(sseBody("data: not-json\n\n")));
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    await expect(gen.next()).rejects.toThrow(
+      "Invalid ADK stream event: expected valid JSON.",
+    );
+  });
+
+  it("preserves internal stream error events with an empty id", async () => {
+    const event: AdkEvent = {
+      id: "",
+      errorCode: "STREAM_ERROR",
+      errorMessage: "stream failed",
+    };
+    async function* failingEvents(): AsyncGenerator<never, void, undefined> {
+      throw new Error(event.errorMessage);
+    }
+    mockFetch.mockResolvedValueOnce(adkEventStream(failingEvents()));
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    await expect(gen.next()).resolves.toEqual({ done: false, value: event });
+  });
+
+  it("normalizes id-less Python ADK error events", async () => {
+    const event = {
+      error: "ValueError: stream failed",
+      error_details: "traceback",
+    };
+    mockFetch.mockResolvedValueOnce(
+      sseResponse(sseBody(`data: ${JSON.stringify(event)}\n\n`)),
+    );
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    await expect(gen.next()).resolves.toEqual({
+      done: false,
+      value: {
+        ...event,
+        errorMessage: event.error,
+      },
+    });
+  });
+
+  it.each([
+    ["camel-case", { errorCode: "PROVIDER_ERROR" }],
+    ["snake-case", { error_code: "PROVIDER_ERROR" }],
+  ])("preserves %s provider error codes", async (_, providerError) => {
+    const event = { error: "stream failed", ...providerError };
+    mockFetch.mockResolvedValueOnce(
+      sseResponse(sseBody(`data: ${JSON.stringify(event)}\n\n`)),
+    );
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    await expect(gen.next()).resolves.toEqual({
+      done: false,
+      value: { ...event, errorMessage: event.error },
+    });
+  });
+
+  it("normalizes numeric event ids", async () => {
+    mockFetch.mockResolvedValueOnce(
+      sseResponse(sseBody('data: {"id":123}\n\n')),
+    );
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    await expect(gen.next()).resolves.toEqual({
+      done: false,
+      value: { id: "123" },
+    });
+  });
+
+  it("rejects unsupported event id types", async () => {
+    mockFetch.mockResolvedValueOnce(
+      sseResponse(sseBody('data: {"id":true}\n\n')),
+    );
+
+    const stream = createAdkStream({ api: "/api/adk" });
+    const gen = await stream(
+      [{ id: "m1", type: "human", content: "Hi" }],
+      makeConfig(),
+    );
+
+    await expect(gen.next()).rejects.toThrow(
+      'Invalid ADK stream event: expected "id" to be a string or finite number when present.',
+    );
   });
 
   it("accepts parameterized event-stream content types", async () => {

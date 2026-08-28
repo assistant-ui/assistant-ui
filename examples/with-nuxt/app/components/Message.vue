@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import {
   ActionBarPrimitiveCopy,
+  AttachmentPrimitiveName,
   ActionBarPrimitiveEdit,
   ActionBarPrimitiveReload,
   AuiIf,
@@ -11,6 +12,7 @@ import {
   ComposerPrimitiveCancel,
   ComposerPrimitiveInput,
   ComposerPrimitiveSend,
+  MessagePrimitiveAttachments,
   MessagePrimitiveParts,
   useAuiState,
 } from "@assistant-ui/vue";
@@ -84,7 +86,23 @@ const error = useAuiState((s) => {
           : 'text-foreground leading-relaxed'
       "
     >
-      <MessagePrimitiveParts />
+      <div
+        v-if="role === 'user'"
+        class="mb-1 flex flex-wrap justify-end gap-1.5 empty:hidden"
+      >
+        <MessagePrimitiveAttachments>
+          <span
+            class="border-border/60 bg-background/60 rounded-md border px-1.5 py-0.5 text-xs"
+            ><AttachmentPrimitiveName
+          /></span>
+        </MessagePrimitiveAttachments>
+      </div>
+      <MessagePrimitiveParts v-if="role === 'assistant'">
+        <template #text>
+          <MarkdownText />
+        </template>
+      </MessagePrimitiveParts>
+      <MessagePrimitiveParts v-else />
       <span v-if="pulsing" class="animate-pulse">…</span>
       <span v-if="error" class="text-destructive text-sm">{{ error }}</span>
     </div>

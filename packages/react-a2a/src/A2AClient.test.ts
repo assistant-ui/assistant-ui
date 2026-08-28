@@ -43,6 +43,7 @@ function mockSSETextResponse(
           return Promise.resolve({ done: true, value: undefined });
         }),
         releaseLock: vi.fn(),
+        cancel: vi.fn(async () => {}),
       }),
     },
   } as unknown as Response;
@@ -742,6 +743,20 @@ describe("A2AClient", () => {
         "Invalid A2A tasks:get response: expected a valid task payload.",
       );
     });
+
+    it("rejects a non-string contextId", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          id: "t1",
+          contextId: 999,
+          status: { state: "completed" },
+        }),
+      );
+
+      await expect(client.getTask("t1")).rejects.toThrow(
+        "Invalid A2A tasks:get response: expected a valid task payload.",
+      );
+    });
   });
 
   // --- listTasks ---
@@ -1014,6 +1029,228 @@ describe("A2AClient", () => {
       expect(evt.event.taskId).toBe("t1");
       expect(evt.event.status.state).toBe("working");
       expect(evt.event.status.message?.role).toBe("agent");
+    });
+
+    it("drops a wrapped task or message whose ids are not strings", async () => {
+      const frames = [
+        {
+          task: {
+            id: "t1",
+            context_id: 999,
+            status: { state: "TASK_STATE_WORKING" },
+          },
+        },
+        {
+          message: {
+            message_id: "m1",
+            context_id: 42,
+            role: "ROLE_AGENT",
+            parts: [{ text: "hi" }],
+          },
+        },
+        {
+          message: {
+            message_id: "m2",
+            task_id: { nested: "object" },
+            role: "ROLE_AGENT",
+            parts: [{ text: "hi" }],
+          },
+        },
+      ];
+
+      for (const frame of frames) {
+        fetchMock.mockResolvedValue(
+          mockSSEResponse([`data: ${JSON.stringify(frame)}`, "", ""]),
+        );
+
+        const events: A2AStreamEvent[] = [];
+        for await (const event of client.streamMessage(userMessage)) {
+          events.push(event);
+        }
+
+        expect(events).toEqual([]);
+      }
+    });
+
+    it("drops a wrapped status update whose contextId is not a string", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: "t1",
+          context_id: 999,
+          status: { state: "TASK_STATE_WORKING" },
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([`data: ${sseData}`, "", ""]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toEqual([]);
+    });
+
+    it("drops a wrapped artifact update whose ids are not strings", async () => {
+      const artifact = { artifact_id: "a1", parts: [{ text: "hi" }] };
+      for (const ids of [
+        { task_id: 12345, context_id: "c1" },
+        { task_id: "t1", context_id: { nested: "object" } },
+      ]) {
+        const sseData = JSON.stringify({
+          artifact_update: { ...ids, artifact },
+        });
+
+        fetchMock.mockResolvedValue(
+          mockSSEResponse([`data: ${sseData}`, "", ""]),
+        );
+
+        const events: A2AStreamEvent[] = [];
+        for await (const event of client.streamMessage(userMessage)) {
+          events.push(event);
+        }
+
+        expect(events).toEqual([]);
+      }
+    });
+
+    it("normalizes default-valued wrapped status updates", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          status: {
+            message: {
+              message_id: "s1",
+              role: "ROLE_AGENT",
+              parts: [{ text: "Waiting..." }],
+            },
+          },
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([`data: ${sseData}`, "", ""]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      const evt = events[0] as Extract<
+        A2AStreamEvent,
+        { type: "statusUpdate" }
+      >;
+      expect(evt.event).toMatchObject({
+        taskId: "",
+        contextId: "",
+        status: {
+          state: "unspecified",
+          message: { parts: [{ text: "Waiting..." }] },
+        },
+      });
+    });
+
+    it("normalizes null-valued wrapped status defaults", async () => {
+      const sseData = JSON.stringify({
+        status_update: {
+          task_id: null,
+          context_id: null,
+          status: { state: null },
+        },
+      });
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([`data: ${sseData}`, "", ""]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toMatchObject([
+        {
+          type: "statusUpdate",
+          event: {
+            taskId: "",
+            contextId: "",
+            status: { state: "unspecified" },
+          },
+        },
+      ]);
+    });
+
+    it("normalizes ProtoJSON defaults across wrapped event types", async () => {
+      const frames = [
+        {
+          task: {
+            id: "t1",
+            status: {
+              message: {
+                message_id: "m1",
+                role: "ROLE_AGENT",
+                parts: [{ text: "Working..." }],
+              },
+            },
+          },
+        },
+        {
+          message: {
+            message_id: "m2",
+            role: "ROLE_AGENT",
+          },
+        },
+        {
+          artifact_update: {
+            artifact: {},
+          },
+        },
+      ];
+
+      fetchMock.mockResolvedValue(
+        mockSSEResponse(
+          frames
+            .flatMap((frame) => [`data: ${JSON.stringify(frame)}`, ""])
+            .concat(""),
+        ),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toMatchObject([
+        {
+          type: "task",
+          task: {
+            id: "t1",
+            contextId: "",
+            status: { state: "unspecified" },
+          },
+        },
+        {
+          type: "message",
+          message: {
+            messageId: "m2",
+            contextId: "",
+            taskId: "",
+            role: "agent",
+            parts: [],
+          },
+        },
+        {
+          type: "artifactUpdate",
+          event: {
+            taskId: "",
+            contextId: "",
+            artifact: { artifactId: "", parts: [] },
+          },
+        },
+      ]);
     });
 
     it("cancels the response body when iteration stops early", async () => {
@@ -1425,6 +1662,14 @@ describe("A2AClient", () => {
           "",
           "data: {}",
           "",
+          'data: {"task":{}}',
+          "",
+          'data: {"message":{}}',
+          "",
+          'data: {"status_update":{}}',
+          "",
+          'data: {"artifact_update":{}}',
+          "",
           `data: ${second}`,
           "",
           "",
@@ -1441,6 +1686,56 @@ describe("A2AClient", () => {
         "statusUpdate",
         "statusUpdate",
       ]);
+    });
+
+    it("returns the first skip reason when a frame fails to parse", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse(["data: {invalid json}", "", "data: {}", "", ""]),
+      );
+
+      const stream = client.streamMessage(userMessage);
+      const events: A2AStreamEvent[] = [];
+      let result = await stream.next();
+      while (!result.done) {
+        events.push(result.value);
+        result = await stream.next();
+      }
+
+      let parseMessage = "";
+      try {
+        JSON.parse("{invalid json}");
+      } catch (error) {
+        parseMessage = (error as Error).message;
+      }
+
+      expect(events).toEqual([]);
+      expect(result.value).toBe(`${parseMessage} (frame: {invalid json})`);
+    });
+
+    it("returns an unrecognized-shape skip reason with the frame on one line", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse(["data: {", "data: }", "", ""]),
+      );
+
+      const stream = client.streamMessage(userMessage);
+      const result = await stream.next();
+
+      expect(result).toEqual({
+        done: true,
+        value: "unrecognized event shape (frame: { })",
+      });
+    });
+
+    it("truncates an oversized skipped frame", async () => {
+      const frame = `{"nonsense":"${"x".repeat(400)}"}`;
+      fetchMock.mockResolvedValue(mockSSEResponse([`data: ${frame}`, "", ""]));
+
+      const stream = client.streamMessage(userMessage);
+      const result = await stream.next();
+
+      expect(result.value).toBe(
+        `unrecognized event shape (frame: ${frame.slice(0, 120)}…)`,
+      );
     });
   });
 
@@ -1511,6 +1806,112 @@ describe("A2AClient", () => {
       expect(url).toBe("https://agent.test/tasks/t1/pushNotificationConfigs");
     });
 
+    it.each([
+      [
+        "pushNotificationConfigs:create",
+        () =>
+          client.createTaskPushNotificationConfig({
+            taskId: "t1",
+            url: "https://hook.test",
+          }),
+      ],
+      [
+        "pushNotificationConfigs:get",
+        () => client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ],
+    ])("rejects malformed %s responses", async (operation, request) => {
+      fetchMock.mockResolvedValue(mockFetchResponse({}));
+
+      await expect(request()).rejects.toThrow(
+        `Invalid A2A ${operation} response`,
+      );
+    });
+
+    it.each([
+      { configs: {} },
+      { configs: [{}] },
+      { configs: [], nextPageToken: 42 },
+    ])("rejects malformed list responses", async (response) => {
+      fetchMock.mockResolvedValue(mockFetchResponse(response));
+
+      await expect(
+        client.listTaskPushNotificationConfigs("t1"),
+      ).rejects.toThrow("Invalid A2A pushNotificationConfigs:list response");
+    });
+
+    it.each([{}, { configs: null, nextPageToken: null }])(
+      "normalizes omitted ProtoJSON list defaults",
+      async (response) => {
+        fetchMock.mockResolvedValue(mockFetchResponse(response));
+
+        await expect(
+          client.listTaskPushNotificationConfigs("t1"),
+        ).resolves.toEqual({
+          configs: [],
+        });
+      },
+    );
+
+    it("normalizes an omitted authentication scheme", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          url: "https://hook.test",
+          authentication: { credentials: "secret" },
+        }),
+      );
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).resolves.toEqual({
+        url: "https://hook.test",
+        authentication: { scheme: "", credentials: "secret" },
+      });
+    });
+
+    it("rejects malformed nested authentication responses", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          url: "https://hook.test",
+          authentication: { scheme: 42 },
+        }),
+      );
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).rejects.toThrow("Invalid A2A pushNotificationConfigs:get response");
+    });
+
+    it("accepts valid nested authentication responses", async () => {
+      const config = {
+        url: "https://hook.test",
+        authentication: { scheme: "Bearer", credentials: "secret" },
+      };
+      fetchMock.mockResolvedValue(mockFetchResponse(config));
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).resolves.toEqual(config);
+    });
+
+    it("normalizes nullable optional config fields", async () => {
+      fetchMock.mockResolvedValue(
+        mockFetchResponse({
+          tenant: null,
+          id: null,
+          taskId: null,
+          url: "https://hook.test",
+          token: null,
+          authentication: null,
+        }),
+      );
+
+      await expect(
+        client.getTaskPushNotificationConfig("t1", "pnc-1"),
+      ).resolves.toEqual({
+        url: "https://hook.test",
+      });
+    });
+
     it("deleteTaskPushNotificationConfig sends DELETE", async () => {
       fetchMock.mockResolvedValue({
         ok: true,
@@ -1573,6 +1974,425 @@ describe("A2AClient", () => {
       expect(card.name).toBe("Extended Agent");
       expect(card.supportedInterfaces).toEqual([]);
       expect(card.skills[0]).toMatchObject({ id: "s", tags: [] });
+    });
+  });
+
+  describe("streamMessage - JSON-RPC kind-discriminated results", () => {
+    const rpc = (result: unknown) =>
+      `data: ${JSON.stringify({ jsonrpc: "2.0", id: 1, result })}`;
+
+    it("parses a flat status-update result", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            contextId: "ctx-1",
+            status: { state: "working" },
+            final: false,
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe("statusUpdate");
+      const evt = events[0] as Extract<
+        A2AStreamEvent,
+        { type: "statusUpdate" }
+      >;
+      expect(evt.event.taskId).toBe("t1");
+      expect(evt.event.status.state).toBe("working");
+    });
+
+    it("parses a flat task result and maps hyphenated states", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "task",
+            id: "t1",
+            contextId: "ctx-1",
+            status: { state: "input-required" },
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe("task");
+      const evt = events[0] as Extract<A2AStreamEvent, { type: "task" }>;
+      expect(evt.task.status.state).toBe("input_required");
+    });
+
+    it("maps the unknown wire state to unspecified", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "task",
+            id: "t1",
+            contextId: "ctx-1",
+            status: { state: "unknown" },
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      const evt = events[0] as Extract<A2AStreamEvent, { type: "task" }>;
+      expect(evt.task.status.state).toBe("unspecified");
+    });
+
+    it("strips the wire discriminators from emitted events", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            contextId: "ctx-1",
+            status: { state: "working" },
+            final: true,
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      const evt = events[0] as Extract<
+        A2AStreamEvent,
+        { type: "statusUpdate" }
+      >;
+      expect(evt.event).not.toHaveProperty("kind");
+      expect(evt.event).not.toHaveProperty("final");
+    });
+
+    it("strips the kind discriminator from text and data parts", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "message",
+            messageId: "m1",
+            role: "agent",
+            parts: [
+              { kind: "text", text: "hello" },
+              { kind: "data", data: { answer: 42 } },
+            ],
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      const evt = events[0] as Extract<A2AStreamEvent, { type: "message" }>;
+      expect(evt.message.parts).toEqual([
+        { text: "hello" },
+        { data: { answer: 42 } },
+      ]);
+    });
+
+    it("flattens nested file parts onto the internal part shape", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "message",
+            messageId: "m1",
+            role: "agent",
+            parts: [
+              {
+                kind: "file",
+                file: {
+                  uri: "https://files.test/y.png",
+                  mimeType: "image/png",
+                  name: "y.png",
+                },
+              },
+            ],
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      const evt = events[0] as Extract<A2AStreamEvent, { type: "message" }>;
+      expect(evt.message.parts[0]).toEqual({
+        url: "https://files.test/y.png",
+        mediaType: "image/png",
+        filename: "y.png",
+      });
+    });
+
+    it("surfaces JSON-RPC error frames instead of an empty stream", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          `data: ${JSON.stringify({
+            jsonrpc: "2.0",
+            id: 1,
+            error: { code: -32001, message: "Task not found" },
+          })}`,
+          "",
+          "",
+        ]),
+      );
+
+      const read = async () => {
+        for await (const _event of client.streamMessage(userMessage)) {
+          // consume
+        }
+      };
+
+      await expect(read()).rejects.toThrow("Task not found");
+    });
+
+    it("unwraps JSON-RPC envelopes on non-streaming responses", async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          jsonrpc: "2.0",
+          id: 1,
+          result: {
+            kind: "task",
+            id: "t1",
+            contextId: "ctx-1",
+            status: { state: "working" },
+          },
+        }),
+      });
+
+      const task = await client.getTask("t1");
+      expect(task.id).toBe("t1");
+      expect(task.status.state).toBe("working");
+      expect(task).not.toHaveProperty("kind");
+    });
+
+    it("surfaces JSON-RPC error responses on non-streaming requests", async () => {
+      fetchMock.mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          jsonrpc: "2.0",
+          id: 1,
+          error: {
+            code: -32001,
+            message: "Task not found",
+            data: { taskId: "t1" },
+          },
+        }),
+      });
+
+      const error = await client.getTask("t1").catch((e: unknown) => e);
+      expect(error).toBeInstanceOf(A2AError);
+      const a2aError = error as A2AError;
+      expect(a2aError.message).toBe("Task not found");
+      expect(a2aError.code).toBe(-32001);
+      expect(a2aError.status).toBe("JSONRPC_ERROR");
+      expect(a2aError.details).toEqual([{ taskId: "t1" }]);
+    });
+
+    it("skips malformed kind-discriminated frames instead of emitting empty events", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({ kind: "message" }),
+          "",
+          rpc({ kind: "status-update", status: { state: "working" } }),
+          "",
+          rpc({ kind: "artifact-update", taskId: "t1", artifact: {} }),
+          "",
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            contextId: "ctx-1",
+            status: { state: "working" },
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe("statusUpdate");
+    });
+
+    it("skips kind-discriminated frames whose ids are not strings", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            contextId: 999,
+            status: { state: "working" },
+          }),
+          "",
+          rpc({
+            kind: "artifact-update",
+            taskId: "t1",
+            contextId: 999,
+            artifact: {
+              artifactId: "a1",
+              parts: [{ kind: "text", text: "x" }],
+            },
+          }),
+          "",
+          rpc({
+            kind: "task",
+            id: "t1",
+            contextId: 999,
+            status: { state: "working" },
+          }),
+          "",
+          rpc({
+            kind: "message",
+            messageId: "m1",
+            contextId: 999,
+            role: "agent",
+            parts: [{ kind: "text", text: "x" }],
+          }),
+          "",
+          rpc({
+            kind: "message",
+            messageId: "m2",
+            taskId: 999,
+            role: "agent",
+            parts: [{ kind: "text", text: "x" }],
+          }),
+          "",
+          rpc({
+            kind: "artifact-update",
+            taskId: 999,
+            artifact: {
+              artifactId: "a1",
+              parts: [{ kind: "text", text: "x" }],
+            },
+          }),
+          "",
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            contextId: "ctx-1",
+            status: { state: "working" },
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events).toHaveLength(1);
+      expect(events[0]!.type).toBe("statusUpdate");
+    });
+
+    it("accepts kind-discriminated frames that omit contextId", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "status-update",
+            taskId: "t1",
+            status: { state: "working" },
+          }),
+          "",
+          rpc({
+            kind: "artifact-update",
+            taskId: "t1",
+            artifact: {
+              artifactId: "a1",
+              parts: [{ kind: "text", text: "x" }],
+            },
+          }),
+          "",
+          rpc({ kind: "task", id: "t1", status: { state: "working" } }),
+          "",
+          rpc({
+            kind: "message",
+            messageId: "m1",
+            role: "agent",
+            parts: [{ kind: "text", text: "x" }],
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events.map((event) => event.type)).toEqual([
+        "statusUpdate",
+        "artifactUpdate",
+        "task",
+        "message",
+      ]);
+    });
+
+    it("parses flat message and artifact-update results", async () => {
+      fetchMock.mockResolvedValue(
+        mockSSEResponse([
+          rpc({
+            kind: "message",
+            messageId: "m1",
+            role: "agent",
+            parts: [{ kind: "text", text: "hello" }],
+          }),
+          "",
+          rpc({
+            kind: "artifact-update",
+            taskId: "t1",
+            contextId: "ctx-1",
+            artifact: {
+              artifactId: "a1",
+              parts: [{ kind: "text", text: "x" }],
+            },
+          }),
+          "",
+          "",
+        ]),
+      );
+
+      const events: A2AStreamEvent[] = [];
+      for await (const event of client.streamMessage(userMessage)) {
+        events.push(event);
+      }
+
+      expect(events.map((e) => e.type)).toEqual(["message", "artifactUpdate"]);
     });
   });
 });

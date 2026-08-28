@@ -128,7 +128,6 @@ function startProducerTask(
   const { waitUntil, onAppend, onFinalize, onError } = hooks;
   const task = (async () => {
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
-    let cancelled = false;
     try {
       reader = makeStream().getReader();
       while (true) {
@@ -145,7 +144,6 @@ function startProducerTask(
       await store.finalize(streamId, "done");
       invokeObservabilityHook("onFinalize", onFinalize, streamId, "done");
     } catch (err) {
-      cancelled = true;
       invokeObservabilityHook("onError", onError, streamId, err);
       const message = err instanceof Error ? err.message : String(err);
       try {
@@ -166,7 +164,7 @@ function startProducerTask(
         console.error("resumable stream finalize failed:", finalizeErr);
       }
     } finally {
-      if (!cancelled) reader?.releaseLock();
+      reader?.releaseLock();
     }
   })();
 

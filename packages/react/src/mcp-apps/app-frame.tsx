@@ -1,6 +1,11 @@
 "use client";
 
-import { type MutableRefObject, useEffect, useRef } from "react";
+import {
+  type MutableRefObject,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { type McpAppBridge, createMcpAppBridge } from "./bridge";
 import {
   SandboxHost,
@@ -121,14 +126,22 @@ export function McpAppFrame({
     undefined,
   );
 
-  const liveRef = useRef<LiveSnapshot>(null!);
-  liveRef.current = {
+  const liveRef = useRef<LiveSnapshot>({
     handlers,
     hostInfo,
     hostContext,
     input,
     output,
-  };
+  });
+  useLayoutEffect(() => {
+    liveRef.current = {
+      handlers,
+      hostInfo,
+      hostContext,
+      input,
+      output,
+    };
+  }, [handlers, hostInfo, hostContext, input, output]);
 
   const createBridge = (
     frame: SandboxHostFrame,

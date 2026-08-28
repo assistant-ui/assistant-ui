@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
+import {
+  startTransition,
+  Suspense,
+  useLayoutEffect,
+  type PropsWithChildren,
+} from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mockUseEveAgent } = vi.hoisted(() => ({
@@ -325,6 +331,163 @@ describe("useEveAgentRuntime status forwarding", () => {
     expect(result.current.thread.getState().messages.at(-1)?.status).toEqual({
       type: "running",
     });
+  });
+});
+
+describe("useEveAgentRuntime tool approval responses", () => {
+  const textRequestData: EveMessageData = {
+    messages: [
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            state: "approval-requested",
+            toolCallId: "call_1",
+            toolName: "ask_question",
+            input: {},
+            approval: { id: "req_1" },
+            toolMetadata: {
+              eve: {
+                kind: "tool-call",
+                name: "ask_question",
+                inputRequest: {
+                  requestId: "req_1",
+                  prompt: "What should the subject line be?",
+                  kind: "question",
+                  display: "text",
+                },
+              },
+            },
+          },
+        ],
+      },
+    ],
+  };
+
+  const flushMicrotasks = () =>
+    new Promise((resolve) => setTimeout(resolve, 0));
+
+  const processEvents = process as unknown as {
+    on(event: "unhandledRejection", listener: (reason: unknown) => void): void;
+    off(event: "unhandledRejection", listener: (reason: unknown) => void): void;
+  };
+
+  const respondToTextRequest = (
+    result: { current: ReturnType<typeof useEveAgentRuntime> },
+    response: { approved: boolean; reason?: string; optionId?: string },
+  ) =>
+    result.current.thread
+      .getMessageById("a1")
+      .getMessagePartByToolCallId("call_1")
+      .respondToToolApproval(response);
+
+  it("keeps an unanswered free-form request pending through the default controls", async () => {
+    const rejections: unknown[] = [];
+    const onUnhandledRejection = (reason: unknown) => rejections.push(reason);
+    processEvents.on("unhandledRejection", onUnhandledRejection);
+    const agent = createAgent({ data: textRequestData });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    try {
+      const { result } = renderHook(() => useEveAgentRuntime());
+
+      expect(() => respondToTextRequest(result, { approved: true })).toThrow(
+        /was not answered by this response/,
+      );
+
+      await flushMicrotasks();
+      await flushMicrotasks();
+
+      expect(agent.send).not.toHaveBeenCalled();
+      expect(agent.respond).not.toHaveBeenCalled();
+      expect(rejections).toEqual([]);
+    } finally {
+      processEvents.off("unhandledRejection", onUnhandledRejection);
+    }
+  });
+
+  const bareApprovalData = (toolMetadata?: {
+    eve: { kind: "tool-call"; name: string };
+  }): EveMessageData => ({
+    messages: [
+      { id: "u1", role: "user", parts: [{ type: "text", text: "hi" }] },
+      {
+        id: "a1",
+        role: "assistant",
+        parts: [
+          {
+            type: "dynamic-tool",
+            state: "approval-requested",
+            toolCallId: "call_1",
+            toolName: "delete_file",
+            input: {},
+            approval: { id: "req_1" },
+            ...(toolMetadata && { toolMetadata }),
+          },
+        ],
+      },
+    ],
+  });
+
+  it.each([
+    ["no eve tool metadata at all", undefined],
+    [
+      "eve metadata carrying no input request",
+      { eve: { kind: "tool-call", name: "delete_file" } },
+    ],
+  ])(
+    "still answers an ordinary approval when the part has %s",
+    async (_label, toolMetadata) => {
+      const agent = createAgent({
+        data: bareApprovalData(toolMetadata as never),
+      });
+      mockUseEveAgent.mockReturnValue(agent as never);
+
+      const { result } = renderHook(() => useEveAgentRuntime());
+      expect(() =>
+        respondToTextRequest(result, { approved: true }),
+      ).not.toThrow();
+
+      await flushMicrotasks();
+
+      expect(agent.respond).toHaveBeenCalledWith([
+        { requestId: "req_1", optionId: "approve" },
+      ]);
+    },
+  );
+
+  it("maps a refusal on a request the data does not carry", async () => {
+    const agent = createAgent({ data: bareApprovalData(undefined) });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+    respondToTextRequest(result, { approved: false, reason: "not safe" });
+
+    await flushMicrotasks();
+
+    expect(agent.respond).toHaveBeenCalledWith([
+      { requestId: "req_1", optionId: "cancel", text: "not safe" },
+    ]);
+  });
+
+  it("submits a free-form answer as text without an option id", async () => {
+    const agent = createAgent({ data: textRequestData });
+    mockUseEveAgent.mockReturnValue(agent as never);
+
+    const { result } = renderHook(() => useEveAgentRuntime());
+    respondToTextRequest(result, {
+      approved: true,
+      reason: "Quarterly results",
+    });
+
+    await flushMicrotasks();
+
+    expect(agent.respond).toHaveBeenCalledWith([
+      { requestId: "req_1", text: "Quarterly results" },
+    ]);
   });
 });
 
@@ -1841,5 +2004,412 @@ describe("useEveAgentRuntime concurrent sends", () => {
       "interleaved",
       "second staged",
     ]);
+  });
+});
+
+describe("useEveAgentRuntime cancel binding", () => {
+  it("cancels through the eve 0.38+ cancel binding when the agent provides it", async () => {
+    const cancel = vi.fn().mockResolvedValue({ status: "cancelled" });
+    const agent = createAgent({ status: "streaming", cancel });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.cancelRun();
+    });
+
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(agent.stop).not.toHaveBeenCalled();
+  });
+
+  it("falls back to the pre-0.38 stop binding when cancel is absent", async () => {
+    const agent = createAgent({ status: "streaming" });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.cancelRun();
+    });
+
+    expect(agent.stop).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a queued send when the durable cancel settles late", async () => {
+    let resolveFirstSend!: () => void;
+    const send = vi
+      .fn()
+      .mockImplementationOnce(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstSend = resolve;
+          }),
+      )
+      .mockResolvedValue(undefined);
+    let resolveCancel!: () => void;
+    const cancel = vi.fn(
+      () =>
+        new Promise<{ status: string }>((resolve) => {
+          resolveCancel = () => resolve({ status: "cancelled" });
+        }),
+    );
+    const agent = createAgent({ data: settledData, send, cancel });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "first" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "queued" }],
+      });
+    });
+    act(() => {
+      result.current.thread.cancelRun();
+    });
+    expect(cancel).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveFirstSend();
+      resolveCancel();
+    });
+    expect(send).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("useEveAgentRuntime thread refetch", () => {
+  const session = { sessionId: "s1" };
+
+  const mockWorkspaceAgents = () => {
+    const resumeA = vi.fn().mockResolvedValue(undefined);
+    const resumeB = vi.fn().mockResolvedValue(undefined);
+    const agentA = createAgent({
+      data: {
+        messages: [
+          {
+            id: "workspace-a",
+            role: "user",
+            parts: [{ type: "text", text: "workspace A" }],
+          },
+        ],
+      },
+      session,
+      resume: resumeA,
+    });
+    const agentB = createAgent({
+      data: {
+        messages: [
+          {
+            id: "workspace-b",
+            role: "user",
+            parts: [{ type: "text", text: "workspace B" }],
+          },
+        ],
+      },
+      session,
+      resume: resumeB,
+    });
+    mockUseEveAgent.mockImplementation((options) =>
+      (options as { workspace: string }).workspace === "A"
+        ? (agentA as never)
+        : (agentB as never),
+    );
+    return { agentA, agentB, resumeA, resumeB };
+  };
+
+  it("publishes committed state before descendant layout effects", async () => {
+    const { resumeA, resumeB } = mockWorkspaceAgents();
+
+    let refetch: Promise<void> | undefined;
+    let currentRuntime: ReturnType<typeof useEveAgentRuntime> | undefined;
+    const RefetchOnLayout = ({
+      runtime,
+      enabled,
+    }: {
+      runtime: ReturnType<typeof useEveAgentRuntime>;
+      enabled: boolean;
+    }) => {
+      useLayoutEffect(() => {
+        if (!enabled) return;
+        runtime.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "draft from B" }],
+          startRun: false,
+        });
+        refetch = runtime.threads.reloadMainThread();
+      }, [enabled, runtime]);
+      return null;
+    };
+    const Probe = ({
+      workspace,
+      refetchOnLayout,
+    }: {
+      workspace: string;
+      refetchOnLayout: boolean;
+    }) => {
+      const runtime = useEveAgentRuntime({ workspace } as never);
+      currentRuntime = runtime;
+      return <RefetchOnLayout runtime={runtime} enabled={refetchOnLayout} />;
+    };
+
+    const view = render(<Probe workspace="A" refetchOnLayout={false} />);
+    view.rerender(<Probe workspace="B" refetchOnLayout />);
+    await act(async () => {
+      await refetch;
+    });
+
+    expect(resumeA).not.toHaveBeenCalled();
+    expect(resumeB).toHaveBeenCalledTimes(1);
+    expect(getText(currentRuntime!)).toEqual(["workspace B", "draft from B"]);
+    view.unmount();
+  });
+
+  it("keeps refetches scoped to the committed agent", async () => {
+    const { agentB, resumeA, resumeB } = mockWorkspaceAgents();
+
+    const pending = new Promise<never>(() => {});
+    let blocked = false;
+    const Blocker = () => {
+      if (blocked) throw pending;
+      return null;
+    };
+    const Wrapper = ({ children }: PropsWithChildren) => (
+      <Suspense fallback={null}>
+        {children}
+        <Blocker />
+      </Suspense>
+    );
+
+    const { result, rerender } = renderHook(
+      ({ workspace }) => useEveAgentRuntime({ workspace } as never),
+      {
+        initialProps: { workspace: "A" },
+        wrapper: Wrapper,
+      },
+    );
+
+    act(() => {
+      blocked = true;
+      startTransition(() => rerender({ workspace: "B" }));
+    });
+    expect(mockUseEveAgent.mock.results.at(-1)?.value).toBe(agentB);
+
+    await act(async () => {
+      await result.current.threads.reloadMainThread();
+    });
+
+    expect(resumeB).not.toHaveBeenCalled();
+    expect(resumeA).toHaveBeenCalledTimes(1);
+
+    await stageMessage(result.current, "draft from A");
+    expect(getText(result.current)).toEqual(["workspace A", "draft from A"]);
+  });
+
+  it("replays the session through eve resume when the thread is refetched", async () => {
+    const resume = vi.fn().mockResolvedValue(undefined);
+    const agent = createAgent({ session, resume });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+    expect(result.current.thread.getState().capabilities.refetchThread).toBe(
+      true,
+    );
+
+    await act(async () => {
+      await result.current.threads.reloadMainThread();
+    });
+
+    expect(resume).toHaveBeenCalledTimes(1);
+  });
+
+  it("propagates a failed replay to the refetch caller", async () => {
+    const resume = vi.fn().mockRejectedValue(new Error("replay failed"));
+    const agent = createAgent({ session, resume });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      await expect(result.current.threads.reloadMainThread()).rejects.toThrow(
+        "replay failed",
+      );
+    });
+  });
+
+  it("resolves without replaying when no session exists yet", async () => {
+    const resume = vi.fn();
+    const agent = createAgent({ session: undefined, resume });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      await result.current.threads.reloadMainThread();
+    });
+
+    expect(resume).not.toHaveBeenCalled();
+  });
+
+  it("waits for a turn dispatched before it to park, then replays", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    const resume = vi.fn().mockResolvedValue(undefined);
+    const agent = createAgent({ session, resume, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    let settled = false;
+    await act(async () => {
+      void result.current.threads.reloadMainThread().then(() => {
+        settled = true;
+      });
+    });
+    expect(resume).not.toHaveBeenCalled();
+    expect(settled).toBe(false);
+
+    await act(async () => {
+      resolveSend();
+    });
+    await waitFor(() => expect(settled).toBe(true));
+    expect(resume).toHaveBeenCalledTimes(1);
+  });
+
+  it("reads the session at dispatch time, after the first send created it", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    const resume = vi.fn().mockResolvedValue(undefined);
+    const agent = createAgent({ session: undefined, resume, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result, rerender } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    let settled = false;
+    await act(async () => {
+      void result.current.threads.reloadMainThread().then(() => {
+        settled = true;
+      });
+    });
+
+    mockUseEveAgent.mockReturnValue({ ...agent, session } as never);
+    rerender();
+    await act(async () => {
+      resolveSend();
+    });
+    await waitFor(() => expect(settled).toBe(true));
+    expect(resume).toHaveBeenCalledTimes(1);
+  });
+
+  it("still replays a queued refetch when the run it waited on is cancelled", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    const resume = vi.fn().mockResolvedValue(undefined);
+    const cancel = vi.fn().mockResolvedValue({ status: "cancelled" });
+    const agent = createAgent({ session, resume, send, cancel });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    let settled = false;
+    await act(async () => {
+      void result.current.threads.reloadMainThread().then(() => {
+        settled = true;
+      });
+      result.current.thread.cancelRun();
+    });
+    await act(async () => {
+      resolveSend();
+    });
+
+    await waitFor(() => expect(settled).toBe(true));
+    expect(resume).toHaveBeenCalledTimes(1);
+  });
+
+  it("drops a queued refetch when the session is reset before it dispatches", async () => {
+    let resolveSend!: () => void;
+    const send = vi.fn(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSend = resolve;
+        }),
+    );
+    const resume = vi.fn();
+    const agent = createAgent({ session, resume, send });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    await act(async () => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hi" }],
+      });
+    });
+    await waitFor(() => expect(send).toHaveBeenCalledTimes(1));
+
+    let settled = false;
+    await act(async () => {
+      void result.current.threads.reloadMainThread().then(() => {
+        settled = true;
+      });
+      eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
+    });
+    await act(async () => {
+      resolveSend();
+    });
+
+    await waitFor(() => expect(settled).toBe(true));
+    expect(resume).not.toHaveBeenCalled();
+  });
+
+  it("leaves the capability absent when the installed eve has no resume", async () => {
+    const agent = createAgent({ session });
+    mockUseEveAgent.mockReturnValue(agent as never);
+    const { result } = renderHook(() => useEveAgentRuntime());
+
+    expect(result.current.thread.getState().capabilities.refetchThread).toBe(
+      false,
+    );
+    await act(async () => {
+      await result.current.threads.reloadMainThread();
+    });
   });
 });

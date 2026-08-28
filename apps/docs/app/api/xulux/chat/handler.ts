@@ -1,7 +1,8 @@
 import { getDistinctId } from "@/lib/posthog-server";
 import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { injectQuoteContext, type FrontendTools } from "@assistant-ui/ai-sdk";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkPublicAssistantRateLimit } from "@/lib/rate-limit";
+import { requirePublicAssistantSession } from "@/lib/anonymous-session";
 import { validateDocChatInput } from "@/lib/validate-input";
 import { posthogTelemetry } from "@/lib/ai/telemetry";
 import { isAiPlaygroundEnabled } from "@/lib/feature-flags";
@@ -172,7 +173,13 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
     }
 
     try {
-      const rateLimitResponse = await checkRateLimit(req);
+      const publicSession = requirePublicAssistantSession(req);
+      if (publicSession instanceof Response) return publicSession;
+
+      const rateLimitResponse = await checkPublicAssistantRateLimit(
+        req,
+        publicSession.id,
+      );
       if (rateLimitResponse) return rateLimitResponse;
 
       const body = await req.json().catch(() => null);
@@ -235,6 +242,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
         );
       }
       const sessionId = resolvedSessionId.trim();
+      const budgetSessionId = `${publicSession.id}:${sessionId}`;
 
       const isFirstUserTurn =
         prunedMessages.filter((m) => m.role === "user").length === 1 &&
@@ -270,7 +278,7 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
       const xuluxTools: ToolSet = preparedTools;
 
       const distinctId = getDistinctId(req);
-      const budget = await beginTurn(sessionId, distinctId);
+      const budget = await beginTurn(budgetSessionId, publicSession.id);
       if (budget.denied) {
         const payload = await budget.denied
           .clone()
@@ -368,8 +376,8 @@ export function createXuluxChatHandler(agent: XuluxAgentDefinition) {
           : {}),
         onFinish: async ({ usage, response }) => {
           await finishTurn(
-            sessionId,
-            distinctId,
+            budgetSessionId,
+            publicSession.id,
             usage,
             response.modelId,
             budgetDate,

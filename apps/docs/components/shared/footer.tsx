@@ -1,11 +1,8 @@
 import type { FC, ReactNode } from "react";
-import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
-import { GitHubIcon } from "@/components/icons/github";
 import { DiscordIcon } from "@/components/icons/discord";
+import { GitHubIcon } from "@/components/icons/github";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
-import { CLOUD_URL, PRODUCTS } from "@/lib/constants";
 
 type FooterLinkItem = {
   label: string;
@@ -14,62 +11,53 @@ type FooterLinkItem = {
 };
 
 const FOOTER_LINKS: Record<string, FooterLinkItem[]> = {
-  Product: [
-    {
-      label: "Cloud",
-      href: CLOUD_URL,
-      external: true,
-    },
+  Library: [
+    { label: "Docs", href: "/docs" },
+    { label: "Changelog", href: "/changelog" },
     { label: "Playground", href: "/playground" },
+  ],
+  Platforms: [
+    { label: "React", href: "/docs" },
+    { label: "React Native", href: "/native" },
+    { label: "Ink", href: "/ink" },
+  ],
+  Extend: [
     { label: "Elements", href: "/elements" },
-    { label: "Pricing", href: "/pricing" },
+    { label: "Design", href: "/design" },
+    { label: "Cloud AI SDK", href: "/cloud-ai-sdk" },
+  ],
+  Primitives: [
+    { label: "tw-shimmer", href: "/tw-shimmer" },
+    { label: "tw-glass", href: "/tw-glass" },
+    { label: "Heat Graph", href: "/heat-graph" },
+    { label: "Safe Content Frame", href: "/safe-content-frame" },
+    { label: "react-o11y", href: "/react-o11y" },
   ],
   Resources: [
-    { label: "Documentation", href: "/docs" },
     { label: "Examples", href: "/examples" },
     { label: "Showcase", href: "/showcase" },
-    { label: "Changelog", href: "/changelog" },
-  ],
-  "Open source": [
-    { label: "All projects", href: "/oss" },
+    { label: "Open source", href: "/oss" },
     { label: "Packages", href: "/packages" },
-    ...PRODUCTS.map((p) => ({
-      label: p.label,
-      href: p.href,
-      ...(p.external && { external: true }),
-    })),
   ],
   Company: [
     { label: "Blog", href: "/blog" },
-    { label: "Traction", href: "/traction" },
     { label: "Careers", href: "/careers" },
     { label: "Brand", href: "/brand" },
-    {
-      label: "Contact Sales",
-      href: "https://cal.com/simon-farshid/assistant-ui",
-      external: true,
-    },
-  ],
-  Legal: [
-    {
-      label: "Terms of Service",
-      href: "/terms-of-service",
-    },
-    {
-      label: "Privacy Policy",
-      href: "/privacy-policy",
-    },
+    { label: "Traction", href: "/traction" },
+    { label: "Pricing", href: "/pricing" },
   ],
 };
 
 export function Footer(): React.ReactElement {
   return (
-    <footer className="py-10 md:py-16">
-      <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4 md:flex-row md:gap-16">
-        <div className="grid flex-1 grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-3 md:order-2 lg:grid-cols-5">
+    <footer className="rounded-(--radius-page) py-10 md:py-16">
+      <div className="mx-auto flex w-full max-w-7xl flex-col gap-10 px-4">
+        <div className="grid grid-cols-2 gap-x-8 gap-y-8 sm:grid-cols-3 lg:grid-cols-6">
           {Object.entries(FOOTER_LINKS).map(([category, links]) => (
             <div key={category} className="flex flex-col gap-3">
-              <p className="text-sm font-medium">{category}</p>
+              <p className="text-muted-foreground font-mono text-[11px] font-medium tracking-wide uppercase">
+                {category}
+              </p>
               {links.map((link) => (
                 <FooterLink
                   key={link.href}
@@ -83,29 +71,32 @@ export function Footer(): React.ReactElement {
           ))}
         </div>
 
-        <div className="flex flex-col gap-4 md:order-1">
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/favicon/icon.svg"
-              alt="logo"
-              width={24}
-              height={24}
-              className="size-6 dark:hue-rotate-180 dark:invert"
-            />
-            <span className="text-xl font-medium">assistant-ui</span>
-          </Link>
-
-          <div className="flex items-center gap-3">
+        <div className="text-muted-foreground flex flex-col gap-3 border-t pt-6 text-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <a
+              href="https://agentbase.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="hover:text-foreground transition-colors"
+            >
+              &copy; {new Date().getFullYear()} AgentbaseAI Inc.
+            </a>
+            <span aria-hidden>·</span>
+            <FooterLink href="/privacy-policy">Privacy</FooterLink>
+            <span aria-hidden>·</span>
+            <FooterLink href="/terms-of-service">Terms</FooterLink>
+          </div>
+          <div className="flex flex-wrap items-center gap-1.5">
             <a
               href="https://x.com/assistantui"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
               aria-label="X (Twitter)"
             >
               <svg
                 aria-hidden="true"
-                className="size-5"
+                className="size-4"
                 viewBox="0 0 24 24"
                 fill="currentColor"
               >
@@ -113,37 +104,24 @@ export function Footer(): React.ReactElement {
               </svg>
             </a>
             <a
-              href="https://github.com/assistant-ui"
+              href="https://github.com/assistant-ui/assistant-ui"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
               aria-label="GitHub"
             >
-              <GitHubIcon className="size-5" />
+              <GitHubIcon className="size-4" />
             </a>
             <a
               href="https://discord.gg/S9dwgCNEFs"
               target="_blank"
               rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground transition-colors"
+              className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
               aria-label="Discord"
             >
-              <DiscordIcon className="size-5" />
+              <DiscordIcon className="size-4" />
             </a>
-          </div>
-
-          <div className="mt-auto flex flex-col gap-3">
-            <div className="-ml-2">
-              <ThemeToggle />
-            </div>
-            <a
-              href="https://agentbase.dev"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-muted-foreground hover:text-foreground text-sm transition-colors"
-            >
-              &copy; {new Date().getFullYear()} AgentbaseAI Inc.
-            </a>
+            <ThemeToggle className="hover:text-foreground" />
           </div>
         </div>
       </div>
@@ -161,13 +139,12 @@ const FooterLink: FC<{
   if (isExternal) {
     return (
       <a
-        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1 text-sm transition-colors"
+        className="text-muted-foreground hover:text-foreground text-sm transition-colors"
         href={href}
         target="_blank"
         rel="noopener noreferrer"
       >
         {children}
-        <ArrowUpRight className="size-3 opacity-40" />
       </a>
     );
   }

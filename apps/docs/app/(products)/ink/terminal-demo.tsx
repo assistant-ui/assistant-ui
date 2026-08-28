@@ -1,34 +1,40 @@
+"use client";
+
+import { useEffect, useState } from "react";
+import { LiveDot } from "@/components/shared/live-dot";
+
 const INK_DEMO_URL =
-  process.env.NEXT_PUBLIC_INK_DEMO_URL ??
-  (process.env.NODE_ENV === "development"
-    ? "http://localhost:8081"
-    : "https://assistant-ui-ink.vercel.app");
+  process.env.NEXT_PUBLIC_INK_DEMO_URL ?? "https://assistant-ui-ink.vercel.app";
 
 export function TerminalDemo() {
+  const [src, setSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    setSrc(INK_DEMO_URL);
+  }, []);
+
   return (
-    <section className="py-8">
-      <div className="mx-auto w-full max-w-[800px] overflow-hidden rounded-xl border border-white/10 bg-[#1a1a1a]">
-        <div className="flex items-center gap-2 border-b border-white/[0.06] px-4 py-3">
-          <div className="flex gap-1.5">
-            <div className="size-3 rounded-full bg-[#ff5f57]" />
-            <div className="size-3 rounded-full bg-[#febc2e]" />
-            <div className="size-3 rounded-full bg-[#28c840]" />
-          </div>
-          <div className="flex-1 text-center font-mono text-[13px] text-white/50">
-            assistant-ui ink
-          </div>
-        </div>
+    <div className="border-foreground/10 overflow-hidden border">
+      <div className="border-foreground/10 text-muted-foreground flex h-9 items-center justify-between border-b px-3.5 font-mono text-[11px] tracking-wide">
+        <span>~ assistant-ui · ink</span>
+        <span className="flex items-center gap-1.5">
+          <LiveDot />
+          live
+        </span>
+      </div>
+      {src ? (
         <iframe
-          src={INK_DEMO_URL}
-          className="h-[480px] w-full"
+          src={src}
+          className="h-[480px] w-full border-0"
           title="assistant-ui ink live demo"
           allow="clipboard-read; clipboard-write"
         />
-      </div>
-      <p className="text-muted-foreground mt-3 text-center font-mono text-xs">
-        A real Ink render loop and a real LLM, live. Click or tap the terminal
-        and type.
-      </p>
-    </section>
+      ) : (
+        <div
+          className="bg-foreground/[0.025] dark:bg-foreground/[0.04] h-[480px] w-full"
+          aria-hidden
+        />
+      )}
+    </div>
   );
 }
