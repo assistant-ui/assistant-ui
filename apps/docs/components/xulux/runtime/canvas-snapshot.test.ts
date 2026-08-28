@@ -87,6 +87,35 @@ describe("toCanvasSnapshot", () => {
     });
   });
 
+  it("persists and restores a live canvas title without a supplied title", () => {
+    const canvas: XuluxCanvasState = {
+      status: "ready",
+      url: "/templates/preview",
+      source: "agent_template",
+      error: null,
+      templateId: "abc",
+      title: "Generated preview",
+    };
+
+    expect(fromCanvasSnapshot(toCanvasSnapshot(canvas, undefined))).toEqual(
+      canvas,
+    );
+  });
+
+  it("prefers a live canvas title over a supplied title", () => {
+    const canvas: XuluxCanvasState = {
+      status: "ready",
+      url: "/templates/preview",
+      source: "agent_template",
+      error: null,
+      title: "Generated preview",
+    };
+
+    expect(toCanvasSnapshot(canvas, "Selected template").title).toBe(
+      "Generated preview",
+    );
+  });
+
   it("round-trips a template canvas through the persisted shape", () => {
     const canvas: XuluxCanvasState = {
       status: "ready",
