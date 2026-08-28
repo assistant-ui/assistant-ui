@@ -883,7 +883,7 @@ type BaseThreadMessage = {
 
 declare abstract class BaseThreadRuntimeCore extends BaseSubscribable implements ThreadRuntimeCore {
   #private;
-  protected readonly repository: MessageRepository;
+  protected repository: MessageRepository;
   abstract get adapters(): BaseThreadAdapters | undefined;
   abstract get isDisabled(): boolean;
   abstract get isSendDisabled(): boolean;
@@ -1735,6 +1735,7 @@ type ExternalStoreAdapterBase<T> = {
   isLoading?: boolean | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
+  unstable_messageRepositoryInstance?: MessageRepository | undefined;
   suggestions?: readonly ThreadSuggestion[] | undefined;
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
