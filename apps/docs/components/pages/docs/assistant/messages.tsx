@@ -1,14 +1,18 @@
 "use client";
 
+import Link from "next/link";
 import { AssistantActionBar } from "./assistant-action-bar";
 import { MarkdownText } from "./markdown";
 import {
   ErrorPrimitive,
   MessagePrimitive,
+  type SourceMessagePartProps,
   type ToolCallMessagePartProps,
+  useAuiState,
 } from "@assistant-ui/react";
 import { type ComponentType, type ReactNode } from "react";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
+import { Sources } from "@/components/assistant-ui/sources";
 import {
   TraceLine,
   formatDuration,
@@ -46,6 +50,7 @@ export function AssistantMessage({
             return null;
           }}
         </MessagePrimitive.Parts>
+        <SourcesFooter />
         <MessageError />
       </div>
       <AssistantActionBar />
@@ -103,18 +108,57 @@ function ToolCall({
   toolName,
   args,
   status,
+  result,
 }: ToolCallMessagePartProps): ReactNode {
   const isRunning = status?.type === "running";
   const { label, detail } = getToolDisplay(toolName, args, isRunning);
   const duration = useToolDuration(isRunning);
+  const url =
+    toolName === "readDoc" &&
+    result &&
+    typeof result === "object" &&
+    "url" in result &&
+    typeof result.url === "string"
+      ? result.url
+      : undefined;
 
-  return (
+  const traceLine = (
     <TraceLine
       live={isRunning}
       label={label}
       detail={detail}
       {...(duration !== null ? { meta: formatDuration(duration) } : {})}
     />
+  );
+
+  if (url) return <Link href={url}>{traceLine}</Link>;
+
+  return traceLine;
+}
+
+function SourcesFooter(): ReactNode {
+  const parts = useAuiState((s) => s.message.parts);
+  const sources = new Map<string, SourceMessagePartProps>();
+
+  for (const part of parts) {
+    if (
+      part.type === "source" &&
+      part.sourceType === "url" &&
+      !sources.has(part.url)
+    ) {
+      sources.set(part.url, part);
+    }
+  }
+
+  if (sources.size === 0) return null;
+
+  return (
+    <div className="mt-2 flex flex-wrap items-center gap-1.5">
+      <span className="text-muted-foreground text-xs">Sources</span>
+      {[...sources.values()].map((source) => (
+        <Sources key={source.url} {...source} />
+      ))}
+    </div>
   );
 }
 
