@@ -140,29 +140,25 @@ export function createOAuthProvider(
   const { serverId, config, storage, redirectUri, onAuthorizationUrl } = opts;
   const persistence = getPersistence(storage, serverId);
 
-  // The cache outlives the provider, so a statically configured client is
-  // re-derived on every read: a transport rebuilt for a changed clientId,
-  // clientSecret or redirectUri must not inherit the previous registration.
-  const applyStaticClientInformation = (
-    cache: OAuthProviderCache,
-  ): OAuthProviderCache => {
-    if (!config.clientId) return cache;
+  // The cache is shared with every other provider for this (storage, serverId),
+  // so a statically configured client stays a read-time overlay owned by this
+  // provider. Writing it into the cache would leak this provider's registration
+  // to a replacement built for a different, or absent, clientId.
+  const staticClientInformation = (():
+    | OAuthClientInformationFull
+    | undefined => {
+    if (!config.clientId) return undefined;
     const ci: OAuthClientInformationFull = {
       client_id: config.clientId,
       redirect_uris: [redirectUri],
     };
     if (config.clientSecret) ci.client_secret = config.clientSecret;
-    cache.clientInformation = ci;
-    return cache;
-  };
+    return ci;
+  })();
 
   const loadCache = (): Promise<OAuthProviderCache> => {
-    if (persistence.cached) {
-      return Promise.resolve(applyStaticClientInformation(persistence.cached));
-    }
-    if (persistence.cachePromise) {
-      return persistence.cachePromise.then(applyStaticClientInformation);
-    }
+    if (persistence.cached) return Promise.resolve(persistence.cached);
+    if (persistence.cachePromise) return persistence.cachePromise;
 
     persistence.cachePromise = storage.loadAuthState(serverId).then(
       (persisted) => {
@@ -182,7 +178,7 @@ export function createOAuthProvider(
         throw error;
       },
     );
-    return persistence.cachePromise.then(applyStaticClientInformation);
+    return persistence.cachePromise;
   };
 
   const persist = () => {
@@ -228,7 +224,7 @@ export function createOAuthProvider(
     },
     async clientInformation() {
       const c = await loadCache();
-      return c.clientInformation;
+      return staticClientInformation ?? c.clientInformation;
     },
     async saveClientInformation(info) {
       const c = await loadCache();

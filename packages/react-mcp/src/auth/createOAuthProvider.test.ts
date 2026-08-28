@@ -318,6 +318,24 @@ describe("createOAuthProvider persistence across provider instances", () => {
     });
   });
 
+  it("does not leak static client information to a dynamic provider", async () => {
+    const { storage } = createStorage();
+    const staticProvider = createOAuthProvider({
+      serverId: "docs",
+      config: { type: "oauth", clientId: "client-a" },
+      storage,
+      redirectUri: "http://localhost/callback",
+      onAuthorizationUrl: () => {},
+    });
+    await expect(staticProvider.clientInformation()).resolves.toEqual({
+      client_id: "client-a",
+      redirect_uris: ["http://localhost/callback"],
+    });
+
+    const dynamicProvider = createProvider(storage);
+    await expect(dynamicProvider.clientInformation()).resolves.toBeUndefined();
+  });
+
   it("keeps a provider built while the clear is in flight usable", async () => {
     const { storage, getState } = createStorage();
     let releaseClear: (() => void) | undefined;
