@@ -3,49 +3,15 @@ import { NextResponse } from "next/server";
 
 const TOKEN_TTL = "10m";
 
-type OriginCheck = "allowed" | "forbidden" | "misconfigured";
-
-function checkRequestOrigin(req: Request): OriginCheck {
+function isAllowedRequestContext(req: Request) {
   const fetchSite = req.headers.get("sec-fetch-site");
-  if (fetchSite !== null) {
-    return fetchSite === "same-origin" || fetchSite === "none"
-      ? "allowed"
-      : "forbidden";
-  }
-
-  const origin = req.headers.get("origin");
-  if (origin === null) return "allowed";
-
-  const configuredOrigin = process.env.APP_ORIGIN?.trim();
-  let expectedOrigin = new URL(req.url).origin;
-  if (configuredOrigin) {
-    try {
-      const url = new URL(configuredOrigin);
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        return "misconfigured";
-      }
-      expectedOrigin = url.origin;
-    } catch {
-      return "misconfigured";
-    }
-  }
-
-  try {
-    return new URL(origin).origin === expectedOrigin ? "allowed" : "forbidden";
-  } catch {
-    return "forbidden";
-  }
+  return (
+    fetchSite === null || fetchSite === "same-origin" || fetchSite === "none"
+  );
 }
 
 export async function POST(req: Request) {
-  const originCheck = checkRequestOrigin(req);
-  if (originCheck === "misconfigured") {
-    return NextResponse.json(
-      { error: "APP_ORIGIN must be an absolute HTTP(S) origin." },
-      { status: 500 },
-    );
-  }
-  if (originCheck === "forbidden") {
+  if (!isAllowedRequestContext(req)) {
     return NextResponse.json(
       { error: "Cross-origin requests are not allowed." },
       { status: 403 },

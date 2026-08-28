@@ -297,7 +297,7 @@ const runtime = useChatRuntime({
 
 Clone the example for the adapter source, token endpoint, and agent worker rather than re-implementing the full LiveKit event map from scratch.
 
-The example rejects cross-origin browser requests. For clients without Fetch Metadata, if a reverse proxy rewrites the request URL, set `APP_ORIGIN` to the externally visible origin, such as `https://chat.example.com`. Origin checks are not user authentication. Before deploying, require your application session in the token route and apply a durable rate limit so anonymous callers cannot consume voice capacity.
+The example rejects browser requests marked cross-site, but request-context checks are not user authentication. Before deploying, require your application session in the token route and apply a durable rate limit so anonymous callers cannot consume voice capacity.
 
 You can also scaffold it with the CLI:
 

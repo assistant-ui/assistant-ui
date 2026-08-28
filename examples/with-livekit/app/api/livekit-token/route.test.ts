@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
 type LiveKitClaims = {
@@ -30,10 +30,6 @@ async function createToken() {
   return { response, claims: decodeClaims(body.token) };
 }
 
-beforeEach(() => {
-  vi.stubEnv("APP_ORIGIN", "");
-});
-
 afterEach(() => {
   vi.unstubAllEnvs();
 });
@@ -43,64 +39,8 @@ describe("LiveKit token route", () => {
     const response = await POST(
       new Request("https://app.example/api/livekit-token", {
         method: "POST",
-        headers: { origin: "https://attacker.example" },
-      }),
-    );
-
-    expect(response.status).toBe(403);
-  });
-
-  it("rejects cross-scheme origins without a configured public origin", async () => {
-    const response = await POST(
-      new Request("https://app.example/api/livekit-token", {
-        method: "POST",
-        headers: { origin: "http://app.example" },
-      }),
-    );
-
-    expect(response.status).toBe(403);
-  });
-
-  it("accepts a configured public origin behind a proxy", async () => {
-    vi.stubEnv("APP_ORIGIN", "https://app.example");
-    vi.stubEnv("LIVEKIT_API_KEY", "api-key");
-    vi.stubEnv("LIVEKIT_API_SECRET", "secret-key-that-is-long-enough");
-
-    const response = await POST(
-      new Request("http://app.internal/api/livekit-token", {
-        method: "POST",
         headers: {
-          host: "app.internal",
-          origin: "https://app.example",
-        },
-      }),
-    );
-
-    expect(response.status).toBe(200);
-  });
-
-  it("reports an invalid configured public origin", async () => {
-    vi.stubEnv("APP_ORIGIN", "app.example");
-
-    const response = await POST(
-      new Request("http://app.internal/api/livekit-token", {
-        method: "POST",
-        headers: { origin: "https://app.example" },
-      }),
-    );
-
-    expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({
-      error: "APP_ORIGIN must be an absolute HTTP(S) origin.",
-    });
-  });
-
-  it("rejects requests marked cross-site by the browser", async () => {
-    const response = await POST(
-      new Request("https://app.example/api/livekit-token", {
-        method: "POST",
-        headers: {
-          origin: "https://app.example",
+          origin: "https://attacker.example",
           "sec-fetch-site": "cross-site",
         },
       }),
