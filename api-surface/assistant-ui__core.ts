@@ -726,7 +726,7 @@ type AuiConfig = AuiConfig.Input & {
 
 declare namespace AuiConfig {
   type Input = {
-    [K in ClientNames]?: ClientElement<K> | DerivedElement<K>;
+    [K in ClientNames]?: ClientElement<K> | DerivedElement<K> | undefined;
   };
 }
 

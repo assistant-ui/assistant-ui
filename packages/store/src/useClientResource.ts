@@ -22,6 +22,9 @@ type ClientInternal = {
   [SYMBOL_GET_OUTPUT]: ClientMethods;
 };
 
+export const getClientOutput = (client: ClientMethods): ClientMethods =>
+  (client as unknown as ClientInternal)[SYMBOL_GET_OUTPUT];
+
 export const getClientState = (client: ClientMethods) => {
   const output = (client as unknown as ClientInternal)[SYMBOL_GET_OUTPUT];
   if (!output) {

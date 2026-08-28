@@ -1,8 +1,8 @@
 "use client";
 
 import type React from "react";
-import { forwardRef, useEffect, useImperativeHandle } from "react";
-import type { AssistantClient } from "./types/client";
+import { forwardRef, useEffect, useImperativeHandle, useState } from "react";
+import type { AssistantClient, ClientNames } from "./types/client";
 import { AuiConfig } from "./AuiConfig";
 import {
   AssistantContext,
@@ -11,6 +11,7 @@ import {
   useAssistantContextValue,
 } from "./utils/react-assistant-context";
 import { useConfiguredAui } from "./useAui";
+import { ScopeStateProviders } from "./utils/scope-state-context";
 
 const isDevelopment =
   typeof process !== "undefined" &&
@@ -168,13 +169,35 @@ export const AuiProvider: {
     : hasValue
       ? (props.value ?? DefaultAssistantClient)
       : contextParent;
-  const { client, effects } = useConfiguredAui(parent, config ?? EMPTY_CONFIG);
+  const { client, effects, states } = useConfiguredAui(
+    parent,
+    config ?? EMPTY_CONFIG,
+  );
   useImperativeHandle(ref, () => client, [client]);
+
+  const [scopeNames] = useState(
+    () => Object.keys(config ?? EMPTY_CONFIG) as ClientNames[],
+  );
+  if (isDevelopment && config) {
+    const names = Object.keys(config);
+    if (
+      names.length !== scopeNames.length ||
+      names.some((name) => !scopeNames.includes(name as ClientNames))
+    ) {
+      throw new Error(
+        `AuiProvider mounted scopes [${scopeNames}] but now has [${names}]; ` +
+          "the scope set is fixed at mount. Reserve a scope with an undefined value to fill it in later.",
+      );
+    }
+  }
+
   return (
     <AssistantContext.Provider value={client}>
       <MountTapEffects effects={getTapEffects(parent)} />
       {effects && <MountTapEffects effects={effects} />}
-      {children}
+      <ScopeStateProviders names={scopeNames} states={states ?? {}}>
+        {children}
+      </ScopeStateProviders>
     </AssistantContext.Provider>
   );
 }) as never;

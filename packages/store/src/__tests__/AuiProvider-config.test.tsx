@@ -374,9 +374,10 @@ describe("AuiProvider config", () => {
       return null;
     };
 
+    const reserved = AuiConfig({ message: undefined });
     const Harness = ({ config }: { config: AuiConfig }) => (
       <AuiProvider config={threadConfig(["a", "b"])}>
-        <Extend config={config}>
+        <Extend config={config === emptyConfig ? reserved : config}>
           <Extend config={AuiConfig({ counter: Counter() })}>
             <MountSpy />
             <Probe onRender={(c) => clients.push(c)} />
@@ -659,7 +660,7 @@ describe("AuiProvider config", () => {
       setId = set;
       const config =
         id === 1
-          ? AuiConfig({ counter: Tracked({ id }) })
+          ? AuiConfig({ counter: Tracked({ id }), thread: undefined })
           : AuiConfig({
               counter: Tracked({ id }),
               thread: Thread({ ids: ["a"] }),

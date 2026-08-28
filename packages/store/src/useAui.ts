@@ -46,7 +46,11 @@ import {
   type NotificationManager,
 } from "./utils/NotificationManager";
 import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
-import { ClientResource } from "./useClientResource";
+import {
+  ClientResource,
+  getClientOutput,
+  getClientState,
+} from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import {
   createClientAccessor,
@@ -56,6 +60,10 @@ import {
 } from "./utils/client-accessor";
 import { createOptionalClientView } from "./utils/optional-client-view";
 import { getClientIndex } from "./utils/tap-client-stack-context";
+import {
+  useScopeStateContext,
+  type ScopeStates,
+} from "./utils/scope-state-context";
 
 const isDevelopment =
   typeof process !== "undefined" &&
@@ -73,6 +81,7 @@ type ScopeMeta = {
   query: Record<string, unknown>;
 };
 type ScopeAccessor = AssistantClientAccessor<ClientNames>;
+type ScopeMountResult = [accessor: ScopeAccessor, state: unknown];
 
 export const applyTransformScopes = (
   clients: useAui.Props,
@@ -85,7 +94,7 @@ export const applyTransformScopes = (
   while (changed) {
     changed = false;
     for (const element of Object.values(scopes)) {
-      if (visited.has(element.hook)) continue;
+      if (element === undefined || visited.has(element.hook)) continue;
       visited.add(element.hook);
 
       const transform = getTransformScopes(element.hook);
@@ -235,7 +244,7 @@ const useScopeValue = (element: ScopeElement, derived: boolean) =>
 const useScopeMount = (
   name: ClientNames,
   element: ScopeElement,
-): ScopeAccessor => {
+): ScopeMountResult => {
   const building = useAssistantContextValue();
 
   // A derived element resolves to an existing client; mount it directly
@@ -245,6 +254,9 @@ const useScopeMount = (
   const methods = derived
     ? (value as ClientMethods)
     : (value as { methods: ClientMethods }).methods;
+  const state = derived
+    ? getClientOutput(methods)?.getState?.()
+    : (value as { state: unknown }).state;
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
@@ -254,15 +266,23 @@ const useScopeMount = (
 
   (building as Record<ClientNames, unknown>)[name] = accessor;
 
-  return accessor;
+  return [accessor, state];
 };
 
 const ScopeMount = resource(useScopeMount);
 
-const useScopeMounts = (entries: ScopeEntry[]): ScopeAccessor[] =>
+const useScopeMounts = (entries: ScopeEntry[]): ScopeMountResult[] =>
   useResources(
     entries.map(([name, element]) => withKey(name, ScopeMount(name, element))),
   );
+
+const collectScopeStates = (
+  entries: ScopeEntry[],
+  states: readonly unknown[],
+): ScopeStates =>
+  Object.fromEntries(
+    entries.map(([name], i) => [name, states[i]]),
+  ) as ScopeStates;
 
 // Commits the freshly built client only when its identity-relevant inputs
 // changed: value-only updates keep the committed client's identity, a
@@ -295,11 +315,11 @@ export const useAuiRoot = ({
   clientRef: ClientRef;
   notifications: NotificationManager;
   destroySignal?: AbortSignal | undefined;
-}): { client: AssistantClient } => {
+}): { client: AssistantClient; states: ScopeStates } => {
   const fields = useClientFields({ notifications, clientRef });
   const building = createClientObject(parent, fields);
 
-  const accessors = useAssistantTapContextProvider(
+  const mounts = useAssistantTapContextProvider(
     { clientRef, emit: notifications.emit, destroySignal },
     function WithTapContext() {
       return useAssistantContextProvider(
@@ -311,10 +331,17 @@ export const useAuiRoot = ({
     },
   );
 
+  const accessors = mounts.map(([accessor]) => accessor);
+  const states = collectScopeStates(
+    entries,
+    mounts.map(([, state]) => state),
+  );
+
   // Fresh envelope per commit so value-only updates reach the store's
   // subscribers; the client inside keeps its identity
   return {
     client: useCommittedClient(building, [parent, ...accessors]),
+    states,
   };
 };
 
@@ -326,10 +353,13 @@ const useHostedAssistantClient = ({
   entries: ScopeEntry[];
 }): ScopedAuiClient => {
   const clientRef = useRef<ClientRef>({ parent, current: null }).current;
-  const { value: client, effects } = useTapHost(function AssistantClientHost() {
+  const {
+    value: { client, states },
+    effects,
+  } = useTapHost(function AssistantClientHost() {
     const notifications = useNotificationManager();
 
-    const { client } = useAuiRoot({
+    const { client, states } = useAuiRoot({
       parent,
       entries,
       clientRef,
@@ -346,7 +376,7 @@ const useHostedAssistantClient = ({
     // subscribers here while the client inside keeps its identity
     useEffect(() => notifications.notifySubscribers());
 
-    return client;
+    return { client, states };
   });
 
   // The only hook that runs before descendant layout effects: a parent's
@@ -357,7 +387,7 @@ const useHostedAssistantClient = ({
     clientRef.current = client;
   }, [client, parent, clientRef]);
 
-  return { client, effects };
+  return { client, effects, states };
 };
 
 // Host for the deprecated useAui({...}) overload: the client tree runs under
@@ -422,19 +452,28 @@ const useDerivedScopeMount = (
   building: AssistantClient,
   name: ClientNames,
   element: ScopeElement,
-): ScopeAccessor => {
+): ScopeMountResult => {
   // Resolved against the explicit parent (which may live in another React
   // root), never the context client.
   const { get } = element.args[0] as {
     get: (client: AssistantClient) => ClientMethods;
   };
-  const value = useSyncExternalStore(
-    parent.subscribe,
-    () => get(parent),
-    () => get(parent),
-  );
-
   const meta = useScopeMeta(element);
+
+  // The resolved instance's committed state trails the source context by one
+  // commit, so a post-commit check schedules one more render when they differ.
+  useScopeStateContext(meta.source as ClientNames);
+  const [, rerender] = useState(0);
+  const value = get(parent);
+  const output = getClientOutput(value);
+  const state = getClientState(value);
+  useEffect(() => {
+    const next = get(parent);
+    if (next !== value || getClientOutput(next) !== output) {
+      rerender((n) => n + 1);
+    }
+  });
+
   const accessor = useMemo(
     () => createClientAccessor({ name, ...meta }, () => value),
     [name, meta, value],
@@ -442,7 +481,7 @@ const useDerivedScopeMount = (
 
   (building as Record<ClientNames, unknown>)[name] = accessor;
 
-  return accessor;
+  return [accessor, state];
 };
 
 // Derived-only hosts run without tap: each Derived scope is a plain React
@@ -453,7 +492,7 @@ const useDerivedScopeMount = (
 const useDerivedOnlyClient = (
   parent: AssistantClient,
   entries: ScopeEntry[],
-): AssistantClient => {
+): ScopedAuiClient => {
   if (isDevelopment) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- isDevelopment is constant for the process lifetime
     const [mountKeys] = useState(() => entries.map(([name]) => name).join(","));
@@ -514,9 +553,14 @@ const useDerivedOnlyClient = (
     on,
   });
 
-  const accessors = entries.map(([name, element]) =>
+  const mounts = entries.map(([name, element]) =>
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
     useDerivedScopeMount(parent, building, name, element),
+  );
+  const accessors = mounts.map(([accessor]) => accessor);
+  const states = collectScopeStates(
+    entries,
+    mounts.map(([, state]) => state),
   );
   const client = useCommittedClient(building, [parent, ...accessors]);
 
@@ -525,17 +569,21 @@ const useDerivedOnlyClient = (
     clientRef.current = client;
   }, [client, parent, clientRef]);
 
-  return client;
+  return { client, states };
 };
 
-type ScopedAuiClient = { client: AssistantClient; effects?: () => void };
+type ScopedAuiClient = {
+  client: AssistantClient;
+  effects?: () => void;
+  states?: ScopeStates;
+};
 
 const useScopeEntries = (
   parent: AssistantClient,
   clients: AuiConfig.Input,
 ): { entries: ScopeEntry[]; rooted: boolean } => {
-  const entries = Object.entries(
-    applyTransformScopes(clients, parent),
+  const entries = Object.entries(applyTransformScopes(clients, parent)).filter(
+    ([, element]) => element !== undefined,
   ) as ScopeEntry[];
 
   // The mode is frozen at mount. The host handles dynamic scope sets; the
@@ -568,7 +616,7 @@ const useConfiguredAuiImpl = (
     return useHost({ parent, entries });
   }
   // oxlint-disable-next-line react-hooks/rules-of-hooks
-  return { client: useDerivedOnlyClient(parent, entries) };
+  return useDerivedOnlyClient(parent, entries);
 };
 
 export const useConfiguredAui = (
