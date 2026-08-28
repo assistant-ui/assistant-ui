@@ -8,7 +8,7 @@ import { ModelContext } from "@assistant-ui/core/store";
 import type { ModelContextProvider } from "@assistant-ui/core";
 import type { Tool } from "assistant-stream";
 import { createFakeWebMcpAdapter } from "./webmcp-adapter.fake";
-import type { WebMcpAdapter } from "./webmcp-adapter";
+import type { WebMcpAdapter, WebMcpToolDescriptor } from "./webmcp-adapter";
 import {
   webMcpApprovalStore,
   type WebMcpPendingApproval,
@@ -404,6 +404,52 @@ describe("useWebMcpBridge", () => {
     expect(adapter.unregisterCalls).toEqual([]);
   });
 
+  it("keeps unregistering the remaining tools when one dispose throws", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const registry = new Map<string, WebMcpToolDescriptor>();
+    useAdapter<WebMcpAdapter>({
+      available: true,
+      registerTool: (def) => {
+        registry.set(def.name, def);
+        return () => {
+          if (def.name === "aaa") throw new Error("browser unregister failed");
+          registry.delete(def.name);
+        };
+      },
+    });
+    const provider = createProvider({
+      aaa: searchTool,
+      bbb: { ...searchTool, description: "other" } as Tool<any, any>,
+    });
+
+    const view = render(<Harness provider={provider} options={{}} />);
+    await vi.waitFor(() => expect(registry.size).toBe(2));
+
+    view.unmount();
+
+    expect(registry.has("bbb")).toBe(false);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('"aaa"'),
+      expect.anything(),
+    );
+  });
+
+  it("reports unsupported when the model context only appears after mount", async () => {
+    useAdapter(createFakeWebMcpAdapter({ available: false }));
+    const provider = createProvider({ search: searchTool });
+
+    const view = render(<Harness provider={provider} options={{}} />);
+    expect(latest.status).toBe("unsupported");
+
+    const late = useAdapter(createFakeWebMcpAdapter());
+    view.rerender(<Harness provider={provider} options={{}} />);
+    await act(async () => {});
+
+    expect(latest.status).toBe("unsupported");
+    expect(latest.registeredToolNames).toEqual([]);
+    expect(late.registerCalls).toEqual([]);
+  });
+
   it("warns and skips on a name collision without touching the app's registration", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const adapter = useAdapter(createFakeWebMcpAdapter());
@@ -551,6 +597,35 @@ describe("useWebMcpBridge approvals", () => {
     });
     await expect(afterSwap).resolves.toMatchObject({ isError: true });
     expect(dangerous).not.toHaveBeenCalled();
+  });
+
+  it("keeps allow-always across a re-registration with identical metadata", async () => {
+    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const execute = vi.fn(async () => "done");
+    const churn = () => ({ ...searchTool, execute }) as Tool<any, any>;
+    const provider = createProvider({ churn: churn() });
+    render(<Harness provider={provider} options={{}} />);
+    await vi.waitFor(() => expect(adapter.registry.has("churn")).toBe(true));
+
+    const granted = adapter.registry.get("churn")!.execute({});
+    const prompt = await waitForApproval("churn");
+    await act(async () => {
+      prompt.respond({ optionId: "allow-always" });
+    });
+    await granted;
+
+    act(() => {
+      provider.setTools({});
+    });
+    act(() => {
+      provider.setTools({ churn: churn() });
+    });
+    await vi.waitFor(() => expect(adapter.registry.has("churn")).toBe(true));
+
+    await expect(adapter.registry.get("churn")!.execute({})).resolves.toEqual({
+      content: [{ type: "text", text: "done" }],
+    });
+    expect(webMcpApprovalStore.getSnapshot()).toEqual([]);
   });
 
   it("cancels a pending approval when the tool is unregistered", async () => {

@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { Tool } from "assistant-stream";
 import { getDefaultWebMcpAdapter } from "./webmcp-adapter";
@@ -36,15 +30,15 @@ export type WebMcpBridgeResult = {
 
 const EMPTY_NAMES: string[] = [];
 
-const emptySubscribe = () => () => {};
-const getServerStatus = (): WebMcpBridgeResult["status"] => "unsupported";
-
 const toRegistrationEntry = (
   tool: Tool<any, any>,
 ): WebMcpRegistrationEntry => ({
   description: tool.description ?? "",
   inputSchemaJson: JSON.stringify(toWebMcpInputSchema(tool)) ?? "",
 });
+
+const signatureOf = (entry: WebMcpRegistrationEntry) =>
+  `${entry.description}\u0000${entry.inputSchemaJson}`;
 
 export const useWebMcpBridge = (
   options: WebMcpBridgeOptions = {},
@@ -61,23 +55,17 @@ export const useWebMcpBridge = (
     if (filterChanged) syncRef.current?.();
   });
 
-  const status = useSyncExternalStore(
-    emptySubscribe,
-    useCallback(
-      (): WebMcpBridgeResult["status"] =>
-        getDefaultWebMcpAdapter().available ? "active" : "unsupported",
-      [],
-    ),
-    getServerStatus,
-  );
+  const [bridged, setBridged] = useState(false);
 
   useEffect(() => {
     const adapter = getDefaultWebMcpAdapter();
     if (!adapter.available) return undefined;
+    setBridged(true);
 
     const requestUserInteraction =
       adapter.requestUserInteraction?.bind(adapter);
     const allowAlwaysMemory = new Set<string>();
+    const grantedSignatures = new Map<string, string>();
     const approvalGate: WebMcpApprovalGate = (request) =>
       createWebMcpApprovalGate({
         approval: optionsRef.current.approval,
@@ -96,10 +84,16 @@ export const useWebMcpBridge = (
     const disposeRegistration = (name: string) => {
       const registration = registered.get(name);
       if (!registration) return;
-      registration.lifecycle.abort();
-      registration.dispose();
       registered.delete(name);
-      allowAlwaysMemory.delete(name);
+      registration.lifecycle.abort();
+      try {
+        registration.dispose();
+      } catch (error) {
+        console.warn(
+          `[assistant-ui] Unregistering WebMCP tool "${name}" failed.`,
+          error,
+        );
+      }
     };
 
     const publishNames = () => {
@@ -172,6 +166,11 @@ export const useWebMcpBridge = (
             },
           );
           registered.set(name, registration);
+          const signature = signatureOf(target.entry);
+          if (grantedSignatures.get(name) !== signature) {
+            allowAlwaysMemory.delete(name);
+            grantedSignatures.set(name, signature);
+          }
         } catch (error) {
           console.warn(
             `[assistant-ui] Skipping WebMCP registration for tool "${name}": registerTool failed (name may already be registered).`,
@@ -197,8 +196,12 @@ export const useWebMcpBridge = (
       unsubscribe?.();
       for (const name of [...registered.keys()]) disposeRegistration(name);
       setRegisteredToolNames(EMPTY_NAMES);
+      setBridged(false);
     };
   }, [aui]);
 
-  return { status, registeredToolNames };
+  return {
+    status: bridged ? "active" : "unsupported",
+    registeredToolNames,
+  };
 };
