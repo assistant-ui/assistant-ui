@@ -132,7 +132,16 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
   });
 
   it("retries shared anonymous token requests after a failure", async () => {
-    delete (globalThis as { localStorage?: Storage }).localStorage;
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
     const failure = new Error("authentication unavailable");
     const fetchMock = vi
       .fn()
@@ -157,6 +166,21 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     await expect(
       new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
     ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("keeps anonymous token requests independent without localStorage", async () => {
+    delete (globalThis as { localStorage?: Storage }).localStorage;
+    const fetchMock = mockAnonymousTokenFetch();
+    const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+    const second = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(
+      Promise.all([first.getAuthHeaders(), second.getAuthHeaders()]),
+    ).resolves.toEqual([
+      { Authorization: `Bearer ${accessToken}` },
+      { Authorization: `Bearer ${accessToken}` },
+    ]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 

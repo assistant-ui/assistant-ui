@@ -247,22 +247,37 @@ const removeRefreshToken = (baseUrl: string): void => {
   } catch {}
 };
 
-const anonymousAuthTokenRequests = new Map<string, Promise<string | null>>();
+const anonymousAuthTokenRequests = new WeakMap<
+  Storage,
+  Map<string, Promise<string | null>>
+>();
 
 const getSharedAnonymousAuthToken = (
   baseUrl: string,
   requestToken: () => Promise<string | null>,
 ): Promise<string | null> => {
-  const activeRequest = anonymousAuthTokenRequests.get(baseUrl);
+  const storage = getLocalStorage();
+  if (!storage) return requestToken();
+
+  let storageRequests = anonymousAuthTokenRequests.get(storage);
+  if (!storageRequests) {
+    storageRequests = new Map();
+    anonymousAuthTokenRequests.set(storage, storageRequests);
+  }
+
+  const activeRequest = storageRequests.get(baseUrl);
   if (activeRequest) return activeRequest;
 
   const request = requestToken();
   const sharedRequest = request.finally(() => {
-    if (anonymousAuthTokenRequests.get(baseUrl) === sharedRequest) {
-      anonymousAuthTokenRequests.delete(baseUrl);
+    if (storageRequests.get(baseUrl) === sharedRequest) {
+      storageRequests.delete(baseUrl);
+      if (storageRequests.size === 0) {
+        anonymousAuthTokenRequests.delete(storage);
+      }
     }
   });
-  anonymousAuthTokenRequests.set(baseUrl, sharedRequest);
+  storageRequests.set(baseUrl, sharedRequest);
   return sharedRequest;
 };
 
