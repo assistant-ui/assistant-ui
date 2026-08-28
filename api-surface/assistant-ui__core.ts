@@ -3736,6 +3736,7 @@ declare class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   __internal_subscribeRuntimeReplaced(callback: () => void): Unsubscribe$1;
   stopThreadRuntime(threadId: string): void;
   setRuntimeHook(newRuntimeHook: RemoteThreadListHook): void;
+  __internal_republishRuntimeHook(): void;
   __internal_setDefaultAdapters(adapters: RuntimeAdapters | null): void;
   __internal_setThreadAdapters(threadId: string, adapters: RuntimeAdapters | null): void;
   __internal_dispose(): void;
@@ -3788,6 +3789,7 @@ declare class RemoteThreadListThreadListRuntimeCore extends BaseSubscribable imp
   getLoadThreadsPromise(): Promise<void>;
   loadMore(): Promise<void>;
   constructor(options: RemoteThreadListOptions, contextProvider: ModelContextProvider);
+  __internal_republishRuntimeHook(): void;
   __internal_setOptions(options: RemoteThreadListOptions): void;
   __internal_load(): void;
   reloadMainThread(): Promise<void>;
