@@ -247,6 +247,7 @@ const removeRefreshToken = (baseUrl: string): void => {
   } catch {}
 };
 
+// In-flight sharing follows refresh-token storage scope to isolate server requests.
 const anonymousAuthTokenRequests = new WeakMap<
   Storage,
   Map<string, Promise<string | null>>
@@ -272,9 +273,6 @@ const getSharedAnonymousAuthToken = (
   const sharedRequest = request.finally(() => {
     if (storageRequests.get(baseUrl) === sharedRequest) {
       storageRequests.delete(baseUrl);
-      if (storageRequests.size === 0) {
-        anonymousAuthTokenRequests.delete(storage);
-      }
     }
   });
   storageRequests.set(baseUrl, sharedRequest);
