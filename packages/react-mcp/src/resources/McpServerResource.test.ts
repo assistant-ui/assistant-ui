@@ -589,7 +589,7 @@ describe("McpServerResource completeAuth", () => {
     }
   });
 
-  it("rejects when the callback URL has no usable authorization code", async () => {
+  it("ignores callback URLs without a usable authorization code", async () => {
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "abc" });
     const root = mount({ auth: { type: "oauth" }, storage });
@@ -603,11 +603,10 @@ describe("McpServerResource completeAuth", () => {
       await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
-        connectionState: "error",
-        lastError: {
-          message: "missing authorization code in callback URL",
-        },
+        connectionState: "disconnected",
+        lastError: null,
       });
+      expect(mocks.transports).toHaveLength(0);
     } finally {
       root.unmount();
     }
@@ -663,6 +662,9 @@ describe("McpServerResource completeAuth", () => {
     const root = mount({ auth: { type: "oauth" }, storage });
 
     try {
+      await root.getValue().connect();
+      const transport = mocks.transports[0];
+
       await expect(
         root
           .getValue()
@@ -672,12 +674,11 @@ describe("McpServerResource completeAuth", () => {
       ).rejects.toThrow("OAuth state does not match the authorization request");
       await flushMacrotask();
 
-      expect(mocks.transports).toHaveLength(0);
+      expect(mocks.transports).toHaveLength(1);
+      expect(transport.close).not.toHaveBeenCalled();
       expect(root.getValue().getState()).toMatchObject({
-        connectionState: "error",
-        lastError: {
-          message: "OAuth state does not match the authorization request",
-        },
+        connectionState: "connected",
+        lastError: null,
       });
     } finally {
       root.unmount();
