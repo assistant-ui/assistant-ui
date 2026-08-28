@@ -13,7 +13,9 @@ function isSameOriginRequest(req: Request) {
   if (origin === null) return true;
 
   try {
-    return new URL(origin).host === new URL(req.url).host;
+    const expectedOrigin =
+      process.env.APP_ORIGIN?.trim() || new URL(req.url).origin;
+    return new URL(origin).origin === new URL(expectedOrigin).origin;
   } catch {
     return false;
   }
