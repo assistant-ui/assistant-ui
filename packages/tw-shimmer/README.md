@@ -20,10 +20,13 @@ npm install tw-shimmer
 
 ## Usage
 
-The text shimmer uses `background-clip: text`, so set a text color (typically with low opacity) on the base element:
+The default text shimmer animates an inert text clone with `translate` so Chrome and Safari can run it on the compositor. Set a low-opacity text color on the host and repeat its text in a direct `shimmer-clone` child:
 
 ```html
-<span class="shimmer text-foreground/40">Loading...</span>
+<span class="shimmer text-foreground/40">
+  Loading...
+  <span class="shimmer-clone" aria-hidden="true" inert>Loading...</span>
+</span>
 
 <div class="shimmer-container space-y-2">
   <div class="shimmer-bg h-4 w-full rounded"></div>
@@ -33,18 +36,21 @@ The text shimmer uses `background-clip: text`, so set a text color (typically wi
 
 Inside a `shimmer-container`, the plugin derives speed and width from the container size automatically.
 
+The clone must be inert and hidden from assistive technology. Firefox keeps it hidden and uses the host's `background-position` fallback. Reduced motion stops either animation and leaves the host text visible. One-node markup from earlier releases remains supported through the paint-based fallback.
+
 ## Utilities
 
-| Utility                  | Effect                                                                        |
-| ------------------------ | ----------------------------------------------------------------------------- |
-| `shimmer`                | Base text shimmer. Pair with a low-opacity text color.                        |
-| `shimmer-bg`             | Background shimmer (skeleton placeholders).                                   |
-| `shimmer-container`      | Parent container that auto-derives speed and width for children.              |
-| `shimmer-speed-{value}`  | Animation speed in px per second (text: 150, background: 1000 by default).    |
-| `shimmer-width-{value}`  | Animation track width in px (text: 200, background: 800 by default).          |
-| `shimmer-spread-{value}` | Highlight thickness.                                                          |
-| `shimmer-angle-{value}`  | Highlight angle in degrees.                                                   |
-| `shimmer-color-{color}`  | Highlight color from your Tailwind palette.                                   |
+| Utility                  | Effect                                                                     |
+| ------------------------ | -------------------------------------------------------------------------- |
+| `shimmer`                | Base text shimmer. Uses the compositor when it has a `shimmer-clone`.      |
+| `shimmer-clone`          | Inert text copy used to mask the compositor highlight.                     |
+| `shimmer-bg`             | Background shimmer (skeleton placeholders).                                |
+| `shimmer-container`      | Parent container that auto-derives speed and width for children.           |
+| `shimmer-speed-{value}`  | Animation speed in px per second (text: 150, background: 1000 by default). |
+| `shimmer-width-{value}`  | Animation track width in px (text: 200, background: 800 by default).       |
+| `shimmer-spread-{value}` | Highlight thickness.                                                       |
+| `shimmer-angle-{value}`  | Highlight angle in degrees.                                                |
+| `shimmer-color-{color}`  | Highlight color from your Tailwind palette.                                |
 
 Variables are inheritable; set them on any ancestor element and descendants pick them up unless they override.
 
