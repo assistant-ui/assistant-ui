@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
+import { readFile } from "node:fs/promises";
 import test from "node:test";
 import "tsx/esm";
 
 const {
   collectAttributeSelectorValues,
+  buildRegistry,
   createBaseRegistryItem,
   createRadixRegistryItem,
   expandBundledRegistryDependencies,
@@ -16,6 +18,7 @@ const {
   validateEmittedSpecifierHygiene,
   validateStyleScopedDependencies,
   validateUniversalItems,
+  validateVueFlavorContent,
   validateVariantExportParity,
   validateVariantSlotParity,
   validateVariantTreesDiffer,
@@ -58,6 +61,56 @@ const createBuilt = (
   sourceContentsByOutputPath:
     sourceContentsByOutputPath ??
     new Map(files.map(([filePath, content]) => [filePath, content])),
+});
+
+test("vue registry build emits a self-contained thread", async () => {
+  const { registry, vueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, vueRegistry);
+
+  const [registryContent, threadContent] = await Promise.all([
+    readFile("dist/vue/registry.json", "utf8"),
+    readFile("dist/vue/thread.json", "utf8"),
+  ]);
+  const vueIndex = JSON.parse(registryContent);
+  const thread = JSON.parse(threadContent);
+  const threadFile = thread.files.find(
+    (file) => file.path === "components/assistant-ui/thread.vue",
+  );
+
+  assert.deepEqual(
+    vueIndex.items.map((item) => item.name),
+    ["thread"],
+  );
+  assert.deepEqual(thread.dependencies, ["@assistant-ui/vue", "@lucide/vue"]);
+  assert.equal(threadFile.target, "@/components/assistant-ui/thread.vue");
+  assert.match(
+    threadFile.content,
+    /import Message from "@\/components\/assistant-ui\/message\.vue"/,
+  );
+});
+
+test("vue flavor content validation rejects react imports", () => {
+  assert.throws(
+    () =>
+      validateVueFlavorContent([
+        createBuilt("thread", [
+          [
+            "components/assistant-ui/thread.vue",
+            '<script setup lang="ts">\nimport { createElement } from "react";\n</script>',
+          ],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid vue flavor content:/);
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "react"',
+        ),
+      );
+      return true;
+    },
+  );
 });
 
 test("base registry item merges, rewrites, and deduplicates dependencies in order", () => {

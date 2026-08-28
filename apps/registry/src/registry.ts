@@ -1752,3 +1752,30 @@ export const registry: RegistryItem[] = [
     ],
   },
 ];
+
+export const vueRegistry: RegistryItem[] = [
+  {
+    name: "thread",
+    type: "registry:component",
+    title: "Thread",
+    description:
+      "Chat container with message list, composer, auto scroll, and accessibility built in.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/thread.vue",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui-vue/thread.vue",
+        target: "@/components/assistant-ui/thread.vue",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/message.vue",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui-vue/message.vue",
+        target: "@/components/assistant-ui/message.vue",
+      },
+    ],
+    dependencies: ["@assistant-ui/vue", "@lucide/vue"],
+  },
+];
