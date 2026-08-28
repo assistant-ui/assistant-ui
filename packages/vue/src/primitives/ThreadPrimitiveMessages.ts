@@ -4,7 +4,7 @@ import { useAuiState } from "../useAuiState";
 import { MessageByIdProvider } from "./MessageByIdProvider";
 import { MessageByIndexProvider } from "./MessageByIndexProvider";
 
-const OPTIMISTIC_TAIL_KEY = "aui:optimistic-tail";
+const OPTIMISTIC_TAIL_KEY = "tail:optimistic";
 
 type Row =
   | { key: string; id: string }
@@ -37,11 +37,12 @@ export const ThreadPrimitiveMessages = defineComponent({
       const next = messages.value.map((message, index): Row => {
         if (
           index === messages.value.length - 1 &&
+          message.role === "assistant" &&
           message.metadata.isOptimistic === true
         ) {
           return { key: OPTIMISTIC_TAIL_KEY, index };
         }
-        return { key: message.id, id: message.id };
+        return { key: `id:${message.id}`, id: message.id };
       });
       const prev = previousRows;
       if (
