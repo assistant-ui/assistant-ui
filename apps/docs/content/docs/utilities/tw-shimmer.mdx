@@ -45,12 +45,19 @@ Add to your CSS:
 ### Text Shimmer
 
 ```html
-<span class="shimmer text-foreground/60">Loading...</span>
+<span class="shimmer text-foreground/60">
+  Loading...
+  <span class="shimmer-clone" aria-hidden="true" inert>Loading...</span>
+</span>
 ```
+
+The inert clone makes the compositor path the default in Chrome and Safari. Firefox keeps the clone hidden and uses the host's `background-position` fallback. One-node markup from earlier releases remains supported through the same fallback.
 
 <Callout type="info">
   Set a semi-transparent text color (e.g., `text-foreground/40`) for the shimmer highlight to be visible.
 </Callout>
+
+The clone must include `aria-hidden="true"` and `inert` because it supplies glyphs for the mask, not accessible content. Reduced motion stops either animation and leaves the host text visible.
 
 ### Skeleton Loader
 
@@ -77,7 +84,11 @@ Add to your CSS:
 
 #### `shimmer`
 
-Base utility for text shimmer. Applies a gradient animation over the text foreground color.
+Base utility for text shimmer. Uses the compositor when it contains a direct `shimmer-clone`.
+
+#### `shimmer-clone`
+
+Hidden inert text copy that supplies the glyph mask for `shimmer`.
 
 #### `shimmer-bg`
 
@@ -105,6 +116,7 @@ CSS-only auto-sizing helper using container queries. Sets `container-type: inlin
 
 | Utility                     | Default (text) | Default (bg) | Description                        |
 | --------------------------- | -------------- | ------------ | ---------------------------------- |
+| `shimmer-clone`             | —              | —            | Inert text mask copy               |
 | `shimmer-speed-{n}`         | `150`          | `1000`       | Animation speed in px/s            |
 | `shimmer-width-{n}`         | `200`          | `800`        | Container width in px for timing   |
 | `shimmer-spread-{n}`        | `6ch`          | —            | Text shimmer highlight width       |
@@ -124,6 +136,7 @@ Speed controls how fast the shimmer moves in pixels per second. Width tells the 
 ```html
 <span class="shimmer shimmer-speed-200 shimmer-width-400 text-foreground/40">
   Fast, wide shimmer
+  <span class="shimmer-clone" aria-hidden="true" inert>Fast, wide shimmer</span>
 </span>
 ```
 
@@ -134,6 +147,7 @@ Use any Tailwind color with optional opacity:
 ```html
 <span class="shimmer shimmer-color-blue-500 text-blue-500/40">
   Blue shimmer
+  <span class="shimmer-clone" aria-hidden="true" inert>Blue shimmer</span>
 </span>
 
 <div class="shimmer shimmer-bg shimmer-color-blue-300/30 bg-muted h-4 rounded" />
@@ -175,11 +189,13 @@ Control the pause between animation cycles:
 <!-- Continuous shimmer, no pause -->
 <span class="shimmer shimmer-repeat-delay-0 text-foreground/40">
   Always moving
+  <span class="shimmer-clone" aria-hidden="true" inert>Always moving</span>
 </span>
 
 <!-- Long pause between cycles -->
 <span class="shimmer shimmer-repeat-delay-3000 text-foreground/40">
   Slow pulse
+  <span class="shimmer-clone" aria-hidden="true" inert>Slow pulse</span>
 </span>
 ```
 
@@ -205,8 +221,8 @@ All values can be set via CSS variables for dynamic control:
 
 ## Browser Support
 
-Uses modern CSS features: `oklch()`, `color-mix()`, independent `translate` transform, and CSS Container Queries.
+The default text path uses independent `translate` animation and text masking.
 
 **Supported:** Chrome 111+, Firefox 113+, Safari 16.4+
 
-Older browsers degrade gracefully — shimmer effects simply won't appear.
+Chrome and Safari run the optimized compositor animation. Firefox uses the existing `background-position` paint fallback. Older browsers degrade gracefully: unsupported shimmer effects do not appear.
