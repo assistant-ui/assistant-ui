@@ -297,7 +297,7 @@ const runtime = useChatRuntime({
 
 Clone the example for the adapter source, token endpoint, and agent worker rather than re-implementing the full LiveKit event map from scratch.
 
-The example rejects browser requests marked cross-site. For clients without Fetch Metadata, reverse proxies must preserve the public scheme and host in the request URL for the `Origin` fallback. Request-context checks are not user authentication. Before deploying, require your application session in the token route and apply a durable rate limit so anonymous callers cannot consume voice capacity.
+The example rejects browser requests marked same-site or cross-site. For clients without Fetch Metadata, reverse proxies must preserve the public scheme and host in the request URL for the `Origin` fallback. Request-context checks are not user authentication. Before deploying, require your application session in the token route and apply a durable rate limit so anonymous callers cannot consume voice capacity.
 
 You can also scaffold it with the CLI:
 
