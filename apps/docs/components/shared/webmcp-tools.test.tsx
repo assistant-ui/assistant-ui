@@ -38,6 +38,21 @@ describe("WebMcpTools", () => {
     expect(mocks.registerWebMcpTools).not.toHaveBeenCalled();
   });
 
+  it("does not register tools inside an iframe", () => {
+    mocks.enabled = true;
+    const self = vi
+      .spyOn(window, "self", "get")
+      .mockReturnValue({} as Window & typeof globalThis);
+    try {
+      render(<WebMcpTools />);
+
+      expect(mocks.getWebMcpModelContext).not.toHaveBeenCalled();
+      expect(mocks.registerWebMcpTools).not.toHaveBeenCalled();
+    } finally {
+      self.mockRestore();
+    }
+  });
+
   it("registers tools when enabled and cleans them up on unmount", () => {
     const modelContext = { registerTool: vi.fn() };
     const unregister = vi.fn();
