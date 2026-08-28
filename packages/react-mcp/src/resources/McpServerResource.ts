@@ -467,10 +467,14 @@ const useMcpServerResourceInstance = (
   });
 
   const doCompleteAuth = useEffectEvent(async (callbackUrl: string) => {
+    const validationGeneration = connectionGenerationRef.current;
     const url = new URL(callbackUrl);
     const state = url.searchParams.get("state");
     if (!state) throw new Error('missing "state" parameter');
     const persisted = await props.storage.loadAuthState(props.id);
+    if (!isCurrentConnection(validationGeneration)) {
+      throw createInterruptedAuthError();
+    }
     if (!persisted?.state) {
       throw new Error("no pending OAuth authorization request for this server");
     }

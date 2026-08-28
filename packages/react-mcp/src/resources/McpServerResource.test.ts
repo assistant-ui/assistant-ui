@@ -589,7 +589,7 @@ describe("McpServerResource completeAuth", () => {
     }
   });
 
-  it("ignores callback URLs without a usable authorization code", async () => {
+  it("rejects before transport setup without a usable authorization code", async () => {
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "abc" });
     const root = mount({ auth: { type: "oauth" }, storage });
@@ -678,6 +678,39 @@ describe("McpServerResource completeAuth", () => {
       expect(transport.close).not.toHaveBeenCalled();
       expect(root.getValue().getState()).toMatchObject({
         connectionState: "connected",
+        lastError: null,
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("does not resume authorization after disconnecting during validation", async () => {
+    let resolveAuthState!: (state: { state: string }) => void;
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveAuthState = resolve;
+        }),
+    );
+    const root = mount({ auth: { type: "oauth" }, storage });
+
+    try {
+      const completeAuth = root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
+      await waitFor(() => resolveAuthState !== undefined);
+
+      await root.getValue().disconnect();
+      resolveAuthState({ state: "expected" });
+
+      await expect(completeAuth).rejects.toThrow(
+        'MCP server "docs" authorization was interrupted before completion.',
+      );
+      expect(mocks.transports).toHaveLength(0);
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
         lastError: null,
       });
     } finally {
