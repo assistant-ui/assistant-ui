@@ -34,7 +34,7 @@ import {
 } from "@/lib/xulux/analytics-context";
 import { XuluxThread } from "../chat/XuluxThread";
 import { XuluxTemplateProvider } from "../chat/XuluxTemplateContext";
-import type { XuluxPreviewFrame, XuluxTemplate } from "../templates/types";
+import type { XuluxTemplate } from "../templates/types";
 import type { SelectedTemplateContext } from "../XuluxApp";
 import type { XuluxMode } from "../XuluxApp";
 import { XuluxCanvas } from "../canvas/XuluxCanvas";
@@ -50,10 +50,15 @@ import {
 } from "../runtime/xulux-local-storage";
 import type {
   XuluxActivePreviewContext,
-  XuluxCanvasSnapshot,
   XuluxJsonObject,
   XuluxStoredThread,
 } from "../runtime/types";
+import {
+  EMPTY_CANVAS,
+  fromCanvasSnapshot,
+  toCanvasSnapshot,
+  type XuluxCanvasState,
+} from "../runtime/canvas-snapshot";
 import { LearnCanvas } from "../learn/LearnCanvas";
 import {
   LearnCourseObserver,
@@ -75,17 +80,6 @@ import type {
 const ASSISTANT_UI_REPO_URL = "https://github.com/assistant-ui/assistant-ui";
 
 type XuluxViewMode = "landing" | "chat" | "preview";
-type CanvasState = {
-  status: "empty" | "loading" | "ready" | "error";
-  url: string | null;
-  source: "template" | "agent_template" | null;
-  error: string | null;
-  downloadUrl?: string;
-  previewFrame?: XuluxPreviewFrame;
-  templateId?: string;
-  versionId?: string;
-  title?: string;
-};
 type PromptStart = {
   source: "typed_prompt" | "suggestion";
   suggestionId?: string;
@@ -140,12 +134,7 @@ export function XuluxShell({
   const [activePreviewContext, setActivePreviewContext] =
     useState<XuluxActivePreviewContext | null>(null);
   const [templatesOpen, setTemplatesOpen] = useState(false);
-  const [canvas, setCanvas] = useState<CanvasState>({
-    status: "empty",
-    url: null,
-    source: null,
-    error: null,
-  });
+  const [canvas, setCanvas] = useState<XuluxCanvasState>({ ...EMPTY_CANVAS });
   const viewedRef = useRef(false);
   const previewTrackedRef = useRef<string | null>(null);
   const autoStartRef = useRef(false);
@@ -384,9 +373,10 @@ export function XuluxShell({
       setActivePreviewContext(restoredPreviewContext);
       onSetSelectedTemplateContext(restoredTemplate);
       onSetActivePreviewContext(restoredPreviewContext);
-      setCanvas(fromCanvasSnapshot(thread.custom.canvas));
+      const restoredCanvas = fromCanvasSnapshot(thread.custom.canvas);
+      setCanvas(restoredCanvas);
       setTemplatesOpen(false);
-      setViewMode(thread.custom.canvas?.url ? "preview" : "chat");
+      setViewMode(restoredCanvas.url ? "preview" : "chat");
     },
     [onSetActivePreviewContext, onSetSelectedTemplateContext, onSetSessionId],
   );
@@ -729,42 +719,6 @@ function getTemplateSourceUrl(
   if (!template.sourcePath) return template.docsUrl;
   if (/^https?:\/\//i.test(template.sourcePath)) return template.sourcePath;
   return `${ASSISTANT_UI_REPO_URL}/tree/main/${template.sourcePath}`;
-}
-
-function toCanvasSnapshot(
-  canvas: CanvasState,
-  title: string | undefined,
-): XuluxCanvasSnapshot {
-  return {
-    status: canvas.status === "loading" ? "empty" : canvas.status,
-    url: canvas.url,
-    source: canvas.source,
-    error: canvas.error,
-    ...(canvas.downloadUrl ? { downloadUrl: canvas.downloadUrl } : {}),
-    ...(canvas.previewFrame ? { previewFrame: canvas.previewFrame } : {}),
-    ...(canvas.templateId ? { templateId: canvas.templateId } : {}),
-    ...(canvas.versionId ? { versionId: canvas.versionId } : {}),
-    ...(title ? { title } : {}),
-  };
-}
-
-function fromCanvasSnapshot(
-  snapshot: XuluxCanvasSnapshot | undefined,
-): CanvasState {
-  if (!snapshot || snapshot.source === "refresh") {
-    return { status: "empty", url: null, source: null, error: null };
-  }
-  return {
-    status: snapshot.status,
-    url: snapshot.url,
-    source: snapshot.source,
-    error: snapshot.error,
-    ...(snapshot.downloadUrl ? { downloadUrl: snapshot.downloadUrl } : {}),
-    ...(snapshot.previewFrame ? { previewFrame: snapshot.previewFrame } : {}),
-    ...(snapshot.templateId ? { templateId: snapshot.templateId } : {}),
-    ...(snapshot.versionId ? { versionId: snapshot.versionId } : {}),
-    ...(snapshot.title ? { title: snapshot.title } : {}),
-  };
 }
 
 function getLatestUserTextFromMessages(
