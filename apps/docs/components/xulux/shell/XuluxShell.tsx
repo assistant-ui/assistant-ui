@@ -601,7 +601,6 @@ export function XuluxShell({
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
               <div className="min-h-0 flex-1 overflow-hidden">
                 <XuluxCanvas
-                  sessionId={sessionId}
                   status={canvas.status}
                   previewUrl={canvas.url}
                   source={canvas.source}
@@ -652,7 +651,6 @@ export function XuluxShell({
               <Separator className="bg-border hover:bg-primary/30 w-1 cursor-col-resize transition-colors" />
               <Panel className="h-full overflow-hidden">
                 <XuluxCanvas
-                  sessionId={sessionId}
                   status={canvas.status}
                   previewUrl={canvas.url}
                   source={canvas.source}
