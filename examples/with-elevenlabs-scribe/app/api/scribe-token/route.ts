@@ -8,7 +8,9 @@ function isSameOriginRequest(request: Request) {
   if (origin === null) return true;
 
   try {
-    return new URL(origin).origin === new URL(request.url).origin;
+    const requestHost =
+      request.headers.get("host") ?? new URL(request.url).host;
+    return new URL(origin).host === requestHost.toLowerCase();
   } catch {
     return false;
   }

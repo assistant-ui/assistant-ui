@@ -25,14 +25,25 @@ describe("ElevenLabs token route", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("rejects cross-scheme origins when Fetch Metadata is unavailable", async () => {
-    const fetchMock = vi.fn();
+  it("accepts a public origin when a proxy uses an internal URL", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "secret-key");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json({ token: "single-use-token" }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await POST(tokenRequest("http://app.example"));
+    const response = await POST(
+      new Request("http://app.internal/api/scribe-token", {
+        method: "POST",
+        headers: {
+          host: "app.example",
+          origin: "https://app.example",
+        },
+      }),
+    );
 
-    expect(response.status).toBe(403);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("rejects requests marked cross-site by the browser", async () => {
