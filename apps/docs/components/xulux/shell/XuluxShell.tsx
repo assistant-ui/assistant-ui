@@ -203,7 +203,7 @@ export function XuluxShell({
       setActivePreviewContext(null);
       onSetSelectedTemplateContext(null);
       onSetActivePreviewContext(null);
-      setCanvas({ status: "empty", url: null, source: null, error: null });
+      setCanvas({ ...EMPTY_CANVAS });
       setViewMode("chat");
       setTemplatesOpen(false);
       aui.thread.append({
@@ -354,7 +354,7 @@ export function XuluxShell({
     setSelectedTemplate(null);
     setSelectedTemplateContext(null);
     setActivePreviewContext(null);
-    setCanvas({ status: "empty", url: null, source: null, error: null });
+    setCanvas({ ...EMPTY_CANVAS });
     onSetActivePreviewContext(null);
     previewTrackedRef.current = null;
     setTemplatesOpen(false);
