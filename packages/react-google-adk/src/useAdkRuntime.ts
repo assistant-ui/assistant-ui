@@ -194,7 +194,8 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
       toolApprovalsKey === ""
         ? convertAdkMessage
         : createAdkMessageConverter(toolApprovals),
-    [toolApprovals, toolApprovalsKey],
+    // oxlint-disable-next-line react/exhaustive-deps -- toolApprovalsKey is the canonical decision identity; depending on equivalent fresh Maps invalidates the full conversion cache
+    [toolApprovalsKey],
   );
 
   const threadMessages = useExternalMessageConverter({

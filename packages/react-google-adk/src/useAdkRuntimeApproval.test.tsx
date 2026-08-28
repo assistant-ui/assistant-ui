@@ -11,6 +11,7 @@ const mocks = vi.hoisted(() => ({
   adapters: [] as unknown[],
   sendMessage: vi.fn().mockResolvedValue(undefined),
   messages: [] as AdkMessage[],
+  convertCalls: 0,
 }));
 
 vi.mock("@assistant-ui/core/react", async (importOriginal) => ({
@@ -34,6 +35,23 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
     },
   }),
 }));
+
+vi.mock("./convertAdkMessages", async (importOriginal) => {
+  const original =
+    await importOriginal<typeof import("./convertAdkMessages")>();
+  return {
+    ...original,
+    createAdkMessageConverter: (
+      approvals: Parameters<typeof original.createAdkMessageConverter>[0],
+    ) => {
+      const convert = original.createAdkMessageConverter(approvals);
+      return (...args: Parameters<typeof convert>) => {
+        mocks.convertCalls++;
+        return convert(...args);
+      };
+    },
+  };
+});
 
 vi.mock("./useAdkMessages", async (importOriginal) => ({
   ...(await importOriginal<typeof import("./useAdkMessages")>()),
@@ -97,6 +115,7 @@ const approvalPart = () =>
 afterEach(() => {
   mocks.adapters.length = 0;
   mocks.messages = [];
+  mocks.convertCalls = 0;
   vi.clearAllMocks();
 });
 
@@ -163,6 +182,47 @@ describe("useAdkRuntime tool approvals", () => {
         approved: true,
       }),
     ).rejects.toThrow("No pending ADK tool confirmation");
+  });
+
+  it("keeps conversion cached until the approval decision key changes", () => {
+    mocks.messages = [
+      { id: "u-1", type: "human", content: "delete the file" },
+      makeConfirmationRequest(),
+    ];
+
+    const { rerender } = renderHook(() => useAdkRuntime({ stream: vi.fn() }));
+    const cachedUser = latestAdapter().messages[0];
+    expect(mocks.convertCalls).toBe(2);
+
+    mocks.messages = [
+      ...mocks.messages,
+      { id: "ai-progress", type: "ai", content: "still working" },
+    ];
+    rerender();
+
+    expect(mocks.convertCalls).toBe(3);
+    expect(latestAdapter().messages[0]).toBe(cachedUser);
+    expect(approvalPart()).toMatchObject({
+      approval: { id: CONFIRMATION_CALL },
+    });
+
+    mocks.messages = [
+      ...mocks.messages,
+      {
+        id: "tool-1",
+        type: "tool",
+        tool_call_id: CONFIRMATION_CALL,
+        name: "adk_request_confirmation",
+        content: JSON.stringify({ confirmed: false }),
+        status: "success",
+      },
+    ];
+    rerender();
+
+    expect(mocks.convertCalls).toBe(7);
+    expect(approvalPart()).toMatchObject({
+      approval: { id: CONFIRMATION_CALL, approved: false },
+    });
   });
 
   it("keeps a gate answered by an unreadable reply retryable at the runtime seam", async () => {
