@@ -524,7 +524,7 @@ const useRemoteThreadList = (
   );
   useThreadSelectionEvents(mainThreadId);
   useEffect(() => {
-    // Imperative actions stay scoped to this committed adapter; reload receives its render-local adapter explicitly.
+    // Imperative actions stay scoped to this committed adapter; explicit reload adopts its render-local adapter.
     session.adapter = adapter;
     session.mainThreadId = mainThreadId;
     session.onThreadIdChange = onThreadIdChange;
@@ -548,60 +548,58 @@ const useRemoteThreadList = (
     [session],
   );
 
-  const getLoadThreadsPromise = useCallback(
-    (adapterOverride?: RemoteThreadListAdapter) => {
-      if (session.loadPromise) return session.loadPromise;
-      const generation = session.loadGeneration;
-      const adapter = adapterOverride ?? session.adapter;
-      const statusAtRequest = statusSnapshot(store.baseValue);
-      session.loadPromise = store
-        .optimisticUpdate({
-          execute: () => adapter.list(),
-          loading: (state) => ({ ...state, isLoading: true }),
-          then: (state, page) => {
-            if (generation !== session.loadGeneration) return state;
-            session.adapterAtLoad = adapter;
-            const fresh = classifyThreads(page.threads, {
-              threadIds: [],
-              archivedThreadIds: [],
-              threadIdMap: {},
-              threadData: {},
-            });
-            const merged = {
-              ...state,
-              isLoading: false,
-              cursor: normalizeCursor(page.nextCursor),
-              threadIds: fresh.threadIds,
-              archivedThreadIds: fresh.archivedThreadIds,
-              threadIdMap: {
-                ...state.threadIdMap,
-                ...fresh.threadIdMap,
-              },
-              threadData: {
-                ...state.threadData,
-                ...fresh.threadData,
-              },
-            };
-            return preserveMidLoadTransitions(merged, state, statusAtRequest);
-          },
-        })
-        .catch((error: unknown) => {
-          if (generation !== session.loadGeneration) return;
-          console.error("[assistant-ui] thread list load failed:", error);
-          session.loadPromise = undefined;
-          store.update({
-            ...store.baseValue,
-            isLoading: false,
+  const getLoadThreadsPromise = useCallback(() => {
+    if (session.loadPromise) return session.loadPromise;
+    const generation = session.loadGeneration;
+    const adapter = session.adapter;
+    const statusAtRequest = statusSnapshot(store.baseValue);
+    session.loadPromise = store
+      .optimisticUpdate({
+        execute: () => adapter.list(),
+        loading: (state) => ({ ...state, isLoading: true }),
+        then: (state, page) => {
+          if (generation !== session.loadGeneration) return state;
+          session.adapterAtLoad = adapter;
+          const fresh = classifyThreads(page.threads, {
+            threadIds: [],
+            archivedThreadIds: [],
+            threadIdMap: {},
+            threadData: {},
           });
-        })
-        .then(() => {});
-      return session.loadPromise;
-    },
-    [session, store],
-  );
+          const merged = {
+            ...state,
+            isLoading: false,
+            cursor: normalizeCursor(page.nextCursor),
+            threadIds: fresh.threadIds,
+            archivedThreadIds: fresh.archivedThreadIds,
+            threadIdMap: {
+              ...state.threadIdMap,
+              ...fresh.threadIdMap,
+            },
+            threadData: {
+              ...state.threadData,
+              ...fresh.threadData,
+            },
+          };
+          return preserveMidLoadTransitions(merged, state, statusAtRequest);
+        },
+      })
+      .catch((error: unknown) => {
+        if (generation !== session.loadGeneration) return;
+        console.error("[assistant-ui] thread list load failed:", error);
+        session.loadPromise = undefined;
+        store.update({
+          ...store.baseValue,
+          isLoading: false,
+        });
+      })
+      .then(() => {});
+    return session.loadPromise;
+  }, [session, store]);
 
   const reload = useCallback(() => {
     const adapterChanged = adapter !== session.adapterAtLoad;
+    session.adapter = adapter;
     session.loadGeneration++;
     session.loadPromise = undefined;
     session.loadMorePromise = undefined;
@@ -621,7 +619,7 @@ const useRemoteThreadList = (
         cursor: undefined,
       });
     }
-    return getLoadThreadsPromise(adapter);
+    return getLoadThreadsPromise();
   }, [
     adapter,
     assignMainThreadId,
@@ -1236,7 +1234,7 @@ const useRemoteThreadList = (
     switchToNewThread: () => {
       handleThreadListAction("create", () => switchToNewThread());
     },
-    getLoadThreadsPromise: () => getLoadThreadsPromise(),
+    getLoadThreadsPromise,
     reload,
     reloadMainThread: () => {
       if (getThreadData(store.value, mainThreadId)?.status === "new") {
