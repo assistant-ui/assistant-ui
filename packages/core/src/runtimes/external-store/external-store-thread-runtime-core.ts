@@ -152,8 +152,12 @@ export class ExternalStoreThreadRuntimeCore
   // reasons unrelated to deletion. Plain tail sends do not clear: a tail
   // append cannot make a visible id absent, so id-absence stays unambiguous
   // and a delete whose confirmation races a send keeps its eviction.
-  private _optimisticId: string | null = null;
   private _pendingDeleteEvictions = new Set<string>();
+
+  // Placeholder id for the upcoming assistant message, reused across snapshot
+  // passes while the same tail message awaits its response so the placeholder
+  // keeps one identity per response.
+  private _optimistic: { id: string; parentId: string | null } | null = null;
 
   private _store!: ExternalStoreAdapter<any>;
 
@@ -437,10 +441,13 @@ export class ExternalStoreThreadRuntimeCore
     // (prior placeholders, mid-run id-swap siblings); export() never persists them.
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
-      this._optimisticId ??= generateId();
-      optimisticId = this._optimisticId;
+      const parentId = messages.at(-1)?.id ?? null;
+      if (this._optimistic?.parentId !== parentId) {
+        this._optimistic = { id: generateId(), parentId };
+      }
+      optimisticId = this._optimistic.id;
       this.repository.addOrUpdateMessage(
-        messages.at(-1)?.id ?? null,
+        parentId,
         fromThreadMessageLike(
           { role: "assistant", content: [], metadata: { isOptimistic: true } },
           optimisticId,
@@ -449,7 +456,7 @@ export class ExternalStoreThreadRuntimeCore
       );
     }
 
-    if (optimisticId === null) this._optimisticId = null;
+    if (optimisticId === null) this._optimistic = null;
     this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
     this._messages = this.repository.getMessages();
