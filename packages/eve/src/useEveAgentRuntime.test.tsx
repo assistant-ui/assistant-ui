@@ -1,7 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, renderHook, waitFor } from "@testing-library/react";
-import { startTransition, Suspense, type PropsWithChildren } from "react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
+import {
+  startTransition,
+  Suspense,
+  useLayoutEffect,
+  type PropsWithChildren,
+} from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mockUseEveAgent } = vi.hoisted(() => ({
@@ -1818,7 +1823,7 @@ describe("useEveAgentRuntime cancel binding", () => {
 describe("useEveAgentRuntime thread refetch", () => {
   const session = { sessionId: "s1" };
 
-  it("keeps refetches scoped to the committed agent", async () => {
+  const mockWorkspaceAgents = () => {
     const resumeA = vi.fn().mockResolvedValue(undefined);
     const resumeB = vi.fn().mockResolvedValue(undefined);
     const agentA = createAgent({
@@ -1852,6 +1857,58 @@ describe("useEveAgentRuntime thread refetch", () => {
         ? (agentA as never)
         : (agentB as never),
     );
+    return { agentA, agentB, resumeA, resumeB };
+  };
+
+  it("publishes committed state before descendant layout effects", async () => {
+    const { resumeA, resumeB } = mockWorkspaceAgents();
+
+    let refetch: Promise<void> | undefined;
+    let currentRuntime: ReturnType<typeof useEveAgentRuntime> | undefined;
+    const RefetchOnLayout = ({
+      runtime,
+      enabled,
+    }: {
+      runtime: ReturnType<typeof useEveAgentRuntime>;
+      enabled: boolean;
+    }) => {
+      useLayoutEffect(() => {
+        if (!enabled) return;
+        runtime.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "draft from B" }],
+          startRun: false,
+        });
+        refetch = runtime.threads.reloadMainThread();
+      }, [enabled, runtime]);
+      return null;
+    };
+    const Probe = ({
+      workspace,
+      refetchOnLayout,
+    }: {
+      workspace: string;
+      refetchOnLayout: boolean;
+    }) => {
+      const runtime = useEveAgentRuntime({ workspace } as never);
+      currentRuntime = runtime;
+      return <RefetchOnLayout runtime={runtime} enabled={refetchOnLayout} />;
+    };
+
+    const view = render(<Probe workspace="A" refetchOnLayout={false} />);
+    view.rerender(<Probe workspace="B" refetchOnLayout />);
+    await act(async () => {
+      await refetch;
+    });
+
+    expect(resumeA).not.toHaveBeenCalled();
+    expect(resumeB).toHaveBeenCalledTimes(1);
+    expect(getText(currentRuntime!)).toEqual(["workspace B", "draft from B"]);
+    view.unmount();
+  });
+
+  it("keeps refetches scoped to the committed agent", async () => {
+    const { agentA, agentB, resumeA, resumeB } = mockWorkspaceAgents();
 
     const pending = new Promise<never>(() => {});
     let blocked = false;
@@ -1879,6 +1936,17 @@ describe("useEveAgentRuntime thread refetch", () => {
       startTransition(() => rerender({ workspace: "B" }));
     });
     expect(mockUseEveAgent.mock.results.at(-1)?.value).toBe(agentB);
+
+    const resetNotification = vi.spyOn(
+      result.current.thread,
+      "unstable_notifySessionReset",
+    );
+    act(() => {
+      eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
+    });
+    expect(resetNotification).toHaveBeenCalledTimes(1);
+    expect(agentA.reset).toHaveBeenCalledTimes(1);
+    expect(agentB.reset).not.toHaveBeenCalled();
 
     await act(async () => {
       await result.current.threads.reloadMainThread();

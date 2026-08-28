@@ -3,7 +3,7 @@
 import {
   useCallback,
   useEffect,
-  useLayoutEffect,
+  useInsertionEffect,
   useMemo,
   useRef,
   useState,
@@ -237,8 +237,8 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
   const agentRef = useRef(agent);
-  // Async dispatches must only observe values from committed renders.
-  useLayoutEffect(() => {
+  // Runtime actions must observe the current commit before descendant effects.
+  useInsertionEffect(() => {
     messagesRef.current = messages;
     agentRef.current = agent;
   }, [agent, messages]);
@@ -489,7 +489,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       );
     },
   });
-  useLayoutEffect(() => {
+  useInsertionEffect(() => {
     runtimeRef.current = runtime;
   }, [runtime]);
 
