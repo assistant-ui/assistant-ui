@@ -1,10 +1,12 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
-function tokenRequest(fetchSite = "same-origin") {
+function tokenRequest(fetchSite: string | null = "same-origin") {
+  const headers = new Headers();
+  if (fetchSite !== null) headers.set("sec-fetch-site", fetchSite);
   return new Request("https://app.example/api/scribe-token", {
     method: "POST",
-    headers: { "sec-fetch-site": fetchSite },
+    headers,
   });
 }
 
@@ -15,14 +17,32 @@ afterEach(() => {
 });
 
 describe("ElevenLabs token route", () => {
-  it("rejects cross-site browser requests before contacting ElevenLabs", async () => {
+  it.each(["same-site", "cross-site"])(
+    "rejects %s browser requests before contacting ElevenLabs",
+    async (fetchSite) => {
+      const fetchMock = vi.fn();
+      vi.stubGlobal("fetch", fetchMock);
+
+      const response = await POST(tokenRequest(fetchSite));
+
+      expect(response.status).toBe(403);
+      expect(fetchMock).not.toHaveBeenCalled();
+    },
+  );
+
+  it.each([
+    { label: "missing", fetchSite: null },
+    { label: "none", fetchSite: "none" },
+  ])("allows $label Fetch Metadata context", async ({ fetchSite }) => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "secret-key");
     const fetchMock = vi.fn();
+    fetchMock.mockResolvedValue(Response.json({ token: "single-use-token" }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await POST(tokenRequest("cross-site"));
+    const response = await POST(tokenRequest(fetchSite));
 
-    expect(response.status).toBe(403);
-    expect(fetchMock).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("rejects foreign origins when Fetch Metadata is unavailable", async () => {
