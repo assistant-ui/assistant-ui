@@ -23,7 +23,7 @@ async function createToken() {
   const response = await POST(
     new Request("https://app.example/api/livekit-token", {
       method: "POST",
-      headers: { origin: "https://app.example" },
+      headers: { "sec-fetch-site": "same-origin" },
     }),
   );
   const body = (await response.json()) as { token: string };
@@ -35,14 +35,11 @@ afterEach(() => {
 });
 
 describe("LiveKit token route", () => {
-  it("rejects cross-origin browser requests", async () => {
+  it("rejects cross-site browser requests", async () => {
     const response = await POST(
       new Request("https://app.example/api/livekit-token", {
         method: "POST",
-        headers: {
-          origin: "https://attacker.example",
-          "sec-fetch-site": "cross-site",
-        },
+        headers: { "sec-fetch-site": "cross-site" },
       }),
     );
 
@@ -78,7 +75,7 @@ describe("LiveKit token route", () => {
     const response = await POST(
       new Request("https://app.example/api/livekit-token", {
         method: "POST",
-        headers: { origin: "https://app.example" },
+        headers: { "sec-fetch-site": "same-origin" },
       }),
     );
 
