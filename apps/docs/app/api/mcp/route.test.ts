@@ -83,6 +83,37 @@ function getToolCallResult(response: JsonRpcResponse): ToolCallResult {
   return response.result as ToolCallResult;
 }
 
+function registerBrowserTools(fetchImpl: FetchLike) {
+  const tools: Parameters<WebMcpModelContext["registerTool"]>[0][] = [];
+  registerWebMcpTools(
+    {
+      registerTool: (tool) => {
+        tools.push(tool);
+      },
+    },
+    fetchImpl,
+  );
+  return tools;
+}
+
+function inputSchemaShape(schema: Record<string, unknown>) {
+  const properties = schema["properties"] as Record<
+    string,
+    Record<string, unknown>
+  >;
+  return {
+    type: schema["type"],
+    properties: Object.fromEntries(
+      Object.entries(properties).map(([name, property]) => [
+        name,
+        { type: property["type"] },
+      ]),
+    ),
+    required: schema["required"],
+    additionalProperties: schema["additionalProperties"],
+  };
+}
+
 afterEach(() => {
   vi.clearAllMocks();
 });
@@ -147,15 +178,7 @@ describe("POST /api/mcp", () => {
       responseContentType = response.headers.get("content-type");
       return response;
     };
-    const tools: Parameters<WebMcpModelContext["registerTool"]>[0][] = [];
-    registerWebMcpTools(
-      {
-        registerTool: (tool) => {
-          tools.push(tool);
-        },
-      },
-      routeFetch,
-    );
+    const tools = registerBrowserTools(routeFetch);
     const searchTool = tools.find((tool) => tool.name === "searchDocs");
     if (!searchTool) throw new Error("missing searchDocs tool");
 
@@ -163,6 +186,35 @@ describe("POST /api/mcp", () => {
       content: [{ type: "text", text: "[]" }],
     });
     expect(responseContentType).toContain("application/json");
+  });
+
+  it("keeps browser input shapes compatible with the route tools", async () => {
+    const toolsResponse = await requestMcp("tools/list", {});
+    const routeTools = (
+      toolsResponse.result as {
+        tools: Array<{ name: string; inputSchema: Record<string, unknown> }>;
+      }
+    ).tools;
+    const browserTools = registerBrowserTools(async () => {
+      throw new Error("not executed");
+    });
+    const mappings = [
+      ["searchDocs", "search_docs"],
+      ["getDoc", "read_page"],
+      ["getExample", "read_page"],
+    ] as const;
+
+    for (const [browserName, routeName] of mappings) {
+      const browserTool = browserTools.find(
+        (tool) => tool.name === browserName,
+      );
+      const routeTool = routeTools.find((tool) => tool.name === routeName);
+      expect(browserTool, `missing browser tool ${browserName}`).toBeDefined();
+      expect(routeTool, `missing route tool ${routeName}`).toBeDefined();
+      expect(inputSchemaShape(browserTool!.inputSchema)).toEqual(
+        inputSchemaShape(routeTool!.inputSchema),
+      );
+    }
   });
 
   it("returns the catalog-backed template list", async () => {
