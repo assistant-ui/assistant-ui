@@ -1,8 +1,10 @@
-import { createTapRoot, useResource } from "@assistant-ui/tap";
+import { createTapRoot, resource, useResource } from "@assistant-ui/tap";
+import { useState } from "react";
 import { auth, type FetchLike } from "@modelcontextprotocol/client";
 import { describe, expect, it } from "vitest";
 import { createOAuthProvider } from "../../auth/createOAuthProvider";
 
+import type { MCPStorage } from "./types";
 import {
   McpLocalStorage,
   normalizeCustomServerRecords,
@@ -416,5 +418,33 @@ describe("McpLocalStorage auth state", () => {
     ).resolves.toMatchObject({
       tokens: { access_token: "access-token" },
     });
+  });
+});
+
+describe("McpLocalStorage instance identity", () => {
+  it("returns the same instance across re-renders", () => {
+    const backing = createStorage();
+    const seen: MCPStorage[] = [];
+    let rerender!: () => void;
+
+    const useHost = () => {
+      const [, setTick] = useState(0);
+      rerender = () => setTick((n) => n + 1);
+      const storage = useResource(
+        McpLocalStorage({ keyPrefix: "test-mcp", storage: backing }),
+      );
+      seen.push(storage);
+      return storage;
+    };
+    const Host = resource(useHost);
+
+    createTapRoot(function McpStorageIdentityRoot() {
+      return useResource(Host());
+    });
+    rerender();
+    rerender();
+
+    expect(seen.length).toBeGreaterThan(1);
+    expect(new Set(seen).size).toBe(1);
   });
 });
