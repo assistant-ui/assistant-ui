@@ -3761,6 +3761,7 @@ type RemoteThreadListProps = {
   onSwitchToThread?: ((threadId: string) => void) | undefined;
   onSwitchToNewThread?: (() => void) | undefined;
   onDelete?: ((threadId: string) => void) | undefined;
+  backgroundThreads?: boolean | undefined;
 };
 
 type RemoteThreadListProviderComponent = ((props: RemoteThreadListProviderProps) => any) | (new (props: RemoteThreadListProviderProps) => any);
