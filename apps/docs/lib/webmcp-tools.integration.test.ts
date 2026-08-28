@@ -5,6 +5,7 @@ import {
 } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { normalizeMcpRequestHeaders } from "@/app/api/mcp/normalize-mcp-headers";
+import { mcpTransportOptions } from "@/app/api/mcp/transport-config";
 import { searchDocsTool } from "@/lib/mcp-tool-definitions";
 import {
   registerWebMcpTools,
@@ -12,9 +13,8 @@ import {
   type WebMcpModelContext,
 } from "./webmcp-tools";
 
-// The docs route (app/api/mcp/route.ts) can't be imported here because it pulls
-// in fumadocs-mdx virtual modules, so this rebuilds its POST handler's server +
-// transport configuration instead.
+// The route pulls fumadocs-mdx virtual modules into Vitest, so this uses its
+// shared transport config with a minimal server fixture.
 
 function buildSearchServer() {
   const server = new McpServer({ name: "assistant-ui-docs", version: "1.0.0" });
@@ -39,10 +39,9 @@ describe("callMcpRoute against a live streamable-HTTP transport", () => {
   beforeEach(async () => {
     responseContentType = null;
     server = buildSearchServer();
-    transport = new WebStandardStreamableHTTPServerTransport({
-      sessionIdGenerator: undefined,
-      enableJsonResponse: true,
-    });
+    transport = new WebStandardStreamableHTTPServerTransport(
+      mcpTransportOptions,
+    );
     await server.connect(transport);
   });
 

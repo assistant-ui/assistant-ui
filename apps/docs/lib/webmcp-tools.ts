@@ -1,8 +1,6 @@
-// WebMCP (https://github.com/webmachinelearning/webmcp) is an early W3C CG
-// draft that has already moved attachment points (navigator.modelContext ->
-// document.modelContext), so the API surface is feature-detected and typed
-// locally. Chrome additionally gates it behind an origin trial through Chrome
-// 156; the Origin-Trial header wiring lives in next.config.ts.
+// The local API types follow webmachinelearning/webmcp@41d12f057167ccf5954dbcf49d99502cb6c84491
+// and were exercised in Chrome 151. The draft has already moved attachment
+// points, so the API is feature-detected rather than added to global types.
 
 import {
   SEARCH_DOCS_RESULT_LIMIT,

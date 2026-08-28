@@ -31,6 +31,7 @@ import {
   listTemplates,
 } from "@/lib/xulux/template-service";
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
+import { mcpTransportOptions } from "./transport-config";
 
 export const revalidate = false;
 
@@ -561,10 +562,9 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const server = buildMcpServer(request.url);
-  const transport = new WebStandardStreamableHTTPServerTransport({
-    sessionIdGenerator: undefined,
-    enableJsonResponse: true,
-  });
+  const transport = new WebStandardStreamableHTTPServerTransport(
+    mcpTransportOptions,
+  );
   await server.connect(transport);
   try {
     const normalizedRequest = await normalizeMcpRequestHeaders(request);
