@@ -76,7 +76,7 @@ export default function DesignPage() {
         <Register
           index={1}
           label="Shape"
-          claim="Every shape question is answered by asking what the thing is. Ask it in order, and only the third answer reaches for a radius."
+          claim="Every shape question is answered by asking what the thing is. The page stays square, printed matter takes the smallest rounding, and only what you press reaches for the rest of the scale."
         >
           <div className="mt-8 grid gap-6 sm:grid-cols-3">
             <Plate caption="fig. 01 · the page itself">
@@ -85,7 +85,7 @@ export default function DesignPage() {
               </span>
             </Plate>
             <Plate caption="fig. 02 · matter printed on it">
-              <span className="bg-foreground/[0.04] flex h-16 w-24 flex-col justify-center gap-1.5 px-4">
+              <span className="bg-foreground/[0.04] rounded-document flex h-16 w-24 flex-col justify-center gap-1.5 px-4">
                 <span className="bg-foreground/30 block h-px w-14" />
                 <span className="bg-foreground/30 block h-px w-9" />
                 <span className="bg-foreground/30 block h-px w-12" />
