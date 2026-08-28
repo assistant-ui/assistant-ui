@@ -291,6 +291,8 @@ npx assistant-ui create my-app -e with-elevenlabs-scribe
 
 Cumulative transcript services should set `disableInputDuringDictation: true` so interim text does not fight the user's keyboard.
 
+The example keeps the ElevenLabs API key server-side and rejects cross-origin browser requests. Before deploying its token endpoint, require your application session and apply a durable rate limit so anonymous callers cannot consume transcription capacity.
+
 ## Related guides
 
 - [Realtime Voice](/docs/guides/voice): duplex voice sessions (`RealtimeVoiceAdapter`, `createVoiceSession`, voice UI component).
