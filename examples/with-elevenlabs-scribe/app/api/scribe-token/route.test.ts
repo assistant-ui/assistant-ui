@@ -1,10 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
-function tokenRequest(origin = "https://app.example") {
+function tokenRequest(fetchSite = "same-origin") {
   return new Request("https://app.example/api/scribe-token", {
     method: "POST",
-    headers: { origin },
+    headers: { "sec-fetch-site": fetchSite },
   });
 }
 
@@ -15,13 +15,11 @@ afterEach(() => {
 });
 
 describe("ElevenLabs token route", () => {
-  it("rejects cross-origin browser requests before contacting ElevenLabs", async () => {
+  it("rejects cross-site browser requests before contacting ElevenLabs", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const request = tokenRequest("https://attacker.example");
-    request.headers.set("sec-fetch-site", "cross-site");
-    const response = await POST(request);
+    const response = await POST(tokenRequest("cross-site"));
 
     expect(response.status).toBe(403);
     expect(fetchMock).not.toHaveBeenCalled();
