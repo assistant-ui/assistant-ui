@@ -44,7 +44,7 @@ describe("ElevenLabs token route", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await POST(
-      new Request("http://app.example/api/scribe-token", {
+      new Request("http://app.internal/api/scribe-token", {
         method: "POST",
         headers: {
           host: "app.internal",
