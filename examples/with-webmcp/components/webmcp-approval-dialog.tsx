@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { useWebMcpApprovals } from "@assistant-ui/react-webmcp";
+import {
+  useWebMcpApprovals,
+  type WebMcpPendingApproval,
+} from "@assistant-ui/react-webmcp";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -17,16 +20,19 @@ import { Label } from "@/components/ui/label";
 export function WebMcpApprovalDialog() {
   const approvals = useWebMcpApprovals();
   const approval = approvals[0];
-  const [reason, setReason] = useState("");
 
   if (!approval) return null;
+  return <ApprovalPrompt key={approval.id} approval={approval} />;
+}
+
+function ApprovalPrompt({ approval }: { approval: WebMcpPendingApproval }) {
+  const [reason, setReason] = useState("");
 
   const respond = (optionId: string, withReason?: boolean) => {
     approval.respond({
       optionId,
       ...(withReason && reason.trim() ? { reason: reason.trim() } : {}),
     });
-    setReason("");
   };
 
   return (
