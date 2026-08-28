@@ -286,6 +286,7 @@ const runtime = useChatRuntime({
       url: process.env.NEXT_PUBLIC_LIVEKIT_URL!,
       token: async () => {
         const res = await fetch("/api/livekit-token", { method: "POST" });
+        if (!res.ok) throw new Error("Failed to create a LiveKit session");
         const { token } = await res.json();
         return token;
       },
@@ -296,7 +297,7 @@ const runtime = useChatRuntime({
 
 Clone the example for the adapter source, token endpoint, and agent worker rather than re-implementing the full LiveKit event map from scratch.
 
-The example rejects cross-origin browser requests, but origin checks are not user authentication. Before deploying, require your application session in the token route and apply a durable rate limit so anonymous callers cannot consume voice capacity.
+The example rejects cross-origin browser requests. If a reverse proxy rewrites the request URL, set `APP_ORIGIN` to the externally visible origin, such as `https://chat.example.com`. Origin checks are not user authentication. Before deploying, require your application session in the token route and apply a durable rate limit so anonymous callers cannot consume voice capacity.
 
 You can also scaffold it with the CLI:
 
