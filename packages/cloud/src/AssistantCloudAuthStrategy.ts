@@ -247,6 +247,25 @@ const removeRefreshToken = (baseUrl: string): void => {
   } catch {}
 };
 
+const anonymousAuthTokenRequests = new Map<string, Promise<string | null>>();
+
+const getSharedAnonymousAuthToken = (
+  baseUrl: string,
+  requestToken: () => Promise<string | null>,
+): Promise<string | null> => {
+  const activeRequest = anonymousAuthTokenRequests.get(baseUrl);
+  if (activeRequest) return activeRequest;
+
+  const request = requestToken();
+  const sharedRequest = request.finally(() => {
+    if (anonymousAuthTokenRequests.get(baseUrl) === sharedRequest) {
+      anonymousAuthTokenRequests.delete(baseUrl);
+    }
+  });
+  anonymousAuthTokenRequests.set(baseUrl, sharedRequest);
+  return sharedRequest;
+};
+
 export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthStrategy {
   public readonly strategy = "anon";
 
@@ -255,7 +274,7 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    this.jwtStrategy = new AssistantCloudJWTAuthStrategy(async () => {
+    const requestAuthToken = async (): Promise<string | null> => {
       const currentTime = Date.now();
       const storedRefreshToken = readRefreshToken(this.baseUrl);
 
@@ -318,7 +337,10 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
         ),
       );
       return accessToken;
-    });
+    };
+    this.jwtStrategy = new AssistantCloudJWTAuthStrategy(() =>
+      getSharedAnonymousAuthToken(this.baseUrl, requestAuthToken),
+    );
   }
 
   public async getAuthHeaders(): Promise<Record<string, string> | false> {

@@ -106,6 +106,60 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
+  it("deduplicates anonymous token requests across strategy instances", async () => {
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    const fetchMock = mockAnonymousTokenFetch();
+    const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+    const second = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await expect(
+      Promise.all([first.getAuthHeaders(), second.getAuthHeaders()]),
+    ).resolves.toEqual([
+      { Authorization: `Bearer ${accessToken}` },
+      { Authorization: `Bearer ${accessToken}` },
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+  });
+
+  it("retries shared anonymous token requests after a failure", async () => {
+    delete (globalThis as { localStorage?: Storage }).localStorage;
+    const failure = new Error("authentication unavailable");
+    const fetchMock = vi
+      .fn()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+    const second = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    await Promise.all([
+      expect(first.getAuthHeaders()).rejects.toBe(failure),
+      expect(second.getAuthHeaders()).rejects.toBe(failure),
+    ]);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    await expect(
+      new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
+    ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("scopes anonymous refresh tokens by backend", async () => {
     const secondBaseUrl = "https://other.example.com";
     const values = new Map<string, string>();
@@ -140,10 +194,10 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       });
     vi.stubGlobal("fetch", fetchMock);
 
-    await new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders();
-    await new AssistantCloudAnonymousAuthStrategy(
-      secondBaseUrl,
-    ).getAuthHeaders();
+    await Promise.all([
+      new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
+      new AssistantCloudAnonymousAuthStrategy(secondBaseUrl).getAuthHeaders(),
+    ]);
 
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
