@@ -97,34 +97,31 @@ test("vue registry build emits a self-contained thread with its type-only depend
   );
 });
 
-test("the production vue registry stays empty until the publish flip", async () => {
-  const { registry, vueRegistry } = await import("../src/registry.ts");
-  assert.deepEqual(vueRegistry, []);
-  await buildRegistry(registry, vueRegistry);
-  const vueIndex = JSON.parse(await readFile("dist/vue/registry.json", "utf8"));
-  assert.deepEqual(vueIndex.items, []);
-});
-
-test("staged vue kit sources compile as SFCs and pass the vue purity gate", async () => {
+test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async () => {
   const { parse, compileScript } = await import("@vue/compiler-sfc");
-  const sources = await Promise.all(
-    ["thread.vue", "message.vue"].map(async (name) => [
-      `components/assistant-ui/${name}`,
-      await readFile(
-        `../../packages/ui/src/components/assistant-ui-vue/${name}`,
-        "utf8",
-      ),
-    ]),
-  );
+  const thread = JSON.parse(await readFile("dist/vue/thread.json", "utf8"));
+  const emitted = thread.files.map((file) => [file.path, file.content]);
+  assert.deepEqual(emitted.map(([outputPath]) => outputPath).sort(), [
+    "components/assistant-ui/message.vue",
+    "components/assistant-ui/thread.vue",
+  ]);
 
-  for (const [outputPath, content] of sources) {
+  for (const [outputPath, content] of emitted) {
     const { descriptor, errors } = parse(content, { filename: outputPath });
     assert.deepEqual(errors, []);
     const compiled = compileScript(descriptor, { id: outputPath });
     assert.ok(compiled.content.length > 0);
   }
 
-  validateVueFlavorContent([createBuilt("thread", sources)]);
+  validateVueFlavorContent([createBuilt("thread", emitted)]);
+});
+
+test("the production vue registry stays empty until the publish flip", async () => {
+  const { registry, vueRegistry } = await import("../src/registry.ts");
+  assert.deepEqual(vueRegistry, []);
+  await buildRegistry(registry, vueRegistry);
+  const vueIndex = JSON.parse(await readFile("dist/vue/registry.json", "utf8"));
+  assert.deepEqual(vueIndex.items, []);
 });
 
 test("vue flavor content validation rejects forbidden package subpaths", () => {
