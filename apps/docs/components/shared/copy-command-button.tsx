@@ -72,7 +72,7 @@ export function CopyCommandButton({
   }
 
   return (
-    <DropdownMenu>
+    <DropdownMenu modal={false}>
       <Menu.Trigger
         aria-label="Copy options"
         render={
