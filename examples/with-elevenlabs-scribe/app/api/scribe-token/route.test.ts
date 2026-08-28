@@ -25,6 +25,16 @@ describe("ElevenLabs token route", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects cross-scheme origins when Fetch Metadata is unavailable", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(tokenRequest("http://app.example"));
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("rejects requests marked cross-site by the browser", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
