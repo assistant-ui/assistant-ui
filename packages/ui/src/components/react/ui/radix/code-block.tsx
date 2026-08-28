@@ -81,7 +81,7 @@ export function CodeBlock({
   return (
     <figure
       className={cn(
-        "not-prose not-fumadocs-codeblock border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] group/code relative my-6 flex min-w-0 flex-col overflow-hidden border",
+        "not-prose not-fumadocs-codeblock border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] group/code relative my-6 flex min-w-0 flex-col overflow-hidden rounded-(--radius-sm) border",
         className,
       )}
       {...props}
