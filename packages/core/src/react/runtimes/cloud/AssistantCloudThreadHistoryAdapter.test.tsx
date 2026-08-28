@@ -31,9 +31,9 @@ const mocks = vi.hoisted(() => {
   };
 });
 
-vi.mock("@assistant-ui/store", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@assistant-ui/store")>()),
-  useAui: () => mocks.aui,
+vi.mock("@assistant-ui/store/client", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/store/client")>()),
+  useAssistantContextValue: () => mocks.aui,
 }));
 
 const makeCloud = () =>
