@@ -482,7 +482,7 @@ const useMcpServerResourceInstance = (
       if (!persisted?.state || persisted.state !== state) {
         throw new Error("OAuth state does not match the authorization request");
       }
-      if (!url.searchParams.has("code") && !url.searchParams.has("error")) {
+      if (!url.searchParams.get("code") && !url.searchParams.get("error")) {
         throw new Error("missing authorization code in callback URL");
       }
       let transport = transportRef.current;

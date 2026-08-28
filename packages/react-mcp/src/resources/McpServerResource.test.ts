@@ -589,14 +589,16 @@ describe("McpServerResource completeAuth", () => {
     }
   });
 
-  it("rejects when the callback URL has no authorization code", async () => {
+  it("rejects when the callback URL has no usable authorization code", async () => {
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "abc" });
     const root = mount({ auth: { type: "oauth" }, storage });
 
     try {
       await expect(
-        root.getValue().completeAuth("https://example.com/callback?state=abc"),
+        root
+          .getValue()
+          .completeAuth("https://example.com/callback?state=abc&code="),
       ).rejects.toThrow("missing authorization code in callback URL");
       await flushMacrotask();
 
@@ -606,6 +608,28 @@ describe("McpServerResource completeAuth", () => {
           message: "missing authorization code in callback URL",
         },
       });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("forwards OAuth error callbacks to the transport", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    const root = mount({ auth: { type: "oauth" }, storage });
+
+    try {
+      await root
+        .getValue()
+        .completeAuth(
+          "https://example.com/callback?error=access_denied&error_description=Denied&state=expected&iss=https%3A%2F%2Fauth.example.com",
+        );
+
+      const params = mocks.transports[0].finishAuth.mock.calls[0][0];
+      expect(params).toBeInstanceOf(URLSearchParams);
+      expect(params.get("error")).toBe("access_denied");
+      expect(params.get("error_description")).toBe("Denied");
+      expect(params.get("iss")).toBe("https://auth.example.com");
     } finally {
       root.unmount();
     }

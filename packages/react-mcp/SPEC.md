@@ -373,7 +373,7 @@ During auto-connect, a rejected `storage.loadAuthState()` sets `lastError` and t
 3. `client.connect(transport)` — on `UnauthorizedError` set `authorizationUrl` and transition to `"authRequired"`; on other errors set `lastError` and transition to `"error"`.
 4. On success: `listTools()`, transition to `"connected"`.
 
-`completeAuth(url)`: parse `code`, call `transport.finishAuth(code)`, retry `client.connect()`.
+`completeAuth(url)`: require an exact match with the persisted `state`, accept either `code` or an OAuth `error`, pass the complete callback `URLSearchParams` (including `iss`) to `transport.finishAuth()`, then retry `client.connect()` after successful authorization.
 
 ## 7. OAuth callback
 
@@ -389,7 +389,7 @@ useMcpOAuthCallback(opts?): { status; serverId; error };
 </McpOAuthCallback>;
 ```
 
-Reads `window.location` (override with `url` prop), extracts `state`/`code`, resolves the server, runs `completeAuth`. Pure client-side — mount under `"use client"`.
+Reads `window.location` (override with `url` prop), extracts `state` to resolve the server, and passes the complete callback URL to `completeAuth` for state, issuer, code, and OAuth error validation. Pure client-side — mount under `"use client"`.
 
 ## 8. Tool integration
 
