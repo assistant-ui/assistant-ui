@@ -368,6 +368,26 @@ describe("toWebMcpTool hostile inputs", () => {
     expect(result.isError).toBe(true);
   });
 
+  it("returns an error result when the caller signal cannot be merged", async () => {
+    const execute = vi.fn(async () => "never");
+    const descriptor = toWebMcpTool(
+      "t",
+      () => frontendTool({ execute }),
+      approveAllGate,
+      new AbortController().signal,
+    );
+
+    const foreignSignal = {
+      aborted: false,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    } as unknown as AbortSignal;
+
+    const result = await descriptor.execute({}, { signal: foreignSignal });
+    expect(result.isError).toBe(true);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
   it("throws at descriptor construction for a schema that cannot convert", () => {
     const badSchema = {
       "~standard": { version: 1, validate: () => ({ issues: undefined }) },

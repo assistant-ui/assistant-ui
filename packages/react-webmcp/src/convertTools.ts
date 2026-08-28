@@ -125,9 +125,9 @@ export const toWebMcpTool = (
     }
     const tool = getTool();
     const args = (rawArgs ?? {}) as Record<string, unknown>;
-    const abortSignal = mergeSignals(context?.signal, lifecycleSignal);
     const toolCallId = crypto.randomUUID();
     try {
+      const abortSignal = mergeSignals(context?.signal, lifecycleSignal);
       let executeFn = tool.execute;
       if (isStandardSchema(tool.parameters)) {
         let validation = tool.parameters["~standard"].validate(args);

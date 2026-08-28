@@ -101,6 +101,21 @@ describe("createWebMcpApprovalGate", () => {
     await expect(decision).resolves.toEqual({ approved: true });
   });
 
+  it("does not request user attention for an approval that settled first", async () => {
+    const requestUserInteraction = vi.fn(async () => {});
+    const controller = new AbortController();
+    const { gate } = makeGate({ requestUserInteraction });
+
+    const decision = gate(request({ abortSignal: controller.signal }));
+    controller.abort();
+
+    await expect(decision).resolves.toEqual({
+      approved: false,
+      resolution: "cancelled",
+    });
+    expect(requestUserInteraction).not.toHaveBeenCalled();
+  });
+
   it('bypasses the queue entirely with approval: "never"', async () => {
     const { gate, store } = makeGate({ approval: "never" });
 

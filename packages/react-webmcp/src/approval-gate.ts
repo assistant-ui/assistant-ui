@@ -139,7 +139,7 @@ export const createWebMcpApprovalGate = (
         },
       });
       Promise.resolve()
-        .then(requestUserInteraction)
+        .then(() => (settled ? undefined : requestUserInteraction?.()))
         .catch(() => {});
     });
   };
