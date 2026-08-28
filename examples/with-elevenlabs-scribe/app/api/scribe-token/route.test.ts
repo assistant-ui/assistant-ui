@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
 function tokenRequest(origin = "https://app.example") {
@@ -7,6 +7,10 @@ function tokenRequest(origin = "https://app.example") {
     headers: { origin },
   });
 }
+
+beforeEach(() => {
+  vi.stubEnv("APP_ORIGIN", "");
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();
