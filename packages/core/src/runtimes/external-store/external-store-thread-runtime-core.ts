@@ -152,6 +152,7 @@ export class ExternalStoreThreadRuntimeCore
   // reasons unrelated to deletion. Plain tail sends do not clear: a tail
   // append cannot make a visible id absent, so id-absence stays unambiguous
   // and a delete whose confirmation races a send keeps its eviction.
+  private _optimisticId: string | null = null;
   private _pendingDeleteEvictions = new Set<string>();
 
   private _store!: ExternalStoreAdapter<any>;
@@ -436,7 +437,8 @@ export class ExternalStoreThreadRuntimeCore
     // (prior placeholders, mid-run id-swap siblings); export() never persists them.
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
-      optimisticId = generateId();
+      this._optimisticId ??= generateId();
+      optimisticId = this._optimisticId;
       this.repository.addOrUpdateMessage(
         messages.at(-1)?.id ?? null,
         fromThreadMessageLike(
@@ -447,6 +449,7 @@ export class ExternalStoreThreadRuntimeCore
       );
     }
 
+    if (optimisticId === null) this._optimisticId = null;
     this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
     this._messages = this.repository.getMessages();
