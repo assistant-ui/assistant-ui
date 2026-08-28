@@ -163,16 +163,20 @@ export function validateBaseTreeRadixImports(
 const VUE_FORBIDDEN_PACKAGES = [
   "react",
   "react-dom",
+  "lucide-react",
   "radix-ui",
   "@radix-ui",
   "@base-ui",
   "@assistant-ui/react",
 ];
+const VUE_FORBIDDEN_PREFIXES = ["@assistant-ui/react-"];
 
 function isVueForbiddenPackage(specifier: string) {
-  return VUE_FORBIDDEN_PACKAGES.some(
-    (packageName) =>
-      specifier === packageName || specifier.startsWith(`${packageName}/`),
+  return (
+    VUE_FORBIDDEN_PACKAGES.some(
+      (packageName) =>
+        specifier === packageName || specifier.startsWith(`${packageName}/`),
+    ) || VUE_FORBIDDEN_PREFIXES.some((prefix) => specifier.startsWith(prefix))
   );
 }
 
@@ -851,7 +855,7 @@ function getScriptContents(file: RegistryOutputFile) {
   if (!file.path.endsWith(".vue")) return [{ content: file.content }];
 
   return [
-    ...file.content.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script\s*>/gi),
+    ...file.content.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script\b[^>]*>/gi),
   ].map((match) => ({
     content: match[2] ?? "",
     lang: getVueScriptLanguage(match[1] ?? ""),

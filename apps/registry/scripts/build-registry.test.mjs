@@ -104,7 +104,7 @@ test("vue flavor content validation rejects forbidden package subpaths", () => {
         createBuilt("thread", [
           [
             "components/assistant-ui/thread.vue",
-            '<script setup lang="ts">\nimport { jsx } from "react/jsx-runtime";\nimport "react-dom/client";\nimport "@assistant-ui/react/runtime";\n</script>',
+            '<script setup lang="ts">\nimport { jsx } from "react/jsx-runtime";\nimport "react-dom/client";\nimport "@assistant-ui/react/runtime";\nimport { CopyIcon } from "lucide-react";\nimport "@assistant-ui/react-ui/lib/utils";\n</script>',
           ],
         ]),
       ]),
@@ -126,6 +126,16 @@ test("vue flavor content validation rejects forbidden package subpaths", () => {
           '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "@assistant-ui/react/runtime"',
         ),
       );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "lucide-react"',
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "@assistant-ui/react-ui/lib/utils"',
+        ),
+      );
       return true;
     },
   );
@@ -138,7 +148,7 @@ test("vue flavor content validation scans script tags closed with whitespace", (
         createBuilt("thread", [
           [
             "components/assistant-ui/thread.vue",
-            '<script setup lang="ts">\nimport { createElement } from "react";\n</script >',
+            '<script setup lang="ts">\nimport { createElement } from "react";\n</script \t\nbar>',
           ],
         ]),
       ]),
