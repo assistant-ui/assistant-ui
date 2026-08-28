@@ -81,7 +81,6 @@ const CollapsibleCode: FC<{ children: ReactNode }> = ({ children }) => {
     });
 
     observer.observe(content);
-    for (const child of content.children) observer.observe(child);
     setOverflowing(content.scrollHeight > 320);
 
     return () => observer.disconnect();

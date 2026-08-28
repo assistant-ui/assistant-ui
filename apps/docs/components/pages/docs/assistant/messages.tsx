@@ -11,6 +11,7 @@ import {
   useAuiState,
 } from "@assistant-ui/react";
 import { type ComponentType, type ReactNode } from "react";
+import { FileTextIcon } from "lucide-react";
 import { Reasoning } from "@/components/assistant-ui/reasoning";
 import { Sources } from "@/components/assistant-ui/sources";
 import {
@@ -131,14 +132,22 @@ function ToolCall({
     />
   );
 
-  if (url) return <Link href={url}>{traceLine}</Link>;
+  if (url)
+    return (
+      <Link href={url} className="hover:underline focus-visible:underline">
+        {traceLine}
+      </Link>
+    );
 
   return traceLine;
 }
 
 function SourcesFooter(): ReactNode {
   const parts = useAuiState((s) => s.message.parts);
-  const sources = new Map<string, SourceMessagePartProps>();
+  const sources = new Map<
+    string,
+    Extract<SourceMessagePartProps, { sourceType: "url" }>
+  >();
 
   for (const part of parts) {
     if (
@@ -156,7 +165,10 @@ function SourcesFooter(): ReactNode {
     <div className="mt-2 flex flex-wrap items-center gap-1.5">
       <span className="text-muted-foreground text-xs">Sources</span>
       {[...sources.values()].map((source) => (
-        <Sources key={source.url} {...source} />
+        <Sources.Root key={source.url} href={source.url}>
+          <FileTextIcon className="size-3 shrink-0" />
+          <Sources.Title>{source.title ?? source.url}</Sources.Title>
+        </Sources.Root>
       ))}
     </div>
   );
