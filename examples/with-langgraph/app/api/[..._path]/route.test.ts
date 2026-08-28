@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { NextRequest } from "next/server";
 import { OPTIONS, POST } from "./route";
 
 afterEach(() => {
@@ -12,7 +13,7 @@ describe("LangGraph proxy", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await POST(
-      new Request("https://app.example/api/threads", {
+      new NextRequest("https://app.example/api/threads", {
         method: "POST",
         headers: { origin: "https://attacker.example" },
         body: "{}",
@@ -38,12 +39,13 @@ describe("LangGraph proxy", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await POST(
-      new Request("https://app.example/api/threads?_path=threads&limit=1", {
+      new NextRequest("http://app.internal/api/threads?_path=threads&limit=1", {
         method: "POST",
         headers: {
           accept: "application/json",
           "content-type": "application/json",
           origin: "https://app.example",
+          "sec-fetch-site": "same-origin",
         },
         body: "{}",
       }),
@@ -64,9 +66,63 @@ describe("LangGraph proxy", () => {
     expect(response.headers.get("cache-control")).toBe("no-store");
   });
 
+  it("fails closed when the upstream URL is missing", async () => {
+    vi.stubEnv("LANGGRAPH_API_URL", "");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new NextRequest("https://app.example/api/threads", {
+        method: "POST",
+        headers: {
+          origin: "https://app.example",
+          "sec-fetch-site": "same-origin",
+        },
+        body: "{}",
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: "LANGGRAPH_API_URL is not configured.",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("rejects upstream redirects without exposing their location", async () => {
+    vi.stubEnv("LANGGRAPH_API_URL", "https://agent.example");
+    vi.stubEnv("LANGCHAIN_API_KEY", "secret-key");
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(null, {
+        status: 307,
+        headers: { location: "https://redirect.example/threads" },
+      }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new NextRequest("https://app.example/api/threads", {
+        method: "POST",
+        headers: {
+          origin: "https://app.example",
+          "sec-fetch-site": "same-origin",
+        },
+        body: "{}",
+      }),
+    );
+
+    expect(response.status).toBe(502);
+    expect(response.headers.get("location")).toBeNull();
+    await expect(response.json()).resolves.toEqual({
+      error: "LangGraph returned an unexpected redirect.",
+    });
+    const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
+    expect(init.redirect).toBe("manual");
+  });
+
   it("does not approve cross-origin preflight requests", async () => {
     const response = OPTIONS(
-      new Request("https://app.example/api/threads", {
+      new NextRequest("https://app.example/api/threads", {
         method: "OPTIONS",
         headers: {
           origin: "https://attacker.example",

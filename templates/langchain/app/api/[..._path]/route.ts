@@ -1,14 +1,29 @@
-import { NextResponse } from "next/server";
+import { type NextRequest, NextResponse } from "next/server";
 
 export const runtime = "edge";
 
 const ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 
-function isSameOriginRequest(req: Request) {
-  if (req.headers.get("sec-fetch-site") === "cross-site") return false;
+function isSameOriginRequest(req: NextRequest) {
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
+  }
 
   const origin = req.headers.get("origin");
-  return origin === null || origin === new URL(req.url).origin;
+  if (origin === null) return true;
+
+  try {
+    const forwardedHost = req.headers
+      .get("x-forwarded-host")
+      ?.split(",")[0]
+      ?.trim();
+    const expectedHost =
+      forwardedHost || req.headers.get("host") || req.nextUrl.host;
+    return new URL(origin).host === expectedHost;
+  } catch {
+    return false;
+  }
 }
 
 function crossOriginResponse() {
@@ -18,13 +33,20 @@ function crossOriginResponse() {
   );
 }
 
-export async function handleRequest(req: Request, method: string) {
+async function handleRequest(req: NextRequest, method: string) {
   if (!isSameOriginRequest(req)) return crossOriginResponse();
 
   try {
-    const url = new URL(req.url);
-    const path = url.pathname.replace(/^\/?api\//, "");
-    const searchParams = new URLSearchParams(url.search);
+    const apiUrl = process.env.LANGGRAPH_API_URL?.trim();
+    if (!apiUrl) {
+      return NextResponse.json(
+        { error: "LANGGRAPH_API_URL is not configured." },
+        { status: 503 },
+      );
+    }
+
+    const path = req.nextUrl.pathname.replace(/^\/?api\//, "");
+    const searchParams = new URLSearchParams(req.nextUrl.search);
     searchParams.delete("_path");
     searchParams.delete("nxtP_path");
     const queryString = searchParams.toString()
@@ -52,15 +74,19 @@ export async function handleRequest(req: Request, method: string) {
       options.body = await req.text();
     }
 
-    const apiUrl = process.env.LANGGRAPH_API_URL?.trim();
-    if (!apiUrl) {
+    const res = await fetch(`${apiUrl}/${path}${queryString}`, options);
+
+    if (
+      res.status === 0 ||
+      (res.status >= 300 && res.status < 400) ||
+      res.type === "opaqueredirect"
+    ) {
+      await res.body?.cancel().catch(() => undefined);
       return NextResponse.json(
-        { error: "LANGGRAPH_API_URL is not configured." },
-        { status: 503 },
+        { error: "LangGraph returned an unexpected redirect." },
+        { status: 502 },
       );
     }
-
-    const res = await fetch(`${apiUrl}/${path}${queryString}`, options);
 
     const responseHeaders = new Headers(res.headers);
     for (const name of [
@@ -94,12 +120,12 @@ export async function handleRequest(req: Request, method: string) {
   }
 }
 
-export const GET = (req: Request) => handleRequest(req, "GET");
-export const POST = (req: Request) => handleRequest(req, "POST");
-export const PUT = (req: Request) => handleRequest(req, "PUT");
-export const PATCH = (req: Request) => handleRequest(req, "PATCH");
-export const DELETE = (req: Request) => handleRequest(req, "DELETE");
-export const OPTIONS = (req: Request) =>
+export const GET = (req: NextRequest) => handleRequest(req, "GET");
+export const POST = (req: NextRequest) => handleRequest(req, "POST");
+export const PUT = (req: NextRequest) => handleRequest(req, "PUT");
+export const PATCH = (req: NextRequest) => handleRequest(req, "PATCH");
+export const DELETE = (req: NextRequest) => handleRequest(req, "DELETE");
+export const OPTIONS = (req: NextRequest) =>
   isSameOriginRequest(req)
     ? new NextResponse(null, {
         status: 204,
