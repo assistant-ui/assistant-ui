@@ -18,12 +18,14 @@
     "@assistant-ui/vue": "workspace:*",
     "@lucide/vue": "^1.33.0",
     "ai": "^7.0.77",
+    "markdown-it": "^14.1.0",
     "nuxt": "^4.5.2",
     "react": "^19.2.8",
     "vue": "^3.5.41"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
+    "@types/markdown-it": "^14.1.2",
     "@types/react": "^19.2.18",
     "tailwindcss": "^4.3.3",
     "typescript": "^7.0.2"

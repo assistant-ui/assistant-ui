@@ -84,7 +84,11 @@ const error = useAuiState((s) => {
           : 'text-foreground leading-relaxed'
       "
     >
-      <MessagePrimitiveParts />
+      <MessagePrimitiveParts>
+        <template #text>
+          <MarkdownText />
+        </template>
+      </MessagePrimitiveParts>
       <span v-if="pulsing" class="animate-pulse">…</span>
       <span v-if="error" class="text-destructive text-sm">{{ error }}</span>
     </div>
