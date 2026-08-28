@@ -279,6 +279,27 @@ const useRemoteThreadBody = ({
 
 const RemoteThreadBody = resource(useRemoteThreadBody);
 
+// `thread("main")` keeps one identity across switches, like the single
+// useClientResource slot it replaced: consumers (the ambient `thread` scope,
+// captured clients) hold the facade while it delegates to whichever body is
+// currently main. Isolated in its own hook because the render-time ref access
+// bails the React Compiler for the enclosing function.
+const useMainThreadFacade = (
+  current: ClientOutput<"thread">,
+): ClientOutput<"thread"> => {
+  const currentRef = useRef(current);
+  currentRef.current = current;
+  const [facade] = useState(
+    () =>
+      new Proxy({} as ClientOutput<"thread">, {
+        get: (_, prop) =>
+          (currentRef.current as unknown as Record<PropertyKey, unknown>)[prop],
+        has: (_, prop) => prop in (currentRef.current as object),
+      }),
+  );
+  return facade;
+};
+
 const useRemoteThreadListView = ({
   listState,
   mainThreadId,
@@ -327,11 +348,16 @@ const useRemoteThreadListView = ({
   const bodyIds = useMemo(() => {
     if (!backgroundThreads) return [mainThreadId];
     const seen = new Set<string>();
+    const seenRemoteIds = new Set<string>();
     const ids: string[] = [];
     for (const id of startedIds) {
       const data = getThreadData(listState, id);
       if (!data || seen.has(data.id)) continue;
+      if (data.remoteId !== undefined && seenRemoteIds.has(data.remoteId)) {
+        continue;
+      }
       seen.add(data.id);
+      if (data.remoteId !== undefined) seenRemoteIds.add(data.remoteId);
       ids.push(data.id);
     }
     return ids;
@@ -398,31 +424,22 @@ const useRemoteThreadListView = ({
       return withKey(backgroundThreads ? id : (made.key ?? "main"), element);
     }),
   );
+  // A reload can remap a local thread id to its remote identity while the
+  // body stays keyed by the original mapping id, so lookups fall back to
+  // remote-identity matching.
+  const bodyIndexOf = (id: string) => {
+    const direct = bodyIds.indexOf(id);
+    if (direct !== -1) return direct;
+    return bodyIds.findIndex((bodyId) => isSameThread(listState, bodyId, id));
+  };
   const bodyStateOf = (id: string) => {
-    const index = bodyIds.indexOf(id);
+    const index = bodyIndexOf(id);
     return index === -1 ? undefined : bodies.state[index];
   };
-  // `thread("main")` keeps one identity across switches, like the single
-  // useClientResource slot it replaced: consumers (the ambient `thread`
-  // scope, captured clients) hold the facade while it delegates to whichever
-  // body is currently main.
-  const mainMethodsRef = useRef<ClientOutput<"thread"> | null>(null);
-  mainMethodsRef.current = bodies.get({
-    index: bodyIds.indexOf(mainThreadId),
-  });
-  const [mainFacade] = useState(
-    () =>
-      new Proxy({} as ClientOutput<"thread">, {
-        get: (_, prop) =>
-          (mainMethodsRef.current as unknown as Record<PropertyKey, unknown>)[
-            prop
-          ],
-        has: (_, prop) => prop in (mainMethodsRef.current as object),
-      }),
-  );
+  const mainIndex = bodyIndexOf(mainThreadId);
   const mainThreadClient = {
-    state: bodyStateOf(mainThreadId)!,
-    methods: mainFacade,
+    state: bodies.state[mainIndex]!,
+    methods: useMainThreadFacade(bodies.get({ index: mainIndex })),
   };
   const itemOrder = useMemo(
     () => collectItemOrder(listState, mainThreadId),
@@ -496,7 +513,7 @@ const useRemoteThreadList = (
   const [startedIds, setStartedIds] = useState<readonly string[]>([
     initialMainId,
   ]);
-  const backgroundThreads = props.backgroundThreads === true;
+  const [backgroundThreads] = useState(props.backgroundThreads === true);
   const assignMainThreadId = useCallback(
     (id: string) => {
       session.mainThreadId = id;

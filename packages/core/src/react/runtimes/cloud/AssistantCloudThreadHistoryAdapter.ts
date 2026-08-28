@@ -18,11 +18,7 @@ import {
   truncateRunTelemetryText,
 } from "assistant-cloud";
 import { auiV0Decode, auiV0Encode } from "./auiV0";
-import type { AssistantClient } from "@assistant-ui/store";
-import {
-  getClientId,
-  useAssistantContextValue,
-} from "@assistant-ui/store/client";
+import { type AssistantClient, getClientId, useAui } from "@assistant-ui/store";
 import type { ThreadListItemMethods } from "../../../store/scopes/thread-list-item";
 
 type CloudThreadListItem = Pick<
@@ -771,7 +767,7 @@ function aggregateAiSdkV6RunSteps<T>(stepMessages: T[]): TelemetryData | null {
 export function useAssistantCloudThreadHistoryAdapter(
   cloudRef: RefObject<AssistantCloud>,
 ): ThreadHistoryAdapter {
-  const aui = useAssistantContextValue();
+  const aui = useAui();
   // Not useEffectEvent: history adapter methods run during render (SSR load).
   const auiRef = useRef(aui);
   useEffect(() => {

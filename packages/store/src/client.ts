@@ -15,7 +15,6 @@ export {
   useAssistantContextValue,
 } from "./utils/react-assistant-context";
 export { useConfiguredAui } from "./useAui";
-export { getClientId } from "./utils/client-accessor";
 export { getProxiedAssistantState } from "./utils/proxied-assistant-state";
 export {
   useAssistantClientRef,

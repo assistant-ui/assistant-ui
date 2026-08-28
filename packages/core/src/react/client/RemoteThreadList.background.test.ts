@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useResource } from "@assistant-ui/tap";
 import { describe, expect, it, vi } from "vitest";
 import { flushTapSync, resource, withKey } from "@assistant-ui/tap";
 import { AuiConfig, createAssistantClient } from "@assistant-ui/store/client";
@@ -291,6 +292,92 @@ describe("RemoteThreadList backgroundThreads", () => {
       expect(aui.threads.getState().mainThreadId).toBe("t1");
     });
     expect(adapter.generateTitle).toHaveBeenCalledOnce();
+    handle.destroy();
+  });
+
+  it("keeps the mode fixed when the prop flips after mount", async () => {
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [{ status: "regular" as const, remoteId: "t1", title: "One" }],
+      })),
+    });
+    const tracker = createTracker();
+    let flip!: () => void;
+    const useFlippingThreads = () => {
+      const [background, setBackground] = useState(true);
+      flip = () => setBackground(false);
+      return useResource(
+        RemoteThreadList({
+          adapter,
+          backgroundThreads: background,
+          thread: (id) =>
+            withKey(id, TrackedThread({ threadId: id, tracker }) as never),
+        }),
+      );
+    };
+    const FlippingThreads = resource(useFlippingThreads);
+    const handle = createAssistantClient(
+      AuiConfig({ threads: FlippingThreads() as never }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toEqual(["t1"]);
+    });
+    const newThreadId = aui.threads.getState().mainThreadId;
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe("t1");
+    });
+    flushTapSync(() => aui.threads.switchToThread(newThreadId));
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe(newThreadId);
+    });
+    expect(tracker.alive.has("t1")).toBe(true);
+
+    flushTapSync(() => flip());
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).toBe(newThreadId);
+    });
+    expect(tracker.alive.has("t1")).toBe(true);
+    handle.destroy();
+  });
+
+  it("keeps one body when a reload remaps a local thread to its remote id", async () => {
+    let listed: { status: "regular"; remoteId: string; title: string }[] = [];
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({ threads: listed })),
+    });
+    const tracker = createTracker();
+    const handle = mountBackgroundList(adapter, tracker);
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const localId = aui.threads.getState().mainThreadId;
+
+    await aui.threads.item("main").initialize();
+    const remoteId = `remote-${localId}`;
+    listed = [{ status: "regular" as const, remoteId, title: "One" }];
+    await aui.threads.reload();
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().threadIds).toContain(remoteId);
+    });
+
+    flushTapSync(() => aui.threads.switchToNewThread());
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().mainThreadId).not.toBe(localId);
+    });
+    const localMounts = tracker.mounts.filter((id) => id === localId).length;
+    flushTapSync(() => aui.threads.switchToThread(remoteId));
+    await vi.waitFor(() => {
+      expect(aui.threads.item("main").getState().remoteId).toBe(remoteId);
+    });
+
+    expect(tracker.alive.has(localId)).toBe(true);
+    expect(tracker.alive.has(remoteId)).toBe(false);
+    expect(tracker.mounts.filter((id) => id === localId)).toHaveLength(
+      localMounts,
+    );
     handle.destroy();
   });
 });
