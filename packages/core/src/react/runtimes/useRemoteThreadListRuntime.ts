@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffectEvent,
   useInsertionEffect,
+  useLayoutEffect,
 } from "react";
 import { BaseAssistantRuntimeCore } from "../../runtime/base/base-assistant-runtime-core";
 import { AssistantRuntimeImpl } from "../../runtime/api/assistant-runtime";
@@ -36,12 +37,20 @@ class RemoteThreadListRuntimeCore
 
 const useRemoteThreadListRuntimeImpl = (
   options: RemoteThreadListOptions,
+  sourceRuntimeHook: RemoteThreadListOptions["runtimeHook"],
 ): AssistantRuntime => {
   const [runtime] = useState(() => new RemoteThreadListRuntimeCore(options));
+  const sourceRuntimeHookRef = useRef(sourceRuntimeHook);
   useEffect(() => {
     runtime.threads.__internal_setOptions(options);
     runtime.threads.__internal_load();
   }, [runtime, options]);
+
+  useLayoutEffect(() => {
+    if (sourceRuntimeHookRef.current === sourceRuntimeHook) return;
+    sourceRuntimeHookRef.current = sourceRuntimeHook;
+    runtime.threads.__internal_republishRuntimeHook();
+  }, [runtime, sourceRuntimeHook]);
 
   return useMemo(() => new AssistantRuntimeImpl(runtime), [runtime]);
 };
@@ -97,7 +106,10 @@ export const useRemoteThreadListRuntime = (
     return options.runtimeHook();
   }
 
-  const runtime = useRemoteThreadListRuntimeImpl(stableOptions);
+  const runtime = useRemoteThreadListRuntimeImpl(
+    stableOptions,
+    options.runtimeHook,
+  );
 
   return runtime;
 };

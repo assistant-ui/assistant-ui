@@ -277,6 +277,10 @@ export class RemoteThreadListThreadListRuntimeCore
   private _initialThreadLoaded = false;
   private useProvider;
 
+  public __internal_republishRuntimeHook() {
+    this._hookManager.__internal_republishRuntimeHook();
+  }
+
   public __internal_setOptions(options: RemoteThreadListOptions) {
     if (this._options === options) return;
 
