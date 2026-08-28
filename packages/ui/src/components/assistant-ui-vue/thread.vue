@@ -103,12 +103,14 @@ import Message from "@/components/assistant-ui/message.vue";
             rows="1"
           />
           <div class="flex items-center justify-between">
-            <ComposerPrimitiveAddAttachment
-              class="text-muted-foreground hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors disabled:opacity-50"
-              aria-label="Add attachment"
-            >
-              <PaperclipIcon class="size-4" />
-            </ComposerPrimitiveAddAttachment>
+            <AuiIf :condition="(s) => s.thread.capabilities.attachments">
+              <ComposerPrimitiveAddAttachment
+                class="text-muted-foreground hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors disabled:opacity-50"
+                aria-label="Add attachment"
+              >
+                <PaperclipIcon class="size-4" />
+              </ComposerPrimitiveAddAttachment>
+            </AuiIf>
             <AuiIf :condition="(s) => !s.thread.isRunning">
               <ComposerPrimitiveSend
                 class="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full transition-opacity disabled:opacity-50"
