@@ -1,4 +1,11 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import {
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { generateId } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
@@ -61,13 +68,21 @@ export const useAdkMessages = ({
   >(new Map());
   const lastTransferToAgentRef = useRef<string | undefined>(undefined);
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
+  useInsertionEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const stateDeltaRef = useRef(stateDelta);
-  stateDeltaRef.current = stateDelta;
+  useInsertionEffect(() => {
+    stateDeltaRef.current = stateDelta;
+  }, [stateDelta]);
   const artifactDeltaRef = useRef(artifactDelta);
-  artifactDeltaRef.current = artifactDelta;
+  useInsertionEffect(() => {
+    artifactDeltaRef.current = artifactDelta;
+  }, [artifactDelta]);
   const messageMetadataRef = useRef(messageMetadata);
-  messageMetadataRef.current = messageMetadata;
+  useInsertionEffect(() => {
+    messageMetadataRef.current = messageMetadata;
+  }, [messageMetadata]);
 
   const setMessagesImmediate = useCallback((msgs: AdkMessage[]) => {
     messagesRef.current = msgs;

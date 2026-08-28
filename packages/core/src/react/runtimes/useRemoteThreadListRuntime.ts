@@ -5,6 +5,7 @@ import {
   useRef,
   useCallback,
   useEffectEvent,
+  useInsertionEffect,
 } from "react";
 import { BaseAssistantRuntimeCore } from "../../runtime/base/base-assistant-runtime-core";
 import { AssistantRuntimeImpl } from "../../runtime/api/assistant-runtime";
@@ -49,7 +50,9 @@ export const useRemoteThreadListRuntime = (
   options: RemoteThreadListOptions,
 ): AssistantRuntime => {
   const runtimeHookRef = useRef(options.runtimeHook);
-  runtimeHookRef.current = options.runtimeHook;
+  useInsertionEffect(() => {
+    runtimeHookRef.current = options.runtimeHook;
+  }, [options.runtimeHook]);
 
   const initialThreadIdRef = useRef(options.initialThreadId);
 
@@ -91,7 +94,7 @@ export const useRemoteThreadListRuntime = (
 
     // If allowNesting is true and already inside a thread list context,
     // just call the runtimeHook directly (no-op behavior)
-    return stableRuntimeHook();
+    return options.runtimeHook();
   }
 
   const runtime = useRemoteThreadListRuntimeImpl(stableOptions);

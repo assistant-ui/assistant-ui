@@ -1,6 +1,12 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type {
   UIMessage,
   useChat,
@@ -142,9 +148,11 @@ const useGeneratedSuggestions = (
   const controllerRef = useRef<AbortController | null>(null);
   const wasRunningRef = useRef(false);
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
   const adapterRef = useRef(suggestionAdapter);
-  adapterRef.current = suggestionAdapter;
+  useInsertionEffect(() => {
+    messagesRef.current = messages;
+    adapterRef.current = suggestionAdapter;
+  }, [messages, suggestionAdapter]);
   const hasAdapter = suggestionAdapter != null;
 
   useEffect(() => {
@@ -563,7 +571,9 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
   });
 
   const setMessagesRef = useRef(chatHelpers.setMessages);
-  setMessagesRef.current = chatHelpers.setMessages;
+  useInsertionEffect(() => {
+    setMessagesRef.current = chatHelpers.setMessages;
+  }, [chatHelpers.setMessages]);
 
   useEffect(() => {
     if (hasSeededRepositoryRef.current) return;

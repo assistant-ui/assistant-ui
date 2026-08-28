@@ -1,4 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   pickExternalStoreSharedOptions,
   type AttachmentAdapter,
@@ -135,10 +142,14 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   });
 
   const loadRef = useRef(load);
-  loadRef.current = load;
+  useInsertionEffect(() => {
+    loadRef.current = load;
+  }, [load]);
   const loadController = useMemo(createAbortableThreadLoad, []);
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
+  useInsertionEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
   const [isLoadingThread, setIsLoadingThread] = useState(
     () =>
       load !== undefined && aui.threadListItem.getState().externalId != null,
@@ -153,7 +164,9 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   );
   const effectiveIsRunning = isRunning || hasExecutingTools;
   const isRunningRef = useRef(effectiveIsRunning);
-  isRunningRef.current = effectiveIsRunning;
+  useInsertionEffect(() => {
+    isRunningRef.current = effectiveIsRunning;
+  }, [effectiveIsRunning]);
 
   const handleSendMessage = async (
     msgs: AdkMessage[],
@@ -167,17 +180,21 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
     }
   };
 
-  const { approvals: toolApprovals, key: toolApprovalsKey } =
-    projectAdkToolApprovals(messages);
+  const { approvals: toolApprovals, key: toolApprovalsKey } = useMemo(
+    () => projectAdkToolApprovals(messages),
+    [messages],
+  );
   const toolApprovalsRef = useRef(toolApprovals);
-  toolApprovalsRef.current = toolApprovals;
+  useInsertionEffect(() => {
+    toolApprovalsRef.current = toolApprovals;
+  }, [toolApprovals]);
 
   const messageConverter = useMemo(
     () =>
       toolApprovalsKey === ""
         ? convertAdkMessage
-        : createAdkMessageConverter(toolApprovalsRef.current),
-    [toolApprovalsKey],
+        : createAdkMessageConverter(toolApprovals),
+    [toolApprovals, toolApprovalsKey],
   );
 
   const threadMessages = useExternalMessageConverter({
@@ -187,10 +204,14 @@ const useAdkRuntimeImpl = (options: UseAdkRuntimeOptions) => {
   });
 
   const threadMessagesRef = useRef(threadMessages);
-  threadMessagesRef.current = threadMessages;
+  useInsertionEffect(() => {
+    threadMessagesRef.current = threadMessages;
+  }, [threadMessages]);
 
   const adkMessagesRef = useRef(messages);
-  adkMessagesRef.current = messages;
+  useInsertionEffect(() => {
+    adkMessagesRef.current = messages;
+  }, [messages]);
 
   const stagedMessagesRef = useRef(
     new Map<

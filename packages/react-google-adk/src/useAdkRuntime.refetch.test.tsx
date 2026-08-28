@@ -1,7 +1,13 @@
 // @vitest-environment jsdom
 
 import { act, render, renderHook, waitFor } from "@testing-library/react";
-import { type FC, type ReactNode } from "react";
+import {
+  startTransition,
+  Suspense,
+  type FC,
+  type PropsWithChildren,
+  type ReactNode,
+} from "react";
 import { describe, expect, it, vi } from "vitest";
 import { AssistantRuntimeProvider } from "@assistant-ui/core/react";
 import type {
@@ -115,6 +121,79 @@ describe("useAdkRuntime refetch", () => {
     expect(
       withoutLoad.capture.runtime!.thread.getState().capabilities.refetchThread,
     ).toBe(false);
+  });
+
+  it("keeps refetches scoped to the committed load callback", async () => {
+    const loadA = vi.fn(async () => ({
+      messages: [aiMessage("m-a", "workspace A")],
+    }));
+    const loadB = vi.fn(async () => ({
+      messages: [aiMessage("m-b", "workspace B")],
+    }));
+    const streamMock = vi.fn(async function* () {});
+    const sessionAdapter = makeThreadListAdapter();
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const interruptedRender = vi.fn();
+    const pending = new Promise<never>(() => {});
+    let blocked = false;
+    const Blocker = () => {
+      if (blocked) {
+        interruptedRender();
+        throw pending;
+      }
+      return null;
+    };
+    const Wrapper = ({ children }: PropsWithChildren) => (
+      <Suspense fallback={null}>
+        {children}
+        <Blocker />
+      </Suspense>
+    );
+    const Probe = ({ load }: { load: typeof loadA }) => {
+      const runtime = useAdkRuntime({
+        stream: streamMock as never,
+        load: load as never,
+        sessionAdapter,
+      });
+      capture.runtime = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          {null}
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const view = render(<Probe load={loadA} />, { wrapper: Wrapper });
+    await act(async () => {
+      await capture.runtime!.threads.switchToThread("adk-1");
+    });
+    await waitFor(() => expect(loadA).toHaveBeenCalledOnce());
+
+    act(() => {
+      blocked = true;
+      startTransition(() => view.rerender(<Probe load={loadB} />));
+    });
+    expect(interruptedRender).toHaveBeenCalled();
+
+    await act(async () => {
+      await capture.runtime!.threads.reloadMainThread();
+    });
+
+    expect(loadA).toHaveBeenCalledTimes(2);
+    expect(loadB).not.toHaveBeenCalled();
+    expect(
+      JSON.stringify(capture.runtime!.thread.getState().messages),
+    ).toContain("workspace A");
+
+    await act(async () => {
+      await capture.runtime!.threads.reloadMainThread();
+    });
+
+    expect({
+      loadA: loadA.mock.calls.length,
+      loadB: loadB.mock.calls.length,
+    }).toEqual({ loadA: 3, loadB: 0 });
+    view.unmount();
   });
 
   it("refetches in place, keeping the composer draft and the runtime", async () => {
