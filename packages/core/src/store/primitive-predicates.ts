@@ -1,4 +1,7 @@
-import type { ReadonlyJSONValue } from "assistant-stream/utils";
+import type {
+  ReadonlyJSONArray,
+  ReadonlyJSONObject,
+} from "assistant-stream/utils";
 import type { AssistantState } from "@assistant-ui/store";
 
 /**
@@ -45,7 +48,13 @@ export const suggestionTriggerDisabled = (
 
 export const messageErrorText = (
   s: AssistantState,
-): ReadonlyJSONValue | undefined => {
+):
+  | string
+  | number
+  | boolean
+  | ReadonlyJSONObject
+  | ReadonlyJSONArray
+  | undefined => {
   if (
     s.message.status?.type !== "incomplete" ||
     s.message.status.reason !== "error"
