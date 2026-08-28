@@ -503,9 +503,6 @@ const useRemoteThreadList = (
     };
   });
 
-  // Config updates can invoke `reload()` in the same turn as the re-render, before the effect below runs.
-  session.adapter = adapter;
-
   const listState = useSyncExternalStore(
     (onStoreChange) => store.subscribe(onStoreChange),
     () => store.value,
@@ -550,54 +547,57 @@ const useRemoteThreadList = (
     [session],
   );
 
-  const getLoadThreadsPromise = useCallback(() => {
-    if (session.loadPromise) return session.loadPromise;
-    const generation = session.loadGeneration;
-    const adapter = session.adapter;
-    const statusAtRequest = statusSnapshot(store.baseValue);
-    session.loadPromise = store
-      .optimisticUpdate({
-        execute: () => adapter.list(),
-        loading: (state) => ({ ...state, isLoading: true }),
-        then: (state, page) => {
-          if (generation !== session.loadGeneration) return state;
-          session.adapterAtLoad = adapter;
-          const fresh = classifyThreads(page.threads, {
-            threadIds: [],
-            archivedThreadIds: [],
-            threadIdMap: {},
-            threadData: {},
-          });
-          const merged = {
-            ...state,
+  const getLoadThreadsPromise = useCallback(
+    (adapterOverride?: RemoteThreadListAdapter) => {
+      if (session.loadPromise) return session.loadPromise;
+      const generation = session.loadGeneration;
+      const adapter = adapterOverride ?? session.adapter;
+      const statusAtRequest = statusSnapshot(store.baseValue);
+      session.loadPromise = store
+        .optimisticUpdate({
+          execute: () => adapter.list(),
+          loading: (state) => ({ ...state, isLoading: true }),
+          then: (state, page) => {
+            if (generation !== session.loadGeneration) return state;
+            session.adapterAtLoad = adapter;
+            const fresh = classifyThreads(page.threads, {
+              threadIds: [],
+              archivedThreadIds: [],
+              threadIdMap: {},
+              threadData: {},
+            });
+            const merged = {
+              ...state,
+              isLoading: false,
+              cursor: normalizeCursor(page.nextCursor),
+              threadIds: fresh.threadIds,
+              archivedThreadIds: fresh.archivedThreadIds,
+              threadIdMap: {
+                ...state.threadIdMap,
+                ...fresh.threadIdMap,
+              },
+              threadData: {
+                ...state.threadData,
+                ...fresh.threadData,
+              },
+            };
+            return preserveMidLoadTransitions(merged, state, statusAtRequest);
+          },
+        })
+        .catch((error: unknown) => {
+          if (generation !== session.loadGeneration) return;
+          console.error("[assistant-ui] thread list load failed:", error);
+          session.loadPromise = undefined;
+          store.update({
+            ...store.baseValue,
             isLoading: false,
-            cursor: normalizeCursor(page.nextCursor),
-            threadIds: fresh.threadIds,
-            archivedThreadIds: fresh.archivedThreadIds,
-            threadIdMap: {
-              ...state.threadIdMap,
-              ...fresh.threadIdMap,
-            },
-            threadData: {
-              ...state.threadData,
-              ...fresh.threadData,
-            },
-          };
-          return preserveMidLoadTransitions(merged, state, statusAtRequest);
-        },
-      })
-      .catch((error: unknown) => {
-        if (generation !== session.loadGeneration) return;
-        console.error("[assistant-ui] thread list load failed:", error);
-        session.loadPromise = undefined;
-        store.update({
-          ...store.baseValue,
-          isLoading: false,
-        });
-      })
-      .then(() => {});
-    return session.loadPromise;
-  }, [session, store]);
+          });
+        })
+        .then(() => {});
+      return session.loadPromise;
+    },
+    [session, store],
+  );
 
   const reload = useCallback(() => {
     const adapterChanged = adapter !== session.adapterAtLoad;
@@ -620,7 +620,7 @@ const useRemoteThreadList = (
         cursor: undefined,
       });
     }
-    return getLoadThreadsPromise();
+    return getLoadThreadsPromise(adapter);
   }, [
     adapter,
     assignMainThreadId,
@@ -1235,7 +1235,7 @@ const useRemoteThreadList = (
     switchToNewThread: () => {
       handleThreadListAction("create", () => switchToNewThread());
     },
-    getLoadThreadsPromise,
+    getLoadThreadsPromise: () => getLoadThreadsPromise(),
     reload,
     reloadMainThread: () => {
       if (getThreadData(store.value, mainThreadId)?.status === "new") {
