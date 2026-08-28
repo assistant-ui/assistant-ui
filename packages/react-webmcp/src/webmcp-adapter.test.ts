@@ -92,6 +92,58 @@ describe("getDefaultWebMcpAdapter", () => {
     expect(adapter.hasTool?.("missing")).toBe(false);
   });
 
+  it("unregisters a promise-based registration by name on dispose", () => {
+    const unregisterTool = vi.fn();
+    setModelContext({
+      registerTool: () => Promise.resolve(),
+      unregisterTool,
+    });
+
+    const dispose = getDefaultWebMcpAdapter().registerTool(descriptor);
+    dispose();
+    dispose();
+
+    expect(unregisterTool).toHaveBeenCalledTimes(1);
+    expect(unregisterTool).toHaveBeenCalledWith("t");
+  });
+
+  it("does not report its own registration as a collision after an async removal", () => {
+    const registry = new Map<string, WebMcpToolDescriptor>();
+    setModelContext({
+      registerTool: (tool) => {
+        registry.set(tool.name, tool);
+        return Promise.resolve();
+      },
+      unregisterTool: (name) => {
+        queueMicrotask(() => registry.delete(name));
+      },
+      getTools: () => [...registry.values()].map(({ name }) => ({ name })),
+    });
+
+    const adapter = getDefaultWebMcpAdapter();
+    expect(adapter.hasTool?.("t")).toBe(false);
+
+    const dispose = adapter.registerTool(descriptor);
+    dispose();
+
+    expect(registry.has("t")).toBe(true);
+    expect(adapter.hasTool?.("t")).toBe(false);
+  });
+
+  it("reuses one adapter per model context so a remount keeps its ownership", () => {
+    const context: WebMcpModelContext = {
+      registerTool: () => Promise.resolve(),
+      getTools: () => [{ name: "t" }],
+    };
+    setModelContext(context);
+
+    const first = getDefaultWebMcpAdapter();
+    first.registerTool(descriptor)();
+
+    expect(getDefaultWebMcpAdapter()).toBe(first);
+    expect(getDefaultWebMcpAdapter().hasTool?.("t")).toBe(false);
+  });
+
   it("treats an asynchronous getTools as unenumerable", () => {
     setModelContext({
       registerTool: () => {},

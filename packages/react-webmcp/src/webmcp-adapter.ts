@@ -50,19 +50,16 @@ const resolveModelContext = (): WebMcpModelContext | undefined => {
   return undefined;
 };
 
-export const getDefaultWebMcpAdapter = (): WebMcpAdapter => {
-  const context = resolveModelContext();
-  if (!context) {
-    return {
-      available: false,
-      registerTool: () => () => {},
-    };
-  }
+const adapterCache = new WeakMap<WebMcpModelContext, WebMcpAdapter>();
+
+const createAdapter = (context: WebMcpModelContext): WebMcpAdapter => {
+  const ownNames = new Set<string>();
 
   const adapter: WebMcpAdapter = {
     available: true,
     registerTool: (def, onError) => {
       const controller = new AbortController();
+      ownNames.add(def.name);
       const handle = context.registerTool(def, { signal: controller.signal });
       if (isThenable(handle)) {
         handle.catch((error) => onError?.(error));
@@ -72,8 +69,11 @@ export const getDefaultWebMcpAdapter = (): WebMcpAdapter => {
         if (disposed) return;
         disposed = true;
         controller.abort();
-        if (isThenable(handle)) return;
-        if (handle && typeof handle.unregister === "function") {
+        if (
+          handle &&
+          !isThenable(handle) &&
+          typeof handle.unregister === "function"
+        ) {
           handle.unregister();
         } else {
           context.unregisterTool?.(def.name);
@@ -84,6 +84,10 @@ export const getDefaultWebMcpAdapter = (): WebMcpAdapter => {
   if (typeof context.getTools === "function") {
     const getTools = context.getTools.bind(context);
     adapter.hasTool = (name) => {
+      // A name this adapter registered can still be reported by getTools() after
+      // dispose when the page removes it asynchronously, so only names the page
+      // owned before this adapter claimed them count as collisions.
+      if (ownNames.has(name)) return false;
       try {
         const tools = getTools();
         return (
@@ -98,5 +102,21 @@ export const getDefaultWebMcpAdapter = (): WebMcpAdapter => {
   if (requestUserInteraction) {
     adapter.requestUserInteraction = requestUserInteraction;
   }
+  return adapter;
+};
+
+export const getDefaultWebMcpAdapter = (): WebMcpAdapter => {
+  const context = resolveModelContext();
+  if (!context) {
+    return {
+      available: false,
+      registerTool: () => () => {},
+    };
+  }
+
+  const cached = adapterCache.get(context);
+  if (cached) return cached;
+  const adapter = createAdapter(context);
+  adapterCache.set(context, adapter);
   return adapter;
 };
