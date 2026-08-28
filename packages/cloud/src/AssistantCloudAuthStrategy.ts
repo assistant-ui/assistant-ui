@@ -253,15 +253,11 @@ const anonymousAuthTokenRequests = new WeakMap<
   Map<string, Promise<string | null>>
 >();
 
-type WebLockManager = {
-  request<T>(name: string, callback: () => Promise<T>): Promise<T>;
-};
-
-const getWebLockManager = (): WebLockManager | null => {
+const getWebLockManager = (): LockManager | null => {
   if (!("navigator" in globalThis)) return null;
   return (
-    (globalThis as { navigator?: { locks?: WebLockManager } }).navigator
-      ?.locks ?? null
+    (globalThis as { navigator?: { locks?: LockManager } }).navigator?.locks ??
+    null
   );
 };
 

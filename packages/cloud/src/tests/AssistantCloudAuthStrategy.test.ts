@@ -154,7 +154,8 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       },
     );
     vi.stubGlobal("navigator", { locks: { request: lockRequest } });
-    const response = (refreshTokenValue: typeof refreshToken | null) => ({
+    const rotatedRefreshToken = { token: "r2", expires_at: "2099-01-01" };
+    const response = (refreshTokenValue: typeof refreshToken) => ({
       ok: true,
       json: vi.fn().mockResolvedValue({
         access_token: accessToken,
@@ -164,7 +165,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(response(refreshToken))
-      .mockResolvedValueOnce(response(null));
+      .mockResolvedValueOnce(response(rotatedRefreshToken));
     vi.stubGlobal("fetch", fetchMock);
 
     const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
@@ -181,7 +182,6 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       { Authorization: `Bearer ${accessToken}` },
       { Authorization: `Bearer ${accessToken}` },
     ]);
-    expect(lockRequest).toHaveBeenCalledTimes(2);
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${baseUrl}/v1/auth/tokens/anonymous`,
@@ -196,7 +196,10 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         body: JSON.stringify({ refresh_token: refreshToken.token }),
       },
     );
-    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+    expect(lockRequest).toHaveBeenCalledTimes(2);
+    expect(values.get(refreshTokenKey)).toBe(
+      JSON.stringify(rotatedRefreshToken),
+    );
   });
 
   it("retries shared anonymous token requests after a failure", async () => {
