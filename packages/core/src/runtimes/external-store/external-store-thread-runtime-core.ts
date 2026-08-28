@@ -253,7 +253,6 @@ export class ExternalStoreThreadRuntimeCore
     if (repositoryChanged) {
       this.repository = repositoryInstance;
       this._pendingDeleteEvictions.clear();
-      this._runTrackerUpdate(() => this._toolInvocations?.reset());
     }
     if (oldStore?.queue !== store.queue) {
       this._transformedQueue = undefined;
@@ -466,6 +465,9 @@ export class ExternalStoreThreadRuntimeCore
 
     this._messages = this.repository.getMessages();
 
+    if (repositoryChanged) {
+      this._runTrackerUpdate(() => this._toolInvocations?.reset());
+    }
     this._runTrackerUpdate(() => this._driveToolInvocations());
 
     this._notifySubscribers();
