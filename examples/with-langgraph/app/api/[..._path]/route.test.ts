@@ -8,17 +8,14 @@ afterEach(() => {
 });
 
 describe("LangGraph proxy", () => {
-  it("rejects cross-origin browser requests before contacting LangGraph", async () => {
+  it("rejects cross-site browser requests before contacting LangGraph", async () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await POST(
       new NextRequest("https://app.example/api/threads", {
         method: "POST",
-        headers: {
-          origin: "https://attacker.example",
-          "sec-fetch-site": "cross-site",
-        },
+        headers: { "sec-fetch-site": "cross-site" },
         body: "{}",
       }),
     );
@@ -50,7 +47,6 @@ describe("LangGraph proxy", () => {
         headers: {
           accept: "application/json",
           "content-type": "application/json",
-          origin: "https://app.example",
           "sec-fetch-site": "same-origin",
         },
         body: "{}",
@@ -83,7 +79,6 @@ describe("LangGraph proxy", () => {
     const response = await POST(
       new NextRequest("https://app.example/api/threads", {
         method: "POST",
-        headers: { origin: "https://app.example" },
         body: "{}",
       }),
     );
@@ -109,10 +104,7 @@ describe("LangGraph proxy", () => {
     const response = await POST(
       new NextRequest("https://app.example/api/threads", {
         method: "POST",
-        headers: {
-          origin: "https://app.example",
-          "sec-fetch-site": "same-origin",
-        },
+        headers: { "sec-fetch-site": "same-origin" },
         body: "{}",
       }),
     );
@@ -126,14 +118,11 @@ describe("LangGraph proxy", () => {
     expect(init.redirect).toBe("manual");
   });
 
-  it("does not approve cross-origin preflight requests", async () => {
+  it("does not approve cross-site preflight requests", async () => {
     const response = OPTIONS(
       new NextRequest("https://app.example/api/threads", {
         method: "OPTIONS",
-        headers: {
-          origin: "https://attacker.example",
-          "sec-fetch-site": "cross-site",
-        },
+        headers: { "sec-fetch-site": "cross-site" },
       }),
     );
 
