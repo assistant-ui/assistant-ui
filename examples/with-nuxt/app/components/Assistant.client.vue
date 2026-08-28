@@ -7,9 +7,9 @@ const config = AuiConfig({
   threads: AISDKChat(),
   suggestions: Suggestions([
     {
-      title: "Plan a weekend trip",
-      label: "three stops, one day each",
-      prompt: "Plan a weekend trip with three stops, one day each.",
+      title: "Check the weather",
+      label: "tool UI demo",
+      prompt: "What is the weather in San Francisco right now?",
     },
     {
       title: "Explain streaming",
@@ -27,6 +27,7 @@ const config = AuiConfig({
 
 <template>
   <AuiProvider :config="config">
+    <RegisterToolUIs />
     <Thread />
   </AuiProvider>
 </template>
