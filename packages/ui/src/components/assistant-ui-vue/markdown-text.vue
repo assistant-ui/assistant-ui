@@ -1,9 +1,12 @@
+<script lang="ts">
+import MarkdownIt from "markdown-it";
+
+const md = new MarkdownIt({ html: false, linkify: true, breaks: true });
+</script>
+
 <script setup lang="ts">
 import { computed } from "vue";
-import MarkdownIt from "markdown-it";
 import { useAuiState } from "@assistant-ui/vue";
-
-const md = new MarkdownIt({ linkify: true });
 
 const text = useAuiState((s) => (s.part.type === "text" ? s.part.text : ""));
 const html = computed(() => md.render(text.value));

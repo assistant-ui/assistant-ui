@@ -1793,5 +1793,6 @@ export const stagedVueRegistry: RegistryItem[] = [
       "@lucide/vue",
       "markdown-it",
     ],
+    devDependencies: ["@types/markdown-it"],
   },
 ];

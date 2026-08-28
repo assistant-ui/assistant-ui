@@ -91,6 +91,7 @@ test("vue registry build emits a self-contained thread with its type-only depend
     "@lucide/vue",
     "markdown-it",
   ]);
+  assert.deepEqual(thread.devDependencies, ["@types/markdown-it"]);
   assert.equal("target" in threadFile, false);
   assert.match(
     threadFile.content,

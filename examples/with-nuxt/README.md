@@ -8,7 +8,7 @@ assistant-ui in a Nuxt 4 app: `@assistant-ui/vue` primitives on the client, stre
 - `server/api/chat.post.ts` runs `streamText` over `convertToModelMessages` and returns the AI SDK UI message stream, exactly like the Next.js templates; the default `AssistantChatTransport` posts the `UIMessage` array to `/api/chat`.
 - `app/components/Assistant.client.vue` mounts the provider client-only. `AuiProvider` creates its client in component setup, and Vue SSR never disposes effect scopes, so rendering it on the server would leak one runtime per request.
 - React is a small runtime dependency of the AI SDK integration: `@assistant-ui/tap` installs its hook dispatcher while the chat resource renders, so `useChat`'s React hook calls route to tap and React never renders anything.
-- Messages render as plain text. `@assistant-ui/vue` has no markdown renderer yet.
+- Assistant text renders as markdown through `app/components/MarkdownText.vue` (markdown-it behind the `#text` slot of `MessagePrimitiveParts`); user messages stay plain text.
 
 ## Run
 
