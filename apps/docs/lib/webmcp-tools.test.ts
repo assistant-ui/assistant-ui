@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { readPageTool, searchDocsTool } from "@/lib/mcp-tool-definitions";
 import {
   getWebMcpModelContext,
   registerWebMcpTools,
@@ -85,6 +86,9 @@ describe("registered tools", () => {
       expect(tool.inputSchema["required"]).toHaveLength(1);
       expect(tool.annotations).toEqual({ readOnlyHint: true });
     }
+    expect(tools[0]?.inputSchema).toBe(searchDocsTool.inputSchema);
+    expect(tools[1]?.inputSchema).toBe(readPageTool.inputSchema);
+    expect(tools[2]?.inputSchema).toBe(readPageTool.inputSchema);
   });
 
   it("searchDocs calls search_docs on /api/mcp and passes the result through", async () => {

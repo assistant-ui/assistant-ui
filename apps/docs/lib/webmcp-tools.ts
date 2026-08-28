@@ -165,14 +165,7 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
     {
       name: "searchDocs",
       description: `${searchDocsTool.description} Returns up to ${SEARCH_DOCS_RESULT_LIMIT} matching pages.`,
-      inputSchema: {
-        type: "object",
-        properties: {
-          query: { type: "string", description: "Search query." },
-        },
-        required: ["query"],
-        additionalProperties: false,
-      },
+      inputSchema: searchDocsTool.inputSchema,
       annotations: { readOnlyHint: true },
       execute: async (args, context) => {
         const query = stringArg(args, "query");
@@ -189,18 +182,7 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
       name: "getDoc",
       description:
         "Read one assistant-ui docs or Tap docs page as markdown. Accepts a path such as /docs/getting-started or tap/docs/store/state.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          path: {
-            type: "string",
-            description:
-              "Page path such as /docs/getting-started or tap/docs/store/state.",
-          },
-        },
-        required: ["path"],
-        additionalProperties: false,
-      },
+      inputSchema: readPageTool.inputSchema,
       annotations: { readOnlyHint: true },
       execute: async (args, context) => {
         const path = stringArg(args, "path");
@@ -217,17 +199,7 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
       name: "getExample",
       description:
         "Read one assistant-ui example page as markdown. Accepts an example slug such as ai-sdk or a path such as /examples/ai-sdk.",
-      inputSchema: {
-        type: "object",
-        properties: {
-          path: {
-            type: "string",
-            description: "Example slug or path such as /examples/ai-sdk.",
-          },
-        },
-        required: ["path"],
-        additionalProperties: false,
-      },
+      inputSchema: readPageTool.inputSchema,
       annotations: { readOnlyHint: true },
       execute: async (args, context) => {
         const path = stringArg(args, "path");

@@ -32,6 +32,10 @@ vi.mock("@/lib/source", () => {
 });
 
 import { buildXuluxMcpCatalog } from "@/lib/xulux/mcp-catalog";
+import {
+  readPageInputSchema,
+  searchDocsInputSchema,
+} from "@/lib/mcp-tool-definitions";
 import { listTemplates } from "@/lib/xulux/template-service";
 import { POST } from "./route";
 
@@ -94,11 +98,12 @@ describe("POST /api/mcp", () => {
   it("lists the seven public tools and the template workflow prompt", async () => {
     const toolsResponse = await requestMcp("tools/list", {});
     expect(toolsResponse.error).toBeUndefined();
-    expect(
-      (toolsResponse.result as { tools: Array<{ name: string }> }).tools.map(
-        (tool) => tool.name,
-      ),
-    ).toEqual([
+    const tools = (
+      toolsResponse.result as {
+        tools: Array<{ name: string; inputSchema: Record<string, unknown> }>;
+      }
+    ).tools;
+    expect(tools.map((tool) => tool.name)).toEqual([
       "list_pages",
       "get_navigation",
       "search_docs",
@@ -107,6 +112,12 @@ describe("POST /api/mcp", () => {
       "read_template",
       "preview_template",
     ]);
+    expect(
+      tools.find((tool) => tool.name === "search_docs")?.inputSchema,
+    ).toMatchObject(searchDocsInputSchema);
+    expect(
+      tools.find((tool) => tool.name === "read_page")?.inputSchema,
+    ).toMatchObject(readPageInputSchema);
 
     const promptsResponse = await requestMcp("prompts/list", {});
     expect(promptsResponse.error).toBeUndefined();

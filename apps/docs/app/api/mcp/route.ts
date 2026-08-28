@@ -343,21 +343,29 @@ const listPagesInputSchema = z
 
 const getNavigationInputSchema = z.object({}).strict();
 
-const searchDocsInputSchema = z
-  .object({
-    query: z.string().describe("Search query."),
-  })
-  .strict();
+function zodStringInputSchema<
+  const Properties extends Record<
+    string,
+    { readonly type: "string"; readonly description: string }
+  >,
+>(schema: {
+  readonly type: "object";
+  readonly properties: Properties;
+  readonly required: readonly (keyof Properties & string)[];
+  readonly additionalProperties: false;
+}) {
+  const zodSchema = z.fromJSONSchema({
+    ...schema,
+    required: [...schema.required],
+  });
+  return zodSchema as z.ZodObject<{
+    [Key in keyof Properties]: z.ZodString;
+  }>;
+}
 
-const readPageInputSchema = z
-  .object({
-    path: z
-      .string()
-      .describe(
-        "Page path such as /docs/installation, /docs/installation.md, examples/ai-sdk, design/components/tabs, elements/reasoning, tap/docs/store/state, or a same-origin URL.",
-      ),
-  })
-  .strict();
+const searchDocsInputSchema = zodStringInputSchema(searchDocsTool.inputSchema);
+
+const readPageInputSchema = zodStringInputSchema(readPageTool.inputSchema);
 
 const listTemplatesInputSchema = z.object({}).strict();
 

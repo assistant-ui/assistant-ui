@@ -82,8 +82,20 @@ const config: NextConfig = {
           key: "Content-Security-Policy",
           value: cspHeader.replace(/\n/g, ""),
         },
-        ...(isWebMcpEnabled
-          ? [
+      ],
+    },
+    ...(isWebMcpEnabled
+      ? [
+          {
+            source: "/:path((?!api(?:/|$)|_next(?:/|$)).*)",
+            has: [
+              {
+                type: "header" as const,
+                key: "accept",
+                value: ".*text/html.*",
+              },
+            ],
+            headers: [
               {
                 key: "Origin-Agent-Cluster",
                 value: "?1",
@@ -96,10 +108,10 @@ const config: NextConfig = {
                     },
                   ]
                 : []),
-            ]
-          : []),
-      ],
-    },
+            ],
+          },
+        ]
+      : []),
     ...apiCatalogDiscoveryPaths.map((source) => ({
       source,
       headers: [{ key: "Link", value: API_CATALOG_LINK_HEADER }],
