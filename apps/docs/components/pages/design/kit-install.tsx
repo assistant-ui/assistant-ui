@@ -14,7 +14,7 @@ const IGNORED_DEPS = new Set([
 function readFlavor(name: string, flavor: "base" | "radix") {
   const filePath = path.join(
     process.cwd(),
-    "../../packages/ui/src/components/ui",
+    "../../packages/ui/src/components/react/ui",
     flavor,
     `${name}.tsx`,
   );

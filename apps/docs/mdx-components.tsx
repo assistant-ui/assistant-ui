@@ -29,7 +29,7 @@ import { QuickLinks } from "@/components/pages/docs/landing/quick-links";
 import { Quickstart } from "@/components/pages/docs/landing/quickstart";
 import { RuntimeGrid } from "@/components/pages/docs/landing/runtime-grid";
 import { SurfaceGrid } from "@/components/pages/docs/landing/surface-grid";
-import { Flow } from "@/components/assistant-ui/flow";
+import { Flow } from "@/components/assistant-ui/elements/flow";
 import { MermaidDiagram } from "@/components/pages/docs/mermaid-diagram";
 import { TapTutorialSlideshow } from "@/components/pages/docs/tap/tutorial-slideshow";
 

@@ -13,7 +13,7 @@ import {
   getTapDocsPages,
   source,
   design,
-  standalone,
+  elementsDocs,
   tapDocs,
 } from "@/lib/source";
 import { buildXuluxMcpCatalog } from "@/lib/xulux/mcp-catalog";
@@ -30,7 +30,7 @@ const toolDefinitions = [
   {
     name: "list_pages",
     description:
-      "List assistant-ui documentation pages. Optionally filter by a URL path prefix such as /docs/tools, /examples, /design, /standalone, or /tap/docs.",
+      "List assistant-ui documentation pages. Optionally filter by a URL path prefix such as /docs/tools, /examples, /design, /elements, or /tap/docs.",
   },
   {
     name: "get_navigation",
@@ -39,12 +39,12 @@ const toolDefinitions = [
   {
     name: "search_docs",
     description:
-      "Search assistant-ui docs, examples, design components, and Tap docs by title, description, or URL.",
+      "Search assistant-ui docs, examples, design components, elements, and Tap docs by title, description, or URL.",
   },
   {
     name: "read_page",
     description:
-      "Read one assistant-ui docs, examples, design, or Tap docs page as markdown. Accepts a slug, path, .md URL, or same-origin URL.",
+      "Read one assistant-ui docs, examples, design, elements, or Tap docs page as markdown. Accepts a slug, path, .md URL, or same-origin URL.",
   },
   {
     name: "list_templates",
@@ -121,8 +121,8 @@ function allPages() {
       kind: "design" as const,
       page,
     })),
-    ...standalone.getPages().map((page) => ({
-      kind: "standalone" as const,
+    ...elementsDocs.getPages().map((page) => ({
+      kind: "elements" as const,
       page,
     })),
     ...getTapDocsPages().map((page) => ({
@@ -191,7 +191,7 @@ function normalizePath(rawPath: string, requestUrl: string) {
   if (value === "docs") return { kind: "docs" as const, slugs: [] };
   if (value === "examples") return { kind: "examples" as const, slugs: [] };
   if (value === "design") return { kind: "design" as const, slugs: [] };
-  if (value === "standalone") return { kind: "standalone" as const, slugs: [] };
+  if (value === "elements") return { kind: "elements" as const, slugs: [] };
   if (value === "tap/docs") return { kind: "tap" as const, slugs: [] };
   if (value.startsWith("docs/")) {
     return {
@@ -211,10 +211,10 @@ function normalizePath(rawPath: string, requestUrl: string) {
       slugs: value.slice("design/".length).split("/").filter(Boolean),
     };
   }
-  if (value.startsWith("standalone/")) {
+  if (value.startsWith("elements/")) {
     return {
-      kind: "standalone" as const,
-      slugs: value.slice("standalone/".length).split("/").filter(Boolean),
+      kind: "elements" as const,
+      slugs: value.slice("elements/".length).split("/").filter(Boolean),
     };
   }
   if (value.startsWith("tap/docs/")) {
@@ -277,7 +277,7 @@ function getNavigation() {
     docs: source.pageTree.children.map(serializeNode),
     examples: examples.pageTree.children.map(serializeNode),
     design: design.pageTree.children.map(serializeNode),
-    standalone: standalone.pageTree.children.map(serializeNode),
+    elements: elementsDocs.pageTree.children.map(serializeNode),
     tapDocs: tapDocs.pageTree.children.map(serializeNode),
   };
 }
@@ -305,8 +305,8 @@ async function readPage(path: string | undefined, requestUrl: string) {
       ? examples.getPage(normalized.slugs)
       : normalized.kind === "design"
         ? design.getPage(normalized.slugs)
-        : normalized.kind === "standalone"
-          ? standalone.getPage(normalized.slugs)
+        : normalized.kind === "elements"
+          ? elementsDocs.getPage(normalized.slugs)
           : normalized.kind === "tap"
             ? getTapDocsPage(normalized.slugs)
             : source.getPage(normalized.slugs);
@@ -366,7 +366,7 @@ const readPageInputSchema = z
     path: z
       .string()
       .describe(
-        "Page path such as /docs/installation, /docs/installation.md, examples/ai-sdk, design/components/tabs, tap/docs/store/state, or a same-origin URL.",
+        "Page path such as /docs/installation, /docs/installation.md, examples/ai-sdk, design/components/tabs, elements/reasoning, tap/docs/store/state, or a same-origin URL.",
       ),
   })
   .strict();

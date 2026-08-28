@@ -11,7 +11,7 @@ import {
   ComposerToolbar,
   ComposerVoice,
   ComposerVoiceButton,
-} from "@/components/elements/composer";
+} from "@/components/assistant-ui/elements/composer";
 import { useElapsed, useStoryPhases } from "@/components/demo/hooks/use-demo";
 
 const PHASES = [1400, 3600, 1600, 3000, 0] as const;

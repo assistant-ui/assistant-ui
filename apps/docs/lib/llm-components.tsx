@@ -11,7 +11,7 @@ import { CardLLM, CardsLLM } from "@/components/pages/docs/fumadocs/card";
 import { InstallCommandLLM } from "@/components/pages/docs/fumadocs/install/install-command";
 import { ParametersTableLLM } from "@/components/pages/docs/parameters-table";
 import { PrimitivesTypeTableLLM } from "@/components/pages/docs/primitives-type-table";
-import { FlowLLM } from "@/components/assistant-ui/flow";
+import { FlowLLM } from "@/components/assistant-ui/elements/flow";
 import { TapTutorialSlideshowLLM } from "@/components/pages/docs/tap/tutorial-slideshow.llm";
 import {
   QuickLinksLLM,
@@ -38,6 +38,18 @@ const StepsLLM = ({ children }: { children?: ReactNode }) => (
   <ol>{children}</ol>
 );
 const StepLLM = ({ children }: { children?: ReactNode }) => <li>{children}</li>;
+
+const modeLLM = (label: string) => {
+  const Mode = ({ children }: { children?: ReactNode }) => (
+    <div>
+      <p>
+        <strong>{label}</strong>
+      </p>
+      {children}
+    </div>
+  );
+  return Mode;
+};
 
 // fumadocs' client Heading/CodeBlock hit the resolver's client fallback, which
 // dumps the `as` prop and inlines code. Plain server elements keep heading
@@ -87,6 +99,9 @@ export const LLM_COMPONENTS: MDXComponents = {
   Card: CardLLM,
   Steps: StepsLLM,
   Step: StepLLM,
+  RuntimeMode: modeLLM("With a runtime:"),
+  StandaloneMode: modeLLM("Standalone (no runtime):"),
+  RuntimeSetup: () => null,
   InstallCommand: InstallCommandLLM,
   ParametersTable: ParametersTableLLM,
   PrimitivesTypeTable: PrimitivesTypeTableLLM,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Suggestions } from "@/components/elements/suggestions";
+import { Suggestions } from "@/components/assistant-ui/elements/suggestions";
 
 const SUGGESTIONS = [
   "Add optimistic updates",

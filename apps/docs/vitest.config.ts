@@ -18,7 +18,7 @@ export default {
       ),
       "@/components/ui": resolve(
         __dirname,
-        "../../packages/ui/src/components/ui/base",
+        "../../packages/ui/src/components/react/ui/base",
       ),
       "@/components/assistant-ui/markdown-text": resolve(
         __dirname,
@@ -26,7 +26,7 @@ export default {
       ),
       "@/components/assistant-ui": resolve(
         __dirname,
-        "../../packages/ui/src/components/assistant-ui",
+        "../../packages/ui/src/components/react/assistant-ui",
       ),
       "@/lib/utils": resolve(__dirname, "../../packages/ui/src/lib/utils"),
       "@": resolve(__dirname),

@@ -9,7 +9,7 @@ import {
   ToolFallbackContent,
   ToolFallbackArgs,
   ToolFallbackResult,
-} from "@/components/assistant-ui/tool-fallback";
+} from "@/components/assistant-ui/elements/tool-fallback.kit";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import { Button } from "@/components/ui/button";
 

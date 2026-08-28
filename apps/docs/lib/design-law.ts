@@ -27,6 +27,7 @@ const discovery = () =>
     "",
     `- Design law: ${BASE_URL}${AGENT_DISCOVERY_ROUTES.design}`,
     `- Component gallery: ${BASE_URL}/design/components`,
+    `- Component Markdown: ${BASE_URL}/design/components/<name>.md`,
     `- Documentation skill: ${BASE_URL}${AGENT_DISCOVERY_ROUTES.skill}`,
     `- Agent instructions: ${BASE_URL}${AGENT_DISCOVERY_ROUTES.agents}`,
     "",

@@ -73,14 +73,14 @@ async function readLocalShadcnComponent(
 ): Promise<string | null> {
   const uiPath = path.join(
     process.cwd(),
-    "../../packages/ui/src/components/ui/radix",
+    "../../packages/ui/src/components/react/ui/radix",
     `${name}.tsx`,
   );
 
   if (flavor === "base") {
     const vendoredPath = path.join(
       process.cwd(),
-      "../../packages/ui/src/components/ui/base",
+      "../../packages/ui/src/components/react/ui/base",
       `${name}.tsx`,
     );
     const vendoredContent = await readFile(vendoredPath);

@@ -1,4 +1,4 @@
-import { AssistantModal } from "@/components/assistant-ui/assistant-modal";
+import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.kit";
 
 export const ModalChat = () => {
   return (

@@ -44,22 +44,22 @@ import {
 import { useTheme } from "next-themes";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import {
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/attachment";
+} from "@/components/assistant-ui/elements/attachment.kit";
 import {
   ReasoningRoot,
   ReasoningTrigger,
   ReasoningContent,
   ReasoningText,
-} from "@/components/assistant-ui/reasoning";
+} from "@/components/assistant-ui/elements/reasoning.kit";
 import {
   Source,
   SourceIcon,
   SourceTitle,
-} from "@/components/assistant-ui/sources";
+} from "@/components/assistant-ui/elements/sources.kit";
 import {
   type CodeHeaderProps,
   MarkdownTextPrimitive,

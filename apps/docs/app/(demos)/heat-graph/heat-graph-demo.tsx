@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import * as HeatGraph from "heat-graph";
-import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
+import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.kit";
 import { CodeBlock } from "@/components/ui/code-block";
 import { cn } from "@/lib/utils";
 

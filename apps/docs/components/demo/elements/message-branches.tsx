@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { MessageBranches } from "@/components/elements/message-branches";
+import { MessageBranches } from "@/components/assistant-ui/elements/message-branches";
 
 const VARIANTS = [
   "Persist the composer draft in the runtime with the thread id as its key. When the active thread changes, read that value back into the composer.",
