@@ -16,18 +16,12 @@ import { useAuiState } from "../useAuiState";
 import { ErrorPrimitiveMessage, ErrorPrimitiveRoot } from "../primitives/error";
 import { MessagePrimitiveRoot } from "../primitives/message";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
-import {
-  ThreadPrimitiveEmpty,
-  ThreadPrimitiveRoot,
-  ThreadPrimitiveViewportFooter,
-} from "../primitives/thread";
+import { ThreadPrimitiveRoot } from "../primitives/thread";
 import {
   ThreadListItemPrimitiveArchive,
   ThreadListItemPrimitiveDelete,
-  ThreadListItemPrimitiveRoot,
   ThreadListItemPrimitiveUnarchive,
   ThreadListPrimitiveLoadMore,
-  ThreadListPrimitiveRoot,
 } from "../primitives/threadListStructural";
 import {
   ThreadListItemPrimitiveTitle,
@@ -173,48 +167,47 @@ const findThreadItem = (el: HTMLElement, selector: string, title: string) => {
 };
 
 describe("structural primitives", () => {
-  it("renders thread wrappers and hides the empty slot after a message arrives", async () => {
-    const { runtime, append } = createTestRuntime();
+  it("renders the thread root and survives Escape without a thread scope", async () => {
+    const { runtime } = createTestRuntime();
     const View = defineComponent({
       setup: () => () =>
         h(
           ThreadPrimitiveRoot,
           { class: "thread-root" },
-          {
-            default: () => [
-              h(ThreadPrimitiveEmpty, null, {
-                default: () => h("p", { class: "empty" }, "Empty"),
-              }),
-              h(
-                ThreadPrimitiveViewportFooter,
-                { class: "footer" },
-                {
-                  default: () => h("p", "Footer"),
-                },
-              ),
-            ],
-          },
+          { default: () => [h("p", "content")] },
         ),
     });
     const { el, unmount } = mountChat(runtime, View);
 
     expect(el.querySelector("div.thread-root")).not.toBeNull();
-    expect(el.querySelector(".empty")?.textContent).toBe("Empty");
-    expect(el.querySelector("div.footer")?.textContent).toBe("Footer");
+    document.dispatchEvent(
+      new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+    );
+    unmount();
 
-    flushTapSync(() =>
-      append({
-        id: "m1",
-        role: "user",
-        content: [{ type: "text", text: "Hello" }],
+    const bare = createApp(
+      defineComponent({
+        setup: () => () =>
+          h(
+            AuiProvider,
+            { config: AuiConfig({}) },
+            {
+              default: () =>
+                h(ThreadPrimitiveRoot, null, {
+                  default: () => [h("p", "scopeless")],
+                }),
+            },
+          ),
       }),
     );
-    await vi.waitFor(async () => {
-      await nextTick();
-      expect(el.querySelector(".empty")).toBeNull();
-    });
-
-    unmount();
+    const bareEl = document.createElement("div");
+    bare.mount(bareEl);
+    expect(() =>
+      document.dispatchEvent(
+        new KeyboardEvent("keydown", { key: "Escape", bubbles: true }),
+      ),
+    ).not.toThrow();
+    bare.unmount();
   });
 
   it("adds the current message id and tracks message hover state", async () => {
@@ -312,24 +305,17 @@ describe("structural primitives", () => {
     unmount();
   });
 
-  it("renders load more only when available and calls the runtime", async () => {
+  it("keeps load more mounted, disables it when unavailable, and calls the runtime", async () => {
     const { runtime, loadMore, setHasMore, setLoading } = createTestRuntime({
       hasMore: true,
     });
     const View = defineComponent({
       setup: () => () =>
         h(
-          ThreadListPrimitiveRoot,
-          { class: "thread-list" },
+          ThreadListPrimitiveLoadMore,
+          { class: "load-more" },
           {
-            default: () =>
-              h(
-                ThreadListPrimitiveLoadMore,
-                { class: "load-more" },
-                {
-                  default: () => "Load more",
-                },
-              ),
+            default: () => "Load more",
           },
         ),
     });
@@ -337,7 +323,6 @@ describe("structural primitives", () => {
 
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelector("div.thread-list")).not.toBeNull();
       expect(el.querySelector("button.load-more")).not.toBeNull();
     });
     el.querySelector<HTMLButtonElement>("button.load-more")!.click();
@@ -348,13 +333,17 @@ describe("structural primitives", () => {
     flushTapSync(() => setLoading(true));
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelector("button.load-more")).toBeNull();
+      expect(
+        el.querySelector<HTMLButtonElement>("button.load-more")!.disabled,
+      ).toBe(true);
     });
     flushTapSync(() => setLoading(false));
     flushTapSync(() => setHasMore(false));
     await vi.waitFor(async () => {
       await nextTick();
-      expect(el.querySelector("button.load-more")).toBeNull();
+      expect(
+        el.querySelector<HTMLButtonElement>("button.load-more")!.disabled,
+      ).toBe(true);
     });
 
     unmount();
@@ -371,7 +360,7 @@ describe("structural primitives", () => {
       },
       setup: (props) => () =>
         h(
-          ThreadListItemPrimitiveRoot,
+          "div",
           { class: props.archived ? "archived-item" : "regular-item" },
           {
             default: () => [
@@ -415,9 +404,6 @@ describe("structural primitives", () => {
     await vi.waitFor(async () => {
       await nextTick();
       expect(el.querySelectorAll(".regular-item")).toHaveLength(2);
-      expect(
-        el.querySelector(".regular-item")?.getAttribute("data-active"),
-      ).toBe("true");
     });
 
     findThreadItem(el, ".regular-item", "First thread")

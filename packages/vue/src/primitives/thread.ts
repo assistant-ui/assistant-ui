@@ -8,7 +8,6 @@ import {
   type VNodeChild,
 } from "vue";
 import { useAui } from "../useAui";
-import { useAuiState } from "../useAuiState";
 
 export const ThreadPrimitiveRoot = defineComponent({
   name: "ThreadPrimitiveRoot",
@@ -18,6 +17,7 @@ export const ThreadPrimitiveRoot = defineComponent({
     const aui = useAui();
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "Escape" || event.defaultPrevented) return;
+      if (aui.thread.source === null) return;
       if (aui.thread.getState().speech == null) return;
       event.preventDefault();
       try {
@@ -37,24 +37,6 @@ export const ThreadPrimitiveRoot = defineComponent({
     onScopeDispose(() => {
       document.removeEventListener("keydown", handleKeyDown);
     });
-    return () => h("div", mergeProps(attrs, {}), slots.default?.());
-  },
-});
-
-export const ThreadPrimitiveEmpty = defineComponent({
-  name: "ThreadPrimitiveEmpty",
-  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
-  setup(_, { slots }) {
-    const empty = useAuiState((s) => s.thread.isEmpty);
-    return () => (empty.value ? slots.default?.() : null);
-  },
-});
-
-export const ThreadPrimitiveViewportFooter = defineComponent({
-  name: "ThreadPrimitiveViewportFooter",
-  inheritAttrs: false,
-  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
-  setup(_, { attrs, slots }) {
     return () => h("div", mergeProps(attrs, {}), slots.default?.());
   },
 });

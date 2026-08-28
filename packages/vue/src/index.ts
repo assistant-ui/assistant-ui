@@ -55,19 +55,13 @@ export {
 } from "./primitives/composerAttachments";
 export { MessagePrimitiveAttachments } from "./primitives/messageAttachments";
 export { ErrorPrimitiveRoot, ErrorPrimitiveMessage } from "./primitives/error";
-export {
-  ThreadPrimitiveRoot,
-  ThreadPrimitiveEmpty,
-  ThreadPrimitiveViewportFooter,
-} from "./primitives/thread";
+export { ThreadPrimitiveRoot } from "./primitives/thread";
 export { MessagePrimitiveRoot } from "./primitives/message";
 export {
-  ThreadListPrimitiveRoot,
   ThreadListPrimitiveLoadMore,
   ThreadListItemPrimitiveArchive,
   ThreadListItemPrimitiveUnarchive,
   ThreadListItemPrimitiveDelete,
-  ThreadListItemPrimitiveRoot,
 } from "./primitives/threadListStructural";
 
 export {

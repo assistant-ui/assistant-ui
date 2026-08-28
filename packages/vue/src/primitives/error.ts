@@ -5,6 +5,7 @@ import {
   type SlotsType,
   type VNodeChild,
 } from "vue";
+import { messageErrorText } from "@assistant-ui/core/store/internal";
 import { useAuiState } from "../useAuiState";
 
 export const ErrorPrimitiveRoot = defineComponent({
@@ -21,25 +22,7 @@ export const ErrorPrimitiveMessage = defineComponent({
   name: "ErrorPrimitiveMessage",
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { slots }) {
-    const error = useAuiState((s) => {
-      if (
-        s.message.status?.type !== "incomplete" ||
-        s.message.status.reason !== "error"
-      ) {
-        return undefined;
-      }
-      const value = s.message.status.error;
-      if (typeof value === "string") return value;
-      if (
-        typeof value === "object" &&
-        value !== null &&
-        "message" in value &&
-        typeof value.message === "string"
-      ) {
-        return value.message;
-      }
-      return value ?? "An error occurred";
-    });
+    const error = useAuiState(messageErrorText);
     return () =>
       error.value === undefined
         ? null

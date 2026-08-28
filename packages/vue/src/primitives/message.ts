@@ -23,10 +23,16 @@ export const MessagePrimitiveRoot = defineComponent({
       aui.message.setIsHovering(false);
     };
     onScopeDispose(onMouseleave);
+    const hoverRef = (el: unknown) => {
+      if (el instanceof HTMLElement && el.matches(":hover")) {
+        queueMicrotask(onMouseenter);
+      }
+    };
     return () =>
       h(
         "div",
         mergeProps(attrs, {
+          ref: hoverRef,
           "data-message-id": messageId.value,
           onMouseenter,
           onMouseleave,

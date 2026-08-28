@@ -41,3 +41,26 @@ export const suggestionTriggerDisabled = (
 ): boolean =>
   s.thread.isDisabled ||
   (send && s.thread.isRunning && !s.thread.capabilities.queue);
+
+export const messageErrorText = (s: AssistantState): unknown => {
+  if (
+    s.message.status?.type !== "incomplete" ||
+    s.message.status.reason !== "error"
+  ) {
+    return undefined;
+  }
+  const error = s.message.status.error;
+  if (typeof error === "string") return error;
+  if (
+    typeof error === "object" &&
+    error !== null &&
+    "message" in error &&
+    typeof error.message === "string"
+  ) {
+    return error.message;
+  }
+  return error ?? "An error occurred";
+};
+
+export const threadListLoadMoreDisabled = (s: AssistantState): boolean =>
+  !s.threads.hasMore || s.threads.isLoading || s.threads.isLoadingMore;
