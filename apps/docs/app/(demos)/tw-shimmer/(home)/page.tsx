@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ComponentProps, ReactNode } from "react";
 import Link from "next/link";
 import { ArrowUpRight } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
@@ -36,6 +36,9 @@ export default function TwShimmerPage() {
       <header className="max-w-2xl">
         <h1 className={cn(typePage, "shimmer text-foreground/50")}>
           Loading, pure CSS.
+          <span className="shimmer-clone" aria-hidden="true" inert>
+            Loading, pure CSS.
+          </span>
         </h1>
         <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
           Zero-dependency shimmer for Tailwind CSS v4. Sine-eased gradients,
@@ -66,6 +69,9 @@ export default function TwShimmerPage() {
             </div>
             <p className="shimmer text-foreground/45 font-mono text-[12px] tracking-wide">
               &gt; thinking
+              <span className="shimmer-clone" aria-hidden="true" inert>
+                &gt; thinking
+              </span>
             </p>
           </div>
         </div>
@@ -109,77 +115,89 @@ export default function TwShimmerPage() {
         >
           <Example
             title="shimmer"
-            description="Base utility. Needs a text color lighter or darker than the page so the sweep can show."
-            code='<span class="shimmer text-foreground/60">Shimmer Effect</span>'
+            description="The default compositor path repeats the text in a direct inert clone."
+            code={shimmerCode("Shimmer Effect", "shimmer text-foreground/60")}
           >
-            <span className="shimmer text-foreground/80 dark:text-foreground/60 text-xl font-medium">
+            <ShimmerText className="text-foreground/80 dark:text-foreground/60 text-xl font-medium">
               Shimmer Effect
-            </span>
+            </ShimmerText>
           </Example>
 
           <Example
             title="shimmer-invert"
             description="Fades the other way, so you can keep a stronger text color and still get a stark highlight."
-            code='<span class="shimmer shimmer-invert text-foreground/60">Shimmer</span>'
+            code={shimmerCode(
+              "Shimmer",
+              "shimmer shimmer-invert text-foreground/60",
+            )}
           >
-            <span className="shimmer shimmer-invert text-foreground/60 dark:text-foreground/80 text-xl font-medium">
+            <ShimmerText className="shimmer-invert text-foreground/60 dark:text-foreground/80 text-xl font-medium">
               Shimmer Effect
-            </span>
+            </ShimmerText>
           </Example>
 
           <Example
             title="Automatic color"
             description="The highlight mixes from the current text color."
-            code='<span class="shimmer text-blue-600">Blue Shimmer</span>'
+            code={shimmerCode("Blue Shimmer", "shimmer text-blue-600")}
           >
-            <span className="shimmer text-xl font-medium text-blue-600">
+            <ShimmerText className="text-xl font-medium text-blue-600">
               Blue Shimmer
-            </span>
+            </ShimmerText>
           </Example>
 
           <Example
             title="shimmer-color-{color}"
             description="Override the automatic highlight with any Tailwind color."
-            code='<span class="shimmer shimmer-color-orange-500 text-foreground/40">Orange Shimmer</span>'
+            code={shimmerCode(
+              "Orange Shimmer",
+              "shimmer shimmer-color-orange-500 text-foreground/40",
+            )}
           >
-            <span className="shimmer shimmer-color-orange-500 text-foreground/40 text-xl font-medium">
+            <ShimmerText className="shimmer-color-orange-500 text-foreground/40 text-xl font-medium">
               Orange Shimmer
-            </span>
+            </ShimmerText>
           </Example>
 
           <Example
             title="shimmer-spread-{value}"
             description="Width of the highlight. Default is 120px."
-            code='<span class="shimmer shimmer-spread-200 text-foreground/40">Wide Shimmer</span>'
+            code={shimmerCode(
+              "Wide Shimmer",
+              "shimmer shimmer-spread-200 text-foreground/40",
+            )}
           >
             <div className="flex flex-col items-start gap-2">
-              <span className="shimmer shimmer-spread-60 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+              <ShimmerText className="shimmer-spread-60 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
                 Shimmer Effect (60px)
-              </span>
-              <span className="shimmer shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+              </ShimmerText>
+              <ShimmerText className="shimmer-duration-5000 text-foreground/40 text-xl font-medium">
                 Shimmer Effect (120px)
-              </span>
-              <span className="shimmer shimmer-spread-200 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+              </ShimmerText>
+              <ShimmerText className="shimmer-spread-200 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
                 Shimmer Effect (200px)
-              </span>
+              </ShimmerText>
             </div>
           </Example>
 
           <Example
             title="shimmer-angle-{value}"
             description="Sweep angle in degrees. Default is 15deg. Higher values cut more diagonally."
-            code='<span class="shimmer shimmer-angle-75 text-foreground/40">Diagonal Shimmer</span>'
+            code={shimmerCode(
+              "Diagonal Shimmer",
+              "shimmer shimmer-angle-75 text-foreground/40",
+            )}
           >
             <div className="flex flex-col items-start gap-2">
-              <span className="shimmer shimmer-angle-0 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+              <ShimmerText className="shimmer-angle-0 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
                 Shimmer Effect (0deg)
-              </span>
-              <span className="shimmer shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+              </ShimmerText>
+              <ShimmerText className="shimmer-duration-5000 text-foreground/40 text-xl font-medium">
                 Shimmer Effect (15deg)
-              </span>
-              <span className="shimmer shimmer-angle-75 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
+              </ShimmerText>
+              <ShimmerText className="shimmer-angle-75 shimmer-duration-5000 text-foreground/40 text-xl font-medium">
                 Shimmer Effect (75deg)
-              </span>
+              </ShimmerText>
             </div>
           </Example>
         </DemoSection>
@@ -191,54 +209,54 @@ export default function TwShimmerPage() {
           <Example
             title="shimmer-duration-{ms}"
             description="Fixed duration. Wider text covers more distance in the same time, so it looks faster."
-            code='<span class="shimmer shimmer-duration-2000">...</span>'
+            code={shimmerCode("...", "shimmer shimmer-duration-2000")}
           >
             <div className="flex flex-col items-start gap-2">
-              <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-medium">
+              <ShimmerText className="shimmer-duration-2000 text-foreground/40 text-xl font-medium">
                 Short
-              </span>
-              <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-medium">
+              </ShimmerText>
+              <ShimmerText className="shimmer-duration-2000 text-foreground/40 text-xl font-medium">
                 Medium Length Text
-              </span>
-              <span className="shimmer shimmer-duration-2000 text-foreground/40 text-xl font-medium">
+              </ShimmerText>
+              <ShimmerText className="shimmer-duration-2000 text-foreground/40 text-xl font-medium">
                 This Is A Much Longer Text
-              </span>
+              </ShimmerText>
             </div>
           </Example>
 
           <Example
             title="shimmer-speed-{px/s}"
             description="Same visual speed on every width. Default is 200px/s. CSS cannot read text width, so pass --shimmer-track-width or it defaults to 200px."
-            code='<span class="shimmer shimmer-speed-200">...</span>'
+            code={shimmerCode("...", "shimmer shimmer-speed-200")}
           >
             <div className="flex flex-col items-start gap-2">
-              <span className="shimmer shimmer-speed-200 shimmer-repeat-delay-1975 text-foreground/40 text-xl font-medium [--shimmer-track-width:50px]">
+              <ShimmerText className="shimmer-speed-200 shimmer-repeat-delay-1975 text-foreground/40 text-xl font-medium [--shimmer-track-width:50px]">
                 Short
-              </span>
-              <span className="shimmer shimmer-speed-200 shimmer-repeat-delay-1300 text-foreground/40 text-xl font-medium [--shimmer-track-width:185px]">
+              </ShimmerText>
+              <ShimmerText className="shimmer-speed-200 shimmer-repeat-delay-1300 text-foreground/40 text-xl font-medium [--shimmer-track-width:185px]">
                 Medium Length Text
-              </span>
-              <span className="shimmer shimmer-speed-200 text-foreground/40 text-xl font-medium [--shimmer-track-width:245px]">
+              </ShimmerText>
+              <ShimmerText className="shimmer-speed-200 text-foreground/40 text-xl font-medium [--shimmer-track-width:245px]">
                 This Is A Much Longer Text
-              </span>
+              </ShimmerText>
             </div>
           </Example>
 
           <Example
             title="shimmer-repeat-delay-{value}"
             description="Pause between cycles. Default is 1000ms. Use 0 for a continuous sweep."
-            code='<span class="shimmer shimmer-repeat-delay-0">No Delay</span>'
+            code={shimmerCode("No Delay", "shimmer shimmer-repeat-delay-0")}
           >
             <div className="flex flex-col items-start gap-2 [--shimmer-track-height:28px]">
-              <span className="shimmer shimmer-repeat-delay-0 shimmer-duration-3000 text-foreground/40 text-xl font-medium">
+              <ShimmerText className="shimmer-repeat-delay-0 shimmer-duration-3000 text-foreground/40 text-xl font-medium">
                 Shimmer Effect (0ms)
-              </span>
-              <span className="shimmer shimmer-duration-3000 text-foreground/40 text-xl font-medium">
+              </ShimmerText>
+              <ShimmerText className="shimmer-duration-3000 text-foreground/40 text-xl font-medium">
                 Shimmer Effect (1000ms)
-              </span>
-              <span className="shimmer shimmer-repeat-delay-2000 shimmer-duration-3000 text-foreground/40 text-xl font-medium">
+              </ShimmerText>
+              <ShimmerText className="shimmer-repeat-delay-2000 shimmer-duration-3000 text-foreground/40 text-xl font-medium">
                 Shimmer Effect (2000ms)
-              </span>
+              </ShimmerText>
             </div>
           </Example>
         </DemoSection>
@@ -340,6 +358,28 @@ export default function TwShimmerPage() {
       </footer>
     </PageFrame>
   );
+}
+
+type ShimmerTextProps = Omit<ComponentProps<"span">, "children"> & {
+  children: string;
+};
+
+function ShimmerText({ children, className, ...props }: ShimmerTextProps) {
+  return (
+    <span {...props} className={cn("shimmer", className)}>
+      {children}
+      <span className="shimmer-clone" aria-hidden="true" inert>
+        {children}
+      </span>
+    </span>
+  );
+}
+
+function shimmerCode(text: string, className: string) {
+  return `<span class="${className}">
+  ${text}
+  <span class="shimmer-clone" aria-hidden="true" inert>${text}</span>
+</span>`;
 }
 
 function DemoSection({
