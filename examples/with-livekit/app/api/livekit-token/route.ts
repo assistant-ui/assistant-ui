@@ -5,9 +5,18 @@ const TOKEN_TTL = "10m";
 
 function isAllowedRequestContext(req: Request) {
   const fetchSite = req.headers.get("sec-fetch-site");
-  return (
-    fetchSite === null || fetchSite === "same-origin" || fetchSite === "none"
-  );
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
+  }
+
+  const origin = req.headers.get("origin");
+  if (origin === null) return true;
+
+  try {
+    return new URL(origin).origin === new URL(req.url).origin;
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(req: Request) {
