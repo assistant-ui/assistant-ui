@@ -1,8 +1,17 @@
 function isAllowedRequestContext(request: Request) {
   const fetchSite = request.headers.get("sec-fetch-site");
-  return (
-    fetchSite === null || fetchSite === "same-origin" || fetchSite === "none"
-  );
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
+  }
+
+  const origin = request.headers.get("origin");
+  if (origin === null) return true;
+
+  try {
+    return new URL(origin).origin === new URL(request.url).origin;
+  } catch {
+    return false;
+  }
 }
 
 /**
