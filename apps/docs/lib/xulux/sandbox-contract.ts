@@ -18,10 +18,13 @@ export function withVersion(
   versionId: string | null | undefined,
 ): string {
   if (!versionId) return url;
-  const [path, query = ""] = url.split("?");
+  const hashIndex = url.indexOf("#");
+  const fragment = hashIndex === -1 ? "" : url.slice(hashIndex);
+  const base = hashIndex === -1 ? url : url.slice(0, hashIndex);
+  const [path, query = ""] = base.split("?");
   const params = new URLSearchParams(query);
   if (!params.has("v")) params.set("v", versionId);
-  return `${path}?${params.toString()}`;
+  return `${path}?${params.toString()}${fragment}`;
 }
 
 export function hasConfig(
