@@ -5,9 +5,11 @@ This example exposes an assistant-ui app's frontend tools to browser agents over
 The app is a small task board. Four frontend tools (`list_tasks`, `add_task`, `set_task_done`, `remove_task`) are registered through the standard assistant-ui tool registry, so two kinds of agents can drive the same board:
 
 - the in-app chat (AI SDK runtime, `/api/chat`), which calls the tools as regular frontend tools;
-- any WebMCP-capable agent outside the page (ChatGPT desktop's built-in browser, Chrome's Model Context Tool Inspector), via `<WebMcpBridge />`, which mirrors the registry onto `document.modelContext` / `navigator.modelContext`.
+- any WebMCP-capable agent outside the page (ChatGPT desktop's built-in browser, Chrome's Model Context Tool Inspector), via `useWebMcpBridge()`, which mirrors the registry onto `document.modelContext` / `navigator.modelContext`.
 
-Every WebMCP-initiated call goes through an in-app approval dialog (`useWebMcpApprovals()`) with Allow once / Always allow / Deny. "Always allow" is remembered for the browser session only; a deny returns an MCP error result with the optional reason you type.
+Every WebMCP-initiated call goes through an in-app approval dialog (`useWebMcpApprovals()`) with Allow once / Always allow / Deny. "Always allow" is remembered only for as long as that registration lives: unregistering the tool, re-registering it under a changed description or schema, or unmounting the bridge drops the grant, so the next call prompts again. A deny returns an MCP error result with the optional reason you type.
+
+Exposing a tool over WebMCP does not widen what an agent can reach. The bridge only registers frontend tools the page has already loaded, so it exposes what the page's own JavaScript could call anyway. Server-side authorization is enforced per endpoint by the API each tool calls, never by the contents of the tool list.
 
 ## Run
 
@@ -43,7 +45,7 @@ For a deployment without the flag, register your origin for the WebMCP origin tr
 Since WebMCP has no CI-friendly browser environment yet, verify manually in a flag-enabled Chrome:
 
 1. **Registration**: with the app open, the Tool Inspector lists `list_tasks`, `add_task`, `set_task_done`, `remove_task` with descriptions and JSON schemas.
-2. **Execute round trip**: run `add_task` from the inspector; the approval dialog opens with the tool name and arguments; Allow once executes the tool, the task appears on the board, and the inspector receives the result content. Deny returns an error result (with the typed reason) and the board is unchanged. Always allow skips the dialog for subsequent calls to the same tool this session.
+2. **Execute round trip**: run `add_task` from the inspector; the approval dialog opens with the tool name and arguments; Allow once executes the tool, the task appears on the board, and the inspector receives the result content. Deny returns an error result (with the typed reason) and the board is unchanged. Always allow skips the dialog for subsequent calls to the same tool until that registration is replaced or the page reloads.
 3. **Removal round trip**: run `remove_task` from the inspector with the id of an existing task; after approval the task disappears from the board and the result confirms the removal. Run it again with the same id and confirm the result reports the task as missing without an exception.
 4. **Name collision**: before the bridge mounts (e.g. from a script in `app/layout.tsx` or the console on a page reload), call `document.modelContext.registerTool({ name: "add_task", ... })` yourself; the bridge should log a skip warning for `add_task`, register the other three tools, and leave your registration in place — including after navigating away.
 5. **toolchange**: navigating away from the page (or unmounting the provider) unregisters the tools; the inspector reflects the change without a reload.
@@ -52,6 +54,7 @@ Since WebMCP has no CI-friendly browser environment yet, verify manually in a fl
 ## Notes
 
 - The bridge owns the tools it registers: it only ever unregisters names it registered. When the browser's model context exposes tool enumeration (`getTools()`), the bridge checks for an existing registration first and warns and skips on a collision; without enumeration it relies on `registerTool` throwing or rejecting for duplicates, so an implementation that silently accepts duplicates can still end up with the last registration winning.
-- Inline options are fine: passing a fresh `filter`/`approval` function or options object to `<WebMcpBridge />` on every render does not tear down and re-register the tools.
+- A skipped collision is not retried on its own. The bridge tries the name again on the next registry sync, so a tool skipped because the page already owned the name stays unexposed until the tool set changes or the page reloads — even if the other registration is removed in between.
+- Inline options are fine: passing a fresh `filter` function or options object to `useWebMcpBridge()` on every render does not tear down and re-register the tools.
 - Tools are exposed when they are `type: "frontend"` with a local `execute` and not disabled; human tools and backend tools are never exposed.
 - Approvals time out after 2 minutes ("expired") and are cancelled if the calling agent aborts.
