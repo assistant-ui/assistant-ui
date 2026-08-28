@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { OPTIONS, POST } from "./route";
+import { GET, OPTIONS, POST } from "./route";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -88,13 +88,9 @@ describe("LangGraph proxy", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await POST(
-      new NextRequest("http://app.internal/api/threads", {
+      new NextRequest("https://app.example/api/threads", {
         method: "POST",
-        headers: {
-          origin: "https://app.example",
-          "x-forwarded-host": "app.example",
-          "x-forwarded-proto": "https",
-        },
+        headers: { origin: "https://app.example" },
         body: "{}",
       }),
     );
@@ -135,6 +131,25 @@ describe("LangGraph proxy", () => {
     });
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.redirect).toBe("manual");
+  });
+
+  it("preserves non-redirect 304 responses", async () => {
+    vi.stubEnv("LANGGRAPH_API_URL", "https://agent.example");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response(null, { status: 304 })),
+    );
+
+    const response = await GET(
+      new NextRequest("https://app.example/api/threads", {
+        headers: {
+          origin: "https://app.example",
+          "sec-fetch-site": "same-origin",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(304);
   });
 
   it("does not approve cross-origin preflight requests", async () => {

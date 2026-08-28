@@ -14,24 +14,7 @@ function isSameOriginRequest(req: NextRequest) {
   if (origin === null) return true;
 
   try {
-    const forwardedHost = req.headers
-      .get("x-forwarded-host")
-      ?.split(",")[0]
-      ?.trim();
-    const forwardedProto = req.headers
-      .get("x-forwarded-proto")
-      ?.split(",")[0]
-      ?.trim();
-    const expectedHost =
-      forwardedHost || req.headers.get("host") || req.nextUrl.host;
-    const expectedProtocol = (forwardedProto || req.nextUrl.protocol)
-      .replace(/:$/, "")
-      .toLowerCase();
-    if (expectedProtocol !== "http" && expectedProtocol !== "https")
-      return false;
-    const expectedOrigin = new URL(`${expectedProtocol}://${expectedHost}`)
-      .origin;
-    return new URL(origin).origin === expectedOrigin;
+    return new URL(origin).origin === req.nextUrl.origin;
   } catch {
     return false;
   }
@@ -89,7 +72,7 @@ async function handleRequest(req: NextRequest, method: string) {
 
     if (
       res.status === 0 ||
-      (res.status >= 300 && res.status < 400) ||
+      (res.status >= 300 && res.status < 400 && res.status !== 304) ||
       res.type === "opaqueredirect"
     ) {
       await res.body?.cancel().catch(() => undefined);
