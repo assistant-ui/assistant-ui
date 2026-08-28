@@ -5,6 +5,7 @@ export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
 
 export { MessageByIndexProvider } from "./primitives/MessageByIndexProvider";
+export { MessageByIdProvider } from "./primitives/MessageByIdProvider";
 export { PartByIndexProvider } from "./primitives/PartByIndexProvider";
 export { ThreadPrimitiveMessages } from "./primitives/ThreadPrimitiveMessages";
 export { ThreadPrimitiveViewport } from "./primitives/ThreadPrimitiveViewport";
