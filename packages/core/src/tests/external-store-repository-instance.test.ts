@@ -136,4 +136,31 @@ describe("ExternalStoreThreadRuntimeCore repository instance swap", () => {
     expect(repoB.getMessages().map((m) => m.id)).toEqual(["s-u1"]);
     expect(core.messages.map((m) => m.id)).toEqual(["s-u1"]);
   });
+
+  it("re-imports a same-reference repository snapshot when the instance swapped", () => {
+    const repoA = new MessageRepository();
+    const repoB = new MessageRepository();
+    const snapshot = {
+      headId: "s-m1",
+      messages: [
+        { parentId: null, message: createUserMessage("s-u1") },
+        { parentId: "s-u1", message: createAssistantMessage("s-m1") },
+      ],
+    };
+
+    const core = new ExternalStoreThreadRuntimeCore(createContextProvider(), {
+      messageRepository: snapshot,
+      onNew: vi.fn(async () => {}),
+      unstable_messageRepositoryInstance: repoA,
+    });
+    expect(core.messages.map((m) => m.id)).toEqual(["s-u1", "s-m1"]);
+
+    core.__internal_setAdapter({
+      messageRepository: snapshot,
+      onNew: vi.fn(async () => {}),
+      unstable_messageRepositoryInstance: repoB,
+    });
+    expect(core.messages.map((m) => m.id)).toEqual(["s-u1", "s-m1"]);
+    expect(repoB.getMessages().map((m) => m.id)).toEqual(["s-u1", "s-m1"]);
+  });
 });

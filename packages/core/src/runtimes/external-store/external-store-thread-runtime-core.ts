@@ -318,7 +318,11 @@ export class ExternalStoreThreadRuntimeCore
       const headId =
         store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
 
-      if (oldStore && oldStore.messageRepository === store.messageRepository) {
+      if (
+        oldStore &&
+        !repositoryChanged &&
+        oldStore.messageRepository === store.messageRepository
+      ) {
         this.repository.resetHead(headId);
         messages = this.repository.getMessages();
       } else {
