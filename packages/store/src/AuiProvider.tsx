@@ -169,17 +169,16 @@ export const AuiProvider: {
     : hasValue
       ? (props.value ?? DefaultAssistantClient)
       : contextParent;
-  const { client, effects, states } = useConfiguredAui(
-    parent,
-    config ?? EMPTY_CONFIG,
-  );
+  const {
+    client,
+    effects,
+    states,
+    names = [],
+  } = useConfiguredAui(parent, config ?? EMPTY_CONFIG);
   useImperativeHandle(ref, () => client, [client]);
 
-  const [scopeNames] = useState(
-    () => Object.keys(config ?? EMPTY_CONFIG) as ClientNames[],
-  );
-  if (isDevelopment && config) {
-    const names = Object.keys(config);
+  const [scopeNames] = useState(() => names);
+  if (isDevelopment) {
     if (
       names.length !== scopeNames.length ||
       names.some((name) => !scopeNames.includes(name as ClientNames))

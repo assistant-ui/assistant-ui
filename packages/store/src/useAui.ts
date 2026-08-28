@@ -576,13 +576,16 @@ type ScopedAuiClient = {
   client: AssistantClient;
   effects?: () => void;
   states?: ScopeStates;
+  names?: ClientNames[];
 };
 
 const useScopeEntries = (
   parent: AssistantClient,
   clients: AuiConfig.Input,
-): { entries: ScopeEntry[]; rooted: boolean } => {
-  const entries = Object.entries(applyTransformScopes(clients, parent)).filter(
+): { entries: ScopeEntry[]; names: ClientNames[]; rooted: boolean } => {
+  const scopes = applyTransformScopes(clients, parent);
+  const names = Object.keys(scopes) as ClientNames[];
+  const entries = Object.entries(scopes).filter(
     ([, element]) => element !== undefined,
   ) as ScopeEntry[];
 
@@ -596,7 +599,7 @@ const useScopeEntries = (
       entries.some(([, element]) => !isDerivedElement(element)),
   );
 
-  return { entries, rooted };
+  return { entries, names, rooted };
 };
 
 // Creates a client extending an explicit parent (which may live in another
@@ -609,14 +612,14 @@ const useConfiguredAuiImpl = (
   clients: AuiConfig.Input,
   useHost: typeof useHostedAssistantClient,
 ): ScopedAuiClient => {
-  const { entries, rooted } = useScopeEntries(parent, clients);
+  const { entries, names, rooted } = useScopeEntries(parent, clients);
 
   if (rooted) {
     // oxlint-disable-next-line react-hooks/rules-of-hooks
-    return useHost({ parent, entries });
+    return { ...useHost({ parent, entries }), names };
   }
   // oxlint-disable-next-line react-hooks/rules-of-hooks
-  return useDerivedOnlyClient(parent, entries);
+  return { ...useDerivedOnlyClient(parent, entries), names };
 };
 
 export const useConfiguredAui = (

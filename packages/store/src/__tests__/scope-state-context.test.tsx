@@ -10,6 +10,7 @@ import { Derived } from "../Derived";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { useClientList } from "../useClientList";
+import { attachTransformScopes } from "../attachTransformScopes";
 
 const useItemClient = ({ key }: { key: string }) => {
   const [count, setCount] = useState(0);
@@ -123,5 +124,26 @@ describe("repro: scope state contexts", () => {
       },
     );
     expect(result.current).toBe(1);
+  });
+
+  it("publishes scopes added by transform scopes", () => {
+    const useSibling = () => ({ getState: () => ({ name: "sibling" }) });
+    const Sibling = resource(useSibling);
+    const useMain = () => ({ getState: () => ({ name: "main" }) });
+    const Main = resource(useMain);
+    attachTransformScopes(useMain, (scopes) => {
+      (scopes as Record<string, unknown>).sibling ??= Sibling();
+    });
+    const { result } = renderHook(
+      () => useAuiState("sibling" as never, (s: any) => s.name),
+      {
+        wrapper: ({ children }) => (
+          <AuiProvider config={AuiConfig({ main: Main() } as never)}>
+            {children}
+          </AuiProvider>
+        ),
+      },
+    );
+    expect(result.current).toBe("sibling");
   });
 });
