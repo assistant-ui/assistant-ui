@@ -1,6 +1,12 @@
 <script setup lang="ts">
 import {
+  AttachmentPrimitiveName,
+  AttachmentPrimitiveRemove,
+  AttachmentPrimitiveThumb,
   AuiIf,
+  ComposerPrimitiveAddAttachment,
+  ComposerPrimitiveAttachmentDropzone,
+  ComposerPrimitiveAttachments,
   ComposerPrimitiveCancel,
   ComposerPrimitiveInput,
   ComposerPrimitiveSend,
@@ -13,7 +19,13 @@ import {
   ThreadPrimitiveViewport,
 } from "@assistant-ui/vue";
 import type {} from "@assistant-ui/core/store";
-import { ArrowDownIcon, ArrowUpIcon, SquareIcon } from "@lucide/vue";
+import {
+  ArrowDownIcon,
+  ArrowUpIcon,
+  PaperclipIcon,
+  SquareIcon,
+  XIcon,
+} from "@lucide/vue";
 </script>
 
 <template>
@@ -56,15 +68,39 @@ import { ArrowDownIcon, ArrowUpIcon, SquareIcon } from "@lucide/vue";
       </div>
     </ThreadPrimitiveViewport>
     <div class="mx-auto w-full max-w-2xl px-4 pb-4">
-      <div
-        class="border-border/60 focus-within:border-border flex w-full flex-col gap-2 rounded-2xl border p-2.5 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.05)]"
+      <ComposerPrimitiveAttachmentDropzone
+        class="border-border/60 focus-within:border-border data-[dragging=true]:border-primary data-[dragging=true]:bg-primary/5 flex w-full flex-col gap-2 rounded-2xl border p-2.5 shadow-[0_4px_16px_-8px_rgba(0,0,0,0.08),0_1px_2px_rgba(0,0,0,0.04)] transition-[border-color,box-shadow] focus-within:shadow-[0_6px_24px_-8px_rgba(0,0,0,0.12),0_1px_2px_rgba(0,0,0,0.05)]"
       >
+        <div class="flex flex-wrap gap-2 empty:hidden">
+          <ComposerPrimitiveAttachments>
+            <div
+              class="border-border/60 bg-muted/40 flex items-center gap-2 rounded-lg border px-2 py-1 text-xs"
+            >
+              <AttachmentPrimitiveThumb
+                class="bg-muted text-muted-foreground rounded px-1.5 py-0.5 font-mono text-[10px] uppercase"
+              />
+              <span class="max-w-40 truncate"><AttachmentPrimitiveName /></span>
+              <AttachmentPrimitiveRemove
+                class="text-muted-foreground hover:text-foreground rounded p-0.5"
+                aria-label="Remove attachment"
+              >
+                <XIcon class="size-3" />
+              </AttachmentPrimitiveRemove>
+            </div>
+          </ComposerPrimitiveAttachments>
+        </div>
         <ComposerPrimitiveInput
           class="caret-primary placeholder:text-muted-foreground/80 max-h-32 min-h-10 w-full resize-none bg-transparent px-2.5 py-1 text-base outline-none"
           placeholder="Send a message..."
           rows="1"
         />
-        <div class="flex items-center justify-end">
+        <div class="flex items-center justify-between">
+          <ComposerPrimitiveAddAttachment
+            class="text-muted-foreground hover:text-foreground flex size-7 items-center justify-center rounded-full transition-colors disabled:opacity-50"
+            aria-label="Add attachment"
+          >
+            <PaperclipIcon class="size-4" />
+          </ComposerPrimitiveAddAttachment>
           <AuiIf :condition="(s) => !s.thread.isRunning">
             <ComposerPrimitiveSend
               class="bg-primary text-primary-foreground flex size-7 items-center justify-center rounded-full transition-opacity disabled:opacity-50"
@@ -82,7 +118,7 @@ import { ArrowDownIcon, ArrowUpIcon, SquareIcon } from "@lucide/vue";
             </ComposerPrimitiveCancel>
           </AuiIf>
         </div>
-      </div>
+      </ComposerPrimitiveAttachmentDropzone>
     </div>
   </div>
 </template>
