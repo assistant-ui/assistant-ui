@@ -272,7 +272,7 @@ See the [Orb page](/elements/orb) for anatomy, variants, and state samples.
 The [`with-livekit`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-livekit) example shows the full wiring:
 
 1. **Adapter** (`examples/with-livekit/lib/livekit-voice-adapter.ts`): `LiveKitVoiceAdapter` implements `RealtimeVoiceAdapter`. `connect` calls `createVoiceSession`, connects a LiveKit `Room`, enables the local microphone, attaches remote audio tracks, and maps room events to helpers (`setStatus`, `end`, `emitMode`, `emitVolume`, `emitTranscript`).
-2. **Token route** (`examples/with-livekit/app/api/livekit-token/route.ts`): mints a short-lived room token server-side so secrets stay off the client.
+2. **Token route** (`examples/with-livekit/app/api/livekit-token/route.ts`): mints a ten-minute token for an isolated room so secrets stay off the client.
 3. **Agent worker** (`examples/with-livekit/agent/`): a Python LiveKit Agents process that joins the room and runs the voice pipeline.
 
 Minimal runtime wiring:
@@ -295,6 +295,8 @@ const runtime = useChatRuntime({
 ```
 
 Clone the example for the adapter source, token endpoint, and agent worker rather than re-implementing the full LiveKit event map from scratch.
+
+The example rejects cross-origin browser requests, but origin checks are not user authentication. Before deploying, require your application session in the token route and apply a durable rate limit so anonymous callers cannot consume voice capacity.
 
 You can also scaffold it with the CLI:
 
