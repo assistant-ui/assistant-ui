@@ -1655,3 +1655,45 @@ test("install validation resolves a sibling against the registryDependency insta
     /imports "\.\/badge", but no file or registryDependency provides/,
   );
 });
+
+test("cli scanner element mapping names a real registry item for every element file", async () => {
+  const { registry } = await import("../src/registry.ts");
+
+  const cliSource = await readFile(
+    new URL("../../../packages/cli/src/lib/create-project.ts", import.meta.url),
+    "utf8",
+  );
+  const setMatch = cliSource.match(
+    /BARE_ELEMENT_ITEMS = new Set\(\[([^\]]*)\]/,
+  );
+  assert.ok(setMatch, "BARE_ELEMENT_ITEMS not found in create-project.ts");
+  const cliBare = new Set(
+    [...setMatch[1].matchAll(/"([^"]+)"/g)].map((m) => m[1]),
+  );
+
+  const itemNames = new Set(registry.map((item) => item.name));
+  for (const name of cliBare) {
+    assert.ok(
+      itemNames.has(name),
+      `BARE_ELEMENT_ITEMS entry "${name}" is not a registry item`,
+    );
+  }
+
+  const shipped = new Set(
+    registry.flatMap((item) =>
+      (item.files ?? []).flatMap((file) => {
+        const match = file.sourcePath?.match(
+          /react\/assistant-ui\/elements\/([a-z0-9-]+)\.tsx$/,
+        );
+        return match ? [match[1]] : [];
+      }),
+    ),
+  );
+  for (const base of shipped) {
+    const expected = cliBare.has(base) ? base : `elements-${base}`;
+    assert.ok(
+      itemNames.has(expected),
+      `scanner maps elements/${base} to "${expected}", which is not a registry item`,
+    );
+  }
+});
