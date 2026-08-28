@@ -12,15 +12,16 @@ const warnedTypes = new Set<string>();
 export const clearPartWarningsForTesting = () => warnedTypes.clear();
 
 /**
- * Props passed to a tool UI registered in the `tools` scope. Vue passes the
- * part state as a single `part` prop where React spreads it; spreading in Vue
- * would leak undeclared props onto the component's root element through
- * `$attrs`. The tools scope declares renderers as React's
- * `ToolCallMessagePartComponent`, so the Vue face bridges the seam with casts
- * at registration and render; a genuine React renderer arriving through a
- * shared toolkit type-checks at `setToolUI` and then fails when invoked as a
- * Vue component. This type is the Vue-facing contract until the scope's
- * renderer type goes framework-generic.
+ * The value of the single `tool` prop passed to a tool UI registered in the
+ * `tools` scope. React spreads the part state as individual props; in Vue any
+ * prop the component does not declare falls through to `$attrs` and gets
+ * stringified onto its root element, so the Vue face passes one `tool` object
+ * instead, which a component always declares in full. The tools scope
+ * declares renderers as React's `ToolCallMessagePartComponent`, so the Vue
+ * face bridges the seam with casts at registration and render; a genuine
+ * React renderer arriving through a shared toolkit type-checks at `setToolUI`
+ * and then fails when invoked as a Vue component. This type is the Vue-facing
+ * contract until the scope's renderer type goes framework-generic.
  */
 export type ToolUIProps = {
   part: Extract<AssistantState["part"], { type: "tool-call" }>;
@@ -33,7 +34,8 @@ export type ToolUIProps = {
  * Renders the current message's content parts in order, each scoped through
  * {@link PartByIndexProvider}. A `tool-call` part first resolves a renderer
  * registered in the `tools` scope by tool name (`aui.tools.setToolUI`, or a
- * `Tools({ toolkit })` config entry) and renders it with {@link ToolUIProps}.
+ * `Tools({ toolkit })` config entry) and renders it with a single `tool` prop
+ * of type {@link ToolUIProps}.
  * Otherwise a slot named after the part type (`text`, `reasoning`,
  * `tool-call`, ...) renders that part; the `default` slot is the fallback for
  * types without a named slot, except text, which always renders its text
@@ -66,11 +68,13 @@ export const MessagePrimitiveParts = defineComponent({
             const part = toolPart.value;
             if (render && part) {
               return h(render as unknown as Component, {
-                part,
-                addResult: aui.part.addToolResult,
-                resume: aui.part.resumeToolCall,
-                respondToApproval: aui.part.respondToToolApproval,
-              } satisfies ToolUIProps);
+                tool: {
+                  part,
+                  addResult: aui.part.addToolResult,
+                  resume: aui.part.resumeToolCall,
+                  respondToApproval: aui.part.respondToToolApproval,
+                } satisfies ToolUIProps,
+              });
             }
           }
           if (type.value === "text") {

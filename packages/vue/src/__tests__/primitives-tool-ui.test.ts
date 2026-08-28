@@ -115,17 +115,17 @@ describe("MessagePrimitiveParts tool UI registry", () => {
     const { el, client, unmount } = mountChat(runtime, PartsWithToolSlot);
 
     const WeatherTool = defineComponent({
-      props: ["part", "addResult", "resume", "respondToApproval"],
-      setup: (props: ToolUIProps) => () =>
+      props: ["tool"],
+      setup: (props: { tool: ToolUIProps }) => () =>
         h(
           "span",
           { class: "ui" },
           [
-            props.part.toolName,
-            (props.part.args as { city?: string }).city,
-            typeof props.addResult,
-            typeof props.resume,
-            typeof props.respondToApproval,
+            props.tool.part.toolName,
+            (props.tool.part.args as { city?: string }).city,
+            typeof props.tool.addResult,
+            typeof props.tool.resume,
+            typeof props.tool.respondToApproval,
           ].join(","),
         ),
     });
@@ -156,23 +156,23 @@ describe("MessagePrimitiveParts tool UI registry", () => {
     const { el, client, unmount } = mountChat(runtime, PartsWithToolSlot);
 
     const CallbackTool = defineComponent({
-      props: ["part", "addResult", "resume", "respondToApproval"],
-      setup: (props: ToolUIProps) => () => [
+      props: ["tool"],
+      setup: (props: { tool: ToolUIProps }) => () => [
         h(
           "button",
-          { class: "add-result", onClick: () => props.addResult("72F") },
+          { class: "add-result", onClick: () => props.tool.addResult("72F") },
           "add",
         ),
         h(
           "button",
-          { class: "resume", onClick: () => props.resume("continue") },
+          { class: "resume", onClick: () => props.tool.resume("continue") },
           "resume",
         ),
         h(
           "button",
           {
             class: "approve",
-            onClick: () => props.respondToApproval({ approved: true }),
+            onClick: () => props.tool.respondToApproval({ approved: true }),
           },
           "approve",
         ),

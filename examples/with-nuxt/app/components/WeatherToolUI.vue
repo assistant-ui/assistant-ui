@@ -3,16 +3,15 @@ import { computed } from "vue";
 import type { ToolUIProps } from "@assistant-ui/vue";
 
 const props = defineProps({
-  part: { type: Object, required: true },
-  addResult: { type: Function, required: true },
-  resume: { type: Function, required: true },
-  respondToApproval: { type: Function, required: true },
-}) as unknown as ToolUIProps;
+  tool: { type: Object, required: true },
+}) as unknown as { tool: ToolUIProps };
 
-const city = computed(() => (props.part.args as { city?: string }).city);
+const city = computed(() => (props.tool.part.args as { city?: string }).city);
 const result = computed(
   () =>
-    props.part.result as { temperature: number; condition: string } | undefined,
+    props.tool.part.result as
+      | { temperature: number; condition: string }
+      | undefined,
 );
 </script>
 
