@@ -143,9 +143,14 @@ describe("createOAuthProvider persistence", () => {
     const failure = new Error("storage unavailable");
     let saveCount = 0;
     let persisted: MCPPersistedAuthState | null = null;
+    let rejectFirstSave!: (reason: unknown) => void;
     storage.saveAuthState = async (_serverId, next) => {
       saveCount += 1;
-      if (saveCount === 1) throw failure;
+      if (saveCount === 1) {
+        await new Promise<void>((_resolve, reject) => {
+          rejectFirstSave = reject;
+        });
+      }
       persisted = next;
     };
     const provider = createProvider(storage);
@@ -157,7 +162,13 @@ describe("createOAuthProvider persistence", () => {
     });
     const verifierSave = provider.saveCodeVerifier("pkce-verifier");
 
-    await expect(tokenSave).rejects.toBe(failure);
+    await vi.waitFor(() => expect(saveCount).toBe(1));
+    for (let i = 0; i < 10; i++) await Promise.resolve();
+    expect(saveCount).toBe(1);
+
+    const tokenSaveResult = expect(tokenSave).rejects.toBe(failure);
+    rejectFirstSave(failure);
+    await tokenSaveResult;
     await expect(verifierSave).resolves.toBeUndefined();
     expect(saveCount).toBe(2);
     expect(persisted).toEqual({
