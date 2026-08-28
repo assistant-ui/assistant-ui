@@ -1,5 +1,4 @@
 import { defineComponent, h, type Component, type SlotsType } from "vue";
-import type {} from "@assistant-ui/core/store";
 import type { PartMethods } from "@assistant-ui/core/store";
 import { isDevelopment } from "@assistant-ui/core/store/internal";
 import type { AssistantState } from "@assistant-ui/store/client";
