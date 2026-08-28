@@ -393,7 +393,12 @@ const previewTemplateInputSchema = z
       .optional()
       .describe("Version id to use. Uses the template default if omitted."),
     config: z
-      .record(z.string(), z.unknown())
+      .object({
+        hostUi: z.unknown().optional(),
+        assistant: z.unknown().optional(),
+        brandTheme: z.unknown().optional(),
+      })
+      .strict()
       .optional()
       .describe(
         "Customization config for the preview. Must contain only the top-level keys: hostUi, assistant, and brandTheme. " +
