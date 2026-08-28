@@ -69,10 +69,14 @@ export async function runProxy({
   http.onmessage = (message) => {
     if (
       isJSONRPCResultResponse(message) &&
-      message.id === initializeRequestId &&
-      typeof message.result.protocolVersion === "string"
+      message.id === initializeRequestId
     ) {
-      http.setProtocolVersion(message.result.protocolVersion);
+      const protocolVersion = (
+        message.result as { protocolVersion?: unknown } | null
+      )?.protocolVersion;
+      if (typeof protocolVersion === "string") {
+        http.setProtocolVersion(protocolVersion);
+      }
     }
 
     void stdio.send(message).catch((error: unknown) => {
