@@ -237,8 +237,8 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
   const agentRef = useRef(agent);
-  // Descendant layout effects can dispatch runtime actions synchronously, so
-  // committed state must publish before child-first layout effects run.
+  // Descendant layout effects can dispatch against these refs synchronously;
+  // this matches useA2ARuntime's commit-scoped ref publication.
   useInsertionEffect(() => {
     messagesRef.current = messages;
     agentRef.current = agent;
@@ -490,10 +490,7 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       );
     },
   });
-  // Reset callbacks share the commit boundary used by agent and message refs.
-  useInsertionEffect(() => {
-    runtimeRef.current = runtime;
-  }, [runtime]);
+  runtimeRef.current = runtime;
 
   return runtime;
 };

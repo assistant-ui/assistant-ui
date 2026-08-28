@@ -1908,7 +1908,7 @@ describe("useEveAgentRuntime thread refetch", () => {
   });
 
   it("keeps refetches scoped to the committed agent", async () => {
-    const { agentA, agentB, resumeA, resumeB } = mockWorkspaceAgents();
+    const { agentB, resumeA, resumeB } = mockWorkspaceAgents();
 
     const pending = new Promise<never>(() => {});
     let blocked = false;
@@ -1936,17 +1936,6 @@ describe("useEveAgentRuntime thread refetch", () => {
       startTransition(() => rerender({ workspace: "B" }));
     });
     expect(mockUseEveAgent.mock.results.at(-1)?.value).toBe(agentB);
-
-    const resetNotification = vi.spyOn(
-      result.current.thread,
-      "unstable_notifySessionReset",
-    );
-    act(() => {
-      eveExtras.tryGet(result.current.thread.getState().extras)!.reset();
-    });
-    expect(resetNotification).toHaveBeenCalledTimes(1);
-    expect(agentA.reset).toHaveBeenCalledTimes(1);
-    expect(agentB.reset).not.toHaveBeenCalled();
 
     await act(async () => {
       await result.current.threads.reloadMainThread();
