@@ -160,21 +160,41 @@ export function validateBaseTreeRadixImports(
   throwIfFindings("Invalid base tree imports:", findings);
 }
 
+const VUE_FORBIDDEN_PACKAGES = [
+  "react",
+  "react-dom",
+  "radix-ui",
+  "@radix-ui",
+  "@base-ui",
+  "@assistant-ui/react",
+];
+
+function isVueForbiddenPackage(specifier: string) {
+  return VUE_FORBIDDEN_PACKAGES.some(
+    (packageName) =>
+      specifier === packageName || specifier.startsWith(`${packageName}/`),
+  );
+}
+
 export function validateVueFlavorContent(vueBuilt: BuiltRegistryPayload[]) {
   const findings = new Set<string>();
 
   for (const { payload } of vueBuilt) {
     for (const file of payload.files ?? []) {
-      for (const specifier of collectModuleSpecifiers(file)) {
+      for (const script of getScriptContents(file)) {
         if (
-          specifier === "react" ||
-          specifier === "react-dom" ||
-          specifier === "radix-ui" ||
-          specifier.startsWith("radix-ui/") ||
-          specifier.startsWith("@radix-ui/") ||
-          specifier.startsWith("@base-ui/") ||
-          specifier.startsWith("@assistant-ui/react")
+          script.lang !== undefined &&
+          script.lang !== "ts" &&
+          script.lang !== "js"
         ) {
+          findings.add(
+            `${payload.name}: vue tree file ${file.path} has unsupported script lang "${script.lang}"`,
+          );
+        }
+      }
+
+      for (const specifier of collectModuleSpecifiers(file)) {
+        if (isVueForbiddenPackage(specifier)) {
           findings.add(
             `${payload.name}: vue tree file ${file.path} imports forbidden "${specifier}"`,
           );
@@ -820,21 +840,28 @@ function getScriptKind(filePath: string) {
   return ts.ScriptKind.Unknown;
 }
 
-function getScriptContents(file: RegistryOutputFile) {
-  if (!file.path.endsWith(".vue")) return [file.content];
-
-  return [
-    ...file.content.matchAll(/<script(?:\s[^>]*)?>([\s\S]*?)<\/script>/gi),
-  ].map((match) => match[1] ?? "");
+function getVueScriptLanguage(attributes: string) {
+  const match = attributes.match(
+    /(?:^|\s)lang\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
+  );
+  return match?.[1] ?? match?.[2] ?? match?.[3];
 }
 
-function collectModuleSpecifiers(
-  file: RegistryOutputFile,
-  includeTypeOnly = true,
-) {
+function getScriptContents(file: RegistryOutputFile) {
+  if (!file.path.endsWith(".vue")) return [{ content: file.content }];
+
+  return [
+    ...file.content.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script\s*>/gi),
+  ].map((match) => ({
+    content: match[2] ?? "",
+    lang: getVueScriptLanguage(match[1] ?? ""),
+  }));
+}
+
+function collectModuleSpecifiers(file: RegistryOutputFile) {
   const specifiers = new Set<string>();
 
-  for (const content of getScriptContents(file)) {
+  for (const { content } of getScriptContents(file)) {
     const sourceFile = ts.createSourceFile(
       file.path,
       content,
@@ -847,10 +874,7 @@ function collectModuleSpecifiers(
       if (
         (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
         node.moduleSpecifier &&
-        isStringLiteralLike(node.moduleSpecifier) &&
-        (includeTypeOnly ||
-          (!node.isTypeOnly &&
-            (!ts.isImportDeclaration(node) || !node.importClause?.isTypeOnly)))
+        isStringLiteralLike(node.moduleSpecifier)
       ) {
         specifiers.add(node.moduleSpecifier.text);
       }
@@ -867,7 +891,6 @@ function collectModuleSpecifiers(
       }
 
       if (
-        includeTypeOnly &&
         ts.isImportTypeNode(node) &&
         ts.isLiteralTypeNode(node.argument) &&
         isStringLiteralLike(node.argument.literal)
@@ -937,10 +960,6 @@ const EXPLICIT_EXTENSIONS = new Set([
   ".vue",
   ".txt",
 ]);
-
-function getInstallPath(file: RegistryOutputFile) {
-  return (file.target ?? file.path).replace(/^@\//, "");
-}
 
 /**
  * The install paths a relative specifier may resolve to once the item is
@@ -1019,7 +1038,9 @@ function collectInstallContext(
 
   seen.add(item.name);
 
-  const files = new Set(item.files?.map(getInstallPath) ?? []);
+  const files = new Set(
+    item.files?.map((file) => file.target ?? file.path) ?? [],
+  );
   const packages = new Set([
     ...(item.dependencies ?? []),
     ...(item.devDependencies ?? []),
@@ -1070,7 +1091,7 @@ export function validateRegistryInstallMetadata(
     const installContext = collectInstallContext(item, itemByName);
 
     for (const file of item.files ?? []) {
-      for (const specifier of collectModuleSpecifiers(file, false)) {
+      for (const specifier of collectModuleSpecifiers(file)) {
         const localCandidates = getLocalComponentCandidates(specifier);
 
         if (localCandidates) {
@@ -1088,7 +1109,7 @@ export function validateRegistryInstallMetadata(
         }
 
         if (specifier.startsWith(".")) {
-          const installedPath = getInstallPath(file);
+          const installedPath = file.target ?? file.path;
           const candidates = getRelativeImportCandidates(
             specifier,
             installedPath,

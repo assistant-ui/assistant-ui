@@ -63,7 +63,7 @@ const createBuilt = (
     new Map(files.map(([filePath, content]) => [filePath, content])),
 });
 
-test("vue registry build emits a self-contained thread", async () => {
+test("vue registry build emits a self-contained thread with its type-only dependency", async () => {
   const { registry, vueRegistry } = await import("../src/registry.ts");
   await buildRegistry(registry, vueRegistry);
 
@@ -77,26 +77,68 @@ test("vue registry build emits a self-contained thread", async () => {
     (file) => file.path === "components/assistant-ui/thread.vue",
   );
 
+  assert.ok(
+    threadFile,
+    "vue thread registry output includes components/assistant-ui/thread.vue",
+  );
   assert.deepEqual(
     vueIndex.items.map((item) => item.name),
     ["thread"],
   );
-  assert.deepEqual(thread.dependencies, ["@assistant-ui/vue", "@lucide/vue"]);
-  assert.equal(threadFile.target, "@/components/assistant-ui/thread.vue");
+  assert.deepEqual(thread.dependencies, [
+    "@assistant-ui/core",
+    "@assistant-ui/vue",
+    "@lucide/vue",
+  ]);
+  assert.equal("target" in threadFile, false);
   assert.match(
     threadFile.content,
     /import Message from "@\/components\/assistant-ui\/message\.vue"/,
   );
 });
 
-test("vue flavor content validation rejects react imports", () => {
+test("vue flavor content validation rejects forbidden package subpaths", () => {
   assert.throws(
     () =>
       validateVueFlavorContent([
         createBuilt("thread", [
           [
             "components/assistant-ui/thread.vue",
-            '<script setup lang="ts">\nimport { createElement } from "react";\n</script>',
+            '<script setup lang="ts">\nimport { jsx } from "react/jsx-runtime";\nimport "react-dom/client";\nimport "@assistant-ui/react/runtime";\n</script>',
+          ],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid vue flavor content:/);
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "react/jsx-runtime"',
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "react-dom/client"',
+        ),
+      );
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "@assistant-ui/react/runtime"',
+        ),
+      );
+      return true;
+    },
+  );
+});
+
+test("vue flavor content validation scans script tags closed with whitespace", () => {
+  assert.throws(
+    () =>
+      validateVueFlavorContent([
+        createBuilt("thread", [
+          [
+            "components/assistant-ui/thread.vue",
+            '<script setup lang="ts">\nimport { createElement } from "react";\n</script >',
           ],
         ]),
       ]),
@@ -106,6 +148,30 @@ test("vue flavor content validation rejects react imports", () => {
       assert.ok(
         error.message.includes(
           '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "react"',
+        ),
+      );
+      return true;
+    },
+  );
+});
+
+test("vue flavor content validation rejects unsupported script languages", () => {
+  assert.throws(
+    () =>
+      validateVueFlavorContent([
+        createBuilt("thread", [
+          [
+            "components/assistant-ui/thread.vue",
+            '<script setup lang="tsx">\nconst thread = <div />;\n</script>',
+          ],
+        ]),
+      ]),
+    (error) => {
+      assert.equal(error instanceof Error, true);
+      assert.match(error.message, /^Invalid vue flavor content:/);
+      assert.ok(
+        error.message.includes(
+          '- thread: vue tree file components/assistant-ui/thread.vue has unsupported script lang "tsx"',
         ),
       );
       return true;

@@ -1766,16 +1766,14 @@ export const vueRegistry: RegistryItem[] = [
         path: "components/assistant-ui/thread.vue",
         sourcePath:
           "../../packages/ui/src/components/assistant-ui-vue/thread.vue",
-        target: "@/components/assistant-ui/thread.vue",
       },
       {
         type: "registry:component",
         path: "components/assistant-ui/message.vue",
         sourcePath:
           "../../packages/ui/src/components/assistant-ui-vue/message.vue",
-        target: "@/components/assistant-ui/message.vue",
       },
     ],
-    dependencies: ["@assistant-ui/vue", "@lucide/vue"],
+    dependencies: ["@assistant-ui/core", "@assistant-ui/vue", "@lucide/vue"],
   },
 ];
