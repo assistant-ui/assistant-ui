@@ -1,7 +1,3 @@
-/**
- * Generate a single-use token for ElevenLabs Scribe v2 Realtime
- * @see https://elevenlabs.io/docs/cookbooks/speech-to-text/streaming
- */
 function isSameOriginRequest(request: Request) {
   const fetchSite = request.headers.get("sec-fetch-site");
   if (fetchSite !== null) {
@@ -12,30 +8,16 @@ function isSameOriginRequest(request: Request) {
   if (origin === null) return true;
 
   try {
-    const forwardedHost = request.headers
-      .get("x-forwarded-host")
-      ?.split(",")[0]
-      ?.trim();
-    const forwardedProto = request.headers
-      .get("x-forwarded-proto")
-      ?.split(",")[0]
-      ?.trim();
-    const requestUrl = new URL(request.url);
-    const expectedHost =
-      forwardedHost || request.headers.get("host") || requestUrl.host;
-    const expectedProtocol = (forwardedProto || requestUrl.protocol)
-      .replace(/:$/, "")
-      .toLowerCase();
-    if (expectedProtocol !== "http" && expectedProtocol !== "https")
-      return false;
-    const expectedOrigin = new URL(`${expectedProtocol}://${expectedHost}`)
-      .origin;
-    return new URL(origin).origin === expectedOrigin;
+    return new URL(origin).origin === new URL(request.url).origin;
   } catch {
     return false;
   }
 }
 
+/**
+ * Generate a single-use token for ElevenLabs Scribe v2 Realtime
+ * @see https://elevenlabs.io/docs/cookbooks/speech-to-text/streaming
+ */
 export async function POST(request: Request) {
   if (!isSameOriginRequest(request)) {
     return Response.json(
