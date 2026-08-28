@@ -1780,7 +1780,18 @@ export const stagedVueRegistry: RegistryItem[] = [
         sourcePath:
           "../../packages/ui/src/components/assistant-ui-vue/message.vue",
       },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/markdown-text.vue",
+        sourcePath:
+          "../../packages/ui/src/components/assistant-ui-vue/markdown-text.vue",
+      },
     ],
-    dependencies: ["@assistant-ui/core", "@assistant-ui/vue", "@lucide/vue"],
+    dependencies: [
+      "@assistant-ui/core",
+      "@assistant-ui/vue",
+      "@lucide/vue",
+      "markdown-it",
+    ],
   },
 ];

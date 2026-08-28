@@ -23,6 +23,7 @@ import {
   PencilIcon,
   RefreshCwIcon,
 } from "@lucide/vue";
+import MarkdownText from "@/components/assistant-ui/markdown-text.vue";
 
 const role = useAuiState((s) => s.message.role);
 const pulsing = useAuiState(
@@ -84,7 +85,11 @@ const error = useAuiState((s) => {
           : 'text-foreground leading-relaxed'
       "
     >
-      <MessagePrimitiveParts />
+      <MessagePrimitiveParts>
+        <template #text>
+          <MarkdownText />
+        </template>
+      </MessagePrimitiveParts>
       <span v-if="pulsing" class="animate-pulse">…</span>
       <span v-if="error" class="text-destructive text-sm">{{ error }}</span>
     </div>

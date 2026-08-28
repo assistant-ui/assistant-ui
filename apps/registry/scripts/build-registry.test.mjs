@@ -89,6 +89,7 @@ test("vue registry build emits a self-contained thread with its type-only depend
     "@assistant-ui/core",
     "@assistant-ui/vue",
     "@lucide/vue",
+    "markdown-it",
   ]);
   assert.equal("target" in threadFile, false);
   assert.match(
@@ -102,6 +103,7 @@ test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async
   const thread = JSON.parse(await readFile("dist/vue/thread.json", "utf8"));
   const emitted = thread.files.map((file) => [file.path, file.content]);
   assert.deepEqual(emitted.map(([outputPath]) => outputPath).sort(), [
+    "components/assistant-ui/markdown-text.vue",
     "components/assistant-ui/message.vue",
     "components/assistant-ui/thread.vue",
   ]);

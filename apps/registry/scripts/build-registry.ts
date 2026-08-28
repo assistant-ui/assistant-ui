@@ -41,6 +41,7 @@ const PROJECT_PACKAGE_IMPORTS = new Set([
   "next-themes",
   "react",
   "react-dom",
+  "vue",
 ]);
 
 type RegistryFile = NonNullable<RegistryItem["files"]>[number];
