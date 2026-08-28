@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed } from "vue";
+import { computed, type PropType } from "vue";
 import type { ToolUIProps } from "@assistant-ui/vue";
 
 const props = defineProps({
-  tool: { type: Object, required: true },
-}) as unknown as { tool: ToolUIProps };
+  tool: { type: Object as PropType<ToolUIProps>, required: true },
+});
 
 const city = computed(() => (props.tool.part.args as { city?: string }).city);
 const result = computed(
