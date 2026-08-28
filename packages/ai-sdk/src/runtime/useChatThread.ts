@@ -1,7 +1,7 @@
-import type { MessageRepository } from "@assistant-ui/core/internal";
-("use client");
+"use client";
 
 import { useChat, type Chat, type UIMessage } from "@ai-sdk/react";
+import type { MessageRepository } from "@assistant-ui/core/internal";
 import {
   pickExternalStoreSharedOptions,
   type AssistantRuntime,
