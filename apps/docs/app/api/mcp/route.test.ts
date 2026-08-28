@@ -131,6 +131,74 @@ describe("POST /api/mcp", () => {
     );
   });
 
+  it("returns the template authoring surface for read_template", async () => {
+    mocks.fetchTemplateContract.mockResolvedValue(null);
+
+    const response = await requestMcp("tools/call", {
+      name: "read_template",
+      arguments: { templateId: "base-assistant-ui" },
+    });
+    const result = getToolCallResult(response);
+    const text = result.content.find((block) => block.type === "text")?.text;
+    const payload = JSON.parse(text!) as Record<string, unknown>;
+
+    expect(result.isError).toBeFalsy();
+    expect(payload).toMatchObject({ id: "base-assistant-ui" });
+    expect(payload["configRoots"]).toBeDefined();
+    expect(payload["rules"]).toBeDefined();
+    expect(mocks.fetchTemplateContract).toHaveBeenCalledTimes(1);
+  });
+
+  it("creates a configured preview session through the sandbox contract", async () => {
+    mocks.fetchPreviewSession.mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          previewUrl: "/preview#studio",
+          validationWarnings: [],
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+
+    const response = await requestMcp("tools/call", {
+      name: "preview_template",
+      arguments: {
+        templateId: "base-assistant-ui",
+        config: { brandTheme: { preset: "assistantDark" } },
+      },
+    });
+    const result = getToolCallResult(response);
+    const text = result.content.find((block) => block.type === "text")?.text;
+    const payload = JSON.parse(text!) as {
+      success: boolean;
+      customized: boolean;
+      previewUrl: string;
+    };
+
+    expect(result.isError).toBeFalsy();
+    expect(payload).toMatchObject({ success: true, customized: true });
+    expect(payload.previewUrl).toContain("/preview");
+    expect(payload.previewUrl.endsWith("#studio")).toBe(true);
+    expect(mocks.fetchPreviewSession).toHaveBeenCalledTimes(1);
+    expect(mocks.fetchPreviewSession).toHaveBeenCalledWith(
+      expect.any(String),
+      null,
+      { brandTheme: { preset: "assistantDark" } },
+    );
+  });
+
+  it("serves the template workflow prompt", async () => {
+    const response = await requestMcp("prompts/get", {
+      name: "assistant-ui-template-workflow",
+    });
+
+    expect(response.error).toBeUndefined();
+    const messages = (
+      response.result as { messages: Array<{ content: { text: string } }> }
+    ).messages;
+    expect(messages[0]!.content.text).toContain("list_templates");
+  });
+
   it("rejects unsupported preview config roots before the sandbox", async () => {
     const response = await requestMcp("tools/call", {
       name: "preview_template",
