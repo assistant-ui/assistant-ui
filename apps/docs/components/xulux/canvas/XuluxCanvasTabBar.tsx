@@ -22,7 +22,7 @@ const triggerClassName = cn(
   "group/tab-trigger !h-8 max-w-[min(220px,40vw)] min-w-[90px] !flex-none shrink-0 grow-0 basis-auto gap-1.5 !rounded-t-[10px] !rounded-b-none px-3 text-xs transition-colors duration-200",
   "border-border/60 border border-b-0",
   "text-muted-foreground bg-[#f1f3f4]/90 dark:bg-[#2a2a2d]/90",
-  "data-active:bg-background data-active:text-foreground data-[state=active]:bg-background data-[state=active]:text-foreground dark:data-active:bg-background dark:data-active:text-foreground dark:data-[state=active]:bg-background dark:data-[state=active]:text-foreground data-active:shadow-sm data-[state=active]:shadow-sm",
+  "data-active:bg-background data-active:text-foreground dark:data-active:bg-background dark:data-active:text-foreground data-active:shadow-sm",
 );
 
 export function XuluxCanvasTabBar({ tabs, isLoading = false, actions }: Props) {

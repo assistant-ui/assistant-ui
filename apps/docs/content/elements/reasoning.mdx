@@ -249,7 +249,7 @@ npx shadcn@latest add "@assistant-ui/elements-reasoning-panel"
 
 Wire it by mapping a message's `"reasoning"` parts into steps. `s.message.parts` is the store's own array, so selecting it directly is cheap; deriving steps still needs `useMemo`, since mapping to a fresh array on every call would re-render the panel on every store update.
 
-```tsx title="components/assistant-ui/elements/reasoning-panel.aui.tsx"
+```tsx title="components/assistant-ui/elements/reasoning-panel.tsx"
 "use client";
 
 import { useMemo, useState } from "react";

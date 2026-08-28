@@ -8,7 +8,7 @@ export const GROUPS: {
     label: "Build",
     links: [
       { label: "Primitives", href: "/docs/primitives" },
-      { label: "Components", href: "/elements/thread.aui" },
+      { label: "Components", href: "/elements/thread" },
       { label: "Tool UI", href: "/docs/tools/tool-ui" },
       { label: "Generative UI", href: "/docs/tools/generative-ui" },
       { label: "MCP servers", href: "/docs/tools/mcp" },

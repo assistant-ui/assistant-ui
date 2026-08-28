@@ -514,7 +514,7 @@ describe("transformProject — hasLocalComponents: false", () => {
     it("installs shadcn and assistant-ui components in a single shadcn add call", async () => {
       writeFile(
         "app/page.tsx",
-        'import { Thread } from "@/components/assistant-ui/elements/thread.aui.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
+        'import { Thread } from "@/components/assistant-ui/elements/thread.aui.tsx";\nimport { MarkdownText } from "@/components/assistant-ui/elements/markdown-text.tsx";\nimport { StreamingText } from "@/components/assistant-ui/elements/streaming-text.tsx";\nimport { Button } from "@/components/ui/button.tsx";\nexport default function Page() { return <Thread />; }\n',
       );
 
       await transformProject(testDir, {
@@ -534,6 +534,9 @@ describe("transformProject — hasLocalComponents: false", () => {
       const args = addCalls[0]![1] as string[];
       expect(args).toContain("button");
       expect(args).toContain("@assistant-ui/thread");
+      expect(args).toContain("@assistant-ui/markdown-text");
+      expect(args).toContain("@assistant-ui/elements-streaming-text");
+      expect(args).not.toContain("@assistant-ui/elements-markdown-text");
       expect(args).not.toContain("button.tsx");
       expect(args).not.toContain("@assistant-ui/thread.tsx");
     });

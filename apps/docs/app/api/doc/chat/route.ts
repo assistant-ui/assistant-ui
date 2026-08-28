@@ -306,7 +306,7 @@ You have two documentation tools:
    - Returns: list of folders and pages with URLs
 
 2. **readDoc** - Read a specific documentation page
-   - Input: slug (e.g., "ui/thread") or URL (e.g., "/elements/thread.aui")
+   - Input: slug (e.g., "ui/thread") or URL (e.g., "/elements/thread")
    - Returns: full page content
 
 **Recommended patterns:**

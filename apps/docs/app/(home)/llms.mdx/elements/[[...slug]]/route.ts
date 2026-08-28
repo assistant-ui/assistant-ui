@@ -3,7 +3,7 @@ import { getLLMText } from "@/lib/get-llm-text";
 import { elementsDocs } from "@/lib/source";
 import { notFound } from "next/navigation";
 
-export const dynamic = "force-dynamic";
+export const revalidate = false;
 
 export async function GET(
   _req: Request,

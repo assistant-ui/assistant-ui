@@ -396,6 +396,17 @@ const ASSISTANT_UI_OWNED_UI = new Set([
   "tabs",
 ]);
 
+const BARE_ELEMENT_ITEMS = new Set([
+  "file",
+  "generative-ui",
+  "heat-graph",
+  "image",
+  "logos",
+  "markdown-text",
+  "syntax-highlighter",
+  "tooltip-icon-button",
+]);
+
 function toAssistantUIItem(specifier: string): string | null {
   let name = stripImportExtension(specifier);
   const inElements = name.startsWith("elements/");
@@ -407,7 +418,9 @@ function toAssistantUIItem(specifier: string): string | null {
   if (name.endsWith(".aui")) {
     return name.slice(0, -".aui".length);
   }
-  return inElements ? `elements-${name}` : name;
+  return inElements && !BARE_ELEMENT_ITEMS.has(name)
+    ? `elements-${name}`
+    : name;
 }
 
 function scanRequiredComponents(projectDir: string): RequiredComponents {

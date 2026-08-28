@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { BASE_URL } from "@/lib/constants";
 import { GenerativeUIStyle } from "@/components/generative-ui-style";
 import { galleryStagingCss } from "@/components/gallery/gallery-staging";
+import { umamiBootstrapScript } from "@/lib/umami-sampling";
 
 const publicSans = Public_Sans({
   variable: "--font-public-sans",
@@ -77,7 +78,7 @@ export default function Layout({ children }: { children: ReactNode }) {
       <head>
         <GenerativeUIStyle />
         <style>{galleryStagingCss}</style>
-        <script async src="/umami-bootstrap.js" />
+        <script dangerouslySetInnerHTML={{ __html: umamiBootstrapScript }} />
         <Script
           id="vector-script"
           dangerouslySetInnerHTML={{

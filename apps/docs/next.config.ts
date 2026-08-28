@@ -166,12 +166,12 @@ const config: NextConfig = {
     },
     {
       source: "/docs/ui/thread",
-      destination: "/elements/thread.aui",
+      destination: "/elements/thread",
       permanent: true,
     },
     {
       source: "/docs/ui/context-display",
-      destination: "/elements/context-display.aui",
+      destination: "/elements/context-display",
       permanent: true,
     },
     {
@@ -181,22 +181,22 @@ const config: NextConfig = {
     },
     {
       source: "/docs/ui/quote",
-      destination: "/elements/quote.aui",
+      destination: "/elements/quote",
       permanent: true,
     },
     {
       source: "/docs/ui/model-selector",
-      destination: "/elements/model-selector.aui",
+      destination: "/elements/model-selector",
       permanent: true,
     },
     {
       source: "/docs/ui/composer-trigger-popover",
-      destination: "/elements/composer-trigger-popover.aui",
+      destination: "/elements/composer-trigger-popover",
       permanent: true,
     },
     {
       source: "/docs/ui/follow-up-suggestions",
-      destination: "/elements/follow-up-suggestions.aui",
+      destination: "/elements/follow-up-suggestions",
       permanent: true,
     },
     {
@@ -206,7 +206,7 @@ const config: NextConfig = {
     },
     {
       source: "/docs/ui/mermaid",
-      destination: "/elements/mermaid-diagram.aui",
+      destination: "/elements/mermaid-diagram",
       permanent: true,
     },
     {
@@ -216,12 +216,12 @@ const config: NextConfig = {
     },
     {
       source: "/docs/ui/attachment",
-      destination: "/elements/attachment.aui",
+      destination: "/elements/attachment",
       permanent: true,
     },
     {
       source: "/docs/ui/tool-fallback",
-      destination: "/elements/tool-fallback.aui",
+      destination: "/elements/tool-fallback",
       permanent: true,
     },
     {
@@ -236,7 +236,7 @@ const config: NextConfig = {
     },
     {
       source: "/docs/ui/reasoning",
-      destination: "/elements/reasoning.aui",
+      destination: "/elements/reasoning",
       permanent: true,
     },
     {
@@ -251,17 +251,17 @@ const config: NextConfig = {
     },
     {
       source: "/docs/ui/directive-text",
-      destination: "/elements/directive-text.aui",
+      destination: "/elements/directive-text",
       permanent: true,
     },
     {
       source: "/docs/ui/assistant-modal",
-      destination: "/elements/assistant-modal.aui",
+      destination: "/elements/assistant-modal",
       permanent: true,
     },
     {
       source: "/docs/ui/assistant-sidebar",
-      destination: "/elements/assistant-sidebar.aui",
+      destination: "/elements/assistant-sidebar",
       permanent: true,
     },
     {
@@ -276,7 +276,7 @@ const config: NextConfig = {
     },
     {
       source: "/docs/ui/mcp-config",
-      destination: "/elements/mcp-config.aui",
+      destination: "/elements/mcp-config",
       permanent: true,
     },
     {

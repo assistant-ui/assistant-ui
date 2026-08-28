@@ -170,7 +170,7 @@ npx shadcn@latest add "@assistant-ui/elements-message-attachment"
 
 Wire it by mapping a user message's attachments into items; like `UserMessageAttachments` above, this only makes sense inside a user message. `s.message.attachments` is the store's own array and every entry is already complete (an upload still in progress lives in the composer's own attachments instead), so selecting it directly is cheap; deriving items still needs `useMemo`, since mapping to a fresh array on every call would re-render the list on every store update.
 
-```tsx title="components/assistant-ui/elements/message-attachment.aui.tsx"
+```tsx title="components/assistant-ui/elements/message-attachment.tsx"
 "use client";
 
 import { useMemo } from "react";

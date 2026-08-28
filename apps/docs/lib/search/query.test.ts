@@ -11,7 +11,7 @@ import type { SearchRecord } from "./types";
 
 const records: SearchRecord[] = [
   {
-    url: "/elements/thread.aui",
+    url: "/elements/thread",
     title: "Thread",
     description: "The main conversation surface.",
     headings: [
@@ -52,13 +52,13 @@ describe("scoreText", () => {
 
 describe("searchOtherPages", () => {
   it("keeps the current page out of other-page results", () => {
-    const groups = searchOtherPages(records, "thread", "/elements/thread.aui");
+    const groups = searchOtherPages(records, "thread", "/elements/thread");
     expect(groups.map((group) => group.pageUrl)).toEqual([]);
   });
 
   it("ranks a title match above a heading-only match", () => {
     const groups = searchOtherPages(records, "thread", "/docs");
-    expect(groups[0]?.pageUrl).toBe("/elements/thread.aui");
+    expect(groups[0]?.pageUrl).toBe("/elements/thread");
     expect(groups[0]?.items[0]?.type).toBe("page");
   });
 

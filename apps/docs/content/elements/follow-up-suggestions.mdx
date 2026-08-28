@@ -138,7 +138,7 @@ npx shadcn@latest add "@assistant-ui/elements-suggestions"
 
 A runtime tracks the active thread's follow-ups as `s.thread.suggestions`; `ThreadPrimitive.Suggestion` turns one into a clickable prompt. Style it to match the paper-pill look instead of driving `Suggestions` itself, since a runtime suggestion sends immediately and the row unmounts rather than holding a selection:
 
-```tsx title="components/assistant-ui/elements/suggestions.aui.tsx"
+```tsx title="components/assistant-ui/elements/suggestions.tsx"
 "use client";
 
 import { ThreadPrimitive, useAuiState } from "@assistant-ui/react";

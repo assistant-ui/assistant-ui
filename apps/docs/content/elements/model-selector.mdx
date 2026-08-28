@@ -310,7 +310,7 @@ npx shadcn@latest add "@assistant-ui/elements-model-picker"
 
 With a runtime there is no catalog of available models to read: assistant-ui tracks the model configuration for the next call, not a directory of every model you could switch to. Unlike the popover, `ModelPicker` does no registration on its own, so register a provider that reports the selected id and seed the initial selection from whatever the model context already reports, for example a default set on the server.
 
-```tsx title="components/assistant-ui/elements/model-picker.aui.tsx"
+```tsx title="components/assistant-ui/elements/model-picker.tsx"
 "use client";
 
 import { useAui, useAuiState } from "@assistant-ui/react";
