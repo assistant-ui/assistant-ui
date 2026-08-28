@@ -28,7 +28,7 @@ import {
   zodSchema,
 } from "ai";
 import type * as PageTree from "fumadocs-core/page-tree";
-import type { UIMessage } from "ai";
+import type { UIMessage, UIMessageChunk } from "ai";
 import z from "zod";
 
 const SOURCE_SNAPSHOT_PATH = path.join(
@@ -181,6 +181,37 @@ export async function prepareDocChatMessages(messages: readonly UIMessage[]) {
     messages: modelMessages,
     ...DOC_CHAT_PRUNE_OPTIONS,
   });
+}
+
+export async function* withReadDocSources(
+  chunks: AsyncIterable<UIMessageChunk>,
+): AsyncGenerator<UIMessageChunk> {
+  const toolNameByCall = new Map<string, string>();
+  const sourceUrls = new Set<string>();
+
+  for await (const chunk of chunks) {
+    yield chunk;
+
+    if (chunk.type === "tool-input-available") {
+      toolNameByCall.set(chunk.toolCallId, chunk.toolName);
+    }
+
+    if (
+      chunk.type === "tool-output-available" &&
+      toolNameByCall.get(chunk.toolCallId) === "readDoc"
+    ) {
+      const output = chunk.output as { title?: unknown; url?: unknown };
+      if (typeof output.url === "string" && !sourceUrls.has(output.url)) {
+        sourceUrls.add(output.url);
+        yield {
+          type: "source-url",
+          sourceId: chunk.toolCallId,
+          url: output.url,
+          ...(typeof output.title === "string" ? { title: output.title } : {}),
+        };
+      }
+    }
+  }
 }
 
 function createRepoTools() {
@@ -476,45 +507,22 @@ export async function POST(req: Request): Promise<Response> {
 
     const stream = createUIMessageStream({
       execute: async ({ writer }) => {
-        const toolNameByCall = new Map<string, string>();
-        const sourceUrls = new Set<string>();
-
-        for await (const chunk of result.toUIMessageStream({
-          originalMessages: messages,
-          // gets usage and modelId for internal telemetry
-          messageMetadata: ({ part }) => {
-            if (part.type === "finish-step") {
-              return { modelId: part.response.modelId };
-            }
-            if (part.type === "finish") {
-              return { custom: { usage: part.totalUsage } };
-            }
-            return undefined;
-          },
-        })) {
+        for await (const chunk of withReadDocSources(
+          result.toUIMessageStream({
+            originalMessages: messages,
+            // gets usage and modelId for internal telemetry
+            messageMetadata: ({ part }) => {
+              if (part.type === "finish-step") {
+                return { modelId: part.response.modelId };
+              }
+              if (part.type === "finish") {
+                return { custom: { usage: part.totalUsage } };
+              }
+              return undefined;
+            },
+          }),
+        )) {
           writer.write(chunk);
-
-          if (chunk.type === "tool-input-available") {
-            toolNameByCall.set(chunk.toolCallId, chunk.toolName);
-          }
-
-          if (
-            chunk.type === "tool-output-available" &&
-            toolNameByCall.get(chunk.toolCallId) === "readDoc"
-          ) {
-            const output = chunk.output as { title?: unknown; url?: unknown };
-            if (typeof output.url === "string" && !sourceUrls.has(output.url)) {
-              sourceUrls.add(output.url);
-              writer.write({
-                type: "source-url",
-                sourceId: chunk.toolCallId,
-                url: output.url,
-                ...(typeof output.title === "string"
-                  ? { title: output.title }
-                  : {}),
-              });
-            }
-          }
         }
       },
     });
