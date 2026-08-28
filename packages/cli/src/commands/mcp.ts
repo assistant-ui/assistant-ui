@@ -156,6 +156,11 @@ async function installForTarget(target: MCPTarget): Promise<void> {
     logger.break();
 
     try {
+      await runSpawn("claude", ["mcp", "remove", "assistant-ui"]).catch(
+        (error: unknown) => {
+          if (error instanceof SpawnSignalError) throw error;
+        },
+      );
       await runSpawn("claude", [
         "mcp",
         "add",

@@ -3,6 +3,16 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { mcp } from "../../src/commands/mcp";
+import { SpawnExitError } from "../../src/lib/run-spawn";
+
+const mocks = vi.hoisted(() => ({
+  runSpawn: vi.fn<(command: string, args: string[]) => Promise<void>>(),
+}));
+
+vi.mock("../../src/lib/run-spawn", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/lib/run-spawn")>()),
+  runSpawn: mocks.runSpawn,
+}));
 
 const HOSTED_MCP_URL = "https://www.assistant-ui.com/mcp";
 
@@ -190,5 +200,23 @@ describe("mcp command", () => {
         },
       },
     });
+  });
+
+  it("re-registers claude-code by removing the previous entry before adding", async () => {
+    mocks.runSpawn
+      .mockRejectedValueOnce(new SpawnExitError(1, "No MCP server found"))
+      .mockResolvedValueOnce(undefined);
+
+    await mcp.parseAsync(["node", "mcp", "--claude-code"], {
+      from: "node",
+    });
+
+    expect(mocks.runSpawn.mock.calls).toEqual([
+      ["claude", ["mcp", "remove", "assistant-ui"]],
+      [
+        "claude",
+        ["mcp", "add", "--transport", "http", "assistant-ui", HOSTED_MCP_URL],
+      ],
+    ]);
   });
 });
