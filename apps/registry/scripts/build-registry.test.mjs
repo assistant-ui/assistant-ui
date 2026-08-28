@@ -1679,21 +1679,23 @@ test("cli scanner element mapping names a real registry item for every element f
     );
   }
 
-  const shipped = new Set(
+  const expectedItems = new Set(
     registry.flatMap((item) =>
       (item.files ?? []).flatMap((file) => {
         const match = file.sourcePath?.match(
-          /react\/assistant-ui\/elements\/([a-z0-9-]+)\.tsx$/,
+          /react\/assistant-ui\/elements\/([a-z0-9-]+)(\.aui(?:\.radix)?)?\.tsx$/,
         );
-        return match ? [match[1]] : [];
+        if (!match) return [];
+        const base = match[1];
+        if (match[2]) return [base];
+        return [cliBare.has(base) ? base : `elements-${base}`];
       }),
     ),
   );
-  for (const base of shipped) {
-    const expected = cliBare.has(base) ? base : `elements-${base}`;
+  for (const expected of expectedItems) {
     assert.ok(
       itemNames.has(expected),
-      `scanner maps elements/${base} to "${expected}", which is not a registry item`,
+      `the scanner maps a shipped element file to "${expected}", which is not a registry item`,
     );
   }
 });

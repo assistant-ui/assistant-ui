@@ -350,16 +350,17 @@ export default async function ElementPage({
                   />
                 ))}
                 {/* Keyed off the element's own import, so the note cannot outlive it. */}
-                {source && /from ["']\.\/range["']/.test(source) && (
-                  <p className="text-muted-foreground mt-3 text-[13px] leading-relaxed">
-                    This element normalizes its counts and shares at the
-                    boundary, so a value from outside its range reads as the
-                    nearest end rather than reaching the DOM: a negative count
-                    shows nothing, one past the end shows everything, and a
-                    share stays within 0 to 100 percent. A prop that names a
-                    selection is the exception, and means nothing is selected.
-                  </p>
-                )}
+                {source &&
+                  /from ["']\.\.?\/(?:utils\/)?range["']/.test(source) && (
+                    <p className="text-muted-foreground mt-3 text-[13px] leading-relaxed">
+                      This element normalizes its counts and shares at the
+                      boundary, so a value from outside its range reads as the
+                      nearest end rather than reaching the DOM: a negative count
+                      shows nothing, one past the end shows everything, and a
+                      share stays within 0 to 100 percent. A prop that names a
+                      selection is the exception, and means nothing is selected.
+                    </p>
+                  )}
               </section>
             )}
           </article>

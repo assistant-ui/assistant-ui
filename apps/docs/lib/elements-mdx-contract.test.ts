@@ -15,12 +15,14 @@ describe("elements MDX contract", () => {
     expect(frontmatter![1]).toMatch(/^title: /m);
     expect(frontmatter![1]).toMatch(/^description: /m);
 
-    for (const heading of ["Installation", "Source"]) {
-      expect(
-        new RegExp(`^## ${heading}$`, "m").test(text),
-        `## ${heading} is owned by the page shell`,
-      ).toBe(false);
-    }
+    expect(
+      /^## Installation$/m.test(text),
+      "## Installation is owned by the page shell",
+    ).toBe(false);
+    expect(
+      /^## Source$/m.test(text),
+      "## Source is banned: the install delivers the component source, docs do not restate it",
+    ).toBe(false);
 
     let mode: string | null = null;
     for (const [index, line] of text.split("\n").entries()) {
