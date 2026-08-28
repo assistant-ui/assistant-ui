@@ -4,6 +4,34 @@ import {
   readCloudString,
 } from "./cloudResponse";
 
+const AUTH_TOKEN_REQUEST_TIMEOUT_MS = 30_000;
+
+const fetchAuthToken = async (
+  url: string,
+  operation: string,
+  init: RequestInit,
+): Promise<Response> => {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, AUTH_TOKEN_REQUEST_TIMEOUT_MS);
+
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } catch (error) {
+    if (timedOut) {
+      throw new Error(
+        `Assistant Cloud ${operation} timed out after ${AUTH_TOKEN_REQUEST_TIMEOUT_MS}ms`,
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 export type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "jwt" | "api-key";
   getAuthHeaders(): Promise<Record<string, string> | false>;
@@ -308,8 +336,9 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
       if (storedRefreshToken) {
         const refreshExpiry = new Date(storedRefreshToken.expires_at).getTime();
         if (refreshExpiry - currentTime > 30 * 1000) {
-          const response = await fetch(
+          const response = await fetchAuthToken(
             `${this.baseUrl}/v1/auth/tokens/refresh`,
+            "refresh token request",
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
@@ -345,9 +374,11 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
       }
 
       // No valid refresh token; request a new anonymous token
-      const response = await fetch(`${this.baseUrl}/v1/auth/tokens/anonymous`, {
-        method: "POST",
-      });
+      const response = await fetchAuthToken(
+        `${this.baseUrl}/v1/auth/tokens/anonymous`,
+        "anonymous token request",
+        { method: "POST" },
+      );
 
       if (!response.ok) return null;
 

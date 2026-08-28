@@ -43,6 +43,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllGlobals();
     if (originalLocalStorageDescriptor) {
       Object.defineProperty(
@@ -83,7 +84,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(values.get(refreshTokenKey)).toBe(JSON.stringify(nextRefreshToken));
     expect(fetchMock).toHaveBeenCalledWith(
       `${baseUrl}/v1/auth/tokens/anonymous`,
-      { method: "POST" },
+      { method: "POST", signal: expect.any(AbortSignal) },
     );
   });
 
@@ -185,7 +186,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${baseUrl}/v1/auth/tokens/anonymous`,
-      { method: "POST" },
+      { method: "POST", signal: expect.any(AbortSignal) },
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
@@ -194,6 +195,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refreshToken.token }),
+        signal: expect.any(AbortSignal),
       },
     );
     expect(lockRequest).toHaveBeenCalledTimes(2);
@@ -238,6 +240,119 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
     ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("aborts timed out shared anonymous token requests before retrying", async () => {
+    vi.useFakeTimers();
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    let requestSignal: AbortSignal | null | undefined;
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            requestSignal = init?.signal;
+            requestSignal?.addEventListener(
+              "abort",
+              () => reject(requestSignal?.reason),
+              { once: true },
+            );
+          }),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: refreshToken,
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+    const second = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    const firstRequest = expect(first.getAuthHeaders()).rejects.toThrow(
+      "Assistant Cloud anonymous token request timed out after 30000ms",
+    );
+    const secondRequest = expect(second.getAuthHeaders()).rejects.toThrow(
+      "Assistant Cloud anonymous token request timed out after 30000ms",
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(requestSignal).toBeInstanceOf(AbortSignal);
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    await Promise.all([firstRequest, secondRequest]);
+    expect(requestSignal?.aborted).toBe(true);
+    expect(values.has(refreshTokenKey)).toBe(false);
+
+    await expect(
+      new AssistantCloudAnonymousAuthStrategy(baseUrl).getAuthHeaders(),
+    ).resolves.toEqual({ Authorization: `Bearer ${accessToken}` });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("aborts timed out refresh requests without replacing the identity", async () => {
+    vi.useFakeTimers();
+    const values = new Map([[refreshTokenKey, JSON.stringify(refreshToken)]]);
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    let requestSignal: AbortSignal | null | undefined;
+    const rotatedRefreshToken = { token: "r2", expires_at: "2099-02-01" };
+    const fetchMock = vi
+      .fn()
+      .mockImplementationOnce(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise<Response>((_resolve, reject) => {
+            requestSignal = init?.signal;
+            requestSignal?.addEventListener(
+              "abort",
+              () => reject(requestSignal?.reason),
+              { once: true },
+            );
+          }),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        json: vi.fn().mockResolvedValue({
+          access_token: accessToken,
+          refresh_token: rotatedRefreshToken,
+        }),
+      });
+    vi.stubGlobal("fetch", fetchMock);
+    const strategy = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+
+    const request = expect(strategy.getAuthHeaders()).rejects.toThrow(
+      "Assistant Cloud refresh token request timed out after 30000ms",
+    );
+    expect(requestSignal).toBeInstanceOf(AbortSignal);
+
+    await vi.advanceTimersByTimeAsync(30_000);
+    await request;
+    expect(requestSignal?.aborted).toBe(true);
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+
+    await expect(strategy.getAuthHeaders()).resolves.toEqual({
+      Authorization: `Bearer ${accessToken}`,
+    });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(values.get(refreshTokenKey)).toBe(
+      JSON.stringify(rotatedRefreshToken),
+    );
   });
 
   it("keeps anonymous token requests independent without localStorage", async () => {
@@ -300,12 +415,12 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(fetchMock).toHaveBeenNthCalledWith(
       1,
       `${baseUrl}/v1/auth/tokens/anonymous`,
-      { method: "POST" },
+      { method: "POST", signal: expect.any(AbortSignal) },
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       `${secondBaseUrl}/v1/auth/tokens/anonymous`,
-      { method: "POST" },
+      { method: "POST", signal: expect.any(AbortSignal) },
     );
     expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
     expect(values.get(`aui:refresh_token:${secondBaseUrl}`)).toBe(
@@ -358,12 +473,13 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refreshToken.token }),
+        signal: expect.any(AbortSignal),
       },
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       `${secondBaseUrl}/v1/auth/tokens/anonymous`,
-      { method: "POST" },
+      { method: "POST", signal: expect.any(AbortSignal) },
     );
     expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
     expect(values.get(`aui:refresh_token:${secondBaseUrl}`)).toBe(
@@ -422,12 +538,13 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: scopedRefreshToken.token }),
+        signal: expect.any(AbortSignal),
       },
     );
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
       `${secondBaseUrl}/v1/auth/tokens/anonymous`,
-      { method: "POST" },
+      { method: "POST", signal: expect.any(AbortSignal) },
     );
     expect(values.has("aui:refresh_token")).toBe(false);
     expect(values.get(`aui:refresh_token:${secondBaseUrl}`)).toBe(
@@ -622,6 +739,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ refresh_token: refreshToken.token }),
+        signal: expect.any(AbortSignal),
       },
     );
     expect(setItem).not.toHaveBeenCalled();
@@ -690,7 +808,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       expect(fetchMock).toHaveBeenNthCalledWith(
         2,
         `${baseUrl}/v1/auth/tokens/anonymous`,
-        { method: "POST" },
+        { method: "POST", signal: expect.any(AbortSignal) },
       );
       expect(values.get(refreshTokenKey)).toBe(
         JSON.stringify(replacementRefreshToken),
