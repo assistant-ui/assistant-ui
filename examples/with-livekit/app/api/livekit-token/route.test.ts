@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
 type LiveKitClaims = {
@@ -29,6 +29,10 @@ async function createToken() {
   const body = (await response.json()) as { token: string };
   return { response, claims: decodeClaims(body.token) };
 }
+
+beforeEach(() => {
+  vi.stubEnv("APP_ORIGIN", "");
+});
 
 afterEach(() => {
   vi.unstubAllEnvs();
