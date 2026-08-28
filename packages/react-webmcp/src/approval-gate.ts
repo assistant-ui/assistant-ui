@@ -63,28 +63,18 @@ export const createWebMcpApprovalStore = (): WebMcpApprovalStore => {
 
 export const webMcpApprovalStore = createWebMcpApprovalStore();
 
-const sessionAllowAlways = new Set<string>();
-
 export const DEFAULT_APPROVAL_OPTIONS: readonly ToolApprovalOption[] = [
   { id: "allow-once", kind: "allow-once" },
   { id: "allow-always", kind: "allow-always" },
   { id: "reject-once", kind: "reject-once" },
 ];
 
+const APPROVAL_TIMEOUT_MS = 120_000;
+
 export type WebMcpApprovalGateConfig = {
-  approval?:
-    | "always"
-    | "never"
-    | ((
-        name: string,
-        tool: Tool<any, any>,
-        args: Record<string, unknown>,
-      ) => boolean)
-    | undefined;
-  approvalTimeoutMs?: number | undefined;
+  approval?: "always" | "never" | undefined;
   requestUserInteraction?: (() => Promise<void>) | undefined;
   store?: WebMcpApprovalStore | undefined;
-  approvalOptions?: readonly ToolApprovalOption[] | undefined;
   allowAlwaysMemory?: Set<string> | undefined;
 };
 
@@ -93,30 +83,16 @@ export const createWebMcpApprovalGate = (
 ): WebMcpApprovalGate => {
   const {
     approval = "always",
-    approvalTimeoutMs = 120_000,
     requestUserInteraction,
     store = webMcpApprovalStore,
-    approvalOptions = DEFAULT_APPROVAL_OPTIONS,
-    allowAlwaysMemory = sessionAllowAlways,
+    allowAlwaysMemory = new Set<string>(),
   } = config;
 
-  return async ({ toolName, tool, args, abortSignal }) => {
+  return async ({ toolName, args, abortSignal }) => {
     if (approval === "never") return { approved: true };
-    if (typeof approval === "function" && !approval(toolName, tool, args))
-      return { approved: true };
     if (allowAlwaysMemory.has(toolName)) return { approved: true };
     if (abortSignal?.aborted)
       return { approved: false, resolution: "cancelled" };
-
-    if (requestUserInteraction) {
-      try {
-        await requestUserInteraction();
-      } catch {
-        // ignore: a failed attention request must not block or decide the approval
-      }
-      if (abortSignal?.aborted)
-        return { approved: false, resolution: "cancelled" };
-    }
 
     return new Promise<WebMcpApprovalDecision>((resolve) => {
       const id = crypto.randomUUID();
@@ -133,22 +109,22 @@ export const createWebMcpApprovalGate = (
         settle({ approved: false, resolution: "cancelled" });
       const timer = setTimeout(
         () => settle({ approved: false, resolution: "expired" }),
-        approvalTimeoutMs,
+        APPROVAL_TIMEOUT_MS,
       );
       abortSignal?.addEventListener("abort", onAbort);
       store.push({
         id,
         toolName,
         args,
-        options: approvalOptions,
+        options: DEFAULT_APPROVAL_OPTIONS,
         respond: (response) => {
+          if (settled) return;
           const resolved = resolveToolApprovalResponse(
-            { id, options: approvalOptions },
+            { id, options: DEFAULT_APPROVAL_OPTIONS },
             response,
           );
-          if (settled) return;
           if (resolved.approved) {
-            const option = approvalOptions.find(
+            const option = DEFAULT_APPROVAL_OPTIONS.find(
               (candidate) => candidate.id === resolved.optionId,
             );
             if (option?.kind === "allow-always")
@@ -162,6 +138,9 @@ export const createWebMcpApprovalGate = (
           }
         },
       });
+      Promise.resolve()
+        .then(requestUserInteraction)
+        .catch(() => {});
     });
   };
 };

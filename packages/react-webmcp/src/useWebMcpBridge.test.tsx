@@ -10,10 +10,30 @@ import type { Tool } from "assistant-stream";
 import { createFakeWebMcpAdapter } from "./webmcp-adapter.fake";
 import type { WebMcpAdapter } from "./webmcp-adapter";
 import {
+  webMcpApprovalStore,
+  type WebMcpPendingApproval,
+} from "./approval-gate";
+import { useWebMcpApprovals } from "./useWebMcpApprovals";
+import {
   useWebMcpBridge,
   type WebMcpBridgeOptions,
   type WebMcpBridgeResult,
 } from "./useWebMcpBridge";
+
+const { adapterRef } = vi.hoisted(() => ({
+  adapterRef: { current: null as WebMcpAdapter | null },
+}));
+
+vi.mock("./webmcp-adapter", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./webmcp-adapter")>()),
+  getDefaultWebMcpAdapter: (): WebMcpAdapter =>
+    adapterRef.current ?? { available: false, registerTool: () => () => {} },
+}));
+
+const useAdapter = <T extends WebMcpAdapter>(adapter: T): T => {
+  adapterRef.current = adapter;
+  return adapter;
+};
 
 const searchTool: Tool<any, any> = {
   type: "frontend",
@@ -43,9 +63,15 @@ const createProvider = (initialTools: Record<string, Tool<any, any>>) => {
 };
 
 let latest: WebMcpBridgeResult;
+let approvals: readonly WebMcpPendingApproval[];
 
 const Probe = ({ options }: { options: WebMcpBridgeOptions }) => {
   latest = useWebMcpBridge(options);
+  return null;
+};
+
+const ApprovalsProbe = () => {
+  approvals = useWebMcpApprovals();
   return null;
 };
 
@@ -65,24 +91,42 @@ const Harness = ({
   <AuiProvider config={AuiConfig({ modelContext: ModelContext() } as never)}>
     <Registrar provider={provider} />
     <Probe options={options} />
+    <ApprovalsProbe />
   </AuiProvider>
 );
 
+const waitForApproval = (toolName: string) =>
+  vi.waitFor(() => {
+    const pending = webMcpApprovalStore
+      .getSnapshot()
+      .find((approval) => approval.toolName === toolName);
+    if (!pending) throw new Error(`no pending approval for "${toolName}"`);
+    return pending;
+  });
+
 afterEach(() => {
   cleanup();
+  for (const pending of webMcpApprovalStore.getSnapshot()) {
+    try {
+      pending.respond({ approved: false });
+    } catch {
+      /* already settled */
+    }
+  }
+  adapterRef.current = null;
   vi.restoreAllMocks();
 });
 
 describe("useWebMcpBridge", () => {
   it("registers filtered tools on mount and reports them", async () => {
-    const adapter = createFakeWebMcpAdapter();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
     const provider = createProvider({
       search: searchTool,
       server: backendTool,
       off: { ...searchTool, disabled: true } as Tool<any, any>,
     });
 
-    render(<Harness provider={provider} options={{ adapter }} />);
+    render(<Harness provider={provider} options={{}} />);
 
     await vi.waitFor(() => {
       expect([...adapter.registry.keys()]).toEqual(["search"]);
@@ -93,10 +137,10 @@ describe("useWebMcpBridge", () => {
   });
 
   it("re-syncs when the model context changes", async () => {
-    const adapter = createFakeWebMcpAdapter();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
     const provider = createProvider({ search: searchTool });
 
-    render(<Harness provider={provider} options={{ adapter }} />);
+    render(<Harness provider={provider} options={{}} />);
     await vi.waitFor(() => expect(adapter.registry.has("search")).toBe(true));
 
     const extraTool: Tool<any, any> = {
@@ -119,10 +163,10 @@ describe("useWebMcpBridge", () => {
   });
 
   it("re-registers a tool whose description or schema changed", async () => {
-    const adapter = createFakeWebMcpAdapter();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
     const provider = createProvider({ search: searchTool });
 
-    render(<Harness provider={provider} options={{ adapter }} />);
+    render(<Harness provider={provider} options={{}} />);
     await vi.waitFor(() => expect(adapter.registry.has("search")).toBe(true));
     const initialRegisterCount = adapter.registerCalls.length;
 
@@ -143,10 +187,10 @@ describe("useWebMcpBridge", () => {
   });
 
   it("does not re-register when the registry notifies without changes", async () => {
-    const adapter = createFakeWebMcpAdapter();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
     const provider = createProvider({ search: searchTool });
 
-    render(<Harness provider={provider} options={{ adapter }} />);
+    render(<Harness provider={provider} options={{}} />);
     await vi.waitFor(() => expect(adapter.registry.has("search")).toBe(true));
     const registerCount = adapter.registerCalls.length;
 
@@ -159,10 +203,10 @@ describe("useWebMcpBridge", () => {
   });
 
   it("unregisters everything on unmount", async () => {
-    const adapter = createFakeWebMcpAdapter();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
     const provider = createProvider({ search: searchTool });
 
-    const view = render(<Harness provider={provider} options={{ adapter }} />);
+    const view = render(<Harness provider={provider} options={{}} />);
     await vi.waitFor(() => expect(adapter.registry.has("search")).toBe(true));
 
     view.unmount();
@@ -171,12 +215,12 @@ describe("useWebMcpBridge", () => {
   });
 
   it("is StrictMode-safe: the double-invoked effect leaves one live registration", async () => {
-    const adapter = createFakeWebMcpAdapter();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
     const provider = createProvider({ search: searchTool });
 
     const view = render(
       <StrictMode>
-        <Harness provider={provider} options={{ adapter }} />
+        <Harness provider={provider} options={{}} />
       </StrictMode>,
     );
 
@@ -191,10 +235,10 @@ describe("useWebMcpBridge", () => {
   });
 
   it("stays inert when the environment is unsupported", async () => {
-    const adapter = createFakeWebMcpAdapter({ available: false });
+    const adapter = useAdapter(createFakeWebMcpAdapter({ available: false }));
     const provider = createProvider({ search: searchTool });
 
-    render(<Harness provider={provider} options={{ adapter }} />);
+    render(<Harness provider={provider} options={{}} />);
 
     await act(async () => {});
     expect(latest.status).toBe("unsupported");
@@ -203,16 +247,14 @@ describe("useWebMcpBridge", () => {
   });
 
   it("routes calls to the latest execute when metadata is unchanged", async () => {
-    const adapter = createFakeWebMcpAdapter();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
     const first = vi.fn(async () => "first");
     const second = vi.fn(async () => "second");
     const provider = createProvider({
       search: { ...searchTool, execute: first } as Tool<any, any>,
     });
 
-    render(
-      <Harness provider={provider} options={{ adapter, approval: "never" }} />,
-    );
+    render(<Harness provider={provider} options={{ approval: "never" }} />);
     await vi.waitFor(() => expect(adapter.registry.has("search")).toBe(true));
     const registerCount = adapter.registerCalls.length;
 
@@ -230,7 +272,7 @@ describe("useWebMcpBridge", () => {
   });
 
   it("re-syncs when the filter changes identity without a registry notification", async () => {
-    const adapter = createFakeWebMcpAdapter();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
     const otherTool: Tool<any, any> = {
       ...searchTool,
       description: "other",
@@ -238,14 +280,14 @@ describe("useWebMcpBridge", () => {
     const provider = createProvider({ search: searchTool, other: otherTool });
 
     const view = render(
-      <Harness provider={provider} options={{ adapter, filter: () => true }} />,
+      <Harness provider={provider} options={{ filter: () => true }} />,
     );
     await vi.waitFor(() => expect(adapter.registry.size).toBe(2));
 
     view.rerender(
       <Harness
         provider={provider}
-        options={{ adapter, filter: (name) => name !== "other" }}
+        options={{ filter: (name) => name !== "other" }}
       />,
     );
 
@@ -256,7 +298,7 @@ describe("useWebMcpBridge", () => {
 
   it("drops a registration whose promise-based registerTool later fails", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const adapter: WebMcpAdapter = {
+    useAdapter<WebMcpAdapter>({
       available: true,
       registerTool: (def, onError) => {
         if (def.name === "search") {
@@ -264,14 +306,14 @@ describe("useWebMcpBridge", () => {
         }
         return () => {};
       },
-    };
+    });
     const otherTool: Tool<any, any> = {
       ...searchTool,
       description: "other",
     } as Tool<any, any>;
     const provider = createProvider({ search: searchTool, other: otherTool });
 
-    render(<Harness provider={provider} options={{ adapter }} />);
+    render(<Harness provider={provider} options={{}} />);
 
     await vi.waitFor(() =>
       expect(latest.registeredToolNames).toEqual(["other"]),
@@ -284,7 +326,7 @@ describe("useWebMcpBridge", () => {
 
   it("warns and skips a tool whose filter throws while registering the rest", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const adapter = createFakeWebMcpAdapter();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
     const otherTool: Tool<any, any> = {
       ...searchTool,
       description: "other",
@@ -295,7 +337,6 @@ describe("useWebMcpBridge", () => {
       <Harness
         provider={provider}
         options={{
-          adapter,
           filter: (name) => {
             if (name === "search") throw new Error("bad predicate");
             return true;
@@ -315,7 +356,9 @@ describe("useWebMcpBridge", () => {
 
   it("skips a collision via the adapter's enumeration capability without calling registerTool", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const adapter = createFakeWebMcpAdapter({ withEnumeration: true });
+    const adapter = useAdapter(
+      createFakeWebMcpAdapter({ withEnumeration: true }),
+    );
     adapter.registry.set("search", {
       name: "search",
       description: "app-owned",
@@ -328,7 +371,7 @@ describe("useWebMcpBridge", () => {
     } as Tool<any, any>;
     const provider = createProvider({ search: searchTool, other: otherTool });
 
-    render(<Harness provider={provider} options={{ adapter }} />);
+    render(<Harness provider={provider} options={{}} />);
 
     await vi.waitFor(() => expect(adapter.registry.has("other")).toBe(true));
     expect(adapter.registerCalls).toEqual(["other"]);
@@ -337,13 +380,13 @@ describe("useWebMcpBridge", () => {
   });
 
   it("does not tear down registrations when inline options change identity every render", async () => {
-    const adapter = createFakeWebMcpAdapter();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
     const provider = createProvider({ search: searchTool });
 
     const view = render(
       <Harness
         provider={provider}
-        options={{ adapter, filter: () => true, approval: () => true }}
+        options={{ filter: () => true, approval: "always" }}
       />,
     );
     await vi.waitFor(() => expect(adapter.registry.has("search")).toBe(true));
@@ -352,7 +395,7 @@ describe("useWebMcpBridge", () => {
     view.rerender(
       <Harness
         provider={provider}
-        options={{ adapter, filter: () => true, approval: () => true }}
+        options={{ filter: () => true, approval: "always" }}
       />,
     );
 
@@ -363,7 +406,7 @@ describe("useWebMcpBridge", () => {
 
   it("warns and skips on a name collision without touching the app's registration", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    const adapter = createFakeWebMcpAdapter();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
     const appOwned = {
       name: "search",
       description: "app-owned",
@@ -378,7 +421,7 @@ describe("useWebMcpBridge", () => {
     } as Tool<any, any>;
     const provider = createProvider({ search: searchTool, other: otherTool });
 
-    const view = render(<Harness provider={provider} options={{ adapter }} />);
+    const view = render(<Harness provider={provider} options={{}} />);
 
     await vi.waitFor(() => expect(adapter.registry.has("other")).toBe(true));
     expect(warn).toHaveBeenCalledWith(
@@ -391,5 +434,196 @@ describe("useWebMcpBridge", () => {
     view.unmount();
     expect(adapter.registry.get("search")).toBe(appOwned);
     expect(adapter.registry.has("other")).toBe(false);
+  });
+});
+
+describe("useWebMcpBridge approvals", () => {
+  it("gates a WebMCP-invoked execution behind a pending approval", async () => {
+    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const provider = createProvider({ bridge_search: searchTool });
+    render(<Harness provider={provider} options={{}} />);
+    await vi.waitFor(() =>
+      expect(adapter.registry.has("bridge_search")).toBe(true),
+    );
+
+    let result!: Promise<unknown>;
+    act(() => {
+      result = adapter.registry.get("bridge_search")!.execute({ q: "cats" });
+    });
+
+    await vi.waitFor(() => expect(approvals).toHaveLength(1));
+    expect(approvals[0]!.toolName).toBe("bridge_search");
+
+    await act(async () => {
+      approvals[0]!.respond({ optionId: "allow-once" });
+    });
+    await expect(result).resolves.toEqual({
+      content: [{ type: "text", text: "found" }],
+    });
+    expect(approvals).toEqual([]);
+  });
+
+  it("returns a declined error result when the approval is rejected", async () => {
+    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const provider = createProvider({ bridge_search: searchTool });
+    render(<Harness provider={provider} options={{}} />);
+    await vi.waitFor(() =>
+      expect(adapter.registry.has("bridge_search")).toBe(true),
+    );
+
+    let result!: Promise<unknown>;
+    act(() => {
+      result = adapter.registry.get("bridge_search")!.execute({});
+    });
+    await vi.waitFor(() => expect(approvals).toHaveLength(1));
+
+    await act(async () => {
+      approvals[0]!.respond({ optionId: "reject-once", reason: "not now" });
+    });
+    await expect(result).resolves.toEqual({
+      isError: true,
+      content: [
+        {
+          type: "text",
+          text: 'User declined tool call "bridge_search": not now',
+        },
+      ],
+    });
+  });
+
+  it('skips the approval queue with approval: "never"', async () => {
+    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const provider = createProvider({ bridge_search: searchTool });
+    render(<Harness provider={provider} options={{ approval: "never" }} />);
+    await vi.waitFor(() =>
+      expect(adapter.registry.has("bridge_search")).toBe(true),
+    );
+
+    await expect(
+      adapter.registry.get("bridge_search")!.execute({}),
+    ).resolves.toEqual({ content: [{ type: "text", text: "found" }] });
+    expect(approvals).toEqual([]);
+  });
+
+  it("re-prompts for a tool re-registered under a name that was granted allow-always", async () => {
+    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const benign = vi.fn(async () => "benign");
+    const provider = createProvider({
+      swap: { ...searchTool, execute: benign } as Tool<any, any>,
+    });
+    render(<Harness provider={provider} options={{}} />);
+    await vi.waitFor(() => expect(adapter.registry.has("swap")).toBe(true));
+
+    const granted = adapter.registry.get("swap")!.execute({});
+    const first = await waitForApproval("swap");
+    await act(async () => {
+      first.respond({ optionId: "allow-always" });
+    });
+    await granted;
+
+    const repeat = adapter.registry.get("swap")!.execute({});
+    await expect(repeat).resolves.toEqual({
+      content: [{ type: "text", text: "benign" }],
+    });
+
+    const dangerous = vi.fn(async () => "danger");
+    act(() => {
+      provider.setTools({
+        swap: {
+          ...searchTool,
+          description: "totally different now",
+          execute: dangerous,
+        } as Tool<any, any>,
+      });
+    });
+    await vi.waitFor(() =>
+      expect(adapter.registry.get("swap")?.description).toBe(
+        "totally different now",
+      ),
+    );
+
+    const afterSwap = adapter.registry.get("swap")!.execute({});
+    const second = await waitForApproval("swap");
+    expect(dangerous).not.toHaveBeenCalled();
+
+    await act(async () => {
+      second.respond({ optionId: "reject-once" });
+    });
+    await expect(afterSwap).resolves.toMatchObject({ isError: true });
+    expect(dangerous).not.toHaveBeenCalled();
+  });
+
+  it("cancels a pending approval when the tool is unregistered", async () => {
+    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const execute = vi.fn(async () => "ran");
+    const provider = createProvider({
+      pending: { ...searchTool, execute } as Tool<any, any>,
+    });
+    render(<Harness provider={provider} options={{}} />);
+    await vi.waitFor(() => expect(adapter.registry.has("pending")).toBe(true));
+
+    const call = adapter.registry.get("pending")!.execute({});
+    await waitForApproval("pending");
+
+    await act(async () => {
+      provider.setTools({});
+    });
+    await vi.waitFor(() => expect(adapter.registry.has("pending")).toBe(false));
+
+    await expect(call).resolves.toEqual({
+      isError: true,
+      content: [
+        { type: "text", text: 'Tool call approval for "pending" cancelled' },
+      ],
+    });
+    expect(
+      webMcpApprovalStore
+        .getSnapshot()
+        .some((approval) => approval.toolName === "pending"),
+    ).toBe(false);
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("refuses a call on a descriptor captured before the tool was unregistered", async () => {
+    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const execute = vi.fn(async () => "still ran");
+    const provider = createProvider({
+      stale: { ...searchTool, execute } as Tool<any, any>,
+    });
+    render(<Harness provider={provider} options={{ approval: "never" }} />);
+    await vi.waitFor(() => expect(adapter.registry.has("stale")).toBe(true));
+
+    const descriptor = adapter.registry.get("stale")!;
+    act(() => {
+      provider.setTools({});
+    });
+    await vi.waitFor(() => expect(adapter.registry.has("stale")).toBe(false));
+
+    await expect(descriptor.execute({})).resolves.toEqual({
+      isError: true,
+      content: [{ type: "text", text: 'Tool "stale" is no longer registered' }],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("resolves concurrent calls to one tool independently", async () => {
+    const adapter = useAdapter(createFakeWebMcpAdapter());
+    let n = 0;
+    const provider = createProvider({
+      conc: { ...searchTool, execute: async () => `r${n++}` } as Tool<any, any>,
+    });
+    render(<Harness provider={provider} options={{ approval: "never" }} />);
+    await vi.waitFor(() => expect(adapter.registry.has("conc")).toBe(true));
+
+    const descriptor = adapter.registry.get("conc")!;
+    const results = await Promise.all([
+      descriptor.execute({}),
+      descriptor.execute({}),
+      descriptor.execute({}),
+    ]);
+
+    expect(
+      results.map((result) => (result.content[0] as { text: string }).text),
+    ).toEqual(["r0", "r1", "r2"]);
   });
 });

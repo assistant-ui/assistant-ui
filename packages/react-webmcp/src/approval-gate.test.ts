@@ -13,17 +13,19 @@ const tool = { type: "frontend", execute: async () => "ok" } as unknown as Tool<
 >;
 
 const makeGate = (config: WebMcpApprovalGateConfig = {}) => {
-  const store = createWebMcpApprovalStore();
+  const store = config.store ?? createWebMcpApprovalStore();
   const gate = createWebMcpApprovalGate({
-    store,
     allowAlwaysMemory: new Set<string>(),
     ...config,
+    store,
   });
-  return { gate, store: config.store ?? store };
+  return { gate, store };
 };
 
-const request = (overrides: { abortSignal?: AbortSignal } = {}) => ({
-  toolName: "search",
+const request = (
+  overrides: { toolName?: string; abortSignal?: AbortSignal } = {},
+) => ({
+  toolName: overrides.toolName ?? "search",
   tool,
   args: { q: "cats" },
   abortSignal: overrides.abortSignal,
@@ -67,57 +69,6 @@ describe("createWebMcpApprovalGate", () => {
     expect(listener).toHaveBeenCalledTimes(2);
   });
 
-  it("awaits requestUserInteraction before queueing", async () => {
-    const order: string[] = [];
-    const requestUserInteraction = vi.fn(async () => {
-      order.push("interaction");
-    });
-    const { gate, store } = makeGate({ requestUserInteraction });
-
-    const decision = gate(request());
-    expect(store.getSnapshot()).toHaveLength(0);
-    await vi.advanceTimersByTimeAsync(0);
-    expect(store.getSnapshot()).toHaveLength(1);
-    order.push("queued");
-
-    expect(requestUserInteraction).toHaveBeenCalledTimes(1);
-    expect(order).toEqual(["interaction", "queued"]);
-
-    store.getSnapshot()[0]!.respond({ approved: true });
-    await decision;
-  });
-
-  it("still prompts when requestUserInteraction rejects", async () => {
-    const { gate, store } = makeGate({
-      requestUserInteraction: async () => {
-        throw new Error("denied");
-      },
-    });
-
-    const decision = gate(request());
-    await vi.advanceTimersByTimeAsync(0);
-    expect(store.getSnapshot()).toHaveLength(1);
-    store.getSnapshot()[0]!.respond({ approved: true });
-    await expect(decision).resolves.toEqual({ approved: true });
-  });
-
-  it("cancels without queueing when the signal aborts during requestUserInteraction", async () => {
-    const controller = new AbortController();
-    const { gate, store } = makeGate({
-      requestUserInteraction: async () => {
-        controller.abort();
-      },
-    });
-
-    const decision = gate(request({ abortSignal: controller.signal }));
-    await vi.advanceTimersByTimeAsync(0);
-    expect(store.getSnapshot()).toHaveLength(0);
-    await expect(decision).resolves.toEqual({
-      approved: false,
-      resolution: "cancelled",
-    });
-  });
-
   it("resolves kind-based options through resolveToolApprovalResponse", async () => {
     const { gate, store } = makeGate();
 
@@ -150,20 +101,15 @@ describe("createWebMcpApprovalGate", () => {
     await expect(decision).resolves.toEqual({ approved: true });
   });
 
-  it("requires an explicit approved value for a custom _-prefixed kind", async () => {
-    const options = [{ id: "escalate", kind: "_escalate" }] as const;
-    const { gate, store } = makeGate({ approvalOptions: options });
+  it('bypasses the queue entirely with approval: "never"', async () => {
+    const { gate, store } = makeGate({ approval: "never" });
 
-    const decision = gate(request());
-    expect(() =>
-      store.getSnapshot()[0]!.respond({ optionId: "escalate" }),
-    ).toThrow('custom kind "_escalate"');
-    expect(store.getSnapshot()).toHaveLength(1);
-
-    store.getSnapshot()[0]!.respond({ optionId: "escalate", approved: true });
-    await expect(decision).resolves.toEqual({ approved: true });
+    await expect(gate(request())).resolves.toEqual({ approved: true });
+    expect(store.getSnapshot()).toHaveLength(0);
   });
+});
 
+describe("createWebMcpApprovalGate allow-always memory", () => {
   it("remembers allow-always and short-circuits the next call for the same tool", async () => {
     const { gate, store } = makeGate();
 
@@ -174,7 +120,7 @@ describe("createWebMcpApprovalGate", () => {
     await expect(gate(request())).resolves.toEqual({ approved: true });
     expect(store.getSnapshot()).toHaveLength(0);
 
-    const other = gate({ ...request(), toolName: "other" });
+    const other = gate(request({ toolName: "other" }));
     expect(store.getSnapshot()).toHaveLength(1);
     store.getSnapshot()[0]!.respond({ approved: false });
     await other;
@@ -192,28 +138,54 @@ describe("createWebMcpApprovalGate", () => {
     store.getSnapshot()[0]!.respond({ approved: false });
   });
 
-  it('bypasses the queue entirely with approval: "never"', async () => {
-    const { gate, store } = makeGate({ approval: "never" });
+  it("scopes a grant to the memory it was given: another memory still prompts", async () => {
+    const store = createWebMcpApprovalStore();
+    const first = makeGate({ store });
+    const granted = first.gate(request());
+    store.getSnapshot()[0]!.respond({ optionId: "allow-always" });
+    await expect(granted).resolves.toEqual({ approved: true });
 
-    await expect(gate(request())).resolves.toEqual({ approved: true });
-    expect(store.getSnapshot()).toHaveLength(0);
+    const second = makeGate({ store });
+    const decision = second.gate(request());
+    expect(store.getSnapshot()).toHaveLength(1);
+    store.getSnapshot()[0]!.respond({ approved: false });
+    await expect(decision).resolves.toEqual({ approved: false });
   });
 
-  it("consults the predicate with name, tool, and args", async () => {
-    const predicate = vi.fn((name: string) => name === "dangerous");
-    const { gate, store } = makeGate({ approval: predicate });
+  it("re-prompts once the granted name is dropped from the memory", async () => {
+    const memory = new Set<string>();
+    const { gate, store } = makeGate({ allowAlwaysMemory: memory });
 
-    await expect(gate(request())).resolves.toEqual({ approved: true });
-    expect(predicate).toHaveBeenCalledWith("search", tool, { q: "cats" });
-    expect(store.getSnapshot()).toHaveLength(0);
+    const granted = gate(request({ toolName: "do_thing" }));
+    store.getSnapshot()[0]!.respond({ optionId: "allow-always" });
+    await granted;
+    expect(memory.has("do_thing")).toBe(true);
 
-    const gated = gate({ ...request(), toolName: "dangerous" });
+    memory.delete("do_thing");
+
+    const decision = gate(request({ toolName: "do_thing" }));
     expect(store.getSnapshot()).toHaveLength(1);
     store.getSnapshot()[0]!.respond({ approved: true });
-    await expect(gated).resolves.toEqual({ approved: true });
+    await expect(decision).resolves.toEqual({ approved: true });
   });
 
-  it("expires after the default 120s timeout", async () => {
+  it("leaves already-queued siblings with their own prompt when one grants allow-always", async () => {
+    const { gate, store } = makeGate();
+    const first = gate(request({ toolName: "y" }));
+    const sibling = gate(request({ toolName: "y" }));
+    expect(store.getSnapshot()).toHaveLength(2);
+
+    store.getSnapshot()[0]!.respond({ optionId: "allow-always" });
+    await expect(first).resolves.toEqual({ approved: true });
+
+    expect(store.getSnapshot()).toHaveLength(1);
+    store.getSnapshot()[0]!.respond({ approved: true });
+    await sibling;
+  });
+});
+
+describe("createWebMcpApprovalGate settlement", () => {
+  it("expires after the 120s timeout", async () => {
     const { gate, store } = makeGate();
 
     const decision = gate(request());
@@ -226,17 +198,6 @@ describe("createWebMcpApprovalGate", () => {
       resolution: "expired",
     });
     expect(store.getSnapshot()).toHaveLength(0);
-  });
-
-  it("honors a custom approvalTimeoutMs", async () => {
-    const { gate } = makeGate({ approvalTimeoutMs: 500 });
-
-    const decision = gate(request());
-    await vi.advanceTimersByTimeAsync(500);
-    await expect(decision).resolves.toEqual({
-      approved: false,
-      resolution: "expired",
-    });
   });
 
   it("cancels a pending approval when the AbortSignal fires", async () => {
@@ -265,17 +226,201 @@ describe("createWebMcpApprovalGate", () => {
     expect(store.getSnapshot()).toHaveLength(0);
   });
 
-  it("ignores a respond call after the approval expired", async () => {
-    const { gate, store } = makeGate({ approvalTimeoutMs: 10 });
+  it("ignores a valid respond call after the approval expired", async () => {
+    const { gate, store } = makeGate();
 
     const decision = gate(request());
     const pending = store.getSnapshot()[0]!;
-    await vi.advanceTimersByTimeAsync(10);
+    await vi.advanceTimersByTimeAsync(120_000);
     await expect(decision).resolves.toEqual({
       approved: false,
       resolution: "expired",
     });
 
     expect(() => pending.respond({ approved: true })).not.toThrow();
+  });
+
+  it("ignores an invalid-optionId respond call after the approval expired", async () => {
+    const { gate, store } = makeGate();
+
+    const decision = gate(request());
+    const pending = store.getSnapshot()[0]!;
+    await vi.advanceTimersByTimeAsync(120_000);
+    await decision;
+
+    expect(() => pending.respond({ optionId: "missing" })).not.toThrow();
+  });
+
+  it("settles only once when respond is called twice", async () => {
+    const { gate, store } = makeGate();
+
+    const decision = gate(request());
+    const pending = store.getSnapshot()[0]!;
+    pending.respond({ approved: true });
+    pending.respond({ approved: false, reason: "second" });
+
+    await expect(decision).resolves.toEqual({ approved: true });
+    expect(store.getSnapshot()).toHaveLength(0);
+  });
+
+  it("lets respond win over a later abort and detaches the abort listener", async () => {
+    const controller = new AbortController();
+    const removeSpy = vi.spyOn(controller.signal, "removeEventListener");
+    const { gate, store } = makeGate();
+
+    const decision = gate(request({ abortSignal: controller.signal }));
+    store.getSnapshot()[0]!.respond({ approved: true });
+    controller.abort();
+
+    await expect(decision).resolves.toEqual({ approved: true });
+    expect(store.getSnapshot()).toHaveLength(0);
+    expect(removeSpy).toHaveBeenCalledWith("abort", expect.any(Function));
+  });
+
+  it("lets abort win over a later respond", async () => {
+    const controller = new AbortController();
+    const { gate, store } = makeGate();
+
+    const decision = gate(request({ abortSignal: controller.signal }));
+    const pending = store.getSnapshot()[0]!;
+    controller.abort();
+    await expect(decision).resolves.toEqual({
+      approved: false,
+      resolution: "cancelled",
+    });
+
+    expect(() => pending.respond({ approved: true })).not.toThrow();
+    expect(store.getSnapshot()).toHaveLength(0);
+  });
+
+  it("treats an abort after expiry as a no-op", async () => {
+    const controller = new AbortController();
+    const { gate, store } = makeGate();
+
+    const decision = gate(request({ abortSignal: controller.signal }));
+    await vi.advanceTimersByTimeAsync(120_000);
+    await expect(decision).resolves.toEqual({
+      approved: false,
+      resolution: "expired",
+    });
+
+    controller.abort();
+    expect(store.getSnapshot()).toHaveLength(0);
+  });
+
+  it("detaches every abort listener it attaches across concurrent approvals", async () => {
+    const controller = new AbortController();
+    const addSpy = vi.spyOn(controller.signal, "addEventListener");
+    const removeSpy = vi.spyOn(controller.signal, "removeEventListener");
+    const { gate, store } = makeGate();
+
+    const decisions = [0, 1, 2].map(() =>
+      gate(request({ abortSignal: controller.signal })),
+    );
+    expect(store.getSnapshot()).toHaveLength(3);
+
+    controller.abort();
+    await Promise.all(decisions);
+    expect(store.getSnapshot()).toHaveLength(0);
+    expect(addSpy.mock.calls.length).toBe(removeSpy.mock.calls.length);
+  });
+
+  it("gives each concurrent same-name call its own decision", async () => {
+    const { gate, store } = makeGate();
+    const first = gate(request({ toolName: "x" }));
+    const second = gate(request({ toolName: "x" }));
+    const third = gate(request({ toolName: "x" }));
+    expect(store.getSnapshot()).toHaveLength(3);
+
+    const [p0, p1, p2] = store.getSnapshot();
+    p1!.respond({ optionId: "reject-once", reason: "no1" });
+    p2!.respond({ approved: true });
+    p0!.respond({ optionId: "allow-once" });
+
+    await expect(second).resolves.toEqual({ approved: false, reason: "no1" });
+    await expect(third).resolves.toEqual({ approved: true });
+    await expect(first).resolves.toEqual({ approved: true });
+    expect(store.getSnapshot()).toHaveLength(0);
+  });
+});
+
+describe("createWebMcpApprovalGate user-attention request", () => {
+  it("queues the approval before requesting attention", async () => {
+    const requestUserInteraction = vi.fn(async () => {});
+    const { gate, store } = makeGate({ requestUserInteraction });
+
+    const decision = gate(request());
+    expect(store.getSnapshot()).toHaveLength(1);
+    expect(requestUserInteraction).not.toHaveBeenCalled();
+
+    await vi.advanceTimersByTimeAsync(0);
+    expect(requestUserInteraction).toHaveBeenCalledTimes(1);
+
+    store.getSnapshot()[0]!.respond({ approved: true });
+    await expect(decision).resolves.toEqual({ approved: true });
+  });
+
+  it("still prompts when requestUserInteraction rejects", async () => {
+    const { gate, store } = makeGate({
+      requestUserInteraction: async () => {
+        throw new Error("attention denied");
+      },
+    });
+
+    const decision = gate(request());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.getSnapshot()).toHaveLength(1);
+
+    store.getSnapshot()[0]!.respond({ approved: true });
+    await expect(decision).resolves.toEqual({ approved: true });
+  });
+
+  it("still prompts when requestUserInteraction throws synchronously", async () => {
+    const { gate, store } = makeGate({
+      requestUserInteraction: (() => {
+        throw new Error("attention exploded");
+      }) as () => Promise<void>,
+    });
+
+    const decision = gate(request());
+    await vi.advanceTimersByTimeAsync(0);
+    expect(store.getSnapshot()).toHaveLength(1);
+
+    store.getSnapshot()[0]!.respond({ approved: true });
+    await expect(decision).resolves.toEqual({ approved: true });
+  });
+
+  it("bounds the wait with the timeout even while the attention request hangs", async () => {
+    const { gate, store } = makeGate({
+      requestUserInteraction: () => new Promise<void>(() => {}),
+    });
+
+    const decision = gate(request());
+    expect(store.getSnapshot()).toHaveLength(1);
+
+    await vi.advanceTimersByTimeAsync(120_000);
+    await expect(decision).resolves.toEqual({
+      approved: false,
+      resolution: "expired",
+    });
+    expect(store.getSnapshot()).toHaveLength(0);
+  });
+
+  it("cancels the queued approval when the signal aborts during the attention request", async () => {
+    const controller = new AbortController();
+    const { gate, store } = makeGate({
+      requestUserInteraction: async () => {
+        controller.abort();
+      },
+    });
+
+    const decision = gate(request({ abortSignal: controller.signal }));
+    await vi.advanceTimersByTimeAsync(0);
+
+    await expect(decision).resolves.toEqual({
+      approved: false,
+      resolution: "cancelled",
+    });
+    expect(store.getSnapshot()).toHaveLength(0);
   });
 });

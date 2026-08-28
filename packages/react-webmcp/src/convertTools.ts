@@ -101,18 +101,31 @@ const isStandardSchema = (schema: unknown): schema is StandardSchemaLike =>
   "~standard" in schema &&
   (schema as StandardSchemaLike)["~standard"].version === 1;
 
+const mergeSignals = (
+  callerSignal: AbortSignal | undefined,
+  lifecycleSignal: AbortSignal | undefined,
+): AbortSignal | undefined => {
+  if (!callerSignal) return lifecycleSignal;
+  if (!lifecycleSignal) return callerSignal;
+  return AbortSignal.any([callerSignal, lifecycleSignal]);
+};
+
 export const toWebMcpTool = (
   name: string,
   getTool: () => Tool<any, any>,
   approvalGate: WebMcpApprovalGate,
+  lifecycleSignal?: AbortSignal,
 ): WebMcpToolDescriptor => ({
   name,
   description: getTool().description ?? "",
   inputSchema: toWebMcpInputSchema(getTool()),
   execute: async (rawArgs, context) => {
+    if (lifecycleSignal?.aborted) {
+      return errorResult(`Tool "${name}" is no longer registered`);
+    }
     const tool = getTool();
     const args = (rawArgs ?? {}) as Record<string, unknown>;
-    const abortSignal = context?.signal;
+    const abortSignal = mergeSignals(context?.signal, lifecycleSignal);
     const toolCallId = crypto.randomUUID();
     try {
       let executeFn = tool.execute;

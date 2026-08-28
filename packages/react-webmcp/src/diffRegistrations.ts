@@ -10,15 +10,15 @@ export type WebMcpRegistrationDiff = {
 };
 
 export const diffRegistrations = (
-  prev: Record<string, WebMcpRegistrationEntry>,
-  next: Record<string, WebMcpRegistrationEntry>,
+  prev: ReadonlyMap<string, WebMcpRegistrationEntry>,
+  next: ReadonlyMap<string, WebMcpRegistrationEntry>,
 ): WebMcpRegistrationDiff => {
   const added: string[] = [];
   const updated: string[] = [];
   const removed: string[] = [];
 
-  for (const [name, nextEntry] of Object.entries(next)) {
-    const prevEntry = prev[name];
+  for (const [name, nextEntry] of next) {
+    const prevEntry = prev.get(name);
     if (!prevEntry) {
       added.push(name);
     } else if (
@@ -28,8 +28,8 @@ export const diffRegistrations = (
       updated.push(name);
     }
   }
-  for (const name of Object.keys(prev)) {
-    if (!(name in next)) removed.push(name);
+  for (const name of prev.keys()) {
+    if (!next.has(name)) removed.push(name);
   }
 
   return { added, updated, removed };

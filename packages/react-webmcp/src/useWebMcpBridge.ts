@@ -9,7 +9,7 @@ import {
 } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { Tool } from "assistant-stream";
-import { getDefaultWebMcpAdapter, type WebMcpAdapter } from "./webmcp-adapter";
+import { getDefaultWebMcpAdapter } from "./webmcp-adapter";
 import {
   defaultWebMcpFilter,
   toWebMcpInputSchema,
@@ -26,29 +26,18 @@ import {
 
 export type WebMcpBridgeOptions = {
   filter?: (name: string, tool: Tool<any, any>) => boolean;
-  approval?:
-    | "always"
-    | "never"
-    | ((
-        name: string,
-        tool: Tool<any, any>,
-        args: Record<string, unknown>,
-      ) => boolean);
-  approvalTimeoutMs?: number;
-  adapter?: WebMcpAdapter;
+  approval?: "always" | "never";
 };
 
-export type WebMcpBridgeStatus = "unsupported" | "active";
-
 export type WebMcpBridgeResult = {
-  status: WebMcpBridgeStatus;
+  status: "unsupported" | "active";
   registeredToolNames: string[];
 };
 
 const EMPTY_NAMES: string[] = [];
 
 const emptySubscribe = () => () => {};
-const getServerStatus = (): WebMcpBridgeStatus => "unsupported";
+const getServerStatus = (): WebMcpBridgeResult["status"] => "unsupported";
 
 const toRegistrationEntry = (
   tool: Tool<any, any>,
@@ -64,8 +53,6 @@ export const useWebMcpBridge = (
   const [registeredToolNames, setRegisteredToolNames] =
     useState<string[]>(EMPTY_NAMES);
 
-  const { adapter: adapterOption } = options;
-
   const optionsRef = useRef(options);
   const syncRef = useRef<(() => void) | null>(null);
   useEffect(() => {
@@ -77,34 +64,43 @@ export const useWebMcpBridge = (
   const status = useSyncExternalStore(
     emptySubscribe,
     useCallback(
-      (): WebMcpBridgeStatus =>
-        (adapterOption ?? getDefaultWebMcpAdapter()).available
-          ? "active"
-          : "unsupported",
-      [adapterOption],
+      (): WebMcpBridgeResult["status"] =>
+        getDefaultWebMcpAdapter().available ? "active" : "unsupported",
+      [],
     ),
     getServerStatus,
   );
 
   useEffect(() => {
-    const adapter = adapterOption ?? getDefaultWebMcpAdapter();
+    const adapter = getDefaultWebMcpAdapter();
     if (!adapter.available) return undefined;
 
     const requestUserInteraction =
       adapter.requestUserInteraction?.bind(adapter);
+    const allowAlwaysMemory = new Set<string>();
     const approvalGate: WebMcpApprovalGate = (request) =>
       createWebMcpApprovalGate({
         approval: optionsRef.current.approval,
-        approvalTimeoutMs: optionsRef.current.approvalTimeoutMs,
         requestUserInteraction,
+        allowAlwaysMemory,
       })(request);
 
     type Registration = {
       entry: WebMcpRegistrationEntry;
       box: { tool: Tool<any, any> };
+      lifecycle: AbortController;
       dispose: () => void;
     };
     const registered = new Map<string, Registration>();
+
+    const disposeRegistration = (name: string) => {
+      const registration = registered.get(name);
+      if (!registration) return;
+      registration.lifecycle.abort();
+      registration.dispose();
+      registered.delete(name);
+      allowAlwaysMemory.delete(name);
+    };
 
     const publishNames = () => {
       const names = [...registered.keys()].sort();
@@ -135,17 +131,12 @@ export const useWebMcpBridge = (
       }
 
       const { added, updated, removed } = diffRegistrations(
-        Object.fromEntries(
-          [...registered].map(([name, { entry }]) => [name, entry]),
-        ),
-        Object.fromEntries(
-          [...desired].map(([name, { entry }]) => [name, entry]),
-        ),
+        new Map([...registered].map(([name, { entry }]) => [name, entry])),
+        new Map([...desired].map(([name, { entry }]) => [name, entry])),
       );
 
       for (const name of [...removed, ...updated]) {
-        registered.get(name)?.dispose();
-        registered.delete(name);
+        disposeRegistration(name);
       }
       for (const name of [...updated, ...added]) {
         const target = desired.get(name);
@@ -160,14 +151,19 @@ export const useWebMcpBridge = (
           const registration: Registration = {
             entry: target.entry,
             box: { tool: target.tool },
+            lifecycle: new AbortController(),
             dispose: () => {},
           };
           registration.dispose = adapter.registerTool(
-            toWebMcpTool(name, () => registration.box.tool, approvalGate),
+            toWebMcpTool(
+              name,
+              () => registration.box.tool,
+              approvalGate,
+              registration.lifecycle.signal,
+            ),
             (error) => {
               if (registered.get(name) !== registration) return;
-              registration.dispose();
-              registered.delete(name);
+              disposeRegistration(name);
               console.warn(
                 `[assistant-ui] WebMCP registration for tool "${name}" failed (name may already be registered).`,
                 error,
@@ -199,11 +195,10 @@ export const useWebMcpBridge = (
     return () => {
       syncRef.current = null;
       unsubscribe?.();
-      for (const { dispose } of registered.values()) dispose();
-      registered.clear();
+      for (const name of [...registered.keys()]) disposeRegistration(name);
       setRegisteredToolNames(EMPTY_NAMES);
     };
-  }, [aui, adapterOption]);
+  }, [aui]);
 
   return { status, registeredToolNames };
 };

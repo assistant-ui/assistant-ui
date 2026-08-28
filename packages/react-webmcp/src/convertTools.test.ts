@@ -258,6 +258,149 @@ describe("toWebMcpTool", () => {
   });
 });
 
+describe("toWebMcpTool lifecycle signal", () => {
+  it("refuses to run once the registration is disposed", async () => {
+    const execute = vi.fn(async () => "ran");
+    const lifecycle = new AbortController();
+    const descriptor = toWebMcpTool(
+      "t",
+      () => frontendTool({ execute }),
+      approveAllGate,
+      lifecycle.signal,
+    );
+    lifecycle.abort();
+
+    await expect(descriptor.execute({})).resolves.toEqual({
+      isError: true,
+      content: [{ type: "text", text: 'Tool "t" is no longer registered' }],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("cancels an in-flight approval when the registration is disposed", async () => {
+    const execute = vi.fn(async () => "ran");
+    const lifecycle = new AbortController();
+    const pendingGate: WebMcpApprovalGate = ({ abortSignal }) =>
+      new Promise((resolve) => {
+        abortSignal?.addEventListener("abort", () =>
+          resolve({ approved: false, resolution: "cancelled" }),
+        );
+      });
+    const descriptor = toWebMcpTool(
+      "t",
+      () => frontendTool({ execute }),
+      pendingGate,
+      lifecycle.signal,
+    );
+
+    const call = descriptor.execute({});
+    lifecycle.abort();
+
+    await expect(call).resolves.toEqual({
+      isError: true,
+      content: [{ type: "text", text: 'Tool call approval for "t" cancelled' }],
+    });
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  it("merges the caller signal with the lifecycle signal for the running tool", async () => {
+    const controller = new AbortController();
+    const lifecycle = new AbortController();
+    let seen: AbortSignal | undefined;
+    const descriptor = toWebMcpTool(
+      "t",
+      () =>
+        frontendTool({
+          execute: async (_args, context) => {
+            seen = context.abortSignal;
+            return "ok";
+          },
+        }),
+      approveAllGate,
+      lifecycle.signal,
+    );
+
+    await descriptor.execute({}, { signal: controller.signal });
+    expect(seen!.aborted).toBe(false);
+    lifecycle.abort();
+    expect(seen!.aborted).toBe(true);
+  });
+});
+
+describe("toWebMcpTool hostile inputs", () => {
+  const throwing = (thrown: unknown) =>
+    toWebMcpTool(
+      "t",
+      () =>
+        frontendTool({
+          execute: async () => {
+            throw thrown;
+          },
+        }),
+      approveAllGate,
+    );
+
+  it("stringifies a thrown non-Error value into the error result", async () => {
+    await expect(throwing("raw string boom").execute({})).resolves.toEqual({
+      isError: true,
+      content: [{ type: "text", text: "raw string boom" }],
+    });
+    await expect(throwing(null).execute({})).resolves.toEqual({
+      isError: true,
+      content: [{ type: "text", text: "null" }],
+    });
+    await expect(throwing({ code: 500 }).execute({})).resolves.toEqual({
+      isError: true,
+      content: [{ type: "text", text: "[object Object]" }],
+    });
+  });
+
+  it("turns a non-serializable result into an error result", async () => {
+    const circular: Record<string, unknown> = { a: 1 };
+    circular["self"] = circular;
+    const descriptor = toWebMcpTool(
+      "t",
+      () => frontendTool({ execute: async () => circular }),
+      approveAllGate,
+    );
+
+    const result = await descriptor.execute({});
+    expect(result.isError).toBe(true);
+  });
+
+  it("throws at descriptor construction for a schema that cannot convert", () => {
+    const badSchema = {
+      "~standard": { version: 1, validate: () => ({ issues: undefined }) },
+    };
+    expect(() =>
+      toWebMcpTool(
+        "t",
+        () => frontendTool({ parameters: badSchema as any }),
+        approveAllGate,
+      ),
+    ).toThrow(/Could not convert schema/);
+  });
+
+  it("surfaces a throwing validate as an error result without running the tool", async () => {
+    const schema = z.object({ city: z.string() });
+    vi.spyOn(schema["~standard"], "validate").mockImplementation(() => {
+      throw new Error("validate exploded");
+    });
+    const execute = vi.fn(async () => "never");
+    const descriptor = toWebMcpTool(
+      "t",
+      () => frontendTool({ parameters: schema as any, execute }),
+      approveAllGate,
+    );
+
+    const result = await descriptor.execute({ city: "x" });
+    expect(result.isError).toBe(true);
+    expect(result.content[0]).toMatchObject({ text: "validate exploded" });
+    expect(execute).not.toHaveBeenCalled();
+    vi.restoreAllMocks();
+  });
+});
+
 describe("defaultWebMcpFilter", () => {
   it("keeps enabled frontend tools with an execute function", () => {
     expect(defaultWebMcpFilter("t", frontendTool())).toBe(true);
@@ -403,6 +546,24 @@ describe("toMcpContent", () => {
       expect.anything(),
     );
     warn.mockRestore();
+  });
+
+  it("does not throw on modelContent parts with missing fields", async () => {
+    const missingData = new ToolResponse({
+      result: "r",
+      modelContent: [{ type: "file", mediaType: "image/png" } as any],
+    });
+    await expect(toMcpContent(missingData, context)).resolves.toMatchObject({
+      content: [{ type: "image" }],
+    });
+
+    const missingText = new ToolResponse({
+      result: "r",
+      modelContent: [{ type: "text" } as any],
+    });
+    await expect(toMcpContent(missingText, context)).resolves.toEqual({
+      content: [{ type: "text", text: "" }],
+    });
   });
 
   it("prefers ToolResponse modelContent over toModelOutput", async () => {
