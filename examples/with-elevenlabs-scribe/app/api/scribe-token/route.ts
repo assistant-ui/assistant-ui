@@ -2,16 +2,30 @@
  * Generate a single-use token for ElevenLabs Scribe v2 Realtime
  * @see https://elevenlabs.io/docs/cookbooks/speech-to-text/streaming
  */
-export async function POST(request: Request) {
-  if (request.headers.get("sec-fetch-site") === "cross-site") {
-    return Response.json(
-      { error: "Cross-origin requests are not allowed." },
-      { status: 403 },
-    );
+function isSameOriginRequest(request: Request) {
+  const fetchSite = request.headers.get("sec-fetch-site");
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
   }
 
   const origin = request.headers.get("origin");
-  if (origin !== null && origin !== new URL(request.url).origin) {
+  if (origin === null) return true;
+
+  try {
+    const forwardedHost = request.headers
+      .get("x-forwarded-host")
+      ?.split(",")[0]
+      ?.trim();
+    const expectedHost =
+      forwardedHost || request.headers.get("host") || new URL(request.url).host;
+    return new URL(origin).host === expectedHost;
+  } catch {
+    return false;
+  }
+}
+
+export async function POST(request: Request) {
+  if (!isSameOriginRequest(request)) {
     return Response.json(
       { error: "Cross-origin requests are not allowed." },
       { status: 403 },
@@ -38,6 +52,11 @@ export async function POST(request: Request) {
   );
 
   if (!response.ok) {
+    const providerError = await response.text().catch(() => "");
+    console.error(
+      `ElevenLabs token request failed (${response.status}):`,
+      providerError,
+    );
     return Response.json(
       { error: "Unable to create a transcription session." },
       { status: 502 },
@@ -49,7 +68,8 @@ export async function POST(request: Request) {
     !data ||
     typeof data !== "object" ||
     !("token" in data) ||
-    typeof data.token !== "string"
+    typeof data.token !== "string" ||
+    !data.token.trim()
   ) {
     return Response.json(
       { error: "ElevenLabs returned an invalid token response." },
@@ -58,7 +78,7 @@ export async function POST(request: Request) {
   }
 
   return Response.json(
-    { token: data.token },
+    { token: data.token.trim() },
     { headers: { "Cache-Control": "no-store" } },
   );
 }

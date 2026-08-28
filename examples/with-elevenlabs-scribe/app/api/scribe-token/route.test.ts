@@ -11,6 +11,7 @@ function tokenRequest(origin = "https://app.example") {
 afterEach(() => {
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 describe("ElevenLabs token route", () => {
@@ -24,7 +25,20 @@ describe("ElevenLabs token route", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("rejects requests marked cross-site by the browser", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const request = tokenRequest();
+    request.headers.set("sec-fetch-site", "cross-site");
+    const response = await POST(request);
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("fails closed when the API key is missing", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "");
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
@@ -60,6 +74,37 @@ describe("ElevenLabs token route", () => {
     const response = await POST(tokenRequest());
 
     expect(response.status).toBe(502);
+  });
+
+  it("rejects empty provider tokens", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "secret-key");
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(Response.json({ token: " " })),
+    );
+
+    const response = await POST(tokenRequest());
+
+    expect(response.status).toBe(502);
+  });
+
+  it("logs provider errors without exposing them to the client", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "secret-key");
+    const providerResponse = new Response("invalid API key", { status: 401 });
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValue(providerResponse));
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await POST(tokenRequest());
+
+    expect(response.status).toBe(502);
+    await expect(response.json()).resolves.toEqual({
+      error: "Unable to create a transcription session.",
+    });
+    expect(providerResponse.bodyUsed).toBe(true);
+    expect(errorSpy).toHaveBeenCalledWith(
+      "ElevenLabs token request failed (401):",
+      "invalid API key",
+    );
   });
 
   it("rejects non-JSON provider responses", async () => {
