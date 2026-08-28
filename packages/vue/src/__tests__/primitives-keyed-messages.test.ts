@@ -212,4 +212,53 @@ describe("ThreadPrimitiveMessages id-keyed iteration", () => {
 
     unmount();
   });
+
+  it("keeps the streaming optimistic tail row mounted across store updates", async () => {
+    let messages: DemoMessage[] = [];
+    let isRunning = false;
+    let core!: ExternalStoreRuntimeCore;
+    const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
+      messages,
+      isRunning,
+      convertMessage: (m) => ({ id: m.id, role: m.role, content: m.content }),
+      onNew: async () => {},
+    });
+    core = new ExternalStoreRuntimeCore(makeAdapter());
+    const runtime = new AssistantRuntimeImpl(core);
+    const sync = () => core.setAdapter(makeAdapter());
+
+    let mounts = 0;
+    const Row = defineComponent({
+      setup() {
+        mounts += 1;
+        const role = useAuiState((s) => s.message.role);
+        return () => h("li", { class: "row", "data-role": role.value });
+      },
+    });
+    const View = defineComponent({
+      setup: () => () =>
+        h(ThreadPrimitiveMessages, null, { default: () => h(Row) }),
+    });
+    const { el, unmount } = mountChat(runtime, View);
+
+    flushTapSync(() => {
+      messages = [message("u1", "question")];
+      isRunning = true;
+      sync();
+    });
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll("li.row")).toHaveLength(2);
+    });
+    const mountsAfterPlaceholder = mounts;
+
+    flushTapSync(() => sync());
+    flushTapSync(() => sync());
+    await nextTick();
+    await nextTick();
+    expect(el.querySelectorAll("li.row")).toHaveLength(2);
+    expect(mounts).toBe(mountsAfterPlaceholder);
+
+    unmount();
+  });
 });
