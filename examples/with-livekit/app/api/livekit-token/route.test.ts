@@ -98,13 +98,9 @@ describe("LiveKit token route", () => {
     vi.stubEnv("LIVEKIT_API_SECRET", "");
 
     const response = await POST(
-      new Request("http://app.internal/api/livekit-token", {
+      new Request("https://app.example/api/livekit-token", {
         method: "POST",
-        headers: {
-          origin: "https://app.example",
-          "x-forwarded-host": "app.example",
-          "x-forwarded-proto": "https",
-        },
+        headers: { origin: "https://app.example" },
       }),
     );
 

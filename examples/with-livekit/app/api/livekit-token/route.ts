@@ -13,25 +13,7 @@ function isSameOriginRequest(req: Request) {
   if (origin === null) return true;
 
   try {
-    const forwardedHost = req.headers
-      .get("x-forwarded-host")
-      ?.split(",")[0]
-      ?.trim();
-    const forwardedProto = req.headers
-      .get("x-forwarded-proto")
-      ?.split(",")[0]
-      ?.trim();
-    const requestUrl = new URL(req.url);
-    const expectedHost =
-      forwardedHost || req.headers.get("host") || requestUrl.host;
-    const expectedProtocol = (forwardedProto || requestUrl.protocol)
-      .replace(/:$/, "")
-      .toLowerCase();
-    if (expectedProtocol !== "http" && expectedProtocol !== "https")
-      return false;
-    const expectedOrigin = new URL(`${expectedProtocol}://${expectedHost}`)
-      .origin;
-    return new URL(origin).origin === expectedOrigin;
+    return new URL(origin).origin === new URL(req.url).origin;
   } catch {
     return false;
   }
