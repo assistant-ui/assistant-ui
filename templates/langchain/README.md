@@ -40,4 +40,4 @@ langgraph.json      LangGraph CLI config (graph id, node version, env file)
 
 ## Deployment security
 
-The bundled proxy rejects browser requests marked cross-site so the local starter works without exposing `LANGCHAIN_API_KEY` to the client. For clients without Fetch Metadata, reverse proxies must preserve the public scheme and host in the request URL for the `Origin` fallback. Request-context checks are not user authentication. Before deploying with a cloud API key, require your application session in `app/api/[..._path]/route.ts` and apply a durable rate limit.
+The bundled proxy rejects browser requests marked same-site or cross-site so the local starter works without exposing `LANGCHAIN_API_KEY` to the client. For clients without Fetch Metadata, reverse proxies must preserve the public scheme and host in the request URL for the `Origin` fallback. Request-context checks are not user authentication. Before deploying with a cloud API key, require your application session in `app/api/[..._path]/route.ts` and apply a durable rate limit.
