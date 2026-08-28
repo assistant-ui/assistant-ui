@@ -33,7 +33,6 @@
     "@assistant-ui/ui": "workspace:*",
     "@aui-x/prism": "^0.0.5",
     "@base-ui/react": "^1.7.0",
-    "@blaxel/core": "^0.3.13",
     "@hookform/resolvers": "^5.9.1",
     "@langchain/langgraph-sdk": "^1.9.31",
     "@modelcontextprotocol/server": "^2.0.0",
