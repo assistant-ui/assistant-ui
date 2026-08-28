@@ -72,6 +72,51 @@ describe("AISDKThreads", () => {
     handle.destroy();
   });
 
+  it("keeps completed histories isolated on direct switches", async () => {
+    const controls: ReturnType<typeof createControlledTransport>[] = [];
+    const handle = createAssistantClient(
+      AuiConfig({
+        threads: AISDKThreads({
+          transport: () => {
+            const control = createControlledTransport();
+            controls.push(control);
+            return control.transport;
+          },
+        }),
+      }),
+    );
+    handle.subscribe(() => {});
+    const aui = handle.getClient();
+
+    const send = async (text: string, answer: string) => {
+      flushTapSync(() => handle.getClient().composer.setText(text));
+      flushTapSync(() => handle.getClient().composer.send());
+      await vi.waitFor(() => {
+        expect(
+          handle.getClient().thread.getState().messages.length,
+        ).toBeGreaterThan(0);
+      });
+      controls.at(-1)!.emit(...textReply(answer));
+      controls.at(-1)!.close();
+      await vi.waitFor(() =>
+        expect(handle.getClient().thread.getState().isRunning).toBe(false),
+      );
+    };
+
+    await send("first question", "first answer");
+    flushTapSync(() => aui.threads.switchToNewThread());
+    await send("second question", "second answer");
+    flushTapSync(() => aui.threads.switchToThread("main"));
+
+    const firstMessage = handle.getClient().thread.getState().messages[0]!;
+    expect(firstMessage.content[0]).toMatchObject({ text: "first question" });
+    expect(
+      handle.getClient().thread.message({ id: firstMessage.id }).getState(),
+    ).toMatchObject({ branchCount: 1 });
+
+    handle.destroy();
+  });
+
   it("keeps a switched-away thread streaming in the background", async () => {
     const { transport, emit, close } = createControlledTransport();
     const handle = createAssistantClient(

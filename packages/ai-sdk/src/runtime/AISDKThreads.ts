@@ -183,7 +183,7 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
       chats,
       cloud: bindCloud,
     });
-    return bindCloud ? withKey(id, element) : element;
+    return withKey(id, element);
   };
 
   return useResource(
