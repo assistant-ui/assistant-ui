@@ -275,7 +275,7 @@ Flow:
 1. `aui.mcp().server({ id }).connect()` → SDK starts auth.
 2. `redirectToAuthorization` stores `authorizationUrl` on server state, transitions to `authRequired`. **The package does not auto-navigate** — render `<McpServerPrimitive.OAuthLink>` (an anchor) or open a popup.
 3. User returns to `oauthRedirectUri`. Mount `<McpOAuthCallback />` there.
-4. Callback reads `?state=&code=`, derives the server id, validates the complete state value, and calls `server.completeAuth(window.location.href)`.
+4. Callback reads `?state=` plus either an OAuth `code` or `error`, derives the server id, validates the complete state value, and calls `server.completeAuth(window.location.href)`.
 5. Server transitions to `connecting → connected`. Refresh tokens are rotated automatically; a failed refresh moves to `authRequired`.
 
 ## 5. Primitives
