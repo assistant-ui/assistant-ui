@@ -37,3 +37,7 @@ langgraph.json      LangGraph CLI config (graph id, node version, env file)
 ```
 
 `app/assistant.tsx` builds the runtime with `useStreamRuntime({ assistantId, apiUrl })` from `@assistant-ui/react-langchain`, which wraps `useStream` from `@langchain/react`.
+
+## Deployment security
+
+The bundled proxy accepts same-origin browser requests so the local starter works without exposing `LANGCHAIN_API_KEY` to the client. Origin checks are not user authentication. Before deploying with a cloud API key, require your application session in `app/api/[..._path]/route.ts` and apply a durable rate limit.
