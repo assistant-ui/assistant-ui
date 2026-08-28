@@ -20,6 +20,7 @@ Create `.env.local`:
 ```
 LANGGRAPH_API_URL=http://localhost:2024
 LANGCHAIN_API_KEY=
+APP_ORIGIN=
 NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=stockbroker
 ```
 

@@ -91,6 +91,9 @@ describe("LangGraph proxy", () => {
     const fetchMock = vi.fn().mockResolvedValue(
       new Response('{"thread_id":"thread-1"}', {
         headers: {
+          "Access-Control-Allow-Credentials": "true",
+          "Access-Control-Allow-Headers": "x-api-key",
+          "Access-Control-Allow-Methods": "POST",
           "Access-Control-Allow-Origin": "*",
           "Content-Type": "application/json",
           "Set-Cookie": "upstream=value",
@@ -122,6 +125,9 @@ describe("LangGraph proxy", () => {
       "application/json",
     );
     expect(response.status).toBe(200);
+    expect(response.headers.get("access-control-allow-credentials")).toBeNull();
+    expect(response.headers.get("access-control-allow-headers")).toBeNull();
+    expect(response.headers.get("access-control-allow-methods")).toBeNull();
     expect(response.headers.get("access-control-allow-origin")).toBeNull();
     expect(response.headers.get("set-cookie")).toBeNull();
     expect(response.headers.get("cache-control")).toBe("no-store");
