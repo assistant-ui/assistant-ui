@@ -1,9 +1,16 @@
-import { fetchSandboxResource } from "./fetch-sandbox";
 import type {
   XuluxMcpCatalog,
   XuluxMcpCatalogTemplate,
   XuluxMcpCatalogVersion,
 } from "./mcp-catalog";
+import {
+  fetchPreviewSession,
+  fetchTemplateContract,
+  hasConfig,
+  toAbsolute,
+  withVersion,
+  type TemplatePreviewSession,
+} from "./sandbox-contract";
 
 export interface ResolvedTemplate {
   template: XuluxMcpCatalogTemplate;
@@ -75,21 +82,6 @@ export function listTemplates(catalog: XuluxMcpCatalog): {
       kind: template.kind,
     })),
   };
-}
-
-async function fetchTemplateContract(
-  sandboxBaseUrl: string,
-  versionId: string | null,
-): Promise<Record<string, unknown> | null> {
-  try {
-    const url = new URL("/api/template/contract", sandboxBaseUrl);
-    if (versionId) url.searchParams.set("v", versionId);
-    const response = await fetchSandboxResource(url.toString());
-    if (!response.ok) return null;
-    return (await response.json()) as Record<string, unknown>;
-  } catch {
-    return null;
-  }
 }
 
 export interface TemplateDetails {
@@ -207,23 +199,6 @@ export async function getTemplateDetails(
   };
 }
 
-function toAbsolute(baseUrl: string, url: string): string {
-  if (/^https?:\/\//.test(url)) return url;
-  return `${baseUrl}${url.startsWith("/") ? "" : "/"}${url}`;
-}
-
-function withVersion(url: string, versionId: string | undefined): string {
-  if (!versionId) return url;
-  const [path, query = ""] = url.split("?");
-  const params = new URLSearchParams(query);
-  if (!params.has("v")) params.set("v", versionId);
-  return `${path}?${params.toString()}`;
-}
-
-function hasConfig(config: Record<string, unknown> | undefined): boolean {
-  return !!config && Object.keys(config).length > 0;
-}
-
 export interface TemplatePreviewResult {
   success: boolean;
   templateId: string;
@@ -312,14 +287,11 @@ export async function createTemplatePreview(
 
   if (hasConfig(input.config)) {
     try {
-      const sessionUrl = new URL("/api/preview/session", baseUrl);
-      if (effectiveVersionId)
-        sessionUrl.searchParams.set("v", effectiveVersionId);
-      const response = await fetchSandboxResource(sessionUrl.toString(), {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(input.config),
-      });
+      const response = await fetchPreviewSession(
+        baseUrl,
+        effectiveVersionId,
+        input.config,
+      );
       if (!response.ok) {
         const details = await response.text();
         return {
@@ -334,11 +306,7 @@ export async function createTemplatePreview(
             "Pass only hostUi, assistant, and brandTheme at the top level.",
         };
       }
-      const data = (await response.json()) as {
-        previewUrl?: string;
-        downloadUrl?: string;
-        validationWarnings?: unknown[];
-      };
+      const data = (await response.json()) as TemplatePreviewSession;
       if (!data.previewUrl) {
         return {
           success: false,
