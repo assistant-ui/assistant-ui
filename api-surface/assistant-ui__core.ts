@@ -6113,7 +6113,7 @@ declare const makeAssistantToolUI: <TArgs, TResult>(tool: AssistantToolUIProps<T
 
 declare const mergeModelContexts: (configSet: Set<ModelContextProvider>) => ModelContext$1;
 
-declare const messageErrorText: (s: AssistantState) => ReadonlyJSONValue | undefined;
+declare const messageErrorText: (s: AssistantState) => string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | undefined;
 
 declare const notifyEventListeners: <T>(listeners: Iterable<EventListener<T>>, payloadOrFactory: T | (() => T), errorContext: string) => void;
 
@@ -6393,7 +6393,7 @@ declare const useMessageBranching: () => {
   goToNext: () => void;
 };
 
-declare const useMessageError: () => ReadonlyJSONValue | undefined;
+declare const useMessageError: () => string | number | boolean | ReadonlyJSONObject | ReadonlyJSONArray | undefined;
 
 declare const useMessageReload: () => {
   reload: () => void;
