@@ -295,6 +295,9 @@ const useMainThreadFacade = (
         get: (_, prop) =>
           (currentRef.current as unknown as Record<PropertyKey, unknown>)[prop],
         has: (_, prop) => prop in (currentRef.current as object),
+        ownKeys: () => Reflect.ownKeys(currentRef.current as object),
+        getOwnPropertyDescriptor: (_, prop) =>
+          Reflect.getOwnPropertyDescriptor(currentRef.current as object, prop),
       }),
   );
   return facade;
