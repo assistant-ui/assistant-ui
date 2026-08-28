@@ -52,7 +52,7 @@ export const createLastValidCache = <T>(
 export const createStaleReporter =
   (options: {
     name: string;
-    index: number;
+    index: number | string;
     isCurrent: () => boolean;
     isValid: () => boolean;
   }) =>
@@ -64,6 +64,10 @@ export const createStaleReporter =
       // the parent scope itself is unavailable; report either way
     }
     console.error(
-      `${options.name}: index ${options.index} is still out of bounds after the update settled; the scope throws on its next resolution.`,
+      `${options.name}: ${
+        typeof options.index === "string"
+          ? `id "${options.index}"`
+          : `index ${options.index}`
+      } is still out of bounds after the update settled; the scope throws on its next resolution.`,
     );
   };
