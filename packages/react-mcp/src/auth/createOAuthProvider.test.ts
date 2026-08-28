@@ -106,6 +106,27 @@ describe("createOAuthProvider persistence", () => {
     await Promise.all([tokens, clientInformation]);
   });
 
+  it("retries loading persisted auth state after a failure", async () => {
+    const failure = new Error("storage unavailable");
+    const loadAuthState = vi
+      .fn<() => Promise<MCPPersistedAuthState | null>>()
+      .mockRejectedValueOnce(failure)
+      .mockResolvedValueOnce({ codeVerifier: "pkce-verifier" });
+    const { storage } = createStorage();
+    storage.loadAuthState = loadAuthState;
+    const provider = createProvider(storage);
+
+    const tokens = provider.tokens();
+    const clientInformation = provider.clientInformation();
+
+    await expect(tokens).rejects.toBe(failure);
+    await expect(clientInformation).rejects.toBe(failure);
+    expect(loadAuthState).toHaveBeenCalledTimes(1);
+
+    await expect(provider.codeVerifier()).resolves.toBe("pkce-verifier");
+    expect(loadAuthState).toHaveBeenCalledTimes(2);
+  });
+
   it("serializes writes so newer auth state is not overwritten", async () => {
     const { storage } = createStorage();
     const pendingWrites: Array<() => void> = [];
