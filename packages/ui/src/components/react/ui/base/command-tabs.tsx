@@ -8,7 +8,7 @@ import {
   type ComponentProps,
 } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
-import ShikiHighlighter from "react-shiki";
+import { useShikiHighlighter } from "react-shiki";
 import { cn } from "@/lib/utils";
 
 export interface CommandTabsProps extends Omit<
@@ -87,6 +87,10 @@ export function CommandTabs({
     ? active
     : (labels[0] ?? "");
   const command = commands[activeLabel] ?? "";
+  const highlighted = useShikiHighlighter(command, "bash", {
+    light: "catppuccin-latte",
+    dark: "catppuccin-mocha",
+  });
 
   return (
     <figure
@@ -149,14 +153,11 @@ export function CommandTabs({
           "dark:[&_code_span]:[color:var(--shiki-dark)]!",
         )}
       >
-        <ShikiHighlighter
-          language="bash"
-          theme={{ light: "catppuccin-latte", dark: "catppuccin-mocha" }}
-          addDefaultStyles={false}
-          showLanguage={false}
-        >
-          {command}
-        </ShikiHighlighter>
+        {highlighted ?? (
+          <pre>
+            <code>{command}</code>
+          </pre>
+        )}
       </div>
     </figure>
   );
