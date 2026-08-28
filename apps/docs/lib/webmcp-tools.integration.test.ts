@@ -12,16 +12,9 @@ import {
   type WebMcpModelContext,
 } from "./webmcp-tools";
 
-// The docs route (app/api/mcp/route.ts) can't be imported here because it
-// pulls in fumadocs-mdx virtual modules, so this drives a server + transport
-// configured exactly like the route's POST handler: stateless (no session id),
-// enableJsonResponse, request normalized through normalizeMcpRequestHeaders.
-// The requests come from the real callMcpRoute code path via registerWebMcpTools,
-// and the fixture registers its tool from the same tool-definitions module the
-// route imports, which locks in the transport contract: a bare tools/call with
-// no initialize handshake is accepted, and the transport answers with a JSON
-// body (not SSE) despite the client's "application/json, text/event-stream"
-// Accept header.
+// The docs route (app/api/mcp/route.ts) can't be imported here because it pulls
+// in fumadocs-mdx virtual modules, so this rebuilds its POST handler's server +
+// transport configuration instead.
 
 function buildSearchServer() {
   const server = new McpServer({ name: "assistant-ui-docs", version: "1.0.0" });

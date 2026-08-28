@@ -256,6 +256,26 @@ describe("registered tools", () => {
     expect(rejection).toBe(abortValue);
   });
 
+  it("propagates an AbortError raised while the body is streaming", async () => {
+    const abortingBody = vi.fn(async () => ({
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new DOMException("The user aborted a request.", "AbortError");
+      },
+    }));
+    const rejection = await toolByName(abortingBody, "getDoc")
+      .execute({ path: "/docs/getting-started" })
+      .then(
+        () => {
+          throw new Error("expected rejection");
+        },
+        (error: unknown) => error,
+      );
+    expect(rejection).toBeInstanceOf(DOMException);
+    expect((rejection as DOMException).name).toBe("AbortError");
+  });
+
   it("rejects on route-level isError results, surfacing the error text", async () => {
     const fetchImpl = fetchReturning({
       result: {

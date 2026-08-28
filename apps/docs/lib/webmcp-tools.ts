@@ -56,6 +56,16 @@ export type FetchLike = (
   },
 ) => Promise<{ ok: boolean; status: number; json: () => Promise<unknown> }>;
 
+// Cancellation must reach the caller untouched so an abort it requested stays
+// distinguishable from a transport or parse failure.
+function isAbortError(error: unknown) {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
+}
+
 async function callMcpRoute(
   fetchImpl: FetchLike,
   toolName: string,
@@ -79,14 +89,7 @@ async function callMcpRoute(
       ...(signal ? { signal } : {}),
     });
   } catch (error) {
-    // Propagate cancellation untouched so a caller can tell an abort it
-    // requested (name === "AbortError") from a transport failure.
-    if (
-      typeof error === "object" &&
-      error !== null &&
-      (error as { name?: unknown }).name === "AbortError"
-    )
-      throw error;
+    if (isAbortError(error)) throw error;
     throw new Error(
       `Docs request failed: ${error instanceof Error ? error.message : String(error)}`,
     );
@@ -102,7 +105,10 @@ async function callMcpRoute(
       result?: WebMcpToolResult & { isError?: boolean };
       error?: { message?: string };
     } | null;
-  } catch {
+  } catch (error) {
+    // fetch resolves once headers arrive, so an abort while the body is still
+    // streaming surfaces here rather than at the request above.
+    if (isAbortError(error)) throw error;
     throw new Error("Docs request returned invalid JSON");
   }
   if (typeof payload !== "object" || payload === null) {

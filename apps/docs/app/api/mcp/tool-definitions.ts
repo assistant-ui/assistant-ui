@@ -1,8 +1,3 @@
-// Shared between the MCP route (app/api/mcp/route.ts) and the WebMCP client
-// surface (lib/webmcp-tools.ts) so wire names, descriptions, and the search
-// result cap cannot drift apart. Follows the normalize-mcp-headers.ts pattern
-// of lifting route pieces that need a second consumer into a sibling module.
-
 export const SEARCH_DOCS_RESULT_LIMIT = 20;
 
 export const toolDefinitions = [
