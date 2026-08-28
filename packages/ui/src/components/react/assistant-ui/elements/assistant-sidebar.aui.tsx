@@ -5,7 +5,7 @@ import {
 } from "@/components/ui/resizable";
 import type { FC, PropsWithChildren } from "react";
 
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export const AssistantSidebar: FC<PropsWithChildren> = ({ children }) => {
   return (

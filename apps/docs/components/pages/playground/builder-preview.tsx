@@ -48,18 +48,18 @@ import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-ic
 import {
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/elements/attachment.kit";
+} from "@/components/assistant-ui/elements/attachment.aui";
 import {
   ReasoningRoot,
   ReasoningTrigger,
   ReasoningContent,
   ReasoningText,
-} from "@/components/assistant-ui/elements/reasoning.kit";
+} from "@/components/assistant-ui/elements/reasoning.aui";
 import {
   Source,
   SourceIcon,
   SourceTitle,
-} from "@/components/assistant-ui/elements/sources.kit";
+} from "@/components/assistant-ui/elements/sources.aui";
 import {
   type CodeHeaderProps,
   MarkdownTextPrimitive,

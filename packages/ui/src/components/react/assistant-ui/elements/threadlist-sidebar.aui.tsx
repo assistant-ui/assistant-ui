@@ -11,7 +11,7 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from "@/components/ui/sidebar";
-import { ThreadList } from "@/components/assistant-ui/elements/thread-list.kit";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 
 export function ThreadListSidebar({
   ...props

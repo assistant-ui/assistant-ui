@@ -18,7 +18,7 @@ Tool fallback renders any tool call that has no dedicated UI of its own: a colla
 
 Inside `Thread`'s message renderer, a tool-call part falls back to `ToolFallback` whenever nothing more specific (a per-tool renderer, or generative UI) claims it first.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 case "tool-call":
   return part.toolUI ?? <ToolFallbackComponent {...part} />;
 ```
@@ -106,7 +106,7 @@ Choosing "Always allow" here shows a confirm/back step before it calls `respondT
 Every piece is a named export you can recompose, and each carries its own `data-slot` for targeted styling.
 
 ```tsx
-import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant-ui/elements/tool-fallback.kit";
+import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant-ui/elements/tool-fallback.aui";
 
 <ToolFallbackTrigger toolName={part.toolName} status={part.status} className="text-sm" />
 ```

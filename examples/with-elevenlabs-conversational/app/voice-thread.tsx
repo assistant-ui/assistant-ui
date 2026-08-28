@@ -7,7 +7,7 @@ import {
   VoiceMuteButton,
   VoiceDisconnectButton,
   deriveVoiceOrbState,
-} from "@/components/assistant-ui/elements/voice.kit";
+} from "@/components/assistant-ui/elements/voice.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import {
   AuiIf,

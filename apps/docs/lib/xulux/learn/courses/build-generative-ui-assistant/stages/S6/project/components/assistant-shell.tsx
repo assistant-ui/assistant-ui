@@ -1,10 +1,10 @@
 "use client";
 
-import { Thread } from "./assistant-ui/elements/thread.kit";
+import { Thread } from "./assistant-ui/elements/thread.aui";
 import {
   ThreadList,
   ThreadListNew,
-} from "./assistant-ui/elements/thread-list.kit";
+} from "./assistant-ui/elements/thread-list.aui";
 
 export function AssistantShell() {
   return (

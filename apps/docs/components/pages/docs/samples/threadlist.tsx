@@ -1,7 +1,7 @@
 "use client";
 
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
-import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar.aui";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 

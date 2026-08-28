@@ -16,7 +16,7 @@ A canvas split sets a document beside the thread instead of inside it: the conve
 
 A tool whose result is the document, its arguments streaming in as the model writes it, is what the still-being-written half of this pattern is built on. Register a renderer for it through `MessagePrimitive.Parts`:
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 "use client";
 
 import { MessagePrimitive, useToolArgsStatus, type ToolCallMessagePartProps } from "@assistant-ui/react";

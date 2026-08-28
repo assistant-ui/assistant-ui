@@ -18,12 +18,12 @@ Attachment renders one file as a small tile: a thumbnail, a hover tooltip with i
 
 Wrap the input in `ComposerPrimitive.AttachmentDropzone` so dropped files are accepted, list staged attachments with `ComposerPrimitive.Attachments`, and add `ComposerAddAttachment` for the file picker button.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 import { ComposerPrimitive } from "@assistant-ui/react";
 import {
   ComposerAddAttachment,
   ComposerAttachments,
-} from "@/components/assistant-ui/elements/attachment.kit";
+} from "@/components/assistant-ui/elements/attachment.aui";
 
 function Composer() {
   return (
@@ -45,9 +45,9 @@ function Composer() {
 
 `UserMessageAttachments` lists the files a user message actually carries, using `MessagePrimitive.Attachments`. It only ever renders inside a user message, since assistant messages don't carry attachments.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 import { MessagePrimitive } from "@assistant-ui/react";
-import { UserMessageAttachments } from "@/components/assistant-ui/elements/attachment.kit";
+import { UserMessageAttachments } from "@/components/assistant-ui/elements/attachment.aui";
 
 function UserMessage() {
   return (
@@ -170,7 +170,7 @@ npx shadcn@latest add "@assistant-ui/elements-message-attachment"
 
 Wire it by mapping a user message's attachments into items; like `UserMessageAttachments` above, this only makes sense inside a user message. `s.message.attachments` is the store's own array and every entry is already complete (an upload still in progress lives in the composer's own attachments instead), so selecting it directly is cheap; deriving items still needs `useMemo`, since mapping to a fresh array on every call would re-render the list on every store update.
 
-```tsx title="components/assistant-ui/elements/message-attachment.kit.tsx"
+```tsx title="components/assistant-ui/elements/message-attachment.aui.tsx"
 "use client";
 
 import { useMemo } from "react";

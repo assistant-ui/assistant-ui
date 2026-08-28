@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
 
-import { ToolFallback, ToolFallbackApproval } from "./tool-fallback.kit";
+import { ToolFallback, ToolFallbackApproval } from "./tool-fallback.aui";
 
 const stubs = vi.hoisted(() => ({
   useScrollLock: () => () => {},

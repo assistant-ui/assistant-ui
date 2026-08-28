@@ -43,7 +43,7 @@ export const buildGenerativeUiAssistantCourse = {
         "app/page.tsx",
         "app/layout.tsx",
         "components/runtime-provider.tsx",
-        "components/assistant-ui/elements/thread.kit.tsx",
+        "components/assistant-ui/elements/thread.aui.tsx",
         "app/api/chat/route.ts",
       ],
     },
@@ -52,7 +52,7 @@ export const buildGenerativeUiAssistantCourse = {
       title: "Guide the first message",
       lessonPath: `${COURSE_ROOT}/lessons/03-guide-the-first-message.md`,
       stageId: "S2",
-      focusFiles: ["components/assistant-ui/elements/thread.kit.tsx"],
+      focusFiles: ["components/assistant-ui/elements/thread.aui.tsx"],
     },
     {
       id: "add-weather-tool",
@@ -63,8 +63,8 @@ export const buildGenerativeUiAssistantCourse = {
         "app/toolkit.tsx",
         "app/api/chat/route.ts",
         "next.config.ts",
-        "components/assistant-ui/elements/tool-fallback.kit.tsx",
-        "components/assistant-ui/elements/thread.kit.tsx",
+        "components/assistant-ui/elements/tool-fallback.aui.tsx",
+        "components/assistant-ui/elements/thread.aui.tsx",
       ],
     },
     {
@@ -77,7 +77,7 @@ export const buildGenerativeUiAssistantCourse = {
         "app/toolkit.tsx",
         "components/tools/weather-card.tsx",
         "components/tool-provider.tsx",
-        "components/assistant-ui/elements/thread.kit.tsx",
+        "components/assistant-ui/elements/thread.aui.tsx",
       ],
     },
     {
@@ -110,7 +110,7 @@ export const buildGenerativeUiAssistantCourse = {
       title: "Revise and branch a conversation",
       lessonPath: `${COURSE_ROOT}/lessons/08-revise-and-branch.md`,
       stageId: "S7",
-      focusFiles: ["components/assistant-ui/elements/thread.kit.tsx"],
+      focusFiles: ["components/assistant-ui/elements/thread.aui.tsx"],
     },
   ],
   stages: {

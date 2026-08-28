@@ -24,7 +24,7 @@ const formatTimingMs = (ms: number | undefined): string => {
  * inherits the action bar's autohide behaviour:
  *
  * ```tsx
- * import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.kit";
+ * import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
  *
  * <ActionBarPrimitive.Root >
  *   <ActionBarPrimitive.Copy />

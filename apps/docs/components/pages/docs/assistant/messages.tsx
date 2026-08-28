@@ -12,8 +12,8 @@ import {
 } from "@assistant-ui/react";
 import { type ComponentType, type ReactNode } from "react";
 import { FileTextIcon } from "lucide-react";
-import { Reasoning } from "@/components/assistant-ui/elements/reasoning.kit";
-import { Sources } from "@/components/assistant-ui/elements/sources.kit";
+import { Reasoning } from "@/components/assistant-ui/elements/reasoning.aui";
+import { Sources } from "@/components/assistant-ui/elements/sources.aui";
 import {
   TraceLine,
   formatDuration,

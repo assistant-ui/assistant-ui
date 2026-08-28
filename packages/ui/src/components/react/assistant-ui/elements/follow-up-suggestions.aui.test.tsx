@@ -2,7 +2,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import type { PropsWithChildren, ReactNode } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 
-import { ThreadFollowupSuggestions } from "./follow-up-suggestions.kit";
+import { ThreadFollowupSuggestions } from "./follow-up-suggestions.aui";
 
 type FakeSuggestion = { title?: string; label?: string; prompt: string };
 

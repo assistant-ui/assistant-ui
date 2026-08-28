@@ -16,7 +16,7 @@ npm install @assistant-ui/react @assistant-ui/react-opencode
 ```tsx
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useOpenCodeRuntime } from "@assistant-ui/react-opencode";
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export function App() {
   const runtime = useOpenCodeRuntime({

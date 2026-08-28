@@ -4,16 +4,16 @@ import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/elements/attachment.kit";
+} from "@/components/assistant-ui/elements/attachment.aui";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { DotMatrix } from "@/components/ui/dot-matrix";
-import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.kit";
-import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.kit";
+import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
   ToolGroupRoot,
   ToolGroupTrigger,
-} from "@/components/assistant-ui/elements/tool-group.kit";
+} from "@/components/assistant-ui/elements/tool-group.aui";
 import { CloneThreadShell } from "./clone-thread-shell";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import {
@@ -22,7 +22,7 @@ import {
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-} from "@/components/assistant-ui/elements/reasoning.kit";
+} from "@/components/assistant-ui/elements/reasoning.aui";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
@@ -31,9 +31,9 @@ import {
   ComposerQuotePreview,
   QuoteBlock,
   SelectionToolbar,
-} from "@/components/assistant-ui/elements/quote.kit";
-import { ComposerTriggerPopover } from "@/components/assistant-ui/elements/composer-trigger-popover.kit";
-import { DirectiveText } from "@/components/assistant-ui/elements/directive-text.kit";
+} from "@/components/assistant-ui/elements/quote.aui";
+import { ComposerTriggerPopover } from "@/components/assistant-ui/elements/composer-trigger-popover.aui";
+import { DirectiveText } from "@/components/assistant-ui/elements/directive-text.aui";
 import {
   ActionBarMorePrimitive,
   ActionBarPrimitive,
@@ -85,7 +85,7 @@ import {
 } from "@assistant-ui/react-lexical";
 import Image from "next/image";
 import { useState, type FC, type ReactNode } from "react";
-import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.kit";
+import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
 import { docsModelOptions } from "@/components/pages/docs/assistant/docs-model-options";
 import { DEFAULT_MODEL_ID } from "@/lib/model";
 

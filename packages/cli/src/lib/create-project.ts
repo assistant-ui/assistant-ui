@@ -404,8 +404,8 @@ function toAssistantUIItem(specifier: string): string | null {
   } else if (name.includes("/")) {
     return null;
   }
-  if (name.endsWith(".kit")) {
-    return name.slice(0, -".kit".length);
+  if (name.endsWith(".aui")) {
+    return name.slice(0, -".aui".length);
   }
   return inElements ? `elements-${name}` : name;
 }

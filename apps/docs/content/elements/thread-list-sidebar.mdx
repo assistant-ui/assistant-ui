@@ -18,8 +18,8 @@ Thread list sidebar wraps the runtime [Thread list](/elements/thread-list) in a 
 
 ```tsx title="app/layout.tsx"
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar.kit";
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
+import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function Layout() {
   return (
@@ -73,7 +73,7 @@ Every `Sidebar` prop passes straight through, `collapsible`, `side`, and `varian
 
 ### Replace the header and footer branding
 
-`ThreadListSidebar` does not expose header or footer content as props. Replace the literal links in your copy of `threadlist-sidebar.kit.tsx` with your own product name and support link.
+`ThreadListSidebar` does not expose header or footer content as props. Replace the literal links in your copy of `threadlist-sidebar.aui.tsx` with your own product name and support link.
 
 ### Add a trigger to open it
 

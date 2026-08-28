@@ -18,13 +18,13 @@ Tool group collapses a run of consecutive tool calls behind a single row: a coun
 
 `Thread` groups adjacent tool-call parts with `MessagePrimitive.GroupedParts`, and renders each group with exactly the pieces below.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
 import {
   ToolGroupContent,
   ToolGroupRoot,
   ToolGroupTrigger,
-} from "@/components/assistant-ui/elements/tool-group.kit";
+} from "@/components/assistant-ui/elements/tool-group.aui";
 
 <MessagePrimitive.GroupedParts
   groupBy={groupPartByType({

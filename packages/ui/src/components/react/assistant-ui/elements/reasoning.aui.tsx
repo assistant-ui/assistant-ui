@@ -103,7 +103,7 @@ Reasoning.Fade = ReasoningFade;
  * prop on `<MessagePrimitive.Parts>`. Use `<MessagePrimitive.GroupedParts>`
  * with a `groupBy` returning `"group-reasoning"` and compose `ReasoningRoot`
  * / `ReasoningTrigger` / `ReasoningContent` / `ReasoningText` directly.
- * See `thread.kit.tsx` for an example.
+ * See `thread.aui.tsx` for an example.
  */
 const ReasoningGroup = memo(ReasoningGroupImpl);
 ReasoningGroup.displayName = "ReasoningGroup";

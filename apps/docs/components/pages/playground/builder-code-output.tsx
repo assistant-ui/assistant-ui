@@ -97,17 +97,17 @@ function generateComponentCode(config: BuilderConfig): string {
     components.markdown &&
       `import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";`,
     components.markdown &&
-      `import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.kit";`,
+      `import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";`,
     components.reasoning &&
-      `import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/elements/reasoning.kit";`,
+      `import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/elements/reasoning.aui";`,
     components.sources &&
-      `import { Sources } from "@/components/assistant-ui/elements/sources.kit";`,
+      `import { Sources } from "@/components/assistant-ui/elements/sources.aui";`,
     components.attachments &&
       `import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/elements/attachment.kit";`,
+} from "@/components/assistant-ui/elements/attachment.aui";`,
     `import { cn } from "@/lib/utils";`,
   ]
     .filter(Boolean)

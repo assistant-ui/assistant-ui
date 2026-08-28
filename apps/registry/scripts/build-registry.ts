@@ -980,7 +980,7 @@ const EXPLICIT_EXTENSIONS = new Set([
  * extension, an extensionless module, a directory index, or the TypeScript
  * source behind a `.js` specifier. A dot in a basename is only treated as an
  * explicit extension when it is one of the recognized module or asset
- * extensions; a dotted module name (`./badge.kit`) probes module and index
+ * extensions; a dotted module name (`./badge.aui`) probes module and index
  * forms only, since closure files always carry a real extension. `null` means
  * the specifier points outside the installed tree, where no closure file can
  * ever satisfy it.

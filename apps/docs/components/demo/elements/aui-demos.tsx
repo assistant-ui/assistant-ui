@@ -16,10 +16,10 @@ import {
 } from "lucide-react";
 import type { SyntaxHighlighterProps } from "@assistant-ui/react-markdown";
 import { cn } from "@/lib/utils";
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
-import { VoiceOrb } from "@/components/assistant-ui/elements/voice.kit";
-import { ThreadList } from "@/components/assistant-ui/elements/thread-list.kit";
-import { AssistantSidebar } from "@/components/assistant-ui/elements/assistant-sidebar.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { VoiceOrb } from "@/components/assistant-ui/elements/voice.aui";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { AssistantSidebar } from "@/components/assistant-ui/elements/assistant-sidebar.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { SyntaxHighlighter as PrismSyntaxHighlighter } from "@/components/assistant-ui/elements/syntax-highlighter";
 import {

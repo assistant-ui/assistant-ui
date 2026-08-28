@@ -129,7 +129,7 @@ export const createClient = () => {
 "use client";
 
 import { useMemo } from "react";
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import {
   unstable_createLangGraphStream,
@@ -189,7 +189,7 @@ import {
   useLangGraphRuntime,
   type LangChainMessage,
 } from "@assistant-ui/react-langgraph";
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 import { createClient } from "@/lib/chatApi";
 

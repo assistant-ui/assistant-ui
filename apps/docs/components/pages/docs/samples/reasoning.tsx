@@ -2,14 +2,14 @@
 
 import { AssistantRuntimeProvider, useLocalRuntime } from "@assistant-ui/react";
 import { useCallback } from "react";
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 import {
   ReasoningRoot,
   ReasoningTrigger,
   ReasoningContent,
   ReasoningText,
-} from "@/components/assistant-ui/elements/reasoning.kit";
+} from "@/components/assistant-ui/elements/reasoning.aui";
 
 export function ReasoningSample() {
   return (

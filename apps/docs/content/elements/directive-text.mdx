@@ -16,8 +16,8 @@ Directive text parses a message's plain text for directive syntax and renders ea
 
 `DirectiveText` is pre-wired with assistant-ui's default directive format. Pass it as the `Text` renderer on `MessagePrimitive.Parts` wherever directive chips should appear.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
-import { DirectiveText } from "@/components/assistant-ui/elements/directive-text.kit";
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { DirectiveText } from "@/components/assistant-ui/elements/directive-text.aui";
 import { MessagePrimitive } from "@assistant-ui/react";
 
 function UserMessage() {

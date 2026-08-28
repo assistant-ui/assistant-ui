@@ -3,13 +3,13 @@
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime, AssistantChatTransport } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithToolCalls } from "ai";
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import {
   SidebarInset,
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar.kit";
+import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar.aui";
 import { Separator } from "@/components/ui/separator";
 import {
   Breadcrumb,

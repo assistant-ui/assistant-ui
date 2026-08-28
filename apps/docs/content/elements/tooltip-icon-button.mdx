@@ -16,7 +16,7 @@ Every action button across the runtime-connected kit elements, thread, voice, at
 
 ### Compose it with a primitive
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 "use client";
 
 import { ThreadPrimitive } from "@assistant-ui/react";
@@ -129,11 +129,11 @@ A tooltip provider and a floating content panel wrap the button but render nothi
 
 | File | Tooltip text |
 |------|--------------|
-| `thread.kit.tsx` | "Scroll to bottom", "Send message", "Voice input", "Stop dictation" |
-| `thread.kit.tsx` | "Copy", "Refresh", "More", "Edit", "Previous", "Next" |
-| `voice.kit.tsx` | "Mute" / "Unmute", "Disconnect" |
-| `attachment.kit.tsx` | "Add Attachment", "Remove file" |
-| `assistant-modal.kit.tsx` | "Open Assistant" / "Close Assistant" |
+| `thread.aui.tsx` | "Scroll to bottom", "Send message", "Voice input", "Stop dictation" |
+| `thread.aui.tsx` | "Copy", "Refresh", "More", "Edit", "Previous", "Next" |
+| `voice.aui.tsx` | "Mute" / "Unmute", "Disconnect" |
+| `attachment.aui.tsx` | "Add Attachment", "Remove file" |
+| `assistant-modal.aui.tsx` | "Open Assistant" / "Close Assistant" |
 | `markdown-text.tsx` | "Copy", on a rendered code block |
 
 There's no state selector of its own: it renders whatever the primitive it wraps decides, through `render`.

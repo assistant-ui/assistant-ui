@@ -1,7 +1,7 @@
 "use client";
 
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
-import { ThreadList } from "@/components/assistant-ui/elements/thread-list.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 import {
   useAui,
   AuiProvider,

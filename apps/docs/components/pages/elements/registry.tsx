@@ -1084,7 +1084,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Thread",
         description:
           "A complete chat container with messages, composer, auto-scroll, and accessibility built in.",
-        file: "thread.kit.tsx",
+        file: "thread.aui.tsx",
         registryName: "thread",
         connection: "AUI",
         wide: true,
@@ -1096,7 +1096,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Assistant modal",
         description:
           "A floating chat bubble for support widgets, help desks, and embedded assistants.",
-        file: "assistant-modal.kit.tsx",
+        file: "assistant-modal.aui.tsx",
         registryName: "assistant-modal",
         connection: "AUI",
         wide: true,
@@ -1108,7 +1108,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Assistant sidebar",
         description:
           "A resizable side panel for copilot experiences and contextual assistance.",
-        file: "assistant-sidebar.kit.tsx",
+        file: "assistant-sidebar.aui.tsx",
         registryName: "assistant-sidebar",
         connection: "AUI",
         wide: true,
@@ -1121,7 +1121,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Thread list",
         description:
           "Runtime-backed conversation switching with search, active selection, and thread actions.",
-        file: "thread-list.kit.tsx",
+        file: "thread-list.aui.tsx",
         registryName: "thread-list",
         connection: "AUI",
         Component: AuiThreadListDemo,
@@ -1136,7 +1136,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Thread list sidebar",
         description:
           "A complete sidebar shell that places the runtime thread list beside the active conversation.",
-        file: "threadlist-sidebar.kit.tsx",
+        file: "threadlist-sidebar.aui.tsx",
         registryName: "threadlist-sidebar",
         connection: "AUI",
         wide: true,
@@ -1150,7 +1150,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Orb",
         description:
           "The realtime voice orb, with connection, mute, and speaking state controls.",
-        file: "voice.kit.tsx",
+        file: "voice.aui.tsx",
         registryName: "voice",
         connection: "AUI",
         Component: AuiVoiceDemo,
@@ -1171,7 +1171,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Reasoning",
         description:
           "A collapsible renderer for assistant reasoning that follows the active message part.",
-        file: "reasoning.kit.tsx",
+        file: "reasoning.aui.tsx",
         registryName: "reasoning",
         connection: "AUI",
         Component: AuiReasoningDemo,
@@ -1187,7 +1187,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Message timing",
         description:
           "Streaming statistics for the current message, including first token, total time, and speed.",
-        file: "message-timing.kit.tsx",
+        file: "message-timing.aui.tsx",
         registryName: "message-timing",
         connection: "AUI",
         Component: AuiMessageTimingDemo,
@@ -1203,7 +1203,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Context display",
         description:
           "Model context usage as a ring, bar, or text value with a detailed hover view.",
-        file: "context-display.kit.tsx",
+        file: "context-display.aui.tsx",
         registryName: "context-display",
         connection: "AUI",
         Component: AuiContextDisplayDemo,
@@ -1214,7 +1214,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "MCP config dialog",
         description:
           "A dialog for connectors and custom MCP servers, including authentication and connection state.",
-        file: "mcp-config.kit.tsx",
+        file: "mcp-config.aui.tsx",
         registryName: "mcp-config",
         connection: "AUI",
         Component: AuiMcpConfigDemo,
@@ -1226,7 +1226,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Attachment",
         description:
           "Runtime attachments for the composer and messages, with previews, progress, and removal.",
-        file: "attachment.kit.tsx",
+        file: "attachment.aui.tsx",
         registryName: "attachment",
         connection: "AUI",
         Component: AuiAttachmentDemo,
@@ -1242,7 +1242,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Follow-up suggestions",
         description:
           "Prompt chips populated from the runtime's generated follow-up suggestions.",
-        file: "follow-up-suggestions.kit.tsx",
+        file: "follow-up-suggestions.aui.tsx",
         registryName: "follow-up-suggestions",
         connection: "AUI",
         wide: true,
@@ -1263,7 +1263,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Tool fallback",
         description:
           "The default runtime renderer for tool calls that do not have dedicated UI.",
-        file: "tool-fallback.kit.tsx",
+        file: "tool-fallback.aui.tsx",
         registryName: "tool-fallback",
         connection: "AUI",
         Component: AuiToolFallbackDemo,
@@ -1275,7 +1275,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Tool group",
         description:
           "A collapsible runtime wrapper around consecutive tool calls in one assistant turn.",
-        file: "tool-group.kit.tsx",
+        file: "tool-group.aui.tsx",
         registryName: "tool-group",
         connection: "AUI",
         Component: AuiToolGroupDemo,
@@ -1291,7 +1291,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Quote",
         description:
           "Select message text, quote it from a floating toolbar, and carry it into the composer.",
-        file: "quote.kit.tsx",
+        file: "quote.aui.tsx",
         registryName: "quote",
         connection: "AUI",
         Component: AuiQuoteDemo,
@@ -1307,7 +1307,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Sources",
         description:
           "Runtime URL sources with favicon, title, and an external link.",
-        file: "sources.kit.tsx",
+        file: "sources.aui.tsx",
         registryName: "sources",
         connection: "AUI",
         Component: AuiSourcesDemo,
@@ -1345,7 +1345,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Model selector",
         description:
           "A searchable runtime model picker with grouped providers and reasoning effort controls.",
-        file: "model-selector.kit.tsx",
+        file: "model-selector.aui.tsx",
         registryName: "model-selector",
         connection: "AUI",
         Component: AuiModelSelectorDemo,
@@ -1360,7 +1360,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Composer trigger popover",
         description:
           "A character-triggered picker for mentions, slash commands, and nested composer actions.",
-        file: "composer-trigger-popover.kit.tsx",
+        file: "composer-trigger-popover.aui.tsx",
         registryName: "composer-trigger-popover",
         connection: "AUI",
         Component: AuiComposerTriggerPopoverDemo,
@@ -1372,7 +1372,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Directive text",
         description:
           "A message renderer that turns mention directives into inline, runtime-aware chips.",
-        file: "directive-text.kit.tsx",
+        file: "directive-text.aui.tsx",
         registryName: "directive-text",
         connection: "AUI",
         Component: AuiDirectiveTextDemo,
@@ -1412,7 +1412,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Shiki highlighter",
         description:
           "Shiki code highlighting that defers tokenization until a message part settles.",
-        file: "shiki-highlighter.kit.tsx",
+        file: "shiki-highlighter.aui.tsx",
         registryName: "shiki-highlighter",
         connection: "AUI",
         Component: AuiShikiHighlighterDemo,
@@ -1424,7 +1424,7 @@ export const ELEMENT_SECTIONS: ElementSection[] = [
         title: "Mermaid diagram",
         description:
           "Mermaid diagrams rendered inside messages, including partial streaming input.",
-        file: "mermaid-diagram.kit.tsx",
+        file: "mermaid-diagram.aui.tsx",
         registryName: "mermaid-diagram",
         Component: AuiMermaidDiagramDemo,
       },

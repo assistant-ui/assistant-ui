@@ -18,7 +18,7 @@ Every assistant-ui runtime records how a response streamed in. The badge reads t
 
 `useMessageTiming()` returns the current assistant message's `metadata.timing`, or `undefined` on a user message or before any timing exists. The badge renders nothing until `totalStreamTime` is set, so it appears only once a response has actually finished streaming.
 
-```tsx title="components/assistant-ui/elements/message-timing.kit.tsx"
+```tsx title="components/assistant-ui/elements/message-timing.aui.tsx"
 "use client";
 
 import { useMessageTiming } from "@assistant-ui/react";
@@ -73,10 +73,10 @@ export const MessageTiming: FC<{
 
 Drop `MessageTiming` next to copy and reload so it inherits the action bar's own hover and autohide behavior from `ActionBarPrimitive.Root`.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx" {3,10}
+```tsx title="components/assistant-ui/elements/thread.aui.tsx" {3,10}
 import { ActionBarPrimitive } from "@assistant-ui/react";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
-import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.kit";
+import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
 
 function AssistantActionBar() {
   return (
@@ -172,7 +172,7 @@ npx shadcn@latest add "@assistant-ui/elements-message-timing"
 
 A runtime already exposes the same timing through `useMessageTiming()`; map it into stats yourself when you want a row instead of a badge:
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 "use client";
 
 import { useMessageTiming } from "@assistant-ui/react";

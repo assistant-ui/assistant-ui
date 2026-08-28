@@ -27,7 +27,7 @@ describe("sidebar demo download file maps", () => {
 
       expect(keys).toContain("components/examples/clone-thread-shell.tsx");
       expect(keys).toContain(
-        "components/assistant-ui/elements/thread-list.kit.tsx",
+        "components/assistant-ui/elements/thread-list.aui.tsx",
       );
 
       for (const [file, content] of Object.entries(files)) {

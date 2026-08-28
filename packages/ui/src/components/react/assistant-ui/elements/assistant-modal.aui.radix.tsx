@@ -5,7 +5,7 @@ import { BotIcon, ChevronDownIcon } from "lucide-react";
 import { type FC, forwardRef } from "react";
 import { AssistantModalPrimitive } from "@assistant-ui/react";
 
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 
 export const AssistantModal: FC = () => {

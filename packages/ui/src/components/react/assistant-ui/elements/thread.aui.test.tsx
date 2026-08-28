@@ -6,7 +6,7 @@ import {
 } from "@assistant-ui/react";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 
-import { Thread, type ThreadProps } from "./thread.kit";
+import { Thread, type ThreadProps } from "./thread.aui";
 
 const adapter: ChatModelAdapter = {
   async *run() {},

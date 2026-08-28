@@ -47,8 +47,8 @@ Without this step every preset reads a total of zero and the tooltip's breakdown
 
 Pick `Ring`, `Bar`, or `Text` and pass your model's `modelContextWindow`. Each preset fetches usage internally through `useThreadTokenUsage()` and restarts its running total whenever the active thread's id changes.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
-import { ContextDisplay } from "@/components/assistant-ui/elements/context-display.kit";
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { ContextDisplay } from "@/components/assistant-ui/elements/context-display.aui";
 
 function ThreadFooter() {
   return (

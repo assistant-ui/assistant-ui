@@ -2,9 +2,9 @@ import { cleanup, render } from "@testing-library/react";
 import type { ReactElement } from "react";
 import { afterEach, describe, expect, it } from "vitest";
 
-import { Reasoning } from "./reasoning.kit";
-import { ToolFallback } from "./tool-fallback.kit";
-import { ToolGroup } from "./tool-group.kit";
+import { Reasoning } from "./reasoning.aui";
+import { ToolFallback } from "./tool-fallback.aui";
+import { ToolGroup } from "./tool-group.aui";
 
 const cases: Record<string, { element: ReactElement; text: string }> = {
   "reasoning trigger": {

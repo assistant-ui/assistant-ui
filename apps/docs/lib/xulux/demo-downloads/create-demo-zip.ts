@@ -52,9 +52,9 @@ export function createDemoFileMap(slug: string, snapshot: SourceSnapshot) {
     "app/api/chat/route.ts": chatRouteTs(),
     "components/runtime/demo-runtime-provider.tsx": runtimeProviderTsx(),
     "components/assistant-ui/elements/markdown-text.tsx": markdownTextShim(),
-    "components/assistant-ui/elements/shiki-highlighter.kit.tsx":
+    "components/assistant-ui/elements/shiki-highlighter.aui.tsx":
       shikiHighlighterShim(),
-    "components/assistant-ui/elements/tool-fallback.kit.tsx":
+    "components/assistant-ui/elements/tool-fallback.aui.tsx":
       toolFallbackShim(),
     "components/assistant-ui/elements/tooltip-icon-button.tsx":
       tooltipIconButtonShim(),

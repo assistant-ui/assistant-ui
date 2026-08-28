@@ -2,7 +2,7 @@
 
 import { type FC, type PropsWithChildren } from "react";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
-import { Sources } from "@/components/assistant-ui/elements/sources.kit";
+import { Sources } from "@/components/assistant-ui/elements/sources.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import {
@@ -11,13 +11,13 @@ import {
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-} from "@/components/assistant-ui/elements/reasoning.kit";
-import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.kit";
+} from "@/components/assistant-ui/elements/reasoning.aui";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import {
   ToolGroupContent,
   ToolGroupRoot,
   ToolGroupTrigger,
-} from "@/components/assistant-ui/elements/tool-group.kit";
+} from "@/components/assistant-ui/elements/tool-group.aui";
 import {
   AuiIf,
   ComposerPrimitive,

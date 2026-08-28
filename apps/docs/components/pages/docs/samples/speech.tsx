@@ -4,7 +4,7 @@ import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/elements/attachment.kit";
+} from "@/components/assistant-ui/elements/attachment.aui";
 import {
   ActionBarPrimitive,
   AuiIf,
@@ -33,7 +33,7 @@ import {
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.kit";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 
 export const SpeechSample = () => {
   return (

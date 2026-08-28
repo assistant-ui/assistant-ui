@@ -17,7 +17,7 @@ Thread is the complete chat surface: message list, composer, auto-scroll, and th
 ### Use it in your app
 
 ```tsx title="app/page.tsx"
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function Chat() {
   return (
@@ -39,7 +39,7 @@ Needs an `AssistantRuntimeProvider` ancestor; `Thread` itself takes no runtime p
 import {
   Thread,
   type ThreadComponents,
-} from "@/components/assistant-ui/elements/thread.kit";
+} from "@/components/assistant-ui/elements/thread.aui";
 
 const THREAD_COMPONENTS: ThreadComponents = {
   ToolFallback: MyToolFallback,
@@ -113,7 +113,7 @@ const THREAD_COMPONENTS: ThreadComponents = {
 
 ### Restyle the shell
 
-`Thread` sets `--thread-max-width`, `--composer-bg`, `--composer-radius`, and `--composer-padding` as inline styles directly on `ThreadPrimitive.Root`. Because they are set there rather than inherited, overriding them means editing your copy of `thread.kit.tsx`, not layering a class from outside:
+`Thread` sets `--thread-max-width`, `--composer-bg`, `--composer-radius`, and `--composer-padding` as inline styles directly on `ThreadPrimitive.Root`. Because they are set there rather than inherited, overriding them means editing your copy of `thread.aui.tsx`, not layering a class from outside:
 
 ```tsx
 style={{

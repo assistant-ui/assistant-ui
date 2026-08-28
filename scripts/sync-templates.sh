@@ -32,9 +32,9 @@ MINIMAL_UI_DIR="$TEMPLATES_ROOT/minimal/components/ui"
 MINIMAL_HOOKS_DIR="$TEMPLATES_ROOT/minimal/hooks"
 
 OVERRIDES=(
-    # minimal intentionally ships a slim thread.kit.tsx without GroupedParts /
+    # minimal intentionally ships a slim thread.aui.tsx without GroupedParts /
     # reasoning / tool-group, since it doesn't bundle those companion files.
-    "thread.kit.tsx"
+    "thread.aui.tsx"
     # minimal ships without react-shiki, so its markdown-text.tsx omits the
     # SyntaxHighlighter wiring.
     "markdown-text.tsx"

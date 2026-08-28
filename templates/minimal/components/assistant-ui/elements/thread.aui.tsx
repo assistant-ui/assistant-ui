@@ -2,9 +2,9 @@ import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/elements/attachment.kit";
+} from "@/components/assistant-ui/elements/attachment.aui";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
-import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.kit";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

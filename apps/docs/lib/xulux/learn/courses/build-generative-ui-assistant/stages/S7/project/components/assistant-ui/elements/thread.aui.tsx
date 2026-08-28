@@ -1,36 +1,41 @@
 "use client";
 
 import {
+  ActionBarPrimitive,
   AuiIf,
+  BranchPickerPrimitive,
   ComposerPrimitive,
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
 import {
   ArrowUp,
+  ChevronLeft,
+  ChevronRight,
   CloudSun,
-  ListChecks,
-  NotebookPen,
+  GitBranch,
+  Pencil,
+  PencilLine,
+  RefreshCw,
   Square,
 } from "lucide-react";
-import { ToolFallback } from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S3/project/components/assistant-ui/elements/tool-fallback.kit";
+import { ToolFallback } from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S3/project/components/assistant-ui/elements/tool-fallback.aui";
 
 const suggestions = [
   {
-    label: "Create note",
-    prompt:
-      "Draft a short product announcement for a new dark mode in the notepad.",
-    icon: NotebookPen,
+    label: "Branch a response",
+    prompt: "Give me three launch taglines for an AI assistant.",
+    icon: GitBranch,
   },
   {
-    label: "Weather card",
-    prompt: "What's the weather in San Francisco?",
+    label: "Compare an edit",
+    prompt: "Explain React state in exactly three bullet points.",
+    icon: PencilLine,
+  },
+  {
+    label: "Regenerate weather",
+    prompt: "What's the weather in London?",
     icon: CloudSun,
-  },
-  {
-    label: "Writing note",
-    prompt: "Create an editable notepad with a four-line launch checklist.",
-    icon: ListChecks,
   },
 ];
 
@@ -70,9 +75,13 @@ export function Thread() {
             </div>
           </div>
         </AuiIf>
-        <ThreadPrimitive.Messages
-          components={{ UserMessage, AssistantMessage }}
-        />
+        <ThreadPrimitive.Messages>
+          {({ message }) => {
+            if (message.composer.isEditing) return <EditComposer />;
+            if (message.role === "user") return <UserMessage />;
+            return <AssistantMessage />;
+          }}
+        </ThreadPrimitive.Messages>
         <ThreadPrimitive.ViewportFooter className="sticky bottom-0 mt-auto w-full bg-[var(--background)] p-4">
           <ComposerPrimitive.Root className="mx-auto flex w-full max-w-2xl items-end gap-2 rounded-2xl border border-[var(--border)] bg-[var(--muted)] p-2">
             <ComposerPrimitive.Input asChild>
@@ -104,9 +113,18 @@ export function Thread() {
 
 function UserMessage() {
   return (
-    <MessagePrimitive.Root className="mx-auto flex w-full max-w-2xl justify-end px-4 py-2">
+    <MessagePrimitive.Root className="group mx-auto flex w-full max-w-2xl flex-col items-end px-4 py-2">
       <div className="max-w-[80%] rounded-2xl bg-[var(--muted)] px-4 py-3">
         <MessagePrimitive.Content />
+      </div>
+      <div className="mt-1 flex items-center gap-1">
+        <BranchPicker />
+        <ActionBarPrimitive.Root hideWhenRunning autohide="not-last">
+          <ActionBarPrimitive.Edit className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]">
+            <Pencil className="size-3.5" />
+            <span className="sr-only">Edit message</span>
+          </ActionBarPrimitive.Edit>
+        </ActionBarPrimitive.Root>
       </div>
     </MessagePrimitive.Root>
   );
@@ -118,6 +136,61 @@ function AssistantMessage() {
       <MessagePrimitive.Content
         components={{ tools: { Fallback: ToolFallback } }}
       />
+      <div className="mt-2 flex items-center gap-1">
+        <BranchPicker />
+        <ActionBarPrimitive.Root hideWhenRunning autohide="not-last">
+          <ActionBarPrimitive.Reload className="rounded-md p-1.5 text-[var(--muted-foreground)] hover:bg-[var(--muted)] hover:text-[var(--foreground)]">
+            <RefreshCw className="size-3.5" />
+            <span className="sr-only">Regenerate response</span>
+          </ActionBarPrimitive.Reload>
+        </ActionBarPrimitive.Root>
+      </div>
     </MessagePrimitive.Root>
+  );
+}
+
+function EditComposer() {
+  return (
+    <MessagePrimitive.Root className="mx-auto w-full max-w-2xl px-4 py-2">
+      <ComposerPrimitive.Root className="ml-auto flex w-full max-w-[85%] flex-col rounded-2xl border border-[var(--border)] bg-[var(--muted)] p-2">
+        <ComposerPrimitive.Input asChild>
+          <textarea
+            aria-label="Edit message"
+            autoFocus
+            rows={3}
+            className="resize-none bg-transparent px-2 py-1 outline-none"
+          />
+        </ComposerPrimitive.Input>
+        <div className="mt-2 flex justify-end gap-2">
+          <ComposerPrimitive.Cancel className="rounded-lg px-3 py-1.5 text-sm hover:bg-[var(--background)]">
+            Cancel
+          </ComposerPrimitive.Cancel>
+          <ComposerPrimitive.Send className="rounded-lg bg-[var(--foreground)] px-3 py-1.5 text-sm text-[var(--background)]">
+            Update
+          </ComposerPrimitive.Send>
+        </div>
+      </ComposerPrimitive.Root>
+    </MessagePrimitive.Root>
+  );
+}
+
+function BranchPicker() {
+  return (
+    <BranchPickerPrimitive.Root
+      hideWhenSingleBranch
+      className="flex items-center gap-1 text-xs text-[var(--muted-foreground)]"
+    >
+      <BranchPickerPrimitive.Previous className="rounded-md p-1 hover:bg-[var(--muted)]">
+        <ChevronLeft className="size-3.5" />
+        <span className="sr-only">Previous branch</span>
+      </BranchPickerPrimitive.Previous>
+      <span>
+        <BranchPickerPrimitive.Number /> / <BranchPickerPrimitive.Count />
+      </span>
+      <BranchPickerPrimitive.Next className="rounded-md p-1 hover:bg-[var(--muted)]">
+        <ChevronRight className="size-3.5" />
+        <span className="sr-only">Next branch</span>
+      </BranchPickerPrimitive.Next>
+    </BranchPickerPrimitive.Root>
   );
 }

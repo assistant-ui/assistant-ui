@@ -50,7 +50,7 @@ You have tools to explore docs, read the monorepo source, and open hosted app pr
    - Then call again with a subpath from the returned list to drill in
    - Returns: list of folders and pages with URLs
 2. **readDoc** - Read a specific documentation page
-   - Input: slug (e.g., "ui/thread") or URL (e.g., "/elements/thread.kit")
+   - Input: slug (e.g., "ui/thread") or URL (e.g., "/elements/thread.aui")
    - Returns: full page content
 3. **inspectSourceMap** / **readSourceMapFile** - Explore the assistant-ui monorepo source code
    - Use for: grep, find, cat, ls, tree on repo files

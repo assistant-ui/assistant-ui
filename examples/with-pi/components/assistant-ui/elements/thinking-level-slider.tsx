@@ -1,7 +1,7 @@
 "use client";
 
 import type { KeyboardEvent } from "react";
-import { useModelSelectorEfforts } from "@/components/assistant-ui/elements/model-selector.kit";
+import { useModelSelectorEfforts } from "@/components/assistant-ui/elements/model-selector.aui";
 import {
   Tooltip,
   TooltipContent,

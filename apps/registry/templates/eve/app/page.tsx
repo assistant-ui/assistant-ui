@@ -1,6 +1,6 @@
 "use client";
 
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useEveAgentRuntime } from "@assistant-ui/eve";
 

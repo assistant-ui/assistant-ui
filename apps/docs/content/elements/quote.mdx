@@ -16,8 +16,8 @@ Quote lets someone select text in an assistant message, quote it from a floating
 
 Render `MessagePrimitive.Quote` above `MessagePrimitive.Parts` in the user message. It renders nothing until that message carries a quote.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
-import { QuoteBlock } from "@/components/assistant-ui/elements/quote.kit";
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { QuoteBlock } from "@/components/assistant-ui/elements/quote.aui";
 import { MessagePrimitive } from "@assistant-ui/react";
 
 function UserMessage() {
@@ -39,8 +39,8 @@ function UserMessage() {
 
 Render `SelectionToolbar` anywhere inside the runtime's scope. It listens for text selection document-wide, and portals itself above the selection only when that selection falls inside one message.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
-import { SelectionToolbar } from "@/components/assistant-ui/elements/quote.kit";
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { SelectionToolbar } from "@/components/assistant-ui/elements/quote.aui";
 import { ThreadPrimitive } from "@assistant-ui/react";
 
 function Thread() {
@@ -62,8 +62,8 @@ Clicking its Quote button sets the composer's quote from the current selection a
 
 Add `ComposerQuotePreview` inside the composer. It renders nothing until a quote is set, and its dismiss button clears the quote.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
-import { ComposerQuotePreview } from "@/components/assistant-ui/elements/quote.kit";
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { ComposerQuotePreview } from "@/components/assistant-ui/elements/quote.aui";
 import { ComposerPrimitive } from "@assistant-ui/react";
 
 function Composer() {

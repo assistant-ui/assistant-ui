@@ -16,8 +16,8 @@ Sources renders one citation from a message: a `url` source as a small link with
 
 Register `Sources` as the `Source` renderer on `MessagePrimitive.Parts`. Every source part in the message routes through it automatically.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
-import { Sources } from "@/components/assistant-ui/elements/sources.kit";
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { Sources } from "@/components/assistant-ui/elements/sources.aui";
 import { MessagePrimitive } from "@assistant-ui/react";
 
 function AssistantMessage() {
@@ -46,7 +46,7 @@ Standalone, `Sources` is a plain function of one part object: no context, no run
 ### Render a source directly
 
 ```tsx title="app/answer.tsx"
-import { Sources } from "@/components/assistant-ui/elements/sources.kit";
+import { Sources } from "@/components/assistant-ui/elements/sources.aui";
 
 export function Citation() {
   return (
@@ -94,7 +94,7 @@ The favicon requests `https://icons.duckduckgo.com/ip3/<domain>.ico` by default;
 `Sources` itself takes only the part; to override the favicon lookup or restyle the link, compose the exported sub-parts into your own renderer and register that instead:
 
 ```tsx
-import { Sources } from "@/components/assistant-ui/elements/sources.kit";
+import { Sources } from "@/components/assistant-ui/elements/sources.aui";
 import type { ComponentProps } from "react";
 
 function CustomSource(part: ComponentProps<typeof Sources>) {

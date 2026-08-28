@@ -123,7 +123,7 @@ export function generateRegistryJson(config: BuilderConfig) {
     registryDependencies,
     files: [
       {
-        path: "components/assistant-ui/elements/thread.kit.tsx",
+        path: "components/assistant-ui/elements/thread.aui.tsx",
         content: threadCode,
         type: "registry:component",
       },
@@ -164,14 +164,14 @@ function generateThreadCode(config: BuilderConfig): string {
       ? `import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";`
       : null,
     components.markdown
-      ? `import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.kit";`
+      ? `import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";`
       : null,
     components.attachments
       ? `import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/elements/attachment.kit";`
+} from "@/components/assistant-ui/elements/attachment.aui";`
       : null,
     `import { cn } from "@/lib/utils";`,
   ]

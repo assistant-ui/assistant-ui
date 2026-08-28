@@ -39,7 +39,7 @@ const ACTS: {
   { label: "Streaming", Component: StreamingTextDemo },
   {
     label: "Reasoning",
-    docs: "/elements/reasoning.kit",
+    docs: "/elements/reasoning.aui",
     Component: ReasoningPanelDemo,
   },
   { label: "Tools", docs: "/docs/tools", Component: ToolCallDemo },
@@ -390,7 +390,7 @@ export function LibraryShowcase({ setupTabs }: { setupTabs: SetupTab[] }) {
             </p>
           </div>
           <Link
-            href="/elements/thread.kit"
+            href="/elements/thread.aui"
             className="text-muted-foreground hover:text-foreground pb-1.5 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors"
           >
             Customize the thread →

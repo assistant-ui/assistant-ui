@@ -3,7 +3,7 @@
 import { forwardRef, useState } from "react";
 import { BotIcon, ChevronDownIcon } from "lucide-react";
 import { AssistantModalPrimitive } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/elements/thread.kit";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { SampleFrame } from "./sample-frame";
 

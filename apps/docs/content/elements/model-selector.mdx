@@ -16,8 +16,8 @@ Model selector is a popover that lists AI models and, for models that support it
 
 Each model needs an `id` and a display `name`; everything else is optional.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
-import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.kit";
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
 
 function ComposerAction() {
   return (
@@ -293,7 +293,7 @@ Search is opt-in: pass `searchable` to the connected `ModelSelector`, or to `Mod
 |--------|------|-------------|
 | `useModelSelectorEfforts()` | `() => { efforts, effort, setEffort }` | The selected model's effort levels and the active selection; must be called inside `ModelSelectorRoot`. |
 | `resolveModelEffort(models, modelId, effort)` | `(models, modelId, effort) => string \| undefined` | Returns `effort` when the given model supports it, otherwise `undefined`; the sticky-selection rule `ModelSelectorRoot` applies internally. |
-| `useModelSelectorContext()` | `() => ModelSelectorContextValue` | The raw context sub-components read from; throws outside `ModelSelectorRoot`. Not re-exported from the `.kit` path. |
+| `useModelSelectorContext()` | `() => ModelSelectorContextValue` | The raw context sub-components read from; throws outside `ModelSelectorRoot`. Not re-exported from the `.aui` path. |
 
 </StandaloneMode>
 
@@ -310,7 +310,7 @@ npx shadcn@latest add "@assistant-ui/elements-model-picker"
 
 With a runtime there is no catalog of available models to read: assistant-ui tracks the model configuration for the next call, not a directory of every model you could switch to. Unlike the popover, `ModelPicker` does no registration on its own, so register a provider that reports the selected id and seed the initial selection from whatever the model context already reports, for example a default set on the server.
 
-```tsx title="components/assistant-ui/elements/model-picker.kit.tsx"
+```tsx title="components/assistant-ui/elements/model-picker.aui.tsx"
 "use client";
 
 import { useAui, useAuiState } from "@assistant-ui/react";

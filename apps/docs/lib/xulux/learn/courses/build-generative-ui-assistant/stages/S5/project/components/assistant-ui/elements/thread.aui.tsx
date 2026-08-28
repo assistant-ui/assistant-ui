@@ -6,24 +6,31 @@ import {
   MessagePrimitive,
   ThreadPrimitive,
 } from "@assistant-ui/react";
-import { ArrowUp, CircleAlert, CloudSun, MapPin, Square } from "lucide-react";
-import { ToolFallback } from "./tool-fallback.kit";
+import {
+  ArrowUp,
+  CloudSun,
+  ListChecks,
+  NotebookPen,
+  Square,
+} from "lucide-react";
+import { ToolFallback } from "@/lib/xulux/learn/courses/build-generative-ui-assistant/stages/S3/project/components/assistant-ui/elements/tool-fallback.aui";
 
 const suggestions = [
   {
-    label: "Weather call",
+    label: "Create note",
+    prompt:
+      "Draft a short product announcement for a new dark mode in the notepad.",
+    icon: NotebookPen,
+  },
+  {
+    label: "Weather card",
     prompt: "What's the weather in San Francisco?",
     icon: CloudSun,
   },
   {
-    label: "Tokyo call",
-    prompt: "What's the weather in Tokyo?",
-    icon: MapPin,
-  },
-  {
-    label: "Error state",
-    prompt: "What's the weather in Paris?",
-    icon: CircleAlert,
+    label: "Writing note",
+    prompt: "Create an editable notepad with a four-line launch checklist.",
+    icon: ListChecks,
   },
 ];
 
@@ -109,7 +116,7 @@ function AssistantMessage() {
   return (
     <MessagePrimitive.Root className="mx-auto w-full max-w-2xl px-4 py-3 leading-7">
       <MessagePrimitive.Content
-        components={{ tools: { Override: ToolFallback } }}
+        components={{ tools: { Fallback: ToolFallback } }}
       />
     </MessagePrimitive.Root>
   );

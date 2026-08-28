@@ -16,14 +16,14 @@ A runtime streams `reasoning` message parts alongside the rest of a message. Con
 
 ### Group reasoning parts and compose the disclosure
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 import { MessagePrimitive, groupPartByType } from "@assistant-ui/react";
 import {
   ReasoningContent,
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-} from "@/components/assistant-ui/elements/reasoning.kit";
+} from "@/components/assistant-ui/elements/reasoning.aui";
 
 <MessagePrimitive.GroupedParts
   groupBy={groupPartByType({ reasoning: ["group-reasoning"] })}
@@ -249,7 +249,7 @@ npx shadcn@latest add "@assistant-ui/elements-reasoning-panel"
 
 Wire it by mapping a message's `"reasoning"` parts into steps. `s.message.parts` is the store's own array, so selecting it directly is cheap; deriving steps still needs `useMemo`, since mapping to a fresh array on every call would re-render the panel on every store update.
 
-```tsx title="components/assistant-ui/elements/reasoning-panel.kit.tsx"
+```tsx title="components/assistant-ui/elements/reasoning-panel.aui.tsx"
 "use client";
 
 import { useMemo, useState } from "react";

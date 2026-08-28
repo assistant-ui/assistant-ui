@@ -4,9 +4,9 @@ import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/elements/attachment.kit";
-import { ContextDisplay } from "@/components/assistant-ui/elements/context-display.kit";
-import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.kit";
+} from "@/components/assistant-ui/elements/attachment.aui";
+import { ContextDisplay } from "@/components/assistant-ui/elements/context-display.aui";
+import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   isPiSteerQueueItemId,
@@ -17,7 +17,7 @@ import {
   type PiHostUiRequest,
   type PiThinkingLevel,
 } from "@assistant-ui/react-pi";
-import { usePiHandshake } from "../pi-handshake";
+import { usePiHandshake } from "../../pi-handshake";
 import { modelKey } from "@/lib/model-key";
 import { ThinkingLevelSlider } from "./thinking-level-slider";
 import {
@@ -26,13 +26,13 @@ import {
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-} from "@/components/assistant-ui/elements/reasoning.kit";
+} from "@/components/assistant-ui/elements/reasoning.aui";
 import {
   ToolGroupContent,
   ToolGroupRoot,
   ToolGroupTrigger,
-} from "@/components/assistant-ui/elements/tool-group.kit";
-import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.kit";
+} from "@/components/assistant-ui/elements/tool-group.aui";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";

@@ -4,24 +4,24 @@ const usageOnly = (usage: string): ElementDoc => ({ usage, props: [] });
 
 export const AUI_ELEMENT_DOCS: Record<string, ElementDoc> = {
   "assistant-modal": usageOnly(
-    `import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.kit";
+    `import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
 
 <AssistantModal />`,
   ),
   "assistant-sidebar": usageOnly(
-    `import { AssistantSidebar } from "@/components/assistant-ui/elements/assistant-sidebar.kit";
+    `import { AssistantSidebar } from "@/components/assistant-ui/elements/assistant-sidebar.aui";
 
 <AssistantSidebar>
   <main>{children}</main>
 </AssistantSidebar>`,
   ),
   "thread-list-sidebar": usageOnly(
-    `import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar.kit";
+    `import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar.aui";
 
 <ThreadListSidebar />`,
   ),
   reasoning: usageOnly(
-    `import { ReasoningRoot, ReasoningTrigger, ReasoningContent, ReasoningText } from "@/components/assistant-ui/elements/reasoning.kit";
+    `import { ReasoningRoot, ReasoningTrigger, ReasoningContent, ReasoningText } from "@/components/assistant-ui/elements/reasoning.aui";
 
 <ReasoningRoot>
   <ReasoningTrigger />
@@ -31,24 +31,24 @@ export const AUI_ELEMENT_DOCS: Record<string, ElementDoc> = {
 </ReasoningRoot>`,
   ),
   "message-timing": usageOnly(
-    `import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.kit";
+    `import { MessageTiming } from "@/components/assistant-ui/elements/message-timing.aui";
 
 <MessageTiming side="right" />`,
   ),
   "mcp-config": usageOnly(
-    `import { McpConfigDialog } from "@/components/assistant-ui/elements/mcp-config.kit";
+    `import { McpConfigDialog } from "@/components/assistant-ui/elements/mcp-config.aui";
 
 <McpConfigDialog />`,
   ),
   attachment: usageOnly(
-    `import { ComposerAddAttachment, ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/elements/attachment.kit";
+    `import { ComposerAddAttachment, ComposerAttachments, UserMessageAttachments } from "@/components/assistant-ui/elements/attachment.aui";
 
 <ComposerAttachments />
 <ComposerAddAttachment />
 <UserMessageAttachments />`,
   ),
   "tool-fallback": usageOnly(
-    `import { ToolFallbackRoot, ToolFallbackTrigger, ToolFallbackContent, ToolFallbackArgs, ToolFallbackResult } from "@/components/assistant-ui/elements/tool-fallback.kit";
+    `import { ToolFallbackRoot, ToolFallbackTrigger, ToolFallbackContent, ToolFallbackArgs, ToolFallbackResult } from "@/components/assistant-ui/elements/tool-fallback.aui";
 
 <ToolFallbackRoot>
   <ToolFallbackTrigger toolName="search_web" status={{ type: "complete" }} />
@@ -59,7 +59,7 @@ export const AUI_ELEMENT_DOCS: Record<string, ElementDoc> = {
 </ToolFallbackRoot>`,
   ),
   "tool-group": usageOnly(
-    `import { ToolGroupRoot, ToolGroupTrigger, ToolGroupContent } from "@/components/assistant-ui/elements/tool-group.kit";
+    `import { ToolGroupRoot, ToolGroupTrigger, ToolGroupContent } from "@/components/assistant-ui/elements/tool-group.aui";
 
 <ToolGroupRoot>
   <ToolGroupTrigger count={3} />
@@ -67,7 +67,7 @@ export const AUI_ELEMENT_DOCS: Record<string, ElementDoc> = {
 </ToolGroupRoot>`,
   ),
   sources: usageOnly(
-    `import { Source, SourceIcon, SourceTitle } from "@/components/assistant-ui/elements/sources.kit";
+    `import { Source, SourceIcon, SourceTitle } from "@/components/assistant-ui/elements/sources.aui";
 
 <Source href="https://assistant-ui.com">
   <SourceIcon url="https://assistant-ui.com" />
@@ -86,12 +86,12 @@ export const AUI_ELEMENT_DOCS: Record<string, ElementDoc> = {
   ),
   "directive-text": usageOnly(
     `import { unstable_defaultDirectiveFormatter } from "@assistant-ui/react";
-import { createDirectiveText } from "@/components/assistant-ui/elements/directive-text.kit";
+import { createDirectiveText } from "@/components/assistant-ui/elements/directive-text.aui";
 
 const DirectiveText = createDirectiveText(unstable_defaultDirectiveFormatter);`,
   ),
   "shiki-highlighter": usageOnly(
-    `import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.kit";
+    `import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
 
 <SyntaxHighlighter language="tsx" code={code} />`,
   ),

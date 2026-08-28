@@ -41,9 +41,9 @@ The AI SDK integration can generate this list instead of taking a static one: pa
 
 Place `ThreadFollowupSuggestions` after the message list and before the composer.
 
-```tsx title="components/assistant-ui/elements/thread.kit.tsx"
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
 import { ThreadPrimitive } from "@assistant-ui/react";
-import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.kit";
+import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
 
 function ThreadViewportFooter() {
   return (
@@ -138,7 +138,7 @@ npx shadcn@latest add "@assistant-ui/elements-suggestions"
 
 A runtime tracks the active thread's follow-ups as `s.thread.suggestions`; `ThreadPrimitive.Suggestion` turns one into a clickable prompt. Style it to match the paper-pill look instead of driving `Suggestions` itself, since a runtime suggestion sends immediately and the row unmounts rather than holding a selection:
 
-```tsx title="components/assistant-ui/elements/suggestions.kit.tsx"
+```tsx title="components/assistant-ui/elements/suggestions.aui.tsx"
 "use client";
 
 import { ThreadPrimitive, useAuiState } from "@assistant-ui/react";

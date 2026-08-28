@@ -36,7 +36,7 @@ import {
   XIcon,
 } from "lucide-react";
 import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
-import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.kit";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";
 import { CloneThreadShell } from "./clone-thread-shell";
 
 export const ChatGPT: FC = () => {

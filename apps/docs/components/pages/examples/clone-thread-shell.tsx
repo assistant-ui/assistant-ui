@@ -6,7 +6,7 @@ import {
   ThreadListNew,
   ThreadListRoot,
   ThreadListSearch,
-} from "@/components/assistant-ui/elements/thread-list.kit";
+} from "@/components/assistant-ui/elements/thread-list.aui";
 import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { Button } from "@/components/ui/button";
 import {
