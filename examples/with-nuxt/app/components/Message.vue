@@ -86,7 +86,10 @@ const error = useAuiState((s) => {
           : 'text-foreground leading-relaxed'
       "
     >
-      <div class="mb-1 flex flex-wrap justify-end gap-1.5 empty:hidden">
+      <div
+        v-if="role === 'user'"
+        class="mb-1 flex flex-wrap justify-end gap-1.5 empty:hidden"
+      >
         <MessagePrimitiveAttachments>
           <span
             class="border-border/60 bg-background/60 rounded-md border px-1.5 py-0.5 text-xs"
