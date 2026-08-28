@@ -253,6 +253,21 @@ const anonymousAuthTokenRequests = new WeakMap<
   Map<string, Promise<string | null>>
 >();
 
+type WebLockManager = {
+  request<T>(name: string, callback: () => Promise<T>): Promise<T>;
+};
+
+const getWebLockManager = (): WebLockManager | null => {
+  if (!("navigator" in globalThis)) return null;
+  return (
+    (globalThis as { navigator?: { locks?: WebLockManager } }).navigator
+      ?.locks ?? null
+  );
+};
+
+const getAnonymousAuthLockName = (baseUrl: string): string =>
+  `assistant-cloud:anonymous-auth:${baseUrl}`;
+
 const getSharedAnonymousAuthToken = (
   baseUrl: string,
   requestToken: () => Promise<string | null>,
@@ -269,7 +284,10 @@ const getSharedAnonymousAuthToken = (
   const activeRequest = storageRequests.get(baseUrl);
   if (activeRequest) return activeRequest;
 
-  const request = requestToken();
+  const locks = getWebLockManager();
+  const request = locks
+    ? locks.request(getAnonymousAuthLockName(baseUrl), requestToken)
+    : requestToken();
   const sharedRequest = request.finally(() => {
     if (storageRequests.get(baseUrl) === sharedRequest) {
       storageRequests.delete(baseUrl);

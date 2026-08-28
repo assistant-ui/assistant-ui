@@ -131,6 +131,74 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
   });
 
+  it("coordinates anonymous token requests across realms", async () => {
+    const values = new Map<string, string>();
+    installLocalStorage({
+      getItem: (key) => values.get(key) ?? null,
+      setItem: (key, value) => {
+        values.set(key, value);
+      },
+      removeItem: (key) => {
+        values.delete(key);
+      },
+    } as Storage);
+    let lockTail: Promise<unknown> = Promise.resolve();
+    const lockRequest = vi.fn(
+      (_name: string, callback: () => Promise<string | null>) => {
+        const request = lockTail.then(callback);
+        lockTail = request.then(
+          () => undefined,
+          () => undefined,
+        );
+        return request;
+      },
+    );
+    vi.stubGlobal("navigator", { locks: { request: lockRequest } });
+    const response = (refreshTokenValue: typeof refreshToken | null) => ({
+      ok: true,
+      json: vi.fn().mockResolvedValue({
+        access_token: accessToken,
+        refresh_token: refreshTokenValue,
+      }),
+    });
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(response(refreshToken))
+      .mockResolvedValueOnce(response(null));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
+    vi.resetModules();
+    const { AssistantCloudAnonymousAuthStrategy: Second } =
+      await import("../AssistantCloudAuthStrategy");
+
+    await expect(
+      Promise.all([
+        first.getAuthHeaders(),
+        new Second(baseUrl).getAuthHeaders(),
+      ]),
+    ).resolves.toEqual([
+      { Authorization: `Bearer ${accessToken}` },
+      { Authorization: `Bearer ${accessToken}` },
+    ]);
+    expect(lockRequest).toHaveBeenCalledTimes(2);
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      `${baseUrl}/v1/auth/tokens/anonymous`,
+      { method: "POST" },
+    );
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      `${baseUrl}/v1/auth/tokens/refresh`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh_token: refreshToken.token }),
+      },
+    );
+    expect(values.get(refreshTokenKey)).toBe(JSON.stringify(refreshToken));
+  });
+
   it("retries shared anonymous token requests after a failure", async () => {
     const values = new Map<string, string>();
     installLocalStorage({
@@ -171,6 +239,8 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
 
   it("keeps anonymous token requests independent without localStorage", async () => {
     delete (globalThis as { localStorage?: Storage }).localStorage;
+    const lockRequest = vi.fn();
+    vi.stubGlobal("navigator", { locks: { request: lockRequest } });
     const fetchMock = mockAnonymousTokenFetch();
     const first = new AssistantCloudAnonymousAuthStrategy(baseUrl);
     const second = new AssistantCloudAnonymousAuthStrategy(baseUrl);
@@ -182,6 +252,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
       { Authorization: `Bearer ${accessToken}` },
     ]);
     expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(lockRequest).not.toHaveBeenCalled();
   });
 
   it("scopes anonymous refresh tokens by backend", async () => {
