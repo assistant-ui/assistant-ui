@@ -46,15 +46,21 @@ describe("LiveKit token route", () => {
     expect(response.status).toBe(403);
   });
 
-  it("rejects cross-scheme origins when Fetch Metadata is unavailable", async () => {
+  it("accepts a public origin when a proxy uses an internal URL", async () => {
+    vi.stubEnv("LIVEKIT_API_KEY", "api-key");
+    vi.stubEnv("LIVEKIT_API_SECRET", "secret-key-that-is-long-enough");
+
     const response = await POST(
-      new Request("https://app.example/api/livekit-token", {
+      new Request("http://app.internal/api/livekit-token", {
         method: "POST",
-        headers: { origin: "http://app.example" },
+        headers: {
+          host: "app.example",
+          origin: "https://app.example",
+        },
       }),
     );
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(200);
   });
 
   it("rejects requests marked cross-site by the browser", async () => {
