@@ -524,6 +524,7 @@ const useRemoteThreadList = (
   );
   useThreadSelectionEvents(mainThreadId);
   useEffect(() => {
+    // Imperative actions stay scoped to this committed adapter; reload receives its render-local adapter explicitly.
     session.adapter = adapter;
     session.mainThreadId = mainThreadId;
     session.onThreadIdChange = onThreadIdChange;

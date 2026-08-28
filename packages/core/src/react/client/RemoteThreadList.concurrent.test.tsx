@@ -15,11 +15,12 @@ import { RemoteThreadList } from "./RemoteThreadList";
 const composer = { getState: () => ({}) };
 const suggestions = { getState: () => ({ suggestions: [] }) };
 const threadState = { isRunning: false, messages: [] };
-const StubThread = resource(() => ({
+const useStubThread = () => ({
   getState: () => threadState,
   composer: () => composer,
   suggestions: () => suggestions,
-}));
+});
+const StubThread = resource(useStubThread);
 
 const makeAdapter = (): RemoteThreadListAdapter => ({
   list: vi.fn(async () => ({
