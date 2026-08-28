@@ -64,8 +64,8 @@ const createBuilt = (
 });
 
 test("vue registry build emits a self-contained thread with its type-only dependency", async () => {
-  const { registry, vueRegistry } = await import("../src/registry.ts");
-  await buildRegistry(registry, vueRegistry);
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
 
   const [registryContent, threadContent] = await Promise.all([
     readFile("dist/vue/registry.json", "utf8"),
@@ -95,6 +95,36 @@ test("vue registry build emits a self-contained thread with its type-only depend
     threadFile.content,
     /import Message from "@\/components\/assistant-ui\/message\.vue"/,
   );
+});
+
+test("the production vue registry stays empty until the publish flip", async () => {
+  const { registry, vueRegistry } = await import("../src/registry.ts");
+  assert.deepEqual(vueRegistry, []);
+  await buildRegistry(registry, vueRegistry);
+  const vueIndex = JSON.parse(await readFile("dist/vue/registry.json", "utf8"));
+  assert.deepEqual(vueIndex.items, []);
+});
+
+test("staged vue kit sources compile as SFCs and pass the vue purity gate", async () => {
+  const { parse, compileScript } = await import("@vue/compiler-sfc");
+  const sources = await Promise.all(
+    ["thread.vue", "message.vue"].map(async (name) => [
+      `components/assistant-ui/${name}`,
+      await readFile(
+        `../../packages/ui/src/components/assistant-ui-vue/${name}`,
+        "utf8",
+      ),
+    ]),
+  );
+
+  for (const [outputPath, content] of sources) {
+    const { descriptor, errors } = parse(content, { filename: outputPath });
+    assert.deepEqual(errors, []);
+    const compiled = compileScript(descriptor, { id: outputPath });
+    assert.ok(compiled.content.length > 0);
+  }
+
+  validateVueFlavorContent([createBuilt("thread", sources)]);
 });
 
 test("vue flavor content validation rejects forbidden package subpaths", () => {

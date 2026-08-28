@@ -512,6 +512,9 @@ importers:
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
+      '@vue/compiler-sfc':
+        specifier: ^3.5.41
+        version: 3.5.41
       ai:
         specifier: ^7.0.77
         version: 7.0.77(zod@4.4.3)

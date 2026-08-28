@@ -21,6 +21,7 @@
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "@types/node": "^26.2.0",
+    "@vue/compiler-sfc": "^3.5.41",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "@types/react-syntax-highlighter": "^15.5.13",
