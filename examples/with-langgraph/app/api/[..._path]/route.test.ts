@@ -65,6 +65,26 @@ describe("LangGraph proxy", () => {
     expect(fetchMock).toHaveBeenCalledOnce();
   });
 
+  it("reports an invalid configured public origin", async () => {
+    vi.stubEnv("APP_ORIGIN", "app.example");
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new NextRequest("http://app.internal/api/threads", {
+        method: "POST",
+        headers: { origin: "https://app.example" },
+        body: "{}",
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "APP_ORIGIN must be an absolute HTTP(S) origin.",
+    });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("preserves same-origin proxy requests without exposing CORS or cookies", async () => {
     vi.stubEnv("LANGGRAPH_API_URL", "https://agent.example");
     vi.stubEnv("LANGCHAIN_API_KEY", "secret-key");

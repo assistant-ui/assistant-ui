@@ -40,4 +40,4 @@ langgraph.json      LangGraph CLI config (graph id, node version, env file)
 
 ## Deployment security
 
-The bundled proxy accepts same-origin browser requests so the local starter works without exposing `LANGCHAIN_API_KEY` to the client. If a reverse proxy rewrites the request URL, set `APP_ORIGIN` to the externally visible origin, such as `https://chat.example.com`. Origin checks are not user authentication. Before deploying with a cloud API key, require your application session in `app/api/[..._path]/route.ts` and apply a durable rate limit.
+The bundled proxy accepts same-origin browser requests so the local starter works without exposing `LANGCHAIN_API_KEY` to the client. For clients without Fetch Metadata, if a reverse proxy rewrites the request URL, set `APP_ORIGIN` to the externally visible origin, such as `https://chat.example.com`. Origin checks are not user authentication. Before deploying with a cloud API key, require your application session in `app/api/[..._path]/route.ts` and apply a durable rate limit.
