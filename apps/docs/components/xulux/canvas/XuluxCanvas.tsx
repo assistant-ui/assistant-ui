@@ -57,7 +57,7 @@ export function XuluxCanvas({
 }: {
   status: "empty" | "loading" | "ready" | "error";
   previewUrl: string | null;
-  source: "template" | "agent_template" | "refresh" | null;
+  source: "template" | "agent_template" | null;
   error: string | null;
   downloadUrl?: string;
   previewFrame?: XuluxPreviewFrameConfig;

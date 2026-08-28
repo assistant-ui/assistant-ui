@@ -38,7 +38,6 @@ import type { XuluxPreviewFrame, XuluxTemplate } from "../templates/types";
 import type { SelectedTemplateContext } from "../XuluxApp";
 import type { XuluxMode } from "../XuluxApp";
 import { XuluxCanvas } from "../canvas/XuluxCanvas";
-import { XuluxCanvasObserver } from "../canvas/XuluxCanvasObserver";
 import { XuluxTemplatePreviewObserver } from "../canvas/XuluxTemplatePreviewObserver";
 import { XuluxLandingPage } from "../landing/XuluxLandingPage";
 import { TemplatesModal } from "../landing/TemplatesModal";
@@ -79,7 +78,7 @@ type XuluxViewMode = "landing" | "chat" | "preview";
 type CanvasState = {
   status: "empty" | "loading" | "ready" | "error";
   url: string | null;
-  source: "template" | "agent_template" | "refresh" | null;
+  source: "template" | "agent_template" | null;
   error: string | null;
   downloadUrl?: string;
   previewFrame?: XuluxPreviewFrame;
@@ -468,14 +467,12 @@ export function XuluxShell({
 
   useEffect(() => {
     if (canvas.status !== "ready" || !canvas.url || !canvas.source) return;
-    const source =
-      canvas.source === "refresh" ? "agent_sandbox" : canvas.source;
-    const key = `${source}:${canvas.url}`;
+    const key = `${canvas.source}:${canvas.url}`;
     if (previewTrackedRef.current === key) return;
     previewTrackedRef.current = key;
     analytics.xulux.previewShown(
       withXuluxContext(analyticsCtx, {
-        source,
+        source: canvas.source,
         ...(canvas.templateId ? { template_id: canvas.templateId } : {}),
       }),
     );
@@ -538,21 +535,6 @@ export function XuluxShell({
   return (
     <XuluxTemplateProvider template={selectedTemplateContext}>
       <div className="bg-background text-foreground flex h-full min-h-0 flex-col overflow-hidden">
-        <XuluxCanvasObserver
-          onCanvasReady={(url) => {
-            setCanvas({
-              status: "ready",
-              url,
-              source: "refresh",
-              error: null,
-            });
-            setViewMode("preview");
-          }}
-          onCanvasError={(error) => {
-            setCanvas({ status: "error", url: null, source: null, error });
-            setViewMode("preview");
-          }}
-        />
         <XuluxTemplatePreviewObserver
           onTemplatePreviewReady={(preview) => {
             setCanvas({
@@ -769,7 +751,7 @@ function toCanvasSnapshot(
 function fromCanvasSnapshot(
   snapshot: XuluxCanvasSnapshot | undefined,
 ): CanvasState {
-  if (!snapshot) {
+  if (!snapshot || snapshot.source === "refresh") {
     return { status: "empty", url: null, source: null, error: null };
   }
   return {
