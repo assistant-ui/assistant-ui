@@ -8,7 +8,9 @@ function isSameOriginRequest(request: Request) {
   if (origin === null) return true;
 
   try {
-    return new URL(origin).host === new URL(request.url).host;
+    const expectedOrigin =
+      process.env.APP_ORIGIN?.trim() || new URL(request.url).origin;
+    return new URL(origin).origin === new URL(expectedOrigin).origin;
   } catch {
     return false;
   }

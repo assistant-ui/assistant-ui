@@ -26,7 +26,7 @@ ELEVENLABS_API_KEY=sk-...
 npm run dev
 ```
 
-The token endpoint accepts same-origin browser requests so the example can create short-lived Scribe sessions without exposing `ELEVENLABS_API_KEY`. Origin checks are not user authentication. Before deploying, require your application session in `app/api/scribe-token/route.ts` and apply a durable rate limit.
+The token endpoint accepts same-origin browser requests so the example can create short-lived Scribe sessions without exposing `ELEVENLABS_API_KEY`. If a reverse proxy rewrites the request URL, set `APP_ORIGIN` to the externally visible origin, such as `https://chat.example.com`. Origin checks are not user authentication. Before deploying, require your application session in `app/api/scribe-token/route.ts` and apply a durable rate limit.
 
 ## Features
 

@@ -25,7 +25,18 @@ describe("ElevenLabs token route", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("accepts a public origin when a proxy uses an internal URL", async () => {
+  it("rejects cross-scheme origins without a configured public origin", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(tokenRequest("http://app.example"));
+
+    expect(response.status).toBe(403);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a configured public origin behind a proxy", async () => {
+    vi.stubEnv("APP_ORIGIN", "https://app.example");
     vi.stubEnv("ELEVENLABS_API_KEY", "secret-key");
     const fetchMock = vi
       .fn()
