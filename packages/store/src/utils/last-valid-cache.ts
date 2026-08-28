@@ -64,10 +64,8 @@ export const createStaleReporter =
       // the parent scope itself is unavailable; report either way
     }
     console.error(
-      `${options.name}: ${
-        typeof options.index === "string"
-          ? `id "${options.index}"`
-          : `index ${options.index}`
-      } is still out of bounds after the update settled; the scope throws on its next resolution.`,
+      typeof options.index === "string"
+        ? `${options.name}: id "${options.index}" is no longer present after the update settled; the scope throws on its next resolution.`
+        : `${options.name}: index ${options.index} is still out of bounds after the update settled; the scope throws on its next resolution.`,
     );
   };
