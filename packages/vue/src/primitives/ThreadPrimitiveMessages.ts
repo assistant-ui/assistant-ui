@@ -8,7 +8,9 @@ import { MessageByIdProvider } from "./MessageByIdProvider";
  * instance scoped to its message through {@link MessageByIdProvider} and
  * keyed by the message id: an edit or reload that replaces the occupant of a
  * slot remounts that row, so `<TransitionGroup>` and per-row component state
- * follow message identity.
+ * follow message identity. The empty optimistic placeholder that precedes a
+ * response is its own identity, so the arrival of the real assistant message
+ * remounts that one row (a leave/enter pair under `<TransitionGroup>`).
  *
  * @example
  * ```html
