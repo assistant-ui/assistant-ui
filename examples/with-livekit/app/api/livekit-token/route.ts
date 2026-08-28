@@ -4,10 +4,25 @@ import { NextResponse } from "next/server";
 const TOKEN_TTL = "10m";
 
 function isSameOriginRequest(req: Request) {
-  if (req.headers.get("sec-fetch-site") === "cross-site") return false;
+  const fetchSite = req.headers.get("sec-fetch-site");
+  if (fetchSite !== null) {
+    return fetchSite === "same-origin" || fetchSite === "none";
+  }
 
   const origin = req.headers.get("origin");
-  return origin === null || origin === new URL(req.url).origin;
+  if (origin === null) return true;
+
+  try {
+    const forwardedHost = req.headers
+      .get("x-forwarded-host")
+      ?.split(",")[0]
+      ?.trim();
+    const expectedHost =
+      forwardedHost || req.headers.get("host") || new URL(req.url).host;
+    return new URL(origin).host === expectedHost;
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(req: Request) {

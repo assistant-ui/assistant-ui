@@ -46,6 +46,20 @@ describe("LiveKit token route", () => {
     expect(response.status).toBe(403);
   });
 
+  it("rejects requests marked cross-site by the browser", async () => {
+    const response = await POST(
+      new Request("https://app.example/api/livekit-token", {
+        method: "POST",
+        headers: {
+          origin: "https://app.example",
+          "sec-fetch-site": "cross-site",
+        },
+      }),
+    );
+
+    expect(response.status).toBe(403);
+  });
+
   it("issues short-lived tokens for isolated rooms", async () => {
     vi.stubEnv("LIVEKIT_API_KEY", "api-key");
     vi.stubEnv("LIVEKIT_API_SECRET", "secret-key-that-is-long-enough");
@@ -64,10 +78,14 @@ describe("LiveKit token route", () => {
       roomJoin: true,
     });
     expect(first.claims.video.room).toMatch(/^assistant-room-[0-9a-f-]{36}$/);
+    expect(second.claims.sub).not.toBe(first.claims.sub);
     expect(second.claims.video.room).not.toBe(first.claims.video.room);
   });
 
   it("fails closed when the server credentials are missing", async () => {
+    vi.stubEnv("LIVEKIT_API_KEY", "");
+    vi.stubEnv("LIVEKIT_API_SECRET", "");
+
     const response = await POST(
       new Request("https://app.example/api/livekit-token", {
         method: "POST",
