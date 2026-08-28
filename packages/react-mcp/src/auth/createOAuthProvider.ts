@@ -140,24 +140,36 @@ export function createOAuthProvider(
   const { serverId, config, storage, redirectUri, onAuthorizationUrl } = opts;
   const persistence = getPersistence(storage, serverId);
 
+  // The cache outlives the provider, so a statically configured client is
+  // re-derived on every read: a transport rebuilt for a changed clientId,
+  // clientSecret or redirectUri must not inherit the previous registration.
+  const applyStaticClientInformation = (
+    cache: OAuthProviderCache,
+  ): OAuthProviderCache => {
+    if (!config.clientId) return cache;
+    const ci: OAuthClientInformationFull = {
+      client_id: config.clientId,
+      redirect_uris: [redirectUri],
+    };
+    if (config.clientSecret) ci.client_secret = config.clientSecret;
+    cache.clientInformation = ci;
+    return cache;
+  };
+
   const loadCache = (): Promise<OAuthProviderCache> => {
-    if (persistence.cached) return Promise.resolve(persistence.cached);
-    if (persistence.cachePromise) return persistence.cachePromise;
+    if (persistence.cached) {
+      return Promise.resolve(applyStaticClientInformation(persistence.cached));
+    }
+    if (persistence.cachePromise) {
+      return persistence.cachePromise.then(applyStaticClientInformation);
+    }
 
     persistence.cachePromise = storage.loadAuthState(serverId).then(
       (persisted) => {
         const initial: OAuthProviderCache = {};
         if (persisted?.tokens) initial.tokens = persisted.tokens;
-        if (config.clientId) {
-          const ci: OAuthClientInformationFull = {
-            client_id: config.clientId,
-            redirect_uris: [redirectUri],
-          };
-          if (config.clientSecret) ci.client_secret = config.clientSecret;
-          initial.clientInformation = ci;
-        } else if (persisted?.clientInformation) {
+        if (persisted?.clientInformation)
           initial.clientInformation = persisted.clientInformation;
-        }
         if (persisted?.codeVerifier)
           initial.codeVerifier = persisted.codeVerifier;
         if (persisted?.discoveryState)
@@ -170,7 +182,7 @@ export function createOAuthProvider(
         throw error;
       },
     );
-    return persistence.cachePromise;
+    return persistence.cachePromise.then(applyStaticClientInformation);
   };
 
   const persist = () => {

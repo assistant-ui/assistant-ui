@@ -290,6 +290,34 @@ describe("createOAuthProvider persistence across provider instances", () => {
     expect(getState()).toBeNull();
   });
 
+  it("re-derives static client information for a replacement provider", async () => {
+    const { storage } = createStorage();
+    const provider = createOAuthProvider({
+      serverId: "docs",
+      config: { type: "oauth", clientId: "client-a" },
+      storage,
+      redirectUri: "http://localhost/callback",
+      onAuthorizationUrl: () => {},
+    });
+    await expect(provider.clientInformation()).resolves.toEqual({
+      client_id: "client-a",
+      redirect_uris: ["http://localhost/callback"],
+    });
+
+    const replacementProvider = createOAuthProvider({
+      serverId: "docs",
+      config: { type: "oauth", clientId: "client-b", clientSecret: "secret-b" },
+      storage,
+      redirectUri: "http://localhost/callback-2",
+      onAuthorizationUrl: () => {},
+    });
+    await expect(replacementProvider.clientInformation()).resolves.toEqual({
+      client_id: "client-b",
+      client_secret: "secret-b",
+      redirect_uris: ["http://localhost/callback-2"],
+    });
+  });
+
   it("keeps a provider built while the clear is in flight usable", async () => {
     const { storage, getState } = createStorage();
     let releaseClear: (() => void) | undefined;
