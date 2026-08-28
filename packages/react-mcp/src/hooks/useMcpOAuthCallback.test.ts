@@ -98,6 +98,22 @@ describe("useMcpOAuthCallback", () => {
       });
     },
   );
+
+  it("lets the server validate error callback parameters", async () => {
+    const authError = new Error("authorization response issuer mismatch");
+    const url = `${callbackUrl}&error=access_denied&error_description=untrusted`;
+    mocks.completeAuth.mockRejectedValueOnce(authError);
+
+    const { result } = renderHook(() => useMcpOAuthCallback({ url }));
+
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(mocks.completeAuth).toHaveBeenCalledWith(url);
+    expect(result.current.error).toMatchObject({
+      message:
+        'MCP OAuth callback for server "docs" failed: authorization response issuer mismatch',
+      cause: authError,
+    });
+  });
 });
 
 describe("createMcpOAuthCallbackError", () => {

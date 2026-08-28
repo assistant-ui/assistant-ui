@@ -59,12 +59,6 @@ export function useMcpOAuthCallback(
         const parsed = new URL(url);
         const state = parsed.searchParams.get("state");
         if (state) serverId = decodeServerIdFromState(state);
-        const error = parsed.searchParams.get("error");
-        if (error) {
-          throw new Error(
-            parsed.searchParams.get("error_description") ?? error,
-          );
-        }
         if (!state) throw new Error('missing "state" parameter');
         if (!serverId) {
           throw new Error("state was not created by assistant-ui MCP");

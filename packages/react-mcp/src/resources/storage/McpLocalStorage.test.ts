@@ -127,10 +127,12 @@ describe("normalizePersistedAuthState", () => {
       normalizePersistedAuthState({
         token: "bearer-token",
         codeVerifier: "pkce-verifier",
+        state: "aui-mcp:ZG9jcw.nonce",
       }),
     ).toEqual({
       token: "bearer-token",
       codeVerifier: "pkce-verifier",
+      state: "aui-mcp:ZG9jcw.nonce",
     });
   });
 

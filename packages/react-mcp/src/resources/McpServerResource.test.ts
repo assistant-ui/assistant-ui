@@ -560,13 +560,17 @@ describe("McpServerResource completeAuth", () => {
   beforeEach(resetMocks);
 
   it("completes auth across the StrictMode effect replay", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      state: "aui-mcp:ZG9jcw.nonce",
+    });
     let completeAuth: Promise<void> | undefined;
     let started = false;
-    const root = mount({ auth: { type: "oauth" } }, (server) => {
+    const root = mount({ auth: { type: "oauth" }, storage }, (server) => {
       if (started) return;
       started = true;
       completeAuth = server.completeAuth(
-        "https://example.com/callback?code=abc",
+        "https://example.com/callback?code=abc&state=aui-mcp%3AZG9jcw.nonce&iss=https%3A%2F%2Fauth.example.com",
       );
     });
 
@@ -575,6 +579,10 @@ describe("McpServerResource completeAuth", () => {
       await flushMacrotask();
 
       expect(mocks.transports[0].finishAuth).toHaveBeenCalledTimes(1);
+      const params = mocks.transports[0].finishAuth.mock.calls[0][0];
+      expect(params).toBeInstanceOf(URLSearchParams);
+      expect(params.get("code")).toBe("abc");
+      expect(params.get("iss")).toBe("https://auth.example.com");
       expect(root.getValue().getState().connectionState).toBe("connected");
     } finally {
       root.unmount();
@@ -582,7 +590,9 @@ describe("McpServerResource completeAuth", () => {
   });
 
   it("rejects when the callback URL has no authorization code", async () => {
-    const root = mount();
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "abc" });
+    const root = mount({ auth: { type: "oauth" }, storage });
 
     try {
       await expect(
@@ -601,15 +611,48 @@ describe("McpServerResource completeAuth", () => {
     }
   });
 
+  it("rejects callbacks whose state does not match the authorization request", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      state: "aui-mcp:ZG9jcw.expected",
+    });
+    const root = mount({ auth: { type: "oauth" }, storage });
+
+    try {
+      await expect(
+        root
+          .getValue()
+          .completeAuth(
+            "https://example.com/callback?code=abc&state=aui-mcp%3AZG9jcw.forged",
+          ),
+      ).rejects.toThrow("OAuth state does not match the authorization request");
+      await flushMacrotask();
+
+      expect(mocks.transports).toHaveLength(0);
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "error",
+        lastError: {
+          message: "OAuth state does not match the authorization request",
+        },
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("rejects after storing finishAuth failures on the server state", async () => {
     mocks.finishAuthResults.push(() =>
       Promise.reject(new Error("invalid_grant")),
     );
-    const root = mount({ auth: { type: "oauth" } });
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    const root = mount({ auth: { type: "oauth" }, storage });
 
     try {
       await expect(
-        root.getValue().completeAuth("https://example.com/callback?code=abc"),
+        root
+          .getValue()
+          .completeAuth("https://example.com/callback?code=abc&state=expected"),
       ).rejects.toThrow("invalid_grant");
       await flushMacrotask();
 
@@ -619,7 +662,9 @@ describe("McpServerResource completeAuth", () => {
           message: "invalid_grant",
         },
       });
-      expect(mocks.transports[0].finishAuth).toHaveBeenCalledWith("abc");
+      expect(mocks.transports[0].finishAuth).toHaveBeenCalledWith(
+        expect.any(URLSearchParams),
+      );
       expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
     } finally {
       root.unmount();
@@ -634,13 +679,15 @@ describe("McpServerResource completeAuth", () => {
           resolveFinishAuth = resolve;
         }),
     );
-    const root = mount({ auth: { type: "oauth" } });
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    const root = mount({ auth: { type: "oauth" }, storage });
     let didUnmount = false;
 
     try {
       const completeAuth = root
         .getValue()
-        .completeAuth("https://example.com/callback?code=abc");
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
       await waitFor(
         () => mocks.transports[0]?.finishAuth.mock.calls.length === 1,
       );
@@ -665,13 +712,15 @@ describe("McpServerResource completeAuth", () => {
           rejectFinishAuth = reject;
         }),
     );
-    const root = mount({ auth: { type: "oauth" } });
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    const root = mount({ auth: { type: "oauth" }, storage });
     let didUnmount = false;
 
     try {
       const completeAuth = root
         .getValue()
-        .completeAuth("https://example.com/callback?code=abc");
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
       await waitFor(
         () => mocks.transports[0]?.finishAuth.mock.calls.length === 1,
       );
