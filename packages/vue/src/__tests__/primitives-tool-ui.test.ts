@@ -22,6 +22,7 @@ import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import {
   MessagePrimitiveParts,
   clearPartWarningsForTesting,
+  type ToolUIProps,
 } from "../primitives/MessagePrimitiveParts";
 
 type DemoMessage = {
@@ -31,6 +32,7 @@ type DemoMessage = {
 
 const createTestRuntime = () => {
   let messages: DemoMessage[] = [];
+  const onAddToolResult = vi.fn();
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages,
     isRunning: false,
@@ -39,6 +41,7 @@ const createTestRuntime = () => {
       content: message.content,
     }),
     onNew: async () => {},
+    onAddToolResult,
   });
   const core = new ExternalStoreRuntimeCore(makeAdapter());
   const runtime = new AssistantRuntimeImpl(core);
@@ -46,7 +49,7 @@ const createTestRuntime = () => {
     messages = [...messages, message];
     core.setAdapter(makeAdapter());
   };
-  return { runtime, append };
+  return { runtime, append, onAddToolResult };
 };
 
 const mountChat = (runtime: AssistantRuntimeImpl, view: Component) => {
@@ -97,19 +100,19 @@ const PartsWithToolSlot = defineComponent({
 });
 
 describe("MessagePrimitiveParts tool UI registry", () => {
-  it("renders a registered tool UI over the tool-call slot and passes part props with callbacks", async () => {
+  it("renders a registered tool UI over the tool-call slot with the part prop and callbacks", async () => {
     const { runtime, append } = createTestRuntime();
     const { el, client, unmount } = mountChat(runtime, PartsWithToolSlot);
 
     const WeatherTool = defineComponent({
-      props: ["toolName", "args", "addResult", "resume", "respondToApproval"],
-      setup: (props: any) => () =>
+      props: ["part", "addResult", "resume", "respondToApproval"],
+      setup: (props: ToolUIProps) => () =>
         h(
           "span",
           { class: "ui" },
           [
-            props.toolName,
-            props.args?.city,
+            props.part.toolName,
+            (props.part.args as { city?: string }).city,
             typeof props.addResult,
             typeof props.resume,
             typeof props.respondToApproval,
@@ -128,6 +131,41 @@ describe("MessagePrimitiveParts tool UI registry", () => {
       "weather,sf,function,function,function",
     );
     expect(el.querySelector("span.slot")).toBeNull();
+
+    unmount();
+  });
+
+  it("routes addResult from the registered tool UI to the adapter's onAddToolResult", async () => {
+    const { runtime, append, onAddToolResult } = createTestRuntime();
+    const { el, client, unmount } = mountChat(runtime, PartsWithToolSlot);
+
+    const ResultTool = defineComponent({
+      props: ["part", "addResult", "resume", "respondToApproval"],
+      setup: (props: ToolUIProps) => () =>
+        h(
+          "button",
+          { class: "add-result", onClick: () => props.addResult("72F") },
+          "add",
+        ),
+    });
+
+    flushTapSync(() => client().tools.setToolUI("weather", ResultTool));
+    flushTapSync(() => append(toolCallMessage("weather")));
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("button.add-result")).not.toBeNull();
+    });
+
+    (el.querySelector("button.add-result") as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(onAddToolResult).toHaveBeenCalledTimes(1);
+    });
+    expect(onAddToolResult.mock.calls[0]![0]).toMatchObject({
+      toolCallId: "call-1",
+      toolName: "weather",
+      result: "72F",
+    });
 
     unmount();
   });

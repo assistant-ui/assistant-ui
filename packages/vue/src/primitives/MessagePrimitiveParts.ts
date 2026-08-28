@@ -1,6 +1,8 @@
 import { defineComponent, h, type Component, type SlotsType } from "vue";
 import type {} from "@assistant-ui/core/store";
+import type { PartMethods } from "@assistant-ui/core/store";
 import { isDevelopment } from "@assistant-ui/core/store/internal";
+import type { AssistantState } from "@assistant-ui/store/client";
 import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { PartByIndexProvider } from "./PartByIndexProvider";
@@ -10,14 +12,29 @@ const warnedTypes = new Set<string>();
 export const clearPartWarningsForTesting = () => warnedTypes.clear();
 
 /**
+ * Props passed to a tool UI registered in the `tools` scope. Vue passes the
+ * part state as a single `part` prop where React spreads it; spreading in Vue
+ * would leak undeclared props onto the component's root element through
+ * `$attrs`. The tools scope stores renderers untyped across frameworks today;
+ * this type is the Vue-facing contract until the scope's renderer type goes
+ * framework-generic.
+ */
+export type ToolUIProps = {
+  part: Extract<AssistantState["part"], { type: "tool-call" }>;
+  addResult: PartMethods["addToolResult"];
+  resume: PartMethods["resumeToolCall"];
+  respondToApproval: PartMethods["respondToToolApproval"];
+};
+
+/**
  * Renders the current message's content parts in order, each scoped through
  * {@link PartByIndexProvider}. A `tool-call` part first resolves a renderer
  * registered in the `tools` scope by tool name (`aui.tools.setToolUI`, or a
- * `Tools({ toolkit })` config entry) and renders it with the part state plus
- * `addResult`/`resume`/`respondToApproval` callbacks. Otherwise a slot named
- * after the part type (`text`, `reasoning`, `tool-call`, ...) renders that
- * part; the `default` slot is the fallback for types without a named slot,
- * except text, which always renders its text unless a `text` slot overrides it.
+ * `Tools({ toolkit })` config entry) and renders it with {@link ToolUIProps}.
+ * Otherwise a slot named after the part type (`text`, `reasoning`,
+ * `tool-call`, ...) renders that part; the `default` slot is the fallback for
+ * types without a named slot, except text, which always renders its text
+ * unless a `text` slot overrides it.
  */
 export const MessagePrimitiveParts = defineComponent({
   name: "MessagePrimitiveParts",
@@ -46,11 +63,11 @@ export const MessagePrimitiveParts = defineComponent({
             const part = toolPart.value;
             if (render && part) {
               return h(render as unknown as Component, {
-                ...part,
+                part,
                 addResult: aui.part.addToolResult,
                 resume: aui.part.resumeToolCall,
                 respondToApproval: aui.part.respondToToolApproval,
-              });
+              } satisfies ToolUIProps);
             }
           }
           if (type.value === "text") {

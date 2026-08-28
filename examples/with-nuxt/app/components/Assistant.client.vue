@@ -27,7 +27,8 @@ const config = AuiConfig({
 
 <template>
   <AuiProvider :config="config">
-    <RegisterToolUIs />
-    <Thread />
+    <RegisterToolUIs>
+      <Thread />
+    </RegisterToolUIs>
   </AuiProvider>
 </template>
