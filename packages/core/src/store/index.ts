@@ -94,6 +94,10 @@ export {
   type RemoteThreadListProps,
 } from "../react/client/RemoteThreadList";
 export {
+  createCloudThreadListAdapter,
+  type CloudThreadListAdapterOptions,
+} from "../react/runtimes/cloud/createCloudThreadListAdapter";
+export {
   useExternalMessageConverter,
   convertExternalMessages,
   type JoinStrategy,
