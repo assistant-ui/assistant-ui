@@ -1,8 +1,17 @@
 import { useSyncExternalStore, useDebugValue } from "react";
-import type { AssistantState } from "./types/client";
+import type { AssistantState, ClientNames } from "./types/client";
 import { useAui } from "./useAui";
 import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
+import {
+  SCOPE_STATE_UNSET,
+  useScopeStateContext,
+} from "./utils/scope-state-context";
 
+export function useAuiState<K extends ClientNames>(scope: K): AssistantState[K];
+export function useAuiState<K extends ClientNames, T>(
+  scope: K,
+  selector: (state: AssistantState[K]) => T,
+): T;
 /**
  * Subscribes to a slice of {@link AssistantState} and re-renders the
  * component whenever that slice changes.
@@ -38,7 +47,35 @@ import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
  * const canSend = useAuiState((s) => s.composer.canSend);
  * ```
  */
-export const useAuiState = <T>(selector: (state: AssistantState) => T): T => {
+export function useAuiState<T>(selector: (state: AssistantState) => T): T;
+export function useAuiState(
+  scopeOrSelector: ClientNames | ((state: AssistantState) => unknown),
+  scopeSelector?: (state: unknown) => unknown,
+): unknown {
+  if (typeof scopeOrSelector === "string") {
+    // oxlint-disable-next-line react-hooks/rules-of-hooks -- the overload is fixed per call site
+    return useScopedAuiState(scopeOrSelector, scopeSelector);
+  }
+  // oxlint-disable-next-line react-hooks/rules-of-hooks -- the overload is fixed per call site
+  return useSelectedAuiState(scopeOrSelector);
+}
+
+const useScopedAuiState = (
+  scope: ClientNames,
+  selector: ((state: unknown) => unknown) | undefined,
+): unknown => {
+  const state = useScopeStateContext(scope);
+  if (state === SCOPE_STATE_UNSET) {
+    throw new Error(
+      `useAuiState("${scope}"): no AuiProvider above this component publishes the "${scope}" scope.`,
+    );
+  }
+  const slice = selector ? selector(state) : state;
+  useDebugValue(slice);
+  return slice;
+};
+
+const useSelectedAuiState = <T>(selector: (state: AssistantState) => T): T => {
   const aui = useAui();
   const proxiedState = getProxiedAssistantState(aui);
 
