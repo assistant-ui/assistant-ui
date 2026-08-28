@@ -479,7 +479,12 @@ const useMcpServerResourceInstance = (
       const state = url.searchParams.get("state");
       if (!state) throw new Error('missing "state" parameter');
       const persisted = await props.storage.loadAuthState(props.id);
-      if (!persisted?.state || persisted.state !== state) {
+      if (!persisted?.state) {
+        throw new Error(
+          "no pending OAuth authorization request for this server",
+        );
+      }
+      if (persisted.state !== state) {
         throw new Error("OAuth state does not match the authorization request");
       }
       if (!url.searchParams.get("code") && !url.searchParams.get("error")) {

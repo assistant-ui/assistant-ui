@@ -635,6 +635,26 @@ describe("McpServerResource completeAuth", () => {
     }
   });
 
+  it("rejects callbacks without a pending authorization request", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue(null);
+    const root = mount({ auth: { type: "oauth" }, storage });
+
+    try {
+      await expect(
+        root
+          .getValue()
+          .completeAuth("https://example.com/callback?code=abc&state=expected"),
+      ).rejects.toThrow(
+        "no pending OAuth authorization request for this server",
+      );
+
+      expect(mocks.transports).toHaveLength(0);
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("rejects callbacks whose state does not match the authorization request", async () => {
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockResolvedValue({
