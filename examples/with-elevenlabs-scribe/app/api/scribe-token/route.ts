@@ -1,35 +1,8 @@
-type OriginCheck = "allowed" | "forbidden" | "misconfigured";
-
-function checkRequestOrigin(request: Request): OriginCheck {
+function isAllowedRequestContext(request: Request) {
   const fetchSite = request.headers.get("sec-fetch-site");
-  if (fetchSite !== null) {
-    return fetchSite === "same-origin" || fetchSite === "none"
-      ? "allowed"
-      : "forbidden";
-  }
-
-  const origin = request.headers.get("origin");
-  if (origin === null) return "allowed";
-
-  const configuredOrigin = process.env.APP_ORIGIN?.trim();
-  let expectedOrigin = new URL(request.url).origin;
-  if (configuredOrigin) {
-    try {
-      const url = new URL(configuredOrigin);
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        return "misconfigured";
-      }
-      expectedOrigin = url.origin;
-    } catch {
-      return "misconfigured";
-    }
-  }
-
-  try {
-    return new URL(origin).origin === expectedOrigin ? "allowed" : "forbidden";
-  } catch {
-    return "forbidden";
-  }
+  return (
+    fetchSite === null || fetchSite === "same-origin" || fetchSite === "none"
+  );
 }
 
 /**
@@ -37,14 +10,7 @@ function checkRequestOrigin(request: Request): OriginCheck {
  * @see https://elevenlabs.io/docs/cookbooks/speech-to-text/streaming
  */
 export async function POST(request: Request) {
-  const originCheck = checkRequestOrigin(request);
-  if (originCheck === "misconfigured") {
-    return Response.json(
-      { error: "APP_ORIGIN must be an absolute HTTP(S) origin." },
-      { status: 500 },
-    );
-  }
-  if (originCheck === "forbidden") {
+  if (!isAllowedRequestContext(request)) {
     return Response.json(
       { error: "Cross-origin requests are not allowed." },
       { status: 403 },

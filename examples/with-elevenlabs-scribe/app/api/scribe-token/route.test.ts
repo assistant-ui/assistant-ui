@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { POST } from "./route";
 
 function tokenRequest(origin = "https://app.example") {
@@ -7,10 +7,6 @@ function tokenRequest(origin = "https://app.example") {
     headers: { origin },
   });
 }
-
-beforeEach(() => {
-  vi.stubEnv("APP_ORIGIN", "");
-});
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -23,68 +19,7 @@ describe("ElevenLabs token route", () => {
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
 
-    const response = await POST(tokenRequest("https://attacker.example"));
-
-    expect(response.status).toBe(403);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects cross-scheme origins without a configured public origin", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const response = await POST(tokenRequest("http://app.example"));
-
-    expect(response.status).toBe(403);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("accepts a configured public origin behind a proxy", async () => {
-    vi.stubEnv("APP_ORIGIN", "https://app.example");
-    vi.stubEnv("ELEVENLABS_API_KEY", "secret-key");
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValue(Response.json({ token: "single-use-token" }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const response = await POST(
-      new Request("http://app.internal/api/scribe-token", {
-        method: "POST",
-        headers: {
-          host: "app.internal",
-          origin: "https://app.example",
-        },
-      }),
-    );
-
-    expect(response.status).toBe(200);
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
-
-  it("reports an invalid configured public origin", async () => {
-    vi.stubEnv("APP_ORIGIN", "app.example");
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const response = await POST(
-      new Request("http://app.internal/api/scribe-token", {
-        method: "POST",
-        headers: { origin: "https://app.example" },
-      }),
-    );
-
-    expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({
-      error: "APP_ORIGIN must be an absolute HTTP(S) origin.",
-    });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects requests marked cross-site by the browser", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const request = tokenRequest();
+    const request = tokenRequest("https://attacker.example");
     request.headers.set("sec-fetch-site", "cross-site");
     const response = await POST(request);
 
