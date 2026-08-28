@@ -103,9 +103,9 @@ export default function DesignPage() {
               note="The page itself, and every full-bleed band on it: header, footer, section rules."
             />
             <Row
-              sample={<Corner radius="0" />}
+              sample={<Corner radius="0.375rem" />}
               name="--radius-document"
-              value="0"
+              value="6px"
               note="Anything printed on the page: a code sheet, a table, a figure plate, a specimen frame. Declared so a parent radius cannot leak in."
             />
             <Row

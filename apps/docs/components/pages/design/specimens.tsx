@@ -711,7 +711,7 @@ export function AvatarBadgeSpecimen(): ReactNode {
 export function SkeletonCardSpecimen(): ReactNode {
   return (
     <SampleFrame className={frameClass}>
-      <div className="border-foreground/10 flex w-full max-w-72 flex-col gap-3 rounded-(--radius-surface) border p-4">
+      <div className="border-foreground/10 rounded-surface flex w-full max-w-72 flex-col gap-3 border p-4">
         <Skeleton className="h-24 w-full" />
         <Skeleton className="h-4 w-4/5" />
         <Skeleton className="h-4 w-3/5" />

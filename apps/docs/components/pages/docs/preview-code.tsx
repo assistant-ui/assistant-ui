@@ -77,7 +77,7 @@ export function PreviewCodeClient({
       {tab === "preview" ? (
         <div
           className={cn(
-            "preview-code-preview border-foreground/10 flex items-center justify-center rounded-(--radius-document) border p-6",
+            "preview-code-preview border-foreground/10 rounded-document flex items-center justify-center border p-6",
             className,
           )}
         >

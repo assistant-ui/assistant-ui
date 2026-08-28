@@ -20,7 +20,7 @@ export function PricingPlanCard({ plan }: { plan: PricingPlan }) {
   return (
     <div
       className={cn(
-        "relative flex flex-col rounded-(--radius-document) border-t pt-6",
+        "rounded-document relative flex flex-col border-t pt-6",
         plan.highlighted ? "border-foreground" : "border-foreground/10",
       )}
     >

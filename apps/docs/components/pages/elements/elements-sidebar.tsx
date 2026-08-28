@@ -71,7 +71,7 @@ export function ElementsSidebar() {
                       scroll={false}
                       aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex h-7 items-center rounded-(--radius-control) px-2 text-[13px] transition-colors",
+                        "rounded-control flex h-7 items-center px-2 text-[13px] transition-colors",
                         active
                           ? "bg-foreground/[0.06] text-foreground"
                           : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground",

@@ -80,7 +80,7 @@ export function HomeThread({
             type="button"
             onClick={onToggleExpanded}
             aria-label={expanded ? "Exit full screen" : "Full screen"}
-            className="text-muted-foreground hover:text-foreground ml-auto grid size-7 shrink-0 place-items-center rounded-(--radius-control) transition-colors"
+            className="text-muted-foreground hover:text-foreground rounded-control ml-auto grid size-7 shrink-0 place-items-center transition-colors"
           >
             {expanded ? (
               <Minimize2Icon className="size-3.5" />
@@ -95,7 +95,7 @@ export function HomeThread({
           <ThreadListPrimitive.New asChild>
             <button
               type="button"
-              className="border-foreground/10 bg-background hover:border-foreground/25 flex h-8 w-full shrink-0 items-center gap-2 rounded-(--radius-control) border px-2.5 text-[13px] transition-colors"
+              className="border-foreground/10 bg-background hover:border-foreground/25 rounded-control flex h-8 w-full shrink-0 items-center gap-2 border px-2.5 text-[13px] transition-colors"
             >
               <PlusIcon className="size-3.5" />
               New thread
@@ -175,7 +175,7 @@ function SidebarThreadRow(): ReactNode {
   }, [isRenaming]);
 
   return (
-    <ThreadListItemPrimitive.Root className="group data-active:bg-foreground/[0.06] hover:bg-foreground/[0.04] has-data-[state=open]:bg-foreground/[0.04] relative flex h-8 shrink-0 items-center rounded-(--radius-control) transition-colors">
+    <ThreadListItemPrimitive.Root className="group data-active:bg-foreground/[0.06] hover:bg-foreground/[0.04] has-data-[state=open]:bg-foreground/[0.04] rounded-control relative flex h-8 shrink-0 items-center transition-colors">
       {isRenaming ? (
         <SidebarThreadRename
           onDone={(restoreFocus) => {
@@ -263,7 +263,7 @@ function SidebarThreadRename({
 }
 
 const threadMenuItemClass =
-  "hover:bg-muted focus:bg-muted flex cursor-pointer items-center gap-2 rounded-(--radius-sm) px-2 py-1.5 text-[13px] outline-none select-none";
+  "hover:bg-muted focus:bg-muted flex cursor-pointer items-center gap-2 rounded-sm px-2 py-1.5 text-[13px] outline-none select-none";
 
 function SidebarThreadMore({ onRename }: { onRename: () => void }): ReactNode {
   return (
@@ -272,7 +272,7 @@ function SidebarThreadMore({ onRename }: { onRename: () => void }): ReactNode {
         <button
           type="button"
           aria-label="Thread actions"
-          className="text-muted-foreground hover:text-foreground absolute end-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-(--radius-sm) opacity-0 transition-colors group-hover:opacity-100 group-has-focus-visible:opacity-100 group-data-active:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
+          className="text-muted-foreground hover:text-foreground absolute end-1 top-1/2 grid size-6 -translate-y-1/2 place-items-center rounded-sm opacity-0 transition-colors group-hover:opacity-100 group-has-focus-visible:opacity-100 group-data-active:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
         >
           <MoreHorizontalIcon className="size-3.5" />
         </button>
@@ -281,7 +281,7 @@ function SidebarThreadMore({ onRename }: { onRename: () => void }): ReactNode {
         side="right"
         align="start"
         sideOffset={6}
-        className="bg-popover text-popover-foreground border-foreground/10 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out z-[70] min-w-28 overflow-hidden rounded-(--radius-surface) border p-1"
+        className="bg-popover text-popover-foreground border-foreground/10 data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95 data-[state=open]:animate-in data-[state=closed]:fade-out-0 data-[state=closed]:zoom-out-95 data-[state=closed]:animate-out rounded-surface z-[70] min-w-28 overflow-hidden border p-1"
       >
         <ThreadListItemMorePrimitive.Item
           className={threadMenuItemClass}
@@ -340,13 +340,13 @@ function SpecimenThread(): ReactNode {
             className="animate-in fade-in fill-mode-both mx-auto flex w-full max-w-(--thread-max-width) flex-col gap-y-6 [animation-delay:150ms] [animation-duration:200ms]"
           >
             <span className="sr-only">Loading conversation</span>
-            <Skeleton className="ml-auto h-9 w-2/5 rounded-(--radius-thread) motion-reduce:animate-none" />
+            <Skeleton className="rounded-thread ml-auto h-9 w-2/5 motion-reduce:animate-none" />
             <div className="flex flex-col gap-y-2">
               <Skeleton className="h-4 w-11/12 motion-reduce:animate-none" />
               <Skeleton className="h-4 w-4/5 motion-reduce:animate-none" />
               <Skeleton className="h-4 w-3/5 motion-reduce:animate-none" />
             </div>
-            <Skeleton className="ml-auto h-9 w-1/3 rounded-(--radius-thread) motion-reduce:animate-none" />
+            <Skeleton className="rounded-thread ml-auto h-9 w-1/3 motion-reduce:animate-none" />
             <div className="flex flex-col gap-y-2">
               <Skeleton className="h-4 w-10/12 motion-reduce:animate-none" />
               <Skeleton className="h-4 w-2/3 motion-reduce:animate-none" />
@@ -375,7 +375,7 @@ function SpecimenThread(): ReactNode {
             <button
               type="button"
               aria-label="Scroll to bottom"
-              className="border-foreground/10 bg-background hover:border-foreground/25 absolute -top-11 z-10 grid size-8 place-items-center self-center rounded-(--radius-capsule) border transition-colors disabled:invisible"
+              className="border-foreground/10 bg-background hover:border-foreground/25 rounded-capsule absolute -top-11 z-10 grid size-8 place-items-center self-center border transition-colors disabled:invisible"
             >
               <ArrowDownIcon className="size-4" />
             </button>
@@ -419,7 +419,7 @@ function SpecimenSuggestions(): ReactNode {
           key={suggestion.prompt}
           prompt={suggestion.prompt}
           send
-          className="border-foreground/10 bg-background text-muted-foreground hover:border-foreground/25 hover:text-foreground h-8 rounded-(--radius-control) border px-3 text-[13px] transition-colors"
+          className="border-foreground/10 bg-background text-muted-foreground hover:border-foreground/25 hover:text-foreground rounded-control h-8 border px-3 text-[13px] transition-colors"
         >
           {suggestion.label}
         </ThreadPrimitive.Suggestion>
@@ -431,7 +431,7 @@ function SpecimenSuggestions(): ReactNode {
 function SpecimenComposer(): ReactNode {
   return (
     <ComposerPrimitive.Root className="w-full">
-      <div className="border-foreground/10 bg-muted/25 focus-within:border-foreground/25 flex flex-col rounded-(--radius-thread) border transition-colors">
+      <div className="border-foreground/10 bg-muted/25 focus-within:border-foreground/25 rounded-thread flex flex-col border transition-colors">
         <div className="has-[.aui-attachment-root]:px-3 has-[.aui-attachment-root]:pt-3">
           <ComposerAttachments />
         </div>
@@ -447,7 +447,7 @@ function SpecimenComposer(): ReactNode {
             <button
               type="button"
               aria-label="Add attachment"
-              className="text-muted-foreground hover:text-foreground grid size-8 place-items-center rounded-(--radius-control) transition-colors"
+              className="text-muted-foreground hover:text-foreground rounded-control grid size-8 place-items-center transition-colors"
             >
               <PlusIcon className="size-4.5" />
             </button>
@@ -489,7 +489,7 @@ function SpecimenUserMessage(): ReactNode {
       <div className="w-full has-[.aui-attachment-root]:mb-2">
         <UserMessageAttachments />
       </div>
-      <div className="bg-muted max-w-[80%] rounded-(--radius-thread) px-4 py-2 text-[15px] wrap-break-word empty:hidden">
+      <div className="bg-muted rounded-thread max-w-[80%] px-4 py-2 text-[15px] wrap-break-word empty:hidden">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>

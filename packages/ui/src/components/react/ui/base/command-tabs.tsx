@@ -91,7 +91,7 @@ export function CommandTabs({
   return (
     <figure
       className={cn(
-        "not-prose border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] my-6 flex min-w-0 flex-col overflow-hidden rounded-(--radius-sm) border",
+        "not-prose border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] my-6 flex min-w-0 flex-col overflow-hidden rounded-sm border",
         className,
       )}
       {...props}
@@ -132,7 +132,7 @@ export function CommandTabs({
             clearTimeout(copyTimer.current);
             copyTimer.current = setTimeout(() => setCopied(false), 1500);
           }}
-          className="text-muted-foreground hover:text-foreground grid size-6 shrink-0 place-items-center rounded-(--radius-sm) transition-colors"
+          className="text-muted-foreground hover:text-foreground grid size-6 shrink-0 place-items-center rounded-sm transition-colors"
         >
           {copied ? (
             <CheckIcon className="size-3.5" />

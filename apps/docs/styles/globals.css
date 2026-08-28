@@ -79,7 +79,7 @@
 
   --radius-none: 0;
   --radius-page: 0;
-  --radius-document: 0;
+  --radius-document: var(--radius-sm);
   --radius-sm: 0.375rem;
   --radius-md: 0.5rem;
   --radius-control: 0.5rem;

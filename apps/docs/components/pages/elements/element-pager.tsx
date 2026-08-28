@@ -19,8 +19,7 @@ import {
   getElement,
 } from "./registry";
 
-const stepClass =
-  "grid size-7 place-items-center rounded-(--radius-sm) transition-colors";
+const stepClass = "grid size-7 place-items-center rounded-sm transition-colors";
 
 export function ElementPager({ slug }: { slug: string }) {
   const router = useRouter();
@@ -77,7 +76,7 @@ export function ElementPager({ slug }: { slug: string }) {
       <Popover open={open} onOpenChange={handleOpenChange}>
         <PopoverTrigger
           aria-label="Jump to element"
-          className="text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground flex h-7 items-center rounded-(--radius-sm) px-1.5 font-mono text-[11px] tabular-nums transition-colors"
+          className="text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground flex h-7 items-center rounded-sm px-1.5 font-mono text-[11px] tabular-nums transition-colors"
         >
           {String(element.index).padStart(2, "0")}
           <span className="text-foreground/30 px-1">/</span>
@@ -114,7 +113,7 @@ export function ElementPager({ slug }: { slug: string }) {
                         aria-current={active ? "page" : undefined}
                         onClick={() => handleOpenChange(false)}
                         className={cn(
-                          "flex h-7 items-center rounded-(--radius-control) px-2 text-[13px] transition-colors",
+                          "rounded-control flex h-7 items-center px-2 text-[13px] transition-colors",
                           active
                             ? "bg-foreground/[0.06] text-foreground"
                             : "text-muted-foreground hover:bg-foreground/[0.04] hover:text-foreground",

@@ -40,7 +40,7 @@ export function VocabCodeTabs({
                 aria-pressed={selected}
                 onClick={() => setTab(entry.key)}
                 className={cn(
-                  "h-6 rounded-(--radius-sm) px-2 transition-colors motion-reduce:transition-none",
+                  "h-6 rounded-sm px-2 transition-colors motion-reduce:transition-none",
                   selected
                     ? "bg-foreground/[0.06] text-foreground"
                     : "hover:text-foreground",

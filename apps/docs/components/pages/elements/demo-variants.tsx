@@ -38,7 +38,7 @@ export function DemoVariants({
               aria-pressed={selected}
               onClick={() => setKey(variant.key)}
               className={cn(
-                "h-6 rounded-(--radius-sm) px-2 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors motion-reduce:transition-none",
+                "h-6 rounded-sm px-2 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors motion-reduce:transition-none",
                 selected
                   ? "bg-foreground/[0.06] text-foreground"
                   : "text-muted-foreground hover:text-foreground",

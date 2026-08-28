@@ -168,7 +168,7 @@ function PanelHeader(): React.ReactNode {
             aui.threads.switchToNewThread();
           }}
           aria-label="New chat"
-          className="text-muted-foreground hover:text-foreground flex h-7 items-center rounded-(--radius-control) px-2 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors"
+          className="text-muted-foreground hover:text-foreground rounded-control flex h-7 items-center px-2 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors"
         >
           new
         </button>
@@ -182,7 +182,7 @@ function PanelHeader(): React.ReactNode {
             setOpen(false);
           }}
           aria-label="Close chat"
-          className="text-muted-foreground hover:text-foreground flex size-7 items-center justify-center rounded-(--radius-control) transition-colors"
+          className="text-muted-foreground hover:text-foreground rounded-control flex size-7 items-center justify-center transition-colors"
         >
           <XIcon className="size-3.5" />
         </button>
