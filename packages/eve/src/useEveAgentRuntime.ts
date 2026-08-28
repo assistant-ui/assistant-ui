@@ -231,7 +231,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
   const messagesRef = useRef(messages);
   messagesRef.current = messages;
   const agentRef = useRef(agent);
-  agentRef.current = agent;
+  useEffect(() => {
+    agentRef.current = agent;
+  }, [agent]);
 
   // Upstream `EveAgentStore` `send` and `respond` reject while a turn is in
   // flight and only resolve once the turn's stream parks, so a pending chain

@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { startTransition, Suspense, type PropsWithChildren } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mockUseEveAgent } = vi.hoisted(() => ({
@@ -1816,6 +1817,46 @@ describe("useEveAgentRuntime cancel binding", () => {
 
 describe("useEveAgentRuntime thread refetch", () => {
   const session = { sessionId: "s1" };
+
+  it("keeps refetches scoped to the committed agent", async () => {
+    const resumeA = vi.fn().mockResolvedValue(undefined);
+    const resumeB = vi.fn().mockResolvedValue(undefined);
+    const agentA = createAgent({ session, resume: resumeA });
+    const agentB = createAgent({ session, resume: resumeB });
+    let currentAgent = agentA;
+    mockUseEveAgent.mockImplementation(() => currentAgent as never);
+
+    const pending = new Promise<never>(() => {});
+    let blocked = false;
+    const Blocker = () => {
+      if (blocked) throw pending;
+      return null;
+    };
+    const Wrapper = ({ children }: PropsWithChildren) => (
+      <Suspense fallback={null}>
+        {children}
+        <Blocker />
+      </Suspense>
+    );
+
+    const { result, rerender } = renderHook(() => useEveAgentRuntime(), {
+      wrapper: Wrapper,
+    });
+
+    currentAgent = agentB;
+    act(() => {
+      blocked = true;
+      startTransition(() => rerender());
+    });
+    expect(mockUseEveAgent.mock.results.at(-1)?.value).toBe(agentB);
+
+    await act(async () => {
+      await result.current.threads.reloadMainThread();
+    });
+
+    expect(resumeB).not.toHaveBeenCalled();
+    expect(resumeA).toHaveBeenCalledTimes(1);
+  });
 
   it("replays the session through eve resume when the thread is refetched", async () => {
     const resume = vi.fn().mockResolvedValue(undefined);
