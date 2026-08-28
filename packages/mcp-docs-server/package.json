@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/mcp-docs-server",
   "version": "0.2.3",
-  "description": "MCP server for assistant-ui documentation and examples",
+  "description": "Stdio proxy for the hosted assistant-ui documentation MCP server",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -27,22 +27,18 @@
   "files": [
     "dist",
     "src",
-    ".docs",
     "README.md"
   ],
   "sideEffects": false,
   "scripts": {
-    "prepare-docs": "node ./dist/prepare-docs/prepare.js",
-    "build": "aui-build && pnpm prepare-docs",
+    "build": "aui-build",
     "dev": "tsx src/stdio.ts",
-    "pretest": "pnpm build",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@modelcontextprotocol/server": "^2.0.0",
-    "gray-matter": "^4.0.3",
-    "zod": "^4.4.3"
+    "@modelcontextprotocol/client": "^2.0.0",
+    "@modelcontextprotocol/server": "^2.0.0"
   },
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
