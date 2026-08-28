@@ -20,13 +20,12 @@ Create `.env.local`:
 ```
 LANGGRAPH_API_URL=http://localhost:2024
 LANGCHAIN_API_KEY=
-APP_ORIGIN=
 NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID=stockbroker
 ```
 
 `LANGGRAPH_API_URL` is the LangGraph deployment URL the bundled `/api/[..._path]` proxy fetches from. `LANGCHAIN_API_KEY` is forwarded as `x-api-key` and can be blank for an unauthenticated dev server. `NEXT_PUBLIC_LANGGRAPH_ASSISTANT_ID` is the graph id (a key under `graphs` in your `langgraph.json`).
 
-The proxy accepts same-origin browser requests so the example works without exposing `LANGCHAIN_API_KEY` to the client. For clients without Fetch Metadata, if a reverse proxy rewrites the request URL, set `APP_ORIGIN` to the externally visible origin, such as `https://chat.example.com`. Origin checks are not user authentication. Before deploying with a cloud API key, require your application session in the proxy route and apply a durable rate limit.
+The proxy rejects browser requests marked cross-site so the example works without exposing `LANGCHAIN_API_KEY` to the client. Request-context checks are not user authentication. Before deploying with a cloud API key, require your application session in the proxy route and apply a durable rate limit.
 
 ### Run
 

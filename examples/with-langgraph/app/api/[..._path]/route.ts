@@ -2,38 +2,11 @@ import { type NextRequest, NextResponse } from "next/server";
 
 const ALLOWED_METHODS = "GET, POST, PUT, PATCH, DELETE, OPTIONS";
 
-type OriginCheck = "allowed" | "forbidden" | "misconfigured";
-
-function checkRequestOrigin(req: NextRequest): OriginCheck {
+function isAllowedRequestContext(req: NextRequest) {
   const fetchSite = req.headers.get("sec-fetch-site");
-  if (fetchSite !== null) {
-    return fetchSite === "same-origin" || fetchSite === "none"
-      ? "allowed"
-      : "forbidden";
-  }
-
-  const origin = req.headers.get("origin");
-  if (origin === null) return "allowed";
-
-  const configuredOrigin = process.env.APP_ORIGIN?.trim();
-  let expectedOrigin = req.nextUrl.origin;
-  if (configuredOrigin) {
-    try {
-      const url = new URL(configuredOrigin);
-      if (url.protocol !== "http:" && url.protocol !== "https:") {
-        return "misconfigured";
-      }
-      expectedOrigin = url.origin;
-    } catch {
-      return "misconfigured";
-    }
-  }
-
-  try {
-    return new URL(origin).origin === expectedOrigin ? "allowed" : "forbidden";
-  } catch {
-    return "forbidden";
-  }
+  return (
+    fetchSite === null || fetchSite === "same-origin" || fetchSite === "none"
+  );
 }
 
 function crossOriginResponse() {
@@ -43,23 +16,8 @@ function crossOriginResponse() {
   );
 }
 
-function invalidAppOriginResponse() {
-  return NextResponse.json(
-    { error: "APP_ORIGIN must be an absolute HTTP(S) origin." },
-    { status: 500 },
-  );
-}
-
-function originErrorResponse(req: NextRequest) {
-  const result = checkRequestOrigin(req);
-  if (result === "misconfigured") return invalidAppOriginResponse();
-  if (result === "forbidden") return crossOriginResponse();
-  return null;
-}
-
 async function handleRequest(req: NextRequest, method: string) {
-  const originError = originErrorResponse(req);
-  if (originError) return originError;
+  if (!isAllowedRequestContext(req)) return crossOriginResponse();
 
   try {
     const apiUrl = process.env.LANGGRAPH_API_URL?.trim();
@@ -150,11 +108,10 @@ export const POST = (req: NextRequest) => handleRequest(req, "POST");
 export const PUT = (req: NextRequest) => handleRequest(req, "PUT");
 export const PATCH = (req: NextRequest) => handleRequest(req, "PATCH");
 export const DELETE = (req: NextRequest) => handleRequest(req, "DELETE");
-export const OPTIONS = (req: NextRequest) => {
-  const originError = originErrorResponse(req);
-  if (originError) return originError;
-  return new NextResponse(null, {
-    status: 204,
-    headers: { Allow: ALLOWED_METHODS },
-  });
-};
+export const OPTIONS = (req: NextRequest) =>
+  isAllowedRequestContext(req)
+    ? new NextResponse(null, {
+        status: 204,
+        headers: { Allow: ALLOWED_METHODS },
+      })
+    : crossOriginResponse();

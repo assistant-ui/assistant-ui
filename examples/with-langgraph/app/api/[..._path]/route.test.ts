@@ -1,10 +1,6 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
 import { GET, OPTIONS, POST } from "./route";
-
-beforeEach(() => {
-  vi.stubEnv("APP_ORIGIN", "");
-});
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -19,69 +15,15 @@ describe("LangGraph proxy", () => {
     const response = await POST(
       new NextRequest("https://app.example/api/threads", {
         method: "POST",
-        headers: { origin: "https://attacker.example" },
-        body: "{}",
-      }),
-    );
-
-    expect(response.status).toBe(403);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("rejects cross-scheme origins without a configured public origin", async () => {
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const response = await POST(
-      new NextRequest("https://app.example/api/threads", {
-        method: "POST",
-        headers: { origin: "http://app.example" },
-        body: "{}",
-      }),
-    );
-
-    expect(response.status).toBe(403);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("accepts a configured public origin behind a proxy", async () => {
-    vi.stubEnv("APP_ORIGIN", "https://app.example");
-    vi.stubEnv("LANGGRAPH_API_URL", "https://agent.example");
-    const fetchMock = vi.fn().mockResolvedValue(Response.json({}));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const response = await POST(
-      new NextRequest("http://app.internal/api/threads", {
-        method: "POST",
         headers: {
-          host: "app.internal",
-          origin: "https://app.example",
+          origin: "https://attacker.example",
+          "sec-fetch-site": "cross-site",
         },
         body: "{}",
       }),
     );
 
-    expect(response.status).toBe(200);
-    expect(fetchMock).toHaveBeenCalledOnce();
-  });
-
-  it("reports an invalid configured public origin", async () => {
-    vi.stubEnv("APP_ORIGIN", "app.example");
-    const fetchMock = vi.fn();
-    vi.stubGlobal("fetch", fetchMock);
-
-    const response = await POST(
-      new NextRequest("http://app.internal/api/threads", {
-        method: "POST",
-        headers: { origin: "https://app.example" },
-        body: "{}",
-      }),
-    );
-
-    expect(response.status).toBe(500);
-    await expect(response.json()).resolves.toEqual({
-      error: "APP_ORIGIN must be an absolute HTTP(S) origin.",
-    });
+    expect(response.status).toBe(403);
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
