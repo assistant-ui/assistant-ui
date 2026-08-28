@@ -297,7 +297,7 @@ Client-side validation errors keep the elicitation pending so the user can corre
 
 ## Storage
 
-All persisted state — custom server records, OAuth tokens, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
+All persisted state — custom server records, OAuth tokens, callback state, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
 
 - `McpLocalStorage()` — default. Stores under the `aui-mcp:` prefix in `window.localStorage`.
 - `McpMemoryStorage()` — in-process Map. Use for SSR/tests where localStorage is absent.

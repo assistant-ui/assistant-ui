@@ -268,14 +268,14 @@ type MCPAuthConfig =
 
 The OAuth strategy implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery, DCR, PKCE, token exchange, and refresh; this provider only mediates `MCPStorage` reads/writes and the redirect step.
 
-The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route routes back to the right server without app-level wiring.
+The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route routes back to the right server without app-level wiring. The complete state value is persisted with the PKCE verifier and validated before the callback is processed.
 
 Flow:
 
 1. `aui.mcp().server({ id }).connect()` → SDK starts auth.
 2. `redirectToAuthorization` stores `authorizationUrl` on server state, transitions to `authRequired`. **The package does not auto-navigate** — render `<McpServerPrimitive.OAuthLink>` (an anchor) or open a popup.
 3. User returns to `oauthRedirectUri`. Mount `<McpOAuthCallback />` there.
-4. Callback reads `?state=&code=`, derives the server id, calls `server.completeAuth(window.location.href)`.
+4. Callback reads `?state=&code=`, derives the server id, validates the complete state value, and calls `server.completeAuth(window.location.href)`.
 5. Server transitions to `connecting → connected`. Refresh tokens are rotated automatically; a failed refresh moves to `authRequired`.
 
 ## 5. Primitives

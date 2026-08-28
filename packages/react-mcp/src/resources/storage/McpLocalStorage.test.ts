@@ -398,6 +398,7 @@ describe("McpLocalStorage auth state", () => {
       JSON.parse(storage.getItem("test-mcp:auth:docs") ?? "null"),
     ).toMatchObject({
       codeVerifier: expect.any(String),
+      state: authorizationUrls[0]!.searchParams.get("state"),
       discoveryState: {
         authorizationServerUrl: "https://auth.example.com",
       },
