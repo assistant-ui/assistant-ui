@@ -3887,7 +3887,7 @@ type ToolkitDefinitionInput<TArgs extends Record<string, unknown>, TResult> = Wi
   streamCall?: unknown;
 } ? OverrideToolDeclarationCallbacks<T, TArgs, TResult> : never : never, TArgs, TResult>;
 
-declare const Tools: Resource<ClientMethods, [
+declare const Tools: Resource<ClientOutput<"tools">, [
   {
     toolkit?: Toolkit;
     mcpApp?: ResourceElement<McpAppResourceOutput> | undefined;
