@@ -698,7 +698,8 @@ const bundleFixtures = () => {
       {
         type: "registry:component",
         path: "components/assistant-ui/thread.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/thread.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/thread.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react"],
@@ -759,18 +760,18 @@ test("bundling inlines the closure as targeted files and merges its dependencies
       [
         "registry:file",
         "components/assistant-ui/thread.tsx",
-        "../../packages/ui/src/components/assistant-ui/thread.tsx",
+        "../../packages/ui/src/components/react/assistant-ui/thread.tsx",
       ],
       ["registry:file", "components/assistant-ui/reasoning.tsx", undefined],
       [
         "registry:file",
         "components/ui/button.tsx",
-        "../../packages/ui/src/components/ui/radix/button.tsx",
+        "../../packages/ui/src/components/react/ui/radix/button.tsx",
       ],
       [
         "registry:file",
         "components/ui/collapsible.tsx",
-        "../../packages/ui/src/components/ui/radix/collapsible.tsx",
+        "../../packages/ui/src/components/react/ui/radix/collapsible.tsx",
       ],
     ],
   );
@@ -793,8 +794,8 @@ test("bundling sources ui primitives and their package from the requested flavor
       .filter((file) => file.target.startsWith("components/ui/"))
       .map((file) => file.sourcePath),
     [
-      "../../packages/ui/src/components/ui/base/button.tsx",
-      "../../packages/ui/src/components/ui/base/collapsible.tsx",
+      "../../packages/ui/src/components/react/ui/base/button.tsx",
+      "../../packages/ui/src/components/react/ui/base/collapsible.tsx",
     ],
   );
   assert.deepEqual(expanded.baseDependencies, ["@base-ui/react"]);
@@ -1372,7 +1373,7 @@ test("every element's sibling imports are declared as registry dependencies", as
   const { join } = await import("node:path");
   const { registry } = await import("../src/registry.ts");
 
-  const dir = "packages/ui/src/components/elements";
+  const dir = "packages/ui/src/components/react/assistant-ui/elements";
   const declared = new Map(
     registry
       .filter((item) => item.name.startsWith("elements-"))
@@ -1451,7 +1452,6 @@ test("a dotted basename without a recognized extension probes module and index f
   const from = "components/assistant-ui/thread.tsx";
 
   assert.deepEqual(getRelativeImportCandidates("./tool.config", from), [
-    "components/assistant-ui/tool.config",
     "components/assistant-ui/tool.config.tsx",
     "components/assistant-ui/tool.config.ts",
     "components/assistant-ui/tool.config.jsx",
@@ -1463,7 +1463,6 @@ test("a dotted basename without a recognized extension probes module and index f
   ]);
 
   assert.deepEqual(getRelativeImportCandidates("./thread.v2", from), [
-    "components/assistant-ui/thread.v2",
     "components/assistant-ui/thread.v2.tsx",
     "components/assistant-ui/thread.v2.ts",
     "components/assistant-ui/thread.v2.jsx",
@@ -1549,12 +1548,12 @@ test("install validation flags a relative import with no providing file", () => 
 test("install validation resolves a sibling through file.target, not file.path", () => {
   const files = [
     {
-      path: "packages/ui/src/components/assistant-ui/thread.tsx",
+      path: "packages/ui/src/components/react/assistant-ui/thread.tsx",
       target: "components/assistant-ui/thread.tsx",
       content: 'import { Badge } from "./badge";\n',
     },
     {
-      path: "packages/ui/src/components/assistant-ui/badge.tsx",
+      path: "packages/ui/src/components/react/assistant-ui/badge.tsx",
       target: "components/assistant-ui/badge.tsx",
       content: "export const Badge = () => null;\n",
     },
