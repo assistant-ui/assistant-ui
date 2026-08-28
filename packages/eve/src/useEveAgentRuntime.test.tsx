@@ -1821,10 +1821,37 @@ describe("useEveAgentRuntime thread refetch", () => {
   it("keeps refetches scoped to the committed agent", async () => {
     const resumeA = vi.fn().mockResolvedValue(undefined);
     const resumeB = vi.fn().mockResolvedValue(undefined);
-    const agentA = createAgent({ session, resume: resumeA });
-    const agentB = createAgent({ session, resume: resumeB });
-    let currentAgent = agentA;
-    mockUseEveAgent.mockImplementation(() => currentAgent as never);
+    const agentA = createAgent({
+      data: {
+        messages: [
+          {
+            id: "workspace-a",
+            role: "user",
+            parts: [{ type: "text", text: "workspace A" }],
+          },
+        ],
+      },
+      session,
+      resume: resumeA,
+    });
+    const agentB = createAgent({
+      data: {
+        messages: [
+          {
+            id: "workspace-b",
+            role: "user",
+            parts: [{ type: "text", text: "workspace B" }],
+          },
+        ],
+      },
+      session,
+      resume: resumeB,
+    });
+    mockUseEveAgent.mockImplementation((options) =>
+      (options as { workspace: string }).workspace === "A"
+        ? (agentA as never)
+        : (agentB as never),
+    );
 
     const pending = new Promise<never>(() => {});
     let blocked = false;
@@ -1839,14 +1866,17 @@ describe("useEveAgentRuntime thread refetch", () => {
       </Suspense>
     );
 
-    const { result, rerender } = renderHook(() => useEveAgentRuntime(), {
-      wrapper: Wrapper,
-    });
+    const { result, rerender } = renderHook(
+      ({ workspace }) => useEveAgentRuntime({ workspace } as never),
+      {
+        initialProps: { workspace: "A" },
+        wrapper: Wrapper,
+      },
+    );
 
-    currentAgent = agentB;
     act(() => {
       blocked = true;
-      startTransition(() => rerender());
+      startTransition(() => rerender({ workspace: "B" }));
     });
     expect(mockUseEveAgent.mock.results.at(-1)?.value).toBe(agentB);
 
@@ -1856,6 +1886,9 @@ describe("useEveAgentRuntime thread refetch", () => {
 
     expect(resumeB).not.toHaveBeenCalled();
     expect(resumeA).toHaveBeenCalledTimes(1);
+
+    await stageMessage(result.current, "draft from A");
+    expect(getText(result.current)).toEqual(["workspace A", "draft from A"]);
   });
 
   it("replays the session through eve resume when the thread is refetched", async () => {

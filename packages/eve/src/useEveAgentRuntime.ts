@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   fromThreadMessageLike,
   generateId,
@@ -229,11 +236,12 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
 
   const messages = stagedMessages ?? convertedMessages;
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
   const agentRef = useRef(agent);
-  useEffect(() => {
+  // Async dispatches must only observe values from committed renders.
+  useLayoutEffect(() => {
+    messagesRef.current = messages;
     agentRef.current = agent;
-  }, [agent]);
+  }, [agent, messages]);
 
   // Upstream `EveAgentStore` `send` and `respond` reject while a turn is in
   // flight and only resolve once the turn's stream parks, so a pending chain
@@ -481,7 +489,9 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
       );
     },
   });
-  runtimeRef.current = runtime;
+  useLayoutEffect(() => {
+    runtimeRef.current = runtime;
+  }, [runtime]);
 
   return runtime;
 };
