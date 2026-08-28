@@ -87,8 +87,16 @@ describe("registered tools", () => {
       expect(tool.annotations).toEqual({ readOnlyHint: true });
     }
     expect(tools[0]?.inputSchema).toBe(searchDocsTool.inputSchema);
-    expect(tools[1]?.inputSchema).toBe(readPageTool.inputSchema);
-    expect(tools[2]?.inputSchema).toBe(readPageTool.inputSchema);
+    expect(tools[1]?.inputSchema).not.toBe(readPageTool.inputSchema);
+    expect(tools[1]?.inputSchema).toMatchObject({
+      properties: { path: { description: expect.stringContaining("Docs") } },
+    });
+    expect(tools[2]?.inputSchema).not.toBe(readPageTool.inputSchema);
+    expect(tools[2]?.inputSchema).toMatchObject({
+      properties: {
+        path: { description: expect.stringContaining("Example slug") },
+      },
+    });
   });
 
   it("searchDocs calls search_docs on /api/mcp and passes the result through", async () => {

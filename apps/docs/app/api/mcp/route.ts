@@ -31,7 +31,6 @@ import {
   listTemplates,
 } from "@/lib/xulux/template-service";
 import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
-import { mcpTransportOptions } from "./transport-config";
 
 export const revalidate = false;
 
@@ -343,29 +342,21 @@ const listPagesInputSchema = z
 
 const getNavigationInputSchema = z.object({}).strict();
 
-function zodStringInputSchema<
-  const Properties extends Record<
-    string,
-    { readonly type: "string"; readonly description: string }
-  >,
->(schema: {
-  readonly type: "object";
-  readonly properties: Properties;
-  readonly required: readonly (keyof Properties & string)[];
-  readonly additionalProperties: false;
-}) {
-  const zodSchema = z.fromJSONSchema({
-    ...schema,
-    required: [...schema.required],
-  });
-  return zodSchema as z.ZodObject<{
-    [Key in keyof Properties]: z.ZodString;
-  }>;
-}
+const searchDocsInputSchema = z
+  .object({
+    query: z
+      .string()
+      .describe(searchDocsTool.inputSchema.properties.query.description),
+  })
+  .strict();
 
-const searchDocsInputSchema = zodStringInputSchema(searchDocsTool.inputSchema);
-
-const readPageInputSchema = zodStringInputSchema(readPageTool.inputSchema);
+const readPageInputSchema = z
+  .object({
+    path: z
+      .string()
+      .describe(readPageTool.inputSchema.properties.path.description),
+  })
+  .strict();
 
 const listTemplatesInputSchema = z.object({}).strict();
 
@@ -570,9 +561,10 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   const server = buildMcpServer(request.url);
-  const transport = new WebStandardStreamableHTTPServerTransport(
-    mcpTransportOptions,
-  );
+  const transport = new WebStandardStreamableHTTPServerTransport({
+    sessionIdGenerator: undefined,
+    enableJsonResponse: true,
+  });
   await server.connect(transport);
   try {
     const normalizedRequest = await normalizeMcpRequestHeaders(request);

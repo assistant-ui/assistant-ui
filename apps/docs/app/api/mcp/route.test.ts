@@ -24,6 +24,7 @@ vi.mock("@/lib/source", () => {
     source: makeSource(),
     examples: makeSource(),
     design: makeSource(),
+    elementsDocs: makeSource(),
     standalone: makeSource(),
     tapDocs: makeSource(),
     getTapDocsPage: vi.fn(),
@@ -36,6 +37,11 @@ import {
   readPageInputSchema,
   searchDocsInputSchema,
 } from "@/lib/mcp-tool-definitions";
+import {
+  registerWebMcpTools,
+  type FetchLike,
+  type WebMcpModelContext,
+} from "@/lib/webmcp-tools";
 import { listTemplates } from "@/lib/xulux/template-service";
 import { POST } from "./route";
 
@@ -126,6 +132,37 @@ describe("POST /api/mcp", () => {
         promptsResponse.result as { prompts: Array<{ name: string }> }
       ).prompts.map((prompt) => prompt.name),
     ).toContain("assistant-ui-template-workflow");
+  });
+
+  it("executes the WebMCP adapter through the route transport", async () => {
+    let responseContentType: string | null = null;
+    const routeFetch: FetchLike = async (url, init) => {
+      const request = new Request(new URL(url, ORIGIN), {
+        method: init.method,
+        headers: init.headers,
+        body: init.body,
+        ...(init.signal ? { signal: init.signal } : {}),
+      });
+      const response = await POST(request as Parameters<typeof POST>[0]);
+      responseContentType = response.headers.get("content-type");
+      return response;
+    };
+    const tools: Parameters<WebMcpModelContext["registerTool"]>[0][] = [];
+    registerWebMcpTools(
+      {
+        registerTool: (tool) => {
+          tools.push(tool);
+        },
+      },
+      routeFetch,
+    );
+    const searchTool = tools.find((tool) => tool.name === "searchDocs");
+    if (!searchTool) throw new Error("missing searchDocs tool");
+
+    await expect(searchTool.execute({ query: "tools" })).resolves.toEqual({
+      content: [{ type: "text", text: "[]" }],
+    });
+    expect(responseContentType).toContain("application/json");
   });
 
   it("returns the catalog-backed template list", async () => {

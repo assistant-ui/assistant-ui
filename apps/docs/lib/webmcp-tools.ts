@@ -182,7 +182,18 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
       name: "getDoc",
       description:
         "Read one assistant-ui docs or Tap docs page as markdown. Accepts a path such as /docs/getting-started or tap/docs/store/state.",
-      inputSchema: readPageTool.inputSchema,
+      inputSchema: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description:
+              "Docs or Tap page path such as /docs/getting-started or tap/docs/store/state, or a same-origin URL for one of those pages.",
+          },
+        },
+        required: ["path"],
+        additionalProperties: false,
+      },
       annotations: { readOnlyHint: true },
       execute: async (args, context) => {
         const path = stringArg(args, "path");
@@ -199,7 +210,18 @@ function webMcpTools(fetchImpl: FetchLike): WebMcpToolDescriptor[] {
       name: "getExample",
       description:
         "Read one assistant-ui example page as markdown. Accepts an example slug such as ai-sdk or a path such as /examples/ai-sdk.",
-      inputSchema: readPageTool.inputSchema,
+      inputSchema: {
+        type: "object",
+        properties: {
+          path: {
+            type: "string",
+            description:
+              "Example slug such as ai-sdk, /examples/<slug> path, or a same-origin URL under /examples/.",
+          },
+        },
+        required: ["path"],
+        additionalProperties: false,
+      },
       annotations: { readOnlyHint: true },
       execute: async (args, context) => {
         const path = stringArg(args, "path");
