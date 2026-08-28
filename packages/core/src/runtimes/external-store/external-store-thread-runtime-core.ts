@@ -154,6 +154,11 @@ export class ExternalStoreThreadRuntimeCore
   // and a delete whose confirmation races a send keeps its eviction.
   private _pendingDeleteEvictions = new Set<string>();
 
+  // Placeholder id for the upcoming assistant message, reused across snapshot
+  // passes while the same tail message awaits its response so the placeholder
+  // keeps one identity per response.
+  private _optimistic: { id: string; parentId: string | null } | null = null;
+
   private _store!: ExternalStoreAdapter<any>;
 
   private _getInitializePromise?: () => Promise<unknown> | undefined;
@@ -246,6 +251,14 @@ export class ExternalStoreThreadRuntimeCore
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;
     const isRunning = this._getEffectiveIsRunning(store);
+    const repositoryInstance = store.unstable_messageRepositoryInstance;
+    const repositoryChanged =
+      repositoryInstance !== undefined &&
+      repositoryInstance !== this.repository;
+    if (repositoryChanged) {
+      this.repository = repositoryInstance;
+      this._pendingDeleteEvictions.clear();
+    }
     if (oldStore?.queue !== store.queue) {
       this._transformedQueue = undefined;
       store.queue?.__internal_setDispatchTransform?.((message) => {
@@ -296,6 +309,7 @@ export class ExternalStoreThreadRuntimeCore
       // Handle messageRepository
       if (
         oldStore &&
+        !repositoryChanged &&
         oldStore.isRunning === store.isRunning &&
         oldStore.messageRepository === store.messageRepository &&
         previousIsRunning === isRunning
@@ -308,7 +322,11 @@ export class ExternalStoreThreadRuntimeCore
       const headId =
         store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
 
-      if (oldStore && oldStore.messageRepository === store.messageRepository) {
+      if (
+        oldStore &&
+        !repositoryChanged &&
+        oldStore.messageRepository === store.messageRepository
+      ) {
         this.repository.resetHead(headId);
         messages = this.repository.getMessages();
       } else {
@@ -333,6 +351,7 @@ export class ExternalStoreThreadRuntimeCore
         if (oldStore.convertMessage !== store.convertMessage) {
           this._converter = new ThreadMessageConverter();
         } else if (
+          !repositoryChanged &&
           oldStore.isRunning === store.isRunning &&
           oldStore.messages === store.messages &&
           previousIsRunning === isRunning
@@ -436,9 +455,13 @@ export class ExternalStoreThreadRuntimeCore
     // (prior placeholders, mid-run id-swap siblings); export() never persists them.
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
-      optimisticId = generateId();
+      const parentId = messages.at(-1)?.id ?? null;
+      if (this._optimistic?.parentId !== parentId) {
+        this._optimistic = { id: generateId(), parentId };
+      }
+      optimisticId = this._optimistic.id;
       this.repository.addOrUpdateMessage(
-        messages.at(-1)?.id ?? null,
+        parentId,
         fromThreadMessageLike(
           { role: "assistant", content: [], metadata: { isOptimistic: true } },
           optimisticId,
@@ -447,10 +470,14 @@ export class ExternalStoreThreadRuntimeCore
       );
     }
 
+    if (optimisticId === null) this._optimistic = null;
     this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
     this._messages = this.repository.getMessages();
 
+    if (repositoryChanged) {
+      this._runTrackerUpdate(() => this._toolInvocations?.reset());
+    }
     this._runTrackerUpdate(() => this._driveToolInvocations());
 
     this._notifySubscribers();

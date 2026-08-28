@@ -3,8 +3,8 @@
 # Templates and examples alias packages/ui via tsconfig and carry no copies,
 # except `minimal`, which ships its own. Minimal is a Base UI (base-nova)
 # scaffold, so its copies mirror the base install shape: the unmarked file in
-# packages/ui/src/components/assistant-ui is already the Base UI source, so
-# minimal's assistant-ui copies sync from it directly, and `components/ui`
+# packages/ui/src/components/react/assistant-ui/elements is already the Base UI
+# source, so minimal's assistant-ui element copies sync from it directly, and `components/ui`
 # copies sync from the vendored `ui/base` stand-ins. Base sources already use
 # the scaffold import shape. Minimal's `hooks` copies sync from
 # packages/ui/src/hooks.
@@ -20,21 +20,21 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$SCRIPT_DIR/.."
-SOURCE_DIR="$ROOT_DIR/packages/ui/src/components/assistant-ui"
-UI_BASE_DIR="$ROOT_DIR/packages/ui/src/components/ui/base"
+SOURCE_DIR="$ROOT_DIR/packages/ui/src/components/react/assistant-ui/elements"
+UI_BASE_DIR="$ROOT_DIR/packages/ui/src/components/react/ui/base"
 HOOKS_SOURCE_DIR="$ROOT_DIR/packages/ui/src/hooks"
 TEMPLATES_ROOT="$ROOT_DIR/templates"
 EXAMPLES_ROOT="$ROOT_DIR/examples"
 
 # Only minimal carries copies; every other template aliases packages/ui.
-MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui"
+MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui/elements"
 MINIMAL_UI_DIR="$TEMPLATES_ROOT/minimal/components/ui"
 MINIMAL_HOOKS_DIR="$TEMPLATES_ROOT/minimal/hooks"
 
 OVERRIDES=(
-    # minimal intentionally ships a slim thread.tsx without GroupedParts /
+    # minimal intentionally ships a slim thread.aui.tsx without GroupedParts /
     # reasoning / tool-group, since it doesn't bundle those companion files.
-    "thread.tsx"
+    "thread.aui.tsx"
     # minimal ships without react-shiki, so its markdown-text.tsx omits the
     # SyntaxHighlighter wiring.
     "markdown-text.tsx"
@@ -247,7 +247,7 @@ while IFS= read -r -d '' ex_file; do
     if cmp -s "$src_file" "$ex_file"; then
         redundant+=("${ex_file#"$ROOT_DIR"/}")
     fi
-done < <(find "$EXAMPLES_ROOT" -path "*/components/assistant-ui/*" -maxdepth 4 -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "*/node_modules/*" -print0)
+done < <(find "$EXAMPLES_ROOT" -path "*/components/assistant-ui/elements/*" -maxdepth 5 -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "*/node_modules/*" -print0)
 
 if [[ ${#drift[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
     echo "✓ all template components and hooks are in sync with packages/ui"
@@ -284,8 +284,8 @@ fi
 if [[ ${#drift[@]} -gt 0 ]]; then
     echo "✗ drift detected in ${#drift[@]} minimal file(s) vs packages/ui:"
     for file in "${drift[@]}"; do
-        echo "    templates/minimal/components/assistant-ui/$file"
-        annotate "templates/minimal/components/assistant-ui/$file" "out of sync with the base install shape of packages/ui/src/components/assistant-ui/$file; run 'pnpm sync-templates --write' or add an OVERRIDES entry"
+        echo "    templates/minimal/components/assistant-ui/elements/$file"
+        annotate "templates/minimal/components/assistant-ui/elements/$file" "out of sync with the base install shape of packages/ui/src/components/react/assistant-ui/elements/$file; run 'pnpm sync-templates --write' or add an OVERRIDES entry"
     done
 fi
 
@@ -293,7 +293,7 @@ if [[ ${#ui_drift[@]} -gt 0 ]]; then
     echo "✗ drift detected in ${#ui_drift[@]} minimal ui file(s) vs packages/ui ui/base:"
     for file in "${ui_drift[@]}"; do
         echo "    templates/minimal/components/ui/$file"
-        annotate "templates/minimal/components/ui/$file" "out of sync with the rendered packages/ui/src/components/ui/base/$file; run 'pnpm sync-templates --write'"
+        annotate "templates/minimal/components/ui/$file" "out of sync with the rendered packages/ui/src/components/react/ui/base/$file; run 'pnpm sync-templates --write'"
     done
 fi
 

@@ -3,8 +3,8 @@
 import { forwardRef, useState } from "react";
 import { BotIcon, ChevronDownIcon } from "lucide-react";
 import { AssistantModalPrimitive } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/thread";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import { SampleFrame } from "./sample-frame";
 
 export function AssistantModalSample() {

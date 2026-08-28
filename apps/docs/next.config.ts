@@ -5,6 +5,7 @@ import {
   AGENT_DISCOVERY_REWRITES,
   API_CATALOG_LINK_HEADER,
 } from "./lib/agent-discovery-routes";
+import { isWebMcpEnabled } from "./lib/feature-flags";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -69,8 +70,8 @@ const config: NextConfig = {
   skipTrailingSlashRedirect: true,
   outputFileTracingIncludes: {
     "/elements/[slug]": [
-      "./components/pages/elements/demos/*.tsx",
-      "../../packages/ui/src/components/elements/*.tsx",
+      "./components/demo/elements/*.tsx",
+      "../../packages/ui/src/components/react/assistant-ui/elements/*.tsx",
     ],
   },
   headers: async () => [
@@ -81,31 +82,20 @@ const config: NextConfig = {
           key: "Content-Security-Policy",
           value: cspHeader.replace(/\n/g, ""),
         },
-        // Origin-keying is sticky: a browser decides it from the first response
-        // and holds it for the origin for the rest of the session, so it must
-        // not ship as a side effect of an off-by-default feature.
-        ...(process.env.WEBMCP_ORIGIN_TRIAL_TOKEN
+        ...(isWebMcpEnabled
           ? [
-              // WebMCP requires an origin-keyed agent cluster: registerTool()
-              // (and getTools()/executeTool()) "return a promise rejected with
-              // a SecurityError DOMException" when the surrounding agent
-              // cluster's is origin-keyed is false and the origin's scheme is
-              // not "file" (webmachinelearning/webmcp index.bs), and no browser
-              // guarantees origin-keying by default, so send it explicitly
-              // wherever the feature is enabled.
               {
                 key: "Origin-Agent-Cluster",
                 value: "?1",
               },
-              // Chrome gates WebMCP (document.modelContext, used by
-              // components/shared/webmcp-tools.tsx) behind an origin trial
-              // through Chrome 156. The site owner enables it by setting this
-              // env var to the token registered for assistant-ui.com at
-              // https://developer.chrome.com/origintrials/#/trials/active.
-              {
-                key: "Origin-Trial",
-                value: process.env.WEBMCP_ORIGIN_TRIAL_TOKEN,
-              },
+              ...(process.env.WEBMCP_ORIGIN_TRIAL_TOKEN
+                ? [
+                    {
+                      key: "Origin-Trial",
+                      value: process.env.WEBMCP_ORIGIN_TRIAL_TOKEN,
+                    },
+                  ]
+                : []),
             ]
           : []),
       ],
@@ -116,6 +106,196 @@ const config: NextConfig = {
     })),
   ],
   redirects: async () => [
+    {
+      source: "/elements/reasoning-panel",
+      destination: "/elements/reasoning",
+      permanent: true,
+    },
+    {
+      source: "/elements/suggestions",
+      destination: "/elements/follow-up-suggestions",
+      permanent: true,
+    },
+    {
+      source: "/elements/message-attachment",
+      destination: "/elements/attachment",
+      permanent: true,
+    },
+    {
+      source: "/elements/quote-reply",
+      destination: "/elements/quote",
+      permanent: true,
+    },
+    {
+      source: "/elements/timing-footer",
+      destination: "/elements/message-timing",
+      permanent: true,
+    },
+    {
+      source: "/elements/parallel-tools",
+      destination: "/elements/tool-group",
+      permanent: true,
+    },
+    {
+      source: "/elements/source-cards",
+      destination: "/elements/sources",
+      permanent: true,
+    },
+    {
+      source: "/elements/model-picker",
+      destination: "/elements/model-selector",
+      permanent: true,
+    },
+    {
+      source: "/standalone",
+      destination: "/design/components",
+      permanent: true,
+    },
+    {
+      source: "/standalone/:slug",
+      destination: "/design/components/:slug",
+      permanent: true,
+    },
+    {
+      source: "/elements/aui-voice",
+      destination: "/elements/orb",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/scrollbar",
+      destination: "/docs/guides/scrollbar",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/streamdown",
+      destination: "/docs/guides/streamdown",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/part-grouping",
+      destination: "/docs/guides/part-grouping",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui",
+      destination: "/elements",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/thread",
+      destination: "/elements/thread",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/context-display",
+      destination: "/elements/context-display",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/voice",
+      destination: "/elements/orb",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/quote",
+      destination: "/elements/quote",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/model-selector",
+      destination: "/elements/model-selector",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/composer-trigger-popover",
+      destination: "/elements/composer-trigger-popover",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/follow-up-suggestions",
+      destination: "/elements/follow-up-suggestions",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/markdown",
+      destination: "/elements/markdown-text",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/mermaid",
+      destination: "/elements/mermaid-diagram",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/syntax-highlighting",
+      destination: "/elements/syntax-highlighter",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/attachment",
+      destination: "/elements/attachment",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/tool-fallback",
+      destination: "/elements/tool-fallback",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/tool-group",
+      destination: "/elements/tool-group",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/sources",
+      destination: "/elements/sources",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/reasoning",
+      destination: "/elements/reasoning",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/image",
+      destination: "/elements/image",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/file",
+      destination: "/elements/file",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/directive-text",
+      destination: "/elements/directive-text",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/assistant-modal",
+      destination: "/elements/assistant-modal",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/assistant-sidebar",
+      destination: "/elements/assistant-sidebar",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/message-timing",
+      destination: "/elements/message-timing",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/thread-list",
+      destination: "/elements/thread-list",
+      permanent: true,
+    },
+    {
+      source: "/docs/ui/mcp-config",
+      destination: "/elements/mcp-config",
+      permanent: true,
+    },
     {
       source: "/docs/runtimes/ai-sdk/v6",
       destination: "/docs/runtimes/ai-sdk/v6-legacy",
@@ -144,17 +324,17 @@ const config: NextConfig = {
     {
       source:
         "/docs/ui/:slug(accordion|badge|diff-viewer|dot-matrix|number-roll|select|tabs)",
-      destination: "/standalone/:slug",
+      destination: "/design/components/:slug",
       permanent: true,
     },
     {
       source: "/docs/standalone",
-      destination: "/standalone",
+      destination: "/design/components",
       permanent: true,
     },
     {
       source: "/docs/standalone/:slug",
-      destination: "/standalone/:slug",
+      destination: "/design/components/:slug",
       permanent: true,
     },
     {
@@ -221,20 +401,20 @@ const config: NextConfig = {
         destination: "/llms.mdx/examples/:path*",
       },
       {
-        source: "/standalone.md",
-        destination: "/llms.mdx/standalone",
+        source: "/design/:path+.md",
+        destination: "/llms.mdx/design/:path*",
       },
       {
-        source: "/standalone.mdx",
-        destination: "/llms.mdx/standalone",
+        source: "/design/:path+.mdx",
+        destination: "/llms.mdx/design/:path*",
       },
       {
-        source: "/standalone/:path*.md",
-        destination: "/llms.mdx/standalone/:path*",
+        source: "/elements/:path+.md",
+        destination: "/llms.mdx/elements/:path*",
       },
       {
-        source: "/standalone/:path*.mdx",
-        destination: "/llms.mdx/standalone/:path*",
+        source: "/elements/:path+.mdx",
+        destination: "/llms.mdx/elements/:path*",
       },
       {
         source: "/tap/docs.md",
@@ -285,11 +465,18 @@ const config: NextConfig = {
         destination: "/llms.mdx/examples/:path*",
       },
       {
-        source: "/standalone/:path*",
+        source: "/design/:path*",
         has: [
           { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
         ],
-        destination: "/llms.mdx/standalone/:path*",
+        destination: "/llms.mdx/design/:path*",
+      },
+      {
+        source: "/elements/:path*",
+        has: [
+          { type: "header", key: "accept", value: "(?:.*text/markdown.*)" },
+        ],
+        destination: "/llms.mdx/elements/:path*",
       },
       {
         source: "/tap/docs/:path*",

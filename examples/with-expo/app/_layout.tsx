@@ -23,7 +23,7 @@ import { useTheme } from "@/hooks/use-theme";
 import { Icon } from "@/components/ui/icon";
 import { ThreadListDrawer } from "@/components/thread-list/ThreadListDrawer";
 import { haptics } from "@/lib/haptics";
-import toolkit from "@/components/assistant-ui/tools";
+import toolkit from "@/components/assistant-ui/elements/tools";
 
 function NewChatButton() {
   const aui = useAui();

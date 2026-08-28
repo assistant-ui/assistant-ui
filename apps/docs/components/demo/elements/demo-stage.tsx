@@ -8,7 +8,7 @@ import {
   iconSwap,
   iconSwapIn,
   iconSwapOut,
-} from "@/components/elements/surfaces";
+} from "@/components/assistant-ui/elements/surfaces";
 
 export interface DemoStageControls {
   stopped: boolean;
@@ -68,7 +68,7 @@ export function DemoStage({
         }}
         className={cn(
           ghostButton,
-          "absolute -end-3 -top-3 grid size-7 place-items-center md:-end-7 md:-top-7",
+          "absolute -end-2 -top-2 grid size-7 place-items-center md:-end-3 md:-top-3",
         )}
       >
         <PauseIcon

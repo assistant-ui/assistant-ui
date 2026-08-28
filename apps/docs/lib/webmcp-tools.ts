@@ -8,7 +8,7 @@ import {
   SEARCH_DOCS_RESULT_LIMIT,
   readPageTool,
   searchDocsTool,
-} from "@/app/api/mcp/tool-definitions";
+} from "@/lib/mcp-tool-definitions";
 
 type WebMcpToolResult = {
   content: { type: string; text?: string }[];

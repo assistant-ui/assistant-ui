@@ -1,4 +1,5 @@
 import { resource } from "@assistant-ui/tap";
+import { useMemo } from "react";
 import {
   OAuthMetadataSchema,
   OAuthClientInformationFullSchema,
@@ -208,54 +209,59 @@ export const normalizePersistedAuthState = (
 
 const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
   const prefix = opts.keyPrefix ?? "aui-mcp";
-  const customServersKey = `${prefix}:custom-servers`;
-  const authKey = (id: string) => `${prefix}:auth:${id}`;
   const storage = resolveStorage(opts);
 
-  const read = <T>(key: string, fallback: T): T => {
-    if (!storage) return fallback;
-    try {
-      const raw = storage.getItem(key);
-      if (raw == null) return fallback;
-      return JSON.parse(raw) as T;
-    } catch {
-      return fallback;
-    }
-  };
+  // Callers key per-server coordination state on this instance, so it has to
+  // stay referentially stable for as long as the underlying store does.
+  return useMemo(() => {
+    const customServersKey = `${prefix}:custom-servers`;
+    const authKey = (id: string) => `${prefix}:auth:${id}`;
 
-  const write = (key: string, value: unknown): void => {
-    if (!storage) return;
-    try {
-      storage.setItem(key, JSON.stringify(value));
-    } catch {
-      // quota or serialization failure — silently drop
-    }
-  };
+    const read = <T>(key: string, fallback: T): T => {
+      if (!storage) return fallback;
+      try {
+        const raw = storage.getItem(key);
+        if (raw == null) return fallback;
+        return JSON.parse(raw) as T;
+      } catch {
+        return fallback;
+      }
+    };
 
-  const remove = (key: string): void => {
-    if (!storage) return;
-    try {
-      storage.removeItem(key);
-    } catch {
-      // ignore
-    }
-  };
+    const write = (key: string, value: unknown): void => {
+      if (!storage) return;
+      try {
+        storage.setItem(key, JSON.stringify(value));
+      } catch {
+        // quota or serialization failure — silently drop
+      }
+    };
 
-  return {
-    loadCustomServers: async () =>
-      normalizeCustomServerRecords(read<unknown>(customServersKey, [])),
-    saveCustomServers: async (records) => {
-      write(customServersKey, records);
-    },
-    loadAuthState: async (id) =>
-      normalizePersistedAuthState(read<unknown>(authKey(id), null)),
-    saveAuthState: async (id, state) => {
-      write(authKey(id), state);
-    },
-    clearAuthState: async (id) => {
-      remove(authKey(id));
-    },
-  };
+    const remove = (key: string): void => {
+      if (!storage) return;
+      try {
+        storage.removeItem(key);
+      } catch {
+        // ignore
+      }
+    };
+
+    return {
+      loadCustomServers: async () =>
+        normalizeCustomServerRecords(read<unknown>(customServersKey, [])),
+      saveCustomServers: async (records) => {
+        write(customServersKey, records);
+      },
+      loadAuthState: async (id) =>
+        normalizePersistedAuthState(read<unknown>(authKey(id), null)),
+      saveAuthState: async (id, state) => {
+        write(authKey(id), state);
+      },
+      clearAuthState: async (id) => {
+        remove(authKey(id));
+      },
+    };
+  }, [prefix, storage]);
 };
 
 export const McpLocalStorage = resource(useMcpLocalStorage);

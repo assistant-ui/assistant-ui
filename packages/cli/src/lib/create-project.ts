@@ -385,6 +385,44 @@ function stripImportExtension(component: string): string {
   return component.replace(/\.[cm]?[tj]sx?$/, "");
 }
 
+const ASSISTANT_UI_OWNED_UI = new Set([
+  "accordion",
+  "badge",
+  "diff-viewer",
+  "direction",
+  "dot-matrix",
+  "number-roll",
+  "select",
+  "tabs",
+]);
+
+const BARE_ELEMENT_ITEMS = new Set([
+  "file",
+  "generative-ui",
+  "heat-graph",
+  "image",
+  "logos",
+  "markdown-text",
+  "syntax-highlighter",
+  "tooltip-icon-button",
+]);
+
+function toAssistantUIItem(specifier: string): string | null {
+  let name = stripImportExtension(specifier);
+  const inElements = name.startsWith("elements/");
+  if (inElements) {
+    name = name.slice("elements/".length);
+  } else if (name.includes("/")) {
+    return null;
+  }
+  if (name.endsWith(".aui")) {
+    return name.slice(0, -".aui".length);
+  }
+  return inElements && !BARE_ELEMENT_ITEMS.has(name)
+    ? `elements-${name}`
+    : name;
+}
+
 function scanRequiredComponents(projectDir: string): RequiredComponents {
   const assistantUIComponents = new Set<string>();
   const shadcnUIComponents = new Set<string>();
@@ -396,12 +434,18 @@ function scanRequiredComponents(projectDir: string): RequiredComponents {
     const assistantUIRegex =
       /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
     for (const match of content.matchAll(assistantUIRegex)) {
-      assistantUIComponents.add(stripImportExtension(match[1]!));
+      const item = toAssistantUIItem(match[1]!);
+      if (item) assistantUIComponents.add(item);
     }
 
     const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;
     for (const match of content.matchAll(uiRegex)) {
-      shadcnUIComponents.add(stripImportExtension(match[1]!));
+      const name = stripImportExtension(match[1]!);
+      if (ASSISTANT_UI_OWNED_UI.has(name)) {
+        assistantUIComponents.add(name);
+      } else {
+        shadcnUIComponents.add(name);
+      }
     }
   }
 

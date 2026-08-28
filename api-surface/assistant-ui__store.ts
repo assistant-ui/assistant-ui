@@ -266,7 +266,7 @@ declare const createLastValidCache: <T>(reportStale: (() => void) | null, schedu
 
 declare const createStaleReporter: (options: {
   name: string;
-  index: number;
+  index: number | string;
   isCurrent: () => boolean;
   isValid: () => boolean;
 }) => () => void;

@@ -12,7 +12,7 @@ import {
 import { FFmpeg } from "@ffmpeg/ffmpeg";
 import { toBlobURL } from "@ffmpeg/util";
 import { type FC, type ReactNode, useEffect, useRef, useState } from "react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { useFfmpegToolkit } from "./toolkit";
 
 // MVP: upload file, enter command

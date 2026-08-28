@@ -5,7 +5,7 @@ import {
 } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { normalizeMcpRequestHeaders } from "@/app/api/mcp/normalize-mcp-headers";
-import { searchDocsTool } from "@/app/api/mcp/tool-definitions";
+import { searchDocsTool } from "@/lib/mcp-tool-definitions";
 import {
   registerWebMcpTools,
   type FetchLike,
@@ -34,8 +34,10 @@ function buildSearchServer() {
 describe("callMcpRoute against a live streamable-HTTP transport", () => {
   let server: McpServer;
   let transport: WebStandardStreamableHTTPServerTransport;
+  let responseContentType: string | null;
 
   beforeEach(async () => {
+    responseContentType = null;
     server = buildSearchServer();
     transport = new WebStandardStreamableHTTPServerTransport({
       sessionIdGenerator: undefined,
@@ -56,7 +58,11 @@ describe("callMcpRoute against a live streamable-HTTP transport", () => {
       body: init.body,
       ...(init.signal ? { signal: init.signal } : {}),
     });
-    return transport.handleRequest(await normalizeMcpRequestHeaders(request));
+    const response = await transport.handleRequest(
+      await normalizeMcpRequestHeaders(request),
+    );
+    responseContentType = response.headers.get("content-type");
+    return response;
   };
 
   function registeredSearchDocsTool() {
@@ -81,30 +87,6 @@ describe("callMcpRoute against a live streamable-HTTP transport", () => {
     expect(result).toEqual({
       content: [{ type: "text", text: "results for tools" }],
     });
-  });
-
-  it("answers with a parseable JSON body despite the SSE Accept header", async () => {
-    const response = await transportFetch("/api/mcp", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Accept: "application/json, text/event-stream",
-      },
-      body: JSON.stringify({
-        jsonrpc: "2.0",
-        id: 1,
-        method: "tools/call",
-        params: { name: searchDocsTool.name, arguments: { query: "x" } },
-      }),
-    });
-
-    expect(response.ok).toBe(true);
-    expect((response as Response).headers.get("content-type")).toContain(
-      "application/json",
-    );
-    const payload = (await response.json()) as {
-      result?: { content?: unknown };
-    };
-    expect(Array.isArray(payload.result?.content)).toBe(true);
+    expect(responseContentType).toContain("application/json");
   });
 });

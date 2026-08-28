@@ -34,11 +34,11 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import {
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/attachment";
+} from "@/components/assistant-ui/elements/attachment.aui";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
-import { Reasoning } from "@/components/assistant-ui/reasoning";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
+import { Reasoning } from "@/components/assistant-ui/elements/reasoning.aui";
 import {
   TraceLine,
   formatDuration,

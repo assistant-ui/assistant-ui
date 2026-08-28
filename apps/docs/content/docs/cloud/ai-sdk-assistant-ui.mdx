@@ -134,8 +134,8 @@ Create a client-side AssistantCloud instance and integrate it with your AI SDK r
 import { useMemo } from "react";
 import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
-import { Thread } from "@/components/assistant-ui/thread";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function ChatPage() {
   const cloud = useMemo(
@@ -175,7 +175,7 @@ import {
 } from "@assistant-ui/react-native";
 import { AssistantCloud } from "assistant-cloud";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 async function getAssistantToken() {
   // Return a user token from your auth provider.

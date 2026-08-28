@@ -62,8 +62,8 @@ const createElementRegistryItem = (
   files: [
     {
       type: "registry:component",
-      path: `components/elements/${entry.file}`,
-      sourcePath: `../../packages/ui/src/components/elements/${entry.file}`,
+      path: `components/assistant-ui/elements/${entry.file}`,
+      sourcePath: `../../packages/ui/src/components/react/assistant-ui/elements/${entry.file}`,
     },
   ],
   registryDependencies: [
@@ -86,8 +86,9 @@ const elementsRegistryItems: RegistryItem[] = [
     files: [
       {
         type: "registry:lib",
-        path: "components/elements/surfaces.tsx",
-        sourcePath: "../../packages/ui/src/components/elements/surfaces.tsx",
+        path: "components/assistant-ui/elements/surfaces.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/surfaces.tsx",
       },
     ],
     dependencies: ["tw-shimmer"],
@@ -104,8 +105,9 @@ const elementsRegistryItems: RegistryItem[] = [
     files: [
       {
         type: "registry:lib",
-        path: "components/elements/range.ts",
-        sourcePath: "../../packages/ui/src/components/elements/range.ts",
+        path: "components/assistant-ui/utils/range.ts",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/utils/range.ts",
       },
     ],
   },
@@ -999,8 +1001,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/thread.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/thread.tsx",
+        path: "components/assistant-ui/elements/thread.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1019,6 +1022,38 @@ export const registry: RegistryItem[] = [
     ],
   },
   {
+    name: "elements-voice",
+    type: "registry:component",
+    title: "Voice Orb",
+    description:
+      "The props-driven voice orb: five session states and four palettes, no runtime required.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/voice.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/voice.tsx",
+      },
+    ],
+    registryDependencies: [],
+  },
+  {
+    name: "elements-context-display",
+    type: "registry:component",
+    title: "Context Display Core",
+    description:
+      "The props-driven context usage display: ring, bar, and text presets with the usage popover, no runtime required.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/context-display.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/context-display.tsx",
+      },
+    ],
+    registryDependencies: ["tooltip"],
+  },
+  {
     name: "voice",
     type: "registry:component",
     title: "Voice",
@@ -1027,12 +1062,14 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/voice.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/voice.tsx",
+        path: "components/assistant-ui/elements/voice.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/voice.aui.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
     registryDependencies: [
+      "https://r.assistant-ui.com/elements-voice.json",
       "button",
       "https://r.assistant-ui.com/tooltip-icon-button.json",
     ],
@@ -1059,9 +1096,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/markdown-text.tsx",
+        path: "components/assistant-ui/elements/markdown-text.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/markdown-text.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/markdown-text.tsx",
       },
     ],
     registryDependencies: [
@@ -1084,21 +1121,33 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/reasoning.tsx",
+        path: "components/assistant-ui/elements/reasoning.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/reasoning.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/reasoning.aui.tsx",
       },
     ],
     registryDependencies: [
-      "collapsible",
+      "https://r.assistant-ui.com/elements-reasoning.json",
       "https://r.assistant-ui.com/markdown-text.json",
     ],
-    dependencies: [
-      "@assistant-ui/react",
-      "lucide-react",
-      "class-variance-authority",
-      "tw-shimmer",
+    dependencies: ["@assistant-ui/react"],
+  },
+  {
+    name: "elements-reasoning",
+    type: "registry:component",
+    title: "Reasoning Panel",
+    description:
+      "The props-driven reasoning disclosure: streaming preview, fades, and variants, no runtime required.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/reasoning.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/reasoning.tsx",
+      },
     ],
+    registryDependencies: ["collapsible"],
+    dependencies: ["lucide-react", "class-variance-authority", "tw-shimmer"],
     css: {
       '@import "tw-shimmer"': {},
       ...collapsibleStateCss,
@@ -1113,9 +1162,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/message-timing.tsx",
+        path: "components/assistant-ui/elements/message-timing.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/message-timing.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/message-timing.aui.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react"],
@@ -1130,13 +1179,16 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/context-display.tsx",
+        path: "components/assistant-ui/elements/context-display.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/context-display.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/context-display.aui.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "@assistant-ui/ai-sdk"],
-    registryDependencies: ["tooltip"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-context-display.json",
+      "tooltip",
+    ],
   },
   {
     name: "thread-list",
@@ -1147,9 +1199,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/thread-list.tsx",
+        path: "components/assistant-ui/elements/thread-list.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/thread-list.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/thread-list.aui.tsx",
       },
     ],
     registryDependencies: ["button", "input", "skeleton"],
@@ -1164,13 +1216,13 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/mcp-config.tsx",
+        path: "components/assistant-ui/elements/mcp-config.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/mcp-config.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/mcp-config.aui.tsx",
       },
     ],
     registryDependencies: [
-      "badge",
+      "https://r.assistant-ui.com/badge.json",
       "button",
       "dialog",
       "input",
@@ -1206,9 +1258,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/attachment.tsx",
+        path: "components/assistant-ui/elements/attachment.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/attachment.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/attachment.aui.tsx",
       },
     ],
     registryDependencies: [
@@ -1229,9 +1281,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/follow-up-suggestions.tsx",
+        path: "components/assistant-ui/elements/follow-up-suggestions.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/follow-up-suggestions.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/follow-up-suggestions.aui.tsx",
       },
     ],
     registryDependencies: [],
@@ -1246,9 +1298,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/tooltip-icon-button.tsx",
+        path: "components/assistant-ui/elements/tooltip-icon-button.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/tooltip-icon-button.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/tooltip-icon-button.tsx",
       },
     ],
     radixDependencies: ["radix-ui"],
@@ -1262,9 +1314,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/syntax-highlighter.tsx",
+        path: "components/assistant-ui/elements/syntax-highlighter.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/syntax-highlighter.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/syntax-highlighter.tsx",
       },
     ],
     dependencies: [
@@ -1282,9 +1334,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/assistant-modal.tsx",
+        path: "components/assistant-ui/elements/assistant-modal.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/assistant-modal.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/assistant-modal.aui.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1303,9 +1355,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/assistant-sidebar.tsx",
+        path: "components/assistant-ui/elements/assistant-sidebar.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/assistant-sidebar.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/assistant-sidebar.aui.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react"],
@@ -1322,9 +1374,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/tool-fallback.tsx",
+        path: "components/assistant-ui/elements/tool-fallback.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/tool-fallback.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/tool-fallback.aui.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react", "tw-shimmer"],
@@ -1342,9 +1394,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/tool-group.tsx",
+        path: "components/assistant-ui/elements/tool-group.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/tool-group.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/tool-group.aui.tsx",
       },
     ],
     dependencies: [
@@ -1367,16 +1419,35 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/shiki-highlighter.tsx",
+        path: "components/assistant-ui/elements/shiki-highlighter.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/shiki-highlighter.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/shiki-highlighter.aui.tsx",
       },
+    ],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-shiki-highlighter.json",
     ],
     dependencies: [
       "react-shiki",
       "@assistant-ui/react",
       "@assistant-ui/react-markdown",
     ],
+  },
+  {
+    name: "elements-shiki-highlighter",
+    type: "registry:component",
+    title: "Shiki Highlighter",
+    description:
+      "The props-driven Shiki code block: streaming-aware highlighting, no runtime required.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/shiki-highlighter.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/shiki-highlighter.tsx",
+      },
+    ],
+    dependencies: ["react-shiki"],
   },
   {
     name: "mermaid-diagram",
@@ -1387,29 +1458,43 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/mermaid-diagram.tsx",
+        path: "components/assistant-ui/elements/mermaid-diagram.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/mermaid-diagram.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/mermaid-diagram.aui.tsx",
       },
     ],
-    dependencies: [
-      "beautiful-mermaid",
-      "lucide-react",
-      "@assistant-ui/react",
-      "@assistant-ui/react-markdown",
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-mermaid-diagram.json",
     ],
+    dependencies: ["@assistant-ui/react", "@assistant-ui/react-markdown"],
+  },
+  {
+    name: "elements-mermaid-diagram",
+    type: "registry:component",
+    title: "Mermaid Diagram",
+    description:
+      "The props-driven Mermaid renderer: zoom overlay, skeleton, and error fallback, no runtime required.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/mermaid-diagram.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/mermaid-diagram.tsx",
+      },
+    ],
+    dependencies: ["beautiful-mermaid", "lucide-react"],
   },
   {
     name: "diff-viewer",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Diff Viewer",
     description: "Render code diffs with highlighted additions and deletions.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/diff-viewer.tsx",
+        type: "registry:ui",
+        path: "components/ui/diff-viewer.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/diff-viewer.tsx",
+          "../../packages/ui/src/components/react/ui/radix/diff-viewer.tsx",
       },
     ],
     dependencies: [
@@ -1427,14 +1512,14 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/threadlist-sidebar.tsx",
+        path: "components/assistant-ui/elements/threadlist-sidebar.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/threadlist-sidebar.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/threadlist-sidebar.aui.tsx",
       },
       {
         type: "registry:component",
         path: "components/icons/github.tsx",
-        sourcePath: "../../packages/ui/src/components/icons/github.tsx",
+        sourcePath: "../../packages/ui/src/components/react/icons/github.tsx",
       },
     ],
     dependencies: ["lucide-react"],
@@ -1452,8 +1537,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/quote.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/quote.tsx",
+        path: "components/assistant-ui/elements/quote.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/quote.aui.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1468,8 +1554,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/sources.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/sources.tsx",
+        path: "components/assistant-ui/elements/sources.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/sources.aui.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1484,8 +1571,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/image.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/image.tsx",
+        path: "components/assistant-ui/elements/image.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/image.tsx",
       },
     ],
     dependencies: [
@@ -1504,8 +1592,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/file.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/file.tsx",
+        path: "components/assistant-ui/elements/file.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/file.tsx",
       },
     ],
     dependencies: [
@@ -1523,16 +1612,31 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/model-selector.tsx",
+        path: "components/assistant-ui/elements/model-selector.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/model-selector.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/model-selector.aui.tsx",
       },
     ],
-    dependencies: [
-      "@assistant-ui/react",
-      "lucide-react",
-      "class-variance-authority",
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-model-selector.json",
     ],
+  },
+  {
+    name: "elements-model-selector",
+    type: "registry:component",
+    title: "Model Selector",
+    description:
+      "The props-driven model picker: search, groups, and reasoning effort levels, no runtime required.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/model-selector.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/model-selector.tsx",
+      },
+    ],
+    dependencies: ["lucide-react", "class-variance-authority"],
     radixDependencies: ["radix-ui"],
     baseDependencies: ["@base-ui/react"],
     registryDependencies: ["command", "popover"],
@@ -1545,8 +1649,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/logos.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/logos.tsx",
+        path: "components/assistant-ui/elements/logos.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/logos.tsx",
       },
     ],
     dependencies: [],
@@ -1554,18 +1659,18 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "select",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Select",
     description:
-      "Dropdown select styled for the assistant UI, with composable sub components.",
+      "Dropdown select with composable trigger, content, and item components.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/select.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/select.tsx",
+        type: "registry:ui",
+        path: "components/ui/select.tsx",
+        sourcePath: "../../packages/ui/src/components/react/ui/base/select.tsx",
       },
     ],
-    dependencies: ["lucide-react", "class-variance-authority"],
+    dependencies: ["lucide-react"],
     radixDependencies: ["radix-ui"],
     baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
@@ -1579,7 +1684,8 @@ export const registry: RegistryItem[] = [
       {
         type: "registry:ui",
         path: "components/ui/direction.tsx",
-        sourcePath: "../../packages/ui/src/components/ui/radix/direction.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/ui/radix/direction.tsx",
       },
     ],
     radixDependencies: ["radix-ui"],
@@ -1588,14 +1694,14 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "badge",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Badge",
     description: "Small label for status, categories, and metadata.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/badge.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/badge.tsx",
+        type: "registry:ui",
+        path: "components/ui/badge.tsx",
+        sourcePath: "../../packages/ui/src/components/react/ui/base/badge.tsx",
       },
     ],
     dependencies: ["class-variance-authority"],
@@ -1605,14 +1711,14 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "tabs",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Tabs",
     description: "Tabs for organizing content into switchable panels.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/tabs.tsx",
-        sourcePath: "../../packages/ui/src/components/assistant-ui/tabs.tsx",
+        type: "registry:ui",
+        path: "components/ui/tabs.tsx",
+        sourcePath: "../../packages/ui/src/components/react/ui/base/tabs.tsx",
       },
     ],
     dependencies: ["class-variance-authority"],
@@ -1622,18 +1728,18 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "accordion",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Accordion",
     description: "Stacked headings that reveal or hide content sections.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/accordion.tsx",
+        type: "registry:ui",
+        path: "components/ui/accordion.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/accordion.tsx",
+          "../../packages/ui/src/components/react/ui/base/accordion.tsx",
       },
     ],
-    dependencies: ["lucide-react", "class-variance-authority"],
+    dependencies: ["lucide-react"],
     radixDependencies: ["radix-ui"],
     baseDependencies: ["@base-ui/react"],
     registryDependencies: [],
@@ -1641,15 +1747,15 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "dot-matrix",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Dot Matrix",
     description: "5x5 dot matrix indicator with state specific blink patterns.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/dot-matrix.tsx",
+        type: "registry:ui",
+        path: "components/ui/dot-matrix.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/dot-matrix.tsx",
+          "../../packages/ui/src/components/react/ui/radix/dot-matrix.tsx",
       },
     ],
     dependencies: [],
@@ -1657,16 +1763,16 @@ export const registry: RegistryItem[] = [
   },
   {
     name: "number-roll",
-    type: "registry:component",
+    type: "registry:ui",
     title: "Number Roll",
     description:
       "Animated number that rolls its digits odometer style when the value changes.",
     files: [
       {
-        type: "registry:component",
-        path: "components/assistant-ui/number-roll.tsx",
+        type: "registry:ui",
+        path: "components/ui/number-roll.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/number-roll.tsx",
+          "../../packages/ui/src/components/react/ui/radix/number-roll.tsx",
       },
     ],
     dependencies: [],
@@ -1680,9 +1786,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/heat-graph.tsx",
+        path: "components/assistant-ui/elements/heat-graph.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/heat-graph.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/heat-graph.tsx",
       },
     ],
     dependencies: ["heat-graph"],
@@ -1697,9 +1803,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/composer-trigger-popover.tsx",
+        path: "components/assistant-ui/elements/composer-trigger-popover.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/composer-trigger-popover.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/composer-trigger-popover.aui.tsx",
       },
     ],
     dependencies: ["@assistant-ui/react", "lucide-react"],
@@ -1713,12 +1819,30 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/directive-text.tsx",
+        path: "components/assistant-ui/elements/directive-text.aui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/directive-text.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/directive-text.aui.tsx",
       },
     ],
-    dependencies: ["@assistant-ui/react", "lucide-react"],
+    dependencies: ["@assistant-ui/react"],
+    registryDependencies: [
+      "https://r.assistant-ui.com/elements-directive-text.json",
+    ],
+  },
+  {
+    name: "elements-directive-text",
+    type: "registry:component",
+    title: "Directive Text",
+    description:
+      "The props-driven directive chip renderer: bring your own formatter, no runtime required.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/directive-text.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/directive-text.tsx",
+      },
+    ],
     registryDependencies: ["https://r.assistant-ui.com/badge.json"],
   },
   {
@@ -1737,9 +1861,9 @@ export const registry: RegistryItem[] = [
     files: [
       {
         type: "registry:component",
-        path: "components/assistant-ui/generative-ui.tsx",
+        path: "components/assistant-ui/elements/generative-ui.tsx",
         sourcePath:
-          "../../packages/ui/src/components/assistant-ui/generative-ui.tsx",
+          "../../packages/ui/src/components/react/assistant-ui/elements/generative-ui.tsx",
       },
     ],
     dependencies: [
@@ -1750,5 +1874,49 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "https://r.assistant-ui.com/generative-ui-style.json",
     ],
+  },
+];
+
+export const vueRegistry: RegistryItem[] = [];
+
+/**
+ * Vue items staged for the `@assistant-ui/vue` publish flip. The build
+ * machinery and tests exercise them, but they stay out of the emitted
+ * registry until the package they install is public.
+ */
+export const stagedVueRegistry: RegistryItem[] = [
+  {
+    name: "thread",
+    type: "registry:component",
+    title: "Thread",
+    description:
+      "Chat container with message list, composer, auto scroll, and accessibility built in.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/thread.vue",
+        sourcePath:
+          "../../packages/ui/src/components/vue/assistant-ui/thread.vue",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/message.vue",
+        sourcePath:
+          "../../packages/ui/src/components/vue/assistant-ui/message.vue",
+      },
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/markdown-text.vue",
+        sourcePath:
+          "../../packages/ui/src/components/vue/assistant-ui/markdown-text.vue",
+      },
+    ],
+    dependencies: [
+      "@assistant-ui/core",
+      "@assistant-ui/vue",
+      "@lucide/vue",
+      "markdown-it",
+    ],
+    devDependencies: ["@types/markdown-it"],
   },
 ];

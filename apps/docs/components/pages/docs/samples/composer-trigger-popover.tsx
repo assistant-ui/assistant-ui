@@ -18,7 +18,7 @@ export function ComposerTriggerPopoverSample() {
       <div className="flex flex-col items-center gap-3">
         <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
           <AtSignIcon className="size-3.5" />
-          Mention — directive behavior
+          Mention · directive behavior
         </span>
         <div className="bg-popover text-popover-foreground w-64 overflow-hidden rounded-xl border">
           <div className="flex flex-col py-1">
@@ -50,7 +50,7 @@ export function ComposerTriggerPopoverSample() {
       <div className="flex flex-col items-center gap-3">
         <span className="text-muted-foreground flex items-center gap-1.5 text-xs">
           <SlashIcon className="size-3.5" />
-          Slash — action behavior
+          Slash · action behavior
         </span>
         <div className="bg-popover text-popover-foreground w-64 overflow-hidden rounded-xl border">
           <div className="flex flex-col">

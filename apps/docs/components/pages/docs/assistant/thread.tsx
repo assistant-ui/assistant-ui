@@ -17,7 +17,7 @@ import {
 import { AssistantMessage, UserMessage } from "./messages";
 import { AssistantComposer, useSharedDocsModelSelection } from "./composer";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
-import { ContextDisplay } from "@assistant-ui/ui/components/assistant-ui/context-display";
+import { ContextDisplay } from "@assistant-ui/ui/components/react/assistant-ui/elements/context-display.aui";
 import { analytics } from "@/lib/analytics";
 import { useCurrentPage } from "@/components/pages/docs/contexts/current-page";
 import {

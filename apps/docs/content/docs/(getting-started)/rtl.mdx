@@ -13,7 +13,7 @@ If you scaffolded from one of our templates (e.g. `npx assistant-ui@latest creat
 npx shadcn@latest migrate rtl
 
 # assistant-ui wrappers (pass a custom glob)
-npx shadcn@latest migrate rtl 'components/assistant-ui/**/*.tsx'
+npx shadcn@latest migrate rtl 'components/assistant-ui/elements/**/*.tsx'
 ```
 
 Commit the diff and do not re-run. The upstream migration is not fully idempotent on repeat runs ([#9891](https://github.com/shadcn-ui/ui/pull/9891)); you may end up with duplicated `rtl:translate-x-*` classes.

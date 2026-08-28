@@ -24,6 +24,7 @@ import {
   useChatThread,
   type ChatThreadOptions,
 } from "./useChatThread";
+import { MessageRepository } from "@assistant-ui/core/internal";
 import { useResourceCleanup } from "./useResourceCleanup";
 
 export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
@@ -64,6 +65,7 @@ type AISDKThreadChatOptions<UI_MESSAGE extends UIMessage = UIMessage> = Omit<
 type ChatEntry<UI_MESSAGE extends UIMessage> = {
   chat: Chat<UI_MESSAGE>;
   transport: ChatTransport<UI_MESSAGE>;
+  repository: MessageRepository;
 };
 
 const createChatEntry = <UI_MESSAGE extends UIMessage>(
@@ -84,6 +86,7 @@ const createChatEntry = <UI_MESSAGE extends UIMessage>(
   return {
     chat: new Chat<UI_MESSAGE>({ ...chatInit, id: threadId, transport }),
     transport,
+    repository: new MessageRepository(),
   };
 };
 
@@ -113,7 +116,7 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
   const [owned] = useState(() =>
     cloud ? createChatEntry(threadId, options) : undefined,
   );
-  const { chat, transport } =
+  const { chat, transport, repository } =
     owned ?? getOrCreateChatEntry(threadId, options, chats);
 
   useEffect(() => {
@@ -145,6 +148,7 @@ const useAISDKChatThread = <UI_MESSAGE extends UIMessage = UIMessage>({
             : undefined
           : fallbackItem,
       chat,
+      messageRepositoryInstance: repository,
       stopOnClientDestroy: cloud,
     },
   );

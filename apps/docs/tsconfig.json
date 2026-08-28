@@ -3,15 +3,15 @@
   "compilerOptions": {
     "paths": {
       "@/components/ui/*": [
-        "../../packages/ui/src/components/ui/base/*",
-        "../../packages/ui/src/components/ui/radix/*"
+        "../../packages/ui/src/components/react/ui/base/*",
+        "../../packages/ui/src/components/react/ui/radix/*"
       ],
       "@/components/ui/radix/*": [
-        "../../packages/ui/src/components/ui/radix/*"
+        "../../packages/ui/src/components/react/ui/radix/*"
       ],
       "@/lib/utils": ["../../packages/ui/src/lib/utils"],
-      "@/components/assistant-ui/markdown-text": [
-        "./components/assistant-ui/markdown-text"
+      "@/components/assistant-ui/elements/markdown-text": [
+        "./components/assistant-ui/elements/markdown-text"
       ],
       "@/hooks/use-mobile": ["../../packages/ui/src/hooks/use-mobile"],
       "@/hooks/use-copy-to-clipboard": [
@@ -21,11 +21,9 @@
         "../../packages/ui/src/hooks/use-attachment-src"
       ],
       "@/components/assistant-ui/*": [
-        "../../packages/ui/src/components/assistant-ui/*"
+        "../../packages/ui/src/components/react/assistant-ui/*"
       ],
-      "@/components/elements/*": [
-        "../../packages/ui/src/components/elements/*"
-      ],
+      "@/components/demo/elements/*": ["./components/demo/elements/*"],
       "@/*": ["./*"],
       "@assistant-ui/ui/*": ["../../packages/ui/src/*"],
       "fumadocs-mdx:collections/*": ["./.source/*"],

@@ -6,8 +6,8 @@ import {
   docs,
   tapDocs as tapDocsCollection,
   examples as examplePages,
-  standalone as standalonePages,
   design as designPages,
+  elements as elementsMdx,
   blog as blogPosts,
   careers as careersCollection,
 } from "fumadocs-mdx:collections/server";
@@ -77,12 +77,12 @@ export const examples = loader({
 
 export type ExamplePage = InferPageType<typeof examples>;
 
-export const standalone = loader({
-  baseUrl: "/standalone",
-  source: toFumadocsSource(standalonePages, []),
+export const elementsDocs = loader({
+  baseUrl: "/elements",
+  source: toFumadocsSource(elementsMdx, []),
 });
 
-export type StandalonePage = InferPageType<typeof standalone>;
+export type ElementsDocsPage = InferPageType<typeof elementsDocs>;
 
 export const design = loader({
   baseUrl: "/design",

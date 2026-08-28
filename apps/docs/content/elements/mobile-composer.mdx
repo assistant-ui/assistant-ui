@@ -1,0 +1,227 @@
+---
+title: "Mobile composer"
+description: "The bottom sheet: keyboard-aware, quick actions above, thumb-sized targets."
+---
+
+A composer shaped for a phone: a row of quick actions that collapses out of the way once the keyboard is up, an attach button, a single-line input, and a send button that becomes stop mid-run. With a runtime every piece is a composer primitive already wired to send, cancel, and attachments; standalone you own the text, the running flag, and every callback.
+
+## Getting started
+
+<RuntimeMode>
+
+`ComposerPrimitive.Root`, `.Input`, `.AddAttachment`, `.Send`, and `.Cancel` already own the text, the attach flow, and the send/cancel gating, so this bar needs no manual `value`, `onValueChange`, `onSend`, or `onStop` at all; it only needs the layout and the running flag to pick between Send and Cancel.
+
+<Steps>
+  <Step>
+
+### Compose the bar from composer primitives
+
+```tsx title="components/assistant-ui/elements/mobile-composer-bar.tsx"
+"use client";
+
+import { ArrowUpIcon, MicIcon, PlusIcon, SquareIcon } from "lucide-react";
+import { ComposerPrimitive, ThreadPrimitive, useAuiState } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
+import { field, ghostButton, inkButton, mono } from "@/components/assistant-ui/elements/surfaces";
+
+const ACTIONS = ["Summarize", "Translate", "Explain"];
+
+export function MobileComposerBar({ keyboardOpen }: { keyboardOpen: boolean }) {
+  const isRunning = useAuiState((s) => s.thread.isRunning);
+  const isEmpty = useAuiState((s) => s.composer.isEmpty);
+
+  return (
+    <ComposerPrimitive.Root
+      className={cn(
+        "bg-background border-foreground/[0.07] flex w-full max-w-[19rem] flex-col gap-2.5 rounded-t-[20px] border-t px-3 pt-3",
+        keyboardOpen ? "pb-3" : "pb-6",
+      )}
+    >
+      {!keyboardOpen && (
+        <div className="-mx-3 flex gap-1.5 overflow-x-auto px-3 pb-0.5">
+          {ACTIONS.map((action) => (
+            <ThreadPrimitive.Suggestion
+              key={action}
+              prompt={action}
+              className={cn(field, "text-foreground/60 shrink-0 rounded-full px-3 py-1.5 text-xs whitespace-nowrap")}
+            >
+              {action}
+            </ThreadPrimitive.Suggestion>
+          ))}
+        </div>
+      )}
+
+      <div className="flex items-end gap-2">
+        <ComposerPrimitive.AddAttachment className={cn(ghostButton, field, "size-9 shrink-0")}>
+          <PlusIcon className="size-4" />
+        </ComposerPrimitive.AddAttachment>
+
+        <div className={cn(field, "flex min-w-0 flex-1 items-center gap-2 rounded-[18px] px-3 py-2")}>
+          <ComposerPrimitive.Input
+            placeholder="Message"
+            className="text-foreground/85 placeholder:text-foreground/30 min-w-0 flex-1 resize-none bg-transparent text-[16px] outline-none"
+          />
+          {isEmpty && <MicIcon className="text-foreground/35 size-4 shrink-0" />}
+        </div>
+
+        {isRunning ? (
+          <ComposerPrimitive.Cancel className={cn(inkButton, "flex size-9 shrink-0 items-center justify-center rounded-full")}>
+            <SquareIcon className="size-3 fill-current" />
+          </ComposerPrimitive.Cancel>
+        ) : (
+          <ComposerPrimitive.Send className={cn(inkButton, "flex size-9 shrink-0 items-center justify-center rounded-full")}>
+            <ArrowUpIcon className="size-4" />
+          </ComposerPrimitive.Send>
+        )}
+      </div>
+
+      {!keyboardOpen ? (
+        <span aria-hidden className="bg-foreground/15 mx-auto h-1 w-28 rounded-full" />
+      ) : (
+        <span className={cn(mono, "text-foreground/25 text-center")}>return to send</span>
+      )}
+    </ComposerPrimitive.Root>
+  );
+}
+```
+
+`ComposerPrimitive.Root` renders a `<form>`, so `ComposerPrimitive.Input`'s own Enter-to-send already fires through it; nothing here reimplements the key handling the standalone element writes by hand. `keyboardOpen` still has to come from outside, typically from the input's native focus and blur events or a `visualViewport` listener, since no runtime state tracks whether an on-screen keyboard is up.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, every field is a prop and the component owns exactly two pieces of logic: Enter submits when there is text and no run is in flight, and the send button disables under the same condition.
+
+<Steps>
+  <Step>
+
+### Hold the composer state
+
+```tsx title="app/mobile-bar.tsx"
+"use client";
+
+import { useState } from "react";
+import { MobileComposer } from "@/components/assistant-ui/elements/mobile-composer";
+
+export function MobileBar() {
+  const [value, setValue] = useState("");
+  const [running, setRunning] = useState(false);
+  const [keyboardOpen, setKeyboardOpen] = useState(false);
+
+  return (
+    <MobileComposer
+      value={value}
+      keyboardOpen={keyboardOpen}
+      running={running}
+      actions={["Summarize", "Translate", "Explain"]}
+      onAction={(action) => setValue(action)}
+      onAttach={() => console.log("attach")}
+      onValueChange={setValue}
+      onSend={() => {
+        setRunning(true);
+        setValue("");
+      }}
+      onStop={() => setRunning(false)}
+      onFocus={() => setKeyboardOpen(true)}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="mobile-composer">
+  {/* quick actions, hidden entirely while keyboardOpen */}
+  <div>{/* one button per action, disabled together when onAction is absent */}</div>
+  <div>
+    <button aria-label="Add an attachment" />
+    <input aria-label="Message" placeholder="Message" />
+    {/* mic icon, only while the input is empty */}
+    <button aria-label="Stop | Send" />
+  </div>
+  {/* a grabber handle, or "return to send", never both */}
+</div>
+```
+
+The standalone element renders a single-line `<input>`; the runtime composition above renders `ComposerPrimitive.Input`, an auto-resizing `<textarea>` that can grow past one line, which is the same trade every composer in the catalog makes. Enter triggers a send only when `!running && value !== ""`. While not running, the button shares that same emptiness gate (disabled only when `value === ""`); while running, both the key and the button stop meaning "send" at all, since the button's label, icon, and handler have already swapped to Stop. The attach button and every action chip disable together based only on whether their handler prop was passed at all (`onAttach`, `onAction`); none of them react to `running` or `value` on their own, so gating them during a run is the caller's responsibility. The mic icon and the send/stop icon swap are purely presentational: nothing here starts dictation, and stop icon does not imply cancellation happened, only that `onStop` was called.
+
+## Examples
+
+### Restyle the bar
+
+Both lanes take `className` on the root. Attach, input, and action-chip surfaces all read the shared `field` token and the send button reads `inkButton`, so retheming those two covers the whole bar.
+
+```tsx
+<MobileComposer className="max-w-xs" /* ... */ />
+```
+
+### Wiring the keyboard-aware layout
+
+<RuntimeMode>
+
+Since `keyboardOpen` is not runtime state, drive it from the platform: toggle it on the input's focus and blur, or, for a more accurate signal on mobile web, from `window.visualViewport`'s `resize` event comparing the viewport height against the layout height.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+The example above ties `keyboardOpen` to the input's `onFocus`, which is enough for most cases; closing it again (on blur, or on a virtual keyboard's own dismiss) is left to you, since the element has no blur callback of its own.
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### ComposerPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Root` | `form` | Handles submit-to-send and focuses the input on a blank-area click. |
+| `Input` | `textarea` (auto-resizing) | Controls its own value against `s.composer.text`; Enter submits the closest form unless Shift is held. |
+| `AddAttachment` | `button` | Opens a file picker and adds each file as an attachment. Disabled while the composer is not in editing mode. |
+| `Send` | `button` | Sends the composer. Disabled whenever `s.composer.canSend` is false (empty, not editing, or the thread blocks sending) or a run is in flight without queue support. |
+| `Cancel` | `button` | Cancels the in-flight run. Disabled whenever `s.composer.canCancel` is false, which covers "no run to cancel". |
+
+Quick action chips are `ThreadPrimitive.Suggestion`, the same primitive the [launcher](/elements/launcher-bubble) uses for its starter prompts; by default it replaces the composer text rather than sending.
+
+### Thread and composer state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.thread.isRunning` | `boolean` | Whether to show Cancel in place of Send. |
+| `s.composer.isEmpty` | `boolean` | Whether to show the mic affordance in place of nothing. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### MobileComposer
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string` | required | Input value. |
+| `keyboardOpen` | `boolean` | required | Hides the quick actions row and swaps the grabber for a "return to send" hint. |
+| `running` | `boolean` | required | Swaps the send button to a stop button and blocks Enter-to-send. |
+| `actions` | `readonly string[]` | required | Quick action labels shown above the input. |
+| `onAction` | `(action: string) => void` | | Called with an action's label when its chip is pressed. Its absence disables every chip. |
+| `onAttach` | `() => void` | | Called when the attach button is pressed. Its absence disables the button. |
+| `onValueChange` | `(value: string) => void` | | Called on every input change. |
+| `onSend` | `() => void` | | Called on Enter (when sendable) or the send button. |
+| `onStop` | `() => void` | | Called from the button while `running` is true. |
+| `onFocus` | `() => void` | | Called when the input receives focus. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

@@ -14,9 +14,9 @@ import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { LLM_COMPONENTS } from "@/lib/llm-components";
 import type {
   design,
+  elementsDocs,
   examples,
   source,
-  standalone,
   tapDocs,
 } from "@/lib/source";
 import type { InferPageType } from "fumadocs-core/source";
@@ -343,7 +343,7 @@ type LLMPage =
   | InferPageType<typeof source>
   | InferPageType<typeof examples>
   | InferPageType<typeof design>
-  | InferPageType<typeof standalone>
+  | InferPageType<typeof elementsDocs>
   | InferPageType<typeof tapDocs>;
 
 export async function getLLMText(

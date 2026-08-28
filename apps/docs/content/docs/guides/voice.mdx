@@ -240,13 +240,13 @@ The fastest path is the styled `voice` registry component. It ships a `VoiceCont
 
 <InstallCommand shadcn={["voice"]} />
 
-This adds `/components/assistant-ui/voice.tsx` to your project. Adjust styling as needed.
+This adds `/components/assistant-ui/elements/voice.tsx` to your project. Adjust styling as needed.
 
 ### Use with a runtime
 
 ```tsx title="app/page.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
-import { VoiceControl } from "@/components/assistant-ui/voice";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { VoiceControl } from "@/components/assistant-ui/elements/voice.aui";
 import { AuiIf } from "@assistant-ui/react";
 
 export default function Chat() {
@@ -263,7 +263,7 @@ export default function Chat() {
 }
 ```
 
-See the [Voice UI page](/docs/ui/voice) for anatomy, variants, and state samples.
+See the [Orb page](/elements/orb) for anatomy, variants, and state samples.
 
 ## Example: LiveKit
 
@@ -306,5 +306,5 @@ npx assistant-ui create my-app -e with-livekit
 
 - [Dictation](/docs/guides/dictation): push-to-talk speech-to-text into the composer (`DictationAdapter`, `ComposerPrimitive.Dictate`).
 - [Speech](/docs/guides/speech): read-aloud for assistant messages (`SpeechSynthesisAdapter`, `ActionBarPrimitive.Speak`).
-- [Voice UI](/docs/ui/voice): registry component reference for `VoiceControl` and `VoiceOrb`.
+- [Orb](/elements/orb): registry component reference for `VoiceControl` and `VoiceOrb`.
 - [Voice API reference](/docs/api-reference/voice): generated types for sessions, speech, and dictation.

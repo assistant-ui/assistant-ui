@@ -39,7 +39,7 @@ const ACTS: {
   { label: "Streaming", Component: StreamingTextDemo },
   {
     label: "Reasoning",
-    docs: "/docs/ui/reasoning",
+    docs: "/elements/reasoning",
     Component: ReasoningPanelDemo,
   },
   { label: "Tools", docs: "/docs/tools", Component: ToolCallDemo },
@@ -48,7 +48,7 @@ const ACTS: {
     docs: "/docs/tools/tool-ui",
     Component: ApprovalCardDemo,
   },
-  { label: "Sources", docs: "/docs/ui/sources", Component: SourcesDemo },
+  { label: "Sources", docs: "/elements/sources", Component: SourcesDemo },
   {
     label: "Attachments",
     docs: "/docs/guides/attachments",
@@ -390,7 +390,7 @@ export function LibraryShowcase({ setupTabs }: { setupTabs: SetupTab[] }) {
             </p>
           </div>
           <Link
-            href="/docs/ui/thread"
+            href="/elements/thread"
             className="text-muted-foreground hover:text-foreground pb-1.5 font-mono text-[11px] font-medium tracking-wide uppercase transition-colors"
           >
             Customize the thread →

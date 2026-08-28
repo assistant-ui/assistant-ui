@@ -297,7 +297,7 @@ export function App() {
 <Tab value="React">
 
 ```tsx title="app/page.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function Page() {
   return <Thread />;
@@ -309,7 +309,7 @@ export default function Page() {
 
 ```tsx title="app/index.tsx"
 import { View } from "react-native";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function Page() {
   return (
@@ -536,7 +536,7 @@ const MyModelAdapter: ChatModelAdapter = {
 The full loop:
 
 1. **The run pauses.** While a listed tool call has no result, the runtime stops invoking your adapter. The unresolved tool call part reports `status.type === "requires-action"` to its renderer.
-2. **The user responds.** The tool UI completes the call with `addResult(...)`. The stock [`ToolFallback`](/docs/ui/tool-fallback) component handles this out of the box: in the requires-action state it shows Allow and Deny buttons that record the decision as the tool result.
+2. **The user responds.** The tool UI completes the call with `addResult(...)`. The stock [`ToolFallback`](/elements/tool-fallback) component handles this out of the box: in the requires-action state it shows Allow and Deny buttons that record the decision as the tool result.
 3. **The run resumes.** Once every listed tool call has a result, the runtime invokes your adapter again. The resumed call receives the same `messages` array as before (it ends at the user message; the in-progress assistant message is not part of it), so read the recorded results from `unstable_getMessage().content` as shown above. Content returned by the resumed call is appended to the same assistant message.
 
 For a custom confirmation UI, register a human tool whose `render` completes the call with `addResult`. The shape of the result payload is yours to define; the adapter receives it verbatim and translates it for your backend:
@@ -593,7 +593,7 @@ return {
 };
 ```
 
-A tool call with a pending approval pauses the run, whether or not the tool is listed in `unstable_humanToolNames`. Always emit gates in the pending state (`approval: { id }` with no `approved` field); a part that arrives already decided is treated as resolved and the runtime invokes the adapter again immediately. The stock [`ToolFallback`](/docs/ui/tool-fallback) Allow and Deny buttons, or a custom renderer calling `respondToApproval({ approved, reason? })`, record the decision:
+A tool call with a pending approval pauses the run, whether or not the tool is listed in `unstable_humanToolNames`. Always emit gates in the pending state (`approval: { id }` with no `approved` field); a part that arrives already decided is treated as resolved and the runtime invokes the adapter again immediately. The stock [`ToolFallback`](/elements/tool-fallback) Allow and Deny buttons, or a custom renderer calling `respondToApproval({ approved, reason? })`, record the decision:
 
 - **Deny** sets `approval.approved: false` and synthesizes an error result (`{ error: reason || "Tool approval denied" }` with `isError: true`), so the model sees the denial.
 - **Allow** sets `approval.approved: true` and leaves the result empty; performing the action is your adapter's job.
