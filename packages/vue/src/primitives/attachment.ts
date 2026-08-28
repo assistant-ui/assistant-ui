@@ -19,15 +19,13 @@ export const AttachmentPrimitiveRoot = defineComponent({
   },
 });
 
-/** Renders the current attachment's file name. */
+/** Renders the current attachment's file name as raw text. */
 export const AttachmentPrimitiveName = defineComponent({
   name: "AttachmentPrimitiveName",
-  inheritAttrs: false,
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
-  setup(_, { attrs, slots }) {
+  setup(_, { slots }) {
     const name = useAuiState((s) => s.attachment.name);
-    return () =>
-      h("span", mergeProps(attrs, {}), slots.default?.() ?? name.value);
+    return () => slots.default?.() ?? name.value;
   },
 });
 

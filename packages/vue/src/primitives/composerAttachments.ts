@@ -129,10 +129,14 @@ export const ComposerPrimitiveAttachmentDropzone = defineComponent({
       event.preventDefault();
       if (!aui.thread.getState().capabilities.attachments) {
         event.dataTransfer!.dropEffect = "none";
+        return;
       }
+      if (!isDragging.value) isDragging.value = true;
     };
     const onDragleaveCapture = (event: DragEvent) => {
       if (props.disabled || !isFileDrag(event)) return;
+      const related = event.relatedTarget as Node | null;
+      if (related && (event.currentTarget as Node).contains(related)) return;
       isDragging.value = false;
     };
     const onDropCapture = (event: DragEvent) => {

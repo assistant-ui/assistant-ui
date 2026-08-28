@@ -38,7 +38,9 @@ type DemoMessage = {
   attachments?: ThreadMessageLike["attachments"];
 };
 
-const createTestAttachmentAdapter = (): AttachmentAdapter & {
+const createTestAttachmentAdapter = (
+  accept = "*",
+): AttachmentAdapter & {
   added: File[];
   removed: string[];
 } => {
@@ -46,7 +48,7 @@ const createTestAttachmentAdapter = (): AttachmentAdapter & {
   const removed: string[] = [];
   let nextId = 0;
   return {
-    accept: "*",
+    accept,
     added,
     removed,
     async add({ file }): Promise<PendingAttachment> {
@@ -75,9 +77,10 @@ const createTestAttachmentAdapter = (): AttachmentAdapter & {
 
 const createTestRuntime = ({
   withAttachments = true,
-}: { withAttachments?: boolean } = {}) => {
+  accept = "*",
+}: { withAttachments?: boolean; accept?: string } = {}) => {
   let messages: DemoMessage[] = [];
-  const attachmentAdapter = createTestAttachmentAdapter();
+  const attachmentAdapter = createTestAttachmentAdapter(accept);
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages,
     isRunning: false,
@@ -217,6 +220,31 @@ describe("composer attachment primitives", () => {
 
     unmount();
   });
+
+  it("applies a non-wildcard adapter accept to the file picker", async () => {
+    const { runtime } = createTestRuntime({ accept: "image/*" });
+    const view = defineComponent({
+      setup: () => () =>
+        h(
+          ComposerPrimitiveAddAttachment,
+          { class: "add" },
+          {
+            default: () => "+",
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, view);
+    await nextTick();
+
+    (el.querySelector("button.add") as HTMLButtonElement).click();
+    const input = document.body.querySelector(
+      'input[type="file"]',
+    ) as HTMLInputElement;
+    expect(input.accept).toBe("image/*");
+    input.remove();
+
+    unmount();
+  });
 });
 
 const dragEvent = (type: string, files: File[] = [], kinds = ["Files"]) => {
@@ -260,6 +288,55 @@ describe("ComposerPrimitiveAttachmentDropzone", () => {
       flushTapSync(() => {});
       expect(client().composer.getState().attachments).toHaveLength(1);
     });
+
+    unmount();
+  });
+
+  it("keeps data-dragging across descendant transitions and restores it on dragover", async () => {
+    const { runtime } = createTestRuntime();
+    const inner = defineComponent({
+      setup: () => () => h("span", { class: "inner" }, "target"),
+    });
+    const view = defineComponent({
+      setup: () => () =>
+        h(
+          ComposerPrimitiveAttachmentDropzone,
+          { class: "dz" },
+          {
+            default: () => h(inner),
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(runtime, view);
+    await nextTick();
+    const dz = el.querySelector(".dz") as HTMLElement;
+    const child = el.querySelector(".inner") as HTMLElement;
+
+    dz.dispatchEvent(dragEvent("dragenter"));
+    await nextTick();
+    expect(dz.dataset["dragging"]).toBe("true");
+
+    const leaveToChild = dragEvent("dragleave");
+    Object.defineProperty(leaveToChild, "relatedTarget", {
+      value: child,
+      configurable: true,
+    });
+    dz.dispatchEvent(leaveToChild);
+    await nextTick();
+    expect(dz.dataset["dragging"]).toBe("true");
+
+    const leaveOutside = dragEvent("dragleave");
+    Object.defineProperty(leaveOutside, "relatedTarget", {
+      value: document.body,
+      configurable: true,
+    });
+    dz.dispatchEvent(leaveOutside);
+    await nextTick();
+    expect(dz.dataset["dragging"]).toBeUndefined();
+
+    dz.dispatchEvent(dragEvent("dragover"));
+    await nextTick();
+    expect(dz.dataset["dragging"]).toBe("true");
 
     unmount();
   });
