@@ -5,7 +5,7 @@ import {
   memo,
   useMemo,
 } from "react";
-import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { RenderChildrenWithScope, useAuiState } from "@assistant-ui/store";
 import type { SuggestionState } from "../../../store/scopes/suggestion";
 import { SuggestionByIndexProvider } from "../../providers/SuggestionByIndexProvider";
 
@@ -76,11 +76,7 @@ const ThreadPrimitiveSuggestionsInner: FC<{
     if (suggestionsLength === 0) return null;
     return Array.from({ length: suggestionsLength }, (_, index) => (
       <SuggestionByIndexProvider key={index} index={index}>
-        <RenderChildrenWithAccessor
-          getItemState={(aui) =>
-            aui.suggestions.suggestion({ index }).getState()
-          }
-        >
+        <RenderChildrenWithScope scope="suggestion">
           {(getItem) =>
             children({
               get suggestion() {
@@ -88,7 +84,7 @@ const ThreadPrimitiveSuggestionsInner: FC<{
               },
             })
           }
-        </RenderChildrenWithAccessor>
+        </RenderChildrenWithScope>
       </SuggestionByIndexProvider>
     ));
   }, [suggestionsLength, children]);

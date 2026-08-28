@@ -5,7 +5,7 @@ import {
   type ReactNode,
   useMemo,
 } from "react";
-import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { RenderChildrenWithScope, useAuiState } from "@assistant-ui/store";
 import type { PartState } from "../../../store/scopes/part";
 import { ChainOfThoughtPartByIndexProvider } from "../../providers/ChainOfThoughtPartByIndexProvider";
 import { MessagePartComponent } from "../message/MessageParts";
@@ -50,9 +50,7 @@ const ChainOfThoughtPrimitivePartsInner: FC<{
     () =>
       Array.from({ length: partsLength }, (_, index) => (
         <ChainOfThoughtPartByIndexProvider key={index} index={index}>
-          <RenderChildrenWithAccessor
-            getItemState={(aui) => aui.part.getState()}
-          >
+          <RenderChildrenWithScope scope="part">
             {(getItem) =>
               children({
                 get part() {
@@ -60,7 +58,7 @@ const ChainOfThoughtPrimitivePartsInner: FC<{
                 },
               })
             }
-          </RenderChildrenWithAccessor>
+          </RenderChildrenWithScope>
         </ChainOfThoughtPartByIndexProvider>
       )),
     [partsLength, children],

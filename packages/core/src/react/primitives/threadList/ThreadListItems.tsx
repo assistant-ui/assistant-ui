@@ -5,7 +5,7 @@ import {
   memo,
   useMemo,
 } from "react";
-import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { RenderChildrenWithScope, useAuiState } from "@assistant-ui/store";
 import type { ThreadListItemState } from "../../../store/scopes/thread-list-item";
 import { ThreadListItemByIndexProvider } from "../../providers/ThreadListItemByIndexProvider";
 
@@ -76,11 +76,7 @@ const ThreadListPrimitiveItemsInner: FC<{
           index={index}
           archived={archived}
         >
-          <RenderChildrenWithAccessor
-            getItemState={(aui) =>
-              aui.threads.item({ index, archived }).getState()
-            }
-          >
+          <RenderChildrenWithScope scope="threadListItem">
             {(getItem) =>
               children({
                 get threadListItem() {
@@ -88,7 +84,7 @@ const ThreadListPrimitiveItemsInner: FC<{
                 },
               })
             }
-          </RenderChildrenWithAccessor>
+          </RenderChildrenWithScope>
         </ThreadListItemByIndexProvider>
       )),
     [contentLength, archived, children],

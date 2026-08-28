@@ -1,5 +1,5 @@
 import { type FC, type ReactNode, memo, useMemo } from "react";
-import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { RenderChildrenWithScope, useAuiState } from "@assistant-ui/store";
 import type { QueueItemState } from "../../../store/scopes/queue-item";
 import { QueueItemByIndexProvider } from "../../providers/QueueItemByIndexProvider";
 
@@ -19,9 +19,7 @@ const ComposerPrimitiveQueueInner: FC<{
     () =>
       Array.from({ length: queue }, (_, index) => (
         <QueueItemByIndexProvider key={index} index={index}>
-          <RenderChildrenWithAccessor
-            getItemState={(aui) => aui.composer.queueItem({ index }).getState()}
-          >
+          <RenderChildrenWithScope scope="queueItem">
             {(getItem) =>
               children({
                 get queueItem() {
@@ -29,7 +27,7 @@ const ComposerPrimitiveQueueInner: FC<{
                 },
               })
             }
-          </RenderChildrenWithAccessor>
+          </RenderChildrenWithScope>
         </QueueItemByIndexProvider>
       )),
     [queue, children],

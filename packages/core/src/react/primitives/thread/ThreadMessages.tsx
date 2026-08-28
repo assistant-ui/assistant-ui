@@ -5,7 +5,7 @@ import {
   memo,
   useMemo,
 } from "react";
-import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { RenderChildrenWithScope, useAuiState } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "../../providers/MessageByIndexProvider";
 import { MessageByIdProvider } from "../../providers/MessageByIdProvider";
 import type { MessageState } from "../../../store";
@@ -247,9 +247,7 @@ const ThreadPrimitiveMessagesInner: FC<{
     if (messagesLength === 0) return null;
     return Array.from({ length: messagesLength }, (_, index) => (
       <MessageByIndexProvider key={index} index={index}>
-        <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.thread.message({ index }).getState()}
-        >
+        <RenderChildrenWithScope scope="message">
           {(getItem) =>
             children({
               get message() {
@@ -257,7 +255,7 @@ const ThreadPrimitiveMessagesInner: FC<{
               },
             })
           }
-        </RenderChildrenWithAccessor>
+        </RenderChildrenWithScope>
       </MessageByIndexProvider>
     ));
   }, [messagesLength, children]);

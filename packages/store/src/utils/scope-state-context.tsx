@@ -1,25 +1,29 @@
 "use client";
 
 import { createContext, useContext, type Context, type ReactNode } from "react";
-import type { ClientNames } from "../types/client";
+import type { ClientMethods, ClientNames } from "../types/client";
 
 export const SCOPE_STATE_UNSET = Symbol("assistant-ui.store.scopeStateUnset");
 
-export type ScopeStates = Partial<Record<ClientNames, unknown>>;
+export type ScopeEntry = { state: unknown; output: ClientMethods | undefined };
+export type ScopeStates = Partial<Record<ClientNames, ScopeEntry>>;
+type ScopeContextValue = ScopeEntry | typeof SCOPE_STATE_UNSET;
 
-const contexts = new Map<ClientNames, Context<unknown>>();
+const contexts = new Map<ClientNames, Context<ScopeContextValue>>();
 
-const getScopeStateContext = (name: ClientNames): Context<unknown> => {
+const getScopeStateContext = (
+  name: ClientNames,
+): Context<ScopeContextValue> => {
   let ctx = contexts.get(name);
   if (!ctx) {
-    ctx = createContext<unknown>(SCOPE_STATE_UNSET);
+    ctx = createContext<ScopeContextValue>(SCOPE_STATE_UNSET);
     ctx.displayName = `AuiScopeState(${name})`;
     contexts.set(name, ctx);
   }
   return ctx;
 };
 
-export const useScopeStateContext = (name: ClientNames): unknown =>
+export const useScopeStateContext = (name: ClientNames): ScopeContextValue =>
   useContext(getScopeStateContext(name));
 
 const ScopeLevel = ({
@@ -33,7 +37,7 @@ const ScopeLevel = ({
 }) => {
   const Ctx = getScopeStateContext(name);
   const inherited = useContext(Ctx);
-  const value = name in states ? states[name] : inherited;
+  const value = name in states ? states[name]! : inherited;
   return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
 };
 

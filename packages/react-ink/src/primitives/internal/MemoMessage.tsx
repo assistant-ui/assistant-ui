@@ -1,6 +1,6 @@
 import { type ReactNode, memo } from "react";
 import type { ThreadMessage } from "@assistant-ui/core";
-import { RenderChildrenWithAccessor } from "@assistant-ui/store";
+import { RenderChildrenWithScope } from "@assistant-ui/store";
 import { MessageByIndexProvider } from "@assistant-ui/core/react";
 
 type MemoMessageProps = {
@@ -11,9 +11,7 @@ type MemoMessageProps = {
 const MemoMessageImpl = ({ index, render }: MemoMessageProps) => {
   return (
     <MessageByIndexProvider index={index}>
-      <RenderChildrenWithAccessor
-        getItemState={(aui) => aui.thread.message({ index }).getState()}
-      >
+      <RenderChildrenWithScope scope="message">
         {(getItem) =>
           render({
             get message() {
@@ -21,7 +19,7 @@ const MemoMessageImpl = ({ index, render }: MemoMessageProps) => {
             },
           })
         }
-      </RenderChildrenWithAccessor>
+      </RenderChildrenWithScope>
     </MessageByIndexProvider>
   );
 };

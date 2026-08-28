@@ -56,7 +56,7 @@ export function RenderChildrenWithAccessor<T>({
   return useMemoizedProplessComponent(children(getItem));
 }
 
-const useMemoizedProplessComponent = (node: ReactNode) => {
+export const useMemoizedProplessComponent = (node: ReactNode) => {
   const el =
     typeof node === "object" && node != null && "type" in node ? node : null;
   const resultType = el?.type;

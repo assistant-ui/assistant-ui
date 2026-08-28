@@ -19,6 +19,10 @@ type AccessorMeta = {
 
 type AnyRecord = Record<string | symbol, unknown>;
 
+export const SYMBOL_GET_RENDER_OUTPUT = Symbol(
+  "assistant-ui.store.getRenderValue",
+);
+
 export const createClientAccessor = <K extends ClientNames>(
   meta: AccessorMeta,
   read: () => ClientMethods,
@@ -33,6 +37,10 @@ export const createClientAccessor = <K extends ClientNames>(
       if (prop === "query") return meta.query;
       if (prop === "name") return meta.name;
       if (prop === CLIENT_ID_SYMBOL) return getClientId(read());
+      if (prop === SYMBOL_GET_RENDER_OUTPUT) {
+        const target = read() as AnyRecord;
+        return target[SYMBOL_GET_RENDER_OUTPUT] ?? target;
+      }
       return (read() as AnyRecord)[prop];
     },
     has: (_, prop) =>

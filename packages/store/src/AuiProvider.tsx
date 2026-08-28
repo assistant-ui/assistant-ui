@@ -12,6 +12,7 @@ import {
 } from "./utils/react-assistant-context";
 import { useConfiguredAui } from "./useAui";
 import { ScopeStateProviders } from "./utils/scope-state-context";
+import { useLegacyScopeStates } from "./utils/legacy-scope-states";
 
 const isDevelopment =
   typeof process !== "undefined" &&
@@ -169,16 +170,18 @@ export const AuiProvider: {
     : hasValue
       ? (props.value ?? DefaultAssistantClient)
       : contextParent;
-  const {
-    client,
-    effects,
-    states,
-    names = [],
-  } = useConfiguredAui(parent, config ?? EMPTY_CONFIG);
+  const configured = useConfiguredAui(parent, config ?? EMPTY_CONFIG);
+  const legacy = useLegacyScopeStates(
+    hasValue ? parent : DefaultAssistantClient,
+  );
+  const { client, effects } = configured;
+  const states = hasValue ? legacy.states : configured.states;
+  const names = (hasValue ? legacy.names : configured.names) ?? [];
   useImperativeHandle(ref, () => client, [client]);
 
-  const [scopeNames] = useState(() => names);
-  if (isDevelopment) {
+  const [mountNames] = useState(() => names);
+  const scopeNames = hasValue ? names : mountNames;
+  if (isDevelopment && !hasValue) {
     if (
       names.length !== scopeNames.length ||
       names.some((name) => !scopeNames.includes(name as ClientNames))
@@ -194,7 +197,11 @@ export const AuiProvider: {
     <AssistantContext.Provider value={client}>
       <MountTapEffects effects={getTapEffects(parent)} />
       {effects && <MountTapEffects effects={effects} />}
-      <ScopeStateProviders names={scopeNames} states={states ?? {}}>
+      <ScopeStateProviders
+        key={hasValue ? scopeNames.join(",") : undefined}
+        names={scopeNames}
+        states={states ?? {}}
+      >
         {children}
       </ScopeStateProviders>
     </AssistantContext.Provider>

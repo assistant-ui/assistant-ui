@@ -64,13 +64,13 @@ const useScopedAuiState = (
   scope: ClientNames,
   selector: ((state: unknown) => unknown) | undefined,
 ): unknown => {
-  const state = useScopeStateContext(scope);
-  if (state === SCOPE_STATE_UNSET) {
+  const entry = useScopeStateContext(scope);
+  if (entry === SCOPE_STATE_UNSET) {
     throw new Error(
       `useAuiState("${scope}"): no AuiProvider above this component publishes the "${scope}" scope.`,
     );
   }
-  const slice = selector ? selector(state) : state;
+  const slice = selector ? selector(entry.state) : entry.state;
   useDebugValue(slice);
   return slice;
 };

@@ -10,7 +10,10 @@ import {
   BaseProxyHandler,
   handleIntrospectionProp,
 } from "./utils/BaseProxyHandler";
-import { INSTANCE_TAG_SYMBOL } from "./utils/client-accessor";
+import {
+  INSTANCE_TAG_SYMBOL,
+  SYMBOL_GET_RENDER_OUTPUT,
+} from "./utils/client-accessor";
 
 /**
  * Symbol used internally to get state from ClientProxy.
@@ -24,6 +27,16 @@ type ClientInternal = {
 
 export const getClientOutput = (client: ClientMethods): ClientMethods =>
   (client as unknown as ClientInternal)[SYMBOL_GET_OUTPUT];
+
+/**
+ * The output of the facade's latest render, which may not be committed yet.
+ * Scope contexts publish it so a derived scope and its source agree within a
+ * single render pass; a plain methods object is its own output.
+ */
+export const getClientRenderOutput = (client: ClientMethods): ClientMethods =>
+  (client as unknown as Record<symbol, ClientMethods>)[
+    SYMBOL_GET_RENDER_OUTPUT
+  ] ?? client;
 
 export const getClientState = (client: ClientMethods) => {
   const output = (client as unknown as ClientInternal)[SYMBOL_GET_OUTPUT];
@@ -82,6 +95,7 @@ class ClientProxyHandler
     | undefined;
   private cachedReceiver: unknown;
 
+  readonly renderRef: { current: ClientMethods } = { current: undefined! };
   private readonly outputRef: {
     current: ClientMethods;
   };
@@ -103,6 +117,7 @@ class ClientProxyHandler
 
   get(_: unknown, prop: string | symbol, receiver: unknown) {
     if (prop === SYMBOL_GET_OUTPUT) return this.outputRef.current;
+    if (prop === SYMBOL_GET_RENDER_OUTPUT) return this.renderRef.current;
     if (prop === SYMBOL_CLIENT_INDEX) return this.index;
     if (prop === INSTANCE_TAG_SYMBOL) return this.tagRef.current;
     const introspection = handleIntrospectionProp(prop, "ClientProxy");
@@ -143,6 +158,7 @@ export const useClientResource = <TMethods extends ClientMethods>(
 ): {
   state: InferClientState<TMethods>;
   methods: TMethods;
+  output: TMethods;
   key: string | number | undefined;
 } => {
   const valueRef = useRef(null as unknown as TMethods);
@@ -157,19 +173,20 @@ export const useClientResource = <TMethods extends ClientMethods>(
   const instanceTag = useMemo(() => ({}), [element.hook, element.key]);
 
   const index = useClientStack().length;
-  const methods = useMemo(
-    () =>
-      new Proxy<TMethods>(
-        {} as TMethods,
-        new ClientProxyHandler(valueRef, tagRef, index),
-      ),
+  const handler = useMemo(
+    () => new ClientProxyHandler(valueRef, tagRef, index),
     [index],
+  );
+  const methods = useMemo(
+    () => new Proxy<TMethods>({} as TMethods, handler),
+    [handler],
   );
 
   const value = useClientStackProvider(methods, function WithClientStack() {
     return useResource(element);
   });
 
+  handler.renderRef.current = value;
   if (!valueRef.current) {
     valueRef.current = value;
     tagRef.current = instanceTag;
@@ -181,7 +198,7 @@ export const useClientResource = <TMethods extends ClientMethods>(
   });
 
   const state = (value as any).getState?.();
-  return { methods, state, key: element.key };
+  return { methods, state, output: value, key: element.key };
 };
 
 export const ClientResource = resource(useClientResource);

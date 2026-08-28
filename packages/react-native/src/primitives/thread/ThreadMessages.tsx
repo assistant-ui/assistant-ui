@@ -19,7 +19,7 @@ import {
 } from "react-native";
 import type { MessageState, ThreadMessage } from "@assistant-ui/core";
 import {
-  RenderChildrenWithAccessor,
+  RenderChildrenWithScope,
   useAuiEvent,
   useAuiState,
 } from "@assistant-ui/store";
@@ -161,9 +161,7 @@ const ThreadMessageByChildren = memo(
   }) => {
     return (
       <MessageByIndexProvider index={index}>
-        <RenderChildrenWithAccessor
-          getItemState={(aui) => aui.thread.message({ index }).getState()}
-        >
+        <RenderChildrenWithScope scope="message">
           {(getItem) =>
             children({
               get message() {
@@ -171,7 +169,7 @@ const ThreadMessageByChildren = memo(
               },
             })
           }
-        </RenderChildrenWithAccessor>
+        </RenderChildrenWithScope>
       </MessageByIndexProvider>
     );
   },

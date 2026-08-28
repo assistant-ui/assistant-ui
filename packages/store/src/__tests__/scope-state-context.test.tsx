@@ -63,7 +63,7 @@ const ItemProvider = ({
   );
 };
 
-describe("repro: scope state contexts", () => {
+describe("scope state contexts", () => {
   it("reads a root scope's state through its context and updates on change", () => {
     const { result } = renderHook(
       () => ({

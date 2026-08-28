@@ -7,7 +7,7 @@ import {
   useMemo,
 } from "react";
 import {
-  RenderChildrenWithAccessor,
+  RenderChildrenWithScope,
   useAuiState,
   useAui,
 } from "@assistant-ui/store";
@@ -752,9 +752,7 @@ const MessagePartChildrenInner: FC<
   const dataRenderers = useAuiState("dataRenderers");
 
   return (
-    <RenderChildrenWithAccessor
-      getItemState={(client) => client.part.getState()}
-    >
+    <RenderChildrenWithScope scope="part">
       {(getItem) =>
         children({
           get part() {
@@ -784,7 +782,7 @@ const MessagePartChildrenInner: FC<
           },
         })
       }
-    </RenderChildrenWithAccessor>
+    </RenderChildrenWithScope>
   );
 };
 

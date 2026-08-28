@@ -46,11 +46,7 @@ import {
   type NotificationManager,
 } from "./utils/NotificationManager";
 import { useAssistantTapContextProvider } from "./utils/tap-assistant-context";
-import {
-  ClientResource,
-  getClientOutput,
-  getClientState,
-} from "./useClientResource";
+import { ClientResource, getClientRenderOutput } from "./useClientResource";
 import { useShallowStable } from "./utils/useShallowStable";
 import {
   createClientAccessor,
@@ -61,7 +57,9 @@ import {
 import { createOptionalClientView } from "./utils/optional-client-view";
 import { getClientIndex } from "./utils/tap-client-stack-context";
 import {
+  SCOPE_STATE_UNSET,
   useScopeStateContext,
+  type ScopeEntry as ScopeContextEntry,
   type ScopeStates,
 } from "./utils/scope-state-context";
 
@@ -81,7 +79,7 @@ type ScopeMeta = {
   query: Record<string, unknown>;
 };
 type ScopeAccessor = AssistantClientAccessor<ClientNames>;
-type ScopeMountResult = [accessor: ScopeAccessor, state: unknown];
+type ScopeMountResult = [accessor: ScopeAccessor, entry: ScopeContextEntry];
 
 export const applyTransformScopes = (
   clients: useAui.Props,
@@ -254,9 +252,14 @@ const useScopeMount = (
   const methods = derived
     ? (value as ClientMethods)
     : (value as { methods: ClientMethods }).methods;
-  const state = derived
-    ? getClientOutput(methods)?.getState?.()
-    : (value as { state: unknown }).state;
+  const output = derived
+    ? getClientRenderOutput(methods)
+    : (value as { output: ClientMethods }).output;
+  const state = output?.getState?.();
+  const entry = useMemo<ScopeContextEntry>(
+    () => ({ state, output }),
+    [state, output],
+  );
 
   const meta = useScopeMeta(element);
   const accessor = useMemo(
@@ -266,7 +269,7 @@ const useScopeMount = (
 
   (building as Record<ClientNames, unknown>)[name] = accessor;
 
-  return [accessor, state];
+  return [accessor, entry];
 };
 
 const ScopeMount = resource(useScopeMount);
@@ -278,7 +281,7 @@ const useScopeMounts = (entries: ScopeEntry[]): ScopeMountResult[] =>
 
 const collectScopeStates = (
   entries: ScopeEntry[],
-  states: readonly unknown[],
+  states: readonly ScopeContextEntry[],
 ): ScopeStates =>
   Object.fromEntries(
     entries.map(([name], i) => [name, states[i]]),
@@ -334,7 +337,7 @@ export const useAuiRoot = ({
   const accessors = mounts.map(([accessor]) => accessor);
   const states = collectScopeStates(
     entries,
-    mounts.map(([, state]) => state),
+    mounts.map(([, entry]) => entry),
   );
 
   // Fresh envelope per commit so value-only updates reach the store's
@@ -447,11 +450,33 @@ const useTapRootAssistantClient = ({
   return { client, effects };
 };
 
+const useSourceView = (
+  parent: AssistantClient,
+  source: ClientNames | "root",
+  entry: ScopeContextEntry | typeof SCOPE_STATE_UNSET,
+): AssistantClient => {
+  const output = entry === SCOPE_STATE_UNSET ? undefined : entry.output;
+  return useMemo(() => {
+    if (source === "root" || output === undefined) return parent;
+    const base = parent[source];
+    if (!isScopeAvailable(base)) return parent;
+    const accessor = createClientAccessor(
+      { name: source, source: base.source!, query: base.query! },
+      () => output,
+    );
+    return new Proxy(parent, {
+      get: (target, prop, receiver) =>
+        prop === source ? accessor : Reflect.get(target, prop, receiver),
+    });
+  }, [parent, source, output]);
+};
+
 const useDerivedScopeMount = (
   parent: AssistantClient,
   building: AssistantClient,
   name: ClientNames,
   element: ScopeElement,
+  siblings: ScopeStates,
 ): ScopeMountResult => {
   // Resolved against the explicit parent (which may live in another React
   // root), never the context client.
@@ -460,18 +485,22 @@ const useDerivedScopeMount = (
   };
   const meta = useScopeMeta(element);
 
-  // The resolved instance's committed state trails the source context by one
-  // commit, so a post-commit check schedules one more render when they differ.
-  useScopeStateContext(meta.source as ClientNames);
+  // Resolves against the source scope's render-phase output so a lookup
+  // added in this same render is visible; the instance's own committed
+  // state still trails by one commit, so a post-commit check schedules one
+  // more render when it moved.
+  const inherited = useScopeStateContext(meta.source as ClientNames);
+  const sibling =
+    meta.source === "root" ? undefined : siblings[meta.source as ClientNames];
+  const host = sibling ? building : parent;
+  const resolveParent = useSourceView(host, meta.source, sibling ?? inherited);
   const [, rerender] = useState(0);
-  const value = get(parent);
-  const output = getClientOutput(value);
-  const state = getClientState(value);
+  const value = get(resolveParent);
+  const output = getClientRenderOutput(value);
+  const state = output?.getState?.();
+  // oxlint-disable-next-line react-hooks/exhaustive-deps -- re-checks after every commit by design
   useEffect(() => {
-    const next = get(parent);
-    if (next !== value || getClientOutput(next) !== output) {
-      rerender((n) => n + 1);
-    }
+    if (getClientRenderOutput(get(host)) !== output) rerender((n) => n + 1);
   });
 
   const accessor = useMemo(
@@ -481,7 +510,11 @@ const useDerivedScopeMount = (
 
   (building as Record<ClientNames, unknown>)[name] = accessor;
 
-  return [accessor, state];
+  const entry = useMemo<ScopeContextEntry>(
+    () => ({ state, output }),
+    [state, output],
+  );
+  return [accessor, entry];
 };
 
 // Derived-only hosts run without tap: each Derived scope is a plain React
@@ -553,15 +586,14 @@ const useDerivedOnlyClient = (
     on,
   });
 
-  const mounts = entries.map(([name, element]) =>
+  const states: ScopeStates = {};
+  const mounts = entries.map(([name, element]) => {
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- fixed per call site; React throws on a count change
-    useDerivedScopeMount(parent, building, name, element),
-  );
+    const mount = useDerivedScopeMount(parent, building, name, element, states);
+    states[name] = mount[1];
+    return mount;
+  });
   const accessors = mounts.map(([accessor]) => accessor);
-  const states = collectScopeStates(
-    entries,
-    mounts.map(([, state]) => state),
-  );
   const client = useCommittedClient(building, [parent, ...accessors]);
 
   useInsertionEffect(() => {
