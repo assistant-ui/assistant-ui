@@ -257,16 +257,19 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     let requestSignal: AbortSignal | null | undefined;
     const fetchMock = vi
       .fn()
-      .mockImplementationOnce(
-        (_input: RequestInfo | URL, init?: RequestInit) =>
-          new Promise<Response>((_resolve, reject) => {
-            requestSignal = init?.signal;
-            requestSignal?.addEventListener(
-              "abort",
-              () => reject(requestSignal?.reason),
-              { once: true },
-            );
-          }),
+      .mockImplementationOnce((_input: RequestInfo | URL, init?: RequestInit) =>
+        Promise.resolve({
+          ok: true,
+          json: () =>
+            new Promise<never>((_resolve, reject) => {
+              requestSignal = init?.signal;
+              requestSignal?.addEventListener(
+                "abort",
+                () => reject(requestSignal?.reason),
+                { once: true },
+              );
+            }),
+        } as Response),
       )
       .mockResolvedValueOnce({
         ok: true,
@@ -285,6 +288,7 @@ describe("AssistantCloudAnonymousAuthStrategy", () => {
     const secondRequest = expect(second.getAuthHeaders()).rejects.toThrow(
       "Assistant Cloud anonymous token request timed out after 30000ms",
     );
+    await vi.advanceTimersByTimeAsync(0);
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(requestSignal).toBeInstanceOf(AbortSignal);
 

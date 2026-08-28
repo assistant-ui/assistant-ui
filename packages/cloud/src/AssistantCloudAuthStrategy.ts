@@ -6,11 +6,10 @@ import {
 
 const AUTH_TOKEN_REQUEST_TIMEOUT_MS = 30_000;
 
-const fetchAuthToken = async (
-  url: string,
+const withAuthTokenDeadline = async <T>(
   operation: string,
-  init: RequestInit,
-): Promise<Response> => {
+  run: (signal: AbortSignal) => Promise<T>,
+): Promise<T> => {
   const controller = new AbortController();
   let timedOut = false;
   const timeout = setTimeout(() => {
@@ -19,11 +18,12 @@ const fetchAuthToken = async (
   }, AUTH_TOKEN_REQUEST_TIMEOUT_MS);
 
   try {
-    return await fetch(url, { ...init, signal: controller.signal });
+    return await run(controller.signal);
   } catch (error) {
     if (timedOut) {
       throw new Error(
         `Assistant Cloud ${operation} timed out after ${AUTH_TOKEN_REQUEST_TIMEOUT_MS}ms`,
+        { cause: error },
       );
     }
     throw error;
@@ -336,65 +336,79 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
       if (storedRefreshToken) {
         const refreshExpiry = new Date(storedRefreshToken.expires_at).getTime();
         if (refreshExpiry - currentTime > 30 * 1000) {
-          const response = await fetchAuthToken(
-            `${this.baseUrl}/v1/auth/tokens/refresh`,
+          const refreshedAccessToken = await withAuthTokenDeadline(
             "refresh token request",
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ refresh_token: storedRefreshToken.token }),
+            async (signal) => {
+              const response = await fetch(
+                `${this.baseUrl}/v1/auth/tokens/refresh`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    refresh_token: storedRefreshToken.token,
+                  }),
+                  signal,
+                },
+              );
+
+              if (response.ok) {
+                const { data, accessToken } = await readAuthTokenResponse(
+                  response,
+                  "refresh auth token response",
+                );
+                if (data.refresh_token != null) {
+                  writeRefreshToken(
+                    this.baseUrl,
+                    readRefreshTokenResponse(
+                      data.refresh_token,
+                      "refresh auth token response.refresh_token",
+                    ),
+                  );
+                }
+                return accessToken;
+              }
+
+              if (response.status === 429 || response.status >= 500) {
+                throw new Error(
+                  `Assistant Cloud token refresh failed with status ${response.status}`,
+                );
+              }
+
+              return null;
             },
           );
-
-          if (response.ok) {
-            const { data, accessToken } = await readAuthTokenResponse(
-              response,
-              "refresh auth token response",
-            );
-            if (data.refresh_token != null) {
-              writeRefreshToken(
-                this.baseUrl,
-                readRefreshTokenResponse(
-                  data.refresh_token,
-                  "refresh auth token response.refresh_token",
-                ),
-              );
-            }
-            return accessToken;
-          }
-
-          if (response.status === 429 || response.status >= 500) {
-            throw new Error(
-              `Assistant Cloud token refresh failed with status ${response.status}`,
-            );
-          }
+          if (refreshedAccessToken !== null) return refreshedAccessToken;
         } else {
           removeRefreshToken(this.baseUrl);
         }
       }
 
       // No valid refresh token; request a new anonymous token
-      const response = await fetchAuthToken(
-        `${this.baseUrl}/v1/auth/tokens/anonymous`,
+      return withAuthTokenDeadline(
         "anonymous token request",
-        { method: "POST" },
-      );
+        async (signal) => {
+          const response = await fetch(
+            `${this.baseUrl}/v1/auth/tokens/anonymous`,
+            { method: "POST", signal },
+          );
 
-      if (!response.ok) return null;
+          if (!response.ok) return null;
 
-      const { data, accessToken } = await readAuthTokenResponse(
-        response,
-        "anonymous auth token response",
-      );
+          const { data, accessToken } = await readAuthTokenResponse(
+            response,
+            "anonymous auth token response",
+          );
 
-      writeRefreshToken(
-        this.baseUrl,
-        readRefreshTokenResponse(
-          data.refresh_token,
-          "anonymous auth token response.refresh_token",
-        ),
+          writeRefreshToken(
+            this.baseUrl,
+            readRefreshTokenResponse(
+              data.refresh_token,
+              "anonymous auth token response.refresh_token",
+            ),
+          );
+          return accessToken;
+        },
       );
-      return accessToken;
     };
     this.jwtStrategy = new AssistantCloudJWTAuthStrategy(() =>
       getSharedAnonymousAuthToken(this.baseUrl, requestAuthToken),
