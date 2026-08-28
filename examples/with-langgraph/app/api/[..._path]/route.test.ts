@@ -30,10 +30,10 @@ describe("LangGraph proxy", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     const response = await POST(
-      new NextRequest("http://app.internal/api/threads", {
+      new NextRequest("http://app.example/api/threads", {
         method: "POST",
         headers: {
-          host: "app.example",
+          host: "app.internal",
           origin: "https://app.example",
         },
         body: "{}",
