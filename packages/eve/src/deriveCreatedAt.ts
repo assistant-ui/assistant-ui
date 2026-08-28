@@ -95,6 +95,24 @@ export const collectTurnTimestamps = (
 };
 
 /**
+ * Drops what `assignCreatedAt` remembered for messages that have left the list.
+ *
+ * Kept apart from the assignment so the caller can run it on commit: a render
+ * that never commits carries another agent's message list, and forgetting the
+ * committed thread's entries there loses a durable stamp whose event log no
+ * longer reaches back to its turn — the one stamp that cannot be re-derived.
+ */
+export const forgetAbsentMessages = (
+  messages: EveMessageData["messages"],
+  remembered: Map<string, AssignedCreatedAt>,
+): void => {
+  const messageIds = new Set(messages.map((message) => message.id));
+  for (const messageId of remembered.keys()) {
+    if (!messageIds.has(messageId)) remembered.delete(messageId);
+  }
+};
+
+/**
  * Assigns every message a `createdAt`, and remembers what it assigned.
  *
  * A message eve has no durable stamp for (an optimistic or failed send) takes a
@@ -111,11 +129,6 @@ export const assignCreatedAt = (
   remembered: Map<string, AssignedCreatedAt>,
   now: () => Date = () => new Date(),
 ): ReadonlyMap<string, Date> => {
-  const messageIds = new Set(messages.map((message) => message.id));
-  for (const messageId of remembered.keys()) {
-    if (!messageIds.has(messageId)) remembered.delete(messageId);
-  }
-
   const durableByIndex = messages.map((message) => {
     const turnId = message.metadata?.turnId;
     const derived =

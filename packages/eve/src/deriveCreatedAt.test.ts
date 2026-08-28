@@ -3,6 +3,7 @@ import {
   assignCreatedAt,
   collectTurnTimestamps,
   createTurnTimestampCache,
+  forgetAbsentMessages,
   type AssignedCreatedAt,
 } from "./deriveCreatedAt";
 
@@ -186,7 +187,7 @@ describe("assignCreatedAt", () => {
     expect(assigned.get("m1")).toEqual(new Date("2026-01-02T03:04:06.000Z"));
   });
 
-  it("forgets a message that left the list", () => {
+  it("keeps remembering a message that is absent from the list it is assigning", () => {
     const remembered = new Map<string, AssignedCreatedAt>();
     assignCreatedAt(
       messages(message("m1", "user", "t1")),
@@ -199,6 +200,19 @@ describe("assignCreatedAt", () => {
       turnTimestamps,
       remembered,
     );
+
+    expect(remembered.has("m1")).toBe(true);
+  });
+
+  it("forgets a message that left the list", () => {
+    const remembered = new Map<string, AssignedCreatedAt>();
+    assignCreatedAt(
+      messages(message("m1", "user", "t1")),
+      turnTimestamps,
+      remembered,
+    );
+
+    forgetAbsentMessages(messages(message("m2", "user")), remembered);
 
     expect(remembered.has("m1")).toBe(false);
   });

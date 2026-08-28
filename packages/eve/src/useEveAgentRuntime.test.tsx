@@ -1213,6 +1213,68 @@ describe("useEveAgentRuntime createdAt derivation", () => {
       new Date("2021-01-01T00:00:00.000Z"),
     );
   });
+
+  it("keeps a remembered durable timestamp across a discarded render for another agent", () => {
+    const coveredA = createAgent({
+      data: resumedData,
+      events: [turnStarted("turn-1", "2020-01-02T03:04:05.000Z")],
+    });
+    const replacedA = createAgent({ data: resumedData, events: [] });
+    const advancedA = createAgent({
+      data: { messages: [...resumedData.messages] } satisfies EveMessageData,
+      events: [],
+    });
+    const agentB = createAgent({
+      data: { messages: [userMessage("turn-9", "workspace B")] },
+      events: [],
+    });
+
+    let currentA: unknown = coveredA;
+    mockUseEveAgent.mockImplementation((options) =>
+      (options as { workspace: string }).workspace === "A"
+        ? (currentA as never)
+        : (agentB as never),
+    );
+
+    const pending = new Promise<never>(() => {});
+    let blocked = false;
+    const Blocker = () => {
+      if (blocked) throw pending;
+      return null;
+    };
+    const Wrapper = ({ children }: PropsWithChildren) => (
+      <Suspense fallback={null}>
+        {children}
+        <Blocker />
+      </Suspense>
+    );
+
+    const { result, rerender } = renderHook(
+      ({ workspace }) => useEveAgentRuntime({ workspace } as never),
+      { initialProps: { workspace: "A" }, wrapper: Wrapper },
+    );
+
+    // The event log is replaced by one that no longer covers turn-1, so the
+    // stamp rides on the remembered map alone from here on.
+    currentA = replacedA;
+    rerender({ workspace: "A" });
+
+    act(() => {
+      blocked = true;
+      startTransition(() => rerender({ workspace: "B" }));
+    });
+    expect(mockUseEveAgent.mock.results.at(-1)?.value).toBe(agentB);
+
+    // Any new event reallocates `data`, so A's next commit recomputes against
+    // the map the uncommitted render could have pruned.
+    blocked = false;
+    currentA = advancedA;
+    rerender({ workspace: "A" });
+
+    expect(result.current.thread.getState().messages[0]!.createdAt).toEqual(
+      new Date("2020-01-02T03:04:05.000Z"),
+    );
+  });
 });
 
 describe("useEveAgentRuntime extras wiring", () => {

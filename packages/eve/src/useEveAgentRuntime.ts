@@ -43,6 +43,7 @@ import {
   assignCreatedAt,
   collectTurnTimestamps,
   createTurnTimestampCache,
+  forgetAbsentMessages,
   type AssignedCreatedAt,
 } from "./deriveCreatedAt";
 import { eveExtras } from "./eveExtras";
@@ -250,6 +251,14 @@ export const useEveAgentRuntime = (options: UseEveAgentRuntimeOptions = {}) => {
     messagesRef.current = messages;
     agentRef.current = agent;
   }, [agent, messages]);
+
+  // Commit-scoped for the same reason the refs above are: an uncommitted render
+  // carries another agent's message list, and forgetting the committed thread's
+  // stamps there would re-stamp resumed history as "just now". Entries a
+  // discarded render adds are forgotten by the next commit.
+  useInsertionEffect(() => {
+    forgetAbsentMessages(agent.data.messages, createdAtByMessageIdRef.current);
+  }, [agent.data]);
 
   // Upstream `EveAgentStore` `send` and `respond` reject while a turn is in
   // flight and only resolve once the turn's stream parks, so a pending chain
