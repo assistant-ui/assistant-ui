@@ -79,6 +79,22 @@ describe("LiveKit token route", () => {
     expect(response.status).toBe(200);
   });
 
+  it("reports an invalid configured public origin", async () => {
+    vi.stubEnv("APP_ORIGIN", "app.example");
+
+    const response = await POST(
+      new Request("http://app.internal/api/livekit-token", {
+        method: "POST",
+        headers: { origin: "https://app.example" },
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    await expect(response.json()).resolves.toEqual({
+      error: "APP_ORIGIN must be an absolute HTTP(S) origin.",
+    });
+  });
+
   it("rejects requests marked cross-site by the browser", async () => {
     const response = await POST(
       new Request("https://app.example/api/livekit-token", {
