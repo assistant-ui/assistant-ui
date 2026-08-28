@@ -4,8 +4,8 @@
   "private": true,
   "type": "module",
   "exports": {
-    "./components/assistant-ui/*": "./src/components/assistant-ui/*",
-    "./components/ui/*": "./src/components/ui/*",
+    "./components/assistant-ui/*": "./src/components/react/assistant-ui/*",
+    "./components/ui/*": "./src/components/react/ui/*",
     "./hooks/*": "./src/hooks/*",
     "./lib/*": "./src/lib/*"
   },

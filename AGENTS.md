@@ -59,7 +59,7 @@ How a package couples to its upstream decides how it bumps; the posture is chose
 
 Every publishable package builds with `aui-build` (`@assistant-ui/x-buildutils`). Do not add a per-package build config or use tsup, unbuild, swc, or the tsc CLI. Exports maps are ESM-only and types-first (`"types"` before `"default"`), with `type: module` and `sideEffects: false`.
 
-`packages/ui/src/components/assistant-ui` is the canonical UI source. Templates and examples alias it through tsconfig (`@/components/*`, `@/hooks/*`, `@/lib/utils`) and carry no byte-equal copies of it — except `minimal`, which ships its own (examples may still hold intentional forks). `pnpm sync-templates` keeps minimal's copies byte-equal with the source; declare intentional divergence in the `OVERRIDES` array in `scripts/sync-templates.sh`.
+`packages/ui/src/components/react/assistant-ui/elements` is the canonical UI source. Templates and examples alias it through tsconfig (`@/components/*`, `@/hooks/*`, `@/lib/utils`) and carry no byte-equal copies of it — except `minimal`, which ships its own (examples may still hold intentional forks). `pnpm sync-templates` keeps minimal's copies byte-equal with the source; declare intentional divergence in the `OVERRIDES` array in `scripts/sync-templates.sh`.
 
 `components/ui/` uses parallel `radix/` and `base/` directories because every primitive exists in both flavors; `components/assistant-ui/` (and the direction pair in `ui/radix/`) uses sparse variant suffixes where the unmarked file is the Base UI source and a `.radix.tsx` sibling holds the Radix variant.
 

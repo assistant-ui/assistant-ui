@@ -1,6 +1,6 @@
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.kit";
 import { EveAuthorization } from "@/components/eve-authorization";
 import {
   AssistantRuntimeProvider,

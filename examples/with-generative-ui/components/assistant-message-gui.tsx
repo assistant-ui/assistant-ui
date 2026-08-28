@@ -1,20 +1,20 @@
 "use client";
 
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   Reasoning,
   ReasoningContent,
   ReasoningRoot,
   ReasoningText,
   ReasoningTrigger,
-} from "@/components/assistant-ui/reasoning";
-import { ToolFallback } from "@/components/assistant-ui/tool-fallback";
+} from "@/components/assistant-ui/elements/reasoning.kit";
+import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.kit";
 import {
   ToolGroupContent,
   ToolGroupRoot,
   ToolGroupTrigger,
-} from "@/components/assistant-ui/tool-group";
-import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";
+} from "@/components/assistant-ui/elements/tool-group.kit";
+import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";
 import {
   UnknownComponentFallback,
   componentsAllowlist,

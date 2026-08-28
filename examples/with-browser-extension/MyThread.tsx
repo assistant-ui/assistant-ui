@@ -1,4 +1,4 @@
-import { Thread } from "@assistant-ui/ui/components/assistant-ui/thread.tsx";
+import { Thread } from "@assistant-ui/ui/components/react/assistant-ui/elements/thread.kit.tsx";
 import {
   useAui,
   AuiProvider,

@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.kit";
 import {
   useAui,
   AuiProvider,
