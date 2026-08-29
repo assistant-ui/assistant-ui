@@ -41,6 +41,31 @@ describe("transform", () => {
     );
   });
 
+  it("fails a progress-enabled codemod that exits nonzero", async () => {
+    mocks.runSpawnCapture.mockResolvedValue({
+      code: 7,
+      signal: null,
+      stdout: "Processing file app.tsx\n",
+      stderr: "SyntaxError: Broken input\n",
+    });
+    const onProgress = vi.fn();
+
+    const failure = transform(
+      "v0-8/ui-package-split",
+      "/tmp/project",
+      { dry: true },
+      {
+        logStatus: false,
+        onProgress,
+        relevantFiles: ["/tmp/project/app.tsx"],
+      },
+    );
+
+    await expect(failure).rejects.toBeInstanceOf(SpawnExitError);
+    await expect(failure).rejects.toThrow("SyntaxError: Broken input");
+    expect(onProgress).not.toHaveBeenCalled();
+  });
+
   it("surfaces the codemod's stderr when it exits nonzero", async () => {
     mocks.runSpawnCapture.mockResolvedValue({
       code: 1,
