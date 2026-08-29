@@ -134,6 +134,27 @@ describe("unstable_useWebMcpProvider", () => {
     expect(adapter.registry.has("bad")).toBe(false);
   });
 
+  it("re-attempts a tool whose filter stops throwing", async () => {
+    const warn = silenceWarnings();
+    const adapter = useHost(createFakeWebMcpHost());
+    const flaky = frontendTool();
+    let throwing = true;
+    const provider = createProvider({ flaky });
+    mountProvider(provider, {
+      filter: (_name, tool) => {
+        if (tool === flaky && throwing) throw new Error("filter boom");
+        return true;
+      },
+    });
+    await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());
+    expect(adapter.registry.has("flaky")).toBe(false);
+
+    throwing = false;
+    provider.setTools({ flaky });
+    await waitForNames(["flaky"]);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
   it("adds and removes registrations as the model context changes", async () => {
     const host = useHost(createFakeWebMcpHost());
     const provider = createProvider({ search: frontendTool() });
