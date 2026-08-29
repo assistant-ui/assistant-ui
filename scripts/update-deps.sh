@@ -31,14 +31,15 @@ if ! (cd examples/with-expo && npx expo install --fix); then
     // The SDK native-module matrix, read rather than hardcoded so the set tracks
     // the SDK. `expo install --fix` also merges relatedPackages from the versions
     // endpoint, which needs the network, so those entries are left to taze.
-    let owned;
+    const expoFamily = /^(@expo\/.+|expo|expo-.+|react|react-dom|react-native|react-native-.+)$/;
+    let matrixKeys = new Set();
     try {
       const matrix = require.resolve("expo/bundledNativeModules.json", { paths: [projectDir] });
-      owned = new Set([...Object.keys(JSON.parse(fs.readFileSync(matrix, "utf8"))), "expo"]);
-    } catch {
-      owned = /^(@expo\/.+|expo|expo-.+|react|react-dom|react-native|react-native-.+)$/;
-    }
-    const isOwned = (name) => (owned instanceof Set ? owned.has(name) : owned.test(name));
+      matrixKeys = new Set(Object.keys(JSON.parse(fs.readFileSync(matrix, "utf8"))));
+    } catch {}
+    // Union, not a fallback: a package Expo ships in the SDK batch without keying
+    // it here would otherwise keep the age-blocked floor and fail the install below.
+    const isOwned = (name) => matrixKeys.has(name) || expoFamily.test(name);
     const backup = JSON.parse(fs.readFileSync(backupPath, "utf8"));
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     for (const field of ["dependencies", "devDependencies"]) {
