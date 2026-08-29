@@ -46,7 +46,8 @@ export const sanitizeForMessage = (
       }
       if (Array.isArray(value)) {
         const result: unknown[] = [];
-        for (let index = 0; index < value.length; index++) {
+        const length = value.length;
+        for (let index = 0; index < length; index++) {
           try {
             if (!(index in value)) continue;
             const item = sanitizeForMessage(value[index], seen);

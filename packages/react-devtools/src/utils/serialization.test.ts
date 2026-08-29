@@ -102,6 +102,18 @@ describe("sanitizeForMessage", () => {
       "third",
     ]);
   });
+
+  it("snapshots proxy array length before reading entries", () => {
+    let lengthReads = 0;
+    const value = new Proxy(["first", "second"], {
+      get: (target, property, receiver) => {
+        if (property === "length") return lengthReads++ === 0 ? 2 : 0;
+        return Reflect.get(target, property, receiver);
+      },
+    });
+
+    expect(sanitizeForMessage(value)).toEqual(["first", "second"]);
+  });
 });
 
 describe("redactSensitive", () => {
