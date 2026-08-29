@@ -46,3 +46,4 @@ allowBuilds:
   protobufjs: false
   react-grab: false
   sqlite3@5.1.7: true
+  vue-demi: false

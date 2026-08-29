@@ -14,6 +14,8 @@
     "api-surface:build": "pnpm exec turbo build --filter='./packages/*'",
     "api-surface:check": "node scripts/check-api-surface.mjs",
     "api-surface:test": "node --test scripts/generate-api-surface.test.mjs scripts/lib/workspace.test.mjs",
+    "changesets:check": "node scripts/check-changesets.mjs",
+    "changesets:test": "node --test scripts/check-changesets.test.mjs",
     "declarations:check": "node scripts/check-built-declarations.mjs",
     "declarations:test": "node --test scripts/check-built-declarations.test.mjs",
     "lint": "pnpm exec oxlint && pnpm exec oxfmt --check",
@@ -27,14 +29,14 @@
     "test:types": "pnpm -r --workspace-concurrency=4 --no-bail exec sh -c '! test -f tsconfig.json || tsc --noEmit'",
     "prepare": "husky && pnpm --filter @assistant-ui/react-devtools run build:css",
     "deps:check": "npx taze major -f -r",
-    "deps:update": "npx taze major -f -w -r && cd examples/with-expo && npx expo install --fix && cd ../.. && find . -name node_modules -prune -exec rm -rf {} + && rm -f pnpm-lock.yaml && pnpm install && pnpm dedupe && bash scripts/generate-deps-changeset.sh"
+    "deps:update": "bash scripts/update-deps.sh"
   },
   "devDependencies": {
     "@assistant-ui/x-changelog": "workspace:*",
     "@changesets/cli": "^3.0.1",
     "husky": "^9.1.7",
     "lint-staged": "^17.4.1",
-    "oxfmt": "^0.64.0",
+    "oxfmt": "^0.65.0",
     "oxlint": "^1.80.0",
     "pkg-pr-new": "^0.0.88",
     "sharp": "0.35.3",

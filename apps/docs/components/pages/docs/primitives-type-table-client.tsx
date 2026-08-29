@@ -118,10 +118,10 @@ function Item({
         className={cn(
           "overflow-hidden",
           mounted &&
-            "data-closed:animate-fd-collapsible-up data-open:animate-fd-collapsible-down",
+            "data-closed:animate-collapsible-up data-open:animate-collapsible-down",
         )}
       >
-        <div className="fd-scroll-container grid grid-cols-[1fr_3fr] gap-y-4 overflow-auto border-t p-3 text-sm">
+        <div className="grid grid-cols-[1fr_3fr] gap-y-4 overflow-auto border-t p-3 text-sm">
           <div className="prose prose-no-margin col-span-full text-sm empty:hidden">
             {row.description}
           </div>

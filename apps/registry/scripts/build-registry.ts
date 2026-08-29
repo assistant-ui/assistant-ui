@@ -2,6 +2,7 @@ import { existsSync, promises as fs, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as ts from "typescript";
+import { parse } from "@vue/compiler-sfc";
 import {
   isDeclarationBlock,
   type CssDeclarationBlock,
@@ -938,22 +939,22 @@ function getScriptKind(filePath: string) {
   return ts.ScriptKind.Unknown;
 }
 
-function getVueScriptLanguage(attributes: string) {
-  const match = attributes.match(
-    /(?:^|\s)lang\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s>]+))/i,
-  );
-  return match?.[1] ?? match?.[2] ?? match?.[3];
-}
-
 function getScriptContents(file: RegistryOutputFile) {
   if (!file.path.endsWith(".vue")) return [{ content: file.content }];
 
-  return [
-    ...file.content.matchAll(/<script(\s[^>]*)?>([\s\S]*?)<\/script\b[^>]*>/gi),
-  ].map((match) => ({
-    content: match[2] ?? "",
-    lang: getVueScriptLanguage(match[1] ?? ""),
-  }));
+  const { descriptor, errors } = parse(file.content, { filename: file.path });
+  if (errors.length > 0) {
+    throw new Error(
+      `Failed to parse ${file.path}: ${errors.map((error) => error.message).join("; ")}`,
+    );
+  }
+
+  return [descriptor.script, descriptor.scriptSetup]
+    .filter((script) => script !== null)
+    .map((script) => ({
+      content: script.content,
+      lang: script.lang,
+    }));
 }
 
 function collectModuleSpecifiers(file: RegistryOutputFile) {
@@ -1427,6 +1428,7 @@ export async function buildRegistry(
 
   await fs.mkdir(REGISTRY_PATH, { recursive: true });
   await fs.mkdir(BASE_REGISTRY_PATH, { recursive: true });
+  await fs.rm(VUE_REGISTRY_PATH, { force: true, recursive: true });
   await fs.mkdir(VUE_REGISTRY_PATH, { recursive: true });
 
   for (const payload of payloads) {

@@ -53,7 +53,8 @@ export default async function DesignComponentPage({
   const section = getDesignSectionLabel(slug);
   const mdxComponents = getMDXComponents({});
   const links = page.data.links;
-  const toc = page.data.toc.filter((item) => item.depth <= 3);
+  const { body: MdxBody, toc: fullToc } = await page.data.load();
+  const toc = fullToc.filter((item) => item.depth <= 3);
 
   return (
     <PageFrame pad="sub">
@@ -117,7 +118,7 @@ export default async function DesignComponentPage({
           </header>
 
           <article data-page-content="" className="prose mt-12 max-w-none">
-            <page.data.body components={mdxComponents} />
+            <MdxBody components={mdxComponents} />
           </article>
         </div>
 

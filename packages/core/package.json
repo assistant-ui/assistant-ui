@@ -76,8 +76,7 @@
     "@assistant-ui/tap": "^0.9.0",
     "@types/react": "*",
     "react": "^18 || ^19",
-    "assistant-cloud": "^0.1.42",
-    "zustand": "^5.0.11"
+    "assistant-cloud": "^0.1.42"
   },
   "peerDependenciesMeta": {
     "@types/react": {
@@ -87,9 +86,6 @@
       "optional": true
     },
     "react": {
-      "optional": true
-    },
-    "zustand": {
       "optional": true
     }
   },
@@ -104,8 +100,7 @@
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "vitest": "^4.1.11",
-    "zustand": "^5.0.15"
+    "vitest": "^4.1.11"
   },
   "publishConfig": {
     "access": "public",

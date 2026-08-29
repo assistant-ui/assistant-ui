@@ -13,8 +13,11 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import Link from "next/link";
+import Image, { type StaticImageData } from "next/image";
 import { Tab, Tabs } from "@/components/pages/docs/fumadocs/tabs";
-import defaultComponents from "fumadocs-ui/mdx";
+import { Heading } from "@/components/pages/docs/fumadocs/heading";
+import { cn } from "@/lib/utils";
 import { InstallCommand } from "@/components/pages/docs/fumadocs/install/install-command";
 import { ParametersTable } from "@/components/pages/docs/parameters-table";
 import {
@@ -55,9 +58,58 @@ function Code({ children, ...props }: ComponentProps<"code">) {
   );
 }
 
+function MdxLink({ href = "#", ...props }: ComponentProps<typeof Link>) {
+  const url = typeof href === "string" ? href : "#";
+  const external = /^\w+:/.test(url) || url.startsWith("//");
+  if (external) {
+    return (
+      <a href={url} rel="noreferrer noopener" target="_blank" {...props} />
+    );
+  }
+  return <Link href={href} {...props} />;
+}
+
+function MdxImage({
+  src,
+  className,
+  alt = "",
+  ...props
+}: Omit<ComponentProps<typeof Image>, "src" | "alt"> & {
+  src?: string | StaticImageData;
+  alt?: string;
+}) {
+  if (src == null) return null;
+  if (typeof src === "object") {
+    return (
+      <Image
+        src={src}
+        alt={alt}
+        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 900px"
+        className={cn("rounded-lg", className)}
+        {...props}
+      />
+    );
+  }
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className={cn("rounded-lg", className)}
+      {...props}
+    />
+  );
+}
+
 export function getMDXComponents(components: MDXComponents): MDXComponents {
   return {
-    ...(defaultComponents as MDXComponents),
+    a: MdxLink,
+    img: MdxImage,
+    h1: (props: ComponentProps<"h1">) => <Heading as="h1" {...props} />,
+    h2: (props: ComponentProps<"h2">) => <Heading as="h2" {...props} />,
+    h3: (props: ComponentProps<"h3">) => <Heading as="h3" {...props} />,
+    h4: (props: ComponentProps<"h4">) => <Heading as="h4" {...props} />,
+    h5: (props: ComponentProps<"h5">) => <Heading as="h5" {...props} />,
+    h6: (props: ComponentProps<"h6">) => <Heading as="h6" {...props} />,
     pre: ({
       title,
       icon: _icon,

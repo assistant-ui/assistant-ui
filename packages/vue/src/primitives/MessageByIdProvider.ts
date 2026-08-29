@@ -4,6 +4,7 @@ import {
   h,
   onScopeDispose,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import {
   AuiConfig,
@@ -30,8 +31,8 @@ const hasMessage = (aui: AssistantClient, id: string) => {
 /**
  * Scopes the subtree to the thread message with `id`: descendants read the
  * message through `s.message` and its edit composer through `s.composer`.
- * Unlike {@link MessageByIndexProvider}, the scope follows the message's
- * identity rather than its slot, so it pairs with id-keyed iteration.
+ * The scope follows the message's identity rather than a positional slot, so
+ * it pairs with id-keyed iteration.
  */
 export const MessageByIdProvider = defineComponent({
   name: "MessageByIdProvider",
@@ -41,7 +42,7 @@ export const MessageByIdProvider = defineComponent({
       required: true,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const aui = useAui();
     let disposed = false;

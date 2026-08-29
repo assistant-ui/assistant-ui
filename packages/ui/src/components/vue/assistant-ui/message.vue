@@ -25,7 +25,7 @@ import {
   PencilIcon,
   RefreshCwIcon,
 } from "@lucide/vue";
-import MarkdownText from "@/components/assistant-ui/markdown-text.vue";
+import MarkdownText from "./markdown-text.vue";
 
 const role = useAuiState((s) => s.message.role);
 const pulsing = useAuiState(

@@ -28,6 +28,7 @@ import {
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
 import { getThreadMessageText } from "../../utils/text";
+import { shallowArrayEqual } from "../../runtime/utils/external-message-conversion";
 import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,
@@ -473,7 +474,13 @@ export class ExternalStoreThreadRuntimeCore
     if (optimisticId === null) this._optimistic = null;
     this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
-    this._messages = this.repository.getMessages();
+    const messagesSnapshot = this.repository.getMessages();
+    if (
+      !this._messages ||
+      !shallowArrayEqual(this._messages, messagesSnapshot)
+    ) {
+      this._messages = messagesSnapshot;
+    }
 
     if (repositoryChanged) {
       this._runTrackerUpdate(() => this._toolInvocations?.reset());

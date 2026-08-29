@@ -1,7 +1,5 @@
-import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import type * as PageTree from "fumadocs-core/page-tree";
 import type { ReactNode } from "react";
-import { sharedDocsOptions } from "@/lib/layout.shared";
 import { DocsHeader } from "@/components/pages/docs/layout/docs-header";
 import {
   DocsSidebarProvider,
@@ -47,16 +45,7 @@ export function DocsRootLayout({
                   showMobileSectionBreadcrumb ? tree : undefined
                 }
               />
-              <DocsContent>
-                <DocsLayout
-                  {...sharedDocsOptions}
-                  tree={tree}
-                  nav={{ enabled: false }}
-                  sidebar={{ enabled: false }}
-                >
-                  {children}
-                </DocsLayout>
-              </DocsContent>
+              <DocsContent>{children}</DocsContent>
               <DocsSidebar>
                 <SidebarContent tree={tree} platformAware={platformAware} />
               </DocsSidebar>

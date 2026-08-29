@@ -33,6 +33,16 @@ export const ExpressionSpecimen = () => (
   </div>
 );
 
+export const BareExpressionSpecimen = () => <div>bare expression</div>;
+
+export const EntitySpecimen = () => <div>bare&nbsp;entity; text</div>;
+
+export const JsxCommentSpecimen = () => <div>text; // note</div>;
+
+export const TrailingCommentSpecimen = () => <div>commented</div>; // note
+
+export const UnbalancedSpecimen = () => <div>close with }</div>;
+
 export function GuardSpecimen() {
   return <div>guard</div>;
 }
@@ -71,6 +81,42 @@ describe("extractFunctionCode", () => {
     expect(code).toContain("<span>expression</span>");
     expect(code.endsWith(");")).toBe(true);
     expect(code).not.toContain("GuardSpecimen");
+  });
+
+  it("extracts a const arrow with a bare expression body", () => {
+    const code = extractFunctionCode(source, "BareExpressionSpecimen");
+    expect(code).toBe(
+      "export const BareExpressionSpecimen = () => <div>bare expression</div>;",
+    );
+    expect(code).not.toContain("GuardSpecimen");
+  });
+
+  it("extracts a bare expression body past semicolons in its JSX text", () => {
+    const code = extractFunctionCode(source, "EntitySpecimen");
+    expect(code).toBe(
+      "export const EntitySpecimen = () => <div>bare&nbsp;entity; text</div>;",
+    );
+    expect(code).not.toContain("GuardSpecimen");
+  });
+
+  it("extracts past a comment marker inside JSX text", () => {
+    const code = extractFunctionCode(source, "JsxCommentSpecimen");
+    expect(code).toBe(
+      "export const JsxCommentSpecimen = () => <div>text; // note</div>;",
+    );
+    expect(code).not.toContain("GuardSpecimen");
+  });
+
+  it("reports a bare expression body trailed by a line comment", () => {
+    expect(extractFunctionCode(source, "TrailingCommentSpecimen")).toBe(
+      "// Could not parse function: TrailingCommentSpecimen",
+    );
+  });
+
+  it("reports a bare expression body whose delimiters lost sync", () => {
+    expect(extractFunctionCode(source, "UnbalancedSpecimen")).toBe(
+      "// Could not parse function: UnbalancedSpecimen",
+    );
   });
 
   it("reports an arrow whose parens cover only part of the body", () => {

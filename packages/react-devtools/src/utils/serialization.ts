@@ -2,6 +2,8 @@ import type { ModelContext } from "@assistant-ui/react";
 import type { SerializedModelContext } from "../types";
 import { normalizeToolList, type NormalizedTool } from "./toolNormalization";
 
+const UNSERIALIZABLE = "[Unserializable]";
+
 export const sanitizeForMessage = (
   value: unknown,
   seen = new WeakSet<object>(),
@@ -21,48 +23,59 @@ export const sanitizeForMessage = (
   if (typeof value === "function") {
     return "[Function]";
   }
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? String(value) : value.toISOString();
-  }
-  if (value instanceof Map) {
-    if (seen.has(value)) return "[Circular]";
-    seen.add(value);
-    const result: Record<string, unknown> = {};
-    for (const [key, entry] of value.entries()) {
-      result[String(key)] = sanitizeForMessage(entry, seen);
-    }
-    seen.delete(value);
-    return result;
-  }
-  if (value instanceof Set) {
-    if (seen.has(value)) return "[Circular]";
-    seen.add(value);
-    const result = Array.from(value).map((entry) =>
-      sanitizeForMessage(entry, seen),
-    );
-    seen.delete(value);
-    return result;
-  }
-  if (Array.isArray(value)) {
-    if (seen.has(value as unknown as object)) return "[Circular]";
-    seen.add(value as unknown as object);
-    const result = value
-      .map((entry) => sanitizeForMessage(entry, seen))
-      .filter((item) => item !== undefined);
-    seen.delete(value as unknown as object);
-    return result;
-  }
   if (typeof value === "object") {
-    if (seen.has(value as object)) return "[Circular]";
-    seen.add(value as object);
-    const result: Record<string, unknown> = {};
-    for (const [key, entry] of Object.entries(
-      value as Record<string, unknown>,
-    )) {
-      result[key] = sanitizeForMessage(entry, seen);
+    if (seen.has(value)) return "[Circular]";
+    seen.add(value);
+    try {
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime())
+          ? String(value)
+          : value.toISOString();
+      }
+      if (value instanceof Map) {
+        const result: Record<string, unknown> = {};
+        for (const [key, entry] of value.entries()) {
+          result[String(key)] = sanitizeForMessage(entry, seen);
+        }
+        return result;
+      }
+      if (value instanceof Set) {
+        return Array.from(value).map((entry) =>
+          sanitizeForMessage(entry, seen),
+        );
+      }
+      if (Array.isArray(value)) {
+        const result: unknown[] = [];
+        const length = value.length;
+        for (let index = 0; index < length; index++) {
+          try {
+            if (!(index in value)) continue;
+            const item = sanitizeForMessage(value[index], seen);
+            if (item !== undefined) result.push(item);
+          } catch {
+            result.push(UNSERIALIZABLE);
+          }
+        }
+        return result;
+      }
+
+      const result: Record<string, unknown> = {};
+      for (const key of Object.keys(value)) {
+        try {
+          result[key] = sanitizeForMessage(
+            (value as Record<string, unknown>)[key],
+            seen,
+          );
+        } catch {
+          result[key] = UNSERIALIZABLE;
+        }
+      }
+      return result;
+    } catch {
+      return UNSERIALIZABLE;
+    } finally {
+      seen.delete(value);
     }
-    seen.delete(value as object);
-    return result;
   }
   return value;
 };

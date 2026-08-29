@@ -350,7 +350,7 @@ export async function getLLMText(
   page: LLMPage,
   ctx: LLMRenderContext = DEFAULT_LLM_CONTEXT,
 ) {
-  const Body = page.data.body;
+  const { body: Body } = await page.data.load();
 
   // TODO: Platform-scoped MDX currently renders with the server default
   // platform ("react"). If llms output should include React Native or Ink

@@ -1,0 +1,64 @@
+---
+title: Server rendering
+description: Keep Vue assistant state in a client-only Nuxt component and stream from Nitro.
+---
+
+Place the `AuiProvider` and its runtime in a `.client.vue` component. This is required even when the surrounding Nuxt page is server-rendered.
+
+An assistant runtime owns a client tree and reactive scopes. If it renders on the server, each request creates a client tree that Vue SSR never disposes. That leaks one assistant tree per request. The `.client.vue` boundary prevents the provider, its runtime, and its scopes from being created during server rendering.
+
+```vue title="app/components/Assistant.client.vue"
+<script setup lang="ts">
+import { AuiConfig, AuiProvider } from "@assistant-ui/vue";
+import { AISDKChat } from "@assistant-ui/ai-sdk";
+import Thread from "~/components/assistant-ui/thread.vue";
+
+const config = AuiConfig({
+  threads: AISDKChat(),
+});
+</script>
+
+<template>
+  <AuiProvider :config="config">
+    <Thread class="h-dvh" />
+  </AuiProvider>
+</template>
+```
+
+## What belongs on the server
+
+Keep provider credentials, `streamText`, and the streaming response in a Nitro route. Nitro runs `server/api/chat.post.ts` on the server, while the browser receives only the UI message stream.
+
+```ts title="server/api/chat.post.ts"
+import { openai } from "@ai-sdk/openai";
+import { convertToModelMessages, streamText, type UIMessage } from "ai";
+
+export default defineEventHandler(async (event) => {
+  const { messages, system } = await readBody<{
+    messages: UIMessage[];
+    system?: string;
+  }>(event);
+
+  const result = streamText({
+    model: openai("gpt-5.6-luna"),
+    messages: await convertToModelMessages(messages),
+    system,
+  });
+
+  return result.toUIMessageStreamResponse();
+});
+```
+
+## Nuxt wiring
+
+Server-rendered pages can include the client component normally. Nuxt resolves the `.client.vue` suffix and mounts it after hydration.
+
+```vue title="app/pages/index.vue"
+<template>
+  <main>
+    <Assistant />
+  </main>
+</template>
+```
+
+Keep only page data and ordinary server-renderable UI outside the boundary. Do not create `AuiConfig`, `AISDKChat`, `AISDKThreads`, or an `AuiProvider` in `app.vue`, a page setup block that runs during SSR, or a Nitro route.

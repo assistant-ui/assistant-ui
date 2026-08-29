@@ -55,6 +55,7 @@ export default async function ExamplePage(props: {
 
   const demo = getDemo(EXAMPLE_TO_DEMO_SLUG[slug] ?? slug);
   const neighbors = getExampleNeighbors(slug);
+  const { body: MdxBody } = await page.data.load();
   const mdxComponents = getMDXComponents({});
   const preview = hasExamplePreview(slug);
 
@@ -131,7 +132,7 @@ export default async function ExamplePage(props: {
         data-page-content=""
         className="prose prose-blog mt-16 max-w-none"
       >
-        <page.data.body components={mdxComponents} />
+        <MdxBody components={mdxComponents} />
       </article>
 
       {neighbors.previous || neighbors.next ? (

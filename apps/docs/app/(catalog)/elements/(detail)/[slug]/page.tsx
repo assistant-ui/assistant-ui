@@ -116,9 +116,10 @@ export default async function ElementPage({
     : null;
 
   const mdxPage = elementsDocs.getPage([slug]);
-  const MdxBody = mdxPage?.data.body;
+  const mdxData = mdxPage ? await mdxPage.data.load() : undefined;
+  const MdxBody = mdxData?.body;
   const mdxHasApi = Boolean(
-    mdxPage?.data.toc?.some(
+    mdxData?.toc.some(
       (item) =>
         /^#(api-reference|props)$/.test(String(item.url)) ||
         /api reference|^props$/i.test(tocTitle(item.title)),
@@ -137,7 +138,7 @@ export default async function ElementPage({
 
   const toc: { title: string; url: string }[] = [
     { title: "Installation", url: "#installation" },
-    ...(mdxPage?.data.toc ?? [])
+    ...(mdxData?.toc ?? [])
       .filter((item) => item.depth <= 2)
       .map((item) => ({ title: tocTitle(item.title), url: item.url })),
     ...(generativeEntry

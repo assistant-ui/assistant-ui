@@ -288,7 +288,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { shallowEqual, useAssistantClientDestroySignal, useShallowStable };
+  export { shallowEqual, useAssistantClientDestroySignal, useShallowSelector, useShallowStable };
 }
 
 declare const isUserScrollUp: (previous: {
@@ -296,7 +296,7 @@ declare const isUserScrollUp: (previous: {
   scrollHeight: number;
 }, current: ViewportMetrics) => boolean;
 
-declare const isViewportAtBottom: (metrics: ViewportMetrics) => boolean;
+declare const isViewportAtBottom: (metrics: ViewportMetrics, contentInset?: number) => boolean;
 
 declare const normalizeEventSelector: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>) => {
   scope: AssistantEventScope<TEvent>;
@@ -376,8 +376,10 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
 
 declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Input) => ScopedAuiClient;
 
+declare const useShallowSelector: <TState, TResult extends object>(select: (state: TState) => TResult) => ((state: TState) => TResult);
+
 declare const useShallowStable: <T extends object>(value: T) => T;
 
-declare const viewportOverflows: (metrics: ViewportMetrics) => boolean;
+declare const viewportOverflows: (metrics: ViewportMetrics, contentInset?: number) => boolean;
 
 export { entry_client_exports as entry_client, entry_internal_exports as entry_internal, entry_root_exports as entry_root };
