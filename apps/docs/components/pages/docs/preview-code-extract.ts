@@ -1,9 +1,51 @@
-type StringState = { inString: boolean; stringChar: string };
+type JsxMode = "jsx-tag" | "jsx-text";
+type ScanMode = "js" | JsxMode;
 
-function updateStringState(
-  state: StringState,
+type ScanState = {
+  inString: boolean;
+  stringChar: string;
+  mode: ScanMode;
+  jsxContexts: { elementDepth: number }[];
+  jsxTagClosing: boolean;
+  jsxTagSelfClosing: boolean;
+  jsxExpressions: { depth: number; returnMode: JsxMode }[];
+};
+
+function createScanState(): ScanState {
+  return {
+    inString: false,
+    stringChar: "",
+    mode: "js",
+    jsxContexts: [],
+    jsxTagClosing: false,
+    jsxTagSelfClosing: false,
+    jsxExpressions: [],
+  };
+}
+
+function isQuote(char: string): boolean {
+  return char === '"' || char === "'" || char === "`";
+}
+
+function startsJsxTag(nextChar: string, afterNextChar: string): boolean {
+  return (
+    /^[A-Za-z]$/.test(nextChar) ||
+    nextChar === ">" ||
+    (nextChar === "/" &&
+      (afterNextChar === ">" || /^[A-Za-z]$/.test(afterNextChar)))
+  );
+}
+
+function canStartJsx(prevChar: string): boolean {
+  return prevChar === "" || /[\s([{:;,=!?&|>]/.test(prevChar);
+}
+
+function updateScanState(
+  state: ScanState,
   char: string,
   prevChar: string,
+  nextChar: string,
+  afterNextChar: string,
 ): boolean {
   if (state.inString) {
     if (char === state.stringChar && prevChar !== "\\") {
@@ -11,22 +53,95 @@ function updateStringState(
     }
     return true;
   }
-  if (char === '"' || char === "'" || char === "`") {
+
+  if (state.mode === "jsx-text" && isQuote(char)) return true;
+
+  if (isQuote(char)) {
     state.inString = true;
     state.stringChar = char;
     return true;
+  }
+
+  if (state.mode === "jsx-tag") {
+    if (char === "{") {
+      state.jsxExpressions.push({ depth: 1, returnMode: "jsx-tag" });
+      state.mode = "js";
+      return false;
+    }
+    if (char === "/" && nextChar === ">") {
+      state.jsxTagSelfClosing = true;
+    }
+    if (char === ">") {
+      const context = state.jsxContexts[state.jsxContexts.length - 1]!;
+      if (state.jsxTagClosing) {
+        context.elementDepth--;
+      } else if (!state.jsxTagSelfClosing) {
+        context.elementDepth++;
+      }
+      state.jsxTagClosing = false;
+      state.jsxTagSelfClosing = false;
+      if (context.elementDepth === 0) {
+        state.jsxContexts.pop();
+        state.mode = "js";
+      } else {
+        state.mode = "jsx-text";
+      }
+      return false;
+    }
+    return false;
+  }
+
+  if (state.mode === "jsx-text") {
+    if (char === "{") {
+      state.jsxExpressions.push({ depth: 1, returnMode: "jsx-text" });
+      state.mode = "js";
+      return false;
+    }
+    if (char === "<" && startsJsxTag(nextChar, afterNextChar)) {
+      state.mode = "jsx-tag";
+      state.jsxTagClosing = nextChar === "/";
+      return false;
+    }
+    return false;
+  }
+
+  const expression = state.jsxExpressions[state.jsxExpressions.length - 1];
+  if (expression) {
+    if (char === "{") expression.depth++;
+    if (char === "}") {
+      expression.depth--;
+      if (expression.depth === 0) {
+        state.jsxExpressions.pop();
+        state.mode = expression.returnMode;
+      }
+      return false;
+    }
+  }
+
+  if (
+    char === "<" &&
+    canStartJsx(prevChar) &&
+    startsJsxTag(nextChar, afterNextChar)
+  ) {
+    state.jsxContexts.push({ elementDepth: 0 });
+    state.mode = "jsx-tag";
+    state.jsxTagClosing = nextChar === "/";
   }
   return false;
 }
 
 function findMatchingParen(source: string, startIndex: number): number {
-  const state: StringState = { inString: false, stringChar: "" };
+  const state = createScanState();
   let parenCount = 0;
 
   for (let i = startIndex; i < source.length; i++) {
     const char = source[i]!;
     const prevChar = source[i - 1] ?? "";
-    if (updateStringState(state, char, prevChar)) continue;
+    const nextChar = source[i + 1] ?? "";
+    const afterNextChar = source[i + 2] ?? "";
+    if (updateScanState(state, char, prevChar, nextChar, afterNextChar)) {
+      continue;
+    }
 
     if (char === "(") parenCount++;
     if (char === ")") {
@@ -43,7 +158,7 @@ function findMatchingParen(source: string, startIndex: number): number {
 // A semicolon in JSX text, from an HTML entity or ordinary prose, sits at zero
 // nesting too, so the statement boundary is the one that also ends its line.
 function findStatementEnd(source: string, startIndex: number): number {
-  const state: StringState = { inString: false, stringChar: "" };
+  const state = createScanState();
   let parenCount = 0;
   let braceCount = 0;
   let bracketCount = 0;
@@ -51,7 +166,11 @@ function findStatementEnd(source: string, startIndex: number): number {
   for (let i = startIndex; i < source.length; i++) {
     const char = source[i]!;
     const prevChar = source[i - 1] ?? "";
-    if (updateStringState(state, char, prevChar)) continue;
+    const nextChar = source[i + 1] ?? "";
+    const afterNextChar = source[i + 2] ?? "";
+    if (updateScanState(state, char, prevChar, nextChar, afterNextChar)) {
+      continue;
+    }
 
     if (char === "(") parenCount++;
     if (char === ")") parenCount--;
@@ -86,14 +205,18 @@ function endsLine(source: string, index: number): boolean {
 }
 
 function findMatchingBrace(source: string, startIndex: number): number {
-  const state: StringState = { inString: false, stringChar: "" };
+  const state = createScanState();
   let braceCount = 0;
   let foundFirstBrace = false;
 
   for (let i = startIndex; i < source.length; i++) {
     const char = source[i]!;
     const prevChar = source[i - 1] ?? "";
-    if (updateStringState(state, char, prevChar)) continue;
+    const nextChar = source[i + 1] ?? "";
+    const afterNextChar = source[i + 2] ?? "";
+    if (updateScanState(state, char, prevChar, nextChar, afterNextChar)) {
+      continue;
+    }
 
     if (char === "{") {
       braceCount++;

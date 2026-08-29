@@ -35,6 +35,22 @@ export const ExpressionSpecimen = () => (
 
 export const BareExpressionSpecimen = () => <div>bare expression</div>;
 
+export function ApostrophePlainSpecimen() {
+  return <p>it's fine</p>;
+}
+
+export const ApostropheWrappedSpecimen = () => (
+  <p>it's fine</p>
+);
+
+export const ApostropheBareSpecimen = () => <p>it's fine</p>;
+
+export const QuotedSpecimen = () => <p title="it's fine">{"it's still a string"}</p>;
+
+export const NestedApostropheSpecimen = () => (
+  <p>{show && <span>it's "fine" and \`works\`</span>}</p>
+);
+
 export const EntitySpecimen = () => <div>bare&nbsp;entity; text</div>;
 
 export const JsxCommentSpecimen = () => <div>text; // note</div>;
@@ -89,6 +105,36 @@ describe("extractFunctionCode", () => {
       "export const BareExpressionSpecimen = () => <div>bare expression</div>;",
     );
     expect(code).not.toContain("GuardSpecimen");
+  });
+
+  it("extracts JSX text apostrophes from a plain function", () => {
+    expect(extractFunctionCode(source, "ApostrophePlainSpecimen")).toBe(
+      "export function ApostrophePlainSpecimen() {\n  return <p>it's fine</p>;\n}",
+    );
+  });
+
+  it("extracts JSX text apostrophes from a parenthesized arrow", () => {
+    expect(extractFunctionCode(source, "ApostropheWrappedSpecimen")).toBe(
+      "export const ApostropheWrappedSpecimen = () => (\n  <p>it's fine</p>\n);",
+    );
+  });
+
+  it("extracts JSX text apostrophes from a bare arrow", () => {
+    expect(extractFunctionCode(source, "ApostropheBareSpecimen")).toBe(
+      "export const ApostropheBareSpecimen = () => <p>it's fine</p>;",
+    );
+  });
+
+  it("keeps apostrophes inside JSX strings tracked as string delimiters", () => {
+    expect(extractFunctionCode(source, "QuotedSpecimen")).toBe(
+      'export const QuotedSpecimen = () => <p title="it\'s fine">{"it\'s still a string"}</p>;',
+    );
+  });
+
+  it("ignores quote delimiters in nested JSX text", () => {
+    expect(extractFunctionCode(source, "NestedApostropheSpecimen")).toBe(
+      'export const NestedApostropheSpecimen = () => (\n  <p>{show && <span>it\'s "fine" and `works`</span>}</p>\n);',
+    );
   });
 
   it("extracts a bare expression body past semicolons in its JSX text", () => {
