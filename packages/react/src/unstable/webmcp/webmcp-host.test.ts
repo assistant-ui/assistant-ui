@@ -36,11 +36,19 @@ describe("getDefaultWebMcpHost", () => {
     expect(() => host.registerTool(descriptor)()).not.toThrow();
   });
 
-  it("reports unavailable when the platform property has no registerTool", () => {
-    install({} as Partial<WebMcpModelContext>);
-    const host = getDefaultWebMcpHost();
-    expect(host.available).toBe(false);
-    expect(() => host.registerTool(descriptor)()).not.toThrow();
+  it("reports unavailable and warns when the platform property has no registerTool", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    try {
+      install({} as Partial<WebMcpModelContext>);
+      const host = getDefaultWebMcpHost();
+      expect(host.available).toBe(false);
+      expect(() => host.registerTool(descriptor)()).not.toThrow();
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("no callable registerTool"),
+      );
+    } finally {
+      warn.mockRestore();
+    }
   });
 
   it("falls back to navigator.modelContext, preferring document when both exist", () => {

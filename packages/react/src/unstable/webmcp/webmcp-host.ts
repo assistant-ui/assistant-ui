@@ -38,11 +38,18 @@ type ModelContextHost = { modelContext?: WebMcpModelContext } | undefined;
 const isThenable = (value: unknown): value is Promise<unknown> =>
   typeof (value as { then?: unknown } | null | undefined)?.then === "function";
 
+// The explainer puts modelContext on document; navigator is tolerated for
+// older drafts and extensions that still inject it there.
 const resolveModelContext = (): WebMcpModelContext | undefined => {
   const context =
     (globalThis.document as ModelContextHost)?.modelContext ??
     (globalThis.navigator as ModelContextHost)?.modelContext;
-  return typeof context?.registerTool === "function" ? context : undefined;
+  if (!context) return undefined;
+  if (typeof context.registerTool === "function") return context;
+  console.warn(
+    "[assistant-ui] Ignoring a modelContext with no callable registerTool; WebMCP reports unsupported.",
+  );
+  return undefined;
 };
 
 // Shared by every handle over one host, so a registration disposed by one
