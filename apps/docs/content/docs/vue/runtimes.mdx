@@ -51,6 +51,8 @@ For an in-memory list, assistant-ui retains each chat and its history across swi
 
 Use `RuntimeAdapter` and `ExternalStoreRuntimeCore` when another client store owns messages, streaming status, or thread state. The Vue echo example follows this shape: create an external-store adapter, update it whenever the store changes, then expose its runtime through `AuiConfig`.
 
+The constructors come from `@assistant-ui/core/internal`, the advanced entry for building custom runtimes; it can evolve faster than the public entries, so pin your versions when depending on it.
+
 ```ts title="app/runtime/echo.ts"
 import type { AppendMessage, ExternalStoreAdapter } from "@assistant-ui/core";
 import {

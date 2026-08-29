@@ -16,6 +16,12 @@ Install the Vue binding, the AI SDK runtime, and an AI SDK provider:
 pnpm add @assistant-ui/vue @assistant-ui/ai-sdk ai @ai-sdk/openai
 ```
 
+If you run `nuxi typecheck`, also add `@types/react` as a dev dependency: a type-only react reference rides through the core runtime types.
+
+```bash
+pnpm add -D @types/react
+```
+
 Add your provider key to `.env`:
 
 ```sh title=".env"
