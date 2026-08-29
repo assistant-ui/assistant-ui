@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { resource, withKey } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import { useClientLookup } from "@assistant-ui/store/client";
+import { shallowEqual } from "@assistant-ui/store/internal";
 import type { SuggestionsState } from "../scopes/suggestions";
 import type { SuggestionState } from "../scopes/suggestion";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
@@ -9,9 +10,6 @@ import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-c
 export type SuggestionConfig =
   | string
   | { title: string; label: string; prompt: string };
-
-const isSameSuggestion = (a: SuggestionState, b: SuggestionState) =>
-  a.title === b.title && a.label === b.label && a.prompt === b.prompt;
 
 const useStableSuggestionsState = (
   next: SuggestionsState,
@@ -21,8 +19,7 @@ const useStableSuggestionsState = (
 
   const suggestions = next.suggestions.map((suggestion, index) => {
     const previousSuggestion = previous?.suggestions[index];
-    return previousSuggestion &&
-      isSameSuggestion(previousSuggestion, suggestion)
+    return previousSuggestion && shallowEqual(previousSuggestion, suggestion)
       ? previousSuggestion
       : suggestion;
   });

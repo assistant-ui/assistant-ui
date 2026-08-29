@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-const shallowEqual = (a: object, b: object): boolean => {
+export const shallowEqual = (a: object, b: object): boolean => {
   if (Array.isArray(a) !== Array.isArray(b)) return false;
   if (Array.isArray(a) && Array.isArray(b)) {
     return (
