@@ -315,6 +315,7 @@ describe("toGenericMessages", () => {
           content: [
             { type: "text", text: "Valid" },
             { type: "image" }, // missing image property
+            { type: "file", data: null } as never,
             { type: "unknown" },
           ],
         },
