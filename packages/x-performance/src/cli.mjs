@@ -15,12 +15,7 @@ import { fileURLToPath } from "node:url";
 const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const perfDir = join(pkgRoot, ".perf");
 
-const REF_PACKAGES = ["tap", "core", "assistant-stream"];
-const REF_PACKAGE_NAMES = {
-  tap: "@assistant-ui/tap",
-  core: "@assistant-ui/core",
-  "assistant-stream": "assistant-stream",
-};
+import { REF_PACKAGE_DIRS } from "./ref-packages.mjs";
 
 const git = (args, cwd = pkgRoot) => {
   try {
@@ -181,7 +176,9 @@ const ensureRefWorktree = (ref) => {
       stdio: "inherit",
       env: { ...process.env, CI: "true" },
     });
-    const filters = REF_PACKAGES.map((p) => `--filter=${REF_PACKAGE_NAMES[p]}`);
+    const filters = Object.keys(REF_PACKAGE_DIRS).map(
+      (name) => `--filter=${name}`,
+    );
     execFileSync(PNPM, ["turbo", "run", "build", ...filters], {
       cwd: wt,
       stdio: "inherit",

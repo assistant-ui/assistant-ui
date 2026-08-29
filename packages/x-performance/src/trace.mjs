@@ -80,13 +80,18 @@ class Cdp {
   }
 }
 
-const withTimeout = (promise, ms, what) =>
-  Promise.race([
+const withTimeout = (promise, ms, what) => {
+  let timer;
+  return Promise.race([
     promise,
-    new Promise((_, reject) =>
-      setTimeout(() => reject(new Error(`timed out waiting for ${what}`)), ms),
-    ),
-  ]);
+    new Promise((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`timed out waiting for ${what}`)),
+        ms,
+      );
+    }),
+  ]).finally(() => clearTimeout(timer));
+};
 
 const connect = (url) =>
   withTimeout(
@@ -102,6 +107,7 @@ const connect = (url) =>
 export const captureTrace = async (target, seconds, settleMs = 1500) => {
   const chrome = findChrome();
   const profile = mkdtempSync(join(tmpdir(), "aui-perf-chrome-"));
+  let cdp;
   const proc = spawn(
     chrome,
     [
@@ -125,7 +131,7 @@ export const captureTrace = async (target, seconds, settleMs = 1500) => {
     const version = await fetch(`http://127.0.0.1:${port}/json/version`).then(
       (r) => r.json(),
     );
-    const cdp = new Cdp(await connect(version.webSocketDebuggerUrl));
+    cdp = new Cdp(await connect(version.webSocketDebuggerUrl));
 
     const url = /^https?:/.test(target) ? target : pathToFileURL(target).href;
     const { targetId } = await cdp.send("Target.createTarget", { url });
@@ -157,6 +163,7 @@ export const captureTrace = async (target, seconds, settleMs = 1500) => {
     await withTimeout(complete, 30_000, "trace collection");
     return chunks;
   } finally {
+    cdp?.ws.close();
     proc.kill();
     await sleep(200);
     rmSync(profile, { recursive: true, force: true });

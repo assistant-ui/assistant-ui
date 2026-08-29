@@ -1,11 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-export const REF_PACKAGE_DIRS = {
-  "@assistant-ui/tap": "packages/tap",
-  "@assistant-ui/core": "packages/core",
-  "assistant-stream": "packages/assistant-stream",
-};
+import { REF_PACKAGE_DIRS } from "./ref-packages.mjs";
 
 type ExportsValue = string | { [condition: string]: ExportsValue } | undefined;
 
