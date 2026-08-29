@@ -37,6 +37,10 @@ export const BareExpressionSpecimen = () => <div>bare expression</div>;
 
 export const EntitySpecimen = () => <div>bare&nbsp;entity; text</div>;
 
+export const CommentSpecimen = () => <div>commented</div>; // trailing note
+
+export const UnbalancedSpecimen = () => <div>close with }</div>;
+
 export function GuardSpecimen() {
   return <div>guard</div>;
 }
@@ -91,6 +95,20 @@ describe("extractFunctionCode", () => {
       "export const EntitySpecimen = () => <div>bare&nbsp;entity; text</div>;",
     );
     expect(code).not.toContain("GuardSpecimen");
+  });
+
+  it("stops a bare expression body before a trailing line comment", () => {
+    const code = extractFunctionCode(source, "CommentSpecimen");
+    expect(code).toBe(
+      "export const CommentSpecimen = () => <div>commented</div>;",
+    );
+    expect(code).not.toContain("GuardSpecimen");
+  });
+
+  it("reports a bare expression body whose delimiters lost sync", () => {
+    expect(extractFunctionCode(source, "UnbalancedSpecimen")).toBe(
+      "// Could not parse function: UnbalancedSpecimen",
+    );
   });
 
   it("reports an arrow whose parens cover only part of the body", () => {

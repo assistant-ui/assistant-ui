@@ -72,6 +72,10 @@ function findStatementEnd(source: string, startIndex: number): number {
     if (char === "[") bracketCount++;
     if (char === "]") bracketCount--;
 
+    // A negative depth means the scan lost sync with the source; running on
+    // would absorb the next declaration.
+    if (parenCount < 0 || braceCount < 0 || bracketCount < 0) return -1;
+
     if (
       char === ";" &&
       parenCount === 0 &&
