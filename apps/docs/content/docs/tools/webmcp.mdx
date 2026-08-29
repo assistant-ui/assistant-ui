@@ -61,7 +61,7 @@ A tool the browser agent can call is a tool *anyone* driving that browser can ca
 The provider owns its registrations:
 
 - A tool that leaves the model context is unregistered.
-- Changing a tool's `description` or `parameters` re-registers it under the new signature; changing only its `execute` implementation does not — the live registration calls through to the latest version.
+- Changing a tool's `description`, or replacing the tool object with a different `parameters` schema, re-registers it under the new signature; changing only its `execute` implementation does not, because the live registration calls through to the latest version. A provider that keeps one tool object and edits the schema inside it is not observed: detecting that means reading `parameters` on every sync, which costs a schema conversion for every tool on every model-context change.
 - Unmounting unregisters everything.
 - A registration the host rejects is dropped with a `console.warn`, and its name is left alone — the provider never unregisters a tool it does not own. That name is then not retried while the tool stays in the model context, so a permanent collision warns once rather than on every sync. The trade-off is that a *transient* collision is not retried either: if the page later frees the name, the provider does not notice. Removing the tool from the model context and adding it back retries it, as does remounting.
 
