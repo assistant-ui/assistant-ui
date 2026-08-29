@@ -28,8 +28,9 @@ if ! (cd examples/with-expo && npx expo install --fix); then
   node -e '
     const fs = require("node:fs");
     const [backupPath, manifestPath, projectDir] = process.argv.slice(1);
-    // `expo install --fix` resolves its expectations from the SDK matrix, so read
-    // that rather than hardcoding a list that drifts as the SDK adds packages.
+    // The SDK native-module matrix, read rather than hardcoded so the set tracks
+    // the SDK. `expo install --fix` also merges relatedPackages from the versions
+    // endpoint, which needs the network, so those entries are left to taze.
     let owned;
     try {
       const matrix = require.resolve("expo/bundledNativeModules.json", { paths: [projectDir] });
