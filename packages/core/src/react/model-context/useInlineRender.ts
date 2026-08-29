@@ -1,4 +1,10 @@
-import { type FC, useCallback, useEffect, useState } from "react";
+import {
+  createElement,
+  type FC,
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 import type { ToolCallMessagePartProps } from "../types/MessagePartComponentTypes";
 import { WritableSubscribable } from "../../subscribable/subscribable";
 import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
@@ -19,10 +25,8 @@ export const useInlineRender = <TArgs, TResult>(
 
   return useCallback(
     function ToolUI(args) {
-      // Invoked as a plain function so its hooks belong to this component,
-      // which keeps its identity while `toolUI` changes underneath.
       const currentToolUI = useSubscribable(toolUIStore);
-      return currentToolUI(args);
+      return createElement(currentToolUI, args);
     },
     [toolUIStore],
   );
