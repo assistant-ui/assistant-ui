@@ -277,12 +277,13 @@ describe("resolveProject error handling", () => {
 });
 
 describe("PROJECT_METADATA", () => {
-  it("contains all 7 templates", () => {
+  it("contains all 8 templates", () => {
     const templates = PROJECT_METADATA.filter((m) => m.category === "template");
-    expect(templates).toHaveLength(7);
+    expect(templates).toHaveLength(8);
     expect(templates.map((t) => t.name)).toEqual([
       "default",
       "minimal",
+      "nuxt",
       "cloud",
       "cloud-clerk",
       "langchain",
@@ -291,11 +292,11 @@ describe("PROJECT_METADATA", () => {
     ]);
   });
 
-  it("only the minimal template ships local components", () => {
+  it("only minimal and Nuxt templates ship local components", () => {
     const templates = PROJECT_METADATA.filter((m) => m.category === "template");
     expect(
       templates.filter((t) => t.hasLocalComponents).map((t) => t.name),
-    ).toEqual(["minimal"]);
+    ).toEqual(["minimal", "nuxt"]);
   });
 
   it("examples have correct hasLocalComponents values", () => {
