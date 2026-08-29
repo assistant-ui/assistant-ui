@@ -1,6 +1,35 @@
+import type {
+  ReadableSpan,
+  SpanProcessor,
+} from "@opentelemetry/sdk-trace-base";
 import { BatchSpanProcessor } from "@opentelemetry/sdk-trace-base";
 import { PostHogTraceExporter } from "@posthog/ai/otel";
 import { OTLPHttpProtoTraceExporter, registerOTel } from "@vercel/otel";
+
+// Mirrors the prefixes PostHogTraceExporter filters on, so both legs carry the
+// same spans. Without it Axiom would also receive every request and fetch span
+// that "auto" produces for ordinary site traffic, which it bills by volume.
+const AI_SPAN_PREFIXES = ["gen_ai.", "llm.", "ai.", "traceloop."];
+
+function isAiSpan(span: ReadableSpan) {
+  return (
+    AI_SPAN_PREFIXES.some((prefix) => span.name.startsWith(prefix)) ||
+    Object.keys(span.attributes).some((key) =>
+      AI_SPAN_PREFIXES.some((prefix) => key.startsWith(prefix)),
+    )
+  );
+}
+
+function aiOnly(inner: SpanProcessor): SpanProcessor {
+  return {
+    onStart: (span, context) => inner.onStart(span, context),
+    onEnd: (span) => {
+      if (isAiSpan(span)) inner.onEnd(span);
+    },
+    forceFlush: () => inner.forceFlush(),
+    shutdown: () => inner.shutdown(),
+  };
+}
 
 // PostHog's OTLP ingestion drops span attributes it does not recognise, which
 // costs the per-application and per-user dimensions on the AI SDK v7 path
@@ -11,14 +40,16 @@ function axiomProcessor() {
   const dataset = process.env.AXIOM_DATASET;
   if (!token || !dataset) return null;
 
-  return new BatchSpanProcessor(
-    new OTLPHttpProtoTraceExporter({
-      url: "https://api.axiom.co/v1/traces",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "X-Axiom-Dataset": dataset,
-      },
-    }),
+  return aiOnly(
+    new BatchSpanProcessor(
+      new OTLPHttpProtoTraceExporter({
+        url: "https://api.axiom.co/v1/traces",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "X-Axiom-Dataset": dataset,
+        },
+      }),
+    ),
   );
 }
 
