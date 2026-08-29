@@ -147,7 +147,10 @@ describe("toGenericMessages", () => {
       ]);
     });
 
-    it("falls back when a file MIME type is empty", () => {
+    it.each([
+      { label: "empty", mimeType: "" },
+      { label: "missing", mimeType: undefined },
+    ])("falls back when a file MIME type is $label", ({ mimeType }) => {
       const result = toGenericMessages([
         {
           role: "user",
@@ -155,7 +158,7 @@ describe("toGenericMessages", () => {
             {
               type: "file",
               data: "https://cdn.example.com/untyped-file",
-              mimeType: "",
+              ...(mimeType !== undefined && { mimeType }),
               filename: "untyped-file",
             },
           ],
@@ -194,6 +197,29 @@ describe("toGenericMessages", () => {
               type: "file",
               data: new URL(data),
               mediaType: "text/plain",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("does not infer a MIME type from a malformed data URL", () => {
+      const data = "data:text/plain";
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "file", data, mimeType: "" }],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL(data),
+              mediaType: "application/octet-stream",
             },
           ],
         },
@@ -289,7 +315,6 @@ describe("toGenericMessages", () => {
           content: [
             { type: "text", text: "Valid" },
             { type: "image" }, // missing image property
-            { type: "file", data: "some-data" }, // missing mimeType
             { type: "unknown" },
           ],
         },

@@ -107,7 +107,7 @@ const IMAGE_MEDIA_TYPES: Record<string, string> = {
 };
 
 function getDataUrlMediaType(value: string): string | undefined {
-  return value.match(/^data:([^;,]+)/i)?.[1]?.toLowerCase();
+  return value.match(/^data:([^;,]+)(?:[;,])/i)?.[1]?.toLowerCase();
 }
 
 function inferImageMediaType(url: string): string {
@@ -223,16 +223,12 @@ function convertUserMessage(
         mediaType: inferImageMediaType(part.image),
         ...(part.filename && { filename: part.filename }),
       });
-    } else if (
-      part.type === "file" &&
-      typeof part.data === "string" &&
-      typeof part.mimeType === "string"
-    ) {
+    } else if (part.type === "file" && typeof part.data === "string") {
       content.push({
         type: "file",
         data: toUrlOrString(part.data),
         mediaType:
-          part.mimeType ||
+          (typeof part.mimeType === "string" && part.mimeType) ||
           getDataUrlMediaType(part.data) ||
           "application/octet-stream",
         ...(part.filename && { filename: part.filename }),
