@@ -1,15 +1,6 @@
-import {
-  type FC,
-  type PropsWithChildren,
-  useCallback,
-  useMemo,
-  useRef,
-} from "react";
+import { useCallback, useMemo, useRef } from "react";
 import type { RemoteThreadListAdapter } from "../../../runtimes/remote-thread-list/types";
-import {
-  RuntimeAdapterProvider,
-  type RuntimeAdapters,
-} from "../RuntimeAdapterProvider";
+import type { RuntimeAdapters } from "../RuntimeAdapterProvider";
 import {
   autoCloud,
   createCloudThreadListAdapter,
@@ -39,24 +30,11 @@ export const useCloudThreadListAdapter = (
     return baseRef.current.unstable_useAdapters!() as RuntimeAdapters;
   }, []);
 
-  const unstable_Provider = useCallback<FC<PropsWithChildren>>(
-    function Provider({ children }) {
-      const adapters = unstable_useAdapters();
-      return (
-        <RuntimeAdapterProvider adapters={adapters}>
-          {children}
-        </RuntimeAdapterProvider>
-      );
-    },
-    [unstable_useAdapters],
-  );
-
   return useMemo<RemoteThreadListAdapter>(() => {
     if (base.unstable_useAdapters === undefined) return base;
     return {
       ...base,
-      unstable_Provider,
       unstable_useAdapters,
     };
-  }, [base, unstable_Provider, unstable_useAdapters]);
+  }, [base, unstable_useAdapters]);
 };
