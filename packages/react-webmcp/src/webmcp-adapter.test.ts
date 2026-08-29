@@ -137,10 +137,8 @@ describe("getDefaultWebMcpAdapter", () => {
     };
     setModelContext(context);
 
-    const first = getDefaultWebMcpAdapter();
-    first.registerTool(descriptor)();
+    getDefaultWebMcpAdapter().registerTool(descriptor)();
 
-    expect(getDefaultWebMcpAdapter()).toBe(first);
     expect(getDefaultWebMcpAdapter().hasTool?.("t")).toBe(false);
   });
 
@@ -151,5 +149,60 @@ describe("getDefaultWebMcpAdapter", () => {
     });
 
     expect(getDefaultWebMcpAdapter().hasTool?.("existing")).toBe(false);
+  });
+
+  it("does not unregister the name when a rejected registration is disposed", async () => {
+    const unregisterTool = vi.fn();
+    setModelContext({
+      registerTool: () => Promise.reject(new Error("taken")),
+      unregisterTool,
+    });
+
+    let dispose: (() => void) | undefined;
+    const onError = vi.fn(() => dispose?.());
+    dispose = getDefaultWebMcpAdapter().registerTool(descriptor, onError);
+
+    await vi.waitFor(() => expect(onError).toHaveBeenCalled());
+    dispose();
+
+    expect(unregisterTool).not.toHaveBeenCalled();
+  });
+
+  it("reports a foreign claim on a name it registered and released", async () => {
+    const registry = new Map<string, WebMcpToolDescriptor>();
+    setModelContext({
+      registerTool: (tool) => {
+        registry.set(tool.name, tool);
+        return Promise.resolve();
+      },
+      unregisterTool: (name) => {
+        registry.delete(name);
+      },
+      getTools: () => [...registry.values()].map(({ name }) => ({ name })),
+    });
+
+    const adapter = getDefaultWebMcpAdapter();
+    adapter.registerTool(descriptor)();
+    await Promise.resolve();
+    expect(registry.has("t")).toBe(false);
+
+    registry.set("t", { ...descriptor, description: "page-owned" });
+
+    expect(adapter.hasTool?.("t")).toBe(true);
+  });
+
+  it("releases its claim when the registration is rejected", async () => {
+    setModelContext({
+      registerTool: () => Promise.reject(new Error("taken")),
+      getTools: () => [{ name: "t" }],
+    });
+
+    const adapter = getDefaultWebMcpAdapter();
+    const onError = vi.fn();
+    adapter.registerTool(descriptor, onError);
+
+    await vi.waitFor(() => expect(onError).toHaveBeenCalled());
+
+    expect(adapter.hasTool?.("t")).toBe(true);
   });
 });

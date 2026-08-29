@@ -146,4 +146,39 @@ describe("useWebMcpBridge against a promise-based model context", () => {
     expect(latest.registeredToolNames).toEqual(["other"]);
     expect(warn).toHaveBeenCalledWith(expect.stringContaining('"search"'));
   });
+
+  it("leaves a page-owned tool in place when its registration is rejected", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    const registry = new Map<string, WebMcpToolDescriptor>();
+    const pageOwned: WebMcpToolDescriptor = {
+      name: "search",
+      description: "page-owned",
+      inputSchema: {},
+      execute: async () => ({ content: [] }),
+    };
+    registry.set("search", pageOwned);
+    (document as { modelContext?: WebMcpModelContext }).modelContext = {
+      registerTool: (tool) =>
+        registry.has(tool.name)
+          ? Promise.reject(new Error(`"${tool.name}" is already registered`))
+          : Promise.resolve(void registry.set(tool.name, tool)),
+      unregisterTool: (name) => {
+        registry.delete(name);
+      },
+      getTools: () => Promise.resolve([...registry.values()]),
+    };
+    const provider = createProvider({ search: tool("v1"), other: tool("v1") });
+
+    render(<Harness provider={provider} />);
+
+    await vi.waitFor(() => expect(registry.has("other")).toBe(true));
+    await vi.waitFor(() =>
+      expect(latest.registeredToolNames).toEqual(["other"]),
+    );
+    expect(registry.get("search")).toBe(pageOwned);
+    expect(warn).toHaveBeenCalledWith(
+      expect.stringContaining('"search"'),
+      expect.anything(),
+    );
+  });
 });

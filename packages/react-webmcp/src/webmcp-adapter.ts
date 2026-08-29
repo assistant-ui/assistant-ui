@@ -53,41 +53,61 @@ const resolveModelContext = (): WebMcpModelContext | undefined => {
 const adapterCache = new WeakMap<WebMcpModelContext, WebMcpAdapter>();
 
 const createAdapter = (context: WebMcpModelContext): WebMcpAdapter => {
-  const ownNames = new Set<string>();
+  const ownTokens = new Map<string, object>();
 
   const adapter: WebMcpAdapter = {
     available: true,
     registerTool: (def, onError) => {
       const controller = new AbortController();
-      ownNames.add(def.name);
+      const token = {};
+      ownTokens.set(def.name, token);
+      // Ownership is claimed per attempt so a release only ever drops its own
+      // claim; a StrictMode remount installs a newer token for the same name
+      // before the previous cleanup releases.
+      const release = () => {
+        if (ownTokens.get(def.name) === token) ownTokens.delete(def.name);
+      };
+
+      let rejected = false;
       const handle = context.registerTool(def, { signal: controller.signal });
       if (isThenable(handle)) {
-        handle.catch((error) => onError?.(error));
+        handle.catch((error) => {
+          rejected = true;
+          release();
+          onError?.(error);
+        });
       }
       let disposed = false;
       return () => {
         if (disposed) return;
         disposed = true;
         controller.abort();
-        if (
-          handle &&
-          !isThenable(handle) &&
-          typeof handle.unregister === "function"
-        ) {
-          handle.unregister();
-        } else {
-          context.unregisterTool?.(def.name);
+        // A rejected registration holds nothing on the page, so unregistering
+        // its name here would delete whoever does hold it.
+        if (!rejected) {
+          if (
+            handle &&
+            !isThenable(handle) &&
+            typeof handle.unregister === "function"
+          ) {
+            handle.unregister();
+          } else {
+            context.unregisterTool?.(def.name);
+          }
         }
+        queueMicrotask(release);
       };
     },
   };
   if (typeof context.getTools === "function") {
     const getTools = context.getTools.bind(context);
     adapter.hasTool = (name) => {
-      // A name this adapter registered can still be reported by getTools() after
-      // dispose when the page removes it asynchronously, so only names the page
-      // owned before this adapter claimed them count as collisions.
-      if (ownNames.has(name)) return false;
+      // A name this adapter registered can still be reported by getTools() while
+      // the page removes it asynchronously, so a name it currently holds is
+      // never a collision. The claim is released a microtask after dispose,
+      // which is when a name the adapter no longer holds becomes claimable
+      // again by the page.
+      if (ownTokens.has(name)) return false;
       try {
         const tools = getTools();
         return (
