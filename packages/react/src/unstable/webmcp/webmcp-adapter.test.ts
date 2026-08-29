@@ -148,6 +148,23 @@ describe("getDefaultWebMcpAdapter", () => {
     warn.mockRestore();
   });
 
+  it("survives a registration handle that settles synchronously", () => {
+    const unregisterTool = vi.fn();
+    install({
+      registerTool: () =>
+        ({
+          then: (resolve: () => void) => resolve(),
+        }) as unknown as Promise<void>,
+      unregisterTool,
+    });
+
+    const dispose = getDefaultWebMcpAdapter().registerTool(descriptor);
+    expect(unregisterTool).not.toHaveBeenCalled();
+
+    dispose();
+    expect(unregisterTool).toHaveBeenCalledWith("get_weather");
+  });
+
   it("unregisters by name when the registration promise resolves", async () => {
     const unregisterTool = vi.fn();
     install({ registerTool: () => Promise.resolve(), unregisterTool });

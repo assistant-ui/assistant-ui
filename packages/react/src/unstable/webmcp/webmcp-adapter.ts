@@ -46,6 +46,11 @@ const createAdapter = (context: WebMcpModelContext): WebMcpAdapter => ({
   available: true,
   registerTool: (def, onError) => {
     const controller = new AbortController();
+    // The disposer below and the fulfilled arm are mutually exclusive only
+    // because neither yields; an await introduced into either one lets both
+    // reach unregisterByName. These two bindings must also stay above the
+    // handle's then arm: a thenable that settles synchronously runs that arm
+    // before the disposer is ever returned.
     let settled: "fulfilled" | "rejected" | undefined;
     let disposed = false;
 
