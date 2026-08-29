@@ -42,6 +42,8 @@ export {
   ThreadListItemPrimitiveTrigger,
   ThreadListItemPrimitiveTitle,
 } from "./primitives/threadList";
+export { ThreadListPrimitiveRoot } from "./primitives/ThreadListPrimitiveRoot";
+export { ThreadListItemPrimitiveRoot } from "./primitives/ThreadListItemPrimitiveRoot";
 export { AttachmentByIndexProvider } from "./primitives/AttachmentByIndexProvider";
 export {
   AttachmentPrimitiveRoot,

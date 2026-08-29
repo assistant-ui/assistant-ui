@@ -64,27 +64,38 @@ const createBuilt = (
     new Map(files.map(([filePath, content]) => [filePath, content])),
 });
 
-test("vue registry build emits a self-contained thread with its type-only dependency", async () => {
+test("vue registry build emits self-contained staged items", async () => {
   const { registry, stagedVueRegistry } = await import("../src/registry.ts");
   await buildRegistry(registry, stagedVueRegistry);
 
-  const [registryContent, threadContent] = await Promise.all([
-    readFile("dist/vue/registry.json", "utf8"),
-    readFile("dist/vue/thread.json", "utf8"),
-  ]);
+  const [registryContent, threadContent, threadListContent] = await Promise.all(
+    [
+      readFile("dist/vue/registry.json", "utf8"),
+      readFile("dist/vue/thread.json", "utf8"),
+      readFile("dist/vue/thread-list.json", "utf8"),
+    ],
+  );
   const vueIndex = JSON.parse(registryContent);
   const thread = JSON.parse(threadContent);
+  const threadList = JSON.parse(threadListContent);
   const threadFile = thread.files.find(
     (file) => file.path === "components/assistant-ui/thread.vue",
+  );
+  const threadListFile = threadList.files.find(
+    (file) => file.path === "components/assistant-ui/thread-list.vue",
   );
 
   assert.ok(
     threadFile,
     "vue thread registry output includes components/assistant-ui/thread.vue",
   );
+  assert.ok(
+    threadListFile,
+    "vue thread list registry output includes components/assistant-ui/thread-list.vue",
+  );
   assert.deepEqual(
     vueIndex.items.map((item) => item.name),
-    ["thread"],
+    ["thread-list", "thread"],
   );
   assert.deepEqual(thread.dependencies, [
     "@assistant-ui/core",
@@ -94,30 +105,54 @@ test("vue registry build emits a self-contained thread with its type-only depend
   ]);
   assert.deepEqual(thread.devDependencies, ["@types/markdown-it"]);
   assert.equal("target" in threadFile, false);
+  assert.deepEqual(threadList.dependencies, [
+    "@assistant-ui/vue",
+    "reka-ui",
+    "@lucide/vue",
+  ]);
+  assert.equal("target" in threadListFile, false);
   assert.match(
     threadFile.content,
     /import Message from "@\/components\/assistant-ui\/message\.vue"/,
   );
+  assert.match(threadListFile.content, /from "reka-ui"/);
 });
 
 test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async () => {
   const { parse, compileScript } = await import("@vue/compiler-sfc");
-  const thread = JSON.parse(await readFile("dist/vue/thread.json", "utf8"));
-  const emitted = thread.files.map((file) => [file.path, file.content]);
-  assert.deepEqual(emitted.map(([outputPath]) => outputPath).sort(), [
+  const [thread, threadList] = await Promise.all([
+    readFile("dist/vue/thread.json", "utf8").then(JSON.parse),
+    readFile("dist/vue/thread-list.json", "utf8").then(JSON.parse),
+  ]);
+  const threadEmitted = thread.files.map((file) => [file.path, file.content]);
+  const threadListEmitted = threadList.files.map((file) => [
+    file.path,
+    file.content,
+  ]);
+  assert.deepEqual(threadEmitted.map(([outputPath]) => outputPath).sort(), [
     "components/assistant-ui/markdown-text.vue",
     "components/assistant-ui/message.vue",
     "components/assistant-ui/thread.vue",
   ]);
+  assert.deepEqual(
+    threadListEmitted.map(([outputPath]) => outputPath),
+    ["components/assistant-ui/thread-list.vue"],
+  );
 
-  for (const [outputPath, content] of emitted) {
+  for (const [outputPath, content] of [
+    ...threadEmitted,
+    ...threadListEmitted,
+  ]) {
     const { descriptor, errors } = parse(content, { filename: outputPath });
     assert.deepEqual(errors, []);
     const compiled = compileScript(descriptor, { id: outputPath });
     assert.ok(compiled.content.length > 0);
   }
 
-  validateVueFlavorContent([createBuilt("thread", emitted)]);
+  validateVueFlavorContent([
+    createBuilt("thread", threadEmitted),
+    createBuilt("thread-list", threadListEmitted),
+  ]);
 });
 
 test("the production vue registry stays empty until the publish flip", async () => {

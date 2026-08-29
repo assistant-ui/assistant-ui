@@ -1897,6 +1897,22 @@ export const vueRegistry: RegistryItem[] = [];
  */
 export const stagedVueRegistry: RegistryItem[] = [
   {
+    name: "thread-list",
+    type: "registry:component",
+    title: "Thread List",
+    description:
+      "Sidebar or dropdown for switching conversations, with search and active selection.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/thread-list.vue",
+        sourcePath:
+          "../../packages/ui/src/components/vue/assistant-ui/thread-list.vue",
+      },
+    ],
+    dependencies: ["@assistant-ui/vue", "reka-ui", "@lucide/vue"],
+  },
+  {
     name: "thread",
     type: "registry:component",
     title: "Thread",
