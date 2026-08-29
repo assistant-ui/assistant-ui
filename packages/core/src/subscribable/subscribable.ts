@@ -99,6 +99,30 @@ export class BaseSubscribable {
   }
 }
 
+export class WritableSubscribable<TState> extends BaseSubscribable {
+  private _state: TState;
+
+  constructor(state: TState) {
+    super();
+    this._state = state;
+    this.subscribe = this.subscribe.bind(this);
+    this.getState = this.getState.bind(this);
+    this.getServerSnapshot = this.getState;
+  }
+
+  public getState(): TState {
+    return this._state;
+  }
+
+  public getServerSnapshot: () => TState;
+
+  public setState(state: TState): void {
+    if (Object.is(state, this._state)) return;
+    this._state = state;
+    this._notifySubscribers();
+  }
+}
+
 // lazy connect/disconnect: only opens upstream subscription while it has subscribers
 export abstract class BaseSubject {
   private _subscriptions = new Set<(payload?: unknown) => void>();
