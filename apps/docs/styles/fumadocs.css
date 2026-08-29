@@ -351,6 +351,19 @@ html:has(#nd-docs-layout) {
 .prose-blog {
   font-size: 0.9375rem !important;
   line-height: 1.75 !important;
+
+  & :where(code):not(:where(pre code)) {
+    font-size: 0.8125rem !important;
+    font-weight: 500 !important;
+    padding: 0.125rem 0.3125rem !important;
+    border-radius: var(--radius-sm) !important;
+    border: none !important;
+    background: color-mix(
+      in oklab,
+      var(--foreground) 6%,
+      transparent
+    ) !important;
+  }
 }
 
 figure.shiki {
