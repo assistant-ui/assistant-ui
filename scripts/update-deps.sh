@@ -42,7 +42,7 @@ if ! (cd examples/with-expo && npx expo install --fix); then
     const isOwned = (name) => matrixKeys.has(name) || expoFamily.test(name);
     const backup = JSON.parse(fs.readFileSync(backupPath, "utf8"));
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-    for (const field of ["dependencies", "devDependencies"]) {
+    for (const field of ["dependencies", "devDependencies", "peerDependencies", "optionalDependencies"]) {
       for (const name of Object.keys(manifest[field] ?? {})) {
         if (isOwned(name) && backup[field]?.[name]) {
           manifest[field][name] = backup[field][name];
