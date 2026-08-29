@@ -53,14 +53,6 @@ export const PROJECT_METADATA: ProjectMetadata[] = [
     hasLocalComponents: true,
   },
   {
-    name: "nuxt",
-    label: "Nuxt",
-    description: "Nuxt template with Vercel AI SDK",
-    category: "template",
-    path: "templates/nuxt",
-    hasLocalComponents: true,
-  },
-  {
     name: "cloud",
     label: "Cloud",
     description: "Cloud-backed persistence starter",
