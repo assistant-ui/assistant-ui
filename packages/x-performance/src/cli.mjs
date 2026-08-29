@@ -6,31 +6,39 @@ import {
   writeFileSync,
   copyFileSync,
   rmSync,
+  existsSync,
 } from "node:fs";
-import { cpus, arch, platform } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { cpus, arch, platform, tmpdir } from "node:os";
+import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const perfDir = join(pkgRoot, ".perf");
 
-const git = (args) => {
+const REF_PACKAGES = ["tap", "core", "assistant-stream"];
+const REF_PACKAGE_NAMES = {
+  tap: "@assistant-ui/tap",
+  core: "@assistant-ui/core",
+  "assistant-stream": "assistant-stream",
+};
+
+const git = (args, cwd = pkgRoot) => {
   try {
-    return execSync(`git ${args}`, { cwd: pkgRoot, encoding: "utf8" }).trim();
+    return execSync(`git ${args}`, { cwd, encoding: "utf8" }).trim();
   } catch {
     return "unknown";
   }
 };
 
-const envStamp = () => ({
+const envStamp = (root = pkgRoot) => ({
   date: new Date().toISOString(),
   cpu: cpus()[0]?.model ?? "unknown",
   cores: cpus().length,
   arch: arch(),
   platform: platform(),
   node: process.version,
-  sha: git("rev-parse --short HEAD"),
-  dirty: git("status --porcelain") !== "",
+  sha: git("rev-parse --short HEAD", root),
+  dirty: git("status --porcelain", root) !== "",
 });
 
 const flattenBenchmarks = (raw) => {
@@ -56,12 +64,16 @@ const flattenBenchmarks = (raw) => {
   return rows;
 };
 
-const runSuite = () => {
+const runSuite = (extraEnv = {}) => {
   const tmp = join(perfDir, "raw.json");
   const res = spawnSync(
     "pnpm",
     ["exec", "vitest", "bench", "--run", "--outputJson", tmp],
-    { cwd: pkgRoot, stdio: ["ignore", "ignore", "inherit"] },
+    {
+      cwd: pkgRoot,
+      stdio: ["ignore", "ignore", "inherit"],
+      env: { ...process.env, ...extraEnv },
+    },
   );
   if (res.status !== 0) process.exit(res.status ?? 1);
   const raw = JSON.parse(readFileSync(tmp, "utf8"));
@@ -69,20 +81,21 @@ const runSuite = () => {
   return flattenBenchmarks(raw);
 };
 
+const mergeBest = (best, rows) => {
+  for (const row of rows) {
+    const prev = best.get(row.id);
+    if (!prev || row.mean < prev.mean) best.set(row.id, row);
+  }
+};
+
 const record = (outName, runs) => {
   mkdirSync(perfDir, { recursive: true });
   const best = new Map();
   for (let i = 0; i < runs; i++) {
     console.log(`run ${i + 1}/${runs}...`);
-    for (const row of runSuite()) {
-      const prev = best.get(row.id);
-      if (!prev || row.mean < prev.mean) best.set(row.id, row);
-    }
+    mergeBest(best, runSuite());
   }
-  const doc = {
-    env: { ...envStamp(), runs },
-    benchmarks: [...best.values()],
-  };
+  const doc = { env: { ...envStamp(), runs }, benchmarks: [...best.values()] };
   const out = join(perfDir, outName ?? `record-${Date.now()}.json`);
   writeFileSync(out, JSON.stringify(doc, null, 2));
   copyFileSync(out, join(perfDir, "latest.json"));
@@ -94,9 +107,7 @@ const record = (outName, runs) => {
 const fmt = (ms) =>
   ms >= 1 ? `${ms.toFixed(3)}ms` : `${(ms * 1000).toFixed(2)}µs`;
 
-const compare = (aPath, bPath) => {
-  const a = JSON.parse(readFileSync(resolvePerf(aPath), "utf8"));
-  const b = JSON.parse(readFileSync(resolvePerf(bPath), "utf8"));
+const renderCompare = (a, b, aLabel, bLabel) => {
   const envKeys = ["cpu", "cores", "arch", "platform", "node"];
   if (envKeys.some((k) => a.env[k] !== b.env[k])) {
     const show = (e) => envKeys.map((k) => e[k]).join("/");
@@ -114,8 +125,8 @@ const compare = (aPath, bPath) => {
     const significant = Math.abs(delta) > noise;
     rows.push({
       benchmark: ba.id,
-      [`a (${a.env.sha})`]: fmt(ba.mean),
-      [`b (${b.env.sha})`]: fmt(bb.mean),
+      [aLabel]: fmt(ba.mean),
+      [bLabel]: fmt(bb.mean),
       delta: `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%`,
       threshold: `${noise.toFixed(1)}%`,
       verdict: !significant ? "~same" : delta > 0 ? "SLOWER" : "FASTER",
@@ -124,15 +135,10 @@ const compare = (aPath, bPath) => {
   console.table(rows);
   const aIds = new Set(a.benchmarks.map((x) => x.id));
   const matched = new Set(rows.map((r) => r.benchmark));
-  const unmatched = [
-    ...a.benchmarks
-      .filter((x) => !matched.has(x.id))
-      .map((x) => `only in a: ${x.id}`),
-    ...b.benchmarks
-      .filter((x) => !aIds.has(x.id))
-      .map((x) => `only in b: ${x.id}`),
-  ];
-  for (const line of unmatched) console.warn(`unmatched: ${line}`);
+  for (const x of a.benchmarks.filter((x) => !matched.has(x.id)))
+    console.warn(`unmatched: only in a: ${x.id}`);
+  for (const x of b.benchmarks.filter((x) => !aIds.has(x.id)))
+    console.warn(`unmatched: only in b: ${x.id}`);
   console.log(
     `a: ${a.env.sha}${a.env.dirty ? " (dirty)" : ""} @ ${a.env.date}\nb: ${b.env.sha}${b.env.dirty ? " (dirty)" : ""} @ ${b.env.date}\nverdict is "~same" unless |delta| > max(2×rme, 3%)`,
   );
@@ -140,22 +146,124 @@ const compare = (aPath, bPath) => {
 
 const resolvePerf = (p) => (p.includes("/") ? resolve(p) : join(perfDir, p));
 
+const compareFiles = (aPath, bPath) => {
+  const a = JSON.parse(readFileSync(resolvePerf(aPath), "utf8"));
+  const b = JSON.parse(readFileSync(resolvePerf(bPath), "utf8"));
+  renderCompare(a, b, `a (${a.env.sha})`, `b (${b.env.sha})`);
+};
+
+const ensureRefWorktree = (ref) => {
+  const repoRoot = git("rev-parse --show-toplevel");
+  const sha = git(`rev-parse --short ${ref}`, repoRoot);
+  if (sha === "unknown") {
+    console.error(`cannot resolve ref: ${ref}`);
+    process.exit(1);
+  }
+  const wt = join(tmpdir(), `aui-perf-ref-${sha}`);
+  if (!existsSync(wt)) {
+    console.log(`creating ref worktree for ${ref} (${sha}) at ${wt}`);
+    execSync(`git worktree add --detach "${wt}" ${sha}`, {
+      cwd: repoRoot,
+      stdio: "inherit",
+    });
+  }
+  const marker = `${wt}.built`;
+  if (!existsSync(marker)) {
+    console.log("installing and building ref packages (one-time per ref)...");
+    execSync("pnpm install", {
+      cwd: wt,
+      stdio: "inherit",
+      env: { ...process.env, CI: "true" },
+    });
+    const filters = REF_PACKAGES.map(
+      (p) => `--filter=${REF_PACKAGE_NAMES[p]}`,
+    ).join(" ");
+    execSync(`pnpm turbo run build ${filters}`, { cwd: wt, stdio: "inherit" });
+    writeFileSync(marker, sha);
+  }
+  return { wt, sha };
+};
+
+const compareRef = (ref, runs) => {
+  const { wt, sha } = ensureRefWorktree(ref);
+  mkdirSync(perfDir, { recursive: true });
+  const current = new Map();
+  const refBest = new Map();
+  for (let i = 0; i < runs; i++) {
+    console.log(`interleaved run ${i + 1}/${runs}: current...`);
+    mergeBest(current, runSuite());
+    console.log(`interleaved run ${i + 1}/${runs}: ${ref}...`);
+    mergeBest(refBest, runSuite({ AUI_PERF_REF_ROOT: wt }));
+  }
+  const refDoc = {
+    env: { ...envStamp(wt), runs },
+    benchmarks: [...refBest.values()],
+  };
+  const curDoc = {
+    env: { ...envStamp(), runs },
+    benchmarks: [...current.values()],
+  };
+  writeFileSync(
+    join(perfDir, `ref-${sha}.json`),
+    JSON.stringify(refDoc, null, 2),
+  );
+  writeFileSync(join(perfDir, "latest.json"), JSON.stringify(curDoc, null, 2));
+  renderCompare(refDoc, curDoc, `${ref} (${refDoc.env.sha})`, "current");
+  console.log(
+    `ref worktree kept at ${wt}; remove with: git worktree remove "${wt}"`,
+  );
+};
+
+const trace = async (targets, seconds) => {
+  const { captureTrace, analyzeTrace } = await import("./trace.mjs");
+  const results = [];
+  for (const target of targets) {
+    const hint = basename(target);
+    console.log(`tracing ${hint} for ${seconds}s...`);
+    const events = await captureTrace(resolve(target), seconds);
+    results.push({ target: hint, ...analyzeTrace(events, hint) });
+  }
+  console.table(
+    results.map((r) => ({
+      target: r.target,
+      "wall (s)": r.wallSeconds.toFixed(1),
+      "renderer main": `${r.mainBusyMs.toFixed(0)}ms (${r.mainBusyPct.toFixed(2)}%)`,
+      compositor: `${r.compositorBusyMs.toFixed(0)}ms (${r.compositorBusyPct.toFixed(2)}%)`,
+      PaintImage: r.counts.PaintImage ?? 0,
+      Commit: r.counts.Commit ?? 0,
+      PrePaint: r.counts.PrePaint ?? 0,
+      frames: r.counts.PipelineReporter ?? 0,
+    })),
+  );
+};
+
+const usage = `usage:
+  aui-perf record [name.json] [--runs N]     run benches N times (default 3), save best-of per benchmark to .perf/
+  aui-perf compare <a> <b>                   diff two recordings (names in .perf/ or paths)
+  aui-perf compare --ref <git-ref> [--runs N] build <git-ref> in a temp worktree, interleave runs, diff against the current tree
+  aui-perf trace <page.html...> [--seconds N] trace each page in headless Chrome (default 5s), report paint and thread cost`;
+
 const [, , cmd, ...rest] = process.argv;
-const runsFlag = rest.indexOf("--runs");
-const runs = runsFlag === -1 ? 3 : Number(rest[runsFlag + 1]);
+const takeFlag = (name, fallback) => {
+  const i = rest.indexOf(name);
+  if (i === -1) return fallback;
+  const value = Number(rest[i + 1]);
+  rest.splice(i, 2);
+  return value;
+};
+const runs = takeFlag("--runs", 3);
+const seconds = takeFlag("--seconds", 5);
 if (!Number.isInteger(runs) || runs < 1) {
-  console.error(`invalid --runs value: ${rest[runsFlag + 1]}`);
+  console.error(`invalid --runs value: ${runs}`);
   process.exit(1);
 }
-const args = rest.filter(
-  (_, i) => runsFlag === -1 || (i !== runsFlag && i !== runsFlag + 1),
-);
 
-if (cmd === "record") record(args[0], runs);
-else if (cmd === "compare" && args.length === 2) compare(args[0], args[1]);
+if (cmd === "record") record(rest[0], runs);
+else if (cmd === "compare" && rest[0] === "--ref" && rest[1])
+  compareRef(rest[1], runs);
+else if (cmd === "compare" && rest.length === 2) compareFiles(rest[0], rest[1]);
+else if (cmd === "trace" && rest.length > 0) await trace(rest, seconds);
 else {
-  console.log(
-    "usage:\n  aui-perf record [name.json] [--runs N]   run benches N times (default 3), save best-of per benchmark to .perf/\n  aui-perf compare <a> <b>                 diff two recordings (names in .perf/ or paths)",
-  );
+  console.log(usage);
   process.exit(cmd ? 1 : 0);
 }

@@ -13,6 +13,10 @@ pnpm -C packages/x-performance perf:record after.json
 pnpm -C packages/x-performance perf:compare before.json after.json
 ```
 
-`compare` refuses to read significance into deltas smaller than twice the measured margin of error, and warns when the two recordings come from different machines or Node versions. Baselines live in `.perf/` (gitignored).
+`compare` refuses to read significance into deltas smaller than twice the measured margin of error (with a 3% absolute floor), and warns when the two recordings come from different machines or Node versions. Baselines live in `.perf/` (gitignored). Borderline verdicts from a low `--runs` count are weak signals; confirm with `--runs 3` before believing them.
+
+**Cross-ref comparison.** `aui-perf compare --ref <git-ref> [--runs N]` answers "did this branch regress anything" in one command: it materializes `<git-ref>` in a temporary worktree (one-time install and build of the measured packages, keyed by sha under the system temp dir), then alternates full suite runs between the current tree and the ref so thermal drift hits both sides evenly. The bench definitions always come from the current tree; only the measured package dists differ, re-pointed through the `AUI_PERF_REF_ROOT` aliases in `vitest.config.ts`.
+
+**Browser rendering lane.** `aui-perf trace <page.html...> [--seconds N]` measures what jsdom cannot: paint work and thread cost in the real rendering pipeline. It drives headless Chrome over raw CDP with no dependencies (Node's built-in WebSocket), records a DevTools-category trace per page, and reports renderer main-thread and compositor utilization plus PaintImage/Commit/PrePaint counts and compositor frames for the traced page's process. Chrome is located automatically; set `AUI_PERF_CHROME` to override. Trace numbers are performance evidence, not correctness evidence: a page that renders nothing traces beautifully, so pair every trace verdict with a visual check.
 
 Benchmarks import only public package entry points so the react-compiler output is what gets measured. Rebuild the target packages (`pnpm turbo run build --filter=<pkg>`) before recording.
