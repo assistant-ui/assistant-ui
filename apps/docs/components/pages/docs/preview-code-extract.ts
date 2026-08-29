@@ -40,6 +40,20 @@ function findMatchingParen(source: string, startIndex: number): number {
   return -1;
 }
 
+function restOfLine(source: string, index: number): string {
+  const lineEnd = source.indexOf("\n", index);
+  return (
+    lineEnd === -1 ? source.slice(index) : source.slice(index, lineEnd)
+  ).trim();
+}
+
+// A semicolon in JSX text, from an HTML entity or ordinary prose, sits at zero
+// nesting too, so the statement boundary is the one that also closes its line.
+function closesLine(source: string, index: number): boolean {
+  const rest = restOfLine(source, index);
+  return rest === "" || rest.startsWith("//");
+}
+
 function findStatementEnd(source: string, startIndex: number): number {
   const state: StringState = { inString: false, stringChar: "" };
   let parenCount = 0;
@@ -62,7 +76,8 @@ function findStatementEnd(source: string, startIndex: number): number {
       char === ";" &&
       parenCount === 0 &&
       braceCount === 0 &&
-      bracketCount === 0
+      bracketCount === 0 &&
+      closesLine(source, i + 1)
     ) {
       return i + 1;
     }
@@ -72,10 +87,7 @@ function findStatementEnd(source: string, startIndex: number): number {
 }
 
 function endsLine(source: string, index: number): boolean {
-  const lineEnd = source.indexOf("\n", index);
-  const rest =
-    lineEnd === -1 ? source.slice(index) : source.slice(index, lineEnd);
-  return rest.trim() === "";
+  return restOfLine(source, index) === "";
 }
 
 function findMatchingBrace(source: string, startIndex: number): number {

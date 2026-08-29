@@ -35,6 +35,8 @@ export const ExpressionSpecimen = () => (
 
 export const BareExpressionSpecimen = () => <div>bare expression</div>;
 
+export const EntitySpecimen = () => <div>bare&nbsp;entity; text</div>;
+
 export function GuardSpecimen() {
   return <div>guard</div>;
 }
@@ -79,6 +81,14 @@ describe("extractFunctionCode", () => {
     const code = extractFunctionCode(source, "BareExpressionSpecimen");
     expect(code).toBe(
       "export const BareExpressionSpecimen = () => <div>bare expression</div>;",
+    );
+    expect(code).not.toContain("GuardSpecimen");
+  });
+
+  it("extracts a bare expression body past semicolons in its JSX text", () => {
+    const code = extractFunctionCode(source, "EntitySpecimen");
+    expect(code).toBe(
+      "export const EntitySpecimen = () => <div>bare&nbsp;entity; text</div>;",
     );
     expect(code).not.toContain("GuardSpecimen");
   });
