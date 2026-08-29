@@ -63,4 +63,27 @@ describe("PreviewCode", () => {
     );
     expect(code).not.toContain("AssistantRuntime");
   });
+
+  it("extracts typed const arrows", async () => {
+    const { code } = await getPreviewCode(
+      "components/pages/docs/samples/speech",
+      "Thread",
+    );
+
+    expect(code).toContain("const Thread: FC = () => {");
+    expect(code).not.toContain("const ThreadScrollToBottom");
+  });
+
+  it("extracts parenthesized expression-bodied arrows", async () => {
+    const { code } = await getPreviewCode(
+      "components/pages/docs/tap/tutorial-slideshow",
+      "TapTutorialSlideshow",
+    );
+
+    expect(code).toContain("const TapTutorialSlideshow = () => (");
+    expect(code).toContain(
+      '<CodeSlideshow steps={tapTutorialSteps} testId="tap-tutorial-slideshow" />',
+    );
+    expect(code).not.toContain("Could not parse function");
+  });
 });

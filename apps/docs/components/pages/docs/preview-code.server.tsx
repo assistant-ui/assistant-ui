@@ -86,7 +86,7 @@ function extractFunctionCode(source: string, functionName: string): string {
     `export\\s+function\\s+${functionName}\\s*\\([^)]*\\)\\s*(?::[^{=]+)?\\{`,
   );
   const constRegex = new RegExp(
-    `export\\s+const\\s+${functionName}\\s*=\\s*(?:function\\s*)?\\([^)]*\\)\\s*(?::[^{=]+)?(?:=>\\s*)?\\{?`,
+    `export\\s+const\\s+${functionName}\\s*(?::[^=]+)?=\\s*(?:function\\s*)?\\([^)]*\\)\\s*(?::[^{=]+)?(?:=>\\s*)?\\{?`,
   );
 
   let match = functionRegex.exec(source);
@@ -107,7 +107,9 @@ function extractFunctionCode(source: string, functionName: string): string {
   const searchStart = match.index + match[0].length;
 
   if (isArrowWithoutBrace) {
-    const endIndex = findMatchingParen(source, searchStart);
+    const bodyStart =
+      source[searchStart] === "(" ? searchStart + 1 : searchStart;
+    const endIndex = findMatchingParen(source, bodyStart);
     if (endIndex === -1) return `// Could not parse function: ${functionName}`;
     return source.slice(startIndex, endIndex).trim();
   }
