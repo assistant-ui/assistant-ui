@@ -19,6 +19,7 @@ import {
 } from "@assistant-ui/core/internal";
 import { AuiProvider } from "../AuiProvider";
 import { useAui } from "../useAui";
+import { useAuiState } from "../useAuiState";
 import { ThreadPrimitiveMessages } from "../primitives/ThreadPrimitiveMessages";
 import {
   AttachmentPrimitiveName,
@@ -185,6 +186,43 @@ describe("composer attachment primitives", () => {
       expect(el.querySelectorAll("span.att")).toHaveLength(0);
     });
     expect(attachmentAdapter.removed).toHaveLength(1);
+
+    unmount();
+  });
+
+  it("does not reuse component state for a different attachment", async () => {
+    const { runtime } = createTestRuntime();
+    const StatefulAttachment = defineComponent({
+      setup() {
+        const initialName = useAuiState((s) => s.attachment.name).value;
+        return () => h("span", { class: "stateful-att" }, initialName);
+      },
+    });
+    const view = defineComponent({
+      setup: () => () =>
+        h(ComposerPrimitiveAttachments, null, {
+          default: () => h(StatefulAttachment),
+        }),
+    });
+    const { el, client, unmount } = mountChat(runtime, view);
+
+    await client().composer.addAttachment(makeFile("first.txt"));
+    await client().composer.addAttachment(makeFile("second.txt"));
+    flushTapSync(() => {});
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll(".stateful-att")).toHaveLength(2);
+    });
+
+    await client().composer.attachment({ index: 0 }).remove();
+    flushTapSync(() => {});
+    await vi.waitFor(async () => {
+      await nextTick();
+      const names = [...el.querySelectorAll(".stateful-att")].map(
+        (node) => node.textContent,
+      );
+      expect(names).toEqual(["second.txt"]);
+    });
 
     unmount();
   });

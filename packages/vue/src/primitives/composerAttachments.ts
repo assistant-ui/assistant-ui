@@ -20,12 +20,12 @@ export const ComposerPrimitiveAttachments = defineComponent({
   name: "ComposerPrimitiveAttachments",
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { slots }) {
-    const count = useAuiState((s) => s.composer.attachments.length);
+    const attachments = useAuiState((s) => s.composer.attachments);
     return () =>
-      Array.from({ length: count.value }, (_, index) =>
+      attachments.value.map((attachment, index) =>
         h(
           AttachmentByIndexProvider,
-          { source: "composer", index, key: index },
+          { source: "composer", index, key: attachment.id },
           { default: () => slots.default?.() },
         ),
       );
