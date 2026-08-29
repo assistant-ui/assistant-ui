@@ -58,6 +58,19 @@ describe("aiOnly", () => {
     expect(inner.onEnd.mock.calls[0]?.[0].name).toBe("ai.streamText");
   });
 
+  it("passes onStart through unfiltered", () => {
+    const inner = recordingProcessor();
+    const started = span("GET /docs", { "http.method": "GET" });
+    const context = {} as Parameters<SpanProcessor["onStart"]>[1];
+
+    aiOnly(inner).onStart(
+      started as unknown as Parameters<SpanProcessor["onStart"]>[0],
+      context,
+    );
+
+    expect(inner.onStart).toHaveBeenCalledWith(started, context);
+  });
+
   // A wrapper that forgets either one silently loses the tail batch on Vercel,
   // where the function suspends as soon as the response is sent.
   it("delegates forceFlush and shutdown to the inner processor", async () => {
