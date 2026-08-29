@@ -8,12 +8,13 @@ import {
   findUnreleasablePackages,
   parseBumpLine,
   parseWorkspaceGlobs,
+  readSkipRules,
   runCheck,
 } from "./check-changesets.mjs";
 
 const repoRoot = path.resolve(import.meta.dirname, "..");
 
-function createWorkspace(changeset) {
+function createWorkspace(changeset, config = {}) {
   const root = mkdtempSync(path.join(tmpdir(), "aui-changesets-"));
   writeFileSync(
     path.join(root, "pnpm-workspace.yaml"),
@@ -30,6 +31,10 @@ function createWorkspace(changeset) {
     );
   }
   mkdirSync(path.join(root, ".changeset"));
+  writeFileSync(
+    path.join(root, ".changeset", "config.json"),
+    JSON.stringify({ privatePackages: { version: false }, ...config }),
+  );
   writeFileSync(path.join(root, ".changeset", "entry.md"), changeset);
   return root;
 }
@@ -111,17 +116,25 @@ test("findUnreleasablePackages flags private and unknown names", () => {
     ],
   ]);
 
+  const rules = { ignored: new Set(), skipsPrivate: true };
+
   assert.deepEqual(
-    findUnreleasablePackages(packages, [
-      { file: "a.md", name: "@assistant-ui/core" },
-    ]),
+    findUnreleasablePackages(
+      packages,
+      [{ file: "a.md", name: "@assistant-ui/core" }],
+      rules,
+    ),
     [],
   );
 
-  const problems = findUnreleasablePackages(packages, [
-    { file: "a.md", name: "@assistant-ui/vue" },
-    { file: "a.md", name: "@assistant-ui/nope" },
-  ]);
+  const problems = findUnreleasablePackages(
+    packages,
+    [
+      { file: "a.md", name: "@assistant-ui/vue" },
+      { file: "a.md", name: "@assistant-ui/nope" },
+    ],
+    rules,
+  );
   assert.equal(problems.length, 2);
   assert.match(
     problems[0].reason,
@@ -155,15 +168,86 @@ test("runCheck rejects a changeset naming a private package", () => {
   }
 });
 
-test("the executable runs main() instead of exiting silently", () => {
-  const result = spawnSync(
+test("readSkipRules follows .changeset/config.json", () => {
+  assert.deepEqual(readSkipRules({}), {
+    ignored: new Set(),
+    skipsPrivate: true,
+  });
+  assert.deepEqual(readSkipRules({ privatePackages: { version: true } }), {
+    ignored: new Set(),
+    skipsPrivate: false,
+  });
+  assert.deepEqual(readSkipRules({ privatePackages: true }), {
+    ignored: new Set(),
+    skipsPrivate: false,
+  });
+  assert.deepEqual(readSkipRules({ ignore: ["@fixture/held"] }), {
+    ignored: new Set(["@fixture/held"]),
+    skipsPrivate: true,
+  });
+});
+
+test("runCheck rejects a published package listed in `ignore`", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n---\n\nfix: something\n',
+    { ignore: ["@fixture/published"] },
+  );
+  try {
+    const { problems } = runCheck(root);
+    assert.equal(problems.length, 1);
+    assert.match(problems[0].reason, /is in `ignore`/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("runCheck allows a private package when the config versions it", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/internal": patch\n---\n\nfix: something\n',
+    { privatePackages: { version: true } },
+  );
+  try {
+    assert.deepEqual(runCheck(root).problems, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+function runExecutable(root) {
+  return spawnSync(
     process.execPath,
     [path.join(repoRoot, "scripts", "check-changesets.mjs")],
-    { encoding: "utf8" },
+    { encoding: "utf8", env: { ...process.env, CHANGESET_CHECK_ROOT: root } },
   );
-  assert.match(
-    result.stdout + result.stderr,
-    /All changeset bumps name releasable workspace packages\.|Changesets name packages that cannot be released:/,
-    "the guard produced no verdict, so main() never ran",
+}
+
+test("the executable reports success and exits 0", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n---\n\nfix: something\n',
   );
+  try {
+    const result = runExecutable(root);
+    assert.equal(result.status, 0, result.stderr);
+    assert.match(
+      result.stdout,
+      /All changeset bumps name releasable workspace packages\./,
+      "the guard produced no verdict, so main() never ran",
+    );
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the executable reports the offending line and exits 1", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n"@fixture/internal": patch\n---\n\nfix: something\n',
+  );
+  try {
+    const result = runExecutable(root);
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /"@fixture\/internal" is private/);
+    assert.match(result.stderr, /entry\.md/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
 });

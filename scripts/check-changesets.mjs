@@ -86,17 +86,36 @@ function readChangesetBumps(root) {
   return bumps;
 }
 
-export function findUnreleasablePackages(packages, bumps) {
+export function readSkipRules(config) {
+  const privatePackages = config.privatePackages;
+  const versionsPrivate =
+    typeof privatePackages === "object" && privatePackages !== null
+      ? privatePackages.version === true
+      : privatePackages === true;
+  return {
+    ignored: new Set(config.ignore ?? []),
+    skipsPrivate: !versionsPrivate,
+  };
+}
+
+export function findUnreleasablePackages(packages, bumps, rules) {
   const problems = [];
   for (const { file, name } of bumps) {
     const pkg = packages.get(name);
-    if (!pkg) {
+    if (rules.ignored.has(name)) {
+      problems.push({
+        file,
+        name,
+        reason:
+          "is in `ignore` in .changeset/config.json and is never versioned",
+      });
+    } else if (!pkg) {
       problems.push({
         file,
         name,
         reason: "is not a workspace package (misspelled or renamed?)",
       });
-    } else if (pkg.isPrivate) {
+    } else if (pkg.isPrivate && rules.skipsPrivate) {
       problems.push({
         file,
         name,
@@ -109,14 +128,21 @@ export function findUnreleasablePackages(packages, bumps) {
 
 export function runCheck(root = repoRoot) {
   const packages = readWorkspacePackages(root);
+  const rules = readSkipRules(
+    readJson(path.join(root, ".changeset", "config.json")),
+  );
   return {
     packageCount: packages.size,
-    problems: findUnreleasablePackages(packages, readChangesetBumps(root)),
+    problems: findUnreleasablePackages(
+      packages,
+      readChangesetBumps(root),
+      rules,
+    ),
   };
 }
 
 function main() {
-  const { packageCount, problems } = runCheck();
+  const { packageCount, problems } = runCheck(process.env.CHANGESET_CHECK_ROOT);
 
   if (problems.length > 0) {
     console.error("Changesets name packages that cannot be released:\n");
@@ -124,12 +150,11 @@ function main() {
       console.error(`  .changeset/${file}: "${name}" ${reason}`);
     }
     console.error(
-      "\n`privatePackages.version` is false, so changesets skips private packages.",
+      "\nA changeset mixing a package changesets skips with a released one aborts",
     );
     console.error(
-      "A changeset mixing a skipped package with a released one aborts `changeset version`,",
+      "`changeset version`, which blocks every release until the line is removed.",
     );
-    console.error("which blocks every release until the line is removed.");
     console.error("\nDrop the offending line from the changeset frontmatter.");
     process.exit(1);
   }
