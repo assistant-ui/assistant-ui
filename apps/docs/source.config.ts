@@ -25,7 +25,7 @@ function transformerLineNumbers(): ShikiTransformer {
 // filter content based on the user's selected platform in the header dropdown.
 // Pages / folders with no `platforms` field are universal.
 // fumadocs-mdx forbids non-collection exports here, so this is local-only.
-const platformSchema = z.enum(["react", "rn", "ink"]);
+const platformSchema = z.enum(["react", "rn", "ink", "vue"]);
 
 export const docs = defineDocs({
   docs: {
