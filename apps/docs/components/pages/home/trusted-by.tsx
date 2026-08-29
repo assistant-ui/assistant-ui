@@ -209,20 +209,20 @@ function LogoSlot({
   const [entered, setEntered] = useState(true);
   const mark = useRef<HTMLAnchorElement>(null);
 
-  // The theme-hidden half of a light/dark logo pair is display:none, and a lazy
-  // image in that state never loads, so readiness only counts rendered images.
-  // A failed image is complete with no intrinsic size, and never becomes ready,
-  // so the slot keeps showing the logo it already has.
+  // Readiness only counts rendered images: the theme-hidden half of a light/dark
+  // pair is display:none, and a lazy image in that state never loads. Nothing
+  // reports failure either, because the only caller is a rendered image's own
+  // onLoad, so a logo that fails to load simply never becomes ready.
   const settle = () => {
     for (const image of mark.current?.querySelectorAll("img") ?? []) {
       if (getComputedStyle(image).display === "none") continue;
-      if (!image.complete || image.naturalWidth === 0) return;
+      if (!image.complete) return;
     }
     setEntered(true);
   };
 
   if (logo.alt !== current.alt) {
-    setPrevious(current);
+    if (entered) setPrevious(current);
     setCurrent(logo);
     setEntered(false);
   }
@@ -264,8 +264,9 @@ function LogoSlot({
           previous !== null &&
             (entered
               ? "animate-in fade-in duration-500 ease-out"
-              : "pointer-events-none opacity-0"),
+              : "opacity-0"),
         )}
+        inert={previous !== null && !entered}
       >
         <LogoMark logo={current} onSettle={settle} />
       </Link>
