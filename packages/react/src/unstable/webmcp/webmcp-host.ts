@@ -38,9 +38,12 @@ type ModelContextHost = { modelContext?: WebMcpModelContext } | undefined;
 const isThenable = (value: unknown): value is Promise<unknown> =>
   typeof (value as { then?: unknown } | null | undefined)?.then === "function";
 
-const resolveModelContext = (): WebMcpModelContext | undefined =>
-  (globalThis.document as ModelContextHost)?.modelContext ??
-  (globalThis.navigator as ModelContextHost)?.modelContext;
+const resolveModelContext = (): WebMcpModelContext | undefined => {
+  const context =
+    (globalThis.document as ModelContextHost)?.modelContext ??
+    (globalThis.navigator as ModelContextHost)?.modelContext;
+  return typeof context?.registerTool === "function" ? context : undefined;
+};
 
 // Shared by every handle over one host, so a registration disposed by one
 // cannot unregister a name a later one has taken over. React remounts the

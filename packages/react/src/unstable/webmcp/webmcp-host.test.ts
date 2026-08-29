@@ -36,6 +36,13 @@ describe("getDefaultWebMcpHost", () => {
     expect(() => host.registerTool(descriptor)()).not.toThrow();
   });
 
+  it("reports unavailable when the platform property has no registerTool", () => {
+    install({} as Partial<WebMcpModelContext>);
+    const host = getDefaultWebMcpHost();
+    expect(host.available).toBe(false);
+    expect(() => host.registerTool(descriptor)()).not.toThrow();
+  });
+
   it("falls back to navigator.modelContext, preferring document when both exist", () => {
     const fromNavigator = vi.fn();
     install({ registerTool: fromNavigator }, "navigator");

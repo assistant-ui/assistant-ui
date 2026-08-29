@@ -532,7 +532,7 @@ export type {
 } from "./mcp-apps";
 export type { McpAppResourceOutput } from "@assistant-ui/core/react";
 
-// Unstable - WebMCP bridge (exposes frontend tools to a WebMCP-capable browser)
+// Unstable - WebMCP provider (exposes frontend tools to a WebMCP-capable browser)
 export {
   unstable_useWebMcpProvider,
   type Unstable_WebMcpProviderOptions,
