@@ -223,7 +223,7 @@ function convertUserMessage(
       });
     } else if (
       part.type === "file" &&
-      part.data !== undefined &&
+      typeof part.data === "string" &&
       part.mimeType
     ) {
       content.push({
