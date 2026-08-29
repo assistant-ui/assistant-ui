@@ -221,7 +221,11 @@ function convertUserMessage(
         mediaType: inferImageMediaType(part.image),
         ...(part.filename && { filename: part.filename }),
       });
-    } else if (part.type === "file" && part.data && part.mimeType) {
+    } else if (
+      part.type === "file" &&
+      part.data !== undefined &&
+      part.mimeType
+    ) {
       content.push({
         type: "file",
         data: toUrlOrString(part.data),

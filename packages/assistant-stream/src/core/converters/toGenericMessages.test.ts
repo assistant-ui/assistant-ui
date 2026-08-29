@@ -117,6 +117,36 @@ describe("toGenericMessages", () => {
       ]);
     });
 
+    it("preserves zero-byte file parts", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "",
+              mimeType: "text/plain",
+              filename: "empty.txt",
+            },
+          ],
+        },
+      ] as never);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "",
+              mediaType: "text/plain",
+              filename: "empty.txt",
+            },
+          ],
+        },
+      ]);
+    });
+
     it("handles attachments", () => {
       const result = toGenericMessages([
         {
