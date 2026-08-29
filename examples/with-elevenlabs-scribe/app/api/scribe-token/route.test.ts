@@ -60,6 +60,24 @@ describe("ElevenLabs token route", () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
+  it("accepts matching origins when Fetch Metadata is unavailable", async () => {
+    vi.stubEnv("ELEVENLABS_API_KEY", "secret-key");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(Response.json({ token: "single-use-token" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new Request("https://app.example/api/scribe-token", {
+        method: "POST",
+        headers: { origin: "https://app.example" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
+  });
+
   it("fails closed when the API key is missing", async () => {
     vi.stubEnv("ELEVENLABS_API_KEY", "");
     const fetchMock = vi.fn();

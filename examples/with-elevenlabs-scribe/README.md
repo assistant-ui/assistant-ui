@@ -26,7 +26,9 @@ ELEVENLABS_API_KEY=sk-...
 npm run dev
 ```
 
-The token endpoint rejects browser requests marked same-site or cross-site so the example can create short-lived Scribe sessions without exposing `ELEVENLABS_API_KEY`. For clients without Fetch Metadata, reverse proxies must preserve the public scheme and host in the request URL for the `Origin` fallback. Request-context checks are not user authentication. Before deploying, require your application session in `app/api/scribe-token/route.ts` and apply a durable rate limit.
+The token endpoint keeps `ELEVENLABS_API_KEY` server-side and accepts a request only when `Sec-Fetch-Site` is `same-origin` or `none`, so a `same-site` request from another subdomain is rejected as well. For clients that omit Fetch Metadata it falls back to comparing the `Origin` header against the request URL, which behind a reverse proxy needs the public scheme and host preserved there.
+
+A request-context check is not authentication. Before deploying, require your application session in `app/api/scribe-token/route.ts` and apply a durable rate limit.
 
 ## Features
 
