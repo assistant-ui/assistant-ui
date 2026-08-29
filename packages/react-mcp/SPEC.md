@@ -373,7 +373,7 @@ During auto-connect, a rejected `storage.loadAuthState()` sets `lastError` and t
 3. `client.connect(transport)` — on `UnauthorizedError` set `authorizationUrl` and transition to `"authRequired"`; on other errors set `lastError` and transition to `"error"`.
 4. On success: `listTools()`, transition to `"connected"`.
 
-`completeAuth(url)`: require an exact match with the persisted `state`, accept either `code` or an OAuth `error`, pass the complete callback `URLSearchParams` (including `iss`) to `transport.finishAuth()`, then retry `client.connect()` after successful authorization.
+`completeAuth(url)`: require an exact match with the persisted `state`, accept either `code` or an OAuth `error`, pass the complete callback `URLSearchParams` (including `iss`) to `transport.finishAuth()`, then retry `client.connect()` after successful authorization. Those pre-transport checks, and a rejected `storage.loadAuthState()` inside `completeAuth`, reject without touching `connectionState` or `lastError`, so a forged callback cannot disturb a connected server; from `finishAuth()` onwards a failure sets `lastError` and transitions to `"error"`.
 
 ## 7. OAuth callback
 
