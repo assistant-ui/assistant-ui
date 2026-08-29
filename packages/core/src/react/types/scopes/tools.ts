@@ -13,7 +13,7 @@ export type McpAppResourceOutput = {
  */
 type ToolRegistration = {
   readonly render: ToolCallMessagePartComponent;
-  readonly renderText?: ToolCallText<any, any> | undefined;
+  readonly renderText?: ToolCallText<any, any, unknown> | undefined;
   /** Whether this UI renders standalone, outside the chain-of-thought trace. */
   readonly standalone: boolean;
 };

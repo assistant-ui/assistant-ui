@@ -29,8 +29,9 @@ export const clearPartWarningsForTesting = () => warnedTypes.clear();
  * face bridges the seam with casts at registration and render; a genuine
  * React renderer arriving through a shared toolkit type-checks at `setToolUI`
  * and then fails when invoked as a Vue component. This type is the Vue-facing
- * contract for custom components. Toolkit `renderText` descriptors are
- * framework-neutral and render their resolved text directly.
+ * contract for custom components. Toolkit `renderText` descriptors resolve
+ * through the neutral resolver and render string or number results directly;
+ * a react-element-valued descriptor is react-only and renders nothing here.
  */
 export type ToolUIProps = {
   part: Extract<AssistantState["part"], { type: "tool-call" }>;
@@ -77,7 +78,17 @@ export const MessagePrimitiveParts = defineComponent({
             const part = toolPart.value;
             if (registration && part) {
               if (registration.renderText) {
-                return resolveToolCallText(registration.renderText, part);
+                const resolved = resolveToolCallText(
+                  registration.renderText,
+                  part,
+                );
+                if (
+                  typeof resolved === "string" ||
+                  typeof resolved === "number"
+                ) {
+                  return resolved;
+                }
+                return null;
               }
               return h(registration.render as unknown as Component, {
                 tool: {

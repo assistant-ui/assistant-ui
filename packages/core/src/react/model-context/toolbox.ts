@@ -11,10 +11,13 @@ import type {
 } from "../types/MessagePartComponentTypes";
 import {
   resolveToolCallText,
-  type ToolCallText,
+  type ToolCallText as NeutralToolCallText,
 } from "../../model-context/tool-call-text";
 
-export type { ToolCallText } from "../../model-context/tool-call-text";
+export type ToolCallText<
+  TArgs extends Record<string, unknown>,
+  TResult,
+> = NeutralToolCallText<TArgs, TResult, ReactNode>;
 
 /**
  * Resolves whether a tool's UI should be presented standalone (outside the

@@ -320,6 +320,46 @@ describe("MessagePrimitiveParts tool UI registry", () => {
     unmount();
   });
 
+  it("renders nothing for a react-element-valued renderText descriptor", async () => {
+    const { runtime, replace } = createTestRuntime();
+    const toolkit = {
+      weather: {
+        type: "frontend",
+        description: "Looks up the weather.",
+        parameters: { type: "object", properties: {} },
+        execute: async () => "sunny",
+        renderText: {
+          running: () => ({ reactElement: true }),
+          complete: () => ({ reactElement: true }),
+        },
+      },
+    } as unknown as Toolkit;
+    const { el, unmount } = mountChat(runtime, PartsWithToolSlot, {
+      tools: Tools({ toolkit }),
+    });
+
+    flushTapSync(() =>
+      replace({
+        role: "assistant",
+        status: { type: "running" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-1",
+            toolName: "weather",
+            args: { city: "sf" },
+          },
+        ],
+      }),
+    );
+    await nextTick();
+    await nextTick();
+    expect(el.textContent ?? "").not.toContain("reactElement");
+    expect(el.textContent ?? "").not.toContain("[object");
+
+    unmount();
+  });
+
   it("renders toolkit renderText for running and complete tool calls", async () => {
     const { runtime, replace } = createTestRuntime();
     const toolkit = {

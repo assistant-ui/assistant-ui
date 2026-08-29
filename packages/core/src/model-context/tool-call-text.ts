@@ -1,24 +1,34 @@
-type ToolCallTextValue = string | undefined | null;
+type ToolCallRunningText<TArgs extends Record<string, unknown>, TValue> =
+  | TValue
+  | undefined
+  | null
+  | ((options: { args: TArgs }) => TValue | undefined | null);
 
-type ToolCallRunningText<TArgs extends Record<string, unknown>> =
-  | ToolCallTextValue
-  | ((options: { args: TArgs }) => ToolCallTextValue);
-
-type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult> =
-  | ToolCallTextValue
+type ToolCallCompleteText<
+  TArgs extends Record<string, unknown>,
+  TResult,
+  TValue,
+> =
+  | TValue
+  | undefined
+  | null
   | ((options: {
       args: TArgs;
       result: TResult | undefined;
-    }) => ToolCallTextValue);
+    }) => TValue | undefined | null);
 
-export type ToolCallText<TArgs extends Record<string, unknown>, TResult> =
+export type ToolCallText<
+  TArgs extends Record<string, unknown>,
+  TResult,
+  TValue = string,
+> =
   | {
-      running: ToolCallRunningText<TArgs>;
-      complete?: ToolCallCompleteText<TArgs, TResult> | undefined;
+      running: ToolCallRunningText<TArgs, TValue>;
+      complete?: ToolCallCompleteText<TArgs, TResult, TValue> | undefined;
     }
   | {
-      running?: ToolCallRunningText<TArgs> | undefined;
-      complete: ToolCallCompleteText<TArgs, TResult>;
+      running?: ToolCallRunningText<TArgs, TValue> | undefined;
+      complete: ToolCallCompleteText<TArgs, TResult, TValue>;
     };
 
 type ToolCallTextPart<TArgs extends Record<string, unknown>, TResult> = {
@@ -30,20 +40,28 @@ type ToolCallTextPart<TArgs extends Record<string, unknown>, TResult> = {
 export const resolveToolCallText = <
   TArgs extends Record<string, unknown>,
   TResult,
+  TValue,
 >(
-  text: ToolCallText<TArgs, TResult>,
+  text: ToolCallText<TArgs, TResult, TValue>,
   part: ToolCallTextPart<TArgs, TResult>,
-): ToolCallTextValue => {
+): TValue | undefined | null => {
   const isRunning =
     part.status?.type === "running" || part.status?.type === "requires-action";
 
   if (!isRunning) {
     const value = text.complete;
     if (typeof value !== "function") return value ?? null;
-    return value({ args: part.args, result: part.result });
+    return (
+      value as (options: {
+        args: TArgs;
+        result: TResult | undefined;
+      }) => TValue | undefined | null
+    )({ args: part.args, result: part.result });
   }
 
   const value = text.running;
   if (typeof value !== "function") return value ?? null;
-  return value({ args: part.args });
+  return (value as (options: { args: TArgs }) => TValue | undefined | null)({
+    args: part.args,
+  });
 };
