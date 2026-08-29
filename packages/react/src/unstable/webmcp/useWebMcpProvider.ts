@@ -1,14 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useAui } from "@assistant-ui/store";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { useResources, useTapRoot, withKey } from "@assistant-ui/tap";
+import { useAui, type AssistantClient } from "@assistant-ui/store";
 import type { Tool } from "assistant-stream";
-import { getDefaultWebMcpHost } from "./webmcp-host";
-import {
-  defaultWebMcpFilter,
-  toWebMcpInputSchema,
-  toWebMcpTool,
-} from "./convertTools";
+import { getDefaultWebMcpHost, type WebMcpHost } from "./webmcp-host";
+import { defaultWebMcpFilter, toWebMcpInputSchema } from "./convertTools";
+import { WebMcpRegistrationResource } from "./WebMcpRegistrationResource";
 
 export type Unstable_WebMcpProviderOptions = {
   filter?: (name: string, tool: Tool<any, any>) => boolean;
@@ -20,6 +18,7 @@ export type Unstable_WebMcpProviderResult = {
 };
 
 const EMPTY_NAMES: readonly string[] = Object.freeze([]);
+const EMPTY_TOOLS: Record<string, Tool<any, any>> = Object.freeze({});
 
 // The description is re-read on every sync so mutating it in place is
 // observed; the schema is converted only when the tool object itself changes.
@@ -39,6 +38,70 @@ const signatureOf = (tool: Tool<any, any>) => {
   return signature;
 };
 
+// getModelContext() rebuilds its result on every call, so it is read into
+// state on notify rather than served as a render snapshot.
+const useModelContextTools = (aui: AssistantClient, enabled: boolean) => {
+  const [tools, setTools] = useState(EMPTY_TOOLS);
+
+  useEffect(() => {
+    if (!enabled) return undefined;
+    const read = () =>
+      setTools(aui.modelContext.getModelContext().tools ?? EMPTY_TOOLS);
+    read();
+    return aui.modelContext.subscribe?.(read);
+  }, [aui, enabled]);
+
+  return tools;
+};
+
+const useStableNames = (names: readonly (string | null)[]) => {
+  const [cell] = useState(() => ({ names: EMPTY_NAMES }));
+  const next = names.filter((name): name is string => name !== null).sort();
+  const previous = cell.names;
+  if (
+    previous.length === next.length &&
+    previous.every((name, index) => name === next[index])
+  ) {
+    return previous;
+  }
+  cell.names = next;
+  return next;
+};
+
+const useWebMcpRegistry = ({
+  aui,
+  host,
+  filter,
+}: {
+  aui: AssistantClient;
+  host: WebMcpHost;
+  filter: (name: string, tool: Tool<any, any>) => boolean;
+}) => {
+  const tools = useModelContextTools(aui, host.available);
+
+  const elements = [];
+  for (const [name, tool] of Object.entries(tools)) {
+    try {
+      if (!filter(name, tool)) continue;
+      const signature = signatureOf(tool);
+      elements.push(
+        withKey(
+          name,
+          WebMcpRegistrationResource({ host, name, signature, tool }),
+          [host, name, signature, tool],
+        ),
+      );
+    } catch (error) {
+      console.warn(
+        `[assistant-ui] Skipping WebMCP registration for tool "${name}": filter or schema conversion failed.`,
+        error,
+      );
+    }
+  }
+
+  return useStableNames(useResources(elements));
+};
+
 /**
  * Publishes the frontend tools in the model context to a WebMCP-capable
  * browser, so the user's own browser agent can call them.
@@ -51,140 +114,20 @@ export const unstable_useWebMcpProvider = (
   options: Unstable_WebMcpProviderOptions = {},
 ): Unstable_WebMcpProviderResult => {
   const aui = useAui();
-  const [registeredToolNames, setRegisteredToolNames] =
-    useState<readonly string[]>(EMPTY_NAMES);
+  const [host] = useState(getDefaultWebMcpHost);
+  const filter = options.filter ?? defaultWebMcpFilter;
 
-  const optionsRef = useRef(options);
-  const syncRef = useRef<(() => void) | null>(null);
-  useEffect(() => {
-    const filterChanged = optionsRef.current.filter !== options.filter;
-    optionsRef.current = options;
-    if (filterChanged) syncRef.current?.();
-  });
+  const root = useTapRoot(() => useWebMcpRegistry({ aui, host, filter }));
+  const registeredToolNames = useSyncExternalStore(
+    root.subscribe,
+    root.getValue,
+    () => EMPTY_NAMES,
+  );
 
   const [published, setPublished] = useState(false);
-
   useEffect(() => {
-    const host = getDefaultWebMcpHost();
-    if (!host.available) return undefined;
-    setPublished(true);
-
-    type Registration = {
-      signature: string;
-      tool: Tool<any, any>;
-      lifecycle: AbortController;
-      dispose: () => void;
-    };
-    const registered = new Map<string, Registration>();
-    const refused = new Set<string>();
-
-    const disposeRegistration = (name: string) => {
-      const registration = registered.get(name);
-      if (!registration) return;
-      registered.delete(name);
-      registration.lifecycle.abort();
-      try {
-        registration.dispose();
-      } catch (error) {
-        console.warn(
-          `[assistant-ui] Unregistering WebMCP tool "${name}" failed.`,
-          error,
-        );
-      }
-    };
-
-    const publishNames = () => {
-      const names = [...registered.keys()].sort();
-      setRegisteredToolNames((prev) =>
-        prev.length === names.length && prev.every((v, i) => v === names[i])
-          ? prev
-          : names,
-      );
-    };
-
-    const sync = () => {
-      const filter = optionsRef.current.filter ?? defaultWebMcpFilter;
-      const tools = aui.modelContext.getModelContext().tools ?? {};
-      const desired = new Map<
-        string,
-        { tool: Tool<any, any>; signature: string }
-      >();
-      for (const [name, tool] of Object.entries(tools)) {
-        try {
-          if (!filter(name, tool)) continue;
-          desired.set(name, { tool, signature: signatureOf(tool) });
-        } catch (error) {
-          console.warn(
-            `[assistant-ui] Skipping WebMCP registration for tool "${name}": filter or schema conversion failed.`,
-            error,
-          );
-        }
-      }
-
-      for (const name of [...registered.keys()]) {
-        if (!desired.has(name)) disposeRegistration(name);
-      }
-      for (const name of [...refused]) {
-        if (!desired.has(name)) refused.delete(name);
-      }
-
-      for (const [name, target] of desired) {
-        if (refused.has(name)) continue;
-        const existing = registered.get(name);
-        if (existing?.signature === target.signature) {
-          existing.tool = target.tool;
-          continue;
-        }
-        disposeRegistration(name);
-        try {
-          const registration: Registration = {
-            signature: target.signature,
-            tool: target.tool,
-            lifecycle: new AbortController(),
-            dispose: () => {},
-          };
-          registration.dispose = host.registerTool(
-            toWebMcpTool(
-              name,
-              () => registration.tool,
-              registration.lifecycle.signal,
-            ),
-            (error) => {
-              if (registered.get(name) !== registration) return;
-              refused.add(name);
-              disposeRegistration(name);
-              console.warn(
-                `[assistant-ui] WebMCP registration for tool "${name}" failed (name may already be registered).`,
-                error,
-              );
-              publishNames();
-            },
-          );
-          registered.set(name, registration);
-        } catch (error) {
-          refused.add(name);
-          console.warn(
-            `[assistant-ui] Skipping WebMCP registration for tool "${name}": registerTool failed (name may already be registered).`,
-            error,
-          );
-        }
-      }
-
-      publishNames();
-    };
-
-    sync();
-    syncRef.current = sync;
-    const unsubscribe = aui.modelContext.subscribe?.(sync);
-
-    return () => {
-      syncRef.current = null;
-      unsubscribe?.();
-      for (const name of [...registered.keys()]) disposeRegistration(name);
-      setRegisteredToolNames(EMPTY_NAMES);
-      setPublished(false);
-    };
-  }, [aui]);
+    if (host.available) setPublished(true);
+  }, [host]);
 
   return {
     status: published ? "active" : "unsupported",
