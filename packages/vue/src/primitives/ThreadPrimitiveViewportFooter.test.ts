@@ -168,23 +168,20 @@ describe("ThreadPrimitiveViewportFooter", () => {
     observers.trigger(footer);
     await nextTick();
 
-    el.querySelector<HTMLButtonElement>("button.jump")!.click();
-    expect(geometry.scrollTo).toHaveBeenLastCalledWith({
-      top: 450,
-      behavior: "auto",
-    });
+    geometry.setScrollTop(355);
+    div.dispatchEvent(new Event("scroll"));
+    await nextTick();
+    expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
+      true,
+    );
 
     showFooter.value = false;
     await nextTick();
-    geometry.setScrollTop(0);
     div.dispatchEvent(new Event("scroll"));
     await nextTick();
-
-    el.querySelector<HTMLButtonElement>("button.jump")!.click();
-    expect(geometry.scrollTo).toHaveBeenLastCalledWith({
-      top: 500,
-      behavior: "auto",
-    });
+    expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
+      false,
+    );
 
     Reflect.deleteProperty(footer, "offsetHeight");
     unmount();
@@ -192,6 +189,7 @@ describe("ThreadPrimitiveViewportFooter", () => {
 
   it("sums the heights of multiple footers", async () => {
     const observers = installResizeObserver();
+    const showSecond = ref(true);
     const View = defineComponent({
       setup: () => () =>
         h(
@@ -200,7 +198,9 @@ describe("ThreadPrimitiveViewportFooter", () => {
           {
             default: () => [
               h(ThreadPrimitiveViewportFooter, { class: "first-footer" }),
-              h(ThreadPrimitiveViewportFooter, { class: "second-footer" }),
+              showSecond.value
+                ? h(ThreadPrimitiveViewportFooter, { class: "second-footer" })
+                : null,
               h(
                 ThreadPrimitiveScrollToBottom,
                 { class: "jump" },
@@ -228,14 +228,76 @@ describe("ThreadPrimitiveViewportFooter", () => {
     observers.trigger(secondFooter);
     await nextTick();
 
-    el.querySelector<HTMLButtonElement>("button.jump")!.click();
-    expect(geometry.scrollTo).toHaveBeenLastCalledWith({
-      top: 450,
-      behavior: "auto",
-    });
+    geometry.setScrollTop(355);
+    div.dispatchEvent(new Event("scroll"));
+    await nextTick();
+    expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
+      true,
+    );
+
+    showSecond.value = false;
+    await nextTick();
+    div.dispatchEvent(new Event("scroll"));
+    await nextTick();
+    expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
+      false,
+    );
 
     Reflect.deleteProperty(firstFooter, "offsetHeight");
     Reflect.deleteProperty(secondFooter, "offsetHeight");
+    unmount();
+  });
+
+  it("follows a footer growth while pinned at the bottom", async () => {
+    const observers = installResizeObserver();
+    let footerHeight = 50;
+    const View = defineComponent({
+      setup: () => () =>
+        h(
+          ThreadPrimitiveViewport,
+          { class: "viewport" },
+          {
+            default: () => [
+              h(ThreadPrimitiveViewportFooter, { class: "footer" }),
+              h(
+                ThreadPrimitiveScrollToBottom,
+                { class: "jump" },
+                { default: () => "Jump" },
+              ),
+            ],
+          },
+        ),
+    });
+    const { el, unmount } = mountChat(createTestRuntime(), View);
+    const div = el.querySelector<HTMLElement>("div.viewport")!;
+    const geometry = installViewportGeometry(div);
+    const footer = el.querySelector<HTMLElement>("div.footer")!;
+    Object.defineProperty(footer, "offsetHeight", {
+      get: () => footerHeight,
+      configurable: true,
+    });
+    geometry.setScrollTop(400);
+    div.dispatchEvent(new Event("scroll"));
+    observers.trigger(footer);
+    await nextTick();
+    expect(geometry.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "instant",
+    });
+
+    geometry.scrollTo.mockClear();
+    footerHeight = 80;
+    observers.trigger(footer);
+    await nextTick();
+    expect(geometry.scrollTo).toHaveBeenCalledWith({
+      top: 500,
+      behavior: "instant",
+    });
+    expect(el.querySelector<HTMLButtonElement>("button.jump")!.disabled).toBe(
+      true,
+    );
+
+    Reflect.deleteProperty(footer, "offsetHeight");
     unmount();
   });
 });

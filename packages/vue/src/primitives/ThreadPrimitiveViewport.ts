@@ -68,7 +68,7 @@ export const ThreadPrimitiveViewport = defineComponent({
       const div = divRef.value;
       if (!div) return;
       intent = behavior;
-      div.scrollTo?.({ top: div.scrollHeight - contentInset.value, behavior });
+      div.scrollTo?.({ top: div.scrollHeight, behavior });
     };
 
     const scheduleScrollToBottom = (behavior: ScrollBehavior) => {
@@ -113,7 +113,18 @@ export const ThreadPrimitiveViewport = defineComponent({
       let total = 0;
       for (const height of contentInsetEntries.values()) total += height;
       if (contentInset.value === total) return;
+      const grew = total > contentInset.value;
       contentInset.value = total;
+      // A growing inset obscures content a pinned viewport was showing, so it
+      // follows like a content resize; a shrinking inset reveals content and
+      // must not move the viewport.
+      if (grew) {
+        if (intent) {
+          scrollToBottom(intent);
+        } else if (props.autoScroll && isAtBottom.value) {
+          scrollToBottom("instant");
+        }
+      }
       handleScroll();
     };
 
