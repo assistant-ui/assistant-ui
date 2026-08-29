@@ -3,7 +3,7 @@ import type {
   SpanProcessor,
 } from "@opentelemetry/sdk-trace-base";
 import { describe, expect, it, vi } from "vitest";
-import { aiOnly, isAiSpan } from "./instrumentation";
+import { aiOnly, axiomExporterConfig, isAiSpan } from "./instrumentation";
 
 function span(name: string, attributes: Record<string, unknown> = {}) {
   return { name, attributes } as unknown as ReadableSpan;
@@ -82,5 +82,37 @@ describe("aiOnly", () => {
 
     expect(inner.forceFlush).toHaveBeenCalledTimes(1);
     expect(inner.shutdown).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("axiomExporterConfig", () => {
+  const creds = { AXIOM_TOKEN: "xaat-test", AXIOM_DATASET: "traces" };
+
+  it("returns null unless both credentials are present", () => {
+    expect(axiomExporterConfig({})).toBeNull();
+    expect(axiomExporterConfig({ AXIOM_TOKEN: "xaat-test" })).toBeNull();
+    expect(axiomExporterConfig({ AXIOM_DATASET: "traces" })).toBeNull();
+  });
+
+  it("defaults to the US host when the domain is unset or blank", () => {
+    expect(axiomExporterConfig(creds)?.url).toBe(
+      "https://api.axiom.co/v1/traces",
+    );
+    expect(axiomExporterConfig({ ...creds, AXIOM_DOMAIN: "" })?.url).toBe(
+      "https://api.axiom.co/v1/traces",
+    );
+  });
+
+  it("honours an explicit region", () => {
+    expect(
+      axiomExporterConfig({ ...creds, AXIOM_DOMAIN: "api.eu.axiom.co" })?.url,
+    ).toBe("https://api.eu.axiom.co/v1/traces");
+  });
+
+  it("carries the token and dataset headers", () => {
+    expect(axiomExporterConfig(creds)?.headers).toEqual({
+      Authorization: "Bearer xaat-test",
+      "X-Axiom-Dataset": "traces",
+    });
   });
 });

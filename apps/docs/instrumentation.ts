@@ -35,24 +35,29 @@ export function aiOnly(inner: SpanProcessor): SpanProcessor {
 // costs the per-application and per-user dimensions on the AI SDK v7 path
 // (PostHog/posthog#52442). Axiom stores every attribute verbatim, so it is
 // exported alongside rather than instead of PostHog while both are in use.
-function axiomProcessor() {
-  const token = process.env.AXIOM_TOKEN;
-  const dataset = process.env.AXIOM_DATASET;
+export function axiomExporterConfig(env: NodeJS.ProcessEnv) {
+  const token = env.AXIOM_TOKEN;
+  const dataset = env.AXIOM_DATASET;
   if (!token || !dataset) return null;
 
-  return aiOnly(
-    new BatchSpanProcessor(
-      new OTLPHttpProtoTraceExporter({
-        // api.axiom.co is the US domain; an EU-hosted org ingests at
-        // api.eu.axiom.co and otherwise drops batches silently.
-        url: `https://${process.env.AXIOM_DOMAIN || "api.axiom.co"}/v1/traces`,
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "X-Axiom-Dataset": dataset,
-        },
-      }),
-    ),
-  );
+  return {
+    // api.axiom.co is the US domain; an EU-hosted org ingests at
+    // api.eu.axiom.co and otherwise drops batches silently. An empty value
+    // has to fall back too: a Vercel variable created ahead of its value
+    // would otherwise build https:///v1/traces.
+    url: `https://${env.AXIOM_DOMAIN || "api.axiom.co"}/v1/traces`,
+    headers: {
+      Authorization: `Bearer ${token}`,
+      "X-Axiom-Dataset": dataset,
+    },
+  };
+}
+
+function axiomProcessor() {
+  const config = axiomExporterConfig(process.env);
+  if (!config) return null;
+
+  return aiOnly(new BatchSpanProcessor(new OTLPHttpProtoTraceExporter(config)));
 }
 
 export function register() {
