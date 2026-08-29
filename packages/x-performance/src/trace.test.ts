@@ -78,6 +78,10 @@ describe("analyzeTrace", () => {
     expect(s.compositorBusyMs).toBe(100);
     expect(s.wallSeconds).toBe(2);
     expect(s.mainBusyPct).toBe(10);
+
+    const floored = analyzeTrace(events, "irrelevant-hint", 4_000_000);
+    expect(floored.wallSeconds).toBe(4);
+    expect(floored.mainBusyPct).toBe(5);
   });
 
   it("counts async PipelineReporter begins once, not begin+end", () => {

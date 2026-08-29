@@ -64,12 +64,14 @@ const flattenBenchmarks = (raw) => {
   return rows;
 };
 
+const PNPM = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
+
 const runSuite = (extraEnv = {}) => {
   const tmp = join(perfDir, "raw.json");
   const env = { ...process.env, ...extraEnv };
   if (!("AUI_PERF_REF_ROOT" in extraEnv)) delete env.AUI_PERF_REF_ROOT;
   const res = spawnSync(
-    "pnpm",
+    PNPM,
     ["exec", "vitest", "bench", "--run", "--outputJson", tmp],
     {
       cwd: pkgRoot,
@@ -174,13 +176,13 @@ const ensureRefWorktree = (ref) => {
   }
   if (!existsSync(marker)) {
     console.log("installing and building ref packages (one-time per ref)...");
-    execFileSync("pnpm", ["install"], {
+    execFileSync(PNPM, ["install"], {
       cwd: wt,
       stdio: "inherit",
       env: { ...process.env, CI: "true" },
     });
     const filters = REF_PACKAGES.map((p) => `--filter=${REF_PACKAGE_NAMES[p]}`);
-    execFileSync("pnpm", ["turbo", "run", "build", ...filters], {
+    execFileSync(PNPM, ["turbo", "run", "build", ...filters], {
       cwd: wt,
       stdio: "inherit",
     });
@@ -232,7 +234,10 @@ const trace = async (targets, seconds) => {
     const hint = basename(new URL(arg, "file:///").pathname);
     console.log(`tracing ${hint} for ${seconds}s...`);
     const events = await captureTrace(arg, seconds);
-    results.push({ target: hint, ...analyzeTrace(events, hint) });
+    results.push({
+      target: hint,
+      ...analyzeTrace(events, hint, seconds * 1_000_000),
+    });
   }
   console.table(
     results.map((r) => ({

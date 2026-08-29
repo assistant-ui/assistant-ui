@@ -26,4 +26,5 @@ export declare const captureTrace: (
 export declare const analyzeTrace: (
   events: TraceEvent[],
   urlHint: string,
+  captureUs?: number,
 ) => TraceStats;

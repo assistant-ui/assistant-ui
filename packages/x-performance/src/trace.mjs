@@ -20,6 +20,10 @@ const CHROME_CANDIDATES = [
   which("google-chrome-stable"),
   which("chromium"),
   which("chromium-browser"),
+  "/usr/bin/google-chrome",
+  "/usr/bin/google-chrome-stable",
+  "/usr/bin/chromium",
+  "/usr/bin/chromium-browser",
 ].filter(Boolean);
 
 const TRACE_CATEGORIES = [
@@ -76,12 +80,24 @@ class Cdp {
   }
 }
 
+const withTimeout = (promise, ms, what) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`timed out waiting for ${what}`)), ms),
+    ),
+  ]);
+
 const connect = (url) =>
-  new Promise((resolve, reject) => {
-    const ws = new WebSocket(url);
-    ws.addEventListener("open", () => resolve(ws));
-    ws.addEventListener("error", (e) => reject(e));
-  });
+  withTimeout(
+    new Promise((resolve, reject) => {
+      const ws = new WebSocket(url);
+      ws.addEventListener("open", () => resolve(ws));
+      ws.addEventListener("error", (e) => reject(e));
+    }),
+    10_000,
+    "the CDP websocket",
+  );
 
 export const captureTrace = async (target, seconds, settleMs = 1500) => {
   const chrome = findChrome();
@@ -102,6 +118,9 @@ export const captureTrace = async (target, seconds, settleMs = 1500) => {
   try {
     const portFile = join(profile, "DevToolsActivePort");
     for (let i = 0; i < 100 && !existsSync(portFile); i++) await sleep(100);
+    if (!existsSync(portFile)) {
+      throw new Error(`Chrome failed to start within 10s (${chrome})`);
+    }
     const port = readFileSync(portFile, "utf8").split("\n")[0];
     const version = await fetch(`http://127.0.0.1:${port}/json/version`).then(
       (r) => r.json(),
@@ -135,7 +154,7 @@ export const captureTrace = async (target, seconds, settleMs = 1500) => {
     );
     await sleep(seconds * 1000);
     await cdp.send("Tracing.end");
-    await complete;
+    await withTimeout(complete, 30_000, "trace collection");
     return chunks;
   } finally {
     proc.kill();
@@ -144,7 +163,7 @@ export const captureTrace = async (target, seconds, settleMs = 1500) => {
   }
 };
 
-export const analyzeTrace = (events, urlHint) => {
+export const analyzeTrace = (events, urlHint, captureUs = 0) => {
   let pid;
   for (const e of events) {
     if (e.name === PID_MARKER) pid = e.pid;
@@ -166,6 +185,11 @@ export const analyzeTrace = (events, urlHint) => {
   }
   const mainTid = tids["CrRendererMain"];
   const compTid = tids["Compositor"];
+  if (mainTid === undefined) {
+    throw new Error(
+      `trace has no CrRendererMain thread metadata for pid ${pid}; refusing to report 0ms as if it were measured`,
+    );
+  }
 
   const counts = {};
   let mainBusy = 0;
@@ -195,7 +219,7 @@ export const analyzeTrace = (events, urlHint) => {
       else if (e.tid === compTid) compBusy += e.dur ?? 0;
     }
   }
-  const wall = tmax - tmin;
+  const wall = Math.max(tmax - tmin, captureUs);
   return {
     wallSeconds: wall / 1e6,
     mainBusyMs: mainBusy / 1e3,
