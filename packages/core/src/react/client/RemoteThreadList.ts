@@ -524,7 +524,7 @@ const useRemoteThreadList = (
   );
   useThreadSelectionEvents(mainThreadId);
   useEffect(() => {
-    // Imperative actions stay scoped to this committed adapter; explicit reload adopts its render-local adapter.
+    // Publishing after commit keeps imperative actions on the adapter the committed tree renders with; an abandoned render must not reach them.
     session.adapter = adapter;
     session.mainThreadId = mainThreadId;
     session.onThreadIdChange = onThreadIdChange;
@@ -599,7 +599,6 @@ const useRemoteThreadList = (
 
   const reload = useCallback(() => {
     const adapterChanged = adapter !== session.adapterAtLoad;
-    session.adapter = adapter;
     session.loadGeneration++;
     session.loadPromise = undefined;
     session.loadMorePromise = undefined;
