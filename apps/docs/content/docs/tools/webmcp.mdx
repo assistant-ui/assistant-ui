@@ -28,13 +28,13 @@ const WebMcpBridge = () => {
 };
 ```
 
-`status` is `"unsupported"` when the page has no `modelContext` — every browser without WebMCP today — and `"active"` once the bridge is running. `registeredToolNames` is the sorted list of names currently live on the host; a name that the host refuses (because the page already registered it) is not in the list.
+`status` is `"unsupported"` when the page has no `modelContext` — every browser without WebMCP today — and `"active"` once the bridge is running. The check runs when the hook mounts and is not repeated: WebMCP defines no availability event, and the bridge does not poll, so an extension that injects `modelContext` into an already-rendered page is only picked up on the next mount. `registeredToolNames` is the sorted list of names currently live on the host; a name that the host refuses (because the page already registered it) is not in the list.
 
 By default the bridge publishes every enabled frontend tool that has an `execute`. Backend tools, disabled tools, and tools with no client-side implementation are skipped.
 
 ## Choosing which tools to publish
 
-Pass a `filter` to narrow the set. It runs for every tool on every model-context change, and changing the function re-syncs the registrations:
+Pass a `filter` to narrow the set. It runs for every tool on every model-context change, and changing the function re-syncs the registrations. The inline arrow below is a new function on every render, which is fine: each tool's converted schema is cached against the tool object, so a re-sync that changes nothing costs no schema conversion.
 
 ```tsx
 const PUBLIC_TOOLS = new Set(["search_docs", "get_order_status"]);
@@ -53,7 +53,7 @@ The bridge owns its registrations:
 - A tool that leaves the model context is unregistered.
 - Changing a tool's `description` or `parameters` re-registers it under the new signature; changing only its `execute` implementation does not — the live registration calls through to the latest version.
 - Unmounting unregisters everything.
-- A registration the host rejects is dropped with a `console.warn`, and its name is left alone — the bridge never unregisters a tool it does not own.
+- A registration the host rejects is dropped with a `console.warn`, and its name is left alone — the bridge never unregisters a tool it does not own. That name is then not retried while the tool stays in the model context, so a permanent collision warns once rather than on every sync; removing the tool and adding it back retries it.
 
 Calls are executed through the same path as a frontend tool call: Standard Schema parameters are validated first (including `experimental_onSchemaValidationError`), `toModelOutput` shapes the result if you define it, and the host's `AbortSignal` is merged with the registration's own lifetime, so an unregistered tool cancels in-flight work. `human()` is not available — a WebMCP caller has no assistant-ui composer to answer with.
 
@@ -66,6 +66,6 @@ type Unstable_WebMcpBridgeOptions = {
 
 type Unstable_WebMcpBridgeResult = {
   status: "unsupported" | "active";
-  registeredToolNames: string[];
+  registeredToolNames: readonly string[];
 };
 ```

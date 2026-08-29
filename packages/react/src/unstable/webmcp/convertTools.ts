@@ -45,7 +45,7 @@ const mapModelContentPart = (part: ToolModelContentPart): WebMcpContent => {
       typeof part.mediaType === "string" &&
       part.mediaType.startsWith("image/")
     ) {
-      return { type: "image", data: part.data, mimeType: part.mediaType };
+      return { type: "image", data: part.data ?? "", mimeType: part.mediaType };
     }
     return textContent(part.data ?? "");
   }

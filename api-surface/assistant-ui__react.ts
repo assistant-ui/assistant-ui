@@ -5818,7 +5818,7 @@ type Unstable_WebMcpBridgeOptions = {
 
 type Unstable_WebMcpBridgeResult = {
   status: "active" | "unsupported";
-  registeredToolNames: string[];
+  registeredToolNames: readonly string[];
 };
 
 type Unsubscribe = () => void;

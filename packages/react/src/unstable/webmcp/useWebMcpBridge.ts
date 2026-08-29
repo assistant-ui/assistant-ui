@@ -16,13 +16,22 @@ export type Unstable_WebMcpBridgeOptions = {
 
 export type Unstable_WebMcpBridgeResult = {
   status: "unsupported" | "active";
-  registeredToolNames: string[];
+  registeredToolNames: readonly string[];
 };
 
-const EMPTY_NAMES: string[] = [];
+const EMPTY_NAMES: readonly string[] = Object.freeze([]);
 
-const signatureOf = (tool: Tool<any, any>) =>
-  `${tool.description ?? ""}\u0000${JSON.stringify(toWebMcpInputSchema(tool))}`;
+const signatures = new WeakMap<Tool<any, any>, string>();
+
+const signatureOf = (tool: Tool<any, any>) => {
+  const cached = signatures.get(tool);
+  if (cached !== undefined) return cached;
+  const signature = `${tool.description ?? ""}\u0000${JSON.stringify(
+    toWebMcpInputSchema(tool),
+  )}`;
+  signatures.set(tool, signature);
+  return signature;
+};
 
 /**
  * Publishes the frontend tools in the model context to a WebMCP-capable
@@ -37,7 +46,7 @@ export const unstable_useWebMcpBridge = (
 ): Unstable_WebMcpBridgeResult => {
   const aui = useAui();
   const [registeredToolNames, setRegisteredToolNames] =
-    useState<string[]>(EMPTY_NAMES);
+    useState<readonly string[]>(EMPTY_NAMES);
 
   const optionsRef = useRef(options);
   const syncRef = useRef<(() => void) | null>(null);
@@ -61,6 +70,7 @@ export const unstable_useWebMcpBridge = (
       dispose: () => void;
     };
     const registered = new Map<string, Registration>();
+    const refused = new Set<string>();
 
     const disposeRegistration = (name: string) => {
       const registration = registered.get(name);
@@ -108,8 +118,12 @@ export const unstable_useWebMcpBridge = (
       for (const name of [...registered.keys()]) {
         if (!desired.has(name)) disposeRegistration(name);
       }
+      for (const name of [...refused]) {
+        if (!desired.has(name)) refused.delete(name);
+      }
 
       for (const [name, target] of desired) {
+        if (refused.has(name)) continue;
         const existing = registered.get(name);
         if (existing?.signature === target.signature) {
           existing.tool = target.tool;
@@ -131,6 +145,7 @@ export const unstable_useWebMcpBridge = (
             ),
             (error) => {
               if (registered.get(name) !== registration) return;
+              refused.add(name);
               disposeRegistration(name);
               console.warn(
                 `[assistant-ui] WebMCP registration for tool "${name}" failed (name may already be registered).`,
@@ -141,6 +156,7 @@ export const unstable_useWebMcpBridge = (
           );
           registered.set(name, registration);
         } catch (error) {
+          refused.add(name);
           console.warn(
             `[assistant-ui] Skipping WebMCP registration for tool "${name}": registerTool failed (name may already be registered).`,
             error,

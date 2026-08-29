@@ -294,6 +294,11 @@ describe("toMcpContent", () => {
       [{ type: "image", data: "AAA", mimeType: "image/png" }],
     ],
     [
+      "image file parts with no data",
+      [{ type: "file", mediaType: "image/png" }],
+      [{ type: "image", data: "", mimeType: "image/png" }],
+    ],
+    [
       "non-image file parts",
       [{ type: "file", data: "raw", mediaType: "text/plain" }],
       [text("raw")],

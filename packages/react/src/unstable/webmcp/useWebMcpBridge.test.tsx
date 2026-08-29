@@ -199,7 +199,7 @@ describe("unstable_useWebMcpBridge", () => {
     expect(adapter.unregisterCalls.sort()).toEqual(["alpha", "search"]);
     expect(warn).not.toHaveBeenCalled();
 
-    const throwing = useAdapter({
+    useAdapter({
       ...createFakeWebMcpAdapter(),
       registerTool: () => () => {
         throw new Error("dispose boom");
@@ -212,7 +212,6 @@ describe("unstable_useWebMcpBridge", () => {
       expect.stringContaining("Unregistering WebMCP tool"),
       expect.any(Error),
     );
-    expect(throwing.available).toBe(true);
   });
 
   it("warns and skips a name registerTool synchronously refuses", async () => {
@@ -230,6 +229,55 @@ describe("unstable_useWebMcpBridge", () => {
       expect.any(Error),
     );
     expect(adapter.registry.get("search")).toEqual({});
+  });
+
+  it("warns once for a refused name and stops retrying it until it leaves the model context", async () => {
+    const warn = silenceWarnings();
+    const adapter = useAdapter(createFakeWebMcpAdapter());
+    adapter.registry.set("search", {} as WebMcpToolDescriptor);
+    const attempts = vi.spyOn(adapter, "registerTool");
+
+    const provider = createProvider({ search: frontendTool() });
+    mountBridge(provider);
+    await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());
+
+    for (let i = 0; i < 10; i++) {
+      provider.setTools({ search: frontendTool({ description: `v${i}` }) });
+    }
+    await vi.waitFor(() =>
+      expect(bridgeResult().registeredToolNames).toEqual([]),
+    );
+    expect(warn).toHaveBeenCalledOnce();
+    expect(attempts).toHaveBeenCalledOnce();
+
+    adapter.registry.delete("search");
+    provider.setTools({ alpha: frontendTool() });
+    await waitForNames(["alpha"]);
+    provider.setTools({ alpha: frontendTool(), search: frontendTool() });
+    await waitForNames(["alpha", "search"]);
+    expect(warn).toHaveBeenCalledOnce();
+  });
+
+  it("does not re-serialize schemas when an inline filter changes identity", async () => {
+    useAdapter(createFakeWebMcpAdapter());
+    let schemaReads = 0;
+    const tool = frontendTool();
+    Object.defineProperty(tool, "parameters", {
+      get: () => {
+        schemaReads++;
+        return { type: "object", properties: {} };
+      },
+    });
+
+    const { rerender } = mountBridge(createProvider({ search: tool }), {
+      filter: () => true,
+    });
+    await waitForNames(["search"]);
+    const afterMount = schemaReads;
+
+    for (let i = 0; i < 5; i++) rerender({ filter: () => true });
+    await waitForNames(["search"]);
+    expect(schemaReads).toBe(afterMount);
   });
 
   it("holds a single live registration under StrictMode", async () => {

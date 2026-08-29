@@ -22,15 +22,13 @@ export type FakeWebMcpAdapter = WebMcpAdapter & {
   unregisterCalls: string[];
 };
 
-export const createFakeWebMcpAdapter = (
-  options: { available?: boolean } = {},
-): FakeWebMcpAdapter => {
+export const createFakeWebMcpAdapter = (): FakeWebMcpAdapter => {
   const registry = new Map<string, WebMcpToolDescriptor>();
   const registerCalls: string[] = [];
   const unregisterCalls: string[] = [];
 
   return {
-    available: options.available ?? true,
+    available: true,
     registry,
     registerCalls,
     unregisterCalls,
