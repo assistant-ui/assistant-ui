@@ -33,6 +33,8 @@ export const ExpressionSpecimen = () => (
   </div>
 );
 
+export const BareExpressionSpecimen = () => <div>bare expression</div>;
+
 export function GuardSpecimen() {
   return <div>guard</div>;
 }
@@ -70,6 +72,14 @@ describe("extractFunctionCode", () => {
     expect(code).toContain("export const ExpressionSpecimen = () => (");
     expect(code).toContain("<span>expression</span>");
     expect(code.endsWith(");")).toBe(true);
+    expect(code).not.toContain("GuardSpecimen");
+  });
+
+  it("extracts a const arrow with a bare expression body", () => {
+    const code = extractFunctionCode(source, "BareExpressionSpecimen");
+    expect(code).toBe(
+      "export const BareExpressionSpecimen = () => <div>bare expression</div>;",
+    );
     expect(code).not.toContain("GuardSpecimen");
   });
 

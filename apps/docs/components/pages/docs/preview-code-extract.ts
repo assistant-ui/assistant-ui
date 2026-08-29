@@ -40,6 +40,37 @@ function findMatchingParen(source: string, startIndex: number): number {
   return -1;
 }
 
+function findStatementEnd(source: string, startIndex: number): number {
+  const state: StringState = { inString: false, stringChar: "" };
+  let parenCount = 0;
+  let braceCount = 0;
+  let bracketCount = 0;
+
+  for (let i = startIndex; i < source.length; i++) {
+    const char = source[i]!;
+    const prevChar = source[i - 1] ?? "";
+    if (updateStringState(state, char, prevChar)) continue;
+
+    if (char === "(") parenCount++;
+    if (char === ")") parenCount--;
+    if (char === "{") braceCount++;
+    if (char === "}") braceCount--;
+    if (char === "[") bracketCount++;
+    if (char === "]") bracketCount--;
+
+    if (
+      char === ";" &&
+      parenCount === 0 &&
+      braceCount === 0 &&
+      bracketCount === 0
+    ) {
+      return i + 1;
+    }
+  }
+
+  return -1;
+}
+
 function endsLine(source: string, index: number): boolean {
   const lineEnd = source.indexOf("\n", index);
   const rest =
@@ -101,10 +132,9 @@ export function extractFunctionCode(
 
   if (isArrowWithoutBrace) {
     const isWrapped = source[searchStart] === "(";
-    const endIndex = findMatchingParen(
-      source,
-      isWrapped ? searchStart + 1 : searchStart,
-    );
+    const endIndex = isWrapped
+      ? findMatchingParen(source, searchStart + 1)
+      : findStatementEnd(source, searchStart);
     // A wrapping paren that closes mid-line covered only part of the body.
     if (endIndex === -1 || (isWrapped && !endsLine(source, endIndex))) {
       return `// Could not parse function: ${functionName}`;
