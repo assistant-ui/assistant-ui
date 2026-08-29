@@ -107,7 +107,9 @@ export class WritableSubscribable<TState> extends BaseSubscribable {
     this._state = state;
     this.subscribe = this.subscribe.bind(this);
     this.getState = this.getState.bind(this);
-    this.getServerSnapshot = this.getState;
+    // Hydration has to agree with what the server rendered, so the server
+    // snapshot stays at the creation-time state rather than following writes.
+    this.getServerSnapshot = () => state;
   }
 
   public getState(): TState {
