@@ -36,14 +36,20 @@ wheels = [
 [[package]]
 name = "assistant-stream"
 version = "0.0.36"
-source = { registry = "https://pypi.org/simple" }
+source = { editable = "../assistant-stream" }
 dependencies = [
     { name = "starlette" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/6f/f8/2b3a7a6c1046d51af9207cd2754090819746693df3a2bf653966248abb7b/assistant_stream-0.0.36.tar.gz", hash = "sha256:87e0878d141f34121bd21386da80dcb7ae296b160c95cf53129fc1a413caa597", size = 133076, upload-time = "2026-08-04T21:32:56.925Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/a1/e82228bf44a41d96b624c060ba78a34d936ef33a53c10e5f5ffbfd06d37e/assistant_stream-0.0.36-py3-none-any.whl", hash = "sha256:efb3a0925414f3b85d02c97dfddf585140a85f409f2be05dd78c8d52fca37cd5", size = 38076, upload-time = "2026-08-04T21:32:55.557Z" },
+
+[package.metadata]
+requires-dist = [
+    { name = "langchain-core", marker = "extra == 'langgraph'", specifier = ">=0.3.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = "<8" },
+    { name = "redis", marker = "extra == 'dev'", specifier = ">=5" },
+    { name = "redis", marker = "extra == 'redis'", specifier = ">=5" },
+    { name = "starlette", specifier = ">=0.37.2" },
 ]
+provides-extras = ["langgraph", "redis", "dev"]
 
 [[package]]
 name = "click"
@@ -203,7 +209,7 @@ dependencies = [
 
 [package.metadata]
 requires-dist = [
-    { name = "assistant-stream" },
+    { name = "assistant-stream", editable = "../assistant-stream" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "uvicorn", specifier = ">=0.34" },
 ]

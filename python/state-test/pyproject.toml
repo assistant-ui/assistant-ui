@@ -19,3 +19,6 @@ build-backend = "hatchling.build"
 
 [tool.uv]
 package = false
+
+[tool.uv.sources]
+assistant-stream = { path = "../assistant-stream", editable = true }
