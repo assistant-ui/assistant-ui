@@ -127,14 +127,35 @@ const CommandBlock = ({ command }: { command: string }) => (
   </pre>
 );
 
-function githubSourcePath(filePath: string, flavor: RegistryFlavor): string {
-  if (flavor !== "radix") return filePath;
-  const radixPath = filePath.replace(/\.tsx$/, ".radix.tsx");
+function existsInUiSource(relativePath: string): boolean {
   return fs.existsSync(
-    path.join(process.cwd(), "../../packages/ui/src", radixPath),
-  )
-    ? radixPath
-    : filePath;
+    path.join(process.cwd(), "../../packages/ui/src", relativePath),
+  );
+}
+
+// Registry paths name where a file lands in the consumer's project; the kit
+// stores it under components/react, with a flavor directory for the primitives.
+function githubSourcePath(filePath: string, flavor: RegistryFlavor): string {
+  const primitive = filePath.match(/^components\/ui\/(.+)$/)?.[1];
+  if (primitive) {
+    const flavored = `components/react/ui/${flavor}/${primitive}`;
+    if (existsInUiSource(flavored)) return flavored;
+    const twin = flavor === "base" ? "radix" : "base";
+    const fallback = `components/react/ui/${twin}/${primitive}`;
+    return existsInUiSource(fallback) ? fallback : filePath;
+  }
+
+  const component = filePath.match(/^components\/(.+)$/)?.[1];
+  if (component) {
+    const source = `components/react/${component}`;
+    if (flavor === "radix") {
+      const radixSource = source.replace(/\.tsx$/, ".radix.tsx");
+      if (existsInUiSource(radixSource)) return radixSource;
+    }
+    return existsInUiSource(source) ? source : filePath;
+  }
+
+  return filePath;
 }
 
 type LinkedFile = ResolvedFile & { sourcePath: string };
