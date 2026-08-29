@@ -160,7 +160,11 @@ export const toWebMcpTool = (
         return errorResult("Tool execution was cancelled.");
       }
 
-      const result = await executeFn?.(args, {
+      if (!executeFn) {
+        return errorResult(`Tool "${name}" has no client-side implementation.`);
+      }
+
+      const result = await executeFn(args, {
         toolCallId,
         abortSignal: abortSignal ?? new AbortController().signal,
         human: () =>

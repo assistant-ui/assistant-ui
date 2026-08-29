@@ -135,6 +135,15 @@ describe("toWebMcpTool execute", () => {
     expect(unserializable.isError).toBe(true);
   });
 
+  it("reports an error when a published tool has no client-side execute", async () => {
+    await expect(
+      descriptorFor({ execute: undefined }).execute({}),
+    ).resolves.toEqual({
+      isError: true,
+      content: [text('Tool "t" has no client-side implementation.')],
+    });
+  });
+
   it("projects values JSON cannot serialize but that have a string form", async () => {
     await expect(
       descriptorFor({ execute: async () => 9007199254740993n }).execute({}),
