@@ -138,8 +138,8 @@ const LOGOS: Logo[] = [
 ];
 
 const SLOTS = 9;
-const ALL_SLOTS = Array.from({ length: SLOTS }, (_, index) => index);
-const MOBILE_SLOTS = [0, 1, 2, 5, 6, 7];
+export const ALL_SLOTS = Array.from({ length: SLOTS }, (_, index) => index);
+export const MOBILE_SLOTS = [0, 1, 2, 5, 6, 7];
 const HOLD_MIN_MS = 1600;
 const HOLD_SPAN_MS = 900;
 const CROSSFADE_MS = 500;
@@ -151,6 +151,12 @@ function shuffle(slots: readonly number[]) {
     [order[index], order[pick]] = [order[pick]!, order[index]!];
   }
   return order;
+}
+
+export function takeSlot(queue: readonly number[], visible: readonly number[]) {
+  const remaining = queue.filter((slot) => visible.includes(slot));
+  const source = remaining.length > 0 ? remaining : shuffle(visible);
+  return { slot: source[source.length - 1]!, queue: source.slice(0, -1) };
 }
 
 function LogoMark({
@@ -168,7 +174,6 @@ function LogoMark({
         width={120}
         height={24}
         onLoad={onSettle}
-        onError={onSettle}
         className={cn(
           "h-6 w-auto max-w-full object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100",
           logo.darkSrc
@@ -185,7 +190,6 @@ function LogoMark({
           width={120}
           height={24}
           onLoad={onSettle}
-          onError={onSettle}
           className="hidden h-6 w-auto max-w-full object-contain opacity-40 transition-opacity duration-150 ease-out hover:opacity-100 dark:block"
         />
       ) : null}
@@ -207,9 +211,12 @@ function LogoSlot({
 
   // The theme-hidden half of a light/dark logo pair is display:none, and a lazy
   // image in that state never loads, so readiness only counts rendered images.
+  // A failed image is complete with no intrinsic size, and never becomes ready,
+  // so the slot keeps showing the logo it already has.
   const settle = () => {
     for (const image of mark.current?.querySelectorAll("img") ?? []) {
-      if (!image.complete && getComputedStyle(image).display !== "none") return;
+      if (getComputedStyle(image).display === "none") continue;
+      if (!image.complete || image.naturalWidth === 0) return;
     }
     setEntered(true);
   };
@@ -257,7 +264,7 @@ function LogoSlot({
           previous !== null &&
             (entered
               ? "animate-in fade-in duration-500 ease-out"
-              : "opacity-0"),
+              : "pointer-events-none opacity-0"),
         )}
       >
         <LogoMark logo={current} onSettle={settle} />
@@ -301,15 +308,9 @@ export function TrustedBy() {
     if (frozen) return;
     const wait = HOLD_MIN_MS + Math.random() * HOLD_SPAN_MS;
     const hold = window.setTimeout(() => {
-      let slot = order.current.pop();
-      while (slot !== undefined && !slots.includes(slot)) {
-        slot = order.current.pop();
-      }
-      if (slot === undefined) {
-        order.current = shuffle(slots);
-        slot = order.current.pop()!;
-      }
-      const target = slot;
+      const taken = takeSlot(order.current, slots);
+      order.current = taken.queue;
+      const target = taken.slot;
       setShown((current) => {
         const taken = new Set(current.map((logo) => logo.alt));
         const pool = LOGOS.filter((logo) => !taken.has(logo.alt));
