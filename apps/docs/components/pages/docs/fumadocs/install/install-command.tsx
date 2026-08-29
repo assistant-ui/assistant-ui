@@ -1,16 +1,14 @@
-import fs from "node:fs";
-import path from "node:path";
 import { Tab, Tabs } from "@/components/pages/docs/fumadocs/tabs";
 import { Flavored } from "@/components/pages/docs/contexts/flavor.server";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
 import {
   resolveAllComponents,
   ComponentSourceFromFile,
-  type RegistryFlavor,
   type ResolvedComponents,
   type ResolvedFile,
   type ResolvedGroup,
 } from "@/components/pages/docs/fumadocs/install/component-source";
+import { githubSourcePath } from "@/components/pages/docs/fumadocs/install/install-source-path";
 import { SetupInstructions } from "@/components/pages/docs/fumadocs/install/setup-instructions";
 import {
   ExpoInstallTabs,
@@ -126,37 +124,6 @@ const CommandBlock = ({ command }: { command: string }) => (
     <code className="language-bash">{command}</code>
   </pre>
 );
-
-function existsInUiSource(relativePath: string): boolean {
-  return fs.existsSync(
-    path.join(process.cwd(), "../../packages/ui/src", relativePath),
-  );
-}
-
-// Registry paths name where a file lands in the consumer's project; the kit
-// stores it under components/react, with a flavor directory for the primitives.
-function githubSourcePath(filePath: string, flavor: RegistryFlavor): string {
-  const primitive = filePath.match(/^components\/ui\/(.+)$/)?.[1];
-  if (primitive) {
-    const flavored = `components/react/ui/${flavor}/${primitive}`;
-    if (existsInUiSource(flavored)) return flavored;
-    const twin = flavor === "base" ? "radix" : "base";
-    const fallback = `components/react/ui/${twin}/${primitive}`;
-    return existsInUiSource(fallback) ? fallback : filePath;
-  }
-
-  const component = filePath.match(/^components\/(.+)$/)?.[1];
-  if (component) {
-    const source = `components/react/${component}`;
-    if (flavor === "radix") {
-      const radixSource = source.replace(/\.tsx$/, ".radix.tsx");
-      if (existsInUiSource(radixSource)) return radixSource;
-    }
-    return existsInUiSource(source) ? source : filePath;
-  }
-
-  return filePath;
-}
 
 type LinkedFile = ResolvedFile & { sourcePath: string };
 
