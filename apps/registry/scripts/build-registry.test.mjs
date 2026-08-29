@@ -64,6 +64,48 @@ const createBuilt = (
     new Map(files.map(([filePath, content]) => [filePath, content])),
 });
 
+test("emitted registry files retain the source paths used to read them", async () => {
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
+
+  const [resumable, eve, backend, direction, baseDirection] = await Promise.all(
+    [
+      readFile("dist/ai-sdk-backend-resumable.json", "utf8"),
+      readFile("dist/eve-chat.json", "utf8"),
+      readFile("dist/ai-sdk-backend.json", "utf8"),
+      readFile("dist/direction.json", "utf8"),
+      readFile("dist/base/direction.json", "utf8"),
+    ],
+  );
+  const resumableFiles = JSON.parse(resumable).files;
+  const eveFiles = JSON.parse(eve).files;
+  const backendFiles = JSON.parse(backend).files;
+  const directionFiles = JSON.parse(direction).files;
+  const baseDirectionFiles = JSON.parse(baseDirection).files;
+
+  assert.deepEqual(
+    resumableFiles.map((file) => file.sourcePath),
+    [
+      "templates/ai-sdk-backend-resumable/app/api/chat/route.ts",
+      "templates/ai-sdk-backend-resumable/app/api/chat/resume/[streamId]/route.ts",
+      "templates/ai-sdk-backend-resumable/lib/resumable-context.ts",
+    ],
+  );
+  assert.equal(
+    eveFiles.find((file) => file.path === "app/page.tsx").sourcePath,
+    "templates/eve/app/page.tsx",
+  );
+  assert.equal(backendFiles[0].sourcePath, "app/api/chat/route.ts");
+  assert.equal(
+    directionFiles[0].sourcePath,
+    "../../packages/ui/src/components/react/ui/radix/direction.radix.tsx",
+  );
+  assert.equal(
+    baseDirectionFiles[0].sourcePath,
+    "../../packages/ui/src/components/react/ui/radix/direction.tsx",
+  );
+});
+
 test("vue registry build emits a self-contained thread with its type-only dependency", async () => {
   const { registry, stagedVueRegistry } = await import("../src/registry.ts");
   await buildRegistry(registry, stagedVueRegistry);

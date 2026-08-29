@@ -8,6 +8,7 @@ type RegistryFile = {
   content: string;
   type: string;
   path: string;
+  sourcePath?: string;
   target?: string;
 };
 
@@ -22,6 +23,7 @@ type RegistryItem = {
 export type ResolvedFile = {
   name: string;
   path: string;
+  sourcePath?: string;
   content: string;
 };
 
@@ -210,6 +212,7 @@ export async function resolveAllComponents(
         targetGroup.files.push({
           name,
           path: filePath,
+          sourcePath: file.sourcePath ?? file.path,
           content: file.content,
         });
       }

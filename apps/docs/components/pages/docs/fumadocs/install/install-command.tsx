@@ -1,16 +1,17 @@
-import fs from "node:fs";
-import path from "node:path";
 import { Tab, Tabs } from "@/components/pages/docs/fumadocs/tabs";
 import { Flavored } from "@/components/pages/docs/contexts/flavor.server";
 import type { LLMRenderContext } from "@/lib/get-llm-text";
 import {
   resolveAllComponents,
   ComponentSourceFromFile,
-  type RegistryFlavor,
   type ResolvedComponents,
   type ResolvedFile,
   type ResolvedGroup,
 } from "@/components/pages/docs/fumadocs/install/component-source";
+import {
+  githubBlobUrl,
+  githubRawUrl,
+} from "@/components/pages/docs/fumadocs/install/install-source-path";
 import { SetupInstructions } from "@/components/pages/docs/fumadocs/install/setup-instructions";
 import {
   ExpoInstallTabs,
@@ -115,33 +116,18 @@ export async function InstallCommand(props: InstallCommandProps) {
   );
 }
 
-// Every resolvable file is an assistant-ui component, sourced from packages/ui.
-const REPO = "assistant-ui/assistant-ui";
-const UI_SRC = "packages/ui/src";
-const GITHUB_BLOB = `https://github.com/${REPO}/blob/main/${UI_SRC}`;
-const GITHUB_RAW = `https://raw.githubusercontent.com/${REPO}/main/${UI_SRC}`;
-
 const CommandBlock = ({ command }: { command: string }) => (
   <pre>
     <code className="language-bash">{command}</code>
   </pre>
 );
 
-function githubSourcePath(filePath: string, flavor: RegistryFlavor): string {
-  if (flavor !== "radix") return filePath;
-  const radixPath = filePath.replace(/\.tsx$/, ".radix.tsx");
-  return fs.existsSync(
-    path.join(process.cwd(), "../../packages/ui/src", radixPath),
-  )
-    ? radixPath
-    : filePath;
-}
-
-type LinkedFile = ResolvedFile & { sourcePath: string };
-
-function buildDownloadCommand(files: LinkedFile[]): string {
+function buildDownloadCommand(files: ResolvedFile[]): string {
   const args = files
-    .map((file) => `  -o ${file.path} ${GITHUB_RAW}/${file.sourcePath}`)
+    .map(
+      (file) =>
+        `  -o ${file.path} ${githubRawUrl(file.sourcePath ?? file.path)}`,
+    )
     .join(" \\\n");
   return `curl -sSL --create-dirs \\\n${args}`;
 }
@@ -170,13 +156,10 @@ export const InstallCommandLLM = async (
       : `https://r.assistant-ui.com/${c}.json`,
   );
   const resolved = await resolveAllComponents(props.shadcn, flavor);
-  const files: LinkedFile[] = [
+  const files: ResolvedFile[] = [
     ...resolved.main.files,
     ...resolved.auiDeps.files,
-  ].map((file) => ({
-    ...file,
-    sourcePath: githubSourcePath(file.path, flavor),
-  }));
+  ];
   // npm packages the copied files import. shadcn deps (e.g. radix-ui) are
   // omitted here — they install with the shadcn components below.
   const npmDeps = [
@@ -215,7 +198,9 @@ export const InstallCommandLLM = async (
           <ul>
             {files.map((file) => (
               <li key={file.path}>
-                <a href={`${GITHUB_BLOB}/${file.sourcePath}`}>{file.path}</a>
+                <a href={githubBlobUrl(file.sourcePath ?? file.path)}>
+                  {file.path}
+                </a>
               </li>
             ))}
           </ul>

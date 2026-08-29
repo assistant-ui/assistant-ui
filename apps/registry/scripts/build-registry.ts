@@ -57,7 +57,8 @@ type RegistryBuildItem = Omit<
 type RegistryPayloadInput = RegistryBuildItem &
   Pick<RegistryItem, "registryDependencyUsageExemptions">;
 type UiFlavor = "radix" | "base";
-type RegistryOutputFile = Omit<RegistryFile, "sourcePath"> & {
+type RegistryOutputFile = Omit<RegistryFile, "content" | "sourcePath"> & {
+  sourcePath: string;
   content: string;
 };
 type RegistryOutputItem = Omit<RegistryBuildItem, "files"> & {
@@ -277,9 +278,9 @@ function createRegistryPayload(
 
     content = transformImports(content);
 
-    const { sourcePath: _, ...fileOutput } = file;
     return {
-      ...fileOutput,
+      ...file,
+      sourcePath: readPath,
       content,
     };
   });
