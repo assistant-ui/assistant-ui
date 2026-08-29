@@ -25,6 +25,18 @@ const chatModel: ChatModelAdapter = {
 
 const hoistedConfig = AuiConfig({});
 
+const message = (id: string, role: "user" | "assistant"): ThreadMessage =>
+  ({
+    id,
+    role,
+    content: [{ type: "text", text: `text of ${id}` }],
+    createdAt: new Date(1718000000000),
+    ...(role === "assistant"
+      ? { status: { type: "complete", reason: "stop" } }
+      : { attachments: [] }),
+    metadata: { custom: {} },
+  }) as ThreadMessage;
+
 const makeCounterClient = (log?: string[]) => {
   const useCounterClient = () => {
     useEffect(() => {
@@ -157,7 +169,9 @@ describe("AssistantRuntimeProvider aui composition", () => {
     expect(aui.threads.getState().main).toBeDefined();
   });
 
-  it("publishes once when the external-store runtime owner rerenders", async () => {
+  const countPublicationsOverThreeRerenders = async (
+    makeMessages: () => ThreadMessage[],
+  ) => {
     let advance!: () => void;
     let notifications = 0;
 
@@ -171,7 +185,7 @@ describe("AssistantRuntimeProvider aui composition", () => {
       const [, setTick] = useState(0);
       advance = () => setTick((tick) => tick + 1);
       const runtime = useExternalStoreRuntime<ThreadMessage>({
-        messages: [],
+        messages: makeMessages(),
         onNew: async () => {},
       });
 
@@ -189,6 +203,17 @@ describe("AssistantRuntimeProvider aui composition", () => {
     await act(async () => advance());
     await act(async () => advance());
 
-    expect(notifications).toBe(3);
+    return notifications;
+  };
+
+  it("publishes once when the external-store runtime owner rerenders", async () => {
+    expect(await countPublicationsOverThreeRerenders(() => [])).toBe(3);
+  });
+
+  it("publishes once per rerender when the thread already has messages", async () => {
+    const messages = [message("m1", "user"), message("m2", "assistant")];
+    expect(await countPublicationsOverThreeRerenders(() => [...messages])).toBe(
+      3,
+    );
   });
 });
