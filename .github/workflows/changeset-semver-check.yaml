@@ -25,6 +25,12 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
+      - name: Checkout PR base checker
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: .changeset-checker-base
+
       - name: Setup pnpm and node.js
         uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
         with:
@@ -32,10 +38,12 @@ jobs:
           install: false
 
       - name: Test the changeset checker
-        run: node --test scripts/check-changesets.test.mjs
+        run: node --test .changeset-checker-base/scripts/check-changesets.test.mjs
 
       - name: Verify changesets only name releasable packages
-        run: node scripts/check-changesets.mjs
+        env:
+          CHANGESET_CHECK_ROOT: ${{ github.workspace }}
+        run: node .changeset-checker-base/scripts/check-changesets.mjs
 
       - name: Check changeset bump types against package versions
         id: check

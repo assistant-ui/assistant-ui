@@ -1,6 +1,12 @@
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
@@ -250,4 +256,68 @@ test("the executable reports the offending line and exits 1", () => {
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
+});
+
+function readSemverWorkflow() {
+  return readFileSync(
+    path.join(repoRoot, ".github/workflows/changeset-semver-check.yaml"),
+    "utf8",
+  );
+}
+
+function checkerRunCommands(workflow) {
+  return [...workflow.matchAll(/^[ \t]+run:[ \t]*(.+)$/gm)]
+    .map((match) => match[1].trim())
+    .filter((command) => command.includes("check-changesets"));
+}
+
+test("CI checks out the PR base so older branches still have the checker", () => {
+  const workflow = readSemverWorkflow();
+  assert.match(
+    workflow,
+    /ref:\s*\$\{\{\s*github\.event\.pull_request\.head\.sha\s*\}\}/,
+  );
+  assert.match(
+    workflow,
+    /fetch-depth:\s*0/,
+    "the semver git diff needs the PR-head history",
+  );
+  assert.match(
+    workflow,
+    /ref:\s*\$\{\{\s*github\.event\.pull_request\.base\.sha\s*\}\}/,
+    "scripts must come from the base so a branch forked before the checker still runs",
+  );
+});
+
+test("CI runs the base checker against PR-head data, not the PR's own copy", () => {
+  const workflow = readSemverWorkflow();
+  const commands = checkerRunCommands(workflow);
+  assert.ok(
+    commands.some((command) => command.includes("check-changesets.test.mjs")),
+  );
+  assert.ok(
+    commands.some(
+      (command) =>
+        /check-changesets\.mjs/.test(command) && !command.includes(".test.mjs"),
+    ),
+  );
+
+  for (const command of commands) {
+    assert.doesNotMatch(
+      command,
+      /(?:^|\s)node(?:\s+--test)?\s+scripts\/check-changesets/,
+      `must not execute the PR-head copy of the checker: ${command}`,
+    );
+    assert.match(
+      command,
+      /(?:^|\s)node(?:\s+--test)?\s+\S+\/scripts\/check-changesets/,
+      `must invoke the checker from the base checkout: ${command}`,
+    );
+  }
+
+  assert.match(
+    workflow,
+    /CHANGESET_CHECK_ROOT:\s*(?:\$GITHUB_WORKSPACE|\$\{\{\s*github\.workspace\s*\}\})/,
+    "the base checker must scan the PR-head workspace",
+  );
 });
