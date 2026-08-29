@@ -1,0 +1,29 @@
+{
+  "name": "@assistant-ui/x-performance",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "bin": {
+    "aui-perf": "./src/cli.mjs"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "bench": "vitest bench --run",
+    "perf:record": "node ./src/cli.mjs record",
+    "perf:compare": "node ./src/cli.mjs compare"
+  },
+  "devDependencies": {
+    "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/tap": "workspace:*",
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.5",
+    "assistant-stream": "workspace:*",
+    "jsdom": "^30.0.1",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "vitest": "^4.1.11"
+  }
+}
