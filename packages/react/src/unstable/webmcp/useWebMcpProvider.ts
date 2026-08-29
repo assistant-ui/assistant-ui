@@ -52,7 +52,7 @@ const useModelContextTools = (aui: AssistantClient, enabled: boolean) => {
     const read = () =>
       setTools(aui.modelContext.getModelContext().tools ?? EMPTY_TOOLS);
     read();
-    return aui.modelContext.subscribe(read);
+    return aui.modelContext.subscribe?.(read);
   }, [aui, enabled]);
 
   return tools;
