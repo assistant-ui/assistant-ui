@@ -59,7 +59,6 @@
     "fflate": "^0.8.3",
     "fumadocs-core": "^16.15.4",
     "fumadocs-mdx": "^15.4.0",
-    "fumadocs-ui": "^16.15.4",
     "heat-graph": "workspace:*",
     "input-otp": "^1.5.0",
     "just-bash": "^3.4.2",
@@ -103,6 +102,7 @@
   },
   "devDependencies": {
     "@assistant-ui/shadcn-registry": "workspace:*",
+    "@fumadocs/tailwind": "^0.1.1",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
     "@testing-library/react": "^16.3.3",

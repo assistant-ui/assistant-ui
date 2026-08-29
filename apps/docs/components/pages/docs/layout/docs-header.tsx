@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type * as PageTree from "fumadocs-core/page-tree";
 import { ArrowUpRight, LayoutGrid, Menu, Search, X } from "lucide-react";
-import { useSearchContext } from "fumadocs-ui/contexts/search";
+import { useSearchContext } from "@/components/shared/search-provider";
 import { NAV_ITEMS, CLOUD_URL, type NavItem } from "@/lib/constants";
 import { Button } from "@/components/ui/button";
 import { Kbd, KbdGroup } from "@/components/ui/kbd";

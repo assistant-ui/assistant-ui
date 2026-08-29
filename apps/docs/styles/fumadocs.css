@@ -4,9 +4,8 @@
 }
 
 #nd-docs-layout {
-  --fd-banner-height: var(--docs-header-height);
-  --fd-layout-width: 9999px;
-  grid-template: "main" 1fr / minmax(0, 1fr) !important;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 html:has(#nd-docs-layout) {
@@ -23,8 +22,7 @@ html:has(#nd-docs-layout) {
 
 @media (min-width: 1280px) {
   #nd-docs-layout:has(#nd-toc) {
-    --fd-toc-width: 14rem;
-    grid-template: "main toc" 1fr / minmax(0, 1fr) var(--fd-toc-width) !important;
+    grid-template-columns: minmax(0, 1fr) 14rem;
   }
 }
 
@@ -47,120 +45,6 @@ html:has(#nd-docs-layout) {
 
 #nd-toc > .sticky {
   top: calc(var(--docs-header-height) + 1rem) !important;
-}
-
-#nd-sidebar {
-  --fd-background: transparent;
-  background: transparent !important;
-  border-inline-end: none !important;
-}
-
-:is(#nd-sidebar, #nd-sidebar-mobile) {
-  & :is(a, button):not([data-sidebar-control]):not(.sidebar-tabs-container *) {
-    padding-block: 0.4375rem !important;
-    padding-inline-end: 0.75rem !important;
-    border-radius: 0.5rem !important;
-    font-size: 0.8125rem !important;
-    letter-spacing: -0.01em !important;
-    background: transparent !important;
-    transition:
-      color 0.15s ease,
-      background-color 0.15s ease !important;
-
-    &:hover {
-      color: var(--fd-foreground) !important;
-      background: var(--fd-accent) !important;
-    }
-  }
-
-  & a[data-active="true"]:not(.sidebar-tabs-container *) {
-    color: var(--fd-foreground) !important;
-    font-weight: 500 !important;
-    background: var(--fd-accent) !important;
-
-    &::before {
-      display: none !important;
-    }
-  }
-
-  /* Sidebar separator */
-  & p.inline-flex {
-    margin-top: 1.75rem !important;
-    font-size: 0.6875rem !important;
-    font-weight: 500 !important;
-    letter-spacing: 0.04em !important;
-    text-transform: none !important;
-    color: var(--fd-muted-foreground) !important;
-
-    &:first-child {
-      margin-top: 0 !important;
-    }
-  }
-
-  & svg:not(.sidebar-tabs-container *) {
-    width: 1rem !important;
-    height: 1rem !important;
-    opacity: 0.7;
-    flex-shrink: 0;
-
-    &[data-icon] {
-      width: 0.875rem !important;
-      height: 0.875rem !important;
-    }
-  }
-
-  & .border-t {
-    border-top: none !important;
-  }
-}
-
-/* Sidebar section tabs - tighten gap between tabs and page tree */
-#nd-sidebar .sidebar-tabs-container {
-  margin-bottom: -0.25rem;
-}
-
-#nd-sidebar [class*="before:bg-fd-border"] {
-  --tw-border-opacity: 0.4;
-}
-
-#nd-subnav {
-  display: none !important;
-}
-
-#nd-sidebar-mobile {
-  display: none !important;
-}
-
-[data-toc-popover] {
-  width: 100vw !important;
-  margin-inline-start: calc(-1 * var(--fd-sidebar-width, 0px)) !important;
-  left: 0 !important;
-
-  & header {
-    border-bottom: none !important;
-    background: var(--fd-background) !important;
-  }
-}
-
-[data-toc-popover-trigger],
-[data-toc-popover-content] {
-  padding-inline: 1rem !important;
-}
-
-@media (min-width: 768px) {
-  [data-toc-popover-trigger],
-  [data-toc-popover-content] {
-    padding-inline: 1.5rem !important;
-  }
-}
-
-[data-toc-popover-trigger] {
-  color: var(--fd-muted-foreground) !important;
-  font-size: 0.875rem !important;
-
-  & svg[role="progressbar"] {
-    display: none !important;
-  }
 }
 
 .prose {
@@ -255,7 +139,7 @@ html:has(#nd-docs-layout) {
     ) {
     text-decoration: underline !important;
     text-underline-offset: 2px !important;
-    text-decoration-color: var(--fd-muted-foreground) !important;
+    text-decoration-color: var(--muted-foreground) !important;
   }
 
   & :where(.prose-no-margin):has(table) {
@@ -366,121 +250,6 @@ html:has(#nd-docs-layout) {
   }
 }
 
-figure.shiki {
-  margin-top: 1.25rem !important;
-  margin-bottom: 1.25rem !important;
-  border-radius: 0.75rem !important;
-  border: none !important;
-  box-shadow: none !important;
-  background: var(--code-surface) !important;
-  overflow: hidden;
-
-  /* Header with title */
-  & > div:first-child:has(figcaption) {
-    height: 2.25rem !important;
-    padding-inline: 0.875rem !important;
-    border-bottom: none !important;
-    background: var(--code-surface) !important;
-  }
-
-  & figcaption {
-    font-family: var(--font-mono), ui-monospace, monospace !important;
-    font-size: 0.8625rem !important;
-    font-weight: 500 !important;
-    color: var(--muted-foreground) !important;
-  }
-
-  /* Copy button position (no title) */
-  & > div:first-child:not(:has(figcaption)) {
-    top: 0.5rem !important;
-    right: 0.5rem !important;
-  }
-
-  /* Copy button */
-  & button[aria-label*="Copy"] {
-    width: 1.75rem !important;
-    height: 1.75rem !important;
-    padding: 0 !important;
-    border-radius: 0.5rem !important;
-    background: transparent !important;
-    color: var(--muted-foreground) !important;
-    opacity: 0.5;
-    transition: all 0.15s ease !important;
-
-    &:hover {
-      background: var(--background) !important;
-      color: var(--foreground) !important;
-      opacity: 1;
-    }
-
-    & svg {
-      width: 0.875rem !important;
-      height: 0.875rem !important;
-    }
-  }
-
-  &:hover button[aria-label*="Copy"] {
-    opacity: 1;
-  }
-
-  /* Code region */
-  & > div[role="region"] {
-    padding-top: 0.875rem !important;
-    padding-bottom: 0.875rem !important;
-    font-size: 0.8125rem !important;
-    line-height: 1.65 !important;
-    background: var(--code-surface) !important;
-  }
-
-  /* Code region top corners, when a title header sits above it */
-  &:has(figcaption) > div[role="region"] {
-    border-top-left-radius: 0.75rem !important;
-    border-top-right-radius: 0.75rem !important;
-  }
-
-  & pre {
-    --padding-left: 0.875rem !important;
-    --padding-right: 0.875rem !important;
-  }
-
-  /* Line numbers */
-  & [data-line-numbers] .line {
-    padding-left: calc(0.875rem + 2.25rem) !important;
-  }
-
-  /* Blank lines in plaintext fences render as an empty child span, dodging
-     fumadocs' .line:empty height rule; keep every line one line tall. */
-  & .line {
-    min-height: 1lh;
-  }
-
-  /* Highlighted lines */
-  & .highlighted {
-    background: oklch(0.7 0.12 250 / 0.1) !important;
-
-    .dark & {
-      background: oklch(0.5 0.15 250 / 0.15) !important;
-    }
-  }
-
-  /* Diff styles */
-  & .diff.add {
-    background: oklch(0.85 0.12 145 / 0.2) !important;
-
-    .dark & {
-      background: oklch(0.45 0.12 145 / 0.2) !important;
-    }
-  }
-
-  & .diff.remove {
-    background: oklch(0.85 0.15 25 / 0.2) !important;
-
-    .dark & {
-      background: oklch(0.45 0.15 25 / 0.2) !important;
-    }
-  }
-}
-
 /* Content inside tabs */
 [role="tabpanel"] {
   & > :first-child {
@@ -489,10 +258,6 @@ figure.shiki {
   & > :last-child {
     margin-bottom: 0 !important;
   }
-}
-
-[role="tabpanel"]:has(> figure.shiki:only-child) {
-  padding: 0 !important;
 }
 
 /* A Callout (or any not-prose block) inside a tab owns its own link styling.
@@ -579,16 +344,6 @@ figure.shiki {
     line-height: inherit !important;
     user-select: none !important;
   }
-}
-
-/* Override fumadocs line numbers to be right-aligned */
-figure.shiki pre[data-line-numbers] span.line::after,
-.shiki pre[data-line-numbers] span.line::after,
-pre.shiki[data-line-numbers] span.line::after,
-[data-line-numbers] span.line::after {
-  width: 1.5rem !important;
-  text-align: right !important;
-  left: 0.5rem !important;
 }
 
 .sidebar-tree-content {

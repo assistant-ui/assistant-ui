@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
-import { DocsPage, DocsBody } from "fumadocs-ui/page";
+import {
+  DocsBody,
+  DocsPageShell,
+} from "@/components/pages/docs/layout/docs-page";
 import { notFound, redirect } from "next/navigation";
 import { createOgMetadata } from "@/lib/og";
 import { getMDXComponents } from "@/mdx-components";
@@ -54,25 +57,14 @@ export default async function Page(props: {
   const footerNext = neighbours.next;
 
   return (
-    <DocsPage
-      toc={toc}
-      full
-      tableOfContent={{
-        enabled: true,
-        component: (
-          <TableOfContents
-            items={toc}
-            githubEditUrl={githubEditUrl}
-            markdownUrl={markdownUrl}
-          />
-        ),
-      }}
-      tableOfContentPopover={{
-        enabled: false,
-      }}
-      footer={{
-        enabled: false,
-      }}
+    <DocsPageShell
+      toc={
+        <TableOfContents
+          items={toc}
+          githubEditUrl={githubEditUrl}
+          markdownUrl={markdownUrl}
+        />
+      }
     >
       <DocsBody data-page-content="">
         <header className="not-prose mb-8">
@@ -115,7 +107,7 @@ export default async function Page(props: {
         <MdxBody components={mdxComponents} />
         <DocsFooter previous={footerPrevious} next={footerNext} />
       </DocsBody>
-    </DocsPage>
+    </DocsPageShell>
   );
 }
 
