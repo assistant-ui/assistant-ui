@@ -190,7 +190,10 @@ if [[ -d "$NUXT_DIR" ]]; then
         file="$(basename "$nuxt_file")"
         src_file="$(resolve_vue_source "$file")"
 
-        [[ -f "$src_file" ]] || continue
+        if [[ ! -f "$src_file" ]]; then
+            vue_drift+=("$file")
+            continue
+        fi
 
         is_override=0
         for o in "${OVERRIDES[@]}"; do

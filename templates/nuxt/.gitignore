@@ -1,4 +1,8 @@
 node_modules
 .nuxt
 .output
-.env
+.data
+.nitro
+.cache
+.env*
+!.env.example
