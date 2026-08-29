@@ -83,7 +83,13 @@ const createHost = (context: WebMcpModelContext): WebMcpHost => {
       };
 
       owners.set(def.name, owner);
-      const handle = context.registerTool(def, { signal: controller.signal });
+      let handle: ReturnType<WebMcpModelContext["registerTool"]>;
+      try {
+        handle = context.registerTool(def, { signal: controller.signal });
+      } catch (error) {
+        disownName();
+        throw error;
+      }
       if (isThenable(handle)) {
         handle.then(
           () => {

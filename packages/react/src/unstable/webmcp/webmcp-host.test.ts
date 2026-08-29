@@ -203,6 +203,34 @@ describe("getDefaultWebMcpHost", () => {
     );
   });
 
+  it("still releases the name when the registration that displaced it throws", async () => {
+    let settle!: () => void;
+    let throwOnRegister = false;
+    const unregisterTool = vi.fn();
+    install({
+      registerTool: () => {
+        if (throwOnRegister) throw new Error("already registered");
+        return new Promise<void>((resolve) => {
+          settle = resolve;
+        });
+      },
+      unregisterTool,
+    });
+
+    const disposeFirst = getDefaultWebMcpHost().registerTool(descriptor);
+    disposeFirst();
+
+    throwOnRegister = true;
+    expect(() => getDefaultWebMcpHost().registerTool(descriptor)).toThrow(
+      "already registered",
+    );
+
+    settle();
+    await vi.waitFor(() =>
+      expect(unregisterTool).toHaveBeenCalledWith("get_weather"),
+    );
+  });
+
   it("survives a registration handle that settles synchronously", () => {
     const unregisterTool = vi.fn();
     install({
