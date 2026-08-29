@@ -174,6 +174,28 @@ describe("toWebMcpTool schema validation", () => {
     expect(result).toEqual({ content: [text("recovered")] });
   });
 
+  it("awaits a validator that returns a non-Promise thenable", async () => {
+    const execute = vi.fn(async () => "ok");
+    const schema = z.object({ city: z.string() });
+    (schema as any)["~standard"] = {
+      ...schema["~standard"],
+      validate: () => ({
+        then: (resolve: (value: { issues: unknown[] }) => void) => {
+          resolve({ issues: [{ message: "cross-realm" }] });
+        },
+      }),
+    };
+
+    const result = await descriptorFor({ execute, parameters: schema }).execute(
+      { city: 42 },
+    );
+    expect(execute).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(result.content[0]).toMatchObject({
+      text: expect.stringContaining("cross-realm"),
+    });
+  });
+
   it("awaits an async Standard Schema validation", async () => {
     const execute = vi.fn(async () => "ok");
     const schema = z.object({ city: z.string() });

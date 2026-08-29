@@ -46,30 +46,42 @@ const createAdapter = (context: WebMcpModelContext): WebMcpAdapter => ({
   available: true,
   registerTool: (def, onError) => {
     const controller = new AbortController();
-    let rejected = false;
+    let settled: "fulfilled" | "rejected" | undefined;
+    let disposed = false;
+
+    const unregisterByName = () => context.unregisterTool?.(def.name);
+
     const handle = context.registerTool(def, { signal: controller.signal });
     if (isThenable(handle)) {
-      handle.catch((error) => {
-        rejected = true;
-        onError?.(error);
-      });
+      handle.then(
+        () => {
+          settled = "fulfilled";
+          if (disposed) unregisterByName();
+        },
+        (error) => {
+          settled = "rejected";
+          onError?.(error);
+        },
+      );
     }
-    let disposed = false;
+
     return () => {
       if (disposed) return;
       disposed = true;
       controller.abort();
       // A rejected registration holds nothing on the page, so unregistering
-      // its name here would delete whoever does hold it.
-      if (rejected) return;
-      if (
-        handle &&
-        !isThenable(handle) &&
-        typeof handle.unregister === "function"
-      ) {
+      // its name here would delete whoever does hold it. While the promise is
+      // still pending we do not yet know which case this is, so the fulfilled
+      // handler above performs the cleanup instead.
+      if (settled === "rejected") return;
+      if (isThenable(handle)) {
+        if (settled === "fulfilled") unregisterByName();
+        return;
+      }
+      if (handle && typeof handle.unregister === "function") {
         handle.unregister();
       } else {
-        context.unregisterTool?.(def.name);
+        unregisterByName();
       }
     };
   },

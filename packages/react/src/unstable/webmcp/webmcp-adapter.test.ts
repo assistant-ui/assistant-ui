@@ -94,6 +94,35 @@ describe("getDefaultWebMcpAdapter", () => {
     expect(unregisterTool).not.toHaveBeenCalled();
   });
 
+  it("defers cleanup when disposed while the registration is still pending", async () => {
+    const unregisterTool = vi.fn();
+    let settle!: (value?: unknown) => void;
+    let fail!: (error: unknown) => void;
+    install({
+      registerTool: () =>
+        new Promise<void>((resolve, reject) => {
+          settle = resolve as (value?: unknown) => void;
+          fail = reject;
+        }),
+      unregisterTool,
+    });
+
+    const onError = vi.fn();
+    getDefaultWebMcpAdapter().registerTool(descriptor, onError)();
+    expect(unregisterTool).not.toHaveBeenCalled();
+
+    fail(new Error("already registered"));
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+    expect(unregisterTool).not.toHaveBeenCalled();
+
+    getDefaultWebMcpAdapter().registerTool(descriptor)();
+    settle();
+    await vi.waitFor(() =>
+      expect(unregisterTool).toHaveBeenCalledWith("get_weather"),
+    );
+    expect(unregisterTool).toHaveBeenCalledOnce();
+  });
+
   it("unregisters by name when the registration promise resolves", async () => {
     const unregisterTool = vi.fn();
     install({ registerTool: () => Promise.resolve(), unregisterTool });

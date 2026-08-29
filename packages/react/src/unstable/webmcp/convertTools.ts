@@ -126,7 +126,7 @@ export const toWebMcpTool = (
       let executeFn = tool.execute;
       if (isStandardSchema(tool.parameters)) {
         let validation = tool.parameters["~standard"].validate(args);
-        if (validation instanceof Promise) validation = await validation;
+        validation = await validation;
         if (validation.issues) {
           const issues = validation.issues;
           executeFn =
