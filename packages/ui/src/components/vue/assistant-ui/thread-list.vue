@@ -122,7 +122,7 @@ const visibleThreadGroups = computed(
         type="search"
         aria-label="Search threads"
         placeholder="Search threads"
-        class="placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 disabled:bg-input/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 bg-muted/60 focus-visible:bg-background h-8 w-full min-w-0 rounded-lg border border-transparent px-3 ps-8 py-1 text-sm transition-colors outline-none focus-visible:ring-1 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-1"
+        class="placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-ring/50 disabled:bg-input/50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:disabled:bg-input/80 dark:aria-invalid:border-destructive/50 dark:aria-invalid:ring-destructive/40 bg-muted/60 focus-visible:bg-background h-8 w-full min-w-0 rounded-lg border border-transparent px-3 py-1 ps-8 text-sm transition-colors outline-none focus-visible:ring-1 disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:ring-1"
       />
     </div>
     <div data-slot="aui_thread-list-items" class="flex flex-col gap-0.5">
