@@ -34,7 +34,7 @@
     "test:watch": "vitest"
   },
   "dependencies": {
-    "@ag-ui/client": "^0.0.58",
+    "@ag-ui/client": "^0.0.59",
     "@assistant-ui/core": "^0.3.16",
     "@assistant-ui/react-generative-ui": "^0.0.16",
     "@assistant-ui/store": "^0.3.11",
@@ -53,7 +53,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@testing-library/dom": "^10.4.1",
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.18",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",

@@ -48,7 +48,7 @@
   "dependencies": {
     "@assistant-ui/core": "^0.3.16",
     "@assistant-ui/store": "^0.3.11",
-    "@opencode-ai/sdk": "^1.18.21"
+    "@opencode-ai/sdk": "^1.18.23"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
@@ -63,7 +63,7 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "jsdom": "^30.0.1",

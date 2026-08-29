@@ -36,7 +36,7 @@
   "devDependencies": {
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/cross-spawn": "^6.0.6",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "vitest": "^4.1.11"
   },
   "publishConfig": {

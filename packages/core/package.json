@@ -98,7 +98,7 @@
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/vite": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@testing-library/react": "^16.3.2",
+    "@testing-library/react": "^16.3.3",
     "@types/react": "^19.2.18",
     "assistant-cloud": "workspace:*",
     "jsdom": "^30.0.1",

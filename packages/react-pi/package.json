@@ -54,8 +54,8 @@
   "dependencies": {
     "@assistant-ui/core": "^0.3.16",
     "@assistant-ui/store": "^0.3.11",
-    "assistant-stream": "^0.3.40",
-    "@standard-schema/spec": "^1.1.0"
+    "@standard-schema/spec": "^1.1.0",
+    "assistant-stream": "^0.3.40"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
@@ -74,8 +74,8 @@
   "devDependencies": {
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
-    "@earendil-works/pi-coding-agent": "^0.84.2",
-    "@types/node": "^26.2.0",
+    "@earendil-works/pi-coding-agent": "^0.84.3",
+    "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "jsdom": "^30.0.1",
