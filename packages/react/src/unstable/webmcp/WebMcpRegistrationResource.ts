@@ -13,11 +13,13 @@ export type WebMcpRegistrationProps = {
 };
 
 // The explainer specifies NotAllowedError for a page whose tools permission is
-// off, which a cross-origin iframe without allow="tools" reaches routinely.
-const refusalMessage = (name: string, error: unknown) =>
-  (error as { name?: unknown } | null | undefined)?.name === "NotAllowedError"
-    ? `[assistant-ui] WebMCP registration for tool "${name}" was not permitted; the page's tools permission is disabled.`
-    : `[assistant-ui] WebMCP registration for tool "${name}" failed (name may already be registered).`;
+// off, which a cross-origin iframe without allow="tools" reaches routinely. It
+// documents no rejection for a name already taken, so that stays a hedge.
+const notPermitted = (error: unknown) =>
+  (error as { name?: unknown } | null | undefined)?.name === "NotAllowedError";
+
+const notPermittedMessage = (name: string) =>
+  `[assistant-ui] WebMCP registration for tool "${name}" was not permitted; the page's tools permission is disabled.`;
 
 const useWebMcpRegistration = ({
   host,
@@ -52,11 +54,19 @@ const useWebMcpRegistration = ({
     try {
       dispose = host.registerTool(
         toWebMcpTool(name, () => toolRef.current, lifecycle.signal),
-        (error) => refuse(refusalMessage(name, error), error),
+        (error) =>
+          refuse(
+            notPermitted(error)
+              ? notPermittedMessage(name)
+              : `[assistant-ui] WebMCP registration for tool "${name}" failed (name may already be registered).`,
+            error,
+          ),
       );
     } catch (error) {
       refuse(
-        `[assistant-ui] Skipping WebMCP registration for tool "${name}": registerTool failed (name may already be registered).`,
+        notPermitted(error)
+          ? notPermittedMessage(name)
+          : `[assistant-ui] Skipping WebMCP registration for tool "${name}": registerTool failed (name may already be registered).`,
         error,
       );
       return undefined;
