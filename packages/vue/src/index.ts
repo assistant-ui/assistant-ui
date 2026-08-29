@@ -14,6 +14,8 @@ export {
   MessagePrimitiveParts,
   type ToolUIProps,
 } from "./primitives/MessagePrimitiveParts";
+export { ChainOfThoughtPrimitiveParts } from "./primitives/ChainOfThoughtPrimitiveParts";
+export { ChainOfThoughtPrimitiveAccordionTrigger } from "./primitives/ChainOfThoughtPrimitiveAccordionTrigger";
 export { ComposerPrimitiveInput } from "./primitives/ComposerPrimitiveInput";
 export { ComposerPrimitiveSend } from "./primitives/ComposerPrimitiveSend";
 export { ComposerPrimitiveCancel } from "./primitives/ComposerPrimitiveCancel";
