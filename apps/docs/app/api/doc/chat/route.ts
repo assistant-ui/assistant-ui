@@ -1,6 +1,5 @@
 import { getLLMText } from "@/lib/get-llm-text";
 import { getDistinctId } from "@/lib/posthog-server";
-import { createPrismTracer, prismAISDK } from "@/lib/prism-server";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { injectQuoteContext } from "@assistant-ui/ai-sdk";
@@ -375,19 +374,11 @@ export async function POST(req: Request): Promise<Response> {
 
     const baseModel = getModel(config?.modelName);
     const distinctId = getDistinctId(req);
-    const prismTracer = createPrismTracer();
-
-    const prism = prismTracer
-      ? prismAISDK(prismTracer, baseModel, {
-          name: "docs_assistant",
-          endUserId: distinctId,
-        })
-      : null;
 
     const repoTools = createRepoTools();
 
     const result = streamText({
-      model: prism?.model ?? baseModel,
+      model: baseModel,
       system: [SYSTEM_PROMPT, pageContext].filter(Boolean).join("\n\n"),
       messages: prunedMessages,
       maxOutputTokens: 8192,
@@ -493,15 +484,8 @@ export async function POST(req: Request): Promise<Response> {
           },
         }),
       },
-      onFinish: async () => {
-        await prism?.end();
-      },
-      onError: async ({ error }) => {
+      onError: ({ error }) => {
         console.error(error);
-        await prism?.end({ status: "error" });
-      },
-      onAbort: async () => {
-        await prism?.end();
       },
     });
 
