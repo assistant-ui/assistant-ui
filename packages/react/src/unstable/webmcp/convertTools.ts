@@ -11,6 +11,11 @@ import type {
   WebMcpToolDescriptor,
 } from "./webmcp-adapter";
 
+/**
+ * The predicate the WebMCP bridge uses when no `filter` is passed: an enabled
+ * frontend tool with a client-side `execute`. A `filter` replaces it, so pass
+ * it through to narrow the default set rather than widen it.
+ */
 export const defaultWebMcpFilter = (
   _name: string,
   tool: Tool<any, any>,

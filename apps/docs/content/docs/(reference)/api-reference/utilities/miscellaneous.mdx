@@ -108,6 +108,16 @@ When `id` equals `label`, the `{name=…}` attribute is omitted for brevity.
 const unstable_defaultDirectiveFormatter: Unstable_DirectiveFormatter;
 ```
 
+### unstable_defaultWebMcpFilter
+
+The predicate the WebMCP bridge uses when no `filter` is passed: an enabled
+frontend tool with a client-side `execute`. A `filter` replaces it, so pass
+it through to narrow the default set rather than widen it.
+
+```ts
+const unstable_defaultWebMcpFilter: (_name: string, tool: Tool<any, any>) => boolean;
+```
+
 ### unstable_useWebMcpBridge
 
 Publishes the frontend tools in the model context to a WebMCP-capable

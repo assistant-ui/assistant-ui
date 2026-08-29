@@ -30,19 +30,29 @@ const WebMcpBridge = () => {
 
 `status` is `"unsupported"` when the page has no `modelContext` — every browser without WebMCP today — and `"active"` once the bridge is running. The check runs when the hook mounts and is not repeated: WebMCP defines no availability event, and the bridge does not poll, so an extension that injects `modelContext` into an already-rendered page is only picked up on the next mount. `registeredToolNames` is the sorted list of names currently live on the host; a name that the host refuses (because the page already registered it) is not in the list.
 
-By default the bridge publishes every enabled frontend tool that has an `execute`. Backend tools, disabled tools, and tools with no client-side implementation are skipped.
+With no `filter`, the bridge publishes every enabled frontend tool that has an `execute`; backend tools, disabled tools, and tools with no client-side implementation are skipped. A `filter` you pass **replaces** that default rather than narrowing it — see below.
 
 ## Choosing which tools to publish
 
-Pass a `filter` to narrow the set. It runs for every tool on every model-context change, and changing the function re-syncs the registrations. The inline arrow below is a new function on every render, which is fine: each tool's converted schema is cached against the tool object, so a re-sync that changes nothing costs no schema conversion.
+Pass a `filter` to choose which tools to publish. It runs for every tool on every model-context change, and changing the function re-syncs the registrations. The inline arrow below is a new function on every render, which is fine: each tool's converted schema is cached against the tool object, so a re-sync that changes nothing costs no schema conversion.
+
+Your `filter` **replaces** the default predicate, it does not run after it. A name-only filter like `PUBLIC_TOOLS.has(name)` will therefore publish a backend or disabled tool whose name is in the set. To narrow the default instead of replacing it, compose against the exported predicate:
 
 ```tsx
+import {
+  unstable_useWebMcpBridge,
+  unstable_defaultWebMcpFilter,
+} from "@assistant-ui/react";
+
 const PUBLIC_TOOLS = new Set(["search_docs", "get_order_status"]);
 
 unstable_useWebMcpBridge({
-  filter: (name) => PUBLIC_TOOLS.has(name),
+  filter: (name, tool) =>
+    unstable_defaultWebMcpFilter(name, tool) && PUBLIC_TOOLS.has(name),
 });
 ```
+
+Replacement is deliberate: it is also the only way to widen the set — publishing a tool the default would skip — which an `unstable_` hook should not take away from you.
 
 A tool the browser agent can call is a tool *anyone* driving that browser can call, without your assistant's system prompt in the loop. Publish the tools you would be comfortable exposing as an unauthenticated API for the current session, and keep destructive ones out.
 

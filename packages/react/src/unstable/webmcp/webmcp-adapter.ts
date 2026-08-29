@@ -56,7 +56,18 @@ const createAdapter = (context: WebMcpModelContext): WebMcpAdapter => ({
       handle.then(
         () => {
           settled = "fulfilled";
-          if (disposed) unregisterByName();
+          if (!disposed) return;
+          // The disposer's caller has already returned, so a throwing host
+          // would surface here as an unhandled rejection rather than reaching
+          // whatever guards the synchronous path.
+          try {
+            unregisterByName();
+          } catch (error) {
+            console.warn(
+              `[assistant-ui] Unregistering WebMCP tool "${def.name}" failed.`,
+              error,
+            );
+          }
         },
         (error) => {
           settled = "rejected";

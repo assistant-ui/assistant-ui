@@ -538,3 +538,4 @@ export {
   type Unstable_WebMcpBridgeOptions,
   type Unstable_WebMcpBridgeResult,
 } from "./unstable/webmcp/useWebMcpBridge";
+export { defaultWebMcpFilter as unstable_defaultWebMcpFilter } from "./unstable/webmcp/convertTools";

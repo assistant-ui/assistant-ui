@@ -123,6 +123,31 @@ describe("getDefaultWebMcpAdapter", () => {
     expect(unregisterTool).toHaveBeenCalledOnce();
   });
 
+  it("warns instead of rejecting when a deferred unregister throws", async () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    let settle!: () => void;
+    install({
+      registerTool: () =>
+        new Promise<void>((resolve) => {
+          settle = resolve;
+        }),
+      unregisterTool: () => {
+        throw new Error("unregister boom");
+      },
+    });
+
+    getDefaultWebMcpAdapter().registerTool(descriptor)();
+    settle();
+
+    await vi.waitFor(() =>
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining('Unregistering WebMCP tool "get_weather"'),
+        expect.any(Error),
+      ),
+    );
+    warn.mockRestore();
+  });
+
   it("unregisters by name when the registration promise resolves", async () => {
     const unregisterTool = vi.fn();
     install({ registerTool: () => Promise.resolve(), unregisterTool });
