@@ -10,24 +10,34 @@ export type SuggestionConfig =
   | string
   | { title: string; label: string; prompt: string };
 
-const normalizeSuggestion = (suggestion: SuggestionConfig): SuggestionState => {
-  if (typeof suggestion === "string") {
-    return {
-      title: suggestion,
-      label: "",
-      prompt: suggestion,
-    };
-  }
-
-  return {
-    title: suggestion.title,
-    label: suggestion.label,
-    prompt: suggestion.prompt,
-  };
-};
-
 const isSameSuggestion = (a: SuggestionState, b: SuggestionState) =>
   a.title === b.title && a.label === b.label && a.prompt === b.prompt;
+
+const useStableSuggestionsState = (
+  next: SuggestionsState,
+): SuggestionsState => {
+  const cell = useMemo(() => ({}) as { state?: SuggestionsState }, []);
+  const previous = cell.state;
+
+  const suggestions = next.suggestions.map((suggestion, index) => {
+    const previousSuggestion = previous?.suggestions[index];
+    return previousSuggestion &&
+      isSameSuggestion(previousSuggestion, suggestion)
+      ? previousSuggestion
+      : suggestion;
+  });
+  const state =
+    previous &&
+    previous.suggestions.length === suggestions.length &&
+    suggestions.every(
+      (suggestion, index) => suggestion === previous.suggestions[index],
+    )
+      ? previous
+      : { suggestions };
+
+  cell.state = state;
+  return state;
+};
 
 const useSuggestionClient = (
   state: SuggestionState,
@@ -40,8 +50,9 @@ const useSuggestionClient = (
 const SuggestionClient = resource(useSuggestionClient);
 
 const useSuggestionsClient = (
-  state: SuggestionsState,
+  nextState: SuggestionsState,
 ): ClientOutput<"suggestions"> => {
+  const state = useStableSuggestionsState(nextState);
   const suggestionClients = useClientLookup(
     state.suggestions.map((suggestion, index) =>
       withKey(index, SuggestionClient(suggestion), [suggestion]),
@@ -59,26 +70,13 @@ const useSuggestionsClient = (
 const useStaticSuggestions = (
   suggestions?: SuggestionConfig[],
 ): ClientOutput<"suggestions"> => {
-  const cell = useMemo(() => ({}) as { state?: SuggestionsState }, []);
-  const previousState = cell.state;
-  const normalizedSuggestions = (suggestions ?? []).map((suggestion, index) => {
-    const normalized = normalizeSuggestion(suggestion);
-    const previous = previousState?.suggestions[index];
-    return previous && isSameSuggestion(previous, normalized)
-      ? previous
-      : normalized;
+  return useSuggestionsClient({
+    suggestions: (suggestions ?? []).map((s) =>
+      typeof s === "string"
+        ? { title: s, label: "", prompt: s }
+        : { title: s.title, label: s.label, prompt: s.prompt },
+    ),
   });
-  const state =
-    previousState &&
-    previousState.suggestions.length === normalizedSuggestions.length &&
-    normalizedSuggestions.every(
-      (suggestion, index) => suggestion === previousState.suggestions[index],
-    )
-      ? previousState
-      : { suggestions: normalizedSuggestions };
-  cell.state = state;
-
-  return useSuggestionsClient(state);
 };
 
 export const Suggestions = resource(useStaticSuggestions);
@@ -86,18 +84,13 @@ export const Suggestions = resource(useStaticSuggestions);
 const useThreadSuggestions = (
   suggestions: readonly ThreadSuggestion[],
 ): ClientOutput<"suggestions"> => {
-  const state = useMemo<SuggestionsState>(
-    () => ({
-      suggestions: suggestions.map((s) => ({
-        title: s.title ?? s.prompt,
-        label: s.label ?? "",
-        prompt: s.prompt,
-      })),
-    }),
-    [suggestions],
-  );
-
-  return useSuggestionsClient(state);
+  return useSuggestionsClient({
+    suggestions: suggestions.map((s) => ({
+      title: s.title ?? s.prompt,
+      label: s.label ?? "",
+      prompt: s.prompt,
+    })),
+  });
 };
 
 export const ThreadSuggestions = resource(useThreadSuggestions);
