@@ -45,7 +45,7 @@ function axiomProcessor() {
       new OTLPHttpProtoTraceExporter({
         // api.axiom.co is the US domain; an EU-hosted org ingests at
         // api.eu.axiom.co and otherwise drops batches silently.
-        url: `https://${process.env.AXIOM_DOMAIN ?? "api.axiom.co"}/v1/traces`,
+        url: `https://${process.env.AXIOM_DOMAIN || "api.axiom.co"}/v1/traces`,
         headers: {
           Authorization: `Bearer ${token}`,
           "X-Axiom-Dataset": dataset,
