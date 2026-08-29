@@ -72,12 +72,13 @@ describe("createRenderCounter", () => {
       return v;
     });
 
-    const List = counter.track("list", () => {
+    const List = () => {
+      counter.useRender("list");
       useResources(
         [0, 1, 2, 3, 4].map((id) => withKey(id, Leaf({ id }), [id])),
       );
       return null;
-    });
+    };
 
     const app = mount(List);
     expect(bodyRuns).toEqual([1, 1, 1, 1, 1]);
@@ -86,7 +87,7 @@ describe("createRenderCounter", () => {
     flushSync(() => setters[2]!(1));
 
     expect(bodyRuns).toEqual([1, 1, 2, 1, 1]);
-    expect(counter.renders("list")).toBe(1);
+    expect(counter.renders("list")).toBe(2);
 
     app.unmount();
   });

@@ -41,15 +41,20 @@ export const createRenderCounter = (): RenderCounter => {
     map.set(id, (map.get(id) ?? 0) + 1);
   };
 
+  const track = <P extends object>(
+    id: string,
+    component: ComponentType<P>,
+  ): ComponentType<P> => {
+    const Tracked = (props: P) => {
+      bump(renderCounts, id);
+      return createElement(component, props);
+    };
+    Tracked.displayName = `Tracked(${id})`;
+    return Tracked;
+  };
+
   return {
-    track: (id, component) => {
-      const Tracked = (props: Parameters<typeof component>[0]) => {
-        bump(renderCounts, id);
-        return createElement(component, props);
-      };
-      Tracked.displayName = `Tracked(${id})`;
-      return Tracked;
-    },
+    track,
     useRender: (id) => {
       bump(renderCounts, id);
     },

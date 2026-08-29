@@ -27,11 +27,31 @@ const drain = async (chunks: AssistantStreamChunk[]) => {
   await AssistantMessageStream.fromAssistantStream(source).unstable_result();
 };
 
-describe("assistant-stream: accumulator scaling (16-char deltas)", () => {
+const drainRaw = async (chunks: AssistantStreamChunk[]) => {
+  const source = new ReadableStream<AssistantStreamChunk>({
+    start(controller) {
+      for (const chunk of chunks) controller.enqueue(chunk);
+      controller.close();
+    },
+  });
+  const reader = source.getReader();
+  while (!(await reader.read()).done);
+};
+
+describe("assistant-stream: stream + accumulator per-delta cost (16-char deltas)", () => {
   for (const n of [100, 1000, 4000]) {
     const chunks = makeChunks(n, 16);
     bench(`${n} deltas`, async () => {
       await drain(chunks);
+    });
+  }
+});
+
+describe("assistant-stream: stream round trip baseline, no accumulator", () => {
+  for (const n of [100, 1000, 4000]) {
+    const chunks = makeChunks(n, 16);
+    bench(`${n} deltas`, async () => {
+      await drainRaw(chunks);
     });
   }
 });

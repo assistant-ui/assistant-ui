@@ -5430,6 +5430,9 @@ importers:
       '@assistant-ui/tap':
         specifier: workspace:*
         version: link:../tap
+      '@assistant-ui/x-buildutils':
+        specifier: workspace:*
+        version: link:../x-buildutils
       '@types/react':
         specifier: ^19.2.18
         version: 19.2.18

@@ -97,9 +97,11 @@ const fmt = (ms) =>
 const compare = (aPath, bPath) => {
   const a = JSON.parse(readFileSync(resolvePerf(aPath), "utf8"));
   const b = JSON.parse(readFileSync(resolvePerf(bPath), "utf8"));
-  if (a.env.cpu !== b.env.cpu || a.env.node !== b.env.node) {
+  const envKeys = ["cpu", "cores", "arch", "platform", "node"];
+  if (envKeys.some((k) => a.env[k] !== b.env[k])) {
+    const show = (e) => envKeys.map((k) => e[k]).join("/");
     console.warn(
-      `warning: environments differ (${a.env.cpu}/${a.env.node} vs ${b.env.cpu}/${b.env.node}); deltas are not comparable\n`,
+      `warning: environments differ (${show(a.env)} vs ${show(b.env)}); deltas are not comparable\n`,
     );
   }
   const bById = new Map(b.benchmarks.map((x) => [x.id, x]));
@@ -120,6 +122,17 @@ const compare = (aPath, bPath) => {
     });
   }
   console.table(rows);
+  const aIds = new Set(a.benchmarks.map((x) => x.id));
+  const matched = new Set(rows.map((r) => r.benchmark));
+  const unmatched = [
+    ...a.benchmarks
+      .filter((x) => !matched.has(x.id))
+      .map((x) => `only in a: ${x.id}`),
+    ...b.benchmarks
+      .filter((x) => !aIds.has(x.id))
+      .map((x) => `only in b: ${x.id}`),
+  ];
+  for (const line of unmatched) console.warn(`unmatched: ${line}`);
   console.log(
     `a: ${a.env.sha}${a.env.dirty ? " (dirty)" : ""} @ ${a.env.date}\nb: ${b.env.sha}${b.env.dirty ? " (dirty)" : ""} @ ${b.env.date}\nverdict is "~same" unless |delta| > max(2×rme, 3%)`,
   );
@@ -130,6 +143,10 @@ const resolvePerf = (p) => (p.includes("/") ? resolve(p) : join(perfDir, p));
 const [, , cmd, ...rest] = process.argv;
 const runsFlag = rest.indexOf("--runs");
 const runs = runsFlag === -1 ? 3 : Number(rest[runsFlag + 1]);
+if (!Number.isInteger(runs) || runs < 1) {
+  console.error(`invalid --runs value: ${rest[runsFlag + 1]}`);
+  process.exit(1);
+}
 const args = rest.filter(
   (_, i) => runsFlag === -1 || (i !== runsFlag && i !== runsFlag + 1),
 );
