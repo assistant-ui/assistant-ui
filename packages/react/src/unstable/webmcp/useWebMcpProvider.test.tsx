@@ -114,6 +114,26 @@ describe("unstable_useWebMcpProvider", () => {
     );
   });
 
+  it("warns once for a tool whose filter keeps throwing", async () => {
+    const warn = silenceWarnings();
+    const adapter = useHost(createFakeWebMcpHost());
+    const bad = frontendTool();
+    const provider = createProvider({ bad, search: frontendTool() });
+    mountProvider(provider, {
+      filter: (_name, tool) => {
+        if (tool === bad) throw new Error("filter boom");
+        return true;
+      },
+    });
+    await waitForNames(["search"]);
+    expect(warn).toHaveBeenCalledOnce();
+
+    provider.setTools({ bad, search: frontendTool(), extra: frontendTool() });
+    await waitForNames(["extra", "search"]);
+    expect(warn).toHaveBeenCalledOnce();
+    expect(adapter.registry.has("bad")).toBe(false);
+  });
+
   it("adds and removes registrations as the model context changes", async () => {
     const host = useHost(createFakeWebMcpHost());
     const provider = createProvider({ search: frontendTool() });

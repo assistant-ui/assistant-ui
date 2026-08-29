@@ -22,6 +22,10 @@ const EMPTY_TOOLS: Record<string, Tool<any, any>> = Object.freeze({});
 
 // The description is re-read on every sync so mutating it in place is
 // observed; the schema is converted only when the tool object itself changes.
+// Keyed on the tool so a schema or filter that throws warns once instead of
+// on every model-context notify.
+const warned = new WeakSet<Tool<any, any>>();
+
 const signatures = new WeakMap<
   Tool<any, any>,
   { description: string | undefined; signature: string }
@@ -48,7 +52,7 @@ const useModelContextTools = (aui: AssistantClient, enabled: boolean) => {
     const read = () =>
       setTools(aui.modelContext.getModelContext().tools ?? EMPTY_TOOLS);
     read();
-    return aui.modelContext.subscribe?.(read);
+    return aui.modelContext.subscribe(read);
   }, [aui, enabled]);
 
   return tools;
@@ -92,6 +96,8 @@ const useWebMcpRegistry = ({
         ),
       );
     } catch (error) {
+      if (warned.has(tool)) continue;
+      warned.add(tool);
       console.warn(
         `[assistant-ui] Skipping WebMCP registration for tool "${name}": filter or schema conversion failed.`,
         error,
