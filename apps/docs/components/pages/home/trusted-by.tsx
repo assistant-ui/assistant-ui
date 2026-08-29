@@ -241,17 +241,20 @@ function LogoSlot({
       )}
     >
       {previous ? (
-        <div
+        <Link
           key={previous.alt}
-          aria-hidden
+          href={previous.href}
+          target="_blank"
+          rel="noopener noreferrer"
+          inert={entered}
           className={cn(
-            "pointer-events-none absolute inset-0 flex items-center justify-center",
+            "absolute inset-0 flex items-center justify-center",
             entered &&
               "animate-out fade-out fill-mode-forwards duration-500 ease-out",
           )}
         >
           <LogoMark logo={previous} />
-        </div>
+        </Link>
       ) : null}
       <Link
         key={current.alt}
