@@ -63,11 +63,16 @@ const createHost = (context: WebMcpModelContext): WebMcpHost => {
     registerTool: (def, onError) => {
       const controller = new AbortController();
       const owner = {};
+      const displaced = owners.get(def.name);
       let settled: "fulfilled" | "rejected" | undefined;
       let disposed = false;
 
+      // Hands the claim back rather than clearing it: the displaced
+      // registration may still be pending its own deferred release.
       const disownName = () => {
-        if (owners.get(def.name) === owner) owners.delete(def.name);
+        if (owners.get(def.name) !== owner) return;
+        if (displaced === undefined) owners.delete(def.name);
+        else owners.set(def.name, displaced);
       };
       // Unregistration is keyed by name, so a registration that no longer owns
       // its name would delete whoever holds it now.

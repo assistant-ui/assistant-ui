@@ -22,7 +22,11 @@ const useWebMcpRegistration = ({
   // context, so a permanent collision warns once rather than on every sync.
   const [refused, setRefused] = useState(false);
   const toolRef = useRef(tool);
-  toolRef.current = tool;
+  // Commit phase, so an abandoned render cannot hand the host a tool the tree
+  // never committed.
+  useEffect(() => {
+    toolRef.current = tool;
+  }, [tool]);
 
   useEffect(() => {
     if (refused) return undefined;
