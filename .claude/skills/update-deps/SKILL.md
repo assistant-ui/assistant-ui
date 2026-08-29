@@ -21,10 +21,10 @@ Run the full update (writes package.json files, reinstalls, dedupes, generates t
 pnpm deps:update
 ```
 
-Both are defined in the root `package.json`. `deps:update` performs, in order:
+Both are defined in the root `package.json`; `deps:update` runs `scripts/update-deps.sh`, which performs, in order:
 
 1. `npx taze major -f -w -r` — bump every dependency (incl. major) recursively.
-2. `cd examples/with-expo && npx expo install --fix` — **required**: taze does not know about Expo's SDK compatibility matrix and will bump `expo-*` / `react-native-*` / `react` / `react-dom` to versions that crash at runtime. `expo install --fix` re-pins them to the versions sanctioned by the current `expo` SDK. Do not skip this step, and do not commit Expo-related bumps without it.
+2. `npx expo install --fix` inside `examples/with-expo` — **required**: taze does not know about Expo's SDK compatibility matrix and will bump `expo-*` / `react-native-*` / `react` / `react-dom` to versions that crash at runtime. `expo install --fix` re-pins them to the versions sanctioned by the current `expo` SDK. Do not skip this step, and do not commit Expo-related bumps without it. When it fails the script falls back to `expo install --check`, which reports the same expectations without writing, finishes the remaining steps, and then exits non-zero so the repin is applied by hand.
 3. Wipe every `node_modules` and `pnpm-lock.yaml`, then `pnpm install` + `pnpm dedupe`.
 4. `bash scripts/generate-deps-changeset.sh` — write a patch changeset for each published package whose `package.json` changed.
 
@@ -32,6 +32,7 @@ Both are defined in the root `package.json`. `deps:update` performs, in order:
 
 - If you bump the `expo` major in `examples/with-expo` (e.g. SDK 55 → 56), `expo install --fix` will rewrite the matching `react`, `react-dom`, `react-native`, `react-native-*`, and `expo-*` versions. Eyeball the diff in `examples/with-expo/package.json` to confirm everything snapped to the expected SDK line.
 - If you intentionally want to hold Expo back, run `pnpm deps:update`, then `git checkout examples/with-expo/package.json` and re-run `pnpm install` + the changeset script manually.
+- `expo install --fix` upgrades the `expo` package itself before it repins anything, so a release inside pnpm's `minimumReleaseAge` window (`pnpm-workspace.yaml` sets 1440 minutes) makes it exit non-zero having applied nothing. That is the failure the `--check` fallback covers: apply the printed expectations by hand, then rerun `pnpm install`.
 
 ### Workflow
 
