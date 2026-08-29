@@ -3966,9 +3966,6 @@ importers:
       vitest:
         specifier: ^4.1.11
         version: 4.1.11(@edge-runtime/vm@3.2.0)(@opentelemetry/api@1.9.1)(@types/node@26.4.0)(@vitest/coverage-v8@4.1.11)(@vitest/ui@4.1.11)(jsdom@30.0.1)(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(yaml@2.9.0))
-      zustand:
-        specifier: ^5.0.15
-        version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
 
   packages/create-assistant-ui:
     dependencies:
@@ -4413,7 +4410,7 @@ importers:
         version: link:../store
       '@google/adk':
         specifier: '>=0.5.0'
-        version: 2.0.0(@mikro-orm/mariadb@6.6.16(@mikro-orm/core@6.6.16)(mysql2@3.20.0(@types/node@26.4.0))(pg@8.20.0)(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2)))(@mikro-orm/mssql@6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5)(mysql2@3.20.0(@types/node@26.4.0))(pg@8.20.0)(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2))(@mikro-orm/mysql@6.6.16(@mikro-orm/core@6.6.16)(@types/node@26.4.0)(mariadb@3.4.5)(pg@8.20.0)(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2)))(@mikro-orm/postgresql@6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5)(mysql2@3.20.0(@types/node@26.4.0))(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2)))(@mikro-orm/sqlite@6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5)(mysql2@3.20.0(@types/node@26.4.0))(pg@8.20.0)(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2)))(supports-color@10.2.2)
+        version: 2.0.0(cfb97d9879fe07ba97d985d929136926)
       assistant-cloud:
         specifier: '*'
         version: link:../cloud
@@ -4503,9 +4500,6 @@ importers:
       parse-diff:
         specifier: ^0.12.0
         version: 0.12.0
-      zustand:
-        specifier: ^5.0.15
-        version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -4795,9 +4789,6 @@ importers:
       assistant-stream:
         specifier: ^0.3.40
         version: link:../assistant-stream
-      zustand:
-        specifier: ^5.0.15
-        version: 5.0.15(@types/react@19.2.18)(immer@11.1.18)(react@19.2.8)(use-sync-external-store@1.6.0(react@19.2.8))
     devDependencies:
       '@assistant-ui/x-buildutils':
         specifier: workspace:*
@@ -23450,60 +23441,9 @@ snapshots:
   '@google-cloud/vertexai@1.12.0(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.4.3))':
     dependencies:
       '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.30.0(supports-color@10.2.2)(zod@4.4.3))
-      google-auth-library: 9.15.1
-    transitivePeerDependencies:
-      - '@modelcontextprotocol/sdk'
-      - bufferutil
-      - encoding
-      - supports-color
-      - utf-8-validate
-
-  '@google-cloud/vertexai@1.12.0(supports-color@10.2.2)':
-    dependencies:
-      '@google/genai': 1.52.0(@modelcontextprotocol/sdk@1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3))(supports-color@10.2.2)
       google-auth-library: 9.15.1(encoding@0.1.13)(supports-color@10.2.2)
     transitivePeerDependencies:
       - '@modelcontextprotocol/sdk'
-      - bufferutil
-      - encoding
-      - supports-color
-      - utf-8-validate
-
-  '@google/adk@2.0.0(@mikro-orm/mariadb@6.6.16(@mikro-orm/core@6.6.16)(mysql2@3.20.0(@types/node@26.4.0))(pg@8.20.0)(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2)))(@mikro-orm/mssql@6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5)(mysql2@3.20.0(@types/node@26.4.0))(pg@8.20.0)(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2))(@mikro-orm/mysql@6.6.16(@mikro-orm/core@6.6.16)(@types/node@26.4.0)(mariadb@3.4.5)(pg@8.20.0)(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2)))(@mikro-orm/postgresql@6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5)(mysql2@3.20.0(@types/node@26.4.0))(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2)))(@mikro-orm/sqlite@6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5)(mysql2@3.20.0(@types/node@26.4.0))(pg@8.20.0)(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2)))(supports-color@10.2.2)':
-    dependencies:
-      '@a2a-js/sdk': 0.3.14(express@5.2.1(supports-color@10.2.2))
-      '@google-cloud/vertexai': 1.12.0(supports-color@10.2.2)
-      '@google/genai': 2.19.0(supports-color@10.2.2)
-      '@mikro-orm/core': 6.6.16
-      '@mikro-orm/reflection': 6.6.16(@mikro-orm/core@6.6.16)
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/api-logs': 0.205.0
-      '@opentelemetry/exporter-logs-otlp-http': 0.205.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/exporter-metrics-otlp-http': 0.205.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/exporter-trace-otlp-http': 0.205.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resource-detector-gcp': 0.40.3(@opentelemetry/api@1.9.0)(supports-color@10.2.2)
-      '@opentelemetry/resources': 2.10.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-logs': 0.205.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-metrics': 2.10.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-base': 2.10.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/sdk-trace-node': 2.10.0(@opentelemetry/api@1.9.0)
-      adm-zip: 0.5.18
-      google-auth-library: 10.9.1(supports-color@10.2.2)
-      js-yaml: 4.3.2
-      jsonpath-plus: 10.4.0
-      lodash-es: 4.18.1
-      winston: 3.19.0
-      zod: 4.4.3
-      zod-to-json-schema: 3.25.2(zod@4.4.3)
-    optionalDependencies:
-      '@mikro-orm/mariadb': 6.6.16(@mikro-orm/core@6.6.16)(mysql2@3.20.0(@types/node@26.4.0))(pg@8.20.0)(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2))
-      '@mikro-orm/mssql': 6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5)(mysql2@3.20.0(@types/node@26.4.0))(pg@8.20.0)(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2)
-      '@mikro-orm/mysql': 6.6.16(@mikro-orm/core@6.6.16)(@types/node@26.4.0)(mariadb@3.4.5)(pg@8.20.0)(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2))
-      '@mikro-orm/postgresql': 6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5)(mysql2@3.20.0(@types/node@26.4.0))(sqlite3@5.1.7(supports-color@10.2.2))(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2))
-      '@mikro-orm/sqlite': 6.6.16(@mikro-orm/core@6.6.16)(mariadb@3.4.5)(mysql2@3.20.0(@types/node@26.4.0))(pg@8.20.0)(supports-color@10.2.2)(tedious@19.2.1(supports-color@10.2.2))
-    transitivePeerDependencies:
-      - '@bufbuild/protobuf'
-      - '@grpc/grpc-js'
       - bufferutil
       - encoding
       - supports-color
@@ -23588,17 +23528,6 @@ snapshots:
       ws: 8.21.3
     optionalDependencies:
       '@modelcontextprotocol/sdk': 1.30.0(@cfworker/json-schema@4.1.1)(supports-color@10.2.2)(zod@4.4.3)
-    transitivePeerDependencies:
-      - bufferutil
-      - supports-color
-      - utf-8-validate
-
-  '@google/genai@2.19.0(supports-color@10.2.2)':
-    dependencies:
-      google-auth-library: 10.9.1(supports-color@10.2.2)
-      p-retry: 4.6.2
-      protobufjs: 7.6.6
-      ws: 8.21.3
     transitivePeerDependencies:
       - bufferutil
       - supports-color
@@ -25450,16 +25379,6 @@ snapshots:
     optional: true
 
   '@opentelemetry/resource-detector-gcp@0.40.3(@opentelemetry/api@1.9.0)':
-    dependencies:
-      '@opentelemetry/api': 1.9.0
-      '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.0)
-      '@opentelemetry/resources': 2.10.0(@opentelemetry/api@1.9.0)
-      gcp-metadata: 6.1.1
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
-  '@opentelemetry/resource-detector-gcp@0.40.3(@opentelemetry/api@1.9.0)(supports-color@10.2.2)':
     dependencies:
       '@opentelemetry/api': 1.9.0
       '@opentelemetry/core': 2.10.0(@opentelemetry/api@1.9.0)
@@ -32154,17 +32073,6 @@ snapshots:
       wide-align: 1.1.5
     optional: true
 
-  gaxios@6.7.1:
-    dependencies:
-      extend: 3.0.2
-      https-proxy-agent: 7.0.6(supports-color@10.2.2)
-      is-stream: 2.0.1
-      node-fetch: 2.7.0(encoding@0.1.13)
-      uuid: 9.0.1
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
   gaxios@6.7.1(encoding@0.1.13)(supports-color@10.2.2):
     dependencies:
       extend: 3.0.2
@@ -32175,7 +32083,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   gaxios@7.3.1(supports-color@10.2.2):
     dependencies:
@@ -32183,15 +32090,6 @@ snapshots:
       https-proxy-agent: 7.0.6(supports-color@10.2.2)
       node-fetch: 3.3.2
     transitivePeerDependencies:
-      - supports-color
-
-  gcp-metadata@6.1.1:
-    dependencies:
-      gaxios: 6.7.1
-      google-logging-utils: 0.0.2
-      json-bigint: 1.0.0
-    transitivePeerDependencies:
-      - encoding
       - supports-color
 
   gcp-metadata@6.1.1(encoding@0.1.13)(supports-color@10.2.2):
@@ -32202,7 +32100,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   gcp-metadata@8.1.2(supports-color@10.2.2):
     dependencies:
@@ -32367,18 +32264,6 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  google-auth-library@9.15.1:
-    dependencies:
-      base64-js: 1.5.1
-      ecdsa-sig-formatter: 1.0.11
-      gaxios: 6.7.1
-      gcp-metadata: 6.1.1
-      gtoken: 7.1.0
-      jws: 4.0.1
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
   google-auth-library@9.15.1(encoding@0.1.13)(supports-color@10.2.2):
     dependencies:
       base64-js: 1.5.1
@@ -32390,7 +32275,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   google-logging-utils@0.0.2: {}
 
@@ -32427,14 +32311,6 @@ snapshots:
 
   grok-mermaid@0.2.2: {}
 
-  gtoken@7.1.0:
-    dependencies:
-      gaxios: 6.7.1
-      jws: 4.0.1
-    transitivePeerDependencies:
-      - encoding
-      - supports-color
-
   gtoken@7.1.0(encoding@0.1.13)(supports-color@10.2.2):
     dependencies:
       gaxios: 6.7.1(encoding@0.1.13)(supports-color@10.2.2)
@@ -32442,7 +32318,6 @@ snapshots:
     transitivePeerDependencies:
       - encoding
       - supports-color
-    optional: true
 
   gzip-size@7.0.0:
     dependencies:

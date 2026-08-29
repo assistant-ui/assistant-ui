@@ -288,7 +288,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { shallowEqual, useAssistantClientDestroySignal, useShallowStable };
+  export { shallowEqual, useAssistantClientDestroySignal, useShallowSelector, useShallowStable };
 }
 
 declare const isUserScrollUp: (previous: {
@@ -375,6 +375,8 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
 };
 
 declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Input) => ScopedAuiClient;
+
+declare const useShallowSelector: <TState, TResult extends object>(select: (state: TState) => TResult) => ((state: TState) => TResult);
 
 declare const useShallowStable: <T extends object>(value: T) => T;
 
