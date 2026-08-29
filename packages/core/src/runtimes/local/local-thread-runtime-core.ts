@@ -5,6 +5,8 @@ import type {
   ChatModelRunResult,
 } from "../../runtime/utils/chat-model-adapter";
 import { shouldContinue } from "./should-continue";
+import { getAutoStatus } from "../../runtime/utils/auto-status";
+import type { ExportedMessageRepository } from "../../runtime/utils/message-repository";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
 import { consumeSuggestionResult } from "../../adapters/suggestion";
 import type {
@@ -21,7 +23,7 @@ import type {
   AppendMessage,
   ThreadAssistantMessage,
 } from "../../types/message";
-import type { RunConfig } from "../../types/message";
+import type { RunConfig, ThreadMessage } from "../../types/message";
 import { MessageNotSentError, toAssistantError } from "../../types/error";
 import type { ModelContextProvider } from "../../model-context/types";
 import {
@@ -48,6 +50,45 @@ class AbortError extends Error {
     this.detach = detach;
   }
 }
+
+// `shouldContinue` resumes only on `tool-calls` and `resumeToolCall` throws, so
+// an imported `interrupt` with no interrupt payload would be stranded here.
+// Provenance cannot gate it: a repository that went through JSON has no marker.
+// The replacement stays content-derived, so a message with nothing resultless
+// left to act on lands on `complete` rather than an unactionable pause.
+const withLocalPauseReason = (message: ThreadMessage): ThreadMessage => {
+  if (
+    message.role !== "assistant" ||
+    message.status.type !== "requires-action" ||
+    message.status.reason !== "interrupt" ||
+    message.content.some(
+      (c) =>
+        c.type === "tool-call" && c.result === undefined && c.interrupt != null,
+    )
+  )
+    return message;
+  return {
+    ...message,
+    status: getAutoStatus(
+      false,
+      false,
+      false,
+      message.content.some(
+        (c) => c.type === "tool-call" && c.result === undefined,
+      ),
+    ),
+  };
+};
+
+const withLocalPauseReasons = (
+  data: ExportedMessageRepository,
+): ExportedMessageRepository => ({
+  ...data,
+  messages: data.messages.map((item) => ({
+    ...item,
+    message: withLocalPauseReason(item.message),
+  })),
+});
 
 export class LocalThreadRuntimeCore
   extends BaseThreadRuntimeCore
@@ -272,7 +313,7 @@ export class LocalThreadRuntimeCore
     this._loadPromise = promise
       .then((repo) => {
         if (!repo) return;
-        this.repository.import(repo);
+        this.repository.import(withLocalPauseReasons(repo));
         if (repo.messages.length > 0) {
           this.ensureInitialized();
         }
@@ -432,6 +473,10 @@ export class LocalThreadRuntimeCore
 
   public exportExternalState(): any {
     throw new Error("Runtime does not support exporting external states.");
+  }
+
+  public override import(data: ExportedMessageRepository) {
+    super.import(withLocalPauseReasons(data));
   }
 
   public importExternalState(): void {

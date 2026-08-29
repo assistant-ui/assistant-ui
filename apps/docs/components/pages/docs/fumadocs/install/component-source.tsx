@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
-import { DynamicCodeBlock } from "fumadocs-ui/components/dynamic-codeblock";
+import { Highlight } from "@/components/shared/highlight";
+import { CodeBlock } from "@/components/ui/code-block";
 import { CodeCollapsible } from "@/components/pages/docs/fumadocs/code-collapsible";
 
 type RegistryFile = {
@@ -72,14 +73,14 @@ async function readLocalShadcnComponent(
 ): Promise<string | null> {
   const uiPath = path.join(
     process.cwd(),
-    "../../packages/ui/src/components/ui/radix",
+    "../../packages/ui/src/components/react/ui/radix",
     `${name}.tsx`,
   );
 
   if (flavor === "base") {
     const vendoredPath = path.join(
       process.cwd(),
-      "../../packages/ui/src/components/ui/base",
+      "../../packages/ui/src/components/react/ui/base",
       `${name}.tsx`,
     );
     const vendoredContent = await readFile(vendoredPath);
@@ -297,14 +298,13 @@ export async function ComponentSource({
   const displayTitle = title ?? filePath;
 
   const content = (
-    <DynamicCodeBlock
-      lang={lang}
-      code={code}
-      codeblock={{
-        title: displayTitle,
-        className: "[&_pre]:max-h-[450px]",
-      }}
-    />
+    <CodeBlock
+      title={displayTitle}
+      copyText={code}
+      viewportClassName="max-h-[450px]"
+    >
+      <Highlight language={lang} code={code} />
+    </CodeBlock>
   );
 
   if (!collapsible) {
@@ -328,14 +328,13 @@ export function ComponentSourceFromFile({
   const lang = (file.path.split(".").pop() ?? "tsx") as "tsx" | "ts" | "js";
 
   const content = (
-    <DynamicCodeBlock
-      lang={lang}
-      code={code}
-      codeblock={{
-        title: file.path,
-        className: "[&_pre]:max-h-[450px]",
-      }}
-    />
+    <CodeBlock
+      title={file.path}
+      copyText={code}
+      viewportClassName="max-h-[450px]"
+    >
+      <Highlight language={lang} code={code} />
+    </CodeBlock>
   );
 
   if (!collapsible) {

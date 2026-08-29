@@ -37,7 +37,13 @@ const DOCS_SUGGESTIONS = [
   },
 ];
 
-export function DocsRuntimeProvider({ children }: { children: ReactNode }) {
+export function DocsRuntimeProvider({
+  children,
+  devtools = true,
+}: {
+  children: ReactNode;
+  devtools?: boolean;
+}) {
   const cloud = useAnonymousCloud();
   const speech = useSpeechAdapters({ dictation: true });
 
@@ -66,7 +72,7 @@ export function DocsRuntimeProvider({ children }: { children: ReactNode }) {
     <AssistantRuntimeProvider aui={aui} runtime={runtime}>
       {children}
 
-      <DevToolsModal />
+      {devtools ? <DevToolsModal /> : null}
     </AssistantRuntimeProvider>
   );
 }

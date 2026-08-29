@@ -170,10 +170,9 @@ export class RunAggregator {
           (tc) => tc.result === undefined,
         );
 
-        this.status =
-          event.outcome?.type === "success" || !hasUnresolvedToolCalls
-            ? { type: "complete", reason: "unknown" }
-            : { type: "requires-action", reason: "tool-calls" };
+        this.status = hasUnresolvedToolCalls
+          ? { type: "requires-action", reason: "tool-calls" }
+          : { type: "complete", reason: "unknown" };
         this.emit();
         break;
       }

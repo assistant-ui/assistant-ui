@@ -2,6 +2,8 @@
 
 import { type FormEvent, useCallback, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 
 interface ApplyFormProps {
   roleTitle: string;
@@ -70,12 +72,11 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
     <form onSubmit={handleSubmit} className="grid gap-5">
       <label className="grid gap-2 text-sm">
         <span className="text-foreground font-medium">Full Name</span>
-        <input
+        <Input
           type="text"
           name="full_name"
           required
           autoComplete="name"
-          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base ring-0 transition outline-none"
           placeholder="Ada Lovelace"
         />
       </label>
@@ -84,13 +85,12 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
         <span className="text-foreground font-medium">
           URLs that best describe you
         </span>
-        <textarea
+        <Textarea
           name="urls"
           required
           rows={3}
-          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base ring-0 transition outline-none"
-          placeholder="Portfolio, GitHub, LinkedIn, blog – one per line"
-        ></textarea>
+          placeholder="Portfolio, GitHub, LinkedIn, blog. One per line."
+        />
       </label>
 
       <label className="grid gap-2 text-sm">
@@ -98,12 +98,11 @@ export const ApplyForm = ({ roleTitle }: ApplyFormProps) => {
           Anything else?{" "}
           <span className="text-muted-foreground">(optional)</span>
         </span>
-        <textarea
+        <Textarea
           name="notes"
           rows={4}
-          className="border-border bg-background focus:border-primary rounded-lg border px-3 py-2 text-base ring-0 transition outline-none"
           placeholder="Tell us about goals, timelines, or anything you'd like us to know."
-        ></textarea>
+        />
       </label>
 
       <Button type="submit" variant="outline" className="w-fit">

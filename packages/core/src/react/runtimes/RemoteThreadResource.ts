@@ -22,6 +22,7 @@ import {
   type RuntimeAdapters,
 } from "./RuntimeAdapterProvider";
 import { isSilentRuntimeAction } from "../../utils/silent-runtime-action";
+import { isTitleSourceMessage } from "../../runtimes/remote-thread-list/title";
 
 export type RemoteThreadListHook = () => AssistantRuntime;
 
@@ -39,9 +40,7 @@ export type RemoteThreadResourceProps = {
   ) => void;
 };
 
-export const isTitleSourceMessage = (message: {
-  status?: { type: string } | undefined;
-}) => message.status?.type !== "running";
+export { isTitleSourceMessage };
 
 export const subscribeToTitleGeneration = (
   threadRuntime: AssistantRuntime["thread"],

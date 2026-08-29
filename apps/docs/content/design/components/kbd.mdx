@@ -1,0 +1,72 @@
+---
+title: "Kbd"
+description: "Keyboard keys as printed caps, for shortcuts and hints."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/kbd.tsx
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  KbdSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="KbdSpecimen" base={<KbdSpecimen />}>
+  <RadixSpecimens.KbdSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="kbd" />
+
+## Usage
+
+```tsx
+import { Kbd, KbdGroup } from "@/components/ui/kbd";
+
+export function Example() {
+  return (
+    <KbdGroup>
+      <Kbd>⌘</Kbd>
+      <Kbd>K</Kbd>
+    </KbdGroup>
+  );
+}
+```
+
+## API Reference
+
+### Kbd
+
+Renders a native `kbd` element and accepts its props.
+
+<ParametersTable
+  type="KbdProps"
+  parameters={[
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### KbdGroup
+
+Lays out a chord of keys with even spacing.
+
+<ParametersTable
+  type="KbdGroupProps"
+  parameters={[
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>

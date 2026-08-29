@@ -77,9 +77,18 @@ export const examples = defineCollections({
   },
 });
 
-export const standalone = defineCollections({
+export const elements = defineCollections({
   type: "doc",
-  dir: "content/standalone",
+  dir: "content/elements",
+  schema: frontmatterSchema,
+  postprocess: {
+    includeProcessedMarkdown: true,
+  },
+});
+
+export const design = defineCollections({
+  type: "doc",
+  dir: "content/design",
   schema: frontmatterSchema.extend({
     links: z
       .array(
@@ -89,7 +98,6 @@ export const standalone = defineCollections({
         }),
       )
       .optional(),
-    platforms: z.array(platformSchema).optional(),
   }),
   postprocess: {
     includeProcessedMarkdown: true,

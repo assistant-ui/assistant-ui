@@ -5,6 +5,7 @@ import {
   listLearnStageIds,
 } from "@/lib/xulux/learn/registry";
 import { getLearnPreview } from "@/lib/xulux/learn/preview-registry";
+import { PublicAssistantSessionBoundary } from "@/components/xulux/learn/PublicAssistantSessionBoundary";
 
 // Each preview needs its own server-side usage-budget session.
 export const dynamic = "force-dynamic";
@@ -50,12 +51,14 @@ export default async function LearnStagePreviewPage({
 
   return (
     <PreviewShell>
-      <RuntimeProvider
-        api={`/api/xulux/learn/preview/${stageId}/chat?sessionId=${previewSessionId}`}
-        storagePrefix={`generative-ui-course:${stageId}:`}
-      >
-        {preview}
-      </RuntimeProvider>
+      <PublicAssistantSessionBoundary>
+        <RuntimeProvider
+          api={`/api/xulux/learn/preview/${stageId}/chat?sessionId=${previewSessionId}`}
+          storagePrefix={`generative-ui-course:${stageId}:`}
+        >
+          {preview}
+        </RuntimeProvider>
+      </PublicAssistantSessionBoundary>
     </PreviewShell>
   );
 }

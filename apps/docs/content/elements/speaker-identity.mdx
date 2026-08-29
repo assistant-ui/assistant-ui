@@ -1,0 +1,207 @@
+---
+title: "Speaker identity"
+description: "Who is talking, once a thread holds more than a user and one model."
+---
+
+SpeakerIdentity rows each turn with an icon and tone keyed to who or what produced it: you, the assistant, a subagent, or a tool. With a runtime the user, assistant, and tool distinctions come straight from message and part data; standalone you assemble the list yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+`s.message.role` gives you the user/assistant split directly. Tool calls live as parts inside an assistant message's `content`, each with a `toolName` and, when the runtime tracks it, a `timing`. A nested subagent run shows up as a tool call's own `messages` field, a real part of `ToolCallMessagePart` for exactly this case. assistant-ui has no fixed "agent name" concept beyond that: a display name for a particular agent or model is something you attach yourself through the message's open `metadata.custom` bag.
+
+<Steps>
+  <Step>
+
+### Turn a top-level message into a row
+
+```tsx title="components/assistant-ui/elements/speaker-list.tsx"
+"use client";
+
+import type { ThreadMessage } from "@assistant-ui/react";
+import type { SpeakerTurn } from "@/components/assistant-ui/elements/speaker-identity";
+
+function textOf(content: readonly { type: string; text?: string }[]) {
+  return content
+    .filter((part): part is { type: "text"; text: string } => part.type === "text")
+    .map((part) => part.text)
+    .join(" ");
+}
+
+function customString(message: ThreadMessage, key: string): string | undefined {
+  const value = message.metadata.custom[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+function messageTurn(message: ThreadMessage): SpeakerTurn {
+  if (message.role === "user") {
+    return { id: message.id, kind: "user", name: "You", text: textOf(message.content) };
+  }
+  return {
+    id: message.id,
+    kind: "agent",
+    name: customString(message, "agentName") ?? "Assistant",
+    detail: customString(message, "model"),
+    text: textOf(message.content),
+  };
+}
+```
+
+`agentName` and `model` above are an example convention, not a built-in field; your own multi-agent backend decides what it stashes in `metadata.custom` and under which keys.
+
+  </Step>
+  <Step>
+
+### Add tool calls and nested subagents
+
+```tsx
+import type { ToolCallMessagePart } from "@assistant-ui/react";
+
+function toolTurn(part: ToolCallMessagePart): SpeakerTurn {
+  const ms =
+    part.timing?.completedAt !== undefined
+      ? part.timing.completedAt - part.timing.startedAt
+      : undefined;
+  return {
+    id: part.toolCallId,
+    kind: "tool",
+    name: part.toolName,
+    detail: ms !== undefined ? `${ms}ms` : undefined,
+    text: part.argsText,
+  };
+}
+
+function turnsFor(message: ThreadMessage): SpeakerTurn[] {
+  const turns = [messageTurn(message)];
+  if (message.role !== "assistant") return turns;
+
+  for (const part of message.content) {
+    if (part.type !== "tool-call") continue;
+    turns.push(toolTurn(part));
+    for (const sub of part.messages ?? []) {
+      turns.push({ ...messageTurn(sub), kind: "subagent" });
+    }
+  }
+  return turns;
+}
+```
+
+Which argument is worth showing as a tool row's `text` is tool-specific; `argsText` (the raw streamed JSON) is a safe generic fallback, but a `read_file` tool's path or a `search` tool's query is usually more readable when you have `toolName` to switch on.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, SpeakerIdentity takes a flat list of turns; you decide what counts as a turn and how they're ordered.
+
+<Steps>
+  <Step>
+
+### Build the turn list
+
+```tsx title="app/session.tsx"
+import { SpeakerIdentity, type SpeakerTurn } from "@/components/assistant-ui/elements/speaker-identity";
+
+const TURNS: SpeakerTurn[] = [
+  { id: "1", kind: "user", name: "You", text: "Find out why the converter drops turns." },
+  { id: "2", kind: "agent", name: "Maintainer", detail: "opus", text: "Splitting this up." },
+  { id: "3", kind: "subagent", name: "reader", detail: "haiku", text: "convertMessages returns early." },
+];
+
+<SpeakerIdentity turns={TURNS} />;
+```
+
+  </Step>
+  <Step>
+
+### Append as the session progresses
+
+```tsx
+setTurns((prev) => [...prev, { id: crypto.randomUUID(), kind: "tool", name: "read_file", text: path }]);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="speaker-identity">
+  {/* per turn: an icon in a tinted badge, then a name/detail line and the text below it */}
+</div>
+```
+
+Each `kind` maps to a fixed icon and tone: `user` and `subagent` share a neutral tint, `agent` is the only one tinted blue, and `tool` reads dimmest of the four. `subagent` is the one kind whose badge renders as a full circle instead of a rounded square, echoing that it stands in for a whole nested conversation rather than a single speaker.
+
+## Examples
+
+### Restyle the badges
+
+Both lanes take `className` on the root. `detail` reads the shared `mono` surface from `surfaces.tsx`.
+
+```tsx
+<SpeakerIdentity className="gap-4" turns={turns} />
+```
+
+### A thread with only one voice
+
+<RuntimeMode>
+
+Most threads never produce a `subagent` or `tool` row; `turnsFor` above still returns a plain two-kind list (`user`, `agent`) for them, since the loop over `content` simply finds nothing to add.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Passing turns of a single `kind` works the same as a mixed list; the icon and tone are looked up per row, not chosen once for the whole list.
+
+```tsx
+<SpeakerIdentity turns={turns.filter((t) => t.kind === "user" || t.kind === "agent")} />
+```
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Message state
+
+| Selector / field | Type | Description |
+|-------------------|------|-------------|
+| `s.message.role` | `"user" \| "assistant" \| "system"` | The real split; `"agent"` and `"subagent"` are this component's own vocabulary, not runtime roles. |
+| `s.message.metadata.custom` | `Record<string, unknown>` | Open bag for app-defined display data, such as an agent's name or model. |
+| `ToolCallMessagePart.toolName` | `string` | Name of the called tool. |
+| `ToolCallMessagePart.timing` | `{ startedAt: number; completedAt?: number } \| undefined` | Epoch ms; subtract for a duration once `completedAt` is set. |
+| `ToolCallMessagePart.messages` | `readonly ThreadMessage[] \| undefined` | Nested thread messages produced by this call, for example a subagent's own conversation. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### SpeakerIdentity
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `turns` | `readonly SpeakerTurn[]` | required | The full, ordered list to render. |
+| `className` | `string` | | Merged onto the root. |
+
+### SpeakerTurn
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | |
+| `kind` | `"user" \| "agent" \| "subagent" \| "tool"` | Drives the icon and tone. |
+| `name` | `string` | |
+| `detail` | `string \| undefined` | Shown beside the name, e.g. a model name or a duration. |
+| `text` | `string` | |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

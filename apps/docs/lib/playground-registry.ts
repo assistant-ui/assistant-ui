@@ -123,7 +123,7 @@ export function generateRegistryJson(config: BuilderConfig) {
     registryDependencies,
     files: [
       {
-        path: "components/assistant-ui/thread.tsx",
+        path: "components/assistant-ui/elements/thread.aui.tsx",
         content: threadCode,
         type: "registry:component",
       },
@@ -159,19 +159,19 @@ function generateThreadCode(config: BuilderConfig): string {
 
   const internalImports = [
     `import { Button } from "@/components/ui/button";`,
-    `import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";`,
+    `import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";`,
     components.markdown
-      ? `import { MarkdownText } from "@/components/assistant-ui/markdown-text";`
+      ? `import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";`
       : null,
     components.markdown
-      ? `import { ToolFallback } from "@/components/assistant-ui/tool-fallback";`
+      ? `import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";`
       : null,
     components.attachments
       ? `import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/attachment";`
+} from "@/components/assistant-ui/elements/attachment.aui";`
       : null,
     `import { cn } from "@/lib/utils";`,
   ]

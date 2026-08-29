@@ -8,6 +8,7 @@ import {
   TAIL_KEY,
   type ConcentrationSegment,
 } from "@/components/pages/packages/download-concentration";
+import { typeEyebrow } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 export type DirectoryRow = {
@@ -75,7 +76,7 @@ export function PackageDirectory({
         aria-label="Filter by category"
         className="bg-background/85 sticky top-12 z-10 -mx-4 px-4 py-3 backdrop-blur"
       >
-        <ul className="flex flex-wrap gap-1.5">
+        <ul className="flex flex-wrap gap-1">
           <li>
             <FilterChip
               active={active === null}
@@ -99,19 +100,19 @@ export function PackageDirectory({
         </ul>
       </nav>
 
-      <div className="flex flex-col gap-12">
+      <div className="flex flex-col">
         {shown.map((category) => (
           <section
             key={category.key}
-            className="md:grid md:grid-cols-[180px_minmax(0,1fr)] md:gap-12"
+            className="border-foreground/10 border-b py-8 md:grid md:grid-cols-[180px_minmax(0,1fr)] md:gap-12 md:py-10"
           >
-            <div className="mb-3 flex flex-col gap-0.5 md:mb-0 md:pt-2.5">
-              <h2 className="text-sm font-medium">{category.label}</h2>
-              <p className="text-muted-foreground text-xs leading-relaxed">
+            <div className="mb-5 md:mb-0">
+              <h2 className={typeEyebrow}>{category.label}</h2>
+              <p className="text-muted-foreground/70 mt-2 max-w-[22ch] text-[13px] leading-relaxed">
                 {category.description}
               </p>
             </div>
-            <div className="flex min-w-0 flex-col gap-1">
+            <div className="-my-2 flex min-w-0 flex-col">
               {rows
                 .filter((row) => row.category === category.key)
                 .map((row) => (
@@ -147,15 +148,18 @@ function FilterChip({
       onClick={onClick}
       aria-pressed={active}
       className={cn(
-        "focus-visible:ring-ring/50 flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1 text-xs transition-colors outline-none focus-visible:ring-1",
+        "focus-visible:ring-ring/50 flex cursor-pointer items-center gap-1.5 px-2.5 py-1 font-mono text-[11px] tracking-wide transition-colors outline-none focus-visible:ring-1",
         active
-          ? "bg-foreground text-background"
-          : "bg-muted/40 text-muted-foreground hover:bg-muted hover:text-foreground",
+          ? "bg-foreground/[0.06] text-foreground"
+          : "text-muted-foreground hover:text-foreground",
       )}
     >
       {label}
       <span
-        className={cn("tabular-nums", !active && "text-muted-foreground/70")}
+        className={cn(
+          "tabular-nums",
+          active ? "text-muted-foreground" : "text-muted-foreground/60",
+        )}
       >
         {count}
       </span>
@@ -178,13 +182,13 @@ function PackageRow({
       target="_blank"
       rel="noopener noreferrer"
       className={cn(
-        "group hover:bg-muted/40 -mx-3 flex flex-col gap-1 rounded-lg px-3 py-2.5 transition-all duration-150 md:flex-row md:items-center md:gap-4",
+        "group hover:bg-foreground/[0.025] -mx-2 flex flex-col gap-1 px-2 py-2 transition-all duration-150 md:flex-row md:items-baseline md:gap-4",
         lit && "bg-amber-500/10",
         dimmed && "opacity-25",
       )}
     >
       <span className="flex min-w-0 items-center gap-2 md:w-88 md:shrink-0">
-        <span className="truncate font-mono text-sm">{row.name}</span>
+        <span className="truncate font-mono text-[13px]">{row.name}</span>
         <ArrowUpRight className="hidden size-3.5 shrink-0 opacity-0 transition-opacity group-hover:opacity-50 md:block" />
       </span>
 
@@ -193,15 +197,15 @@ function PackageRow({
       </span>
 
       {row.deprecated ? (
-        <span className="text-muted-foreground/60 shrink-0 text-[10px] font-medium tracking-wide uppercase">
-          Deprecated
+        <span className="text-muted-foreground/60 shrink-0 font-mono text-[10px] tracking-wide">
+          deprecated
         </span>
       ) : null}
 
       {row.weekly ? (
-        <span className="flex shrink-0 items-center gap-3 text-xs tabular-nums">
-          <span className="text-muted-foreground md:w-24 md:text-right">
-            {row.weekly} / week
+        <span className="flex shrink-0 items-baseline gap-3 font-mono text-[11px] tracking-wide tabular-nums">
+          <span className="text-muted-foreground/70 md:w-20 md:text-right">
+            {row.weekly} /wk
           </span>
           <span
             className={cn("md:w-12 md:text-right", MOM_TONE[row.momTone])}

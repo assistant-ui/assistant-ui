@@ -1,14 +1,16 @@
 import type { Metadata } from "next";
+import { LiveDot } from "@/components/shared/live-dot";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, ArrowRight, ArrowUpRight } from "lucide-react";
+import { ArrowLeft, ArrowUpRight } from "lucide-react";
 import {
   ExamplePreview,
   hasExamplePreview,
 } from "@/components/pages/examples/example-preview";
-import { GitHubIcon } from "@/components/icons/github";
 import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { cn } from "@/lib/utils";
 import { createOgMetadata } from "@/lib/og";
 import {
   getExampleBySlug,
@@ -60,29 +62,27 @@ export default async function ExamplePage(props: {
     <PageFrame pad="sub">
       <Link
         href="/examples"
-        className="text-foreground/45 hover:text-foreground/90 inline-flex items-center gap-1.5 text-[13px] transition-colors"
+        className="text-muted-foreground hover:text-foreground inline-flex items-center gap-1.5 text-sm transition-colors"
       >
         <ArrowLeft className="size-3.5" />
         Examples
       </Link>
 
       <header className="mt-8 max-w-2xl">
-        <h1 className="text-2xl font-medium tracking-tight md:text-3xl">
-          {page.data.title}
-        </h1>
+        <h1 className={typePage}>{page.data.title}</h1>
         {page.data.description && (
-          <p className="text-foreground/55 mt-3 text-[15px] leading-relaxed">
+          <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
             {page.data.description}
           </p>
         )}
-        <div className="mt-6 flex flex-wrap items-center gap-4 text-[13px]">
+        <p className="mt-6 flex flex-wrap items-baseline gap-x-7 gap-y-2 font-mono text-[13px]">
           {demo && (
             <Link
               href={`/demos/${demo.slug}`}
-              className="text-foreground hover:text-foreground/70 inline-flex items-center gap-1.5 font-medium transition-colors"
+              className="hover:text-foreground/70 group transition-colors"
             >
-              Open demo
-              <ArrowUpRight className="size-3.5" />
+              open demo
+              <ArrowUpRight className="ms-1 mb-0.5 inline size-3 opacity-50 transition-opacity group-hover:opacity-100" />
             </Link>
           )}
           {item.githubLink && (
@@ -90,58 +90,80 @@ export default async function ExamplePage(props: {
               href={item.githubLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-foreground/45 hover:text-foreground/90 inline-flex items-center gap-1.5 transition-colors"
+              className="text-muted-foreground hover:text-foreground group transition-colors"
             >
-              <GitHubIcon className="size-3.5" />
-              Source
+              source
+              <ArrowUpRight className="ms-1 mb-0.5 inline size-3 opacity-0 transition-opacity group-hover:opacity-70" />
             </a>
           )}
-        </div>
+        </p>
       </header>
 
-      {preview ? (
-        <div className="border-foreground/10 mt-10 h-[min(70vh,640px)] overflow-hidden rounded-[20px] border">
-          <ExamplePreview slug={slug} />
-        </div>
-      ) : (
-        <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative mt-10 aspect-[16/10] overflow-hidden rounded-[20px] border">
-          <Image
-            src={item.image}
-            alt={page.data.title}
-            fill
-            className="object-cover object-top"
-          />
-        </div>
-      )}
+      <figure className="mt-12">
+        {preview ? (
+          <div className="border-foreground/10 h-[min(70vh,640px)] overflow-hidden border">
+            <ExamplePreview slug={slug} />
+          </div>
+        ) : (
+          <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative aspect-[16/10] overflow-hidden border">
+            <Image
+              src={item.image}
+              alt={page.data.title}
+              fill
+              className="object-cover object-top"
+            />
+          </div>
+        )}
+        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+          <span>fig. 01</span>
+          {preview ? (
+            <span className="flex items-center gap-1.5">
+              <LiveDot />
+              live
+            </span>
+          ) : (
+            <span>screenshot</span>
+          )}
+        </figcaption>
+      </figure>
 
-      <article data-page-content="" className="prose mt-16 max-w-none">
+      <article
+        data-page-content=""
+        className="prose prose-blog mt-16 max-w-none"
+      >
         <page.data.body components={mdxComponents} />
       </article>
 
-      <nav className="border-foreground/10 mt-16 flex items-center justify-between gap-4 border-t border-dashed pt-6">
-        {neighbors.previous ? (
-          <Link
-            href={neighbors.previous.link}
-            className="group text-foreground/45 hover:text-foreground/90 flex min-w-0 items-center gap-2 text-[13px] transition-colors"
-          >
-            <ArrowLeft className="size-3.5 shrink-0 transition-transform group-hover:-translate-x-0.5" />
-            <span className="truncate">{neighbors.previous.title}</span>
-          </Link>
-        ) : (
-          <span />
-        )}
-        {neighbors.next ? (
-          <Link
-            href={neighbors.next.link}
-            className="group text-foreground/45 hover:text-foreground/90 flex min-w-0 items-center gap-2 text-[13px] transition-colors"
-          >
-            <span className="truncate">{neighbors.next.title}</span>
-            <ArrowRight className="size-3.5 shrink-0 transition-transform group-hover:translate-x-0.5" />
-          </Link>
-        ) : (
-          <span />
-        )}
-      </nav>
+      {neighbors.previous || neighbors.next ? (
+        <nav className="border-foreground/10 divide-foreground/10 mt-20 grid divide-y border-t border-b md:grid-cols-2 md:divide-x md:divide-y-0">
+          {neighbors.previous ? (
+            <Link
+              href={neighbors.previous.link}
+              className="group flex flex-col py-5 md:pe-8"
+            >
+              <span className={typeEyebrow}>Previous</span>
+              <span className="mt-1.5 block truncate text-sm font-medium">
+                {neighbors.previous.title}
+              </span>
+            </Link>
+          ) : (
+            <span className="hidden md:block" />
+          )}
+          {neighbors.next ? (
+            <Link
+              href={neighbors.next.link}
+              className="group flex flex-col py-5 md:ps-8 md:text-right"
+            >
+              <span className={typeEyebrow}>Next</span>
+              <span className="mt-1.5 block truncate text-sm font-medium">
+                {neighbors.next.title}
+              </span>
+            </Link>
+          ) : (
+            <span className="hidden md:block" />
+          )}
+        </nav>
+      ) : null}
     </PageFrame>
   );
 }

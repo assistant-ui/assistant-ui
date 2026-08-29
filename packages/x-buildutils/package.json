@@ -1,7 +1,7 @@
 {
   "name": "@assistant-ui/x-buildutils",
   "private": false,
-  "version": "0.0.23",
+  "version": "0.0.24",
   "description": "Internal build utilities for assistant-ui packages",
   "keywords": [
     "build",
@@ -34,7 +34,7 @@
   },
   "devDependencies": {
     "@types/babel__core": "^7.20.5",
-    "@types/node": "^26.2.0"
+    "@types/node": "^26.4.0"
   },
   "homepage": "https://www.assistant-ui.com/",
   "repository": {

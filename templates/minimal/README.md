@@ -34,7 +34,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ## Development
 
-You can start customizing the UI by modifying components in the `components/assistant-ui/` directory.
+You can start customizing the UI by modifying components in the `components/assistant-ui/elements/` directory.
 
 To add more assistant-ui components:
 
@@ -46,4 +46,4 @@ npx assistant-ui add
 
 - `app/assistant.tsx` - Sets up the runtime provider
 - `app/api/chat/route.ts` - Chat API endpoint
-- `components/assistant-ui/thread.tsx` - Chat thread component
+- `components/assistant-ui/elements/thread.tsx` - Chat thread component

@@ -1,0 +1,191 @@
+---
+title: "Shared conversation"
+description: "A read-only transcript someone sent you, with a way to pick it up yourself."
+---
+
+A shared conversation is somebody else's finished thread, handed to you to read: every turn exactly as they left it, nothing to change, only a door back into your own copy. With a runtime it's a real thread rendered through a read-only runtime; standalone you render the transcript array directly.
+
+## Getting started
+
+<RuntimeMode>
+
+`ReadonlyThreadProvider` wraps children in a thread whose mutations all throw: sending, canceling, editing, branching. The normal thread primitives render it exactly like any other thread, just inert.
+
+<Steps>
+  <Step>
+
+### Wrap the transcript in a readonly thread
+
+```tsx title="app/shared/[id]/page.tsx"
+"use client";
+
+import { ReadonlyThreadProvider, ThreadPrimitive, MessagePrimitive } from "@assistant-ui/react";
+import type { ThreadMessage } from "@assistant-ui/react";
+
+export function SharedThread({ messages }: { messages: readonly ThreadMessage[] }) {
+  return (
+    <ReadonlyThreadProvider messages={messages}>
+      <ThreadPrimitive.Viewport>
+        <ThreadPrimitive.Messages>
+          {() => <MessagePrimitive.Parts />}
+        </ThreadPrimitive.Messages>
+      </ThreadPrimitive.Viewport>
+    </ReadonlyThreadProvider>
+  );
+}
+```
+
+Every capability on this thread, `edit`, `delete`, `reload`, `cancel`, and the rest, reports `false`, so composer input, regenerate, and branch controls that check `s.thread.capabilities` disable themselves without any extra work on your part.
+
+  </Step>
+  <Step>
+
+### Offer a way into a real thread
+
+`ReadonlyThreadProvider` has no send path at all; put the continue action outside it, against your app's real runtime:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+import type { ThreadMessage } from "@assistant-ui/react";
+
+function ContinueButton({ messages }: { messages: readonly ThreadMessage[] }) {
+  const app = useAui();
+  return (
+    <button
+      onClick={() =>
+        app.thread.import({
+          messages: messages.map((message, i) => ({ message, parentId: messages[i - 1]?.id ?? null })),
+        })
+      }
+    >
+      Continue in your own chat
+    </button>
+  );
+}
+```
+
+Placed above the `ReadonlyThreadProvider`, `useAui()` there still resolves to your app's real client, not the readonly one.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `SharedConversation` is a self-contained card: title, who shared it, the turns, and the continue button, all from props.
+
+<Steps>
+  <Step>
+
+### Render the shared card
+
+```tsx title="app/shared-card.tsx"
+"use client";
+
+import { SharedConversation } from "@/components/assistant-ui/elements/shared-conversation";
+
+export function SharedCard({ onContinue }: { onContinue: () => void }) {
+  return (
+    <SharedConversation
+      title="Debugging the flaky test"
+      sharedBy="Jordan"
+      sharedAt="2 days ago"
+      turns={[
+        { id: "1", role: "user", text: "Why does this test fail only in CI?" },
+        { id: "2", role: "assistant", text: "Most likely a timing assumption..." },
+      ]}
+      onContinue={onContinue}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Keep it read only
+
+There is no prop for editing a turn or removing one: `turns` renders exactly as given, and the only interactive element is the continue button, matching the runtime lane's inert composer.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="shared-conversation">
+  <div>{/* link icon, title, "shared by X, when" */}</div>
+  <div>{/* turns, most recent last */}</div>
+  <div>
+    <span>read only</span>
+    <button>{/* Continue in your own chat */}</button>
+  </div>
+</div>
+```
+
+Behaviorally this reads closer to a receipt than a chat panel: nothing inside it is clickable except the continue button, and there's no loading or empty state, `turns` is expected to already be the full, finished transcript.
+
+## Examples
+
+### Restyle the header
+
+`title`, `sharedBy`, and `sharedAt` all truncate on overflow rather than wrap, keeping the header to one line regardless of how long the title or the sharer's name is:
+
+```tsx
+<SharedConversation title="A very long conversation title that will truncate" sharedBy="Jordan Alvarez" sharedAt="Aug 12" turns={turns} />
+```
+
+### Empty transcript
+
+<StandaloneMode>
+
+Passing an empty `turns` array renders the header and footer with nothing between them; there's no dedicated empty-state message, so an app that can receive an empty share should filter it out before rendering the card.
+
+</StandaloneMode>
+
+<RuntimeMode>
+
+`ReadonlyThreadProvider` accepts an empty `messages` array the same way: the thread reports `isEmpty: true`, and any `<AuiIf condition={(s) => s.thread.isEmpty}>` blocks in the surrounding UI show, the same as a real empty thread.
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Primitive parts
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `ReadonlyThreadProvider` | children | Wraps `children` in a thread scope built from `messages`. Every mutation on it throws. |
+| `ThreadPrimitive.Viewport` / `.Messages` | `div` / children | Render the same as on any other thread. |
+
+### Thread state and capabilities
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.thread.messages` | `readonly MessageState[]` | The `messages` prop, as rendered messages. |
+| `s.thread.isEmpty` | `boolean` | `true` when `messages` is empty. |
+| `s.thread.capabilities` | `RuntimeCapabilities` | Every flag (`edit`, `delete`, `reload`, `cancel`, `attachments`, and the rest) is `false`. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### SharedConversation
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | Shown truncated in the header. |
+| `sharedBy` | `string` | required | Shown after "shared by" in the header. |
+| `sharedAt` | `string` | required | Shown after the sharer's name, already formatted. |
+| `turns` | `readonly SharedTurn[]` (`{ id, role: "user" \| "assistant", text }`) | required | Rendered in order. |
+| `onContinue` | `() => void` | | Called by the footer button. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

@@ -2,15 +2,20 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   useSyncExternalStore,
 } from "react";
-import { resource, withKey } from "@assistant-ui/tap";
+import { resource, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import {
   attachTransformScopes,
+  Derived,
+  useAssistantContextProvider,
+  useAssistantContextValue,
   useClientLookup,
   useClientResource,
+  useConfiguredAui,
 } from "@assistant-ui/store/client";
 import { isDevelopment, useThreadSelectionEvents } from "../../store/internal";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
@@ -40,6 +45,7 @@ import {
   type InMemoryThreadListProps,
 } from "./InMemoryThreadList";
 import { AdaptedRemoteThread } from "./AdaptedRemoteThread";
+import { isTitleSourceMessage } from "../../runtimes/remote-thread-list/title";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -62,6 +68,18 @@ export type RemoteThreadListProps = {
   onSwitchToThread?: ((threadId: string) => void) | undefined;
   onSwitchToNewThread?: (() => void) | undefined;
   onDelete?: ((threadId: string) => void) | undefined;
+  /**
+   * Keeps every thread the session switched to mounted, so a run continues
+   * after the user switches away, per-item `isRunning` reflects background
+   * runs, and a freshly initialized thread generates its title automatically.
+   * A body unmounts on delete, detach, or an adapter replacement (`reload()`
+   * after swapping the adapter); visited threads otherwise stay mounted for
+   * the client's lifetime. Each body reads its own thread through the ambient
+   * `threadListItem` scope, and `unstable_useAdapters` runs once per mounted
+   * body. Off (the default), only the visible thread is mounted and a switch
+   * unmounts it. The mode is fixed at mount.
+   */
+  backgroundThreads?: boolean | undefined;
 };
 
 const threadNotFoundError = (threadIdOrRemoteId: string, action: string) =>
@@ -202,9 +220,94 @@ const isSameThread = (
   return data !== undefined && itemMatchesId(data, listState, right);
 };
 
+const useRemoteThreadBody = ({
+  id,
+  status,
+  remoteId,
+  item,
+  thread,
+}: {
+  id: string;
+  status: RemoteThreadData["status"];
+  remoteId: string | undefined;
+  item: (isRunning: boolean) => ResourceElement<ClientOutput<"threadListItem">>;
+  thread: ResourceElement<ClientOutput<"thread">>;
+}): ClientOutput<"thread"> => {
+  const parent = useAssistantContextValue();
+  const [isRunning, setIsRunning] = useState(false);
+  // The item client is mounted inside the body and served to the subtree
+  // through a Derived scope, which keeps the graft on the derived-only (no
+  // nested client host) path; resolving `parent.threads` here instead would
+  // read the threads scope during its own construction.
+  const itemHandle = useClientResource(item(isRunning));
+  const { client } = useConfiguredAui(parent, {
+    threadListItem: Derived({
+      source: "threads",
+      query: { type: "id", id },
+      get: () => itemHandle.methods,
+    }),
+  });
+  // Auto-title arms only for a thread born "new" in this body's lifetime;
+  // threads loaded or fetched from the adapter already carry their title. The
+  // settled (non-optimistic) initialize is what writes remoteId, so its
+  // arrival is the initialization signal.
+  const bornNewRef = useRef(status === "new");
+  const titleFiredRef = useRef(false);
+  return useAssistantContextProvider(client, function useBoundRemoteBody() {
+    const body = useClientResource(thread);
+    const bodyRunning = body.state.isRunning === true;
+    useEffect(() => {
+      setIsRunning(bodyRunning);
+    }, [bodyRunning]);
+    const armed =
+      bornNewRef.current && !titleFiredRef.current && remoteId !== undefined;
+    const hasTitleSource =
+      armed &&
+      (
+        body.state.messages as readonly {
+          status?: { type: string } | undefined;
+        }[]
+      ).some(isTitleSourceMessage);
+    useEffect(() => {
+      if (!hasTitleSource || titleFiredRef.current) return;
+      titleFiredRef.current = true;
+      client.threadListItem.generateTitle();
+    }, [hasTitleSource]);
+    return body.methods;
+  });
+};
+
+const RemoteThreadBody = resource(useRemoteThreadBody);
+
+// `thread("main")` keeps one identity across switches, like the single
+// useClientResource slot it replaced: consumers (the ambient `thread` scope,
+// captured clients) hold the facade while it delegates to whichever body is
+// currently main. Isolated in its own hook because the render-time ref access
+// bails the React Compiler for the enclosing function.
+const useMainThreadFacade = (
+  current: ClientOutput<"thread">,
+): ClientOutput<"thread"> => {
+  const currentRef = useRef(current);
+  currentRef.current = current;
+  const [facade] = useState(
+    () =>
+      new Proxy({} as ClientOutput<"thread">, {
+        get: (_, prop) =>
+          (currentRef.current as unknown as Record<PropertyKey, unknown>)[prop],
+        has: (_, prop) => prop in (currentRef.current as object),
+        ownKeys: () => Reflect.ownKeys(currentRef.current as object),
+        getOwnPropertyDescriptor: (_, prop) =>
+          Reflect.getOwnPropertyDescriptor(currentRef.current as object, prop),
+      }),
+  );
+  return facade;
+};
+
 const useRemoteThreadListView = ({
   listState,
   mainThreadId,
+  startedIds,
+  backgroundThreads,
   threadFactory,
   useAdapters,
   onSwitchTo,
@@ -219,6 +322,8 @@ const useRemoteThreadListView = ({
 }: {
   listState: RemoteThreadState;
   mainThreadId: string;
+  startedIds: readonly string[];
+  backgroundThreads: boolean;
   threadFactory: RemoteThreadListProps["thread"];
   useAdapters: RemoteThreadListAdapter["unstable_useAdapters"];
   onSwitchTo: (
@@ -243,17 +348,102 @@ const useRemoteThreadListView = ({
   }>;
   onDetach: (threadId: string) => Promise<void>;
 }) => {
-  const thread = threadFactory(mainThreadId);
-  const wrapped =
-    useAdapters === undefined
-      ? thread
-      : AdaptedRemoteThread({
-          useAdapters,
-          thread,
-        });
-  const mainThreadClient = useClientResource(
-    thread.key === undefined ? wrapped : withKey(thread.key, wrapped),
+  const bodyIds = useMemo(() => {
+    if (!backgroundThreads) return [mainThreadId];
+    const seen = new Set<string>();
+    const seenRemoteIds = new Set<string>();
+    const ids: string[] = [];
+    for (const id of startedIds) {
+      const data = getThreadData(listState, id);
+      if (!data || seen.has(data.id)) continue;
+      if (data.remoteId !== undefined && seenRemoteIds.has(data.remoteId)) {
+        continue;
+      }
+      seen.add(data.id);
+      if (data.remoteId !== undefined) seenRemoteIds.add(data.remoteId);
+      ids.push(data.id);
+    }
+    return ids;
+  }, [backgroundThreads, listState, mainThreadId, startedIds]);
+
+  const itemElementFor = (data: RemoteThreadData, isRunning: boolean) =>
+    ThreadListItemClient({
+      data,
+      isRunning,
+      onSwitchTo: (options) =>
+        handleThreadListAction("switch", () => onSwitchTo(data.id, options)),
+      onRename: (title) =>
+        handleThreadListAction("rename", () => onRename(data.id, title)),
+      onUpdateCustom: (custom) =>
+        handleThreadListAction("update custom metadata", () =>
+          onUpdateCustom(data.id, custom),
+        ),
+      onArchive: () =>
+        handleThreadListAction("archive", () => onArchive(data.id)),
+      onUnarchive: () =>
+        handleThreadListAction("unarchive", () => onUnarchive(data.id)),
+      onDelete: () => handleThreadListAction("delete", () => onDelete(data.id)),
+      onGenerateTitle: () =>
+        handleThreadListAction("generate title", () =>
+          onGenerateTitle(
+            data.id,
+            (backgroundThreads
+              ? bodyStateOf(data.id)?.messages
+              : mainThreadClient.state.messages) as
+              | readonly ThreadMessage[]
+              | undefined,
+          ),
+        ),
+      onInitialize: () => onInitialize(data.id),
+      onDetach: () => handleThreadListAction("detach", () => onDetach(data.id)),
+    });
+
+  const bodies = useClientLookup(
+    bodyIds.map((id) => {
+      const made = threadFactory(id);
+      // Background bodies never change occupant, so an unkeyed factory
+      // element is keyed by the mapping id here; per-body history loads
+      // without requiring the factory to key itself.
+      const thread =
+        backgroundThreads && made.key === undefined ? withKey(id, made) : made;
+      const wrapped =
+        useAdapters === undefined
+          ? thread
+          : AdaptedRemoteThread({
+              useAdapters,
+              thread,
+            });
+      const data = getThreadData(listState, id);
+      const element =
+        backgroundThreads && data !== undefined
+          ? RemoteThreadBody({
+              id,
+              status: data.status,
+              remoteId: data.remoteId,
+              item: (isRunning) => itemElementFor(data, isRunning),
+              thread: wrapped,
+            })
+          : wrapped;
+      return withKey(backgroundThreads ? id : (made.key ?? "main"), element);
+    }),
   );
+  // A reload can remap a local thread id to its remote identity while the
+  // body stays keyed by the original mapping id, so lookups fall back to
+  // remote-identity matching.
+  const bodyIndexOf = (id: string) => {
+    const direct = bodyIds.indexOf(id);
+    if (direct !== -1) return direct;
+    return bodyIds.findIndex((bodyId) => isSameThread(listState, bodyId, id));
+  };
+  const bodyStateOf = (id: string) => {
+    const index = bodyIndexOf(id);
+    return index === -1 ? undefined : bodies.state[index];
+  };
+  const mainIndex = bodyIndexOf(mainThreadId);
+  const mainThreadClient = {
+    state: bodies.state[mainIndex]!,
+    methods: useMainThreadFacade(bodies.get({ index: mainIndex })),
+  };
   const itemOrder = useMemo(
     () => collectItemOrder(listState, mainThreadId),
     [listState, mainThreadId],
@@ -262,40 +452,13 @@ const useRemoteThreadListView = ({
     itemOrder.map((data) =>
       withKey(
         data.id,
-        ThreadListItemClient({
+        itemElementFor(
           data,
-          isRunning:
-            itemMatchesId(data, listState, mainThreadId) &&
-            mainThreadClient.state.isRunning,
-          onSwitchTo: (options) =>
-            handleThreadListAction("switch", () =>
-              onSwitchTo(data.id, options),
-            ),
-          onRename: (title) =>
-            handleThreadListAction("rename", () => onRename(data.id, title)),
-          onUpdateCustom: (custom) =>
-            handleThreadListAction("update custom metadata", () =>
-              onUpdateCustom(data.id, custom),
-            ),
-          onArchive: () =>
-            handleThreadListAction("archive", () => onArchive(data.id)),
-          onUnarchive: () =>
-            handleThreadListAction("unarchive", () => onUnarchive(data.id)),
-          onDelete: () =>
-            handleThreadListAction("delete", () => onDelete(data.id)),
-          onGenerateTitle: () =>
-            handleThreadListAction("generate title", () =>
-              onGenerateTitle(
-                data.id,
-                mainThreadClient.state.messages as
-                  | readonly ThreadMessage[]
-                  | undefined,
-              ),
-            ),
-          onInitialize: () => onInitialize(data.id),
-          onDetach: () =>
-            handleThreadListAction("detach", () => onDetach(data.id)),
-        }),
+          backgroundThreads
+            ? (bodyStateOf(data.id)?.isRunning ?? false)
+            : itemMatchesId(data, listState, mainThreadId) &&
+                mainThreadClient.state.isRunning,
+        ),
       ),
     ),
   );
@@ -340,9 +503,6 @@ const useRemoteThreadList = (
     };
   });
 
-  // Config updates can invoke `reload()` in the same turn as the re-render, before the effect below runs.
-  session.adapter = adapter;
-
   const listState = useSyncExternalStore(
     (onStoreChange) => store.subscribe(onStoreChange),
     () => store.value,
@@ -350,15 +510,21 @@ const useRemoteThreadList = (
   );
 
   const [mainThreadId, setMainThreadId] = useState(initialMainId);
+  const [startedIds, setStartedIds] = useState<readonly string[]>([
+    initialMainId,
+  ]);
+  const [backgroundThreads] = useState(props.backgroundThreads === true);
   const assignMainThreadId = useCallback(
     (id: string) => {
       session.mainThreadId = id;
       setMainThreadId(id);
+      setStartedIds((prev) => (prev.includes(id) ? prev : [...prev, id]));
     },
     [session],
   );
   useThreadSelectionEvents(mainThreadId);
   useEffect(() => {
+    // Publishing after commit keeps imperative actions on the adapter the committed tree renders with; an abandoned render must not reach them.
     session.adapter = adapter;
     session.mainThreadId = mainThreadId;
     session.onThreadIdChange = onThreadIdChange;
@@ -444,6 +610,7 @@ const useRemoteThreadList = (
       const seeded = seedNewThread(EMPTY_LIST);
       store.reset({ ...seeded.state, isLoading: true });
       assignMainThreadId(seeded.id);
+      setStartedIds([seeded.id]);
       notifyRemoteId(undefined, true);
     } else {
       store.update({
@@ -945,7 +1112,12 @@ const useRemoteThreadList = (
       }
       const { remoteId } = await data.initializeTask;
       requireAdapterGeneration(adapterGeneration);
-      if (!isSameThread(store.value, data.id, session.mainThreadId)) return;
+      if (
+        !backgroundThreads &&
+        !isSameThread(store.value, data.id, session.mainThreadId)
+      ) {
+        return;
+      }
       if (!messages) return;
       const stream = await currentAdapter.generateTitle(remoteId, messages);
       requireAdapterGeneration(adapterGeneration);
@@ -970,13 +1142,23 @@ const useRemoteThreadList = (
         });
       });
     },
-    [requireAdapterGeneration, session, store],
+    [backgroundThreads, requireAdapterGeneration, session, store],
+  );
+
+  const detach = useCallback(
+    async (threadId: string) => {
+      await ensureNotMain(threadId);
+      setStartedIds((prev) => prev.filter((id) => id !== threadId));
+    },
+    [ensureNotMain],
   );
 
   const { mainThreadClient, itemOrder, threadListItems } =
     useRemoteThreadListView({
       listState,
       mainThreadId,
+      startedIds,
+      backgroundThreads,
       threadFactory,
       useAdapters: adapter.unstable_useAdapters,
       onSwitchTo: (id, options) => switchToThread(id, options),
@@ -987,7 +1169,7 @@ const useRemoteThreadList = (
       onDelete: (id) => deleteThread(id),
       onGenerateTitle: (id, messages) => generateTitle(id, messages),
       onInitialize: async (id) => toInitializeResult(await initialize(id)),
-      onDetach: (id) => ensureNotMain(id),
+      onDetach: (id) => detach(id),
     });
 
   const mainRemoteId = getThreadData(listState, mainThreadId)?.remoteId;
@@ -1098,6 +1280,9 @@ const useRemoteThreadList = (
  * and attachments come from `unstable_useAdapters`. `useRemoteThreadListRuntime`
  * uses the same hook when `unstable_Provider` is omitted. Key the factory
  * with `withKey` so history reloads when the visible thread changes.
+ * With `backgroundThreads`, every visited thread stays mounted: runs continue
+ * across switches, per-item `isRunning` is live, and freshly initialized
+ * threads title themselves.
  */
 export const RemoteThreadList = resource(useRemoteThreadList);
 

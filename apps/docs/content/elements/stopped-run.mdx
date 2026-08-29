@@ -1,0 +1,217 @@
+---
+title: "Stopped run"
+description: "You pressed stop. The half-written answer stays, and continuing is one tap away."
+---
+
+StoppedRun shows what a cancelled generation leaves behind: the words that arrived before the stop, a small reason badge, and a way to pick it back up or let it go. With a runtime the words and the reason come from the message that was cancelled; standalone you pass in whatever you captured.
+
+## Getting started
+
+<RuntimeMode>
+
+A cancelled message settles into `status.type === "incomplete"` with `status.reason === "cancelled"`. Its content up to that point is still there; only the run stopped.
+
+<Steps>
+  <Step>
+
+### Detect a cancelled message and wire its actions
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+"use client";
+
+import { useAui, useAuiState } from "@assistant-ui/react";
+import { StoppedRun } from "@/components/assistant-ui/elements/stopped-run";
+
+function CancelledNotice() {
+  const aui = useAui();
+  const status = useAuiState((s) =>
+    s.message.role === "assistant" ? s.message.status : undefined,
+  );
+  const words = useAuiState((s) =>
+    s.message.role === "assistant"
+      ? s.message.content
+          .filter((part): part is { type: "text"; text: string } => part.type === "text")
+          .flatMap((part) => part.text.split(" "))
+      : [],
+  );
+
+  if (status?.type !== "incomplete" || status.reason !== "cancelled") return null;
+
+  return (
+    <StoppedRun
+      words={words}
+      reason="stopped by you"
+      onContinue={() => aui.message.reload()}
+      onDiscard={() => aui.message.delete()}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Understand what Continue really does
+
+`reload()` starts a new run for the same turn; it does not resume the exact cut-off text, since assistant-ui has no built-in prefix-continuation primitive. A backend that supports literal continuation needs the partial text itself, for example passed through `reload`'s `runConfig.custom` and read back inside your `ChatModelAdapter`.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, StoppedRun is presentational: you decide what counts as stopped and supply the words already streamed.
+
+<Steps>
+  <Step>
+
+### Freeze the words when a stream stops
+
+```tsx title="app/answer.tsx"
+"use client";
+
+import { useState } from "react";
+import { StoppedRun } from "@/components/assistant-ui/elements/stopped-run";
+
+export function Answer() {
+  const [words, setWords] = useState<string[]>([]);
+  const [stopped, setStopped] = useState(false);
+
+  function onStop() {
+    controller.abort();
+    setStopped(true);
+  }
+
+  if (!stopped) return null;
+
+  return (
+    <StoppedRun
+      words={words}
+      reason="stopped by you"
+      onContinue={() => resume(words)}
+      onDiscard={() => setStopped(false)}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Wire Continue and Discard
+
+Neither prop has a default behavior; both are no-ops until you pass a handler. `onContinue` is where you'd fetch the rest of the answer; `onDiscard` is where you'd drop it from your own list.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="stopped-run">
+  <p>{/* words joined by a space, with a blinking cursor after them */}</p>
+  <div>
+    <span>{/* the reason badge, e.g. "stopped by you" */}</span>
+    <button>Continue</button>
+    <button>Discard</button>
+  </div>
+</div>
+```
+
+The cursor is decorative (`aria-hidden`) and always renders while the component is mounted; there is no internal "still streaming" state to turn it off. `reason` is freeform text, not a fixed enum, so the badge can describe any way a run ends short of completion, not only a manual stop.
+
+## Examples
+
+### Other reasons a run stops
+
+<RuntimeMode>
+
+`status.reason` covers more than a manual stop: `"length"`, `"content-filter"`, `"tool-calls"`, and `"error"` are all real values alongside `"cancelled"`. The same component fits any of them with a different label:
+
+```tsx
+const LABEL: Record<string, string> = {
+  cancelled: "stopped by you",
+  length: "hit the length limit",
+  "content-filter": "blocked by a content filter",
+  error: "failed partway through",
+};
+
+<StoppedRun words={words} reason={LABEL[status.reason] ?? "stopped early"} />
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Nothing about the component ties `reason` to cancellation specifically; any short label for why the text stopped early is a valid value.
+
+```tsx
+<StoppedRun words={words} reason="connection lost" />
+```
+
+</StandaloneMode>
+
+### Where discard goes
+
+<RuntimeMode>
+
+```tsx
+const onDiscard = () => aui.message.delete();
+```
+
+`delete()` removes the message from the thread. Its `Promise<void>` return exists because a persisted runtime's delete is asynchronous; you rarely need to await it from a click handler.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, discarding is whatever removes the draft from your own list; the component only calls the handler.
+
+```tsx
+const onDiscard = () => setDrafts((prev) => prev.filter((d) => d.id !== draftId));
+```
+
+</StandaloneMode>
+
+### Restyle the badge and actions
+
+Both lanes take `className` on the root. The badge reads the shared `field` and `mono` surfaces from `surfaces.tsx`.
+
+```tsx
+<StoppedRun className="max-w-none" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Message state
+
+| Selector / method | Type | Description |
+|--------------------|------|-------------|
+| `s.message.status` | `MessageStatus \| undefined` | `{ type: "incomplete", reason: "cancelled" }` when the message stopped because you pressed stop. Other `incomplete` reasons: `"length"`, `"content-filter"`, `"tool-calls"`, `"error"`, `"other"`. |
+| `aui.thread.cancelRun()` | `() => void` | Stops the active run; the streaming message settles into the `incomplete` status above. |
+| `aui.message.reload(config?)` | `(config?: { runConfig?: RunConfig }) => void` | Starts a new run for this turn. Restarts generation; it does not resume the cut-off text. |
+| `aui.message.delete()` | `() => void \| Promise<void>` | Removes the message from the thread. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### StoppedRun
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `words` | `readonly string[]` | required | The words already streamed, joined with spaces and given a trailing cursor. |
+| `reason` | `string` | required | Freeform label shown in the badge. |
+| `onContinue` | `() => void` | | Called when Continue is pressed. |
+| `onDiscard` | `() => void` | | Called when Discard is pressed. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

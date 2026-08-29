@@ -11,7 +11,7 @@ import type { SearchRecord } from "./types";
 
 const records: SearchRecord[] = [
   {
-    url: "/docs/ui/thread",
+    url: "/elements/thread",
     title: "Thread",
     description: "The main conversation surface.",
     headings: [
@@ -52,13 +52,13 @@ describe("scoreText", () => {
 
 describe("searchOtherPages", () => {
   it("keeps the current page out of other-page results", () => {
-    const groups = searchOtherPages(records, "thread", "/docs/ui/thread");
+    const groups = searchOtherPages(records, "thread", "/elements/thread");
     expect(groups.map((group) => group.pageUrl)).toEqual([]);
   });
 
   it("ranks a title match above a heading-only match", () => {
     const groups = searchOtherPages(records, "thread", "/docs");
-    expect(groups[0]?.pageUrl).toBe("/docs/ui/thread");
+    expect(groups[0]?.pageUrl).toBe("/elements/thread");
     expect(groups[0]?.items[0]?.type).toBe("page");
   });
 
@@ -77,13 +77,13 @@ describe("searchEntries", () => {
       [
         {
           id: "heading",
-          url: "/docs/ui/thread#root",
+          url: "/elements/thread#root",
           content: "Thread.Root",
           type: "heading",
         },
         {
           id: "text",
-          url: "/docs/ui/thread#root",
+          url: "/elements/thread#root",
           content: "Wraps the thread primitives.",
           type: "text",
         },
@@ -113,7 +113,7 @@ describe("highlightMatches", () => {
 
 describe("isCurrentPage", () => {
   it("ignores hashes and trailing slashes", () => {
-    expect(isCurrentPage("/docs/ui/thread/#root", "/docs/ui/thread/")).toBe(
+    expect(isCurrentPage("/elements/thread/#root", "/elements/thread/")).toBe(
       true,
     );
   });

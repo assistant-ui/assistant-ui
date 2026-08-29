@@ -13,7 +13,6 @@ import { MoreDropdown } from "@/components/shared/more-dropdown";
 import { NavItems, NavItemsRoot } from "@/components/shared/nav-items";
 import { useDocsSidebar } from "@/components/pages/docs/contexts/sidebar";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
-import { getPanelWidth } from "@/components/pages/docs/layout/docs-layout";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { headerBarClassName } from "@/components/shared/header-chrome";
@@ -138,7 +137,6 @@ export function DocsHeader({
     toggle: toggleSidebar,
   } = useDocsSidebar();
   const [navMenuOpen, setNavMenuOpen] = useState(false);
-  const { open, width, isResizing } = useAssistantPanel();
   const scrolled = useScrolled();
 
   const sectionFilter = (item: (typeof NAV_ITEMS)[number]) =>
@@ -163,18 +161,7 @@ export function DocsHeader({
   };
 
   return (
-    <header
-      className={cn(
-        "sticky top-0 z-50 md:mr-(--chat-panel-width)",
-        !isResizing &&
-          "transition-[margin] duration-200 ease-[cubic-bezier(0.32,0.72,0,1)]",
-      )}
-      style={
-        {
-          "--chat-panel-width": getPanelWidth(open, width),
-        } as React.CSSProperties
-      }
-    >
+    <header className="sticky top-0 z-50">
       <NavItemsRoot>
         <div
           className={headerBarClassName(
@@ -184,10 +171,20 @@ export function DocsHeader({
         >
           <div className="flex min-w-0 flex-1 items-center">
             <HeaderBrandLink labelClassName="hidden sm:inline" />
-            <span className="text-muted-foreground/40 mx-3">/</span>
+            <span
+              className={cn(
+                "text-muted-foreground/40 mx-3",
+                mobileSectionTree && "max-md:hidden",
+              )}
+            >
+              /
+            </span>
             <Link
               href={sectionHref}
-              className="text-foreground hover:text-foreground/80 text-sm font-medium transition-colors"
+              className={cn(
+                "text-foreground hover:text-foreground/80 text-sm font-medium transition-colors",
+                mobileSectionTree && "max-md:hidden",
+              )}
             >
               {section}
             </Link>
@@ -213,7 +210,6 @@ export function DocsHeader({
             >
               <Search className="size-4" />
             </button>
-            <ThemeToggle />
             <button
               type="button"
               onClick={handleNavMenuToggle}
@@ -221,9 +217,9 @@ export function DocsHeader({
               aria-label="Site navigation"
             >
               {navMenuOpen ? (
-                <X className="size-5" />
+                <X className="size-4" />
               ) : (
-                <LayoutGrid className="size-4.5" />
+                <LayoutGrid className="size-4" />
               )}
             </button>
             <button
@@ -233,9 +229,9 @@ export function DocsHeader({
               aria-label="Toggle sidebar"
             >
               {sidebarOpen ? (
-                <X className="size-5" />
+                <X className="size-4" />
               ) : (
-                <Menu className="size-5" />
+                <Menu className="size-4" />
               )}
             </button>
           </div>
@@ -257,7 +253,10 @@ export function DocsHeader({
               </button>
             </div>
             <div className="flex shrink-0 items-center">
-              <NavItems items={condensedItems} menuAlign="end" />
+              <NavItems
+                items={condensedItems}
+                contentClassName="mx-auto max-w-7xl"
+              />
               {moreItems.length > 0 && <MoreDropdown items={moreItems} />}
             </div>
             <div className="flex shrink-0 items-center gap-2">
@@ -284,7 +283,10 @@ export function DocsHeader({
               <AskAIButton />
               <HeaderSearch />
             </div>
-            <NavItems items={filteredItems} menuAlign="end" />
+            <NavItems
+              items={filteredItems}
+              contentClassName="mx-auto max-w-7xl"
+            />
             <div className="flex shrink-0 items-center gap-2">
               <Button
                 size="sm"
@@ -376,7 +378,7 @@ export function DocsHeader({
                 </div>
               );
             })}
-            <div className="mt-auto border-t py-6">
+            <div className="mt-auto flex items-center justify-between border-t py-6">
               <Button
                 size="sm"
                 nativeButton={false}
@@ -392,6 +394,7 @@ export function DocsHeader({
               >
                 Cloud
               </Button>
+              <ThemeToggle />
             </div>
           </div>
         </div>

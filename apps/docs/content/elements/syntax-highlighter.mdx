@@ -1,0 +1,127 @@
+---
+title: "Syntax highlighter"
+description: "Prism-based code highlighting for assistant markdown code blocks."
+---
+
+SyntaxHighlighter tokenizes one fenced code block with Prism, through `react-syntax-highlighter`'s async light build, and renders a light and a dark themed variant at once so a theme switch needs no re-render. With a runtime it replaces the plain code [Markdown text](/elements/markdown-text) renders by default; standalone you call it directly with the code, the language, and the tag components it mounts onto.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Add it to MarkdownText's components
+
+```tsx title="components/assistant-ui/elements/markdown-text.tsx"
+import { SyntaxHighlighter } from "./syntax-highlighter";
+
+const defaultComponents = memoizeMarkdownComponents({
+  SyntaxHighlighter,
+  h1: /* ... */,
+  // ...other elements...
+});
+```
+
+Every fenced code block in an assistant message now highlights, using the light and dark Coldark Prism themes. [Shiki highlighter](/elements/shiki-highlighter) is the newer, runtime-aware alternative: reach for this one if you are already on `react-syntax-highlighter`.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+<Steps>
+  <Step>
+
+### Call it directly
+
+```tsx
+import { SyntaxHighlighter } from "@/components/assistant-ui/elements/syntax-highlighter";
+
+<SyntaxHighlighter
+  language="tsx"
+  code="const x = 1;"
+  components={{
+    Pre: (props) => <pre {...props} />,
+    Code: (props) => <code {...props} />,
+  }}
+/>;
+```
+
+`components.Pre` and `components.Code` are the tag components the highlighter renders into. `react-markdown`'s code-block pipeline supplies real ones automatically inside MarkdownText; standalone, pass through elements yourself.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<>
+  <Pre className="dark:hidden">{/* Coldark Cold tokens */}</Pre>
+  <Pre className="hidden dark:block">{/* Coldark Dark tokens */}</Pre>
+</>
+```
+
+Both the light and the dark highlighter mount on every render; Tailwind's `dark:` classes hide whichever one does not match the active theme, so switching themes toggles visibility instead of re-tokenizing.
+
+## Examples
+
+### Register another language
+
+```tsx title="components/assistant-ui/elements/syntax-highlighter.tsx"
+import { PrismAsyncLight } from "react-syntax-highlighter";
+import go from "react-syntax-highlighter/dist/esm/languages/prism/go";
+
+PrismAsyncLight.registerLanguage("go", go);
+```
+
+Only `js`, `jsx`, `ts`, `tsx` (all mapped to the TSX grammar) and `python` are registered by default. A fenced block whose language is not registered still renders, unhighlighted.
+
+### Load every language instead
+
+```tsx title="components/assistant-ui/elements/syntax-highlighter.tsx"
+import { makePrismAsyncSyntaxHighlighter } from "@assistant-ui/react-syntax-highlighter/full";
+```
+
+Swap the light-build import for the full build to skip per-language registration entirely, at the cost of a larger bundle.
+
+### Choose a different theme
+
+```tsx title="components/assistant-ui/elements/syntax-highlighter.tsx"
+import { oneLight, oneDark } from "react-syntax-highlighter/dist/cjs/styles/prism";
+
+const LightSyntaxHighlighter = makePrismAsyncLightSyntaxHighlighter({
+  style: oneLight,
+  customStyle: syntaxHighlighterCustomStyle,
+  className: "dark:hidden",
+});
+```
+
+Pass any `react-syntax-highlighter` Prism style in place of `coldarkCold`/`coldarkDark`; do the same for the dark variant.
+
+## API reference
+
+<RuntimeMode>
+
+MarkdownText's code-block pipeline supplies every prop below automatically, from the fenced block being rendered; you never call `SyntaxHighlighter` yourself once it is wired into `components`.
+
+</RuntimeMode>
+
+### SyntaxHighlighter
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `language` | `string` | required | The fence's language, for example `"tsx"`. Selects the Prism grammar. |
+| `code` | `string` | required | The code to highlight. |
+| `components` | `{ Pre: ComponentType; Code: ComponentType }` | required | Tag components the highlighter renders into, as `PreTag`/`CodeTag`. |
+
+<StandaloneMode>
+
+Construct all three yourself, as in the standalone step above.
+
+</StandaloneMode>

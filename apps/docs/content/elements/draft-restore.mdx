@@ -1,0 +1,200 @@
+---
+title: "Draft restore"
+description: "Come back to a thread and the sentence you never sent is still waiting."
+---
+
+A dismissible banner offering to put an unsent message back into the composer, with when it was last touched underneath it. With a runtime you decide when to snapshot the composer's text and when to resurface it; standalone you hold the draft and the timestamp yourself and pass them in.
+
+## Getting started
+
+<RuntimeMode>
+
+With a runtime, a reload does not keep unsent composer text by default: a thread whose runtime lacks the in-place refetch capability has its hook remounted on reload, which discards whatever was still being typed. Restoring a draft across that gap is app-level work built on the composer's own text state.
+
+<Steps>
+  <Step>
+
+### Save the draft as it is typed
+
+Read the live text and write it to your own storage, keyed by thread, debounced so every keystroke does not hit disk.
+
+```tsx title="components/assistant-ui/elements/use-draft-persistence.ts"
+"use client";
+
+import { useAuiState } from "@assistant-ui/react";
+import { useEffect, useRef } from "react";
+
+function saveDraft(threadId: string, text: string) {
+  if (text) localStorage.setItem(`draft:${threadId}`, text);
+  else localStorage.removeItem(`draft:${threadId}`);
+}
+
+export function useDraftPersistence(threadId: string) {
+  const text = useAuiState((s) => s.composer.text);
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    clearTimeout(timer.current);
+    timer.current = setTimeout(() => saveDraft(threadId, text), 400);
+    return () => clearTimeout(timer.current);
+  }, [threadId, text]);
+}
+```
+
+  </Step>
+  <Step>
+
+### Restore or discard it
+
+On mount, read the saved draft for the active thread and show the banner when the composer is still empty. Restoring writes it back into the live composer; discarding just clears storage, since the component itself holds no state.
+
+```tsx title="components/assistant-ui/elements/draft-restore-banner.tsx"
+"use client";
+
+import { useAui } from "@assistant-ui/react";
+import { DraftRestore } from "@/components/assistant-ui/elements/draft-restore";
+
+export function DraftRestoreBanner({
+  threadId,
+  draft,
+  savedAt,
+  onDismiss,
+}: {
+  threadId: string;
+  draft: string;
+  savedAt: string;
+  onDismiss: () => void;
+}) {
+  const aui = useAui();
+  return (
+    <DraftRestore
+      draft={draft}
+      savedAt={savedAt}
+      onRestore={() => {
+        aui.composer.setText(draft);
+        localStorage.removeItem(`draft:${threadId}`);
+        onDismiss();
+      }}
+      onDiscard={() => {
+        localStorage.removeItem(`draft:${threadId}`);
+        onDismiss();
+      }}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `DraftRestore` is presentation only: it never measures time or watches an input, so `savedAt` arrives pre-formatted and `onRestore`/`onDiscard` are the only ways anything happens.
+
+<Steps>
+  <Step>
+
+### Hold the draft and wire the callbacks
+
+```tsx title="app/thread.tsx"
+"use client";
+
+import { useState } from "react";
+import { DraftRestore } from "@/components/assistant-ui/elements/draft-restore";
+
+export function ThreadDraftBanner({
+  onRestore,
+}: {
+  onRestore: (text: string) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(
+    "Add a regression test for draft restore",
+  );
+
+  if (!draft) return null;
+
+  return (
+    <DraftRestore
+      draft={draft}
+      savedAt="2 minutes ago"
+      onRestore={() => {
+        onRestore(draft);
+        setDraft(null);
+      }}
+      onDiscard={() => setDraft(null)}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="draft-restore">
+  <svg /* pencil icon */ />
+  <div>
+    <span>{/* draft, truncated to one line */}</span>
+    <span>{/* unsent draft · savedAt */}</span>
+  </div>
+  <button>Restore</button>
+  <button aria-label="Discard the draft">{/* x icon */}</button>
+</div>
+```
+
+The banner has no visibility state of its own: it renders whenever it is mounted, and the caller decides when that is, typically by clearing the saved draft inside `onRestore` and `onDiscard` so the banner unmounts on either choice. `draft` is truncated with CSS, not measured or word-wrapped, and `savedAt` is shown exactly as passed.
+
+## Examples
+
+### Restyle the banner
+
+`className` merges onto the root; the Discard button reuses the shared `ghostButton` surface, so restyling that token restyles every icon-only button across the kit at once.
+
+```tsx
+<DraftRestore className="max-w-md" draft={draft} savedAt={savedAt} onRestore={restore} onDiscard={discard} />
+```
+
+### Naming the timestamp
+
+The element never computes relative time. Format it with whatever you already use elsewhere, from a raw `Intl.RelativeTimeFormat` call to a library.
+
+```tsx
+const savedAt = new Intl.RelativeTimeFormat("en", { numeric: "auto" }).format(-2, "minute");
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Composer state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.composer.text` | `string` | The live, unsent text in the active composer. Snapshot this on a timer or on unload to build the saved draft. |
+| `aui.composer.setText(text)` | `(text: string) => void` | Writes text into the composer. Called from `onRestore` to put a saved draft back, using the client from `useAui()`. |
+
+There is no runtime concept of a saved draft: persistence and the decision to show the banner are both yours.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### DraftRestore
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `draft` | `string` | required | The unsent text, truncated to one line. |
+| `savedAt` | `string` | required | When it was last touched, pre-formatted. |
+| `onRestore` | `() => void` | | Called to put the draft back in the composer. |
+| `onDiscard` | `() => void` | | Called to throw the draft away. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

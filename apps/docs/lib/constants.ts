@@ -105,11 +105,36 @@ export const SUB_PROJECTS: (Product & { slug: string })[] = [
   ...PRODUCTS.filter((p): p is Product & { slug: string } => !!p.slug),
 ];
 
+export type NavGlyphKind =
+  | "elements"
+  | "design"
+  | "react"
+  | "native"
+  | "ink"
+  | "cloud"
+  | "cloud-ai-sdk"
+  | "playground"
+  | "shimmer"
+  | "glass"
+  | "heat"
+  | "frame"
+  | "o11y"
+  | "examples"
+  | "changelog"
+  | "showcase"
+  | "oss"
+  | "packages"
+  | "traction"
+  | "blog"
+  | "careers"
+  | "brand";
+
 export type DropdownItem = {
   label: string;
   href: string;
   description: string;
   external: boolean;
+  glyph?: NavGlyphKind;
 };
 
 export type NavGroup = {
@@ -119,14 +144,149 @@ export type NavGroup = {
 
 export type NavItem =
   | { type: "link"; label: string; href: string }
-  | { type: "mega"; label: string; groups: NavGroup[] };
+  | {
+      type: "mega";
+      label: string;
+      featured?: {
+        label: string;
+        item: DropdownItem;
+        extraItems?: DropdownItem[];
+      };
+      groups: NavGroup[];
+    };
 
 export const NAV_ITEMS: NavItem[] = [
   { type: "link", label: "Docs", href: "/docs" },
-  { type: "link", label: "Elements", href: "/elements" },
+  {
+    type: "mega",
+    label: "Products",
+    featured: {
+      label: "Extend",
+      item: {
+        label: "Elements",
+        href: "/elements",
+        description: "Multimodal UI. An extension, not a replacement.",
+        external: false,
+        glyph: "elements",
+      },
+      extraItems: [
+        {
+          label: "Design",
+          href: "/design",
+          description: "Every component, live.",
+          external: false,
+          glyph: "design",
+        },
+      ],
+    },
+    groups: [
+      {
+        label: "Platforms",
+        items: [
+          {
+            label: "React",
+            href: "/docs",
+            description: "The web distribution",
+            external: false,
+            glyph: "react",
+          },
+          {
+            label: "React Native",
+            href: "/native",
+            description: "Mobile apps on the same runtime",
+            external: false,
+            glyph: "native",
+          },
+          {
+            label: "Ink",
+            href: "/ink",
+            description: "Terminal UIs on the same runtime",
+            external: false,
+            glyph: "ink",
+          },
+        ],
+      },
+      {
+        label: "Hosted",
+        items: [
+          {
+            label: "Cloud",
+            href: CLOUD_URL,
+            description: "Hosted threads and persistence",
+            external: true,
+            glyph: "cloud",
+          },
+          {
+            label: "Cloud AI SDK",
+            href: "/cloud-ai-sdk",
+            description: "Drop-in persistence for useChat",
+            external: false,
+            glyph: "cloud-ai-sdk",
+          },
+          {
+            label: "Playground",
+            href: "/playground",
+            description: "Try the library in the browser",
+            external: false,
+            glyph: "playground",
+          },
+        ],
+      },
+      {
+        label: "Primitives",
+        items: [
+          {
+            label: "tw-shimmer",
+            href: "/tw-shimmer",
+            description: "Shimmer loading states for Tailwind",
+            external: false,
+            glyph: "shimmer",
+          },
+          {
+            label: "tw-glass",
+            href: "/tw-glass",
+            description: "Glass refraction in pure CSS",
+            external: false,
+            glyph: "glass",
+          },
+          {
+            label: "Heat Graph",
+            href: "/heat-graph",
+            description: "Headless activity heatmaps",
+            external: false,
+            glyph: "heat",
+          },
+          {
+            label: "Safe Content Frame",
+            href: "/safe-content-frame",
+            description: "Sandboxed iframes for untrusted HTML",
+            external: false,
+            glyph: "frame",
+          },
+          {
+            label: "react-o11y",
+            href: "/react-o11y",
+            description: "Span primitives for agent runs",
+            external: false,
+            glyph: "o11y",
+          },
+        ],
+      },
+    ],
+  },
   {
     type: "mega",
     label: "Resources",
+    featured: {
+      label: "Explore",
+      item: {
+        label: "Examples",
+        href: "/examples",
+        description: "Full implementations and demos",
+        external: false,
+        glyph: "examples",
+      },
+    },
     groups: [
       {
         label: "Learn",
@@ -138,26 +298,37 @@ export const NAV_ITEMS: NavItem[] = [
                   href: "/learn",
                   description: "Build your first AI app, step by step",
                   external: false,
+                  glyph: "playground" as const,
                 },
               ]
             : []),
           {
-            label: "Examples",
-            href: "/examples",
-            description: "Full implementations and demos",
+            label: "Changelog",
+            href: "/changelog",
+            description: "Release notes and updates",
             external: false,
+            glyph: "changelog",
           },
           {
             label: "Showcase",
             href: "/showcase",
             description: "Apps built with assistant-ui",
             external: false,
+            glyph: "showcase",
           },
           {
-            label: "Changelog",
-            href: "/changelog",
-            description: "Release notes and updates",
+            label: "Open source",
+            href: "/oss",
+            description: "Projects and repos in the open",
             external: false,
+            glyph: "oss",
+          },
+          {
+            label: "Packages",
+            href: "/packages",
+            description: "Every package we publish on npm",
+            external: false,
+            glyph: "packages",
           },
         ],
       },
@@ -169,69 +340,32 @@ export const NAV_ITEMS: NavItem[] = [
             href: "/blog",
             description: "Latest news and updates",
             external: false,
-          },
-          {
-            label: "Traction",
-            href: "/traction",
-            description: "Stars, downloads, and adoption",
-            external: false,
+            glyph: "blog",
           },
           {
             label: "Careers",
             href: "/careers",
             description: "Join our team",
             external: false,
+            glyph: "careers",
           },
           {
             label: "Brand",
             href: "/brand",
             description: "Logos and brand assets",
             external: false,
+            glyph: "brand",
           },
-        ],
-      },
-      {
-        label: "Open source",
-        items: [
           {
-            label: "All projects",
-            href: "/oss",
-            description: "Everything we build in the open",
+            label: "Traction",
+            href: "/traction",
+            description: "Stars and downloads, live",
             external: false,
-          },
-          {
-            label: "Packages",
-            href: "/packages",
-            description: "Every distribution on npm",
-            external: false,
-          },
-        ],
-      },
-      {
-        label: "Community",
-        items: [
-          {
-            label: "GitHub",
-            href: "https://github.com/assistant-ui/assistant-ui",
-            description: "Star us and open issues",
-            external: true,
-          },
-          {
-            label: "Discord",
-            href: "https://discord.gg/S9dwgCNEFs",
-            description: "Ask questions and share what you build",
-            external: true,
-          },
-          {
-            label: "X",
-            href: "https://x.com/assistantui",
-            description: "Follow along with releases",
-            external: true,
+            glyph: "traction",
           },
         ],
       },
     ],
   },
-  { type: "link", label: "Playground", href: "/playground" },
   { type: "link", label: "Pricing", href: "/pricing" },
 ];

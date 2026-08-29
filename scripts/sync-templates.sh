@@ -3,10 +3,11 @@
 # Templates and examples alias packages/ui via tsconfig and carry no copies,
 # except `minimal`, which ships its own. Minimal is a Base UI (base-nova)
 # scaffold, so its copies mirror the base install shape: the unmarked file in
-# packages/ui/src/components/assistant-ui is already the Base UI source, so
-# minimal's assistant-ui copies sync from it directly, and `components/ui`
+# packages/ui/src/components/react/assistant-ui/elements is already the Base UI
+# source, so minimal's assistant-ui element copies sync from it directly, and `components/ui`
 # copies sync from the vendored `ui/base` stand-ins. Base sources already use
-# the scaffold import shape.
+# the scaffold import shape. Minimal's `hooks` copies sync from
+# packages/ui/src/hooks.
 #
 # Usage:
 #   bash scripts/sync-templates.sh            # check (CI mode), exits 1 on drift
@@ -19,19 +20,21 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$SCRIPT_DIR/.."
-SOURCE_DIR="$ROOT_DIR/packages/ui/src/components/assistant-ui"
-UI_BASE_DIR="$ROOT_DIR/packages/ui/src/components/ui/base"
+SOURCE_DIR="$ROOT_DIR/packages/ui/src/components/react/assistant-ui/elements"
+UI_BASE_DIR="$ROOT_DIR/packages/ui/src/components/react/ui/base"
+HOOKS_SOURCE_DIR="$ROOT_DIR/packages/ui/src/hooks"
 TEMPLATES_ROOT="$ROOT_DIR/templates"
 EXAMPLES_ROOT="$ROOT_DIR/examples"
 
 # Only minimal carries copies; every other template aliases packages/ui.
-MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui"
+MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui/elements"
 MINIMAL_UI_DIR="$TEMPLATES_ROOT/minimal/components/ui"
+MINIMAL_HOOKS_DIR="$TEMPLATES_ROOT/minimal/hooks"
 
 OVERRIDES=(
-    # minimal intentionally ships a slim thread.tsx without GroupedParts /
+    # minimal intentionally ships a slim thread.aui.tsx without GroupedParts /
     # reasoning / tool-group, since it doesn't bundle those companion files.
-    "thread.tsx"
+    "thread.aui.tsx"
     # minimal ships without react-shiki, so its markdown-text.tsx omits the
     # SyntaxHighlighter wiring.
     "markdown-text.tsx"
@@ -57,7 +60,7 @@ resolve_aui_source() {
 # content strict; --write formats the rendered output with oxfmt before copying.
 RENDER_DIR="$(mktemp -d)"
 trap 'rm -rf "$RENDER_DIR"' EXIT
-mkdir -p "$RENDER_DIR/assistant-ui" "$RENDER_DIR/ui"
+mkdir -p "$RENDER_DIR/assistant-ui" "$RENDER_DIR/ui" "$RENDER_DIR/hooks"
 
 render_source() {
     local src="$1" out="$2"
@@ -75,6 +78,13 @@ rendered_ui() {
     local file="$1"
     local out="$RENDER_DIR/ui/$file"
     [[ -f "$out" ]] || render_source "$UI_BASE_DIR/$file" "$out"
+    echo "$out"
+}
+
+rendered_hooks() {
+    local file="$1"
+    local out="$RENDER_DIR/hooks/$file"
+    [[ -f "$out" ]] || render_source "$HOOKS_SOURCE_DIR/$file" "$out"
     echo "$out"
 }
 
@@ -139,8 +149,10 @@ format_rendered() {
 
 drift=()
 ui_drift=()
+hooks_drift=()
 aui_candidates=()
 ui_candidates=()
+hooks_candidates=()
 ui_missing=()
 
 if [[ -d "$MINIMAL_DIR" ]]; then
@@ -180,6 +192,27 @@ if [[ -d "$MINIMAL_UI_DIR" ]]; then
     done < <(find "$MINIMAL_UI_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
 fi
 
+if [[ -d "$MINIMAL_HOOKS_DIR" ]]; then
+    while IFS= read -r -d '' min_file; do
+        file="$(basename "$min_file")"
+
+        # minimal-specific file with no packages/ui counterpart, leave alone
+        [[ -f "$HOOKS_SOURCE_DIR/$file" ]] || continue
+
+        is_override=0
+        for o in "${OVERRIDES[@]}"; do
+            if [[ "$file" == "$o" ]]; then
+                is_override=1
+                break
+            fi
+        done
+        [[ "$is_override" -eq 1 ]] && continue
+
+        hooks_candidates+=("$file")
+        rendered_hooks "$file" > /dev/null
+    done < <(find "$MINIMAL_HOOKS_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
+fi
+
 format_rendered
 
 for file in "${aui_candidates[@]}"; do
@@ -191,6 +224,12 @@ done
 for file in "${ui_candidates[@]}"; do
     if ! same_normalized "$RENDER_DIR/ui/$file" "$MINIMAL_UI_DIR/$file"; then
         ui_drift+=("$file")
+    fi
+done
+
+for file in "${hooks_candidates[@]}"; do
+    if ! same_normalized "$RENDER_DIR/hooks/$file" "$MINIMAL_HOOKS_DIR/$file"; then
+        hooks_drift+=("$file")
     fi
 done
 
@@ -208,10 +247,10 @@ while IFS= read -r -d '' ex_file; do
     if cmp -s "$src_file" "$ex_file"; then
         redundant+=("${ex_file#"$ROOT_DIR"/}")
     fi
-done < <(find "$EXAMPLES_ROOT" -path "*/components/assistant-ui/*" -maxdepth 4 -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "*/node_modules/*" -print0)
+done < <(find "$EXAMPLES_ROOT" -path "*/components/assistant-ui/elements/*" -maxdepth 5 -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "*/node_modules/*" -print0)
 
-if [[ ${#drift[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
-    echo "✓ all template components are in sync with packages/ui"
+if [[ ${#drift[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
+    echo "✓ all template components and hooks are in sync with packages/ui"
     echo "✓ no redundant packages/ui copies in examples"
     exit 0
 fi
@@ -229,20 +268,24 @@ if [[ "$MODE" == "--write" ]]; then
         cp "$RENDER_DIR/ui/$file" "$MINIMAL_UI_DIR/$file"
         echo "synced minimal ui/$file"
     done
+    for file in "${hooks_drift[@]}"; do
+        cp "$RENDER_DIR/hooks/$file" "$MINIMAL_HOOKS_DIR/$file"
+        echo "synced minimal hooks/$file"
+    done
     for r in "${redundant[@]}"; do
         rm "$ROOT_DIR/$r"
         echo "removed redundant copy $r (resolved from packages/ui via tsconfig paths)"
     done
     echo ""
-    echo "fixed $(( ${#drift[@]} + ${#ui_drift[@]} + ${#redundant[@]} )) file(s)"
+    echo "fixed $(( ${#drift[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#redundant[@]} )) file(s)"
     exit 0
 fi
 
 if [[ ${#drift[@]} -gt 0 ]]; then
     echo "✗ drift detected in ${#drift[@]} minimal file(s) vs packages/ui:"
     for file in "${drift[@]}"; do
-        echo "    templates/minimal/components/assistant-ui/$file"
-        annotate "templates/minimal/components/assistant-ui/$file" "out of sync with the base install shape of packages/ui/src/components/assistant-ui/$file; run 'pnpm sync-templates --write' or add an OVERRIDES entry"
+        echo "    templates/minimal/components/assistant-ui/elements/$file"
+        annotate "templates/minimal/components/assistant-ui/elements/$file" "out of sync with the base install shape of packages/ui/src/components/react/assistant-ui/elements/$file; run 'pnpm sync-templates --write' or add an OVERRIDES entry"
     done
 fi
 
@@ -250,7 +293,15 @@ if [[ ${#ui_drift[@]} -gt 0 ]]; then
     echo "✗ drift detected in ${#ui_drift[@]} minimal ui file(s) vs packages/ui ui/base:"
     for file in "${ui_drift[@]}"; do
         echo "    templates/minimal/components/ui/$file"
-        annotate "templates/minimal/components/ui/$file" "out of sync with the rendered packages/ui/src/components/ui/base/$file; run 'pnpm sync-templates --write'"
+        annotate "templates/minimal/components/ui/$file" "out of sync with the rendered packages/ui/src/components/react/ui/base/$file; run 'pnpm sync-templates --write'"
+    done
+fi
+
+if [[ ${#hooks_drift[@]} -gt 0 ]]; then
+    echo "✗ drift detected in ${#hooks_drift[@]} minimal hooks file(s) vs packages/ui:"
+    for file in "${hooks_drift[@]}"; do
+        echo "    templates/minimal/hooks/$file"
+        annotate "templates/minimal/hooks/$file" "out of sync with packages/ui/src/hooks/$file; run 'pnpm sync-templates --write' or add an OVERRIDES entry"
     done
 fi
 

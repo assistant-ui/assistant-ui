@@ -15,7 +15,9 @@ export {
   composerCancelDisabled,
   composerInputDisabled,
   composerSendDisabled,
+  messageErrorText,
   suggestionTriggerDisabled,
+  threadListLoadMoreDisabled,
 } from "./primitive-predicates";
 export { isDevelopment } from "./env";
 export { useThreadSelectionEvents } from "./clients/thread-selection-events";

@@ -19,6 +19,8 @@ import { frontendTools } from "@assistant-ui/ai-sdk";
 import { createBashTool } from "bash-tool";
 import {
   convertToModelMessages,
+  createUIMessageStream,
+  createUIMessageStreamResponse,
   pruneMessages,
   stepCountIs,
   streamText,
@@ -26,7 +28,7 @@ import {
   zodSchema,
 } from "ai";
 import type * as PageTree from "fumadocs-core/page-tree";
-import type { UIMessage } from "ai";
+import type { UIMessage, UIMessageChunk } from "ai";
 import z from "zod";
 
 const SOURCE_SNAPSHOT_PATH = path.join(
@@ -181,6 +183,37 @@ export async function prepareDocChatMessages(messages: readonly UIMessage[]) {
   });
 }
 
+export async function* withReadDocSources(
+  chunks: AsyncIterable<UIMessageChunk>,
+): AsyncGenerator<UIMessageChunk> {
+  const toolNameByCall = new Map<string, string>();
+  const sourceUrls = new Set<string>();
+
+  for await (const chunk of chunks) {
+    yield chunk;
+
+    if (chunk.type === "tool-input-available") {
+      toolNameByCall.set(chunk.toolCallId, chunk.toolName);
+    }
+
+    if (
+      chunk.type === "tool-output-available" &&
+      toolNameByCall.get(chunk.toolCallId) === "readDoc"
+    ) {
+      const output = chunk.output as { title?: unknown; url?: unknown };
+      if (typeof output.url === "string" && !sourceUrls.has(output.url)) {
+        sourceUrls.add(output.url);
+        yield {
+          type: "source-url",
+          sourceId: chunk.toolCallId,
+          url: output.url,
+          ...(typeof output.title === "string" ? { title: output.title } : {}),
+        };
+      }
+    }
+  }
+}
+
 function createRepoTools() {
   let bashToolkitPromise: Promise<
     Awaited<ReturnType<typeof createBashTool>>
@@ -245,7 +278,6 @@ assistant-ui is a React library for building AI chat interfaces. It provides:
 - Friendly, concise, developer-focused
 - Answer the actual question - don't list documentation sections
 - Use emoji sparingly (👋 for greetings, ✅ for success, etc.)
-- Provide code snippets when they help clarify
 - Link to relevant docs naturally within answers
 </personality>
 
@@ -274,7 +306,7 @@ You have two documentation tools:
    - Returns: list of folders and pages with URLs
 
 2. **readDoc** - Read a specific documentation page
-   - Input: slug (e.g., "ui/thread") or URL (e.g., "/docs/ui/thread")
+   - Input: slug (e.g., "ui/thread") or URL (e.g., "/elements/thread")
    - Returns: full page content
 
 **Recommended patterns:**
@@ -302,6 +334,15 @@ You also have tools for exploring the actual assistant-ui source code:
 - Prefer not linking over linking to a potentially non-existent page
 - Admit uncertainty rather than guessing
 </answering>
+
+<answer_style>
+- Default to a direct answer in 3 to 5 sentences; expand only when the question genuinely needs it
+- Include code only when the user asks for code, or when a snippet under 15 lines replaces a paragraph of explanation
+- Show only the lines that matter (the prop, the hook call, the config entry), never whole files or complete documentation examples
+- When a full example already exists in the docs, link to it instead of pasting it: "Full example: [Thread](/docs/ui/thread)"
+- The pages you read are listed automatically as clickable sources under your reply, so do not append a link list at the end
+- For multi-step setups, give short prose steps with links, and expand code for at most the step the user is currently on
+</answer_style>
 
 <formatting>
 Use inline code (\`backticks\`) for:
@@ -464,19 +505,29 @@ export async function POST(req: Request): Promise<Response> {
       },
     });
 
-    return result.toUIMessageStreamResponse({
-      originalMessages: messages,
-      // gets usage and modelId for internal telemetry
-      messageMetadata: ({ part }) => {
-        if (part.type === "finish-step") {
-          return { modelId: part.response.modelId };
+    const stream = createUIMessageStream({
+      execute: async ({ writer }) => {
+        for await (const chunk of withReadDocSources(
+          result.toUIMessageStream({
+            originalMessages: messages,
+            // gets usage and modelId for internal telemetry
+            messageMetadata: ({ part }) => {
+              if (part.type === "finish-step") {
+                return { modelId: part.response.modelId };
+              }
+              if (part.type === "finish") {
+                return { custom: { usage: part.totalUsage } };
+              }
+              return undefined;
+            },
+          }),
+        )) {
+          writer.write(chunk);
         }
-        if (part.type === "finish") {
-          return { custom: { usage: part.totalUsage } };
-        }
-        return undefined;
       },
     });
+
+    return createUIMessageStreamResponse({ stream });
   } catch (e) {
     console.error("[api/doc/chat]", e);
     return new Response("Request failed", { status: 500 });

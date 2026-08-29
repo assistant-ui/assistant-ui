@@ -1,18 +1,11 @@
 "use client";
 
-import {
-  ArrowRight,
-  GitBranch,
-  Paintbrush,
-  Puzzle,
-  Radio,
-  Tags,
-  Workflow,
-} from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { ArrowUpRight } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { cn } from "@/lib/utils";
 import { WaterfallSample } from "@/components/pages/docs/samples/o11y/waterfall";
 import {
   CollapseSample,
@@ -24,49 +17,17 @@ const ANALYTICS_PAGE = "react-o11y" as const;
 
 const INSTALL_COMMAND = "npm install @assistant-ui/react-o11y";
 
-const FEATURES = [
-  {
-    title: "Fully Headless",
-    description:
-      "Zero styling opinions. Every part is a plain element exposing data attributes; bring your own CSS or Tailwind.",
-    icon: Paintbrush,
-    iconColor: "text-pink-400",
-  },
-  {
-    title: "Radix-Style Composable",
-    description:
-      "Compound primitives you fully control. Root, Indent, CollapseToggle, StatusIndicator, TypeBadge, Name, Children.",
-    icon: Puzzle,
-    iconColor: "text-blue-400",
-  },
-  {
-    title: "Tree-Aware",
-    description:
-      "Depth, child counts, collapse state, and the global time range are computed for you from a flat span array.",
-    icon: GitBranch,
-    iconColor: "text-green-400",
-  },
-  {
-    title: "Reactive",
-    description:
-      "Built on the assistant-ui store. Push new spans and the UI updates live; running spans animate as they stream.",
-    icon: Radio,
-    iconColor: "text-orange-400",
-  },
-  {
-    title: "Style by Status & Type",
-    description:
-      "data-span-status and data-span-type drive your colors and badges with pure CSS, no conditional render logic.",
-    icon: Tags,
-    iconColor: "text-purple-400",
-  },
-  {
-    title: "Any Data Source",
-    description:
-      "Map spans from OpenTelemetry, Langfuse, LangSmith, or your own backend into SpanData and render in minutes.",
-    icon: Workflow,
-    iconColor: "text-cyan-400",
-  },
+const PRIMITIVES = [
+  "SpanResource",
+  "Root",
+  "Children",
+  "Indent",
+  "Name",
+  "StatusIndicator",
+  "TypeBadge",
+  "CollapseToggle",
+  "Timeline",
+  "TimelineBar",
 ] as const;
 
 const CAPABILITIES = [
@@ -90,136 +51,146 @@ const CAPABILITIES = [
   },
 ] as const;
 
+const FEATURES = [
+  {
+    title: "Fully headless",
+    description:
+      "Zero styling opinions. Every part is a plain element exposing data attributes; bring your own CSS or Tailwind.",
+  },
+  {
+    title: "Radix-style composable",
+    description:
+      "Compound primitives you fully control. Root, Indent, CollapseToggle, StatusIndicator, TypeBadge, Name, Children.",
+  },
+  {
+    title: "Tree-aware",
+    description:
+      "Depth, child counts, collapse state, and the global time range are computed for you from a flat span array.",
+  },
+  {
+    title: "Reactive",
+    description:
+      "Built on the assistant-ui store. Push new spans and the UI updates live; running spans animate as they stream.",
+  },
+  {
+    title: "Style by status and type",
+    description:
+      "data-span-status and data-span-type drive your colors and badges with pure CSS, no conditional render logic.",
+  },
+  {
+    title: "Any data source",
+    description:
+      "Map spans from OpenTelemetry, Langfuse, LangSmith, or your own backend into SpanData and render in minutes.",
+  },
+] as const;
+
 export default function ReactO11yPage() {
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pt-14 pb-8 md:space-y-20">
-      {/* Hero */}
-      <div className="flex flex-col items-center gap-6 text-center">
-        <div className="flex flex-col gap-3">
-          <h1 className="mx-auto max-w-2xl text-3xl font-medium tracking-tight md:text-5xl">
-            Observability span primitives for React
-          </h1>
-          <p className="text-muted-foreground mx-auto max-w-xl text-lg">
-            Headless, Radix-style primitives for rendering agent traces,
-            sub-agent trees, and run timelines as collapsible waterfalls.
-            Composable, unstyled, and fully reactive.
-          </p>
-        </div>
-
-        <CopyCommandButton
-          command={INSTALL_COMMAND}
-          analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
-        />
-
-        <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[13px]">
+    <PageFrame pad="sub">
+      <header className="max-w-2xl">
+        <h1 className={typePage}>The anatomy of a run.</h1>
+        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+          Headless, Radix-style primitives for agent traces, sub-agent trees,
+          and run timelines: collapsible waterfalls on the assistant-ui store.
+          Unstyled and fully reactive.
+        </p>
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+          <CopyCommandButton
+            command={INSTALL_COMMAND}
+            analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
+          />
           <Link
             href="/docs/utilities/react-o11y"
-            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
+            className="text-muted-foreground hover:text-foreground text-sm transition-colors"
           >
-            Documentation →
+            Read the docs
           </Link>
-          <span className="text-border">·</span>
-          <span>Experimental, API may change</span>
+          <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide">
+            experimental · api may change
+          </span>
         </div>
-      </div>
+      </header>
 
-      {/* Flagship live demo */}
-      <div className="mx-auto max-w-4xl">
+      <figure className="mt-12 md:mt-16">
         <WaterfallSample />
-        <p className="text-muted-foreground mt-3 text-center text-xs">
-          A live span waterfall. Collapse subtrees, and hold ⌘/Ctrl while
-          scrolling to zoom the timeline.
-        </p>
-      </div>
+        <figcaption className="text-muted-foreground/70 mt-2 flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1 font-mono text-[11px] tracking-wide">
+          <span>fig. 01 · a live waterfall</span>
+          <span>collapse subtrees · hold ⌘ and scroll to zoom</span>
+        </figcaption>
+      </figure>
 
-      {/* Capabilities */}
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="text-3xl font-medium tracking-tight">
-            Compose any trace UI
-          </h2>
-          <p className="text-muted-foreground max-w-xl">
-            The same primitives drive a Gantt-style waterfall or a plain tree.
-            You decide the layout; the resource handles the data.
-          </p>
-        </div>
-
-        <div className="grid gap-4 lg:grid-cols-3">
+      <div className="border-foreground/10 mt-16 border-t md:mt-20">
+        <section className="divide-foreground/10 border-foreground/10 grid gap-10 border-b py-10 md:grid-cols-3 md:gap-0 md:divide-x md:py-12">
           {CAPABILITIES.map((capability) => {
             const Demo = capability.demo;
             return (
               <div
                 key={capability.title}
-                className="border-border/50 bg-muted/30 flex flex-col gap-4 rounded-xl border p-4"
+                className="flex flex-col md:px-8 md:first:ps-0 md:last:pe-0"
               >
-                <div className="flex flex-col gap-1">
-                  <span className="font-medium">{capability.title}</span>
-                  <p className="text-muted-foreground text-sm leading-relaxed">
-                    {capability.description}
-                  </p>
-                </div>
-                <div className="flex flex-1 items-start justify-center">
+                <h2 className="text-sm font-medium">{capability.title}</h2>
+                <p className="text-muted-foreground mt-2 text-sm leading-relaxed text-pretty">
+                  {capability.description}
+                </p>
+                <div className="mt-5 flex flex-1 items-start">
                   <Demo />
                 </div>
               </div>
             );
           })}
-        </div>
-      </div>
+        </section>
 
-      {/* Features */}
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="text-3xl font-medium tracking-tight">
-            Why react-o11y?
-          </h2>
-          <p className="text-muted-foreground max-w-xl">
-            Everything you need to build trace inspectors and run timelines,
-            without fighting your styling framework or losing control.
+        <section className="border-foreground/10 border-b py-10 md:py-12">
+          <div className="flex items-baseline justify-between">
+            <p className={typeEyebrow}>The primitives</p>
+            <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+              {PRIMITIVES.length}
+            </span>
+          </div>
+          <p className="text-muted-foreground mt-6 flex max-w-[52rem] flex-wrap gap-x-6 gap-y-2.5 font-mono text-[13px]">
+            {PRIMITIVES.map((name) => (
+              <span key={name}>
+                {name === "SpanResource" ? name : `SpanPrimitive.${name}`}
+              </span>
+            ))}
           </p>
-        </div>
+          <p className="text-muted-foreground/70 mt-6 max-w-[52ch] text-sm leading-relaxed">
+            One resource owns the data; nine parts lay it out. The same
+            primitives drive a Gantt-style waterfall or a plain tree.
+          </p>
+        </section>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={feature.title}
-                className="border-border/50 bg-muted/30 hover:border-border/80 flex flex-col gap-2 rounded-xl border p-4 transition-colors"
-              >
-                <span className="flex items-center gap-2 font-medium">
-                  <Icon className={cn("size-4", feature.iconColor)} />
-                  {feature.title}
-                </span>
-                <p className="text-muted-foreground text-sm leading-relaxed">
+        <section className="border-foreground/10 border-b py-10 md:py-12">
+          <p className={typeEyebrow}>Why headless</p>
+          <div className="mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((feature) => (
+              <div key={feature.title}>
+                <h2 className="text-sm font-medium">{feature.title}</h2>
+                <p className="text-muted-foreground mt-2 text-sm leading-relaxed text-pretty">
                   {feature.description}
                 </p>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        </section>
       </div>
 
-      {/* CTA */}
-      <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="text-2xl font-medium tracking-tight">
-          Start building today
+      <footer className="mt-16 flex flex-col gap-3">
+        <p className="text-muted-foreground text-sm">
+          Built on{" "}
+          <a href="/oss" className="text-foreground font-medium">
+            @assistant-ui/store
+          </a>{" "}
+          the reactive core the whole library shares.
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button
-            nativeButton={false}
-            render={<Link href="/docs/utilities/react-o11y" />}
-          >
-            Documentation <ArrowRight />
-          </Button>
-          <Link
-            href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/react-o11y"
-            className={buttonVariants({ variant: "outline" })}
-          >
-            View on GitHub
-          </Link>
-        </div>
-      </div>
-    </div>
+        <Link
+          href="/docs/utilities/react-o11y"
+          className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
+        >
+          Full reference on the docs
+          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </Link>
+      </footer>
+    </PageFrame>
   );
 }
