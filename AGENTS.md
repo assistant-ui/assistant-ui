@@ -7,6 +7,7 @@ assistant-ui provides composable runtime and UI primitives for building AI inter
 Preserve these promises:
 
 - **Composable primitives.** Features should combine through the existing runtime and component model instead of requiring parallel abstractions.
+- **Accessible UI.** Preserve accessibility, keyboard support, and responsive layout when changing the interface.
 
 ## Maintainer taste
 
