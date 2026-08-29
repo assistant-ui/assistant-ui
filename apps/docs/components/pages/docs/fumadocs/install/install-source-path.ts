@@ -11,10 +11,8 @@ function existsInUiSource(relativePath: string): boolean {
 const radixVariant = (relativePath: string): string =>
   relativePath.replace(/\.tsx$/, ".radix.tsx");
 
-// Registry paths name where a file lands in the consumer's project; the kit
-// stores it under components/react, with a flavor directory for the primitives.
-// The radix probes mirror getRadixVariantSourcePath in the registry build, which
-// prefers a .radix.tsx sibling over the file it sits next to.
+// Registry paths name the consumer's destination; the kit keeps the file under
+// components/react, and the radix probes mirror the build's radix variant rule.
 export function githubSourcePath(
   filePath: string,
   flavor: RegistryFlavor,
