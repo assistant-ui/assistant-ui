@@ -4,8 +4,9 @@ import test from "node:test";
 import "tsx/esm";
 
 const {
-  collectAttributeSelectorValues,
   buildRegistry,
+  collectAttributeSelectorValues,
+  createRegistryDependencyUsageExemptions,
   createBaseRegistryItem,
   createRadixRegistryItem,
   expandBundledRegistryDependencies,
@@ -234,6 +235,10 @@ test("base registry item merges, rewrites, and deduplicates dependencies in orde
       "popover",
       "https://r.assistant-ui.com/message.json",
     ],
+    radixRegistryDependencies: ["input"],
+    registryDependencyUsageExemptions: {
+      "https://example.com/foreign.json": "Installs external theme metadata.",
+    },
   };
 
   assert.deepEqual(createBaseRegistryItem(item), {
@@ -264,7 +269,7 @@ test("base registry item rewriting is idempotent", () => {
   ]);
 });
 
-test("radix registry item removes base-only dependencies without rewriting", () => {
+test("radix registry item merges radix-only registry dependencies and removes base-only ones", () => {
   assert.deepEqual(
     createRadixRegistryItem({
       name: "example",
@@ -273,7 +278,11 @@ test("radix registry item removes base-only dependencies without rewriting", () 
         "https://r.assistant-ui.com/thread.json",
         "tooltip",
       ],
+      radixRegistryDependencies: ["tooltip", "input"],
       baseRegistryDependencies: ["https://r.assistant-ui.com/popover.json"],
+      registryDependencyUsageExemptions: {
+        tooltip: "Installs tooltip styles selected at runtime.",
+      },
     }),
     {
       name: "example",
@@ -281,6 +290,7 @@ test("radix registry item removes base-only dependencies without rewriting", () 
       registryDependencies: [
         "https://r.assistant-ui.com/thread.json",
         "tooltip",
+        "input",
       ],
     },
   );
@@ -708,6 +718,8 @@ const bundleFixtures = () => {
       "button",
       "https://r.assistant-ui.com/reasoning.json",
     ],
+    radixRegistryDependencies: ["input"],
+    baseRegistryDependencies: ["popover"],
   };
   const reasoning = {
     name: "reasoning",
@@ -773,6 +785,11 @@ test("bundling inlines the closure as targeted files and merges its dependencies
         "components/ui/collapsible.tsx",
         "../../packages/ui/src/components/react/ui/radix/collapsible.tsx",
       ],
+      [
+        "registry:file",
+        "components/ui/input.tsx",
+        "../../packages/ui/src/components/react/ui/radix/input.tsx",
+      ],
     ],
   );
   assert.deepEqual(expanded.dependencies, [
@@ -796,6 +813,7 @@ test("bundling sources ui primitives and their package from the requested flavor
     [
       "../../packages/ui/src/components/react/ui/base/button.tsx",
       "../../packages/ui/src/components/react/ui/base/collapsible.tsx",
+      "../../packages/ui/src/components/react/ui/base/popover.tsx",
     ],
   );
   assert.deepEqual(expanded.baseDependencies, ["@base-ui/react"]);
@@ -1522,9 +1540,9 @@ const componentItem = (files, extra = {}) => ({
   ...extra,
 });
 
-const findingsFrom = (payloads) => {
+const findingsFrom = (payloads, usageExemptions) => {
   try {
-    validateRegistryInstallMetadata(payloads);
+    validateRegistryInstallMetadata(payloads, usageExemptions);
   } catch (error) {
     return error.message;
   }
@@ -1614,7 +1632,7 @@ test("install validation resolves a dotted alias basename to its shipped source"
 
   assert.match(
     findingsFrom([componentItem([importer])]),
-    /provides components\/assistant-ui\/tool\.config or components\/assistant-ui\/tool\.config\.tsx/,
+    /provides components\/assistant-ui\/tool\.config\.tsx/,
   );
 });
 
@@ -1637,6 +1655,69 @@ test("install validation resolves an alias asset import behind a query suffix", 
   assert.match(
     findingsFrom([componentItem([importer])]),
     /provides components\/assistant-ui\/logo\.svg/,
+  );
+});
+
+test("install validation resolves direct dependencies through any local alias target", () => {
+  for (const [specifier, providedPath] of [
+    ["@/lib/feature", "lib/feature.ts"],
+    ["@/server/config.js", "server/config.ts"],
+    ["@/data/client", "data/client/index.ts"],
+    ["@/assets/logo.svg?url", "assets/logo.svg"],
+  ]) {
+    const dependency = "https://r.assistant-ui.com/provider.json";
+    const findings = findingsFrom([
+      componentItem(
+        [
+          {
+            path: "components/assistant-ui/demo.tsx",
+            content: `import value from "${specifier}";\n`,
+          },
+        ],
+        { registryDependencies: [dependency] },
+      ),
+      {
+        name: "provider",
+        type: "registry:lib",
+        files: [
+          {
+            path: `source/${providedPath}`,
+            target: providedPath,
+            content: "export default true;\n",
+          },
+        ],
+      },
+    ]);
+
+    assert.equal(findings, null, `${specifier} resolves to ${providedPath}`);
+  }
+});
+
+test("install validation rejects an unresolved non-ambient local alias", () => {
+  const findings = findingsFrom([
+    componentItem([
+      {
+        path: "components/assistant-ui/demo.tsx",
+        content: 'import value from "@/lib/feature";\n',
+      },
+    ]),
+  ]);
+
+  assert.match(findings, /imports "@\/lib\/feature"/);
+  assert.match(findings, /provides lib\/feature\.tsx or lib\/feature\.ts/);
+});
+
+test("install validation allows the ambient shadcn utils alias", () => {
+  assert.equal(
+    findingsFrom([
+      componentItem([
+        {
+          path: "components/assistant-ui/demo.tsx",
+          content: 'import { cn } from "@/lib/utils";\n',
+        },
+      ]),
+    ]),
+    null,
   );
 });
 
@@ -1696,6 +1777,425 @@ test("cli scanner element mapping names a real registry item for every element f
     assert.ok(
       itemNames.has(expected),
       `the scanner maps a shipped element file to "${expected}", which is not a registry item`,
+    );
+  }
+});
+
+test("install validation rejects a stale shadcn UI registry dependency", () => {
+  const findings = findingsFrom([
+    componentItem(
+      [
+        {
+          path: "components/assistant-ui/demo.tsx",
+          content: "export const Demo = () => null;\n",
+        },
+      ],
+      { registryDependencies: ["button"] },
+    ),
+  ]);
+
+  assert.match(
+    findings,
+    /demo: registry dependency "button" is not imported directly by this item/,
+  );
+});
+
+test("install validation recognizes a shadcn UI dependency used through an alias", () => {
+  const findings = findingsFrom([
+    componentItem(
+      [
+        {
+          path: "components/assistant-ui/demo.tsx",
+          content: 'import { Button } from "@/components/ui/button";\n',
+        },
+      ],
+      { registryDependencies: ["button"] },
+    ),
+  ]);
+
+  assert.equal(findings, null);
+});
+
+test("install validation recognizes a direct assistant URL used through an alias", () => {
+  const findings = findingsFrom([
+    componentItem(
+      [
+        {
+          path: "components/assistant-ui/demo.tsx",
+          content: 'import { Badge } from "@/components/assistant-ui/badge";\n',
+        },
+      ],
+      {
+        registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+      },
+    ),
+    {
+      name: "badge",
+      type: "registry:component",
+      files: [
+        {
+          path: "components/assistant-ui/badge.tsx",
+          content: "export const Badge = () => null;\n",
+        },
+      ],
+    },
+  ]);
+
+  assert.equal(findings, null);
+});
+
+test("install validation recognizes a direct assistant dependency through relative imports and targets", () => {
+  const findings = findingsFrom([
+    componentItem(
+      [
+        {
+          path: "packages/ui/src/components/thread.tsx",
+          target: "components/assistant-ui/thread.tsx",
+          content: 'import { Badge } from "./badge";\n',
+        },
+      ],
+      {
+        registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+      },
+    ),
+    {
+      name: "badge",
+      type: "registry:component",
+      files: [
+        {
+          path: "packages/ui/src/components/badge.tsx",
+          target: "components/assistant-ui/badge.tsx",
+          content: "export const Badge = () => null;\n",
+        },
+      ],
+    },
+  ]);
+
+  assert.equal(findings, null);
+});
+
+test("install validation does not count a transitive install as direct dependency usage", () => {
+  const findings = findingsFrom([
+    componentItem(
+      [
+        {
+          path: "components/assistant-ui/demo.tsx",
+          content: 'import { Badge } from "@/components/assistant-ui/badge";\n',
+        },
+      ],
+      {
+        registryDependencies: ["https://r.assistant-ui.com/thread.json"],
+      },
+    ),
+    {
+      name: "thread",
+      type: "registry:component",
+      files: [
+        {
+          path: "components/assistant-ui/thread.tsx",
+          content: 'import { Badge } from "@/components/assistant-ui/badge";\n',
+        },
+      ],
+      registryDependencies: ["https://r.assistant-ui.com/badge.json"],
+    },
+    {
+      name: "badge",
+      type: "registry:component",
+      files: [
+        {
+          path: "components/assistant-ui/badge.tsx",
+          content: "export const Badge = () => null;\n",
+        },
+      ],
+    },
+  ]);
+
+  assert.match(
+    findings,
+    /demo: registry dependency "https:\/\/r\.assistant-ui\.com\/thread\.json" is not imported directly by this item/,
+  );
+});
+
+test("install validation accepts an explicitly documented non-imported style dependency", () => {
+  const style = {
+    name: "generative-ui-style",
+    type: "registry:style",
+  };
+  const item = {
+    ...componentItem([], {
+      registryDependencies: [
+        "https://r.assistant-ui.com/generative-ui-style.json",
+      ],
+      registryDependencyUsageExemptions: {
+        "https://r.assistant-ui.com/generative-ui-style.json":
+          "Installs CSS variables and vocabulary rules consumed through class names.",
+      },
+    }),
+    name: "generative-ui",
+  };
+
+  assert.equal(
+    findingsFrom(
+      [item, style],
+      createRegistryDependencyUsageExemptions([item, style], "radix"),
+    ),
+    null,
+  );
+
+  assert.match(
+    findingsFrom([
+      componentItem([], {
+        registryDependencies: [
+          "https://r.assistant-ui.com/generative-ui-style.json",
+        ],
+      }),
+      style,
+    ]),
+    /demo: registry dependency "https:\/\/r\.assistant-ui\.com\/generative-ui-style\.json" is not imported directly by this item/,
+  );
+});
+
+test("install validation accepts an explicitly documented page sidecar", () => {
+  const backend = {
+    name: "backend",
+    type: "registry:page",
+    files: [
+      {
+        path: "app/api/chat/route.ts",
+        content: "export const POST = () => null;\n",
+      },
+    ],
+  };
+  const quickStart = {
+    name: "quick-start",
+    type: "registry:page",
+    registryDependencies: ["https://r.assistant-ui.com/backend.json"],
+    registryDependencyUsageExemptions: {
+      "https://r.assistant-ui.com/backend.json":
+        "Installs the API route used by the page without importing it into the client bundle.",
+    },
+  };
+
+  assert.equal(
+    findingsFrom(
+      [quickStart, backend],
+      createRegistryDependencyUsageExemptions([quickStart, backend], "radix"),
+    ),
+    null,
+  );
+
+  assert.match(
+    findingsFrom([
+      componentItem([], {
+        registryDependencies: ["https://r.assistant-ui.com/backend.json"],
+      }),
+      backend,
+    ]),
+    /demo: registry dependency "https:\/\/r\.assistant-ui\.com\/backend\.json" is not imported directly by this item/,
+  );
+
+  assert.match(
+    findingsFrom([
+      {
+        name: "quick-start",
+        type: "registry:page",
+        registryDependencies: ["https://r.assistant-ui.com/thread.json"],
+      },
+      {
+        name: "thread",
+        type: "registry:component",
+        files: [
+          {
+            path: "components/assistant-ui/thread.tsx",
+            content: "export const Thread = () => null;\n",
+          },
+        ],
+      },
+    ]),
+    /quick-start: registry dependency "https:\/\/r\.assistant-ui\.com\/thread\.json" is not imported directly by this item/,
+  );
+});
+
+test("install validation requires foreign registry URLs to be explicitly documented", () => {
+  const item = componentItem([], {
+    registryDependencies: ["https://example.com/foreign.json"],
+    registryDependencyUsageExemptions: {
+      "https://example.com/foreign.json":
+        "Installs metadata whose foreign payload is unavailable to this build.",
+    },
+  });
+
+  assert.equal(
+    findingsFrom(
+      [item],
+      createRegistryDependencyUsageExemptions([item], "radix"),
+    ),
+    null,
+  );
+
+  assert.match(
+    findingsFrom([
+      componentItem([], {
+        registryDependencies: ["https://example.com/foreign.json"],
+      }),
+    ]),
+    /foreign\.json" is not imported directly by this item/,
+  );
+});
+
+test("registry dependency usage exemptions reject misspelled dependencies", () => {
+  const item = componentItem([], {
+    registryDependencies: ["button"],
+    registryDependencyUsageExemptions: {
+      buton: "Installs a component used outside this item's module graph.",
+    },
+  });
+
+  assert.throws(
+    () => createRegistryDependencyUsageExemptions([item], "radix"),
+    /demo: registryDependencyUsageExemptions entry "buton" does not match a declared registry dependency/,
+  );
+});
+
+test("registry dependency usage exemptions reject stale entries", () => {
+  const item = componentItem([], {
+    registryDependencies: [],
+    registryDependencyUsageExemptions: {
+      button: "Installs a component used outside this item's module graph.",
+    },
+  });
+
+  assert.throws(
+    () => createRegistryDependencyUsageExemptions([item], "base"),
+    /demo: registryDependencyUsageExemptions entry "button" does not match a declared registry dependency/,
+  );
+});
+
+test("registry dependency usage exemptions require a reviewable reason", async () => {
+  const item = componentItem([], {
+    registryDependencies: ["button"],
+    registryDependencyUsageExemptions: { button: "   " },
+  });
+
+  await assert.rejects(
+    () => buildRegistry([item], []),
+    /Invalid registry metadata:[\s\S]*registryDependencyUsageExemptions\.button/,
+  );
+});
+
+test("registry dependency usage exemptions do not hide missing local items", () => {
+  const dependency = "https://r.assistant-ui.com/missing.json";
+  const item = componentItem([], {
+    registryDependencies: [dependency],
+    registryDependencyUsageExemptions: {
+      [dependency]: "Installs runtime-selected metadata.",
+    },
+  });
+
+  const findings = findingsFrom(
+    [item],
+    createRegistryDependencyUsageExemptions([item], "radix"),
+  );
+  assert.match(findings, /does not match a local registry item/);
+});
+
+test("registry dependency usage exemptions reject directly imported dependencies", () => {
+  const item = componentItem(
+    [
+      {
+        path: "components/assistant-ui/demo.tsx",
+        content: 'import { Button } from "@/components/ui/button";\n',
+      },
+    ],
+    {
+      registryDependencies: ["button"],
+      registryDependencyUsageExemptions: {
+        button: "Installs a component selected at runtime.",
+      },
+    },
+  );
+
+  const findings = findingsFrom(
+    [item],
+    createRegistryDependencyUsageExemptions([item], "radix"),
+  );
+  assert.match(
+    findings,
+    /registryDependencyUsageExemptions entry "button" is unnecessary because the dependency is imported directly/,
+  );
+});
+
+test("registry dependency usage exemptions include only the active flavor", () => {
+  const commonDependency = "https://r.assistant-ui.com/theme.json";
+  const item = componentItem([], {
+    registryDependencies: [commonDependency],
+    radixRegistryDependencies: ["input"],
+    baseRegistryDependencies: ["popover"],
+    registryDependencyUsageExemptions: {
+      [commonDependency]: "Installs shared theme metadata.",
+      input: "Installs the Radix input for runtime composition.",
+      popover: "Installs the Base popover for runtime composition.",
+    },
+  });
+
+  const radixExemptions = createRegistryDependencyUsageExemptions(
+    [item],
+    "radix",
+  ).get("demo");
+  const baseExemptions = createRegistryDependencyUsageExemptions(
+    [item],
+    "base",
+  ).get("demo");
+
+  assert.deepEqual([...radixExemptions], [commonDependency, "input"]);
+  assert.deepEqual(
+    [...baseExemptions],
+    ["https://r.assistant-ui.com/base/theme.json", "popover"],
+  );
+});
+
+test("internal usage exemptions do not leak into Vue payloads or indexes", async () => {
+  const dependency = "https://example.com/theme.json";
+  const vueItem = {
+    name: "vue-theme",
+    type: "registry:style",
+    registryDependencies: [dependency],
+    registryDependencyUsageExemptions: {
+      [dependency]: "Installs foreign theme metadata.",
+    },
+  };
+
+  await buildRegistry([], [vueItem]);
+
+  for (const outputPath of [
+    "dist/vue/registry.json",
+    "dist/vue/vue-theme.json",
+  ]) {
+    const output = await readFile(outputPath, "utf8");
+    assert.equal(
+      output.includes("registryDependencyUsageExemptions"),
+      false,
+      `${outputPath} excludes internal validation metadata`,
+    );
+  }
+});
+
+test("the real registry build satisfies the emitted install metadata contract", async () => {
+  const { registry, vueRegistry } = await import("../src/registry.ts");
+
+  await assert.doesNotReject(() => buildRegistry(registry, vueRegistry));
+
+  for (const outputPath of [
+    "dist/registry.json",
+    "dist/base/registry.json",
+    "dist/generative-ui.json",
+    "dist/base/generative-ui.json",
+  ]) {
+    const output = await readFile(outputPath, "utf8");
+    assert.equal(
+      output.includes("registryDependencyUsageExemptions"),
+      false,
+      `${outputPath} excludes internal validation metadata`,
     );
   }
 });

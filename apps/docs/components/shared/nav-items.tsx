@@ -43,6 +43,7 @@ function DropdownLink({ link }: { link: DropdownItem }) {
 
   return (
     <NavigationMenuLink
+      closeOnClick
       render={
         link.external ? (
           <a
@@ -76,6 +77,7 @@ function FeaturedCard({
         {featured.label}
       </span>
       <NavigationMenuLink
+        closeOnClick
         render={
           <Link
             href={link.href}
@@ -97,6 +99,9 @@ function FeaturedCard({
     </div>
   );
 }
+
+const navItemClassName =
+  "text-muted-foreground hover:text-foreground flex items-center px-3 py-1.5 text-sm transition-colors";
 
 export function NavItemsRoot({ children }: { children: ReactNode }) {
   const [value, setValue] = useState<string | null>(null);
@@ -161,11 +166,9 @@ export function NavItems({
               value={`${instanceId}:${item.href}`}
             >
               <NavigationMenuLink
+                closeOnClick
                 render={
-                  <Link
-                    href={item.href}
-                    className="text-muted-foreground hover:text-foreground px-3 py-1.5 text-sm transition-colors"
-                  >
+                  <Link href={item.href} className={navItemClassName}>
                     {item.label}
                   </Link>
                 }
@@ -179,7 +182,12 @@ export function NavItems({
             key={item.label}
             value={`${instanceId}:${item.label}`}
           >
-            <NavigationMenuTrigger className="text-muted-foreground hover:text-foreground data-[popup-open]:text-foreground group/trigger flex cursor-pointer items-center gap-1 px-3 py-1.5 text-sm transition-colors">
+            <NavigationMenuTrigger
+              className={cn(
+                navItemClassName,
+                "data-[popup-open]:text-foreground group/trigger cursor-pointer gap-1",
+              )}
+            >
               {item.label}
               <ChevronDown className="size-3 opacity-60 transition-[rotate] duration-200 group-data-[popup-open]/trigger:rotate-180 motion-reduce:transition-none" />
             </NavigationMenuTrigger>

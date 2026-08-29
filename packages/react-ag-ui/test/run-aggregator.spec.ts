@@ -1882,7 +1882,7 @@ describe("RunAggregator", () => {
     });
   });
 
-  it("treats success outcome as complete even with pending tool calls", () => {
+  it("keeps unresolved tool calls pending with a success outcome", () => {
     const aggregator = createAggregator(false);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -1892,6 +1892,15 @@ describe("RunAggregator", () => {
       toolCallName: "search",
     } as AgUiEvent);
     aggregator.handle({
+      type: "TOOL_CALL_ARGS",
+      toolCallId: "tool1",
+      delta: '{"q":"x"}',
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_END",
+      toolCallId: "tool1",
+    } as AgUiEvent);
+    aggregator.handle({
       type: "RUN_FINISHED",
       runId: "r1",
       outcome: { type: "success" },
@@ -1899,8 +1908,8 @@ describe("RunAggregator", () => {
 
     const last = results.at(-1);
     expect(last?.status).toMatchObject({
-      type: "complete",
-      reason: "unknown",
+      type: "requires-action",
+      reason: "tool-calls",
     });
   });
 

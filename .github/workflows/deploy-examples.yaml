@@ -63,20 +63,17 @@ jobs:
             ${{ runner.os }}-turbo-${{ matrix.example }}-${{ github.ref }}-
             ${{ runner.os }}-turbo-${{ matrix.example }}-
 
-      - name: Install Vercel CLI
-        run: npm install --global vercel@latest
-
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
       - name: Pull Vercel Environment Information
         working-directory: examples/${{ matrix.example }}
-        run: vercel pull --yes --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: pnpm exec vercel pull --yes --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Build Project Artifacts
         working-directory: examples/${{ matrix.example }}
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: pnpm exec vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
 
       - name: Deploy Project Artifacts to Vercel
         working-directory: examples/${{ matrix.example }}
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+        run: pnpm exec vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
