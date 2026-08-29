@@ -9,6 +9,22 @@ function msg(metadata: unknown): { role: "assistant"; metadata: unknown } {
 }
 
 describe("getThreadMessageTokenUsage", () => {
+  it("reads usage from legacy custom.usage metadata path", () => {
+    const usage = getThreadMessageTokenUsage(
+      msg({
+        custom: {
+          usage: { inputTokens: 4, outputTokens: 6 },
+        },
+      }),
+    );
+
+    expect(usage).toEqual({
+      totalTokens: 10,
+      inputTokens: 4,
+      outputTokens: 6,
+    });
+  });
+
   it("does not double-count reasoning/cached in fallback totalTokens", () => {
     const usage = getThreadMessageTokenUsage(
       msg({

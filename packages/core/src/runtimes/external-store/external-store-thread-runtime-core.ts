@@ -1,3 +1,4 @@
+import { shallowEqual } from "@assistant-ui/store/internal";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { Attachment } from "../../types/attachment";
 import type {
@@ -67,15 +68,6 @@ const observeAdapterCallback = (
       error,
     );
   });
-};
-
-const shallowEqual = (a: object, b: object): boolean => {
-  const aKeys = Object.keys(a);
-  if (aKeys.length !== Object.keys(b).length) return false;
-  for (const key of aKeys) {
-    if ((a as any)[key] !== (b as any)[key]) return false;
-  }
-  return true;
 };
 
 export const hasUpcomingMessage = (
