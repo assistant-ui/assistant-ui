@@ -27,20 +27,28 @@ if ! (cd examples/with-expo && npx expo install --fix); then
   # shellcheck disable=SC2016 # the JS body must not be expanded by the shell
   node -e '
     const fs = require("node:fs");
-    const [backupPath, manifestPath] = process.argv.slice(1);
-    // The set `expo install --fix` owns, per the update-deps skill.
-    const owned = /^(expo|expo-.+|react|react-dom|react-native|react-native-.+)$/;
+    const [backupPath, manifestPath, projectDir] = process.argv.slice(1);
+    // `expo install --fix` resolves its expectations from the SDK matrix, so read
+    // that rather than hardcoding a list that drifts as the SDK adds packages.
+    let owned;
+    try {
+      const matrix = require.resolve("expo/bundledNativeModules.json", { paths: [projectDir] });
+      owned = new Set([...Object.keys(JSON.parse(fs.readFileSync(matrix, "utf8"))), "expo"]);
+    } catch {
+      owned = /^(@expo\/.+|expo|expo-.+|react|react-dom|react-native|react-native-.+)$/;
+    }
+    const isOwned = (name) => (owned instanceof Set ? owned.has(name) : owned.test(name));
     const backup = JSON.parse(fs.readFileSync(backupPath, "utf8"));
     const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
     for (const field of ["dependencies", "devDependencies"]) {
       for (const name of Object.keys(manifest[field] ?? {})) {
-        if (owned.test(name) && backup[field]?.[name]) {
+        if (isOwned(name) && backup[field]?.[name]) {
           manifest[field][name] = backup[field][name];
         }
       }
     }
     fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2) + "\n");
-  ' "$expo_manifest_backup" "$EXPO_MANIFEST"
+  ' "$expo_manifest_backup" "$EXPO_MANIFEST" examples/with-expo
 fi
 
 find . -name node_modules -prune -exec rm -rf {} +
