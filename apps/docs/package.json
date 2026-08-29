@@ -36,6 +36,7 @@
     "@hookform/resolvers": "^5.9.1",
     "@langchain/langgraph-sdk": "^1.10.0",
     "@modelcontextprotocol/server": "^2.0.0",
+    "@opentelemetry/sdk-trace-base": "^2.1.0",
     "@posthog/ai": "^8.9.0",
     "@shikijs/transformers": "^4.4.3",
     "@upstash/ratelimit": "^2.0.8",
