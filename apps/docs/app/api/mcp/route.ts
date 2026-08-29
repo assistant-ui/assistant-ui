@@ -8,6 +8,14 @@ import {
 import { z } from "zod";
 import { getLLMText } from "@/lib/get-llm-text";
 import {
+  SEARCH_DOCS_RESULT_LIMIT,
+  docsToolDefinitions,
+  getNavigationTool,
+  listPagesTool,
+  readPageTool,
+  searchDocsTool,
+} from "@/lib/mcp-tool-definitions";
+import {
   examples,
   getTapDocsPage,
   getTapDocsPages,
@@ -26,26 +34,7 @@ import { normalizeMcpRequestHeaders } from "./normalize-mcp-headers";
 
 export const revalidate = false;
 
-const toolDefinitions = [
-  {
-    name: "list_pages",
-    description:
-      "List assistant-ui documentation pages. Optionally filter by a URL path prefix such as /docs/tools, /examples, /design, /elements, or /tap/docs.",
-  },
-  {
-    name: "get_navigation",
-    description: "Return the assistant-ui docs navigation tree.",
-  },
-  {
-    name: "search_docs",
-    description:
-      "Search assistant-ui docs, examples, design components, elements, and Tap docs by title, description, or URL.",
-  },
-  {
-    name: "read_page",
-    description:
-      "Read one assistant-ui docs, examples, design, elements, or Tap docs page as markdown. Accepts a slug, path, .md URL, or same-origin URL.",
-  },
+const templateToolDefinitions = [
   {
     name: "list_templates",
     description:
@@ -63,15 +52,13 @@ const toolDefinitions = [
   },
 ] as const;
 
-const [
-  listPagesTool,
-  getNavigationTool,
-  searchDocsTool,
-  readPageTool,
-  listTemplatesTool,
-  readTemplateTool,
-  previewTemplateTool,
-] = toolDefinitions;
+const [listTemplatesTool, readTemplateTool, previewTemplateTool] =
+  templateToolDefinitions;
+
+const toolDefinitions = [
+  ...docsToolDefinitions,
+  ...templateToolDefinitions,
+] as const;
 
 const templateWorkflowPrompt = {
   name: "assistant-ui-template-workflow",
@@ -293,7 +280,7 @@ function searchDocs(query: string) {
         value.toLowerCase().includes(normalized),
       ),
     )
-    .slice(0, 20);
+    .slice(0, SEARCH_DOCS_RESULT_LIMIT);
 }
 
 async function readPage(path: string | undefined, requestUrl: string) {
@@ -357,7 +344,9 @@ const getNavigationInputSchema = z.object({}).strict();
 
 const searchDocsInputSchema = z
   .object({
-    query: z.string().describe("Search query."),
+    query: z
+      .string()
+      .describe(searchDocsTool.inputSchema.properties.query.description),
   })
   .strict();
 
@@ -365,9 +354,7 @@ const readPageInputSchema = z
   .object({
     path: z
       .string()
-      .describe(
-        "Page path such as /docs/installation, /docs/installation.md, examples/ai-sdk, design/components/tabs, elements/reasoning, tap/docs/store/state, or a same-origin URL.",
-      ),
+      .describe(readPageTool.inputSchema.properties.path.description),
   })
   .strict();
 

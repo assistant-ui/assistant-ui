@@ -32,7 +32,7 @@ export function AskAiBall() {
         type="button"
         onClick={toggle}
         aria-label="Ask AI"
-        className="animate-in fade-in-0 zoom-in-75 border-border/60 bg-background hover:border-border grid size-12 place-items-center rounded-(--radius-capsule) border transition-colors duration-300"
+        className="animate-in fade-in-0 zoom-in-75 border-border/60 bg-background hover:border-border rounded-capsule grid size-12 place-items-center border transition-colors duration-300"
       >
         <span
           aria-hidden
@@ -48,7 +48,7 @@ export function AskAiBall() {
           setArmed(false);
         }}
         aria-label="Dismiss Ask AI"
-        className="border-border/60 bg-background text-muted-foreground hover:text-foreground absolute -top-1.5 -right-1.5 grid size-5 place-items-center rounded-(--radius-capsule) border opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100"
+        className="border-border/60 bg-background text-muted-foreground hover:text-foreground rounded-capsule absolute -top-1.5 -right-1.5 grid size-5 place-items-center border opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100 max-md:opacity-100"
       >
         <XIcon className="size-3" />
       </button>

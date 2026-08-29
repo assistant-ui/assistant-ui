@@ -233,7 +233,7 @@ function Stage() {
       </ol>
 
       <div className="flex min-w-0 flex-col gap-3">
-        <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] flex min-h-[340px] flex-1 items-center justify-center overflow-hidden px-6 py-10 md:min-h-[380px] md:px-12">
+        <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex min-h-[340px] flex-1 items-center justify-center overflow-hidden px-6 py-10 md:min-h-[380px] md:px-12">
           {cycle.visible ? (
             <div
               key={`${cycle.index}-${cycle.epoch}`}
@@ -329,7 +329,7 @@ function SetupPanel({ tabs }: { tabs: SetupTab[] }) {
         </div>
       </div>
 
-      <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] relative min-h-[22.5rem] overflow-hidden">
+      <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document relative min-h-[22.5rem] overflow-hidden">
         {brand && activeTab ? (
           <div
             key={activeTab.id}

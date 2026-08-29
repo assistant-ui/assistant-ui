@@ -5,6 +5,7 @@ import {
   AGENT_DISCOVERY_REWRITES,
   API_CATALOG_LINK_HEADER,
 } from "./lib/agent-discovery-routes";
+import { isWebMcpEnabled } from "./lib/feature-flags";
 
 const isDev = process.env.NODE_ENV === "development";
 
@@ -83,6 +84,34 @@ const config: NextConfig = {
         },
       ],
     },
+    ...(isWebMcpEnabled
+      ? [
+          {
+            source: "/:path((?!api(?:/|$)|_next(?:/|$)).*)",
+            has: [
+              {
+                type: "header" as const,
+                key: "accept",
+                value: ".*text/html.*",
+              },
+            ],
+            headers: [
+              {
+                key: "Origin-Agent-Cluster",
+                value: "?1",
+              },
+              ...(process.env.WEBMCP_ORIGIN_TRIAL_TOKEN
+                ? [
+                    {
+                      key: "Origin-Trial",
+                      value: process.env.WEBMCP_ORIGIN_TRIAL_TOKEN,
+                    },
+                  ]
+                : []),
+            ],
+          },
+        ]
+      : []),
     ...apiCatalogDiscoveryPaths.map((source) => ({
       source,
       headers: [{ key: "Link", value: API_CATALOG_LINK_HEADER }],

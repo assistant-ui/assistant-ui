@@ -803,7 +803,7 @@ const UserMessage: FC = () => {
       <UserMessageAttachments />
 
       <div className="aui-user-message-content-wrapper relative col-start-2 min-w-0">
-        <div className="aui-user-message-content peer bg-muted text-foreground rounded-(--radius-thread) px-4 py-2 wrap-break-word empty:hidden">
+        <div className="aui-user-message-content peer bg-muted text-foreground rounded-thread px-4 py-2 wrap-break-word empty:hidden">
           <MessagePrimitive.Quote>
             {(quote) => <QuoteBlock {...quote} />}
           </MessagePrimitive.Quote>

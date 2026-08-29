@@ -46,7 +46,11 @@ export const registryItemSchema = z.object({
   dependencies: z.array(z.string()).optional(),
   devDependencies: z.array(z.string()).optional(),
   registryDependencies: z.array(z.string()).optional(),
+  registryDependencyUsageExemptions: z
+    .record(z.string(), z.string().trim().min(1))
+    .optional(),
   bundledRegistryDependencies: z.array(z.string()).optional(),
+  radixRegistryDependencies: z.array(z.string()).optional(),
   baseRegistryDependencies: z.array(z.string()).optional(),
   radixDependencies: z.array(z.string()).optional(),
   baseDependencies: z.array(z.string()).optional(),

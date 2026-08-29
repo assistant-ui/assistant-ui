@@ -93,7 +93,7 @@ export function Hero({
           >
             <GitHubStars stars={stars} />
           </a>
-          <span className="bg-muted-foreground/20 hidden size-1 rounded-(--radius-capsule) sm:block" />
+          <span className="bg-muted-foreground/20 rounded-capsule hidden size-1 sm:block" />
           <a
             href="https://www.npmjs.com/package/@assistant-ui/react"
             target="_blank"
@@ -102,7 +102,7 @@ export function Hero({
           >
             <NpmDownloads downloads={downloads} />
           </a>
-          <span className="bg-muted-foreground/20 hidden size-1 rounded-(--radius-capsule) sm:block" />
+          <span className="bg-muted-foreground/20 rounded-capsule hidden size-1 sm:block" />
           <a
             href="https://www.ycombinator.com/companies/assistant-ui"
             target="_blank"

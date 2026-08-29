@@ -43,10 +43,7 @@ function GlyphReact() {
       <span className="bg-foreground/25 h-[3px] w-4/5" />
       <span className="border-foreground/25 mt-[2px] flex h-[9px] items-center justify-end border px-[2px]">
         <span
-          className={cn(
-            "bg-foreground/40 size-[4px] rounded-(--radius-capsule)",
-            ACCENT,
-          )}
+          className={cn("bg-foreground/40 rounded-capsule size-[4px]", ACCENT)}
         />
       </span>
     </span>
@@ -69,8 +66,8 @@ function GlyphInk() {
   return (
     <span className="border-foreground/25 flex h-6 w-8 flex-col border">
       <span className="border-foreground/25 flex h-[6px] items-center gap-[2px] border-b px-[3px]">
-        <span className="bg-foreground/30 size-[2px] rounded-(--radius-capsule)" />
-        <span className="bg-foreground/30 size-[2px] rounded-(--radius-capsule)" />
+        <span className="bg-foreground/30 rounded-capsule size-[2px]" />
+        <span className="bg-foreground/30 rounded-capsule size-[2px]" />
       </span>
       <span className="flex flex-1 flex-col justify-center gap-[2px] px-[3px]">
         <span className="flex items-center gap-[2px]">
@@ -125,7 +122,7 @@ function GlyphGlass() {
       <span className="bg-foreground/20 h-[2px] w-full" />
       <span className="bg-foreground/20 h-[2px] w-full" />
       <span className="bg-foreground/20 h-[2px] w-full" />
-      <span className="border-foreground/40 bg-background absolute top-1/2 right-[3px] flex size-[14px] -translate-y-1/2 items-center justify-center rounded-(--radius-capsule) border">
+      <span className="border-foreground/40 bg-background rounded-capsule absolute top-1/2 right-[3px] flex size-[14px] -translate-y-1/2 items-center justify-center border">
         <span
           className={cn("bg-foreground/40 mt-[3px] h-[2px] w-[7px]", ACCENT)}
         />
@@ -228,7 +225,7 @@ function GlyphChangelog() {
         <span key={index} className="flex items-center gap-[3px]">
           <span
             className={cn(
-              "bg-foreground/30 size-[4px] rounded-(--radius-capsule)",
+              "bg-foreground/30 rounded-capsule size-[4px]",
               index === 0 && ACCENT,
             )}
           />
@@ -280,15 +277,12 @@ function GlyphCareers() {
     <span className="flex items-end gap-[4px]">
       <span className="flex flex-col items-center gap-[2px]">
         <span
-          className={cn(
-            "bg-foreground/35 size-[6px] rounded-(--radius-capsule)",
-            ACCENT,
-          )}
+          className={cn("bg-foreground/35 rounded-capsule size-[6px]", ACCENT)}
         />
         <span className="bg-foreground/20 h-[6px] w-[10px] rounded-t-[3px]" />
       </span>
       <span className="flex flex-col items-center gap-[2px]">
-        <span className="bg-foreground/25 size-[5px] rounded-(--radius-capsule)" />
+        <span className="bg-foreground/25 rounded-capsule size-[5px]" />
         <span className="bg-foreground/15 h-[5px] w-[9px] rounded-t-[3px]" />
       </span>
     </span>

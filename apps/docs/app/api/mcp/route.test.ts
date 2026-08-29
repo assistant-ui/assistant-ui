@@ -24,6 +24,7 @@ vi.mock("@/lib/source", () => {
     source: makeSource(),
     examples: makeSource(),
     design: makeSource(),
+    elementsDocs: makeSource(),
     standalone: makeSource(),
     tapDocs: makeSource(),
     getTapDocsPage: vi.fn(),
@@ -32,6 +33,15 @@ vi.mock("@/lib/source", () => {
 });
 
 import { buildXuluxMcpCatalog } from "@/lib/xulux/mcp-catalog";
+import {
+  readPageInputSchema,
+  searchDocsInputSchema,
+} from "@/lib/mcp-tool-definitions";
+import {
+  registerWebMcpTools,
+  type FetchLike,
+  type WebMcpModelContext,
+} from "@/lib/webmcp-tools";
 import { listTemplates } from "@/lib/xulux/template-service";
 import { POST } from "./route";
 
@@ -73,6 +83,37 @@ function getToolCallResult(response: JsonRpcResponse): ToolCallResult {
   return response.result as ToolCallResult;
 }
 
+function registerBrowserTools(fetchImpl: FetchLike) {
+  const tools: Parameters<WebMcpModelContext["registerTool"]>[0][] = [];
+  registerWebMcpTools(
+    {
+      registerTool: (tool) => {
+        tools.push(tool);
+      },
+    },
+    fetchImpl,
+  );
+  return tools;
+}
+
+function inputSchemaShape(schema: Record<string, unknown>) {
+  const properties = schema["properties"] as Record<
+    string,
+    Record<string, unknown>
+  >;
+  return {
+    type: schema["type"],
+    properties: Object.fromEntries(
+      Object.entries(properties).map(([name, property]) => [
+        name,
+        { type: property["type"] },
+      ]),
+    ),
+    required: schema["required"],
+    additionalProperties: schema["additionalProperties"],
+  };
+}
+
 afterEach(() => {
   vi.clearAllMocks();
 });
@@ -94,11 +135,12 @@ describe("POST /api/mcp", () => {
   it("lists the seven public tools and the template workflow prompt", async () => {
     const toolsResponse = await requestMcp("tools/list", {});
     expect(toolsResponse.error).toBeUndefined();
-    expect(
-      (toolsResponse.result as { tools: Array<{ name: string }> }).tools.map(
-        (tool) => tool.name,
-      ),
-    ).toEqual([
+    const tools = (
+      toolsResponse.result as {
+        tools: Array<{ name: string; inputSchema: Record<string, unknown> }>;
+      }
+    ).tools;
+    expect(tools.map((tool) => tool.name)).toEqual([
       "list_pages",
       "get_navigation",
       "search_docs",
@@ -107,6 +149,12 @@ describe("POST /api/mcp", () => {
       "read_template",
       "preview_template",
     ]);
+    expect(
+      tools.find((tool) => tool.name === "search_docs")?.inputSchema,
+    ).toMatchObject(searchDocsInputSchema);
+    expect(
+      tools.find((tool) => tool.name === "read_page")?.inputSchema,
+    ).toMatchObject(readPageInputSchema);
 
     const promptsResponse = await requestMcp("prompts/list", {});
     expect(promptsResponse.error).toBeUndefined();
@@ -115,6 +163,58 @@ describe("POST /api/mcp", () => {
         promptsResponse.result as { prompts: Array<{ name: string }> }
       ).prompts.map((prompt) => prompt.name),
     ).toContain("assistant-ui-template-workflow");
+  });
+
+  it("executes the WebMCP adapter through the route transport", async () => {
+    let responseContentType: string | null = null;
+    const routeFetch: FetchLike = async (url, init) => {
+      const request = new Request(new URL(url, ORIGIN), {
+        method: init.method,
+        headers: init.headers,
+        body: init.body,
+        ...(init.signal ? { signal: init.signal } : {}),
+      });
+      const response = await POST(request as Parameters<typeof POST>[0]);
+      responseContentType = response.headers.get("content-type");
+      return response;
+    };
+    const tools = registerBrowserTools(routeFetch);
+    const searchTool = tools.find((tool) => tool.name === "searchDocs");
+    if (!searchTool) throw new Error("missing searchDocs tool");
+
+    await expect(searchTool.execute({ query: "tools" })).resolves.toEqual({
+      content: [{ type: "text", text: "[]" }],
+    });
+    expect(responseContentType).toContain("application/json");
+  });
+
+  it("keeps browser input shapes compatible with the route tools", async () => {
+    const toolsResponse = await requestMcp("tools/list", {});
+    const routeTools = (
+      toolsResponse.result as {
+        tools: Array<{ name: string; inputSchema: Record<string, unknown> }>;
+      }
+    ).tools;
+    const browserTools = registerBrowserTools(async () => {
+      throw new Error("not executed");
+    });
+    const mappings = [
+      ["searchDocs", "search_docs"],
+      ["getDoc", "read_page"],
+      ["getExample", "read_page"],
+    ] as const;
+
+    for (const [browserName, routeName] of mappings) {
+      const browserTool = browserTools.find(
+        (tool) => tool.name === browserName,
+      );
+      const routeTool = routeTools.find((tool) => tool.name === routeName);
+      expect(browserTool, `missing browser tool ${browserName}`).toBeDefined();
+      expect(routeTool, `missing route tool ${routeName}`).toBeDefined();
+      expect(inputSchemaShape(browserTool!.inputSchema)).toEqual(
+        inputSchemaShape(routeTool!.inputSchema),
+      );
+    }
   });
 
   it("returns the catalog-backed template list", async () => {

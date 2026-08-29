@@ -63,7 +63,7 @@ export function Header() {
   const scrolled = useScrolled();
 
   return (
-    <header className="sticky top-0 z-50 w-full rounded-(--radius-page)">
+    <header className="rounded-page sticky top-0 z-50 w-full">
       <NavItemsRoot>
         <div
           className={headerBarClassName(

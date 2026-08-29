@@ -50,7 +50,7 @@ export function FilterInput({
             onValueChange("");
             inputRef.current?.focus();
           }}
-          className="text-muted-foreground hover:text-foreground absolute end-1.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-(--radius-sm) transition-colors"
+          className="text-muted-foreground hover:text-foreground absolute end-1.5 top-1/2 grid size-5 -translate-y-1/2 place-items-center rounded-sm transition-colors"
         >
           <XIcon className="size-3.5" />
         </button>

@@ -119,7 +119,7 @@ export function PrimitivesAnatomy() {
 
   return (
     <div
-      className="bg-foreground/[0.025] dark:bg-foreground/[0.04] flex flex-col gap-6 px-6 py-8 md:px-10 md:py-10"
+      className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex flex-col gap-6 px-6 py-8 md:px-10 md:py-10"
       onMouseEnter={() => setHeld(true)}
       onMouseLeave={() => setHeld(false)}
     >
@@ -188,7 +188,7 @@ export function PrimitivesAnatomy() {
             <Region
               part="scroll"
               active={active}
-              className="border-foreground/20 bg-background mt-auto ml-auto grid size-6 place-items-center rounded-(--radius-capsule) border"
+              className="border-foreground/20 bg-background rounded-capsule mt-auto ml-auto grid size-6 place-items-center border"
             >
               <ArrowDownIcon className="text-foreground/60 size-3" />
             </Region>
@@ -199,7 +199,7 @@ export function PrimitivesAnatomy() {
             className="border-foreground/15 flex items-center justify-between border px-2.5 py-2"
           >
             <div className="bg-foreground/20 h-1.5 w-16" />
-            <div className="bg-foreground/80 size-4 rounded-(--radius-capsule)" />
+            <div className="bg-foreground/80 rounded-capsule size-4" />
           </Region>
         </Region>
       </div>

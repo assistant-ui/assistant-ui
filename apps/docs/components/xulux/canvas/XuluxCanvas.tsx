@@ -30,12 +30,6 @@ function toAbsoluteUrl(url: string | null): string | null {
   return new URL(url, window.location.origin).toString();
 }
 
-function filenameFromDisposition(header: string | null): string | null {
-  if (!header) return null;
-  const match = /filename="?([^";]+)"?/i.exec(header);
-  return match?.[1] ?? null;
-}
-
 function hostnameFromUrl(url: string): string {
   try {
     return new URL(url).hostname;
@@ -50,7 +44,6 @@ const TABS: CanvasTab[] = [
 ];
 
 export function XuluxCanvas({
-  sessionId,
   status,
   previewUrl,
   source,
@@ -62,10 +55,9 @@ export function XuluxCanvas({
   sourceUrl,
   title,
 }: {
-  sessionId: string;
   status: "empty" | "loading" | "ready" | "error";
   previewUrl: string | null;
-  source: "template" | "agent_template" | "refresh" | null;
+  source: "template" | "agent_template" | null;
   error: string | null;
   downloadUrl?: string;
   previewFrame?: XuluxPreviewFrameConfig;
@@ -76,13 +68,10 @@ export function XuluxCanvas({
 }) {
   const analyticsCtx = useXuluxAnalytics();
   const [activeTab, setActiveTab] = useState("preview");
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
   const [iframeVersion, setIframeVersion] = useState(0);
   const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const previewLoadedForUrlRef = useRef<string | null>(null);
   const canDownloadTemplate = Boolean(downloadUrl) && status === "ready";
-  const canDownloadSandbox = source === "refresh" && status === "ready";
   const canOpenSource =
     source === "template" && status === "ready" && sourceUrl;
   const resolvedPreviewUrl = toAbsoluteUrl(previewUrl);
@@ -109,49 +98,6 @@ export function XuluxCanvas({
     setIsPreviewLoading(true);
     setIframeVersion((value) => value + 1);
   }, []);
-
-  const handleDownload = useCallback(async () => {
-    setIsDownloading(true);
-    setDownloadError(null);
-    try {
-      const response = await fetch("/api/xulux/download", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sessionId }),
-      });
-      if (!response.ok) {
-        const payload = (await response.json().catch(() => null)) as {
-          error?: string;
-        } | null;
-        throw new Error(payload?.error ?? "Failed to download workspace.");
-      }
-
-      const blob = await response.blob();
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download =
-        filenameFromDisposition(response.headers.get("Content-Disposition")) ??
-        `xulux-workspace-${sessionId.slice(0, 12)}.tar.gz`;
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-      setTimeout(() => URL.revokeObjectURL(url), 40_000);
-      trackXuluxDownload(analyticsCtx, {
-        surface: "canvas",
-        download_type: "sandbox",
-        ...(templateId ? { template_id: templateId } : {}),
-      });
-    } catch (downloadErr) {
-      setDownloadError(
-        downloadErr instanceof Error
-          ? downloadErr.message
-          : String(downloadErr),
-      );
-    } finally {
-      setIsDownloading(false);
-    }
-  }, [analyticsCtx, sessionId, templateId]);
 
   const hasPreview = !!resolvedPreviewUrl;
   const resolvedDownloadUrl = downloadUrl
@@ -236,23 +182,6 @@ export function XuluxCanvas({
           <span className="sr-only">Download</span>
         </Button>
       )}
-      {canDownloadSandbox && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon"
-          className="text-muted-foreground hover:text-foreground size-7"
-          disabled={isDownloading}
-          onClick={handleDownload}
-        >
-          {isDownloading ? (
-            <Loader2 className="size-3.5 animate-spin" />
-          ) : (
-            <Download className="size-3.5" />
-          )}
-          <span className="sr-only">Download</span>
-        </Button>
-      )}
       {canOpenSource && (
         <Button
           type="button"
@@ -284,12 +213,6 @@ export function XuluxCanvas({
         }
         actions={tabActions}
       />
-
-      {downloadError && (
-        <div className="border-destructive/30 bg-background text-destructive z-10 border-b px-3 py-1.5 text-xs">
-          {downloadError}
-        </div>
-      )}
 
       <div className="bg-background relative min-h-0 flex-1">
         {/* Keep both panels mounted and avoid display:none — Radix TabsContent sets

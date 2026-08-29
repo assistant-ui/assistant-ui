@@ -12,6 +12,7 @@ export {
 export {
   DefaultAssistantClient,
   useAssistantContextProvider,
+  useAssistantContextValue,
 } from "./utils/react-assistant-context";
 export { useConfiguredAui } from "./useAui";
 export { getProxiedAssistantState } from "./utils/proxied-assistant-state";

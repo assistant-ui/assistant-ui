@@ -42,9 +42,9 @@ export type AISDKThreadsOptions<UI_MESSAGE extends UIMessage = UIMessage> =
       | undefined;
     /**
      * When set, the thread list is a `RemoteThreadList` backed by this
-     * assistant-cloud. Omit it to keep the in-memory list. The thread
-     * factory is keyed so cloud history reloads on a switch, and an
-     * in-flight run does not continue in the background.
+     * assistant-cloud. Omit it to keep the in-memory list. Every visited
+     * cloud thread stays mounted, so an in-flight run continues after a
+     * switch and stops on delete; per-thread history loads once per thread.
      */
     cloud?: AssistantCloud | undefined;
     /**
@@ -194,6 +194,7 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
     bindCloud
       ? RemoteThreadList({
           adapter: cloudAdapter,
+          backgroundThreads: true,
           thread,
           threadId,
           onThreadIdChange,
@@ -216,11 +217,13 @@ const useAISDKThreads = <UI_MESSAGE extends UIMessage = UIMessage>(
  * per-thread orchestration as {@link AISDKChat} inside the client's own
  * resource tree, so it works with any `AssistantClient` host, React or not.
  * Without `cloud`, threads live in memory for the client's lifetime and keep
- * their history across switches; each thread's chat id is its thread id.
- * With `cloud`, the list is a `RemoteThreadList` and the factory is keyed so
- * cloud history reloads on a switch. The store entry mounts only the visible
- * thread, so a switch cancels an in-flight run. Model context is
- * registered on the visible thread only.
+ * their history across switches; only the visible thread is mounted, and a
+ * switched-away chat keeps streaming into its stored state until it settles
+ * or the thread is deleted. With `cloud`, the list is a
+ * `RemoteThreadList` with `backgroundThreads`: every visited thread stays
+ * mounted with its own history, a run continues after a switch and stops on
+ * delete, and a freshly created thread titles itself. Model context is
+ * registered on every mounted thread.
  */
 export const AISDKThreads = resource(useAISDKThreads);
 

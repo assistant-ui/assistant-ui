@@ -44,7 +44,7 @@ function CopyButton({
         setTimeout(() => setCopied(false), 1500);
       }}
       className={cn(
-        "text-muted-foreground hover:text-foreground grid size-6 shrink-0 place-items-center rounded-(--radius-sm) transition-colors",
+        "text-muted-foreground hover:text-foreground grid size-6 shrink-0 place-items-center rounded-sm transition-colors",
         className,
       )}
     >
@@ -81,7 +81,7 @@ export function CodeBlock({
   return (
     <figure
       className={cn(
-        "not-prose not-fumadocs-codeblock border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] group/code relative my-6 flex min-w-0 flex-col overflow-hidden border",
+        "not-prose not-fumadocs-codeblock border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] group/code relative my-6 flex min-w-0 flex-col overflow-hidden rounded-sm border",
         className,
       )}
       {...props}

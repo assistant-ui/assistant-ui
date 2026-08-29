@@ -23,7 +23,7 @@ import {
 export function UserMessage(): ReactNode {
   return (
     <MessagePrimitive.Root className="flex justify-end py-2" data-role="user">
-      <div className="bg-muted max-w-[85%] rounded-(--radius-thread) px-3.5 py-2 text-sm empty:hidden">
+      <div className="bg-muted rounded-thread max-w-[85%] px-3.5 py-2 text-sm empty:hidden">
         <MessagePrimitive.Parts />
       </div>
     </MessagePrimitive.Root>

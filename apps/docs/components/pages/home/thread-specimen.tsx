@@ -70,7 +70,7 @@ export function ThreadSpecimen() {
 
   return (
     <section aria-label="Thread" className="flex flex-col gap-3">
-      <div className="border-foreground/10 h-[min(52rem,88svh)] overflow-hidden rounded-(--radius-document) border">
+      <div className="border-foreground/10 rounded-document h-[min(52rem,88svh)] overflow-hidden border">
         <DocsRuntimeProvider devtools={false}>
           {expanded
             ? createPortal(

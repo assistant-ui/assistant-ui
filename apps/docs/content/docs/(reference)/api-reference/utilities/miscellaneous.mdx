@@ -84,6 +84,9 @@ bodies are born from the `thread` factory inside the client tree, so any
 and attachments come from `unstable_useAdapters`. `useRemoteThreadListRuntime`
 uses the same hook when `unstable_Provider` is omitted. Key the factory
 with `withKey` so history reloads when the visible thread changes.
+With `backgroundThreads`, every visited thread stays mounted: runs continue
+across switches, per-item `isRunning` is live, and freshly initialized
+threads title themselves.
 
 <ParametersTable {...RemoteThreadList} />
 

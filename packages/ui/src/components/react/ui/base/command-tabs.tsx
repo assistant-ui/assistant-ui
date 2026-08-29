@@ -8,6 +8,7 @@ import {
   type ComponentProps,
 } from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
+import { useShikiHighlighter } from "react-shiki";
 import { cn } from "@/lib/utils";
 
 export interface CommandTabsProps extends Omit<
@@ -31,7 +32,7 @@ function syncEventName(storageKey: string) {
 
 /**
  * One command in several dialects: a tab per variant, the active command as
- * plain mono text, and a copy button. With a `storageKey`, picking a tab
+ * highlighted Bash, and a copy button. With a `storageKey`, picking a tab
  * switches every instance sharing that key and survives reloads.
  */
 export function CommandTabs({
@@ -86,11 +87,15 @@ export function CommandTabs({
     ? active
     : (labels[0] ?? "");
   const command = commands[activeLabel] ?? "";
+  const highlighted = useShikiHighlighter(command, "bash", {
+    light: "catppuccin-latte",
+    dark: "catppuccin-mocha",
+  });
 
   return (
     <figure
       className={cn(
-        "not-prose border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] my-6 flex min-w-0 flex-col overflow-hidden border",
+        "not-prose border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] my-6 flex min-w-0 flex-col overflow-hidden rounded-sm border",
         className,
       )}
       {...props}
@@ -131,7 +136,7 @@ export function CommandTabs({
             clearTimeout(copyTimer.current);
             copyTimer.current = setTimeout(() => setCopied(false), 1500);
           }}
-          className="text-muted-foreground hover:text-foreground grid size-6 shrink-0 place-items-center rounded-(--radius-sm) transition-colors"
+          className="text-muted-foreground hover:text-foreground grid size-6 shrink-0 place-items-center rounded-sm transition-colors"
         >
           {copied ? (
             <CheckIcon className="size-3.5" />
@@ -140,10 +145,19 @@ export function CommandTabs({
           )}
         </button>
       </div>
-      <div className="min-w-0 overflow-x-auto">
-        <pre className="w-max min-w-full px-3.5 py-4 font-mono text-[13px] leading-relaxed whitespace-pre [font-variant-ligatures:none]">
-          <code>{command}</code>
-        </pre>
+      <div
+        className={cn(
+          "min-w-0 overflow-x-auto",
+          "[&_pre]:w-max [&_pre]:min-w-full [&_pre]:bg-transparent! [&_pre]:px-3.5 [&_pre]:py-4 [&_pre]:font-mono [&_pre]:text-[13px] [&_pre]:leading-relaxed [&_pre]:whitespace-pre [&_pre]:[font-variant-ligatures:none]",
+          "[&_code_span]:[color:var(--shiki-light,inherit)]",
+          "dark:[&_code_span]:[color:var(--shiki-dark)]!",
+        )}
+      >
+        {highlighted ?? (
+          <pre>
+            <code>{command}</code>
+          </pre>
+        )}
       </div>
     </figure>
   );

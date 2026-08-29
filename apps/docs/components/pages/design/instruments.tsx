@@ -33,7 +33,7 @@ export function TintKnob() {
         value={tint}
         aria-label="Tint hue"
         onChange={(event) => apply(Number(event.target.value))}
-        className="bg-border [&::-moz-range-thumb]:border-foreground/40 [&::-moz-range-thumb]:bg-background [&::-webkit-slider-thumb]:border-foreground/40 [&::-webkit-slider-thumb]:bg-background h-px w-56 cursor-ew-resize appearance-none rounded-(--radius-capsule) outline-none [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:rounded-(--radius-capsule) [&::-moz-range-thumb]:border [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-(--radius-capsule) [&::-webkit-slider-thumb]:border"
+        className="bg-border [&::-moz-range-thumb]:border-foreground/40 [&::-moz-range-thumb]:bg-background [&::-webkit-slider-thumb]:border-foreground/40 [&::-webkit-slider-thumb]:bg-background rounded-capsule [&::-moz-range-thumb]:rounded-capsule [&::-webkit-slider-thumb]:rounded-capsule h-px w-56 cursor-ew-resize appearance-none outline-none [&::-moz-range-thumb]:size-3.5 [&::-moz-range-thumb]:border [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:border"
       />
       <span className="text-muted-foreground w-[3ch] text-right font-mono text-[11px] tabular-nums">
         {tint}

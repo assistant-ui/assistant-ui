@@ -14,7 +14,7 @@ The site is the library's own book. Everything below exists so that a page drawn
 assistant-ui is drawn as a printed document, not as an application skin. Every shape question is answered by asking what the thing is:
 
 - **The page is paper.** It is square. `--radius-page` is 0.
-- **Matter printed on the page** (a code sheet, a table, a figure plate, a specimen frame, a thread specimen) is printed, not applied. It is square. `--radius-document` is 0, and it is declared explicitly so a parent radius cannot leak into it.
+- **Matter printed on the page** (a code sheet, a table, a figure plate, a specimen frame, a thread specimen) is printed, not applied. It carries the smallest rounding on the scale, nothing more: `--radius-document` is 6px, and it is declared explicitly so a parent radius cannot leak into it.
 - **An object you press or lift** (a button, a field, a menu, a dialog, a toast, a composer) is a physical control resting on the paper. It is rounded.
 
 Everything below descends from that. Hairlines instead of boxes, because a printed rule is a line and not a container. Mono eyebrows instead of tracked all-caps kickers, because a running head names its section in the typewriter's voice. `fig. NN` captions instead of floating labels, because a plate in a book is numbered. A line budget, because ink is expensive.
@@ -35,12 +35,12 @@ Honesty ranks first because this site describes software that exists. No "soon",
 
 ## Register: shape
 
-Ask the three questions in order (page, printed matter, pressed object). Only the third answer reaches for the rounded scale:
+Ask the three questions in order (page, printed matter, pressed object). The page stays square, printed matter takes `--radius-document` and nothing else, and only the third answer reaches for the rest of the rounded scale:
 
 | Token | Value | What it is |
 | --- | --- | --- |
 | `--radius-page` | 0 | the page itself |
-| `--radius-document` | 0 | anything printed on it |
+| `--radius-document` | 6px | anything printed on it |
 | `--radius-sm` | 6px | kbd, inline code, the smallest icon button |
 | `--radius-control`, `--radius-md` | 8px | button, input, header CTA |
 | `--radius-surface` | 10px | menu, popover, tooltip |

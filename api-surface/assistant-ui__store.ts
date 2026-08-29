@@ -251,7 +251,7 @@ declare const auiConfigBrand: unique symbol;
 declare const clientIdBrand: unique symbol;
 
 declare namespace entry_client_exports {
-  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, useAssistantClientRef, useAssistantContextProvider, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, useConfiguredAui, viewportOverflows };
+  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, useAssistantClientRef, useAssistantContextProvider, useAssistantContextValue, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, useConfiguredAui, viewportOverflows };
 }
 
 declare const createAssistantClient: (config: AuiConfig.Input | AssistantConfigSource, options?: {
@@ -313,6 +313,8 @@ declare const useAssistantClientRef: () => {
 };
 
 declare const useAssistantContextProvider: <T>(value: AssistantClient, fn: () => T) => T;
+
+declare const useAssistantContextValue: () => AssistantClient;
 
 declare const useAssistantEmit: () => <TEvent extends Exclude<AssistantEventName, "*">>(event: TEvent, payload: AssistantEventPayload[TEvent]) => void;
 

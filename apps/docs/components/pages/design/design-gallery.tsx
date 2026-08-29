@@ -61,7 +61,7 @@ function DesignCard({
         <Link
           href={`/design/components/${component.slug}`}
           aria-label={`Open ${component.name}`}
-          className="text-muted-foreground hover:text-foreground grid size-6 place-items-center rounded-(--radius-sm) opacity-0 transition-[color,opacity] group-hover:opacity-100 focus-visible:opacity-100"
+          className="text-muted-foreground hover:text-foreground grid size-6 place-items-center rounded-sm opacity-0 transition-[color,opacity] group-hover:opacity-100 focus-visible:opacity-100"
         >
           <ArrowUpRightIcon className="size-3.5" />
         </Link>

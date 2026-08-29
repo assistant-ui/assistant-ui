@@ -92,7 +92,7 @@ export function LibraryBody({
           </p>
         </div>
 
-        <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] flex min-w-0 flex-col gap-7 px-6 py-8 md:px-10 md:py-10">
+        <div className="bg-foreground/[0.025] dark:bg-foreground/[0.04] rounded-document flex min-w-0 flex-col gap-7 px-6 py-8 md:px-10 md:py-10">
           <div className="flex flex-wrap items-center gap-3">
             <p className="font-mono text-[1.125rem] tracking-[-0.01em] break-all [font-variant-ligatures:none] md:text-[1.375rem]">
               npx assistant-ui init
