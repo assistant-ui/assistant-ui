@@ -1,10 +1,10 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  getDefaultWebMcpAdapter,
+  getDefaultWebMcpHost,
   type WebMcpModelContext,
   type WebMcpToolDescriptor,
-} from "./webmcp-adapter";
+} from "./webmcp-host";
 
 type Host = { modelContext?: WebMcpModelContext };
 
@@ -29,23 +29,23 @@ afterEach(() => {
   delete (navigator as Host).modelContext;
 });
 
-describe("getDefaultWebMcpAdapter", () => {
+describe("getDefaultWebMcpHost", () => {
   it("reports unavailable when the page exposes no model context", () => {
-    const adapter = getDefaultWebMcpAdapter();
-    expect(adapter.available).toBe(false);
-    expect(() => adapter.registerTool(descriptor)()).not.toThrow();
+    const host = getDefaultWebMcpHost();
+    expect(host.available).toBe(false);
+    expect(() => host.registerTool(descriptor)()).not.toThrow();
   });
 
   it("falls back to navigator.modelContext, preferring document when both exist", () => {
     const fromNavigator = vi.fn();
     install({ registerTool: fromNavigator }, "navigator");
-    expect(getDefaultWebMcpAdapter().available).toBe(true);
-    getDefaultWebMcpAdapter().registerTool(descriptor);
+    expect(getDefaultWebMcpHost().available).toBe(true);
+    getDefaultWebMcpHost().registerTool(descriptor);
     expect(fromNavigator).toHaveBeenCalledOnce();
 
     const fromDocument = vi.fn();
     install({ registerTool: fromDocument });
-    getDefaultWebMcpAdapter().registerTool(descriptor);
+    getDefaultWebMcpHost().registerTool(descriptor);
     expect(fromDocument).toHaveBeenCalledOnce();
     expect(fromNavigator).toHaveBeenCalledOnce();
   });
@@ -55,7 +55,7 @@ describe("getDefaultWebMcpAdapter", () => {
     const registerTool = vi.fn();
     install({ registerTool, unregisterTool });
 
-    const dispose = getDefaultWebMcpAdapter().registerTool(descriptor);
+    const dispose = getDefaultWebMcpHost().registerTool(descriptor);
     const options = registerTool.mock.calls[0]![1];
     expect(registerTool).toHaveBeenCalledWith(descriptor, expect.anything());
     expect(options.signal.aborted).toBe(false);
@@ -73,7 +73,7 @@ describe("getDefaultWebMcpAdapter", () => {
     const unregisterTool = vi.fn();
     install({ registerTool: () => ({ unregister }), unregisterTool });
 
-    getDefaultWebMcpAdapter().registerTool(descriptor)();
+    getDefaultWebMcpHost().registerTool(descriptor)();
     expect(unregister).toHaveBeenCalledOnce();
     expect(unregisterTool).not.toHaveBeenCalled();
   });
@@ -86,7 +86,7 @@ describe("getDefaultWebMcpAdapter", () => {
     });
 
     const onError = vi.fn();
-    const dispose = getDefaultWebMcpAdapter().registerTool(descriptor, onError);
+    const dispose = getDefaultWebMcpHost().registerTool(descriptor, onError);
     await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
     expect(onError.mock.calls[0]![0]).toBeInstanceOf(Error);
 
@@ -108,14 +108,14 @@ describe("getDefaultWebMcpAdapter", () => {
     });
 
     const onError = vi.fn();
-    getDefaultWebMcpAdapter().registerTool(descriptor, onError)();
+    getDefaultWebMcpHost().registerTool(descriptor, onError)();
     expect(unregisterTool).not.toHaveBeenCalled();
 
     fail(new Error("already registered"));
     await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
     expect(unregisterTool).not.toHaveBeenCalled();
 
-    getDefaultWebMcpAdapter().registerTool(descriptor)();
+    getDefaultWebMcpHost().registerTool(descriptor)();
     settle();
     await vi.waitFor(() =>
       expect(unregisterTool).toHaveBeenCalledWith("get_weather"),
@@ -125,27 +125,55 @@ describe("getDefaultWebMcpAdapter", () => {
 
   it("warns instead of rejecting when a deferred unregister throws", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    let settle!: () => void;
+    try {
+      let settle!: () => void;
+      install({
+        registerTool: () =>
+          new Promise<void>((resolve) => {
+            settle = resolve;
+          }),
+        unregisterTool: () => {
+          throw new Error("unregister boom");
+        },
+      });
+
+      getDefaultWebMcpHost().registerTool(descriptor)();
+      settle();
+
+      await vi.waitFor(() =>
+        expect(warn).toHaveBeenCalledWith(
+          expect.stringContaining('Unregistering WebMCP tool "get_weather"'),
+          expect.any(Error),
+        ),
+      );
+    } finally {
+      warn.mockRestore();
+    }
+  });
+
+  it("does not unregister a name a later registration has taken over", async () => {
+    const settles: Array<() => void> = [];
+    const unregisterTool = vi.fn();
     install({
       registerTool: () =>
         new Promise<void>((resolve) => {
-          settle = resolve;
+          settles.push(resolve);
         }),
-      unregisterTool: () => {
-        throw new Error("unregister boom");
-      },
+      unregisterTool,
     });
 
-    getDefaultWebMcpAdapter().registerTool(descriptor)();
-    settle();
+    const disposeFirst = getDefaultWebMcpHost().registerTool(descriptor);
+    disposeFirst();
 
-    await vi.waitFor(() =>
-      expect(warn).toHaveBeenCalledWith(
-        expect.stringContaining('Unregistering WebMCP tool "get_weather"'),
-        expect.any(Error),
-      ),
-    );
-    warn.mockRestore();
+    getDefaultWebMcpHost().registerTool(descriptor);
+    expect(settles).toHaveLength(2);
+
+    settles[1]!();
+    settles[0]!();
+    await vi.waitFor(() => expect(settles).toHaveLength(2));
+    await Promise.resolve();
+
+    expect(unregisterTool).not.toHaveBeenCalled();
   });
 
   it("survives a registration handle that settles synchronously", () => {
@@ -158,7 +186,7 @@ describe("getDefaultWebMcpAdapter", () => {
       unregisterTool,
     });
 
-    const dispose = getDefaultWebMcpAdapter().registerTool(descriptor);
+    const dispose = getDefaultWebMcpHost().registerTool(descriptor);
     expect(unregisterTool).not.toHaveBeenCalled();
 
     dispose();
@@ -169,7 +197,7 @@ describe("getDefaultWebMcpAdapter", () => {
     const unregisterTool = vi.fn();
     install({ registerTool: () => Promise.resolve(), unregisterTool });
 
-    const dispose = getDefaultWebMcpAdapter().registerTool(descriptor);
+    const dispose = getDefaultWebMcpHost().registerTool(descriptor);
     await Promise.resolve();
     dispose();
     expect(unregisterTool).toHaveBeenCalledWith("get_weather");

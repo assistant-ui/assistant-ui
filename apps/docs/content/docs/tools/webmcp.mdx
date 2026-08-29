@@ -1,11 +1,11 @@
 ---
-title: WebMCP bridge
-description: Expose your app's frontend tools to a WebMCP-capable browser with unstable_useWebMcpBridge.
+title: WebMCP provider
+description: Expose your app's frontend tools to a WebMCP-capable browser with unstable_useWebMcpProvider.
 ---
 
 WebMCP is a browser-native way for a page to publish tools to the agent the *user* is running — an extension, a sidebar assistant, or the browser itself — through `document.modelContext` (with `navigator.modelContext` as a fallback). A page calls `registerTool` and the agent can call it.
 
-`unstable_useWebMcpBridge` connects the two directions you already have. Every frontend tool registered in the assistant-ui model context is published to the browser's WebMCP host, and the results come back through the same `Tool` contract your chat runtime uses. You define a tool once; both your assistant and the user's browser agent can call it.
+`unstable_useWebMcpProvider` connects the two directions you already have. Every frontend tool registered in the assistant-ui model context is published to the browser's WebMCP host, and the results come back through the same `Tool` contract your chat runtime uses. You define a tool once; both your assistant and the user's browser agent can call it.
 
 <Callout type="warn">
   This hook is `unstable_`. WebMCP itself is an emerging browser API and the
@@ -18,19 +18,19 @@ WebMCP is a browser-native way for a page to publish tools to the agent the *use
 Mount it once, anywhere inside your `AuiProvider`:
 
 ```tsx title="app/page.tsx"
-import { unstable_useWebMcpBridge } from "@assistant-ui/react";
+import { unstable_useWebMcpProvider } from "@assistant-ui/react";
 
-const WebMcpBridge = () => {
-  const { status, registeredToolNames } = unstable_useWebMcpBridge();
+const WebMcpTools = () => {
+  const { status, registeredToolNames } = unstable_useWebMcpProvider();
 
   if (status === "unsupported") return null;
   return <span>Exposed to your browser: {registeredToolNames.join(", ")}</span>;
 };
 ```
 
-`status` is `"unsupported"` when the page has no `modelContext` — every browser without WebMCP today — and `"active"` once the bridge is running. The check runs when the hook mounts and is not repeated: WebMCP defines no availability event, and the bridge does not poll, so an extension that injects `modelContext` into an already-rendered page is only picked up on the next mount. `registeredToolNames` is the sorted list of names currently live on the host; a name that the host refuses (because the page already registered it) is not in the list.
+`status` is `"unsupported"` when the page has no `modelContext` — every browser without WebMCP today — and `"active"` once the provider is running. The check runs when the hook mounts and is not repeated: WebMCP defines no availability event, and the provider does not poll, so an extension that injects `modelContext` into an already-rendered page is only picked up on the next mount. `registeredToolNames` is the sorted list of names currently live on the host; a name that the host refuses (because the page already registered it) is not in the list.
 
-With no `filter`, the bridge publishes every enabled frontend tool that has an `execute`; backend tools, disabled tools, and tools with no client-side implementation are skipped. A `filter` you pass **replaces** that default rather than narrowing it — see below.
+With no `filter`, the provider publishes every enabled frontend tool that has an `execute`; backend tools, disabled tools, and tools with no client-side implementation are skipped. A tool authored without a `type` counts as frontend when it has an `execute`, since that is what separates the deprecated type-less form from a backend or human tool. A `filter` you pass **replaces** that default rather than narrowing it — see below.
 
 ## Choosing which tools to publish
 
@@ -40,13 +40,13 @@ Your `filter` **replaces** the default predicate, it does not run after it. A na
 
 ```tsx
 import {
-  unstable_useWebMcpBridge,
+  unstable_useWebMcpProvider,
   unstable_defaultWebMcpFilter,
 } from "@assistant-ui/react";
 
 const PUBLIC_TOOLS = new Set(["search_docs", "get_order_status"]);
 
-unstable_useWebMcpBridge({
+unstable_useWebMcpProvider({
   filter: (name, tool) =>
     unstable_defaultWebMcpFilter(name, tool) && PUBLIC_TOOLS.has(name),
 });
@@ -58,23 +58,23 @@ A tool the browser agent can call is a tool *anyone* driving that browser can ca
 
 ## Lifecycle
 
-The bridge owns its registrations:
+The provider owns its registrations:
 
 - A tool that leaves the model context is unregistered.
 - Changing a tool's `description` or `parameters` re-registers it under the new signature; changing only its `execute` implementation does not — the live registration calls through to the latest version.
 - Unmounting unregisters everything.
-- A registration the host rejects is dropped with a `console.warn`, and its name is left alone — the bridge never unregisters a tool it does not own. That name is then not retried while the tool stays in the model context, so a permanent collision warns once rather than on every sync. The trade-off is that a *transient* collision is not retried either: if the page later frees the name, the bridge does not notice. Removing the tool from the model context and adding it back retries it, as does remounting.
+- A registration the host rejects is dropped with a `console.warn`, and its name is left alone — the provider never unregisters a tool it does not own. That name is then not retried while the tool stays in the model context, so a permanent collision warns once rather than on every sync. The trade-off is that a *transient* collision is not retried either: if the page later frees the name, the provider does not notice. Removing the tool from the model context and adding it back retries it, as does remounting.
 
 Calls are executed through the same path as a frontend tool call: Standard Schema parameters are validated first (including `experimental_onSchemaValidationError`), `toModelOutput` shapes the result if you define it, and the host's `AbortSignal` is merged with the registration's own lifetime, so an unregistered tool cancels in-flight work. `human()` is not available — a WebMCP caller has no assistant-ui composer to answer with.
 
 ## API
 
 ```ts
-type Unstable_WebMcpBridgeOptions = {
+type Unstable_WebMcpProviderOptions = {
   filter?: (name: string, tool: Tool<any, any>) => boolean;
 };
 
-type Unstable_WebMcpBridgeResult = {
+type Unstable_WebMcpProviderResult = {
   status: "unsupported" | "active";
   registeredToolNames: readonly string[];
 };

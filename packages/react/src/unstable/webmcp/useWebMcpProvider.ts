@@ -3,33 +3,39 @@
 import { useEffect, useRef, useState } from "react";
 import { useAui } from "@assistant-ui/store";
 import type { Tool } from "assistant-stream";
-import { getDefaultWebMcpAdapter } from "./webmcp-adapter";
+import { getDefaultWebMcpHost } from "./webmcp-host";
 import {
   defaultWebMcpFilter,
   toWebMcpInputSchema,
   toWebMcpTool,
 } from "./convertTools";
 
-export type Unstable_WebMcpBridgeOptions = {
+export type Unstable_WebMcpProviderOptions = {
   filter?: (name: string, tool: Tool<any, any>) => boolean;
 };
 
-export type Unstable_WebMcpBridgeResult = {
+export type Unstable_WebMcpProviderResult = {
   status: "unsupported" | "active";
   registeredToolNames: readonly string[];
 };
 
 const EMPTY_NAMES: readonly string[] = Object.freeze([]);
 
-const signatures = new WeakMap<Tool<any, any>, string>();
+// The description is re-read on every sync so mutating it in place is
+// observed; the schema is converted only when the tool object itself changes.
+const signatures = new WeakMap<
+  Tool<any, any>,
+  { description: string | undefined; signature: string }
+>();
 
 const signatureOf = (tool: Tool<any, any>) => {
   const cached = signatures.get(tool);
-  if (cached !== undefined) return cached;
+  if (cached && cached.description === tool.description)
+    return cached.signature;
   const signature = `${tool.description ?? ""}\u0000${JSON.stringify(
     toWebMcpInputSchema(tool),
   )}`;
-  signatures.set(tool, signature);
+  signatures.set(tool, { description: tool.description, signature });
   return signature;
 };
 
@@ -41,9 +47,9 @@ const signatureOf = (tool: Tool<any, any>) => {
  * `document.modelContext` (or `navigator.modelContext`), and the sorted names
  * of the tools currently registered with the host.
  */
-export const unstable_useWebMcpBridge = (
-  options: Unstable_WebMcpBridgeOptions = {},
-): Unstable_WebMcpBridgeResult => {
+export const unstable_useWebMcpProvider = (
+  options: Unstable_WebMcpProviderOptions = {},
+): Unstable_WebMcpProviderResult => {
   const aui = useAui();
   const [registeredToolNames, setRegisteredToolNames] =
     useState<readonly string[]>(EMPTY_NAMES);
@@ -56,12 +62,12 @@ export const unstable_useWebMcpBridge = (
     if (filterChanged) syncRef.current?.();
   });
 
-  const [bridged, setBridged] = useState(false);
+  const [published, setPublished] = useState(false);
 
   useEffect(() => {
-    const adapter = getDefaultWebMcpAdapter();
-    if (!adapter.available) return undefined;
-    setBridged(true);
+    const host = getDefaultWebMcpHost();
+    if (!host.available) return undefined;
+    setPublished(true);
 
     type Registration = {
       signature: string;
@@ -137,7 +143,7 @@ export const unstable_useWebMcpBridge = (
             lifecycle: new AbortController(),
             dispose: () => {},
           };
-          registration.dispose = adapter.registerTool(
+          registration.dispose = host.registerTool(
             toWebMcpTool(
               name,
               () => registration.tool,
@@ -176,12 +182,12 @@ export const unstable_useWebMcpBridge = (
       unsubscribe?.();
       for (const name of [...registered.keys()]) disposeRegistration(name);
       setRegisteredToolNames(EMPTY_NAMES);
-      setBridged(false);
+      setPublished(false);
     };
   }, [aui]);
 
   return {
-    status: bridged ? "active" : "unsupported",
+    status: published ? "active" : "unsupported",
     registeredToolNames,
   };
 };

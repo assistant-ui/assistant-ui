@@ -5,38 +5,38 @@ import { cleanup } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { Tool } from "assistant-stream";
 import type {
-  WebMcpAdapter,
+  WebMcpHost,
   WebMcpModelContext,
   WebMcpToolDescriptor,
-} from "./webmcp-adapter";
+} from "./webmcp-host";
 
-const { adapterRef } = vi.hoisted(() => ({
-  adapterRef: { current: null as WebMcpAdapter | null },
+const { hostRef } = vi.hoisted(() => ({
+  hostRef: { current: null as WebMcpHost | null },
 }));
 
-vi.mock("./webmcp-adapter", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./webmcp-adapter")>();
+vi.mock("./webmcp-host", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("./webmcp-host")>();
   return {
     ...actual,
-    getDefaultWebMcpAdapter: (): WebMcpAdapter =>
-      adapterRef.current ?? actual.getDefaultWebMcpAdapter(),
+    getDefaultWebMcpHost: (): WebMcpHost =>
+      hostRef.current ?? actual.getDefaultWebMcpHost(),
   };
 });
 
 const {
-  bridgeResult,
+  providerResult,
   createAsyncModelContext,
-  createFakeWebMcpAdapter,
+  createFakeWebMcpHost,
   createProvider,
   frontendTool,
-  mountBridge,
+  mountProvider,
   silenceWarnings,
   waitForNames,
 } = await import("./__tests__/webmcp.fake");
 
-const useAdapter = <T extends WebMcpAdapter>(adapter: T): T => {
-  adapterRef.current = adapter;
-  return adapter;
+const useHost = <T extends WebMcpHost>(host: T): T => {
+  hostRef.current = host;
+  return host;
 };
 
 const strict = (children: ReactNode) => <StrictMode>{children}</StrictMode>;
@@ -45,23 +45,23 @@ const backendTool = { type: "backend" } as Tool<any, any>;
 
 afterEach(() => {
   cleanup();
-  adapterRef.current = null;
+  hostRef.current = null;
   delete (document as { modelContext?: WebMcpModelContext }).modelContext;
   vi.restoreAllMocks();
 });
 
-describe("unstable_useWebMcpBridge", () => {
+describe("unstable_useWebMcpProvider", () => {
   it("reports unsupported and registers nothing when the page has no model context", async () => {
     const provider = createProvider({ search: frontendTool() });
-    mountBridge(provider);
+    mountProvider(provider);
 
-    await vi.waitFor(() => expect(bridgeResult().status).toBe("unsupported"));
-    expect(bridgeResult().registeredToolNames).toEqual([]);
+    await vi.waitFor(() => expect(providerResult().status).toBe("unsupported"));
+    expect(providerResult().registeredToolNames).toEqual([]);
   });
 
   it("registers the filtered tools and reports them sorted", async () => {
-    const adapter = useAdapter(createFakeWebMcpAdapter());
-    mountBridge(
+    const host = useHost(createFakeWebMcpHost());
+    mountProvider(
       createProvider({
         search: frontendTool(),
         alpha: frontendTool({ description: "alpha" }),
@@ -72,32 +72,32 @@ describe("unstable_useWebMcpBridge", () => {
     );
 
     await waitForNames(["alpha", "search"]);
-    expect(bridgeResult().status).toBe("active");
-    expect([...adapter.registry.keys()].sort()).toEqual(["alpha", "search"]);
-    expect(adapter.registry.get("search")?.description).toBe("search things");
+    expect(providerResult().status).toBe("active");
+    expect([...host.registry.keys()].sort()).toEqual(["alpha", "search"]);
+    expect(host.registry.get("search")?.description).toBe("search things");
   });
 
   it("honours a custom filter and re-syncs when the filter identity changes", async () => {
-    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const host = useHost(createFakeWebMcpHost());
     const provider = createProvider({
       search: frontendTool(),
       alpha: frontendTool(),
     });
 
-    const { rerender } = mountBridge(provider, {
+    const { rerender } = mountProvider(provider, {
       filter: (name) => name === "search",
     });
     await waitForNames(["search"]);
 
     rerender({ filter: (name) => name === "alpha" });
     await waitForNames(["alpha"]);
-    expect(adapter.unregisterCalls).toEqual(["search"]);
+    expect(host.unregisterCalls).toEqual(["search"]);
   });
 
   it("warns and skips a tool whose filter throws", async () => {
     const warn = silenceWarnings();
-    useAdapter(createFakeWebMcpAdapter());
-    mountBridge(
+    useHost(createFakeWebMcpHost());
+    mountProvider(
       createProvider({ search: frontendTool(), bad: frontendTool() }),
       {
         filter: (name) => {
@@ -115,9 +115,9 @@ describe("unstable_useWebMcpBridge", () => {
   });
 
   it("adds and removes registrations as the model context changes", async () => {
-    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const host = useHost(createFakeWebMcpHost());
     const provider = createProvider({ search: frontendTool() });
-    mountBridge(provider);
+    mountProvider(provider);
     await waitForNames(["search"]);
 
     provider.setTools({ search: frontendTool(), alpha: frontendTool() });
@@ -125,19 +125,19 @@ describe("unstable_useWebMcpBridge", () => {
 
     provider.setTools({ alpha: frontendTool() });
     await waitForNames(["alpha"]);
-    expect(adapter.unregisterCalls).toEqual(["search"]);
-    expect(adapter.registerCalls).toEqual(["search", "alpha"]);
+    expect(host.unregisterCalls).toEqual(["search"]);
+    expect(host.registerCalls).toEqual(["search", "alpha"]);
   });
 
   it("keeps one registration across an implementation change and calls through to the latest tool", async () => {
-    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const host = useHost(createFakeWebMcpHost());
     const provider = createProvider({
       search: frontendTool({ execute: async () => "first" }),
     });
-    mountBridge(provider);
+    mountProvider(provider);
     await waitForNames(["search"]);
 
-    const descriptor = adapter.registry.get("search")!;
+    const descriptor = host.registry.get("search")!;
     await expect(descriptor.execute({})).resolves.toEqual({
       content: [{ type: "text", text: "first" }],
     });
@@ -150,62 +150,79 @@ describe("unstable_useWebMcpBridge", () => {
         content: [{ type: "text", text: "second" }],
       });
     });
-    expect(adapter.registerCalls).toEqual(["search"]);
-    expect(adapter.unregisterCalls).toEqual([]);
+    expect(host.registerCalls).toEqual(["search"]);
+    expect(host.unregisterCalls).toEqual([]);
   });
 
   it("re-registers when the description or the schema changes", async () => {
-    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const host = useHost(createFakeWebMcpHost());
     const provider = createProvider({ search: frontendTool() });
-    mountBridge(provider);
+    mountProvider(provider);
     await waitForNames(["search"]);
 
     provider.setTools({ search: frontendTool({ description: "renamed" }) });
     await vi.waitFor(() =>
-      expect(adapter.registry.get("search")?.description).toBe("renamed"),
+      expect(host.registry.get("search")?.description).toBe("renamed"),
     );
-    expect(adapter.registerCalls).toEqual(["search", "search"]);
-    expect(adapter.unregisterCalls).toEqual(["search"]);
-    expect(bridgeResult().registeredToolNames).toEqual(["search"]);
+    expect(host.registerCalls).toEqual(["search", "search"]);
+    expect(host.unregisterCalls).toEqual(["search"]);
+    expect(providerResult().registeredToolNames).toEqual(["search"]);
+  });
+
+  it("re-registers when a description is mutated on the same tool object", async () => {
+    const host = useHost(createFakeWebMcpHost());
+    const tool = frontendTool();
+    const provider = createProvider({ search: tool });
+    mountProvider(provider);
+    await waitForNames(["search"]);
+
+    (tool as { description: string }).description = "renamed in place";
+    provider.setTools({ search: tool });
+
+    await vi.waitFor(() =>
+      expect(host.registry.get("search")?.description).toBe("renamed in place"),
+    );
+    expect(host.registerCalls).toEqual(["search", "search"]);
+    expect(host.unregisterCalls).toEqual(["search"]);
   });
 
   it("does not treat a tool named after an Object.prototype key as inherited", async () => {
-    const adapter = useAdapter(createFakeWebMcpAdapter());
+    const host = useHost(createFakeWebMcpHost());
     const provider = createProvider({
       constructor: frontendTool({ description: "ctor" }),
       toString: frontendTool({ description: "str" }),
     });
-    mountBridge(provider);
+    mountProvider(provider);
 
     await waitForNames(["constructor", "toString"]);
-    expect(adapter.registry.get("constructor")?.description).toBe("ctor");
+    expect(host.registry.get("constructor")?.description).toBe("ctor");
 
     provider.setTools({ constructor: frontendTool({ description: "ctor" }) });
     await waitForNames(["constructor"]);
-    expect(adapter.unregisterCalls).toEqual(["toString"]);
-    expect(adapter.registerCalls).toEqual(["constructor", "toString"]);
+    expect(host.unregisterCalls).toEqual(["toString"]);
+    expect(host.registerCalls).toEqual(["constructor", "toString"]);
   });
 
   it("unregisters everything on unmount and warns when a disposer throws", async () => {
     const warn = silenceWarnings();
-    const adapter = useAdapter(createFakeWebMcpAdapter());
-    const { view } = mountBridge(
+    const host = useHost(createFakeWebMcpHost());
+    const { view } = mountProvider(
       createProvider({ search: frontendTool(), alpha: frontendTool() }),
     );
     await waitForNames(["alpha", "search"]);
 
     view.unmount();
-    expect(adapter.registry.size).toBe(0);
-    expect(adapter.unregisterCalls.sort()).toEqual(["alpha", "search"]);
+    expect(host.registry.size).toBe(0);
+    expect(host.unregisterCalls.sort()).toEqual(["alpha", "search"]);
     expect(warn).not.toHaveBeenCalled();
 
-    useAdapter({
-      ...createFakeWebMcpAdapter(),
+    useHost({
+      ...createFakeWebMcpHost(),
       registerTool: () => () => {
         throw new Error("dispose boom");
       },
     });
-    const second = mountBridge(createProvider({ search: frontendTool() }));
+    const second = mountProvider(createProvider({ search: frontendTool() }));
     await waitForNames(["search"]);
     second.view.unmount();
     expect(warn).toHaveBeenCalledWith(
@@ -216,10 +233,10 @@ describe("unstable_useWebMcpBridge", () => {
 
   it("warns and skips a name registerTool synchronously refuses", async () => {
     const warn = silenceWarnings();
-    const adapter = useAdapter(createFakeWebMcpAdapter());
-    adapter.registry.set("search", {} as WebMcpToolDescriptor);
+    const host = useHost(createFakeWebMcpHost());
+    host.registry.set("search", {} as WebMcpToolDescriptor);
 
-    mountBridge(
+    mountProvider(
       createProvider({ search: frontendTool(), alpha: frontendTool() }),
     );
 
@@ -228,29 +245,29 @@ describe("unstable_useWebMcpBridge", () => {
       expect.stringContaining("registerTool failed"),
       expect.any(Error),
     );
-    expect(adapter.registry.get("search")).toEqual({});
+    expect(host.registry.get("search")).toEqual({});
   });
 
   it("warns once for a refused name and stops retrying it until it leaves the model context", async () => {
     const warn = silenceWarnings();
-    const adapter = useAdapter(createFakeWebMcpAdapter());
-    adapter.registry.set("search", {} as WebMcpToolDescriptor);
-    const attempts = vi.spyOn(adapter, "registerTool");
+    const host = useHost(createFakeWebMcpHost());
+    host.registry.set("search", {} as WebMcpToolDescriptor);
+    const attempts = vi.spyOn(host, "registerTool");
 
     const provider = createProvider({ search: frontendTool() });
-    mountBridge(provider);
+    mountProvider(provider);
     await vi.waitFor(() => expect(warn).toHaveBeenCalledOnce());
 
     for (let i = 0; i < 10; i++) {
       provider.setTools({ search: frontendTool({ description: `v${i}` }) });
     }
     await vi.waitFor(() =>
-      expect(bridgeResult().registeredToolNames).toEqual([]),
+      expect(providerResult().registeredToolNames).toEqual([]),
     );
     expect(warn).toHaveBeenCalledOnce();
     expect(attempts).toHaveBeenCalledOnce();
 
-    adapter.registry.delete("search");
+    host.registry.delete("search");
     provider.setTools({ alpha: frontendTool() });
     await waitForNames(["alpha"]);
     provider.setTools({ alpha: frontendTool(), search: frontendTool() });
@@ -259,7 +276,7 @@ describe("unstable_useWebMcpBridge", () => {
   });
 
   it("does not re-serialize schemas when an inline filter changes identity", async () => {
-    useAdapter(createFakeWebMcpAdapter());
+    useHost(createFakeWebMcpHost());
     let schemaReads = 0;
     const tool = frontendTool();
     Object.defineProperty(tool, "parameters", {
@@ -269,7 +286,7 @@ describe("unstable_useWebMcpBridge", () => {
       },
     });
 
-    const { rerender } = mountBridge(createProvider({ search: tool }), {
+    const { rerender } = mountProvider(createProvider({ search: tool }), {
       filter: () => true,
     });
     await waitForNames(["search"]);
@@ -281,12 +298,12 @@ describe("unstable_useWebMcpBridge", () => {
   });
 
   it("holds a single live registration under StrictMode", async () => {
-    const adapter = useAdapter(createFakeWebMcpAdapter());
-    mountBridge(createProvider({ search: frontendTool() }), {}, strict);
+    const host = useHost(createFakeWebMcpHost());
+    mountProvider(createProvider({ search: frontendTool() }), {}, strict);
 
     await waitForNames(["search"]);
-    expect([...adapter.registry.keys()]).toEqual(["search"]);
-    expect(bridgeResult().status).toBe("active");
+    expect([...host.registry.keys()]).toEqual(["search"]);
+    expect(providerResult().status).toBe("active");
   });
 
   it("warns and drops the name when a registration is rejected", async () => {
@@ -305,10 +322,10 @@ describe("unstable_useWebMcpBridge", () => {
     };
     registry.set("search", { name: "search" } as WebMcpToolDescriptor);
 
-    mountBridge(createProvider({ search: frontendTool() }));
+    mountProvider(createProvider({ search: frontendTool() }));
 
     await vi.waitFor(() =>
-      expect(bridgeResult().registeredToolNames).toEqual([]),
+      expect(providerResult().registeredToolNames).toEqual([]),
     );
     expect(warn).toHaveBeenCalledWith(
       expect.stringContaining('tool "search" failed'),
@@ -320,7 +337,7 @@ describe("unstable_useWebMcpBridge", () => {
   it("keeps the tool exposed across a description change on an async unregisterTool", async () => {
     const registry = createAsyncModelContext();
     const provider = createProvider({ search: frontendTool() });
-    mountBridge(provider);
+    mountProvider(provider);
     await waitForNames(["search"]);
 
     provider.setTools({ search: frontendTool({ description: "renamed" }) });
@@ -329,7 +346,7 @@ describe("unstable_useWebMcpBridge", () => {
     );
     await Promise.resolve();
     expect(registry.get("search")?.description).toBe("renamed");
-    expect(bridgeResult().registeredToolNames).toEqual(["search"]);
+    expect(providerResult().registeredToolNames).toEqual(["search"]);
   });
 
   it("ignores a late failure reported by a replaced registration", async () => {
@@ -339,7 +356,7 @@ describe("unstable_useWebMcpBridge", () => {
       onError?: (error: unknown) => void;
       dispose: ReturnType<typeof vi.fn>;
     }[] = [];
-    useAdapter({
+    useHost({
       available: true,
       registerTool: (def, onError) => {
         const dispose = vi.fn();
@@ -349,7 +366,7 @@ describe("unstable_useWebMcpBridge", () => {
     });
 
     const provider = createProvider({ search: frontendTool() });
-    mountBridge(provider);
+    mountProvider(provider);
     await waitForNames(["search"]);
 
     provider.setTools({ search: frontendTool({ description: "renamed" }) });
@@ -357,7 +374,7 @@ describe("unstable_useWebMcpBridge", () => {
 
     calls[0]!.onError?.(new Error("late failure"));
 
-    expect(bridgeResult().registeredToolNames).toEqual(["search"]);
+    expect(providerResult().registeredToolNames).toEqual(["search"]);
     expect(calls[1]!.dispose).not.toHaveBeenCalled();
     expect(warn).not.toHaveBeenCalled();
   });

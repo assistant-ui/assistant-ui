@@ -37,6 +37,12 @@ describe("defaultWebMcpFilter", () => {
     ["hides a backend tool", { type: "backend" }, false],
     ["hides a frontend tool with no execute", { execute: undefined }, false],
     ["hides a disabled frontend tool", { disabled: true }, false],
+    ["exposes a tool authored without a type", { type: undefined }, true],
+    [
+      "hides a type-less tool with no execute",
+      { type: undefined, execute: undefined },
+      false,
+    ],
   ] as const)("%s", ([, overrides, expected]) => {
     expect(defaultWebMcpFilter("t", frontendTool(overrides as any))).toBe(
       expected,
@@ -127,6 +133,15 @@ describe("toWebMcpTool execute", () => {
       execute: async () => circular,
     }).execute({});
     expect(unserializable.isError).toBe(true);
+  });
+
+  it("projects values JSON cannot serialize but that have a string form", async () => {
+    await expect(
+      descriptorFor({ execute: async () => 9007199254740993n }).execute({}),
+    ).resolves.toEqual({ content: [text("9007199254740993")] });
+    await expect(
+      descriptorFor({ execute: async () => Symbol("ticket") }).execute({}),
+    ).resolves.toEqual({ content: [text("Symbol(ticket)")] });
   });
 
   it("rejects human input requests", async () => {

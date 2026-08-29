@@ -2,4 +2,4 @@
 "@assistant-ui/react": patch
 ---
 
-feat: unstable_useWebMcpBridge — publish frontend tools to a WebMCP-capable browser
+feat: unstable_useWebMcpProvider, publishing frontend tools to a WebMCP-capable browser

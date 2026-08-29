@@ -6,23 +6,23 @@ import { ModelContext } from "@assistant-ui/core/store";
 import type { ModelContextProvider } from "@assistant-ui/core";
 import type { Tool } from "assistant-stream";
 import type {
-  WebMcpAdapter,
+  WebMcpHost,
   WebMcpModelContext,
   WebMcpToolDescriptor,
-} from "../webmcp-adapter";
+} from "../webmcp-host";
 import {
-  unstable_useWebMcpBridge,
-  type Unstable_WebMcpBridgeOptions,
-  type Unstable_WebMcpBridgeResult,
-} from "../useWebMcpBridge";
+  unstable_useWebMcpProvider,
+  type Unstable_WebMcpProviderOptions,
+  type Unstable_WebMcpProviderResult,
+} from "../useWebMcpProvider";
 
-export type FakeWebMcpAdapter = WebMcpAdapter & {
+export type FakeWebMcpHost = WebMcpHost & {
   registry: Map<string, WebMcpToolDescriptor>;
   registerCalls: string[];
   unregisterCalls: string[];
 };
 
-export const createFakeWebMcpAdapter = (): FakeWebMcpAdapter => {
+export const createFakeWebMcpHost = (): FakeWebMcpHost => {
   const registry = new Map<string, WebMcpToolDescriptor>();
   const registerCalls: string[] = [];
   const unregisterCalls: string[] = [];
@@ -105,12 +105,12 @@ export const createProvider = (
   } as FakeProvider;
 };
 
-let latest: Unstable_WebMcpBridgeResult;
+let latest: Unstable_WebMcpProviderResult;
 
-export const bridgeResult = (): Unstable_WebMcpBridgeResult => latest;
+export const providerResult = (): Unstable_WebMcpProviderResult => latest;
 
-const Probe = ({ options }: { options: Unstable_WebMcpBridgeOptions }) => {
-  latest = unstable_useWebMcpBridge(options);
+const Probe = ({ options }: { options: Unstable_WebMcpProviderOptions }) => {
+  latest = unstable_useWebMcpProvider(options);
   return null;
 };
 
@@ -125,7 +125,7 @@ const Harness = ({
   options,
 }: {
   provider: ModelContextProvider;
-  options: Unstable_WebMcpBridgeOptions;
+  options: Unstable_WebMcpProviderOptions;
 }) => (
   <AuiProvider config={AuiConfig({ modelContext: ModelContext() } as never)}>
     <Registrar provider={provider} />
@@ -133,9 +133,9 @@ const Harness = ({
   </AuiProvider>
 );
 
-export const mountBridge = (
+export const mountProvider = (
   provider: ModelContextProvider,
-  options: Unstable_WebMcpBridgeOptions = {},
+  options: Unstable_WebMcpProviderOptions = {},
   wrap: (children: ReactNode) => ReactNode = (children) => children,
 ) => {
   const view = render(
@@ -143,7 +143,7 @@ export const mountBridge = (
   );
   return {
     view,
-    rerender: (next: Unstable_WebMcpBridgeOptions) =>
+    rerender: (next: Unstable_WebMcpProviderOptions) =>
       view.rerender(
         <>{wrap(<Harness provider={provider} options={next} />)}</>,
       ),
@@ -151,7 +151,7 @@ export const mountBridge = (
 };
 
 export const waitForNames = (names: string[]) =>
-  vi.waitFor(() => expect(bridgeResult().registeredToolNames).toEqual(names));
+  vi.waitFor(() => expect(providerResult().registeredToolNames).toEqual(names));
 
 export const silenceWarnings = () =>
   vi.spyOn(console, "warn").mockImplementation(() => {});

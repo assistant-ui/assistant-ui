@@ -9,17 +9,22 @@ import type {
   WebMcpCallToolResult,
   WebMcpContent,
   WebMcpToolDescriptor,
-} from "./webmcp-adapter";
+} from "./webmcp-host";
 
 /**
- * The predicate the WebMCP bridge uses when no `filter` is passed: an enabled
- * frontend tool with a client-side `execute`. A `filter` replaces it, so pass
- * it through to narrow the default set rather than widen it.
+ * The predicate the WebMCP provider uses when no `filter` is passed: an enabled
+ * frontend tool with a client-side `execute`. A tool authored without a `type`
+ * is included, because `execute` is what distinguishes the deprecated
+ * type-less form from a backend or human tool. A `filter` replaces this, so
+ * pass it through to narrow the default set rather than widen it.
  */
 export const defaultWebMcpFilter = (
   _name: string,
   tool: Tool<any, any>,
-): boolean => tool.type === "frontend" && !!tool.execute && !tool.disabled;
+): boolean =>
+  (tool.type === "frontend" || tool.type === undefined) &&
+  !!tool.execute &&
+  !tool.disabled;
 
 export const toWebMcpInputSchema = (tool: Tool<any, any>): unknown =>
   tool.parameters
@@ -33,12 +38,19 @@ const errorResult = (message: string): WebMcpCallToolResult => ({
   content: [textContent(message)],
 });
 
+// bigint throws in JSON.stringify and symbol serializes to undefined, but both
+// have a faithful string form. A value that cannot be serialized at all still
+// throws through to the error result.
+const toText = (value: unknown): string => {
+  if (typeof value === "string") return value;
+  if (typeof value === "bigint" || typeof value === "symbol") {
+    return value.toString();
+  }
+  return JSON.stringify(value) ?? String(value);
+};
+
 const primitiveContent = (value: unknown): WebMcpContent[] => [
-  textContent(
-    typeof value === "string"
-      ? value
-      : (JSON.stringify(value) ?? String(value)),
-  ),
+  textContent(toText(value)),
 ];
 
 const mapModelContentPart = (part: ToolModelContentPart): WebMcpContent => {
@@ -54,7 +66,7 @@ const mapModelContentPart = (part: ToolModelContentPart): WebMcpContent => {
     }
     return textContent(part.data ?? "");
   }
-  return textContent(JSON.stringify(part));
+  return textContent(toText(part));
 };
 
 export const toMcpContent = async (
