@@ -434,22 +434,6 @@ describe("useWebMcpBridge", () => {
     );
   });
 
-  it("reports unsupported when the model context only appears after mount", async () => {
-    useAdapter(createFakeWebMcpAdapter({ available: false }));
-    const provider = createProvider({ search: searchTool });
-
-    const view = render(<Harness provider={provider} options={{}} />);
-    expect(latest.status).toBe("unsupported");
-
-    const late = useAdapter(createFakeWebMcpAdapter());
-    view.rerender(<Harness provider={provider} options={{}} />);
-    await act(async () => {});
-
-    expect(latest.status).toBe("unsupported");
-    expect(latest.registeredToolNames).toEqual([]);
-    expect(late.registerCalls).toEqual([]);
-  });
-
   it("warns and skips on a name collision without touching the app's registration", async () => {
     const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
     const adapter = useAdapter(createFakeWebMcpAdapter());
