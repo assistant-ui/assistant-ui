@@ -288,7 +288,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { useAssistantClientDestroySignal, useShallowStable };
+  export { shallowEqual, useAssistantClientDestroySignal, useShallowStable };
 }
 
 declare const isUserScrollUp: (previous: {
@@ -304,6 +304,8 @@ declare const normalizeEventSelector: <TEvent extends AssistantEventName>(select
 };
 
 declare const observeContentResize: (el: HTMLElement, callback: () => void) => (() => void);
+
+declare const shallowEqual: (a: object, b: object) => boolean;
 
 declare const useAssistantClientDestroySignal: () => AbortSignal | undefined;
 
