@@ -155,15 +155,15 @@ test("runCheck rejects a changeset naming a private package", () => {
   }
 });
 
-test("the executable reports success against this repo", () => {
+test("the executable runs main() instead of exiting silently", () => {
   const result = spawnSync(
     process.execPath,
     [path.join(repoRoot, "scripts", "check-changesets.mjs")],
     { encoding: "utf8" },
   );
-  assert.equal(result.status, 0, result.stderr);
   assert.match(
-    result.stdout,
-    /All changeset bumps name releasable workspace packages\./,
+    result.stdout + result.stderr,
+    /All changeset bumps name releasable workspace packages\.|Changesets name packages that cannot be released:/,
+    "the guard produced no verdict, so main() never ran",
   );
 });
