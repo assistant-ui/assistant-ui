@@ -67,10 +67,7 @@ ThreadPrimitiveSuggestionByIndex.displayName =
 const ThreadPrimitiveSuggestionsInner: FC<{
   children: (value: { suggestion: SuggestionState }) => ReactNode;
 }> = ({ children }) => {
-  const suggestionsLength = useAuiState(
-    "suggestions",
-    (s) => s.suggestions.length,
-  );
+  const suggestionsLength = useAuiState("suggestions").suggestions.length;
 
   return useMemo(() => {
     if (suggestionsLength === 0) return null;

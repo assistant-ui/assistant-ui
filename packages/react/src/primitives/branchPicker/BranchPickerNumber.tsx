@@ -4,7 +4,7 @@ import type { FC } from "react";
 import { useAuiState } from "@assistant-ui/store";
 
 const useBranchPickerNumber = () => {
-  const branchNumber = useAuiState("message", (s) => s.branchNumber);
+  const branchNumber = useAuiState("message").branchNumber;
   return branchNumber;
 };
 

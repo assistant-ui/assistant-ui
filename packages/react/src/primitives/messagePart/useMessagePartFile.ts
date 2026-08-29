@@ -34,11 +34,8 @@ const EMPTY_FILE_PART: MessagePartState & FileMessagePart = Object.freeze({
  */
 export const useMessagePartFile = () => {
   // Sentinel instead of throw: see useMessagePartText for the invariant.
-  const file = useAuiState("part", (s) => {
-    if (s.type !== "file") return EMPTY_FILE_PART;
+  const part = useAuiState("part");
+  if (part.type !== "file") return EMPTY_FILE_PART;
 
-    return s as MessagePartState & FileMessagePart;
-  });
-
-  return file;
+  return part as MessagePartState & FileMessagePart;
 };

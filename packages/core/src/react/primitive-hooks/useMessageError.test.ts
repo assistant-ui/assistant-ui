@@ -4,19 +4,14 @@ const { mockUseAuiState } = vi.hoisted(() => ({ mockUseAuiState: vi.fn() }));
 
 vi.mock("@assistant-ui/store", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@assistant-ui/store")>()),
-  useAuiState: ((scope: string, selector: (s: unknown) => unknown) =>
-    mockUseAuiState(
-      scope,
-      selector,
-    )) as typeof import("@assistant-ui/store").useAuiState,
+  useAuiState: ((scope: string) =>
+    mockUseAuiState(scope)) as typeof import("@assistant-ui/store").useAuiState,
 }));
 
 import { useMessageError } from "./useMessageError";
 
 const against = (message: unknown) =>
-  mockUseAuiState.mockImplementationOnce(
-    (_scope: string, selector: (s: unknown) => unknown) => selector(message),
-  );
+  mockUseAuiState.mockImplementationOnce(() => message);
 
 describe("useMessageError", () => {
   it("returns the message from a structured AssistantError", () => {

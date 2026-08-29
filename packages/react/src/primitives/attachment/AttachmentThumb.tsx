@@ -19,14 +19,12 @@ export const AttachmentPrimitiveThumb = forwardRef<
   AttachmentPrimitiveThumb.Element,
   AttachmentPrimitiveThumb.Props
 >((props, ref) => {
-  const label = useAuiState("attachment", (s) => {
-    const name = s.name;
-    const dot = name.lastIndexOf(".");
-    if (dot > 0 && dot < name.length - 1) {
-      return `.${name.slice(dot + 1)}`;
-    }
-    return s.type;
-  });
+  const attachment = useAuiState("attachment");
+  const dot = attachment.name.lastIndexOf(".");
+  const label =
+    dot > 0 && dot < attachment.name.length - 1
+      ? `.${attachment.name.slice(dot + 1)}`
+      : attachment.type;
   return (
     <Primitive.div {...props} ref={ref}>
       {props.children ?? label}

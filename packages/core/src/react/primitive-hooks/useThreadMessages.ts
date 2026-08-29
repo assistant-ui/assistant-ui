@@ -2,5 +2,5 @@ import { useAuiState } from "@assistant-ui/store";
 import type { MessageState } from "../../store/scopes/message";
 
 export const useThreadMessages = (): readonly MessageState[] => {
-  return useAuiState("thread", (s) => s.messages);
+  return useAuiState("thread").messages;
 };

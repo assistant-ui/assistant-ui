@@ -124,7 +124,7 @@ export const ComposerPrimitiveTriggerPopover = forwardRef<
     forwardedRef,
   ) => {
     const aui = useAui();
-    const text = useAuiState("composer", (s) => s.text);
+    const text = useAuiState("composer").text;
     const popoverId = useId();
     const matcherRef = useRef(matcher);
     useEffect(() => {

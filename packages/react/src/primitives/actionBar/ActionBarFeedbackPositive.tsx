@@ -21,10 +21,8 @@ export const ActionBarPrimitiveFeedbackPositive = forwardRef<
   ActionBarPrimitiveFeedbackPositive.Element,
   ActionBarPrimitiveFeedbackPositive.Props
 >(({ onClick, disabled, ...props }, forwardedRef) => {
-  const isSubmitted = useAuiState(
-    "message",
-    (s) => s.metadata.submittedFeedback?.type === "positive",
-  );
+  const isSubmitted =
+    useAuiState("message").metadata.submittedFeedback?.type === "positive";
   const callback = useActionBarFeedbackPositive();
   return (
     <Primitive.button

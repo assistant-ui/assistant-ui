@@ -14,7 +14,7 @@ export const ThreadListItems = ({
   renderItem,
   ...flatListProps
 }: ThreadListItemsProps) => {
-  const threadIds = useAuiState("threads", (s) => s.threadIds);
+  const threadIds = useAuiState("threads").threadIds;
 
   const renderFlatListItem = useCallback(
     ({ item, index }: { item: string; index: number }) => {

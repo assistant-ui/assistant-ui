@@ -76,7 +76,7 @@ export const ActionBarPrimitiveCopy = forwardRef<
   ActionBarPrimitiveCopy.Element,
   ActionBarPrimitiveCopy.Props
 >(({ copiedDuration, onClick, disabled, ...props }, forwardedRef) => {
-  const isCopied = useAuiState("message", (s) => s.isCopied);
+  const isCopied = useAuiState("message").isCopied;
   const callback = useActionBarPrimitiveCopy({ copiedDuration });
   return (
     <Primitive.button

@@ -162,10 +162,9 @@ export namespace MessagePrimitiveGenerativeUI {
 export const MessagePrimitiveGenerativeUI: FC<
   MessagePrimitiveGenerativeUI.Props
 > = ({ components, spec, Fallback }) => {
-  const storeSpec = useAuiState("part", (s) => {
-    const part = s as { type?: string; spec?: GenerativeUISpec };
-    return part?.type === "generative-ui" ? part.spec : undefined;
-  });
+  const partState = useAuiState("part");
+  const part = partState as { type?: string; spec?: GenerativeUISpec };
+  const storeSpec = part?.type === "generative-ui" ? part.spec : undefined;
   const partSpec = spec ?? storeSpec;
 
   if (!partSpec) return null;

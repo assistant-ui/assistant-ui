@@ -19,12 +19,10 @@ export const StatusBarPrimitiveTokenCount = ({
   format = defaultFormat,
   ...textProps
 }: StatusBarPrimitiveTokenCount.Props) => {
-  const totalTokens = useAuiState("thread", (s) =>
-    s.messages.reduce((sum, msg) => {
-      if (msg.role !== "assistant") return sum;
-      return sum + (msg.metadata?.timing?.tokenCount ?? 0);
-    }, 0),
-  );
+  const totalTokens = useAuiState("thread").messages.reduce((sum, msg) => {
+    if (msg.role !== "assistant") return sum;
+    return sum + (msg.metadata?.timing?.tokenCount ?? 0);
+  }, 0);
 
   if (totalTokens === 0) return null;
 

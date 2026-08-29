@@ -21,16 +21,11 @@ import { useAuiState } from "@assistant-ui/store";
  * See the {@link https://assistant-ui.com/docs/migrations/v0-12 migration guide}.
  */
 export const useMessagePartData = <T = any>(name?: string) => {
-  const part = useAuiState("part", (s) => {
-    if (s.type !== "data") {
-      return null;
-    }
-    return s as DataMessagePart<T>;
-  });
-
-  if (!part) {
+  const partState = useAuiState("part");
+  if (partState.type !== "data") {
     return null;
   }
+  const part = partState as DataMessagePart<T>;
 
   if (name && part.name !== name) {
     return null;

@@ -19,10 +19,8 @@ export const ThreadListPrimitiveNew = forwardRef<
   ThreadListPrimitiveNew.Element,
   ThreadListPrimitiveNew.Props
 >(({ onClick, disabled, ...props }, forwardedRef) => {
-  const isMain = useAuiState(
-    "threads",
-    (s) => s.newThreadId === s.mainThreadId,
-  );
+  const threads = useAuiState("threads");
+  const isMain = threads.newThreadId === threads.mainThreadId;
 
   const { switchToNewThread } = useThreadListNewBehavior();
 

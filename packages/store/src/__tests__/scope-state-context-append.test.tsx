@@ -53,12 +53,12 @@ const ItemProvider = ({
 };
 
 const Item = () => {
-  const key = useAuiState("item" as never, (s: any) => s.key);
+  const key = (useAuiState("item" as never) as any).key;
   return <span data-testid="item">{key}</span>;
 };
 
 const Items = () => {
-  const length = useAuiState("list" as never, (s: any) => s.items.length);
+  const length = (useAuiState("list" as never) as any).items.length;
   return Array.from({ length }, (_, i) => (
     <ItemProvider key={i} index={i}>
       <Item />

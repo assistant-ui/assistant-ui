@@ -3,7 +3,7 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 
 export const useEditComposerSend = () => {
   const aui = useAui();
-  const disabled = useAuiState("composer", (s) => s.isEmpty);
+  const disabled = useAuiState("composer").isEmpty;
 
   const send = useCallback(() => {
     aui.composer.send();

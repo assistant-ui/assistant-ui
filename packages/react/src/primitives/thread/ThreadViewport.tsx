@@ -103,27 +103,23 @@ const useViewportElementRef = () => {
 
 const useTopAnchorTurn = (enabled: boolean) => {
   const threadViewportStore = useThreadViewportStore();
-  const activeAnchorId = useAuiState("thread", (s) => {
-    if (!enabled) return undefined;
-    return getActiveTopAnchorAnchorId(s);
-  });
-  const activeTargetId = useAuiState("thread", (s) => {
-    if (!enabled) return undefined;
-    return getActiveTopAnchorTargetId(s);
-  });
+  const thread = useAuiState("thread");
+  const activeAnchorId = enabled
+    ? getActiveTopAnchorAnchorId(thread)
+    : undefined;
+  const activeTargetId = enabled
+    ? getActiveTopAnchorTargetId(thread)
+    : undefined;
   const topAnchorTurn = useThreadViewport((s) => s.topAnchorTurn);
   const activeTurn = useMemo(() => {
     if (!activeAnchorId || !activeTargetId) return null;
     return { anchorId: activeAnchorId, targetId: activeTargetId };
   }, [activeAnchorId, activeTargetId]);
 
-  const topAnchorTurnIsValid = useAuiState(
-    "thread",
-    (s) =>
-      enabled &&
-      !!topAnchorTurn &&
-      isTopAnchorTurnValid(topAnchorTurn, s.messages),
-  );
+  const topAnchorTurnIsValid =
+    enabled &&
+    !!topAnchorTurn &&
+    isTopAnchorTurnValid(topAnchorTurn, thread.messages);
 
   useLayoutEffect(() => {
     if (!topAnchorTurn || topAnchorTurnIsValid) return;

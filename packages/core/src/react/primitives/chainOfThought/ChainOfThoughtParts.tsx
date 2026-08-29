@@ -44,7 +44,7 @@ export namespace ChainOfThoughtPrimitiveParts {
 const ChainOfThoughtPrimitivePartsInner: FC<{
   children: (value: { part: PartState }) => ReactNode;
 }> = ({ children }) => {
-  const partsLength = useAuiState("chainOfThought", (s) => s.parts.length);
+  const partsLength = useAuiState("chainOfThought").parts.length;
 
   return useMemo(
     () =>

@@ -23,10 +23,8 @@ export const ThreadListNew = ({
   accessibilityState,
   ...pressableProps
 }: ThreadListNewProps) => {
-  const isActive = useAuiState(
-    "threads",
-    (s) => s.newThreadId === s.mainThreadId,
-  );
+  const threads = useAuiState("threads");
+  const isActive = threads.newThreadId === threads.mainThreadId;
   const { switchToNewThread } = useThreadListNew();
 
   return (

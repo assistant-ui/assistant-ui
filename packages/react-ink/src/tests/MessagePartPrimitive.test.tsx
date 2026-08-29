@@ -57,20 +57,11 @@ describe("MessagePartPrimitive", () => {
   ] as const)(
     "returns empty %s output during transient part-type mismatches",
     async (_name, renderPrimitive) => {
-      let selectPart: UseAuiStateSelector | undefined;
-      mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) => {
-        selectPart = selector;
-        return "";
-      });
+      mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
+        selector({ part: { type: "tool-call" } } as never),
+      );
 
-      await renderFrame(renderPrimitive());
-
-      expect(selectPart).toBeDefined();
-      expect(
-        selectPart!({
-          part: { type: "tool-call" },
-        } as never),
-      ).toBe("");
+      expect(await renderFrame(renderPrimitive())).toBe("");
     },
   );
 

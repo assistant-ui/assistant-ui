@@ -28,13 +28,10 @@ export const useInteractableState = <TState>(
   const aui = useAui();
 
   const state =
-    (useAuiState("interactables", (s) => s.definitions[id]?.state) as TState) ??
+    (useAuiState("interactables").definitions[id]?.state as TState) ??
     (fallback as TState);
 
-  const persistenceStatus = useAuiState(
-    "interactables",
-    (s) => s.persistence[id],
-  );
+  const persistenceStatus = useAuiState("interactables").persistence[id];
 
   const setState = useCallback(
     (updater: StateUpdater<TState>) => {

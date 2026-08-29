@@ -28,8 +28,8 @@ export const ThreadListItemPrimitiveRoot = forwardRef<
   ThreadListItemPrimitiveRoot.Element,
   ThreadListItemPrimitiveRoot.Props
 >((props, ref) => {
-  const mainThreadId = useAuiState("threads", (s) => s.mainThreadId);
-  const isMain = useAuiState("threadListItem", (s) => mainThreadId === s.id);
+  const mainThreadId = useAuiState("threads").mainThreadId;
+  const isMain = mainThreadId === useAuiState("threadListItem").id;
 
   const triggerRef = useRef<HTMLButtonElement | null>(null);
   const moreRef = useRef<HTMLButtonElement | null>(null);

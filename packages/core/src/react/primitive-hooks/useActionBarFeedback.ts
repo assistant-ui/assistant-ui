@@ -3,10 +3,8 @@ import { useAui, useAuiState } from "@assistant-ui/store";
 
 export const useActionBarFeedbackPositive = () => {
   const aui = useAui();
-  const isSubmitted = useAuiState(
-    "message",
-    (s) => s.metadata.submittedFeedback?.type === "positive",
-  );
+  const isSubmitted =
+    useAuiState("message").metadata.submittedFeedback?.type === "positive";
 
   const submit = useCallback(() => {
     aui.message.submitFeedback({ type: "positive" });
@@ -17,10 +15,8 @@ export const useActionBarFeedbackPositive = () => {
 
 export const useActionBarFeedbackNegative = () => {
   const aui = useAui();
-  const isSubmitted = useAuiState(
-    "message",
-    (s) => s.metadata.submittedFeedback?.type === "negative",
-  );
+  const isSubmitted =
+    useAuiState("message").metadata.submittedFeedback?.type === "negative";
 
   const submit = useCallback(() => {
     aui.message.submitFeedback({ type: "negative" });

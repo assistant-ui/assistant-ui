@@ -19,5 +19,5 @@ import { useAuiState } from "@assistant-ui/store";
  * ```
  */
 export const useMessageQuote = (): QuoteInfo | undefined => {
-  return useAuiState("message", (s) => getMessageQuote({ message: s }));
+  return getMessageQuote({ message: useAuiState("message") });
 };

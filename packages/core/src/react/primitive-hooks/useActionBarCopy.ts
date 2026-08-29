@@ -12,12 +12,12 @@ export const useActionBarCopy = ({
   copyToClipboard,
 }: UseActionBarCopyOptions = {}) => {
   const aui = useAui();
-  const disabled = useAuiState("message", (message) =>
-    actionBarCopyDisabled({ message } as AssistantState),
-  );
-  const isCopied = useAuiState("message", (s) => s.isCopied);
-  const isEditing = useAuiState("composer", (s) => s.isEditing);
-  const composerValue = useAuiState("composer", (s) => s.text);
+  const disabled = actionBarCopyDisabled({
+    message: useAuiState("message"),
+  } as AssistantState);
+  const isCopied = useAuiState("message").isCopied;
+  const isEditing = useAuiState("composer").isEditing;
+  const composerValue = useAuiState("composer").text;
   const copiedTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(
     undefined,
   );

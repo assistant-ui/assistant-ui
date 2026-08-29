@@ -18,7 +18,6 @@ import type { MessageTiming } from "@assistant-ui/core";
  * ```
  */
 export const useMessageTiming = (): MessageTiming | undefined => {
-  return useAuiState("message", (s) =>
-    s.role === "assistant" ? s.metadata?.timing : undefined,
-  );
+  const message = useAuiState("message");
+  return message.role === "assistant" ? message.metadata?.timing : undefined;
 };

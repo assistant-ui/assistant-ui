@@ -34,11 +34,8 @@ const EMPTY_REASONING_PART: MessagePartState & ReasoningMessagePart =
  */
 export const useMessagePartReasoning = () => {
   // Sentinel instead of throw: see useMessagePartText for the invariant.
-  const text = useAuiState("part", (s) => {
-    if (s.type !== "reasoning") return EMPTY_REASONING_PART;
+  const part = useAuiState("part");
+  if (part.type !== "reasoning") return EMPTY_REASONING_PART;
 
-    return s as MessagePartState & ReasoningMessagePart;
-  });
-
-  return text;
+  return part as MessagePartState & ReasoningMessagePart;
 };

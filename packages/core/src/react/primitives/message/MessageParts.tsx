@@ -40,7 +40,6 @@ import {
 } from "../../../types/message";
 import type { DataRenderersState } from "../../types/scopes/dataRenderers";
 import type { ToolsState } from "../../types/scopes/tools";
-import { useShallow } from "zustand/shallow";
 
 type MessagePartRange =
   | { type: "single"; index: number }
@@ -173,28 +172,18 @@ export const groupMessageParts = (
 const useMessagePartsGroups = (
   useChainOfThought: boolean,
 ): { ranges: MessagePartRange[]; partIds: (string | undefined)[] } => {
-  const messageTypes = useAuiState(
-    "message",
-    useShallow((s) => s.parts.map((c: any) => c.type)),
+  const { parts } = useAuiState("message");
+  const messageTypes = parts.map((c: any) => c.type);
+  const partIds = parts.map((c: any) =>
+    c.type === "tool-call" ? c.toolCallId : undefined,
   );
-  const partIds = useAuiState(
-    "message",
-    useShallow((s) =>
-      s.parts.map((c: any) =>
-        c.type === "tool-call" ? c.toolCallId : undefined,
-      ),
-    ),
-  );
-
-  return useMemo(() => {
-    if (messageTypes.length === 0) {
-      return { ranges: [], partIds };
-    }
-    return {
-      ranges: groupMessageParts(messageTypes, useChainOfThought, partIds),
-      partIds,
-    };
-  }, [messageTypes, partIds, useChainOfThought]);
+  if (messageTypes.length === 0) {
+    return { ranges: [], partIds };
+  }
+  return {
+    ranges: groupMessageParts(messageTypes, useChainOfThought, partIds),
+    partIds,
+  };
 };
 
 export namespace MessagePrimitiveParts {
@@ -355,10 +344,8 @@ const ToolUIDisplay = ({
 }: {
   Fallback: ToolCallMessagePartComponent | undefined;
 } & ToolCallMessagePartProps) => {
-  const Render = useAuiState(
-    "tools",
-    (s) => s.toolUIs[props.toolName]?.[0]?.render ?? Fallback,
-  );
+  const Render =
+    useAuiState("tools").toolUIs[props.toolName]?.[0]?.render ?? Fallback;
   if (!Render) return null;
   return <Render {...props} />;
 };
@@ -379,8 +366,10 @@ const DataUIDisplay = ({
 }: {
   Fallback: DataMessagePartComponent | undefined;
 } & DataMessagePartProps) => {
-  const Render = useAuiState("dataRenderers", (s) =>
-    getDataRenderer(s, props.name, Fallback),
+  const Render = getDataRenderer(
+    useAuiState("dataRenderers"),
+    props.name,
+    Fallback,
   );
   if (!Render) return null;
   return <Render {...props} />;
@@ -559,10 +548,8 @@ const RUNNING_STATUS: MessagePartStatus = Object.freeze({
 });
 
 const EmptyPartsImpl: FC<MessagePartComponentProps> = ({ components }) => {
-  const status = useAuiState(
-    "message",
-    (s) => (s.status ?? COMPLETE_STATUS) as MessagePartStatus,
-  );
+  const status = (useAuiState("message").status ??
+    COMPLETE_STATUS) as MessagePartStatus;
 
   if (components?.Empty) return <components.Empty status={status} />;
 
@@ -587,13 +574,13 @@ const ConditionalEmptyImpl: FC<{
   components: MessagePrimitiveParts.Props["components"];
   enabled: boolean;
 }> = ({ components, enabled }) => {
-  const shouldShowEmpty = useAuiState("message", (s) => {
-    if (!enabled) return false;
-    if (s.parts.length === 0) return false;
-
-    const lastPart = s.parts[s.parts.length - 1];
-    return lastPart?.type !== "text" && lastPart?.type !== "reasoning";
-  });
+  const message = useAuiState("message");
+  const lastPart = message.parts[message.parts.length - 1];
+  const shouldShowEmpty =
+    enabled &&
+    lastPart !== undefined &&
+    lastPart.type !== "text" &&
+    lastPart.type !== "reasoning";
 
   if (!shouldShowEmpty) return null;
   return <EmptyParts components={components} />;
@@ -610,9 +597,7 @@ const ConditionalEmpty = memo(
 const QuoteRendererImpl: FC<{ Quote: QuoteMessagePartComponent }> = ({
   Quote,
 }) => {
-  const quoteInfo = useAuiState("message", (message) =>
-    getMessageQuote({ message }),
-  );
+  const quoteInfo = getMessageQuote({ message: useAuiState("message") });
   if (!quoteInfo) return null;
   return <Quote text={quoteInfo.text} messageId={quoteInfo.messageId} />;
 };
@@ -685,7 +670,7 @@ const RegisteredDataRendererUI: FC = () => {
  * To explicitly render nothing (suppressing registered UIs), return <></>.
  */
 const DefaultPartFallback: FC = () => {
-  const partType = useAuiState("part", (s) => s.type);
+  const partType = useAuiState("part").type;
 
   if (partType === "tool-call") return <RegisteredToolUI />;
   if (partType === "data") return <RegisteredDataRendererUI />;
@@ -800,11 +785,9 @@ export const MessagePartChildren: FC<MessagePartChildrenProps> = ({
 const MessagePrimitivePartsInner: FC<{
   children: (value: { part: EnrichedPartState }) => ReactNode;
 }> = ({ children }) => {
-  const contentLength = useAuiState("message", (s) => s.parts.length);
-  const isRunning = useAuiState(
-    "message",
-    (s) => (s.status?.type ?? "complete") === "running",
-  );
+  const contentLength = useAuiState("message").parts.length;
+  const isRunning =
+    (useAuiState("message").status?.type ?? "complete") === "running";
   const isEmptyRunning = contentLength === 0 && isRunning;
 
   if (contentLength === 0) {
@@ -855,7 +838,7 @@ const MessagePrimitivePartsCompat: FC<{
   components: MessagePrimitiveParts.Props["components"];
   unstable_showEmptyOnNonTextEnd: boolean;
 }> = ({ components, unstable_showEmptyOnNonTextEnd }) => {
-  const contentLength = useAuiState("message", (s) => s.parts.length);
+  const contentLength = useAuiState("message").parts.length;
   const useChainOfThought = !!components?.ChainOfThought;
   const { ranges: messageRanges, partIds } =
     useMessagePartsGroups(useChainOfThought);

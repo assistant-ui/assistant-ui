@@ -14,12 +14,10 @@ const useActionBarExportMarkdown = ({
   onExport?: ((content: string) => void | Promise<void>) | undefined;
 } = {}) => {
   const aui = useAui();
-  const hasExportableContent = useAuiState("message", (s) => {
-    return (
-      (s.role !== "assistant" || s.status?.type !== "running") &&
-      s.parts.some((c) => c.type === "text" && c.text.length > 0)
-    );
-  });
+  const message = useAuiState("message");
+  const hasExportableContent =
+    (message.role !== "assistant" || message.status?.type !== "running") &&
+    message.parts.some((c) => c.type === "text" && c.text.length > 0);
 
   const callback = useCallback(async () => {
     const content = aui.message.getCopyText();

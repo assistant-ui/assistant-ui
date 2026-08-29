@@ -91,10 +91,9 @@ MessagePrimitiveAttachmentByIndex.displayName =
 const MessagePrimitiveAttachmentsInner: FC<{
   children: (value: { attachment: CompleteAttachment }) => ReactNode;
 }> = ({ children }) => {
-  const attachmentsCount = useAuiState("message", (s) => {
-    if (s.role !== "user") return 0;
-    return (s.attachments ?? []).length;
-  });
+  const message = useAuiState("message");
+  const attachmentsCount =
+    message.role === "user" ? (message.attachments ?? []).length : 0;
 
   return useMemo(
     () =>

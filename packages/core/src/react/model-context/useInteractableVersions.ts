@@ -5,7 +5,7 @@ import {
   type Unstable_InteractableVersion,
 } from "../../model-context/interactable-composer-metadata";
 import { unstable_useInteractableState as useInteractableState } from "./useInteractableState";
-import { useJSONEqual } from "../utils/useJSONEqual";
+import { useJSONStable } from "../utils/useJSONEqual";
 
 const useInteractableVersions = <TState = unknown>(
   id: string,
@@ -14,10 +14,8 @@ const useInteractableVersions = <TState = unknown>(
   state: TState;
   restore: () => void;
 })[] => {
-  const versions = useAuiState(
-    "thread",
-    useJSONEqual((s) => getInteractableVersions(s.messages, id, name)),
-  );
+  const { messages } = useAuiState("thread");
+  const versions = useJSONStable(getInteractableVersions(messages, id, name));
   const [, { setState }] = useInteractableState<TState>(id);
 
   return useMemo(

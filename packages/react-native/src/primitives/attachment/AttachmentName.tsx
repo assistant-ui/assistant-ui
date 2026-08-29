@@ -5,6 +5,6 @@ import { useAuiState } from "@assistant-ui/store";
 export type AttachmentNameProps = TextProps;
 
 export const AttachmentName: FC<AttachmentNameProps> = (props) => {
-  const name = useAuiState("attachment", (s) => s.name);
+  const name = useAuiState("attachment").name;
   return <Text {...props}>{name}</Text>;
 };

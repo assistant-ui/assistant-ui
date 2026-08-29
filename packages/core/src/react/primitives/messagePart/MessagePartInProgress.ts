@@ -8,7 +8,7 @@ export namespace MessagePartPrimitiveInProgress {
 export const MessagePartPrimitiveInProgress: FC<
   MessagePartPrimitiveInProgress.Props
 > = ({ children }) => {
-  const isInProgress = useAuiState("part", (s) => s.status.type === "running");
+  const isInProgress = useAuiState("part").status.type === "running";
   return isInProgress ? children : null;
 };
 

@@ -13,7 +13,7 @@ export namespace ComposerPrimitiveQueue {
 const ComposerPrimitiveQueueInner: FC<{
   children: (value: { queueItem: QueueItemState }) => ReactNode;
 }> = ({ children }) => {
-  const queue = useAuiState("composer", (s) => s.queue.length);
+  const queue = useAuiState("composer").queue.length;
 
   return useMemo(
     () =>

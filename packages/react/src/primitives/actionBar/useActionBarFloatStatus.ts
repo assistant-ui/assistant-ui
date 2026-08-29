@@ -23,27 +23,26 @@ export const useActionBarFloatStatus = ({
   autohideFloat,
   forceVisible,
 }: UseActionBarFloatStatusProps) => {
-  const isRunning = useAuiState("thread", (s) => s.isRunning);
-  return useAuiState("message", (s) => {
-    if (hideWhenRunning && isRunning) return HideAndFloatStatus.Hidden;
+  const isRunning = useAuiState("thread").isRunning;
+  const message = useAuiState("message");
+  if (hideWhenRunning && isRunning) return HideAndFloatStatus.Hidden;
 
-    const autohideEnabled =
-      autohide === "always" || (autohide === "not-last" && !s.isLast);
-    const isVisibleByInteraction = forceVisible || s.isHovering;
+  const autohideEnabled =
+    autohide === "always" || (autohide === "not-last" && !message.isLast);
+  const isVisibleByInteraction = forceVisible || message.isHovering;
 
-    // normal status
-    if (!autohideEnabled) return HideAndFloatStatus.Normal;
+  // normal status
+  if (!autohideEnabled) return HideAndFloatStatus.Normal;
 
-    // hidden status
-    if (!isVisibleByInteraction) return HideAndFloatStatus.Hidden;
+  // hidden status
+  if (!isVisibleByInteraction) return HideAndFloatStatus.Hidden;
 
-    // floating status
-    if (
-      autohideFloat === "always" ||
-      (autohideFloat === "single-branch" && s.branchCount <= 1)
-    )
-      return HideAndFloatStatus.Floating;
+  // floating status
+  if (
+    autohideFloat === "always" ||
+    (autohideFloat === "single-branch" && message.branchCount <= 1)
+  )
+    return HideAndFloatStatus.Floating;
 
-    return HideAndFloatStatus.Normal;
-  });
+  return HideAndFloatStatus.Normal;
 };

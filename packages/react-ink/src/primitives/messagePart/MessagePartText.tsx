@@ -14,10 +14,9 @@ export namespace MessagePartPrimitiveText {
 export const MessagePartPrimitiveText = (
   props: MessagePartPrimitiveText.Props,
 ) => {
-  const text = useAuiState("part", (s) => {
-    if (s.type !== "text" && s.type !== "reasoning") return "";
-    return s.text;
-  });
+  const part = useAuiState("part");
+  const text =
+    part.type !== "text" && part.type !== "reasoning" ? "" : part.text;
   return <Text {...props}>{text}</Text>;
 };
 

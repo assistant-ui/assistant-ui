@@ -32,7 +32,7 @@ export const ComposerPrimitiveDictationTranscript = forwardRef<
   ComposerPrimitiveDictationTranscript.Element,
   ComposerPrimitiveDictationTranscript.Props
 >(({ children, ...props }, forwardRef) => {
-  const transcript = useAuiState("composer", (s) => s.dictation?.transcript);
+  const transcript = useAuiState("composer").dictation?.transcript;
 
   if (!transcript) return null;
 

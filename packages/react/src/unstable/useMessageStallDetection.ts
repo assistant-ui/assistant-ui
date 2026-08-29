@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useAuiState } from "@assistant-ui/store";
+import type { MessageState } from "@assistant-ui/core";
 
 export type Unstable_MessageStallDetectionOptions = {
   /**
@@ -10,6 +11,19 @@ export type Unstable_MessageStallDetectionOptions = {
    * @default 2000
    */
   thresholdMs?: number | undefined;
+};
+
+const getFingerprint = (message: MessageState) => {
+  if (message.status?.type !== "running") return undefined;
+  let size = 0;
+  for (const part of message.content) {
+    if (part.type === "text" || part.type === "reasoning") {
+      size += part.text.length;
+    } else if (part.type === "tool-call") {
+      size += part.argsText.length + (part.result !== undefined ? 1 : 0);
+    }
+  }
+  return `${message.content.length}:${size}`;
 };
 
 export type Unstable_MessageStallDetection = {
@@ -36,18 +50,8 @@ export function unstable_useMessageStallDetection(
 ): Unstable_MessageStallDetection {
   const thresholdMs = options?.thresholdMs ?? 2000;
 
-  const fingerprint = useAuiState("message", (s) => {
-    if (s.status?.type !== "running") return undefined;
-    let size = 0;
-    for (const part of s.content) {
-      if (part.type === "text" || part.type === "reasoning") {
-        size += part.text.length;
-      } else if (part.type === "tool-call") {
-        size += part.argsText.length + (part.result !== undefined ? 1 : 0);
-      }
-    }
-    return `${s.content.length}:${size}`;
-  });
+  const messageState = useAuiState("message");
+  const fingerprint = getFingerprint(messageState);
 
   const running = fingerprint !== undefined;
   const lastActivityRef = useRef(Date.now());

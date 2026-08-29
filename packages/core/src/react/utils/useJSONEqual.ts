@@ -2,19 +2,15 @@ import { useRef } from "react";
 import { isJSONValueEqual } from "../../utils/json/is-json-equal";
 
 /**
- * Like `useShallow`, but with JSON deep-equality. Use when a selector derives an
- * equal-but-fresh value on every store update — e.g. folding over
- * `thread.messages`, whose identity changes on every streaming token — where a
- * shallow compare would re-render regardless.
+ * Returns the previous value while the new one is JSON-equal to it. Use when a
+ * value is derived fresh on every render from state whose identity changes on
+ * every streaming token, e.g. folding over `thread.messages`.
  */
-export function useJSONEqual<S, U>(selector: (state: S) => U): (state: S) => U {
+export function useJSONStable<U>(next: U): U {
   const prev = useRef<U | undefined>(undefined);
-  return (state) => {
-    const next = selector(state);
-    if (prev.current !== undefined && isJSONValueEqual(prev.current, next)) {
-      return prev.current;
-    }
-    prev.current = next;
-    return next;
-  };
+  if (prev.current !== undefined && isJSONValueEqual(prev.current, next)) {
+    return prev.current;
+  }
+  prev.current = next;
+  return next;
 }

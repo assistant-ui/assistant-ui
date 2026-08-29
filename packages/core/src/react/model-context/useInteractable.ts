@@ -9,7 +9,7 @@ import {
   interactableToolName,
 } from "../../model-context/interactable-composer-metadata";
 import { unstable_useInteractableState as useInteractableState } from "./useInteractableState";
-import { useJSONEqual } from "../utils/useJSONEqual";
+import { useJSONStable } from "../utils/useJSONEqual";
 
 /**
  * The state type described by an interactable's `stateSchema`. Resolves the
@@ -148,11 +148,11 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
     useInteractableState<Unstable_InferInteractableState<TSchema>>(id);
   const { setState } = methods;
 
-  const versionValue = useAuiState(
-    "thread",
-    useJSONEqual((s) => {
+  const { messages } = useAuiState("thread");
+  const versionValue = useJSONStable(
+    (() => {
       if (!internalScope || !myToolCallId) return undefined;
-      const versions = getInteractableVersions(s.messages, id, name);
+      const versions = getInteractableVersions(messages, id, name);
       if (!versions.some((v) => v.origin === "create" && v.toolCallId === id)) {
         return undefined;
       }
@@ -162,7 +162,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
         (v) => v.toolCallId !== undefined,
       )?.toolCallId;
       return { state: mine.state, isLatest: latestToolCallId === myToolCallId };
-    }),
+    })(),
   );
 
   const version = useMemo(

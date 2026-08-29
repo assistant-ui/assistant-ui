@@ -21,12 +21,11 @@ export namespace PartPrimitiveMessages {
 }
 
 const usePartMessages = (): readonly ThreadMessage[] | undefined => {
-  return useAuiState("part", (part) => {
-    if (part.type !== "tool-call") return undefined;
-    return "messages" in part
-      ? (part.messages as readonly ThreadMessage[] | undefined)
-      : undefined;
-  });
+  const part = useAuiState("part");
+  if (part.type !== "tool-call") return undefined;
+  return "messages" in part
+    ? (part.messages as readonly ThreadMessage[] | undefined)
+    : undefined;
 };
 
 /**

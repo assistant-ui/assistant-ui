@@ -10,7 +10,7 @@ export const ComposerQuote = ({
   children,
   ...viewProps
 }: ComposerQuoteProps) => {
-  const hasQuote = useAuiState("composer", (s) => s.quote !== undefined);
+  const hasQuote = useAuiState("composer").quote !== undefined;
   if (!hasQuote) return null;
 
   return <View {...viewProps}>{children}</View>;

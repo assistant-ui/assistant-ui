@@ -15,8 +15,9 @@ export const useSuggestionTrigger = ({
 }: UseSuggestionTriggerOptions) => {
   const aui = useAui();
   const resolvedSend = send ?? false;
-  const disabled = useAuiState("thread", (thread) =>
-    suggestionTriggerDisabled({ thread } as AssistantState, resolvedSend),
+  const disabled = suggestionTriggerDisabled(
+    { thread: useAuiState("thread") } as AssistantState,
+    resolvedSend,
   );
 
   const trigger = useCallback(() => {

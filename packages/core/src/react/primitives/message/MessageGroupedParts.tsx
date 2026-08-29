@@ -2,7 +2,6 @@
 
 import { Fragment, type FC, type ReactNode, useMemo } from "react";
 import { useAuiState } from "@assistant-ui/store";
-import { useShallow } from "zustand/shallow";
 import type { PartState } from "../../../store/scopes/part";
 import type {
   MessagePartStatus,
@@ -251,17 +250,14 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
   indicator = "no-text",
   children,
 }: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode => {
-  const parts = useAuiState(
-    "message",
-    useShallow((s) => s.parts),
-  );
+  const message = useAuiState("message");
+  const parts = message.parts;
   // Handed to `groupBy` as its `context` argument (see GroupByContext).
-  const toolUIs = useAuiState("tools", (s) => s.toolUIs);
+  const toolUIs = useAuiState("tools").toolUIs;
   // Subscribe to a boolean, not the status object: the tree only needs to
   // re-render when running-ness flips, and `"never"` opts out entirely.
-  const isRunning = useAuiState("message", (s) =>
-    indicator === "never" ? false : s.status?.type === "running",
-  );
+  const isRunning =
+    indicator === "never" ? false : message.status?.type === "running";
 
   // Helpers like `groupPartByType` tag the function with `GROUPBY_MEMO_KEY`
   // (a stable string fingerprint of the helper config). When present,

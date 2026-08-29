@@ -116,8 +116,8 @@ const getComponent = (
 const ThreadMessageComponent: FC<{ components: MessageComponents }> = ({
   components,
 }) => {
-  const role = useAuiState("message", (s) => s.role);
-  const isEditing = useAuiState("message", (s) => s.composer.isEditing);
+  const role = useAuiState("message").role;
+  const isEditing = useAuiState("message").composer.isEditing;
   const Component = getComponent(components, role, isEditing);
 
   return <Component />;
@@ -128,9 +128,9 @@ const ThreadMessagesInner: FC<{
   windowSize?: number | undefined;
   windowOverscan?: number | undefined;
 }> = ({ children, windowSize, windowOverscan = 4 }) => {
-  const messagesLength = useAuiState("thread", (s) => s.messages.length);
+  const messagesLength = useAuiState("thread").messages.length;
   // Subscribed, not just read: a switch to a thread with an equal message count would otherwise never re-render this component, and the Static key would never apply.
-  const mainThreadId = useAuiState("threads", (s) => s.mainThreadId);
+  const mainThreadId = useAuiState("threads").mainThreadId;
 
   const tailStart =
     windowSize !== undefined

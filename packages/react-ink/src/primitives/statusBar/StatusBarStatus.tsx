@@ -1,10 +1,22 @@
 import type { ComponentProps } from "react";
 import { Text } from "ink";
-import { useAuiState } from "@assistant-ui/store";
+import { useAuiState, type AssistantState } from "@assistant-ui/store";
 
 export type StatusType = "idle" | "running" | "error" | "cancelled";
 
 const defaultFormat = (status: StatusType) => status;
+
+const getStatus = (thread: AssistantState["thread"]): StatusType => {
+  if (thread.isRunning) return "running";
+
+  const lastAssistant = thread.messages.findLast((m) => m.role === "assistant");
+  if (lastAssistant?.status?.type === "incomplete") {
+    if (lastAssistant.status.reason === "error") return "error";
+    if (lastAssistant.status.reason === "cancelled") return "cancelled";
+  }
+
+  return "idle";
+};
 
 export type StatusBarPrimitiveStatusProps = Omit<
   ComponentProps<typeof Text>,
@@ -21,17 +33,8 @@ export const StatusBarPrimitiveStatus = ({
   format = defaultFormat,
   ...textProps
 }: StatusBarPrimitiveStatus.Props) => {
-  const status = useAuiState("thread", (s): StatusType => {
-    if (s.isRunning) return "running";
-
-    const lastAssistant = s.messages.findLast((m) => m.role === "assistant");
-    if (lastAssistant?.status?.type === "incomplete") {
-      if (lastAssistant.status.reason === "error") return "error";
-      if (lastAssistant.status.reason === "cancelled") return "cancelled";
-    }
-
-    return "idle";
-  });
+  const thread = useAuiState("thread");
+  const status = getStatus(thread);
 
   return <Text {...textProps}>{format(status)}</Text>;
 };

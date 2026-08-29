@@ -7,11 +7,16 @@ import {
   useScopeStateContext,
 } from "./utils/scope-state-context";
 
+/**
+ * Reads the whole state of one scope from its React context and re-renders
+ * the component whenever that scope's state changes.
+ *
+ * @example
+ * ```tsx
+ * const { isRunning } = useAuiState("thread");
+ * ```
+ */
 export function useAuiState<K extends ClientNames>(scope: K): AssistantState[K];
-export function useAuiState<K extends ClientNames, T>(
-  scope: K,
-  selector: (state: AssistantState[K]) => T,
-): T;
 /**
  * Subscribes to a slice of {@link AssistantState} and re-renders the
  * component whenever that slice changes.
@@ -50,29 +55,24 @@ export function useAuiState<K extends ClientNames, T>(
 export function useAuiState<T>(selector: (state: AssistantState) => T): T;
 export function useAuiState(
   scopeOrSelector: ClientNames | ((state: AssistantState) => unknown),
-  scopeSelector?: (state: unknown) => unknown,
 ): unknown {
   if (typeof scopeOrSelector === "string") {
     // oxlint-disable-next-line react-hooks/rules-of-hooks -- the overload is fixed per call site
-    return useScopedAuiState(scopeOrSelector, scopeSelector);
+    return useScopedAuiState(scopeOrSelector);
   }
   // oxlint-disable-next-line react-hooks/rules-of-hooks -- the overload is fixed per call site
   return useSelectedAuiState(scopeOrSelector);
 }
 
-const useScopedAuiState = (
-  scope: ClientNames,
-  selector: ((state: unknown) => unknown) | undefined,
-): unknown => {
+const useScopedAuiState = (scope: ClientNames): unknown => {
   const entry = useScopeStateContext(scope);
   if (entry === SCOPE_STATE_UNSET) {
     throw new Error(
       `useAuiState("${scope}"): no AuiProvider above this component publishes the "${scope}" scope.`,
     );
   }
-  const slice = selector ? selector(entry.state) : entry.state;
-  useDebugValue(slice);
-  return slice;
+  useDebugValue(entry.state);
+  return entry.state;
 };
 
 const useSelectedAuiState = <T>(selector: (state: AssistantState) => T): T => {

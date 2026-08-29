@@ -60,7 +60,7 @@ export type UseToolCallChecklistOptions = {
 export const useToolCallChecklist = (
   options?: UseToolCallChecklistOptions,
 ): ChecklistItemData[] => {
-  const parts = useAuiState("message", (s) => s.parts);
+  const parts = useAuiState("message").parts;
 
   const toolParts = parts.filter(
     (p): p is MessagePartState & { type: "tool-call" } =>

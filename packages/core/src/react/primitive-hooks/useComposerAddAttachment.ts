@@ -4,7 +4,7 @@ import type { CreateAttachment } from "../../types/attachment";
 
 export const useComposerAddAttachment = () => {
   const aui = useAui();
-  const disabled = useAuiState("composer", (s) => !s.isEditing);
+  const disabled = !useAuiState("composer").isEditing;
 
   const addAttachment = useCallback(
     (file: File | CreateAttachment) => {

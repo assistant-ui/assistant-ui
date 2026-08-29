@@ -62,7 +62,7 @@ export const ComposerInput = ({
   ...props
 }: ComposerInputProps) => {
   const aui = useAui();
-  const text = useAuiState("composer", (s) => s.text);
+  const text = useAuiState("composer").text;
   const inputRef = useRef<TextInputInstance>(null);
 
   const onChangeText = useCallback(

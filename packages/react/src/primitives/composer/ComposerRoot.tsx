@@ -85,15 +85,14 @@ export const ComposerPrimitiveRoot = forwardRef<
 
   const [multiline, setMultiline] = useState(false);
   const compactContext = useMemo(() => ({ setMultiline }), []);
-  const stateAllowsCompact = useAuiState("composer", (s) =>
-    compact
-      ? s.attachments.length === 0 &&
-        s.quote == null &&
-        s.queue.length === 0 &&
-        s.dictation == null &&
-        !s.text.includes("\n")
-      : false,
-  );
+  const composer = useAuiState("composer");
+  const stateAllowsCompact = compact
+    ? composer.attachments.length === 0 &&
+      composer.quote == null &&
+      composer.queue.length === 0 &&
+      composer.dictation == null &&
+      !composer.text.includes("\n")
+    : false;
   const isCompact = stateAllowsCompact && !multiline;
 
   const handleSubmit = (e: FormEvent) => {

@@ -18,15 +18,13 @@ const useInteractableState = <TState>(
 ] => {
   const aui = useAui();
 
-  const state = useAuiState(
-    "unstable_interactables",
-    (s) => s.definitions[id]?.state,
-  ) as TState | undefined;
+  const state = useAuiState("unstable_interactables").definitions[id]?.state as
+    | TState
+    | undefined;
 
-  const persistenceStatus = useAuiState(
-    "unstable_interactables",
-    (s) => s.persistence[id],
-  );
+  const persistenceStatus = useAuiState("unstable_interactables").persistence[
+    id
+  ];
 
   const setState = useCallback(
     (updater: StateUpdater<TState>) => {

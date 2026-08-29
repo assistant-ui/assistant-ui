@@ -64,8 +64,8 @@ export const createMessageConverter = <T extends object>(
         return undefined;
       });
 
-      const messageMessages = useAuiState("message", (s) =>
-        getExternalStoreMessages<T>(s),
+      const messageMessages = getExternalStoreMessages<T>(
+        useAuiState("message"),
       );
 
       const messages = partMessages ?? messageMessages;

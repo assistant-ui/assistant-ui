@@ -14,7 +14,7 @@ export const AttachmentStatus: FC<AttachmentStatusProps> = ({
   showComplete,
   ...textProps
 }) => {
-  const status = useAuiState("attachment", (s) => s.status);
+  const status = useAuiState("attachment").status;
 
   if (status.type === "running") {
     const percent = Math.round(status.progress * 100);

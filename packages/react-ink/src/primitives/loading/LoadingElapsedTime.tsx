@@ -23,14 +23,13 @@ export const LoadingElapsedTime = ({
   format = defaultFormat,
   ...textProps
 }: LoadingElapsedTimeProps) => {
-  const isRunning = useAuiState("thread", (s) => s.isRunning);
-  const streamStartTime = useAuiState("thread", (s) => {
-    const lastMessage = s.messages.at(-1);
-
-    if (lastMessage?.role !== "assistant") return undefined;
-    if (lastMessage.status?.type !== "running") return undefined;
-    return lastMessage.metadata?.timing?.streamStartTime;
-  });
+  const isRunning = useAuiState("thread").isRunning;
+  const thread = useAuiState("thread");
+  const lastMessage = thread.messages.at(-1);
+  const streamStartTime =
+    lastMessage?.role === "assistant" && lastMessage.status?.type === "running"
+      ? lastMessage.metadata?.timing?.streamStartTime
+      : undefined;
   const [now, setNow] = useState(() => Date.now());
   const fallbackStartTimeRef = useRef(Date.now());
 

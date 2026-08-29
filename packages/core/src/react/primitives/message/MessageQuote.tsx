@@ -27,9 +27,7 @@ export namespace MessagePrimitiveQuote {
 const MessagePrimitiveQuoteImpl: FC<MessagePrimitiveQuote.Props> = ({
   children,
 }) => {
-  const quoteInfo = useAuiState("message", (message) =>
-    getMessageQuote({ message }),
-  );
+  const quoteInfo = getMessageQuote({ message: useAuiState("message") });
   if (!quoteInfo) return null;
   return <>{children(quoteInfo)}</>;
 };

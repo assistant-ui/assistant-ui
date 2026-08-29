@@ -2,7 +2,7 @@ import { useRef } from "react";
 import { useAuiState } from "@assistant-ui/store";
 
 const useThreadMessageIds = (): readonly string[] => {
-  const messages = useAuiState("thread", (s) => s.messages);
+  const messages = useAuiState("thread").messages;
   const prevIdsRef = useRef<readonly string[]>([]);
 
   const ids = messages.map((m) => m.id);

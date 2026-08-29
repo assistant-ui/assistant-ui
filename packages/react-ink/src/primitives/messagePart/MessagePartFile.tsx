@@ -14,11 +14,13 @@ export namespace MessagePartPrimitiveFile {
 export const MessagePartPrimitiveFile = (
   props: MessagePartPrimitiveFile.Props,
 ) => {
-  const label = useAuiState("part", (s) => {
-    if (s.type !== "file") return "";
-    const { filename, mimeType } = s;
-    return filename ? `[file: ${filename} ${mimeType}]` : `[file: ${mimeType}]`;
-  });
+  const part = useAuiState("part");
+  const label =
+    part.type !== "file"
+      ? ""
+      : part.filename
+        ? `[file: ${part.filename} ${part.mimeType}]`
+        : `[file: ${part.mimeType}]`;
   return <Text {...props}>{label}</Text>;
 };
 

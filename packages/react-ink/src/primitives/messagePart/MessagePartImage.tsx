@@ -14,10 +14,13 @@ export namespace MessagePartPrimitiveImage {
 export const MessagePartPrimitiveImage = (
   props: MessagePartPrimitiveImage.Props,
 ) => {
-  const label = useAuiState("part", (s) => {
-    if (s.type !== "image") return "";
-    return s.filename ? `[image: ${s.filename}]` : "[image]";
-  });
+  const part = useAuiState("part");
+  const label =
+    part.type !== "image"
+      ? ""
+      : part.filename
+        ? `[image: ${part.filename}]`
+        : "[image]";
   return <Text {...props}>{label}</Text>;
 };
 

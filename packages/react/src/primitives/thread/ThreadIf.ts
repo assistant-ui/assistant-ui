@@ -13,17 +13,16 @@ type ThreadIfFilters = {
 type UseThreadIfProps = RequireAtLeastOne<ThreadIfFilters>;
 
 const useThreadIf = (props: UseThreadIfProps) => {
-  return useAuiState("thread", (s) => {
-    if (props.empty === true && !s.isEmpty) return false;
-    if (props.empty === false && s.isEmpty) return false;
+  const thread = useAuiState("thread");
+  if (props.empty === true && !thread.isEmpty) return false;
+  if (props.empty === false && thread.isEmpty) return false;
 
-    if (props.running === true && !s.isRunning) return false;
-    if (props.running === false && s.isRunning) return false;
-    if (props.disabled === true && !s.isDisabled) return false;
-    if (props.disabled === false && s.isDisabled) return false;
+  if (props.running === true && !thread.isRunning) return false;
+  if (props.running === false && thread.isRunning) return false;
+  if (props.disabled === true && !thread.isDisabled) return false;
+  if (props.disabled === false && thread.isDisabled) return false;
 
-    return true;
-  });
+  return true;
 };
 
 export namespace ThreadPrimitiveIf {

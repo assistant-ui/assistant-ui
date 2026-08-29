@@ -68,7 +68,7 @@ describe("scope state contexts", () => {
     const { result } = renderHook(
       () => ({
         aui: useAui() as any,
-        count: useAuiState("counter" as never, (s: any) => s.count),
+        count: (useAuiState("counter" as never) as any).count,
         state: useAuiState("counter" as never) as any,
       }),
       { wrapper: Root },
@@ -114,7 +114,7 @@ describe("scope state contexts", () => {
 
   it("child providers only override the scopes they define", () => {
     const { result } = renderHook(
-      () => useAuiState("counter" as never, (s: any) => s.count),
+      () => (useAuiState("counter" as never) as any).count,
       {
         wrapper: ({ children }) => (
           <Root>
@@ -135,7 +135,7 @@ describe("scope state contexts", () => {
       (scopes as Record<string, unknown>).sibling ??= Sibling();
     });
     const { result } = renderHook(
-      () => useAuiState("sibling" as never, (s: any) => s.name),
+      () => (useAuiState("sibling" as never) as any).name,
       {
         wrapper: ({ children }) => (
           <AuiProvider config={AuiConfig({ main: Main() } as never)}>

@@ -56,36 +56,33 @@ const useIsHoveringRef = () => {
 
 const useIsTopAnchorUser = () => {
   const activeAnchorId = useThreadViewport((s) => s.topAnchorTurn?.anchorId);
-  const isRunning = useAuiState("thread", (s) => s.isRunning);
-  const messagesLength = useAuiState("thread", (s) => s.messages.length);
-  const lastRole = useAuiState("thread", (s) => s.messages.at(-1)?.role);
-  return useAuiState(
-    "message",
-    (s) =>
-      s.role === "user" &&
-      s.index > 0 &&
-      s.index === messagesLength - 2 &&
-      lastRole === "assistant" &&
-      (s.id === activeAnchorId || isRunning),
+  const isRunning = useAuiState("thread").isRunning;
+  const messagesLength = useAuiState("thread").messages.length;
+  const lastRole = useAuiState("thread").messages.at(-1)?.role;
+  const messageState = useAuiState("message");
+  return (
+    messageState.role === "user" &&
+    messageState.index > 0 &&
+    messageState.index === messagesLength - 2 &&
+    lastRole === "assistant" &&
+    (messageState.id === activeAnchorId || isRunning)
   );
 };
 
 const useIsTopAnchorTarget = () => {
   const activeTargetId = useThreadViewport((s) => s.topAnchorTurn?.targetId);
-  const isRunning = useAuiState("thread", (s) => s.isRunning);
-  const messageIndex = useAuiState("message", (s) => s.index);
-  const previousRole = useAuiState(
-    "thread",
-    (s) => s.messages.at(messageIndex - 1)?.role,
-  );
-  return useAuiState(
-    "message",
-    (s) =>
-      s.isLast &&
-      s.role === "assistant" &&
-      s.index >= 1 &&
-      previousRole === "user" &&
-      (s.id === activeTargetId || isRunning),
+  const isRunning = useAuiState("thread").isRunning;
+  const messageIndex = useAuiState("message").index;
+  const previousRole = useAuiState("thread").messages.at(
+    messageIndex - 1,
+  )?.role;
+  const messageState2 = useAuiState("message");
+  return (
+    messageState2.isLast &&
+    messageState2.role === "assistant" &&
+    messageState2.index >= 1 &&
+    previousRole === "user" &&
+    (messageState2.id === activeTargetId || isRunning)
   );
 };
 
@@ -143,7 +140,7 @@ const MessagePrimitiveRootDefault = ({
 }: MessagePrimitiveRootInternalProps) => {
   const isHoveringRef = useIsHoveringRef();
   const ref = useComposedRefs<HTMLDivElement>(forwardedRef, isHoveringRef);
-  const messageId = useAuiState("message", (s) => s.id);
+  const messageId = useAuiState("message").id;
 
   return <Primitive.div {...props} ref={ref} data-message-id={messageId} />;
 };
@@ -172,7 +169,7 @@ const MessagePrimitiveRootTopAnchor = ({
     topAnchorUserRef,
     topAnchorTargetRef,
   );
-  const messageId = useAuiState("message", (s) => s.id);
+  const messageId = useAuiState("message").id;
 
   return (
     <Primitive.div

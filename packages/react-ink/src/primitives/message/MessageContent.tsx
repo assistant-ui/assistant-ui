@@ -84,10 +84,7 @@ const ToolUIDisplay = ({
   index: number;
 }) => {
   const aui = useAui();
-  const Render = useAuiState(
-    "tools",
-    (s) => s.toolUIs[part.toolName]?.[0]?.render,
-  );
+  const Render = useAuiState("tools").toolUIs[part.toolName]?.[0]?.render;
 
   const partMethods = useMemo(() => aui.message.part({ index }), [aui, index]);
   const toolProps = {
@@ -118,10 +115,9 @@ const DataUIDisplay = ({
   part: Extract<MessageContentStatePart, { type: "data" }>;
   index: number;
 }) => {
-  const Render = useAuiState("dataRenderers", (s) => {
-    const named = s.renderers[part.name]?.[0];
-    return named ?? s.fallbacks[0];
-  });
+  const dataRenderers = useAuiState("dataRenderers");
+  const Render =
+    dataRenderers.renderers[part.name]?.[0] ?? dataRenderers.fallbacks[0];
   if (Render) return <Render {...(part as DataMessagePartProps)} />;
   if (Fallback) return <Fallback part={part} index={index} />;
   return <DefaultDataRenderer index={index} />;
@@ -136,7 +132,7 @@ export const MessageContent = ({
   renderFile,
   renderData,
 }: MessageContentProps) => {
-  const content = useAuiState("message", (s) => s.parts);
+  const content = useAuiState("message").parts;
 
   return (
     <>

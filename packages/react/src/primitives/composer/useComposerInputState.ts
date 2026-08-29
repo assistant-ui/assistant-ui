@@ -11,15 +11,14 @@ export type TriggerPopoverAriaProps = {
 };
 
 export function useComposerInputValue() {
-  return useAuiState("composer", (s) => (s.isEditing ? s.text : ""));
+  const composer = useAuiState("composer");
+  return composer.isEditing ? composer.text : "";
 }
 
 export function useComposerInputDisabled(disabled?: boolean | undefined) {
-  const threadDisabled = useAuiState("thread", (s) => s.isDisabled);
-  const dictationInputDisabled = useAuiState(
-    "composer",
-    (s) => s.dictation?.inputDisabled,
-  );
+  const threadDisabled = useAuiState("thread").isDisabled;
+  const dictationInputDisabled =
+    useAuiState("composer").dictation?.inputDisabled;
   const composerDisabled = threadDisabled || dictationInputDisabled;
   return Boolean(composerDisabled) || Boolean(disabled);
 }

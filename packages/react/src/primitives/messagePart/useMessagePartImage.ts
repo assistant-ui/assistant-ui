@@ -33,11 +33,8 @@ const EMPTY_IMAGE_PART: MessagePartState & ImageMessagePart = Object.freeze({
  */
 export const useMessagePartImage = () => {
   // Sentinel instead of throw: see useMessagePartText for the invariant.
-  const image = useAuiState("part", (s) => {
-    if (s.type !== "image") return EMPTY_IMAGE_PART;
+  const part = useAuiState("part");
+  if (part.type !== "image") return EMPTY_IMAGE_PART;
 
-    return s as MessagePartState & ImageMessagePart;
-  });
-
-  return image;
+  return part as MessagePartState & ImageMessagePart;
 };

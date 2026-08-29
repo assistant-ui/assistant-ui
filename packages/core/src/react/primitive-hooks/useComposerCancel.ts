@@ -4,9 +4,9 @@ import { composerCancelDisabled } from "../../store/primitive-predicates";
 
 export const useComposerCancel = () => {
   const aui = useAui();
-  const disabled = useAuiState("composer", (composer) =>
-    composerCancelDisabled({ composer } as AssistantState),
-  );
+  const disabled = composerCancelDisabled({
+    composer: useAuiState("composer"),
+  } as AssistantState);
 
   const cancel = useCallback(() => {
     aui.composer.cancel();
