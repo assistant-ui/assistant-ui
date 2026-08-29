@@ -1,3 +1,26 @@
+# assistant-ui
+
+assistant-ui provides composable runtime and UI primitives for building AI interfaces across React, React Native, and terminal environments.
+
+## Product contract
+
+Preserve these promises:
+
+- **Composable primitives.** Features should combine through the existing runtime and component model instead of requiring parallel abstractions.
+- **Stable public APIs.** Published exports are append-only. Compatibility matters even when an export appears unused inside this repository.
+- **Cross-runtime consistency.** React, React Native, Ink, and provider adapters should expose equivalent behavior wherever the platform supports it.
+- **Provider correctness.** Non-spec payloads, partial streaming data, and provider-specific capabilities must not corrupt shared runtime semantics.
+- **Copyable UI.** Registry components must remain self-contained after being copied into a user project.
+- **Good interaction quality.** Do not fix implementation problems by removing useful behavior, accessibility, responsiveness, or animation.
+
+## Maintainer taste
+
+Prefer the smallest change that fixes the underlying mechanism.
+
+Reuse an existing core primitive before adding adapter-specific state, configuration, or escape hatches. Keep orchestration in runtimes, conversion in pure modules, and rendering in components.
+
+Do not preserve complexity merely because it already exists. Do not widen a public API or disable useful behavior to make an implementation easier. When the repository already establishes a pattern, follow it unless the task exposes a concrete reason it cannot work.
+
 ## Architecture
 
 ```
@@ -100,6 +123,39 @@ Tests are vitest, colocated beside the module under test and importing it by rel
 Repro tests are temporary: marked "repro", written to prove completion of a task, deleted when the work is done, anything worth keeping folded into the real suite.
 
 Contract tests document how complex machinery behaves at its public seams. They stay, and they read as the contract.
+
+## Pull request output
+
+Use a conventional, plain-language title: `<type>(<scope>): <observable outcome>`. The scope may be omitted when no package or surface name improves the title.
+
+Examples:
+
+- `fix(react): preserve message status when switching threads`
+- `feat: expose runtime metadata mutation`
+
+Write the human-authored description before any automated summary. Use this shape, omitting sections that genuinely do not apply:
+
+```md
+## Problem
+
+Describe the user-visible failure or missing capability. Bug fixes include the minimal reproduction and affected version.
+
+## Root cause
+
+Explain the mechanism that produced the behavior.
+
+## Change
+
+Explain the implementation, why it follows the existing architecture, and any intentional runtime or provider differences.
+
+## Verification
+
+List exact focused tests and checks. For a bug, confirm the reproduction fails without the fix and passes with it.
+
+## Public surface
+
+List affected packages, exports, documentation, API-reference output, templates, and changesets, or state `None`.
+```
 
 ## Do's and don'ts
 
