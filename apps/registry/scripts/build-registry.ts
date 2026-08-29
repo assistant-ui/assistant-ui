@@ -65,6 +65,8 @@ type RegistryOutputItem = Omit<RegistryBuildItem, "files"> & {
   files?: RegistryOutputFile[];
 };
 
+type RegistryFileFlavor = UiFlavor | "vue";
+
 function stripRegistryDependencyUsageExemptions(item: RegistryItem) {
   const { registryDependencyUsageExemptions: _usageExemptions, ...publicItem } =
     item;
@@ -1448,6 +1450,28 @@ export async function buildRegistry(
     await fs.mkdir(path.dirname(p), { recursive: true });
 
     await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
+  }
+
+  for (const [flavor, builtItems] of [
+    ["radix", radixBuilt],
+    ["base", baseBuilt],
+    ["vue", vueBuilt],
+  ] as const satisfies ReadonlyArray<
+    readonly [RegistryFileFlavor, BuiltRegistryPayload[]]
+  >) {
+    for (const { payload } of builtItems) {
+      for (const file of payload.files ?? []) {
+        const filePath = path.join(
+          REGISTRY_PATH,
+          "files",
+          flavor,
+          payload.name,
+          file.target ?? file.path,
+        );
+        await fs.mkdir(path.dirname(filePath), { recursive: true });
+        await fs.writeFile(filePath, file.content, "utf8");
+      }
+    }
   }
 
   const registryIndex = {

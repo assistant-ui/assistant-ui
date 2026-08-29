@@ -100,6 +100,47 @@ test("vue registry build emits a self-contained thread with its type-only depend
   );
 });
 
+test("registry build serves transformed files as plain-text package artifacts", async () => {
+  const radix = JSON.parse(await readFile("dist/mcp-config.json", "utf8"));
+  const radixFile = radix.files.find(
+    (file) =>
+      file.path === "components/assistant-ui/elements/mcp-config.aui.tsx",
+  );
+  assert.ok(radixFile);
+
+  const radixArtifactPath =
+    "dist/files/radix/mcp-config/components/assistant-ui/elements/mcp-config.aui.tsx";
+  assert.equal(await readFile(radixArtifactPath, "utf8"), radixFile.content);
+  assert.doesNotMatch(radixFile.content, /@\/components\/ui\/radix\//);
+
+  const base = JSON.parse(await readFile("dist/base/mcp-config.json", "utf8"));
+  const baseFile = base.files.find(
+    (file) =>
+      file.path === "components/assistant-ui/elements/mcp-config.aui.tsx",
+  );
+  assert.ok(baseFile);
+  assert.equal(
+    await readFile(
+      "dist/files/base/mcp-config/components/assistant-ui/elements/mcp-config.aui.tsx",
+      "utf8",
+    ),
+    baseFile.content,
+  );
+
+  const multiFileItem = JSON.parse(
+    await readFile("dist/chat/b/ai-sdk-quick-start/json.json", "utf8"),
+  );
+  for (const file of multiFileItem.files) {
+    assert.equal(
+      await readFile(
+        `dist/files/radix/chat/b/ai-sdk-quick-start/json/${file.target ?? file.path}`,
+        "utf8",
+      ),
+      file.content,
+    );
+  }
+});
+
 test("emitted vue artifacts compile as SFCs and pass the vue purity gate", async () => {
   const { parse, compileScript } = await import("@vue/compiler-sfc");
   const thread = JSON.parse(await readFile("dist/vue/thread.json", "utf8"));
