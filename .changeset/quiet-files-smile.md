@@ -2,4 +2,4 @@
 "assistant-stream": patch
 ---
 
-fix: preserve zero-byte files in generic messages
+fix: preserve valid files with empty payload or MIME values

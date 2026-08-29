@@ -130,7 +130,7 @@ describe("toGenericMessages", () => {
             },
           ],
         },
-      ] as never);
+      ]);
 
       expect(result).toEqual([
         {
@@ -141,6 +141,59 @@ describe("toGenericMessages", () => {
               data: "",
               mediaType: "text/plain",
               filename: "empty.txt",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("falls back when a file MIME type is empty", () => {
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: "https://cdn.example.com/untyped-file",
+              mimeType: "",
+              filename: "untyped-file",
+            },
+          ],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL("https://cdn.example.com/untyped-file"),
+              mediaType: "application/octet-stream",
+              filename: "untyped-file",
+            },
+          ],
+        },
+      ]);
+    });
+
+    it("uses the data URL MIME type when the file MIME type is empty", () => {
+      const data = "data:text/plain;base64,";
+      const result = toGenericMessages([
+        {
+          role: "user",
+          content: [{ type: "file", data, mimeType: "" }],
+        },
+      ]);
+
+      expect(result).toEqual([
+        {
+          role: "user",
+          content: [
+            {
+              type: "file",
+              data: new URL(data),
+              mediaType: "text/plain",
             },
           ],
         },

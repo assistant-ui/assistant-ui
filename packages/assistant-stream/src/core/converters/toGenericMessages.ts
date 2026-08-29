@@ -106,12 +106,14 @@ const IMAGE_MEDIA_TYPES: Record<string, string> = {
   heif: "image/heif",
 };
 
+function getDataUrlMediaType(value: string): string | undefined {
+  return value.match(/^data:([^;,]+)/i)?.[1]?.toLowerCase();
+}
+
 function inferImageMediaType(url: string): string {
   // Handle data URLs: data:[<mediatype>][;base64],<data>
-  if (/^data:/i.test(url)) {
-    const match = url.match(/^data:([^;,]+)/i);
-    if (match?.[1]) return match[1].toLowerCase();
-  }
+  const dataUrlMediaType = getDataUrlMediaType(url);
+  if (dataUrlMediaType) return dataUrlMediaType;
 
   // Extract extension from URL path, ignoring query string and hash
   const [pathWithoutParams = ""] = url.split(/[?#]/);
@@ -224,12 +226,15 @@ function convertUserMessage(
     } else if (
       part.type === "file" &&
       typeof part.data === "string" &&
-      part.mimeType
+      typeof part.mimeType === "string"
     ) {
       content.push({
         type: "file",
         data: toUrlOrString(part.data),
-        mediaType: part.mimeType,
+        mediaType:
+          part.mimeType ||
+          getDataUrlMediaType(part.data) ||
+          "application/octet-stream",
         ...(part.filename && { filename: part.filename }),
       });
     }
