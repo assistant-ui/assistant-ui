@@ -11,7 +11,7 @@ import { OTLPHttpProtoTraceExporter, registerOTel } from "@vercel/otel";
 // that "auto" produces for ordinary site traffic, which it bills by volume.
 const AI_SPAN_PREFIXES = ["gen_ai.", "llm.", "ai.", "traceloop."];
 
-function isAiSpan(span: ReadableSpan) {
+export function isAiSpan(span: ReadableSpan) {
   return (
     AI_SPAN_PREFIXES.some((prefix) => span.name.startsWith(prefix)) ||
     Object.keys(span.attributes).some((key) =>
@@ -20,7 +20,7 @@ function isAiSpan(span: ReadableSpan) {
   );
 }
 
-function aiOnly(inner: SpanProcessor): SpanProcessor {
+export function aiOnly(inner: SpanProcessor): SpanProcessor {
   return {
     onStart: (span, context) => inner.onStart(span, context),
     onEnd: (span) => {
