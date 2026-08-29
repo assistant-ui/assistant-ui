@@ -57,6 +57,20 @@ describe("LiveKit token route", () => {
     expect(response.status).toBe(403);
   });
 
+  it("accepts matching origins when Fetch Metadata is unavailable", async () => {
+    vi.stubEnv("LIVEKIT_API_KEY", "api-key");
+    vi.stubEnv("LIVEKIT_API_SECRET", "secret-key-that-is-long-enough");
+
+    const response = await POST(
+      new Request("https://app.example/api/livekit-token", {
+        method: "POST",
+        headers: { origin: "https://app.example" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+  });
+
   it("issues short-lived tokens for isolated rooms", async () => {
     vi.stubEnv("LIVEKIT_API_KEY", "api-key");
     vi.stubEnv("LIVEKIT_API_SECRET", "secret-key-that-is-long-enough");
