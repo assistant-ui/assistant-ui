@@ -150,10 +150,10 @@ function main() {
       console.error(`  .changeset/${file}: "${name}" ${reason}`);
     }
     console.error(
-      "\nA changeset mixing a package changesets skips with a released one aborts",
+      "\nChangesets refuses a changeset that mixes a skipped package with a released one,",
     );
     console.error(
-      "`changeset version`, which blocks every release until the line is removed.",
+      "so `changeset version` aborts and every release stays blocked until the line is removed.",
     );
     console.error("\nDrop the offending line from the changeset frontmatter.");
     process.exit(1);
