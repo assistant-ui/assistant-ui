@@ -1,10 +1,38 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import path from "node:path";
 import test from "node:test";
 import {
   findUnreleasablePackages,
   parseBumpLine,
   parseWorkspaceGlobs,
+  runCheck,
 } from "./check-changesets.mjs";
+
+const repoRoot = path.resolve(import.meta.dirname, "..");
+
+function createWorkspace(changeset) {
+  const root = mkdtempSync(path.join(tmpdir(), "aui-changesets-"));
+  writeFileSync(
+    path.join(root, "pnpm-workspace.yaml"),
+    "packages:\n  - packages/*\n\nlinkWorkspacePackages: true\n",
+  );
+  for (const [dir, manifest] of [
+    ["published", { name: "@fixture/published", version: "1.0.0" }],
+    ["internal", { name: "@fixture/internal", private: true }],
+  ]) {
+    mkdirSync(path.join(root, "packages", dir), { recursive: true });
+    writeFileSync(
+      path.join(root, "packages", dir, "package.json"),
+      JSON.stringify(manifest),
+    );
+  }
+  mkdirSync(path.join(root, ".changeset"));
+  writeFileSync(path.join(root, ".changeset", "entry.md"), changeset);
+  return root;
+}
 
 test("parseBumpLine reads every quoting style changesets accepts", () => {
   for (const line of [
@@ -100,4 +128,42 @@ test("findUnreleasablePackages flags private and unknown names", () => {
     /is private \(packages\/vue\/package\.json\)/,
   );
   assert.match(problems[1].reason, /is not a workspace package/);
+});
+
+test("runCheck accepts a workspace whose changesets are all releasable", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n---\n\nfix: something\n',
+  );
+  try {
+    assert.deepEqual(runCheck(root), { packageCount: 2, problems: [] });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("runCheck rejects a changeset naming a private package", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/published": patch\n"@fixture/internal": "patch" # slipped past the old matcher\n---\n\nfix: something\n',
+  );
+  try {
+    const { problems } = runCheck(root);
+    assert.equal(problems.length, 1);
+    assert.equal(problems[0].name, "@fixture/internal");
+    assert.match(problems[0].reason, /is private/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("the executable reports success against this repo", () => {
+  const result = spawnSync(
+    process.execPath,
+    [path.join(repoRoot, "scripts", "check-changesets.mjs")],
+    { encoding: "utf8" },
+  );
+  assert.equal(result.status, 0, result.stderr);
+  assert.match(
+    result.stdout,
+    /All changeset bumps name releasable workspace packages\./,
+  );
 });

@@ -2,6 +2,7 @@
 import { globSync, readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { isExecutedAsMain } from "./check-built-declarations.mjs";
 import { readJson } from "./lib/workspace.mjs";
 
 const repoRoot = path.resolve(
@@ -44,9 +45,9 @@ export function parseBumpLine(line) {
   return { name: entry[1] ?? entry[2] ?? entry[3], bump };
 }
 
-function readWorkspacePackages() {
+function readWorkspacePackages(root) {
   const globs = parseWorkspaceGlobs(
-    readFileSync(path.join(repoRoot, "pnpm-workspace.yaml"), "utf8"),
+    readFileSync(path.join(root, "pnpm-workspace.yaml"), "utf8"),
   );
   if (globs.length === 0) {
     throw new Error("pnpm-workspace.yaml declares no `packages:` entries.");
@@ -54,9 +55,9 @@ function readWorkspacePackages() {
   const byName = new Map();
   for (const glob of globs) {
     for (const manifest of globSync(`${glob}/package.json`, {
-      cwd: repoRoot,
+      cwd: root,
     })) {
-      const pkg = readJson(path.join(repoRoot, manifest));
+      const pkg = readJson(path.join(root, manifest));
       if (typeof pkg.name !== "string") continue;
       byName.set(pkg.name, {
         manifest: manifest.replaceAll("\\", "/"),
@@ -67,8 +68,8 @@ function readWorkspacePackages() {
   return byName;
 }
 
-function readChangesetBumps() {
-  const changesetDir = path.join(repoRoot, ".changeset");
+function readChangesetBumps(root) {
+  const changesetDir = path.join(root, ".changeset");
   const bumps = [];
   for (const file of readdirSync(changesetDir).sort()) {
     if (!file.endsWith(".md") || file === "README.md") continue;
@@ -106,9 +107,16 @@ export function findUnreleasablePackages(packages, bumps) {
   return problems;
 }
 
+export function runCheck(root = repoRoot) {
+  const packages = readWorkspacePackages(root);
+  return {
+    packageCount: packages.size,
+    problems: findUnreleasablePackages(packages, readChangesetBumps(root)),
+  };
+}
+
 function main() {
-  const packages = readWorkspacePackages();
-  const problems = findUnreleasablePackages(packages, readChangesetBumps());
+  const { packageCount, problems } = runCheck();
 
   if (problems.length > 0) {
     console.error("Changesets name packages that cannot be released:\n");
@@ -127,8 +135,8 @@ function main() {
   }
 
   console.log(
-    `All changeset bumps name releasable workspace packages. (${packages.size} packages scanned)`,
+    `All changeset bumps name releasable workspace packages. (${packageCount} packages scanned)`,
   );
 }
 
-if (import.meta.main) main();
+if (isExecutedAsMain(import.meta.url, process.argv[1])) main();
