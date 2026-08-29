@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState, type ComponentProps } from "react";
+import { useEffect, useState, type ComponentProps } from "react";
 import { CheckIcon, LinkIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -13,9 +13,12 @@ export function Heading({
   ...props
 }: ComponentProps<"h1"> & { as?: HeadingTag }) {
   const [copied, setCopied] = useState(false);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined,
-  );
+
+  useEffect(() => {
+    if (!copied) return;
+    const timeout = setTimeout(() => setCopied(false), 1500);
+    return () => clearTimeout(timeout);
+  }, [copied]);
 
   if (!props.id) {
     return (
@@ -26,12 +29,13 @@ export function Heading({
   }
 
   const onCopy = () => {
+    if (!navigator.clipboard) return;
     const url = new URL(window.location.href);
     url.hash = props.id as string;
-    void navigator.clipboard.writeText(url.href);
-    setCopied(true);
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => setCopied(false), 1500);
+    navigator.clipboard.writeText(url.href).then(
+      () => setCopied(true),
+      () => undefined,
+    );
   };
 
   return (
@@ -48,7 +52,7 @@ export function Heading({
       <button
         type="button"
         aria-label="Copy anchor link"
-        className="not-prose text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex size-6 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover/heading:opacity-100"
+        className="not-prose text-muted-foreground hover:bg-accent hover:text-accent-foreground inline-flex size-6 shrink-0 items-center justify-center rounded-md opacity-0 transition-opacity group-hover/heading:opacity-100 focus-visible:opacity-100"
         onClick={onCopy}
       >
         {copied ? (

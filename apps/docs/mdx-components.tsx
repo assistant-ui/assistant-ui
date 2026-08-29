@@ -58,33 +58,23 @@ function Code({ children, ...props }: ComponentProps<"code">) {
   );
 }
 
-function MdxLink({ href = "#", children, ...props }: ComponentProps<"a">) {
-  const external = /^\w+:/.test(href) || href.startsWith("//");
+function MdxLink({ href = "#", ...props }: ComponentProps<typeof Link>) {
+  const url = typeof href === "string" ? href : "#";
+  const external = /^\w+:/.test(url) || url.startsWith("//");
   if (external) {
     return (
-      <a href={href} rel="noreferrer noopener" target="_blank" {...props}>
-        {children}
-      </a>
+      <a href={url} rel="noreferrer noopener" target="_blank" {...props} />
     );
   }
-  return (
-    <Link
-      href={href}
-      className={props.className}
-      title={props.title}
-      id={props.id}
-    >
-      {children}
-    </Link>
-  );
+  return <Link href={href} {...props} />;
 }
 
 function MdxImage({
   src,
   className,
   alt = "",
-  title,
-}: Omit<ComponentProps<"img">, "src" | "alt"> & {
+  ...props
+}: Omit<ComponentProps<typeof Image>, "src" | "alt"> & {
   src?: string | StaticImageData;
   alt?: string;
 }) {
@@ -94,9 +84,9 @@ function MdxImage({
       <Image
         src={src}
         alt={alt}
-        title={title}
         sizes="(max-width: 768px) 100vw, (max-width: 1200px) 70vw, 900px"
         className={cn("rounded-lg", className)}
+        {...props}
       />
     );
   }
@@ -104,8 +94,8 @@ function MdxImage({
     <img
       src={src}
       alt={alt}
-      title={title}
       className={cn("rounded-lg", className)}
+      {...props}
     />
   );
 }

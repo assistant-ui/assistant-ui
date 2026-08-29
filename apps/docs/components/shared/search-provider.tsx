@@ -45,6 +45,7 @@ export function SearchProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
+      if (event.repeat) return;
       const matches = HOT_KEYS.every((item) =>
         typeof item.key === "string" ? event.key === item.key : item.key(event),
       );

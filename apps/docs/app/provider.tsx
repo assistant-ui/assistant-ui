@@ -20,7 +20,7 @@ function ThemeHotkey() {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.defaultPrevented || event.isComposing) return;
+      if (event.defaultPrevented || event.isComposing || event.repeat) return;
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (event.key.toLowerCase() !== "d") return;
       if (isTypingTarget(event.target)) return;

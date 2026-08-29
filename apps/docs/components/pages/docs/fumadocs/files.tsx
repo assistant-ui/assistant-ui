@@ -47,6 +47,7 @@ export function Folder({
     <div className={className} {...props}>
       <button
         type="button"
+        aria-expanded={open}
         className={cn(itemClassName, "w-full")}
         onClick={() => setOpen((prev) => !prev)}
       >
