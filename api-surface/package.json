@@ -22,7 +22,7 @@
     "@standard-schema/spec": "^1.1.0",
     "ai": "^7.0.83",
     "denque": "^2.1.0",
-    "eve": "^0.44.4",
+    "eve": "^0.47.3",
     "ink": "^7.1.1",
     "ink-spinner": "^5.0.0",
     "lexical": "^0.49.0",
