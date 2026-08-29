@@ -15,6 +15,13 @@ import {
   useThreadListItemFocus,
 } from "./threadListFocusGroup";
 
+/**
+ * A button that switches to the current thread-list item's thread. Carries
+ * `data-active` and `aria-current` while that thread is the main one, for
+ * standalone use; when nested under `ThreadListItemPrimitiveRoot` the root
+ * stamps them too, diverging from React's root-only pattern to keep existing
+ * standalone consumers styled.
+ */
 export const ThreadListItemPrimitiveTrigger = defineComponent({
   name: "ThreadListItemPrimitiveTrigger",
   inheritAttrs: false,
