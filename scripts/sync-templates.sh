@@ -200,11 +200,6 @@ if [[ -d "$NUXT_DIR" ]]; then
         file="$(basename "$nuxt_file")"
         src_file="$(resolve_vue_source "$file")"
 
-        if [[ ! -f "$src_file" ]]; then
-            vue_missing+=("$file")
-            continue
-        fi
-
         is_override=0
         for o in "${OVERRIDES[@]}"; do
             if [[ "$file" == "$o" ]]; then
@@ -213,6 +208,11 @@ if [[ -d "$NUXT_DIR" ]]; then
             fi
         done
         [[ "$is_override" -eq 1 ]] && continue
+
+        if [[ ! -f "$src_file" ]]; then
+            vue_missing+=("$file")
+            continue
+        fi
 
         vue_candidates+=("$file")
         rendered_vue "$file" > /dev/null
@@ -333,7 +333,7 @@ if [[ "$MODE" == "--write" ]]; then
         echo "removed redundant copy $r (resolved from packages/ui via tsconfig paths)"
     done
     echo ""
-    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#redundant[@]} )) file(s)"
+    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#redundant[@]} )) file(s)"
     exit 0
 fi
 
