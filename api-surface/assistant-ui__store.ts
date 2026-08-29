@@ -296,7 +296,7 @@ declare const isUserScrollUp: (previous: {
   scrollHeight: number;
 }, current: ViewportMetrics) => boolean;
 
-declare const isViewportAtBottom: (metrics: ViewportMetrics) => boolean;
+declare const isViewportAtBottom: (metrics: ViewportMetrics, contentInset?: number) => boolean;
 
 declare const normalizeEventSelector: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>) => {
   scope: AssistantEventScope<TEvent>;
@@ -380,6 +380,6 @@ declare const useShallowSelector: <TState, TResult extends object>(select: (stat
 
 declare const useShallowStable: <T extends object>(value: T) => T;
 
-declare const viewportOverflows: (metrics: ViewportMetrics) => boolean;
+declare const viewportOverflows: (metrics: ViewportMetrics, contentInset?: number) => boolean;
 
 export { entry_client_exports as entry_client, entry_internal_exports as entry_internal, entry_root_exports as entry_root };
