@@ -11,6 +11,7 @@ import { isAttrDisabled } from "./attrDisabled";
 
 /**
  * A button that toggles the collapsed state of the chain of thought accordion.
+ * Caller listeners run first and can veto the toggle via `preventDefault`.
  */
 export const ChainOfThoughtPrimitiveAccordionTrigger = defineComponent({
   name: "ChainOfThoughtPrimitiveAccordionTrigger",
