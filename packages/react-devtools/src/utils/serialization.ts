@@ -45,9 +45,17 @@ export const sanitizeForMessage = (
         );
       }
       if (Array.isArray(value)) {
-        return value
-          .map((entry) => sanitizeForMessage(entry, seen))
-          .filter((item) => item !== undefined);
+        const result: unknown[] = [];
+        for (let index = 0; index < value.length; index++) {
+          try {
+            if (!(index in value)) continue;
+            const item = sanitizeForMessage(value[index], seen);
+            if (item !== undefined) result.push(item);
+          } catch {
+            result.push(UNSERIALIZABLE);
+          }
+        }
+        return result;
       }
 
       const result: Record<string, unknown> = {};

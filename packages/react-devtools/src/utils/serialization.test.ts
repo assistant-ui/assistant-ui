@@ -87,6 +87,21 @@ describe("sanitizeForMessage", () => {
 
     expect(sanitizeForMessage(value)).toBe("[Unserializable]");
   });
+
+  it("preserves readable array entries when an indexed getter throws", () => {
+    const value = ["first", "second", "third"];
+    Object.defineProperty(value, 1, {
+      get: () => {
+        throw new Error("getter failed");
+      },
+    });
+
+    expect(sanitizeForMessage(value)).toEqual([
+      "first",
+      "[Unserializable]",
+      "third",
+    ]);
+  });
 });
 
 describe("redactSensitive", () => {
