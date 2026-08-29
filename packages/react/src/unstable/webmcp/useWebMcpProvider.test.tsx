@@ -227,6 +227,24 @@ describe("unstable_useWebMcpProvider", () => {
     expect(host.unregisterCalls).toEqual(["search"]);
   });
 
+  it("does not observe a schema mutated in place on the same tool object", async () => {
+    const adapter = useHost(createFakeWebMcpHost());
+    const tool = frontendTool();
+    const provider = createProvider({ search: tool });
+    mountProvider(provider);
+    await waitForNames(["search"]);
+    const before = adapter.registry.get("search")?.inputSchema;
+
+    (tool.parameters as Record<string, unknown>)["properties"] = {
+      city: { type: "string" },
+    };
+    provider.setTools({ search: tool });
+    await vi.waitFor(() => expect(adapter.registerCalls).toEqual(["search"]));
+
+    expect(adapter.registry.get("search")?.inputSchema).toBe(before);
+    expect(adapter.unregisterCalls).toEqual([]);
+  });
+
   it("does not treat a tool named after an Object.prototype key as inherited", async () => {
     const host = useHost(createFakeWebMcpHost());
     const provider = createProvider({
