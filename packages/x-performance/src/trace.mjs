@@ -56,6 +56,14 @@ class Cdp {
     this.nextId = 1;
     this.pending = new Map();
     this.listeners = [];
+    const failAll = (reason) => {
+      for (const { reject } of this.pending.values()) {
+        reject(new Error(`CDP connection ${reason}`));
+      }
+      this.pending.clear();
+    };
+    ws.addEventListener("close", () => failAll("closed"));
+    ws.addEventListener("error", () => failAll("errored"));
     ws.addEventListener("message", (event) => {
       const msg = JSON.parse(event.data);
       if (msg.id && this.pending.has(msg.id)) {

@@ -11,11 +11,10 @@ import {
 import { cpus, arch, platform, tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { REF_PACKAGE_DIRS } from "./ref-packages.mjs";
 
 const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const perfDir = join(pkgRoot, ".perf");
-
-import { REF_PACKAGE_DIRS } from "./ref-packages.mjs";
 
 const git = (args, cwd = pkgRoot) => {
   try {
@@ -59,14 +58,12 @@ const flattenBenchmarks = (raw) => {
   return rows;
 };
 
-const PNPM = process.platform === "win32" ? "pnpm.cmd" : "pnpm";
-
 const runSuite = (extraEnv = {}) => {
   const tmp = join(perfDir, "raw.json");
   const env = { ...process.env, ...extraEnv };
   if (!("AUI_PERF_REF_ROOT" in extraEnv)) delete env.AUI_PERF_REF_ROOT;
   const res = spawnSync(
-    PNPM,
+    "pnpm",
     ["exec", "vitest", "bench", "--run", "--outputJson", tmp],
     {
       cwd: pkgRoot,
@@ -171,7 +168,7 @@ const ensureRefWorktree = (ref) => {
   }
   if (!existsSync(marker)) {
     console.log("installing and building ref packages (one-time per ref)...");
-    execFileSync(PNPM, ["install"], {
+    execFileSync("pnpm", ["install"], {
       cwd: wt,
       stdio: "inherit",
       env: { ...process.env, CI: "true" },
@@ -179,7 +176,7 @@ const ensureRefWorktree = (ref) => {
     const filters = Object.keys(REF_PACKAGE_DIRS).map(
       (name) => `--filter=${name}`,
     );
-    execFileSync(PNPM, ["turbo", "run", "build", ...filters], {
+    execFileSync("pnpm", ["turbo", "run", "build", ...filters], {
       cwd: wt,
       stdio: "inherit",
     });
