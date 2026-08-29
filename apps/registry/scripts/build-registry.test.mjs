@@ -160,6 +160,27 @@ test("the production vue registry stays empty until the publish flip", async () 
   assert.deepEqual(vueIndex.items, []);
 });
 
+test("vue payload parsing fails on a malformed sfc", () => {
+  assert.throws(
+    () =>
+      validateVueFlavorContent([
+        {
+          name: "broken",
+          payload: {
+            files: [
+              {
+                path: "components/assistant-ui/broken.vue",
+                content:
+                  "<script setup>const a = 1</script>\n<script setup>const b = 2</script>",
+              },
+            ],
+          },
+        },
+      ]),
+    /Failed to parse/,
+  );
+});
+
 test("vue registry build removes stale output", async () => {
   await mkdir("dist/vue", { recursive: true });
   await writeFile("dist/vue/stale.json", "{}", "utf8");
