@@ -12,6 +12,13 @@ export type WebMcpRegistrationProps = {
   tool: Tool<any, any>;
 };
 
+// The explainer specifies NotAllowedError for a page whose tools permission is
+// off, which a cross-origin iframe without allow="tools" reaches routinely.
+const refusalMessage = (name: string, error: unknown) =>
+  (error as { name?: unknown } | null | undefined)?.name === "NotAllowedError"
+    ? `[assistant-ui] WebMCP registration for tool "${name}" was not permitted; the page's tools permission is disabled.`
+    : `[assistant-ui] WebMCP registration for tool "${name}" failed (name may already be registered).`;
+
 const useWebMcpRegistration = ({
   host,
   name,
@@ -45,11 +52,7 @@ const useWebMcpRegistration = ({
     try {
       dispose = host.registerTool(
         toWebMcpTool(name, () => toolRef.current, lifecycle.signal),
-        (error) =>
-          refuse(
-            `[assistant-ui] WebMCP registration for tool "${name}" failed (name may already be registered).`,
-            error,
-          ),
+        (error) => refuse(refusalMessage(name, error), error),
       );
     } catch (error) {
       refuse(

@@ -375,6 +375,32 @@ describe("unstable_useWebMcpProvider", () => {
     expect(registry.get("search")).toEqual({ name: "search" });
   });
 
+  it("names the permissions policy when the host refuses with NotAllowedError", async () => {
+    const warn = silenceWarnings();
+    let reject!: (error: unknown) => void;
+    useHost({
+      available: true,
+      registerTool: (_def, onError) => {
+        reject = (error) => onError?.(error);
+        return () => {};
+      },
+    });
+    mountProvider(createProvider({ search: frontendTool() }));
+    await waitForNames(["search"]);
+
+    const denied = new Error("denied");
+    denied.name = "NotAllowedError";
+    reject(denied);
+
+    await vi.waitFor(() =>
+      expect(warn).toHaveBeenCalledWith(
+        expect.stringContaining("tools permission is disabled"),
+        denied,
+      ),
+    );
+    await waitForNames([]);
+  });
+
   it("keeps the tool exposed across a description change on an async unregisterTool", async () => {
     const registry = createAsyncModelContext();
     const provider = createProvider({ search: frontendTool() });

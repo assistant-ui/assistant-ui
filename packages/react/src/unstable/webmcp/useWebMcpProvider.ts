@@ -123,7 +123,9 @@ export const unstable_useWebMcpProvider = (
   const [host] = useState(getDefaultWebMcpHost);
   const filter = options.filter ?? defaultWebMcpFilter;
 
-  const root = useTapRoot(() => useWebMcpRegistry({ aui, host, filter }));
+  const root = useTapRoot(function WebMcpProviderRoot() {
+    return useWebMcpRegistry({ aui, host, filter });
+  });
   const registeredToolNames = useSyncExternalStore(
     root.subscribe,
     root.getValue,
