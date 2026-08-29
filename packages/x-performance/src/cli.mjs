@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawnSync, execSync } from "node:child_process";
+import { spawnSync, execFileSync } from "node:child_process";
 import {
   mkdirSync,
   readFileSync,
@@ -24,7 +24,7 @@ const REF_PACKAGE_NAMES = {
 
 const git = (args, cwd = pkgRoot) => {
   try {
-    return execSync(`git ${args}`, { cwd, encoding: "utf8" }).trim();
+    return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
   } catch {
     return "unknown";
   }
@@ -37,8 +37,8 @@ const envStamp = (root = pkgRoot) => ({
   arch: arch(),
   platform: platform(),
   node: process.version,
-  sha: git("rev-parse --short HEAD", root),
-  dirty: git("status --porcelain", root) !== "",
+  sha: git(["rev-parse", "--short", "HEAD"], root),
+  dirty: git(["status", "--porcelain"], root) !== "",
 });
 
 const flattenBenchmarks = (raw) => {
@@ -66,13 +66,15 @@ const flattenBenchmarks = (raw) => {
 
 const runSuite = (extraEnv = {}) => {
   const tmp = join(perfDir, "raw.json");
+  const env = { ...process.env, ...extraEnv };
+  if (!("AUI_PERF_REF_ROOT" in extraEnv)) delete env.AUI_PERF_REF_ROOT;
   const res = spawnSync(
     "pnpm",
     ["exec", "vitest", "bench", "--run", "--outputJson", tmp],
     {
       cwd: pkgRoot,
       stdio: ["ignore", "ignore", "inherit"],
-      env: { ...process.env, ...extraEnv },
+      env,
     },
   );
   if (res.status !== 0) process.exit(res.status ?? 1);
@@ -153,47 +155,55 @@ const compareFiles = (aPath, bPath) => {
 };
 
 const ensureRefWorktree = (ref) => {
-  const repoRoot = git("rev-parse --show-toplevel");
-  const sha = git(`rev-parse --short ${ref}`, repoRoot);
+  const repoRoot = git(["rev-parse", "--show-toplevel"]);
+  const sha = git(["rev-parse", "--short", ref], repoRoot);
   if (sha === "unknown") {
     console.error(`cannot resolve ref: ${ref}`);
     process.exit(1);
   }
   const wt = join(tmpdir(), `aui-perf-ref-${sha}`);
+  const marker = `${wt}.built`;
   if (!existsSync(wt)) {
+    if (existsSync(marker)) rmSync(marker);
+    execFileSync("git", ["worktree", "prune"], { cwd: repoRoot });
     console.log(`creating ref worktree for ${ref} (${sha}) at ${wt}`);
-    execSync(`git worktree add --detach "${wt}" ${sha}`, {
+    execFileSync("git", ["worktree", "add", "--detach", wt, sha], {
       cwd: repoRoot,
       stdio: "inherit",
     });
   }
-  const marker = `${wt}.built`;
   if (!existsSync(marker)) {
     console.log("installing and building ref packages (one-time per ref)...");
-    execSync("pnpm install", {
+    execFileSync("pnpm", ["install"], {
       cwd: wt,
       stdio: "inherit",
       env: { ...process.env, CI: "true" },
     });
-    const filters = REF_PACKAGES.map(
-      (p) => `--filter=${REF_PACKAGE_NAMES[p]}`,
-    ).join(" ");
-    execSync(`pnpm turbo run build ${filters}`, { cwd: wt, stdio: "inherit" });
+    const filters = REF_PACKAGES.map((p) => `--filter=${REF_PACKAGE_NAMES[p]}`);
+    execFileSync("pnpm", ["turbo", "run", "build", ...filters], {
+      cwd: wt,
+      stdio: "inherit",
+    });
     writeFileSync(marker, sha);
   }
-  return { wt, sha };
+  return { wt, sha, marker };
 };
 
 const compareRef = (ref, runs) => {
-  const { wt, sha } = ensureRefWorktree(ref);
+  const { wt, sha, marker } = ensureRefWorktree(ref);
   mkdirSync(perfDir, { recursive: true });
   const current = new Map();
   const refBest = new Map();
+  const sides = [
+    ["current", () => mergeBest(current, runSuite())],
+    [ref, () => mergeBest(refBest, runSuite({ AUI_PERF_REF_ROOT: wt }))],
+  ];
   for (let i = 0; i < runs; i++) {
-    console.log(`interleaved run ${i + 1}/${runs}: current...`);
-    mergeBest(current, runSuite());
-    console.log(`interleaved run ${i + 1}/${runs}: ${ref}...`);
-    mergeBest(refBest, runSuite({ AUI_PERF_REF_ROOT: wt }));
+    const order = i % 2 === 0 ? sides : [...sides].reverse();
+    for (const [label, run] of order) {
+      console.log(`interleaved run ${i + 1}/${runs}: ${label}...`);
+      run();
+    }
   }
   const refDoc = {
     env: { ...envStamp(wt), runs },
@@ -210,7 +220,7 @@ const compareRef = (ref, runs) => {
   writeFileSync(join(perfDir, "latest.json"), JSON.stringify(curDoc, null, 2));
   renderCompare(refDoc, curDoc, `${ref} (${refDoc.env.sha})`, "current");
   console.log(
-    `ref worktree kept at ${wt}; remove with: git worktree remove "${wt}"`,
+    `ref worktree kept at ${wt}; remove with: git worktree remove "${wt}" && rm "${marker}"`,
   );
 };
 
@@ -218,9 +228,10 @@ const trace = async (targets, seconds) => {
   const { captureTrace, analyzeTrace } = await import("./trace.mjs");
   const results = [];
   for (const target of targets) {
-    const hint = basename(target);
+    const arg = /^https?:/.test(target) ? target : resolve(target);
+    const hint = basename(new URL(arg, "file:///").pathname);
     console.log(`tracing ${hint} for ${seconds}s...`);
-    const events = await captureTrace(resolve(target), seconds);
+    const events = await captureTrace(arg, seconds);
     results.push({ target: hint, ...analyzeTrace(events, hint) });
   }
   console.table(
@@ -255,6 +266,10 @@ const runs = takeFlag("--runs", 3);
 const seconds = takeFlag("--seconds", 5);
 if (!Number.isInteger(runs) || runs < 1) {
   console.error(`invalid --runs value: ${runs}`);
+  process.exit(1);
+}
+if (!Number.isInteger(seconds) || seconds < 1) {
+  console.error(`invalid --seconds value: ${seconds}`);
   process.exit(1);
 }
 

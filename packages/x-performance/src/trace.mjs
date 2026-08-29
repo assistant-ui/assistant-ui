@@ -1,15 +1,25 @@
-import { spawn } from "node:child_process";
+import { execFileSync, spawn } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { setTimeout as sleep } from "node:timers/promises";
 
+const which = (name) => {
+  try {
+    return execFileSync("which", [name], { encoding: "utf8" }).trim();
+  } catch {
+    return undefined;
+  }
+};
+
 const CHROME_CANDIDATES = [
   process.env.AUI_PERF_CHROME,
   "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
-  "/usr/bin/google-chrome",
-  "/usr/bin/chromium",
+  which("google-chrome"),
+  which("google-chrome-stable"),
+  which("chromium"),
+  which("chromium-browser"),
 ].filter(Boolean);
 
 const TRACE_CATEGORIES = [
@@ -162,22 +172,24 @@ export const analyzeTrace = (events, urlHint) => {
   let compBusy = 0;
   let tmin;
   let tmax = 0;
-  const counted = new Set([
+  const countedComplete = new Set([
     "PaintImage",
     "UpdateLayer",
     "Layout",
     "PrePaint",
     "Commit",
-    "PipelineReporter",
     "AnimationFrame",
   ]);
   for (const e of events) {
-    if (e.pid !== pid) continue;
     if (e.ts) {
       tmin = tmin === undefined || e.ts < tmin ? e.ts : tmin;
       tmax = Math.max(tmax, e.ts + (e.dur ?? 0));
     }
-    if (counted.has(e.name)) counts[e.name] = (counts[e.name] ?? 0) + 1;
+    if (e.pid !== pid) continue;
+    if (countedComplete.has(e.name) && e.ph === "X")
+      counts[e.name] = (counts[e.name] ?? 0) + 1;
+    if (e.name === "PipelineReporter" && e.ph === "b")
+      counts[e.name] = (counts[e.name] ?? 0) + 1;
     if (e.name === "RunTask" && e.ph === "X") {
       if (e.tid === mainTid) mainBusy += e.dur ?? 0;
       else if (e.tid === compTid) compBusy += e.dur ?? 0;
