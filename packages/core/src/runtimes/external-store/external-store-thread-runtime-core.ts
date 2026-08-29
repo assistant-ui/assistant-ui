@@ -28,6 +28,7 @@ import {
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
 import { getThreadMessageText } from "../../utils/text";
+import { shallowArrayEqual } from "../../runtime/utils/external-message-conversion";
 import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,
@@ -75,14 +76,6 @@ const shallowEqual = (a: object, b: object): boolean => {
     if ((a as any)[key] !== (b as any)[key]) return false;
   }
   return true;
-};
-
-const shallowEqualArray = <T>(
-  a: readonly T[] | undefined,
-  b: readonly T[],
-): boolean => {
-  if (!a || a.length !== b.length) return false;
-  return a.every((value, index) => value === b[index]);
 };
 
 export const hasUpcomingMessage = (
@@ -482,7 +475,10 @@ export class ExternalStoreThreadRuntimeCore
     this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
     const messagesSnapshot = this.repository.getMessages();
-    if (!shallowEqualArray(this._messages, messagesSnapshot)) {
+    if (
+      !this._messages ||
+      !shallowArrayEqual(this._messages, messagesSnapshot)
+    ) {
       this._messages = messagesSnapshot;
     }
 
