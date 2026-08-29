@@ -4,6 +4,7 @@ import {
   h,
   onScopeDispose,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import type { ComposerMethods, MessageMethods } from "@assistant-ui/core/store";
@@ -23,7 +24,7 @@ export const MessageByIndexProvider = defineComponent({
       required: true,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const aui = useAui();
     let disposed = false;

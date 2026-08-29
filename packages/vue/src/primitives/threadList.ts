@@ -5,6 +5,7 @@ import {
   mergeProps,
   onScopeDispose,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import type { ThreadListItemMethods } from "@assistant-ui/core/store";
@@ -31,7 +32,7 @@ export const ThreadListItemByIndexProvider = defineComponent({
       default: false,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const aui = useAui();
     let disposed = false;
@@ -91,7 +92,7 @@ export const ThreadListPrimitiveItems = defineComponent({
       default: false,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const count = useAuiState((s) =>
       props.archived
@@ -116,7 +117,7 @@ export const ThreadListPrimitiveItems = defineComponent({
 export const ThreadListPrimitiveNew = defineComponent({
   name: "ThreadListPrimitiveNew",
   inheritAttrs: false,
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { attrs, slots }) {
     const aui = useAui();
     const active = useAuiState(
@@ -155,7 +156,7 @@ export const ThreadListItemPrimitiveTitle = defineComponent({
       default: "",
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const title = useAuiState((s) => s.threadListItem.title);
     return () =>

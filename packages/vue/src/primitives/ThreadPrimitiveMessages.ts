@@ -1,4 +1,10 @@
-import { computed, defineComponent, h, type SlotsType } from "vue";
+import {
+  computed,
+  defineComponent,
+  h,
+  type SlotsType,
+  type VNodeChild,
+} from "vue";
 import type {} from "@assistant-ui/core/store";
 import { useAuiState } from "../useAuiState";
 import { MessageByIdProvider } from "./MessageByIdProvider";
@@ -21,7 +27,7 @@ import { MessageByIdProvider } from "./MessageByIdProvider";
  */
 export const ThreadPrimitiveMessages = defineComponent({
   name: "ThreadPrimitiveMessages",
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { slots }) {
     const messages = useAuiState((s) => s.thread.messages);
     let previousIds: readonly string[] = [];

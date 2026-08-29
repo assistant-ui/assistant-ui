@@ -4,6 +4,7 @@ import {
   h,
   onScopeDispose,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import {
   AuiConfig,
@@ -41,7 +42,7 @@ export const MessageByIdProvider = defineComponent({
       required: true,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const aui = useAui();
     let disposed = false;

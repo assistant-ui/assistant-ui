@@ -5,6 +5,7 @@ import {
   onScopeDispose,
   type PropType,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import { AuiConfig, Derived } from "@assistant-ui/store/client";
 import type { AssistantClient } from "@assistant-ui/store/client";
@@ -40,7 +41,7 @@ export const AttachmentByIndexProvider = defineComponent({
       required: true,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const aui = useAui();
     let disposed = false;

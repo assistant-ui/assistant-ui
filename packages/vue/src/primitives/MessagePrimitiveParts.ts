@@ -1,5 +1,14 @@
-import { defineComponent, h, type Component, type SlotsType } from "vue";
-import type { PartMethods } from "@assistant-ui/core/store";
+import {
+  defineComponent,
+  h,
+  type Component,
+  type SlotsType,
+  type VNodeChild,
+} from "vue";
+import {
+  resolveToolCallText,
+  type PartMethods,
+} from "@assistant-ui/core/store";
 import { isDevelopment } from "@assistant-ui/core/store/internal";
 import type { AssistantState } from "@assistant-ui/store/client";
 import { useAui } from "../useAui";
@@ -20,7 +29,8 @@ export const clearPartWarningsForTesting = () => warnedTypes.clear();
  * face bridges the seam with casts at registration and render; a genuine
  * React renderer arriving through a shared toolkit type-checks at `setToolUI`
  * and then fails when invoked as a Vue component. This type is the Vue-facing
- * contract until the scope's renderer type goes framework-generic.
+ * contract for custom components. Toolkit `renderText` descriptors are
+ * framework-neutral and render their resolved text directly.
  */
 export type ToolUIProps = {
   part: Extract<AssistantState["part"], { type: "tool-call" }>;
@@ -42,7 +52,7 @@ export type ToolUIProps = {
  */
 export const MessagePrimitiveParts = defineComponent({
   name: "MessagePrimitiveParts",
-  slots: Object as SlotsType<Record<string, (() => unknown) | undefined>>,
+  slots: Object as SlotsType<Record<string, (() => VNodeChild[]) | undefined>>,
   setup(_, { slots }) {
     const count = useAuiState((s) => s.message.parts.length);
     const PartView = defineComponent({
@@ -55,7 +65,7 @@ export const MessagePrimitiveParts = defineComponent({
         );
         const toolUI = useAuiState((s) =>
           s.part.type === "tool-call"
-            ? (s.optional.tools?.toolUIs[s.part.toolName]?.[0]?.render ?? null)
+            ? (s.optional.tools?.toolUIs[s.part.toolName]?.[0] ?? null)
             : null,
         );
         const toolPart = useAuiState((s) =>
@@ -63,10 +73,13 @@ export const MessagePrimitiveParts = defineComponent({
         );
         return () => {
           if (type.value === "tool-call") {
-            const render = toolUI.value;
+            const registration = toolUI.value;
             const part = toolPart.value;
-            if (render && part) {
-              return h(render as unknown as Component, {
+            if (registration && part) {
+              if (registration.renderText) {
+                return resolveToolCallText(registration.renderText, part);
+              }
+              return h(registration.render as unknown as Component, {
                 tool: {
                   part,
                   addResult: aui.part.addToolResult,
