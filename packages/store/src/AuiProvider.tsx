@@ -1,7 +1,7 @@
 "use client";
 
 import type React from "react";
-import { forwardRef, useEffect, useImperativeHandle } from "react";
+import { forwardRef, useImperativeHandle, useLayoutEffect } from "react";
 import type { AssistantClient } from "./types/client";
 import { AuiConfig } from "./AuiConfig";
 import {
@@ -18,7 +18,7 @@ const EMPTY_CONFIG = AuiConfig({});
 const MountTapEffects = ({ effects }: { effects: () => void }) => {
   "use no memo";
   // oxlint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(effects);
+  useLayoutEffect(effects);
   return null;
 };
 
