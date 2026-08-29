@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { access, readFile, writeFile } from "node:fs/promises";
+import { access, readFile, writeFile, mkdir } from "node:fs/promises";
 import test from "node:test";
 import "tsx/esm";
 
@@ -161,6 +161,7 @@ test("the production vue registry stays empty until the publish flip", async () 
 });
 
 test("vue registry build removes stale output", async () => {
+  await mkdir("dist/vue", { recursive: true });
   await writeFile("dist/vue/stale.json", "{}", "utf8");
   await buildRegistry([], []);
   await assert.rejects(() => access("dist/vue/stale.json"));

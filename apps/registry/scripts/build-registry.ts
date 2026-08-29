@@ -942,7 +942,12 @@ function getScriptKind(filePath: string) {
 function getScriptContents(file: RegistryOutputFile) {
   if (!file.path.endsWith(".vue")) return [{ content: file.content }];
 
-  const { descriptor } = parse(file.content, { filename: file.path });
+  const { descriptor, errors } = parse(file.content, { filename: file.path });
+  if (errors.length > 0) {
+    throw new Error(
+      `Failed to parse ${file.path}: ${errors.map((error) => error.message).join("; ")}`,
+    );
+  }
 
   return [descriptor.script, descriptor.scriptSetup]
     .filter((script) => script !== null)
