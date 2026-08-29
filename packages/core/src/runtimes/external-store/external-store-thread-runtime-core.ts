@@ -1,4 +1,4 @@
-import { shallowEqual } from "@assistant-ui/store/internal";
+import { shallowEqual } from "@assistant-ui/store/client";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { Attachment } from "../../types/attachment";
 import type {

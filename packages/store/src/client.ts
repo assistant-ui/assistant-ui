@@ -1,4 +1,5 @@
 // Framework-neutral entry: no module evaluates a React component API, so this
+export { shallowEqual } from "./utils/shallow-equal";
 // graph loads with react installed, or with react aliased to
 // @assistant-ui/tap/standalone-shim, or (types aside) not at all.
 

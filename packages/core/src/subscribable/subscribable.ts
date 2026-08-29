@@ -1,4 +1,4 @@
-import { shallowEqual } from "@assistant-ui/store/internal";
+import { shallowEqual } from "@assistant-ui/store/client";
 import type { Unsubscribe } from "../types/unsubscribe";
 import { notifyEventListeners } from "../utils/notify-event-listeners";
 

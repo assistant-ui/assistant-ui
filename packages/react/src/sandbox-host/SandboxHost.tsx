@@ -168,7 +168,7 @@ export function SandboxHost({
         invokeUserCallback(
           "assistant-ui",
           "SandboxHost onError",
-          liveRef.current.onError,
+          liveRef.current.onError?.bind(liveRef.current),
           error,
         );
       });
