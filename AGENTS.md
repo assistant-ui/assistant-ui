@@ -65,7 +65,7 @@ Every publishable package builds with `aui-build` (`@assistant-ui/x-buildutils`)
 
 Run `pnpm check:resource-memo` when bumping `@babel/core`, `babel-plugin-react-compiler`, or `react-compiler`; a green build does not prove the compiler toolchain is intact. A package the published dist imports at runtime belongs in `dependencies`, not `devDependencies`, so the bundler externalizes it (a devDep gets inlined and drags unresolvable transitive imports into consumer builds). A registry item must be self-contained: enumerate every `@/components/*` import and CSS `@import` as `registryDependencies`, so `shadcn add` never lands a file with an unresolvable import.
 
-Every PR that changes a published package needs a changeset. Always use **patch**; minor and major require maintainer approval. Private packages (`private: true` in package.json) are exempt.
+Every PR that changes a published package needs a changeset. Always use **patch**; minor and major require maintainer approval. Private packages (`private: true` in package.json) are exempt, and must never be named in a changeset: `privatePackages.version` is false, so a changeset that mixes a private package with a published one aborts `changeset version` and blocks every release. `pnpm changesets:check` enforces this.
 
 ```md
 ---

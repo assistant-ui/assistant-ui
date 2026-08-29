@@ -25,6 +25,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
 
+      - name: Verify changesets only name releasable packages
+        run: node scripts/check-changesets.mjs
+
       - name: Check changeset bump types against package versions
         id: check
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # ratchet:actions/github-script@v9.0.0
