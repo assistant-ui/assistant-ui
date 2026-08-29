@@ -40,6 +40,13 @@ function findMatchingParen(source: string, startIndex: number): number {
   return -1;
 }
 
+function endsLine(source: string, index: number): boolean {
+  const lineEnd = source.indexOf("\n", index);
+  const rest =
+    lineEnd === -1 ? source.slice(index) : source.slice(index, lineEnd);
+  return rest.trim() === "";
+}
+
 function findMatchingBrace(source: string, startIndex: number): number {
   const state: StringState = { inString: false, stringChar: "" };
   let braceCount = 0;
@@ -93,10 +100,15 @@ export function extractFunctionCode(
   const searchStart = match.index + match[0].length;
 
   if (isArrowWithoutBrace) {
-    const bodyStart =
-      source[searchStart] === "(" ? searchStart + 1 : searchStart;
-    const endIndex = findMatchingParen(source, bodyStart);
-    if (endIndex === -1) return `// Could not parse function: ${functionName}`;
+    const isWrapped = source[searchStart] === "(";
+    const endIndex = findMatchingParen(
+      source,
+      isWrapped ? searchStart + 1 : searchStart,
+    );
+    // A wrapping paren that closes mid-line covered only part of the body.
+    if (endIndex === -1 || (isWrapped && !endsLine(source, endIndex))) {
+      return `// Could not parse function: ${functionName}`;
+    }
     return source.slice(startIndex, endIndex).trim();
   }
 

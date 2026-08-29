@@ -36,6 +36,8 @@ export const ExpressionSpecimen = () => (
 export function GuardSpecimen() {
   return <div>guard</div>;
 }
+
+export const CompoundSpecimen = () => (compose)();
 `;
 
 describe("extractFunctionCode", () => {
@@ -69,6 +71,12 @@ describe("extractFunctionCode", () => {
     expect(code).toContain("<span>expression</span>");
     expect(code.endsWith(");")).toBe(true);
     expect(code).not.toContain("GuardSpecimen");
+  });
+
+  it("reports an arrow whose parens cover only part of the body", () => {
+    expect(extractFunctionCode(source, "CompoundSpecimen")).toBe(
+      "// Could not parse function: CompoundSpecimen",
+    );
   });
 
   it("keeps imports only for identifiers the code uses as words", () => {
