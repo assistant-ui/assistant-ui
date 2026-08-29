@@ -1901,7 +1901,7 @@ export const stagedVueRegistry: RegistryItem[] = [
     type: "registry:component",
     title: "Thread List",
     description:
-      "Sidebar or dropdown for switching conversations, with active selection.",
+      "Sidebar or dropdown for switching conversations, with search and active selection.",
     files: [
       {
         type: "registry:component",
