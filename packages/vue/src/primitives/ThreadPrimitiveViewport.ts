@@ -7,6 +7,7 @@ import {
   shallowRef,
   watch,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import type {} from "@assistant-ui/core/store";
 import { useAuiEvent } from "../useAuiEvent";
@@ -50,9 +51,11 @@ export const ThreadPrimitiveViewport = defineComponent({
       default: true,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const divRef = shallowRef<HTMLElement | null>(null);
+    const contentInset = shallowRef(0);
+    const contentInsetEntries = new Map<symbol, number>();
     let intent: ScrollBehavior | null = null;
     const isAtBottom = shallowRef(true);
     let lastScrollTop = 0;
@@ -65,7 +68,7 @@ export const ThreadPrimitiveViewport = defineComponent({
       const div = divRef.value;
       if (!div) return;
       intent = behavior;
-      div.scrollTo?.({ top: div.scrollHeight, behavior });
+      div.scrollTo?.({ top: div.scrollHeight - contentInset.value, behavior });
     };
 
     const scheduleScrollToBottom = (behavior: ScrollBehavior) => {
@@ -84,13 +87,13 @@ export const ThreadPrimitiveViewport = defineComponent({
       const div = divRef.value;
       if (!div) return;
 
-      const newIsAtBottom = isViewportAtBottom(div);
+      const newIsAtBottom = isViewportAtBottom(div, contentInset.value);
       const inFlightDownward = !newIsAtBottom && lastScrollTop < div.scrollTop;
       if (!inFlightDownward) {
         if (newIsAtBottom) {
           // At-bottom is ambiguous while the viewport does not overflow; keep
           // the intent alive until content can actually scroll.
-          if (viewportOverflows(div)) intent = null;
+          if (viewportOverflows(div, contentInset.value)) intent = null;
         } else if (
           isUserScrollUp(
             { scrollTop: lastScrollTop, scrollHeight: lastScrollHeight },
@@ -104,6 +107,31 @@ export const ThreadPrimitiveViewport = defineComponent({
 
       lastScrollTop = div.scrollTop;
       lastScrollHeight = div.scrollHeight;
+    };
+
+    const updateContentInset = () => {
+      let total = 0;
+      for (const height of contentInsetEntries.values()) total += height;
+      if (contentInset.value === total) return;
+      contentInset.value = total;
+      handleScroll();
+    };
+
+    const registerContentInset = () => {
+      const id = Symbol();
+      contentInsetEntries.set(id, 0);
+
+      return {
+        setHeight: (height: number) => {
+          if (contentInsetEntries.get(id) === height) return;
+          contentInsetEntries.set(id, height);
+          updateContentInset();
+        },
+        unregister: () => {
+          if (!contentInsetEntries.delete(id)) return;
+          updateContentInset();
+        },
+      };
     };
 
     const onContentResize = () => {
@@ -181,6 +209,7 @@ export const ThreadPrimitiveViewport = defineComponent({
       isAtBottom,
       scrollToBottom: (behavior: ScrollBehavior = "auto") =>
         scrollToBottom(behavior),
+      registerContentInset,
     });
 
     return () =>

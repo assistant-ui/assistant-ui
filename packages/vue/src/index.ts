@@ -9,6 +9,7 @@ export { MessageByIdProvider } from "./primitives/MessageByIdProvider";
 export { PartByIndexProvider } from "./primitives/PartByIndexProvider";
 export { ThreadPrimitiveMessages } from "./primitives/ThreadPrimitiveMessages";
 export { ThreadPrimitiveViewport } from "./primitives/ThreadPrimitiveViewport";
+export { ThreadPrimitiveViewportFooter } from "./primitives/ThreadPrimitiveViewportFooter";
 export { ThreadPrimitiveScrollToBottom } from "./primitives/ThreadPrimitiveScrollToBottom";
 export {
   MessagePrimitiveParts,

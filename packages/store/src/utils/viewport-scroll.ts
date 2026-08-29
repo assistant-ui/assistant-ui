@@ -4,12 +4,37 @@ export type ViewportMetrics = {
   clientHeight: number;
 };
 
-export const isViewportAtBottom = (metrics: ViewportMetrics): boolean =>
-  Math.abs(metrics.scrollHeight - metrics.scrollTop - metrics.clientHeight) <=
-    1 || metrics.scrollHeight <= metrics.clientHeight;
+export const isViewportAtBottom = (
+  metrics: ViewportMetrics,
+  contentInset = 0,
+): boolean => {
+  if (contentInset === 0) {
+    return (
+      Math.abs(
+        metrics.scrollHeight - metrics.scrollTop - metrics.clientHeight,
+      ) <= 1 || metrics.scrollHeight <= metrics.clientHeight
+    );
+  }
 
-export const viewportOverflows = (metrics: ViewportMetrics): boolean =>
-  metrics.scrollHeight > metrics.clientHeight + 1;
+  return (
+    metrics.scrollHeight -
+      contentInset -
+      metrics.scrollTop -
+      metrics.clientHeight <=
+      1 || metrics.scrollHeight - contentInset <= metrics.clientHeight
+  );
+};
+
+export const viewportOverflows = (
+  metrics: ViewportMetrics,
+  contentInset = 0,
+): boolean => {
+  if (contentInset === 0) {
+    return metrics.scrollHeight > metrics.clientHeight + 1;
+  }
+
+  return metrics.scrollHeight - contentInset > metrics.clientHeight + 1;
+};
 
 // scrollHeight equality rules out content-driven shifts being misread as a
 // user scroll up.
