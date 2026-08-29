@@ -34,7 +34,7 @@ With no `filter`, the bridge publishes every enabled frontend tool that has an `
 
 ## Choosing which tools to publish
 
-Pass a `filter` to choose which tools to publish. It runs for every tool on every model-context change, and changing the function re-syncs the registrations. The inline arrow below is a new function on every render, which is fine: each tool's converted schema is cached against the tool object, so a re-sync that changes nothing costs no schema conversion.
+Pass a `filter` to choose which tools to publish. It runs for every tool on every model-context change, and changing the function re-syncs the registrations. The inline arrow below is a new function on every render, which is fine: each tool's converted schema is cached against the tool object, so a re-sync that changes nothing costs no schema conversion for tools registered with `useAssistantTool` or a toolkit. Tools added through `ModelContextRegistry.addTool` are rebuilt on every read, so they miss that cache; the re-sync still registers nothing new, it just re-converts.
 
 Your `filter` **replaces** the default predicate, it does not run after it. A name-only filter like `PUBLIC_TOOLS.has(name)` will therefore publish a backend or disabled tool whose name is in the set. To narrow the default instead of replacing it, compose against the exported predicate:
 
