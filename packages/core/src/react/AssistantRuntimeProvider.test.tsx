@@ -1,8 +1,8 @@
 // @vitest-environment jsdom
 
 import type { ReactNode } from "react";
-import { useEffect } from "react";
-import { cleanup, render } from "@testing-library/react";
+import { useEffect, useState } from "react";
+import { act, cleanup, render } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { resource } from "@assistant-ui/tap";
 import {
@@ -12,14 +12,18 @@ import {
   type AssistantClient,
 } from "@assistant-ui/store";
 import type { ChatModelAdapter } from "../runtime/utils/chat-model-adapter";
+import type { ThreadMessage } from "../types/message";
 import { AssistantRuntimeProvider } from "./AssistantRuntimeProvider";
 import { useLocalRuntime } from "./runtimes/useLocalRuntime";
+import { useExternalStoreRuntime } from "./runtimes/useExternalStoreRuntime";
 
 type AnyClient = Record<string, any>;
 
 const chatModel: ChatModelAdapter = {
   run: async () => ({ content: [] }),
 };
+
+const hoistedConfig = AuiConfig({});
 
 const makeCounterClient = (log?: string[]) => {
   const useCounterClient = () => {
@@ -151,5 +155,40 @@ describe("AssistantRuntimeProvider aui composition", () => {
     render(<App />);
 
     expect(aui.threads.getState().main).toBeDefined();
+  });
+
+  it("publishes once when the external-store runtime owner rerenders", async () => {
+    let advance!: () => void;
+    let notifications = 0;
+
+    const Subscriber = () => {
+      const aui = useAui();
+      useEffect(() => aui.subscribe(() => notifications++), [aui]);
+      return null;
+    };
+
+    const App = () => {
+      const [, setTick] = useState(0);
+      advance = () => setTick((tick) => tick + 1);
+      const runtime = useExternalStoreRuntime<ThreadMessage>({
+        messages: [],
+        onNew: async () => {},
+      });
+
+      return (
+        <AssistantRuntimeProvider runtime={runtime} config={hoistedConfig}>
+          <Subscriber />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    notifications = 0;
+
+    await act(async () => advance());
+    await act(async () => advance());
+    await act(async () => advance());
+
+    expect(notifications).toBe(3);
   });
 });

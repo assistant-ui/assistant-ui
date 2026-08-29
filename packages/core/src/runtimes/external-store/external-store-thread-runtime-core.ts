@@ -77,6 +77,14 @@ const shallowEqual = (a: object, b: object): boolean => {
   return true;
 };
 
+const shallowEqualArray = <T>(
+  a: readonly T[] | undefined,
+  b: readonly T[],
+): boolean => {
+  if (!a || a.length !== b.length) return false;
+  return a.every((value, index) => value === b[index]);
+};
+
 export const hasUpcomingMessage = (
   isRunning: boolean,
   messages: readonly ThreadMessage[],
@@ -473,7 +481,10 @@ export class ExternalStoreThreadRuntimeCore
     if (optimisticId === null) this._optimistic = null;
     this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
-    this._messages = this.repository.getMessages();
+    const messagesSnapshot = this.repository.getMessages();
+    if (!shallowEqualArray(this._messages, messagesSnapshot)) {
+      this._messages = messagesSnapshot;
+    }
 
     if (repositoryChanged) {
       this._runTrackerUpdate(() => this._toolInvocations?.reset());
