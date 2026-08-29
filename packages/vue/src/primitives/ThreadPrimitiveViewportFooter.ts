@@ -11,6 +11,12 @@ import {
 } from "vue";
 import { viewportInjectionKey } from "./viewportContext";
 
+/**
+ * A footer container that measures its height into the viewport's content
+ * inset. Positions within the summed inset of the native bottom count as at
+ * bottom, and a growing inset re-follows a pinned viewport. Multiple footers
+ * sum. Typically used with `class="sticky bottom-0"`.
+ */
 export const ThreadPrimitiveViewportFooter = defineComponent({
   name: "ThreadPrimitiveViewportFooter",
   inheritAttrs: false,

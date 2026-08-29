@@ -4,6 +4,11 @@ export type ViewportMetrics = {
   clientHeight: number;
 };
 
+/**
+ * With a content inset, positions within `contentInset` of the native bottom
+ * count as at bottom: content that close is only obscured by the inset
+ * element itself, so the viewport is still treated as pinned.
+ */
 export const isViewportAtBottom = (
   metrics: ViewportMetrics,
   contentInset = 0,
