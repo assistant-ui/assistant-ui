@@ -112,8 +112,10 @@ function getDataUrlMediaType(value: string): string | undefined {
 
 function inferImageMediaType(url: string): string {
   // Handle data URLs: data:[<mediatype>][;base64],<data>
-  const dataUrlMediaType = getDataUrlMediaType(url);
-  if (dataUrlMediaType) return dataUrlMediaType;
+  if (/^data:/i.test(url)) {
+    const match = url.match(/^data:([^;,]+)/i);
+    if (match?.[1]) return match[1].toLowerCase();
+  }
 
   // Extract extension from URL path, ignoring query string and hash
   const [pathWithoutParams = ""] = url.split(/[?#]/);
