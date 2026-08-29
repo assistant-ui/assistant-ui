@@ -23,16 +23,15 @@ function axiomProcessor() {
 }
 
 export function register() {
-  const posthog = new BatchSpanProcessor(
-    new PostHogTraceExporter({
-      projectToken: process.env.NEXT_PUBLIC_POSTHOG_API_KEY ?? "",
-    }),
-  );
-
   const axiom = axiomProcessor();
 
   registerOTel({
     serviceName: "assistant-ui-docs",
-    spanProcessors: axiom ? [posthog, axiom] : [posthog],
+    traceExporter: new PostHogTraceExporter({
+      projectToken: process.env.NEXT_PUBLIC_POSTHOG_API_KEY ?? "",
+    }),
+    // "auto" keeps the environment's default processors, including the Vercel
+    // tracing integration that an explicit list would otherwise replace.
+    spanProcessors: axiom ? ["auto", axiom] : ["auto"],
   });
 }
