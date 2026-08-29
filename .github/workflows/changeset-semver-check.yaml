@@ -31,6 +31,9 @@ jobs:
           runtime: node@24
           install: false
 
+      - name: Test the changeset checker
+        run: node --test scripts/check-changesets.test.mjs
+
       - name: Verify changesets only name releasable packages
         run: node scripts/check-changesets.mjs
 

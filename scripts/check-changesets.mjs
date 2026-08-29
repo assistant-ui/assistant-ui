@@ -9,14 +9,9 @@ const repoRoot = path.resolve(
   "..",
 );
 
-const BUMP_LINE =
-  /^(?:"([^"]+)"|'([^']+)'|([^\s'":][^:]*?))\s*:\s*(patch|minor|major)\s*$/;
+const BUMP_VALUES = new Set(["patch", "minor", "major"]);
 
-function readWorkspaceGlobs() {
-  const source = readFileSync(
-    path.join(repoRoot, "pnpm-workspace.yaml"),
-    "utf8",
-  );
+export function parseWorkspaceGlobs(source) {
   const globs = [];
   let inPackages = false;
   for (const line of source.split("\n")) {
@@ -25,19 +20,39 @@ function readWorkspaceGlobs() {
       continue;
     }
     if (!inPackages) continue;
-    const entry = line.match(/^\s+-\s*(?:"([^"]+)"|'([^']+)'|(\S+))\s*$/);
+    if (/^\s*(?:#.*)?$/.test(line)) continue;
+    const entry = line.match(
+      /^\s+-\s*(?:"([^"]*)"|'([^']*)'|([^\s#]+))\s*(?:#.*)?$/,
+    );
     if (!entry) break;
     globs.push(entry[1] ?? entry[2] ?? entry[3]);
-  }
-  if (globs.length === 0) {
-    throw new Error("pnpm-workspace.yaml declares no `packages:` entries.");
   }
   return globs;
 }
 
+export function parseBumpLine(line) {
+  const entry = line
+    .trim()
+    .match(/^(?:"([^"]*)"|'([^']*)'|([^#:][^:]*?))\s*:\s*(.*)$/);
+  if (!entry) return null;
+  const value = entry[4].match(
+    /^(?:"([^"]*)"|'([^']*)'|([^\s#]*))\s*(?:#.*)?$/,
+  );
+  if (!value) return null;
+  const bump = value[1] ?? value[2] ?? value[3];
+  if (!BUMP_VALUES.has(bump)) return null;
+  return { name: entry[1] ?? entry[2] ?? entry[3], bump };
+}
+
 function readWorkspacePackages() {
+  const globs = parseWorkspaceGlobs(
+    readFileSync(path.join(repoRoot, "pnpm-workspace.yaml"), "utf8"),
+  );
+  if (globs.length === 0) {
+    throw new Error("pnpm-workspace.yaml declares no `packages:` entries.");
+  }
   const byName = new Map();
-  for (const glob of readWorkspaceGlobs()) {
+  for (const glob of globs) {
     for (const manifest of globSync(`${glob}/package.json`, {
       cwd: repoRoot,
     })) {
@@ -63,50 +78,57 @@ function readChangesetBumps() {
     ).match(/^---\r?\n([\s\S]*?)\r?\n---/);
     if (!frontmatter) continue;
     for (const line of frontmatter[1].split("\n")) {
-      const bump = line.trim().match(BUMP_LINE);
-      if (!bump) continue;
-      bumps.push({ file, name: bump[1] ?? bump[2] ?? bump[3] });
+      const bump = parseBumpLine(line);
+      if (bump) bumps.push({ file, name: bump.name });
     }
   }
   return bumps;
 }
 
-const packages = readWorkspacePackages();
-const problems = [];
-
-for (const { file, name } of readChangesetBumps()) {
-  const pkg = packages.get(name);
-  if (!pkg) {
-    problems.push({
-      file,
-      name,
-      reason: "is not a workspace package (misspelled or renamed?)",
-    });
-  } else if (pkg.isPrivate) {
-    problems.push({
-      file,
-      name,
-      reason: `is private (${pkg.manifest}) and is never versioned`,
-    });
+export function findUnreleasablePackages(packages, bumps) {
+  const problems = [];
+  for (const { file, name } of bumps) {
+    const pkg = packages.get(name);
+    if (!pkg) {
+      problems.push({
+        file,
+        name,
+        reason: "is not a workspace package (misspelled or renamed?)",
+      });
+    } else if (pkg.isPrivate) {
+      problems.push({
+        file,
+        name,
+        reason: `is private (${pkg.manifest}) and is never versioned`,
+      });
+    }
   }
+  return problems;
 }
 
-if (problems.length > 0) {
-  console.error("Changesets name packages that cannot be released:\n");
-  for (const { file, name, reason } of problems) {
-    console.error(`  .changeset/${file}: "${name}" ${reason}`);
+function main() {
+  const packages = readWorkspacePackages();
+  const problems = findUnreleasablePackages(packages, readChangesetBumps());
+
+  if (problems.length > 0) {
+    console.error("Changesets name packages that cannot be released:\n");
+    for (const { file, name, reason } of problems) {
+      console.error(`  .changeset/${file}: "${name}" ${reason}`);
+    }
+    console.error(
+      "\n`privatePackages.version` is false, so changesets skips private packages.",
+    );
+    console.error(
+      "A changeset mixing a skipped package with a released one aborts `changeset version`,",
+    );
+    console.error("which blocks every release until the line is removed.");
+    console.error("\nDrop the offending line from the changeset frontmatter.");
+    process.exit(1);
   }
-  console.error(
-    "\n`privatePackages.version` is false, so changesets skips private packages.",
+
+  console.log(
+    `All changeset bumps name releasable workspace packages. (${packages.size} packages scanned)`,
   );
-  console.error(
-    "A changeset mixing a skipped package with a released one aborts `changeset version`,",
-  );
-  console.error("which blocks every release until the line is removed.");
-  console.error("\nDrop the offending line from the changeset frontmatter.");
-  process.exit(1);
 }
 
-console.log(
-  `All changeset bumps name releasable workspace packages. (${packages.size} packages scanned)`,
-);
+if (import.meta.main) main();
