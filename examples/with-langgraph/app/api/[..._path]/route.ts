@@ -70,7 +70,7 @@ async function handleRequest(req: NextRequest, method: string) {
 
     if (
       res.status === 0 ||
-      (res.status >= 300 && res.status < 400) ||
+      (res.status >= 300 && res.status < 400 && res.status !== 304) ||
       res.type === "opaqueredirect"
     ) {
       await res.body?.cancel().catch(() => undefined);

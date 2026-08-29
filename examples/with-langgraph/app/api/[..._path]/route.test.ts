@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { NextRequest } from "next/server";
-import { OPTIONS, POST } from "./route";
+import { GET, OPTIONS, POST } from "./route";
 
 afterEach(() => {
   vi.unstubAllEnvs();
@@ -38,6 +38,25 @@ describe("LangGraph proxy", () => {
 
     expect(response.status).toBe(403);
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("accepts a matching Origin when Fetch Metadata is unavailable", async () => {
+    vi.stubEnv("LANGGRAPH_API_URL", "https://agent.example");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response('{"thread_id":"thread-1"}'));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await POST(
+      new NextRequest("https://app.example/api/threads", {
+        method: "POST",
+        headers: { origin: "https://app.example" },
+        body: "{}",
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledOnce();
   });
 
   it("preserves same-origin proxy requests without exposing CORS or cookies", async () => {
@@ -132,6 +151,23 @@ describe("LangGraph proxy", () => {
     });
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.redirect).toBe("manual");
+  });
+
+  it("passes an upstream 304 through instead of failing it as a redirect", async () => {
+    vi.stubEnv("LANGGRAPH_API_URL", "https://agent.example");
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(null, { status: 304 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const response = await GET(
+      new NextRequest("https://app.example/api/threads", {
+        method: "GET",
+        headers: { "sec-fetch-site": "same-origin" },
+      }),
+    );
+
+    expect(response.status).toBe(304);
   });
 
   it("does not approve cross-site preflight requests", async () => {
