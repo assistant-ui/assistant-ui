@@ -64,6 +64,43 @@ describe("normalizeToolList", () => {
     expect(tools[1]?.disabled).toBe(true);
   });
 
+  it("preserves readable metadata when a tool property throws", () => {
+    const tool = { type: "frontend", providerOptions: { strict: true } };
+    Object.defineProperty(tool, "description", {
+      get: () => {
+        throw new Error("description getter failed");
+      },
+    });
+
+    expect(normalizeToolList({ search: tool })).toEqual([
+      {
+        name: "search",
+        type: "frontend",
+        description: "[Unserializable]",
+        providerOptions: { strict: true },
+      },
+    ]);
+  });
+
+  it("keeps tool names when an object entry getter throws", () => {
+    const tools = {};
+    Object.defineProperty(tools, "broken", {
+      enumerable: true,
+      get: () => {
+        throw new Error("tool getter failed");
+      },
+    });
+    Object.defineProperty(tools, "readable", {
+      enumerable: true,
+      value: { type: "frontend" },
+    });
+
+    expect(normalizeToolList(tools)).toEqual([
+      { name: "broken" },
+      { name: "readable", type: "frontend" },
+    ]);
+  });
+
   it("returns an empty list for non-objects", () => {
     expect(normalizeToolList(undefined)).toEqual([]);
     expect(normalizeToolList(null)).toEqual([]);

@@ -60,6 +60,18 @@ describe("sanitizeForMessage", () => {
     expect(sanitizeForMessage(new Date(Number.NaN))).toBe("Invalid Date");
   });
 
+  it("preserves map entries when a key cannot be converted", () => {
+    const key = {
+      toString: () => {
+        throw new Error("key conversion failed");
+      },
+    };
+
+    expect(sanitizeForMessage(new Map([[key, "readable"]]))).toEqual({
+      "[Unserializable]": "readable",
+    });
+  });
+
   it("preserves readable properties when an enumerable getter throws", () => {
     const value = { readable: "value" };
     Object.defineProperty(value, "broken", {

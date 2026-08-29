@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { UNSERIALIZABLE, readSafely } from "./common";
 
 export type NormalizedTool = {
   name: string;
@@ -30,54 +31,80 @@ const toJsonSchema = (value: unknown): unknown => {
   return value;
 };
 
+type StringToolProperty = "type" | "description" | "display" | "providerId";
+type BooleanToolProperty = "disabled" | "supportsDeferredResults";
+type UnknownToolProperty =
+  | "backendDefault"
+  | "providerOptions"
+  | "providerArgs"
+  | "server";
+
+const setStringProperty = (
+  tool: NormalizedTool,
+  raw: Record<string, unknown>,
+  key: StringToolProperty,
+) => {
+  const value = readSafely(() => raw[key]);
+  if (!value.readable) {
+    tool[key] = UNSERIALIZABLE;
+  } else if (typeof value.value === "string") {
+    tool[key] = value.value;
+  }
+};
+
+const setBooleanProperty = (
+  tool: NormalizedTool,
+  raw: Record<string, unknown>,
+  key: BooleanToolProperty,
+) => {
+  const value = readSafely(() => raw[key]);
+  if (value.readable && typeof value.value === "boolean") {
+    tool[key] = value.value;
+  }
+};
+
+const setUnknownProperty = (
+  tool: NormalizedTool,
+  raw: Record<string, unknown>,
+  rawKey: string,
+  key: UnknownToolProperty,
+) => {
+  const value = readSafely(() => raw[rawKey]);
+  if (!value.readable) {
+    tool[key] = UNSERIALIZABLE;
+  } else if (value.value !== undefined) {
+    tool[key] = value.value;
+  }
+};
+
 const mapToNormalizedTool = (
   name: string,
   raw: Record<string, unknown>,
 ): NormalizedTool => {
   const tool: NormalizedTool = { name };
 
-  if (typeof raw.type === "string") {
-    tool.type = raw.type as string;
-  }
+  setStringProperty(tool, raw, "type");
+  setStringProperty(tool, raw, "description");
+  setBooleanProperty(tool, raw, "disabled");
+  setStringProperty(tool, raw, "display");
+  setStringProperty(tool, raw, "providerId");
+  setBooleanProperty(tool, raw, "supportsDeferredResults");
+  setUnknownProperty(tool, raw, "unstable_backendDefault", "backendDefault");
+  setUnknownProperty(tool, raw, "providerOptions", "providerOptions");
+  setUnknownProperty(tool, raw, "args", "providerArgs");
+  setUnknownProperty(tool, raw, "server", "server");
 
-  if (typeof raw.description === "string") {
-    tool.description = raw.description as string;
-  }
-
-  if (typeof raw.disabled === "boolean") {
-    tool.disabled = raw.disabled as boolean;
-  }
-
-  if (typeof raw.display === "string") {
-    tool.display = raw.display as string;
-  }
-
-  if (typeof raw.providerId === "string") {
-    tool.providerId = raw.providerId as string;
-  }
-
-  if (typeof raw.supportsDeferredResults === "boolean") {
-    tool.supportsDeferredResults = raw.supportsDeferredResults as boolean;
-  }
-
-  if (raw.unstable_backendDefault !== undefined) {
-    tool.backendDefault = raw.unstable_backendDefault;
-  }
-
-  if (raw.providerOptions !== undefined) {
-    tool.providerOptions = raw.providerOptions;
-  }
-
-  if (raw.args !== undefined) {
-    tool.providerArgs = raw.args;
-  }
-
-  if (raw.server !== undefined) {
-    tool.server = raw.server;
-  }
-
-  if (Object.hasOwn(raw, "parameters")) {
-    tool.parameters = toJsonSchema(raw.parameters);
+  const hasParameters = readSafely(() => Object.hasOwn(raw, "parameters"));
+  if (!hasParameters.readable) {
+    tool.parameters = UNSERIALIZABLE;
+  } else if (hasParameters.value) {
+    const parameters = readSafely(() => raw.parameters);
+    if (!parameters.readable) {
+      tool.parameters = UNSERIALIZABLE;
+    } else {
+      const schema = readSafely(() => toJsonSchema(parameters.value));
+      tool.parameters = schema.readable ? schema.value : UNSERIALIZABLE;
+    }
   }
 
   return tool;
@@ -91,9 +118,24 @@ export const normalizeToolList = (value: unknown): NormalizedTool[] => {
   if (Array.isArray(value)) {
     const tools: NormalizedTool[] = [];
 
-    for (const entry of value) {
-      if (!isRecord(entry) || typeof entry.name !== "string") continue;
-      tools.push(mapToNormalizedTool(entry.name as string, entry));
+    const length = readSafely(() => value.length);
+    if (!length.readable || !Number.isSafeInteger(length.value)) return tools;
+
+    for (let index = 0; index < length.value; index++) {
+      const entry = readSafely(() => value[index]);
+      if (!entry.readable) {
+        tools.push({ name: UNSERIALIZABLE });
+        continue;
+      }
+      if (!isRecord(entry.value)) continue;
+
+      const name = readSafely(() => entry.value.name);
+      if (!name.readable) {
+        tools.push({ name: UNSERIALIZABLE });
+        continue;
+      }
+      if (typeof name.value !== "string") continue;
+      tools.push(mapToNormalizedTool(name.value, entry.value));
     }
 
     return tools;
@@ -102,13 +144,22 @@ export const normalizeToolList = (value: unknown): NormalizedTool[] => {
   if (isRecord(value)) {
     const tools: NormalizedTool[] = [];
 
-    for (const [name, entry] of Object.entries(value)) {
-      if (!isRecord(entry)) {
+    const names = readSafely(() => Object.keys(value));
+    if (!names.readable) return tools;
+
+    for (const name of names.value) {
+      const entry = readSafely(() => value[name]);
+      if (!entry.readable) {
         tools.push({ name });
         continue;
       }
 
-      tools.push(mapToNormalizedTool(name, entry));
+      if (!isRecord(entry.value)) {
+        tools.push({ name });
+        continue;
+      }
+
+      tools.push(mapToNormalizedTool(name, entry.value));
     }
 
     return tools;

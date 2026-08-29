@@ -1,3 +1,17 @@
+export const UNSERIALIZABLE = "[Unserializable]";
+
+export type SafeReadResult<T> =
+  | { readable: true; value: T }
+  | { readable: false };
+
+export const readSafely = <T>(read: () => T): SafeReadResult<T> => {
+  try {
+    return { readable: true, value: read() };
+  } catch {
+    return { readable: false };
+  }
+};
+
 export const isRecord = (value: unknown): value is Record<string, unknown> =>
   value !== null && typeof value === "object" && !Array.isArray(value);
 

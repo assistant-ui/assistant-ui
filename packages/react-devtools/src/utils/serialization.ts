@@ -1,8 +1,7 @@
 import type { ModelContext } from "@assistant-ui/react";
 import type { SerializedModelContext } from "../types";
+import { UNSERIALIZABLE, readSafely } from "./common";
 import { normalizeToolList, type NormalizedTool } from "./toolNormalization";
-
-const UNSERIALIZABLE = "[Unserializable]";
 
 export const sanitizeForMessage = (
   value: unknown,
@@ -35,7 +34,20 @@ export const sanitizeForMessage = (
       if (value instanceof Map) {
         const result: Record<string, unknown> = {};
         for (const [key, entry] of value.entries()) {
-          result[String(key)] = sanitizeForMessage(entry, seen);
+          let resultKey = UNSERIALIZABLE;
+          try {
+            resultKey = String(key);
+          } catch {
+            while (Object.hasOwn(result, resultKey)) {
+              resultKey = `${UNSERIALIZABLE} ${Object.keys(result).length}`;
+            }
+          }
+
+          try {
+            result[resultKey] = sanitizeForMessage(entry, seen);
+          } catch {
+            result[resultKey] = UNSERIALIZABLE;
+          }
         }
         return result;
       }
@@ -153,14 +165,19 @@ export const serializeModelContext = (
   const modelContext = context as Record<string, unknown>;
   const result: SerializedModelContext = {};
 
-  const systemValue = modelContext.system;
-  if (typeof systemValue === "string" && systemValue.length > 0) {
-    result.system = systemValue;
+  const systemValue = readSafely(() => modelContext.system);
+  if (!systemValue.readable) {
+    result.system = UNSERIALIZABLE;
+  } else if (
+    typeof systemValue.value === "string" &&
+    systemValue.value.length > 0
+  ) {
+    result.system = systemValue.value;
   }
 
-  const tools = normalizeToolList(modelContext.tools);
-  if (tools.length > 0) {
-    result.tools = tools.map((tool): NormalizedTool => {
+  const tools = readSafely(() => normalizeToolList(modelContext.tools));
+  if (tools.readable && tools.value.length > 0) {
+    result.tools = tools.value.map((tool): NormalizedTool => {
       return {
         ...tool,
         parameters: sanitizeForMessage(tool.parameters),
@@ -180,21 +197,31 @@ export const serializeModelContext = (
     });
   }
 
-  if (modelContext.callSettings !== undefined) {
-    const callSettings = sanitizeAndRedact(modelContext.callSettings);
+  const callSettings = readSafely(() => {
+    const value = modelContext.callSettings;
+    return value === undefined ? undefined : sanitizeAndRedact(value);
+  });
+  if (callSettings.readable && callSettings.value !== undefined) {
     if (
-      callSettings &&
-      typeof callSettings === "object" &&
-      !Array.isArray(callSettings)
+      typeof callSettings.value === "object" &&
+      callSettings.value !== null &&
+      !Array.isArray(callSettings.value)
     ) {
-      result.callSettings = callSettings as Record<string, unknown>;
+      result.callSettings = callSettings.value as Record<string, unknown>;
     }
   }
 
-  if (modelContext.config !== undefined) {
-    const config = sanitizeAndRedact(modelContext.config);
-    if (config && typeof config === "object" && !Array.isArray(config)) {
-      result.config = config as Record<string, unknown>;
+  const config = readSafely(() => {
+    const value = modelContext.config;
+    return value === undefined ? undefined : sanitizeAndRedact(value);
+  });
+  if (config.readable && config.value !== undefined) {
+    if (
+      typeof config.value === "object" &&
+      config.value !== null &&
+      !Array.isArray(config.value)
+    ) {
+      result.config = config.value as Record<string, unknown>;
     }
   }
 

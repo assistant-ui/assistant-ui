@@ -97,4 +97,37 @@ describe("projectApi", () => {
     const scopes = result.scopes as Array<{ name: string }>;
     expect(scopes.map((s) => s.name)).toEqual(["broken", "throwing"]);
   });
+
+  it("retains readable model context when fields or tools cannot be read", () => {
+    const modelContext = {
+      config: { modelName: "readable" },
+      tools: new Proxy(
+        {},
+        {
+          ownKeys: () => {
+            throw new Error("tool enumeration failed");
+          },
+        },
+      ),
+    };
+    Object.defineProperty(modelContext, "system", {
+      get: () => {
+        throw new Error("system getter failed");
+      },
+    });
+
+    const thread = scope(
+      "root",
+      {},
+      {
+        getModelContext: () => modelContext,
+      },
+    );
+    const result = projectApi(1, { api: { thread }, logs: [] } as never);
+
+    expect(result.modelContext).toEqual({
+      system: "[Unserializable]",
+      config: { modelName: "readable" },
+    });
+  });
 });
