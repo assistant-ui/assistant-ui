@@ -22,6 +22,11 @@ export type WebMcpModelContext = {
     tool: WebMcpToolDescriptor,
     options?: { signal?: AbortSignal },
   ): Promise<void> | { unregister?(): void } | void;
+  /**
+   * Not part of the WebMCP explainer, which unregisters by aborting the signal
+   * passed to `registerTool`. Tolerated for hosts that expose it; the abort is
+   * what disposal relies on. See #6585.
+   */
   unregisterTool?(name: string): void;
 };
 

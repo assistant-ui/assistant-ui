@@ -3,7 +3,9 @@ title: WebMCP provider
 description: Expose your app's frontend tools to a WebMCP-capable browser with unstable_useWebMcpProvider.
 ---
 
-WebMCP is a browser-native way for a page to publish tools to the agent the *user* is running — an extension, a sidebar assistant, or the browser itself — through `document.modelContext` (with `navigator.modelContext` as a fallback). A page calls `registerTool` and the agent can call it.
+WebMCP is a browser-native way for a page to publish tools to the agent the *user* is running, through `document.modelContext` (with `navigator.modelContext` as a fallback). A page calls `registerTool` and the agent can call it.
+
+By default the explainer exposes a registered tool to the page itself, to same-origin documents in the same frame tree, and to the browser's built-in agent. Reaching an author-provided agent in another origin needs the `exposedTo` option, which this hook does not set, so treat the audience as the built-in agent unless that changes.
 
 `unstable_useWebMcpProvider` connects the two directions you already have. Every frontend tool registered in the assistant-ui model context is published to the browser's WebMCP host, and the results come back through the same `Tool` contract your chat runtime uses. You define a tool once; both your assistant and the user's browser agent can call it.
 
