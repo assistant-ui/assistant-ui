@@ -7,19 +7,12 @@ assistant-ui provides composable runtime and UI primitives for building AI inter
 Preserve these promises:
 
 - **Composable primitives.** Features should combine through the existing runtime and component model instead of requiring parallel abstractions.
-- **Stable public APIs.** Published exports are append-only. Compatibility matters even when an export appears unused inside this repository.
-- **Cross-runtime consistency.** React, React Native, Ink, and provider adapters should expose equivalent behavior wherever the platform supports it.
-- **Provider correctness.** Non-spec payloads, partial streaming data, and provider-specific capabilities must not corrupt shared runtime semantics.
-- **Copyable UI.** Registry components must remain self-contained after being copied into a user project.
-- **Good interaction quality.** Do not fix implementation problems by removing useful behavior, accessibility, responsiveness, or animation.
 
 ## Maintainer taste
 
 Prefer the smallest change that fixes the underlying mechanism.
 
-Reuse an existing core primitive before adding adapter-specific state, configuration, or escape hatches. Keep orchestration in runtimes, conversion in pure modules, and rendering in components.
-
-Do not preserve complexity merely because it already exists. Do not widen a public API or disable useful behavior to make an implementation easier. When the repository already establishes a pattern, follow it unless the task exposes a concrete reason it cannot work.
+Do not preserve complexity merely because it already exists.
 
 ## Architecture
 
