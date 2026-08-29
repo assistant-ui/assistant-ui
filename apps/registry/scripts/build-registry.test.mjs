@@ -195,7 +195,7 @@ test("vue flavor content validation rejects forbidden package subpaths", () => {
         createBuilt("thread", [
           [
             "components/assistant-ui/thread.vue",
-            '<script setup lang="ts">\nimport { jsx } from "react/jsx-runtime";\nimport "react-dom/client";\nimport "@assistant-ui/react/runtime";\nimport { CopyIcon } from "lucide-react";\nimport "@assistant-ui/react-ui/lib/utils";\n</script>',
+            '<script setup lang="ts">\nimport { jsx } from "react/jsx-runtime";\nimport "react-dom/client";\nimport "@assistant-ui/react/runtime";\nimport { CopyIcon } from "lucide-react";\nimport "@assistant-ui/react";\n</script>',
           ],
         ]),
       ]),
@@ -224,7 +224,7 @@ test("vue flavor content validation rejects forbidden package subpaths", () => {
       );
       assert.ok(
         error.message.includes(
-          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "@assistant-ui/react-ui/lib/utils"',
+          '- thread: vue tree file components/assistant-ui/thread.vue imports forbidden "@assistant-ui/react"',
         ),
       );
       return true;

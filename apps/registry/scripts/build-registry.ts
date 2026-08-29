@@ -72,18 +72,6 @@ function stripRegistryDependencyUsageExemptions(item: RegistryItem) {
   return publicItem;
 }
 
-/**
- * Transform @assistant-ui/react-ui/* imports to @/* imports for standalone projects
- * This is needed because the monorepo uses @assistant-ui/react-ui/* for internal imports
- * but the registry output should use @/* which works with standard shadcn setup
- */
-function transformImports(content: string): string {
-  return content
-    .replace(/@assistant-ui\/react-ui\/lib\//g, "@/lib/")
-    .replace(/@assistant-ui\/react-ui\/components\/ui\//g, "@/components/ui/")
-    .replace(/@assistant-ui\/react-ui\/hooks\//g, "@/hooks/");
-}
-
 function validateRegistrySchema(registry: RegistryItem[]) {
   const result = registrySchema.safeParse(registry);
 
@@ -275,8 +263,6 @@ function createRegistryPayload(
         "@/components/ui/",
       );
     }
-
-    content = transformImports(content);
 
     const { sourcePath: _, ...fileOutput } = file;
     return {

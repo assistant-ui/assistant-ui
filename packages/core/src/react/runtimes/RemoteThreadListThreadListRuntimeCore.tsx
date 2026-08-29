@@ -28,7 +28,7 @@ import type {
 } from "../../runtimes/remote-thread-list/types";
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
-import { isTitleSourceMessage } from "./RemoteThreadResource";
+import { isTitleSourceMessage } from "../../runtimes/remote-thread-list/title";
 import {
   type ComponentType,
   type FC,

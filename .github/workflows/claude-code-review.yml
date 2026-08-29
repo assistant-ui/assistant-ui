@@ -31,11 +31,6 @@ env:
       else "Reviewed by `\($served // "an unrecorded model")`"
       end
 
-  # The background simplify pass (subagent prompt kept in .github/prompts/simplify-review.md,
-  # findings merged as a "## Simplify" section) is disabled: it mostly restated the main
-  # review's findings or went unactioned. The prompt file is kept for now; delete it if the
-  # pass stays retired. Re-enable by launching the subagent from REVIEW_PROMPT and
-  # re-adding Agent to allowedTools.
   REVIEW_PROMPT: |
     REPO: ${{ github.repository }}
     PR NUMBER: ${{ github.event.pull_request.number }}

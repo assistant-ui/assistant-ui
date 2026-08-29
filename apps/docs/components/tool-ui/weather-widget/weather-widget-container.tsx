@@ -34,19 +34,10 @@ export function WeatherWidget({
       return false;
     }
 
-    return (
-      window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches ?? false
-    );
+    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   });
 
   useEffect(() => {
-    if (
-      typeof window === "undefined" ||
-      typeof window.matchMedia !== "function"
-    ) {
-      return;
-    }
-
     const mediaQueryList = window.matchMedia(
       "(prefers-reduced-motion: reduce)",
     );
@@ -56,19 +47,12 @@ export function WeatherWidget({
       setPrefersReducedMotion(event.matches);
     };
 
-    if (typeof mediaQueryList.addEventListener === "function") {
-      mediaQueryList.addEventListener("change", handleMotionPreferenceChange);
-      return () => {
-        mediaQueryList.removeEventListener(
-          "change",
-          handleMotionPreferenceChange,
-        );
-      };
-    }
-
-    mediaQueryList.addListener(handleMotionPreferenceChange);
+    mediaQueryList.addEventListener("change", handleMotionPreferenceChange);
     return () => {
-      mediaQueryList.removeListener(handleMotionPreferenceChange);
+      mediaQueryList.removeEventListener(
+        "change",
+        handleMotionPreferenceChange,
+      );
     };
   }, []);
 

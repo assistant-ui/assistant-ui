@@ -74,8 +74,6 @@ const isResolvedToolCall = (
 ): boolean =>
   part.type === "tool-call" && "result" in part && part.result !== undefined;
 
-const symbolResumeShim = Symbol("agui-resume-shim");
-
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeStream = (
   options: ChatModelRunOptions,
@@ -187,7 +185,6 @@ export class AgUiThreadRuntimeCore {
     this.onCancel = options.onCancel;
     this.history = options.history;
     this.notifyUpdate = options.notifyUpdate;
-    this.installResumeShim();
   }
 
   updateOptions(options: Omit<CoreOptions, "notifyUpdate">) {
@@ -199,8 +196,6 @@ export class AgUiThreadRuntimeCore {
     this.onCancel = options.onCancel;
     const previousHistory = this.history;
     this.history = options.history;
-    this.installResumeShim();
-
     if (
       this._loadRequested &&
       !this._loadPromise &&
@@ -1317,27 +1312,6 @@ export class AgUiThreadRuntimeCore {
     };
     this.pendingA2uiAction = undefined;
     return input;
-  }
-
-  private installResumeShim(): void {
-    const agent = this.agent as any;
-    if (agent[symbolResumeShim]) return;
-    agent[symbolResumeShim] = true;
-    const onInstance = Object.hasOwn(agent, "prepareRunAgentInput");
-    const original = onInstance
-      ? agent.prepareRunAgentInput
-      : Object.getPrototypeOf(agent)?.prepareRunAgentInput;
-    if (typeof original !== "function") return;
-    agent.prepareRunAgentInput = function (
-      this: unknown,
-      params: { resume?: unknown } | undefined,
-    ) {
-      const input = original.call(this, params);
-      if (params?.resume !== undefined && input && typeof input === "object") {
-        return { ...(input as object), resume: params.resume };
-      }
-      return input;
-    };
   }
 
   private setRunning(running: boolean) {

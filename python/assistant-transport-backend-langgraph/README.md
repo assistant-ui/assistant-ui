@@ -29,19 +29,6 @@ cp .env.example .env
 # Edit .env to add your OpenAI API key
 ```
 
-### Using pip
-
-1. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-2. Set up environment variables:
-```bash
-cp .env.example .env
-# Edit .env to add your OpenAI API key
-```
-
 ## Configuration
 
 The server can be configured via environment variables:
