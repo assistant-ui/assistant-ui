@@ -13,10 +13,10 @@ This guide adds a streaming chat to a Nuxt app in about five minutes. The runtim
 Install the Vue binding, the AI SDK runtime, and an AI SDK provider:
 
 ```sh
-pnpm add @assistant-ui/vue @assistant-ui/ai-sdk ai @ai-sdk/openai
+pnpm add @assistant-ui/vue @assistant-ui/ai-sdk ai @ai-sdk/openai react
 ```
 
-If you run `nuxi typecheck`, also add `@types/react` as a dev dependency: a type-only react reference rides through the core runtime types.
+`react` is the AI SDK runtime's substrate — an optional peer of `@assistant-ui/ai-sdk`, so it does not install on its own. For `nuxi typecheck`, add `@types/react` as a dev dependency: a type-only react reference rides through the core runtime types.
 
 ```bash
 pnpm add -D @types/react
