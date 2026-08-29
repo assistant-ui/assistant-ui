@@ -7,10 +7,10 @@ Internal performance measurement toolkit. Two disciplines, two tools:
 **Wall-time benchmarks (informational, never a merge gate).** `bench/*.bench.ts` files run through vitest bench against the built dist of published packages. The `aui-perf` CLI records environment-stamped baselines and diffs them:
 
 ```
-pnpm -C packages/x-performance exec aui-perf record before.json
+pnpm -C packages/x-performance perf:record before.json
 # ...make changes, rebuild the affected packages...
-pnpm -C packages/x-performance exec aui-perf record after.json
-pnpm -C packages/x-performance exec aui-perf compare before.json after.json
+pnpm -C packages/x-performance perf:record after.json
+pnpm -C packages/x-performance perf:compare before.json after.json
 ```
 
 `compare` refuses to read significance into deltas smaller than twice the measured margin of error, and warns when the two recordings come from different machines or Node versions. Baselines live in `.perf/` (gitignored).
