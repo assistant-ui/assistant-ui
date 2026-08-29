@@ -1326,10 +1326,10 @@ interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
   forEach<PathT extends TypePath<TArgs>>(...fieldPath: PathT): NonNullable<TypeAtPath<TArgs, PathT>> extends Array<infer U> ? AsyncIterableStream<U> : never;
 }
 
-type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult> = ToolCallTextValue | ((options: {
+type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult, TValue> = TValue | undefined | null | ((options: {
   args: TArgs;
   result: TResult | undefined;
-}) => ToolCallTextValue);
+}) => TValue | undefined | null);
 
 type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly type: "tool-call";
@@ -1394,19 +1394,19 @@ interface ToolCallResponseReader<TResult> {
   get: () => Promise<ToolResponse<TResult>>;
 }
 
-type ToolCallRunningText<TArgs extends Record<string, unknown>> = ToolCallTextValue | ((options: {
+type ToolCallRunningText<TArgs extends Record<string, unknown>, TValue> = TValue | undefined | null | ((options: {
   args: TArgs;
-}) => ToolCallTextValue);
+}) => TValue | undefined | null);
 
-type ToolCallText<TArgs extends Record<string, unknown>, TResult> = {
-  running: ToolCallRunningText<TArgs>;
-  complete?: ToolCallCompleteText<TArgs, TResult> | undefined;
+type ToolCallText<TArgs extends Record<string, unknown>, TResult> = ToolCallText$1<TArgs, TResult, ReactNode>;
+
+type ToolCallText$1<TArgs extends Record<string, unknown>, TResult, TValue = string> = {
+  running: ToolCallRunningText<TArgs, TValue>;
+  complete?: ToolCallCompleteText<TArgs, TResult, TValue> | undefined;
 } | {
-  running?: ToolCallRunningText<TArgs> | undefined;
-  complete: ToolCallCompleteText<TArgs, TResult>;
+  running?: ToolCallRunningText<TArgs, TValue> | undefined;
+  complete: ToolCallCompleteText<TArgs, TResult, TValue>;
 };
-
-type ToolCallTextValue = string | undefined | null;
 
 type ToolCallTiming = {
   readonly startedAt: number;

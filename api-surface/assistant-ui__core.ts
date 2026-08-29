@@ -5362,10 +5362,10 @@ interface ToolCallArgsReader<TArgs extends Record<string, unknown>> {
   forEach<PathT extends TypePath<TArgs>>(...fieldPath: PathT): NonNullable<TypeAtPath<TArgs, PathT>> extends Array<infer U> ? AsyncIterableStream<U> : never;
 }
 
-type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult> = ToolCallTextValue | ((options: {
+type ToolCallCompleteText<TArgs extends Record<string, unknown>, TResult, TValue> = TValue | undefined | null | ((options: {
   args: TArgs;
   result: TResult | undefined;
-}) => ToolCallTextValue);
+}) => TValue | undefined | null);
 
 type ToolCallMessagePart<TArgs = ReadonlyJSONObject, TResult = unknown> = {
   readonly type: "tool-call";
@@ -5430,16 +5430,18 @@ interface ToolCallResponseReader<TResult> {
   get: () => Promise<ToolResponse<TResult>>;
 }
 
-type ToolCallRunningText<TArgs extends Record<string, unknown>> = ToolCallTextValue | ((options: {
+type ToolCallRunningText<TArgs extends Record<string, unknown>, TValue> = TValue | undefined | null | ((options: {
   args: TArgs;
-}) => ToolCallTextValue);
+}) => TValue | undefined | null);
 
-type ToolCallText<TArgs extends Record<string, unknown>, TResult> = {
-  running: ToolCallRunningText<TArgs>;
-  complete?: ToolCallCompleteText<TArgs, TResult> | undefined;
+type ToolCallText<TArgs extends Record<string, unknown>, TResult> = ToolCallText$1<TArgs, TResult, ReactNode>;
+
+type ToolCallText$1<TArgs extends Record<string, unknown>, TResult, TValue = string> = {
+  running: ToolCallRunningText<TArgs, TValue>;
+  complete?: ToolCallCompleteText<TArgs, TResult, TValue> | undefined;
 } | {
-  running?: ToolCallRunningText<TArgs> | undefined;
-  complete: ToolCallCompleteText<TArgs, TResult>;
+  running?: ToolCallRunningText<TArgs, TValue> | undefined;
+  complete: ToolCallCompleteText<TArgs, TResult, TValue>;
 };
 
 type ToolCallTextPart<TArgs extends Record<string, unknown>, TResult> = {
@@ -5449,8 +5451,6 @@ type ToolCallTextPart<TArgs extends Record<string, unknown>, TResult> = {
     readonly type?: string | undefined;
   } | undefined;
 };
-
-type ToolCallTextValue = string | undefined | null;
 
 type ToolCallTiming = {
   readonly startedAt: number;
@@ -5528,7 +5528,7 @@ type ToolParameters<TArgs extends Record<string, unknown>> = ToolDeclaration<TAr
 
 type ToolRegistration = {
   readonly render: ToolCallMessagePartComponent;
-  readonly renderText?: ToolCallText<any, any> | undefined;
+  readonly renderText?: ToolCallText$1<any, any, unknown> | undefined;
   readonly standalone: boolean;
 };
 
@@ -6087,7 +6087,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_store_exports {
-  export { AttachmentClientSchema, AttachmentMeta, AttachmentMethods, AttachmentState, ChainOfThoughtClient, ChainOfThoughtClientSchema, ChainOfThoughtMeta, ChainOfThoughtMethods, ChainOfThoughtPart, ChainOfThoughtState, ComposerClientSchema, ComposerEvents, ComposerMeta, ComposerMethods, ComposerSendOptions, ComposerState, ExternalThread, ExternalThreadMessage, ExternalThreadProps, InMemoryThreadList, InMemoryThreadListProps, JoinStrategy, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageClientSchema, MessageMeta, MessageMethods, MessageState, ModelContext, ModelContextClientSchema, ModelContextMethods, ModelContextState, NoOpComposerClient, PartClientSchema, PartMeta, PartMethods, PartState, QueueItemClientSchema, QueueItemMeta, QueueItemMethods, QueueItemState, RemoteThreadList, RemoteThreadListProps, RuntimeAdapter, RuntimeExtrasBrand, SingleThreadList, StreamingTimingAccessors, StreamingTimingOptions, StreamingTimingState, Suggestion, SuggestionClientSchema, SuggestionConfig, SuggestionMeta, SuggestionMethods, SuggestionState, Suggestions, SuggestionsClientSchema, SuggestionsMethods, SuggestionsState, ThreadClientSchema, ThreadEvents, ThreadListItemClientSchema, ThreadListItemEvents, ThreadListItemMeta, ThreadListItemMethods, ThreadListItemState, ThreadMessageClient, ThreadMessageClientProps, ThreadMeta, ThreadMethods, ThreadState, ThreadsClientSchema, ThreadsEvents, ThreadsMethods, ThreadsState, ToolCallText, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, convertExternalMessages, createRuntimeExtrasBrand, defineMcpToolkit, defineToolkit, inMemoryThreadListTransformScopes, resolveToolCallText, runtimeAdapterTransformScopes, useExternalMessageConverter, useStreamingTiming };
+  export { AttachmentClientSchema, AttachmentMeta, AttachmentMethods, AttachmentState, ChainOfThoughtClient, ChainOfThoughtClientSchema, ChainOfThoughtMeta, ChainOfThoughtMethods, ChainOfThoughtPart, ChainOfThoughtState, ComposerClientSchema, ComposerEvents, ComposerMeta, ComposerMethods, ComposerSendOptions, ComposerState, ExternalThread, ExternalThreadMessage, ExternalThreadProps, InMemoryThreadList, InMemoryThreadListProps, JoinStrategy, McpToolkitDefinition, McpToolkitEntry, McpToolkitToolConfig, MessageClientSchema, MessageMeta, MessageMethods, MessageState, ModelContext, ModelContextClientSchema, ModelContextMethods, ModelContextState, NoOpComposerClient, PartClientSchema, PartMeta, PartMethods, PartState, QueueItemClientSchema, QueueItemMeta, QueueItemMethods, QueueItemState, RemoteThreadList, RemoteThreadListProps, RuntimeAdapter, RuntimeExtrasBrand, SingleThreadList, StreamingTimingAccessors, StreamingTimingOptions, StreamingTimingState, Suggestion, SuggestionClientSchema, SuggestionConfig, SuggestionMeta, SuggestionMethods, SuggestionState, Suggestions, SuggestionsClientSchema, SuggestionsMethods, SuggestionsState, ThreadClientSchema, ThreadEvents, ThreadListItemClientSchema, ThreadListItemEvents, ThreadListItemMeta, ThreadListItemMethods, ThreadListItemState, ThreadMessageClient, ThreadMessageClientProps, ThreadMeta, ThreadMethods, ThreadState, ThreadsClientSchema, ThreadsEvents, ThreadsMethods, ThreadsState, ToolCallText$1 as ToolCallText, Toolkit, ToolkitDefinition, ToolkitDefinitionEntry, convertExternalMessages, createRuntimeExtrasBrand, defineMcpToolkit, defineToolkit, inMemoryThreadListTransformScopes, resolveToolCallText, runtimeAdapterTransformScopes, useExternalMessageConverter, useStreamingTiming };
 }
 
 declare namespace entry_internal_exports {
@@ -6156,7 +6156,7 @@ declare const resolveToolApprovalResponse: (approval: {
   readonly options?: readonly ToolApprovalOption[];
 }, response: ToolApprovalResponse) => RespondToToolApprovalOptions;
 
-declare const resolveToolCallText: <TArgs extends Record<string, unknown>, TResult>(text: ToolCallText<TArgs, TResult>, part: ToolCallTextPart<TArgs, TResult>) => ToolCallTextValue;
+declare const resolveToolCallText: <TArgs extends Record<string, unknown>, TResult, TValue>(text: ToolCallText$1<TArgs, TResult, TValue>, part: ToolCallTextPart<TArgs, TResult>) => TValue | undefined | null;
 
 declare const runtimeAdapterTransformScopes: (scopes: ScopesConfig, parent: AssistantClient) => void;
 
