@@ -46,6 +46,9 @@ const ChainOfThoughtPartByIndexProvider = defineComponent({
         part: Derived({
           source: "chainOfThought",
           query: { type: "index", index },
+          // chainOfThought.part() delegates to a userland getMessagePart, so
+          // validity is not decided by parts.length alone; a lookup throw is
+          // absorbed into the stale cache like an invalid index.
           get: (aui) => {
             const valid = index < aui.chainOfThought.getState().parts.length;
             try {
@@ -79,6 +82,13 @@ const ChainOfThoughtPartView = defineComponent({
   },
 });
 
+/**
+ * Renders the parts within a chain of thought through the default slot, one
+ * invocation per entry of `s.chainOfThought.parts`.
+ *
+ * Rendering is not gated on `s.chainOfThought.collapsed`; gate visibility in
+ * the caller (for example with `AuiIf`), matching the React primitive.
+ */
 export const ChainOfThoughtPrimitiveParts = defineComponent({
   name: "ChainOfThoughtPrimitiveParts",
   slots: Object as SlotsType<ChainOfThoughtPartsSlots>,

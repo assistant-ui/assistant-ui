@@ -9,6 +9,9 @@ import { useAui } from "../useAui";
 import { useAuiState } from "../useAuiState";
 import { isAttrDisabled } from "./attrDisabled";
 
+/**
+ * A button that toggles the collapsed state of the chain of thought accordion.
+ */
 export const ChainOfThoughtPrimitiveAccordionTrigger = defineComponent({
   name: "ChainOfThoughtPrimitiveAccordionTrigger",
   inheritAttrs: false,

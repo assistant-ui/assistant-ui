@@ -46,6 +46,28 @@ const createReasoningRuntime = (initial: readonly string[]) => {
   return { runtime, setTexts };
 };
 
+const CollapsedProbe = defineComponent({
+  setup() {
+    const collapsed = useAuiState((s) => s.chainOfThought.collapsed);
+    return () => h("span", { class: "collapsed" }, String(collapsed.value));
+  },
+});
+
+const ExpandButton = defineComponent({
+  setup() {
+    const aui = useAui();
+    return () =>
+      h(
+        "button",
+        {
+          class: "expand",
+          onClick: () => aui.chainOfThought.setCollapsed(false),
+        },
+        "expand",
+      );
+  },
+});
+
 const ChainOfThoughtHost = defineComponent({
   setup(_, { slots }) {
     const aui = useAui();
@@ -81,7 +103,7 @@ const mountParts = (initial: readonly string[]) => {
                 h(ThreadPrimitiveMessages, null, {
                   default: () =>
                     h(ChainOfThoughtHost, null, {
-                      default: () =>
+                      default: () => [
                         h(ChainOfThoughtPrimitiveParts, null, {
                           default: ({ part }: { part: PartState }) => [
                             h(
@@ -91,6 +113,9 @@ const mountParts = (initial: readonly string[]) => {
                             ),
                           ],
                         }),
+                        h(CollapsedProbe),
+                        h(ExpandButton),
+                      ],
                     }),
                 }),
               ]),
@@ -122,11 +147,19 @@ describe("ChainOfThoughtPrimitiveParts", () => {
     unmount();
   });
 
-  it("renders while collapsed, matching the React primitive", async () => {
+  it("renders regardless of the collapsed state, matching the React primitive", async () => {
     const { el, unmount } = mountParts(["alpha"]);
 
     await vi.waitFor(async () => {
       await nextTick();
+      expect(el.querySelector("span.collapsed")?.textContent).toBe("true");
+      expect(partTexts(el)).toEqual(["alpha"]);
+    });
+
+    el.querySelector<HTMLButtonElement>("button.expand")!.click();
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelector("span.collapsed")?.textContent).toBe("false");
       expect(partTexts(el)).toEqual(["alpha"]);
     });
 
@@ -153,6 +186,14 @@ describe("ChainOfThoughtPrimitiveParts", () => {
       await nextTick();
       expect(partTexts(el)).toEqual(["alpha", "gamma"]);
     });
+
+    const logged = error.mock.calls.map((call) => call.map(String).join(" "));
+    for (const message of logged) {
+      expect(message).toContain("(ignore if recovered)");
+    }
+    expect(logged.join("\n")).not.toContain(
+      "ChainOfThoughtPartByIndexProvider",
+    );
 
     unmount();
     error.mockRestore();
