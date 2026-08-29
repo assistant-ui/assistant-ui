@@ -40,6 +40,7 @@ export default async function Page(props: {
     notFound();
   }
 
+  const { body: MdxBody, toc } = await page.data.load();
   const mdxComponents = getMDXComponents({
     DocsCategory,
   });
@@ -54,13 +55,13 @@ export default async function Page(props: {
 
   return (
     <DocsPage
-      toc={page.data.toc}
+      toc={toc}
       full
       tableOfContent={{
         enabled: true,
         component: (
           <TableOfContents
-            items={page.data.toc}
+            items={toc}
             githubEditUrl={githubEditUrl}
             markdownUrl={markdownUrl}
           />
@@ -111,7 +112,7 @@ export default async function Page(props: {
             </div>
           )}
         </header>
-        <page.data.body components={mdxComponents} />
+        <MdxBody components={mdxComponents} />
         <DocsFooter previous={footerPrevious} next={footerNext} />
       </DocsBody>
     </DocsPage>

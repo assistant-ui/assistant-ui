@@ -40,9 +40,7 @@ export const docs = defineDocs({
         .optional(),
       platforms: z.array(platformSchema).optional(),
     }),
-    postprocess: {
-      includeProcessedMarkdown: true,
-    },
+    async: true,
   },
   meta: {
     schema: metaSchema.extend({
@@ -57,9 +55,7 @@ export const tapDocs = defineDocs({
   dir: "content/tap-docs",
   docs: {
     schema: frontmatterSchema,
-    postprocess: {
-      includeProcessedMarkdown: true,
-    },
+    async: true,
   },
   meta: {
     schema: metaSchema.extend({
@@ -72,18 +68,14 @@ export const examples = defineCollections({
   type: "doc",
   dir: "content/examples",
   schema: frontmatterSchema,
-  postprocess: {
-    includeProcessedMarkdown: true,
-  },
+  async: true,
 });
 
 export const elements = defineCollections({
   type: "doc",
   dir: "content/elements",
   schema: frontmatterSchema,
-  postprocess: {
-    includeProcessedMarkdown: true,
-  },
+  async: true,
 });
 
 export const design = defineCollections({
@@ -99,9 +91,7 @@ export const design = defineCollections({
       )
       .optional(),
   }),
-  postprocess: {
-    includeProcessedMarkdown: true,
-  },
+  async: true,
 });
 
 export const blog = defineCollections({

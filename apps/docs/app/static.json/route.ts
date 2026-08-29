@@ -4,7 +4,7 @@ import { design, elementsDocs, source, getTapDocsPages } from "@/lib/source";
 
 export const revalidate = false;
 
-export function GET() {
+export async function GET() {
   const results: DocumentRecord[] = [];
 
   for (const page of [
@@ -15,7 +15,7 @@ export function GET() {
   ]) {
     results.push({
       _id: page.url,
-      structured: page.data.structuredData,
+      structured: await page.data.structuredData(),
       url: page.url,
       title: page.data.title,
       description: page.data.description ?? "",
