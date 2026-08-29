@@ -26,7 +26,7 @@ import {
   SquareIcon,
   XIcon,
 } from "@lucide/vue";
-import Message from "@/components/assistant-ui/message.vue";
+import Message from "./message.vue";
 </script>
 
 <template>
