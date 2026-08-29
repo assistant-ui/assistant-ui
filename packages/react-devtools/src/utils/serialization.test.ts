@@ -59,6 +59,34 @@ describe("sanitizeForMessage", () => {
   it("sanitizes invalid dates without throwing", () => {
     expect(sanitizeForMessage(new Date(Number.NaN))).toBe("Invalid Date");
   });
+
+  it("preserves readable properties when an enumerable getter throws", () => {
+    const value = { readable: "value" };
+    Object.defineProperty(value, "broken", {
+      enumerable: true,
+      get: () => {
+        throw new Error("getter failed");
+      },
+    });
+
+    expect(sanitizeForMessage(value)).toEqual({
+      readable: "value",
+      broken: "[Unserializable]",
+    });
+  });
+
+  it("handles proxies that reject key enumeration", () => {
+    const value = new Proxy(
+      {},
+      {
+        ownKeys: () => {
+          throw new Error("enumeration failed");
+        },
+      },
+    );
+
+    expect(sanitizeForMessage(value)).toBe("[Unserializable]");
+  });
 });
 
 describe("redactSensitive", () => {
