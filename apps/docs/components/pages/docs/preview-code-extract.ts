@@ -131,6 +131,16 @@ export function extractImports(source: string): string[] {
   return imports;
 }
 
+// A specifier binds under its alias, and an inline type specifier binds under
+// the name after the keyword.
+function localBindingName(specifier: string): string {
+  return specifier
+    .replace(/^\s*type\s+/, "")
+    .split(/\s+as\s+/)
+    .pop()!
+    .trim();
+}
+
 export function filterRelevantImports(
   imports: string[],
   code: string,
@@ -144,7 +154,7 @@ export function filterRelevantImports(
     if (namedMatch?.[1]) {
       const names = namedMatch[1]
         .split(",")
-        .map((n) => n.trim().split(" as ")[0]?.trim())
+        .map((specifier) => localBindingName(specifier))
         .filter((name): name is string => Boolean(name));
       return names.some(usesName);
     }

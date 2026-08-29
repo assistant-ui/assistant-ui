@@ -19,9 +19,9 @@ export function AnnotatedSpecimen(): ReactNode {
   );
 }
 
-export const ArrowSpecimen = (): ReactNode => (
-  <div>arrow</div>
-);
+export function TrailingSpecimen() {
+  return <div>trailing</div>;
+}
 `;
 
 describe("extractFunctionCode", () => {
@@ -38,7 +38,7 @@ describe("extractFunctionCode", () => {
     expect(code).toContain("export function AnnotatedSpecimen(): ReactNode {");
     expect(code).toContain("<span>ok</span>");
     expect(code.endsWith("}")).toBe(true);
-    expect(code).not.toContain("ArrowSpecimen");
+    expect(code).not.toContain("TrailingSpecimen");
   });
 
   it("keeps imports only for identifiers the code uses as words", () => {
@@ -49,6 +49,19 @@ describe("extractFunctionCode", () => {
     const code = "<Table>Buttons, inputs, menu items</Table>";
     expect(filterRelevantImports(imports, code)).toEqual([
       'import { Table } from "@/components/ui/table";',
+    ]);
+  });
+
+  it("keeps an import bound under an alias or an inline type specifier", () => {
+    const imports = [
+      'import { Button as Action } from "@/components/ui/button";',
+      'import { useState, type ReactNode } from "react";',
+      'import { Table } from "@/components/ui/table";',
+    ];
+    const code = "const node: ReactNode = <Action />;";
+    expect(filterRelevantImports(imports, code)).toEqual([
+      'import { Button as Action } from "@/components/ui/button";',
+      'import { useState, type ReactNode } from "react";',
     ]);
   });
 
