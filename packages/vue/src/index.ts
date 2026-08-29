@@ -4,7 +4,6 @@ export { useAui } from "./useAui";
 export { useAuiState } from "./useAuiState";
 export { useAuiEvent } from "./useAuiEvent";
 
-export { MessageByIndexProvider } from "./primitives/MessageByIndexProvider";
 export { MessageByIdProvider } from "./primitives/MessageByIdProvider";
 export { PartByIndexProvider } from "./primitives/PartByIndexProvider";
 export { ThreadPrimitiveMessages } from "./primitives/ThreadPrimitiveMessages";
@@ -42,8 +41,8 @@ export {
   ThreadListItemByIndexProvider,
   ThreadListPrimitiveItems,
   ThreadListPrimitiveNew,
-  ThreadListItemPrimitiveTrigger,
   ThreadListItemPrimitiveTitle,
+  ThreadListItemPrimitiveTrigger,
 } from "./primitives/threadList";
 export { ThreadListPrimitiveRoot } from "./primitives/ThreadListPrimitiveRoot";
 export { ThreadListItemPrimitiveRoot } from "./primitives/ThreadListItemPrimitiveRoot";
