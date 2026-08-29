@@ -37,7 +37,9 @@ export const BareExpressionSpecimen = () => <div>bare expression</div>;
 
 export const EntitySpecimen = () => <div>bare&nbsp;entity; text</div>;
 
-export const CommentSpecimen = () => <div>commented</div>; // trailing note
+export const JsxCommentSpecimen = () => <div>text; // note</div>;
+
+export const TrailingCommentSpecimen = () => <div>commented</div>; // note
 
 export const UnbalancedSpecimen = () => <div>close with }</div>;
 
@@ -97,12 +99,18 @@ describe("extractFunctionCode", () => {
     expect(code).not.toContain("GuardSpecimen");
   });
 
-  it("stops a bare expression body before a trailing line comment", () => {
-    const code = extractFunctionCode(source, "CommentSpecimen");
+  it("extracts past a comment marker inside JSX text", () => {
+    const code = extractFunctionCode(source, "JsxCommentSpecimen");
     expect(code).toBe(
-      "export const CommentSpecimen = () => <div>commented</div>;",
+      "export const JsxCommentSpecimen = () => <div>text; // note</div>;",
     );
     expect(code).not.toContain("GuardSpecimen");
+  });
+
+  it("reports a bare expression body trailed by a line comment", () => {
+    expect(extractFunctionCode(source, "TrailingCommentSpecimen")).toBe(
+      "// Could not parse function: TrailingCommentSpecimen",
+    );
   });
 
   it("reports a bare expression body whose delimiters lost sync", () => {
