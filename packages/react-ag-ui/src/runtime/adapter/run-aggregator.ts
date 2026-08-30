@@ -6,6 +6,7 @@ import {
   type MessageStatus,
   type MessageTiming,
   type ThreadAssistantMessagePart,
+  type ThreadMessage,
   type ToolCallMessagePart,
   type ToolModelContentPart,
 } from "@assistant-ui/core";
@@ -794,16 +795,163 @@ export class RunAggregator {
     this.lastResolvedToolCallId = id;
   }
 
-  private emit(): void {
+  private subagentsByParentToolCallId(): Map<string, string[]> {
+    const map = new Map<string, string[]>();
+    for (const run of this.subagentRuns.values()) {
+      if (!run.parentToolCallId) continue;
+      const list = map.get(run.parentToolCallId) ?? [];
+      list.push(run.subagentRunId);
+      map.set(run.parentToolCallId, list);
+    }
+    return map;
+  }
+
+  private materializeSubagentMessage(
+    subagentRunId: string,
+    depth: number,
+  ): ThreadMessage | undefined {
+    const run = this.subagentRuns.get(subagentRunId);
+    if (!run || depth > 16) return undefined;
+    const content = this.buildParts(subagentRunId, depth + 1);
+    return {
+      id: run.subagentRunId,
+      role: "assistant",
+      createdAt: run.createdAt,
+      status: run.status,
+      content,
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {
+          [AG_UI_METADATA_NAMESPACE]: {
+            name: run.name,
+            ...(run.description !== undefined
+              ? { description: run.description }
+              : {}),
+            ...(run.parentSubagentRunId !== undefined
+              ? { parentSubagentRunId: run.parentSubagentRunId }
+              : {}),
+          },
+        },
+      },
+    } as ThreadMessage;
+  }
+
+  private buildParts(scope: string, depth = 0): ThreadAssistantMessagePart[] {
     const snapshot: ThreadAssistantMessagePart[] = [];
-    // A run that ended incomplete can no longer be resumed, so a gate left over
-    // from an earlier interrupt outcome is unanswerable and must not stay
-    // projected. The interrupts themselves are kept on the message, since the
-    // bespoke hooks read that payload.
-    const approvals = projectAgUiToolApprovals(
-      this.status?.type === "requires-action" ? this.interrupts : undefined,
-      new Set(this.toolCalls.keys()),
-    );
+    const approvals =
+      scope === ROOT_SCOPE
+        ? projectAgUiToolApprovals(
+            this.status?.type === "requires-action"
+              ? this.interrupts
+              : undefined,
+            new Set(this.toolCalls.keys()),
+          )
+        : new Map();
+    const subagentsByParentToolCallId = this.subagentsByParentToolCallId();
+
+    for (const part of this.partOrder) {
+      if (part.kind === "tool-call") {
+        const entry = this.toolCalls.get(part.toolCallId);
+        if (!entry || (entry.subagentRunId ?? ROOT_SCOPE) !== scope) continue;
+        const approval = approvals.get(entry.toolCallId);
+        const nestedSubagentRunIds = subagentsByParentToolCallId.get(
+          entry.toolCallId,
+        );
+        const nestedMessages = nestedSubagentRunIds
+          ?.map((id) => this.materializeSubagentMessage(id, depth))
+          .filter((m): m is ThreadMessage => m !== undefined);
+        const toolPart: ToolCallMessagePart = {
+          type: "tool-call",
+          toolCallId: entry.toolCallId,
+          toolName: entry.toolCallName,
+          args: (entry.parsedArgs ?? {}) as any,
+          argsText: entry.argsText,
+          ...(approval ? { approval } : {}),
+          ...(entry.result !== undefined ? { result: entry.result } : {}),
+          ...(entry.modelContent !== undefined
+            ? { modelContent: entry.modelContent }
+            : {}),
+          ...(entry.isError !== undefined ? { isError: entry.isError } : {}),
+          ...(entry.mcpAppResourceUri
+            ? {
+                mcp: {
+                  app: {
+                    resourceUri: entry.mcpAppResourceUri,
+                    ...(entry.mcpAppServerId
+                      ? { serverId: entry.mcpAppServerId }
+                      : {}),
+                  },
+                },
+              }
+            : {}),
+          ...(entry.parentMessageId ? { parentId: entry.parentMessageId } : {}),
+          ...(entry.toolMessageId
+            ? { unstable_toolMessageId: entry.toolMessageId }
+            : {}),
+          ...(nestedMessages && nestedMessages.length > 0
+            ? { messages: nestedMessages }
+            : {}),
+        } as ToolCallMessagePart & { unstable_toolMessageId?: string };
+        snapshot.push(toolPart);
+        continue;
+      }
+
+      const partScope =
+        "subagentRunId" in part
+          ? (part.subagentRunId ?? ROOT_SCOPE)
+          : ROOT_SCOPE;
+      if (partScope !== scope) continue;
+
+      if (part.kind === "reasoning") {
+        if (this.showThinking) {
+          const buffer = this.reasoningParts.get(part.key) ?? "";
+          const isActive =
+            this.activeReasoningKeyByScope.get(scope) === part.key;
+          if (buffer.length > 0 || isActive) {
+            const encryptedValue = this.reasoningSignatures.get(part.key);
+            const reasoningId = this.reasoningMessageIds.get(part.key);
+            const meta = {
+              ...(reasoningId !== undefined ? { reasoningId } : {}),
+              ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+            };
+            snapshot.push({
+              type: "reasoning",
+              text: buffer,
+              ...(Object.keys(meta).length > 0
+                ? { providerMetadata: { [AG_UI_METADATA_NAMESPACE]: meta } }
+                : {}),
+            } as const);
+          }
+        }
+        continue;
+      }
+
+      if (part.kind === "text") {
+        const entry = this.textParts.get(part.key);
+        if (entry && entry.buffer.trim().length > 0) {
+          snapshot.push({ type: "text", text: entry.buffer } as const);
+        }
+        continue;
+      }
+
+      if (part.kind === "data" && scope === ROOT_SCOPE) {
+        snapshot.push({
+          type: "data",
+          name: part.name,
+          data: part.value,
+        });
+        continue;
+      }
+    }
+
+    return snapshot;
+  }
+
+  private emit(): void {
+    const snapshot = this.buildParts(ROOT_SCOPE);
 
     const opaqueCandidates: (AgUiOpaqueReasoning & { anchor: number })[] =
       Array.from(this.hiddenSignatures, ([id, encryptedValue]) => ({
@@ -812,40 +960,28 @@ export class RunAggregator {
         anchor: this.hiddenSignatureAnchors.get(id)!,
       }));
 
-    let currentIndex = -1;
     let lastMaterializedIndex = -1;
-    const pushSnapshotPart = (part: (typeof snapshot)[number]) => {
-      snapshot.push(part);
-      lastMaterializedIndex = currentIndex;
-    };
-
     for (const [index, part] of this.partOrder.entries()) {
-      currentIndex = index;
+      if (part.kind === "tool-call") {
+        const entry = this.toolCalls.get(part.toolCallId);
+        if (!entry || (entry.subagentRunId ?? ROOT_SCOPE) !== ROOT_SCOPE)
+          continue;
+        lastMaterializedIndex = index;
+        continue;
+      }
+      const partScope =
+        "subagentRunId" in part
+          ? (part.subagentRunId ?? ROOT_SCOPE)
+          : ROOT_SCOPE;
+      if (partScope !== ROOT_SCOPE) continue;
       if (part.kind === "reasoning") {
         if (this.showThinking) {
           const buffer = this.reasoningParts.get(part.key) ?? "";
-          const scope = part.subagentRunId ?? ROOT_SCOPE;
-          if (
-            buffer.length > 0 ||
-            this.activeReasoningKeyByScope.get(scope) === part.key
-          ) {
-            const encryptedValue = this.reasoningSignatures.get(part.key);
-            const reasoningId = this.reasoningMessageIds.get(part.key);
-            const meta = {
-              ...(reasoningId !== undefined ? { reasoningId } : {}),
-              ...(encryptedValue !== undefined ? { encryptedValue } : {}),
-            };
-            pushSnapshotPart({
-              type: "reasoning",
-              text: buffer,
-              ...(Object.keys(meta).length > 0
-                ? { providerMetadata: { [AG_UI_METADATA_NAMESPACE]: meta } }
-                : {}),
-            } as const);
+          const isActive =
+            this.activeReasoningKeyByScope.get(ROOT_SCOPE) === part.key;
+          if (buffer.length > 0 || isActive) {
+            lastMaterializedIndex = index;
           } else {
-            // A retracted empty block still carries transport state: without
-            // a part to live on, its signature rides the message metadata,
-            // matching the shape a snapshot reload produces.
             const encryptedValue = this.reasoningSignatures.get(part.key);
             const id = this.reasoningSignatureIds.get(part.key);
             if (id?.trim() && encryptedValue?.trim()) {
@@ -855,57 +991,14 @@ export class RunAggregator {
         }
         continue;
       }
-
       if (part.kind === "text") {
         const entry = this.textParts.get(part.key);
-        if (entry && entry.buffer.trim().length > 0) {
-          pushSnapshotPart({ type: "text", text: entry.buffer } as const);
-        }
+        if (entry && entry.buffer.trim().length > 0)
+          lastMaterializedIndex = index;
         continue;
       }
-
-      if (part.kind === "data") {
-        pushSnapshotPart({
-          type: "data",
-          name: part.name,
-          data: part.value,
-        });
-        continue;
-      }
-
-      const entry = this.toolCalls.get(part.toolCallId);
-      if (!entry) continue;
-      const approval = approvals.get(entry.toolCallId);
-      const toolPart: ToolCallMessagePart = {
-        type: "tool-call",
-        toolCallId: entry.toolCallId,
-        toolName: entry.toolCallName,
-        args: (entry.parsedArgs ?? {}) as any,
-        argsText: entry.argsText,
-        ...(approval ? { approval } : {}),
-        ...(entry.result !== undefined ? { result: entry.result } : {}),
-        ...(entry.modelContent !== undefined
-          ? { modelContent: entry.modelContent }
-          : {}),
-        ...(entry.isError !== undefined ? { isError: entry.isError } : {}),
-        ...(entry.mcpAppResourceUri
-          ? {
-              mcp: {
-                app: {
-                  resourceUri: entry.mcpAppResourceUri,
-                  ...(entry.mcpAppServerId
-                    ? { serverId: entry.mcpAppServerId }
-                    : {}),
-                },
-              },
-            }
-          : {}),
-        ...(entry.parentMessageId ? { parentId: entry.parentMessageId } : {}),
-        ...(entry.toolMessageId
-          ? { unstable_toolMessageId: entry.toolMessageId }
-          : {}),
-      } as ToolCallMessagePart & { unstable_toolMessageId?: string };
-      pushSnapshotPart(toolPart);
+      // data parts always materialize when in scope.
+      lastMaterializedIndex = index;
     }
 
     // An anonymous claim promotes the signature's entityId to a wire message

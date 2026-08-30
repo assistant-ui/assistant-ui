@@ -2884,6 +2884,11 @@ describe("RunAggregator", () => {
     const aggregator = createAggregator(true);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-outer",
+      toolCallName: "outer",
+    } as AgUiEvent);
     aggregator.handle({ type: "TEXT_MESSAGE_START" } as AgUiEvent); // root, anonymous
     aggregator.handle({
       type: "TEXT_MESSAGE_CONTENT",
@@ -2893,6 +2898,7 @@ describe("RunAggregator", () => {
       type: "SUBAGENT_STARTED",
       subagentRunId: "sub-1",
       name: "investigate",
+      parentToolCallId: "t-outer",
     } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_START",
@@ -2909,10 +2915,13 @@ describe("RunAggregator", () => {
     const rootText = last.content.find((p) => p.type === "text");
     expect(rootText).toMatchObject({ text: "root-a-root-b" });
 
-    const toolPart = last.content.find(
-      (p) => p.type === "tool-call" && p.toolCallId === "t-explore",
+    const outerToolPart = last.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-outer",
+    ) as any;
+    const nestedToolPart = outerToolPart?.messages?.[0]?.content?.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "t-explore",
     );
-    expect(toolPart).toMatchObject({ toolName: "explore" });
+    expect(nestedToolPart).toMatchObject({ toolName: "explore" });
   });
 
   it("scopes reasoning-start boundary-clearing to the subagent that started it", () => {
@@ -2946,5 +2955,225 @@ describe("RunAggregator", () => {
     const last = results[results.length - 1]!;
     const rootText = last.content.find((p) => p.type === "text");
     expect(rootText).toMatchObject({ text: "root-a-root-b" });
+  });
+
+  it("nests a subagent's activity under the spawning tool call's messages, not flattened into the parent run", () => {
+    const results: ChatModelRunResult[] = [];
+    const aggregator = new RunAggregator({
+      showThinking: true,
+      logger: makeLogger(),
+      emit: (r) => results.push(r),
+    });
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-investigate",
+      toolCallName: "investigate",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_ARGS",
+      toolCallId: "t-investigate",
+      delta: '{"topic":"latency"}',
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "investigate",
+      parentToolCallId: "t-investigate",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      messageId: "sub-msg-1",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "sub-msg-1",
+      delta: "checking dashboards",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_END",
+      messageId: "sub-msg-1",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-explore",
+      toolCallName: "explore",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_ARGS",
+      toolCallId: "t-explore",
+      delta: '{"path":"/metrics"}',
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t-explore",
+      content: '{"p99":420}',
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t-investigate",
+      content: '{"summary":"p99 elevated"}',
+    } as AgUiEvent);
+
+    const last = results[results.length - 1]!;
+    expect(last.content).toHaveLength(1);
+    const parentToolPart = last.content[0] as any;
+    expect(parentToolPart.type).toBe("tool-call");
+    expect(parentToolPart.toolCallId).toBe("t-investigate");
+    expect(parentToolPart.messages).toHaveLength(1);
+    const nested = parentToolPart.messages[0];
+    expect(nested.role).toBe("assistant");
+    expect(nested.id).toBe("sub-1");
+    expect(nested.status).toEqual({ type: "complete", reason: "unknown" });
+    expect(nested.content).toHaveLength(2);
+    expect(nested.content[0]).toMatchObject({
+      type: "text",
+      text: "checking dashboards",
+    });
+    const nestedToolPart = nested.content[1] as any;
+    expect(nestedToolPart.type).toBe("tool-call");
+    expect(nestedToolPart.toolCallId).toBe("t-explore");
+    expect(nestedToolPart.result).toEqual({ p99: 420 });
+  });
+
+  it("recurses for a subagent-of-subagent (parentSubagentRunId chain)", () => {
+    const results: ChatModelRunResult[] = [];
+    const aggregator = new RunAggregator({
+      showThinking: true,
+      logger: makeLogger(),
+      emit: (r) => results.push(r),
+    });
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-outer",
+      toolCallName: "outer",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-outer",
+      name: "outer-agent",
+      parentToolCallId: "t-outer",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-inner",
+      toolCallName: "inner",
+      subagentRunId: "sub-outer",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-inner",
+      name: "inner-agent",
+      parentToolCallId: "t-inner",
+      parentSubagentRunId: "sub-outer",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      subagentRunId: "sub-inner",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "deep result",
+      subagentRunId: "sub-inner",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-inner",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t-inner",
+      content: "done",
+      subagentRunId: "sub-outer",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-outer",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t-outer",
+      content: "done",
+    } as AgUiEvent);
+
+    const last = results[results.length - 1]!;
+    const outerToolPart = last.content[0] as any;
+    const outerNested = outerToolPart.messages[0];
+    expect(outerNested.id).toBe("sub-outer");
+    const innerToolPart = outerNested.content[0] as any;
+    expect(innerToolPart.toolCallId).toBe("t-inner");
+    expect(innerToolPart.messages).toHaveLength(1);
+    const innerNested = innerToolPart.messages[0];
+    expect(innerNested.id).toBe("sub-inner");
+    expect(innerNested.content[0]).toMatchObject({
+      type: "text",
+      text: "deep result",
+    });
+  });
+
+  it("keeps whatever a subagent accumulated when SUBAGENT_ERROR fires instead of dropping it", () => {
+    const results: ChatModelRunResult[] = [];
+    const aggregator = new RunAggregator({
+      showThinking: true,
+      logger: makeLogger(),
+      emit: (r) => results.push(r),
+    });
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t1",
+      toolCallName: "risky",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "risky-agent",
+      parentToolCallId: "t1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "partial progress",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_ERROR",
+      subagentRunId: "sub-1",
+      message: "tool crashed",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t1",
+      content: "failed",
+    } as AgUiEvent);
+
+    const last = results[results.length - 1]!;
+    const toolPart = last.content[0] as any;
+    expect(toolPart.messages).toHaveLength(1);
+    expect(toolPart.messages[0].status).toEqual({
+      type: "incomplete",
+      reason: "error",
+      error: "tool crashed",
+    });
+    expect(toolPart.messages[0].content[0]).toMatchObject({
+      type: "text",
+      text: "partial progress",
+    });
   });
 });
