@@ -6,8 +6,10 @@ import {
   writeFileSync,
   copyFileSync,
   rmSync,
+  symlinkSync,
   existsSync,
 } from "node:fs";
+import { createRequire } from "node:module";
 import { cpus, arch, platform, tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -88,7 +90,7 @@ const record = (outName, runs) => {
   mkdirSync(perfDir, { recursive: true });
   const best = new Map();
   for (let i = 0; i < runs; i++) {
-    console.log(`run ${i + 1}/${runs}...`);
+    console.error(`run ${i + 1}/${runs}...`);
     mergeBest(best, runSuite());
   }
   const doc = { env: { ...envStamp(), runs }, benchmarks: [...best.values()] };
@@ -162,14 +164,14 @@ const ensureRefWorktree = (ref) => {
     execFileSync("git", ["worktree", "prune", "--expire", "now"], {
       cwd: repoRoot,
     });
-    console.log(`creating ref worktree for ${ref} (${sha}) at ${wt}`);
+    console.error(`creating ref worktree for ${ref} (${sha}) at ${wt}`);
     execFileSync("git", ["worktree", "add", "--detach", wt, sha], {
       cwd: repoRoot,
       stdio: ["ignore", 2, "inherit"],
     });
   }
   if (!existsSync(marker)) {
-    console.log("installing and building ref packages (one-time per ref)...");
+    console.error("installing and building ref packages (one-time per ref)...");
     execFileSync("pnpm", ["install"], {
       cwd: wt,
       stdio: ["ignore", 2, "inherit"],
@@ -184,7 +186,27 @@ const ensureRefWorktree = (ref) => {
     });
     writeFileSync(marker, sha);
   }
+  pinReactToCurrentTree(wt);
   return { wt, sha, marker };
+};
+
+// Ref dists are externalized, so Node resolves their react imports from the
+// ref worktree's node_modules and would mount a second React instance (hooks
+// then crash with a null dispatcher). Repoint each ref package's react and
+// react-dom at the current tree's copies; symlinks resolve to the same
+// realpath, so both sides share one module instance.
+const pinReactToCurrentTree = (wt) => {
+  const requireFromPkg = createRequire(join(pkgRoot, "package.json"));
+  for (const dep of ["react", "react-dom"]) {
+    const target = dirname(requireFromPkg.resolve(`${dep}/package.json`));
+    for (const dir of Object.values(REF_PACKAGE_DIRS)) {
+      const nm = join(wt, dir, "node_modules");
+      mkdirSync(nm, { recursive: true });
+      const link = join(nm, dep);
+      rmSync(link, { recursive: true, force: true });
+      symlinkSync(target, link, "dir");
+    }
+  }
 };
 
 const compareRef = (ref, runs) => {
@@ -199,7 +221,7 @@ const compareRef = (ref, runs) => {
   for (let i = 0; i < runs; i++) {
     const order = i % 2 === 0 ? sides : [...sides].reverse();
     for (const [label, run] of order) {
-      console.log(`interleaved run ${i + 1}/${runs}: ${label}...`);
+      console.error(`interleaved run ${i + 1}/${runs}: ${label}...`);
       run();
     }
   }
@@ -217,7 +239,7 @@ const compareRef = (ref, runs) => {
   );
   writeFileSync(join(perfDir, "latest.json"), JSON.stringify(curDoc, null, 2));
   renderCompare(refDoc, curDoc, `${ref} (${refDoc.env.sha})`, "current");
-  console.log(
+  console.error(
     `ref worktree kept at ${wt}; remove with: git worktree remove "${wt}" && rm "${marker}"`,
   );
 };
@@ -229,7 +251,7 @@ const trace = async (targets, seconds) => {
     const arg = /^https?:/.test(target) ? target : resolve(target);
     const url = new URL(arg, "file:///");
     const hint = basename(url.pathname) || url.hostname || arg;
-    console.log(`tracing ${hint} for ${seconds}s...`);
+    console.error(`tracing ${hint} for ${seconds}s...`);
     const events = await captureTrace(arg, seconds);
     results.push({
       target: hint,
