@@ -36,6 +36,16 @@ const useCounterClient = () => {
 };
 const CounterClient = resource(useCounterClient);
 
+const useStableStateClient = () => {
+  const [, setTick] = useState(0);
+  const [state] = useState(() => ({ value: "stable" }));
+  return {
+    getState: () => state,
+    rerender: () => setTick((n) => n + 1),
+  };
+};
+const StableStateClient = resource(useStableStateClient);
+
 const Root = ({ children }: { children: ReactNode }) => {
   const config = AuiConfig({ counter: CounterClient() } as never);
   return <AuiProvider config={config}>{children}</AuiProvider>;
@@ -78,6 +88,30 @@ describe("scope state contexts", () => {
     act(() => result.current.aui.counter.setCount(5));
     expect(result.current.count).toBe(5);
     expect(result.current.state.count).toBe(5);
+  });
+
+  it("does not re-render state readers when a client re-renders with the same state", () => {
+    let renders = 0;
+    const Reader = () => {
+      renders++;
+      return <>{(useAuiState("stable" as never) as any).value}</>;
+    };
+    const Wrapper = ({ children }: { children: ReactNode }) => {
+      const config = AuiConfig({ stable: StableStateClient() } as never);
+      return <AuiProvider config={config}>{children}</AuiProvider>;
+    };
+    const { result } = renderHook(() => useAui() as any, {
+      wrapper: ({ children }) => (
+        <Wrapper>
+          <Reader />
+          {children}
+        </Wrapper>
+      ),
+    });
+    const before = renders;
+    act(() => result.current.stable.rerender());
+    expect(renders).toBe(before);
+    expect(screen.getByText("stable")).toBeTruthy();
   });
 
   it("throws for a scope no provider publishes", () => {

@@ -2,10 +2,7 @@ import { useSyncExternalStore, useDebugValue } from "react";
 import type { AssistantState, ClientNames } from "./types/client";
 import { useAui } from "./useAui";
 import { getProxiedAssistantState } from "./utils/proxied-assistant-state";
-import {
-  SCOPE_STATE_UNSET,
-  useScopeStateContext,
-} from "./utils/scope-state-context";
+import { SCOPE_STATE_UNSET, useScopeState } from "./utils/scope-state-context";
 import { runInStateSelector } from "./utils/linked-state";
 
 /**
@@ -71,14 +68,14 @@ export function useAuiState(
 }
 
 const useScopedAuiState = (scope: ClientNames): unknown => {
-  const entry = useScopeStateContext(scope);
-  if (entry === SCOPE_STATE_UNSET) {
+  const state = useScopeState(scope);
+  if (state === SCOPE_STATE_UNSET) {
     throw new Error(
       `useAuiState("${scope}"): no AuiProvider above this component publishes the "${scope}" scope.`,
     );
   }
-  useDebugValue(entry.state);
-  return entry.state;
+  useDebugValue(state);
+  return state;
 };
 
 const useSelectedAuiState = <T>(selector: (state: AssistantState) => T): T => {

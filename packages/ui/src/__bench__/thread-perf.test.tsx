@@ -26,6 +26,8 @@ const MESSAGES = Number(process.env.BENCH_MESSAGES ?? 100);
 const TOKENS = Number(process.env.BENCH_TOKENS ?? 300);
 const APPENDS = Number(process.env.BENCH_APPENDS ?? 20);
 const LABEL = process.env.BENCH_LABEL ?? "unlabeled";
+const STABLE_CHILDREN = process.env.BENCH_STABLE_CHILDREN === "1";
+const threadElement = <Thread autoFocus={false} />;
 
 const LOREM =
   "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.";
@@ -61,7 +63,7 @@ const App = ({ onRender }: { onRender: (d: number) => void }) => {
   return (
     <Profiler id="thread" onRender={(_, __, actual) => onRender(actual)}>
       <AssistantRuntimeProvider runtime={runtime}>
-        <Thread autoFocus={false} />
+        {STABLE_CHILDREN ? threadElement : <Thread autoFocus={false} />}
       </AssistantRuntimeProvider>
     </Profiler>
   );
@@ -146,6 +148,7 @@ describe("thread perf", () => {
     expect(container.textContent).toContain(`tok${TOKENS - 1}`);
     expect(container.textContent).toContain(`(${MESSAGES + APPENDS - 1})`);
     console.log(report);
-    if (process.env.BENCH_OUT) appendFileSync(process.env.BENCH_OUT, report + "\n");
+    if (process.env.BENCH_OUT)
+      appendFileSync(process.env.BENCH_OUT, report + "\n");
   });
 });
