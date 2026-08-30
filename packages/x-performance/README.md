@@ -20,3 +20,13 @@ pnpm -C packages/x-performance perf:compare before.json after.json
 **Browser rendering lane.** `aui-perf trace <page.html...> [--seconds N]` measures what jsdom cannot: paint work and thread cost in the real rendering pipeline. It drives headless Chrome over raw CDP with no dependencies (Node's built-in WebSocket), records a DevTools-category trace per page, and reports renderer main-thread and compositor utilization plus PaintImage/Commit/PrePaint counts and compositor frames for the traced page's process. Chrome is located automatically; set `AUI_PERF_CHROME` to override. Trace numbers are performance evidence, not correctness evidence: a page that renders nothing traces beautifully, so pair every trace verdict with a visual check.
 
 Benchmarks import only public package entry points so the react-compiler output is what gets measured. Rebuild the target packages (`pnpm turbo run build --filter=<pkg>`) before recording.
+
+## Adding a measurement
+
+Only instrument three kinds of code: paths that had a real incident, hot paths that run per token or per message, and decisions that need numbers before choosing an implementation. Then pick the instrument by the question, not the code:
+
+- A behavior that can be counted (renders, commits, notifications, resource re-runs, calls) becomes a **counter contract**: an ordinary vitest test in `src/` asserting exact integers with `createRenderCounter`. Contracts gate CI. Use `useRender` inside components that own state, `track` for re-renders arriving from above (it cannot see a component's own state updates), and `wrapCommits` for commit counts. Hoist component objects or the memo boundaries you are asserting on will be defeated by the test itself. Assert what you measure, not what you expect; when the number surprises you, explain the mechanism in a comment and pin it.
+- A speed question becomes a **bench** in `bench/`: import public entry points only, and add a baseline group when attribution is in doubt. Package-internal benches stay colocated in their own package instead. A package new to the measured set needs all four wirings: a workspace devDependency, an entry in `REF_PACKAGE_DIRS`, the `server.deps.external` regex, and the CI workflow paths.
+- A rendering-pipeline question (paint, compositing, scrolling) becomes a **trace fixture**: a self-contained HTML page run through `aui-perf trace`. Trace numbers are performance evidence only; look at the page.
+
+Reading results: `~same` means the delta stayed inside max(2×rme, 3%); borderline rows at low `--runs` are weak signals; cross-machine recordings are rejected by design; and a green comparison only covers the paths a bench exercises, so an untouched-by-probes change reads as unmeasured, not as safe.
