@@ -188,7 +188,7 @@ export class RunAggregator {
 
         this.interrupts = undefined;
         const hasUnresolvedToolCalls = Array.from(this.toolCalls.values()).some(
-          (tc) => tc.result === undefined,
+          (tc) => tc.subagentRunId === undefined && tc.result === undefined,
         );
 
         this.status = hasUnresolvedToolCalls
@@ -279,9 +279,10 @@ export class RunAggregator {
         break;
       case "REASONING_ENCRYPTED_VALUE":
         if (event.subtype === "message") {
+          const scope = this.scopeOf(event);
           // entityId names any message, not necessarily a reasoning one, so an
           // unmatched id may only claim a block that has no id to contradict it.
-          const active = this.activeReasoningKeyByScope.get(ROOT_SCOPE);
+          const active = this.activeReasoningKeyByScope.get(scope);
           const key = this.showThinking
             ? this.reasoningParts.has(event.entityId)
               ? event.entityId
@@ -295,6 +296,9 @@ export class RunAggregator {
             this.emit();
           } else if (
             !this.showThinking &&
+            // Hidden-reasoning bookkeeping stays root-only for this task — a
+            // subagent's opaque/hidden reasoning signatures are not preserved.
+            scope === ROOT_SCOPE &&
             event.entityId.trim().length > 0 &&
             event.encryptedValue.trim().length > 0 &&
             (this.hiddenReasoningIds.has(event.entityId) ||
@@ -860,7 +864,11 @@ export class RunAggregator {
             this.status?.type === "requires-action"
               ? this.interrupts
               : undefined,
-            new Set(this.toolCalls.keys()),
+            new Set(
+              Array.from(this.toolCalls.entries())
+                .filter(([, entry]) => entry.subagentRunId === undefined)
+                .map(([id]) => id),
+            ),
           )
         : new Map();
 

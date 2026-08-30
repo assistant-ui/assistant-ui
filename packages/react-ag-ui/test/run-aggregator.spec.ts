@@ -1313,6 +1313,36 @@ describe("RunAggregator", () => {
     });
   });
 
+  it("does not force root requires-action status from a dangling subagent-scoped tool call", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "investigate",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "search",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_ARGS",
+      toolCallId: "tool1",
+      delta: '{"q":"x"}',
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "complete",
+      reason: "unknown",
+    });
+  });
+
   it("sets complete status when all tool calls have results at RUN_FINISHED", () => {
     const aggregator = createAggregator(false);
 
@@ -2957,6 +2987,79 @@ describe("RunAggregator", () => {
     expect(rootText).toMatchObject({ text: "root-a-root-b" });
   });
 
+  it("claims a subagent's own anonymous reasoning block with its own encrypted signature, not the root's", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-investigate",
+      toolCallName: "investigate",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "investigate",
+      parentToolCallId: "t-investigate",
+    } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_START" } as AgUiEvent); // root, anonymous
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      delta: "root thought",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_START",
+      subagentRunId: "sub-1",
+    } as AgUiEvent); // subagent, anonymous
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      delta: "subagent thought",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    // entityId matches no known block, so this can only be claimed by the
+    // open anonymous block of the scope it names — the subagent's, not root's.
+    aggregator.handle({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "sig-owner",
+      encryptedValue: "sub-sig",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "REASONING_END" } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_END",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t-investigate",
+      content: "done",
+    } as AgUiEvent);
+
+    const last = results[results.length - 1]!;
+    const rootReasoning = last.content.find(
+      (p) => p.type === "reasoning",
+    ) as any;
+    expect(rootReasoning).toMatchObject({ text: "root thought" });
+    expect(
+      rootReasoning?.providerMetadata?.agui?.encryptedValue,
+    ).toBeUndefined();
+
+    const toolPart = last.content.find((p) => p.type === "tool-call") as any;
+    const nested = toolPart.messages[0];
+    const nestedReasoning = nested.content.find(
+      (p: any) => p.type === "reasoning",
+    );
+    expect(nestedReasoning).toMatchObject({ text: "subagent thought" });
+    expect(nestedReasoning?.providerMetadata?.agui?.encryptedValue).toBe(
+      "sub-sig",
+    );
+  });
+
   it("nests a subagent's activity under the spawning tool call's messages, not flattened into the parent run", () => {
     const results: ChatModelRunResult[] = [];
     const aggregator = new RunAggregator({
@@ -3043,6 +3146,116 @@ describe("RunAggregator", () => {
     });
     const nestedToolPart = nested.content[1] as any;
     expect(nestedToolPart.type).toBe("tool-call");
+    expect(nestedToolPart.toolCallId).toBe("t-explore");
+    expect(nestedToolPart.result).toEqual({ p99: 420 });
+  });
+
+  it("resolves nested subagent tool-call messages from raw wire-shaped JSON, through the subscriber's dispatch, not just hand-typed AgUiEvent objects", () => {
+    const results: ChatModelRunResult[] = [];
+    const aggregator = new RunAggregator({
+      showThinking: true,
+      logger: makeLogger(),
+      emit: (r) => results.push(r),
+    });
+    const subscriber = createAgUiSubscriber({
+      dispatch: (evt) => aggregator.handle(evt),
+      runId: "r1",
+    });
+
+    // Plain, untyped objects with string `type` fields — the shape a JSON.parse
+    // of a network frame would produce, not a hand-typed AgUiEvent literal.
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    subscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "t-investigate",
+        toolCallName: "investigate",
+      },
+    });
+    subscriber.onToolCallArgsEvent?.({
+      event: {
+        type: "TOOL_CALL_ARGS",
+        toolCallId: "t-investigate",
+        delta: '{"topic":"latency"}',
+      },
+    });
+    subscriber.onSubagentStartedEvent?.({
+      event: {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "sub-1",
+        name: "investigate",
+        parentToolCallId: "t-investigate",
+      },
+    });
+    subscriber.onTextMessageStartEvent?.({
+      event: {
+        type: "TEXT_MESSAGE_START",
+        messageId: "sub-msg-1",
+        subagentRunId: "sub-1",
+      },
+    });
+    subscriber.onTextMessageContentEvent?.({
+      event: {
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "sub-msg-1",
+        delta: "checking dashboards",
+        subagentRunId: "sub-1",
+      },
+    });
+    subscriber.onTextMessageEndEvent?.({
+      event: {
+        type: "TEXT_MESSAGE_END",
+        messageId: "sub-msg-1",
+        subagentRunId: "sub-1",
+      },
+    });
+    subscriber.onToolCallStartEvent?.({
+      event: {
+        type: "TOOL_CALL_START",
+        toolCallId: "t-explore",
+        toolCallName: "explore",
+        subagentRunId: "sub-1",
+      },
+    });
+    subscriber.onToolCallArgsEvent?.({
+      event: {
+        type: "TOOL_CALL_ARGS",
+        toolCallId: "t-explore",
+        delta: '{"path":"/metrics"}',
+        subagentRunId: "sub-1",
+      },
+    });
+    subscriber.onToolCallResultEvent?.({
+      event: {
+        type: "TOOL_CALL_RESULT",
+        toolCallId: "t-explore",
+        content: '{"p99":420}',
+        subagentRunId: "sub-1",
+      },
+    });
+    subscriber.onSubagentFinishedEvent?.({
+      event: { type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" },
+    });
+    subscriber.onToolCallResultEvent?.({
+      event: {
+        type: "TOOL_CALL_RESULT",
+        toolCallId: "t-investigate",
+        content: '{"summary":"p99 elevated"}',
+      },
+    });
+
+    const last = results[results.length - 1]!;
+    const parentToolPart = last.content[0] as any;
+    expect(parentToolPart.type).toBe("tool-call");
+    expect(parentToolPart.toolCallId).toBe("t-investigate");
+    expect(parentToolPart.messages).toHaveLength(1);
+    const nested = parentToolPart.messages[0];
+    expect(nested.id).toBe("sub-1");
+    expect(nested.content[0]).toMatchObject({
+      type: "text",
+      text: "checking dashboards",
+    });
+    const nestedToolPart = nested.content[1] as any;
     expect(nestedToolPart.toolCallId).toBe("t-explore");
     expect(nestedToolPart.result).toEqual({ p99: 420 });
   });

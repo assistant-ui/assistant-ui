@@ -176,6 +176,7 @@ export type AgUiEvent =
       subtype: "message" | "tool-call";
       entityId: string;
       encryptedValue: string;
+      subagentRunId?: string;
     }
   | { type: "REASONING_END"; messageId?: string; subagentRunId?: string }
   | {

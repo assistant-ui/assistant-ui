@@ -212,12 +212,15 @@ export const parseAgUiEvent = (
       const subtype = getString("subtype");
       if (!entityId || !encryptedValue) return null;
       if (subtype !== "message" && subtype !== "tool-call") return null;
-      return {
-        type: "REASONING_ENCRYPTED_VALUE" as const,
-        subtype,
-        entityId,
-        encryptedValue,
-      };
+      return withOptional(
+        {
+          type: "REASONING_ENCRYPTED_VALUE" as const,
+          subtype,
+          entityId,
+          encryptedValue,
+        },
+        { subagentRunId: getString("subagentRunId") },
+      );
     }
     case "REASONING_END":
       return withOptional(

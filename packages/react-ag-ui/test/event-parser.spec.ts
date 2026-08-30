@@ -34,6 +34,24 @@ describe("parseAgUiEvent", () => {
     });
   });
 
+  it("parses a reasoning encrypted value event's subagentRunId", () => {
+    expect(
+      parseAgUiEvent({
+        type: "REASONING_ENCRYPTED_VALUE",
+        subtype: "message",
+        entityId: "r-1",
+        encryptedValue: "signed-blob",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "REASONING_ENCRYPTED_VALUE",
+      subtype: "message",
+      entityId: "r-1",
+      encryptedValue: "signed-blob",
+      subagentRunId: "sub-1",
+    });
+  });
+
   it("rejects a reasoning encrypted value event with an unusable discriminator", () => {
     for (const subtype of [undefined, "", "Message", "other"]) {
       expect(
