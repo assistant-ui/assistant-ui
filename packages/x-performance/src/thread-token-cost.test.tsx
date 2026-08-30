@@ -103,4 +103,103 @@ describe("thread token cost", () => {
 
     flushSync(() => root.unmount());
   });
+
+  const runToolSiblingScenario = (
+    makeToolPart: () => Extract<
+      Exclude<ThreadMessageLike["content"][number], string>,
+      { type: "tool-call" }
+    >,
+  ) => {
+    counter.reset();
+    let setMessages!: (updater: (prev: Msg[]) => Msg[]) => void;
+
+    const ToolFallback = () => {
+      counter.useRender("tool-part");
+      return <span>tool</span>;
+    };
+    const MixedMessage = () => (
+      <MessagePrimitiveParts
+        components={{ Text, tools: { Fallback: ToolFallback } }}
+      />
+    );
+    const MIXED = { Message: MixedMessage };
+
+    const convertMixed = (m: Msg): ThreadMessageLike =>
+      m.role === "assistant"
+        ? {
+            id: m.id,
+            role: m.role,
+            content: [makeToolPart(), { type: "text", text: m.text }],
+          }
+        : convertMessage(m);
+
+    const App = () => {
+      const [messages, set] = useState<Msg[]>([
+        { id: "u1", role: "user", text: "hello" },
+        { id: "a1", role: "assistant", text: "so far" },
+      ]);
+      setMessages = set;
+      const runtime = useExternalStoreRuntime<Msg>({
+        messages,
+        convertMessage: convertMixed,
+        onNew: async () => {},
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <ThreadPrimitiveMessages components={MIXED} />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    const root = createRoot(document.createElement("div"));
+    flushSync(() => root.render(createElement(App)));
+    const mounted = counter.snapshot();
+
+    for (let i = 0; i < 10; i++) {
+      flushSync(() =>
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === "a1" ? { ...m, text: `${m.text}tok ` } : m,
+          ),
+        ),
+      );
+    }
+
+    return {
+      textDelta: counter.renders("text") - (mounted["renders:text"] ?? 0),
+      toolDelta:
+        counter.renders("tool-part") - (mounted["renders:tool-part"] ?? 0),
+      unmount: () => flushSync(() => root.unmount()),
+    };
+  };
+
+  it("a stable tool part object does not re-render on sibling text tokens", () => {
+    const TOOL_PART = {
+      type: "tool-call" as const,
+      toolCallId: "call_1",
+      toolName: "search",
+      args: { q: "x" },
+      result: { ok: true },
+    };
+    const run = runToolSiblingScenario(() => TOOL_PART);
+    expect(run.textDelta).toBe(10);
+    expect(run.toolDelta).toBe(0);
+    run.unmount();
+  });
+
+  it("a converter that recreates the tool part object pays one tool render per token", () => {
+    // Part-level memoization keys on part object identity; a convertMessage
+    // that rebuilds unchanged parts makes every sibling part re-render on each
+    // token, so part identity stability in converters is load-bearing.
+    const run = runToolSiblingScenario(() => ({
+      type: "tool-call" as const,
+      toolCallId: "call_1",
+      toolName: "search",
+      args: { q: "x" },
+      result: { ok: true },
+    }));
+    expect(run.textDelta).toBe(10);
+    expect(run.toolDelta).toBe(10);
+    run.unmount();
+  });
 });
