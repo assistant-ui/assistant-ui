@@ -14,6 +14,7 @@ import { cpus, arch, platform, tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { REF_PACKAGE_DIRS } from "./ref-packages.mjs";
+import { meanRows, pairSpreads } from "./paired-compare.mjs";
 
 const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const perfDir = join(pkgRoot, ".perf");
@@ -105,7 +106,7 @@ const record = (outName, runs) => {
 const fmt = (ms) =>
   ms >= 1 ? `${ms.toFixed(3)}ms` : `${(ms * 1000).toFixed(2)}µs`;
 
-const renderCompare = (a, b, aLabel, bLabel, pairedDeltas) => {
+const renderCompare = (a, b, aLabel, bLabel, spreads) => {
   const envKeys = ["cpu", "cores", "arch", "platform", "node"];
   if (envKeys.some((k) => a.env[k] !== b.env[k])) {
     const show = (e) => envKeys.map((k) => e[k]).join("/");
@@ -118,12 +119,11 @@ const renderCompare = (a, b, aLabel, bLabel, pairedDeltas) => {
   for (const ba of a.benchmarks) {
     const bb = bById.get(ba.id);
     if (!bb) continue;
-    const paired = pairedDeltas?.get(ba.id);
-    const delta = paired?.delta ?? ((bb.mean - ba.mean) / ba.mean) * 100;
+    const delta = ((bb.mean - ba.mean) / ba.mean) * 100;
     const noise = Math.max(
       2 * Math.max(ba.rme ?? 0, bb.rme ?? 0),
       3,
-      paired?.spread ?? 0,
+      spreads?.get(ba.id) ?? 0,
     );
     const significant = Math.abs(delta) > noise;
     rows.push({
@@ -214,29 +214,27 @@ const pinReactToCurrentTree = (wt) => {
   }
 };
 
-const compareRef = (ref, runs) => {
+const compareRef = (ref, requestedRuns) => {
   const { wt, sha, marker } = ensureRefWorktree(ref);
   mkdirSync(perfDir, { recursive: true });
-  const current = new Map();
-  const refBest = new Map();
+  // Drift cancellation needs the C R / R C alternation balanced, which only
+  // holds for an even number of interleaved runs.
+  const runs = requestedRuns % 2 ? requestedRuns + 1 : requestedRuns;
+  if (runs !== requestedRuns) {
+    console.error(
+      `rounding --runs up to ${runs} to keep the interleaving balanced`,
+    );
+  }
   const curRuns = [];
   const refRuns = [];
   const sides = [
-    [
-      "current",
-      () => {
-        const rows = runSuite();
-        curRuns.push(new Map(rows.map((r) => [r.id, r])));
-        mergeBest(current, rows);
-      },
-    ],
+    ["current", () => curRuns.push(new Map(runSuite().map((r) => [r.id, r])))],
     [
       ref,
-      () => {
-        const rows = runSuite({ AUI_PERF_REF_ROOT: wt });
-        refRuns.push(new Map(rows.map((r) => [r.id, r])));
-        mergeBest(refBest, rows);
-      },
+      () =>
+        refRuns.push(
+          new Map(runSuite({ AUI_PERF_REF_ROOT: wt }).map((r) => [r.id, r])),
+        ),
     ],
   ];
   for (let i = 0; i < runs; i++) {
@@ -246,35 +244,13 @@ const compareRef = (ref, runs) => {
       run();
     }
   }
-  // Min-of-runs comparison is drift-biased: interleaving hands the current
-  // side both endpoint slots (C R R C), so any monotone drift puts the global
-  // minimum on the current side. Compare adjacently measured pairs instead
-  // and average the per-run deltas, which cancels drift between pairs.
-  const pairedDeltas = new Map();
-  for (const id of refBest.keys()) {
-    const deltas = [];
-    for (let i = 0; i < refRuns.length; i++) {
-      const r = refRuns[i]?.get(id);
-      const c = curRuns[i]?.get(id);
-      if (r && c) deltas.push(((c.mean - r.mean) / r.mean) * 100);
-    }
-    if (deltas.length) {
-      // The spread across pairs estimates between-process variance, which
-      // per-run rme cannot see; a real regression reproduces in every pair,
-      // so a delta smaller than the disagreement between pairs is noise.
-      pairedDeltas.set(id, {
-        delta: deltas.reduce((sum, d) => sum + d, 0) / deltas.length,
-        spread: Math.max(...deltas) - Math.min(...deltas),
-      });
-    }
-  }
   const refDoc = {
     env: { ...envStamp(wt), runs },
-    benchmarks: [...refBest.values()],
+    benchmarks: [...meanRows(refRuns).values()],
   };
   const curDoc = {
     env: { ...envStamp(), runs },
-    benchmarks: [...current.values()],
+    benchmarks: [...meanRows(curRuns).values()],
   };
   writeFileSync(
     join(perfDir, `ref-${sha}.json`),
@@ -286,7 +262,7 @@ const compareRef = (ref, runs) => {
     curDoc,
     `${ref} (${refDoc.env.sha})`,
     "current",
-    pairedDeltas,
+    pairSpreads(refRuns, curRuns),
   );
   console.error(
     `ref worktree kept at ${wt}; remove with: git worktree remove "${wt}" && rm "${marker}"`,
