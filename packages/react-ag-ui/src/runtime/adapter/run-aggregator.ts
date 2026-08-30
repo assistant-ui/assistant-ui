@@ -612,14 +612,14 @@ export class RunAggregator {
 
   private startTextMessage(scope: string, messageId?: string): string {
     const id = messageId ?? this.generateTextKey();
-    this.ensureTextPart(id, scope);
+    this.ensureTextPart(scope, id);
     this.activeTextMessageIdByScope.set(scope, id);
     return id;
   }
 
   private resolveTextMessageId(scope: string, messageId?: string): string {
     if (messageId) {
-      this.ensureTextPart(messageId, scope);
+      this.ensureTextPart(scope, messageId);
       this.activeTextMessageIdByScope.set(scope, messageId);
       return messageId;
     }
@@ -630,12 +630,12 @@ export class RunAggregator {
     }
 
     const generated = this.generateTextKey();
-    this.ensureTextPart(generated, scope);
+    this.ensureTextPart(scope, generated);
     this.activeTextMessageIdByScope.set(scope, generated);
     return generated;
   }
 
-  private ensureTextPart(id: string, scope: string): void {
+  private ensureTextPart(scope: string, id: string): void {
     if (!this.textParts.has(id)) {
       this.textParts.set(id, { buffer: "" });
       if (
@@ -651,10 +651,6 @@ export class RunAggregator {
   }
 
   private appendText(id: string, delta: string): void {
-    // The id has always already been ensured by resolveTextMessageId/
-    // startTextMessage before appendText runs, so the scope passed here is
-    // never actually used to create a new part.
-    this.ensureTextPart(id, ROOT_SCOPE);
     const entry = this.textParts.get(id);
     if (!entry) return;
     entry.buffer += delta;

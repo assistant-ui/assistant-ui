@@ -2879,4 +2879,72 @@ describe("RunAggregator", () => {
     const rootText = last.content.find((p) => p.type === "text");
     expect(rootText).toMatchObject({ text: "root-a-root-b" });
   });
+
+  it("scopes tool-call boundary-clearing to the subagent that started it", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "TEXT_MESSAGE_START" } as AgUiEvent); // root, anonymous
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "root-a",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "investigate",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-explore",
+      toolCallName: "explore",
+      subagentRunId: "sub-1",
+    } as AgUiEvent); // subagent tool call — must NOT clear root's activeTextMessageIdByScope
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "-root-b",
+    } as AgUiEvent); // still anonymous, root scope — must still append to "root-a"
+
+    const last = results[results.length - 1]!;
+    const rootText = last.content.find((p) => p.type === "text");
+    expect(rootText).toMatchObject({ text: "root-a-root-b" });
+
+    const toolPart = last.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-explore",
+    );
+    expect(toolPart).toMatchObject({ toolName: "explore" });
+  });
+
+  it("scopes reasoning-start boundary-clearing to the subagent that started it", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "TEXT_MESSAGE_START" } as AgUiEvent); // root, anonymous
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "root-a",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "investigate",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "REASONING_START",
+      subagentRunId: "sub-1",
+    } as AgUiEvent); // subagent reasoning — must NOT clear root's activeTextMessageIdByScope
+    aggregator.handle({
+      type: "REASONING_MESSAGE_CONTENT",
+      delta: "sub-thought",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "-root-b",
+    } as AgUiEvent); // still anonymous, root scope — must still append to "root-a"
+
+    const last = results[results.length - 1]!;
+    const rootText = last.content.find((p) => p.type === "text");
+    expect(rootText).toMatchObject({ text: "root-a-root-b" });
+  });
 });
