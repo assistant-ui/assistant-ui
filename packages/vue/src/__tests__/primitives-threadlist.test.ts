@@ -16,6 +16,7 @@ import {
   ThreadListPrimitiveItems,
   ThreadListPrimitiveNew,
 } from "../primitives/threadList";
+import { useAuiState } from "../useAuiState";
 
 type DemoMessage = { id: string; role: "user" | "assistant"; text: string };
 type DemoThread = { id: string; title: string; messages: DemoMessage[] };
@@ -72,7 +73,14 @@ const createMultiThreadRuntime = () => {
   const core = new ExternalStoreRuntimeCore(makeAdapter());
   const runtime = new AssistantRuntimeImpl(core);
   const sync = () => core.setAdapter(makeAdapter());
-  return { runtime, onSwitchToThread, onSwitchToNewThread };
+  const removeThread = (threadId: string) => {
+    threads = threads.filter((thread) => thread.id !== threadId);
+    if (!threads.some((thread) => thread.id === currentId)) {
+      currentId = threads[0]!.id;
+    }
+    sync();
+  };
+  return { runtime, onSwitchToThread, onSwitchToNewThread, removeThread };
 };
 
 const SidebarView = defineComponent({
@@ -120,6 +128,40 @@ describe("thread list primitives", () => {
     expect(
       [...el.querySelectorAll("button.item")].map((item) => item.textContent),
     ).toEqual(["First thread", "Second thread"]);
+
+    unmount();
+  });
+
+  it("keeps component state with a thread after an earlier row is removed", async () => {
+    const { runtime, removeThread } = createMultiThreadRuntime();
+    const useStatefulItem = () => {
+      const initialTitle = useAuiState((s) => s.threadListItem.title).value;
+      return () => h("span", { class: "stateful-item" }, initialTitle);
+    };
+    const StatefulItem = defineComponent({
+      setup: useStatefulItem,
+    });
+    const View = defineComponent({
+      setup: () => () =>
+        h(ThreadListPrimitiveItems, null, {
+          default: () => h(StatefulItem),
+        }),
+    });
+    const { el, unmount } = mountView(runtime, View);
+
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll(".stateful-item")).toHaveLength(2);
+    });
+
+    removeThread("t1");
+    await vi.waitFor(async () => {
+      await nextTick();
+      expect(el.querySelectorAll(".stateful-item")).toHaveLength(1);
+    });
+    expect(el.querySelector(".stateful-item")!.textContent).toBe(
+      "Second thread",
+    );
 
     unmount();
   });

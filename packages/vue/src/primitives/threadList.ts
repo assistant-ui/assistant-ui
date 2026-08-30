@@ -94,16 +94,14 @@ export const ThreadListPrimitiveItems = defineComponent({
   },
   slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
-    const count = useAuiState((s) =>
-      props.archived
-        ? s.threads.archivedThreadIds.length
-        : s.threads.threadIds.length,
+    const threadIds = useAuiState((s) =>
+      props.archived ? s.threads.archivedThreadIds : s.threads.threadIds,
     );
     return () =>
-      Array.from({ length: count.value }, (_, index) =>
+      threadIds.value.map((threadId, index) =>
         h(
           ThreadListItemByIndexProvider,
-          { index, archived: props.archived, key: index },
+          { index, archived: props.archived, key: threadId },
           { default: () => slots.default?.() },
         ),
       );
