@@ -29,7 +29,10 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   }) => children(() => getItemState(mocks.aui)),
 }));
 
-vi.mock("../../providers/MessageByIndexProvider", () => ({
+vi.mock("../../providers/MessageByIndexProvider", async (importOriginal) => ({
+  ...(await importOriginal<
+    typeof import("../../providers/MessageByIndexProvider")
+  >()),
   MessageByIndexProvider: ({ children }: { children: ReactNode }) => children,
 }));
 
