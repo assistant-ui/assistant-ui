@@ -1,8 +1,7 @@
 import type { ModelContext } from "@assistant-ui/react";
 import type { SerializedModelContext } from "../types";
 import { normalizeToolList, type NormalizedTool } from "./toolNormalization";
-
-const UNSERIALIZABLE = "[Unserializable]";
+import { readProperty, UNSERIALIZABLE } from "./unserializable";
 
 export const sanitizeForMessage = (
   value: unknown,
@@ -35,7 +34,17 @@ export const sanitizeForMessage = (
       if (value instanceof Map) {
         const result: Record<string, unknown> = {};
         for (const [key, entry] of value.entries()) {
-          result[String(key)] = sanitizeForMessage(entry, seen);
+          let serializedKey: string;
+          try {
+            serializedKey = String(key);
+          } catch {
+            serializedKey = UNSERIALIZABLE;
+          }
+          try {
+            result[serializedKey] = sanitizeForMessage(entry, seen);
+          } catch {
+            result[serializedKey] = UNSERIALIZABLE;
+          }
         }
         return result;
       }
@@ -153,12 +162,12 @@ export const serializeModelContext = (
   const modelContext = context as Record<string, unknown>;
   const result: SerializedModelContext = {};
 
-  const systemValue = modelContext.system;
+  const systemValue = readProperty(modelContext, "system");
   if (typeof systemValue === "string" && systemValue.length > 0) {
     result.system = systemValue;
   }
 
-  const tools = normalizeToolList(modelContext.tools);
+  const tools = normalizeToolList(readProperty(modelContext, "tools"));
   if (tools.length > 0) {
     result.tools = tools.map((tool): NormalizedTool => {
       return {
@@ -180,8 +189,9 @@ export const serializeModelContext = (
     });
   }
 
-  if (modelContext.callSettings !== undefined) {
-    const callSettings = sanitizeAndRedact(modelContext.callSettings);
+  const callSettingsValue = readProperty(modelContext, "callSettings");
+  if (callSettingsValue !== undefined) {
+    const callSettings = sanitizeAndRedact(callSettingsValue);
     if (
       callSettings &&
       typeof callSettings === "object" &&
@@ -191,8 +201,9 @@ export const serializeModelContext = (
     }
   }
 
-  if (modelContext.config !== undefined) {
-    const config = sanitizeAndRedact(modelContext.config);
+  const configValue = readProperty(modelContext, "config");
+  if (configValue !== undefined) {
+    const config = sanitizeAndRedact(configValue);
     if (config && typeof config === "object" && !Array.isArray(config)) {
       result.config = config as Record<string, unknown>;
     }

@@ -68,4 +68,35 @@ describe("normalizeToolList", () => {
     expect(normalizeToolList(undefined)).toEqual([]);
     expect(normalizeToolList(null)).toEqual([]);
   });
+
+  it("preserves readable tool properties when another getter throws", () => {
+    const tool = { description: "Search documents" };
+    Object.defineProperty(tool, "type", {
+      enumerable: true,
+      get: () => {
+        throw new Error("type unavailable");
+      },
+    });
+
+    expect(normalizeToolList({ search: tool })).toEqual([
+      {
+        name: "search",
+        type: "[Unserializable]",
+        description: "Search documents",
+      },
+    ]);
+  });
+
+  it("represents a tool collection that rejects enumeration", () => {
+    const tools = new Proxy(
+      {},
+      {
+        ownKeys: () => {
+          throw new Error("enumeration unavailable");
+        },
+      },
+    );
+
+    expect(normalizeToolList(tools)).toEqual([{ name: "[Unserializable]" }]);
+  });
 });

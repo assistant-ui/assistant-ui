@@ -114,6 +114,23 @@ describe("sanitizeForMessage", () => {
 
     expect(sanitizeForMessage(value)).toEqual(["first", "second"]);
   });
+
+  it("preserves map entries when a key cannot be converted to a string", () => {
+    const brokenKey = {
+      toString: () => {
+        throw new Error("key conversion failed");
+      },
+    };
+    const value = new Map<unknown, unknown>([
+      [brokenKey, "broken key value"],
+      ["readable", "readable value"],
+    ]);
+
+    expect(sanitizeForMessage(value)).toEqual({
+      "[Unserializable]": "broken key value",
+      readable: "readable value",
+    });
+  });
 });
 
 describe("redactSensitive", () => {
@@ -235,5 +252,32 @@ describe("serializeModelContext", () => {
 
   it("returns undefined when there is no context", () => {
     expect(serializeModelContext(undefined)).toBeUndefined();
+  });
+
+  it("preserves readable fields when a model-context getter throws", () => {
+    const context = {
+      tools: {
+        search: { type: "frontend", description: "Search documents" },
+      },
+      config: { model: "test-model" },
+    };
+    Object.defineProperty(context, "system", {
+      enumerable: true,
+      get: () => {
+        throw new Error("system unavailable");
+      },
+    });
+
+    expect(serializeModelContext(context as never)).toEqual({
+      system: "[Unserializable]",
+      tools: [
+        {
+          name: "search",
+          type: "frontend",
+          description: "Search documents",
+        },
+      ],
+      config: { model: "test-model" },
+    });
   });
 });
