@@ -35,10 +35,16 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   }) => children(() => getItemState(mocks.aui)),
 }));
 
-vi.mock("../../providers/AttachmentByIndexProvider", () => ({
-  MessageAttachmentByIndexProvider: ({ children }: { children: ReactNode }) =>
-    children,
-}));
+vi.mock(
+  "../../providers/AttachmentByIndexProvider",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("../../providers/AttachmentByIndexProvider")
+    >()),
+    MessageAttachmentByIndexProvider: ({ children }: { children: ReactNode }) =>
+      children,
+  }),
+);
 
 import { MessagePrimitiveAttachments } from "./MessageAttachments";
 
