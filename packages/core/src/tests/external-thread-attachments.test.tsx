@@ -2,7 +2,7 @@
 
 import { act, render, waitFor } from "@testing-library/react";
 import type { FC } from "react";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui } from "@assistant-ui/store";
 import type {
   ExternalThreadMessage,
@@ -13,6 +13,18 @@ import type {
   CompleteAttachment,
   PendingAttachment,
 } from "../types/attachment";
+
+const mockGenerateId = vi.hoisted(() => vi.fn(() => "generated-id"));
+
+vi.mock("../utils/id", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../utils/id")>()),
+  generateId: mockGenerateId,
+}));
+
+beforeEach(() => {
+  mockGenerateId.mockReset();
+  mockGenerateId.mockReturnValue("generated-id");
+});
 
 const renderThreadWithProps = (props: Partial<ExternalThreadProps>) => {
   const captured: { aui?: ReturnType<typeof useAui> } = {};
@@ -57,6 +69,45 @@ const renderThread = () => {
 };
 
 describe("ExternalThread attachments", () => {
+  it("uses generated IDs unless a prepared attachment supplies one", async () => {
+    const aui = renderThread();
+    mockGenerateId
+      .mockReturnValueOnce("generated-file-id")
+      .mockReturnValueOnce("generated-prepared-id");
+
+    await act(async () => {
+      await aui()
+        .thread()
+        .composer()
+        .addAttachment(new File(["data"], "photo.png", { type: "image/png" }));
+      await aui()
+        .thread()
+        .composer()
+        .addAttachment({
+          name: "notes.txt",
+          contentType: "text/plain",
+          content: [{ type: "text", text: "hello" }],
+        });
+      await aui().thread().composer().addAttachment({
+        id: "provided-id",
+        name: "report.pdf",
+        contentType: "application/pdf",
+        content: [],
+      });
+    });
+
+    await waitFor(() => {
+      expect(
+        aui()
+          .thread()
+          .composer()
+          .getState()
+          .attachments.map((attachment) => attachment.id),
+      ).toEqual(["generated-file-id", "generated-prepared-id", "provided-id"]);
+    });
+    expect(mockGenerateId).toHaveBeenCalledTimes(2);
+  });
+
   it("adds prepared attachments when File is unavailable", async () => {
     const aui = renderThread();
     const fileConstructor = globalThis.File;
