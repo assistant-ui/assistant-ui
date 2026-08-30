@@ -22,6 +22,7 @@ function createWorkspace(changeset, config = {}) {
   );
   for (const [dir, manifest] of [
     ["published", { name: "@fixture/published", version: "1.0.0" }],
+    ["held", { name: "@fixture/held", version: "1.0.0" }],
     ["internal", { name: "@fixture/internal", private: true }],
   ]) {
     mkdirSync(path.join(root, "packages", dir), { recursive: true });
@@ -116,7 +117,7 @@ test("findUnreleasablePackages flags private and unknown names", () => {
     ],
   ]);
 
-  const rules = { ignored: new Set(), skipsPrivate: true };
+  const rules = { ignored: [], skipsPrivate: true };
 
   assert.deepEqual(
     findUnreleasablePackages(
@@ -148,7 +149,7 @@ test("runCheck accepts a workspace whose changesets are all releasable", () => {
     '---\n"@fixture/published": patch\n---\n\nfix: something\n',
   );
   try {
-    assert.deepEqual(runCheck(root), { packageCount: 2, problems: [] });
+    assert.deepEqual(runCheck(root), { packageCount: 3, problems: [] });
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
@@ -170,32 +171,59 @@ test("runCheck rejects a changeset naming a private package", () => {
 
 test("readSkipRules follows .changeset/config.json", () => {
   assert.deepEqual(readSkipRules({}), {
-    ignored: new Set(),
+    ignored: [],
     skipsPrivate: true,
   });
   assert.deepEqual(readSkipRules({ privatePackages: { version: true } }), {
-    ignored: new Set(),
+    ignored: [],
     skipsPrivate: false,
   });
   assert.deepEqual(readSkipRules({ privatePackages: true }), {
-    ignored: new Set(),
+    ignored: [],
     skipsPrivate: false,
   });
   assert.deepEqual(readSkipRules({ ignore: ["@fixture/held"] }), {
-    ignored: new Set(["@fixture/held"]),
+    ignored: ["@fixture/held"],
     skipsPrivate: true,
   });
 });
 
-test("runCheck rejects a published package listed in `ignore`", () => {
+test("runCheck allows an ignored-only changeset", () => {
   const root = createWorkspace(
-    '---\n"@fixture/published": patch\n---\n\nfix: something\n',
-    { ignore: ["@fixture/published"] },
+    '---\n"@fixture/held": patch\n---\n\nfix: something\n',
+    { ignore: ["@fixture/held"] },
+  );
+  try {
+    assert.deepEqual(runCheck(root).problems, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("runCheck rejects a changeset mixing ignored and released packages", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n"@fixture/published": patch\n---\n\nfix: something\n',
+    { ignore: ["@fixture/held"] },
   );
   try {
     const { problems } = runCheck(root);
     assert.equal(problems.length, 1);
-    assert.match(problems[0].reason, /is in `ignore`/);
+    assert.equal(problems[0].name, "@fixture/held");
+    assert.match(problems[0].reason, /shares a changeset/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("runCheck expands ordered ignore globs", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n"@fixture/published": patch\n---\n\nfix: something\n',
+    { ignore: ["@fixture/*", "!@fixture/published"] },
+  );
+  try {
+    const { problems } = runCheck(root);
+    assert.equal(problems.length, 1);
+    assert.equal(problems[0].name, "@fixture/held");
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

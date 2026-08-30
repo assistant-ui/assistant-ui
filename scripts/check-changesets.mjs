@@ -93,23 +93,47 @@ export function readSkipRules(config) {
       ? privatePackages.version === true
       : privatePackages === true;
   return {
-    ignored: new Set(config.ignore ?? []),
+    ignored: config.ignore ?? [],
     skipsPrivate: !versionsPrivate,
   };
 }
 
+function expandPackageGlobs(packageNames, patterns) {
+  const names = [...packageNames];
+  const matches = new Set();
+  for (const rawPattern of patterns) {
+    let pattern = rawPattern;
+    let negated = false;
+    while (pattern.startsWith("!") && !pattern.startsWith("!(")) {
+      negated = !negated;
+      pattern = pattern.slice(1);
+    }
+
+    for (const name of names) {
+      if (!path.matchesGlob(name, pattern)) continue;
+      if (negated) matches.delete(name);
+      else matches.add(name);
+    }
+  }
+  return matches;
+}
+
 export function findUnreleasablePackages(packages, bumps, rules) {
+  const ignored = expandPackageGlobs(packages.keys(), rules.ignored);
+  const filesWithReleasedBumps = new Set(
+    bumps
+      .filter(({ name }) => {
+        const pkg = packages.get(name);
+        return (
+          pkg && !ignored.has(name) && (!pkg.isPrivate || !rules.skipsPrivate)
+        );
+      })
+      .map(({ file }) => file),
+  );
   const problems = [];
   for (const { file, name } of bumps) {
     const pkg = packages.get(name);
-    if (rules.ignored.has(name)) {
-      problems.push({
-        file,
-        name,
-        reason:
-          "is in `ignore` in .changeset/config.json and is never versioned",
-      });
-    } else if (!pkg) {
+    if (!pkg) {
       problems.push({
         file,
         name,
@@ -120,6 +144,13 @@ export function findUnreleasablePackages(packages, bumps, rules) {
         file,
         name,
         reason: `is private (${pkg.manifest}) and is never versioned`,
+      });
+    } else if (ignored.has(name) && filesWithReleasedBumps.has(file)) {
+      problems.push({
+        file,
+        name,
+        reason:
+          "matches `ignore` in .changeset/config.json and shares a changeset with a released package",
       });
     }
   }
