@@ -5,8 +5,8 @@
  * re-renders the whole tree (no subtree bailout). This bench exists to
  * measure that gap and to validate the bailout work. Build first, then:
  *
- *   pnpm build
- *   pnpm exec vitest bench --run --project prod src/__tests__/bench/tree.bench.tsx
+ *   pnpm turbo run build --filter=@assistant-ui/tap
+ *   pnpm exec vitest bench --run bench/tree.bench.tsx
  */
 /* oxlint-disable react/rules-of-hooks -- fixed-count hook loops, benchmark only */
 import { bench, describe } from "vitest";

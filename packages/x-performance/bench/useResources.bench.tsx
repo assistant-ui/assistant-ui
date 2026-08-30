@@ -5,8 +5,8 @@
  *   - one child dispatches its own state (only that child is dirty)
  *   - the parent rebuilds the elements array (new identity, same items)
  *
- *   pnpm build
- *   pnpm exec vitest bench --run --project prod src/__tests__/bench/useResources.bench.tsx
+ *   pnpm turbo run build --filter=@assistant-ui/tap
+ *   pnpm exec vitest bench --run bench/useResources.bench.tsx
  */
 /* oxlint-disable react/rules-of-hooks -- fixed-count hook loops, benchmark only */
 import { bench, describe } from "vitest";
