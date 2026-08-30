@@ -48,3 +48,11 @@ export const pairSpreads = (refRuns, curRuns) => {
   }
   return out;
 };
+
+export const rowVerdict = (aRow, bRow, spread = 0) => {
+  const delta = ((bRow.mean - aRow.mean) / aRow.mean) * 100;
+  const noise = Math.max(2 * Math.max(aRow.rme ?? 0, bRow.rme ?? 0), 3, spread);
+  const verdict =
+    Math.abs(delta) <= noise ? "~same" : delta > 0 ? "SLOWER" : "FASTER";
+  return { delta, noise, verdict };
+};

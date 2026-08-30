@@ -16,3 +16,9 @@ export declare const pairSpreads: (
   refRuns: Map<string, BenchRow>[],
   curRuns: Map<string, BenchRow>[],
 ) => Map<string, number>;
+
+export declare const rowVerdict: (
+  aRow: Pick<BenchRow, "mean" | "rme">,
+  bRow: Pick<BenchRow, "mean" | "rme">,
+  spread?: number,
+) => { delta: number; noise: number; verdict: "~same" | "SLOWER" | "FASTER" };

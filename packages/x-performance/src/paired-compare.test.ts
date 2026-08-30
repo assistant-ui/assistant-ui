@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { meanRows, pairSpreads, type BenchRow } from "./paired-compare.mjs";
+import {
+  meanRows,
+  pairSpreads,
+  rowVerdict,
+  type BenchRow,
+} from "./paired-compare.mjs";
 
 const row = (id: string, mean: number, rme = 1): BenchRow => ({
   id,
@@ -62,5 +67,38 @@ describe("pairSpreads", () => {
     const refRuns = [run(row("a", 100)), run()];
     const curRuns = [run(row("a", 110)), run(row("a", 120))];
     expect(pairSpreads(refRuns, curRuns).has("a")).toBe(false);
+  });
+});
+
+describe("rowVerdict", () => {
+  it("verdicts a delta beyond every floor", () => {
+    const out = rowVerdict(row("a", 100, 1), row("a", 110, 1));
+    expect(out.verdict).toBe("SLOWER");
+    expect(out.delta).toBeCloseTo(10);
+    expect(out.noise).toBe(3);
+  });
+
+  it("verdicts FASTER when the second side is quicker", () => {
+    expect(rowVerdict(row("a", 100, 1), row("a", 90, 1)).verdict).toBe(
+      "FASTER",
+    );
+  });
+
+  it("stays ~same inside the 3% absolute floor", () => {
+    expect(rowVerdict(row("a", 100, 0), row("a", 102, 0)).verdict).toBe(
+      "~same",
+    );
+  });
+
+  it("lets 2x rme raise the floor past 3%", () => {
+    const out = rowVerdict(row("a", 100, 4), row("a", 106, 1));
+    expect(out.noise).toBe(8);
+    expect(out.verdict).toBe("~same");
+  });
+
+  it("lets the pair spread dominate both other floors", () => {
+    const out = rowVerdict(row("a", 100, 1), row("a", 120, 1), 25);
+    expect(out.noise).toBe(25);
+    expect(out.verdict).toBe("~same");
   });
 });

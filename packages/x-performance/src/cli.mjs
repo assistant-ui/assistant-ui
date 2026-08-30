@@ -14,7 +14,7 @@ import { cpus, arch, platform, tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { REF_PACKAGE_DIRS } from "./ref-packages.mjs";
-import { meanRows, pairSpreads } from "./paired-compare.mjs";
+import { meanRows, pairSpreads, rowVerdict } from "./paired-compare.mjs";
 
 const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const perfDir = join(pkgRoot, ".perf");
@@ -94,7 +94,10 @@ const record = (outName, runs) => {
     console.error(`run ${i + 1}/${runs}...`);
     mergeBest(best, runSuite());
   }
-  const doc = { env: { ...envStamp(), runs }, benchmarks: [...best.values()] };
+  const doc = {
+    env: { ...envStamp(), runs, estimator: "best" },
+    benchmarks: [...best.values()],
+  };
   const out = join(perfDir, outName ?? `record-${Date.now()}.json`);
   writeFileSync(out, JSON.stringify(doc, null, 2));
   copyFileSync(out, join(perfDir, "latest.json"));
@@ -114,25 +117,24 @@ const renderCompare = (a, b, aLabel, bLabel, spreads) => {
       `warning: environments differ (${show(a.env)} vs ${show(b.env)}); deltas are not comparable\n`,
     );
   }
+  if (a.env.estimator !== b.env.estimator) {
+    console.warn(
+      `warning: recordings use different estimators (${a.env.estimator} vs ${b.env.estimator}); best-of runs systematically lower than mean-of, so deltas are not comparable\n`,
+    );
+  }
   const bById = new Map(b.benchmarks.map((x) => [x.id, x]));
   const rows = [];
   for (const ba of a.benchmarks) {
     const bb = bById.get(ba.id);
     if (!bb) continue;
-    const delta = ((bb.mean - ba.mean) / ba.mean) * 100;
-    const noise = Math.max(
-      2 * Math.max(ba.rme ?? 0, bb.rme ?? 0),
-      3,
-      spreads?.get(ba.id) ?? 0,
-    );
-    const significant = Math.abs(delta) > noise;
+    const { delta, noise, verdict } = rowVerdict(ba, bb, spreads?.get(ba.id));
     rows.push({
       benchmark: ba.id,
       [aLabel]: fmt(ba.mean),
       [bLabel]: fmt(bb.mean),
       delta: `${delta >= 0 ? "+" : ""}${delta.toFixed(1)}%`,
       threshold: `${noise.toFixed(1)}%`,
-      verdict: !significant ? "~same" : delta > 0 ? "SLOWER" : "FASTER",
+      verdict,
     });
   }
   console.table(rows);
@@ -199,7 +201,9 @@ const ensureRefWorktree = (ref) => {
 // ref worktree's node_modules and would mount a second React instance (hooks
 // then crash with a null dispatcher). Repoint each ref package's react and
 // react-dom at the current tree's copies; symlinks resolve to the same
-// realpath, so both sides share one module instance.
+// realpath, so both sides share one module instance. This deliberately
+// neutralizes react version differences between head and base: a cross-ref
+// table spanning a react bump measures the packages, never react itself.
 const pinReactToCurrentTree = (wt) => {
   const requireFromPkg = createRequire(join(pkgRoot, "package.json"));
   for (const dep of ["react", "react-dom"]) {
@@ -245,11 +249,11 @@ const compareRef = (ref, requestedRuns) => {
     }
   }
   const refDoc = {
-    env: { ...envStamp(wt), runs },
+    env: { ...envStamp(wt), runs, estimator: "mean" },
     benchmarks: [...meanRows(refRuns).values()],
   };
   const curDoc = {
-    env: { ...envStamp(), runs },
+    env: { ...envStamp(), runs, estimator: "mean" },
     benchmarks: [...meanRows(curRuns).values()],
   };
   writeFileSync(
