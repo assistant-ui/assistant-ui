@@ -19,7 +19,7 @@ export const StatusBarPrimitiveMessageCount = ({
   format = defaultFormat,
   ...textProps
 }: StatusBarPrimitiveMessageCount.Props) => {
-  const count = useAuiState("thread").messages.length;
+  const count = useAuiState("thread").messageIds.length;
 
   if (count === 0) return null;
 

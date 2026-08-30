@@ -24,12 +24,13 @@ export const LoadingElapsedTime = ({
   ...textProps
 }: LoadingElapsedTimeProps) => {
   const isRunning = useAuiState("thread").isRunning;
-  const thread = useAuiState("thread");
-  const lastMessage = thread.messages.at(-1);
-  const streamStartTime =
-    lastMessage?.role === "assistant" && lastMessage.status?.type === "running"
+  const streamStartTime = useAuiState((s) => {
+    const lastMessage = s.thread.messages.at(-1);
+    return lastMessage?.role === "assistant" &&
+      lastMessage.status?.type === "running"
       ? lastMessage.metadata?.timing?.streamStartTime
       : undefined;
+  });
   const [now, setNow] = useState(() => Date.now());
   const fallbackStartTimeRef = useRef(Date.now());
 

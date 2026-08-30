@@ -172,9 +172,9 @@ export const groupMessageParts = (
 const useMessagePartsGroups = (
   useChainOfThought: boolean,
 ): { ranges: MessagePartRange[]; partIds: (string | undefined)[] } => {
-  const { parts } = useAuiState("message");
-  const messageTypes = parts.map((c: any) => c.type);
-  const partIds = parts.map((c: any) =>
+  const { content } = useAuiState("message");
+  const messageTypes = content.map((c) => c.type);
+  const partIds = content.map((c) =>
     c.type === "tool-call" ? c.toolCallId : undefined,
   );
   if (messageTypes.length === 0) {
@@ -575,7 +575,7 @@ const ConditionalEmptyImpl: FC<{
   enabled: boolean;
 }> = ({ components, enabled }) => {
   const message = useAuiState("message");
-  const lastPart = message.parts[message.parts.length - 1];
+  const lastPart = message.content[message.content.length - 1];
   const shouldShowEmpty =
     enabled &&
     lastPart !== undefined &&
@@ -785,7 +785,7 @@ export const MessagePartChildren: FC<MessagePartChildrenProps> = ({
 const MessagePrimitivePartsInner: FC<{
   children: (value: { part: EnrichedPartState }) => ReactNode;
 }> = ({ children }) => {
-  const contentLength = useAuiState("message").parts.length;
+  const contentLength = useAuiState("message").content.length;
   const isRunning =
     (useAuiState("message").status?.type ?? "complete") === "running";
   const isEmptyRunning = contentLength === 0 && isRunning;
@@ -838,7 +838,7 @@ const MessagePrimitivePartsCompat: FC<{
   components: MessagePrimitiveParts.Props["components"];
   unstable_showEmptyOnNonTextEnd: boolean;
 }> = ({ components, unstable_showEmptyOnNonTextEnd }) => {
-  const contentLength = useAuiState("message").parts.length;
+  const contentLength = useAuiState("message").content.length;
   const useChainOfThought = !!components?.ChainOfThought;
   const { ranges: messageRanges, partIds } =
     useMessagePartsGroups(useChainOfThought);

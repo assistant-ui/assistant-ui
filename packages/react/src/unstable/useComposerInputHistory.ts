@@ -11,7 +11,10 @@ import {
 import { useAui } from "@assistant-ui/store";
 import { flushTapSync } from "@assistant-ui/tap";
 import type { ThreadMessage } from "@assistant-ui/core";
-import { getThreadMessageText } from "@assistant-ui/core/internal";
+import {
+  getThreadMessageText,
+  getThreadMessages,
+} from "@assistant-ui/core/internal";
 import { useTriggerPopoverRootContextOptional } from "../primitives/composer/trigger/TriggerPopoverRootContext";
 
 export type Unstable_ComposerInputHistory = {
@@ -124,13 +127,13 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
 
         if (!browse) {
           if (value.trim() !== "") return;
-          const history = deriveHistory(aui.thread.getState().messages);
+          const history = deriveHistory(getThreadMessages(aui.thread));
           if (history.length === 0) return;
           recall(history, 0, value);
           return;
         }
 
-        const history = deriveHistory(aui.thread.getState().messages);
+        const history = deriveHistory(getThreadMessages(aui.thread));
         const next = browse.cursor + 1;
         if (next >= history.length) {
           e.preventDefault();
@@ -150,7 +153,7 @@ export function unstable_useComposerInputHistory(): Unstable_ComposerInputHistor
         return;
       }
 
-      const history = deriveHistory(aui.thread.getState().messages);
+      const history = deriveHistory(getThreadMessages(aui.thread));
       recall(history, next, browse.draftSnapshot);
     },
     [aui, popoverCtx],

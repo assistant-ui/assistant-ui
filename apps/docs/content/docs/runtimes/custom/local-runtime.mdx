@@ -644,7 +644,7 @@ function useStreamReconnect(threadId: string) {
         r.json(),
       );
       if (status.isRunning) {
-        const parentId = aui.thread.getState().messages.at(-1)?.id ?? null;
+        const parentId = aui.thread.getState().messageIds.at(-1) ?? null;
         aui.thread.resumeRun({ parentId });
       }
     })();

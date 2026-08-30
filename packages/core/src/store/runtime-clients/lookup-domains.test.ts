@@ -47,10 +47,10 @@ const createClient = () => {
  * against these arrays; a lookup changing its backing array must fail here.
  */
 describe("by-index lookup domains", () => {
-  it("thread.message is indexed by thread.getState().messages", () => {
+  it("thread.message is indexed by thread.getState().messageIds", () => {
     const handle = createClient();
     const aui = handle.getClient();
-    const length = aui.thread.getState().messages.length;
+    const length = aui.thread.getState().messageIds.length;
     expect(length).toBe(2);
     expect(aui.thread.message({ index: length - 1 }).getState().id).toBe("a1");
     expect(() => aui.thread.message({ index: length }).getState()).toThrow(
@@ -59,11 +59,11 @@ describe("by-index lookup domains", () => {
     handle.destroy();
   });
 
-  it("message.part is indexed by message.getState().parts", () => {
+  it("message.part is indexed by message.getState().content", () => {
     const handle = createClient();
     const aui = handle.getClient();
     const message = aui.thread.message({ index: 1 });
-    const length = message.getState().parts.length;
+    const length = message.getState().content.length;
     expect(length).toBe(1);
     expect(message.part({ index: length - 1 }).getState().type).toBe("text");
     expect(() => message.part({ index: length }).getState()).toThrow(

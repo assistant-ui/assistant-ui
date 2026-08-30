@@ -24,7 +24,7 @@ const useMessageIf = (props: UseMessageIfProps) => {
   const {
     role,
     attachments,
-    parts,
+    content,
     branchCount,
     isLast,
     speech,
@@ -55,8 +55,8 @@ const useMessageIf = (props: UseMessageIfProps) => {
   if (props.hasAttachments === false && role === "user" && attachments?.length)
     return false;
 
-  if (props.hasContent === true && parts.length === 0) return false;
-  if (props.hasContent === false && parts.length > 0) return false;
+  if (props.hasContent === true && content.length === 0) return false;
+  if (props.hasContent === false && content.length > 0) return false;
 
   if (
     props.submittedFeedback !== undefined &&

@@ -77,7 +77,7 @@ describe("primitive predicates", () => {
           message: {
             role: "assistant",
             status: { type: "complete" },
-            parts: [{ type: "text", text: "hi" }],
+            content: [{ type: "text", text: "hi" }],
           },
         }),
       ),
@@ -88,7 +88,7 @@ describe("primitive predicates", () => {
           message: {
             role: "assistant",
             status: { type: "running" },
-            parts: [{ type: "text", text: "hi" }],
+            content: [{ type: "text", text: "hi" }],
           },
         }),
       ),
@@ -99,7 +99,7 @@ describe("primitive predicates", () => {
           message: {
             role: "user",
             status: undefined,
-            parts: [{ type: "text", text: "" }],
+            content: [{ type: "text", text: "" }],
           },
         }),
       ),

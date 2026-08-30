@@ -36,9 +36,12 @@ import { StatusBarPrimitiveTokenCount } from "../primitives/statusBar/StatusBarT
 import { StatusBarPrimitiveLatency } from "../primitives/statusBar/StatusBarLatency";
 import { StatusBarPrimitiveStatus } from "../primitives/statusBar/StatusBarStatus";
 
-const setThreadState = (thread: unknown) => {
+const setThreadState = (
+  thread: { messages?: unknown[] } & Record<string, unknown>,
+) => {
+  const messageIds = thread.messages?.map((_, i) => String(i)) ?? [];
   mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
-    selector({ thread } as never),
+    selector({ thread: { messageIds, ...thread } } as never),
   );
 };
 

@@ -92,12 +92,20 @@ describe("ExternalThread part status", () => {
       ],
       isRunning: true,
     });
-    const state = aui().thread.message({ id: "a1" }).getState();
-    expect(state.parts[0]!.status).toEqual({ type: "complete" });
-    expect(state.parts[1]!.status).toEqual({ type: "complete" });
-    const fallbackState = aui().thread.message({ id: "a2" }).getState();
-    expect(fallbackState.parts[0]!.status).toEqual({ type: "complete" });
-    expect(fallbackState.parts[1]!.status).toEqual({ type: "running" });
+    const message = aui().thread.message({ id: "a1" });
+    expect(message.part({ index: 0 }).getState().status).toEqual({
+      type: "complete",
+    });
+    expect(message.part({ index: 1 }).getState().status).toEqual({
+      type: "complete",
+    });
+    const fallback = aui().thread.message({ id: "a2" });
+    expect(fallback.part({ index: 0 }).getState().status).toEqual({
+      type: "complete",
+    });
+    expect(fallback.part({ index: 1 }).getState().status).toEqual({
+      type: "running",
+    });
   });
 
   it("honours supplied statuses while the message is running", () => {
@@ -114,10 +122,14 @@ describe("ExternalThread part status", () => {
       ],
       isRunning: true,
     });
-    const state = aui().thread.message({ id: "a1" }).getState();
+    const message = aui().thread.message({ id: "a1" });
 
-    expect(state.parts[0]!.status).toEqual({ type: "running" });
-    expect(state.parts[1]!.status).toEqual({ type: "complete" });
+    expect(message.part({ index: 0 }).getState().status).toEqual({
+      type: "running",
+    });
+    expect(message.part({ index: 1 }).getState().status).toEqual({
+      type: "complete",
+    });
   });
 
   it("ignores supplied statuses after the message completes", () => {
@@ -163,10 +175,12 @@ describe("ExternalThread part status", () => {
       ],
       isRunning: true,
     });
-    const state = aui().thread.message({ id: "a1" }).getState();
+    const message = aui().thread.message({ id: "a1" });
 
-    expect(state.parts[0]!.status).toEqual({ type: "complete" });
-    expect(state.parts[1]!.status).toEqual({
+    expect(message.part({ index: 0 }).getState().status).toEqual({
+      type: "complete",
+    });
+    expect(message.part({ index: 1 }).getState().status).toEqual({
       type: "incomplete",
       reason: "other",
     });
@@ -241,7 +255,9 @@ describe("ExternalThread composer", () => {
     expect(onNew.mock.calls[0]![0].content).toEqual([
       { type: "text", text: "hello" },
     ]);
-    await waitFor(() => expect(aui().thread.getState().composer.text).toBe(""));
+    await waitFor(() =>
+      expect(aui().thread.composer().getState().text).toBe(""),
+    );
   });
 
   it("stamps the thread head as parentId on queue-adapter sends", async () => {
@@ -536,10 +552,10 @@ describe("ExternalThread duplicate message ids", () => {
       });
 
       const state = aui().thread.getState();
-      expect(state.messages.map((m) => m.id)).toEqual(["u1", "dup"]);
+      expect(state.messageIds).toEqual(["u1", "dup"]);
 
-      const dup = aui().thread.message({ id: "dup" }).getState();
-      expect(dup.parts[0]).toMatchObject({ type: "text", text: "fresh" });
+      const dup = aui().thread.message({ id: "dup" }).part({ index: 0 });
+      expect(dup.getState()).toMatchObject({ type: "text", text: "fresh" });
       expect(warn).toHaveBeenCalledWith(expect.stringContaining('"dup"'));
     } finally {
       warn.mockRestore();

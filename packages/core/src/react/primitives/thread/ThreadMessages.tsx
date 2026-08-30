@@ -80,20 +80,6 @@ const isComponentsSame = (
 
 const DEFAULT_SYSTEM_MESSAGE = () => null;
 
-const messageIdSetCache = new WeakMap<
-  readonly MessageState[],
-  ReadonlySet<string>
->();
-
-const hasMessageId = (messages: readonly MessageState[], messageId: string) => {
-  let ids = messageIdSetCache.get(messages);
-  if (!ids) {
-    ids = new Set(messages.map((m) => m.id));
-    messageIdSetCache.set(messages, ids);
-  }
-  return ids.has(messageId);
-};
-
 const getComponent = (
   components: MessagesComponentConfig,
   role: MessageState["role"],
@@ -155,7 +141,7 @@ const ThreadMessageComponent: FC<ThreadMessageComponentProps> = ({
   components,
 }) => {
   const role = useAuiState("message").role;
-  const isEditing = useAuiState("message").composer.isEditing;
+  const isEditing = useAuiState((s) => s.message.composer.isEditing);
   const Component = getComponent(components, role, isEditing);
 
   return <Component />;
@@ -219,7 +205,7 @@ export namespace ThreadPrimitiveUnstable_MessageById {
 export const ThreadPrimitiveUnstable_MessageById: FC<ThreadPrimitiveUnstable_MessageById.Props> =
   memo(
     ({ messageId, components }) => {
-      const exists = hasMessageId(useAuiState("thread").messages, messageId);
+      const exists = useAuiState("thread").messageIds.includes(messageId);
       if (!exists) return null;
 
       return (
@@ -239,7 +225,7 @@ ThreadPrimitiveUnstable_MessageById.displayName =
 const ThreadPrimitiveMessagesInner: FC<{
   children: (value: { message: MessageState }) => ReactNode;
 }> = ({ children }) => {
-  const messagesLength = useAuiState("thread").messages.length;
+  const messagesLength = useAuiState("thread").messageIds.length;
 
   return useMemo(() => {
     if (messagesLength === 0) return null;

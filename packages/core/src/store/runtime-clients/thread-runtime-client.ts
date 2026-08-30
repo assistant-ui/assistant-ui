@@ -9,12 +9,14 @@ import {
   useAssistantEmit,
   useClientLookup,
   useClientResource,
+  getClientState,
+  useLinkedState,
 } from "@assistant-ui/store/client";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessageClient } from "./message-runtime-client";
 import { ThreadSuggestions } from "../clients/suggestions";
 import { useSubscribable } from "./useSubscribable";
-import type { ThreadState } from "../scopes/thread";
+import type { ThreadLinkedState, ThreadOwnState } from "../scopes/thread";
 
 const useMessageClientById = ({
   runtime,
@@ -92,9 +94,9 @@ const useThreadClient = ({
     ),
   );
 
-  const state = useMemo<ThreadState>(() => {
+  const ownState = useMemo<ThreadOwnState>(() => {
     return {
-      isEmpty: messages.state.length === 0 && !runtimeState.isLoading,
+      isEmpty: messages.keys.length === 0 && !runtimeState.isLoading,
       isDisabled: runtimeState.isDisabled,
       isLoading: runtimeState.isLoading,
       isRunning: runtimeState.isRunning,
@@ -104,11 +106,18 @@ const useThreadClient = ({
       extras: runtimeState.extras,
       speech: runtimeState.speech,
       voice: runtimeState.voice,
-
-      composer: composer.state,
-      messages: messages.state,
+      messageIds: messages.keys,
     };
-  }, [runtimeState, messages, composer.state]);
+  }, [runtimeState, messages.keys]);
+  const state = useLinkedState<ThreadOwnState, ThreadLinkedState>(
+    "thread",
+    ownState,
+    {
+      composer: () => getClientState(composer.methods),
+      messages: () =>
+        messages.keys.map((key) => getClientState(messages.get({ key }))),
+    },
+  );
 
   return {
     getState: () => state,

@@ -6,6 +6,8 @@ import {
   attachTransformScopes,
   useClientResource,
   Derived,
+  getClientState,
+  useLinkedState,
 } from "@assistant-ui/store/client";
 
 import type {
@@ -54,6 +56,8 @@ import { ThreadSuggestions } from "./suggestions";
 import { Tools } from "../../react/client/Tools";
 import { DataRenderers } from "../../react/client/DataRenderers";
 import { SingleThreadList } from "./single-thread-list";
+import type { ThreadLinkedState, ThreadOwnState } from "../scopes/thread";
+import type { MessageLinkedState, MessageOwnState } from "../scopes/message";
 
 const EMPTY_QUEUE_ITEMS: readonly QueueItemState[] = [];
 const EMPTY_BRANCH_IDS: readonly string[] = [];
@@ -124,6 +128,7 @@ export type ExternalThreadProps = {
 type MessageClientProps = {
   message: ExternalThreadMessage;
   index: number;
+  isLast: boolean;
   parentId: string | null;
   onEdit?: (message: AppendMessage) => void;
   onReload?: () => void;
@@ -146,6 +151,7 @@ type MessageClientProps = {
 const useMessageClient = ({
   message,
   index,
+  isLast,
   parentId,
   onEdit,
   onReload,
@@ -222,7 +228,7 @@ const useMessageClient = ({
   const branchNumber = branchIndex === -1 ? 1 : branchIndex + 1;
   const branchCount = branchIndex === -1 ? 1 : branchIds.length;
 
-  const state = useMemo(() => {
+  const ownState = useMemo((): MessageOwnState => {
     const messageWithFeedback: ExternalThreadMessage =
       submittedFeedback && message.role === "assistant"
         ? {
@@ -237,15 +243,13 @@ const useMessageClient = ({
       ...messageWithFeedback,
       attachments: message.attachments ?? [],
       parentId,
-      isLast: false, // Will be set by thread
+      isLast,
       branchNumber,
       branchCount,
       speech,
-      parts: partClients.state,
       isCopied,
       isHovering,
       index,
-      composer: composerClient.state,
     };
   }, [
     message,
@@ -253,13 +257,21 @@ const useMessageClient = ({
     isCopied,
     isHovering,
     index,
-    composerClient.state,
-    partClients.state,
+    isLast,
     branchNumber,
     branchCount,
     submittedFeedback,
     speech,
   ]);
+  const state = useLinkedState<MessageOwnState, MessageLinkedState>(
+    "message",
+    ownState,
+    {
+      parts: () =>
+        partClients.keys.map((key) => getClientState(partClients.get({ key }))),
+      composer: () => getClientState(composerClient.methods),
+    },
+  );
 
   return {
     getState: () => state,
@@ -290,7 +302,7 @@ const useMessageClient = ({
       if ("index" in selector) {
         return partClients.get(selector);
       }
-      const partIndex = state.parts.findIndex(
+      const partIndex = message.content.findIndex(
         (p) => p.type === "tool-call" && p.toolCallId === selector.toolCallId,
       );
       return partClients.get({ index: partIndex });
@@ -958,6 +970,7 @@ const useExternalThread = ({
       const props: MessageClientProps = {
         message: msg,
         index,
+        isLast: index === messages.length - 1,
         parentId: index > 0 ? messages[index - 1]!.id : null,
         onReload: () => handleReload(msg.id),
         queue,
@@ -1033,12 +1046,7 @@ const useExternalThread = ({
   const hasAttachments = !!attachmentAdapter;
   const hasFeedback = !!feedbackAdapter;
   const hasSpeech = !!speechAdapter;
-  const state = useMemo(() => {
-    const messageStates = messageClients.state.map((s, idx, arr) => ({
-      ...s,
-      isLast: idx === arr.length - 1,
-    }));
-
+  const ownState = useMemo((): ThreadOwnState => {
     return {
       isEmpty: messages.length === 0 && !isLoading,
       isDisabled: false,
@@ -1060,13 +1068,12 @@ const useExternalThread = ({
         dictation: false,
         queue: hasQueue,
       },
-      messages: messageStates,
+      messageIds: messageClients.keys,
       state: threadState ?? {},
       suggestions: EMPTY_SUGGESTIONS,
       extras,
       speech,
       voice: undefined,
-      composer: composerClient.state,
     };
   }, [
     messages,
@@ -1084,9 +1091,19 @@ const useExternalThread = ({
     hasFeedback,
     hasSpeech,
     speech,
-    messageClients.state,
-    composerClient.state,
+    messageClients.keys,
   ]);
+  const state = useLinkedState<ThreadOwnState, ThreadLinkedState>(
+    "thread",
+    ownState,
+    {
+      composer: () => getClientState(composerClient.methods),
+      messages: () =>
+        messageClients.keys.map((key) =>
+          getClientState(messageClients.get({ key })),
+        ),
+    },
+  );
 
   return {
     getState: () => state,

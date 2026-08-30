@@ -3,8 +3,10 @@ import {
   useAui,
   useAuiState,
   AuiConfig,
+  type AssistantState,
   AuiProvider,
 } from "@assistant-ui/store";
+import { useShallow } from "zustand/shallow";
 import { ChainOfThoughtClient } from "../../store/clients/chain-of-thought-client";
 import type { ChainOfThoughtPart } from "../../store/scopes/chain-of-thought";
 
@@ -14,10 +16,12 @@ export const ChainOfThoughtByIndicesProvider: FC<
     endIndex: number;
   }>
 > = ({ startIndex, endIndex, children }) => {
-  const parts = useAuiState("message").parts.slice(
-    startIndex,
-    endIndex + 1,
-  ) as ChainOfThoughtPart[];
+  const parts = useAuiState(
+    useShallow(
+      (s: AssistantState) =>
+        s.message.parts.slice(startIndex, endIndex + 1) as ChainOfThoughtPart[],
+    ),
+  );
 
   const parentAui = useAui();
 

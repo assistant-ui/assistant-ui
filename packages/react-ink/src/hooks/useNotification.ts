@@ -114,16 +114,17 @@ type Snapshot = {
  */
 export const useNotification = (config: NotificationConfig = {}) => {
   const threadId = useAuiState("threadListItem").id;
-  const thread = useAuiState("thread");
-  const last = thread.messages.findLast((m) => m.role === "assistant");
-  const statusReason =
-    last?.status && "reason" in last.status ? last.status.reason : "";
-  const snapshotKey = JSON.stringify({
-    isRunning: thread.isRunning,
-    threadId,
-    messageId: last?.id ?? "",
-    statusType: last?.status?.type ?? "",
-    statusReason,
+  const snapshotKey = useAuiState((s) => {
+    const last = s.thread.messages.findLast((m) => m.role === "assistant");
+    const statusReason =
+      last?.status && "reason" in last.status ? last.status.reason : "";
+    return JSON.stringify({
+      isRunning: s.thread.isRunning,
+      threadId,
+      messageId: last?.id ?? "",
+      statusType: last?.status?.type ?? "",
+      statusReason,
+    });
   });
 
   const seenRunningForRef = useRef<string | undefined>(undefined);

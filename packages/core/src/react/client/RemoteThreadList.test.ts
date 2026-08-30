@@ -35,8 +35,11 @@ const useStubThread = (props: {
 }) => ({
   getState: () => ({
     isRunning: props.isRunning === true,
-    messages: [],
+    messageIds: [],
   }),
+  message: () => {
+    throw new Error("stub thread has no messages");
+  },
   composer: () => stubComposer,
   suggestions: () => stubSuggestions,
   unstable_refetchThread: props.refetch,

@@ -20,7 +20,8 @@ export {
   useAssistantEmit,
   useAssistantScopeEffect,
 } from "./utils/tap-assistant-context";
-export { useClientResource } from "./useClientResource";
+export { useClientResource, getClientState } from "./useClientResource";
+export { useLinkedState } from "./utils/linked-state";
 export { useClientLookup } from "./useClientLookup";
 export {
   attachTransformScopes,

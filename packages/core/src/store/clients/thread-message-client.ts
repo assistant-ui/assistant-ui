@@ -7,8 +7,12 @@ import type { Attachment } from "../../types/attachment";
 import { useMemo, useState } from "react";
 import { useResource, resource, withKey } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useClientLookup } from "@assistant-ui/store/client";
-import type { MessageState } from "../scopes/message";
+import {
+  useClientLookup,
+  getClientState,
+  useLinkedState,
+} from "@assistant-ui/store/client";
+import type { MessageLinkedState, MessageOwnState } from "../scopes/message";
 import type { PartState } from "../scopes/part";
 import { NoOpComposerClient } from "./no-op-composer-client";
 import {
@@ -106,13 +110,10 @@ const useThreadMessageClient = ({
   );
 
   const composer = useResource(NoOpComposerClient({ type: "edit" }));
-  const composerState = composer.getState();
 
-  const state = useMemo<MessageState>(() => {
+  const ownState = useMemo<MessageOwnState>(() => {
     return {
       ...message,
-      parts: parts.state,
-      composer: composerState,
       parentId: null,
       index,
       isLast,
@@ -128,11 +129,17 @@ const useThreadMessageClient = ({
     isCopiedState,
     isHoveringState,
     isLast,
-    parts.state,
-    composerState,
     branchNumber,
     branchCount,
   ]);
+  const state = useLinkedState<MessageOwnState, MessageLinkedState>(
+    "message",
+    ownState,
+    {
+      parts: () => parts.keys.map((key) => getClientState(parts.get({ key }))),
+      composer: () => composer.getState(),
+    },
+  );
 
   return {
     getState: () => state,

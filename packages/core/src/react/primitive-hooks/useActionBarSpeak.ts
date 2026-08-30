@@ -7,7 +7,7 @@ export const useActionBarSpeak = () => {
   const message = useAuiState("message");
   const disabled = !(
     (message.role !== "assistant" || message.status?.type !== "running") &&
-    message.parts.some((c) => c.type === "text" && c.text.length > 0)
+    message.content.some((c) => c.type === "text" && c.text.length > 0)
   );
 
   const speak = useCallback(async () => {

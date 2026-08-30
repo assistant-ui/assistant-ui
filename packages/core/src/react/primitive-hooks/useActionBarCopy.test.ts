@@ -11,7 +11,7 @@ const mocks = vi.hoisted(() => {
       message: {
         role: "assistant",
         status: { type: "complete", reason: "stop" },
-        parts: [{ type: "text", text: "Hello" }],
+        content: [{ type: "text", text: "Hello" }],
         isCopied: false,
       },
       composer: {

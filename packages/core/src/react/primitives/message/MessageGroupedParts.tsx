@@ -251,7 +251,7 @@ export const MessagePrimitiveGroupedParts = <TKey extends `group-${string}`>({
   children,
 }: MessagePrimitiveGroupedParts.Props<TKey>): ReactNode => {
   const message = useAuiState("message");
-  const parts = message.parts;
+  const parts = useAuiState((s) => s.message.parts);
   // Handed to `groupBy` as its `context` argument (see GroupByContext).
   const toolUIs = useAuiState("tools").toolUIs;
   // Subscribe to a boolean, not the status object: the tree only needs to

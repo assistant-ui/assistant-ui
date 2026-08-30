@@ -10,12 +10,18 @@ import {
   Derived,
   attachTransformScopes,
   useClientResource,
+  getClientState,
+  useLinkedState,
 } from "@assistant-ui/store/client";
 import { useThreadSelectionEvents } from "../../store/internal";
 import { generateId } from "../../utils/id";
 import { ModelContext } from "../../store/clients/model-context-client";
 import { Tools } from "./Tools";
 import { DataRenderers } from "./DataRenderers";
+import type {
+  ThreadsLinkedState,
+  ThreadsOwnState,
+} from "../../store/scopes/threads";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -201,7 +207,7 @@ const useInMemoryThreadList = (
     ),
   );
 
-  const state = useMemo(() => {
+  const ownState = useMemo((): ThreadsOwnState => {
     const regularThreads = threads.filter((t) => t.status === "regular");
     const archivedThreads = threads.filter((t) => t.status === "archived");
 
@@ -213,10 +219,19 @@ const useInMemoryThreadList = (
       hasMore: false,
       threadIds: regularThreads.map((t) => t.id),
       archivedThreadIds: archivedThreads.map((t) => t.id),
-      threadItems: threadListItems.state,
-      main: mainThreadClient.state,
     };
-  }, [mainThreadId, threads, threadListItems.state, mainThreadClient.state]);
+  }, [mainThreadId, threads]);
+  const state = useLinkedState<ThreadsOwnState, ThreadsLinkedState>(
+    "threads",
+    ownState,
+    {
+      threadItems: () =>
+        threadListItems.keys.map((key) =>
+          getClientState(threadListItems.get({ key })),
+        ),
+      main: () => getClientState(mainThreadClient.methods),
+    },
+  );
 
   return {
     getState: () => state,

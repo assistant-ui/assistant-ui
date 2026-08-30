@@ -85,3 +85,4 @@ export { createCloudThreadListAdapterCreateFallback } from "./react/runtimes/clo
 
 export * from "./runtime/internal";
 export * from "./runtimes/internal";
+export { getThreadMessages } from "./store/utils/getThreadMessages";

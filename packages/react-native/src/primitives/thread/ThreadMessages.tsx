@@ -132,7 +132,7 @@ const ThreadMessageComponent: FC<{ components: MessageComponents }> = ({
   components,
 }) => {
   const role = useAuiState("message").role;
-  const isEditing = useAuiState("message").composer.isEditing;
+  const isEditing = useAuiState((s) => s.message.composer.isEditing);
   const Component = getComponent(components, role, isEditing);
 
   return <Component />;
@@ -382,7 +382,7 @@ export const ThreadMessagesFlatList = forwardRef<
     },
     forwardedRef,
   ) => {
-    const messages = useAuiState("thread").messages;
+    const messages = useAuiState((s) => s.thread.messages);
     const [flatListRef, setFlatListRef] = useComposedFlatListRef(forwardedRef);
     const {
       handleContentSizeChange: handleAutoScrollContentSizeChange,

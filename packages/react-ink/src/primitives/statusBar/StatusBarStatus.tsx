@@ -33,8 +33,7 @@ export const StatusBarPrimitiveStatus = ({
   format = defaultFormat,
   ...textProps
 }: StatusBarPrimitiveStatus.Props) => {
-  const thread = useAuiState("thread");
-  const status = getStatus(thread);
+  const status = useAuiState((s) => getStatus(s.thread));
 
   return <Text {...textProps}>{format(status)}</Text>;
 };

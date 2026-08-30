@@ -79,7 +79,11 @@ vi.mock("@assistant-ui/store", async () => {
   const React = await import("react");
 
   return {
-    useAuiState: (scope: string, selector?: (s: never) => unknown) => {
+    useAuiState: (
+      scope: string | ((s: never) => unknown),
+      selector?: (s: never) => unknown,
+    ) => {
+      if (typeof scope === "function") return scope(h.state as never);
       const state = (h.state as Record<string, unknown>)[scope];
       return selector ? selector(state as never) : state;
     },

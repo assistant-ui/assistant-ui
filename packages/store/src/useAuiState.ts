@@ -6,10 +6,14 @@ import {
   SCOPE_STATE_UNSET,
   useScopeStateContext,
 } from "./utils/scope-state-context";
+import { runInStateSelector } from "./utils/linked-state";
 
 /**
  * Reads the whole state of one scope from its React context and re-renders
- * the component whenever that scope's state changes.
+ * the component whenever that scope's state changes. The result carries only
+ * the scope's own fields; child scope state (`thread.messages`,
+ * `message.parts`, `threads.main`, ...) is linked state that can only be read
+ * inside a `useAuiState(selector)` callback.
  *
  * @example
  * ```tsx
@@ -31,7 +35,9 @@ export function useAuiState<K extends ClientNames>(scope: K): AssistantState[K];
  * memoized reference.
  *
  * Scopes that may be unavailable can be read via `s.optional.<scope>`,
- * which resolves to `undefined` instead of throwing.
+ * which resolves to `undefined` instead of throwing. Child scope state such
+ * as `s.thread.messages` or `s.message.parts` is resolved lazily from the
+ * child scopes while the selector runs and is not available on `getState()`.
  *
  * @param selector - Pure function that derives a value from the current
  *   assistant state. Should be cheap and referentially stable for equal
@@ -79,11 +85,8 @@ const useSelectedAuiState = <T>(selector: (state: AssistantState) => T): T => {
   const aui = useAui();
   const proxiedState = getProxiedAssistantState(aui);
 
-  const slice = useSyncExternalStore(
-    aui.subscribe,
-    () => selector(proxiedState),
-    () => selector(proxiedState),
-  );
+  const getSnapshot = () => runInStateSelector(() => selector(proxiedState));
+  const slice = useSyncExternalStore(aui.subscribe, getSnapshot, getSnapshot);
 
   if (
     typeof slice === "object" &&

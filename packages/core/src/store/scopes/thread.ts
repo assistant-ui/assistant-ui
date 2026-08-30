@@ -41,7 +41,12 @@ export type ThreadState = {
    */
   readonly capabilities: RuntimeCapabilities;
   /**
+   * The ids of the messages in the currently selected branch of the thread.
+   */
+  readonly messageIds: readonly string[];
+  /**
    * The messages in the currently selected branch of the thread.
+   * Linked child state: readable only inside a `useAuiState(selector)` callback.
    */
   readonly messages: readonly MessageState[];
   /**
@@ -60,8 +65,14 @@ export type ThreadState = {
   /** @deprecated This API is still under active development and might change without notice. */
   readonly speech: SpeechState | undefined;
   readonly voice: VoiceSessionState | undefined;
+  /**
+   * Linked child state: readable only inside a `useAuiState(selector)` callback.
+   */
   readonly composer: ComposerState;
 };
+
+export type ThreadLinkedState = Pick<ThreadState, "messages" | "composer">;
+export type ThreadOwnState = Omit<ThreadState, keyof ThreadLinkedState>;
 
 export type ThreadMethods = {
   /**

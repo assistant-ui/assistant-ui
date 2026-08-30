@@ -4,6 +4,7 @@ import { render, act } from "@testing-library/react";
 import type { FC } from "react";
 import { describe, it, expect } from "vitest";
 import { useAui } from "@assistant-ui/store";
+import { getThreadMessages } from "@assistant-ui/core/internal";
 import { AssistantRuntimeProvider } from "../context";
 import { useLocalRuntime } from "../legacy-runtime/runtime-cores/local/useLocalRuntime";
 import type { ChatModelAdapter } from "../legacy-runtime/runtime-cores/local/ChatModelAdapter";
@@ -27,9 +28,8 @@ const createCountingAdapter = () => {
 };
 
 const userTexts = (aui: ReturnType<typeof useAui>) =>
-  aui.thread
-    .getState()
-    .messages.filter((m) => m.role === "user")
+  getThreadMessages(aui.thread)
+    .filter((m) => m.role === "user")
     .map((m) =>
       m.content.map((p) => (p.type === "text" ? p.text : "")).join(""),
     );

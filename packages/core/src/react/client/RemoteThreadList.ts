@@ -11,6 +11,8 @@ import {
   attachTransformScopes,
   useClientLookup,
   useClientResource,
+  getClientState,
+  useLinkedState,
 } from "@assistant-ui/store/client";
 import { isDevelopment, useThreadSelectionEvents } from "../../store/internal";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
@@ -40,6 +42,11 @@ import {
   type InMemoryThreadListProps,
 } from "./InMemoryThreadList";
 import { AdaptedRemoteThread } from "./AdaptedRemoteThread";
+import type {
+  ThreadsLinkedState,
+  ThreadsOwnState,
+} from "../../store/scopes/threads";
+import { getThreadMessages } from "../../store/utils/getThreadMessages";
 
 const RESOLVED_PROMISE = Promise.resolve();
 
@@ -287,7 +294,7 @@ const useRemoteThreadListView = ({
             handleThreadListAction("generate title", () =>
               onGenerateTitle(
                 data.id,
-                mainThreadClient.state.messages as
+                getThreadMessages(mainThreadClient.methods) as
                   | readonly ThreadMessage[]
                   | undefined,
               ),
@@ -1018,8 +1025,8 @@ const useRemoteThreadList = (
     );
   }, [session, switchToNewThread, switchToThread, threadId]);
 
-  const state = useMemo(
-    () => ({
+  const ownState = useMemo(
+    (): ThreadsOwnState => ({
       mainThreadId,
       newThreadId: listState.newThreadId ?? null,
       isLoading: listState.isLoading,
@@ -1027,8 +1034,6 @@ const useRemoteThreadList = (
       hasMore: listState.cursor !== undefined,
       threadIds: listState.threadIds,
       archivedThreadIds: listState.archivedThreadIds,
-      threadItems: threadListItems.state,
-      main: mainThreadClient.state,
     }),
     [
       listState.archivedThreadIds,
@@ -1037,10 +1042,19 @@ const useRemoteThreadList = (
       listState.isLoadingMore,
       listState.newThreadId,
       listState.threadIds,
-      mainThreadClient.state,
       mainThreadId,
-      threadListItems.state,
     ],
+  );
+  const state = useLinkedState<ThreadsOwnState, ThreadsLinkedState>(
+    "threads",
+    ownState,
+    {
+      threadItems: () =>
+        threadListItems.keys.map((key) =>
+          getClientState(threadListItems.get({ key })),
+        ),
+      main: () => getClientState(mainThreadClient.methods),
+    },
   );
 
   return {

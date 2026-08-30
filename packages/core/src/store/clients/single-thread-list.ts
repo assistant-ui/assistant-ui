@@ -1,7 +1,12 @@
 import { useMemo, useState } from "react";
 import { resource } from "@assistant-ui/tap";
 import type { ClientElement, ClientOutput } from "@assistant-ui/store";
-import { useClientResource } from "@assistant-ui/store/client";
+import {
+  useClientResource,
+  getClientState,
+  useLinkedState,
+} from "@assistant-ui/store/client";
+import type { ThreadsLinkedState, ThreadsOwnState } from "../scopes/threads";
 
 const RESOLVED_PROMISE = Promise.resolve();
 const THREAD_ID = "default";
@@ -54,8 +59,8 @@ const useSingleThreadList = ({
     SingleThreadListItem({ isRunning: threadClient.state.isRunning }),
   );
 
-  const state = useMemo(
-    () => ({
+  const ownState = useMemo(
+    (): ThreadsOwnState => ({
       mainThreadId: THREAD_ID,
       newThreadId: null,
       isLoading: false,
@@ -63,10 +68,16 @@ const useSingleThreadList = ({
       hasMore: false,
       threadIds: [THREAD_ID],
       archivedThreadIds: [],
-      threadItems: [itemClient.state],
-      main: threadClient.state,
     }),
-    [itemClient.state, threadClient.state],
+    [],
+  );
+  const state = useLinkedState<ThreadsOwnState, ThreadsLinkedState>(
+    "threads",
+    ownState,
+    {
+      threadItems: () => [getClientState(itemClient.methods)],
+      main: () => getClientState(threadClient.methods),
+    },
   );
 
   return {

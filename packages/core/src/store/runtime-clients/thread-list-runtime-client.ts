@@ -1,14 +1,19 @@
 import { useMemo } from "react";
 import { useResource, withKey, resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useClientLookup, useClientResource } from "@assistant-ui/store/client";
+import {
+  useClientLookup,
+  useClientResource,
+  getClientState,
+  useLinkedState,
+} from "@assistant-ui/store/client";
 import { useThreadSelectionEvents } from "../clients/thread-selection-events";
 import type { ThreadListRuntime } from "../../runtime/api/thread-list-runtime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { useSubscribable } from "./useSubscribable";
 import { ThreadListItemClient } from "./thread-list-item-runtime-client";
 import { ThreadClient } from "./thread-runtime-client";
-import type { ThreadsState } from "../scopes/threads";
+import type { ThreadsLinkedState, ThreadsOwnState } from "../scopes/threads";
 import { handleThreadListAction } from "./handle-thread-list-action";
 
 const useThreadListItemClientById = ({
@@ -63,7 +68,7 @@ const useThreadListClient = ({
     ),
   );
 
-  const state = useMemo<ThreadsState>(() => {
+  const ownState = useMemo<ThreadsOwnState>(() => {
     return {
       mainThreadId: runtimeState.mainThreadId,
       newThreadId: runtimeState.newThreadId ?? null,
@@ -72,11 +77,17 @@ const useThreadListClient = ({
       hasMore: runtimeState.hasMore,
       threadIds: runtimeState.threadIds,
       archivedThreadIds: runtimeState.archivedThreadIds,
-      threadItems: threadItems.state,
-
-      main: main.state,
     };
-  }, [runtimeState, threadItems.state, main.state]);
+  }, [runtimeState]);
+  const state = useLinkedState<ThreadsOwnState, ThreadsLinkedState>(
+    "threads",
+    ownState,
+    {
+      threadItems: () =>
+        threadItems.keys.map((key) => getClientState(threadItems.get({ key }))),
+      main: () => getClientState(main.methods),
+    },
+  );
 
   return {
     getState: () => state,

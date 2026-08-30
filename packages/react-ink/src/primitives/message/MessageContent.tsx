@@ -132,7 +132,7 @@ export const MessageContent = ({
   renderFile,
   renderData,
 }: MessageContentProps) => {
-  const content = useAuiState("message").parts;
+  const content = useAuiState((s) => s.message.parts);
 
   return (
     <>

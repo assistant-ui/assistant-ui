@@ -29,6 +29,7 @@ export const useClientList = <TData, TMethods extends ClientMethods>(
   props: useClientList.Props<TData, TMethods>,
 ): {
   state: InferClientState<TMethods>[];
+  keys: string[];
   get: (lookup: { index: number } | { key: string }) => TMethods;
   add: (initialData: TData) => void;
 } => {
@@ -101,6 +102,7 @@ export const useClientList = <TData, TMethods extends ClientMethods>(
 
   return {
     state: lookup.state,
+    keys: lookup.keys,
     get: lookup.get,
     add,
   };

@@ -74,7 +74,7 @@ const groupMessagePartsByParentId: GroupingFunction = (
 const useMessagePartsGrouped = (
   groupingFunction: GroupingFunction,
 ): MessagePartGroup[] => {
-  const parts = useAuiState("message").parts;
+  const parts = useAuiState((s) => s.message.parts);
 
   return useMemo(() => {
     if (parts.length === 0) {
@@ -449,7 +449,7 @@ const EmptyParts = memo(
 export const MessagePrimitiveUnstable_PartsGrouped: FC<
   MessagePrimitiveUnstable_PartsGrouped.Props
 > = ({ groupingFunction, components }) => {
-  const contentLength = useAuiState("message").parts.length;
+  const contentLength = useAuiState("message").content.length;
   const messageGroups = useMessagePartsGrouped(groupingFunction);
 
   const partsElements = useMemo(() => {

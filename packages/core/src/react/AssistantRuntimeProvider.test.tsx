@@ -150,6 +150,6 @@ describe("AssistantRuntimeProvider aui composition", () => {
 
     render(<App />);
 
-    expect(aui.threads.getState().main).toBeDefined();
+    expect(aui.threads.getState().mainThreadId).toBeDefined();
   });
 });

@@ -35,9 +35,10 @@ describe("RuntimeAdapter via the neutral store entry", () => {
     );
     const aui = handle.getClient();
 
-    const messages = aui.thread.getState().messages;
-    expect(messages).toHaveLength(1);
-    expect(messages[0]!.content[0]).toMatchObject({
+    expect(aui.thread.getState().messageIds).toHaveLength(1);
+    expect(
+      aui.thread.message({ index: 0 }).getState().content[0],
+    ).toMatchObject({
       type: "text",
       text: "hi",
     });

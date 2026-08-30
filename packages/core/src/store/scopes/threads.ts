@@ -13,9 +13,18 @@ export type ThreadsState = {
   readonly hasMore: boolean;
   readonly threadIds: readonly string[];
   readonly archivedThreadIds: readonly string[];
+  /**
+   * Linked child state: readable only inside a `useAuiState(selector)` callback.
+   */
   readonly threadItems: readonly ThreadListItemState[];
+  /**
+   * Linked child state: readable only inside a `useAuiState(selector)` callback.
+   */
   readonly main: ThreadState;
 };
+
+export type ThreadsLinkedState = Pick<ThreadsState, "threadItems" | "main">;
+export type ThreadsOwnState = Omit<ThreadsState, keyof ThreadsLinkedState>;
 
 export type ThreadsMethods = {
   getState(): ThreadsState;

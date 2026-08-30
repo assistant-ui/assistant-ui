@@ -68,6 +68,12 @@ useAuiEvent("thread.modelContextUpdate", ({ threadId }) => {
 
 ### useAuiState
 
+Reads the whole state of one scope from its React context and re-renders
+the component whenever that scope's state changes. The result carries only
+the scope's own fields; child scope state (`thread.messages`,
+`message.parts`, `threads.main`,...) is linked state that can only be read
+inside a `useAuiState(selector)` callback.
+
 {/* api-example:useAuiState:start */}
 ```tsx
 import { useAuiState } from "@assistant-ui/react";

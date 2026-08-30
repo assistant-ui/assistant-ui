@@ -148,7 +148,7 @@ const useInteractable = <TSchema extends Unstable_InteractableStateSchema>(
     useInteractableState<Unstable_InferInteractableState<TSchema>>(id);
   const { setState } = methods;
 
-  const { messages } = useAuiState("thread");
+  const messages = useAuiState((s) => s.thread.messages);
   const versionValue = useJSONStable(
     (() => {
       if (!internalScope || !myToolCallId) return undefined;

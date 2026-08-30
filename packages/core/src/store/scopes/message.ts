@@ -6,7 +6,7 @@ import type { ComposerMethods, ComposerState } from "./composer";
 import type { PartMethods, PartState } from "./part";
 import type { AttachmentMethods } from "./attachment";
 
-export type MessageState = ThreadMessage & {
+type MessageScopeFields = {
   readonly parentId: string | null;
   readonly isLast: boolean;
   readonly branchNumber: number;
@@ -28,13 +28,24 @@ export type MessageState = ThreadMessage & {
    * });
    */
   readonly speech: SpeechState | undefined;
+  /**
+   * Linked child state: readable only inside a `useAuiState(selector)` callback.
+   */
   readonly composer: ComposerState;
+  /**
+   * Linked child state: readable only inside a `useAuiState(selector)` callback.
+   */
   readonly parts: readonly PartState[];
   readonly isCopied: boolean;
   readonly isHovering: boolean;
   /** The position of this message in the thread (0 for first message) */
   readonly index: number;
 };
+
+export type MessageState = ThreadMessage & MessageScopeFields;
+export type MessageLinkedState = Pick<MessageScopeFields, "parts" | "composer">;
+export type MessageOwnState = ThreadMessage &
+  Omit<MessageScopeFields, keyof MessageLinkedState>;
 
 export type MessageMethods = {
   /**

@@ -27,7 +27,7 @@ describe("ThreadMessageClient", () => {
     });
 
     try {
-      return root.getValue().getState().parts[0]?.status;
+      return root.getValue().part({ index: 0 }).getState().status;
     } finally {
       root.unmount();
     }

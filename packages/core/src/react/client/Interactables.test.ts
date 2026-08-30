@@ -93,7 +93,14 @@ const makeClient = (
   ),
   thread: threadMessages
     ? Object.assign(
-        () => ({ getState: () => ({ messages: threadMessages }) }),
+        () => ({
+          getState: () => ({
+            messageIds: threadMessages.map((_, i) => String(i)),
+          }),
+          message: ({ id }: { id: string }) => ({
+            getState: () => threadMessages[Number(id)],
+          }),
+        }),
         {
           source: "root",
         },

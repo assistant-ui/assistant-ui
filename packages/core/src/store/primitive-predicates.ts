@@ -24,7 +24,9 @@ export const actionBarReloadDisabled = (s: AssistantState): boolean =>
 export const actionBarCopyDisabled = (s: AssistantState): boolean =>
   !(
     (s.message.role !== "assistant" || s.message.status?.type !== "running") &&
-    s.message.parts.some((part) => part.type === "text" && part.text.length > 0)
+    s.message.content.some(
+      (part) => part.type === "text" && part.text.length > 0,
+    )
   );
 
 export const branchPickerPreviousDisabled = (s: AssistantState): boolean =>

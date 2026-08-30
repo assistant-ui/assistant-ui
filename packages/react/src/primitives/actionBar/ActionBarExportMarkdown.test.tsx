@@ -21,7 +21,7 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
     useAuiState: () => ({
       role: "assistant",
       status: { type: "complete" },
-      parts: [{ type: "text", text: "# Exported message" }],
+      content: [{ type: "text", text: "# Exported message" }],
     }),
   };
 });

@@ -25,6 +25,7 @@ import {
 } from "../../model-context/interactable-composer-metadata";
 import { notifySubscribers as notifyStateSubscribers } from "../../subscribable/subscribable";
 import { useInteractablePersistenceQueue } from "../interactables-shared/useInteractablePersistenceQueue";
+import { getThreadMessages } from "../../store/utils/getThreadMessages";
 
 type RestorePersistedStateOptions = {
   stash: Map<string, unknown>;
@@ -349,7 +350,7 @@ const useInteractablesResource = ({
       const threadAccessor = clientRef.current?.thread;
       const threadMessages =
         threadAccessor && threadAccessor.source != null
-          ? (threadAccessor().getState().messages ?? [])
+          ? getThreadMessages(threadAccessor())
           : [];
       const scope =
         def.scope ??

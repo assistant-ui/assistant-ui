@@ -110,7 +110,7 @@ describe("ExternalThread refetch", () => {
     await aui.threads.reloadMainThread();
 
     await waitFor(() =>
-      expect(aui.thread.getState().messages.map((m) => m.id)).toEqual(["a1"]),
+      expect(aui.thread.getState().messageIds).toEqual(["a1"]),
     );
     expect(aui.thread.composer().getState().text).toBe("draft");
   });

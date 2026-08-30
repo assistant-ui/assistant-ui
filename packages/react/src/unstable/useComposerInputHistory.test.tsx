@@ -16,7 +16,14 @@ vi.mock("@assistant-ui/store", () => ({
       getState: () => ({ type: fixture.composerType }),
       setText,
     },
-    thread: { getState: () => ({ messages: fixture.messages }) },
+    thread: {
+      getState: () => ({
+        messageIds: fixture.messages.map((_, i) => String(i)),
+      }),
+      message: ({ id }: { id: string }) => ({
+        getState: () => fixture.messages[Number(id)],
+      }),
+    },
     on: (_event: string, cb: () => void) => {
       fixture.selectionChangedHandlers.push(cb);
       return () => {};

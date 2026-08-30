@@ -17,7 +17,7 @@ const useActionBarExportMarkdown = ({
   const message = useAuiState("message");
   const hasExportableContent =
     (message.role !== "assistant" || message.status?.type !== "running") &&
-    message.parts.some((c) => c.type === "text" && c.text.length > 0);
+    message.content.some((c) => c.type === "text" && c.text.length > 0);
 
   const callback = useCallback(async () => {
     const content = aui.message.getCopyText();

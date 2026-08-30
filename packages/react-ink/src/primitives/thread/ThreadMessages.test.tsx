@@ -56,7 +56,12 @@ vi.mock("@assistant-ui/store", async (importOriginal) => {
       selector?: (s: unknown) => unknown,
     ) => {
       const state = {
-        thread: { messages: { length: hoisted.state.messagesLength } },
+        thread: {
+          messageIds: Array.from(
+            { length: hoisted.state.messagesLength },
+            (_, i) => String(i),
+          ),
+        },
         threads: { mainThreadId: hoisted.state.mainThreadId },
         message: {
           role: "user" as const,

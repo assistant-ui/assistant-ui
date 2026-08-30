@@ -1,13 +1,18 @@
 import { useMemo, useState } from "react";
 import { useResource, withKey, resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useClientLookup, useClientResource } from "@assistant-ui/store/client";
+import {
+  useClientLookup,
+  useClientResource,
+  getClientState,
+  useLinkedState,
+} from "@assistant-ui/store/client";
 import type { MessageRuntime } from "../../runtime/api/message-runtime";
 import { useSubscribable } from "./useSubscribable";
 import { liveRef } from "./liveRef";
 import { ComposerClient } from "./composer-runtime-client";
 import { MessagePartClient } from "./message-part-runtime-client";
-import type { MessageState } from "../scopes/message";
+import type { MessageLinkedState, MessageOwnState } from "../scopes/message";
 import { AttachmentRuntimeClient } from "./attachment-runtime-client";
 
 const useMessageAttachmentClientByIndex = ({
@@ -90,23 +95,21 @@ const useMessageClient = ({
     ),
   );
 
-  const state = useMemo<MessageState>(() => {
+  const ownState = useMemo<MessageOwnState>(() => {
     return {
-      ...(runtimeState as MessageState),
-
-      parts: parts.state,
-      composer: composer.state,
-
+      ...(runtimeState as MessageOwnState),
       isCopied: isCopiedState,
       isHovering: isHoveringState,
     };
-  }, [
-    runtimeState,
-    parts.state,
-    composer.state,
-    isCopiedState,
-    isHoveringState,
-  ]);
+  }, [runtimeState, isCopiedState, isHoveringState]);
+  const state = useLinkedState<MessageOwnState, MessageLinkedState>(
+    "message",
+    ownState,
+    {
+      parts: () => parts.keys.map((key) => getClientState(parts.get({ key }))),
+      composer: () => getClientState(composer.methods),
+    },
+  );
 
   return {
     getState: () => state,

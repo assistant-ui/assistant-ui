@@ -14,7 +14,7 @@ const useInteractableVersions = <TState = unknown>(
   state: TState;
   restore: () => void;
 })[] => {
-  const { messages } = useAuiState("thread");
+  const messages = useAuiState((s) => s.thread.messages);
   const versions = useJSONStable(getInteractableVersions(messages, id, name));
   const [, { setState }] = useInteractableState<TState>(id);
 

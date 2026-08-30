@@ -54,11 +54,21 @@ const useIsHoveringRef = () => {
   return useManagedRef(callbackRef);
 };
 
+const useMessageRoleAt = (index: number) => {
+  const aui = useAui();
+  return useAuiState((s) => {
+    const id = s.thread.messageIds.at(index);
+    return id === undefined
+      ? undefined
+      : aui.thread.message({ id }).getState().role;
+  });
+};
+
 const useIsTopAnchorUser = () => {
   const activeAnchorId = useThreadViewport((s) => s.topAnchorTurn?.anchorId);
   const isRunning = useAuiState("thread").isRunning;
-  const messagesLength = useAuiState("thread").messages.length;
-  const lastRole = useAuiState("thread").messages.at(-1)?.role;
+  const messagesLength = useAuiState("thread").messageIds.length;
+  const lastRole = useMessageRoleAt(-1);
   const messageState = useAuiState("message");
   return (
     messageState.role === "user" &&
@@ -73,9 +83,7 @@ const useIsTopAnchorTarget = () => {
   const activeTargetId = useThreadViewport((s) => s.topAnchorTurn?.targetId);
   const isRunning = useAuiState("thread").isRunning;
   const messageIndex = useAuiState("message").index;
-  const previousRole = useAuiState("thread").messages.at(
-    messageIndex - 1,
-  )?.role;
+  const previousRole = useMessageRoleAt(messageIndex - 1);
   const messageState2 = useAuiState("message");
   return (
     messageState2.isLast &&

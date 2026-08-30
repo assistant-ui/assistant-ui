@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useResources, withKey, type ResourceElement } from "@assistant-ui/tap";
 import type { ClientMethods, InferClientState } from "./types/client";
 import { ClientResource } from "./useClientResource";
+import { shallowEqualArray, useShallowStable } from "./utils/shallow-stable";
 
 const getElementKey = (el: ResourceElement<unknown>) => {
   if (el.key === undefined) {
@@ -14,6 +15,7 @@ export function useClientLookup<TMethods extends ClientMethods>(
   elements: readonly ResourceElement<TMethods>[],
 ): {
   state: InferClientState<TMethods>[];
+  keys: string[];
   get: (lookup: { index: number } | { key: string }) => TMethods;
 } {
   const resources = useResources(
@@ -37,8 +39,14 @@ export function useClientLookup<TMethods extends ClientMethods>(
     return resources.map((r) => r.state);
   }, [resources]);
 
+  const keys = useShallowStable(
+    elements.map((el) => String(getElementKey(el))),
+    shallowEqualArray,
+  );
+
   return {
     state,
+    keys,
     get: (lookup: { index: number } | { key: string }) => {
       if ("index" in lookup) {
         if (lookup.index < 0 || lookup.index >= resources.length) {
