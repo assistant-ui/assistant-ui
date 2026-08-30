@@ -159,7 +159,9 @@ const ensureRefWorktree = (ref) => {
   const marker = `${wt}.built`;
   if (!existsSync(wt)) {
     if (existsSync(marker)) rmSync(marker);
-    execFileSync("git", ["worktree", "prune"], { cwd: repoRoot });
+    execFileSync("git", ["worktree", "prune", "--expire", "now"], {
+      cwd: repoRoot,
+    });
     console.log(`creating ref worktree for ${ref} (${sha}) at ${wt}`);
     execFileSync("git", ["worktree", "add", "--detach", wt, sha], {
       cwd: repoRoot,
@@ -225,7 +227,8 @@ const trace = async (targets, seconds) => {
   const results = [];
   for (const target of targets) {
     const arg = /^https?:/.test(target) ? target : resolve(target);
-    const hint = basename(new URL(arg, "file:///").pathname);
+    const url = new URL(arg, "file:///");
+    const hint = basename(url.pathname) || url.hostname || arg;
     console.log(`tracing ${hint} for ${seconds}s...`);
     const events = await captureTrace(arg, seconds);
     results.push({
