@@ -40,11 +40,17 @@ export const sanitizeForMessage = (
           } catch {
             serializedKey = UNSERIALIZABLE;
           }
-          try {
-            result[serializedKey] = sanitizeForMessage(entry, seen);
-          } catch {
-            result[serializedKey] = UNSERIALIZABLE;
+
+          if (Object.hasOwn(result, serializedKey)) {
+            const baseKey = serializedKey;
+            let suffix = 2;
+            do {
+              serializedKey = `${baseKey} (${suffix})`;
+              suffix += 1;
+            } while (Object.hasOwn(result, serializedKey));
           }
+
+          result[serializedKey] = sanitizeForMessage(entry, seen);
         }
         return result;
       }

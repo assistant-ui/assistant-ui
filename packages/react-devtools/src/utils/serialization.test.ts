@@ -121,13 +121,20 @@ describe("sanitizeForMessage", () => {
         throw new Error("key conversion failed");
       },
     };
+    const secondBrokenKey = {
+      toString: () => {
+        throw new Error("key conversion failed");
+      },
+    };
     const value = new Map<unknown, unknown>([
       [brokenKey, "broken key value"],
+      [secondBrokenKey, "second broken key value"],
       ["readable", "readable value"],
     ]);
 
     expect(sanitizeForMessage(value)).toEqual({
       "[Unserializable]": "broken key value",
+      "[Unserializable] (2)": "second broken key value",
       readable: "readable value",
     });
   });

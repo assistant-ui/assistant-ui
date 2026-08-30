@@ -25,7 +25,7 @@ const toJsonSchema = (value: unknown): unknown => {
       return z.toJSONSchema(value);
     }
   } catch {
-    return UNSERIALIZABLE;
+    return value;
   }
 
   return value;
@@ -113,6 +113,10 @@ export const normalizeToolList = (value: unknown): NormalizedTool[] => {
 
     for (let index = 0; index < length; index++) {
       const entry = readProperty(value, index);
+      if (entry === UNSERIALIZABLE) {
+        tools.push({ name: UNSERIALIZABLE });
+        continue;
+      }
       if (!isRecord(entry)) continue;
       const name = readProperty(entry, "name");
       if (typeof name !== "string") continue;

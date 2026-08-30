@@ -1,3 +1,4 @@
+import { z } from "zod";
 import { describe, expect, it } from "vitest";
 import { normalizeToolList } from "./toolNormalization";
 
@@ -62,6 +63,33 @@ describe("normalizeToolList", () => {
     ]);
     expect(tools.map((t) => t.name)).toEqual(["a", "b"]);
     expect(tools[1]?.disabled).toBe(true);
+  });
+
+  it("preserves array entries around an unreadable slot", () => {
+    const tools = [
+      { name: "first", type: "frontend" },
+      { name: "hidden", type: "frontend" },
+      { name: "last", type: "backend" },
+    ];
+    Object.defineProperty(tools, 1, {
+      get: () => {
+        throw new Error("tool unavailable");
+      },
+    });
+
+    expect(normalizeToolList(tools)).toEqual([
+      { name: "first", type: "frontend" },
+      { name: "[Unserializable]" },
+      { name: "last", type: "backend" },
+    ]);
+  });
+
+  it("keeps Zod schemas that cannot be converted to JSON Schema", () => {
+    const parameters = z.object({ when: z.date() });
+
+    expect(normalizeToolList({ schedule: { parameters } })[0]?.parameters).toBe(
+      parameters,
+    );
   });
 
   it("returns an empty list for non-objects", () => {
