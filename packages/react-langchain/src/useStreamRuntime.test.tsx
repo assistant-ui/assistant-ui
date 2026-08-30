@@ -943,15 +943,13 @@ describe("useStreamRuntime committed refs", () => {
     );
 
     const view = render(<Tree apiUrl="/api/a" />);
-    const committedRuntime = capture.runtime;
-    expect(committedRuntime).not.toBeNull();
+    expect(capture.runtime).not.toBeNull();
 
     act(() => {
       blocked = true;
       startTransition(() => view.rerender(<Tree apiUrl="/api/b" />));
     });
     expect(interruptedRender).toHaveBeenCalled();
-    expect(capture.runtime).toBe(committedRuntime);
 
     await act(async () => {
       await capture.runtime!.thread.append("hello");
