@@ -244,4 +244,183 @@ describe("parseAgUiEvent", () => {
     expect(debug).toHaveBeenCalledTimes(1);
     expect(debug.mock.calls[0][0]).toMatch(/no valid interrupts/);
   });
+
+  it("parses subagentRunId on TEXT_MESSAGE_START/CONTENT/END", () => {
+    expect(
+      parseAgUiEvent({
+        type: "TEXT_MESSAGE_START",
+        messageId: "m1",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "TEXT_MESSAGE_START",
+      messageId: "m1",
+      subagentRunId: "sub-1",
+    });
+    expect(
+      parseAgUiEvent({
+        type: "TEXT_MESSAGE_CONTENT",
+        messageId: "m1",
+        delta: "hi",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "m1",
+      delta: "hi",
+      subagentRunId: "sub-1",
+    });
+    expect(
+      parseAgUiEvent({
+        type: "TEXT_MESSAGE_END",
+        messageId: "m1",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "TEXT_MESSAGE_END",
+      messageId: "m1",
+      subagentRunId: "sub-1",
+    });
+  });
+
+  it("parses subagentRunId on TOOL_CALL_START/ARGS/END/RESULT", () => {
+    expect(
+      parseAgUiEvent({
+        type: "TOOL_CALL_START",
+        toolCallId: "t1",
+        toolCallName: "explore",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "TOOL_CALL_START",
+      toolCallId: "t1",
+      toolCallName: "explore",
+      subagentRunId: "sub-1",
+    });
+    expect(
+      parseAgUiEvent({
+        type: "TOOL_CALL_ARGS",
+        toolCallId: "t1",
+        delta: "{}",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "TOOL_CALL_ARGS",
+      toolCallId: "t1",
+      delta: "{}",
+      subagentRunId: "sub-1",
+    });
+    expect(
+      parseAgUiEvent({
+        type: "TOOL_CALL_END",
+        toolCallId: "t1",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "TOOL_CALL_END",
+      toolCallId: "t1",
+      subagentRunId: "sub-1",
+    });
+    expect(
+      parseAgUiEvent({
+        type: "TOOL_CALL_RESULT",
+        toolCallId: "t1",
+        content: "ok",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t1",
+      content: "ok",
+      subagentRunId: "sub-1",
+    });
+  });
+
+  it("parses subagentRunId on REASONING_START/MESSAGE_START/MESSAGE_CONTENT/MESSAGE_END/END", () => {
+    expect(
+      parseAgUiEvent({
+        type: "REASONING_START",
+        messageId: "r1",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "REASONING_START",
+      messageId: "r1",
+      subagentRunId: "sub-1",
+    });
+    expect(
+      parseAgUiEvent({
+        type: "REASONING_END",
+        messageId: "r1",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "REASONING_END",
+      messageId: "r1",
+      subagentRunId: "sub-1",
+    });
+  });
+
+  it("parses SUBAGENT_STARTED", () => {
+    expect(
+      parseAgUiEvent({
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "sub-1",
+        name: "investigate",
+        description: "digs into the incident",
+        parentToolCallId: "t1",
+        parentMessageId: "m1",
+      }),
+    ).toEqual({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "investigate",
+      description: "digs into the incident",
+      parentToolCallId: "t1",
+      parentMessageId: "m1",
+    });
+  });
+
+  it("SUBAGENT_STARTED requires subagentRunId and name", () => {
+    expect(parseAgUiEvent({ type: "SUBAGENT_STARTED", name: "x" })).toBeNull();
+    expect(
+      parseAgUiEvent({ type: "SUBAGENT_STARTED", subagentRunId: "sub-1" }),
+    ).toBeNull();
+  });
+
+  it("parses SUBAGENT_FINISHED with success and suspended outcomes", () => {
+    expect(
+      parseAgUiEvent({ type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" }),
+    ).toEqual({ type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" });
+    expect(
+      parseAgUiEvent({
+        type: "SUBAGENT_FINISHED",
+        subagentRunId: "sub-1",
+        outcome: { type: "suspended", interruptIds: ["i1"] },
+      }),
+    ).toEqual({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-1",
+      outcome: { type: "suspended", interruptIds: ["i1"] },
+    });
+  });
+
+  it("parses SUBAGENT_ERROR", () => {
+    expect(
+      parseAgUiEvent({
+        type: "SUBAGENT_ERROR",
+        subagentRunId: "sub-1",
+        message: "boom",
+        code: "E1",
+      }),
+    ).toEqual({
+      type: "SUBAGENT_ERROR",
+      subagentRunId: "sub-1",
+      message: "boom",
+      code: "E1",
+    });
+    expect(
+      parseAgUiEvent({ type: "SUBAGENT_ERROR", message: "boom" }),
+    ).toBeNull();
+  });
 });

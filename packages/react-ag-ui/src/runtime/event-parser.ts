@@ -1,4 +1,9 @@
-import type { AgUiEvent, AgUiInterrupt, AgUiRunFinishedOutcome } from "./types";
+import type {
+  AgUiEvent,
+  AgUiInterrupt,
+  AgUiRunFinishedOutcome,
+  AgUiSubagentFinishedOutcome,
+} from "./types";
 import type { Logger } from "./logger";
 import { parseMcpToolCallResult } from "./mcp-tool-result";
 import { withRawResponseSchema } from "./interrupt-internals";
@@ -121,20 +126,29 @@ export const parseAgUiEvent = (
     case "TEXT_MESSAGE_START":
       return withOptional(
         { type: "TEXT_MESSAGE_START" as const },
-        { messageId: getString("messageId") },
+        {
+          messageId: getString("messageId"),
+          subagentRunId: getString("subagentRunId"),
+        },
       );
     case "TEXT_MESSAGE_CONTENT": {
       const delta = getString("delta");
       if (!isNonEmptyString(delta)) return null;
       return withOptional(
         { type: "TEXT_MESSAGE_CONTENT" as const, delta },
-        { messageId: getString("messageId") },
+        {
+          messageId: getString("messageId"),
+          subagentRunId: getString("subagentRunId"),
+        },
       );
     }
     case "TEXT_MESSAGE_END":
       return withOptional(
         { type: "TEXT_MESSAGE_END" as const },
-        { messageId: getString("messageId") },
+        {
+          messageId: getString("messageId"),
+          subagentRunId: getString("subagentRunId"),
+        },
       );
     case "TEXT_MESSAGE_CHUNK": {
       const delta = getString("delta") ?? "";
@@ -161,24 +175,36 @@ export const parseAgUiEvent = (
     case "REASONING_START":
       return withOptional(
         { type: "REASONING_START" as const },
-        { messageId: getString("messageId") },
+        {
+          messageId: getString("messageId"),
+          subagentRunId: getString("subagentRunId"),
+        },
       );
     case "REASONING_MESSAGE_START":
       return withOptional(
         { type: "REASONING_MESSAGE_START" as const },
-        { messageId: getString("messageId") },
+        {
+          messageId: getString("messageId"),
+          subagentRunId: getString("subagentRunId"),
+        },
       );
     case "REASONING_MESSAGE_CONTENT": {
       const delta = getString("delta") ?? "";
       return withOptional(
         { type: "REASONING_MESSAGE_CONTENT" as const, delta },
-        { messageId: getString("messageId") },
+        {
+          messageId: getString("messageId"),
+          subagentRunId: getString("subagentRunId"),
+        },
       );
     }
     case "REASONING_MESSAGE_END":
       return withOptional(
         { type: "REASONING_MESSAGE_END" as const },
-        { messageId: getString("messageId") },
+        {
+          messageId: getString("messageId"),
+          subagentRunId: getString("subagentRunId"),
+        },
       );
     case "REASONING_ENCRYPTED_VALUE": {
       const entityId = getString("entityId");
@@ -196,7 +222,10 @@ export const parseAgUiEvent = (
     case "REASONING_END":
       return withOptional(
         { type: "REASONING_END" as const },
-        { messageId: getString("messageId") },
+        {
+          messageId: getString("messageId"),
+          subagentRunId: getString("subagentRunId"),
+        },
       );
     case "TOOL_CALL_START": {
       const toolCallId = getString("toolCallId");
@@ -206,6 +235,7 @@ export const parseAgUiEvent = (
         {
           toolCallName: getString("toolCallName"),
           parentMessageId: getString("parentMessageId"),
+          subagentRunId: getString("subagentRunId"),
         },
       );
     }
@@ -213,11 +243,18 @@ export const parseAgUiEvent = (
       const toolCallId = getString("toolCallId");
       if (!toolCallId) return null;
       const delta = getString("delta") ?? "";
-      return { type: "TOOL_CALL_ARGS", toolCallId, delta };
+      return withOptional(
+        { type: "TOOL_CALL_ARGS" as const, toolCallId, delta },
+        { subagentRunId: getString("subagentRunId") },
+      );
     }
     case "TOOL_CALL_END": {
       const toolCallId = getString("toolCallId");
-      return toolCallId ? { type: "TOOL_CALL_END", toolCallId } : null;
+      if (!toolCallId) return null;
+      return withOptional(
+        { type: "TOOL_CALL_END" as const, toolCallId },
+        { subagentRunId: getString("subagentRunId") },
+      );
     }
     case "TOOL_CALL_CHUNK":
       return withOptional(
@@ -243,6 +280,7 @@ export const parseAgUiEvent = (
           messageId: getString("messageId"),
           role: payload.role === "tool" ? "tool" : undefined,
           mcpResult: parseMcpToolCallResult(payload, content),
+          subagentRunId: getString("subagentRunId"),
         },
       );
     }
@@ -285,6 +323,53 @@ export const parseAgUiEvent = (
       const name = getString("name");
       if (!name) return null;
       return { type: "CUSTOM", name, value: payload.value };
+    }
+    case "SUBAGENT_STARTED": {
+      const subagentRunId = getString("subagentRunId");
+      const name = getString("name");
+      if (!subagentRunId || !name) return null;
+      return withOptional(
+        { type: "SUBAGENT_STARTED" as const, subagentRunId, name },
+        {
+          description: getString("description"),
+          parentSubagentRunId: getString("parentSubagentRunId"),
+          parentToolCallId: getString("parentToolCallId"),
+          parentMessageId: getString("parentMessageId"),
+        },
+      );
+    }
+    case "SUBAGENT_FINISHED": {
+      const subagentRunId = getString("subagentRunId");
+      if (!subagentRunId) return null;
+      const rawOutcome = payload.outcome;
+      let outcome: AgUiSubagentFinishedOutcome | undefined;
+      if (isPlainObject(rawOutcome) && rawOutcome.type === "success") {
+        outcome = { type: "success" as const };
+      } else if (isPlainObject(rawOutcome) && rawOutcome.type === "suspended") {
+        outcome = withOptional(
+          { type: "suspended" as const },
+          {
+            interruptIds: Array.isArray(rawOutcome.interruptIds)
+              ? (rawOutcome.interruptIds as unknown[]).filter(isString)
+              : undefined,
+          },
+        );
+      } else {
+        outcome = undefined;
+      }
+      return withOptional(
+        { type: "SUBAGENT_FINISHED" as const, subagentRunId },
+        { outcome },
+      );
+    }
+    case "SUBAGENT_ERROR": {
+      const subagentRunId = getString("subagentRunId");
+      const message = getString("message");
+      if (!subagentRunId || !message) return null;
+      return withOptional(
+        { type: "SUBAGENT_ERROR" as const, subagentRunId, message },
+        { code: getString("code") },
+      );
     }
     default:
       return withOptional(
