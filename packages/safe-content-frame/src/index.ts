@@ -153,11 +153,21 @@ export class SafeContentFrame {
       const channel = new MessageChannel();
       let channelTransferred = false;
       let cleanedUp = false;
+      let shimReady = false;
+      const onWindowMessage = (event: MessageEvent) => {
+        if (event.origin !== iframeOrigin) return;
+        if (event.source !== iframe.contentWindow) return;
+        if (event.data?.type !== "ready") return;
+
+        shimReady = true;
+      };
+      window.addEventListener("message", onWindowMessage);
       const cleanup = () => {
         if (cleanedUp) return;
         cleanedUp = true;
         iframe.onload = null;
         iframe.onerror = null;
+        window.removeEventListener("message", onWindowMessage);
         channel.port1.onmessage = null;
         channel.port1.close();
         if (!channelTransferred) channel.port2.close();
@@ -218,7 +228,17 @@ export class SafeContentFrame {
             Promise.race([
               loaded,
               new Promise<void>((_, rej) =>
-                setTimeout(() => rej(new Error("Timeout")), ms),
+                setTimeout(
+                  () =>
+                    rej(
+                      new Error(
+                        shimReady
+                          ? "Timeout"
+                          : `Failed to load shim: ${shimUrl}`,
+                      ),
+                    ),
+                  ms,
+                ),
               ),
             ]),
           dispose: cleanup,
