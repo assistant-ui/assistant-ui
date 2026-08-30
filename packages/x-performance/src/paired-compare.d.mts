@@ -12,7 +12,7 @@ export declare const meanRows: (
   runsList: Map<string, BenchRow>[],
 ) => Map<string, BenchRow>;
 
-export declare const pairSpreads: (
+export declare const pairNoise: (
   refRuns: Map<string, BenchRow>[],
   curRuns: Map<string, BenchRow>[],
 ) => Map<string, number>;

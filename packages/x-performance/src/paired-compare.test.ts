@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   meanRows,
-  pairSpreads,
+  pairNoise,
   rowVerdict,
   type BenchRow,
 } from "./paired-compare.mjs";
@@ -49,24 +49,36 @@ describe("meanRows", () => {
   });
 });
 
-describe("pairSpreads", () => {
-  it("orients pair deltas as current-vs-ref and reports their spread", () => {
+describe("pairNoise", () => {
+  it("equals the absolute pair-delta difference at two pairs", () => {
     const refRuns = [run(row("a", 100)), run(row("a", 100))];
     const curRuns = [run(row("a", 110)), run(row("a", 130))];
-    // Pair deltas are +10% and +30%; the spread between them is 20 points.
-    expect(pairSpreads(refRuns, curRuns).get("a")).toBeCloseTo(20);
+    // Pair deltas are +10% and +30%; 2×sd/√2 of two points is their range.
+    expect(pairNoise(refRuns, curRuns).get("a")).toBeCloseTo(20);
   });
 
-  it("reports zero spread when every pair agrees", () => {
+  it("reports zero noise when every pair agrees", () => {
     const refRuns = [run(row("a", 100)), run(row("a", 200))];
     const curRuns = [run(row("a", 120)), run(row("a", 240))];
-    expect(pairSpreads(refRuns, curRuns).get("a")).toBeCloseTo(0);
+    expect(pairNoise(refRuns, curRuns).get("a")).toBeCloseTo(0);
+  });
+
+  it("tightens instead of loosening as equally noisy pairs accumulate", () => {
+    const two = pairNoise(
+      [run(row("a", 100)), run(row("a", 100))],
+      [run(row("a", 110)), run(row("a", 130))],
+    ).get("a")!;
+    const four = pairNoise(
+      Array.from({ length: 4 }, () => run(row("a", 100))),
+      [110, 130, 110, 130].map((m) => run(row("a", m))),
+    ).get("a")!;
+    expect(four).toBeLessThan(two);
   });
 
   it("omits benchmarks without at least two complete pairs", () => {
     const refRuns = [run(row("a", 100)), run()];
     const curRuns = [run(row("a", 110)), run(row("a", 120))];
-    expect(pairSpreads(refRuns, curRuns).has("a")).toBe(false);
+    expect(pairNoise(refRuns, curRuns).has("a")).toBe(false);
   });
 });
 

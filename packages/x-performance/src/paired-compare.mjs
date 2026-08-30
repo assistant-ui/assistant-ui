@@ -31,7 +31,11 @@ export const meanRows = (runsList) => {
   return out;
 };
 
-export const pairSpreads = (refRuns, curRuns) => {
+// Noise floor per benchmark: twice the standard error of the mean pair
+// delta. At two pairs this equals their absolute difference (the range), and
+// unlike the range it shrinks with more pairs instead of loosening, so
+// heavier --runs tightens the floor along with the estimate.
+export const pairNoise = (refRuns, curRuns) => {
   const ids = new Set();
   for (const run of refRuns) for (const id of run.keys()) ids.add(id);
   const out = new Map();
@@ -42,8 +46,12 @@ export const pairSpreads = (refRuns, curRuns) => {
       const c = curRuns[i]?.get(id);
       if (r && c) deltas.push(((c.mean - r.mean) / r.mean) * 100);
     }
-    if (deltas.length >= 2) {
-      out.set(id, Math.max(...deltas) - Math.min(...deltas));
+    const n = deltas.length;
+    if (n >= 2) {
+      const mean = deltas.reduce((sum, d) => sum + d, 0) / n;
+      const variance =
+        deltas.reduce((sum, d) => sum + (d - mean) ** 2, 0) / (n - 1);
+      out.set(id, (2 * Math.sqrt(variance)) / Math.sqrt(n));
     }
   }
   return out;

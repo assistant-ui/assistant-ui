@@ -60,7 +60,7 @@ jobs:
             echo "$marker"
             echo "### aui-perf: PR head vs base (informational, never a gate)"
             echo ""
-            echo "wall-time benches on a shared runner; verdict is ~same unless the delta clears max(2×rme, 3%, spread between interleaved pairs). borderline rows at --runs 2 are weak signals."
+            echo "wall-time benches on a shared runner; verdict is ~same unless the delta clears max(2×rme, 3%, 2×SE of the pair deltas). borderline rows at --runs 2 are weak signals."
             echo ""
             echo '```text'
             tail -c 60000 perf-report.txt

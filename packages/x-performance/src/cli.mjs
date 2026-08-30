@@ -14,7 +14,7 @@ import { cpus, arch, platform, tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { REF_PACKAGE_DIRS } from "./ref-packages.mjs";
-import { meanRows, pairSpreads, rowVerdict } from "./paired-compare.mjs";
+import { meanRows, pairNoise, rowVerdict } from "./paired-compare.mjs";
 
 const pkgRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const perfDir = join(pkgRoot, ".perf");
@@ -145,7 +145,7 @@ const renderCompare = (a, b, aLabel, bLabel, spreads) => {
   for (const x of b.benchmarks.filter((x) => !aIds.has(x.id)))
     console.warn(`unmatched: only in b: ${x.id}`);
   console.log(
-    `a: ${a.env.sha}${a.env.dirty ? " (dirty)" : ""} @ ${a.env.date}\nb: ${b.env.sha}${b.env.dirty ? " (dirty)" : ""} @ ${b.env.date}\nverdict is "~same" unless |delta| > max(2×rme, 3%, spread between interleaved pairs)`,
+    `a: ${a.env.sha}${a.env.dirty ? " (dirty)" : ""} @ ${a.env.date}\nb: ${b.env.sha}${b.env.dirty ? " (dirty)" : ""} @ ${b.env.date}\nverdict is "~same" unless |delta| > max(2×rme, 3%, 2×SE of the pair deltas)`,
   );
 };
 
@@ -241,6 +241,14 @@ const compareRef = (ref, requestedRuns) => {
         ),
     ],
   ];
+  // Runner drift saturates rather than staying linear: a boosted cold start
+  // settling into a slower steady state is concave, and under a concave curve
+  // the endpoint slots the interleaving hands one side sum to less than the
+  // middle slots. Burn the transient in a discarded warm-up pair; the
+  // balanced interleaving then only has to cancel the near-linear remainder.
+  console.error("warm-up pair (discarded)...");
+  runSuite();
+  runSuite({ AUI_PERF_REF_ROOT: wt });
   for (let i = 0; i < runs; i++) {
     const order = i % 2 === 0 ? sides : [...sides].reverse();
     for (const [label, run] of order) {
@@ -266,7 +274,7 @@ const compareRef = (ref, requestedRuns) => {
     curDoc,
     `${ref} (${refDoc.env.sha})`,
     "current",
-    pairSpreads(refRuns, curRuns),
+    pairNoise(refRuns, curRuns),
   );
   console.error(
     `ref worktree kept at ${wt}; remove with: git worktree remove "${wt}" && rm "${marker}"`,
