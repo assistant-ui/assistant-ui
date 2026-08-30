@@ -187,13 +187,19 @@ export class RunAggregator {
         }
 
         this.interrupts = undefined;
-        const hasUnresolvedToolCalls = Array.from(this.toolCalls.values()).some(
+        const toolCallValues = Array.from(this.toolCalls.values());
+        const hasUnresolvedRootToolCalls = toolCallValues.some(
           (tc) => tc.subagentRunId === undefined && tc.result === undefined,
         );
+        const hasUnresolvedSubagentToolCalls = toolCallValues.some(
+          (tc) => tc.subagentRunId !== undefined && tc.result === undefined,
+        );
 
-        this.status = hasUnresolvedToolCalls
+        this.status = hasUnresolvedRootToolCalls
           ? { type: "requires-action", reason: "tool-calls" }
-          : { type: "complete", reason: "unknown" };
+          : hasUnresolvedSubagentToolCalls
+            ? { type: "incomplete", reason: "tool-calls" }
+            : { type: "complete", reason: "unknown" };
         this.emit();
         break;
       }

@@ -1313,7 +1313,15 @@ describe("RunAggregator", () => {
     });
   });
 
-  it("does not force root requires-action status from a dangling subagent-scoped tool call", () => {
+  it("reports incomplete/tool-calls (not requires-action, not complete) for a dangling subagent-scoped tool call", () => {
+    // This adapter cannot surface a subagent-scoped tool call through
+    // getPendingToolCalls (it only walks top-level content, not nested
+    // .messages), so it cannot honestly claim "requires-action": there is
+    // no path for a caller to resolve it. Reporting "complete" would be
+    // worse — it would tell the app the run finished cleanly while an
+    // AG-UI backend still waits on a TOOL_CALL_RESULT that never arrives.
+    // "incomplete"/"tool-calls" (the same status core's local runtime uses
+    // when it deliberately stops resolving tool calls) says neither.
     const aggregator = createAggregator(false);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -1338,8 +1346,44 @@ describe("RunAggregator", () => {
 
     const last = results.at(-1);
     expect(last?.status).toMatchObject({
-      type: "complete",
-      reason: "unknown",
+      type: "incomplete",
+      reason: "tool-calls",
+    });
+  });
+
+  it("still reports requires-action/tool-calls when a root tool call is unresolved alongside a resolved subagent-scoped one", () => {
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "root-tool",
+      toolCallName: "search",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "investigate",
+      parentToolCallId: "root-tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "sub-tool",
+      toolCallName: "search",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "sub-tool",
+      content: '"done"',
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
     });
   });
 
