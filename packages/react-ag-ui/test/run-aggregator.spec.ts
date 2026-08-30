@@ -2824,4 +2824,59 @@ describe("RunAggregator", () => {
     });
     expect(secondSurface.result).toBeDefined();
   });
+
+  it("does not crash on SUBAGENT_STARTED/FINISHED/ERROR and keeps emitting", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "investigate",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_ERROR",
+      subagentRunId: "does-not-exist",
+      message: "boom",
+    } as AgUiEvent);
+
+    expect(results.length).toBeGreaterThan(0);
+  });
+
+  it("does not merge anonymous text deltas across a subagent scope and the root scope", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({ type: "TEXT_MESSAGE_START" } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "root-a",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "investigate",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_START",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "sub-a",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "-root-b",
+    } as AgUiEvent);
+
+    const last = results[results.length - 1]!;
+    const rootText = last.content.find((p) => p.type === "text");
+    expect(rootText).toMatchObject({ text: "root-a-root-b" });
+  });
 });
