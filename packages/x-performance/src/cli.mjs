@@ -165,14 +165,14 @@ const ensureRefWorktree = (ref) => {
     console.log(`creating ref worktree for ${ref} (${sha}) at ${wt}`);
     execFileSync("git", ["worktree", "add", "--detach", wt, sha], {
       cwd: repoRoot,
-      stdio: "inherit",
+      stdio: ["ignore", 2, "inherit"],
     });
   }
   if (!existsSync(marker)) {
     console.log("installing and building ref packages (one-time per ref)...");
     execFileSync("pnpm", ["install"], {
       cwd: wt,
-      stdio: "inherit",
+      stdio: ["ignore", 2, "inherit"],
       env: { ...process.env, CI: "true" },
     });
     const filters = Object.keys(REF_PACKAGE_DIRS).map(
@@ -180,7 +180,7 @@ const ensureRefWorktree = (ref) => {
     );
     execFileSync("pnpm", ["turbo", "run", "build", ...filters], {
       cwd: wt,
-      stdio: "inherit",
+      stdio: ["ignore", 2, "inherit"],
     });
     writeFileSync(marker, sha);
   }
