@@ -92,22 +92,17 @@ MessagePrimitiveAttachmentByIndex.displayName =
 const MessagePrimitiveAttachmentsInner: FC<{
   children: (value: { attachment: CompleteAttachment }) => ReactNode;
 }> = ({ children }) => {
-  const attachmentKeys = useAuiState(
+  const attachmentIds = useAuiState(
     useShallowSelector((s) => {
       if (s.message.role !== "user") return [];
-      const occurrences = new Map<string, number>();
-      return (s.message.attachments ?? []).map((attachment) => {
-        const occurrence = occurrences.get(attachment.id) ?? 0;
-        occurrences.set(attachment.id, occurrence + 1);
-        return JSON.stringify([attachment.id, occurrence]);
-      });
+      return (s.message.attachments ?? []).map((attachment) => attachment.id);
     }),
   );
 
   return useMemo(
     () =>
-      attachmentKeys.map((attachmentKey, index) => (
-        <MessageAttachmentByIndexProvider key={attachmentKey} index={index}>
+      attachmentIds.map((attachmentId, index) => (
+        <MessageAttachmentByIndexProvider key={attachmentId} index={index}>
           <RenderChildrenWithAccessor
             getItemState={(aui) => aui.message.attachment({ index }).getState()}
           >
@@ -121,7 +116,7 @@ const MessagePrimitiveAttachmentsInner: FC<{
           </RenderChildrenWithAccessor>
         </MessageAttachmentByIndexProvider>
       )),
-    [attachmentKeys, children],
+    [attachmentIds, children],
   );
 };
 
