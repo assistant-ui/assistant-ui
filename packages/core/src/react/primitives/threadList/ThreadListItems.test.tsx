@@ -38,10 +38,16 @@ vi.mock("@assistant-ui/store", async (importOriginal) => ({
   }) => children(() => getItemState(mocks.aui)),
 }));
 
-vi.mock("../../providers/ThreadListItemByIndexProvider", () => ({
-  ThreadListItemByIndexProvider: ({ children }: { children: ReactNode }) =>
-    children,
-}));
+vi.mock(
+  "../../providers/ThreadListItemByIndexProvider",
+  async (importOriginal) => ({
+    ...(await importOriginal<
+      typeof import("../../providers/ThreadListItemByIndexProvider")
+    >()),
+    ThreadListItemByIndexProvider: ({ children }: { children: ReactNode }) =>
+      children,
+  }),
+);
 
 import { ThreadListPrimitiveItems } from "./ThreadListItems";
 
