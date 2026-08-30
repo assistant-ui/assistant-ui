@@ -559,6 +559,50 @@ describe("McpServerResource connection lifecycle", () => {
 describe("McpServerResource completeAuth", () => {
   beforeEach(resetMocks);
 
+  it("lets callback validation win over mount-time auto-connect", async () => {
+    const pendingLoads: Array<
+      (value: { state?: string; tokens?: { access_token: string } }) => void
+    > = [];
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pendingLoads.push(resolve);
+        }),
+    );
+    const root = mount({
+      auth: { type: "oauth" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(() => pendingLoads.length > 1);
+      const callbackLoadIndex = pendingLoads.length;
+      const completeAuth = root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
+      await waitFor(() => pendingLoads.length > callbackLoadIndex);
+
+      for (const resolve of pendingLoads.slice(0, callbackLoadIndex)) {
+        resolve({ tokens: { access_token: "persisted" } });
+      }
+      await flushMacrotask();
+
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+
+      pendingLoads[callbackLoadIndex]!({ state: "expected" });
+      await expect(completeAuth).resolves.toBeUndefined();
+      await flushMacrotask();
+
+      expect(mocks.transports).toHaveLength(1);
+      expect(mocks.transports[0].finishAuth).toHaveBeenCalledTimes(1);
+      expect(root.getValue().getState().connectionState).toBe("connected");
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("completes auth across the StrictMode effect replay", async () => {
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockResolvedValue({

@@ -105,6 +105,7 @@ const useMcpServerResourceInstance = (
     null,
   );
   const connectionGenerationRef = useRef(0);
+  const pendingAuthValidationCountRef = useRef(0);
   const elicitationResolversRef = useRef(
     new Map<
       string,
@@ -471,18 +472,25 @@ const useMcpServerResourceInstance = (
     const url = new URL(callbackUrl);
     const state = url.searchParams.get("state");
     if (!state) throw new Error('missing "state" parameter');
-    const persisted = await props.storage.loadAuthState(props.id);
-    if (!isCurrentConnection(validationGeneration)) {
-      throw createInterruptedAuthError();
-    }
-    if (!persisted?.state) {
-      throw new Error("no pending OAuth authorization request for this server");
-    }
-    if (persisted.state !== state) {
-      throw new Error("OAuth state does not match the authorization request");
-    }
-    if (!url.searchParams.get("code") && !url.searchParams.get("error")) {
-      throw new Error("missing authorization code in callback URL");
+    pendingAuthValidationCountRef.current += 1;
+    try {
+      const persisted = await props.storage.loadAuthState(props.id);
+      if (!isCurrentConnection(validationGeneration)) {
+        throw createInterruptedAuthError();
+      }
+      if (!persisted?.state) {
+        throw new Error(
+          "no pending OAuth authorization request for this server",
+        );
+      }
+      if (persisted.state !== state) {
+        throw new Error("OAuth state does not match the authorization request");
+      }
+      if (!url.searchParams.get("code") && !url.searchParams.get("error")) {
+        throw new Error("missing authorization code in callback URL");
+      }
+    } finally {
+      pendingAuthValidationCountRef.current -= 1;
     }
 
     const generation = ++connectionGenerationRef.current;
@@ -554,6 +562,7 @@ const useMcpServerResourceInstance = (
       } else if (!persisted?.token) {
         return;
       }
+      if (pendingAuthValidationCountRef.current > 0) return;
       void doConnect();
     },
   );
