@@ -22,6 +22,7 @@ export type SandboxHostConfig = {
   useShadowDom?: boolean;
   enableBrowserCaching?: boolean;
   salt?: string;
+  scfHost?: string;
   product?: string;
   className?: string;
   style?: CSSProperties;
@@ -115,6 +116,7 @@ export function SandboxHost({
         enableBrowserCaching: sb.enableBrowserCaching,
       }),
       ...(sb?.salt !== undefined && { salt: sb.salt }),
+      ...(sb?.scfHost !== undefined && { scfHost: sb.scfHost }),
     });
 
     const renderOpts =

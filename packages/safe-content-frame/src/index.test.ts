@@ -52,6 +52,35 @@ describe("SafeContentFrame", () => {
     document.body.replaceChildren();
   });
 
+  it("uses the configured host for the shim origin", async () => {
+    const container = document.createElement("div");
+    document.body.appendChild(container);
+    const renderer = new SafeContentFrame("test", {
+      salt: "fixed",
+      scfHost: "sandbox.example.com",
+    });
+
+    const framePromise = renderer.renderHtml("<p>Hello</p>", container);
+    await vi.waitFor(() => {
+      expect(container.querySelector("iframe")).toBeTruthy();
+    });
+
+    const iframe = container.querySelector("iframe")!;
+    const shimUrl = new URL(iframe.src);
+    expect(shimUrl.hostname).toMatch(/^.+-h184756\.sandbox\.example\.com$/);
+    expect(shimUrl.pathname).toBe("/test/shim.html");
+
+    Object.defineProperty(iframe, "contentWindow", {
+      configurable: true,
+      value: { postMessage: vi.fn() },
+    });
+    iframe.dispatchEvent(new Event("load"));
+    const frame = await framePromise;
+
+    expect(frame.origin).toBe(shimUrl.origin);
+    frame.dispose();
+  });
+
   it("cleans up the shadow host and message channel on dispose", async () => {
     const container = document.createElement("div");
     document.body.appendChild(container);
@@ -66,6 +95,9 @@ describe("SafeContentFrame", () => {
     });
 
     const iframe = shadowRoot!.querySelector("iframe")!;
+    expect(new URL(iframe.src).hostname).toMatch(
+      /^.+-h184756\.scf\.auiusercontent\.com$/,
+    );
     Object.defineProperty(iframe, "contentWindow", {
       configurable: true,
       value: { postMessage: vi.fn() },

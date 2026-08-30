@@ -3871,6 +3871,7 @@ type SandboxHostConfig = {
   useShadowDom?: boolean;
   enableBrowserCaching?: boolean;
   salt?: string;
+  scfHost?: string;
   product?: string;
   className?: string;
   style?: CSSProperties;

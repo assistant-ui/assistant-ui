@@ -3,10 +3,17 @@ import { act, startTransition, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const { renderHtmlMock } = vi.hoisted(() => ({ renderHtmlMock: vi.fn() }));
+const { renderHtmlMock, safeContentFrameConstructorMock } = vi.hoisted(() => ({
+  renderHtmlMock: vi.fn(),
+  safeContentFrameConstructorMock: vi.fn(),
+}));
 
 vi.mock("safe-content-frame", () => ({
   SafeContentFrame: class {
+    constructor(product: string, options: Record<string, unknown>) {
+      safeContentFrameConstructorMock(product, options);
+    }
+
     renderHtml = renderHtmlMock;
   },
 }));
@@ -84,6 +91,7 @@ describe("SandboxHost", () => {
     document.body.appendChild(container);
     root = createRoot(container);
     renderHtmlMock.mockReset();
+    safeContentFrameConstructorMock.mockReset();
   });
 
   afterEach(() => {
@@ -138,6 +146,34 @@ describe("SandboxHost", () => {
       }),
     );
     expect(onMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("forwards the safe-content-frame host option", async () => {
+    renderHtmlMock.mockResolvedValue(fakeRendered());
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          sandbox={{
+            product: "custom-product",
+            salt: "fixed",
+            scfHost: "sandbox.example.com",
+          }}
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+        />,
+      );
+    });
+    await flush();
+
+    expect(safeContentFrameConstructorMock).toHaveBeenCalledWith(
+      "custom-product",
+      {
+        salt: "fixed",
+        scfHost: "sandbox.example.com",
+      },
+    );
   });
 
   it("clamps the bridge-reported height to maxHeight and ignores invalid values", async () => {

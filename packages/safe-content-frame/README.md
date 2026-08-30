@@ -61,6 +61,19 @@ Each renderer returns a `RenderedFrame`:
 | `enableBrowserCaching` | `false`                                      | Derive the salt from the content hash so repeated renders reuse the same origin and HTTP cache.     |
 | `sandbox`              | `["allow-same-origin", "allow-scripts"]`     | Extra `iframe[sandbox]` permissions to grant. The two defaults are always added.                    |
 | `salt`                 | random per render                            | Override the salt explicitly (useful for tests or stable-origin embeds).                            |
+| `scfHost`              | `scf.auiusercontent.com`                    | Hostname serving the shim. Provide a hostname only, without a scheme or path.                      |
+
+### Self-hosting the shim
+
+The default host is a separate registrable domain from the application. If `scfHost` is changed, use a separate registrable domain as well; a subdomain of the application domain does not provide the same isolation. Configure wildcard DNS and a wildcard TLS certificate so each `<originHash>-<productHash>` hostname resolves to the shim host. The host must serve the same product-specific path, `/<product>/shim.html`.
+
+The shim contract is:
+
+1. After the iframe loads, the parent posts `{ body, mimeType, salt, unsafeDocumentWrite }` to the iframe origin and transfers a `MessagePort`.
+2. The shim uses the transferred port to send `{ type: "msg" }` when the content is ready, or `{ type: "error", message }` when loading fails.
+3. Calls to `RenderedFrame.sendMessage` are posted to the guest through the iframe origin.
+
+The self-hosted shim must preserve this handshake and relay behavior. The `sandbox` attribute still includes `allow-same-origin allow-scripts`; the cross-origin shim host is what keeps the guest separate from the application origin.
 
 ## Sub-paths
 

@@ -12,6 +12,7 @@ export interface SafeContentFrameOptions {
   enableBrowserCaching?: boolean;
   sandbox?: SandboxOption[];
   salt?: string;
+  scfHost?: string;
 }
 
 export interface RenderedFrame {
@@ -132,7 +133,8 @@ export class SafeContentFrame {
         : randomSalt();
 
     const hash = await computeOriginHash(this.product, salt, origin);
-    const shimUrl = `https://${hash}-${PRODUCT_HASH}.${SCF_HOST}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
+    const scfHost = this.options.scfHost ?? SCF_HOST;
+    const shimUrl = `https://${hash}-${PRODUCT_HASH}.${scfHost}/${this.product}/shim.html?origin=${encodeURIComponent(origin)}${this.options.enableBrowserCaching ? "&cache=1" : ""}`;
     const iframeOrigin = new URL(shimUrl).origin;
 
     const iframe = document.createElement("iframe");
