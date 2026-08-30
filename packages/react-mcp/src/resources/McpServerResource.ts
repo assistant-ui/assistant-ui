@@ -505,13 +505,12 @@ const useMcpServerResourceInstance = (
     } finally {
       pendingAuthValidation.count -= 1;
       if (pendingAuthValidation.count === 0) {
-        if (pendingAuthValidationRef.current === pendingAuthValidation) {
-          pendingAuthValidationRef.current = null;
-        }
+        pendingAuthValidationRef.current = null;
         pendingAuthValidation.resolve();
       }
     }
 
+    // Claim the generation before a waiting auto-connect can resume.
     const generation = ++connectionGenerationRef.current;
     cancelPendingElicitations();
     await closePendingTransport();
