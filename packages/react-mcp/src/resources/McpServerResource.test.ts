@@ -603,6 +603,51 @@ describe("McpServerResource completeAuth", () => {
     }
   });
 
+  it("resumes auto-connect when callback validation fails", async () => {
+    const pendingLoads: Array<
+      (value: { state?: string; tokens?: { access_token: string } }) => void
+    > = [];
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pendingLoads.push(resolve);
+        }),
+    );
+    const root = mount({
+      auth: { type: "oauth" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(() => pendingLoads.length > 1);
+      const callbackLoadIndex = pendingLoads.length;
+      const completeAuth = root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
+      await waitFor(() => pendingLoads.length > callbackLoadIndex);
+
+      for (const resolve of pendingLoads.slice(0, callbackLoadIndex)) {
+        resolve({ tokens: { access_token: "persisted" } });
+      }
+      await flushMacrotask();
+
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+
+      pendingLoads[callbackLoadIndex]!({ state: "different" });
+      await expect(completeAuth).rejects.toThrow(
+        "OAuth state does not match the authorization request",
+      );
+      await waitFor(() => mocks.transports.length === 1);
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "connected",
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("completes auth across the StrictMode effect replay", async () => {
     const storage = createStorage();
     vi.mocked(storage.loadAuthState).mockResolvedValue({

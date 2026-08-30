@@ -105,7 +105,11 @@ const useMcpServerResourceInstance = (
     null,
   );
   const connectionGenerationRef = useRef(0);
-  const pendingAuthValidationCountRef = useRef(0);
+  const pendingAuthValidationRef = useRef<{
+    count: number;
+    promise: Promise<void>;
+    resolve: () => void;
+  } | null>(null);
   const elicitationResolversRef = useRef(
     new Map<
       string,
@@ -472,7 +476,16 @@ const useMcpServerResourceInstance = (
     const url = new URL(callbackUrl);
     const state = url.searchParams.get("state");
     if (!state) throw new Error('missing "state" parameter');
-    pendingAuthValidationCountRef.current += 1;
+    let pendingAuthValidation = pendingAuthValidationRef.current;
+    if (!pendingAuthValidation) {
+      let resolve!: () => void;
+      const promise = new Promise<void>((resolvePromise) => {
+        resolve = resolvePromise;
+      });
+      pendingAuthValidation = { count: 0, promise, resolve };
+      pendingAuthValidationRef.current = pendingAuthValidation;
+    }
+    pendingAuthValidation.count += 1;
     try {
       const persisted = await props.storage.loadAuthState(props.id);
       if (!isCurrentConnection(validationGeneration)) {
@@ -490,7 +503,13 @@ const useMcpServerResourceInstance = (
         throw new Error("missing authorization code in callback URL");
       }
     } finally {
-      pendingAuthValidationCountRef.current -= 1;
+      pendingAuthValidation.count -= 1;
+      if (pendingAuthValidation.count === 0) {
+        if (pendingAuthValidationRef.current === pendingAuthValidation) {
+          pendingAuthValidationRef.current = null;
+        }
+        pendingAuthValidation.resolve();
+      }
     }
 
     const generation = ++connectionGenerationRef.current;
@@ -562,7 +581,11 @@ const useMcpServerResourceInstance = (
       } else if (!persisted?.token) {
         return;
       }
-      if (pendingAuthValidationCountRef.current > 0) return;
+      const pendingAuthValidation = pendingAuthValidationRef.current;
+      if (pendingAuthValidation) {
+        await pendingAuthValidation.promise;
+        if (signal.cancelled || !isCurrentConnection(generation)) return;
+      }
       void doConnect();
     },
   );
