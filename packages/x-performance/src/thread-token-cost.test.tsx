@@ -189,18 +189,18 @@ describe("thread token cost", () => {
   });
 
   it("a recreated part object with stable nested fields stays memoized", () => {
-    // Part-level memoization compares part fields shallowly, so rebuilding
-    // the outer part object per token is free as long as nested field values
-    // (args, result) keep their identity.
+    // The store's part state derivation compares part fields shallowly, so
+    // rebuilding the outer part object per token is free as long as nested
+    // field values (args, result) keep their identity.
     const run = runToolSiblingScenario(() => ({ ...TOOL_PART }));
     expect(run.textDelta).toBe(10);
     expect(run.toolDelta).toBe(0);
   });
 
   it("a converter that recreates nested part fields pays one tool render per token", () => {
-    // Fresh args and result objects fail the shallow field comparison, so
-    // every sibling part re-renders on each token; nested field identity
-    // stability in converters is load-bearing.
+    // Fresh args and result objects fail the part state derivation's shallow
+    // field comparison, so every sibling part re-renders on each token;
+    // nested field identity stability in converters is load-bearing.
     const run = runToolSiblingScenario(() => ({
       ...TOOL_PART,
       args: { q: "x" },
