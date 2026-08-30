@@ -3176,4 +3176,102 @@ describe("RunAggregator", () => {
       text: "partial progress",
     });
   });
+
+  it("nests two subagents that both claim the same parentToolCallId, in SUBAGENT_STARTED order", () => {
+    const results: ChatModelRunResult[] = [];
+    const aggregator = new RunAggregator({
+      showThinking: true,
+      logger: makeLogger(),
+      emit: (r) => results.push(r),
+    });
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-fanout",
+      toolCallName: "fanout",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-a",
+      name: "agent-a",
+      parentToolCallId: "t-fanout",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-b",
+      name: "agent-b",
+      parentToolCallId: "t-fanout",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "from a",
+      subagentRunId: "sub-a",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "from b",
+      subagentRunId: "sub-b",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-a",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-b",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t-fanout",
+      content: "done",
+    } as AgUiEvent);
+
+    const last = results[results.length - 1]!;
+    const toolPart = last.content[0] as any;
+    expect(toolPart.messages).toHaveLength(2);
+    expect(toolPart.messages.map((m: any) => m.id)).toEqual(["sub-a", "sub-b"]);
+    expect(toolPart.messages[0].content[0]).toMatchObject({
+      type: "text",
+      text: "from a",
+    });
+    expect(toolPart.messages[1].content[0]).toMatchObject({
+      type: "text",
+      text: "from b",
+    });
+  });
+
+  it("silently drops an orphaned subagent whose parentToolCallId matches no tool call, instead of flattening it into root", () => {
+    const results: ChatModelRunResult[] = [];
+    const aggregator = new RunAggregator({
+      showThinking: true,
+      logger: makeLogger(),
+      emit: (r) => results.push(r),
+    });
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-orphan",
+      name: "orphan-agent",
+      parentToolCallId: "t-does-not-exist",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "orphaned progress",
+      subagentRunId: "sub-orphan",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-orphan",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results[results.length - 1]!;
+    expect(last.content).toHaveLength(0);
+    const orphanedText = last.content.find(
+      (p: any) => p.type === "text" && p.text === "orphaned progress",
+    );
+    expect(orphanedText).toBeUndefined();
+  });
 });

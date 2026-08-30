@@ -25,6 +25,10 @@ export const AG_UI_METADATA_NAMESPACE = "agui";
 
 const ROOT_SCOPE = "";
 
+// Defensive guard against a malformed or cyclic parentToolCallId /
+// parentSubagentRunId chain, not a realistic nesting depth.
+const MAX_SUBAGENT_DEPTH = 16;
+
 type SubagentRunState = {
   subagentRunId: string;
   name: string;
@@ -809,10 +813,15 @@ export class RunAggregator {
   private materializeSubagentMessage(
     subagentRunId: string,
     depth: number,
+    subagentsByParentToolCallId: Map<string, string[]>,
   ): ThreadMessage | undefined {
     const run = this.subagentRuns.get(subagentRunId);
-    if (!run || depth > 16) return undefined;
-    const content = this.buildParts(subagentRunId, depth + 1);
+    if (!run || depth > MAX_SUBAGENT_DEPTH) return undefined;
+    const content = this.buildParts(
+      subagentRunId,
+      depth + 1,
+      subagentsByParentToolCallId,
+    );
     return {
       id: run.subagentRunId,
       role: "assistant",
@@ -839,7 +848,11 @@ export class RunAggregator {
     } as ThreadMessage;
   }
 
-  private buildParts(scope: string, depth = 0): ThreadAssistantMessagePart[] {
+  private buildParts(
+    scope: string,
+    depth: number,
+    subagentsByParentToolCallId: Map<string, string[]>,
+  ): ThreadAssistantMessagePart[] {
     const snapshot: ThreadAssistantMessagePart[] = [];
     const approvals =
       scope === ROOT_SCOPE
@@ -850,7 +863,6 @@ export class RunAggregator {
             new Set(this.toolCalls.keys()),
           )
         : new Map();
-    const subagentsByParentToolCallId = this.subagentsByParentToolCallId();
 
     for (const part of this.partOrder) {
       if (part.kind === "tool-call") {
@@ -861,7 +873,13 @@ export class RunAggregator {
           entry.toolCallId,
         );
         const nestedMessages = nestedSubagentRunIds
-          ?.map((id) => this.materializeSubagentMessage(id, depth))
+          ?.map((id) =>
+            this.materializeSubagentMessage(
+              id,
+              depth,
+              subagentsByParentToolCallId,
+            ),
+          )
           .filter((m): m is ThreadMessage => m !== undefined);
         const toolPart: ToolCallMessagePart = {
           type: "tool-call",
@@ -937,7 +955,7 @@ export class RunAggregator {
         continue;
       }
 
-      if (part.kind === "data" && scope === ROOT_SCOPE) {
+      if (part.kind === "data") {
         snapshot.push({
           type: "data",
           name: part.name,
@@ -951,7 +969,11 @@ export class RunAggregator {
   }
 
   private emit(): void {
-    const snapshot = this.buildParts(ROOT_SCOPE);
+    const snapshot = this.buildParts(
+      ROOT_SCOPE,
+      0,
+      this.subagentsByParentToolCallId(),
+    );
 
     const opaqueCandidates: (AgUiOpaqueReasoning & { anchor: number })[] =
       Array.from(this.hiddenSignatures, ([id, encryptedValue]) => ({
