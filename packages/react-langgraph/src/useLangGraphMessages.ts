@@ -1,4 +1,11 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from "react";
+import {
+  useState,
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+  useRef,
+  useMemo,
+} from "react";
 import { generateId } from "@assistant-ui/core";
 import { LangGraphMessageAccumulator } from "./LangGraphMessageAccumulator";
 import { abortableIterable, whenAborted } from "./abortableIterable";
@@ -212,8 +219,12 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
   const [messages, _setMessages] = useState<TMessage[]>([]);
   const [values, setValues] = useState<Record<string, unknown> | undefined>();
   const messagesRef = useRef(messages);
-  messagesRef.current = messages;
-  interruptRef.current = interrupt;
+  useInsertionEffect(() => {
+    messagesRef.current = messages;
+  }, [messages]);
+  useInsertionEffect(() => {
+    interruptRef.current = interrupt;
+  }, [interrupt]);
 
   const setMessagesImmediate = useCallback((msgs: TMessage[]) => {
     messagesRef.current = msgs;
@@ -222,7 +233,9 @@ const useLangGraphMessagesInternal = <TMessage extends { id?: string }>({
 
   const [uiMessages, _setUIMessages] = useState<UIMessage[]>([]);
   const uiMessagesRef = useRef(uiMessages);
-  uiMessagesRef.current = uiMessages;
+  useInsertionEffect(() => {
+    uiMessagesRef.current = uiMessages;
+  }, [uiMessages]);
 
   const activeAccumulatorRef = useRef<
     LangGraphMessageAccumulator<TMessage> | undefined
