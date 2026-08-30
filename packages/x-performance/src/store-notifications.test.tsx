@@ -65,10 +65,9 @@ describe("store notification granularity", () => {
 
     const client = aui as unknown as {
       a: { setCount: (n: number) => void };
-      subscribe: (fn: () => void) => () => void;
     };
     let notifications = 0;
-    client.subscribe(() => {
+    aui.subscribe(() => {
       notifications += 1;
     });
 

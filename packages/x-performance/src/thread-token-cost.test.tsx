@@ -89,6 +89,9 @@ describe("thread token cost", () => {
     expect(delta["renders:text"]).toBe(TOKENS);
     expect(delta["renders:message:assistant"] ?? 0).toBe(0);
     expect(delta["renders:message:user"] ?? 0).toBe(0);
+    // Two commits per append: the host setState commit, then the passive-effect
+    // adapter push whose store notification React flushes inside the same
+    // discrete flushSync. A React scheduling change moves this number alone.
     expect(delta["commits:thread"]).toBe(2 * TOKENS);
 
     expect(mounted).toEqual({
