@@ -250,7 +250,10 @@ const compareRef = (ref, requestedRuns) => {
   runSuite();
   runSuite({ AUI_PERF_REF_ROOT: wt });
   for (let i = 0; i < runs; i++) {
-    const order = i % 2 === 0 ? sides : [...sides].reverse();
+    // Alternating the block orientation per pair (C R R C, then R C C R)
+    // equalizes the squared slot sums as well, so residual curvature after
+    // the warm-up does not accumulate on one side as runs grow.
+    const order = (i >> 1) % 2 === i % 2 ? sides : [...sides].reverse();
     for (const [label, run] of order) {
       console.error(`interleaved run ${i + 1}/${runs}: ${label}...`);
       run();
