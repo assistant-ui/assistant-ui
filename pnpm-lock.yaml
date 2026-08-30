@@ -5427,6 +5427,9 @@ importers:
       '@assistant-ui/core':
         specifier: workspace:*
         version: link:../core
+      '@assistant-ui/store':
+        specifier: workspace:*
+        version: link:../store
       '@assistant-ui/tap':
         specifier: workspace:*
         version: link:../tap

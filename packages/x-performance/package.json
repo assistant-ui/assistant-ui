@@ -17,6 +17,7 @@
   },
   "devDependencies": {
     "@assistant-ui/core": "workspace:*",
+    "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@types/react": "^19.2.18",

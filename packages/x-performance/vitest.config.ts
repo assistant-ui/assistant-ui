@@ -26,7 +26,7 @@ export default defineConfig({
       deps: {
         // Benches import built packages; serve dist as plain Node modules so
         // vitest's evaluator doesn't skew numbers.
-        external: [/\/packages\/(tap|core|assistant-stream)\/dist\//],
+        external: [/\/packages\/(tap|core|store|assistant-stream)\/dist\//],
       },
     },
   },
