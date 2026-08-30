@@ -343,9 +343,11 @@ export const parseAgUiEvent = (
       if (!subagentRunId) return null;
       const rawOutcome = payload.outcome;
       let outcome: AgUiSubagentFinishedOutcome | undefined;
-      if (isPlainObject(rawOutcome) && rawOutcome.type === "success") {
+      if (!isPlainObject(rawOutcome)) {
+        outcome = undefined;
+      } else if (rawOutcome.type === "success") {
         outcome = { type: "success" as const };
-      } else if (isPlainObject(rawOutcome) && rawOutcome.type === "suspended") {
+      } else if (rawOutcome.type === "suspended") {
         outcome = withOptional(
           { type: "suspended" as const },
           {

@@ -350,6 +350,41 @@ describe("parseAgUiEvent", () => {
     });
     expect(
       parseAgUiEvent({
+        type: "REASONING_MESSAGE_START",
+        messageId: "r1",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "REASONING_MESSAGE_START",
+      messageId: "r1",
+      subagentRunId: "sub-1",
+    });
+    expect(
+      parseAgUiEvent({
+        type: "REASONING_MESSAGE_CONTENT",
+        messageId: "r1",
+        delta: "thinking",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "REASONING_MESSAGE_CONTENT",
+      messageId: "r1",
+      delta: "thinking",
+      subagentRunId: "sub-1",
+    });
+    expect(
+      parseAgUiEvent({
+        type: "REASONING_MESSAGE_END",
+        messageId: "r1",
+        subagentRunId: "sub-1",
+      }),
+    ).toEqual({
+      type: "REASONING_MESSAGE_END",
+      messageId: "r1",
+      subagentRunId: "sub-1",
+    });
+    expect(
+      parseAgUiEvent({
         type: "REASONING_END",
         messageId: "r1",
         subagentRunId: "sub-1",
@@ -396,7 +431,43 @@ describe("parseAgUiEvent", () => {
       parseAgUiEvent({
         type: "SUBAGENT_FINISHED",
         subagentRunId: "sub-1",
+        outcome: { type: "success" },
+      }),
+    ).toEqual({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-1",
+      outcome: { type: "success" },
+    });
+    expect(
+      parseAgUiEvent({
+        type: "SUBAGENT_FINISHED",
+        subagentRunId: "sub-1",
         outcome: { type: "suspended", interruptIds: ["i1"] },
+      }),
+    ).toEqual({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-1",
+      outcome: { type: "suspended", interruptIds: ["i1"] },
+    });
+  });
+
+  it("requires subagentRunId for SUBAGENT_FINISHED", () => {
+    expect(parseAgUiEvent({ type: "SUBAGENT_FINISHED" })).toBeNull();
+  });
+
+  it("drops a malformed SUBAGENT_FINISHED outcome and filters non-string interruptIds", () => {
+    expect(
+      parseAgUiEvent({
+        type: "SUBAGENT_FINISHED",
+        subagentRunId: "sub-1",
+        outcome: { type: "bogus" },
+      }),
+    ).toEqual({ type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" });
+    expect(
+      parseAgUiEvent({
+        type: "SUBAGENT_FINISHED",
+        subagentRunId: "sub-1",
+        outcome: { type: "suspended", interruptIds: ["i1", 42, null] },
       }),
     ).toEqual({
       type: "SUBAGENT_FINISHED",
@@ -421,6 +492,9 @@ describe("parseAgUiEvent", () => {
     });
     expect(
       parseAgUiEvent({ type: "SUBAGENT_ERROR", message: "boom" }),
+    ).toBeNull();
+    expect(
+      parseAgUiEvent({ type: "SUBAGENT_ERROR", subagentRunId: "sub-1" }),
     ).toBeNull();
   });
 });
