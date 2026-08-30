@@ -33,6 +33,7 @@ export const sanitizeForMessage = (
       }
       if (value instanceof Map) {
         const result: Record<string, unknown> = {};
+        const nextSuffixByKey = new Map<string, number>();
         for (const [key, entry] of value.entries()) {
           let serializedKey: string;
           try {
@@ -43,11 +44,14 @@ export const sanitizeForMessage = (
 
           if (Object.hasOwn(result, serializedKey)) {
             const baseKey = serializedKey;
-            let suffix = 2;
+            let suffix = nextSuffixByKey.get(baseKey) ?? 2;
             do {
               serializedKey = `${baseKey} (${suffix})`;
               suffix += 1;
             } while (Object.hasOwn(result, serializedKey));
+            nextSuffixByKey.set(baseKey, suffix);
+          } else {
+            nextSuffixByKey.set(serializedKey, 2);
           }
 
           result[serializedKey] = sanitizeForMessage(entry, seen);

@@ -68,7 +68,8 @@ describe("normalizeToolList", () => {
   it("preserves array entries around an unreadable slot", () => {
     const tools = [
       { name: "first", type: "frontend" },
-      { name: "hidden", type: "frontend" },
+      { name: "hidden-one", type: "frontend" },
+      { name: "hidden-two", type: "frontend" },
       { name: "last", type: "backend" },
     ];
     Object.defineProperty(tools, 1, {
@@ -76,9 +77,15 @@ describe("normalizeToolList", () => {
         throw new Error("tool unavailable");
       },
     });
+    Object.defineProperty(tools, 2, {
+      get: () => {
+        throw new Error("tool unavailable");
+      },
+    });
 
     expect(normalizeToolList(tools)).toEqual([
       { name: "first", type: "frontend" },
+      { name: "[Unserializable]" },
       { name: "[Unserializable]" },
       { name: "last", type: "backend" },
     ]);
