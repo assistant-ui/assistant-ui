@@ -165,41 +165,48 @@ describe("thread token cost", () => {
       );
     }
 
-    return {
+    const deltas = {
       textDelta: counter.renders("text") - (mounted["renders:text"] ?? 0),
       toolDelta:
         counter.renders("tool-part") - (mounted["renders:tool-part"] ?? 0),
-      unmount: () => flushSync(() => root.unmount()),
     };
+    flushSync(() => root.unmount());
+    return deltas;
+  };
+
+  const TOOL_PART = {
+    type: "tool-call" as const,
+    toolCallId: "call_1",
+    toolName: "search",
+    args: { q: "x" },
+    result: { ok: true },
   };
 
   it("a stable tool part object does not re-render on sibling text tokens", () => {
-    const TOOL_PART = {
-      type: "tool-call" as const,
-      toolCallId: "call_1",
-      toolName: "search",
-      args: { q: "x" },
-      result: { ok: true },
-    };
     const run = runToolSiblingScenario(() => TOOL_PART);
     expect(run.textDelta).toBe(10);
     expect(run.toolDelta).toBe(0);
-    run.unmount();
   });
 
-  it("a converter that recreates the tool part object pays one tool render per token", () => {
-    // Part-level memoization keys on part object identity; a convertMessage
-    // that rebuilds unchanged parts makes every sibling part re-render on each
-    // token, so part identity stability in converters is load-bearing.
+  it("a recreated part object with stable nested fields stays memoized", () => {
+    // Part-level memoization compares part fields shallowly, so rebuilding
+    // the outer part object per token is free as long as nested field values
+    // (args, result) keep their identity.
+    const run = runToolSiblingScenario(() => ({ ...TOOL_PART }));
+    expect(run.textDelta).toBe(10);
+    expect(run.toolDelta).toBe(0);
+  });
+
+  it("a converter that recreates nested part fields pays one tool render per token", () => {
+    // Fresh args and result objects fail the shallow field comparison, so
+    // every sibling part re-renders on each token; nested field identity
+    // stability in converters is load-bearing.
     const run = runToolSiblingScenario(() => ({
-      type: "tool-call" as const,
-      toolCallId: "call_1",
-      toolName: "search",
+      ...TOOL_PART,
       args: { q: "x" },
       result: { ok: true },
     }));
     expect(run.textDelta).toBe(10);
     expect(run.toolDelta).toBe(10);
-    run.unmount();
   });
 });
