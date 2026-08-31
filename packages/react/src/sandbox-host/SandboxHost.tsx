@@ -16,6 +16,7 @@ import { invokeUserCallback } from "@assistant-ui/core/internal";
 
 const DEFAULT_PRODUCT = "assistant-ui-sandbox";
 const DEFAULT_MAX_HEIGHT = 800;
+const LOAD_TIMEOUT_MS = 10_000;
 
 export type SandboxHostConfig = {
   sandbox?: SandboxOption[];
@@ -108,6 +109,16 @@ export function SandboxHost({
 
     const { content: liveContent, sandbox: sb } = liveRef.current;
 
+    const reportError = (err: unknown) => {
+      const error = err instanceof Error ? err : new Error(String(err));
+      invokeUserCallback(
+        "assistant-ui",
+        "SandboxHost onError",
+        liveRef.current.onError?.bind(liveRef.current),
+        error,
+      );
+    };
+
     const scf = new SafeContentFrame(sb?.product ?? DEFAULT_PRODUCT, {
       ...(sb?.sandbox !== undefined && { sandbox: sb.sandbox }),
       ...(sb?.useShadowDom !== undefined && { useShadowDom: sb.useShadowDom }),
@@ -159,18 +170,21 @@ export function SandboxHost({
           bridge?.onMessage(event);
         };
         window.addEventListener("message", onMessage);
+
+        // renderHtml resolves at iframe load, which a shim that was never
+        // served also reaches, so the content is only known to have arrived
+        // once the frame says so. The frame is kept either way: the report is
+        // a notification, and a slow guest may still render after it.
+        rendered.fullyLoadedPromiseWithTimeout(LOAD_TIMEOUT_MS).catch((err) => {
+          if (cancelled) return;
+          reportError(err);
+        });
       })
       .catch((err) => {
         if (cancelled) return;
         frame?.dispose();
         frame = null;
-        const error = err instanceof Error ? err : new Error(String(err));
-        invokeUserCallback(
-          "assistant-ui",
-          "SandboxHost onError",
-          liveRef.current.onError?.bind(liveRef.current),
-          error,
-        );
+        reportError(err);
       });
 
     return () => {

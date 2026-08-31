@@ -34,7 +34,7 @@ function fakeRendered() {
     origin: "https://fake.scf.test",
     sendMessage: vi.fn(),
     dispose: vi.fn(),
-    fullyLoadedPromiseWithTimeout: vi.fn(),
+    fullyLoadedPromiseWithTimeout: vi.fn(() => new Promise<void>(() => {})),
   };
 }
 
@@ -138,6 +138,67 @@ describe("SandboxHost", () => {
       }),
     );
     expect(onMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a frame that never finishes loading through onError", async () => {
+    const rendered = fakeRendered();
+    rendered.fullyLoadedPromiseWithTimeout.mockReturnValue(
+      Promise.reject(new Error("Failed to load shim: https://fake.scf.test")),
+    );
+    renderHtmlMock.mockResolvedValue(rendered);
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+          onError={onError}
+        />,
+      );
+    });
+    await flush();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]![0]).toBeInstanceOf(Error);
+    expect(onError.mock.calls[0]![0].message).toBe(
+      "Failed to load shim: https://fake.scf.test",
+    );
+    expect(rendered.dispose).not.toHaveBeenCalled();
+  });
+
+  it("does not report a load failure after unmount", async () => {
+    const rendered = fakeRendered();
+    let rejectLoad: (error: Error) => void;
+    rendered.fullyLoadedPromiseWithTimeout.mockReturnValue(
+      new Promise<void>((_, reject) => {
+        rejectLoad = reject;
+      }),
+    );
+    renderHtmlMock.mockResolvedValue(rendered);
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+          onError={onError}
+        />,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      root.unmount();
+    });
+    rejectLoad!(new Error("Timeout"));
+    await flush();
+
+    expect(rendered.fullyLoadedPromiseWithTimeout).toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it("clamps the bridge-reported height to maxHeight and ignores invalid values", async () => {
