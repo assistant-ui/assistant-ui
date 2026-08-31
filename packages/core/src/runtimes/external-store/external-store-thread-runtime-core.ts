@@ -1,3 +1,4 @@
+import { shallowEqual } from "@assistant-ui/store/client";
 import type { AppendMessage, ThreadMessage } from "../../types/message";
 import type { Attachment } from "../../types/attachment";
 import type {
@@ -20,16 +21,15 @@ import {
 } from "../../runtime/utils/external-store-message";
 import { ThreadMessageConverter } from "./thread-message-converter";
 import {
-  getAutoStatus,
+  getContentAutoStatus,
   isAutoStatus,
-  isInterruptedToolCall,
-  isPendingToolCall,
 } from "../../runtime/utils/auto-status";
 import {
   fromThreadMessageLike,
   type ThreadMessageLike,
 } from "../../runtime/utils/thread-message-like";
 import { getThreadMessageText } from "../../utils/text";
+import { shallowArrayEqual } from "../../runtime/utils/external-message-conversion";
 import type {
   RuntimeCapabilities,
   ThreadRuntimeCore,
@@ -68,15 +68,6 @@ const observeAdapterCallback = (
       error,
     );
   });
-};
-
-const shallowEqual = (a: object, b: object): boolean => {
-  const aKeys = Object.keys(a);
-  if (aKeys.length !== Object.keys(b).length) return false;
-  for (const key of aKeys) {
-    if ((a as any)[key] !== (b as any)[key]) return false;
-  }
-  return true;
 };
 
 export const hasUpcomingMessage = (
@@ -155,6 +146,11 @@ export class ExternalStoreThreadRuntimeCore
   // append cannot make a visible id absent, so id-absence stays unambiguous
   // and a delete whose confirmation races a send keeps its eviction.
   private _pendingDeleteEvictions = new Set<string>();
+
+  // Placeholder id for the upcoming assistant message, reused across snapshot
+  // passes while the same tail message awaits its response so the placeholder
+  // keeps one identity per response.
+  private _optimistic: { id: string; parentId: string | null } | null = null;
 
   private _store!: ExternalStoreAdapter<any>;
 
@@ -248,6 +244,14 @@ export class ExternalStoreThreadRuntimeCore
     const oldStore = this._store as ExternalStoreAdapter<any> | undefined;
     this._store = store;
     const isRunning = this._getEffectiveIsRunning(store);
+    const repositoryInstance = store.unstable_messageRepositoryInstance;
+    const repositoryChanged =
+      repositoryInstance !== undefined &&
+      repositoryInstance !== this.repository;
+    if (repositoryChanged) {
+      this.repository = repositoryInstance;
+      this._pendingDeleteEvictions.clear();
+    }
     if (oldStore?.queue !== store.queue) {
       this._transformedQueue = undefined;
       store.queue?.__internal_setDispatchTransform?.((message) => {
@@ -298,6 +302,7 @@ export class ExternalStoreThreadRuntimeCore
       // Handle messageRepository
       if (
         oldStore &&
+        !repositoryChanged &&
         oldStore.isRunning === store.isRunning &&
         oldStore.messageRepository === store.messageRepository &&
         previousIsRunning === isRunning
@@ -310,7 +315,11 @@ export class ExternalStoreThreadRuntimeCore
       const headId =
         store.messageRepository.headId ?? incoming.at(-1)?.message.id ?? null;
 
-      if (oldStore && oldStore.messageRepository === store.messageRepository) {
+      if (
+        oldStore &&
+        !repositoryChanged &&
+        oldStore.messageRepository === store.messageRepository
+      ) {
         this.repository.resetHead(headId);
         messages = this.repository.getMessages();
       } else {
@@ -335,6 +344,7 @@ export class ExternalStoreThreadRuntimeCore
         if (oldStore.convertMessage !== store.convertMessage) {
           this._converter = new ThreadMessageConverter();
         } else if (
+          !repositoryChanged &&
           oldStore.isRunning === store.isRunning &&
           oldStore.messages === store.messages &&
           previousIsRunning === isRunning
@@ -351,24 +361,14 @@ export class ExternalStoreThreadRuntimeCore
             if (!store.convertMessage) return m;
 
             const isLast = idx === (store.messages?.length ?? 0) - 1;
-            const getContentAutoStatus = (
-              content: ThreadMessageLike["content"],
-            ) =>
-              getAutoStatus(
-                isLast,
-                isRunning,
-                typeof content !== "string" &&
-                  content.some(isInterruptedToolCall),
-                typeof content !== "string" && content.some(isPendingToolCall),
-                undefined,
-              );
             const fallbackId = `${FALLBACK_ID_PREFIX}${idx}`;
 
             if (
               cache &&
               (cache.role !== "assistant" ||
                 !isAutoStatus(cache.status) ||
-                cache.status === getContentAutoStatus(cache.content))
+                cache.status ===
+                  getContentAutoStatus(cache.content, isLast, isRunning))
             ) {
               if (
                 cache.id.startsWith(FALLBACK_ID_PREFIX) &&
@@ -385,7 +385,7 @@ export class ExternalStoreThreadRuntimeCore
             const newMessage = fromThreadMessageLike(
               messageLike,
               fallbackId,
-              getContentAutoStatus(messageLike.content),
+              getContentAutoStatus(messageLike.content, isLast, isRunning),
             );
             bindExternalStoreMessage(newMessage, m);
             return newMessage;
@@ -448,9 +448,13 @@ export class ExternalStoreThreadRuntimeCore
     // (prior placeholders, mid-run id-swap siblings); export() never persists them.
     let optimisticId: string | null = null;
     if (hasUpcomingMessage(isRunning, messages)) {
-      optimisticId = generateId();
+      const parentId = messages.at(-1)?.id ?? null;
+      if (this._optimistic?.parentId !== parentId) {
+        this._optimistic = { id: generateId(), parentId };
+      }
+      optimisticId = this._optimistic.id;
       this.repository.addOrUpdateMessage(
-        messages.at(-1)?.id ?? null,
+        parentId,
         fromThreadMessageLike(
           { role: "assistant", content: [], metadata: { isOptimistic: true } },
           optimisticId,
@@ -459,10 +463,20 @@ export class ExternalStoreThreadRuntimeCore
       );
     }
 
+    if (optimisticId === null) this._optimistic = null;
     this.repository.resetHead(optimisticId ?? messages.at(-1)?.id ?? null);
 
-    this._messages = this.repository.getMessages();
+    const messagesSnapshot = this.repository.getMessages();
+    if (
+      !this._messages ||
+      !shallowArrayEqual(this._messages, messagesSnapshot)
+    ) {
+      this._messages = messagesSnapshot;
+    }
 
+    if (repositoryChanged) {
+      this._runTrackerUpdate(() => this._toolInvocations?.reset());
+    }
     this._runTrackerUpdate(() => this._driveToolInvocations());
 
     this._notifySubscribers();

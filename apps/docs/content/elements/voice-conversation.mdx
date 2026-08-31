@@ -1,0 +1,209 @@
+---
+title: "Voice conversation"
+description: "A live call: the orb tracks your voice, the caption names the turn, the transcript follows."
+---
+
+A voice conversation is a live call laid over the thread: an orb that tracks who's talking, a caption naming the turn, and the transcript filling in as it goes. With a runtime the orb, the caption, and the transcript all read straight off the thread's voice session; standalone you drive mode, amplitude, and the turns yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+assistant-ui models a realtime voice call as `s.thread.voice`, populated once you call `connectVoice()` against a runtime configured with a realtime voice adapter. [`/elements/orb`](/elements/orb) covers wiring that adapter and its own states in full; this page covers the surrounding call screen.
+
+<Steps>
+  <Step>
+
+### Read the call's mode and volume
+
+```tsx title="components/assistant-ui/elements/voice.aui.tsx"
+"use client";
+
+import { useVoiceState, useVoiceVolume, useVoiceControls } from "@assistant-ui/react";
+import { VoiceConversation, type VoiceMode } from "./voice-conversation";
+
+function toMode(voice: ReturnType<typeof useVoiceState>): VoiceMode {
+  if (!voice || voice.status.type === "starting") return "connecting";
+  return voice.mode === "speaking" ? "speaking" : "listening";
+}
+
+function LiveCallScreen() {
+  const voice = useVoiceState();
+  const amplitude = useVoiceVolume();
+  const { mute, unmute, disconnect } = useVoiceControls();
+
+  return (
+    <VoiceConversation
+      mode={toMode(voice)}
+      amplitude={amplitude}
+      muted={voice?.isMuted ?? false}
+      onToggleMute={() => (voice?.isMuted ? unmute() : mute())}
+      onEnd={disconnect}
+      transcript={[]}
+    />
+  );
+}
+```
+
+The adapter only reports `"listening"` and `"speaking"` for `mode`; there's no separate `"thinking"` phase in the runtime, so a screen that wants one has to infer it itself, for example the gap after the user stops talking and before `mode` flips to `"speaking"`.
+
+  </Step>
+  <Step>
+
+### Fill the transcript from the thread
+
+Voice turns are appended as ordinary messages, so the transcript is the same `s.thread.messages` any text thread uses, not a separate voice-only log:
+
+```tsx
+import { useAuiState, type TextMessagePart } from "@assistant-ui/react";
+
+const transcript = useAuiState((s) =>
+  s.thread.messages.map((message) => ({
+    id: message.id,
+    role: message.role === "user" ? ("user" as const) : ("assistant" as const),
+    text: message.parts
+      .filter((part): part is TextMessagePart => part.type === "text")
+      .map((part) => part.text)
+      .join(""),
+  })),
+);
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, every part of the call is a prop: which mode it's in, how loud the input is, and the turns said so far.
+
+<Steps>
+  <Step>
+
+### Drive the call from state
+
+```tsx title="app/call.tsx"
+"use client";
+
+import { useState } from "react";
+import { VoiceConversation, type VoiceMode, type VoiceTurn } from "@/components/assistant-ui/elements/voice-conversation";
+
+export function Call() {
+  const [mode, setMode] = useState<VoiceMode>("connecting");
+  const [muted, setMuted] = useState(false);
+  const [transcript, setTranscript] = useState<VoiceTurn[]>([]);
+
+  return (
+    <VoiceConversation
+      mode={mode}
+      amplitude={mode === "listening" ? 0.6 : 0}
+      transcript={transcript}
+      muted={muted}
+      onToggleMute={() => setMuted((m) => !m)}
+      onInterrupt={mode === "speaking" ? () => setMode("listening") : undefined}
+      onEnd={() => setMode("connecting")}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Only show interrupt while speaking
+
+The orb's click target, labeled "Interrupt the assistant", only fires while `mode === "speaking"` and `onInterrupt` is set; pass `undefined` the rest of the time and the button disables itself rather than doing nothing on click.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="voice-conversation">
+  <button aria-label="Interrupt the assistant">{/* orb rings, amplitude-scaled */}</button>
+  <div>{/* caption plus hint */}</div>
+  <div>{/* transcript, user or assistant tagged */}</div>
+  <div>
+    <button aria-pressed={/* muted */}>{/* mic */}</button>
+    <button aria-label="End the call" />
+  </div>
+</div>
+```
+
+The orb's rings scale with `amplitude` (clamped to `0..1`) only while `mode` is `"listening"` or `"speaking"`; in `"connecting"` and `"thinking"` they hold a fixed smaller scale and the center dot pulses instead. The caption under the orb reads "Mic off" whenever `muted` is true, taking priority over the interrupt hint even while speaking.
+
+## Examples
+
+### Every mode
+
+```tsx
+<VoiceConversation mode="connecting" amplitude={0} transcript={[]} />
+<VoiceConversation mode="listening" amplitude={0.4} transcript={[]} />
+<VoiceConversation mode="thinking" amplitude={0} transcript={[]} />
+<VoiceConversation mode="speaking" amplitude={0.7} transcript={[]} onInterrupt={() => {}} />
+```
+
+### Ending the call
+
+<RuntimeMode>
+
+`useVoiceControls().disconnect()` is the only way to end a session; there's no separate hang-up action distinct from disconnecting, so wire it straight to `onEnd`:
+
+```tsx
+const { disconnect } = useVoiceControls();
+
+<VoiceConversation onEnd={disconnect} /* ... */ />
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `onEnd` is whatever your app decides ending a call means, closing the screen, resetting `mode` to `"connecting"` for a redial, or both.
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Voice hooks
+
+| Hook | Returns | Description |
+|------|---------|--------------|
+| `useVoiceState()` | `VoiceSessionState \| undefined` | `{ status, isMuted, mode }`. `undefined` before `connectVoice()` is called or after the session ends. |
+| `useVoiceVolume()` | `number` | Live input amplitude while a session is connected. |
+| `useVoiceControls()` | `{ connect, disconnect, mute, unmute }` | Each calls the matching `aui.thread.*Voice()` method. |
+
+### Voice session state
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status.type` | `"starting" \| "running" \| "ended"` | `"starting"` maps to the `"connecting"` mode shown here. |
+| `mode` | `"listening" \| "speaking"` | No `"thinking"` value; infer that gap yourself if you want to show it. |
+| `isMuted` | `boolean` | Reflects `mute()` and `unmute()`. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### VoiceConversation
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `mode` | `"connecting" \| "listening" \| "thinking" \| "speaking"` | required | Drives the orb, caption, and hint text. |
+| `amplitude` | `number` | required | Clamped to `0..1`; scales the orb's rings while listening or speaking. |
+| `transcript` | `readonly VoiceTurn[]` (`{ id, role, text }`) | required | Rendered in order below the orb. |
+| `muted` | `boolean` | | Shows the muted mic icon and the "Mic off" caption. |
+| `onToggleMute` | `() => void` | | Called by the mic button; the button disables without it. |
+| `onInterrupt` | `() => void` | | Enables the orb's click target; only meaningful while `mode === "speaking"`. |
+| `onEnd` | `() => void` | | Called by the end-call button; the button disables without it. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

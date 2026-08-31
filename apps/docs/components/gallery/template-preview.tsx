@@ -4,7 +4,7 @@ import {
   renderGenerativeUI,
   type GenerativeUIDispatch,
 } from "@assistant-ui/react-generative-ui";
-import { styledGenerativeUILibrary } from "@/components/assistant-ui/generative-ui";
+import { styledGenerativeUILibrary } from "@/components/assistant-ui/elements/generative-ui";
 import type { GalleryTemplate } from "@/lib/gallery-templates";
 
 export function TemplatePreview({

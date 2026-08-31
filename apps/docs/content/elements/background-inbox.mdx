@@ -1,0 +1,217 @@
+---
+title: "Background runs"
+description: "Work still going somewhere else, and the results waiting to be collected."
+---
+
+A background inbox lists work that kept going after you looked away: still running, or finished and waiting to be opened. With a runtime the rows come from your own thread list; standalone you hold the array yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+Every assistant-ui thread can keep running after you switch away from it. The thread list already tracks which ones are still active, so the inbox is a small projection of that state rather than a separate subsystem.
+
+<Steps>
+  <Step>
+
+### Build the run list from thread state
+
+```tsx title="components/assistant-ui/elements/running-elsewhere.tsx"
+"use client";
+
+import { useAui, useAuiState } from "@assistant-ui/react";
+import type { BackgroundRun } from "@/components/assistant-ui/elements/background-inbox";
+
+function formatElapsed(date: Date | undefined) {
+  if (!date) return "";
+  const minutes = Math.round((Date.now() - date.getTime()) / 60000);
+  return minutes < 1 ? "just now" : minutes < 60 ? `${minutes}m` : `${Math.round(minutes / 60)}h`;
+}
+
+function useBackgroundRuns(): BackgroundRun[] {
+  const aui = useAui();
+  const threadIds = useAuiState((s) => s.threads.threadIds);
+
+  return threadIds.map((_, index) => {
+    const item = aui.threads.item({ index }).getState();
+    return {
+      id: item.id,
+      title: item.title ?? "Untitled",
+      state: item.isRunning ? "running" : "ready",
+      elapsed: formatElapsed(item.lastMessageAt),
+    };
+  });
+}
+```
+
+  </Step>
+  <Step>
+
+### Render it and wire collection to switching threads
+
+```tsx
+import { BackgroundInbox } from "@/components/assistant-ui/elements/background-inbox";
+
+export function RunningElsewhere() {
+  const aui = useAui();
+  const runs = useBackgroundRuns();
+
+  return (
+    <BackgroundInbox
+      runs={runs}
+      onCollect={(id) => aui.threads.item({ id }).switchTo()}
+    />
+  );
+}
+```
+
+`ThreadListItemState.isRunning` only tells you whether a run is still in progress, so this mapping can only ever produce `"running"` or `"ready"`. It has no signal for a run that ended in an error, so a `"failed"` row needs its own bookkeeping on top of the thread list.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is fully controlled: you hold the array of runs and update entries as their state changes elsewhere in your app.
+
+<Steps>
+  <Step>
+
+### Hold the run list
+
+```tsx title="app/inbox.tsx"
+"use client";
+
+import { useState } from "react";
+import { BackgroundInbox, type BackgroundRun } from "@/components/assistant-ui/elements/background-inbox";
+
+const initialRuns: BackgroundRun[] = [
+  { id: "1", title: "Refactor auth module", state: "running", elapsed: "2m" },
+  { id: "2", title: "Nightly report", state: "ready", elapsed: "14m", summary: "3 files changed" },
+];
+
+export function Inbox() {
+  const [runs, setRuns] = useState(initialRuns);
+  return <BackgroundInbox runs={runs} onCollect={(id) => openRun(id)} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Update a run when it settles
+
+```tsx
+function settle(id: string, ok: boolean) {
+  setRuns((prev) =>
+    prev.map((run) =>
+      run.id === id ? { ...run, state: ok ? "ready" : "failed" } : run,
+    ),
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="background-inbox">
+  <div>
+    <span>Running elsewhere</span>
+    <span>{/* "{ready} ready" or "{running} in flight" */}</span>
+  </div>
+  <button>
+    {/* one per run */}
+    <span>{/* spinner, check, or x */}</span>
+    <span>{/* title */}</span>
+    <span>{/* summary, when present */}</span>
+    <span>{/* elapsed */}</span>
+  </button>
+</div>
+```
+
+The header summary only ever counts `ready` and `running` rows: it reads `"{ready} ready"` whenever at least one run is ready, otherwise `"{running} in flight"`. A `failed` run counts toward neither number, so an inbox holding only failed runs reads `"0 in flight"`. Each row is a button: disabled and unclickable while `running`, clickable for both `ready` and `failed` (so a failed run can still be opened, not just dismissed). `summary` is optional per row and only renders when present. With an empty `runs` array the header still renders with `"0 in flight"` and no rows follow; there is no placeholder message.
+
+## Examples
+
+### All three states
+
+```tsx
+<BackgroundInbox
+  runs={[
+    { id: "1", title: "Refactor auth module", state: "running", elapsed: "2m" },
+    { id: "2", title: "Nightly report", state: "ready", elapsed: "14m", summary: "3 files changed" },
+    { id: "3", title: "Migrate schema", state: "failed", elapsed: "1h" },
+  ]}
+/>
+```
+
+### Collecting into an archived thread
+
+<RuntimeMode>
+
+`switchTo` accepts `{ unarchive: true }`, so a background run that finished on an archived thread can still be collected without a separate unarchive step:
+
+```tsx
+onCollect={(id) => aui.threads.item({ id }).switchTo({ unarchive: true })}
+```
+
+</RuntimeMode>
+
+### Restyle the inbox
+
+The root uses the shared `paper` surface; the summary count, per-run summary, and elapsed time use `mono`.
+
+```tsx
+<BackgroundInbox className="max-w-md rounded-3xl" runs={runs} onCollect={onCollect} />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Thread list state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.threads.threadIds` | `readonly string[]` | Ids of every open (non-archived) thread. |
+| `aui.threads.item({ index }).getState()` | `ThreadListItemState` | Full state for the thread at that index, including `title`, `lastMessageAt`, and `isRunning`. |
+| `.isRunning` | `boolean` | Whether that thread has a run in progress, including one that continues after you switch away from it. |
+
+### Client calls
+
+| Call | Description |
+|------|-------------|
+| `aui.threads.item({ id }).switchTo(options?)` | Makes that thread the active one. `{ unarchive: true }` also unarchives it. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### BackgroundInbox
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `runs` | `readonly BackgroundRun[]` | required | The rows to render, in order. |
+| `onCollect` | `(id: string) => void` | | Called when a `ready` or `failed` row is clicked. Not called for `running` rows. |
+| `className` | `string` | | Merged onto the root. |
+
+### BackgroundRun
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Row key, passed back to `onCollect`. |
+| `title` | `string` | Truncated row label. |
+| `state` | `"running" \| "ready" \| "failed"` | Drives the icon and whether the row is clickable. |
+| `elapsed` | `string` | Right-aligned time label; any format you choose. |
+| `summary` | `string` | Optional second line shown under the title. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

@@ -251,7 +251,7 @@ declare const auiConfigBrand: unique symbol;
 declare const clientIdBrand: unique symbol;
 
 declare namespace entry_client_exports {
-  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, useAssistantClientRef, useAssistantContextProvider, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, useConfiguredAui, viewportOverflows };
+  export { AssistantClient, AssistantClientAccessor, AssistantClientHandle, AssistantClientSource, AssistantConfigSource, AssistantEventCallback, AssistantEventName, AssistantEventPayload, AssistantEventSelector, AssistantState, AuiConfig, ClientElement, ClientEvents, ClientMeta, ClientMethods, ClientNames, ClientOutput, ClientSchema, DefaultAssistantClient, Derived, DerivedElement, InferClientState, ScopeRegistry, ScopesConfig, Unsubscribe, ViewportMetrics, attachTransformScopes, createAssistantClient, createClientFacade, createLastValidCache, createStaleReporter, getProxiedAssistantState, isUserScrollUp, isViewportAtBottom, normalizeEventSelector, observeContentResize, shallowEqual, useAssistantClientRef, useAssistantContextProvider, useAssistantContextValue, useAssistantEmit, useAssistantScopeEffect, useClientLookup, useClientResource, useConfiguredAui, viewportOverflows };
 }
 
 declare const createAssistantClient: (config: AuiConfig.Input | AssistantConfigSource, options?: {
@@ -266,7 +266,7 @@ declare const createLastValidCache: <T>(reportStale: (() => void) | null, schedu
 
 declare const createStaleReporter: (options: {
   name: string;
-  index: number;
+  index: number | string;
   isCurrent: () => boolean;
   isValid: () => boolean;
 }) => () => void;
@@ -288,7 +288,7 @@ declare namespace entry_root_exports {
 }
 
 declare namespace entry_internal_exports {
-  export { useAssistantClientDestroySignal, useShallowStable };
+  export { shallowEqual, useAssistantClientDestroySignal, useShallowSelector, useShallowStable };
 }
 
 declare const isUserScrollUp: (previous: {
@@ -296,7 +296,7 @@ declare const isUserScrollUp: (previous: {
   scrollHeight: number;
 }, current: ViewportMetrics) => boolean;
 
-declare const isViewportAtBottom: (metrics: ViewportMetrics) => boolean;
+declare const isViewportAtBottom: (metrics: ViewportMetrics, contentInset?: number) => boolean;
 
 declare const normalizeEventSelector: <TEvent extends AssistantEventName>(selector: AssistantEventSelector<TEvent>) => {
   scope: AssistantEventScope<TEvent>;
@@ -304,6 +304,8 @@ declare const normalizeEventSelector: <TEvent extends AssistantEventName>(select
 };
 
 declare const observeContentResize: (el: HTMLElement, callback: () => void) => (() => void);
+
+declare const shallowEqual: (a: object, b: object) => boolean;
 
 declare const useAssistantClientDestroySignal: () => AbortSignal | undefined;
 
@@ -313,6 +315,8 @@ declare const useAssistantClientRef: () => {
 };
 
 declare const useAssistantContextProvider: <T>(value: AssistantClient, fn: () => T) => T;
+
+declare const useAssistantContextValue: () => AssistantClient;
 
 declare const useAssistantEmit: () => <TEvent extends Exclude<AssistantEventName, "*">>(event: TEvent, payload: AssistantEventPayload[TEvent]) => void;
 
@@ -372,8 +376,10 @@ declare const useClientResource: <TMethods extends ClientMethods>(element: Resou
 
 declare const useConfiguredAui: (parent: AssistantClient, clients: AuiConfig.Input) => ScopedAuiClient;
 
+declare const useShallowSelector: <TState, TResult extends object>(select: (state: TState) => TResult) => ((state: TState) => TResult);
+
 declare const useShallowStable: <T extends object>(value: T) => T;
 
-declare const viewportOverflows: (metrics: ViewportMetrics) => boolean;
+declare const viewportOverflows: (metrics: ViewportMetrics, contentInset?: number) => boolean;
 
 export { entry_client_exports as entry_client, entry_internal_exports as entry_internal, entry_root_exports as entry_root };

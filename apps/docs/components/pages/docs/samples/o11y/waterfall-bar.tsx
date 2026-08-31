@@ -25,13 +25,14 @@ export function WaterfallBar() {
 
   return (
     <SpanPrimitive.TimelineBar
-      className={status === "running" ? "animate-pulse" : ""}
+      className={
+        status === "running" ? "animate-pulse motion-reduce:animate-none" : ""
+      }
       style={
         {
           "--span-timeline-min-width": "4px",
           top: 4,
           height: barHeight - 8,
-          borderRadius: 3,
           background: fill,
           opacity,
           boxShadow:

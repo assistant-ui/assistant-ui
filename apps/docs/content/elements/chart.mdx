@@ -1,0 +1,212 @@
+---
+title: "Chart"
+description: "Area, line, and bars, with points landing one at a time as the series streams in."
+---
+
+A chart draws a label, a headline value, and an optional delta above a small SVG series, with points landing one at a time as they become available. With a runtime the series streams straight out of the tool call's arguments; standalone you control how much of it is visible.
+
+## Getting started
+
+<RuntimeMode>
+
+A chart's series usually comes from the same tool call that produces its headline value, so it renders through that tool's `render` field. Because `args` is a best-effort parse of the JSON the model is still writing, `args.points` holds however many elements have streamed in so far; pass its length straight through as `visibleCount` and the chart reveals points as they arrive.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="components/assistant-ui/elements/plot-metric-tool-ui.tsx"
+"use client";
+
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { Chart } from "@/components/assistant-ui/elements/chart";
+
+type PlotMetricArgs = { label: string; points: number[] };
+type PlotMetricResult = { value: string; delta?: string };
+
+export const PlotMetricToolUI: ToolCallMessagePartComponent<
+  PlotMetricArgs,
+  PlotMetricResult
+> = ({ args, result }) => {
+  const points = args.points ?? [];
+  return (
+    <Chart
+      label={args.label ?? ""}
+      value={result?.value ?? "…"}
+      delta={result?.delta}
+      points={points}
+      visibleCount={points.length}
+      variant="area"
+    />
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { z } from "zod";
+import { PlotMetricToolUI } from "@/components/assistant-ui/elements/plot-metric-tool-ui";
+
+export const toolkit = defineToolkit({
+  plot_metric: {
+    type: "frontend",
+    description: "Plot a metric's recent history as a small chart.",
+    parameters: z.object({ label: z.string(), points: z.array(z.number()) }),
+    execute: async ({ label, points }) => summarize(label, points),
+    render: PlotMetricToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+See [Tool UI](/docs/tools/tool-ui) for backend-defined tools and approval gates.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `points` is the full series and `visibleCount` is how much of it to draw. Grow `visibleCount` on a timer to replay a stream.
+
+<Steps>
+  <Step>
+
+### Hold the series
+
+```tsx title="app/runs-chart.tsx"
+"use client";
+
+import { useState } from "react";
+import { Chart } from "@/components/assistant-ui/elements/chart";
+
+const POINTS = [18, 22, 19, 31, 28, 42, 38, 51, 47, 63, 58, 71, 69, 84, 92];
+
+export function RunsChart() {
+  const [visibleCount, setVisibleCount] = useState(POINTS.length);
+  return (
+    <Chart
+      label="Runs this week"
+      value="92"
+      delta="+34%"
+      points={POINTS}
+      visibleCount={visibleCount}
+      variant="area"
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Reveal points on a timer
+
+```tsx
+useEffect(() => {
+  if (visibleCount >= POINTS.length) return;
+  const id = setTimeout(() => setVisibleCount((n) => n + 1), 180);
+  return () => clearTimeout(id);
+}, [visibleCount]);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="chart">
+  <div>{/* label, delta */}</div>
+  <span>{/* value */}</span>
+  <svg>{/* baseline, then an area+line, a line, or bars depending on variant */}</svg>
+</div>
+```
+
+`visibleCount` clamps to `1…points.length`, so the chart always draws at least one point and never overruns the array. In the `line` and `area` variants only the last visible point gets a filled dot; in `bars` only the last visible bar is tinted, the rest read as muted. `delta`'s color follows its own leading character: a minus sign or an en or em dash reads as falling and tints red, anything else reads as rising and tints green; omit `delta` to hide it entirely.
+
+## Examples
+
+### Choosing a variant
+
+`variant` decides how the series draws. The label, value, and delta stay in the same place regardless.
+
+| Variant | Draws |
+|---------|-------|
+| `"area"` (default) | A filled gradient under the line, plus the line itself. |
+| `"line"` | The line only, no fill. |
+| `"bars"` | One bar per visible point instead of a line. |
+
+```tsx
+<Chart variant="bars" /* ... */ />
+```
+
+### Restyle the chart
+
+Both lanes take `className` on the root. The label and value read from the shared `mono` and `paper` tokens in `surfaces.tsx`; the series itself is drawn with fixed blue fill and stroke classes in `chart.tsx`, so recoloring the line or bars means editing that file directly.
+
+```tsx
+<Chart className="max-w-none" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `TArgs` | Parsed arguments. Partial while the model is still streaming them. |
+| `argsText` | `string` | Raw JSON argument text streamed by the model. |
+| `result` | `TResult \| undefined` | The tool's return value once it completes. `undefined` while running. |
+| `status` | `ToolCallMessagePartStatus` | `status.type` is `"running"`, `"requires-action"`, `"complete"`, or `"incomplete"`. |
+| `toolName` | `string` | Name of the tool the model called. |
+| `toolCallId` | `string` | Stable id for this invocation. |
+| `isError` | `boolean \| undefined` | Whether `result` represents a tool execution error. |
+
+Register the renderer on a toolkit entry's `render` field and attach the toolkit with `Tools({ toolkit })`. See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface, including `addResult`, human tools, and approval gates.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### Chart
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | Caption above the value. |
+| `value` | `string` | required | The headline number, already formatted. |
+| `delta` | `string` | | Optional change indicator. A leading `-`, `−`, or `–` reads as falling; anything else reads as rising. |
+| `points` | `readonly number[]` | required | The full series. |
+| `visibleCount` | `number` | required | How many points from the start of `points` to draw. Clamped to `1…points.length`. |
+| `variant` | `"area" \| "line" \| "bars"` | `"area"` | How the series draws. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

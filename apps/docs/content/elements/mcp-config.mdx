@@ -1,0 +1,179 @@
+---
+title: "MCP config dialog"
+description: "A dialog for connectors and custom MCP servers, including authentication and connection state."
+---
+
+MCP config dialog lists every app-defined connector and user-added custom server in one place, with inline connect, authorize, and remove controls, plus a form for adding a new server. With a runtime it reads and drives live connection state through the MCP manager; there is no standalone form, since connecting, authorizing, and listing a server's tools are all inherently live states that only exist once something is actually trying to connect.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Mount the manager
+
+`McpManagerResource` is the entry point: mount it once at the root of your app, with the connectors you want available to every user.
+
+```tsx title="app/assistant.tsx"
+import { useAui } from "@assistant-ui/react";
+import { McpManagerResource } from "@assistant-ui/react-mcp";
+
+useAui({
+  mcp: McpManagerResource({
+    connectors: [
+      { id: "linear", name: "Linear", url: "https://mcp.linear.app/mcp", auth: { type: "oauth" } },
+    ],
+  }),
+});
+```
+
+  </Step>
+  <Step>
+
+### Render the dialog
+
+`McpConfigDialog` renders anywhere inside the provider. With no `children`, it renders its own outlined trigger button; pass an element as `children` to use your own trigger instead.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { McpConfigDialog } from "@/components/assistant-ui/elements/mcp-config.aui";
+
+<McpConfigDialog />
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, there's no connection to configure. `McpConfigDialog` exists to drive a live `McpManagerResource`: connecting, authorizing, and listing a server's tools are all states that only exist once something is actually trying to connect, not values you'd pass in as static props. For a single server card without the dialog chrome, compose `McpServerPrimitive.Root` directly against a mounted manager instead. See [Server panel](/elements/mcp-server-panel) for a standalone-styled version of the same card.
+
+</StandaloneMode>
+
+## Anatomy
+
+<RuntimeMode>
+
+```tsx
+<Dialog>
+  <DialogTrigger>{/* plug icon + "MCP servers", or your own children */}</DialogTrigger>
+  <DialogContent>
+    <section> {/* Connectors */}
+      {/* one server card per app-defined connector */}
+    </section>
+    <section> {/* Custom servers */}
+      {/* one server card per user-added server */}
+      {/* "Add server" trigger, or the add form once opened */}
+    </section>
+  </DialogContent>
+</Dialog>
+```
+
+Each server card shows an avatar (the server's `icon`, or a fallback icon), its name, a status badge, action buttons, and, once it has one, an error banner. Which action buttons render depends on `connectionState`: Connect shows for `"disconnected"`, `"error"`, or `"authRequired"`; the OAuth link shows whenever the server exposes an `authorizationUrl`; Disconnect shows for `"connected"`, `"connecting"`, or `"authPending"`. A card in `"error"` state additionally gets a destructive-tinted border.
+
+</RuntimeMode>
+
+## Examples
+
+<RuntimeMode>
+
+### Custom trigger
+
+Pass any element as `children` and it becomes the dialog's trigger in place of the default button.
+
+```tsx
+<McpConfigDialog>
+  <button type="button">Connectors</button>
+</McpConfigDialog>
+```
+
+### A server card outside the dialog
+
+Compose `McpServerPrimitive.Root` directly for a sidebar or settings page that shows one server without the rest of the dialog's chrome.
+
+```tsx
+import { McpServerByIdProvider, McpServerPrimitive } from "@assistant-ui/react-mcp";
+
+<McpServerByIdProvider id="linear">
+  <McpServerPrimitive.Root>
+    <McpServerPrimitive.Name />
+    <McpServerPrimitive.ConnectButton>Connect</McpServerPrimitive.ConnectButton>
+  </McpServerPrimitive.Root>
+</McpServerByIdProvider>
+```
+
+### Custom auth fields
+
+`AuthFields` renders a bearer-token input or an OAuth scopes input depending on the selected `AuthSelect` value by default; pass `children` to render your own inputs for the current auth type instead.
+
+```tsx
+<McpAddFormPrimitive.AuthFields>
+  {({ authType }) => (authType === "bearer" ? <MyTokenField /> : null)}
+</McpAddFormPrimitive.AuthFields>
+```
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+### McpConfigDialog props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `children` | `ReactNode` | outlined button with a plug icon | Custom trigger element. |
+
+### McpManagerPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Root` | `div` | Provides `McpManagerState`; sets `data-mcp-hydrated` once storage has loaded. |
+| `Connectors` | list | Render-prop, called once per app-defined connector with `{ server }`. |
+| `CustomServers` | list | Render-prop, called once per user-added server with `{ server }`. |
+| `AddCustomTrigger` | `button` | Opens the add-server form. |
+
+### McpServerPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Root` | `div` | Sets `data-server-id`, `data-kind`, `data-connection-state`, `data-has-error`. |
+| `Name` | text | The server's name. |
+| `ConnectButton` | `button` | Renders `null` unless `connectionState` is `"disconnected"`, `"error"`, or `"authRequired"`. Calls `aui.mcpServer.connect()`. |
+| `OAuthLink` | `a` | Renders `null` unless the server has an `authorizationUrl`; opens it in a new tab. |
+| `DisconnectButton` | `button` | Renders `null` unless `connectionState` is `"connected"`, `"connecting"`, or `"authPending"`. Calls `aui.mcpServer.disconnect()`. |
+| `RemoveButton` | `button` | Calls `aui.mcpServer.remove()`. |
+
+`Status`, `Error`, `Icon`, `Tools`, and `ToolName` are also available on `McpServerPrimitive` for building a more detailed server view than the dialog's own card.
+
+### McpAddFormPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Root` | `form` | Owns the form's state. Takes `onSubmitted(id)` and `onCancel`. |
+| `NameField`, `UrlField` | `input` | Bound text inputs. |
+| `AuthSelect` | `select` | `"oauth" \| "bearer" \| "none"`, defaults to `"oauth"`. |
+| `AuthFields` | inputs | Bearer token or OAuth scopes input, matching the current `AuthSelect` value. |
+| `Submit` | `button` | Disabled while submitting. |
+| `Cancel` | `button` | Resets the form and calls `onCancel`. |
+| `Error` | text | The current validation or submit error, if any. |
+
+Submitting validates that name is non-empty, that the URL parses as `http:`/`https:`, and that a bearer token is present when `authType` is `"bearer"`; a failing check sets the form's error instead of calling `aui.mcp.addCustomServer`.
+
+### Manager and server state
+
+| Selector / call | Type | Description |
+|------------------|------|-------------|
+| `s.mcp.isHydrated` | `boolean` | Whether persisted custom servers have finished loading. |
+| `s.mcp.connectors` / `s.mcp.customServers` | `MCPServerState[]` | The two lists the dialog renders as its two sections. |
+| `s.mcpServer.connectionState` | `MCPConnectionState` | `"disconnected" \| "authRequired" \| "authPending" \| "connecting" \| "connected" \| "error"`. |
+| `s.mcpServer.lastError` | `{ message: string } \| null` | The server's most recent connection error. |
+| `s.mcpServer.authorizationUrl` | `string \| null` | Present once an OAuth flow is ready to start. |
+| `aui.mcp.addCustomServer(input)` | `Promise<string>` | Adds a custom server; resolves to its id. |
+| `aui.mcp.removeServer(id)` | `Promise<void>` | Removes a custom server by id. |
+| `aui.mcpServer.connect()` / `.disconnect()` / `.remove()` | `Promise<void>` | Drive the current server's connection lifecycle. |
+
+</RuntimeMode>

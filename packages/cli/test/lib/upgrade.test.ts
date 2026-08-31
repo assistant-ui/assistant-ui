@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   transform: vi.fn(() => []),
   installEdgeLib: vi.fn(),
   installAiSdkLib: vi.fn(),
+  loggerSuccess: vi.fn(),
 }));
 
 vi.mock("../../src/lib/transform", async (importOriginal) => ({
@@ -35,6 +36,11 @@ vi.mock("cli-progress", async (importOriginal) => ({
   },
 }));
 
+vi.mock("../../src/lib/utils/logger", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../../src/lib/utils/logger")>()),
+  logger: { info: vi.fn(), success: mocks.loggerSuccess },
+}));
+
 vi.mock("debug", async (importOriginal) => ({
   ...(await importOriginal<typeof import("debug")>()),
   default: () => () => {},
@@ -61,5 +67,19 @@ describe("upgrade", () => {
     ]);
     expect(mocks.installEdgeLib).toHaveBeenCalledOnce();
     expect(mocks.installAiSdkLib).toHaveBeenCalledOnce();
+  });
+
+  it("stops at a failed codemod without installing dependencies", async () => {
+    const failure = new Error("Process exited with code 7");
+    mocks.transform.mockImplementationOnce(() => {
+      throw failure;
+    });
+
+    await expect(upgrade({ dry: true })).rejects.toBe(failure);
+
+    expect(mocks.transform).toHaveBeenCalledOnce();
+    expect(mocks.installEdgeLib).not.toHaveBeenCalled();
+    expect(mocks.installAiSdkLib).not.toHaveBeenCalled();
+    expect(mocks.loggerSuccess).not.toHaveBeenCalled();
   });
 });

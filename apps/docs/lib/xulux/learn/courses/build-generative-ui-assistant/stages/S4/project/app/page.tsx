@@ -1,4 +1,4 @@
-import { Thread } from "../components/assistant-ui/thread";
+import { Thread } from "../components/assistant-ui/elements/thread.aui";
 import { ToolProvider } from "../components/tool-provider";
 
 export default function Page() {

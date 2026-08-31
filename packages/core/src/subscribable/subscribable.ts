@@ -1,3 +1,4 @@
+import { shallowEqual } from "@assistant-ui/store/client";
 import type { Unsubscribe } from "../types/unsubscribe";
 import { notifyEventListeners } from "../utils/notify-event-listeners";
 
@@ -57,25 +58,10 @@ export const notifySubscribers = <TArgs extends unknown[]>(
   }
 };
 
-function shallowEqual<T extends object>(
-  objA: T | undefined,
-  objB: T | undefined,
-) {
-  if (objA === undefined && objB === undefined) return true;
-  if (objA === undefined) return false;
-  if (objB === undefined) return false;
-
-  const keysA = Object.keys(objA);
-  if (keysA.length !== Object.keys(objB).length) return false;
-
-  for (const key of keysA) {
-    const valueA = objA[key as keyof T];
-    const valueB = objB[key as keyof T];
-    if (!Object.is(valueA, valueB)) return false;
-  }
-
-  return true;
-}
+const shallowEqualOrUndefined = <T extends object>(
+  a: T | undefined,
+  b: T | undefined,
+) => (a === undefined || b === undefined ? a === b : shallowEqual(a, b));
 
 export class BaseSubscribable {
   private _subscribers = new Set<() => void>();
@@ -96,6 +82,32 @@ export class BaseSubscribable {
 
   protected _notifySubscribers() {
     notifySubscribers(this._subscribers);
+  }
+}
+
+export class WritableSubscribable<TState> extends BaseSubscribable {
+  private _state: TState;
+
+  constructor(state: TState) {
+    super();
+    this._state = state;
+    this.subscribe = this.subscribe.bind(this);
+    this.getState = this.getState.bind(this);
+    // Hydration has to agree with what the server rendered, so the server
+    // snapshot stays at the creation-time state rather than following writes.
+    this.getServerSnapshot = () => state;
+  }
+
+  public getState(): TState {
+    return this._state;
+  }
+
+  public getServerSnapshot: () => TState;
+
+  public setState(state: TState): void {
+    if (Object.is(state, this._state)) return;
+    this._state = state;
+    this._notifySubscribers();
   }
 }
 
@@ -168,7 +180,7 @@ export class ShallowMemoizeSubject<TState extends object, TPath>
   private _syncState() {
     const state = this.binding.getState();
     if (state === SKIP_UPDATE) return false;
-    if (shallowEqual(state, this._previousState)) return false;
+    if (shallowEqualOrUndefined(state, this._previousState)) return false;
     this._previousState = state;
     return true;
   }
@@ -209,7 +221,7 @@ export class LazyMemoizeSubject<TState extends object, TPath>
       if (
         newState !== SKIP_UPDATE &&
         (this._previousState === undefined ||
-          !shallowEqual(newState, this._previousState))
+          !shallowEqualOrUndefined(newState, this._previousState))
       ) {
         this._previousState = newState;
       }

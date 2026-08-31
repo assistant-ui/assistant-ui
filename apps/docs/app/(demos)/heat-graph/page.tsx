@@ -1,149 +1,139 @@
 "use client";
 
-import {
-  ArrowRight,
-  Blocks,
-  Globe,
-  Paintbrush,
-  Puzzle,
-  Scaling,
-} from "lucide-react";
 import Link from "next/link";
-import { cn } from "@/lib/utils";
+import { ArrowUpRight } from "lucide-react";
 import { CopyCommandButton } from "@/components/shared/copy-command-button";
-import { Button, buttonVariants } from "@/components/ui/button";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { cn } from "@/lib/utils";
 import { HeatGraphDemo } from "./heat-graph-demo";
 
 const ANALYTICS_PAGE = "heat-graph" as const;
 
 const INSTALL_COMMAND = "npm install heat-graph";
 
+const PARTS = [
+  "Root",
+  "Grid",
+  "Cell",
+  "MonthLabels",
+  "DayLabels",
+  "Legend",
+  "LegendLevel",
+  "Tooltip",
+  "autoLevels",
+  "MONTH_SHORT",
+  "DAY_SHORT",
+] as const;
+
 const FEATURES = [
   {
-    title: "Radix-Style Composable",
+    title: "Radix-style composable",
     description:
-      "Compound components you fully control. Root, Grid, Cell, Legend, Tooltip — compose only the pieces you need.",
-    icon: Puzzle,
-    iconColor: "text-blue-400",
+      "Compound components you fully control. Root, Grid, Cell, Legend, Tooltip. Compose only the pieces you need.",
   },
   {
-    title: "Fully Headless",
+    title: "Fully headless",
     description:
       "Zero styling opinions. Bring your own CSS, Tailwind, or any styling solution. Every element is a plain div you can style.",
-    icon: Paintbrush,
-    iconColor: "text-pink-400",
   },
   {
-    title: "Tooltip Built-in",
+    title: "Tooltip built in",
     description:
       "Hover tooltips powered by Radix Popper for pixel-perfect positioning. No extra dependencies needed.",
-    icon: Blocks,
-    iconColor: "text-purple-400",
   },
   {
-    title: "Custom Bucketing",
+    title: "Custom bucketing",
     description:
       "Plug in your own classification function to control how counts map to levels. Defaults to evenly-distributed auto-levels.",
-    icon: Scaling,
-    iconColor: "text-green-400",
   },
   {
     title: "Localizable",
     description:
       "Month and day labels expose raw numeric values. Format with the included English helpers or use Intl.DateTimeFormat for any locale.",
-    icon: Globe,
-    iconColor: "text-orange-400",
   },
 ] as const;
 
 export default function HeatGraphPage() {
   return (
-    <div className="mx-auto w-full max-w-7xl space-y-10 px-4 pt-14 pb-8 md:space-y-20">
-      {/* Hero */}
-      <div className="flex flex-col items-center gap-6 text-center">
-        <div className="flex flex-col gap-3">
-          <h1 className="mx-auto max-w-2xl text-3xl font-medium tracking-tight md:text-5xl">
-            GitHub-style activity heatmaps for React
-          </h1>
-          <p className="text-muted-foreground mx-auto max-w-xl text-lg">
-            Headless, Radix-style primitives for building activity heatmap
-            graphs. Composable, unstyled, and fully customizable.
-          </p>
-        </div>
-
-        <CopyCommandButton
-          command={INSTALL_COMMAND}
-          analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
-        />
-
-        <div className="text-muted-foreground flex flex-wrap items-center justify-center gap-x-5 gap-y-3 text-[13px]">
+    <PageFrame pad="sub">
+      <header className="max-w-2xl">
+        <h1 className={typePage}>A year, cell by cell.</h1>
+        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+          GitHub-style activity heatmaps for React. Headless, Radix-style, and
+          composable. The layout, date math, and tooltip wiring; your colors and
+          labels.
+        </p>
+        <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-3">
+          <CopyCommandButton
+            command={INSTALL_COMMAND}
+            analyticsContext={{ page: ANALYTICS_PAGE, section: "hero" }}
+          />
           <Link
             href="/docs/utilities/heat-graph"
-            className="text-foreground/60 hover:text-foreground font-medium transition-colors"
+            className="text-muted-foreground hover:text-foreground text-sm transition-colors"
           >
-            Documentation →
+            Read the docs
           </Link>
         </div>
-      </div>
+      </header>
 
-      {/* Live demo */}
-      <div className="mx-auto max-w-4xl">
+      <div className="mt-12 md:mt-16">
         <HeatGraphDemo />
       </div>
 
-      {/* Features */}
-      <div className="flex flex-col gap-8">
-        <div className="flex flex-col items-center gap-2 text-center">
-          <h2 className="text-3xl font-medium tracking-tight">
-            Why Heat Graph?
-          </h2>
-          <p className="text-muted-foreground max-w-xl">
-            Everything you need to build activity heatmaps — without fighting
-            your styling framework or losing control.
+      <div className="border-foreground/10 mt-16 border-t md:mt-20">
+        <section className="border-foreground/10 border-b py-10 md:py-12">
+          <div className="flex items-baseline justify-between">
+            <p className={typeEyebrow}>The parts</p>
+            <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
+              {PARTS.length}
+            </span>
+          </div>
+          <p className="text-muted-foreground mt-6 flex max-w-[52rem] flex-wrap gap-x-6 gap-y-2.5 font-mono text-[13px]">
+            {PARTS.map((name) => (
+              <span key={name}>{name}</span>
+            ))}
           </p>
-        </div>
+          <p className="text-muted-foreground/70 mt-6 max-w-[52ch] text-sm leading-relaxed">
+            Eight components plus the level math and label helpers, every
+            element a plain div you can style.
+          </p>
+        </section>
 
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {FEATURES.map((feature) => {
-            const Icon = feature.icon;
-            return (
-              <div
-                key={feature.title}
-                className="border-border/50 bg-muted/30 hover:border-border/80 flex flex-col gap-2 rounded-xl border p-4 transition-colors"
-              >
-                <span className="flex items-center gap-2 font-medium">
-                  <Icon className={cn("size-4", feature.iconColor)} />
-                  {feature.title}
-                </span>
-                <p className="text-muted-foreground text-sm leading-relaxed">
+        <section className="border-foreground/10 border-b py-10 md:py-12">
+          <p className={typeEyebrow}>Why headless</p>
+          <div className="mt-8 grid gap-x-10 gap-y-8 sm:grid-cols-2 lg:grid-cols-3">
+            {FEATURES.map((feature) => (
+              <div key={feature.title}>
+                <h2 className="text-sm font-medium">{feature.title}</h2>
+                <p className="text-muted-foreground mt-2 text-sm leading-relaxed text-pretty">
                   {feature.description}
                 </p>
               </div>
-            );
-          })}
-        </div>
+            ))}
+          </div>
+        </section>
       </div>
 
-      {/* CTA */}
-      <div className="flex flex-col items-center gap-6 py-16 text-center">
-        <p className="text-2xl font-medium tracking-tight">
-          Start building today
+      <footer className="mt-16 flex flex-col gap-3">
+        <p className="text-muted-foreground text-sm">
+          One of the primitives we extracted along the way,{" "}
+          <a href="/oss" className="text-foreground font-medium">
+            everything we build in the open
+          </a>
+          .
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-3">
-          <Button
-            nativeButton={false}
-            render={<Link href="/docs/utilities/heat-graph" />}
-          >
-            Documentation <ArrowRight />
-          </Button>
-          <Link
-            href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/heat-graph"
-            className={buttonVariants({ variant: "outline" })}
-          >
-            View on GitHub
-          </Link>
-        </div>
-      </div>
-    </div>
+        <a
+          href="https://github.com/assistant-ui/assistant-ui/tree/main/packages/heat-graph"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-muted-foreground hover:text-foreground group inline-flex items-center gap-1.5 text-sm transition-colors"
+        >
+          Full reference in the README
+          <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+        </a>
+      </footer>
+    </PageFrame>
   );
 }

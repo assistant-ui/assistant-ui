@@ -1,0 +1,207 @@
+---
+title: "Code diff"
+description: "A unified diff with tinted additions and removals, sized for chat."
+---
+
+A code diff shows one file's changed lines: a filename and its net additions and deletions up top, then every context, added, and removed line beneath, each tinted and gutter-marked by kind. With a runtime the filename and lines come from an edit tool's result; standalone you supply the same shape directly.
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="components/assistant-ui/elements/edit-file-tool-ui.tsx"
+"use client";
+
+import type { ToolCallMessagePartComponent } from "@assistant-ui/react";
+import { CodeDiff, type DiffLine } from "@/components/assistant-ui/elements/code-diff";
+
+type EditFileArgs = { path: string };
+type EditFileResult = { additions: number; deletions: number; lines: DiffLine[] };
+
+export const EditFileToolUI: ToolCallMessagePartComponent<
+  EditFileArgs,
+  EditFileResult
+> = ({ args, result }) => {
+  if (!result) return null;
+  return (
+    <CodeDiff
+      filename={args.path}
+      additions={result.additions}
+      deletions={result.deletions}
+      lines={result.lines}
+      cycle={0}
+    />
+  );
+};
+```
+
+  </Step>
+  <Step>
+
+### Register the tool
+
+```tsx title="app/toolkit.ts"
+import { defineToolkit } from "@assistant-ui/react";
+import { EditFileToolUI } from "@/components/assistant-ui/elements/edit-file-tool-ui";
+
+export const toolkit = defineToolkit({
+  edit_file: {
+    type: "backend",
+    render: EditFileToolUI,
+  },
+});
+```
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+The diff renders once the call completes; while it runs, `result` is `undefined` and the renderer above returns `null`. See [Tool UI](/docs/tools/tool-ui) for a loading state in between.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+<Steps>
+  <Step>
+
+### Hold the diff
+
+```tsx title="app/patch.tsx"
+"use client";
+
+import { CodeDiff, type DiffLine } from "@/components/assistant-ui/elements/code-diff";
+
+const LINES: DiffLine[] = [
+  { kind: "context", text: "export function Composer() {" },
+  { kind: "removed", text: '  const [draft, setDraft] = useState("");' },
+  { kind: "added", text: "  const draft = useDraft(threadId);" },
+];
+
+export function Patch() {
+  return (
+    <CodeDiff
+      filename="composer.tsx"
+      additions={1}
+      deletions={1}
+      lines={LINES}
+      cycle={0}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Replay on a new diff
+
+Bump `cycle` alongside a new `lines` array to restart the stagger animation even when the component stays mounted:
+
+```tsx
+async function reEdit(path: string) {
+  const next = await fetchDiff(path);
+  setLines(next.lines);
+  setCounts({ additions: next.additions, deletions: next.deletions });
+  setCycle((c) => c + 1);
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="code-diff">
+  <div>{/* filename, +additions and −deletions counts */}</div>
+  <div>{/* horizontally scrollable line list, colored and gutter-marked by kind */}</div>
+</div>
+```
+
+The additions and deletions counts always render, even at zero; there is no threshold that hides a `+0` or `−0`. Lines keep their own whitespace and scroll horizontally inside their own container rather than wrapping, so a long line never pushes the card wider than its `max-w-md`. Each line's entrance is staggered by `60ms` per row and keyed on `cycle`, so bumping `cycle` replays the stagger for identical line text.
+
+## Examples
+
+### Restyle the diff
+
+Both lanes take `className` on the root. The card surface comes from the shared `paper` token and the scroll region from `codeScroll`/`codeSurface`, both in `surfaces.tsx`.
+
+```tsx
+<CodeDiff className="max-w-none" /* ... */ />
+```
+
+### No lines changed
+
+An empty `lines` array is a valid diff: the header still shows the filename and counts, and the body renders as an empty scroll region.
+
+```tsx
+<CodeDiff filename="README.md" additions={0} deletions={0} lines={[]} cycle={0} />
+```
+
+<StandaloneMode>
+
+### Replaying the entrance animation
+
+Pair a `cycle` counter with whatever loads the next diff so the same mounted card can show a fresh patch without unmounting:
+
+```tsx
+const [cycle, setCycle] = useState(0);
+const [lines, setLines] = useState<DiffLine[]>(INITIAL_LINES);
+```
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Tool-call render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ path: string }` | The file the model asked to edit. |
+| `result` | `{ additions: number; deletions: number; lines: DiffLine[] } \| undefined` | The applied patch, once the call completes. |
+
+See [Tool UI](/docs/tools/tool-ui) for the full render-prop surface and for backend tool registration.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### CodeDiff
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `filename` | `string` | required | Shown in the header. |
+| `additions` | `number` | required | Green count in the header. |
+| `deletions` | `number` | required | Red count in the header. |
+| `lines` | `readonly DiffLine[]` | required | The diff body, in order. |
+| `cycle` | `number` | required | Folded into each line's key; increment to replay the entrance animation. |
+| `className` | `string` | | Merged onto the root. |
+
+`DiffLine` is `{ kind: "context" | "added" | "removed"; text: string }`. All other `div` props are forwarded to the root.
+
+</StandaloneMode>

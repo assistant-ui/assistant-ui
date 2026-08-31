@@ -1,6 +1,7 @@
 import type { ModelContext } from "@assistant-ui/react";
 import type { SerializedModelContext } from "../types";
 import { normalizeToolList, type NormalizedTool } from "./toolNormalization";
+import { readProperty, UNSERIALIZABLE } from "./unserializable";
 
 export const sanitizeForMessage = (
   value: unknown,
@@ -21,48 +22,79 @@ export const sanitizeForMessage = (
   if (typeof value === "function") {
     return "[Function]";
   }
-  if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? String(value) : value.toISOString();
-  }
-  if (value instanceof Map) {
-    if (seen.has(value)) return "[Circular]";
-    seen.add(value);
-    const result: Record<string, unknown> = {};
-    for (const [key, entry] of value.entries()) {
-      result[String(key)] = sanitizeForMessage(entry, seen);
-    }
-    seen.delete(value);
-    return result;
-  }
-  if (value instanceof Set) {
-    if (seen.has(value)) return "[Circular]";
-    seen.add(value);
-    const result = Array.from(value).map((entry) =>
-      sanitizeForMessage(entry, seen),
-    );
-    seen.delete(value);
-    return result;
-  }
-  if (Array.isArray(value)) {
-    if (seen.has(value as unknown as object)) return "[Circular]";
-    seen.add(value as unknown as object);
-    const result = value
-      .map((entry) => sanitizeForMessage(entry, seen))
-      .filter((item) => item !== undefined);
-    seen.delete(value as unknown as object);
-    return result;
-  }
   if (typeof value === "object") {
-    if (seen.has(value as object)) return "[Circular]";
-    seen.add(value as object);
-    const result: Record<string, unknown> = {};
-    for (const [key, entry] of Object.entries(
-      value as Record<string, unknown>,
-    )) {
-      result[key] = sanitizeForMessage(entry, seen);
+    if (seen.has(value)) return "[Circular]";
+    seen.add(value);
+    try {
+      if (value instanceof Date) {
+        return Number.isNaN(value.getTime())
+          ? String(value)
+          : value.toISOString();
+      }
+      if (value instanceof Map) {
+        const result: Record<string, unknown> = {};
+        const nextSuffixByKey = new Map<string, number>();
+        for (const [key, entry] of value.entries()) {
+          let serializedKey: string;
+          try {
+            serializedKey = String(key);
+          } catch {
+            serializedKey = UNSERIALIZABLE;
+          }
+
+          if (Object.hasOwn(result, serializedKey)) {
+            const baseKey = serializedKey;
+            let suffix = nextSuffixByKey.get(baseKey) ?? 2;
+            do {
+              serializedKey = `${baseKey} (${suffix})`;
+              suffix += 1;
+            } while (Object.hasOwn(result, serializedKey));
+            nextSuffixByKey.set(baseKey, suffix);
+          } else {
+            nextSuffixByKey.set(serializedKey, 2);
+          }
+
+          result[serializedKey] = sanitizeForMessage(entry, seen);
+        }
+        return result;
+      }
+      if (value instanceof Set) {
+        return Array.from(value).map((entry) =>
+          sanitizeForMessage(entry, seen),
+        );
+      }
+      if (Array.isArray(value)) {
+        const result: unknown[] = [];
+        const length = value.length;
+        for (let index = 0; index < length; index++) {
+          try {
+            if (!(index in value)) continue;
+            const item = sanitizeForMessage(value[index], seen);
+            if (item !== undefined) result.push(item);
+          } catch {
+            result.push(UNSERIALIZABLE);
+          }
+        }
+        return result;
+      }
+
+      const result: Record<string, unknown> = {};
+      for (const key of Object.keys(value)) {
+        try {
+          result[key] = sanitizeForMessage(
+            (value as Record<string, unknown>)[key],
+            seen,
+          );
+        } catch {
+          result[key] = UNSERIALIZABLE;
+        }
+      }
+      return result;
+    } catch {
+      return UNSERIALIZABLE;
+    } finally {
+      seen.delete(value);
     }
-    seen.delete(value as object);
-    return result;
   }
   return value;
 };
@@ -140,12 +172,12 @@ export const serializeModelContext = (
   const modelContext = context as Record<string, unknown>;
   const result: SerializedModelContext = {};
 
-  const systemValue = modelContext.system;
+  const systemValue = readProperty(modelContext, "system");
   if (typeof systemValue === "string" && systemValue.length > 0) {
     result.system = systemValue;
   }
 
-  const tools = normalizeToolList(modelContext.tools);
+  const tools = normalizeToolList(readProperty(modelContext, "tools"));
   if (tools.length > 0) {
     result.tools = tools.map((tool): NormalizedTool => {
       return {
@@ -167,8 +199,9 @@ export const serializeModelContext = (
     });
   }
 
-  if (modelContext.callSettings !== undefined) {
-    const callSettings = sanitizeAndRedact(modelContext.callSettings);
+  const callSettingsValue = readProperty(modelContext, "callSettings");
+  if (callSettingsValue !== undefined) {
+    const callSettings = sanitizeAndRedact(callSettingsValue);
     if (
       callSettings &&
       typeof callSettings === "object" &&
@@ -178,8 +211,9 @@ export const serializeModelContext = (
     }
   }
 
-  if (modelContext.config !== undefined) {
-    const config = sanitizeAndRedact(modelContext.config);
+  const configValue = readProperty(modelContext, "config");
+  if (configValue !== undefined) {
+    const config = sanitizeAndRedact(configValue);
     if (config && typeof config === "object" && !Array.isArray(config)) {
       result.config = config as Record<string, unknown>;
     }

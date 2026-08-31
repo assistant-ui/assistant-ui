@@ -23,7 +23,8 @@ vi.mock("@assistant-ui/store", () => ({
     },
   }),
 }));
-vi.mock("@assistant-ui/tap", () => ({
+vi.mock("@assistant-ui/tap", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@assistant-ui/tap")>()),
   flushTapSync: (fn: () => void) => fn(),
 }));
 vi.mock("../primitives/composer/trigger/TriggerPopoverRootContext", () => ({

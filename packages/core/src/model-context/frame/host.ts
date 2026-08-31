@@ -10,6 +10,8 @@ import {
   type SerializedTool,
 } from "./types";
 
+const getDefaultTargetOrigin = () => window.location.origin;
+
 /**
  * Deserializes tools from JSON Schema format back to Tool objects
  */
@@ -63,7 +65,10 @@ export class AssistantFrameHost implements ModelContextProvider {
   private _targetOrigin: string;
   private _disposed = false;
 
-  constructor(iframeWindow: Window, targetOrigin: string = "*") {
+  constructor(
+    iframeWindow: Window,
+    targetOrigin: string = getDefaultTargetOrigin(),
+  ) {
     this._iframeWindow = iframeWindow;
     this._targetOrigin = targetOrigin;
 

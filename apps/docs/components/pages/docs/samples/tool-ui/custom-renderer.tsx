@@ -11,7 +11,7 @@ import {
 // This type has a separate import because the preview drops a complete unused block.
 import type { AssistantRuntime } from "@assistant-ui/react";
 import type { ToolCallMessagePartProps } from "@assistant-ui/react";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 

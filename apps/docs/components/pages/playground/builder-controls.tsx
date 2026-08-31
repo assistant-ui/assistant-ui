@@ -2,7 +2,13 @@
 
 import { CircleAlertIcon, SunIcon, MoonIcon } from "lucide-react";
 
-import { Select, type SelectProps } from "@/components/assistant-ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import {
   ThemeColorPicker,
@@ -794,8 +800,40 @@ function SwitchColorRow({
   );
 }
 
-function BuilderSelect(props: SelectProps) {
-  return <Select {...props} variant="ghost" size="sm" />;
+function BuilderSelect({
+  value,
+  onValueChange,
+  options,
+  placeholder,
+}: {
+  value: string;
+  onValueChange: (value: string) => void;
+  options: readonly { value: string; label: string }[];
+  placeholder?: string;
+}) {
+  return (
+    <Select
+      value={value}
+      onValueChange={(nextValue) => {
+        if (nextValue !== null) onValueChange(nextValue);
+      }}
+      items={options}
+    >
+      <SelectTrigger
+        size="sm"
+        className="hover:bg-accent h-7 border-0 bg-transparent px-2 text-xs shadow-none"
+      >
+        <SelectValue placeholder={placeholder} />
+      </SelectTrigger>
+      <SelectContent>
+        {options.map((option) => (
+          <SelectItem key={option.value} value={option.value}>
+            {option.label}
+          </SelectItem>
+        ))}
+      </SelectContent>
+    </Select>
+  );
 }
 
 function PresetSelect({
