@@ -3,7 +3,7 @@ import { STATUS_URL } from "./constants";
 import { normalizeStatusState, type StatusState } from "./status-state";
 import { withTimeout } from "./with-timeout";
 
-/** Bounds the upstream fanout: the edge cache key includes the query string, so a request with one cannot be relied on to hit it. */
+/** Bounds how often the status host is read, at the cost of a short lag in the badge. */
 const STATUS_REVALIDATE = 30;
 
 type StatusPagePayload = {
