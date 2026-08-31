@@ -150,6 +150,84 @@ describe("adapter conversions", () => {
     });
   });
 
+  it("serializes nested subagent tool calls with their run scope", () => {
+    const result = toAgUiMessages([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "spawn-1",
+            toolName: "delegate",
+            argsText: "{}",
+            result: "finished",
+            messages: [
+              {
+                id: "subagent-1",
+                role: "assistant",
+                content: [
+                  { type: "text", text: "Working" },
+                  {
+                    type: "tool-call",
+                    toolCallId: "frontend-1",
+                    toolName: "show_widget",
+                    argsText: "{}",
+                    result: { shown: true },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    expect(result).toEqual([
+      {
+        id: "assistant-1",
+        role: "assistant",
+        content: "",
+        toolCalls: [
+          {
+            id: "spawn-1",
+            type: "function",
+            function: { name: "delegate", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "subagent-1",
+        role: "assistant",
+        content: "Working",
+        subagentRunId: "subagent-1",
+        toolCalls: [
+          {
+            id: "frontend-1",
+            type: "function",
+            function: { name: "show_widget", arguments: "{}" },
+          },
+        ],
+      },
+      {
+        id: "frontend-1:tool",
+        role: "tool",
+        content: '{"shown":true}',
+        toolCallId: "frontend-1",
+        subagentRunId: "subagent-1",
+      },
+      {
+        id: "spawn-1:tool",
+        role: "tool",
+        content: "finished",
+        toolCallId: "spawn-1",
+      },
+    ]);
+    expect(result.map((message) => MessageSchema.parse(message))).toEqual(
+      result,
+    );
+  });
+
   it("excludes synthesized a2ui tool calls and results from outbound messages", () => {
     const result = toAgUiMessages([
       {

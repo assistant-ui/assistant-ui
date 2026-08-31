@@ -1227,6 +1227,209 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(part.isError).toBe(false);
   });
 
+  it("discovers and resolves tool calls nested in a subagent message", () => {
+    const agent = {
+      runAgent: vi.fn(async () => {}),
+    } as unknown as HttpAgent;
+    const nestedAssistant: ThreadAssistantMessage = {
+      id: "subagent-1",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "complete", reason: "unknown" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "frontend-1",
+          toolName: "show_widget",
+          args: {},
+          argsText: "{}",
+        },
+      ],
+    };
+    const assistant: ThreadAssistantMessage = {
+      id: "assistant-1",
+      role: "assistant",
+      createdAt: new Date(),
+      status: { type: "requires-action", reason: "tool-calls" },
+      metadata: {
+        unstable_state: null,
+        unstable_annotations: [],
+        unstable_data: [],
+        steps: [],
+        custom: {},
+      },
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "spawn-1",
+          toolName: "delegate",
+          args: {},
+          argsText: "{}",
+          result: "started",
+          messages: [nestedAssistant],
+        },
+      ],
+    };
+
+    const core = createCore(agent);
+    core.applyExternalMessages([assistant]);
+
+    expect(core.getPendingToolCalls()).toEqual({
+      messageId: "assistant-1",
+      toolCallIds: ["frontend-1"],
+    });
+    expect(core.findMessageIdForToolCall("frontend-1")).toBe("assistant-1");
+
+    core.addToolResult({
+      messageId: "assistant-1",
+      toolCallId: "frontend-1",
+      toolName: "show_widget",
+      result: { shown: true },
+      isError: false,
+    });
+
+    const updated = core.getMessages()[0] as ThreadAssistantMessage;
+    const nested = (updated.content[0] as any).messages[0];
+    expect(nested.content[0]).toMatchObject({
+      toolCallId: "frontend-1",
+      result: { shown: true },
+      isError: false,
+    });
+    expect(updated.status).toMatchObject({ type: "complete" });
+  });
+
+  it("preserves a nested frontend result and resumes with it", async () => {
+    const runInputs: any[] = [];
+    let runCount = 0;
+    let core!: AgUiThreadRuntimeCore;
+    const agent = {
+      runAgent: vi.fn(async (input: any, subscriber: any) => {
+        runInputs.push(JSON.parse(JSON.stringify(input)));
+        runCount++;
+        if (runCount === 1) {
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "spawn-1",
+              toolCallName: "delegate",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: { type: "TOOL_CALL_END", toolCallId: "spawn-1" },
+          });
+          subscriber.onSubagentStartedEvent?.({
+            event: {
+              type: "SUBAGENT_STARTED",
+              subagentRunId: "subagent-1",
+              name: "delegate",
+              parentToolCallId: "spawn-1",
+            },
+          });
+          subscriber.onToolCallStartEvent?.({
+            event: {
+              type: "TOOL_CALL_START",
+              toolCallId: "frontend-1",
+              toolCallName: "show_widget",
+              subagentRunId: "subagent-1",
+            },
+          });
+          subscriber.onToolCallEndEvent?.({
+            event: {
+              type: "TOOL_CALL_END",
+              toolCallId: "frontend-1",
+              subagentRunId: "subagent-1",
+            },
+          });
+          subscriber.onSubagentFinishedEvent?.({
+            event: {
+              type: "SUBAGENT_FINISHED",
+              subagentRunId: "subagent-1",
+            },
+          });
+          subscriber.onToolCallResultEvent?.({
+            event: {
+              type: "TOOL_CALL_RESULT",
+              toolCallId: "spawn-1",
+              content: "started",
+            },
+          });
+
+          const assistant = core
+            .getMessages()
+            .find((message) => message.role === "assistant") as
+            | ThreadAssistantMessage
+            | undefined;
+          expect(assistant).toBeDefined();
+          expect(core.getPendingToolCalls()).toBeNull();
+          core.addToolResult({
+            messageId: assistant!.id,
+            toolCallId: "frontend-1",
+            toolName: "show_widget",
+            result: { shown: true },
+            isError: false,
+          });
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              runId: input.runId,
+              outcome: { type: "success" },
+            },
+          });
+          subscriber.onRunFinalized?.();
+          return;
+        }
+        subscriber.onRunFinalized?.();
+      }),
+    } as unknown as HttpAgent;
+
+    core = createCore(agent);
+    await core.append(createAppendMessage());
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(runCount).toBe(2);
+    const assistant = core
+      .getMessages()
+      .find(
+        (message) =>
+          message.role === "assistant" &&
+          message.content.some(
+            (part) =>
+              part.type === "tool-call" && part.toolCallId === "spawn-1",
+          ),
+      ) as ThreadAssistantMessage;
+    const nested = (assistant.content[0] as any).messages[0];
+    expect(nested.content[0]).toMatchObject({
+      toolCallId: "frontend-1",
+      result: { shown: true },
+      isError: false,
+    });
+    expect(assistant.status).toMatchObject({ type: "complete" });
+
+    const nestedAssistant = runInputs[1].messages.find(
+      (message: any) => message.id === "subagent-1",
+    );
+    expect(nestedAssistant).toMatchObject({
+      role: "assistant",
+      subagentRunId: "subagent-1",
+      toolCalls: [{ id: "frontend-1" }],
+    });
+    expect(runInputs[1].messages).toContainEqual(
+      expect.objectContaining({
+        role: "tool",
+        toolCallId: "frontend-1",
+        content: '{"shown":true}',
+        subagentRunId: "subagent-1",
+      }),
+    );
+  });
+
   it("prefers latest pending message when toolCallId is reused", () => {
     const agent = {
       runAgent: vi.fn(async () => {}),

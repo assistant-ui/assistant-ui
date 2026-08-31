@@ -39,10 +39,7 @@ An AG-UI backend that runs subagents (the agents-as-tools pattern) emits `SUBAGE
 
 A subagent that names no reachable spawning call (`parentToolCallId` is optional, may name a call this run never saw, or two runs may name each other) has nowhere to nest, so its output renders in the parent thread instead of being dropped. This matches the downgrade the protocol's own pre-subagent compatibility middleware performs.
 
-Two limitations are worth knowing before you rely on this:
-
-- **A subagent cannot run frontend-executed tools.** A tool call inside a nested message is not reachable by `getPendingToolCalls()`, so it is never handed to a frontend tool and never resolved. The run reports `{ type: "incomplete", reason: "tool-calls" }` rather than claiming it finished, but the call does not execute. Before subagent attribution existed these calls landed in the parent thread and did run, so this is a behavior change for a backend that pairs subagents with frontend tools. Tracked in [#6612](https://github.com/assistant-ui/assistant-ui/issues/6612).
-- **Nested human-in-the-loop is not wired up.** A `SUBAGENT_FINISHED` with a `suspended` outcome marks the nested message `requires-action`, and its `interruptIds` are preserved on the message metadata, but there is no resume path that answers them yet.
+Frontend-executed tools declared in `RunAgentInput.tools` are discovered and resumed when a subagent emits them inside its nested message. Nested human-in-the-loop is not wired up: a `SUBAGENT_FINISHED` with a `suspended` outcome marks the nested message `requires-action`, and its `interruptIds` are preserved on the message metadata, but there is no resume path that answers them yet.
 
 ## See also
 

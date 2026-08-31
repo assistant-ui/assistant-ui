@@ -67,6 +67,7 @@ export type AgUiMessage =
       role: "user";
       content: string | InputContent[];
       name?: string;
+      subagentRunId?: string;
     }
   | {
       id: string;
@@ -74,18 +75,21 @@ export type AgUiMessage =
       content: string;
       name?: string;
       toolCalls?: AgUiToolCall[];
+      subagentRunId?: string;
     }
   | {
       id: string;
       role: "system" | "developer";
       content: string;
       name?: string;
+      subagentRunId?: string;
     }
   | {
       id: string;
       role: "reasoning";
       content: string;
       encryptedValue?: string;
+      subagentRunId?: string;
     }
   | {
       id: string;
@@ -93,6 +97,7 @@ export type AgUiMessage =
       content: string;
       toolCallId: string;
       error?: string;
+      subagentRunId?: string;
     };
 
 type ToolCallPart = {
@@ -1001,6 +1006,7 @@ export function fromAgUiMessages(
 function convertAssistantMessage(
   message: NormalizedThreadMessageLike,
   converted: AgUiMessage[],
+  subagentRunId?: string,
 ): void {
   const content = extractText(message.content);
   const contentArray = Array.isArray(message.content) ? message.content : [];
@@ -1041,6 +1047,7 @@ function convertAssistantMessage(
       role: "reasoning",
       content: text,
       ...(encryptedValue !== undefined ? { encryptedValue } : {}),
+      ...(subagentRunId ? { subagentRunId } : {}),
     });
     reasoningIndex++;
   }
@@ -1056,12 +1063,27 @@ function convertAssistantMessage(
     role: "assistant",
     content,
     ...(message.name ? { name: message.name } : {}),
+    ...(subagentRunId ? { subagentRunId } : {}),
     ...(toolCalls.length > 0
       ? { toolCalls: toolCalls.map((entry) => entry.call) }
       : {}),
   });
 
   for (const { id: toolCallId, part } of toolCalls) {
+    const nestedMessages = (part as ToolCallPart & { messages?: unknown })
+      .messages;
+    for (const rawNested of Array.isArray(nestedMessages)
+      ? nestedMessages
+      : []) {
+      if (!isObject(rawNested) || typeof rawNested.role !== "string") continue;
+      const nested = rawNested as ThreadMessageLike;
+      const nestedId = nested.id ?? generateId();
+      convertMessage(
+        { ...nested, id: nestedId },
+        converted,
+        nested.role === "assistant" ? nestedId : subagentRunId,
+      );
+    }
     if (part.result === undefined) continue;
 
     const resultContent =
@@ -1076,25 +1098,107 @@ function convertAssistantMessage(
       role: "tool",
       content: resultContent,
       toolCallId,
+      ...(subagentRunId ? { subagentRunId } : {}),
       ...(part.isError ? { error: resultContent } : {}),
     });
   }
 }
 
-function convertToolMessage(
-  message: NormalizedThreadMessageLike,
+function convertMessage(
+  rawMessage: ThreadMessageLike,
   converted: AgUiMessage[],
+  subagentRunId?: string,
 ): void {
-  const content = extractText(message.content);
-  const toolCallId = message.toolCallId ?? generateId();
-
-  converted.push({
-    id: message.id,
-    role: "tool",
-    content,
-    toolCallId,
-    ...(typeof message.error === "string" ? { error: message.error } : {}),
+  const message: NormalizedThreadMessageLike = {
+    ...rawMessage,
+    id: rawMessage.id ?? generateId(),
+  };
+  const opaqueReasoning = readOpaqueReasoning(message.metadata);
+  const toOpaqueRecord = (entry: AgUiOpaqueReasoning): AgUiMessage => ({
+    id: entry.id,
+    role: "reasoning",
+    content: "",
+    encryptedValue: entry.encryptedValue,
+    ...(subagentRunId ? { subagentRunId } : {}),
   });
+  for (const entry of opaqueReasoning) {
+    if (entry.after !== true) converted.push(toOpaqueRecord(entry));
+  }
+  const flushTrailingOpaqueReasoning = () => {
+    for (const entry of opaqueReasoning) {
+      if (entry.after === true) converted.push(toOpaqueRecord(entry));
+    }
+  };
+
+  if (message.role === "assistant") {
+    convertAssistantMessage(message, converted, subagentRunId);
+    flushTrailingOpaqueReasoning();
+    return;
+  }
+
+  if (message.role === "tool") {
+    const content = extractText(message.content);
+    const toolCallId = message.toolCallId ?? generateId();
+    converted.push({
+      id: message.id,
+      role: "tool",
+      content,
+      toolCallId,
+      ...(subagentRunId ? { subagentRunId } : {}),
+      ...(typeof message.error === "string" ? { error: message.error } : {}),
+    });
+    flushTrailingOpaqueReasoning();
+    return;
+  }
+
+  if (message.role === "user") {
+    converted.push({
+      id: message.id,
+      role: "user",
+      content: buildUserContent(message),
+      ...(message.name ? { name: message.name } : {}),
+      ...(subagentRunId ? { subagentRunId } : {}),
+    });
+    flushTrailingOpaqueReasoning();
+    return;
+  }
+
+  if (message.role === "system" || message.role === "developer") {
+    const custom = isObject(message.metadata)
+      ? message.metadata.custom
+      : undefined;
+    const namespaced = isObject(custom)
+      ? custom[AG_UI_METADATA_NAMESPACE]
+      : undefined;
+    const wireRole =
+      message.role === "system" &&
+      isObject(namespaced) &&
+      namespaced.role === "developer"
+        ? ("developer" as const)
+        : message.role;
+    converted.push({
+      id: message.id,
+      role: wireRole,
+      content: extractText(message.content),
+      ...(message.name ? { name: message.name } : {}),
+      ...(subagentRunId ? { subagentRunId } : {}),
+    });
+    flushTrailingOpaqueReasoning();
+    return;
+  }
+
+  if (message.role === "reasoning") {
+    converted.push({
+      id: message.id,
+      role: "reasoning",
+      content: extractText(message.content),
+      ...(subagentRunId ? { subagentRunId } : {}),
+    });
+    flushTrailingOpaqueReasoning();
+    return;
+  }
+
+  flushTrailingOpaqueReasoning();
 }
 
 export function toAgUiMessages(
@@ -1103,83 +1207,7 @@ export function toAgUiMessages(
   const converted: AgUiMessage[] = [];
 
   for (const rawMessage of messages) {
-    const message: NormalizedThreadMessageLike = {
-      ...rawMessage,
-      id: rawMessage.id ?? generateId(),
-    };
-    const opaqueReasoning = readOpaqueReasoning(message.metadata);
-    const toOpaqueRecord = (entry: AgUiOpaqueReasoning): AgUiMessage => ({
-      id: entry.id,
-      role: "reasoning",
-      content: "",
-      encryptedValue: entry.encryptedValue,
-    });
-    for (const entry of opaqueReasoning) {
-      if (entry.after !== true) converted.push(toOpaqueRecord(entry));
-    }
-    const flushTrailingOpaqueReasoning = () => {
-      for (const entry of opaqueReasoning) {
-        if (entry.after === true) converted.push(toOpaqueRecord(entry));
-      }
-    };
-
-    if (message.role === "assistant") {
-      convertAssistantMessage(message, converted);
-      flushTrailingOpaqueReasoning();
-      continue;
-    }
-
-    if (message.role === "tool") {
-      convertToolMessage(message, converted);
-      flushTrailingOpaqueReasoning();
-      continue;
-    }
-
-    if (message.role === "user") {
-      converted.push({
-        id: message.id,
-        role: "user",
-        content: buildUserContent(message),
-        ...(message.name ? { name: message.name } : {}),
-      });
-      flushTrailingOpaqueReasoning();
-      continue;
-    }
-
-    if (message.role === "system" || message.role === "developer") {
-      const custom = isObject(message.metadata)
-        ? message.metadata.custom
-        : undefined;
-      const namespaced = isObject(custom)
-        ? custom[AG_UI_METADATA_NAMESPACE]
-        : undefined;
-      const wireRole =
-        message.role === "system" &&
-        isObject(namespaced) &&
-        namespaced.role === "developer"
-          ? ("developer" as const)
-          : message.role;
-      converted.push({
-        id: message.id,
-        role: wireRole,
-        content: extractText(message.content),
-        ...(message.name ? { name: message.name } : {}),
-      });
-      flushTrailingOpaqueReasoning();
-      continue;
-    }
-
-    if (message.role === "reasoning") {
-      converted.push({
-        id: message.id,
-        role: "reasoning",
-        content: extractText(message.content),
-      });
-      flushTrailingOpaqueReasoning();
-      continue;
-    }
-
-    flushTrailingOpaqueReasoning();
+    convertMessage(rawMessage, converted);
   }
 
   return converted;

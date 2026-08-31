@@ -219,9 +219,6 @@ export class RunAggregator {
 
         this.interrupts = undefined;
         const { reachable } = this.nesting();
-        // Classified by the scope a call actually renders in: one flattened to
-        // root is reachable by getPendingToolCalls and therefore answerable,
-        // while one nested inside a subagent message is not.
         const unresolved = Array.from(this.toolCalls.values()).filter(
           (tc) => tc.result === undefined,
         );
@@ -234,10 +231,9 @@ export class RunAggregator {
             tc.subagentRunId !== undefined && reachable.has(tc.subagentRunId),
         );
 
-        this.status = hasUnresolvedRootToolCalls
-          ? { type: "requires-action", reason: "tool-calls" }
-          : hasUnresolvedSubagentToolCalls
-            ? { type: "incomplete", reason: "tool-calls" }
+        this.status =
+          hasUnresolvedRootToolCalls || hasUnresolvedSubagentToolCalls
+            ? { type: "requires-action", reason: "tool-calls" }
             : { type: "complete", reason: "unknown" };
         this.closeOpenSubagentRuns(this.status);
         this.emit();
@@ -1131,10 +1127,9 @@ export class RunAggregator {
     // A run that ended incomplete can no longer be resumed, so a gate left over
     // from an earlier interrupt outcome is unanswerable and must not stay
     // projected. The interrupts themselves are kept on the message, since the
-    // bespoke hooks read that payload. Bound ids are exactly the calls that
-    // render at root scope, which is also exactly what getPendingToolCalls can
-    // reach: a call nested inside a subagent message is unanswerable, so the
-    // projector collapses the batch rather than showing half of it.
+    // bespoke hooks read that payload. Tool approval metadata is projected only
+    // for calls rendered at root scope; nested human-in-the-loop remains on the
+    // bespoke interrupt path.
     const partsByScope = new Map<
       string,
       { index: number; part: PartOrderEntry }[]
