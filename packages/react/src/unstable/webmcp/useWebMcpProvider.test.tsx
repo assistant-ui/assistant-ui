@@ -419,7 +419,7 @@ describe("unstable_useWebMcpProvider", () => {
     await waitForNames([]);
   });
 
-  it("keeps the tool exposed across a description change on an async host removal", async () => {
+  it("keeps the tool exposed across a description change on a conforming host", async () => {
     const registry = createAsyncModelContext();
     const provider = createProvider({ search: frontendTool() });
     mountProvider(provider);
