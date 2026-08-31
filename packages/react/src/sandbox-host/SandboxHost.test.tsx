@@ -5,7 +5,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { renderHtmlMock } = vi.hoisted(() => ({ renderHtmlMock: vi.fn() }));
 
-vi.mock("safe-content-frame", () => ({
+vi.mock("safe-content-frame", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("safe-content-frame")>()),
   SafeContentFrame: class {
     renderHtml = renderHtmlMock;
   },
@@ -198,6 +199,30 @@ describe("SandboxHost", () => {
     expect(rendered.fullyLoadedPromiseWithTimeout).toHaveBeenCalled();
     expect(onError).not.toHaveBeenCalled();
     expect(rendered.dispose).not.toHaveBeenCalled();
+  });
+
+  it("reports a load failure that carries no shim code", async () => {
+    const rendered = fakeRendered();
+    rendered.fullyLoadedPromiseWithTimeout.mockImplementation(() =>
+      Promise.reject(new Error("Failed to load iframe")),
+    );
+    renderHtmlMock.mockResolvedValue(rendered);
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+          onError={onError}
+        />,
+      );
+    });
+    await flush();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]![0].message).toBe("Failed to load iframe");
   });
 
   it("does not report a load failure after unmount", async () => {

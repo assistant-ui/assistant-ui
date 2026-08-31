@@ -34,8 +34,10 @@ type ShimLoadErrorCode = "render-timeout" | "shim-error" | "shim-unavailable";
 declare const enableShadowDom: () => boolean;
 
 declare namespace entry_root_exports {
-  export { RenderedFrame, SafeContentFrame, SafeContentFrameOptions, SandboxOption, ShimLoadError, ShimLoadErrorCode };
+  export { RenderedFrame, SafeContentFrame, SafeContentFrameOptions, SandboxOption, ShimLoadError, ShimLoadErrorCode, isShimLoadError };
 }
+
+declare function isShimLoadError(error: unknown): error is ShimLoadError;
 
 declare namespace entry_shadow_dom_exports {
   export { enableShadowDom, unsafeDisableShadowDom };

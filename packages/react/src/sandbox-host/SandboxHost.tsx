@@ -8,10 +8,10 @@ import {
   useState,
 } from "react";
 import {
+  isShimLoadError,
   type RenderedFrame,
   SafeContentFrame,
   type SandboxOption,
-  type ShimLoadError,
 } from "safe-content-frame";
 import { invokeUserCallback } from "@assistant-ui/core/internal";
 
@@ -180,7 +180,7 @@ export function SandboxHost({
         // recovers.
         rendered.fullyLoadedPromiseWithTimeout(LOAD_TIMEOUT_MS).catch((err) => {
           if (cancelled) return;
-          if ((err as ShimLoadError).code === "render-timeout") return;
+          if (isShimLoadError(err) && err.code === "render-timeout") return;
           reportError(err);
         });
       })

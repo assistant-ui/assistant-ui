@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { SafeContentFrame } from "./index";
+import { isShimLoadError, SafeContentFrame } from "./index";
 
 class MockMessagePort {
   onmessage: ((event: MessageEvent) => void) | null = null;
@@ -327,5 +327,25 @@ describe("SafeContentFrame", () => {
       { code: "render-timeout", message: "Timeout" },
     );
     frame.dispose();
+  });
+});
+
+describe("isShimLoadError", () => {
+  it.each(["shim-unavailable", "shim-error", "render-timeout"])(
+    "accepts a rejection carrying the %s code",
+    (code) => {
+      expect(isShimLoadError(Object.assign(new Error("x"), { code }))).toBe(
+        true,
+      );
+    },
+  );
+
+  it("rejects the plain errors the same promise can also reject with", () => {
+    expect(isShimLoadError(new Error("Failed to load iframe"))).toBe(false);
+    expect(
+      isShimLoadError(Object.assign(new Error("x"), { code: "enoent" })),
+    ).toBe(false);
+    expect(isShimLoadError({ code: "shim-error" })).toBe(false);
+    expect(isShimLoadError(undefined)).toBe(false);
   });
 });

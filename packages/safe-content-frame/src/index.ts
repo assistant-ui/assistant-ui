@@ -38,11 +38,31 @@ export interface RenderedFrame {
   dispose(): void;
 }
 
+const SHIM_LOAD_ERROR_CODES: readonly string[] = [
+  "shim-unavailable",
+  "shim-error",
+  "render-timeout",
+] satisfies readonly ShimLoadErrorCode[];
+
 function shimLoadError(
   code: ShimLoadErrorCode,
   message: string,
 ): ShimLoadError {
   return Object.assign(new Error(message), { code });
+}
+
+/**
+ * Narrows a rejection from `fullyLoadedPromiseWithTimeout`. The promise also
+ * rejects with plain errors that carry no code, so a bare property read is not
+ * enough to tell why a frame failed. Membership of the code set is the test
+ * rather than `instanceof`, which does not survive a duplicated copy of this
+ * package in a consumer's bundle.
+ */
+export function isShimLoadError(error: unknown): error is ShimLoadError {
+  return (
+    error instanceof Error &&
+    SHIM_LOAD_ERROR_CODES.includes((error as { code?: unknown }).code as string)
+  );
 }
 
 const SCF_HOST = "scf.auiusercontent.com";
