@@ -134,8 +134,9 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
         emit("thread.runStart", { threadId: nextThreadId });
       }
 
+      if (pending.has(previousThreadId)) return;
+
       if (
-        pending.has(previousThreadId) ||
         !previousThread ||
         !Object.hasOwn(nextState.threadItems, previousThreadId) ||
         !runtime.getItemById(previousThreadId).getState().isRunning ||

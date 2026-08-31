@@ -319,6 +319,34 @@ describe("thread switch events", () => {
     const threadBId = runtime.threads.mainItem.getState().id;
 
     await act(async () => {
+      await runtime.threads.switchToThread("thread-a");
+    });
+    await waitFor(() => {
+      expect(runtime.threads.mainItem.getState().remoteId).toBe("thread-a");
+    });
+    await act(async () => {
+      await runtime.threads.switchToThread("thread-b");
+    });
+    await waitFor(() => {
+      expect(runtime.threads.mainItem.getState().remoteId).toBe("thread-b");
+    });
+    await act(async () => {
+      await runtime.threads.switchToThread("thread-a");
+    });
+    await waitFor(() => {
+      expect(runtime.threads.mainItem.getState().remoteId).toBe("thread-a");
+    });
+    expect(globalRunStart).toHaveBeenCalledExactlyOnceWith({
+      threadId: threadAId,
+    });
+    await act(async () => {
+      await runtime.threads.switchToThread("thread-b");
+    });
+    await waitFor(() => {
+      expect(runtime.threads.mainItem.getState().remoteId).toBe("thread-b");
+    });
+
+    await act(async () => {
       runA.resolve({ content: [] });
     });
     await waitFor(() => {
