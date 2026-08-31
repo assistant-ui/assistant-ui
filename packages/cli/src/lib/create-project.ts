@@ -233,6 +233,7 @@ export async function transformProject(
       pm,
     );
     if (failure) return { registryInstallFailure: failure };
+    reconcileAssistantUIImportLayout(projectDir);
   }
   return {};
 }
@@ -421,6 +422,49 @@ function toAssistantUIItem(specifier: string): string | null {
   return inElements && !BARE_ELEMENT_ITEMS.has(name)
     ? `elements-${name}`
     : name;
+}
+
+/**
+ * Example snapshots are downloaded at a release tag while the shadcn registry
+ * is live, so a snapshot may import components at the legacy flat path
+ * (`@/components/assistant-ui/<name>`) after the registry has moved the file
+ * to `components/assistant-ui/elements/<name>.aui.tsx`. Resolve each legacy
+ * specifier against the files the registry actually installed and rewrite it
+ * only when the legacy path is absent and the elements layout has it.
+ */
+export function reconcileAssistantUIImportLayout(projectDir: string): void {
+  const componentRoots = ["components", "src/components"]
+    .map((dir) => path.join(projectDir, dir, "assistant-ui"))
+    .filter((dir) => fs.existsSync(dir));
+  if (componentRoots.length === 0) return;
+
+  const resolvesAtLegacyPath = (name: string) =>
+    componentRoots.some((root) =>
+      [".tsx", ".ts", "/index.tsx", "/index.ts"].some((suffix) =>
+        fs.existsSync(path.join(root, `${name}${suffix}`)),
+      ),
+    );
+  const resolvesInElements = (name: string) =>
+    componentRoots.some((root) =>
+      fs.existsSync(path.join(root, "elements", `${name}.aui.tsx`)),
+    );
+
+  for (const { fullPath, content } of readProjectFiles("**/*.{ts,tsx}", {
+    cwd: projectDir,
+    ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
+  })) {
+    const next = content.replace(
+      /(from\s+["'])@\/components\/assistant-ui\/([^"'/]+)(["'])/g,
+      (match, prefix, specifier, suffix) => {
+        const name = stripImportExtension(specifier);
+        if (resolvesAtLegacyPath(name) || !resolvesInElements(name)) {
+          return match;
+        }
+        return `${prefix}@/components/assistant-ui/elements/${name}.aui${suffix}`;
+      },
+    );
+    if (next !== content) fs.writeFileSync(fullPath, next);
+  }
 }
 
 function scanRequiredComponents(projectDir: string): RequiredComponents {
