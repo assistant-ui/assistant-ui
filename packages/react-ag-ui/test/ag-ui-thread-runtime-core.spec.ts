@@ -3153,6 +3153,124 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(nestedPart?.result).toEqual({ found: true });
   });
 
+  it("applies a cross-run TOOL_CALL_RESULT to a nested tool call from an earlier run", async () => {
+    let runCount = 0;
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "t-spawn",
+            toolCallName: "task",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "t-spawn" },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            messageId: "m-spawn",
+            toolCallId: "t-spawn",
+            content: "spawned",
+            role: "tool",
+          },
+        });
+        subscriber.onSubagentStartedEvent?.({
+          event: {
+            type: "SUBAGENT_STARTED",
+            subagentRunId: "sub-1",
+            name: "investigate",
+            parentToolCallId: "t-spawn",
+          },
+        });
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "nested-1",
+            toolCallName: "search",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: {
+            type: "TOOL_CALL_END",
+            toolCallId: "nested-1",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: { type: "success" },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      // A different run whose aggregator has never seen nested-1 delivers
+      // its result: the cross-run branch must reach the nested part.
+      subscriber.onToolCallResultEvent?.({
+        event: {
+          type: "TOOL_CALL_RESULT",
+          messageId: "m-late",
+          toolCallId: "nested-1",
+          content: JSON.stringify({ found: "late" }),
+          role: "tool",
+        },
+      });
+      subscriber.onTextMessageStartEvent?.({
+        event: { type: "TEXT_MESSAGE_START", messageId: "t2" },
+      });
+      subscriber.onTextMessageContentEvent?.({
+        event: { type: "TEXT_MESSAGE_CONTENT", messageId: "t2", delta: "ok" },
+      });
+      subscriber.onTextMessageEndEvent?.({
+        event: { type: "TEXT_MESSAGE_END", messageId: "t2" },
+      });
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent, {
+      autoCancelPendingToolCalls: false,
+    });
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const firstAssistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    expect(core.getPendingToolCalls()?.toolCallIds).toEqual(["nested-1"]);
+
+    await core.append(
+      createAppendMessage({ parentId: core.getMessages().at(-1)!.id }),
+    );
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(runCount).toBe(2);
+    const updated = core
+      .getMessages()
+      .find(
+        (m) => m.role === "assistant" && m.id === firstAssistant.id,
+      ) as ThreadAssistantMessage;
+    const spawn = updated.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-spawn",
+    ) as any;
+    const nestedPart = spawn.messages?.[0]?.content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "nested-1",
+    );
+    expect(nestedPart?.result).toEqual({ found: "late" });
+  });
+
   it("steerAway cancels every pending client-side tool call", async () => {
     const runInputs: any[] = [];
     let runCount = 0;

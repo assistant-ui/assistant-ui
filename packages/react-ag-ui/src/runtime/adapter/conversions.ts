@@ -108,7 +108,15 @@ type ToolCallPart = {
   unstable_toolMessageId?: string;
   mcp?: ToolCallMessagePartMcpMetadata;
   messages?: readonly ThreadMessage[];
+  approval?: CoreToolCallPartApproval;
 };
+
+type CoreToolCallPartApproval = NonNullable<
+  Extract<
+    Exclude<CoreThreadMessageLike["content"], string>[number],
+    { type: "tool-call" }
+  >["approval"]
+>;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -1053,29 +1061,54 @@ function convertAssistantMessage(
     return;
   }
 
+  // A subagent's tool calls live on nested assistant messages. Before
+  // subagent attribution they flattened to root and went out with this
+  // assistant record as their antecedent, so the resume payload restores
+  // exactly that shape: the calls join this record's toolCalls and their
+  // results follow as tool records — never a tool record without its call.
+  // The nested assistant content itself is backend-owned state and is not
+  // re-sent.
+  const nestedToolCalls: {
+    id: string;
+    call: AgUiToolCall;
+    part: ToolCallPart;
+  }[] = [];
+  for (const { part } of toolCalls) {
+    collectNestedToolCalls(part, nestedToolCalls);
+  }
+
   converted.push({
     id: message.id,
     role: "assistant",
     content,
     ...(message.name ? { name: message.name } : {}),
-    ...(toolCalls.length > 0
-      ? { toolCalls: toolCalls.map((entry) => entry.call) }
+    ...(toolCalls.length + nestedToolCalls.length > 0
+      ? {
+          toolCalls: [...toolCalls, ...nestedToolCalls].map(
+            (entry) => entry.call,
+          ),
+        }
       : {}),
   });
 
   for (const { id: toolCallId, part } of toolCalls) {
     emitToolResult(toolCallId, part, converted);
-    // A subagent's frontend-executed call lives on the nested assistant
-    // message, and its backend waits for that call's tool record like any
-    // other; the nested assistant content itself is backend-owned state and
-    // is not re-sent.
-    emitNestedToolResults(part, converted);
+  }
+  for (const { id: toolCallId, part } of nestedToolCalls) {
+    // A result injected while an approval gate is still open must not reach
+    // the backend as if the gate had been decided.
+    const gateOpen =
+      part.approval != null &&
+      part.approval.approved === undefined &&
+      part.approval.resolution === undefined;
+    if (gateOpen) continue;
+    emitToolResult(toolCallId, part, converted);
   }
 }
 
-function emitNestedToolResults(
+function collectNestedToolCalls(
   part: ToolCallPart,
-  converted: AgUiMessage[],
+  out: { id: string; call: AgUiToolCall; part: ToolCallPart }[],
 ): void {
   for (const nested of part.messages ?? []) {
     if (!isObject(nested) || nested.role !== "assistant") continue;
@@ -1083,12 +1116,14 @@ function emitNestedToolResults(
     for (const nestedPart of nestedContent) {
       if (!isObject(nestedPart) || nestedPart.type !== "tool-call") continue;
       const nestedToolCall = nestedPart as ToolCallPart;
-      emitToolResult(
-        normalizeToolCall(nestedToolCall).id,
-        nestedToolCall,
-        converted,
-      );
-      emitNestedToolResults(nestedToolCall, converted);
+      if (
+        typeof nestedToolCall.toolCallId === "string" &&
+        nestedToolCall.toolCallId.startsWith("a2ui:")
+      ) {
+        continue;
+      }
+      out.push({ ...normalizeToolCall(nestedToolCall), part: nestedToolCall });
+      collectNestedToolCalls(nestedToolCall, out);
     }
   }
 }

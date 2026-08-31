@@ -1649,9 +1649,8 @@ export class AgUiThreadRuntimeCore {
       const assistant = message as ThreadAssistantMessage;
       const mcpAppUri = readMcpAppResourceUri(event.mcpResult?._meta);
       let matchedToolCall = false;
-      const content = assistant.content.map((part) => {
-        if (part.type !== "tool-call" || part.toolCallId !== event.toolCallId)
-          return part;
+      const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
+        if (part.toolCallId !== event.toolCallId) return part;
         matchedToolCall = true;
         // An applied activity snapshot owns part.result; a later result only
         // fills what is missing, mirroring the aggregator's finishToolCall.
@@ -1735,9 +1734,8 @@ export class AgUiThreadRuntimeCore {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       let matchedToolCall = false;
-      const content = assistant.content.map((part) => {
-        if (part.type !== "tool-call" || part.toolCallId !== toolCallId)
-          return part;
+      const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
+        if (part.toolCallId !== toolCallId) return part;
         matchedToolCall = true;
         return {
           ...part,

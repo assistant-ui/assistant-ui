@@ -58,6 +58,62 @@ describe("adapter conversions", () => {
     ]);
     const nested = toolRecords.find((m: any) => m.toolCallId === "nested-1");
     expect(nested?.content).toContain("found");
+
+    // Every tool record has its antecedent: nested calls flatten onto the
+    // spawning assistant record's toolCalls, the pre-subagent wire shape.
+    const assistantCallIds = new Set(
+      result
+        .filter((m) => m.role === "assistant")
+        .flatMap((m: any) => (m.toolCalls ?? []).map((c: any) => c.id)),
+    );
+    expect(assistantCallIds.has("t-spawn")).toBe(true);
+    expect(assistantCallIds.has("nested-1")).toBe(true);
+    for (const record of toolRecords) {
+      expect(assistantCallIds.has((record as any).toolCallId)).toBe(true);
+    }
+  });
+
+  it("does not export a nested result whose approval gate is still open", () => {
+    const result = toAgUiMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "t-spawn",
+            toolName: "task",
+            args: {},
+            result: "spawned",
+            messages: [
+              {
+                id: "sub-1",
+                role: "assistant",
+                content: [
+                  {
+                    type: "tool-call",
+                    toolCallId: "nested-gated",
+                    toolName: "delete_file",
+                    args: { path: "/tmp/a" },
+                    result: { done: true },
+                    approval: { id: "gate-1" },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    const toolRecords = result.filter((m) => m.role === "tool");
+    expect(toolRecords.some((m: any) => m.toolCallId === "nested-gated")).toBe(
+      false,
+    );
+    const assistant = result.find((m) => m.role === "assistant") as any;
+    expect(assistant.toolCalls.some((c: any) => c.id === "nested-gated")).toBe(
+      true,
+    );
   });
 
   it("converts thread messages to AG-UI format", () => {
