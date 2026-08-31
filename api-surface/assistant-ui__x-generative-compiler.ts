@@ -24,9 +24,11 @@ type ToolType = "backend" | "frontend" | "human" | "provider";
 declare function compileGenerative(code: string, options: CompileOptions): CompileResult;
 
 declare namespace entry_root_exports {
-  export { CompileOptions, CompileResult, DIRECTIVE, GenerativeCompileError, Target, ToolType, compileGenerative, isGenerativeModule };
+  export { CompileOptions, CompileResult, DIRECTIVE, GenerativeCompileError, Target, ToolType, compileGenerative, isGenerativeModule, isGenerativeSource };
 }
 
 declare function isGenerativeModule(code: string): boolean;
+
+declare const isGenerativeSource: (filename: string, source: string) => boolean;
 
 export { entry_root_exports as entry_root };

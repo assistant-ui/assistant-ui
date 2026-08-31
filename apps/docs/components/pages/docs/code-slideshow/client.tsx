@@ -31,7 +31,7 @@ const mark: AnnotationHandler = {
       className={cn(
         "block border-l-2 px-4",
         annotation
-          ? "border-l-fd-primary/60 bg-fd-primary/10"
+          ? "border-l-primary/60 bg-primary/10"
           : "border-l-transparent",
       )}
     />
@@ -46,13 +46,13 @@ const tooltip: AnnotationHandler = {
       <span
         tabIndex={0}
         aria-describedby={id}
-        className="group/tooltip ch-tooltip border-fd-muted-foreground/60 relative cursor-help border-b border-dashed"
+        className="group/tooltip ch-tooltip border-muted-foreground/60 relative cursor-help border-b border-dashed"
       >
         {children}
         <span
           id={id}
           role="tooltip"
-          className="border-fd-border bg-fd-popover text-fd-popover-foreground absolute bottom-full left-0 z-10 mb-1.5 hidden rounded-md border px-2.5 py-1.5 font-mono text-xs whitespace-nowrap group-hover/tooltip:block group-focus-visible/tooltip:block"
+          className="border-border bg-popover text-popover-foreground absolute bottom-full left-0 z-10 mb-1.5 hidden rounded-md border px-2.5 py-1.5 font-mono text-xs whitespace-nowrap group-hover/tooltip:block group-focus-visible/tooltip:block"
         >
           {annotation.query}
         </span>
@@ -162,7 +162,7 @@ export const CodeSlideshowClient = ({
       data-testid={testId}
     >
       <div className="bg-code-surface overflow-hidden rounded-xl">
-        <div className="border-fd-border/70 flex gap-1 border-b p-3">
+        <div className="border-border/70 flex gap-1 border-b p-3">
           {steps.map((item, index) => (
             <button
               key={index}
@@ -176,22 +176,22 @@ export const CodeSlideshowClient = ({
                 className={cn(
                   "h-1 rounded-full transition-colors",
                   index <= nav.index
-                    ? "bg-fd-primary"
-                    : "bg-fd-muted group-hover:bg-fd-muted-foreground/40",
+                    ? "bg-primary"
+                    : "bg-muted group-hover:bg-muted-foreground/40",
                 )}
               />
             </button>
           ))}
         </div>
 
-        <div className="border-fd-border/70 bg-fd-muted/20 min-w-0 border-b">
-          <div className="border-fd-border/70 flex items-center gap-3 border-b px-4 py-2.5">
+        <div className="border-border/70 bg-muted/20 min-w-0 border-b">
+          <div className="border-border/70 flex items-center gap-3 border-b px-4 py-2.5">
             <div className="flex gap-1.5" aria-hidden="true">
-              <div className="bg-fd-muted-foreground/25 size-2.5 rounded-full" />
-              <div className="bg-fd-muted-foreground/25 size-2.5 rounded-full" />
-              <div className="bg-fd-muted-foreground/25 size-2.5 rounded-full" />
+              <div className="bg-muted-foreground/25 size-2.5 rounded-full" />
+              <div className="bg-muted-foreground/25 size-2.5 rounded-full" />
+              <div className="bg-muted-foreground/25 size-2.5 rounded-full" />
             </div>
-            <p className="text-fd-muted-foreground min-w-0 truncate font-mono text-sm">
+            <p className="text-muted-foreground min-w-0 truncate font-mono text-sm">
               {step.filename}
             </p>
           </div>
@@ -222,7 +222,7 @@ export const CodeSlideshowClient = ({
           aria-live="polite"
         >
           <div className="flex max-w-2xl min-w-0 flex-col gap-1">
-            <p className="text-fd-muted-foreground text-sm font-medium tabular-nums">
+            <p className="text-muted-foreground text-sm font-medium tabular-nums">
               Step {nav.index + 1} of {steps.length}
             </p>
             <h3 className="text-xl font-semibold text-balance">{step.title}</h3>
@@ -234,7 +234,7 @@ export const CodeSlideshowClient = ({
               size="sm"
               onClick={() => goTo(Math.max(0, nav.index - 1))}
               disabled={isFirst}
-              className="text-fd-muted-foreground hover:text-fd-foreground relative"
+              className="text-muted-foreground hover:text-foreground relative"
             >
               <TouchTarget />
               <ChevronLeftIcon />

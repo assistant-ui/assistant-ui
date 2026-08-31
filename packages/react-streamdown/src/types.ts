@@ -1,5 +1,9 @@
 import type { SmoothOptions } from "@assistant-ui/react";
-import type { Element } from "hast";
+import type {
+  CodeHeaderProps,
+  ComponentsByLanguage,
+  SyntaxHighlighterProps,
+} from "@assistant-ui/react-markdown/code-fence";
 import type { ComponentPropsWithoutRef, ComponentType, ReactNode } from "react";
 import type { Options as RemarkRehypeOptions } from "remark-rehype";
 import type {
@@ -93,44 +97,7 @@ export type RemendConfig = {
   handlers?: RemendHandler[];
 };
 
-/**
- * Props for the SyntaxHighlighter component.
- * Compatible with @assistant-ui/react-markdown API.
- */
-export type SyntaxHighlighterProps = {
-  node?: Element | undefined;
-  components: {
-    Pre: ComponentType<
-      ComponentPropsWithoutRef<"pre"> & { node?: Element | undefined }
-    >;
-    Code: ComponentType<
-      ComponentPropsWithoutRef<"code"> & { node?: Element | undefined }
-    >;
-  };
-  language: string;
-  code: string;
-};
-
-/**
- * Props for the CodeHeader component.
- * Compatible with @assistant-ui/react-markdown API.
- */
-export type CodeHeaderProps = {
-  node?: Element | undefined;
-  language: string | undefined;
-  code: string;
-};
-
-/**
- * Language-specific component overrides.
- */
-export type ComponentsByLanguage = Record<
-  string,
-  {
-    CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
-    SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
-  }
->;
+export type { CodeHeaderProps, ComponentsByLanguage, SyntaxHighlighterProps };
 
 /**
  * Extended components prop that includes SyntaxHighlighter and CodeHeader.

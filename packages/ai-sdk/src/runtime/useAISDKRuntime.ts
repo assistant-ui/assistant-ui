@@ -82,6 +82,7 @@ export type AISDKRuntimeAdapter<UI_MESSAGE extends UIMessage = UIMessage> =
         })
       | undefined;
     toCreateMessage?: CustomToCreateMessageFunction;
+    unstable_messageRepositoryInstance?: MessageRepository | undefined;
     /**
      * Whether to automatically cancel pending interactive tool calls when the user sends a new message.
      *
@@ -549,6 +550,10 @@ export const useAISDKRuntime = <UI_MESSAGE extends UIMessage = UIMessage>(
         }),
       ),
     ...pickExternalStoreSharedOptions(adapter),
+    ...(adapter.unstable_messageRepositoryInstance && {
+      unstable_messageRepositoryInstance:
+        adapter.unstable_messageRepositoryInstance,
+    }),
     ...(suggestionAdapter ? { suggestions: generatedSuggestions } : {}),
     ...(onResume && { onResume }),
     ...(onResumeToolCall && { onResumeToolCall }),

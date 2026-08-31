@@ -1,6 +1,7 @@
 // @vitest-environment jsdom
 
 import { act, renderHook, waitFor } from "@testing-library/react";
+import { startTransition, Suspense, type PropsWithChildren } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { A2AClient } from "./A2AClient";
 import type { A2AStreamEvent } from "./types";
@@ -56,6 +57,32 @@ const createMockClient = (waitForAbort = false) => {
     },
   };
 };
+
+const createFetchMock = () =>
+  vi.fn(async (input: string | URL | Request, _init?: RequestInit) => {
+    const url =
+      typeof input === "string"
+        ? input
+        : input instanceof URL
+          ? input.href
+          : input.url;
+    if (url.endsWith("/.well-known/agent-card.json")) {
+      return new Response(
+        JSON.stringify({ capabilities: { streaming: true } }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      );
+    }
+    return new Response(
+      'data: {"message":{"message_id":"response","role":"ROLE_AGENT","parts":[{"text":"Done"}]}}\n\n',
+      {
+        status: 200,
+        headers: { "Content-Type": "text/event-stream" },
+      },
+    );
+  });
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -160,32 +187,7 @@ describe("useA2ARuntime", () => {
   });
 
   it("uses current headers without recreating the managed client", async () => {
-    const fetchMock = vi.fn(
-      async (input: string | URL | Request, _init?: RequestInit) => {
-        const url =
-          typeof input === "string"
-            ? input
-            : input instanceof URL
-              ? input.href
-              : input.url;
-        if (url.endsWith("/.well-known/agent-card.json")) {
-          return new Response(
-            JSON.stringify({ capabilities: { streaming: true } }),
-            {
-              status: 200,
-              headers: { "Content-Type": "application/json" },
-            },
-          );
-        }
-        return new Response(
-          'data: {"message":{"message_id":"response","role":"ROLE_AGENT","parts":[{"text":"Done"}]}}\n\n',
-          {
-            status: 200,
-            headers: { "Content-Type": "text/event-stream" },
-          },
-        );
-      },
-    );
+    const fetchMock = createFetchMock();
     vi.stubGlobal("fetch", fetchMock);
 
     const { result, rerender } = renderHook(
@@ -214,6 +216,65 @@ describe("useA2ARuntime", () => {
     const streamRequest = fetchMock.mock.calls[1]!;
     expect(streamRequest[1]?.headers).toMatchObject({
       Authorization: "Bearer second",
+    });
+  });
+
+  it("keeps managed headers scoped to committed renders", async () => {
+    const fetchMock = createFetchMock();
+    vi.stubGlobal("fetch", fetchMock);
+
+    const interruptedRender = vi.fn();
+    const renderedToken = vi.fn();
+    const pending = new Promise<never>(() => {});
+    let blocked = false;
+    const Blocker = ({ blocked }: { blocked: boolean }) => {
+      if (blocked) {
+        interruptedRender();
+        throw pending;
+      }
+      return null;
+    };
+    const Wrapper = ({ children }: PropsWithChildren) => (
+      <Suspense fallback={null}>
+        {children}
+        <Blocker blocked={blocked} />
+      </Suspense>
+    );
+
+    const { result, rerender } = renderHook(
+      ({ token }) => {
+        renderedToken(token);
+        return useA2ARuntime({
+          baseUrl: "https://agent.test",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      },
+      {
+        initialProps: { token: "workspace-a" },
+        wrapper: Wrapper,
+      },
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledOnce());
+
+    act(() => {
+      blocked = true;
+      startTransition(() => {
+        rerender({ token: "workspace-b" });
+      });
+    });
+    expect(interruptedRender).toHaveBeenCalled();
+    expect(renderedToken).toHaveBeenCalledWith("workspace-b");
+
+    act(() => {
+      result.current.thread.append({
+        role: "user",
+        content: [{ type: "text", text: "hello" }],
+      });
+    });
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+    expect(fetchMock.mock.calls[1]![1]?.headers).toMatchObject({
+      Authorization: "Bearer workspace-a",
     });
   });
 });

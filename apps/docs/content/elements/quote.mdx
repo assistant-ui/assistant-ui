@@ -1,0 +1,316 @@
+---
+title: "Quote"
+description: "Select message text, quote it from a floating toolbar, and carry it into the composer."
+---
+
+Quote lets someone select text in an assistant message, quote it from a floating toolbar, and see it above the composer input before they send. With a runtime the three pieces read and write the composer's live quote state and the message it was quoted from; standalone you drive the same flow from props you own. It comes in two designs: the runtime variant wires three pieces to a live browser selection, and the static variant, `QuoteReply`, is a single component that renders a pre-split paragraph with a three-action toolbar (see [The quote-reply design](#the-quote-reply-design)).
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Show the quote inside its message
+
+Render `MessagePrimitive.Quote` above `MessagePrimitive.Parts` in the user message. It renders nothing until that message carries a quote.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { QuoteBlock } from "@/components/assistant-ui/elements/quote.aui";
+import { MessagePrimitive } from "@assistant-ui/react";
+
+function UserMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Quote>
+        {(quote) => <QuoteBlock {...quote} />}
+      </MessagePrimitive.Quote>
+      <MessagePrimitive.Parts />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Add the floating selection toolbar
+
+Render `SelectionToolbar` anywhere inside the runtime's scope. It listens for text selection document-wide, and portals itself above the selection only when that selection falls inside one message.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { SelectionToolbar } from "@/components/assistant-ui/elements/quote.aui";
+import { ThreadPrimitive } from "@assistant-ui/react";
+
+function Thread() {
+  return (
+    <ThreadPrimitive.Root>
+      <ThreadPrimitive.Viewport>{/* messages, composer */}</ThreadPrimitive.Viewport>
+      <SelectionToolbar />
+    </ThreadPrimitive.Root>
+  );
+}
+```
+
+Clicking its Quote button sets the composer's quote from the current selection and clears the browser selection; no extra wiring is needed.
+
+  </Step>
+  <Step>
+
+### Preview the quote in the composer
+
+Add `ComposerQuotePreview` inside the composer. It renders nothing until a quote is set, and its dismiss button clears the quote.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { ComposerQuotePreview } from "@/components/assistant-ui/elements/quote.aui";
+import { ComposerPrimitive } from "@assistant-ui/react";
+
+function Composer() {
+  return (
+    <ComposerPrimitive.Root>
+      <ComposerQuotePreview />
+      <ComposerPrimitive.Input placeholder="Send a message..." />
+      <ComposerPrimitive.Send />
+    </ComposerPrimitive.Root>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Forward the quote to the model
+
+The quote lives in message metadata, not in message content, so the model never sees it unless the route handler adds it. `injectQuoteContext` prepends the quoted text as a markdown blockquote before conversion.
+
+```typescript title="app/api/chat/route.ts"
+import { convertToModelMessages, streamText } from "ai";
+import { injectQuoteContext } from "@assistant-ui/ai-sdk";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+
+  const result = streamText({
+    model: myModel,
+    messages: await convertToModelMessages(injectQuoteContext(messages)),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, build the same flow yourself: hold the quoted text in state, show it above your composer, and clear it on send or dismiss. [The quote-reply design](#the-quote-reply-design) below is a ready-made version of exactly that, with no runtime underneath it.
+
+</StandaloneMode>
+
+## Anatomy
+
+<RuntimeMode>
+
+```tsx
+{/* inside the quoting user message, only when it carries a quote */}
+<div data-slot="quote-block">
+  <svg data-slot="quote-block-icon" />
+  <p data-slot="quote-block-text">{quote.text}</p>
+</div>
+
+{/* portaled to document.body, only while a selection resolves to one message */}
+<div data-slot="selection-toolbar">
+  <button data-slot="selection-toolbar-quote" />
+</div>
+
+{/* inside the composer, only while a quote is set */}
+<div data-slot="composer-quote">
+  <svg data-slot="composer-quote-icon" />
+  <span data-slot="composer-quote-text">{quote.text}</span>
+  <button data-slot="composer-quote-dismiss" aria-label="Dismiss quote" />
+</div>
+```
+
+Each of the three pieces mounts or renders empty on its own condition: the block on whether the current message's metadata carries a quote, the toolbar on whether the current text selection resolves to exactly one message, and the composer preview on whether the composer has a quote set. None of them need to be told about the others.
+
+</RuntimeMode>
+
+## Examples
+
+<RuntimeMode>
+
+### Restyle the pieces
+
+All three components expose their sub-parts for full control over styling; each takes `className`.
+
+```tsx
+<QuoteBlock.Root className="my-custom-class">
+  <QuoteBlock.Icon />
+  <QuoteBlock.Text>{quote.text}</QuoteBlock.Text>
+</QuoteBlock.Root>
+
+<SelectionToolbar.Root>
+  <SelectionToolbar.Quote>Reply with quote</SelectionToolbar.Quote>
+</SelectionToolbar.Root>
+
+<ComposerQuotePreview.Root>
+  <ComposerQuotePreview.Icon />
+  <ComposerQuotePreview.Text />
+  <ComposerQuotePreview.Dismiss />
+</ComposerQuotePreview.Root>
+```
+
+### Read the quote without QuoteBlock
+
+`useMessageQuote()` returns the same `QuoteInfo` `MessagePrimitive.Quote` renders with, for a custom display built from scratch:
+
+```tsx
+import { useMessageQuote } from "@assistant-ui/react";
+
+function CustomQuoteDisplay() {
+  const quote = useMessageQuote();
+  if (!quote) return null;
+  return <blockquote className="italic">{quote.text}</blockquote>;
+}
+```
+
+### Clear the quote from elsewhere
+
+Any component inside the runtime can clear the composer's quote, for example from a custom action outside `ComposerQuotePreview`:
+
+```tsx
+import { useAui } from "@assistant-ui/react";
+
+function ClearQuoteButton() {
+  const aui = useAui();
+  return (
+    <button type="button" onClick={() => aui.composer.setQuote(undefined)}>
+      Clear quote
+    </button>
+  );
+}
+```
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+### QuoteBlock
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Root` | `div` | Wraps the icon and text. |
+| `Icon` | `svg` | A quote glyph. |
+| `Text` | `p` | The quoted text, clamped to two lines. |
+
+Typed as a `QuoteMessagePartComponent`, so it can also be passed directly as `MessagePrimitive.Parts`'s `components.Quote` instead of the render-prop form above.
+
+### SelectionToolbar
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Root` | `div` | Portals to `document.body`; renders `null` until a valid single-message selection exists. |
+| `Quote` | `button` | Disabled when there is no active selection. On click, sets the composer's quote and clears the browser selection. |
+
+### ComposerQuotePreview
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `Root` | `div` | Renders `null` until `composer.quote` is set. |
+| `Icon` | `svg` | A quote glyph. |
+| `Text` | `span` | The quoted text; renders `null` if it is empty. |
+| `Dismiss` | `button` | Clears the composer's quote. |
+
+### Quote state and actions
+
+| Selector / call | Type | Description |
+|------------------|------|-------------|
+| `s.composer.quote` | `QuoteInfo \| undefined` | The composer's pending quote. |
+| `useMessageQuote()` | `() => QuoteInfo \| undefined` | The current message's attached quote, read from `message.metadata.custom.quote`. |
+| `aui.composer.setQuote(quote)` | `(quote: QuoteInfo \| undefined) => void` | Sets or clears the composer's quote. Cleared automatically when the message sends. |
+| `injectQuoteContext(messages)` | `(messages: UIMessage[]) => UIMessage[]` | Route-handler helper. Prepends each quoted user message's text as a `>` blockquote part before `convertToModelMessages`. |
+
+`QuoteInfo` is `{ text: string; messageId: string }`.
+
+</RuntimeMode>
+
+## The quote-reply design
+
+The Static variant in the rail is a second design for the same flow: `QuoteReply` renders a paragraph pre-split into the quoted phrase with a three-action toolbar, instead of reading a live browser selection. It is a single props-driven component with no runtime dependency:
+
+```sh
+npx shadcn@latest add "@assistant-ui/elements-quote-reply"
+```
+
+<RuntimeMode>
+
+The design's toolbar shows three actions; the runtime `SelectionToolbar` ships only `Quote`, since explain and rewrite have no defined runtime behavior to call. Add a sibling button inside the same `Root` that reads the live selection itself: only `Root`'s own mousedown handling keeps the browser from clearing the selection before the click lands.
+
+```tsx
+<SelectionToolbar.Root>
+  <SelectionToolbar.Quote>Quote</SelectionToolbar.Quote>
+  <button onClick={() => explain(window.getSelection()?.toString())}>Explain</button>
+</SelectionToolbar.Root>
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+You hold the split text, the toolbar's actions, and the `quoted` state; drive `toolbarVisible` from your own selection-change handling.
+
+```tsx title="app/answer.tsx"
+"use client";
+
+import { useState } from "react";
+import { QuoteReply, type QuoteAction } from "@/components/assistant-ui/elements/quote-reply";
+
+const actions: QuoteAction[] = [
+  { key: "quote", label: "Quote", icon: "quote" },
+  { key: "explain", label: "Explain", icon: "explain" },
+  { key: "rewrite", label: "Rewrite", icon: "rewrite" },
+];
+
+export function Answer() {
+  const [quoted, setQuoted] = useState<string>();
+
+  return (
+    <QuoteReply
+      before="The treaty was signed in "
+      selection="1648"
+      after=", ending the Thirty Years' War."
+      actions={actions}
+      toolbarVisible
+      quoted={quoted}
+      onAction={(key) => {
+        if (key === "quote") setQuoted("1648");
+      }}
+    />
+  );
+}
+```
+
+</StandaloneMode>
+
+The toolbar here is entirely presentational: `selection` and `toolbarVisible` are just props, and nothing in `QuoteReply` reads an actual browser selection. At runtime, `SelectionToolbar` listens for it on `mouseup`, `keyup`, and selection change instead of taking it as a prop.
+
+### QuoteReply
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `before` | `string` | required | Text before the selected phrase. |
+| `selection` | `string` | required | The highlighted phrase. |
+| `after` | `string` | required | Text after the selected phrase. |
+| `actions` | `readonly QuoteAction[]` | required | The toolbar's buttons. |
+| `toolbarVisible` | `boolean` | required | Shows the toolbar. |
+| `quoted` | `string` | | Shown in the "replying to" block when set. |
+| `onAction` | `(key: string) => void` | | Called with the pressed action's `key`. |
+| `className` | `string` | | Merged onto the root. |
+
+`QuoteAction` is `{ key: string; label: string; icon: "quote" | "explain" | "rewrite" }`. All other `div` props are forwarded to the root.

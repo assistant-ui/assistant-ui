@@ -7,6 +7,7 @@ import {
   contentPartsToA2AParts,
   isTerminalTaskState,
   isInterruptedTaskState,
+  threadMessageToA2AMessage,
 } from "./conversions";
 import type { A2APart, A2AMessage, A2ATaskState } from "./types";
 
@@ -626,5 +627,53 @@ describe("contentPartsToA2AParts", () => {
 
   it("handles empty input", () => {
     expect(contentPartsToA2AParts([])).toEqual([]);
+  });
+});
+
+describe("threadMessageToA2AMessage", () => {
+  const userMessage = {
+    id: "msg-1",
+    role: "user",
+    createdAt: new Date(),
+    content: [{ type: "text" as const, text: "hello" }],
+    attachments: [
+      {
+        id: "att-1",
+        type: "file" as const,
+        name: "notes.txt",
+        contentType: "text/plain",
+        status: { type: "complete" as const },
+        content: [{ type: "text" as const, text: "attached" }],
+      },
+    ],
+    metadata: { custom: {} },
+  } as any;
+
+  it("converts user content and appends attachment parts", () => {
+    const result = threadMessageToA2AMessage(userMessage);
+    expect(result.messageId).toBe("msg-1");
+    expect(result.role).toBe("user");
+    expect(result.parts).toEqual([{ text: "hello" }, { text: "attached" }]);
+    expect(result.contextId).toBeUndefined();
+    expect(result.taskId).toBeUndefined();
+  });
+
+  it("attaches contextId and taskId when provided", () => {
+    const result = threadMessageToA2AMessage(userMessage, {
+      contextId: "ctx-1",
+      taskId: "task-1",
+    });
+    expect(result.contextId).toBe("ctx-1");
+    expect(result.taskId).toBe("task-1");
+  });
+
+  it("skips undefined options and non-user content", () => {
+    const result = threadMessageToA2AMessage(
+      { ...userMessage, role: "assistant" },
+      { contextId: undefined, taskId: undefined },
+    );
+    expect(result.parts).toEqual([]);
+    expect(result.contextId).toBeUndefined();
+    expect(result.taskId).toBeUndefined();
   });
 });

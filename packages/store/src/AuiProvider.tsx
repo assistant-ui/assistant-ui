@@ -11,10 +11,7 @@ import {
   useAssistantContextValue,
 } from "./utils/react-assistant-context";
 import { useConfiguredAui } from "./useAui";
-
-const isDevelopment =
-  typeof process !== "undefined" &&
-  (process.env.NODE_ENV === "development" || process.env.NODE_ENV === "test");
+import { isDevelopment } from "./utils/env";
 
 const EMPTY_CONFIG = AuiConfig({});
 

@@ -127,6 +127,10 @@ export type AgUiRunFinishedOutcome =
   | { type: "success" }
   | { type: "interrupt"; interrupts: AgUiInterrupt[] };
 
+export type AgUiSubagentFinishedOutcome =
+  | { type: "success" }
+  | { type: "suspended"; interruptIds?: string[] };
+
 export type AgUiEvent =
   | { type: "RUN_STARTED"; runId: string }
   | {
@@ -136,40 +140,71 @@ export type AgUiEvent =
     }
   | { type: "RUN_CANCELLED"; runId?: string }
   | { type: "RUN_ERROR"; message?: string; code?: string }
-  | { type: "TEXT_MESSAGE_START"; messageId?: string }
-  | { type: "TEXT_MESSAGE_CONTENT"; messageId?: string; delta: string }
-  | { type: "TEXT_MESSAGE_END"; messageId?: string }
-  | { type: "TEXT_MESSAGE_CHUNK"; delta: string }
+  | { type: "TEXT_MESSAGE_START"; messageId?: string; subagentRunId?: string }
+  | {
+      type: "TEXT_MESSAGE_CONTENT";
+      messageId?: string;
+      delta: string;
+      subagentRunId?: string;
+    }
+  | { type: "TEXT_MESSAGE_END"; messageId?: string; subagentRunId?: string }
+  | {
+      type: "TEXT_MESSAGE_CHUNK";
+      messageId?: string;
+      delta: string;
+      subagentRunId?: string;
+    }
   | { type: "THINKING_START"; title?: string }
   | { type: "THINKING_TEXT_MESSAGE_START" }
   | { type: "THINKING_TEXT_MESSAGE_CONTENT"; delta: string }
   | { type: "THINKING_TEXT_MESSAGE_END" }
   | { type: "THINKING_END" }
-  | { type: "REASONING_START"; messageId?: string }
-  | { type: "REASONING_MESSAGE_START"; messageId?: string }
-  | { type: "REASONING_MESSAGE_CONTENT"; messageId?: string; delta: string }
-  | { type: "REASONING_MESSAGE_END"; messageId?: string }
+  | { type: "REASONING_START"; messageId?: string; subagentRunId?: string }
+  | {
+      type: "REASONING_MESSAGE_START";
+      messageId?: string;
+      subagentRunId?: string;
+    }
+  | {
+      type: "REASONING_MESSAGE_CONTENT";
+      messageId?: string;
+      delta: string;
+      subagentRunId?: string;
+    }
+  | {
+      type: "REASONING_MESSAGE_END";
+      messageId?: string;
+      subagentRunId?: string;
+    }
   | {
       type: "REASONING_ENCRYPTED_VALUE";
       subtype: "message" | "tool-call";
       entityId: string;
       encryptedValue: string;
+      subagentRunId?: string;
     }
-  | { type: "REASONING_END"; messageId?: string }
+  | { type: "REASONING_END"; messageId?: string; subagentRunId?: string }
   | {
       type: "TOOL_CALL_START";
       toolCallId: string;
       toolCallName?: string;
       parentMessageId?: string;
+      subagentRunId?: string;
     }
-  | { type: "TOOL_CALL_ARGS"; toolCallId: string; delta: string }
-  | { type: "TOOL_CALL_END"; toolCallId: string }
+  | {
+      type: "TOOL_CALL_ARGS";
+      toolCallId: string;
+      delta: string;
+      subagentRunId?: string;
+    }
+  | { type: "TOOL_CALL_END"; toolCallId: string; subagentRunId?: string }
   | {
       type: "TOOL_CALL_CHUNK";
       toolCallId?: string;
       toolCallName?: string;
       parentMessageId?: string;
       delta?: string;
+      subagentRunId?: string;
     }
   | {
       type: "TOOL_CALL_RESULT";
@@ -178,6 +213,7 @@ export type AgUiEvent =
       content: string;
       role?: "tool";
       mcpResult?: McpToolCallResult;
+      subagentRunId?: string;
     }
   | {
       type: "ACTIVITY_SNAPSHOT";
@@ -185,9 +221,31 @@ export type AgUiEvent =
       content: Record<string, unknown>;
       messageId?: string;
       replace?: boolean;
+      subagentRunId?: string;
     }
   | { type: "RAW"; event: any; source?: string }
   | { type: "CUSTOM"; name: string; value: any }
   | { type: "STATE_SNAPSHOT"; snapshot: any }
   | { type: "STATE_DELTA"; delta: any[] }
-  | { type: "MESSAGES_SNAPSHOT"; messages: any[] };
+  | { type: "MESSAGES_SNAPSHOT"; messages: any[] }
+  | {
+      type: "SUBAGENT_STARTED";
+      subagentRunId: string;
+      name: string;
+      description?: string;
+      parentSubagentRunId?: string;
+      parentToolCallId?: string;
+      parentMessageId?: string;
+    }
+  | {
+      type: "SUBAGENT_FINISHED";
+      subagentRunId: string;
+      result?: unknown;
+      outcome?: AgUiSubagentFinishedOutcome;
+    }
+  | {
+      type: "SUBAGENT_ERROR";
+      subagentRunId: string;
+      message: string;
+      code?: string;
+    };

@@ -1,0 +1,281 @@
+---
+title: "Math"
+description: "Rendered expressions with the working shown, one step at a time."
+---
+
+An answer shown as its working rather than its final result: a short list of steps, each an expression with an optional note underneath, revealed only as far as you say. With a runtime the steps arrive from a tool call as the model streams them; standalone you hold the step array and the reveal count yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+This element has no assistant-ui primitive of its own: a derivation is exactly the kind of structured content a tool call carries, so the runtime wiring is a tool renderer rather than a primitive composition.
+
+<Steps>
+  <Step>
+
+### Register the render function
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { MathBlock } from "@/components/assistant-ui/elements/math-block";
+
+export const toolkit = defineToolkit({
+  show_derivation: {
+    type: "backend",
+    render: ({ args }) => {
+      const steps = args.steps ?? [];
+      return (
+        <MathBlock
+          label={args.label}
+          steps={steps}
+          visibleSteps={steps.length}
+        />
+      );
+    },
+  },
+});
+```
+
+`show_derivation` has nothing to execute beyond returning its own arguments: the derivation is exactly what the model streamed, so the renderer reads `args` at every status and there is no separate result shape to design, and the matching server entry can be as small as `execute: async (args) => args`. See [Defining tools](/docs/tools/defining-tools) for the full split between a tool's schema, its executor, and its renderer.
+
+  </Step>
+  <Step>
+
+### Let the message list render it
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Tools,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Once the toolkit is registered, `Thread` and any custom message list built on assistant-ui's message part primitives (`MessagePrimitive.Parts` or `MessagePrimitive.GroupedParts`) render the registered UI automatically wherever the `show_derivation` call appears in the message, so nothing needs to be placed by hand.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a plain display component: it owns no state of its own, so the minimal usage is a constant array shown all at once.
+
+<Steps>
+  <Step>
+
+### Pass the steps straight through
+
+```tsx title="app/answer.tsx"
+"use client";
+
+import {
+  MathBlock,
+  type MathStep,
+} from "@/components/assistant-ui/elements/math-block";
+
+const steps: readonly MathStep[] = [
+  { expression: "p′(x) = p(x)·(1 − p(x))", note: "the derivative" },
+  {
+    expression: "max p′(x) = 0.25 at x = 0",
+    note: "steepest at the midpoint",
+  },
+];
+
+export function Derivation() {
+  return (
+    <MathBlock label="derivation" steps={steps} visibleSteps={steps.length} />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Reveal steps on your own schedule
+
+```tsx
+"use client";
+
+import { useEffect, useState } from "react";
+
+export function Derivation() {
+  const [visibleSteps, setVisibleSteps] = useState(0);
+
+  useEffect(() => {
+    if (visibleSteps >= steps.length) return;
+    const id = setTimeout(() => setVisibleSteps((n) => n + 1), 900);
+    return () => clearTimeout(id);
+  }, [visibleSteps]);
+
+  return (
+    <MathBlock label="derivation" steps={steps} visibleSteps={visibleSteps} />
+  );
+}
+```
+
+Each increment re-renders with one more step in view, and only the newly shown step animates in, because the earlier ones are already mounted at the same array index.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="math-block">
+  {/* optional label, monospace */}
+  <span>{/* label */}</span>
+
+  {/* one row per visible step, in array order */}
+  <div>
+    <span>{/* step.expression, a ReactNode */}</span>
+    <span>{/* optional step.note */}</span>
+  </div>
+</div>
+```
+
+`visibleSteps` is floored and clamped into `0…steps.length`: NaN or a negative number maps to 0, and any value past the array length maps to the array length, so an out of range or fractional count never throws and simply rounds down to a whole step. A step beyond the visible count is not in the DOM at all, not merely hidden, and each newly shown step fades and slides in over 300ms. `label` renders only when it is a truthy string.
+
+## Examples
+
+### Compose an expression with Frac, Sup, and Sub
+
+A tool call can only stream plain text into `expression`, so a fraction or a superscript arriving at runtime renders as plain characters rather than a stacked layout. Building the richer visual with `Frac`, `Sup`, and `Sub` is a standalone concern: assemble the JSX yourself and pass it as a step's `expression`, and it renders the same way in either lane.
+
+```tsx
+import { Frac, Sub, Sup } from "@/components/assistant-ui/elements/math-block";
+
+const steps = [
+  {
+    expression: (
+      <>
+        p(x) ={" "}
+        <Frac
+          over={<>1</>}
+          under={
+            <>
+              1 + e<Sup>−x</Sup>
+            </>
+          }
+        />
+      </>
+    ),
+    note: "the logistic",
+  },
+  {
+    expression: (
+      <>
+        max<Sub>x</Sub> p′(x) = 0.25
+      </>
+    ),
+  },
+];
+```
+
+### Where the steps come from
+
+<RuntimeMode>
+
+The model owns the derivation, so the backend entry only needs a schema wide enough to describe any worked answer; the executor hands the arguments straight back, and the renderer from the first step does the rest.
+
+```ts title="app/api/chat/route.ts"
+show_derivation: tool({
+  description: "Show a worked, step by step derivation.",
+  inputSchema: z.object({
+    label: z.string().optional(),
+    steps: z.array(
+      z.object({ expression: z.string(), note: z.string().optional() }),
+    ),
+  }),
+  execute: async (args) => args,
+}),
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+When the steps come from your own request rather than a fixed constant, fetch them once and reset the reveal count so the animation plays from the start.
+
+```tsx
+async function loadDerivation(question: string) {
+  const { steps: nextSteps } = await askForWorkedAnswer(question);
+  setSteps(nextSteps);
+  setVisibleSteps(0);
+}
+```
+
+</StandaloneMode>
+
+### Restyle the block
+
+Both lanes take `className` on the root. The label uses the shared `mono` surface from `surfaces.tsx`, so restyling that token restyles every element that uses it.
+
+```tsx
+<MathBlock className="max-w-none gap-4" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ label?: string; steps: { expression: string; note?: string }[] }` | The tool's arguments as streamed by the model, a partial parse while `status.type` is `"running"`. |
+| `status` | `ToolCallMessagePartStatus` | `"running"` while the model is still emitting `args`, `"complete"` once the call settles. |
+
+### show_derivation arguments
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `label` | `string` | Optional caption shown above the steps. |
+| `steps[].expression` | `string` | Rendered as plain text, assemble `Frac`, `Sup`, and `Sub` yourself if a step needs them. |
+| `steps[].note` | `string` | Optional small caption under the expression. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### MathBlock
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | | Optional caption shown above the steps. |
+| `steps` | `readonly MathStep[]` | required | The full list of steps, only the first `visibleSteps` render. |
+| `visibleSteps` | `number` | required | How many steps to show, floored and clamped into `0…steps.length`. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+### MathStep
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `expression` | `ReactNode` | The step's expression. Accepts plain text or JSX built from `Frac`, `Sup`, and `Sub`. |
+| `note` | `string` | Optional caption under the expression. |
+
+</StandaloneMode>

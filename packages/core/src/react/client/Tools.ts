@@ -16,6 +16,7 @@ import type { Tool } from "assistant-stream";
 import {
   isStandaloneToolDisplay,
   makeToolCallTextComponent,
+  type ToolCallText,
   type Toolkit,
 } from "../model-context/toolbox";
 import type { ToolCallMessagePartComponent } from "../types/MessagePartComponentTypes";
@@ -59,12 +60,16 @@ const useTools = ({
     (
       toolName: string,
       render: ToolCallMessagePartComponent,
-      options?: { standalone?: boolean },
+      options?: {
+        standalone?: boolean;
+        renderText?: ToolCallText<any, any> | undefined;
+      },
     ) => {
       // One registration object per call; identity is the removal key, so
       // the per-name list stays correctly ref-counted across re-registers.
       const registration = {
         render,
+        renderText: options?.renderText,
         standalone: options?.standalone ?? false,
       };
 
@@ -105,6 +110,7 @@ const useTools = ({
         unsubscribes.push(
           setToolUI(toolName, render, {
             standalone: isStandaloneToolDisplay(tool),
+            renderText: toolRenderText,
           }),
         );
       }

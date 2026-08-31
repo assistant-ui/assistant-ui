@@ -1,0 +1,189 @@
+---
+title: Accordion
+description: Stacked headings that reveal or hide content sections.
+links:
+  - label: Radix UI Accordion (Radix styles)
+    url: https://www.radix-ui.com/primitives/docs/components/accordion
+  - label: Base UI Accordion (base styles)
+    url: https://base-ui.com/react/components/accordion
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import {
+  AccordionSample,
+  AccordionMultipleSample,
+  AccordionWithIconsSample,
+  AccordionControlledSample,
+  AccordionFAQSample,
+} from "@/components/pages/docs/samples/accordion";
+import * as AccordionRadixSamples from "@/components/pages/docs/samples/accordion.radix";
+import { Flavored, FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<Flavored radix={<AccordionRadixSamples.AccordionSample />} base={<AccordionSample />} />
+
+## Installation
+
+<InstallCommand shadcn={["accordion"]} />
+
+## Usage
+
+```tsx
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+
+export function Example() {
+  return (
+    <Accordion defaultValue={["item-1"]}>
+      <AccordionItem value="item-1">
+        <AccordionTrigger>Section 1</AccordionTrigger>
+        <AccordionContent>Content for section 1.</AccordionContent>
+      </AccordionItem>
+      <AccordionItem value="item-2">
+        <AccordionTrigger>Section 2</AccordionTrigger>
+        <AccordionContent>Content for section 2.</AccordionContent>
+      </AccordionItem>
+    </Accordion>
+  );
+}
+```
+
+Base UI represents the open value as an array and uses the `multiple` prop. Radix uses `type="single"` or `type="multiple"` and represents a single open value as a string.
+
+## Examples
+
+### Multiple items open
+
+<Flavored radix={<AccordionRadixSamples.AccordionMultipleSample />} base={<AccordionMultipleSample />} />
+
+### With icons
+
+Add icons or custom content inside the trigger.
+
+<PreviewCode file="components/pages/docs/samples/accordion" name="AccordionWithIconsSample" base={<AccordionWithIconsSample />}>
+  <AccordionRadixSamples.AccordionWithIconsSample />
+</PreviewCode>
+
+### Controlled
+
+Use `value` and `onValueChange` for controlled accordion state.
+
+<PreviewCode file="components/pages/docs/samples/accordion" name="AccordionControlledSample" base={<AccordionControlledSample />}>
+  <AccordionRadixSamples.AccordionControlledSample />
+</PreviewCode>
+
+### FAQ section
+
+<PreviewCode file="components/pages/docs/samples/accordion" name="AccordionFAQSample" base={<AccordionFAQSample />}>
+  <AccordionRadixSamples.AccordionFAQSample />
+</PreviewCode>
+
+## API Reference
+
+### Composable API
+
+| Component | Description |
+|-----------|-------------|
+| `Accordion` | The root component that manages open items. |
+| `AccordionItem` | A collapsible section container. |
+| `AccordionTrigger` | The control that toggles a section. |
+| `AccordionContent` | The collapsible content panel. |
+
+### Accordion
+
+<ParametersTable
+  type="AccordionProps"
+  parameters={[
+    {
+      name: "defaultValue",
+      type: "string[] | string",
+      description: "The initial open value. Base UI uses an array; single-value Radix accordions use a string.",
+    },
+    {
+      name: "value",
+      type: "string[] | string",
+      description: "The controlled open value for the selected flavor.",
+    },
+    {
+      name: "onValueChange",
+      type: "(value: string[] | string) => void",
+      description: "Called when the open items change.",
+    },
+    {
+      name: "multiple",
+      type: "boolean",
+      default: "false",
+      description: "Base UI: whether multiple items can be open.",
+    },
+    {
+      name: "type",
+      type: '"single" | "multiple"',
+      description: "Radix: whether one or multiple items can be open.",
+    },
+    {
+      name: "collapsible",
+      type: "boolean",
+      description: "Radix single mode: whether the open item can close.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### AccordionItem
+
+<ParametersTable
+  type="AccordionItemProps"
+  parameters={[
+    {
+      name: "value",
+      type: "string",
+      required: true,
+      description: "The unique value for the item.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      description: "Whether the item is disabled.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### AccordionTrigger
+
+<ParametersTable
+  type="AccordionTriggerProps"
+  parameters={[
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes.",
+    },
+  ]}
+/>
+
+### AccordionContent
+
+<ParametersTable
+  type="AccordionContentProps"
+  parameters={[
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes for the panel content.",
+    },
+  ]}
+/>

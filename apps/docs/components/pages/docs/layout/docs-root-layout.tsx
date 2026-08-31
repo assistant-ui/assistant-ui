@@ -1,24 +1,18 @@
-import { DocsLayout } from "fumadocs-ui/layouts/docs";
 import type * as PageTree from "fumadocs-core/page-tree";
 import type { ReactNode } from "react";
-import { sharedDocsOptions } from "@/lib/layout.shared";
 import { DocsHeader } from "@/components/pages/docs/layout/docs-header";
 import {
   DocsSidebarProvider,
   DocsSidebar,
 } from "@/components/pages/docs/contexts/sidebar";
 import { SidebarContent } from "@/components/pages/docs/layout/sidebar-content";
-import { AssistantPanelProvider } from "@/components/pages/docs/assistant/context";
 import {
   DocsContent,
-  DocsAssistantPanel,
   DocsShell,
 } from "@/components/pages/docs/layout/docs-layout";
-import { DocsAssistantRuntimeProvider } from "@/runtimes/docs-assistant";
 import { DocsRuntimeProvider } from "@/runtimes/docs";
 import { CurrentPageProvider } from "@/components/pages/docs/contexts/current-page";
 import { PlatformProvider } from "@/components/pages/docs/platform/context";
-import { FloatingComposer } from "@/components/pages/docs/assistant/floating-composer";
 
 type DocsRootLayoutProps = {
   tree: PageTree.Root;
@@ -40,40 +34,25 @@ export function DocsRootLayout({
 }: DocsRootLayoutProps) {
   return (
     <CurrentPageProvider>
-      <AssistantPanelProvider>
-        <DocsRuntimeProvider>
-          <PlatformProvider>
-            <DocsSidebarProvider>
-              <DocsShell>
-                <DocsHeader
-                  section={section}
-                  sectionHref={sectionHref}
-                  mobileSectionTree={
-                    showMobileSectionBreadcrumb ? tree : undefined
-                  }
-                />
-                <DocsContent>
-                  <DocsLayout
-                    {...sharedDocsOptions}
-                    tree={tree}
-                    nav={{ enabled: false }}
-                    sidebar={{ enabled: false }}
-                  >
-                    {children}
-                  </DocsLayout>
-                </DocsContent>
-                <DocsSidebar>
-                  <SidebarContent tree={tree} platformAware={platformAware} />
-                </DocsSidebar>
-              </DocsShell>
-            </DocsSidebarProvider>
-          </PlatformProvider>
-        </DocsRuntimeProvider>
-        <DocsAssistantRuntimeProvider>
-          <DocsAssistantPanel />
-          <FloatingComposer />
-        </DocsAssistantRuntimeProvider>
-      </AssistantPanelProvider>
+      <DocsRuntimeProvider>
+        <PlatformProvider>
+          <DocsSidebarProvider>
+            <DocsShell>
+              <DocsHeader
+                section={section}
+                sectionHref={sectionHref}
+                mobileSectionTree={
+                  showMobileSectionBreadcrumb ? tree : undefined
+                }
+              />
+              <DocsContent>{children}</DocsContent>
+              <DocsSidebar>
+                <SidebarContent tree={tree} platformAware={platformAware} />
+              </DocsSidebar>
+            </DocsShell>
+          </DocsSidebarProvider>
+        </PlatformProvider>
+      </DocsRuntimeProvider>
     </CurrentPageProvider>
   );
 }

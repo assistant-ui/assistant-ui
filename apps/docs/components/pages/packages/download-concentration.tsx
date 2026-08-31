@@ -71,7 +71,7 @@ export function DownloadConcentration({
         </p>
       </div>
 
-      <div className="flex h-2 w-full gap-0.5 overflow-hidden rounded-full">
+      <div className="flex h-2 w-full gap-0.5 overflow-hidden">
         {segments.map((segment) => (
           <button
             key={segment.key}
@@ -99,7 +99,7 @@ export function DownloadConcentration({
               hovered !== null && hovered !== segment.key && "opacity-30",
             )}
           >
-            <span className={cn("size-1.5 rounded-full", segment.tone)} />
+            <span className={cn("size-2", segment.tone)} />
             <span className="font-mono">{segment.label}</span>
             <span className="text-muted-foreground tabular-nums">
               {Math.round(share(segment.weekly))}%

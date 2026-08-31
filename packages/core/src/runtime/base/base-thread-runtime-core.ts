@@ -51,7 +51,7 @@ export abstract class BaseThreadRuntimeCore
 {
   private _isInitialized = false;
 
-  protected readonly repository = new MessageRepository();
+  protected repository = new MessageRepository();
   public abstract get adapters(): BaseThreadAdapters | undefined;
   public abstract get isDisabled(): boolean;
   public abstract get isSendDisabled(): boolean;

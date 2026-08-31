@@ -12,7 +12,7 @@ import {
   SidebarTrigger,
 } from "@/components/ui/radix/sidebar";
 import { Separator } from "@/components/ui/radix/separator";
-import { ThreadListSidebar } from "@/components/assistant-ui/threadlist-sidebar.radix";
+import { ThreadListSidebar } from "@/components/assistant-ui/elements/threadlist-sidebar.aui.radix";
 import {
   useOpenCodeRuntime,
   useOpenCodeSession,
@@ -20,7 +20,7 @@ import {
 import {
   Thread,
   type ThreadComponents,
-} from "@/components/assistant-ui/thread";
+} from "@/components/assistant-ui/elements/thread.aui";
 import { OpenCodeDataPart } from "@/components/opencode-data-part";
 import { FallbackTool } from "@/components/tools/opencode-tools";
 import { ReasoningGroup } from "@/components/tools/reasoning-ghost";

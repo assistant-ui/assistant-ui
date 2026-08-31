@@ -13,7 +13,7 @@ from uuid import uuid4
 import uvicorn
 from assistant_stream import RunController, create_run
 from assistant_stream.modules.langgraph import append_langgraph_event, get_tool_call_subgraph_state
-from assistant_stream.serialization import DataStreamResponse
+from assistant_stream.serialization import AssistantTransportResponse
 from dotenv import load_dotenv
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -577,7 +577,7 @@ async def chat_endpoint(request: ChatRequest):
     # Create streaming response using assistant-stream
     stream = create_run(run_callback, state=request.state)
 
-    return DataStreamResponse(stream)
+    return AssistantTransportResponse(stream)
 
 
 @app.get("/health")

@@ -74,7 +74,10 @@ export function unstable_useLiveCompletionAdapter(
   const [isLoading, setIsLoading] = useState(false);
 
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+  // The debounce timer must only observe fetchers from committed renders.
+  useLayoutEffect(() => {
+    fetcherRef.current = fetcher;
+  }, [fetcher]);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const tokenRef = useRef(0);

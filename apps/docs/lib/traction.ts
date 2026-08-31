@@ -108,6 +108,11 @@ export const PACKAGES: PackageInfo[] = [
     category: "tooling",
   },
   {
+    name: "@assistant-ui/xpm",
+    description: "One command for npm, yarn, pnpm, bun, deno, and uv.",
+    category: "tooling",
+  },
+  {
     name: "create-assistant-ui",
     description: "Scaffold an assistant-ui app in one command.",
     category: "tooling",
@@ -140,6 +145,12 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "assistant-cloud",
     description: "Hosted backend for assistant-ui.",
+    category: "cloud",
+  },
+  {
+    name: "@assistant-ui/gorp",
+    description:
+      "Client/server state replicas with optimistic updates over a tiny wire protocol.",
     category: "cloud",
   },
   {
@@ -220,6 +231,11 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "@assistant-ui/react-markdown",
     description: "Streaming-aware markdown renderer.",
+    category: "ui",
+  },
+  {
+    name: "@assistant-ui/local-pdf-adapter",
+    description: "Local PDF attachment adapter for @assistant-ui/react.",
     category: "ui",
   },
   {
@@ -312,6 +328,12 @@ export const PACKAGES: PackageInfo[] = [
   {
     name: "@assistant-ui/react-trieve",
     description: "Trieve search integration.",
+    category: "deprecated",
+    deprecated: true,
+  },
+  {
+    name: "@assistant-ui/react-ui",
+    description: "Pre-styled React components, superseded by the registry.",
     category: "deprecated",
     deprecated: true,
   },

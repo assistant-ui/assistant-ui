@@ -191,7 +191,7 @@ export const cliSurface: CliSurfaceSnapshot = {
     },
     {
       "name": "mcp",
-      "description": "install assistant-ui MCP docs server for your IDE",
+      "description": "connect your IDE to the assistant-ui MCP server",
       "usage": "[options]",
       "arguments": [],
       "options": [

@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { act, renderHook, waitFor } from "@testing-library/react";
+import { act, render, renderHook, waitFor } from "@testing-library/react";
+import {
+  startTransition,
+  Suspense,
+  useLayoutEffect,
+  type PropsWithChildren,
+} from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const { mockUseEveAgent } = vi.hoisted(() => ({
@@ -1816,6 +1822,131 @@ describe("useEveAgentRuntime cancel binding", () => {
 
 describe("useEveAgentRuntime thread refetch", () => {
   const session = { sessionId: "s1" };
+
+  const mockWorkspaceAgents = () => {
+    const resumeA = vi.fn().mockResolvedValue(undefined);
+    const resumeB = vi.fn().mockResolvedValue(undefined);
+    const agentA = createAgent({
+      data: {
+        messages: [
+          {
+            id: "workspace-a",
+            role: "user",
+            parts: [{ type: "text", text: "workspace A" }],
+          },
+        ],
+      },
+      session,
+      resume: resumeA,
+    });
+    const agentB = createAgent({
+      data: {
+        messages: [
+          {
+            id: "workspace-b",
+            role: "user",
+            parts: [{ type: "text", text: "workspace B" }],
+          },
+        ],
+      },
+      session,
+      resume: resumeB,
+    });
+    mockUseEveAgent.mockImplementation((options) =>
+      (options as { workspace: string }).workspace === "A"
+        ? (agentA as never)
+        : (agentB as never),
+    );
+    return { agentA, agentB, resumeA, resumeB };
+  };
+
+  it("publishes committed state before descendant layout effects", async () => {
+    const { resumeA, resumeB } = mockWorkspaceAgents();
+
+    let refetch: Promise<void> | undefined;
+    let currentRuntime: ReturnType<typeof useEveAgentRuntime> | undefined;
+    const RefetchOnLayout = ({
+      runtime,
+      enabled,
+    }: {
+      runtime: ReturnType<typeof useEveAgentRuntime>;
+      enabled: boolean;
+    }) => {
+      useLayoutEffect(() => {
+        if (!enabled) return;
+        runtime.thread.append({
+          role: "user",
+          content: [{ type: "text", text: "draft from B" }],
+          startRun: false,
+        });
+        refetch = runtime.threads.reloadMainThread();
+      }, [enabled, runtime]);
+      return null;
+    };
+    const Probe = ({
+      workspace,
+      refetchOnLayout,
+    }: {
+      workspace: string;
+      refetchOnLayout: boolean;
+    }) => {
+      const runtime = useEveAgentRuntime({ workspace } as never);
+      currentRuntime = runtime;
+      return <RefetchOnLayout runtime={runtime} enabled={refetchOnLayout} />;
+    };
+
+    const view = render(<Probe workspace="A" refetchOnLayout={false} />);
+    view.rerender(<Probe workspace="B" refetchOnLayout />);
+    await act(async () => {
+      await refetch;
+    });
+
+    expect(resumeA).not.toHaveBeenCalled();
+    expect(resumeB).toHaveBeenCalledTimes(1);
+    expect(getText(currentRuntime!)).toEqual(["workspace B", "draft from B"]);
+    view.unmount();
+  });
+
+  it("keeps refetches scoped to the committed agent", async () => {
+    const { agentB, resumeA, resumeB } = mockWorkspaceAgents();
+
+    const pending = new Promise<never>(() => {});
+    let blocked = false;
+    const Blocker = () => {
+      if (blocked) throw pending;
+      return null;
+    };
+    const Wrapper = ({ children }: PropsWithChildren) => (
+      <Suspense fallback={null}>
+        {children}
+        <Blocker />
+      </Suspense>
+    );
+
+    const { result, rerender } = renderHook(
+      ({ workspace }) => useEveAgentRuntime({ workspace } as never),
+      {
+        initialProps: { workspace: "A" },
+        wrapper: Wrapper,
+      },
+    );
+
+    act(() => {
+      blocked = true;
+      startTransition(() => rerender({ workspace: "B" }));
+    });
+    expect(mockUseEveAgent.mock.results.at(-1)?.value).toBe(agentB);
+
+    await act(async () => {
+      await result.current.threads.reloadMainThread();
+    });
+
+    expect(resumeB).not.toHaveBeenCalled();
+    expect(resumeA).toHaveBeenCalledTimes(1);
+
+    await stageMessage(result.current, "draft from A");
+    expect(getText(result.current)).toEqual(["workspace A", "draft from A"]);
+  });
 
   it("replays the session through eve resume when the thread is refetched", async () => {
     const resume = vi.fn().mockResolvedValue(undefined);

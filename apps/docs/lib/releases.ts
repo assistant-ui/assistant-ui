@@ -32,7 +32,7 @@ function toDateKey(isoDate: string): string {
 }
 
 export async function fetchReleases(): Promise<ReleaseGroup[]> {
-  const raw = await getReleases(3);
+  const raw = await getReleases(12);
 
   const entries: PackageRelease[] = raw
     .filter((r) => !r.draft && !r.prerelease)
