@@ -357,7 +357,7 @@ describe("reduceOpenCodeThreadState", () => {
     expect(withPart.messagesById.msg_assistant?.parts).toHaveLength(1);
   });
 
-  it("stores messages with unknown roles without exposing them", () => {
+  it("stores unknown-role messages and exposes later supported updates", () => {
     const initial = createOpenCodeThreadState("ses_1");
 
     const withMessage = reduceOpenCodeThreadState(initial, {
@@ -382,8 +382,63 @@ describe("reduceOpenCodeThreadState", () => {
       } as never,
     });
 
+    const withSupportedRole = reduceOpenCodeThreadState(withPart, {
+      type: "message.updated",
+      info: {
+        id: "msg_system",
+        role: "assistant",
+        sessionID: "ses_1",
+        time: { created: 1001 },
+      } as never,
+    });
+
     expect(withPart.messageOrder).toEqual([]);
-    expect(withPart.messagesById.msg_system?.parts).toHaveLength(1);
+    expect(withSupportedRole.messageOrder).toEqual(["msg_system"]);
+    expect(withSupportedRole.messagesById.msg_system?.parts).toHaveLength(1);
+  });
+
+  it("keeps unknown-role history out of visible message order", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+
+    const history = reduceOpenCodeThreadState(initial, {
+      type: "history.loaded",
+      session: null,
+      messages: [
+        {
+          info: {
+            id: "msg_assistant_1",
+            role: "assistant",
+            sessionID: "ses_1",
+            time: { created: 1000 },
+          },
+          parts: [],
+        },
+        {
+          info: {
+            id: "msg_system",
+            role: "system",
+            sessionID: "ses_1",
+            time: { created: 1001 },
+          },
+          parts: [],
+        },
+        {
+          info: {
+            id: "msg_assistant_2",
+            role: "assistant",
+            sessionID: "ses_1",
+            time: { created: 1002 },
+          },
+          parts: [],
+        },
+      ] as unknown as MessageWithParts[],
+    });
+
+    expect(history.messageOrder).toEqual([
+      "msg_assistant_1",
+      "msg_assistant_2",
+    ]);
+    expect(history.messagesById.msg_system).toBeDefined();
   });
 
   it("reconciles a pending user message with a streamed message update", () => {

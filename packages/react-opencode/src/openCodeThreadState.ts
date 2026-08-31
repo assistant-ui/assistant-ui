@@ -45,6 +45,9 @@ const sortMessageIds = (
   });
 };
 
+const isVisibleMessageRole = (role: unknown) =>
+  role === "user" || role === "assistant";
+
 const upsertMessage = (
   state: OpenCodeThreadState,
   messageId: string,
@@ -60,7 +63,7 @@ const upsertMessage = (
     [messageId]: nextMessage,
   };
   const messageOrder =
-    current || !includeInOrder
+    !includeInOrder || state.messageOrder.includes(messageId)
       ? state.messageOrder
       : sortMessageIds(messagesById, [...state.messageOrder, messageId]);
 
@@ -164,6 +167,7 @@ const historyLoaded = (
   };
 
   const nextMessagesById: Record<string, OpenCodeServerMessage> = {};
+  const nextMessageOrder: string[] = [];
   for (const message of messages) {
     const pendingMatch =
       message.info.role === "user"
@@ -179,6 +183,9 @@ const historyLoaded = (
           ? pendingMatch.parts
           : undefined,
     };
+    if (isVisibleMessageRole(message.info.role)) {
+      nextMessageOrder.push(message.info.id);
+    }
 
     if (pendingMatch) {
       nextState = removePending(nextState, pendingMatch.clientId);
@@ -188,10 +195,7 @@ const historyLoaded = (
   nextState = {
     ...nextState,
     messagesById: nextMessagesById,
-    messageOrder: sortMessageIds(
-      nextMessagesById,
-      Object.keys(nextMessagesById),
-    ),
+    messageOrder: sortMessageIds(nextMessagesById, nextMessageOrder),
   };
 
   return nextState;
@@ -406,7 +410,7 @@ export const reduceOpenCodeThreadState = (
               ? pendingMatch.parts
               : undefined),
         }),
-        event.info.role === "user" || event.info.role === "assistant",
+        isVisibleMessageRole(event.info.role),
       );
 
       if (pendingMatch) {
