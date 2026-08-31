@@ -123,11 +123,13 @@ const MemoizedPartById = memo(function MemoizedPartById({
 function OptionsHarness({
   host,
   hostContext,
+  handlers,
   forPart,
   toolCallIds = ["call-1"],
 }: {
   host: McpAppsHost;
   hostContext?: McpAppHostContext;
+  handlers?: McpAppRendererOptions["handlers"];
   forPart?: McpAppRendererOptions["forPart"];
   toolCallIds?: string[];
 }) {
@@ -135,6 +137,7 @@ function OptionsHarness({
     McpAppRenderer({
       host: Host({ host }),
       ...(hostContext === undefined ? {} : { hostContext }),
+      ...(handlers === undefined ? {} : { handlers }),
       ...(forPart === undefined ? {} : { forPart }),
     }),
   );
@@ -184,6 +187,30 @@ function RemoteHarness({
 describe("McpAppRenderer", () => {
   beforeEach(() => {
     framePropsMock.mockReset();
+  });
+
+  it("merges forPart handlers over the thread-wide handlers", async () => {
+    const onInitialized = vi.fn();
+    render(
+      <OptionsHarness
+        host={loadingHost()}
+        handlers={{ onInitialized }}
+        forPart={(part) => ({
+          handlers: {
+            requestDisplayMode: ({ mode }) => {
+              void part;
+              return { mode };
+            },
+          },
+        })}
+      />,
+    );
+
+    await waitFor(() => expect(framePropsCalls().length).toBeGreaterThan(0));
+    const handlers = framePropsCalls().at(-1)?.handlers;
+    expect(handlers?.requestDisplayMode).toBeDefined();
+    handlers?.onInitialized?.();
+    expect(onInitialized).toHaveBeenCalledOnce();
   });
 
   it("leaves mounted parts alone when renderer options are unchanged", async () => {

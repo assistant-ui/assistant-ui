@@ -76,6 +76,11 @@ export type McpAppRendererOptions = McpAppPartOptions & {
    * Resolves the options for one part. Each returned value replaces the
    * thread-wide option of the same name, so a host can give every MCP app its
    * own display mode and answer `requestDisplayMode` for the part that asked.
+   *
+   * `handlers` is the exception and merges per key. Its keys are capabilities
+   * negotiated with the widget rather than data, so replacing the whole bag to
+   * add one handler would withdraw the others from that part's widget with
+   * nothing to observe it by.
    */
   forPart?: (part: ToolCallMessagePart) => McpAppPartOptions;
 };
@@ -142,6 +147,23 @@ function extractSendMessageText(params: unknown): string | undefined {
   return undefined;
 }
 
+function resolvePartOptions(
+  options: McpAppRendererOptions,
+  part: ToolCallMessagePartProps,
+): McpAppRendererOptions {
+  const overrides = options.forPart?.(part);
+  if (!overrides) return options;
+  const handlers =
+    options.handlers && overrides.handlers
+      ? { ...options.handlers, ...overrides.handlers }
+      : (overrides.handlers ?? options.handlers);
+  return {
+    ...options,
+    ...overrides,
+    ...(handlers === undefined ? {} : { handlers }),
+  };
+}
+
 function InlineRenderer({
   part,
   useRendererStore,
@@ -151,10 +173,7 @@ function InlineRenderer({
 }) {
   const aui = useAui();
   const rendererOptions = useRendererStore((state) => state.options);
-  const partOptions = rendererOptions.forPart?.(part);
-  const opts = partOptions
-    ? { ...rendererOptions, ...partOptions }
-    : rendererOptions;
+  const opts = resolvePartOptions(rendererOptions, part);
   const app = getMcpAppFromToolPart(part);
   const cachedAppRef = useRef<McpAppMetadata | undefined>(undefined);
   useLayoutEffect(() => {

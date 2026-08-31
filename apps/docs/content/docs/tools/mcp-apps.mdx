@@ -111,6 +111,8 @@ Caller handlers override the default `openLink` and `sendMessage` behavior and c
 
 One renderer serves every MCP app in the thread, so `hostContext`, `handlers`, and the other display options are thread-wide defaults. Pass `forPart` when an app needs its own values. It runs for each MCP-app tool call, and every option it returns replaces the thread-wide one for that app alone.
 
+`handlers` is the exception and merges per key, so a resolver that returns only `requestDisplayMode` keeps the thread-wide `onError` and `onInitialized` for that app. Its keys are capabilities negotiated with the widget rather than data, and replacing the whole bag to add one handler would withdraw the rest from that app with nothing to observe it by. Name a key to override it.
+
 ```tsx
 const [modes, setModes] = useState<Record<string, McpAppDisplayMode>>({});
 
