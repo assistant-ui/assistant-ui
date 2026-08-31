@@ -1,5 +1,7 @@
 type StringState = { inString: boolean; stringChar: string };
 
+const IDENTIFIER_CHAR = /[A-Za-z0-9_$]/;
+
 function updateStringState(
   state: StringState,
   char: string,
@@ -11,7 +13,16 @@ function updateStringState(
     }
     return true;
   }
-  if (char === '"' || char === "'" || char === "`") {
+  // A quote directly after an identifier character is never a string open in
+  // JS — that position only occurs in JSX text ("it's fine"), where treating
+  // it as one swallows the rest of the file. Backticks are excluded: a tagged
+  // template (css`...`) is exactly a backtick after an identifier.
+  if ((char === '"' || char === "'") && !IDENTIFIER_CHAR.test(prevChar)) {
+    state.inString = true;
+    state.stringChar = char;
+    return true;
+  }
+  if (char === "`") {
     state.inString = true;
     state.stringChar = char;
     return true;

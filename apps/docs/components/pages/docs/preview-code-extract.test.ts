@@ -155,3 +155,67 @@ describe("extractFunctionCode", () => {
     );
   });
 });
+
+describe("apostrophes in JSX text", () => {
+  const apostropheSource = `
+export function BraceApostrophe() {
+  return <p>it's fine</p>;
+}
+
+export const WrappedApostrophe = () => (
+  <p>it's fine</p>
+);
+
+export const BareApostrophe = () => <p>it's fine</p>;
+
+export function AfterApostrophe() {
+  return <div>after</div>;
+}
+`;
+
+  it("extracts a brace-bodied function whose JSX text contains an apostrophe", () => {
+    expect(extractFunctionCode(apostropheSource, "BraceApostrophe")).toBe(
+      `export function BraceApostrophe() {
+  return <p>it's fine</p>;
+}`,
+    );
+  });
+
+  it("extracts a paren-wrapped arrow whose JSX text contains an apostrophe", () => {
+    expect(extractFunctionCode(apostropheSource, "WrappedApostrophe")).toBe(
+      `export const WrappedApostrophe = () => (
+  <p>it's fine</p>
+);`,
+    );
+  });
+
+  it("extracts a bare arrow whose JSX text contains an apostrophe", () => {
+    expect(extractFunctionCode(apostropheSource, "BareApostrophe")).toBe(
+      `export const BareApostrophe = () => <p>it's fine</p>;`,
+    );
+  });
+
+  it("still treats a quote after an operator or keyword as a string open", () => {
+    const stringSource = `
+export function StringSpecimen() {
+  const label = "What's the weather";
+  return <div>{label + 'x;y'}</div>;
+}
+`;
+    expect(extractFunctionCode(stringSource, "StringSpecimen")).toBe(
+      `export function StringSpecimen() {
+  const label = "What's the weather";
+  return <div>{label + 'x;y'}</div>;
+}`,
+    );
+  });
+
+  it("still tracks a tagged template literal as a string", () => {
+    const taggedSource = `
+export const TaggedSpecimen = () => css\`content: ")";\`;
+`;
+    expect(extractFunctionCode(taggedSource, "TaggedSpecimen")).toBe(
+      'export const TaggedSpecimen = () => css`content: ")";`;',
+    );
+  });
+});
