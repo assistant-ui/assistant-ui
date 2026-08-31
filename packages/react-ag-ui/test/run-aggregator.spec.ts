@@ -2899,7 +2899,7 @@ describe("RunAggregator", () => {
     expect(secondSurface.result).toBeDefined();
   });
 
-  it("does not crash on SUBAGENT_STARTED/FINISHED/ERROR and keeps emitting", () => {
+  it("emits no phantom parts for a subagent lifecycle that carries no content, and ignores a terminal for an unknown run", () => {
     const aggregator = createAggregator(true);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -2918,7 +2918,125 @@ describe("RunAggregator", () => {
       message: "boom",
     } as AgUiEvent);
 
-    expect(results.length).toBeGreaterThan(0);
+    expect(results.at(-1)?.content).toEqual([]);
+  });
+
+  it("attributes TEXT_MESSAGE_CHUNK to its subagent, the same as TEXT_MESSAGE_CONTENT", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-spawn",
+      toolCallName: "task",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "worker",
+      parentToolCallId: "t-spawn",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CHUNK",
+      messageId: "m-sub",
+      delta: "chunked subagent text",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1)!;
+    const toolPart = last.content[0] as any;
+    expect(toolPart.messages[0].content).toEqual([
+      { type: "text", text: "chunked subagent text" },
+    ]);
+    expect(last.content.some((p: any) => p.type === "text")).toBe(false);
+  });
+
+  it("routes an MCP-apps activity to the call resolved in its own scope, not whichever call resolved last", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-root",
+      toolCallName: "render",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t-root",
+      content: "root done",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "worker",
+      parentToolCallId: "t-root",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-sub",
+      toolCallName: "inner",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    // Resolves after the root call, so an unscoped "last resolved" pointer
+    // would hand the root activity below to the subagent's call.
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t-sub",
+      content: "inner done",
+      role: "tool",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "ACTIVITY_SNAPSHOT",
+      activityType: "mcp-apps",
+      content: { resourceUri: "ui://srv/mcp-app.html", serverId: "s" },
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1)!;
+    const rootTool = last.content[0] as any;
+    expect(rootTool.toolCallId).toBe("t-root");
+    expect(rootTool.mcp).toEqual({
+      app: { resourceUri: "ui://srv/mcp-app.html", serverId: "s" },
+    });
+    expect(rootTool.messages[0].content[0].mcp).toBeUndefined();
+  });
+
+  it("surfaces SUBAGENT_FINISHED.result and a suspended outcome's interruptIds on the nested message", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-spawn",
+      toolCallName: "task",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "worker",
+      parentToolCallId: "t-spawn",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_FINISHED",
+      subagentRunId: "sub-1",
+      result: { summary: "found 3 files" },
+      outcome: { type: "suspended", interruptIds: ["int-1"] },
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const nested = (results.at(-1)!.content[0] as any).messages[0];
+    expect(nested.metadata.custom.agui).toMatchObject({
+      name: "worker",
+      result: { summary: "found 3 files" },
+      interruptIds: ["int-1"],
+    });
+    expect(nested.status).toEqual({
+      type: "requires-action",
+      reason: "interrupt",
+    });
   });
 
   it("does not merge anonymous text deltas across a subagent scope and the root scope", () => {
@@ -3498,7 +3616,7 @@ describe("RunAggregator", () => {
     });
   });
 
-  it("silently drops an orphaned subagent whose parentToolCallId matches no tool call, instead of flattening it into root", () => {
+  it("flattens a subagent with no nesting site into the root scope rather than dropping its output", () => {
     const results: ChatModelRunResult[] = [];
     const aggregator = new RunAggregator({
       showThinking: true,
@@ -3525,10 +3643,84 @@ describe("RunAggregator", () => {
     aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
 
     const last = results[results.length - 1]!;
-    expect(last.content).toHaveLength(0);
-    const orphanedText = last.content.find(
-      (p: any) => p.type === "text" && p.text === "orphaned progress",
-    );
-    expect(orphanedText).toBeUndefined();
+    expect(last.content).toEqual([{ type: "text", text: "orphaned progress" }]);
+  });
+
+  it("flattens a subagent that declares no parentToolCallId, which the schema allows", () => {
+    const results: ChatModelRunResult[] = [];
+    const aggregator = new RunAggregator({
+      showThinking: true,
+      logger: makeLogger(),
+      emit: (r) => results.push(r),
+    });
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-free",
+      name: "free-agent",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "unattributed progress",
+      subagentRunId: "sub-free",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results[results.length - 1]!;
+    expect(last.content).toEqual([
+      { type: "text", text: "unattributed progress" },
+    ]);
+  });
+
+  it("keeps a cyclic parentToolCallId chain from materializing a subagent twice", () => {
+    const results: ChatModelRunResult[] = [];
+    const aggregator = new RunAggregator({
+      showThinking: true,
+      logger: makeLogger(),
+      emit: (r) => results.push(r),
+    });
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-root",
+      toolCallName: "spawn",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-a",
+      name: "a",
+      parentToolCallId: "t-root",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-a",
+      toolCallName: "spawn",
+      subagentRunId: "sub-a",
+    } as AgUiEvent);
+    // sub-a is reachable from t-root and also claims to be spawned by its own
+    // descendant call; the cycle must not re-enter it.
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-b",
+      name: "b",
+      parentToolCallId: "t-a",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      delta: "deep",
+      subagentRunId: "sub-b",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results[results.length - 1]!;
+    const rootTool = last.content[0] as any;
+    expect(rootTool.messages.map((m: any) => m.id)).toEqual(["sub-a"]);
+    const nestedTool = rootTool.messages[0].content[0];
+    expect(nestedTool.messages.map((m: any) => m.id)).toEqual(["sub-b"]);
+    expect(nestedTool.messages[0].content).toEqual([
+      { type: "text", text: "deep" },
+    ]);
   });
 });

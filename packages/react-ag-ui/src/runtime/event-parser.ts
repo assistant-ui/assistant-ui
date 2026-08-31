@@ -154,7 +154,10 @@ export const parseAgUiEvent = (
       const delta = getString("delta") ?? "";
       return withOptional(
         { type: "TEXT_MESSAGE_CHUNK" as const, delta },
-        { messageId: getString("messageId") },
+        {
+          messageId: getString("messageId"),
+          subagentRunId: getString("subagentRunId"),
+        },
       );
     }
     case "THINKING_START":
@@ -212,15 +215,16 @@ export const parseAgUiEvent = (
       const subtype = getString("subtype");
       if (!entityId || !encryptedValue) return null;
       if (subtype !== "message" && subtype !== "tool-call") return null;
-      return withOptional(
-        {
-          type: "REASONING_ENCRYPTED_VALUE" as const,
-          subtype,
-          entityId,
-          encryptedValue,
-        },
-        { subagentRunId: getString("subagentRunId") },
-      );
+      // Spread rather than withOptional: routing the narrowed `subtype` through
+      // a generic helper widens it back to string.
+      const subagentRunId = getString("subagentRunId");
+      return {
+        type: "REASONING_ENCRYPTED_VALUE" as const,
+        subtype,
+        entityId,
+        encryptedValue,
+        ...(subagentRunId !== undefined ? { subagentRunId } : {}),
+      };
     }
     case "REASONING_END":
       return withOptional(
@@ -267,6 +271,7 @@ export const parseAgUiEvent = (
           toolCallName: getString("toolCallName"),
           parentMessageId: getString("parentMessageId"),
           delta: getString("delta"),
+          subagentRunId: getString("subagentRunId"),
         },
       );
     case "TOOL_CALL_RESULT": {
@@ -314,6 +319,7 @@ export const parseAgUiEvent = (
           messageId: getString("messageId"),
           replace:
             typeof payload.replace === "boolean" ? payload.replace : undefined,
+          subagentRunId: getString("subagentRunId"),
         },
       );
     }
@@ -364,7 +370,7 @@ export const parseAgUiEvent = (
       }
       return withOptional(
         { type: "SUBAGENT_FINISHED" as const, subagentRunId },
-        { outcome },
+        { result: payload.result, outcome },
       );
     }
     case "SUBAGENT_ERROR": {

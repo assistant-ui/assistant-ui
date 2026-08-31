@@ -148,7 +148,12 @@ export type AgUiEvent =
       subagentRunId?: string;
     }
   | { type: "TEXT_MESSAGE_END"; messageId?: string; subagentRunId?: string }
-  | { type: "TEXT_MESSAGE_CHUNK"; delta: string }
+  | {
+      type: "TEXT_MESSAGE_CHUNK";
+      messageId?: string;
+      delta: string;
+      subagentRunId?: string;
+    }
   | { type: "THINKING_START"; title?: string }
   | { type: "THINKING_TEXT_MESSAGE_START" }
   | { type: "THINKING_TEXT_MESSAGE_CONTENT"; delta: string }
@@ -199,6 +204,7 @@ export type AgUiEvent =
       toolCallName?: string;
       parentMessageId?: string;
       delta?: string;
+      subagentRunId?: string;
     }
   | {
       type: "TOOL_CALL_RESULT";
@@ -215,6 +221,7 @@ export type AgUiEvent =
       content: Record<string, unknown>;
       messageId?: string;
       replace?: boolean;
+      subagentRunId?: string;
     }
   | { type: "RAW"; event: any; source?: string }
   | { type: "CUSTOM"; name: string; value: any }
@@ -233,6 +240,7 @@ export type AgUiEvent =
   | {
       type: "SUBAGENT_FINISHED";
       subagentRunId: string;
+      result?: unknown;
       outcome?: AgUiSubagentFinishedOutcome;
     }
   | {

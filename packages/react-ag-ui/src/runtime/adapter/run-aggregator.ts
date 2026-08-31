@@ -38,6 +38,24 @@ type SubagentRunState = {
   parentMessageId?: string;
   createdAt: Date;
   status: MessageStatus;
+  result?: unknown;
+  interruptIds?: string[];
+  errorCode?: string;
+};
+
+type ToolApproval = NonNullable<ToolCallMessagePart["approval"]>;
+
+type BuildContext = {
+  subagentsByParentToolCallId: Map<string, string[]>;
+  reachable: Set<string>;
+  approvals: ReadonlyMap<string, ToolApproval>;
+  // Present only for the root walk: the pass that builds the snapshot is also
+  // the one that decides where a retracted reasoning signature anchors, so the
+  // two can never disagree about what materialized.
+  root?: {
+    opaqueCandidates: (AgUiOpaqueReasoning & { anchor: number })[];
+    lastMaterializedIndex: number;
+  };
 };
 
 export type AgUiOpaqueReasoning = {
@@ -135,7 +153,7 @@ export class RunAggregator {
   private readonly toolCalls = new Map<string, ToolCallState>();
   private readonly a2uiBuckets = new Map<string, A2uiState>();
   private readonly a2uiToolCallIds = new Set<string>();
-  private lastResolvedToolCallId: string | undefined;
+  private readonly lastResolvedToolCallIdByScope = new Map<string, string>();
   private readonly partOrder: (
     | { kind: "text"; key: string; subagentRunId?: string }
     | { kind: "reasoning"; key: string; subagentRunId?: string }
@@ -232,10 +250,7 @@ export class RunAggregator {
       case "TEXT_MESSAGE_CONTENT":
       case "TEXT_MESSAGE_CHUNK": {
         const incomingId = "messageId" in event ? event.messageId : undefined;
-        const scope =
-          event.type === "TEXT_MESSAGE_CONTENT"
-            ? this.scopeOf(event)
-            : ROOT_SCOPE;
+        const scope = this.scopeOf(event);
         if (scope === ROOT_SCOPE) {
           this.beginDistinctTextMessage(incomingId);
           this.reportServerMessageId(incomingId);
@@ -361,7 +376,10 @@ export class RunAggregator {
       }
       case "TOOL_CALL_ARGS":
       case "TOOL_CALL_CHUNK": {
-        if (event.type === "TOOL_CALL_CHUNK") {
+        if (
+          event.type === "TOOL_CALL_CHUNK" &&
+          this.scopeOf(event) === ROOT_SCOPE
+        ) {
           this.reportServerMessageId(event.parentMessageId);
         }
         if (!event.delta) break;
@@ -395,12 +413,15 @@ export class RunAggregator {
           break;
         }
         if (event.activityType !== MCP_APPS_ACTIVITY_TYPE) break;
+        const activityScope = this.scopeOf(event);
         const toolCallId = event.content.toolCallId;
+        const fallbackId =
+          this.lastResolvedToolCallIdByScope.get(activityScope);
         const entry =
           typeof toolCallId === "string"
             ? this.toolCalls.get(toolCallId)
-            : this.lastResolvedToolCallId
-              ? this.toolCalls.get(this.lastResolvedToolCallId)
+            : fallbackId
+              ? this.toolCalls.get(fallbackId)
               : undefined;
         const resourceUri = event.content.resourceUri;
         if (
@@ -472,6 +493,9 @@ export class RunAggregator {
             event.outcome?.type === "suspended"
               ? { type: "requires-action", reason: "interrupt" }
               : { type: "complete", reason: "unknown" };
+          if (event.result !== undefined) run.result = event.result;
+          if (event.outcome?.type === "suspended" && event.outcome.interruptIds)
+            run.interruptIds = event.outcome.interruptIds;
         }
         this.emit();
         break;
@@ -484,6 +508,7 @@ export class RunAggregator {
             reason: "error",
             ...(event.message !== undefined ? { error: event.message } : {}),
           };
+          if (event.code !== undefined) run.errorCode = event.code;
         }
         this.emit();
         break;
@@ -596,7 +621,7 @@ export class RunAggregator {
     this.toolCalls.clear();
     this.a2uiBuckets.clear();
     this.a2uiToolCallIds.clear();
-    this.lastResolvedToolCallId = undefined;
+    this.lastResolvedToolCallIdByScope.clear();
     this.partOrder.length = 0;
     this.textPartCounter = 0;
     this.activeTextMessageIdByScope.clear();
@@ -806,7 +831,7 @@ export class RunAggregator {
     if (toolMessageId) {
       entry.toolMessageId = toolMessageId;
     }
-    this.lastResolvedToolCallId = id;
+    this.lastResolvedToolCallIdByScope.set(scope, id);
   }
 
   private subagentsByParentToolCallId(): Map<string, string[]> {
@@ -820,18 +845,47 @@ export class RunAggregator {
     return map;
   }
 
+  // A subagent nests under its spawning tool call only when that call is itself
+  // reachable from the root scope. A run with no parentToolCallId, one naming a
+  // call this run never saw, or one in a cycle has nowhere to hang; the visited
+  // set also keeps a malformed chain to one visit per run instead of branching
+  // at every level.
+  private reachableSubagentRunIds(
+    subagentsByParentToolCallId: Map<string, string[]>,
+  ): Set<string> {
+    const reachable = new Set<string>();
+    const walk = (scope: string, depth: number): void => {
+      if (depth > MAX_SUBAGENT_DEPTH) return;
+      for (const entry of this.toolCalls.values()) {
+        if ((entry.subagentRunId ?? ROOT_SCOPE) !== scope) continue;
+        for (const id of subagentsByParentToolCallId.get(entry.toolCallId) ??
+          []) {
+          if (reachable.has(id)) continue;
+          reachable.add(id);
+          walk(id, depth + 1);
+        }
+      }
+    };
+    walk(ROOT_SCOPE, 0);
+    return reachable;
+  }
+
+  // Parts belonging to a subagent that has no nesting site fall back to the
+  // root scope rather than disappearing, which is also how the protocol's own
+  // pre-subagent downgrade renders them.
+  private effectiveScope(rawScope: string, ctx: BuildContext): string {
+    if (rawScope === ROOT_SCOPE) return ROOT_SCOPE;
+    return ctx.reachable.has(rawScope) ? rawScope : ROOT_SCOPE;
+  }
+
   private materializeSubagentMessage(
     subagentRunId: string,
     depth: number,
-    subagentsByParentToolCallId: Map<string, string[]>,
+    ctx: BuildContext,
   ): ThreadMessage | undefined {
     const run = this.subagentRuns.get(subagentRunId);
     if (!run || depth > MAX_SUBAGENT_DEPTH) return undefined;
-    const content = this.buildParts(
-      subagentRunId,
-      depth + 1,
-      subagentsByParentToolCallId,
-    );
+    const content = this.buildParts(subagentRunId, depth + 1, ctx);
     return {
       id: run.subagentRunId,
       role: "assistant",
@@ -852,6 +906,13 @@ export class RunAggregator {
             ...(run.parentSubagentRunId !== undefined
               ? { parentSubagentRunId: run.parentSubagentRunId }
               : {}),
+            ...(run.result !== undefined ? { result: run.result } : {}),
+            ...(run.interruptIds !== undefined
+              ? { interruptIds: run.interruptIds }
+              : {}),
+            ...(run.errorCode !== undefined
+              ? { errorCode: run.errorCode }
+              : {}),
           },
         },
       },
@@ -861,39 +922,29 @@ export class RunAggregator {
   private buildParts(
     scope: string,
     depth: number,
-    subagentsByParentToolCallId: Map<string, string[]>,
+    ctx: BuildContext,
   ): ThreadAssistantMessagePart[] {
     const snapshot: ThreadAssistantMessagePart[] = [];
-    const approvals =
-      scope === ROOT_SCOPE
-        ? projectAgUiToolApprovals(
-            this.status?.type === "requires-action"
-              ? this.interrupts
-              : undefined,
-            new Set(
-              Array.from(this.toolCalls.entries())
-                .filter(([, entry]) => entry.subagentRunId === undefined)
-                .map(([id]) => id),
-            ),
-          )
-        : new Map();
+    const isRoot = scope === ROOT_SCOPE;
 
-    for (const part of this.partOrder) {
+    for (const [index, part] of this.partOrder.entries()) {
+      const materialized = () => {
+        if (isRoot && ctx.root) ctx.root.lastMaterializedIndex = index;
+      };
+
       if (part.kind === "tool-call") {
         const entry = this.toolCalls.get(part.toolCallId);
-        if (!entry || (entry.subagentRunId ?? ROOT_SCOPE) !== scope) continue;
-        const approval = approvals.get(entry.toolCallId);
-        const nestedSubagentRunIds = subagentsByParentToolCallId.get(
-          entry.toolCallId,
-        );
-        const nestedMessages = nestedSubagentRunIds
-          ?.map((id) =>
-            this.materializeSubagentMessage(
-              id,
-              depth,
-              subagentsByParentToolCallId,
-            ),
-          )
+        if (!entry) continue;
+        if (
+          this.effectiveScope(entry.subagentRunId ?? ROOT_SCOPE, ctx) !== scope
+        )
+          continue;
+        const approval = ctx.approvals.get(entry.toolCallId);
+        const nestedMessages = (
+          ctx.subagentsByParentToolCallId.get(entry.toolCallId) ?? []
+        )
+          .filter((id) => ctx.reachable.has(id))
+          .map((id) => this.materializeSubagentMessage(id, depth, ctx))
           .filter((m): m is ThreadMessage => m !== undefined);
         const toolPart: ToolCallMessagePart = {
           type: "tool-call",
@@ -923,25 +974,24 @@ export class RunAggregator {
           ...(entry.toolMessageId
             ? { unstable_toolMessageId: entry.toolMessageId }
             : {}),
-          ...(nestedMessages && nestedMessages.length > 0
-            ? { messages: nestedMessages }
-            : {}),
+          ...(nestedMessages.length > 0 ? { messages: nestedMessages } : {}),
         } as ToolCallMessagePart & { unstable_toolMessageId?: string };
         snapshot.push(toolPart);
+        materialized();
         continue;
       }
 
-      const partScope =
+      const rawScope =
         "subagentRunId" in part
           ? (part.subagentRunId ?? ROOT_SCOPE)
           : ROOT_SCOPE;
-      if (partScope !== scope) continue;
+      if (this.effectiveScope(rawScope, ctx) !== scope) continue;
 
       if (part.kind === "reasoning") {
         if (this.showThinking) {
           const buffer = this.reasoningParts.get(part.key) ?? "";
           const isActive =
-            this.activeReasoningKeyByScope.get(scope) === part.key;
+            this.activeReasoningKeyByScope.get(rawScope) === part.key;
           if (buffer.length > 0 || isActive) {
             const encryptedValue = this.reasoningSignatures.get(part.key);
             const reasoningId = this.reasoningMessageIds.get(part.key);
@@ -956,6 +1006,20 @@ export class RunAggregator {
                 ? { providerMetadata: { [AG_UI_METADATA_NAMESPACE]: meta } }
                 : {}),
             } as const);
+            materialized();
+          } else if (isRoot && ctx.root) {
+            // A retracted empty block still carries transport state: without
+            // a part to live on, its signature rides the message metadata,
+            // matching the shape a snapshot reload produces.
+            const encryptedValue = this.reasoningSignatures.get(part.key);
+            const id = this.reasoningSignatureIds.get(part.key);
+            if (id?.trim() && encryptedValue?.trim()) {
+              ctx.root.opaqueCandidates.push({
+                id,
+                encryptedValue,
+                anchor: index + 1,
+              });
+            }
           }
         }
         continue;
@@ -965,6 +1029,7 @@ export class RunAggregator {
         const entry = this.textParts.get(part.key);
         if (entry && entry.buffer.trim().length > 0) {
           snapshot.push({ type: "text", text: entry.buffer } as const);
+          materialized();
         }
         continue;
       }
@@ -975,6 +1040,7 @@ export class RunAggregator {
           name: part.name,
           data: part.value,
         });
+        materialized();
         continue;
       }
     }
@@ -983,59 +1049,45 @@ export class RunAggregator {
   }
 
   private emit(): void {
-    const snapshot = this.buildParts(
-      ROOT_SCOPE,
-      0,
-      this.subagentsByParentToolCallId(),
-    );
-
-    const opaqueCandidates: (AgUiOpaqueReasoning & { anchor: number })[] =
-      Array.from(this.hiddenSignatures, ([id, encryptedValue]) => ({
-        id,
-        encryptedValue,
-        anchor: this.hiddenSignatureAnchors.get(id)!,
-      }));
-
-    let lastMaterializedIndex = -1;
-    for (const [index, part] of this.partOrder.entries()) {
-      if (part.kind === "tool-call") {
-        const entry = this.toolCalls.get(part.toolCallId);
-        if (!entry || (entry.subagentRunId ?? ROOT_SCOPE) !== ROOT_SCOPE)
-          continue;
-        lastMaterializedIndex = index;
-        continue;
-      }
-      const partScope =
-        "subagentRunId" in part
-          ? (part.subagentRunId ?? ROOT_SCOPE)
-          : ROOT_SCOPE;
-      if (partScope !== ROOT_SCOPE) continue;
-      if (part.kind === "reasoning") {
-        if (this.showThinking) {
-          const buffer = this.reasoningParts.get(part.key) ?? "";
-          const isActive =
-            this.activeReasoningKeyByScope.get(ROOT_SCOPE) === part.key;
-          if (buffer.length > 0 || isActive) {
-            lastMaterializedIndex = index;
-          } else {
-            const encryptedValue = this.reasoningSignatures.get(part.key);
-            const id = this.reasoningSignatureIds.get(part.key);
-            if (id?.trim() && encryptedValue?.trim()) {
-              opaqueCandidates.push({ id, encryptedValue, anchor: index + 1 });
-            }
-          }
-        }
-        continue;
-      }
-      if (part.kind === "text") {
-        const entry = this.textParts.get(part.key);
-        if (entry && entry.buffer.trim().length > 0)
-          lastMaterializedIndex = index;
-        continue;
-      }
-      // data parts always materialize when in scope.
-      lastMaterializedIndex = index;
-    }
+    const subagentsByParentToolCallId = this.subagentsByParentToolCallId();
+    const root = {
+      opaqueCandidates: Array.from(
+        this.hiddenSignatures,
+        ([id, encryptedValue]) => ({
+          id,
+          encryptedValue,
+          anchor: this.hiddenSignatureAnchors.get(id)!,
+        }),
+      ) as (AgUiOpaqueReasoning & { anchor: number })[],
+      lastMaterializedIndex: -1,
+    };
+    const reachable = this.reachableSubagentRunIds(subagentsByParentToolCallId);
+    // A run that ended incomplete can no longer be resumed, so a gate left over
+    // from an earlier interrupt outcome is unanswerable and must not stay
+    // projected. The interrupts themselves are kept on the message, since the
+    // bespoke hooks read that payload. Bound ids are exactly the calls that
+    // render at root scope, which is also exactly what getPendingToolCalls can
+    // reach: a call nested inside a subagent message is unanswerable, so the
+    // projector collapses the batch rather than showing half of it.
+    const ctx: BuildContext = {
+      subagentsByParentToolCallId,
+      reachable,
+      approvals: projectAgUiToolApprovals(
+        this.status?.type === "requires-action" ? this.interrupts : undefined,
+        new Set(
+          Array.from(this.toolCalls.values())
+            .filter(
+              (entry) =>
+                entry.subagentRunId === undefined ||
+                !reachable.has(entry.subagentRunId),
+            )
+            .map((entry) => entry.toolCallId),
+        ),
+      ),
+      root,
+    };
+    const snapshot = this.buildParts(ROOT_SCOPE, 0, ctx);
+    const { opaqueCandidates, lastMaterializedIndex } = root;
 
     // An anonymous claim promotes the signature's entityId to a wire message
     // id; when that id actually names a text message or the adopted assistant
