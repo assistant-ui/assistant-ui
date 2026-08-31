@@ -90,15 +90,22 @@ function getToolResponse(
     let executeFn = toolExecute;
 
     if (isStandardSchemaV1(tool.parameters)) {
-      let result = tool.parameters["~standard"].validate(toolCall.args);
-      if (result instanceof Promise) result = await result;
+      const result = tool.parameters["~standard"].validate(toolCall.args);
+      let validationResult: StandardSchemaV1.Result<unknown>;
+      if (typeof (result as { then?: unknown }).then === "function") {
+        validationResult = await (result as unknown as Promise<
+          StandardSchemaV1.Result<unknown>
+        >);
+      } else {
+        validationResult = result as StandardSchemaV1.Result<unknown>;
+      }
 
-      if (result.issues) {
+      if (validationResult.issues) {
         executeFn =
           tool.experimental_onSchemaValidationError ??
           (() => {
             throw new Error(
-              `Function parameter validation failed. ${JSON.stringify(result.issues)}`,
+              `Function parameter validation failed. ${JSON.stringify(validationResult.issues)}`,
             );
           });
       }
