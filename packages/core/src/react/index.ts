@@ -235,6 +235,10 @@ export { RemoteThreadListHookInstanceManager } from "./runtimes/RemoteThreadList
 export { RemoteThreadListThreadListRuntimeCore } from "./runtimes/RemoteThreadListThreadListRuntimeCore";
 export { useRemoteThreadListRuntime } from "./runtimes/useRemoteThreadListRuntime";
 export { useCloudThreadListAdapter } from "./runtimes/cloud/useCloudThreadListAdapter";
+export {
+  createCloudThreadListAdapter,
+  type CloudThreadListAdapterOptions,
+} from "./runtimes/cloud/createCloudThreadListAdapter";
 export { useCloudThreadListRuntime } from "./runtimes/cloud/useCloudThreadListRuntime";
 export {
   useAssistantTransportRuntime,

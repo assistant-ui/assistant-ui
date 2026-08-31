@@ -240,13 +240,13 @@ The fastest path is the styled `voice` registry component. It ships a `VoiceCont
 
 <InstallCommand shadcn={["voice"]} />
 
-This adds `/components/assistant-ui/voice.tsx` to your project. Adjust styling as needed.
+This adds `/components/assistant-ui/elements/voice.tsx` to your project. Adjust styling as needed.
 
 ### Use with a runtime
 
 ```tsx title="app/page.tsx"
-import { Thread } from "@/components/assistant-ui/thread";
-import { VoiceControl } from "@/components/assistant-ui/voice";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { VoiceControl } from "@/components/assistant-ui/elements/voice.aui";
 import { AuiIf } from "@assistant-ui/react";
 
 export default function Chat() {
@@ -263,7 +263,7 @@ export default function Chat() {
 }
 ```
 
-See the [Voice UI page](/docs/ui/voice) for anatomy, variants, and state samples.
+See the [Orb page](/elements/orb) for anatomy, variants, and state samples.
 
 ## Example: LiveKit
 
@@ -272,7 +272,7 @@ See the [Voice UI page](/docs/ui/voice) for anatomy, variants, and state samples
 The [`with-livekit`](https://github.com/assistant-ui/assistant-ui/tree/main/examples/with-livekit) example shows the full wiring:
 
 1. **Adapter** (`examples/with-livekit/lib/livekit-voice-adapter.ts`): `LiveKitVoiceAdapter` implements `RealtimeVoiceAdapter`. `connect` calls `createVoiceSession`, connects a LiveKit `Room`, enables the local microphone, attaches remote audio tracks, and maps room events to helpers (`setStatus`, `end`, `emitMode`, `emitVolume`, `emitTranscript`).
-2. **Token route** (`examples/with-livekit/app/api/livekit-token/route.ts`): mints a short-lived room token server-side so secrets stay off the client.
+2. **Token route** (`examples/with-livekit/app/api/livekit-token/route.ts`): mints a ten-minute token for an isolated room so secrets stay off the client.
 3. **Agent worker** (`examples/with-livekit/agent/`): a Python LiveKit Agents process that joins the room and runs the voice pipeline.
 
 Minimal runtime wiring:
@@ -286,6 +286,7 @@ const runtime = useChatRuntime({
       url: process.env.NEXT_PUBLIC_LIVEKIT_URL!,
       token: async () => {
         const res = await fetch("/api/livekit-token", { method: "POST" });
+        if (!res.ok) throw new Error("Failed to create a LiveKit session");
         const { token } = await res.json();
         return token;
       },
@@ -295,6 +296,12 @@ const runtime = useChatRuntime({
 ```
 
 Clone the example for the adapter source, token endpoint, and agent worker rather than re-implementing the full LiveKit event map from scratch.
+
+The token route accepts a request only when `Sec-Fetch-Site` is `same-origin` or `none`, and falls back to comparing the `Origin` header against the request URL for clients that omit Fetch Metadata. Behind a reverse proxy, that fallback needs the public scheme and host preserved in the request URL.
+
+<Callout type="warn">
+  A request-context check is not authentication. Before deploying, require your application session in the token route and apply a durable rate limit, so anonymous callers cannot consume voice capacity.
+</Callout>
 
 You can also scaffold it with the CLI:
 
@@ -306,5 +313,5 @@ npx assistant-ui create my-app -e with-livekit
 
 - [Dictation](/docs/guides/dictation): push-to-talk speech-to-text into the composer (`DictationAdapter`, `ComposerPrimitive.Dictate`).
 - [Speech](/docs/guides/speech): read-aloud for assistant messages (`SpeechSynthesisAdapter`, `ActionBarPrimitive.Speak`).
-- [Voice UI](/docs/ui/voice): registry component reference for `VoiceControl` and `VoiceOrb`.
+- [Orb](/elements/orb): registry component reference for `VoiceControl` and `VoiceOrb`.
 - [Voice API reference](/docs/api-reference/voice): generated types for sessions, speech, and dictation.

@@ -358,7 +358,10 @@ export const chunkExternalMessages = <T>(
   return results;
 };
 
-export const shallowArrayEqual = (a: unknown[], b: unknown[]) => {
+export const shallowArrayEqual = (
+  a: readonly unknown[],
+  b: readonly unknown[],
+) => {
   if (a.length !== b.length) return false;
   for (let i = 0; i < a.length; i++) {
     if (a[i] !== b[i]) return false;

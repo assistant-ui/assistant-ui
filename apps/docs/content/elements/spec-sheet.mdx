@@ -1,0 +1,267 @@
+---
+title: "Spec sheet"
+description: "The most common structured answer after a table: one object, labeled."
+---
+
+The structured shape for a single labeled object, the answer most tool results reach for right after a table: a title, an optional subtitle, and a column of label and value rows that reveal one at a time. With a runtime the rows come from a tool result; standalone you pass them in directly.
+
+## Getting started
+
+<RuntimeMode>
+
+This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. Unlike a piece the model authors freely, a spec sheet is usually a genuine lookup, so the rows belong on the tool's `result` rather than on its streamed `args`.
+
+<Steps>
+  <Step>
+
+### Register the render function
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { SpecSheet } from "@/components/assistant-ui/elements/spec-sheet";
+
+export const toolkit = defineToolkit({
+  get_model_card: {
+    type: "backend",
+    render: ({ args, result }) => {
+      if (!result) return <p>Looking up {args.modelId}…</p>;
+      return (
+        <SpecSheet
+          title={result.title}
+          subtitle={result.subtitle}
+          rows={result.rows}
+          visibleCount={result.rows.length}
+        />
+      );
+    },
+  },
+});
+```
+
+Because the whole sheet lands as one result rather than as streamed steps, `visibleCount` is simply `result.rows.length`; there is no partial state to size it against.
+
+  </Step>
+  <Step>
+
+### Let the message list render it
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Tools,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Once the toolkit is registered, `Thread` and any custom message list built on assistant-ui's message part primitives (`MessagePrimitive.Parts` or `MessagePrimitive.GroupedParts`) render the registered UI automatically wherever the `get_model_card` call appears in the message, so nothing needs to be placed by hand.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a plain display component: it owns no state of its own, so the minimal usage is a constant set of rows shown all at once.
+
+<Steps>
+  <Step>
+
+### Pass the rows straight through
+
+```tsx title="app/model-card.tsx"
+"use client";
+
+import {
+  SpecSheet,
+  type SpecRow,
+} from "@/components/assistant-ui/elements/spec-sheet";
+
+const rows: readonly SpecRow[] = [
+  { label: "context", value: "500,000 tokens" },
+  { label: "input", value: "$15.00 / M" },
+  { label: "best for", value: "Long agentic runs", emphasis: true },
+];
+
+export function ModelCard() {
+  return (
+    <SpecSheet
+      title="Opus 5"
+      subtitle="claude-opus-5"
+      rows={rows}
+      visibleCount={rows.length}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Reveal rows on your own schedule
+
+```tsx
+"use client";
+
+import { useEffect, useState } from "react";
+
+export function ModelCard() {
+  const [visibleCount, setVisibleCount] = useState(0);
+
+  useEffect(() => {
+    if (visibleCount >= rows.length) return;
+    const id = setTimeout(() => setVisibleCount((n) => n + 1), 260);
+    return () => clearTimeout(id);
+  }, [visibleCount]);
+
+  return (
+    <SpecSheet
+      title="Opus 5"
+      subtitle="claude-opus-5"
+      rows={rows}
+      visibleCount={visibleCount}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="spec-sheet">
+  <div>
+    <span>{/* title */}</span>
+    <span>{/* optional subtitle */}</span>
+  </div>
+
+  <div>
+    {/* one row per visible row, first row has no top border */}
+    <span>{/* row.label, monospace */}</span>
+    <span>{/* row.value, right aligned; emphasis bolds and brightens it */}</span>
+  </div>
+</div>
+```
+
+`title` and `subtitle` always render regardless of `visibleCount`; only the row list is sliced. `visibleCount` is floored and clamped into `0…rows.length` the same way `visibleSteps` is on the math element: NaN or a negative number maps to 0, and any value past the array length maps to the array length. Rows are keyed by `row.label`, so two rows sharing a label collide in React's reconciliation; keep labels unique within one sheet. The first row carries no top border; every later row does.
+
+## Examples
+
+### Marking the deciding row
+
+`emphasis` is the only visual variation a row carries: set it on the row that should read as the answer rather than a supporting fact, and its value renders bolder and brighter than the rest.
+
+```tsx
+const rows: readonly SpecRow[] = [
+  { label: "input", value: "$15.00 / M" },
+  { label: "output", value: "$75.00 / M" },
+  { label: "best for", value: "Long agentic runs", emphasis: true },
+];
+```
+
+### Where the rows come from
+
+<RuntimeMode>
+
+The backend entry declares only the lookup key. The model supplies `modelId`, your server resolves the rest, and the client renderer never sees anything but the finished shape.
+
+```ts title="app/api/chat/route.ts"
+get_model_card: tool({
+  description: "Look up pricing and capability details for a model.",
+  inputSchema: z.object({ modelId: z.string() }),
+  execute: async ({ modelId }) => getModelCard(modelId),
+}),
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+When the rows come from your own request rather than a fixed constant, fetch them once and reset the reveal count so the animation plays from the start.
+
+```tsx
+async function loadModelCard(modelId: string) {
+  const card = await fetchModelCard(modelId);
+  setRows(card.rows);
+  setVisibleCount(0);
+}
+```
+
+</StandaloneMode>
+
+### Restyle the sheet
+
+Both lanes take `className` on the root. The row labels use the shared `mono` surface from `surfaces.tsx`, so restyling that token restyles every element that uses it.
+
+```tsx
+<SpecSheet className="max-w-none gap-4" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ modelId: string }` | The tool's arguments, the lookup key the model supplied. |
+| `result` | `{ title: string; subtitle?: string; rows: SpecRow[] } \| undefined` | The finished spec, undefined until the backend executor resolves. |
+
+### get_model_card result
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `title` | `string` | The sheet's title. |
+| `subtitle` | `string` | Optional caption under the title. |
+| `rows[].label` | `string` | Row label, shown in monospace. Must be unique within the result. |
+| `rows[].value` | `string` | Row value, right aligned. |
+| `rows[].emphasis` | `boolean` | Bolds and brightens the value when true. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### SpecSheet
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | The sheet's title. |
+| `subtitle` | `string` | | Optional caption under the title. |
+| `rows` | `readonly SpecRow[]` | required | The full list of rows, only the first `visibleCount` render. |
+| `visibleCount` | `number` | required | How many rows to show, floored and clamped into `0…rows.length`. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+### SpecRow
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `label` | `string` | Row label, shown in monospace. Used as the React key, keep it unique. |
+| `value` | `string` | Row value, right aligned. |
+| `emphasis` | `boolean` | Optional, bolds and brightens the value when true. |
+
+</StandaloneMode>

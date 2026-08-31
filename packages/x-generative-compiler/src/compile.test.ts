@@ -5,6 +5,7 @@ import { describe, it, expect, vi } from "vitest";
 import {
   compileGenerative,
   isGenerativeModule,
+  isGenerativeSource,
   GenerativeCompileError,
 } from "./compile";
 
@@ -1883,6 +1884,22 @@ export default defineToolkit({
         `"use generative" /* first line\nsecond line */ + suffix;\nexport default {};`,
       ),
     ).toBe(false);
+  });
+
+  it("detects generative source files", () => {
+    const source = `"use generative";\nexport default {};`;
+
+    for (const filename of [
+      "toolkit.ts",
+      "toolkit.tsx",
+      "toolkit.mts",
+      "toolkit.cjsx",
+    ]) {
+      expect(isGenerativeSource(filename, source)).toBe(true);
+    }
+
+    expect(isGenerativeSource("toolkit.css", source)).toBe(false);
+    expect(isGenerativeSource("toolkit.ts", "export default {};")).toBe(false);
   });
 });
 

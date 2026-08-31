@@ -4,6 +4,34 @@ import {
   readCloudString,
 } from "./cloudResponse";
 
+const AUTH_TOKEN_REQUEST_TIMEOUT_MS = 30_000;
+
+const withAuthTokenDeadline = async <T>(
+  operation: string,
+  run: (signal: AbortSignal) => Promise<T>,
+): Promise<T> => {
+  const controller = new AbortController();
+  let timedOut = false;
+  const timeout = setTimeout(() => {
+    timedOut = true;
+    controller.abort();
+  }, AUTH_TOKEN_REQUEST_TIMEOUT_MS);
+
+  try {
+    return await run(controller.signal);
+  } catch (error) {
+    if (timedOut) {
+      throw new Error(
+        `Assistant Cloud ${operation} timed out after ${AUTH_TOKEN_REQUEST_TIMEOUT_MS}ms`,
+        { cause: error },
+      );
+    }
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 export type AssistantCloudAuthStrategy = {
   readonly strategy: "anon" | "jwt" | "api-key";
   getAuthHeaders(): Promise<Record<string, string> | false>;
@@ -247,6 +275,52 @@ const removeRefreshToken = (baseUrl: string): void => {
   } catch {}
 };
 
+// In-flight sharing follows refresh-token storage scope to isolate server requests.
+const anonymousAuthTokenRequests = new WeakMap<
+  Storage,
+  Map<string, Promise<string | null>>
+>();
+
+const getWebLockManager = (): LockManager | null => {
+  if (!("navigator" in globalThis)) return null;
+  return (
+    (globalThis as { navigator?: { locks?: LockManager } }).navigator?.locks ??
+    null
+  );
+};
+
+const getAnonymousAuthLockName = (baseUrl: string): string =>
+  `assistant-cloud:anonymous-auth:${baseUrl}`;
+
+const getSharedAnonymousAuthToken = (
+  baseUrl: string,
+  requestToken: () => Promise<string | null>,
+): Promise<string | null> => {
+  const storage = getLocalStorage();
+  if (!storage) return requestToken();
+
+  let storageRequests = anonymousAuthTokenRequests.get(storage);
+  if (!storageRequests) {
+    storageRequests = new Map();
+    anonymousAuthTokenRequests.set(storage, storageRequests);
+  }
+
+  const activeRequest = storageRequests.get(baseUrl);
+  if (activeRequest) return activeRequest;
+
+  const locks = getWebLockManager();
+  const request = locks
+    ? locks.request(getAnonymousAuthLockName(baseUrl), requestToken)
+    : requestToken();
+  const sharedRequest = request.finally(() => {
+    if (storageRequests.get(baseUrl) === sharedRequest) {
+      storageRequests.delete(baseUrl);
+    }
+  });
+  storageRequests.set(baseUrl, sharedRequest);
+  return sharedRequest;
+};
+
 export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthStrategy {
   public readonly strategy = "anon";
 
@@ -255,70 +329,90 @@ export class AssistantCloudAnonymousAuthStrategy implements AssistantCloudAuthSt
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
-    this.jwtStrategy = new AssistantCloudJWTAuthStrategy(async () => {
+    const requestAuthToken = async (): Promise<string | null> => {
       const currentTime = Date.now();
       const storedRefreshToken = readRefreshToken(this.baseUrl);
 
       if (storedRefreshToken) {
         const refreshExpiry = new Date(storedRefreshToken.expires_at).getTime();
         if (refreshExpiry - currentTime > 30 * 1000) {
-          const response = await fetch(
-            `${this.baseUrl}/v1/auth/tokens/refresh`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ refresh_token: storedRefreshToken.token }),
+          const refreshedAccessToken = await withAuthTokenDeadline(
+            "refresh token request",
+            async (signal) => {
+              const response = await fetch(
+                `${this.baseUrl}/v1/auth/tokens/refresh`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify({
+                    refresh_token: storedRefreshToken.token,
+                  }),
+                  signal,
+                },
+              );
+
+              if (response.ok) {
+                const { data, accessToken } = await readAuthTokenResponse(
+                  response,
+                  "refresh auth token response",
+                );
+                if (data.refresh_token != null) {
+                  writeRefreshToken(
+                    this.baseUrl,
+                    readRefreshTokenResponse(
+                      data.refresh_token,
+                      "refresh auth token response.refresh_token",
+                    ),
+                  );
+                }
+                return accessToken;
+              }
+
+              if (response.status === 429 || response.status >= 500) {
+                throw new Error(
+                  `Assistant Cloud token refresh failed with status ${response.status}`,
+                );
+              }
+
+              return null;
             },
           );
-
-          if (response.ok) {
-            const { data, accessToken } = await readAuthTokenResponse(
-              response,
-              "refresh auth token response",
-            );
-            if (data.refresh_token != null) {
-              writeRefreshToken(
-                this.baseUrl,
-                readRefreshTokenResponse(
-                  data.refresh_token,
-                  "refresh auth token response.refresh_token",
-                ),
-              );
-            }
-            return accessToken;
-          }
-
-          if (response.status === 429 || response.status >= 500) {
-            throw new Error(
-              `Assistant Cloud token refresh failed with status ${response.status}`,
-            );
-          }
+          if (refreshedAccessToken !== null) return refreshedAccessToken;
         } else {
           removeRefreshToken(this.baseUrl);
         }
       }
 
       // No valid refresh token; request a new anonymous token
-      const response = await fetch(`${this.baseUrl}/v1/auth/tokens/anonymous`, {
-        method: "POST",
-      });
+      return withAuthTokenDeadline(
+        "anonymous token request",
+        async (signal) => {
+          const response = await fetch(
+            `${this.baseUrl}/v1/auth/tokens/anonymous`,
+            { method: "POST", signal },
+          );
 
-      if (!response.ok) return null;
+          if (!response.ok) return null;
 
-      const { data, accessToken } = await readAuthTokenResponse(
-        response,
-        "anonymous auth token response",
+          const { data, accessToken } = await readAuthTokenResponse(
+            response,
+            "anonymous auth token response",
+          );
+
+          writeRefreshToken(
+            this.baseUrl,
+            readRefreshTokenResponse(
+              data.refresh_token,
+              "anonymous auth token response.refresh_token",
+            ),
+          );
+          return accessToken;
+        },
       );
-
-      writeRefreshToken(
-        this.baseUrl,
-        readRefreshTokenResponse(
-          data.refresh_token,
-          "anonymous auth token response.refresh_token",
-        ),
-      );
-      return accessToken;
-    });
+    };
+    this.jwtStrategy = new AssistantCloudJWTAuthStrategy(() =>
+      getSharedAnonymousAuthToken(this.baseUrl, requestAuthToken),
+    );
   }
 
   public async getAuthHeaders(): Promise<Record<string, string> | false> {

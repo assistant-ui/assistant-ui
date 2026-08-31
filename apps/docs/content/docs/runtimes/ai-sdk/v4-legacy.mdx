@@ -50,7 +50,7 @@ export async function POST(req: Request) {
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useDataStreamRuntime } from "@assistant-ui/react-data-stream";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function Home() {
   const runtime = useDataStreamRuntime({ api: "/api/chat" });

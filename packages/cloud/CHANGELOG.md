@@ -1,5 +1,23 @@
 # assistant-cloud
 
+## 0.1.42
+
+### Patch Changes
+
+- [#6255](https://github.com/assistant-ui/assistant-ui/pull/6255) [`0f0ebb6`](https://github.com/assistant-ui/assistant-ui/commit/0f0ebb6eb56a15d4976336839d2d74780e3bad4c) - fix: surface the response text when a JSON error body has no message ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6262](https://github.com/assistant-ui/assistant-ui/pull/6262) [`5a3e9f7`](https://github.com/assistant-ui/assistant-ui/commit/5a3e9f7c26c85af640a806fa8174508cbf3fb031) - refactor: move the run report tool call shape and its serialization into assistant-cloud ([@okisdev](https://github.com/okisdev))
+
+- [#6254](https://github.com/assistant-ui/assistant-ui/pull/6254) [`d24bcb2`](https://github.com/assistant-ui/assistant-ui/commit/d24bcb27a92701f614b10fd113941591d609ab1f) - fix: keep telemetry enabled when config carries an undefined enabled ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6340](https://github.com/assistant-ui/assistant-ui/pull/6340) [`7adf047`](https://github.com/assistant-ui/assistant-ui/commit/7adf047d12e56d1e8faab67364b99fa0f3f38e39) - refactor: provide thread title generation from assistant-cloud; cloud-ai-sdk keeps only the format-specific half. ([@okisdev](https://github.com/okisdev))
+
+- [#6264](https://github.com/assistant-ui/assistant-ui/pull/6264) [`1743d19`](https://github.com/assistant-ui/assistant-ui/commit/1743d1996e87421bba7f559f47673d695d3ecf30) - fix: clamp pre-serialized run telemetry arguments ([@rupic-app](https://github.com/apps/rupic-app))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`8626c1f`](https://github.com/assistant-ui/assistant-ui/commit/8626c1ffe1c6d56ec75073e795aa9fbf7493c3ed), [`531f61a`](https://github.com/assistant-ui/assistant-ui/commit/531f61a4d2f5fcee16821a6401d9d11394bf8339), [`dfaa94f`](https://github.com/assistant-ui/assistant-ui/commit/dfaa94fca3ecdd8b0b0ab202f08dafd03c1e2ed5), [`a4bc54a`](https://github.com/assistant-ui/assistant-ui/commit/a4bc54afa976423b6310a2d5be350df0f3b41e42), [`fd471e9`](https://github.com/assistant-ui/assistant-ui/commit/fd471e94babf7b6580e06bbea2b7a8cdd4882869), [`ac7ec15`](https://github.com/assistant-ui/assistant-ui/commit/ac7ec15e118a9279dd60521b839ecc38983675c5), [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d), [`f96e22f`](https://github.com/assistant-ui/assistant-ui/commit/f96e22ffa8c85cbfc4a878db4f371c510070066d), [`bfc8bef`](https://github.com/assistant-ui/assistant-ui/commit/bfc8bef9f1ee6cb4cb25f83488a0e4ce1a393ff3), [`2cd5cbc`](https://github.com/assistant-ui/assistant-ui/commit/2cd5cbcf78c586b7557421b00e9c996c62bd7f43), [`105af3e`](https://github.com/assistant-ui/assistant-ui/commit/105af3eaea2093df271d9c44642e1c04d5f5cf7c), [`4c3194a`](https://github.com/assistant-ui/assistant-ui/commit/4c3194aca4470753a2a37e244cb5e3fb27cbc76b)]:
+  - assistant-stream@0.3.40
+
 ## 0.1.41
 
 ### Patch Changes

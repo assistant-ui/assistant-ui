@@ -1,3 +1,5 @@
+import { AUI_ELEMENT_DOCS } from "./aui-element-docs";
+
 export interface ElementPropRow {
   name: string;
   type: string;
@@ -18,7 +20,7 @@ export interface ElementDoc {
 
 export const ELEMENT_DOCS: Record<string, ElementDoc> = {
   "loading-state": {
-    usage: `import { GenerationLoader } from "@/components/elements/loading-state";
+    usage: `import { GenerationLoader } from "@/components/assistant-ui/elements/loading-state";
 
 <GenerationLoader label="Generating" tick={24} />`,
     props: [
@@ -55,7 +57,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "thinking-indicator": {
-    usage: `import { ThinkingIndicator } from "@/components/elements/thinking-indicator";
+    usage: `import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
 
 <ThinkingIndicator label="Reading thread.tsx" elapsed="12s" />`,
     props: [
@@ -85,7 +87,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "reasoning-panel": {
-    usage: `import { ReasoningPanel } from "@/components/elements/reasoning-panel";
+    usage: `import { ReasoningPanel } from "@/components/assistant-ui/elements/reasoning-panel";
 
 <ReasoningPanel
   steps={[{ title: "Scope", body: "Find the failing path." }]}
@@ -155,7 +157,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "streaming-text": {
-    usage: `import { StreamingText } from "@/components/elements/streaming-text";
+    usage: `import { StreamingText } from "@/components/assistant-ui/elements/streaming-text";
 
 <StreamingText
   segments={[{ text: "Hello world" }, { text: "thread.tsx", mono: true }]}
@@ -197,7 +199,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "typing-indicator": {
-    usage: `import { TypingIndicator } from "@/components/elements/typing-indicator";
+    usage: `import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
 
 <TypingIndicator />`,
     props: [
@@ -221,7 +223,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "message-pair": {
-    usage: `import { MessagePair } from "@/components/elements/message-pair";
+    usage: `import { MessagePair } from "@/components/assistant-ui/elements/message-pair";
 
 <MessagePair
   userMessage="Explain the composer."
@@ -275,7 +277,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "message-branches": {
-    usage: `import { MessageBranches } from "@/components/elements/message-branches";
+    usage: `import { MessageBranches } from "@/components/assistant-ui/elements/message-branches";
 
 <MessageBranches
   variants={["First answer.", "Second answer."]}
@@ -316,7 +318,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "message-actions": {
-    usage: `import { MessageActions } from "@/components/elements/message-actions";
+    usage: `import { MessageActions } from "@/components/assistant-ui/elements/message-actions";
 
 <MessageActions
   copied={false}
@@ -387,7 +389,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   suggestions: {
-    usage: `import { Suggestions } from "@/components/elements/suggestions";
+    usage: `import { Suggestions } from "@/components/assistant-ui/elements/suggestions";
 
 <Suggestions
   suggestions={["Explain more", "Show an example"]}
@@ -442,7 +444,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "error-state": {
-    usage: `import { ErrorState } from "@/components/elements/error-state";
+    usage: `import { ErrorState } from "@/components/assistant-ui/elements/error-state";
 
 <ErrorState
   title="Request failed"
@@ -490,7 +492,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
     ],
   },
   "tool-call": {
-    usage: `import { ToolCall } from "@/components/elements/tool-call";
+    usage: `import { ToolCall } from "@/components/assistant-ui/elements/tool-call";
 
 <ToolCall
   label="Searched"
@@ -570,7 +572,7 @@ export const ELEMENT_DOCS: Record<string, ElementDoc> = {
   },
   "tool-timeline": {
     usage: `import { FileSearchIcon } from "lucide-react";
-import { ToolTimeline } from "@/components/elements/tool-timeline";
+import { ToolTimeline } from "@/components/assistant-ui/elements/tool-timeline";
 
 <ToolTimeline
   steps={[{ verb: "Read", chip: "thread.tsx", icon: FileSearchIcon }]}
@@ -649,7 +651,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "terminal-block": {
-    usage: `import { TerminalBlock } from "@/components/elements/terminal-block";
+    usage: `import { TerminalBlock } from "@/components/assistant-ui/elements/terminal-block";
 
 <TerminalBlock
   command="pnpm test"
@@ -704,7 +706,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "code-diff": {
-    usage: `import { CodeDiff } from "@/components/elements/code-diff";
+    usage: `import { CodeDiff } from "@/components/assistant-ui/elements/code-diff";
 
 <CodeDiff
   filename="thread.tsx"
@@ -763,7 +765,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "web-search": {
-    usage: `import { WebSearch } from "@/components/elements/web-search";
+    usage: `import { WebSearch } from "@/components/assistant-ui/elements/web-search";
 
 <WebSearch
   query="assistant-ui composer"
@@ -817,8 +819,8 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
       },
     ],
   },
-  sources: {
-    usage: `import { Sources } from "@/components/elements/sources";
+  "source-cards": {
+    usage: `import { Sources } from "@/components/assistant-ui/elements/sources";
 
 <Sources
   sources={[{ domain: "docs.example.com", title: "Composer guide" }]}
@@ -859,7 +861,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "inline-citation": {
-    usage: `import { InlineCitation } from "@/components/elements/inline-citation";
+    usage: `import { InlineCitation } from "@/components/assistant-ui/elements/inline-citation";
 
 <InlineCitation
   sources={[
@@ -907,7 +909,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "image-generation": {
-    usage: `import { ImageGeneration } from "@/components/elements/image-generation";
+    usage: `import { ImageGeneration } from "@/components/assistant-ui/elements/image-generation";
 
 <ImageGeneration prompt="A calm blue abstract" generating={false} />`,
     props: [
@@ -937,7 +939,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "data-table": {
-    usage: `import { DataTable } from "@/components/elements/data-table";
+    usage: `import { DataTable } from "@/components/assistant-ui/elements/data-table";
 
 <DataTable
   rows={[{ name: "Sonnet", context: "200k", cost: "$3" }]}
@@ -971,7 +973,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "number-ticker": {
-    usage: `import { NumberTicker } from "@/components/elements/number-ticker";
+    usage: `import { NumberTicker } from "@/components/assistant-ui/elements/number-ticker";
 
 <NumberTicker value={1284} label="tokens / sec" />`,
     props: [
@@ -1001,7 +1003,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "agent-plan": {
-    usage: `import { AgentPlan } from "@/components/elements/agent-plan";
+    usage: `import { AgentPlan } from "@/components/assistant-ui/elements/agent-plan";
 
 <AgentPlan
   steps={["Read the file", "Draft the fix", "Run tests"]}
@@ -1034,7 +1036,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "subagent-list": {
-    usage: `import { SubagentList } from "@/components/elements/subagent-list";
+    usage: `import { SubagentList } from "@/components/assistant-ui/elements/subagent-list";
 
 <SubagentList
   agents={[{ name: "Researcher", model: "Sonnet" }]}
@@ -1090,7 +1092,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "agent-status": {
-    usage: `import { AgentStatus } from "@/components/elements/agent-status";
+    usage: `import { AgentStatus } from "@/components/assistant-ui/elements/agent-status";
 
 <AgentStatus state="working" label="Editing composer.tsx" elapsed="8s" />`,
     props: [
@@ -1126,7 +1128,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "approval-card": {
-    usage: `import { ApprovalCard } from "@/components/elements/approval-card";
+    usage: `import { ApprovalCard } from "@/components/assistant-ui/elements/approval-card";
 
 <ApprovalCard
   state="request"
@@ -1192,7 +1194,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "recommendation-card": {
-    usage: `import { RecommendationCard } from "@/components/elements/recommendation-card";
+    usage: `import { RecommendationCard } from "@/components/assistant-ui/elements/recommendation-card";
 
 <RecommendationCard
   state="idle"
@@ -1265,7 +1267,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "artifact-card": {
-    usage: `import { ArtifactCard } from "@/components/elements/artifact-card";
+    usage: `import { ArtifactCard } from "@/components/assistant-ui/elements/artifact-card";
 
 <ArtifactCard
   title="Draft persistence RFC"
@@ -1321,7 +1323,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
   ComposerInput,
   ComposerSend,
   ComposerToolbar,
-} from "@/components/elements/composer";
+} from "@/components/assistant-ui/elements/composer";
 
 <Composer>
   <ComposerBar>
@@ -1403,7 +1405,7 @@ import { ToolTimeline } from "@/components/elements/tool-timeline";
     ],
   },
   "composer-slash-commands": {
-    usage: `import { ComposerMenu, ComposerCommandItem, useSlashMatches } from "@/components/elements/composer";
+    usage: `import { ComposerMenu, ComposerCommandItem, useSlashMatches } from "@/components/assistant-ui/elements/composer";
 
 const matches = useSlashMatches(value, commands);
 
@@ -1466,7 +1468,7 @@ const matches = useSlashMatches(value, commands);
     ],
   },
   "composer-mentions": {
-    usage: `import { ComposerMenu, ComposerPersonItem, applyMention, useMentionMatches } from "@/components/elements/composer";
+    usage: `import { ComposerMenu, ComposerPersonItem, applyMention, useMentionMatches } from "@/components/assistant-ui/elements/composer";
 
 const matches = useMentionMatches(value, people);
 
@@ -1496,7 +1498,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "composer-attachments": {
-    usage: `import { ComposerAttachments, ComposerAttachmentChip } from "@/components/elements/composer";
+    usage: `import { ComposerAttachments, ComposerAttachmentChip } from "@/components/assistant-ui/elements/composer";
 
 <ComposerAttachments>
   {files.map((file) => (
@@ -1525,7 +1527,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "composer-model-picker": {
-    usage: `import { ComposerMenu, ComposerModelItem, ComposerModelTrigger } from "@/components/elements/composer";
+    usage: `import { ComposerMenu, ComposerModelItem, ComposerModelTrigger } from "@/components/assistant-ui/elements/composer";
 
 <div className="relative">
   <ComposerMenu open={open}>
@@ -1575,7 +1577,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "composer-voice": {
-    usage: `import { ComposerVoice, ComposerVoiceButton } from "@/components/elements/composer";
+    usage: `import { ComposerVoice, ComposerVoiceButton } from "@/components/assistant-ui/elements/composer";
 
 {active
   ? <ComposerVoice recording={recording} seconds={seconds} />
@@ -1617,7 +1619,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "composer-context": {
-    usage: `import { ComposerContext } from "@/components/elements/composer";
+    usage: `import { ComposerContext } from "@/components/assistant-ui/elements/composer";
 
 <ComposerContext usage={{ system: 12, tools: 8, messages: 54, total: 200 }} />`,
     props: [
@@ -1643,7 +1645,7 @@ const matches = useMentionMatches(value, people);
   ChatPanelMessages,
   ChatPanelTyping,
   ChatPanelUserMessage,
-} from "@/components/elements/chat-panel";
+} from "@/components/assistant-ui/elements/chat-panel";
 
 <ChatPanel>
   <ChatPanelMessages>
@@ -1717,7 +1719,7 @@ const matches = useMentionMatches(value, people);
   EmptyStateGreeting,
   EmptyStateSuggestion,
   EmptyStateSuggestions,
-} from "@/components/elements/empty-state";
+} from "@/components/assistant-ui/elements/empty-state";
 
 <EmptyState>
   <EmptyStateGreeting>What are we building?</EmptyStateGreeting>
@@ -1780,7 +1782,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "thread-list": {
-    usage: `import { ThreadList } from "@/components/elements/thread-list";
+    usage: `import { ThreadList } from "@/components/assistant-ui/elements/thread-list";
 
 <ThreadList
   threads={[
@@ -1823,7 +1825,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "scroll-anchor": {
-    usage: `import { ScrollAnchor } from "@/components/elements/scroll-anchor";
+    usage: `import { ScrollAnchor } from "@/components/assistant-ui/elements/scroll-anchor";
 
 <ScrollAnchor
   messages={[
@@ -1865,7 +1867,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "todo-list": {
-    usage: `import { TodoList } from "@/components/elements/todo-list";
+    usage: `import { TodoList } from "@/components/assistant-ui/elements/todo-list";
 
 <TodoList
   items={[
@@ -1927,7 +1929,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "message-queue": {
-    usage: `import { MessageQueue } from "@/components/elements/message-queue";
+    usage: `import { MessageQueue } from "@/components/assistant-ui/elements/message-queue";
 
 <MessageQueue
   running="Fix the converter and add a guard"
@@ -1967,7 +1969,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "message-attachment": {
-    usage: `import { MessageAttachments } from "@/components/elements/message-attachment";
+    usage: `import { MessageAttachments } from "@/components/assistant-ui/elements/message-attachment";
 
 <MessageAttachments
   attachments={[
@@ -2044,7 +2046,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "reviewable-diff": {
-    usage: `import { ReviewableDiff } from "@/components/elements/reviewable-diff";
+    usage: `import { ReviewableDiff } from "@/components/assistant-ui/elements/reviewable-diff";
 
 <ReviewableDiff
   filename="composer.tsx"
@@ -2128,7 +2130,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "file-tree": {
-    usage: `import { FileTree } from "@/components/elements/file-tree";
+    usage: `import { FileTree } from "@/components/assistant-ui/elements/file-tree";
 
 <FileTree
   nodes={nodes}
@@ -2176,7 +2178,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "elicitation-form": {
-    usage: `import { ElicitationForm } from "@/components/elements/elicitation-form";
+    usage: `import { ElicitationForm } from "@/components/assistant-ui/elements/elicitation-form";
 
 <ElicitationForm
   server="github-mcp"
@@ -2278,7 +2280,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "retrieval-chunks": {
-    usage: `import { RetrievalChunks } from "@/components/elements/retrieval-chunks";
+    usage: `import { RetrievalChunks } from "@/components/assistant-ui/elements/retrieval-chunks";
 
 <RetrievalChunks
   query="how does draft restore work"
@@ -2364,7 +2366,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   chart: {
-    usage: `import { Chart } from "@/components/elements/chart";
+    usage: `import { Chart } from "@/components/assistant-ui/elements/chart";
 
 <Chart
   label="Runs this week"
@@ -2427,7 +2429,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "trace-waterfall": {
-    usage: `import { TraceWaterfall } from "@/components/elements/trace-waterfall";
+    usage: `import { TraceWaterfall } from "@/components/assistant-ui/elements/trace-waterfall";
 
 <TraceWaterfall spans={spans} totalMs={1840} visibleCount={spans.length} />`,
     props: [
@@ -2517,7 +2519,7 @@ const matches = useMentionMatches(value, people);
   CanvasSplitLine,
   CanvasSplitMessage,
   CanvasSplitThread,
-} from "@/components/elements/canvas-split";
+} from "@/components/assistant-ui/elements/canvas-split";
 
 <CanvasSplit>
   <CanvasSplitThread>
@@ -2614,7 +2616,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "voice-conversation": {
-    usage: `import { VoiceConversation } from "@/components/elements/voice-conversation";
+    usage: `import { VoiceConversation } from "@/components/assistant-ui/elements/voice-conversation";
 
 <VoiceConversation
   mode="listening"
@@ -2679,7 +2681,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "read-aloud": {
-    usage: `import { ReadAloud } from "@/components/elements/read-aloud";
+    usage: `import { ReadAloud } from "@/components/assistant-ui/elements/read-aloud";
 
 <ReadAloud
   words={words}
@@ -2754,7 +2756,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "mcp-server-panel": {
-    usage: `import { McpServerPanel } from "@/components/elements/mcp-server-panel";
+    usage: `import { McpServerPanel } from "@/components/assistant-ui/elements/mcp-server-panel";
 
 <McpServerPanel
   servers={servers}
@@ -2839,7 +2841,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "feedback-dialog": {
-    usage: `import { FeedbackDialog } from "@/components/elements/feedback-dialog";
+    usage: `import { FeedbackDialog } from "@/components/assistant-ui/elements/feedback-dialog";
 
 <FeedbackDialog
   reasons={["Not factual", "Too long"]}
@@ -2906,7 +2908,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "quote-reply": {
-    usage: `import { QuoteReply } from "@/components/elements/quote-reply";
+    usage: `import { QuoteReply } from "@/components/assistant-ui/elements/quote-reply";
 
 <QuoteReply
   before="The regression happens because "
@@ -2973,7 +2975,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "edit-message": {
-    usage: `import { EditMessage } from "@/components/elements/edit-message";
+    usage: `import { EditMessage } from "@/components/assistant-ui/elements/edit-message";
 
 <EditMessage
   value={value}
@@ -3040,7 +3042,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "stopped-run": {
-    usage: `import { StoppedRun } from "@/components/elements/stopped-run";
+    usage: `import { StoppedRun } from "@/components/assistant-ui/elements/stopped-run";
 
 <StoppedRun words={words} reason="stopped by you" onContinue={resume} />`,
     props: [
@@ -3080,8 +3082,8 @@ const matches = useMentionMatches(value, people);
       },
     ],
   },
-  "message-timing": {
-    usage: `import { MessageTiming } from "@/components/elements/message-timing";
+  "timing-footer": {
+    usage: `import { MessageTiming } from "@/components/assistant-ui/elements/message-timing";
 
 <MessageTiming
   stats={[
@@ -3116,7 +3118,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "connection-state": {
-    usage: `import { ConnectionState } from "@/components/elements/connection-state";
+    usage: `import { ConnectionState } from "@/components/assistant-ui/elements/connection-state";
 
 <ConnectionState phase="reconnecting" attempt={2} onRetry={reconnect} />`,
     props: [
@@ -3156,7 +3158,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "agent-card": {
-    usage: `import { AgentCard } from "@/components/elements/agent-card";
+    usage: `import { AgentCard } from "@/components/assistant-ui/elements/agent-card";
 
 <AgentCard
   name="Maintainer"
@@ -3237,7 +3239,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "web-preview": {
-    usage: `import { WebPreview } from "@/components/elements/web-preview";
+    usage: `import { WebPreview } from "@/components/assistant-ui/elements/web-preview";
 
 <WebPreview origin="scf.auiusercontent.com" loading={false} onReload={reload}>
   <iframe title="Preview" src={sandboxUrl} sandbox="allow-scripts" />
@@ -3287,7 +3289,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "draft-restore": {
-    usage: `import { DraftRestore } from "@/components/elements/draft-restore";
+    usage: `import { DraftRestore } from "@/components/assistant-ui/elements/draft-restore";
 
 <DraftRestore
   draft="Add a regression test for draft restore"
@@ -3331,7 +3333,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   diagram: {
-    usage: `import { Diagram } from "@/components/elements/diagram";
+    usage: `import { Diagram } from "@/components/assistant-ui/elements/diagram";
 
 <Diagram title="message flow" zoom={zoom} onZoomIn={zoomIn} onReset={reset}>
   <MermaidSvg chart={chart} />
@@ -3391,7 +3393,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "flow-graph": {
-    usage: `import { FlowGraph } from "@/components/elements/flow-graph";
+    usage: `import { FlowGraph } from "@/components/assistant-ui/elements/flow-graph";
 
 <FlowGraph nodes={nodes} edges={edges} visibleCount={nodes.length} />`,
     props: [
@@ -3467,7 +3469,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "activity-graph": {
-    usage: `import { ActivityGraph } from "@/components/elements/activity-graph";
+    usage: `import { ActivityGraph } from "@/components/assistant-ui/elements/activity-graph";
 
 <ActivityGraph
   data={data}
@@ -3522,8 +3524,8 @@ const matches = useMentionMatches(value, people);
       },
     ],
   },
-  "tool-group": {
-    usage: `import { ToolGroup } from "@/components/elements/tool-group";
+  "parallel-tools": {
+    usage: `import { ToolGroup } from "@/components/assistant-ui/elements/tool-group";
 
 <ToolGroup
   label="Read 4 files in parallel"
@@ -3603,7 +3605,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "context-breakdown": {
-    usage: `import { ContextBreakdown } from "@/components/elements/context-breakdown";
+    usage: `import { ContextBreakdown } from "@/components/assistant-ui/elements/context-breakdown";
 
 <ContextBreakdown segments={segments} limit={128000} />`,
     props: [
@@ -3659,7 +3661,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "model-picker": {
-    usage: `import { ModelPicker } from "@/components/elements/model-picker";
+    usage: `import { ModelPicker } from "@/components/assistant-ui/elements/model-picker";
 
 <ModelPicker models={models} selectedId={selectedId} onSelect={setSelectedId} />`,
     props: [
@@ -3737,7 +3739,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "reasoning-effort": {
-    usage: `import { ReasoningEffort } from "@/components/elements/reasoning-effort";
+    usage: `import { ReasoningEffort } from "@/components/assistant-ui/elements/reasoning-effort";
 
 <ReasoningEffort
   levels={levels}
@@ -3785,7 +3787,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "guardrail-notice": {
-    usage: `import { GuardrailNotice } from "@/components/elements/guardrail-notice";
+    usage: `import { GuardrailNotice } from "@/components/assistant-ui/elements/guardrail-notice";
 
 <GuardrailNotice
   title="I can't help with that"
@@ -3838,7 +3840,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "day-separator": {
-    usage: `import { DaySeparator } from "@/components/elements/day-separator";
+    usage: `import { DaySeparator } from "@/components/assistant-ui/elements/day-separator";
 
 <DaySeparator messages={messages} />`,
     props: [
@@ -3899,7 +3901,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "speaker-identity": {
-    usage: `import { SpeakerIdentity } from "@/components/elements/speaker-identity";
+    usage: `import { SpeakerIdentity } from "@/components/assistant-ui/elements/speaker-identity";
 
 <SpeakerIdentity turns={turns} />`,
     props: [
@@ -3958,7 +3960,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "regenerate-menu": {
-    usage: `import { RegenerateMenu } from "@/components/elements/regenerate-menu";
+    usage: `import { RegenerateMenu } from "@/components/assistant-ui/elements/regenerate-menu";
 
 <RegenerateMenu
   options={options}
@@ -4010,7 +4012,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "confidence-marker": {
-    usage: `import { ConfidenceMarker } from "@/components/elements/confidence-marker";
+    usage: `import { ConfidenceMarker } from "@/components/assistant-ui/elements/confidence-marker";
 
 <ConfidenceMarker claims={claims} hoveredId={hoveredId} onHover={setHoveredId} />`,
     props: [
@@ -4078,7 +4080,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "tool-error": {
-    usage: `import { ToolError } from "@/components/elements/tool-error";
+    usage: `import { ToolError } from "@/components/assistant-ui/elements/tool-error";
 
 <ToolError
   name="fetch"
@@ -4152,7 +4154,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "permission-grant": {
-    usage: `import { PermissionGrant } from "@/components/elements/permission-grant";
+    usage: `import { PermissionGrant } from "@/components/assistant-ui/elements/permission-grant";
 
 <PermissionGrant
   capability="Filesystem access"
@@ -4207,7 +4209,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "computer-use": {
-    usage: `import { ComputerUse } from "@/components/elements/computer-use";
+    usage: `import { ComputerUse } from "@/components/assistant-ui/elements/computer-use";
 
 <ComputerUse url="github.com/..." steps={steps} activeIndex={2}>
   <iframe title="Session" src={streamUrl} />
@@ -4290,7 +4292,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "code-runner": {
-    usage: `import { CodeRunner } from "@/components/elements/code-runner";
+    usage: `import { CodeRunner } from "@/components/assistant-ui/elements/code-runner";
 
 <CodeRunner
   language="typescript"
@@ -4350,7 +4352,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "document-reference": {
-    usage: `import { DocumentReference } from "@/components/elements/document-reference";
+    usage: `import { DocumentReference } from "@/components/assistant-ui/elements/document-reference";
 
 <DocumentReference
   title="migration-0.14.pdf"
@@ -4404,7 +4406,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "memory-chips": {
-    usage: `import { MemoryChips } from "@/components/elements/memory-chips";
+    usage: `import { MemoryChips } from "@/components/assistant-ui/elements/memory-chips";
 
 <MemoryChips chips={chips} onForget={forget} />`,
     props: [
@@ -4458,7 +4460,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "research-report": {
-    usage: `import { ResearchReport } from "@/components/elements/research-report";
+    usage: `import { ResearchReport } from "@/components/assistant-ui/elements/research-report";
 
 <ResearchReport title="Draft ownership in 0.14" sections={sections} sourcesRead={12} />`,
     props: [
@@ -4530,7 +4532,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "map-answer": {
-    usage: `import { MapAnswer } from "@/components/elements/map-answer";
+    usage: `import { MapAnswer } from "@/components/assistant-ui/elements/map-answer";
 
 <MapAnswer pins={pins} activeId="b" route onSelect={setActive} />`,
     props: [
@@ -4610,7 +4612,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "math-block": {
-    usage: `import { MathBlock, Frac, Sup } from "@/components/elements/math-block";
+    usage: `import { MathBlock, Frac, Sup } from "@/components/assistant-ui/elements/math-block";
 
 <MathBlock label="derivation" steps={steps} visibleSteps={2} />`,
     props: [
@@ -4662,7 +4664,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "spec-sheet": {
-    usage: `import { SpecSheet } from "@/components/elements/spec-sheet";
+    usage: `import { SpecSheet } from "@/components/assistant-ui/elements/spec-sheet";
 
 <SpecSheet title="Opus 5" subtitle="claude-opus-5" rows={rows} visibleCount={6} />`,
     props: [
@@ -4728,7 +4730,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "comparison-card": {
-    usage: `import { ComparisonCard } from "@/components/elements/comparison-card";
+    usage: `import { ComparisonCard } from "@/components/assistant-ui/elements/comparison-card";
 
 <ComparisonCard
   traitLabels={traits}
@@ -4808,7 +4810,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   timeline: {
-    usage: `import { Timeline } from "@/components/elements/timeline";
+    usage: `import { Timeline } from "@/components/assistant-ui/elements/timeline";
 
 <Timeline events={events} visibleCount={events.length} />`,
     props: [
@@ -4873,7 +4875,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "job-progress": {
-    usage: `import { JobProgress } from "@/components/elements/job-progress";
+    usage: `import { JobProgress } from "@/components/assistant-ui/elements/job-progress";
 
 <JobProgress
   title="Verify the fix on CI"
@@ -4934,7 +4936,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "score-breakdown": {
-    usage: `import { ScoreBreakdown } from "@/components/elements/score-breakdown";
+    usage: `import { ScoreBreakdown } from "@/components/assistant-ui/elements/score-breakdown";
 
 <ScoreBreakdown
   verdict="approve"
@@ -5020,7 +5022,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "cost-meter": {
-    usage: `import { CostMeter } from "@/components/elements/cost-meter";
+    usage: `import { CostMeter } from "@/components/assistant-ui/elements/cost-meter";
 
 <CostMeter runCost="$2.76" sessionCost="$18.40" lines={lines} />`,
     props: [
@@ -5093,7 +5095,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "quota-banner": {
-    usage: `import { QuotaBanner } from "@/components/elements/quota-banner";
+    usage: `import { QuotaBanner } from "@/components/assistant-ui/elements/quota-banner";
 
 <QuotaBanner used={47} limit={50} unit="messages" resetsIn="3h 12m" upgradeLabel="Upgrade" />`,
     props: [
@@ -5145,7 +5147,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "agent-handoff": {
-    usage: `import { AgentHandoff } from "@/components/elements/agent-handoff";
+    usage: `import { AgentHandoff } from "@/components/assistant-ui/elements/agent-handoff";
 
 <AgentHandoff from="Triage" to="Maintainer" reason={reason} carried={carried} settled />`,
     props: [
@@ -5195,7 +5197,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "background-inbox": {
-    usage: `import { BackgroundInbox } from "@/components/elements/background-inbox";
+    usage: `import { BackgroundInbox } from "@/components/assistant-ui/elements/background-inbox";
 
 <BackgroundInbox runs={runs} onCollect={collect} />`,
     props: [
@@ -5259,7 +5261,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "checkpoint-history": {
-    usage: `import { CheckpointHistory } from "@/components/elements/checkpoint-history";
+    usage: `import { CheckpointHistory } from "@/components/assistant-ui/elements/checkpoint-history";
 
 <CheckpointHistory checkpoints={checkpoints} currentId="3" onRestore={restore} />`,
     props: [
@@ -5325,7 +5327,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "schedule-card": {
-    usage: `import { ScheduleCard } from "@/components/elements/schedule-card";
+    usage: `import { ScheduleCard } from "@/components/assistant-ui/elements/schedule-card";
 
 <ScheduleCard
   name="Triage the issue queue"
@@ -5386,7 +5388,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "prompt-library": {
-    usage: `import { PromptLibrary } from "@/components/elements/prompt-library";
+    usage: `import { PromptLibrary } from "@/components/assistant-ui/elements/prompt-library";
 
 <PromptLibrary
   prompts={prompts}
@@ -5477,7 +5479,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "command-palette": {
-    usage: `import { CommandPalette } from "@/components/elements/command-palette";
+    usage: `import { CommandPalette } from "@/components/assistant-ui/elements/command-palette";
 
 <CommandPalette
   commands={commands}
@@ -5566,7 +5568,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "shared-conversation": {
-    usage: `import { SharedConversation } from "@/components/elements/shared-conversation";
+    usage: `import { SharedConversation } from "@/components/assistant-ui/elements/shared-conversation";
 
 <SharedConversation
   title="Draft restore across threads"
@@ -5619,7 +5621,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "conversation-search": {
-    usage: `import { ConversationSearch } from "@/components/elements/conversation-search";
+    usage: `import { ConversationSearch } from "@/components/assistant-ui/elements/conversation-search";
 
 <ConversationSearch
   query={query}
@@ -5710,7 +5712,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "thread-search": {
-    usage: `import { ThreadSearch } from "@/components/elements/thread-search";
+    usage: `import { ThreadSearch } from "@/components/assistant-ui/elements/thread-search";
 
 <ThreadSearch
   threads={threads}
@@ -5800,7 +5802,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "launcher-bubble": {
-    usage: `import { LauncherBubble } from "@/components/elements/launcher-bubble";
+    usage: `import { LauncherBubble } from "@/components/assistant-ui/elements/launcher-bubble";
 
 <LauncherBubble
   open={open}
@@ -5866,7 +5868,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "settings-panel": {
-    usage: `import { SettingsPanel } from "@/components/elements/settings-panel";
+    usage: `import { SettingsPanel } from "@/components/assistant-ui/elements/settings-panel";
 
 <SettingsPanel
   model={model}
@@ -5942,7 +5944,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   onboarding: {
-    usage: `import { Onboarding } from "@/components/elements/onboarding";
+    usage: `import { Onboarding } from "@/components/assistant-ui/elements/onboarding";
 
 <Onboarding steps={steps} index={index} onNext={next} onSkip={skip} />`,
     props: [
@@ -6007,7 +6009,7 @@ const matches = useMentionMatches(value, people);
     ],
   },
   "mobile-composer": {
-    usage: `import { MobileComposer } from "@/components/elements/mobile-composer";
+    usage: `import { MobileComposer } from "@/components/assistant-ui/elements/mobile-composer";
 
 <MobileComposer
   value={value}
@@ -6091,4 +6093,5 @@ const matches = useMentionMatches(value, people);
       },
     ],
   },
+  ...AUI_ELEMENT_DOCS,
 };

@@ -1,5 +1,33 @@
 # assistant-stream
 
+## 0.3.40
+
+### Patch Changes
+
+- [#6235](https://github.com/assistant-ui/assistant-ui/pull/6235) [`8626c1f`](https://github.com/assistant-ui/assistant-ui/commit/8626c1ffe1c6d56ec75073e795aa9fbf7493c3ed) - fix: encode file parts on the data stream ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6249](https://github.com/assistant-ui/assistant-ui/pull/6249) [`531f61a`](https://github.com/assistant-ui/assistant-ui/commit/531f61a4d2f5fcee16821a6401d9d11394bf8339) - fix: reject non-canonical gorp array indices ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6243](https://github.com/assistant-ui/assistant-ui/pull/6243) [`dfaa94f`](https://github.com/assistant-ui/assistant-ui/commit/dfaa94fca3ecdd8b0b0ab202f08dafd03c1e2ed5) - fix: make merge stream seal idempotent ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6394](https://github.com/assistant-ui/assistant-ui/pull/6394) [`a4bc54a`](https://github.com/assistant-ui/assistant-ui/commit/a4bc54afa976423b6310a2d5be350df0f3b41e42) - refactor: build accumulated assistant messages through one part-append helper ([@samdickson22](https://github.com/samdickson22))
+
+- [#6355](https://github.com/assistant-ui/assistant-ui/pull/6355) [`fd471e9`](https://github.com/assistant-ui/assistant-ui/commit/fd471e94babf7b6580e06bbea2b7a8cdd4882869) - fix: keep partial tool args parseable while a `\uXXXX` escape is still streaming ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#6319](https://github.com/assistant-ui/assistant-ui/pull/6319) [`ac7ec15`](https://github.com/assistant-ui/assistant-ui/commit/ac7ec15e118a9279dd60521b839ecc38983675c5) - fix: unstable_runPendingTools no longer re-executes tool calls that already have a result ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6417](https://github.com/assistant-ui/assistant-ui/pull/6417) [`f96e22f`](https://github.com/assistant-ui/assistant-ui/commit/f96e22ffa8c85cbfc4a878db4f371c510070066d) - refactor: split the ui message stream chunk normalizer out of the decoder ([@okisdev](https://github.com/okisdev))
+
+- [#6414](https://github.com/assistant-ui/assistant-ui/pull/6414) [`bfc8bef`](https://github.com/assistant-ui/assistant-ui/commit/bfc8bef9f1ee6cb4cb25f83488a0e4ce1a393ff3) - refactor: share the sse pipeline, stream factory, and closed-stream drop scaffolding. ([@okisdev](https://github.com/okisdev))
+
+- [#6316](https://github.com/assistant-ui/assistant-ui/pull/6316) [`2cd5cbc`](https://github.com/assistant-ui/assistant-ui/commit/2cd5cbcf78c586b7557421b00e9c996c62bd7f43) - fix: TextStreamController.close() no longer throws after the consumer cancels ([@ShobhitPatra](https://github.com/ShobhitPatra))
+
+- [#6242](https://github.com/assistant-ui/assistant-ui/pull/6242) [`105af3e`](https://github.com/assistant-ui/assistant-ui/commit/105af3eaea2093df271d9c44642e1c04d5f5cf7c) - fix: guard tool-call stream writes after consumer cancellation ([@Kinfe123](https://github.com/Kinfe123))
+
+- [#6368](https://github.com/assistant-ui/assistant-ui/pull/6368) [`4c3194a`](https://github.com/assistant-ui/assistant-ui/commit/4c3194aca4470753a2a37e244cb5e3fb27cbc76b) - refactor: share the decoder tool-call controller registry between data-stream and ui-message-stream. ([@okisdev](https://github.com/okisdev))
+
 ## 0.3.39
 
 ### Patch Changes

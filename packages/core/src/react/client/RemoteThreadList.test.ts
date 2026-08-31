@@ -427,6 +427,63 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("clears loading when a reload supersedes a hung list", async () => {
+    const adapter = makeAdapter({
+      list: vi
+        .fn()
+        .mockImplementationOnce(() => new Promise<never>(() => {}))
+        .mockResolvedValueOnce({
+          threads: [
+            { status: "regular" as const, remoteId: "fresh", title: "Fresh" },
+          ],
+        }),
+    });
+    const { handle } = mountList(adapter);
+    const threads = handle.getClient().threads;
+
+    void threads.getLoadThreadsPromise();
+    await threads.reload();
+
+    await vi.waitFor(() => {
+      const state = handle.getClient().threads.getState();
+      expect(state.threadIds).toEqual(["fresh"]);
+      expect(state.isLoading).toBe(false);
+    });
+    handle.destroy();
+  });
+
+  it("clears loadingMore when a reload supersedes a hung loadMore", async () => {
+    const adapter = makeAdapter({
+      list: vi
+        .fn()
+        .mockResolvedValueOnce({
+          threads: [
+            { status: "regular" as const, remoteId: "t1", title: "One" },
+          ],
+          nextCursor: "c1",
+        })
+        .mockImplementationOnce(() => new Promise<never>(() => {}))
+        .mockResolvedValueOnce({
+          threads: [
+            { status: "regular" as const, remoteId: "fresh", title: "Fresh" },
+          ],
+        }),
+    });
+    const { handle } = mountList(adapter);
+    const threads = handle.getClient().threads;
+
+    await threads.getLoadThreadsPromise();
+    void threads.loadMore();
+    await threads.reload();
+
+    await vi.waitFor(() => {
+      const state = handle.getClient().threads.getState();
+      expect(state.threadIds).toEqual(["fresh"]);
+      expect(state.isLoadingMore).toBe(false);
+    });
+    handle.destroy();
+  });
+
   it("opens a controlled threadId without echoing it back", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({

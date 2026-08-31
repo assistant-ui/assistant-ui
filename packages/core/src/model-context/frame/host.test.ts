@@ -8,7 +8,9 @@ const executionContext = {
   human: async () => undefined,
 };
 
-const createHost = () => {
+const DEFAULT_ORIGIN = "https://host.example";
+
+const createHost = (targetOrigin?: string) => {
   let handleMessage: ((event: MessageEvent) => void) | undefined;
   const addEventListener = vi.fn(
     (_type: string, listener: EventListenerOrEventListenerObject) => {
@@ -16,15 +18,23 @@ const createHost = () => {
     },
   );
   const removeEventListener = vi.fn();
-  vi.stubGlobal("window", { addEventListener, removeEventListener });
+  vi.stubGlobal("window", {
+    addEventListener,
+    removeEventListener,
+    location: { origin: DEFAULT_ORIGIN },
+  });
 
   const postMessage = vi.fn();
   const iframeWindow = { postMessage } as unknown as Window;
-  const host = new AssistantFrameHost(iframeWindow);
+  const host = new AssistantFrameHost(iframeWindow, targetOrigin);
 
-  const dispatchMessage = (message: FrameMessage) =>
+  const dispatchMessage = (
+    message: FrameMessage,
+    origin = targetOrigin ?? DEFAULT_ORIGIN,
+  ) =>
     handleMessage?.({
       source: iframeWindow,
+      origin,
       data: {
         channel: FRAME_MESSAGE_CHANNEL,
         message,
@@ -67,6 +77,45 @@ afterEach(() => {
 });
 
 describe("AssistantFrameHost", () => {
+  it("defaults to the current origin", () => {
+    const { host, postMessage } = createHost();
+
+    expect(postMessage).toHaveBeenCalledWith(expect.anything(), DEFAULT_ORIGIN);
+
+    host.dispose();
+  });
+
+  it("ignores context updates from another origin", () => {
+    const { dispatchMessage, host } = createHost();
+
+    dispatchMessage(
+      {
+        type: "model-context-update",
+        context: { system: "untrusted instructions" },
+      },
+      "https://untrusted.example",
+    );
+
+    expect(host.getModelContext().system).toBeUndefined();
+    host.dispose();
+  });
+
+  it("allows an explicit wildcard origin", () => {
+    const { dispatchMessage, host, postMessage } = createHost("*");
+
+    dispatchMessage(
+      {
+        type: "model-context-update",
+        context: { system: "cross-origin instructions" },
+      },
+      "https://iframe.example",
+    );
+
+    expect(postMessage).toHaveBeenCalledWith(expect.anything(), "*");
+    expect(host.getModelContext().system).toBe("cross-origin instructions");
+    host.dispose();
+  });
+
   it("resolves tool calls from frame results", async () => {
     const { dispatchMessage, execute, getToolCallId, host } = createHost();
     const result = Promise.resolve(
@@ -134,7 +183,7 @@ describe("AssistantFrameHost", () => {
         channel: FRAME_MESSAGE_CHANNEL,
         message: { type: "tool-cancel", id: toolCallId },
       },
-      "*",
+      DEFAULT_ORIGIN,
     );
     expect(vi.getTimerCount()).toBe(0);
   });
@@ -166,7 +215,7 @@ describe("AssistantFrameHost", () => {
         channel: FRAME_MESSAGE_CHANNEL,
         message: { type: "tool-cancel", id: toolCallId },
       },
-      "*",
+      DEFAULT_ORIGIN,
     );
     expect(vi.getTimerCount()).toBe(0);
     host.dispose();
@@ -188,7 +237,7 @@ describe("AssistantFrameHost", () => {
         channel: FRAME_MESSAGE_CHANNEL,
         message: { type: "tool-cancel", id: toolCallId },
       },
-      "*",
+      DEFAULT_ORIGIN,
     );
     expect(vi.getTimerCount()).toBe(0);
     host.dispose();

@@ -1,0 +1,164 @@
+---
+title: "Tool fallback"
+description: "The default runtime renderer for tool calls that do not have dedicated UI."
+---
+
+Tool fallback renders any tool call that has no dedicated UI of its own: a collapsed one-line summary that opens into the arguments, the result, and (when the tool is waiting on a decision) the buttons to answer it. With a runtime it reads the live tool-call part and calls back into that same run; there is no standalone form, since a tool call and the run it belongs to are the same thing.
+
+## Getting started
+
+<RuntimeMode>
+
+`Thread` already renders this for every tool call that doesn't have its own UI.
+
+<Steps>
+  <Step>
+
+### It's already your default
+
+Inside `Thread`'s message renderer, a tool-call part falls back to `ToolFallback` whenever nothing more specific (a per-tool renderer, or generative UI) claims it first.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+case "tool-call":
+  return part.toolUI ?? <ToolFallbackComponent {...part} />;
+```
+
+  </Step>
+  <Step>
+
+### Replace it for every unregistered tool
+
+Pass `components.ToolFallback` to `Thread` to swap the renderer used whenever a tool call has no dedicated UI. A tool with its own registered renderer still takes precedence over this override, the same way it takes precedence over the built-in `ToolFallback`.
+
+```tsx
+<Thread components={{ ToolFallback: MyToolCard }} />
+```
+
+`MyToolCard` receives the same props as `ToolFallback` itself. See the API reference below.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, there's nothing to fall back to: `ToolFallback` exists specifically to render whatever `ToolCallMessagePart` a runtime handed it and to call back into that same run, so a props-only version would just be a static picture of the same shape you already have. Build your own tool-call card directly against your own data instead of reaching for this element.
+
+</StandaloneMode>
+
+## Anatomy
+
+<RuntimeMode>
+
+```tsx
+<div> {/* ToolFallbackRoot, a Collapsible */}
+  <button aria-expanded={/* open */}>
+    {/* status icon: spinner / check / X-circle / alert */}
+    <span>{/* "Used tool: <name>" or "Cancelled tool: <name>" */}</span>
+    <span>{/* elapsed duration, while known */}</span>
+    {/* chevron, rotates open */}
+  </button>
+  <div> {/* ToolFallbackContent */}
+    {/* error, only while status is "incomplete" and carries one */}
+    {/* args, only when argsText is non-empty */}
+    {/* approval controls, only while requires-action and unanswered */}
+    {/* result, hidden while cancelled, only when result is defined */}
+  </div>
+</div>
+```
+
+The row opens by default whenever the tool call's status is `"requires-action"`, and stays exactly as the user left it otherwise. Duration only shows once the call has a recorded start; it keeps counting up once per second while the call is running, and freezes at the recorded total once it completes.
+
+</RuntimeMode>
+
+## Examples
+
+<RuntimeMode>
+
+### Approval without declared options
+
+With no `approval` and no `interrupt` on the part, a plain Allow / Deny pair calls `addResult` directly with a fixed approved or denied string. With `interrupt` set, the same pair instead calls `resume({ approved })` to unpause the paused frontend tool execution.
+
+```tsx
+<ToolFallback {...part} />
+```
+
+### Approval with declared options
+
+When `part.approval.options` is set, one button renders per option instead of a plain pair: allow-kind options first (the first one styled as primary), then any custom kind, then reject-kind options. An option can opt into a confirmation step before it resolves.
+
+```tsx
+approval: {
+  id: "call-1",
+  options: [
+    { id: "once", kind: "allow-once", label: "Allow" },
+    { id: "always", kind: "allow-always", label: "Always allow", confirm: true },
+    { id: "deny", kind: "reject-once", label: "Deny" },
+  ],
+}
+```
+
+Choosing "Always allow" here shows a confirm/back step before it calls `respondToApproval({ optionId: "always" })`; the other two resolve immediately. Once `approval.approved` or `approval.resolution` is set, the whole approval block stops rendering.
+
+### Restyle a part
+
+Every piece is a named export you can recompose, and each carries its own `data-slot` for targeted styling.
+
+```tsx
+import { ToolFallbackTrigger, ToolFallbackContent } from "@/components/assistant-ui/elements/tool-fallback.aui";
+
+<ToolFallbackTrigger toolName={part.toolName} status={part.status} className="text-sm" />
+```
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Parts
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `ToolFallback` | full composition | The default export; a complete `ToolCallMessagePartComponent`. |
+| `ToolFallbackRoot` | `div` | Collapsible container. Opens automatically on `"requires-action"`. |
+| `ToolFallbackTrigger` | `button` | Takes `toolName` and `status`. |
+| `ToolFallbackContent` | `div` | The collapsible panel. |
+| `ToolFallbackArgs` | `pre` | Takes `argsText`; renders `null` when empty. |
+| `ToolFallbackResult` | `pre` | Takes `result`; renders `null` when `undefined`. Stringifies non-string results. |
+| `ToolFallbackError` | text | Takes `status`; renders `null` unless `status.type === "incomplete"` and it carries an error. |
+| `ToolFallbackApproval` | buttons | Takes `approval`, `interrupt`, `status`, `addResult`, `resume`, `respondToApproval`. |
+
+### Tool-call part fields
+
+`ToolFallback` (and each part above) receives the current tool call as `ToolCallMessagePartProps`, the full `ToolCallMessagePart` plus three callbacks:
+
+| Field | Type | Description |
+|-------|------|--------------|
+| `toolCallId` | `string` | Stable id for this invocation. |
+| `toolName` | `string` | Name of the tool the model called. |
+| `argsText` | `string` | Raw, possibly partial, JSON the model has streamed so far. |
+| `result` | `TResult \| undefined` | The tool's result, once it has one. |
+| `isError` | `boolean \| undefined` | Whether the result represents a failure. |
+| `status` | `ToolCallMessagePartStatus` | `"running"`, `"complete"`, `"incomplete"` (with a `reason`, e.g. `"cancelled"`), or `"requires-action"` (`reason: "tool-calls" \| "interrupt"`). |
+| `timing` | `ToolCallTiming \| undefined` | Wall-clock start/completion, when tracked. |
+| `interrupt` | `{ type: "human"; payload: unknown } \| undefined` | A paused human-input request. |
+| `approval` | object `\| undefined` | Server-side approval gate: `id`, `approved?`, `options?`, `optionId?`, `resolution?`. |
+
+### Callbacks
+
+| Callback | Type | Description |
+|----------|------|-------------|
+| `addResult` | `(result) => void` | Sets this part's result from the renderer instead of a tool's `execute`. |
+| `resume` | `(payload: unknown) => void` | Resumes a paused frontend tool execution with the requested payload. |
+| `respondToApproval` | `(response: ToolApprovalResponse) => void` | Answers an approval gate: `{ approved }`, `{ optionId }`, or both. |
+
+### Composition
+
+| Part | Type | Description |
+|------|------|-------------|
+| `components.ToolFallback` | `ToolCallMessagePartComponent` | `Thread` prop that replaces this renderer for every tool call without a dedicated UI. |
+| `useToolCallElapsed()` | `number \| undefined` | Elapsed milliseconds for the current tool-call part; `undefined` off a tool-call scope or with no recorded timing. |
+
+</RuntimeMode>

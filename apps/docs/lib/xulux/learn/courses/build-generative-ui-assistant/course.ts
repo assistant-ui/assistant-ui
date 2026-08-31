@@ -43,7 +43,7 @@ export const buildGenerativeUiAssistantCourse = {
         "app/page.tsx",
         "app/layout.tsx",
         "components/runtime-provider.tsx",
-        "components/assistant-ui/thread.tsx",
+        "components/assistant-ui/elements/thread.aui.tsx",
         "app/api/chat/route.ts",
       ],
     },
@@ -52,7 +52,7 @@ export const buildGenerativeUiAssistantCourse = {
       title: "Guide the first message",
       lessonPath: `${COURSE_ROOT}/lessons/03-guide-the-first-message.md`,
       stageId: "S2",
-      focusFiles: ["components/assistant-ui/thread.tsx"],
+      focusFiles: ["components/assistant-ui/elements/thread.aui.tsx"],
     },
     {
       id: "add-weather-tool",
@@ -63,8 +63,8 @@ export const buildGenerativeUiAssistantCourse = {
         "app/toolkit.tsx",
         "app/api/chat/route.ts",
         "next.config.ts",
-        "components/assistant-ui/tool-fallback.tsx",
-        "components/assistant-ui/thread.tsx",
+        "components/assistant-ui/elements/tool-fallback.aui.tsx",
+        "components/assistant-ui/elements/thread.aui.tsx",
       ],
     },
     {
@@ -77,7 +77,7 @@ export const buildGenerativeUiAssistantCourse = {
         "app/toolkit.tsx",
         "components/tools/weather-card.tsx",
         "components/tool-provider.tsx",
-        "components/assistant-ui/thread.tsx",
+        "components/assistant-ui/elements/thread.aui.tsx",
       ],
     },
     {
@@ -100,7 +100,7 @@ export const buildGenerativeUiAssistantCourse = {
       focusFiles: [
         "app/page.tsx",
         "components/assistant-shell.tsx",
-        "components/assistant-ui/thread-list.tsx",
+        "components/assistant-ui/elements/thread-list.tsx",
         "components/runtime-provider.tsx",
         "lib/browser-thread-list-adapter.tsx",
       ],
@@ -110,7 +110,7 @@ export const buildGenerativeUiAssistantCourse = {
       title: "Revise and branch a conversation",
       lessonPath: `${COURSE_ROOT}/lessons/08-revise-and-branch.md`,
       stageId: "S7",
-      focusFiles: ["components/assistant-ui/thread.tsx"],
+      focusFiles: ["components/assistant-ui/elements/thread.aui.tsx"],
     },
   ],
   stages: {

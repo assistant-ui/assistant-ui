@@ -147,12 +147,6 @@ export function getThreadMessageTokenUsage(
   return usageFromSteps(metadata.steps);
 }
 
-export function getLatestThreadTokenUsage(
-  messages: readonly TokenUsageExtractableMessage[] | undefined,
-): ThreadTokenUsage | undefined {
-  return getThreadMessageTokenUsage(findLatestMessageWithUsage(messages));
-}
-
 function findLatestMessageWithUsage(
   messages: readonly TokenUsageExtractableMessage[] | undefined,
 ): TokenUsageExtractableMessage | undefined {

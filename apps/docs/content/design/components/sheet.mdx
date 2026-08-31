@@ -1,0 +1,90 @@
+---
+title: "Sheet"
+description: "A panel that slides in from an edge for secondary flows."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/sheet.tsx
+  - label: Base UI Dialog
+    url: https://base-ui.com/react/components/dialog
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  SheetSpecimen,
+  SheetSidesSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="SheetSpecimen" base={<SheetSpecimen />}>
+  <RadixSpecimens.SheetSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="sheet" />
+
+## Usage
+
+```tsx
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return (
+    <Sheet>
+      <SheetTrigger render={<Button variant="outline">Open threads</Button>} />
+      <SheetContent side="right">
+        <SheetHeader>
+          <SheetTitle>Threads</SheetTitle>
+          <SheetDescription>Recent conversations.</SheetDescription>
+        </SheetHeader>
+      </SheetContent>
+    </Sheet>
+  );
+}
+```
+
+## Examples
+
+### Sides
+
+The mobile thread list in the assistant-ui examples is a `left` sheet.
+
+<PreviewCode file="components/pages/design/specimens" name="SheetSidesSpecimen" base={<SheetSidesSpecimen />}>
+  <RadixSpecimens.SheetSidesSpecimen />
+</PreviewCode>
+
+## API Reference
+
+The parts wrap Base UI's Dialog primitives and accept their props.
+
+### SheetContent
+
+<ParametersTable
+  type="SheetContentProps"
+  parameters={[
+    {
+      name: "side",
+      type: '"top" | "right" | "bottom" | "left"',
+      default: '"right"',
+      description: "The edge the panel enters from.",
+    },
+    {
+      name: "showCloseButton",
+      type: "boolean",
+      default: "true",
+      description: "Renders the corner close control.",
+    },
+  ]}
+/>

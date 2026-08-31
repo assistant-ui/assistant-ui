@@ -4,7 +4,6 @@ import { spawnSync } from "node:child_process";
 import {
   existsSync,
   mkdtempSync,
-  readFileSync,
   readdirSync,
   realpathSync,
   rmSync,
@@ -12,17 +11,14 @@ import {
 } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { optionArgs, optionValues } from "./lib/script-options.mjs";
+import { optionValues } from "./lib/script-options.mjs";
+import {
+  collectPackages,
+  collectTurboFilteredPackageNames,
+  posixPath,
+} from "./lib/workspace.mjs";
 
 const TSC_ERROR = /^(.+)\(\d+,\d+\): error TS\d+:/;
-
-function readJson(file) {
-  return JSON.parse(readFileSync(file, "utf8"));
-}
-
-function posixPath(file) {
-  return file.replaceAll("\\", "/");
-}
 
 function spawnTsc(repoRoot, args) {
   const local = path.join(repoRoot, "node_modules", ".bin", "tsc");
@@ -188,50 +184,6 @@ export function declarationGateResult({
   return "pass";
 }
 
-function collectPackages(repoRoot, filteredPackageNames) {
-  const packagesRoot = path.join(repoRoot, "packages");
-  return readdirSync(packagesRoot, { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => path.join(packagesRoot, entry.name, "package.json"))
-    .filter(existsSync)
-    .map((packageJsonPath) => ({
-      packageDir: path.dirname(packageJsonPath),
-      pkg: readJson(packageJsonPath),
-    }))
-    .filter(({ pkg }) => !pkg.private)
-    .filter(
-      ({ pkg }) => !filteredPackageNames || filteredPackageNames.has(pkg.name),
-    )
-    .sort((a, b) => a.pkg.name.localeCompare(b.pkg.name));
-}
-
-function collectTurboFilteredPackageNames(repoRoot, filters) {
-  if (filters.length === 0) return null;
-  const result = spawnSync(
-    "pnpm",
-    [
-      "exec",
-      "turbo",
-      "ls",
-      ...optionArgs("--filter", filters),
-      "--output=json",
-    ],
-    { cwd: repoRoot, encoding: "utf8" },
-  );
-  if (result.status !== 0) {
-    throw new Error(
-      `Failed to list filtered packages:\n${result.stdout}${result.stderr}`,
-    );
-  }
-
-  const jsonStart = result.stdout.indexOf("{");
-  if (jsonStart === -1) {
-    throw new Error(`Turbo did not return JSON output:\n${result.stdout}`);
-  }
-  const output = JSON.parse(result.stdout.slice(jsonStart));
-  return new Set(output.packages.items.map((item) => item.name));
-}
-
 function checkPackage(repoRoot, packageDir, pkg) {
   let probe;
   try {
@@ -299,8 +251,14 @@ function main() {
   const filteredPackageNames = collectTurboFilteredPackageNames(
     repoRoot,
     filters,
+    {
+      failureMessage: "Failed to list filtered packages",
+      skipWithoutFilters: true,
+    },
   );
-  const packages = collectPackages(repoRoot, filteredPackageNames);
+  const packages = collectPackages(repoRoot, filteredPackageNames, (a, b) =>
+    a.localeCompare(b),
+  );
   if (packages.length === 0) {
     console.log("No public packages matched the filter.");
     return;

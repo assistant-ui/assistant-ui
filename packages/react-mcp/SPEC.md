@@ -202,6 +202,7 @@ type MCPPersistedAuthState = {
   tokens?: OAuthTokens;
   clientInformation?: OAuthClientInformationFull;
   codeVerifier?: string;
+  state?: string;
   discoveryState?: OAuthDiscoveryState;
   token?: string;   // bearer
 };
@@ -267,14 +268,14 @@ type MCPAuthConfig =
 
 The OAuth strategy implements the MCP SDK's `OAuthClientProvider`. The SDK handles discovery, DCR, PKCE, token exchange, and refresh; this provider only mediates `MCPStorage` reads/writes and the redirect step.
 
-The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route routes back to the right server without app-level wiring.
+The server id is embedded in the OAuth `state` parameter so a single `/mcp/callback` route routes back to the right server without app-level wiring. The complete state value is persisted with the PKCE verifier and validated before the callback is processed.
 
 Flow:
 
 1. `aui.mcp().server({ id }).connect()` → SDK starts auth.
 2. `redirectToAuthorization` stores `authorizationUrl` on server state, transitions to `authRequired`. **The package does not auto-navigate** — render `<McpServerPrimitive.OAuthLink>` (an anchor) or open a popup.
 3. User returns to `oauthRedirectUri`. Mount `<McpOAuthCallback />` there.
-4. Callback reads `?state=&code=`, derives the server id, calls `server.completeAuth(window.location.href)`.
+4. Callback reads `?state=` plus either an OAuth `code` or `error`, derives the server id, validates the complete state value, and calls `server.completeAuth(window.location.href)`.
 5. Server transitions to `connecting → connected`. Refresh tokens are rotated automatically; a failed refresh moves to `authRequired`.
 
 ## 5. Primitives
@@ -372,7 +373,7 @@ During auto-connect, a rejected `storage.loadAuthState()` sets `lastError` and t
 3. `client.connect(transport)` — on `UnauthorizedError` set `authorizationUrl` and transition to `"authRequired"`; on other errors set `lastError` and transition to `"error"`.
 4. On success: `listTools()`, transition to `"connected"`.
 
-`completeAuth(url)`: parse `code`, call `transport.finishAuth(code)`, retry `client.connect()`.
+`completeAuth(url)`: require an exact match with the persisted `state`, accept either `code` or an OAuth `error`, pass the complete callback `URLSearchParams` (including `iss`) to `transport.finishAuth()`, then retry `client.connect()` after successful authorization. Those pre-transport checks, and a rejected `storage.loadAuthState()` inside `completeAuth`, reject without touching `connectionState` or `lastError`, so a forged callback cannot disturb a connected server; from `finishAuth()` onwards a failure sets `lastError` and transitions to `"error"`.
 
 ## 7. OAuth callback
 
@@ -388,7 +389,7 @@ useMcpOAuthCallback(opts?): { status; serverId; error };
 </McpOAuthCallback>;
 ```
 
-Reads `window.location` (override with `url` prop), extracts `state`/`code`, resolves the server, runs `completeAuth`. Pure client-side — mount under `"use client"`.
+Reads `window.location` (override with `url` prop), extracts `state` to resolve the server, and passes the complete callback URL to `completeAuth` for state, issuer, code, and OAuth error validation. Pure client-side — mount under `"use client"`.
 
 ## 8. Tool integration
 

@@ -261,4 +261,50 @@ describe("createAgUiSubscriber", () => {
       delta: "think",
     });
   });
+
+  it("dispatches SUBAGENT_STARTED via the typed callback", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (event) => events.push(event),
+      runId: "run-1",
+    });
+    subscriber.onSubagentStartedEvent?.({
+      event: {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "sub-1",
+        name: "investigate",
+        parentToolCallId: "t1",
+      },
+    });
+    expect(events).toEqual([
+      {
+        type: "SUBAGENT_STARTED",
+        subagentRunId: "sub-1",
+        name: "investigate",
+        parentToolCallId: "t1",
+      },
+    ]);
+  });
+
+  it("dispatches SUBAGENT_FINISHED and SUBAGENT_ERROR via typed callbacks", () => {
+    const events: AgUiEvent[] = [];
+    const subscriber = createAgUiSubscriber({
+      dispatch: (event) => events.push(event),
+      runId: "run-1",
+    });
+    subscriber.onSubagentFinishedEvent?.({
+      event: { type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" },
+    });
+    subscriber.onSubagentErrorEvent?.({
+      event: {
+        type: "SUBAGENT_ERROR",
+        subagentRunId: "sub-1",
+        message: "boom",
+      },
+    });
+    expect(events).toEqual([
+      { type: "SUBAGENT_FINISHED", subagentRunId: "sub-1" },
+      { type: "SUBAGENT_ERROR", subagentRunId: "sub-1", message: "boom" },
+    ]);
+  });
 });

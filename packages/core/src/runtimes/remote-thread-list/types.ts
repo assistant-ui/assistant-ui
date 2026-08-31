@@ -78,11 +78,12 @@ export type RemoteThreadListAdapter = {
   unstable_Provider?: RemoteThreadListProviderComponent | undefined;
 
   /**
-   * Hook the `RemoteThreadList` store entry calls once for the main-thread
-   * slot, then provides to the `thread` factory. This is not mounted per
-   * listed thread. `useRemoteThreadListRuntime` also calls it when
-   * `unstable_Provider` is omitted. Resolve `threadListItem` lazily on each
-   * adapter call; do not capture it at hook mount. The hook must keep a
+   * Hook the `RemoteThreadList` store entry calls once per mounted thread
+   * body (the main-thread slot by default; every started thread with
+   * `backgroundThreads`), then provides to the `thread` factory. This is not
+   * mounted per listed thread. `useRemoteThreadListRuntime` also calls it
+   * when `unstable_Provider` is omitted. Resolve `threadListItem` lazily on
+   * each adapter call; do not capture it at hook mount. The hook must keep a
    * stable hook count across adapter swaps; a different count throws.
    * Memoize the returned object.
    *

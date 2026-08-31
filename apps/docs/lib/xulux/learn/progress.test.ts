@@ -172,7 +172,7 @@ describe("Learn progress", () => {
           id: "S7",
           previewPath: "/learn/preview/S7",
           downloadUrl: "/download",
-          focusFiles: ["components/assistant-ui/thread.tsx"],
+          focusFiles: ["components/assistant-ui/elements/thread.aui.tsx"],
         },
         changes: { files: [], additions: 0, deletions: 0 },
       },

@@ -26,6 +26,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { analytics } from "@/lib/analytics";
 import { useGlobalAskAI } from "@/components/pages/docs/assistant/context";
@@ -395,12 +396,10 @@ export function SearchDialog({ open, onOpenChange }: SearchDialogProps) {
                 </div>
               </div>
             ) : waitingForIndex ? (
-              <div className="flex h-full items-center justify-center">
-                <div className="text-muted-foreground/60 flex items-center gap-2">
-                  <div className="size-1 animate-pulse rounded-full bg-current" />
-                  <div className="size-1 animate-pulse rounded-full bg-current [animation-delay:150ms]" />
-                  <div className="size-1 animate-pulse rounded-full bg-current [animation-delay:300ms]" />
-                </div>
+              <div className="flex flex-col gap-3 px-4 py-4">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-4 w-1/2" />
+                <Skeleton className="h-4 w-3/5" />
               </div>
             ) : results.length === 0 ? (
               <div className="flex h-full flex-col items-center justify-center gap-1 px-4">

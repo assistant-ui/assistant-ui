@@ -7,6 +7,7 @@ import {
   useMemo,
 } from "react";
 import { RenderChildrenWithAccessor, useAuiState } from "@assistant-ui/store";
+import { useShallowSelector } from "@assistant-ui/store/internal";
 import { MessageAttachmentByIndexProvider } from "../../providers/AttachmentByIndexProvider";
 
 type MessageAttachmentsComponentConfig = {
@@ -91,15 +92,17 @@ MessagePrimitiveAttachmentByIndex.displayName =
 const MessagePrimitiveAttachmentsInner: FC<{
   children: (value: { attachment: CompleteAttachment }) => ReactNode;
 }> = ({ children }) => {
-  const attachmentsCount = useAuiState((s) => {
-    if (s.message.role !== "user") return 0;
-    return (s.message.attachments ?? []).length;
-  });
+  const attachmentIds = useAuiState(
+    useShallowSelector((s) => {
+      if (s.message.role !== "user") return [];
+      return (s.message.attachments ?? []).map((attachment) => attachment.id);
+    }),
+  );
 
   return useMemo(
     () =>
-      Array.from({ length: attachmentsCount }, (_, index) => (
-        <MessageAttachmentByIndexProvider key={index} index={index}>
+      attachmentIds.map((attachmentId, index) => (
+        <MessageAttachmentByIndexProvider key={attachmentId} index={index}>
           <RenderChildrenWithAccessor
             getItemState={(aui) => aui.message.attachment({ index }).getState()}
           >
@@ -113,7 +116,7 @@ const MessagePrimitiveAttachmentsInner: FC<{
           </RenderChildrenWithAccessor>
         </MessageAttachmentByIndexProvider>
       )),
-    [attachmentsCount, children],
+    [attachmentIds, children],
   );
 };
 

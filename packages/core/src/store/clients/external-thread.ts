@@ -49,6 +49,7 @@ import {
   drainAttachmentAdd,
 } from "../../runtime/utils/attachment-add-operations";
 import { toMessagePartStatus } from "../../utils/normalizePartStatus";
+import { generateId } from "../../utils/id";
 import { ModelContext } from "./model-context-client";
 import { ThreadSuggestions } from "./suggestions";
 import { Tools } from "../../react/client/Tools";
@@ -632,7 +633,7 @@ const useComposerClientResource = ({
         }
       } else if (!isCreateAttachment(fileOrAttachment)) {
         const newAttachment: Attachment = {
-          id: Math.random().toString(36).substring(7),
+          id: generateId(),
           type: "file",
           name: fileOrAttachment.name,
           contentType: fileOrAttachment.type,
@@ -643,7 +644,7 @@ const useComposerClientResource = ({
         setAttachments((prev) => [...prev, newAttachment]);
       } else {
         const newAttachment: Attachment = {
-          id: fileOrAttachment.id ?? Math.random().toString(36).substring(7),
+          id: fileOrAttachment.id ?? generateId(),
           type: fileOrAttachment.type ?? "document",
           name: fileOrAttachment.name,
           contentType: fileOrAttachment.contentType,

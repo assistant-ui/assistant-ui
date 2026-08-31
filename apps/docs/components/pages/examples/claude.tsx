@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { useState, type FC } from "react";
 import { useAttachmentSrc } from "./use-attachment-src";
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import { CloneThreadShell } from "./clone-thread-shell";
 import {
   DropdownMenu,

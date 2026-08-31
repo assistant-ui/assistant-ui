@@ -1,5 +1,6 @@
 /** @vitest-environment jsdom */
-import { act, renderHook } from "@testing-library/react";
+import { startTransition, Suspense } from "react";
+import { act, render, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { Unstable_TriggerItem } from "@assistant-ui/core";
 import { unstable_useLiveCompletionAdapter } from "./useLiveCompletionAdapter";
@@ -228,6 +229,64 @@ describe("unstable_useLiveCompletionAdapter", () => {
     });
     expect(second).not.toHaveBeenCalled();
     expect(result.current.adapter.search!("alice")).toEqual([item("alice")]);
+  });
+
+  it("keeps pending queries scoped to the committed fetcher", async () => {
+    const fetcherA = vi.fn(async () => [item("workspace-a")]);
+    const fetcherB = vi.fn(async () => [item("workspace-b")]);
+    const interruptedRender = vi.fn();
+    const pending = new Promise<never>(() => {});
+    let adapter!: ReturnType<
+      typeof unstable_useLiveCompletionAdapter
+    >["adapter"];
+    const Harness = ({
+      fetcher,
+      cacheKey,
+      blocked,
+    }: {
+      fetcher: typeof fetcherA;
+      cacheKey: string;
+      blocked: boolean;
+    }) => {
+      const result = unstable_useLiveCompletionAdapter({
+        fetcher,
+        cacheKey,
+        debounceMs: 50,
+      });
+      if (blocked) {
+        interruptedRender();
+        throw pending;
+      }
+      adapter = result.adapter;
+      return null;
+    };
+    const view = (
+      fetcher: typeof fetcherA,
+      cacheKey: string,
+      blocked: boolean,
+    ) => (
+      <Suspense fallback={null}>
+        <Harness fetcher={fetcher} cacheKey={cacheKey} blocked={blocked} />
+      </Suspense>
+    );
+    const rendered = render(view(fetcherA, "workspace-a", false));
+
+    await act(async () => {
+      adapter.search!("alice");
+      await vi.advanceTimersByTimeAsync(0);
+    });
+    act(() => {
+      startTransition(() =>
+        rendered.rerender(view(fetcherB, "workspace-b", true)),
+      );
+    });
+    expect(interruptedRender).toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(50);
+    });
+
+    expect(fetcherA).toHaveBeenCalledOnce();
+    expect(fetcherB).not.toHaveBeenCalled();
   });
 
   it("drops a pending result when only the cache key changes", async () => {

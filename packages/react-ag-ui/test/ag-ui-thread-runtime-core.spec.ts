@@ -1593,6 +1593,13 @@ describe("AGUIThreadRuntimeCore", () => {
             result: "ra",
             isError: false,
           });
+          subscriber.onRunFinishedEvent?.({
+            event: {
+              type: "RUN_FINISHED",
+              runId: input.runId,
+              outcome: { type: "success" },
+            },
+          });
           subscriber.onRunFinalized?.();
         } else {
           subscriber.onRunFinalized?.();
