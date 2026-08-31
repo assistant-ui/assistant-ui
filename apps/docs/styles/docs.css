@@ -26,7 +26,7 @@ html:has(.docs-layout) {
   }
 }
 
-.prose {
+.docs-prose {
   font-size: 0.875rem;
   line-height: 1.7;
 
@@ -237,7 +237,7 @@ html:has(.docs-layout) {
 
 /* A Callout (or any not-prose block) inside a tab owns its own link styling.
    The tab's [&_a] color/weight would otherwise bleed in, turning callout links
-   foreground-white and medium-weight. Let them inherit, like .prose does. */
+   foreground-white and medium-weight. Let them inherit, like .docs-prose does. */
 [role="tabpanel"] :where([class~="not-prose"], [class~="not-prose"] *) a {
   color: inherit;
   font-weight: inherit;

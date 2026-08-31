@@ -117,7 +117,10 @@ export default async function DesignComponentPage({
             ) : null}
           </header>
 
-          <article data-page-content="" className="prose mt-12 max-w-none">
+          <article
+            data-page-content=""
+            className="docs-prose prose mt-12 max-w-none"
+          >
             <MdxBody components={mdxComponents} />
           </article>
         </div>

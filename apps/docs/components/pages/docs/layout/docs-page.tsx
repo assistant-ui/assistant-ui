@@ -19,5 +19,5 @@ export function DocsPageShell({
 }
 
 export function DocsBody({ className, ...props }: ComponentProps<"article">) {
-  return <article {...props} className={cn("prose", className)} />;
+  return <article {...props} className={cn("docs-prose prose", className)} />;
 }

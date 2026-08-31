@@ -130,7 +130,7 @@ export default async function ExamplePage(props: {
 
       <article
         data-page-content=""
-        className="prose prose-blog mt-16 max-w-none"
+        className="docs-prose prose prose-blog mt-16 max-w-none"
       >
         <MdxBody components={mdxComponents} />
       </article>

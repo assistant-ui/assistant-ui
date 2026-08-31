@@ -222,7 +222,7 @@ export default async function ElementPage({
             )}
           </Figure>
 
-          <article className="prose mt-12 max-w-none">
+          <article className="docs-prose prose mt-12 max-w-none">
             <section id="installation">
               <h2>Installation</h2>
               <div className="mt-4">

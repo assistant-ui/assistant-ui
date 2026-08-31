@@ -122,7 +122,7 @@ function Item({
         )}
       >
         <div className="grid grid-cols-[1fr_3fr] gap-y-4 overflow-auto border-t p-3 text-sm">
-          <div className="prose prose-no-margin col-span-full text-sm empty:hidden">
+          <div className="docs-prose prose prose-no-margin col-span-full text-sm empty:hidden">
             {row.description}
           </div>
           {row.typeFull && (
