@@ -36,6 +36,45 @@ describe("RemoteThreadListThreadListRuntimeCore load race", () => {
     expect(core.threadIds[0]).toBe(newId);
     expect(core.threadIds).toContain("t1");
   });
+
+  it("reconciles a listed initialized draft before deleting it", async () => {
+    const listDeferred = deferred<ListResult>();
+    const adapter = makeAdapter({
+      list: vi.fn(() => listDeferred.promise),
+      initialize: vi.fn(async () => ({
+        remoteId: "remote-1",
+        externalId: "remote-1",
+      })),
+    });
+    const core = createCore(adapter);
+
+    const loadPromise = core.getLoadThreadsPromise();
+    await core.switchToNewThread();
+    const localId = core.newThreadId!;
+    await core.initialize(localId);
+
+    listDeferred.resolve({
+      threads: [
+        {
+          status: "regular",
+          remoteId: "remote-1",
+          externalId: "remote-1",
+        },
+      ],
+    });
+    await loadPromise;
+
+    expect(Object.keys(core.threadItems)).toEqual([localId]);
+    expect(core.threadIds).toEqual([localId]);
+    expect(core.getItemById("remote-1")?.id).toBe(localId);
+
+    await core.delete("remote-1");
+
+    expect(core.getItemById(localId)).toBeUndefined();
+    expect(core.getItemById("remote-1")).toBeUndefined();
+    expect(core.threadIds).not.toContain(localId);
+    expect(core.threadIds).not.toContain("remote-1");
+  });
 });
 
 describe("preserveMidLoadTransitions", () => {

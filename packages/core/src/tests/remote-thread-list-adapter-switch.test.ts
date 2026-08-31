@@ -394,11 +394,19 @@ describe("RemoteThreadList adapter changes", () => {
       externalId: "created-on-b",
     });
 
-    listB.resolve({ threads: [thread("thread-b")] });
+    listB.resolve({
+      threads: [thread("created-on-b"), thread("thread-b")],
+    });
     await core.getLoadThreadsPromise();
 
     expect(core.getItemById(draftId!)?.remoteId).toBe("created-on-b");
     expect(core.mainThreadId).toBe(draftId);
-    expect(core.threadIds).toContain("created-on-b");
+    expect(core.threadIds).toContain(draftId);
+    expect(core.threadIds).not.toContain("created-on-b");
+    expect(
+      Object.values(core.threadItems).filter(
+        (item) => item.remoteId === "created-on-b",
+      ),
+    ).toHaveLength(1);
   });
 });

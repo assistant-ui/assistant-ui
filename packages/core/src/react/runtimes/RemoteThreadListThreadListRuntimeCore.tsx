@@ -15,6 +15,7 @@ import {
   createEmptyRemoteThreadState,
   createThreadMappingId,
   getThreadData,
+  mergeRemoteThreadData,
   normalizeCursor,
   updateStatusReducer,
   preserveMidLoadTransitions,
@@ -151,8 +152,8 @@ export class RemoteThreadListThreadListRuntimeCore
             const fresh = classifyThreads(l.threads, {
               threadIds: [],
               archivedThreadIds: [],
-              threadIdMap: {},
-              threadData: {},
+              threadIdMap: { ...state.threadIdMap },
+              threadData: { ...state.threadData },
             });
             const merged = {
               ...state,
@@ -160,10 +161,16 @@ export class RemoteThreadListThreadListRuntimeCore
               cursor: normalizeCursor(l.nextCursor),
               threadIds: fresh.threadIds,
               archivedThreadIds: fresh.archivedThreadIds,
-              threadIdMap: { ...state.threadIdMap, ...fresh.threadIdMap },
-              threadData: { ...state.threadData, ...fresh.threadData },
+              threadIdMap: fresh.threadIdMap,
+              threadData: fresh.threadData,
             };
-            return preserveMidLoadTransitions(merged, state, statusAtRequest);
+            const nextState = preserveMidLoadTransitions(
+              merged,
+              state,
+              statusAtRequest,
+            );
+            this._syncMainThreadId(nextState);
+            return nextState;
           },
         })
         .catch((error: unknown) => {
@@ -225,7 +232,7 @@ export class RemoteThreadListThreadListRuntimeCore
             threadData: { ...state.threadData },
           });
 
-          return {
+          const nextState = {
             ...state,
             isLoadingMore: false,
             cursor: normalizeCursor(l.nextCursor),
@@ -234,6 +241,8 @@ export class RemoteThreadListThreadListRuntimeCore
             threadIdMap: appended.threadIdMap,
             threadData: appended.threadData,
           };
+          this._syncMainThreadId(nextState);
+          return nextState;
         },
       })
       .catch((error: unknown) => {
@@ -347,17 +356,21 @@ export class RemoteThreadListThreadListRuntimeCore
       threadIdMap: {},
       threadData: {},
     });
-    const threadIdMap = { ...fresh.threadIdMap };
-    const threadData = { ...fresh.threadData };
-    const threadIds = [...fresh.threadIds];
-    const archivedThreadIds = [...fresh.archivedThreadIds];
+    const accumulator = {
+      threadIds: [...fresh.threadIds],
+      archivedThreadIds: [...fresh.archivedThreadIds],
+      threadIdMap: { ...fresh.threadIdMap },
+      threadData: { ...fresh.threadData },
+    };
 
     if (state.newThreadId) {
       const mappingId = state.threadIdMap[state.newThreadId];
       const draft = mappingId ? state.threadData[mappingId] : undefined;
       if (draft?.status === "new") {
-        threadIdMap[state.newThreadId] = mappingId!;
-        threadData[mappingId!] = draft;
+        mergeRemoteThreadData(accumulator, draft, {
+          updateLists: false,
+          preferredMappingId: mappingId!,
+        });
       }
     }
 
@@ -366,22 +379,7 @@ export class RemoteThreadListThreadListRuntimeCore
       for (const item of Object.values(state.threadData)) {
         if (stale.has(item.id)) continue;
         if (item.status !== "new" && item.remoteId === undefined) continue;
-        const mappingId = createThreadMappingId(item.id);
-        if (threadData[mappingId]) continue;
-        threadIdMap[item.id] = mappingId;
-        if (item.remoteId !== undefined) {
-          threadIdMap[item.remoteId] = mappingId;
-        }
-        threadData[mappingId] = item;
-        if (item.remoteId === undefined) continue;
-        if (item.status === "regular" && !threadIds.includes(item.remoteId)) {
-          threadIds.push(item.remoteId);
-        } else if (
-          item.status === "archived" &&
-          !archivedThreadIds.includes(item.remoteId)
-        ) {
-          archivedThreadIds.push(item.remoteId);
-        }
+        mergeRemoteThreadData(accumulator, item);
       }
     }
     this._staleThreadIdsOnReplace = undefined;
@@ -390,17 +388,18 @@ export class RemoteThreadListThreadListRuntimeCore
       ...state,
       isLoading: false,
       cursor,
-      threadIds,
-      archivedThreadIds,
-      threadIdMap,
-      threadData,
+      threadIds: accumulator.threadIds,
+      archivedThreadIds: accumulator.archivedThreadIds,
+      threadIdMap: accumulator.threadIdMap,
+      threadData: accumulator.threadData,
       newThreadId:
         state.newThreadId !== undefined &&
-        threadIdMap[state.newThreadId] === undefined
+        accumulator.threadIdMap[state.newThreadId] === undefined
           ? undefined
           : state.newThreadId,
     };
 
+    this._syncMainThreadId(nextState);
     if (getThreadData(nextState, this._mainThreadId) === undefined) {
       const preservedDraft = nextState.newThreadId;
       if (preservedDraft !== undefined) {
@@ -514,6 +513,11 @@ export class RemoteThreadListThreadListRuntimeCore
 
   public get mainThreadId(): string {
     return this._mainThreadId;
+  }
+
+  private _syncMainThreadId(state: RemoteThreadState) {
+    const data = getThreadData(state, this._mainThreadId);
+    if (data !== undefined) this._mainThreadId = data.id;
   }
 
   // The settled remote ID of the active thread, or undefined while it is still
@@ -633,9 +637,8 @@ export class RemoteThreadListThreadListRuntimeCore
       // A concurrent `list()` may already have placed this thread; keep that
       // position and only merge metadata. A genuinely absent thread stays
       // appended: it may live on an unloaded page, and a prepend would pin it
-      // above newer threads permanently since `classifyThreads` skips ids it
-      // has already seen. Filtering both arrays first still prevents
-      // duplication or a wrong-status entry from `list()`.
+      // above newer threads permanently. Filtering both arrays first still
+      // prevents duplication or a wrong-status entry from `list()`.
       const remoteId = remoteMetadata.remoteId;
       const wasInTarget =
         remoteMetadata.status === "regular"
@@ -780,21 +783,26 @@ export class RemoteThreadListThreadListRuntimeCore
         if (!data) return state;
 
         const mappingId = createThreadMappingId(threadId);
+        const accumulator = {
+          threadIds: [...state.threadIds],
+          archivedThreadIds: [...state.archivedThreadIds],
+          threadIdMap: { ...state.threadIdMap },
+          threadData: { ...state.threadData },
+        };
+        mergeRemoteThreadData(
+          accumulator,
+          {
+            ...data,
+            initializeTask: Promise.resolve({ remoteId, externalId }),
+            remoteId,
+            externalId,
+          } as RemoteThreadData,
+          { updateLists: false, preferredMappingId: mappingId },
+        );
         return {
           ...state,
-          threadIdMap: {
-            ...state.threadIdMap,
-            [remoteId]: mappingId,
-          },
-          threadData: {
-            ...state.threadData,
-            [mappingId]: {
-              ...data,
-              initializeTask: Promise.resolve({ remoteId, externalId }),
-              remoteId,
-              externalId,
-            },
-          },
+          threadIdMap: accumulator.threadIdMap,
+          threadData: accumulator.threadData,
         };
       },
     });

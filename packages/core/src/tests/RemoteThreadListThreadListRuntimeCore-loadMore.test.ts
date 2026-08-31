@@ -265,6 +265,34 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(core.threadIds).toEqual(["a", "b"]);
   });
 
+  it("refreshes metadata when a thread repeats on a later page", async () => {
+    const listFn = vi
+      .fn<ListFn>()
+      .mockResolvedValueOnce({
+        threads: [
+          { status: "regular", remoteId: "a", externalId: "a", title: "old" },
+        ],
+        nextCursor: "c1",
+      })
+      .mockResolvedValueOnce({
+        threads: [
+          {
+            status: "regular",
+            remoteId: "a",
+            externalId: "a",
+            title: "updated",
+          },
+        ],
+      });
+    const core = createCore(makeAdapter({ list: listFn }));
+
+    await core.getLoadThreadsPromise();
+    await core.loadMore();
+
+    expect(core.threadIds).toEqual(["a"]);
+    expect(core.getItemById("a")?.title).toBe("updated");
+  });
+
   it("__internal_setOptions clears cursor and dedup handles on adapter swap, then refetches via the new adapter", async () => {
     const firstAdapter = makeAdapter({
       list: vi.fn<ListFn>(async () => ({

@@ -54,19 +54,140 @@ type ClassifyAccumulator = {
   threadData: Record<THREAD_MAPPING_ID, RemoteThreadData>;
 };
 
+type MergeThreadDataOptions = {
+  updateLists?: boolean;
+  preferredMappingId?: THREAD_MAPPING_ID;
+};
+
+const mergeThreadData = (
+  acc: ClassifyAccumulator,
+  incoming: RemoteThreadData,
+  options: MergeThreadDataOptions = {},
+): THREAD_MAPPING_ID => {
+  const remoteId = incoming.remoteId;
+  const mappedId =
+    remoteId === undefined ? undefined : acc.threadIdMap[remoteId];
+  const matchingEntries =
+    remoteId === undefined
+      ? []
+      : Object.entries(acc.threadData).filter(
+          ([, data]) => data.remoteId === remoteId,
+        );
+  const localEntry = matchingEntries.find(([, data]) => data.localOrigin);
+  const incomingMappingId =
+    incoming.localOrigin === true
+      ? createThreadMappingId(incoming.id)
+      : undefined;
+  const mappingId: THREAD_MAPPING_ID =
+    options.preferredMappingId ??
+    incomingMappingId ??
+    (localEntry?.[0] as THREAD_MAPPING_ID | undefined) ??
+    (mappedId !== undefined && acc.threadData[mappedId]
+      ? mappedId
+      : ((matchingEntries[0]?.[0] as THREAD_MAPPING_ID | undefined) ??
+        createThreadMappingId(incoming.id)));
+  const current = acc.threadData[mappingId];
+  const references = new Set<string>([incoming.id, mappingId]);
+  if (remoteId !== undefined) references.add(remoteId);
+  if (current !== undefined) references.add(current.id);
+  for (const [, data] of matchingEntries) {
+    references.add(data.id);
+  }
+
+  let targetIndex = -1;
+  if (
+    options.updateLists !== false &&
+    remoteId !== undefined &&
+    (incoming.status === "regular" || incoming.status === "archived")
+  ) {
+    const target =
+      incoming.status === "regular" ? acc.threadIds : acc.archivedThreadIds;
+    targetIndex = target.findIndex((id) => references.has(id));
+  }
+
+  const duplicateMappingIds = new Set(
+    matchingEntries
+      .map(([key]) => key as THREAD_MAPPING_ID)
+      .filter((key) => key !== mappingId),
+  );
+  for (const key of duplicateMappingIds) {
+    delete acc.threadData[key];
+  }
+  for (const [key, value] of Object.entries(acc.threadIdMap)) {
+    if (duplicateMappingIds.has(value) || references.has(key)) {
+      acc.threadIdMap[key] = mappingId;
+    }
+  }
+
+  const existing = current ?? matchingEntries[0]?.[1];
+  const data =
+    existing !== undefined && incoming.remoteId !== undefined
+      ? ({
+          ...existing,
+          ...incoming,
+          id: incoming.localOrigin === true ? incoming.id : existing.id,
+        } as RemoteThreadData)
+      : incoming;
+  acc.threadData[mappingId] = data;
+  acc.threadIdMap[data.id] = mappingId;
+  if (remoteId !== undefined) acc.threadIdMap[remoteId] = mappingId;
+
+  if (options.updateLists !== false) {
+    acc.threadIds = acc.threadIds.filter((id) => !references.has(id));
+    acc.archivedThreadIds = acc.archivedThreadIds.filter(
+      (id) => !references.has(id),
+    );
+
+    if (data.status === "regular" || data.status === "archived") {
+      const target =
+        data.status === "regular" ? acc.threadIds : acc.archivedThreadIds;
+      target.splice(
+        targetIndex === -1
+          ? target.length
+          : Math.min(targetIndex, target.length),
+        0,
+        data.id,
+      );
+    }
+  } else {
+    const regularIndex = acc.threadIds.findIndex((id) => references.has(id));
+    const archivedIndex = acc.archivedThreadIds.findIndex((id) =>
+      references.has(id),
+    );
+    acc.threadIds = acc.threadIds.filter((id) => !references.has(id));
+    acc.archivedThreadIds = acc.archivedThreadIds.filter(
+      (id) => !references.has(id),
+    );
+    if (regularIndex !== -1) {
+      acc.threadIds.splice(
+        Math.min(regularIndex, acc.threadIds.length),
+        0,
+        data.id,
+      );
+    }
+    if (archivedIndex !== -1) {
+      acc.archivedThreadIds.splice(
+        Math.min(archivedIndex, acc.archivedThreadIds.length),
+        0,
+        data.id,
+      );
+    }
+  }
+
+  return mappingId;
+};
+
+export const mergeRemoteThreadData = mergeThreadData;
+
 export const classifyThreads = (
   threads: readonly RemoteThreadMetadata[],
   acc: ClassifyAccumulator,
 ): ClassifyAccumulator => {
   for (const thread of threads) {
-    if (acc.threadIdMap[thread.remoteId] !== undefined) continue;
-
     switch (thread.status) {
       case "regular":
-        acc.threadIds.push(thread.remoteId);
         break;
       case "archived":
-        acc.archivedThreadIds.push(thread.remoteId);
         break;
       default: {
         const _exhaustiveCheck: never = thread.status;
@@ -74,9 +195,7 @@ export const classifyThreads = (
       }
     }
 
-    const mappingId = createThreadMappingId(thread.remoteId);
-    acc.threadIdMap[thread.remoteId] = mappingId;
-    acc.threadData[mappingId] = {
+    mergeThreadData(acc, {
       id: thread.remoteId,
       remoteId: thread.remoteId,
       externalId: thread.externalId,
@@ -88,7 +207,7 @@ export const classifyThreads = (
         remoteId: thread.remoteId,
         externalId: thread.externalId,
       }),
-    };
+    });
   }
   return acc;
 };
@@ -273,16 +392,48 @@ export const updateStatusReducer = (
       newState.archivedThreadIds = [id, ...newState.archivedThreadIds];
       break;
 
-    case "deleted":
+    case "deleted": {
+      const removedMappingIds = new Set(
+        Object.entries(newState.threadData)
+          .filter(([, item]) =>
+            remoteId === undefined
+              ? item.id === id
+              : item.remoteId === remoteId,
+          )
+          .map(([key]) => key),
+      );
+      const removedReferences = new Set<string>([id]);
+      if (remoteId !== undefined) removedReferences.add(remoteId);
+      for (const key of removedMappingIds) {
+        const item = newState.threadData[key as THREAD_MAPPING_ID];
+        if (item !== undefined) removedReferences.add(item.id);
+      }
+
       newState.threadData = Object.fromEntries(
-        Object.entries(newState.threadData).filter(([key]) => key !== id),
+        Object.entries(newState.threadData).filter(
+          ([key]) => !removedMappingIds.has(key),
+        ),
       );
       newState.threadIdMap = Object.fromEntries(
         Object.entries(newState.threadIdMap).filter(
-          ([key]) => key !== id && key !== remoteId,
+          ([key, mappingId]) =>
+            !removedMappingIds.has(mappingId) && !removedReferences.has(key),
         ),
       );
+      newState.threadIds = newState.threadIds.filter(
+        (threadId) => !removedReferences.has(threadId),
+      );
+      newState.archivedThreadIds = newState.archivedThreadIds.filter(
+        (threadId) => !removedReferences.has(threadId),
+      );
+      if (
+        newState.newThreadId !== undefined &&
+        removedReferences.has(newState.newThreadId)
+      ) {
+        newState.newThreadId = undefined;
+      }
       break;
+    }
 
     default: {
       const _exhaustiveCheck: never = newStatus;
