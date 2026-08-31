@@ -242,33 +242,71 @@ export const TaggedSpecimen = () => css\`content: ")";\`;
   });
 });
 
-describe("every real sample extracts", () => {
+describe("every real preview extracts", () => {
   // #6544's bite is that a prose quote breaks extraction silently at
-  // authoring time. The heuristic in updateStringState only has to be right
-  // for the samples we actually ship — this sweep turns that from a hope
-  // into an enforced invariant: every exported component in every sample
-  // file must extract to code, never to a "Could not" marker.
-  it("extracts every exported component of every sample file", async () => {
-    const { readdirSync, readFileSync } = await import("node:fs");
-    const { join } = await import("node:path");
+  // authoring time. The scanner heuristic only has to be right for the
+  // sources we actually preview — this sweep walks every <PreviewCode>
+  // reference in the MDX content (both flavors when a .radix variant
+  // exists) and turns that from a hope into an enforced invariant.
+  it("extracts every <PreviewCode> pair referenced from content", async () => {
+    const { readdirSync, readFileSync, existsSync } = await import("node:fs");
+    const { join, resolve } = await import("node:path");
 
-    const samplesDir = join(__dirname, "samples");
-    const files = readdirSync(samplesDir).filter((file) =>
-      file.endsWith(".tsx"),
-    );
-    expect(files.length).toBeGreaterThan(0);
+    const docsRoot = resolve(__dirname, "../../..");
+    const mdxFiles: string[] = [];
+    const walk = (dir: string) => {
+      for (const entry of readdirSync(dir, { withFileTypes: true })) {
+        const full = join(dir, entry.name);
+        if (entry.isDirectory()) walk(full);
+        else if (entry.name.endsWith(".mdx")) mdxFiles.push(full);
+      }
+    };
+    walk(join(docsRoot, "content"));
+
+    const pairs = new Set<string>();
+    for (const mdxFile of mdxFiles) {
+      const mdx = readFileSync(mdxFile, "utf8");
+      for (const match of mdx.matchAll(
+        /<PreviewCode\s[^>]*?file="([^"]+)"[^>]*?name="([^"]+)"/gs,
+      )) {
+        pairs.add(`${match[1]}\u0000${match[2]}`);
+      }
+    }
+    expect(pairs.size).toBeGreaterThanOrEqual(60);
 
     const failures: string[] = [];
-    for (const file of files) {
-      const source = readFileSync(join(samplesDir, file), "utf8");
-      const names = [
-        ...source.matchAll(/export\s+(?:function|const)\s+([A-Z]\w*)/g),
-      ].map((match) => match[1]!);
-      for (const name of names) {
-        const extracted = extractFunctionCode(source, name);
-        if (extracted.startsWith("// Could not")) {
-          failures.push(`${file}#${name}: ${extracted}`);
-        }
+    const checkExtraction = (sourceFile: string, name: string) => {
+      const source = readFileSync(sourceFile, "utf8");
+      const extracted = extractFunctionCode(source, name);
+      if (extracted.startsWith("// Could not")) {
+        failures.push(`${sourceFile}#${name}: ${extracted}`);
+        return;
+      }
+      // A phantom string that swallows a brace truncates the snippet at an
+      // earlier boundary and still looks like code — so the text after the
+      // extracted region must start a new top-level construct.
+      const endIndex = source.indexOf(extracted) + extracted.length;
+      const rest = source.slice(endIndex).replace(/^[\s;]*/, "");
+      if (
+        rest !== "" &&
+        !/^(export\s|import\s|const\s|function\s|type\s|interface\s|\/\/|\/\*)/.test(
+          rest,
+        )
+      ) {
+        failures.push(
+          `${sourceFile}#${name}: truncated extraction (resumes at ${JSON.stringify(rest.slice(0, 40))})`,
+        );
+      }
+    };
+
+    for (const pair of pairs) {
+      const [file, name] = pair.split("\u0000") as [string, string];
+      const base = join(docsRoot, `${file}.tsx`);
+      const radix = join(docsRoot, `${file}.radix.tsx`);
+      if (existsSync(radix)) checkExtraction(radix, name);
+      if (existsSync(base)) checkExtraction(base, name);
+      if (!existsSync(base) && !existsSync(radix)) {
+        failures.push(`${file}#${name}: source file missing`);
       }
     }
     expect(failures).toEqual([]);
