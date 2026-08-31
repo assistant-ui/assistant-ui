@@ -127,7 +127,7 @@ export default function TwShimmerPage() {
             title="shimmer-invert"
             description="Fades the other way, so you can keep a stronger text color and still get a stark highlight."
             code={shimmerCode(
-              "Shimmer",
+              "Shimmer Effect",
               "shimmer shimmer-invert text-foreground/60",
             )}
           >
