@@ -41,6 +41,26 @@ describe("reconcileAssistantUIImportLayout", () => {
     );
   });
 
+  it("rewrites a legacy import to a bare elements file without the .aui segment", () => {
+    write(
+      "app/MyThread.tsx",
+      'import { MarkdownText } from "@/components/assistant-ui/markdown-text";\n' +
+        'import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";\n',
+    );
+    write("components/assistant-ui/elements/markdown-text.tsx", "export {};");
+    write(
+      "components/assistant-ui/elements/tooltip-icon-button.tsx",
+      "export {};",
+    );
+
+    reconcileAssistantUIImportLayout(projectDir);
+
+    expect(read("app/MyThread.tsx")).toBe(
+      'import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";\n' +
+        'import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";\n',
+    );
+  });
+
   it("supports the src/ project layout", () => {
     write(
       "src/routes/index.tsx",

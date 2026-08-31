@@ -444,10 +444,22 @@ export function reconcileAssistantUIImportLayout(projectDir: string): void {
         fs.existsSync(path.join(root, `${name}${suffix}`)),
       ),
     );
-  const resolvesInElements = (name: string) =>
-    componentRoots.some((root) =>
-      fs.existsSync(path.join(root, "elements", `${name}.aui.tsx`)),
-    );
+
+  // Index the installed tree by import name so the rewrite follows whatever
+  // layout the registry delivered — some items install as
+  // elements/<name>.aui.tsx, others as elements/<name>.tsx, and a future
+  // layout move should not require new knowledge here.
+  const installedByName = new Map<string, string>();
+  for (const root of componentRoots) {
+    for (const { file } of readProjectFiles("**/*.{ts,tsx}", { cwd: root })) {
+      const normalized = file.split(path.sep).join("/");
+      if (!normalized.includes("/")) continue;
+      const specifier = normalized.replace(/\.[cm]?[tj]sx?$/, "");
+      const name = path.posix.basename(specifier).replace(/\.aui$/, "");
+      if (!installedByName.has(name)) installedByName.set(name, specifier);
+    }
+  }
+  if (installedByName.size === 0) return;
 
   for (const { fullPath, content } of readProjectFiles("**/*.{ts,tsx}", {
     cwd: projectDir,
@@ -457,10 +469,11 @@ export function reconcileAssistantUIImportLayout(projectDir: string): void {
       /(from\s+["'])@\/components\/assistant-ui\/([^"'/]+)(["'])/g,
       (match, prefix, specifier, suffix) => {
         const name = stripImportExtension(specifier);
-        if (resolvesAtLegacyPath(name) || !resolvesInElements(name)) {
+        const installed = installedByName.get(name);
+        if (resolvesAtLegacyPath(name) || installed === undefined) {
           return match;
         }
-        return `${prefix}@/components/assistant-ui/elements/${name}.aui${suffix}`;
+        return `${prefix}@/components/assistant-ui/${installed}${suffix}`;
       },
     );
     if (next !== content) fs.writeFileSync(fullPath, next);
