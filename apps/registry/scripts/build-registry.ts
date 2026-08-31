@@ -272,7 +272,7 @@ export function createRegistryPayload(
       // The docs' manual-install links need the true source location; paths
       // here are cwd-relative (apps/registry), so re-root them at the repo.
       sourcePath: path.posix.normalize(
-        path.posix.join("apps/registry", readPath.split(path.sep).join("/")),
+        path.posix.join("apps/registry", readPath.split(/[\\/]+/).join("/")),
       ),
       content,
     };

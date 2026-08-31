@@ -2279,6 +2279,26 @@ test("emitted files carry a repo-root sourcePath for source links", () => {
     "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
   );
 
+  const radix = createRegistryPayload(
+    {
+      name: "sourcepath-radix",
+      type: "registry:component",
+      files: [
+        {
+          type: "registry:component",
+          path: "components/assistant-ui/elements/threadlist-sidebar.aui.tsx",
+          sourcePath:
+            "../../packages/ui/src/components/react/assistant-ui/elements/threadlist-sidebar.aui.tsx",
+        },
+      ],
+    },
+    true,
+  );
+  assert.equal(
+    radix.payload.files[0].sourcePath,
+    "packages/ui/src/components/react/assistant-ui/elements/threadlist-sidebar.aui.radix.tsx",
+  );
+
   const template = createRegistryPayload({
     name: "sourcepath-template",
     type: "registry:page",
