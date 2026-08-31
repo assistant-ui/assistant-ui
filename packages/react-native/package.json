@@ -39,8 +39,7 @@
     "@assistant-ui/core": "^0.3.16",
     "@assistant-ui/store": "^0.3.11",
     "@assistant-ui/tap": "^0.9.15",
-    "assistant-stream": "^0.3.40",
-    "zustand": "^5.0.15"
+    "assistant-stream": "^0.3.40"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -60,7 +59,7 @@
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "react-native": "^0.87.0",
+    "react-native": "^0.87.1",
     "react-native-web": "^0.21.2",
     "vitest": "^4.1.11"
   },

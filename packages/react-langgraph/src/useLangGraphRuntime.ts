@@ -1,6 +1,7 @@
 import {
   useCallback,
   useEffect,
+  useInsertionEffect,
   useMemo,
   useRef,
   useState,
@@ -315,7 +316,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
     ...(uiStateKey !== undefined && { uiStateKey }),
   });
   const interruptRef = useRef(interrupt);
-  interruptRef.current = interrupt;
+  useInsertionEffect(() => {
+    interruptRef.current = interrupt;
+  }, [interrupt]);
 
   const [isRunning, setIsRunning] = useState(false);
   const [isLoadingThread, setIsLoadingThread] = useState(
@@ -373,7 +376,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   );
 
   const sendMessageRef = useRef(sendMessage);
-  sendMessageRef.current = sendMessage;
+  useInsertionEffect(() => {
+    sendMessageRef.current = sendMessage;
+  }, [sendMessage]);
 
   // Runs on a thread never overlap: a send arriving while a run is still
   // draining (e.g. a frontend tool result resuming the graph) waits for it to
@@ -412,7 +417,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   }, [runQueue, cancel]);
 
   const langGraphMessagesRef = useRef(messages);
-  langGraphMessagesRef.current = messages;
+  useInsertionEffect(() => {
+    langGraphMessagesRef.current = messages;
+  }, [messages]);
 
   const handleSendMessage = (
     outgoing: LangChainMessage[],
@@ -442,7 +449,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
       optimisticState ? { ...(values ?? {}), ...optimisticState } : values,
     [optimisticState, values],
   );
-  effectiveStateRef.current = state;
+  useInsertionEffect(() => {
+    effectiveStateRef.current = state;
+  }, [state]);
 
   const setState = (
     next:
@@ -527,7 +536,9 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   // The controller is created once; route through a ref so its driver runs the
   // latest runUserMessage (which closes over the current `messages`).
   const runUserMessageRef = useRef(runUserMessage);
-  runUserMessageRef.current = runUserMessage;
+  useInsertionEffect(() => {
+    runUserMessageRef.current = runUserMessage;
+  }, [runUserMessage]);
 
   if (unstable_enableMessageQueue && !queueRef.current) {
     queueRef.current = createMessageQueue({
@@ -574,10 +585,14 @@ const useLangGraphRuntimeImpl = (options: UseLangGraphRuntimeOptions) => {
   });
 
   const threadMessagesRef = useRef(threadMessages);
-  threadMessagesRef.current = threadMessages;
+  useInsertionEffect(() => {
+    threadMessagesRef.current = threadMessages;
+  }, [threadMessages]);
 
   const uiMessagesRef = useRef(uiMessages);
-  uiMessagesRef.current = uiMessages;
+  useInsertionEffect(() => {
+    uiMessagesRef.current = uiMessages;
+  }, [uiMessages]);
 
   const loadRef = useRef(load);
   useEffect(() => {

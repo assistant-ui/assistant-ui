@@ -24,6 +24,7 @@ export function toCanvasSnapshot(
   canvas: XuluxCanvasState,
   title: string | undefined,
 ): XuluxCanvasSnapshot {
+  const resolvedTitle = canvas.title ?? title;
   return {
     status: canvas.status === "loading" ? "empty" : canvas.status,
     url: canvas.url,
@@ -33,7 +34,7 @@ export function toCanvasSnapshot(
     ...(canvas.previewFrame ? { previewFrame: canvas.previewFrame } : {}),
     ...(canvas.templateId ? { templateId: canvas.templateId } : {}),
     ...(canvas.versionId ? { versionId: canvas.versionId } : {}),
-    ...(title ? { title } : {}),
+    ...(resolvedTitle ? { title: resolvedTitle } : {}),
   };
 }
 

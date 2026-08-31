@@ -1,7 +1,14 @@
 /// <reference types="@assistant-ui/core/store" />
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useInsertionEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { AppendMessage, ToolExecutionStatus } from "@assistant-ui/core";
 import {
   generateId,
@@ -192,7 +199,9 @@ const useStreamThreadRuntime = (
   });
 
   const streamRef = useRef(stream);
-  streamRef.current = stream;
+  useInsertionEffect(() => {
+    streamRef.current = stream;
+  }, [stream]);
 
   const activeRunConfigRef = useRef<
     NormalizedRunConfigOptions["config"] | undefined
@@ -256,10 +265,14 @@ const useStreamThreadRuntime = (
   }, [stream.messages]);
 
   const visibleMessagesRef = useRef(visibleMessages);
-  visibleMessagesRef.current = visibleMessages;
+  useInsertionEffect(() => {
+    visibleMessagesRef.current = visibleMessages;
+  }, [visibleMessages]);
 
   const threadMessagesRef = useRef(threadMessages);
-  threadMessagesRef.current = threadMessages;
+  useInsertionEffect(() => {
+    threadMessagesRef.current = threadMessages;
+  }, [threadMessages]);
 
   const stagedMessagesRef = useRef(
     new Map<

@@ -214,7 +214,7 @@ export default function Callback() {
 }
 ```
 
-The callback reads `?state=...&code=...` from the URL, derives the target server id (encoded in the OAuth `state` parameter automatically), and calls `completeAuth` on the right server.
+The callback reads `?state=...` plus either `code` or an OAuth `error` from the URL, derives the target server id (encoded in the OAuth `state` parameter automatically), verifies the complete state value against the pending authorization request, and calls `completeAuth` on the right server.
 
 </Step>
 <Step>
@@ -297,7 +297,7 @@ Client-side validation errors keep the elicitation pending so the user can corre
 
 ## Storage
 
-All persisted state — custom server records, OAuth tokens, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
+All persisted state — custom server records, OAuth tokens, callback state, PKCE verifiers, DCR client info — goes through a single `MCPStorage` resource. Three built-ins:
 
 - `McpLocalStorage()` — default. Stores under the `aui-mcp:` prefix in `window.localStorage`.
 - `McpMemoryStorage()` — in-process Map. Use for SSR/tests where localStorage is absent.

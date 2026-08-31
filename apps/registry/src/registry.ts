@@ -50,6 +50,7 @@ type ElementRegistryEntry = {
   dependencies?: string[];
   usesCollapsible?: boolean;
   usesElements?: string[];
+  usesSurfaces?: boolean;
 };
 
 const createElementRegistryItem = (
@@ -67,7 +68,9 @@ const createElementRegistryItem = (
     },
   ],
   registryDependencies: [
-    "https://r.assistant-ui.com/elements-surfaces.json",
+    ...(entry.usesSurfaces === false
+      ? []
+      : ["https://r.assistant-ui.com/elements-surfaces.json"]),
     ...(entry.usesElements ?? []).map(
       (slug) => `https://r.assistant-ui.com/elements-${slug}.json`,
     ),
@@ -141,6 +144,7 @@ const elementsRegistryItems: RegistryItem[] = [
     description:
       "Tokens arrive softly: the newest words land in blue and settle into ink.",
     file: "streaming-text.tsx",
+    usesSurfaces: false,
     usesElements: ["range"],
   }),
   createElementRegistryItem({
@@ -911,6 +915,10 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/ai-sdk-backend.json",
       "https://r.assistant-ui.com/thread.json",
     ],
+    registryDependencyUsageExemptions: {
+      "https://r.assistant-ui.com/ai-sdk-backend.json":
+        "Installs the API route used by the page without importing it into the client bundle.",
+    },
     dependencies: ["@assistant-ui/ai-sdk"],
     meta: {
       importSpecifier: "Assistant",
@@ -1187,7 +1195,6 @@ export const registry: RegistryItem[] = [
     dependencies: ["@assistant-ui/react", "@assistant-ui/ai-sdk"],
     registryDependencies: [
       "https://r.assistant-ui.com/elements-context-display.json",
-      "tooltip",
     ],
   },
   {
@@ -1225,10 +1232,10 @@ export const registry: RegistryItem[] = [
       "https://r.assistant-ui.com/badge.json",
       "button",
       "dialog",
-      "input",
       "label",
       "separator",
     ],
+    radixRegistryDependencies: ["input"],
     dependencies: [
       "@assistant-ui/react-mcp",
       "@assistant-ui/store",
@@ -1874,6 +1881,10 @@ export const registry: RegistryItem[] = [
     registryDependencies: [
       "https://r.assistant-ui.com/generative-ui-style.json",
     ],
+    registryDependencyUsageExemptions: {
+      "https://r.assistant-ui.com/generative-ui-style.json":
+        "Installs CSS variables and vocabulary rules consumed through class names.",
+    },
   },
 ];
 
@@ -1885,6 +1896,22 @@ export const vueRegistry: RegistryItem[] = [];
  * registry until the package they install is public.
  */
 export const stagedVueRegistry: RegistryItem[] = [
+  {
+    name: "thread-list",
+    type: "registry:component",
+    title: "Thread List",
+    description:
+      "Sidebar or dropdown for switching conversations, with search and active selection.",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/thread-list.vue",
+        sourcePath:
+          "../../packages/ui/src/components/vue/assistant-ui/thread-list.vue",
+      },
+    ],
+    dependencies: ["@assistant-ui/vue", "reka-ui", "@lucide/vue"],
+  },
   {
     name: "thread",
     type: "registry:component",

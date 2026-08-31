@@ -44,6 +44,8 @@ Add to your CSS:
 
 ### Text Shimmer
 
+Add a direct inert clone to use the compositor path:
+
 ```html
 <span class="shimmer text-foreground/60">
   Loading...
@@ -51,10 +53,10 @@ Add to your CSS:
 </span>
 ```
 
-The inert clone makes the compositor path the default in Chrome and Safari. Firefox keeps the clone hidden and uses the host's `background-position` fallback. One-node markup from earlier releases remains supported through the same fallback.
+The inert clone must be a direct child and makes the compositor path the default in Chrome and Safari. The host must be a one-line text box with no padding, border, or other in-flow content. Firefox keeps the clone hidden and uses the host's `background-position` fallback. One-node markup from earlier releases remains supported through the same fallback.
 
 <Callout type="info">
-  Set a semi-transparent text color (e.g., `text-foreground/40`) for the shimmer highlight to be visible.
+  Use `aria-hidden="true"` and `inert` on the clone. Assistive technology then reads the text one time.
 </Callout>
 
 The clone must include `aria-hidden="true"` and `inert` because it supplies glyphs for the mask, not accessible content. Reduced motion stops either animation and leaves the host text visible.
@@ -84,11 +86,11 @@ The clone must include `aria-hidden="true"` and `inert` because it supplies glyp
 
 #### `shimmer`
 
-Base utility for text shimmer. Uses the compositor when it contains a direct `shimmer-clone`.
+Base utility for text shimmer. One-node markup uses the paint path. A direct `shimmer-clone` child uses the compositor path.
 
 #### `shimmer-clone`
 
-Hidden inert text copy that supplies the glyph mask for `shimmer`.
+An inert text copy for the compositor highlight mask. Firefox hides the clone and uses the paint path. Reduced motion stops the clone path.
 
 #### `shimmer-bg`
 

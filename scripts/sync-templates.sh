@@ -1,17 +1,10 @@
 #!/bin/bash
 
-# Templates and examples alias packages/ui via tsconfig and carry no copies,
-# except `minimal`, which ships its own. Minimal is a Base UI (base-nova)
-# scaffold, so its copies mirror the base install shape: the unmarked file in
-# packages/ui/src/components/react/assistant-ui/elements is already the Base UI
-# source, so minimal's assistant-ui element copies sync from it directly, and `components/ui`
-# copies sync from the vendored `ui/base` stand-ins. Base sources already use
-# the scaffold import shape. Minimal's `hooks` copies sync from
-# packages/ui/src/hooks.
+# Templates and examples alias packages/ui via tsconfig and carry no copies, except the standalone minimal and Nuxt templates.
 #
 # Usage:
 #   bash scripts/sync-templates.sh            # check (CI mode), exits 1 on drift
-#   bash scripts/sync-templates.sh --write    # render source -> minimal to fix drift
+#   bash scripts/sync-templates.sh --write    # render sources into template copies to fix drift
 #
 # To allow an intentional divergence (e.g. thread.tsx is a slim variant),
 # add `<file>` to the OVERRIDES array below with a comment explaining why.
@@ -21,16 +14,26 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$SCRIPT_DIR/.."
 SOURCE_DIR="$ROOT_DIR/packages/ui/src/components/react/assistant-ui/elements"
+VUE_SOURCE_DIR="$ROOT_DIR/packages/ui/src/components/vue/assistant-ui"
 UI_BASE_DIR="$ROOT_DIR/packages/ui/src/components/react/ui/base"
 HOOKS_SOURCE_DIR="$ROOT_DIR/packages/ui/src/hooks"
 TEMPLATES_ROOT="$ROOT_DIR/templates"
 EXAMPLES_ROOT="$ROOT_DIR/examples"
 
-# Only minimal carries copies; every other template aliases packages/ui.
 MINIMAL_DIR="$TEMPLATES_ROOT/minimal/components/assistant-ui/elements"
 MINIMAL_UI_DIR="$TEMPLATES_ROOT/minimal/components/ui"
 MINIMAL_HOOKS_DIR="$TEMPLATES_ROOT/minimal/hooks"
+NUXT_DIR="$TEMPLATES_ROOT/nuxt/app/components/assistant-ui"
 
+# Templates and examples alias packages/ui via tsconfig and carry no copies,
+# except `minimal` and `templates/nuxt`, which ship their own. Minimal is a
+# Base UI (base-nova) scaffold, so its copies mirror the base install shape:
+# the unmarked file in packages/ui/src/components/react/assistant-ui/elements
+# is already the Base UI source, so minimal's assistant-ui element copies sync
+# from it directly, and `components/ui` copies sync from the vendored
+# `ui/base` stand-ins. Base sources already use the scaffold import shape.
+# Minimal's `hooks` copies sync from packages/ui/src/hooks. The Nuxt template's
+# vue kit copies sync verbatim from packages/ui/src/components/vue/assistant-ui.
 OVERRIDES=(
     # minimal intentionally ships a slim thread.aui.tsx without GroupedParts /
     # reasoning / tool-group, since it doesn't bundle those companion files.
@@ -55,12 +58,17 @@ resolve_aui_source() {
     echo "$SOURCE_DIR/$file"
 }
 
+resolve_vue_source() {
+    local file="$1"
+    echo "$VUE_SOURCE_DIR/$file"
+}
+
 # Committed copies and raw sources may disagree on import statement layout.
 # The check compares import-normalized forms, which is layout-insensitive but
 # content strict; --write formats the rendered output with oxfmt before copying.
 RENDER_DIR="$(mktemp -d)"
 trap 'rm -rf "$RENDER_DIR"' EXIT
-mkdir -p "$RENDER_DIR/assistant-ui" "$RENDER_DIR/ui" "$RENDER_DIR/hooks"
+mkdir -p "$RENDER_DIR/assistant-ui" "$RENDER_DIR/vue" "$RENDER_DIR/ui" "$RENDER_DIR/hooks"
 
 render_source() {
     local src="$1" out="$2"
@@ -71,6 +79,13 @@ rendered_aui() {
     local file="$1"
     local out="$RENDER_DIR/assistant-ui/$file"
     [[ -f "$out" ]] || render_source "$(resolve_aui_source "$file")" "$out"
+    echo "$out"
+}
+
+rendered_vue() {
+    local file="$1"
+    local out="$RENDER_DIR/vue/$file"
+    [[ -f "$out" ]] || render_source "$(resolve_vue_source "$file")" "$out"
     echo "$out"
 }
 
@@ -150,7 +165,10 @@ format_rendered() {
 drift=()
 ui_drift=()
 hooks_drift=()
+vue_drift=()
+vue_missing=()
 aui_candidates=()
+vue_candidates=()
 ui_candidates=()
 hooks_candidates=()
 ui_missing=()
@@ -175,6 +193,30 @@ if [[ -d "$MINIMAL_DIR" ]]; then
         aui_candidates+=("$file")
         rendered_aui "$file" > /dev/null
     done < <(find "$MINIMAL_DIR" -maxdepth 1 -type f \( -name "*.tsx" -o -name "*.ts" \) -print0)
+fi
+
+if [[ -d "$NUXT_DIR" ]]; then
+    while IFS= read -r -d '' nuxt_file; do
+        file="$(basename "$nuxt_file")"
+        src_file="$(resolve_vue_source "$file")"
+
+        is_override=0
+        for o in "${OVERRIDES[@]}"; do
+            if [[ "$file" == "$o" ]]; then
+                is_override=1
+                break
+            fi
+        done
+        [[ "$is_override" -eq 1 ]] && continue
+
+        if [[ ! -f "$src_file" ]]; then
+            vue_missing+=("$file")
+            continue
+        fi
+
+        vue_candidates+=("$file")
+        rendered_vue "$file" > /dev/null
+    done < <(find "$NUXT_DIR" -maxdepth 1 -type f -name "*.vue" -print0)
 fi
 
 if [[ -d "$MINIMAL_UI_DIR" ]]; then
@@ -221,6 +263,12 @@ for file in "${aui_candidates[@]}"; do
     fi
 done
 
+for file in "${vue_candidates[@]}"; do
+    if ! same_normalized "$RENDER_DIR/vue/$file" "$NUXT_DIR/$file"; then
+        vue_drift+=("$file")
+    fi
+done
+
 for file in "${ui_candidates[@]}"; do
     if ! same_normalized "$RENDER_DIR/ui/$file" "$MINIMAL_UI_DIR/$file"; then
         ui_drift+=("$file")
@@ -249,7 +297,7 @@ while IFS= read -r -d '' ex_file; do
     fi
 done < <(find "$EXAMPLES_ROOT" -path "*/components/assistant-ui/elements/*" -maxdepth 5 -type f \( -name "*.tsx" -o -name "*.ts" \) -not -path "*/node_modules/*" -print0)
 
-if [[ ${#drift[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
+if [[ ${#drift[@]} -eq 0 && ${#vue_drift[@]} -eq 0 && ${#vue_missing[@]} -eq 0 && ${#ui_drift[@]} -eq 0 && ${#hooks_drift[@]} -eq 0 && ${#redundant[@]} -eq 0 ]]; then
     echo "✓ all template components and hooks are in sync with packages/ui"
     echo "✓ no redundant packages/ui copies in examples"
     exit 0
@@ -264,6 +312,14 @@ if [[ "$MODE" == "--write" ]]; then
         cp "$RENDER_DIR/assistant-ui/$file" "$MINIMAL_DIR/$file"
         echo "synced minimal/$file"
     done
+    for file in "${vue_missing[@]}"; do
+        rm "$NUXT_DIR/$file"
+        echo "removed nuxt/$file (no canonical source)"
+    done
+    for file in "${vue_drift[@]}"; do
+        cp "$RENDER_DIR/vue/$file" "$NUXT_DIR/$file"
+        echo "synced nuxt/$file"
+    done
     for file in "${ui_drift[@]}"; do
         cp "$RENDER_DIR/ui/$file" "$MINIMAL_UI_DIR/$file"
         echo "synced minimal ui/$file"
@@ -277,7 +333,7 @@ if [[ "$MODE" == "--write" ]]; then
         echo "removed redundant copy $r (resolved from packages/ui via tsconfig paths)"
     done
     echo ""
-    echo "fixed $(( ${#drift[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#redundant[@]} )) file(s)"
+    echo "fixed $(( ${#drift[@]} + ${#vue_drift[@]} + ${#vue_missing[@]} + ${#ui_drift[@]} + ${#hooks_drift[@]} + ${#redundant[@]} )) file(s)"
     exit 0
 fi
 
@@ -286,6 +342,22 @@ if [[ ${#drift[@]} -gt 0 ]]; then
     for file in "${drift[@]}"; do
         echo "    templates/minimal/components/assistant-ui/elements/$file"
         annotate "templates/minimal/components/assistant-ui/elements/$file" "out of sync with the base install shape of packages/ui/src/components/react/assistant-ui/elements/$file; run 'pnpm sync-templates --write' or add an OVERRIDES entry"
+    done
+fi
+
+if [[ ${#vue_missing[@]} -gt 0 ]]; then
+    echo "✗ ${#vue_missing[@]} Nuxt Vue kit file(s) have no canonical source in packages/ui:"
+    for file in "${vue_missing[@]}"; do
+        echo "    templates/nuxt/app/components/assistant-ui/$file"
+        annotate "templates/nuxt/app/components/assistant-ui/$file" "canonical packages/ui/src/components/vue/assistant-ui/$file is gone; run 'pnpm sync-templates --write' to remove the copy or add an OVERRIDES entry"
+    done
+fi
+
+if [[ ${#vue_drift[@]} -gt 0 ]]; then
+    echo "✗ drift detected in ${#vue_drift[@]} Nuxt Vue kit file(s) vs packages/ui:"
+    for file in "${vue_drift[@]}"; do
+        echo "    templates/nuxt/app/components/assistant-ui/$file"
+        annotate "templates/nuxt/app/components/assistant-ui/$file" "out of sync with packages/ui/src/components/vue/assistant-ui/$file; run 'pnpm sync-templates --write' or add an OVERRIDES entry"
     done
 fi
 
@@ -315,5 +387,5 @@ fi
 
 echo ""
 echo "to fix, run:    pnpm sync-templates --write"
-echo "if a minimal divergence is intentional, add '<file>' to OVERRIDES in scripts/sync-templates.sh"
+echo "if a template divergence is intentional, add '<file>' to OVERRIDES in scripts/sync-templates.sh"
 exit 1

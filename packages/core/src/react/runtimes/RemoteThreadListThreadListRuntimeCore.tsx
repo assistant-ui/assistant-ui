@@ -1,5 +1,9 @@
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
-import { BaseSubscribable } from "../../subscribable/subscribable";
+import {
+  BaseSubscribable,
+  WritableSubscribable,
+} from "../../subscribable/subscribable";
+import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { OptimisticState } from "../../runtimes/remote-thread-list/optimistic-state";
 import { EMPTY_THREAD_CORE } from "../../runtimes/remote-thread-list/empty-thread-core";
 import type {
@@ -24,7 +28,7 @@ import type {
 } from "../../runtimes/remote-thread-list/types";
 import { ThreadListAdapterChangedError } from "../../runtimes/remote-thread-list/adapter-changed";
 import { RemoteThreadListHookInstanceManager } from "./RemoteThreadListHookInstanceManager";
-import { isTitleSourceMessage } from "./RemoteThreadResource";
+import { isTitleSourceMessage } from "../../runtimes/remote-thread-list/title";
 import {
   type ComponentType,
   type FC,
@@ -34,7 +38,6 @@ import {
   useId,
 } from "react";
 import { useAui } from "@assistant-ui/store";
-import { create } from "zustand";
 import { AssistantMessageStream } from "assistant-stream";
 import type { ModelContextProvider } from "../../model-context/types";
 import { RuntimeAdapterProvider } from "./RuntimeAdapterProvider";
@@ -126,6 +129,7 @@ export class RemoteThreadListThreadListRuntimeCore
         .optimisticUpdate({
           execute: () => this._options.adapter.list(),
           loading: (state) => {
+            if (generation !== this._loadGeneration) return state;
             return {
               ...state,
               isLoading: true,
@@ -206,7 +210,10 @@ export class RemoteThreadListThreadListRuntimeCore
     const dedup = this._state
       .optimisticUpdate({
         execute: () => adapter.list({ after: cursor }),
-        loading: (state) => ({ ...state, isLoadingMore: true }),
+        loading: (state) => {
+          if (generation !== this._loadGeneration) return state;
+          return { ...state, isLoadingMore: true };
+        },
         then: (state, l) => {
           if (generation !== this._loadGeneration) return state;
           if (adapter !== this._options.adapter) return state;
@@ -267,15 +274,15 @@ export class RemoteThreadListThreadListRuntimeCore
       // synchronous notify would re-enter store consumers mid-render.
       queueMicrotask(() => this._notifySubscribers());
     });
-    this.useProvider = create(() => ({
-      Provider: this.resolveProvider(options.adapter),
-    }));
+    this.providerStore = new WritableSubscribable(
+      this.resolveProvider(options.adapter),
+    );
     this.__internal_setOptions(options);
     this.switchToNewThread();
   }
 
   private _initialThreadLoaded = false;
-  private useProvider;
+  private providerStore;
 
   public __internal_setOptions(options: RemoteThreadListOptions) {
     if (this._options === options) return;
@@ -289,10 +296,7 @@ export class RemoteThreadListThreadListRuntimeCore
 
     this._options = options;
 
-    const Provider = this.resolveProvider(options.adapter);
-    if (Provider !== this.useProvider.getState().Provider) {
-      this.useProvider.setState({ Provider }, true);
-    }
+    this.providerStore.setState(this.resolveProvider(options.adapter));
 
     this._hookManager.setRuntimeHook(options.runtimeHook);
 
@@ -1049,19 +1053,21 @@ export class RemoteThreadListThreadListRuntimeCore
     this._hookManager.stopThreadRuntime(data.id);
   }
 
-  private useBoundIds = create<string[]>(() => []);
+  private boundIdsStore = new WritableSubscribable<readonly string[]>([]);
 
   public __internal_RenderComponent: FC = () => {
     const id = useId();
     useEffect(() => {
-      this.useBoundIds.setState((s) => [...s, id], true);
+      this.boundIdsStore.setState([...this.boundIdsStore.getState(), id]);
       return () => {
-        this.useBoundIds.setState((s) => s.filter((i) => i !== id), true);
+        this.boundIdsStore.setState(
+          this.boundIdsStore.getState().filter((i) => i !== id),
+        );
       };
     }, [id]);
 
-    const boundIds = this.useBoundIds();
-    const { Provider } = this.useProvider();
+    const boundIds = useSubscribable(this.boundIdsStore);
+    const Provider = useSubscribable(this.providerStore);
     const aui = useAui();
     const enabled = boundIds.length === 0 || boundIds[0] === id;
 

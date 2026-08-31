@@ -503,9 +503,6 @@ const useRemoteThreadList = (
     };
   });
 
-  // Config updates can invoke `reload()` in the same turn as the re-render, before the effect below runs.
-  session.adapter = adapter;
-
   const listState = useSyncExternalStore(
     (onStoreChange) => store.subscribe(onStoreChange),
     () => store.value,
@@ -527,6 +524,7 @@ const useRemoteThreadList = (
   );
   useThreadSelectionEvents(mainThreadId);
   useEffect(() => {
+    // Publishing after commit keeps imperative actions on the adapter the committed tree renders with; an abandoned render must not reach them.
     session.adapter = adapter;
     session.mainThreadId = mainThreadId;
     session.onThreadIdChange = onThreadIdChange;
@@ -558,7 +556,10 @@ const useRemoteThreadList = (
     session.loadPromise = store
       .optimisticUpdate({
         execute: () => adapter.list(),
-        loading: (state) => ({ ...state, isLoading: true }),
+        loading: (state) => {
+          if (generation !== session.loadGeneration) return state;
+          return { ...state, isLoading: true };
+        },
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
           session.adapterAtLoad = adapter;
@@ -655,7 +656,10 @@ const useRemoteThreadList = (
     const task = store
       .optimisticUpdate({
         execute: () => currentAdapter.list({ after: cursor }),
-        loading: (state) => ({ ...state, isLoadingMore: true }),
+        loading: (state) => {
+          if (generation !== session.loadGeneration) return state;
+          return { ...state, isLoadingMore: true };
+        },
         then: (state, page) => {
           if (generation !== session.loadGeneration) return state;
           const appended = classifyThreads(page.threads, {

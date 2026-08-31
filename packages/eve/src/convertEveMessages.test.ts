@@ -1376,6 +1376,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents.slice(0, 3),
           {
             type: "reasoning.appended",
+            meta: eventMeta(2),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1386,6 +1387,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "actions.requested",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1425,6 +1427,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents.slice(0, 3),
           {
             type: "reasoning.appended",
+            meta: eventMeta(2),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1435,6 +1438,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "actions.requested",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1451,6 +1455,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "reasoning.completed",
+            meta: eventMeta(4),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1485,6 +1490,7 @@ describe("convertEveMessages", () => {
           ...midStreamEvents.slice(0, 3),
           {
             type: "message.appended",
+            meta: eventMeta(2),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1495,6 +1501,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "message.completed",
+            meta: eventMeta(3),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1505,6 +1512,7 @@ describe("convertEveMessages", () => {
           },
           {
             type: "step.completed",
+            meta: eventMeta(4),
             data: {
               turnId: "turn_1",
               stepIndex: 0,
@@ -1514,10 +1522,17 @@ describe("convertEveMessages", () => {
           },
           {
             type: "step.started",
-            data: { turnId: "turn_1", stepIndex: 1, sequence: 5 },
+            meta: eventMeta(5),
+            data: {
+              turnId: "turn_1",
+              stepIndex: 1,
+              sequence: 5,
+              modelId: "test-model",
+            },
           },
           {
             type: "message.appended",
+            meta: eventMeta(6),
             data: {
               turnId: "turn_1",
               stepIndex: 1,

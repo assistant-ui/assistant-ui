@@ -1,4 +1,4 @@
-import { NAV_ITEMS } from "./constants";
+import { NAV_ITEMS, STATUS_URL } from "./constants";
 
 describe("NAV_ITEMS", () => {
   it("keeps Docs first and Pricing last as links", () => {
@@ -75,6 +75,20 @@ describe("NAV_ITEMS", () => {
       resources.groups
         .find((group) => group.label === "Company")
         ?.items.map((item) => item.label),
-    ).toEqual(["Blog", "Careers", "Brand", "Traction"]);
+    ).toEqual(["Blog", "Careers", "Brand", "Traction", "Status"]);
+  });
+
+  it("links Status out to the hosted status page", () => {
+    const resources = NAV_ITEMS.find(
+      (item) => item.type === "mega" && item.label === "Resources",
+    );
+    if (resources?.type !== "mega")
+      throw new Error("Resources is not a mega item");
+
+    const status = resources.groups
+      .flatMap((group) => group.items)
+      .find((item) => item.label === "Status");
+
+    expect(status).toMatchObject({ href: STATUS_URL, external: true });
   });
 });

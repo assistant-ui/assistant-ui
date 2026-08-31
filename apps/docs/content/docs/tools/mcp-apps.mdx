@@ -107,6 +107,39 @@ McpAppRenderer({
 
 Caller handlers override the default `openLink` and `sendMessage` behavior and can provide `requestDisplayMode`, `updateModelContext`, and lifecycle hooks such as `onInitialized` and `onSizeChange`. `callTool`, `readResource`, and `listResources` remain bound to the configured `host`; use a custom host to change those data-plane operations.
 
+### Per-app options
+
+One renderer serves every MCP app in the thread, so `hostContext`, `handlers`, and the other display options are thread-wide defaults. Pass `forPart` when an app needs its own values. It runs for each MCP-app tool call, and every option it returns replaces the thread-wide one for that app alone.
+
+`handlers` is the exception and merges per key, so a resolver that returns only `requestDisplayMode` keeps the thread-wide `onError` and `onInitialized` for that app. Its keys are capabilities negotiated with the widget rather than data, and replacing the whole bag to add one handler would withdraw the rest from that app with nothing to observe it by. Name a key to override it.
+
+```tsx
+const [modes, setModes] = useState<Record<string, McpAppDisplayMode>>({});
+
+McpAppRenderer({
+  host: McpAppsRemoteHost({ url: "/api/mcp-apps" }),
+  hostInfo: { name: "my-app", version: "1.0.0" },
+  hostContext: { theme },
+  forPart: (part) => ({
+    hostContext: {
+      theme,
+      displayMode: modes[part.toolCallId] ?? "inline",
+      availableDisplayModes: ["inline", "fullscreen", "pip"],
+    },
+    handlers: {
+      requestDisplayMode: ({ mode }) => {
+        setModes((current) => ({ ...current, [part.toolCallId]: mode }));
+        return { mode };
+      },
+    },
+  }),
+});
+```
+
+The resolver closes over the part, so `requestDisplayMode` knows which app asked and the granted mode reaches that app alone through `notifications/host_context/changed`. Returned values may be rebuilt on every render; a host context that is structurally unchanged never reaches the widget.
+
+`forPart` resolves before a part's first render, so a per-part value is always in place from the start. What a *later* change to one reaches depends on the option. `hostContext` is delivered again whenever it changes. Handlers are called through live references, but which handler keys exist is captured when the frame mounts, so return the same keys for a part on every render. `hostInfo` and the frame settings in `sandbox` (`className` and `style` aside) are also read once at mount, so changing them mid-life does nothing until the app's resource URI changes and the frame is rebuilt.
+
 ### Route handler
 
 The route accepts `POST` requests with `{ method, params }` JSON bodies. Dispatch by method name and return the result as JSON. Example for Next.js App Router:

@@ -127,10 +127,12 @@ describe("normalizePersistedAuthState", () => {
       normalizePersistedAuthState({
         token: "bearer-token",
         codeVerifier: "pkce-verifier",
+        state: "aui-mcp:ZG9jcw.nonce",
       }),
     ).toEqual({
       token: "bearer-token",
       codeVerifier: "pkce-verifier",
+      state: "aui-mcp:ZG9jcw.nonce",
     });
   });
 
@@ -396,6 +398,7 @@ describe("McpLocalStorage auth state", () => {
       JSON.parse(storage.getItem("test-mcp:auth:docs") ?? "null"),
     ).toMatchObject({
       codeVerifier: expect.any(String),
+      state: authorizationUrls[0]!.searchParams.get("state"),
       discoveryState: {
         authorizationServerUrl: "https://auth.example.com",
       },

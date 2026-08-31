@@ -61,6 +61,7 @@ type OAuthProviderCache = {
   tokens?: OAuthTokens | undefined;
   clientInformation?: OAuthClientInformationFull | undefined;
   codeVerifier?: string | undefined;
+  state?: string | undefined;
   discoveryState?: OAuthDiscoveryState | undefined;
 };
 
@@ -139,6 +140,7 @@ export function createOAuthProvider(
 ): OAuthClientProvider {
   const { serverId, config, storage, redirectUri, onAuthorizationUrl } = opts;
   const persistence = getPersistence(storage, serverId);
+  let pendingState: string | undefined;
 
   // The cache is shared with every other provider for this (storage, serverId),
   // so a statically configured client stays a read-time overlay owned by this
@@ -168,6 +170,7 @@ export function createOAuthProvider(
           initial.clientInformation = persisted.clientInformation;
         if (persisted?.codeVerifier)
           initial.codeVerifier = persisted.codeVerifier;
+        if (persisted?.state) initial.state = persisted.state;
         if (persisted?.discoveryState)
           initial.discoveryState = persisted.discoveryState;
         persistence.cached = initial;
@@ -190,6 +193,7 @@ export function createOAuthProvider(
       if (c.tokens) next.tokens = c.tokens;
       if (c.clientInformation) next.clientInformation = c.clientInformation;
       if (c.codeVerifier) next.codeVerifier = c.codeVerifier;
+      if (c.state) next.state = c.state;
       if (c.discoveryState) next.discoveryState = c.discoveryState;
       await storage.saveAuthState(serverId, next);
     });
@@ -220,7 +224,8 @@ export function createOAuthProvider(
         typeof crypto !== "undefined" && "randomUUID" in crypto
           ? crypto.randomUUID()
           : `${Date.now()}.${Math.random()}`;
-      return `${encodeServerIdInState(serverId)}.${nonce}`;
+      pendingState = `${encodeServerIdInState(serverId)}.${nonce}`;
+      return pendingState;
     },
     async clientInformation() {
       const c = await loadCache();
@@ -238,6 +243,7 @@ export function createOAuthProvider(
     async saveTokens(tokens) {
       const c = await loadCache();
       c.tokens = tokens;
+      delete c.state;
       await persist();
     },
     async redirectToAuthorization(url) {
@@ -246,6 +252,10 @@ export function createOAuthProvider(
     async saveCodeVerifier(codeVerifier) {
       const c = await loadCache();
       c.codeVerifier = codeVerifier;
+      if (pendingState) {
+        c.state = pendingState;
+        pendingState = undefined;
+      }
       await persist();
     },
     async codeVerifier() {
@@ -268,7 +278,10 @@ export function createOAuthProvider(
       const c = await loadCache();
       if (scope === "all" || scope === "tokens") delete c.tokens;
       if (scope === "all" || scope === "client") delete c.clientInformation;
-      if (scope === "all" || scope === "verifier") delete c.codeVerifier;
+      if (scope === "all" || scope === "verifier") {
+        delete c.codeVerifier;
+        delete c.state;
+      }
       if (scope === "all" || scope === "discovery") delete c.discoveryState;
       await persist();
     },

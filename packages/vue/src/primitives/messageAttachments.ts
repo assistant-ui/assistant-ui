@@ -1,4 +1,4 @@
-import { defineComponent, h, type SlotsType } from "vue";
+import { defineComponent, h, type SlotsType, type VNodeChild } from "vue";
 import { useAuiState } from "../useAuiState";
 import { AttachmentByIndexProvider } from "./AttachmentByIndexProvider";
 
@@ -9,7 +9,7 @@ import { AttachmentByIndexProvider } from "./AttachmentByIndexProvider";
  */
 export const MessagePrimitiveAttachments = defineComponent({
   name: "MessagePrimitiveAttachments",
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(_, { slots }) {
     const count = useAuiState((s) =>
       s.message.role === "user" ? (s.message.attachments?.length ?? 0) : 0,

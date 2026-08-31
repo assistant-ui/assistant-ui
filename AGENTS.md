@@ -1,3 +1,20 @@
+# assistant-ui
+
+assistant-ui provides composable runtime and UI primitives for building AI interfaces across React, React Native, and terminal environments.
+
+## Product contract
+
+Preserve these promises:
+
+- **Composable primitives.** Features should combine through the existing runtime and component model instead of requiring parallel abstractions.
+- **Accessible UI.** Preserve accessibility, keyboard support, and responsive layout when changing the interface.
+
+## Maintainer taste
+
+Prefer the smallest change that fixes the underlying mechanism.
+
+Do not preserve complexity merely because it already exists.
+
 ## Architecture
 
 ```
@@ -65,7 +82,7 @@ Every publishable package builds with `aui-build` (`@assistant-ui/x-buildutils`)
 
 Run `pnpm check:resource-memo` when bumping `@babel/core`, `babel-plugin-react-compiler`, or `react-compiler`; a green build does not prove the compiler toolchain is intact. A package the published dist imports at runtime belongs in `dependencies`, not `devDependencies`, so the bundler externalizes it (a devDep gets inlined and drags unresolvable transitive imports into consumer builds). A registry item must be self-contained: enumerate every `@/components/*` import and CSS `@import` as `registryDependencies`, so `shadcn add` never lands a file with an unresolvable import.
 
-Every PR that changes a published package needs a changeset. Always use **patch**; minor and major require maintainer approval. Private packages (`private: true` in package.json) are exempt.
+Every PR that changes a published package needs a changeset. Always use **patch**; minor and major require maintainer approval. Private packages (`private: true` in package.json) are exempt, and must never be named in a changeset: `privatePackages.version` is false, so a changeset that mixes a private package with a published one aborts `changeset version` and blocks every release. `pnpm changesets:check` enforces this.
 
 ```md
 ---
@@ -100,6 +117,39 @@ Tests are vitest, colocated beside the module under test and importing it by rel
 Repro tests are temporary: marked "repro", written to prove completion of a task, deleted when the work is done, anything worth keeping folded into the real suite.
 
 Contract tests document how complex machinery behaves at its public seams. They stay, and they read as the contract.
+
+## Pull request output
+
+Use a conventional, plain-language title: `<type>(<scope>): <observable outcome>`. The scope may be omitted when no package or surface name improves the title.
+
+Examples:
+
+- `fix(react): preserve message status when switching threads`
+- `feat: expose runtime metadata mutation`
+
+Write the human-authored description before any automated summary. Use this shape, omitting sections that genuinely do not apply:
+
+```md
+## Problem
+
+Describe the user-visible failure or missing capability. Bug fixes include the minimal reproduction and affected version.
+
+## Root cause
+
+Explain the mechanism that produced the behavior.
+
+## Change
+
+Explain the implementation, why it follows the existing architecture, and any intentional runtime or provider differences.
+
+## Verification
+
+List exact focused tests and checks. For a bug, confirm the reproduction fails without the fix and passes with it.
+
+## Public surface
+
+List affected packages, exports, documentation, API-reference output, templates, and changesets, or state `None`.
+```
 
 ## Do's and don'ts
 

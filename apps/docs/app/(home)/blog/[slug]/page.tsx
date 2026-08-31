@@ -100,7 +100,7 @@ export default function Page(props: {
       <div className="border-foreground/10 mt-12 border-t pt-12 lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-16">
         <article
           data-page-content=""
-          className="prose prose-blog w-full max-w-[42rem] min-w-0"
+          className="docs-prose prose prose-blog w-full max-w-[42rem] min-w-0"
         >
           <page.data.body components={mdxComponents} />
         </article>

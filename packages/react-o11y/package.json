@@ -32,8 +32,8 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@assistant-ui/store": "workspace:*",
-    "@assistant-ui/tap": "workspace:*",
+    "@assistant-ui/store": "workspace:^",
+    "@assistant-ui/tap": "workspace:^",
     "@radix-ui/react-primitive": "^2.1.10"
   },
   "peerDependencies": {

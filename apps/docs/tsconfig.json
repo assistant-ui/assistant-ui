@@ -39,7 +39,9 @@
       "assistant-stream": ["../../packages/assistant-stream/src"],
       "assistant-stream/*": ["../../packages/assistant-stream/src/*"],
       "assistant-cloud": ["../../packages/cloud/src"],
-      "assistant-cloud/*": ["../../packages/cloud/src/*"]
+      "assistant-cloud/*": ["../../packages/cloud/src/*"],
+      "safe-content-frame": ["../../packages/safe-content-frame/src"],
+      "safe-content-frame/*": ["../../packages/safe-content-frame/src/*"]
     }
   },
   "include": ["**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],

@@ -48,6 +48,55 @@ const createProvider = (storage: MCPStorage) =>
     onAuthorizationUrl: () => {},
   });
 
+describe("createOAuthProvider callback state", () => {
+  it("persists the generated state with the PKCE verifier", async () => {
+    const { storage, getState } = createStorage();
+    const provider = createProvider(storage);
+
+    const state = await provider.state?.();
+    await provider.saveCodeVerifier("pkce-verifier");
+
+    expect(state).toMatch(/^aui-mcp:ZG9jcw\./);
+    expect(getState()).toEqual({
+      codeVerifier: "pkce-verifier",
+      state,
+    });
+  });
+
+  it("consumes callback state when tokens are saved", async () => {
+    const { storage, getState } = createStorage({
+      codeVerifier: "pkce-verifier",
+      state: "aui-mcp:ZG9jcw.nonce",
+    });
+    const provider = createProvider(storage);
+
+    await provider.saveTokens({
+      access_token: "access-token",
+      token_type: "bearer",
+    });
+
+    expect(getState()).toEqual({
+      tokens: { access_token: "access-token", token_type: "bearer" },
+      codeVerifier: "pkce-verifier",
+    });
+  });
+
+  it.each(["verifier", "all"] as const)(
+    "clears callback state through the %s invalidation scope",
+    async (scope) => {
+      const { storage, getState } = createStorage({
+        codeVerifier: "pkce-verifier",
+        state: "aui-mcp:ZG9jcw.nonce",
+      });
+      const provider = createProvider(storage);
+
+      await provider.invalidateCredentials?.(scope);
+
+      expect(getState()).toEqual({});
+    },
+  );
+});
+
 describe("createOAuthProvider discovery state", () => {
   it("persists discovery state alongside the PKCE verifier", async () => {
     const { storage, getState } = createStorage({

@@ -559,14 +559,107 @@ describe("McpServerResource connection lifecycle", () => {
 describe("McpServerResource completeAuth", () => {
   beforeEach(resetMocks);
 
+  it("lets callback validation win over mount-time auto-connect", async () => {
+    const pendingLoads: Array<
+      (value: { state?: string; tokens?: { access_token: string } }) => void
+    > = [];
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pendingLoads.push(resolve);
+        }),
+    );
+    const root = mount({
+      auth: { type: "oauth" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(() => pendingLoads.length > 1);
+      const callbackLoadIndex = pendingLoads.length;
+      const completeAuth = root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
+      await waitFor(() => pendingLoads.length > callbackLoadIndex);
+
+      for (const resolve of pendingLoads.slice(0, callbackLoadIndex)) {
+        resolve({ tokens: { access_token: "persisted" } });
+      }
+      await flushMacrotask();
+
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+
+      pendingLoads[callbackLoadIndex]!({ state: "expected" });
+      await expect(completeAuth).resolves.toBeUndefined();
+      await flushMacrotask();
+
+      expect(mocks.transports).toHaveLength(1);
+      expect(mocks.transports[0].finishAuth).toHaveBeenCalledTimes(1);
+      expect(root.getValue().getState().connectionState).toBe("connected");
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("resumes auto-connect when callback validation fails", async () => {
+    const pendingLoads: Array<
+      (value: { state?: string; tokens?: { access_token: string } }) => void
+    > = [];
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          pendingLoads.push(resolve);
+        }),
+    );
+    const root = mount({
+      auth: { type: "oauth" },
+      storage,
+      autoConnect: true,
+    });
+
+    try {
+      await waitFor(() => pendingLoads.length > 1);
+      const callbackLoadIndex = pendingLoads.length;
+      const completeAuth = root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
+      await waitFor(() => pendingLoads.length > callbackLoadIndex);
+
+      for (const resolve of pendingLoads.slice(0, callbackLoadIndex)) {
+        resolve({ tokens: { access_token: "persisted" } });
+      }
+      await flushMacrotask();
+
+      expect(mocks.StreamableHTTPClientTransport).not.toHaveBeenCalled();
+
+      pendingLoads[callbackLoadIndex]!({ state: "different" });
+      await expect(completeAuth).rejects.toThrow(
+        "OAuth state does not match the authorization request",
+      );
+      await waitFor(() => mocks.transports.length === 1);
+      await waitForResourceUpdate(
+        () => root.getValue().getState().connectionState === "connected",
+      );
+    } finally {
+      root.unmount();
+    }
+  });
+
   it("completes auth across the StrictMode effect replay", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      state: "aui-mcp:ZG9jcw.nonce",
+    });
     let completeAuth: Promise<void> | undefined;
     let started = false;
-    const root = mount({ auth: { type: "oauth" } }, (server) => {
+    const root = mount({ auth: { type: "oauth" }, storage }, (server) => {
       if (started) return;
       started = true;
       completeAuth = server.completeAuth(
-        "https://example.com/callback?code=abc",
+        "https://example.com/callback?code=abc&state=aui-mcp%3AZG9jcw.nonce&iss=https%3A%2F%2Fauth.example.com",
       );
     });
 
@@ -575,26 +668,149 @@ describe("McpServerResource completeAuth", () => {
       await flushMacrotask();
 
       expect(mocks.transports[0].finishAuth).toHaveBeenCalledTimes(1);
+      const params = mocks.transports[0].finishAuth.mock.calls[0][0];
+      expect(params).toBeInstanceOf(URLSearchParams);
+      expect(params.get("code")).toBe("abc");
+      expect(params.get("iss")).toBe("https://auth.example.com");
       expect(root.getValue().getState().connectionState).toBe("connected");
     } finally {
       root.unmount();
     }
   });
 
-  it("rejects when the callback URL has no authorization code", async () => {
-    const root = mount();
+  it("rejects before transport setup without a usable authorization code", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "abc" });
+    const root = mount({ auth: { type: "oauth" }, storage });
 
     try {
       await expect(
-        root.getValue().completeAuth("https://example.com/callback?state=abc"),
+        root
+          .getValue()
+          .completeAuth("https://example.com/callback?state=abc&code="),
       ).rejects.toThrow("missing authorization code in callback URL");
       await flushMacrotask();
 
       expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: null,
+      });
+      expect(mocks.transports).toHaveLength(0);
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("forwards OAuth error callbacks to the transport", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    mocks.finishAuthResults.push(() =>
+      Promise.reject(new Error("access_denied: Denied")),
+    );
+    const root = mount({ auth: { type: "oauth" }, storage });
+
+    try {
+      await expect(
+        root
+          .getValue()
+          .completeAuth(
+            "https://example.com/callback?error=access_denied&error_description=Denied&state=expected&iss=https%3A%2F%2Fauth.example.com",
+          ),
+      ).rejects.toThrow("access_denied: Denied");
+      await flushMacrotask();
+
+      const params = mocks.transports[0].finishAuth.mock.calls[0][0];
+      expect(params).toBeInstanceOf(URLSearchParams);
+      expect(params.get("error")).toBe("access_denied");
+      expect(params.get("error_description")).toBe("Denied");
+      expect(params.get("iss")).toBe("https://auth.example.com");
+      expect(root.getValue().getState()).toMatchObject({
         connectionState: "error",
-        lastError: {
-          message: "missing authorization code in callback URL",
-        },
+        lastError: { message: "access_denied: Denied" },
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("rejects callbacks without a pending authorization request", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue(null);
+    const root = mount({ auth: { type: "oauth" }, storage });
+
+    try {
+      await expect(
+        root
+          .getValue()
+          .completeAuth("https://example.com/callback?code=abc&state=expected"),
+      ).rejects.toThrow(
+        "no pending OAuth authorization request for this server",
+      );
+
+      expect(mocks.transports).toHaveLength(0);
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("rejects callbacks whose state does not match the authorization request", async () => {
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({
+      state: "aui-mcp:ZG9jcw.expected",
+    });
+    const root = mount({ auth: { type: "oauth" }, storage });
+
+    try {
+      await root.getValue().connect();
+      const transport = mocks.transports[0];
+
+      await expect(
+        root
+          .getValue()
+          .completeAuth(
+            "https://example.com/callback?code=abc&state=aui-mcp%3AZG9jcw.forged",
+          ),
+      ).rejects.toThrow("OAuth state does not match the authorization request");
+      await flushMacrotask();
+
+      expect(mocks.transports).toHaveLength(1);
+      expect(transport.close).not.toHaveBeenCalled();
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "connected",
+        lastError: null,
+      });
+    } finally {
+      root.unmount();
+    }
+  });
+
+  it("does not resume authorization after disconnecting during validation", async () => {
+    let resolveAuthState!: (state: { state: string }) => void;
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveAuthState = resolve;
+        }),
+    );
+    const root = mount({ auth: { type: "oauth" }, storage });
+
+    try {
+      const completeAuth = root
+        .getValue()
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
+      await waitFor(() => resolveAuthState !== undefined);
+
+      await root.getValue().disconnect();
+      resolveAuthState({ state: "expected" });
+
+      await expect(completeAuth).rejects.toThrow(
+        'MCP server "docs" authorization was interrupted before completion.',
+      );
+      expect(mocks.transports).toHaveLength(0);
+      expect(root.getValue().getState()).toMatchObject({
+        connectionState: "disconnected",
+        lastError: null,
       });
     } finally {
       root.unmount();
@@ -605,11 +821,15 @@ describe("McpServerResource completeAuth", () => {
     mocks.finishAuthResults.push(() =>
       Promise.reject(new Error("invalid_grant")),
     );
-    const root = mount({ auth: { type: "oauth" } });
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    const root = mount({ auth: { type: "oauth" }, storage });
 
     try {
       await expect(
-        root.getValue().completeAuth("https://example.com/callback?code=abc"),
+        root
+          .getValue()
+          .completeAuth("https://example.com/callback?code=abc&state=expected"),
       ).rejects.toThrow("invalid_grant");
       await flushMacrotask();
 
@@ -619,7 +839,9 @@ describe("McpServerResource completeAuth", () => {
           message: "invalid_grant",
         },
       });
-      expect(mocks.transports[0].finishAuth).toHaveBeenCalledWith("abc");
+      expect(mocks.transports[0].finishAuth).toHaveBeenCalledWith(
+        expect.any(URLSearchParams),
+      );
       expect(mocks.transports[0].close).toHaveBeenCalledTimes(1);
     } finally {
       root.unmount();
@@ -634,13 +856,15 @@ describe("McpServerResource completeAuth", () => {
           resolveFinishAuth = resolve;
         }),
     );
-    const root = mount({ auth: { type: "oauth" } });
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    const root = mount({ auth: { type: "oauth" }, storage });
     let didUnmount = false;
 
     try {
       const completeAuth = root
         .getValue()
-        .completeAuth("https://example.com/callback?code=abc");
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
       await waitFor(
         () => mocks.transports[0]?.finishAuth.mock.calls.length === 1,
       );
@@ -665,13 +889,15 @@ describe("McpServerResource completeAuth", () => {
           rejectFinishAuth = reject;
         }),
     );
-    const root = mount({ auth: { type: "oauth" } });
+    const storage = createStorage();
+    vi.mocked(storage.loadAuthState).mockResolvedValue({ state: "expected" });
+    const root = mount({ auth: { type: "oauth" }, storage });
     let didUnmount = false;
 
     try {
       const completeAuth = root
         .getValue()
-        .completeAuth("https://example.com/callback?code=abc");
+        .completeAuth("https://example.com/callback?code=abc&state=expected");
       await waitFor(
         () => mocks.transports[0]?.finishAuth.mock.calls.length === 1,
       );

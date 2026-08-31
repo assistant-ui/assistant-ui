@@ -30,7 +30,7 @@ const config = AuiConfig({
     <RegisterToolUIs>
       <div class="bg-background flex h-full">
         <ThreadListSidebar />
-        <Thread />
+        <Thread class="min-w-0 flex-1 flex-col" />
       </div>
     </RegisterToolUIs>
   </AuiProvider>
