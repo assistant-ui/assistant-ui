@@ -3,7 +3,7 @@ title: Utilities
 description: Miscellaneous @assistant-ui/react utilities for custom rendering, composition, and advanced assistant UI behavior.
 ---
 
-import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, MessageNotSentError, RemoteThreadList, SingleThreadList, Suggestions, isShimLoadError, unstable_useWebMcpProvider, useSmooth } from "@/generated/typeDocs";
+import { AssistantCloud, AuiConfig, ChainOfThoughtClient, DevToolsHooks, InMemoryThreadList, MessageNotSentError, RemoteThreadList, SingleThreadList, Suggestions, unstable_useWebMcpProvider, useSmooth } from "@/generated/typeDocs";
 
 {/* AUTO-GENERATED PAGE by scripts/generate-api-reference.mts */}
 {/* Do not edit manually. */}
@@ -64,16 +64,6 @@ const createMessageQueue: (driver: MessageQueueDriver) => MessageQueueController
 ```ts
 const isMessageNotSentError: (error: unknown) => error is MessageNotSentError;
 ```
-
-### isShimLoadError
-
-Narrows a rejection from `fullyLoadedPromiseWithTimeout`. The promise also
-rejects with plain errors that carry no code, so a bare property read is not
-enough to tell why a frame failed. Membership of the code set is the test
-rather than `instanceof`, which does not survive a duplicated copy of this
-package in a consumer's bundle.
-
-<ParametersTable {...isShimLoadError} />
 
 ### MessageNotSentError
 
