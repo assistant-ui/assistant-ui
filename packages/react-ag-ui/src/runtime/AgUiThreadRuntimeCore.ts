@@ -850,7 +850,14 @@ export class AgUiThreadRuntimeCore {
   }
 
   addToolResult(options: AddToolResultOptions): void {
-    const updated = this.session.updateMessage(options.messageId, (message) => {
+    // Core's ToolInvocationTracker resolves a nested call to the nested
+    // subagent message's id, which is not a session message; re-anchor on the
+    // top-level message that owns the tree so the update can land.
+    const sessionMessageId = this.session.tryGetMessage(options.messageId)
+      ? options.messageId
+      : this.findMessageIdForToolCall(options.toolCallId);
+    if (sessionMessageId === undefined) return;
+    const updated = this.session.updateMessage(sessionMessageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       let matchedToolCall = false;
@@ -870,7 +877,7 @@ export class AgUiThreadRuntimeCore {
 
     if (!updated) return;
     this.notifyUpdate();
-    this.maybeResumeAfterToolResults(options.messageId);
+    this.maybeResumeAfterToolResults(sessionMessageId);
   }
 
   sendA2uiAction(action: Record<string, unknown>): void {

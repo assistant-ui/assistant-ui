@@ -3126,8 +3126,11 @@ describe("AGUIThreadRuntimeCore", () => {
 
     expect(core.findMessageIdForToolCall("nested-1")).toBe(pending!.messageId);
 
+    // Core's ToolInvocationTracker path resolves a nested call to the nested
+    // subagent message's id ("sub-1"), not a session message id — the runtime
+    // must re-anchor it onto the owning top-level message.
     core.addToolResult({
-      messageId: pending!.messageId,
+      messageId: "sub-1",
       toolCallId: "nested-1",
       result: { found: true },
     });

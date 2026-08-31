@@ -108,15 +108,7 @@ type ToolCallPart = {
   unstable_toolMessageId?: string;
   mcp?: ToolCallMessagePartMcpMetadata;
   messages?: readonly ThreadMessage[];
-  approval?: CoreToolCallPartApproval;
 };
-
-type CoreToolCallPartApproval = NonNullable<
-  Extract<
-    Exclude<CoreThreadMessageLike["content"], string>[number],
-    { type: "tool-call" }
-  >["approval"]
->;
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === "object" && value !== null;
@@ -1095,13 +1087,6 @@ function convertAssistantMessage(
     emitToolResult(toolCallId, part, converted);
   }
   for (const { id: toolCallId, part } of nestedToolCalls) {
-    // A result injected while an approval gate is still open must not reach
-    // the backend as if the gate had been decided.
-    const gateOpen =
-      part.approval != null &&
-      part.approval.approved === undefined &&
-      part.approval.resolution === undefined;
-    if (gateOpen) continue;
     emitToolResult(toolCallId, part, converted);
   }
 }

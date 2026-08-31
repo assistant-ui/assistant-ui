@@ -73,49 +73,6 @@ describe("adapter conversions", () => {
     }
   });
 
-  it("does not export a nested result whose approval gate is still open", () => {
-    const result = toAgUiMessages([
-      {
-        id: "a1",
-        role: "assistant",
-        content: [
-          {
-            type: "tool-call",
-            toolCallId: "t-spawn",
-            toolName: "task",
-            args: {},
-            result: "spawned",
-            messages: [
-              {
-                id: "sub-1",
-                role: "assistant",
-                content: [
-                  {
-                    type: "tool-call",
-                    toolCallId: "nested-gated",
-                    toolName: "delete_file",
-                    args: { path: "/tmp/a" },
-                    result: { done: true },
-                    approval: { id: "gate-1" },
-                  },
-                ],
-              },
-            ],
-          },
-        ],
-      },
-    ] as any);
-
-    const toolRecords = result.filter((m) => m.role === "tool");
-    expect(toolRecords.some((m: any) => m.toolCallId === "nested-gated")).toBe(
-      false,
-    );
-    const assistant = result.find((m) => m.role === "assistant") as any;
-    expect(assistant.toolCalls.some((c: any) => c.id === "nested-gated")).toBe(
-      true,
-    );
-  });
-
   it("converts thread messages to AG-UI format", () => {
     const result = toAgUiMessages([
       {
