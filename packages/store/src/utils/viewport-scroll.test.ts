@@ -44,6 +44,18 @@ describe("viewport scroll metrics", () => {
     ).toBe(false);
   });
 
+  it("accounts for a bottom content inset when requested", () => {
+    const metrics = {
+      scrollTop: 350,
+      scrollHeight: 500,
+      clientHeight: 100,
+    };
+
+    expect(isViewportAtBottom(metrics)).toBe(false);
+    expect(isViewportAtBottom(metrics, 50)).toBe(true);
+    expect(viewportOverflows(metrics, 450)).toBe(false);
+  });
+
   it("distinguishes user scroll-up from content-driven shifts", () => {
     expect(
       isUserScrollUp(

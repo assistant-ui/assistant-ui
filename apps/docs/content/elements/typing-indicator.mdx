@@ -1,0 +1,125 @@
+---
+title: "Typing indicator"
+description: "The classic three dots, tuned to read as presence rather than noise."
+---
+
+Three dots bouncing in a staggered wave, either bare or sitting inside a rounded bubble. With a runtime you mount it for the brief window before the first token lands; standalone you show and hide it yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+This belongs on screen for exactly one window: a run is active and the newest message has not produced any content yet. Nothing about the dots themselves depends on the runtime; only the decision to render it does.
+
+<Steps>
+  <Step>
+
+### Show it before the first token
+
+```tsx title="components/assistant-ui/elements/typing-indicator.tsx"
+"use client";
+
+import { useAuiState } from "@assistant-ui/react";
+import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
+
+function AssistantTyping() {
+  const waiting = useAuiState((s) => {
+    if (!s.thread.isRunning) return false;
+    const last = s.thread.messages.at(-1);
+    return last?.role === "assistant" && last.parts.length === 0;
+  });
+  if (!waiting) return null;
+  return <TypingIndicator />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Place it where the reply will render
+
+Render `AssistantTyping` in the same spot the assistant's message body will take over once content starts arriving, so nothing shifts when it disappears.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `TypingIndicator` takes no data at all; mounting and unmounting it is entirely up to you.
+
+<Steps>
+  <Step>
+
+### Drop it in while you wait
+
+```tsx title="app/chat.tsx"
+"use client";
+
+import { useState } from "react";
+import { TypingIndicator } from "@/components/assistant-ui/elements/typing-indicator";
+
+export function Chat() {
+  const [waiting, setWaiting] = useState(false);
+  return waiting ? <TypingIndicator /> : null;
+}
+```
+
+  </Step>
+  <Step>
+
+### Choose a variant
+
+```tsx
+<TypingIndicator variant="bare" />
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Examples
+
+### Bare dots without the bubble
+
+`variant="bare"` drops the rounded `paper` surface and renders only the three dots, for placement inside your own container.
+
+```tsx
+<TypingIndicator variant="bare" className="gap-0.5" />
+```
+
+### Restyle the dots
+
+The bubble variant wraps the dots in the shared `paper` surface from `surfaces.tsx`; `className` on either variant only affects the outermost element (the bubble itself for `"bubble"`, the dot row for `"bare"`). The dots' color, size, and bounce timing are fixed and not exposed as props.
+
+```tsx
+<TypingIndicator className="px-3 py-2.5" />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Thread state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.thread.isRunning` | `boolean` | Whether a run is active. |
+| `s.thread.messages` | `readonly MessageState[]` | `.at(-1)` is the newest message; an assistant message with an empty `parts` array means nothing has streamed in yet. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### TypingIndicator
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `"bubble" \| "bare"` | `"bubble"` | `"bubble"` wraps the dots in a rounded surface; `"bare"` renders only the dots. |
+| `className` | `string` | | Merged onto the root. |
+
+`role` and `aria-label` are fixed by the component (`"status"` and `"Assistant is typing"`) and are not part of the prop type; every other `div` prop except `children` and `variant` is forwarded.
+
+</StandaloneMode>

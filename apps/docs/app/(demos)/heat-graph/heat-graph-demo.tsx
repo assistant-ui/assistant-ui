@@ -2,7 +2,8 @@
 
 import { useMemo, useState } from "react";
 import * as HeatGraph from "heat-graph";
-import { SyntaxHighlighter } from "@/components/assistant-ui/shiki-highlighter";
+import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter.aui";
+import { CodeBlock } from "@/components/ui/code-block";
 import { cn } from "@/lib/utils";
 
 function seededRandom(seed: number) {
@@ -297,12 +298,7 @@ function GraphShell({
   tooltipContent: (cell: CellInfo) => React.ReactNode;
 }) {
   return (
-    <div
-      className={cn(
-        "w-fit rounded-lg border px-4 pt-4 pb-2",
-        containerClassName,
-      )}
-    >
+    <div className={cn("w-fit border px-4 pt-4 pb-2", containerClassName)}>
       <HeatGraph.Root
         data={data}
         weekStart={weekStart}
@@ -500,7 +496,7 @@ function GymGraph({ data }: { data: HeatGraph.DataPoint[] }) {
       tooltipContent={(cell) => (
         <>
           <strong>{cell.count === 0 ? "Rest day" : "Gym day"}</strong>
-          {" — "}
+          {" · "}
           {formatDate(cell.date)}
         </>
       )}
@@ -552,7 +548,7 @@ function MoodGraph({ data }: { data: HeatGraph.DataPoint[] }) {
               Feeling <strong>{MOOD_LABELS[cell.count]}</strong>
             </>
           )}
-          {" — "}
+          {" · "}
           {formatDate(cell.date)}
         </>
       )}
@@ -624,63 +620,65 @@ export function HeatGraphDemo() {
   const [activeTheme, setActiveTheme] = useState<ThemeName>("Contributions");
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="mx-auto flex w-fit flex-col gap-4">
-        {/* Theme tabs */}
-        <div className="bg-muted/50 flex gap-1 rounded-lg p-1">
-          {THEME_NAMES.map((name) => {
-            const shapes = SWATCH_STYLES[name];
-            const colors = THEME_SWATCHES[name];
-            return (
-              <button
-                key={name}
-                type="button"
-                onClick={() => setActiveTheme(name)}
-                className={cn(
-                  "flex flex-1 items-center justify-center gap-2 rounded-md px-3 py-1.5 text-xs transition-colors",
-                  activeTheme === name
-                    ? "bg-background text-foreground font-medium"
-                    : "text-muted-foreground hover:text-foreground",
-                )}
-              >
-                <span className="flex gap-0.5">
-                  {colors.map((c, i) => {
-                    const shape = shapes[i % shapes.length]!;
-                    return (
-                      <span
-                        key={c}
-                        className={shape.className}
-                        style={{ backgroundColor: c, ...shape.style }}
-                      />
-                    );
-                  })}
-                </span>
-                {name}
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Graph — only render active tab */}
-        <div className="overflow-x-auto">
-          {activeTheme === "Contributions" && (
-            <ContributionsGraph data={contributions} />
-          )}
-          {activeTheme === "Steps Walked" && <StepsGraph data={steps} />}
-          {activeTheme === "Gym Tracker" && <GymGraph data={gym} />}
-          {activeTheme === "Mood Tracker" && <MoodGraph data={mood} />}
-        </div>
-
-        {/* Code */}
-        <div className="border-border/50 overflow-hidden rounded-xl border">
-          <SyntaxHighlighter
-            language="tsx"
-            code={CODE_SNIPPETS[activeTheme]}
-            addDefaultStyles={false}
-            className="[&_pre]:bg-muted/30! [&_pre]:m-0 [&_pre]:rounded-none [&_pre]:p-4"
-          />
-        </div>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center gap-1 font-mono text-[11px] tracking-wide">
+        {THEME_NAMES.map((name) => {
+          const shapes = SWATCH_STYLES[name];
+          const colors = THEME_SWATCHES[name];
+          return (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setActiveTheme(name)}
+              className={cn(
+                "flex cursor-pointer items-center gap-2 px-2.5 py-1 transition-colors",
+                activeTheme === name
+                  ? "bg-foreground/[0.06] text-foreground"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <span className="flex gap-0.5">
+                {colors.map((c, i) => {
+                  const shape = shapes[i % shapes.length]!;
+                  return (
+                    <span
+                      key={c}
+                      className={shape.className}
+                      style={{ backgroundColor: c, ...shape.style }}
+                    />
+                  );
+                })}
+              </span>
+              {name}
+            </button>
+          );
+        })}
       </div>
+
+      <figure>
+        <div className="border-foreground/10 overflow-x-auto border px-4 py-8">
+          <div className="mx-auto w-max">
+            {activeTheme === "Contributions" && (
+              <ContributionsGraph data={contributions} />
+            )}
+            {activeTheme === "Steps Walked" && <StepsGraph data={steps} />}
+            {activeTheme === "Gym Tracker" && <GymGraph data={gym} />}
+            {activeTheme === "Mood Tracker" && <MoodGraph data={mood} />}
+          </div>
+        </div>
+        <figcaption className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+          <span>fig. 01 · {activeTheme.toLowerCase()}</span>
+          <span>hover a cell</span>
+        </figcaption>
+      </figure>
+
+      <CodeBlock title="usage · synced with the theme" className="my-0 mt-4">
+        <SyntaxHighlighter
+          language="tsx"
+          code={CODE_SNIPPETS[activeTheme]}
+          addDefaultStyles={false}
+        />
+      </CodeBlock>
     </div>
   );
 }

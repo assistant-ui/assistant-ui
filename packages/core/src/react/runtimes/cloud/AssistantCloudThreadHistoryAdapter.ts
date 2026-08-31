@@ -69,7 +69,12 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
     if (!live.source) return undefined;
     const id = live.getState().id;
     if (id === undefined) return undefined;
-    return this.aui.threads.item({ id });
+    // A body can resolve before the list's committed items include its
+    // thread; the live item is already the per-thread anchor in that window.
+    const listed = this.aui.threads
+      .getState()
+      .threadItems.some((item) => item.id === id || item.remoteId === id);
+    return listed ? this.aui.threads.item({ id }) : live;
   }
 
   withFormat<TMessage, TStorageFormat extends Record<string, unknown>>(
@@ -83,8 +88,6 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
       return threadListItem;
     };
     const resolvePinned = () => threadListItem ?? pinCurrent();
-    const getFormatted = () =>
-      createFormattedPersistence(adapter._persistence, formatAdapter);
     const getTargetFormatted = (item: CloudThreadListItem) =>
       createFormattedPersistence(adapter.getPersistence(item), formatAdapter);
     return {
@@ -135,11 +138,14 @@ class AssistantCloudThreadHistoryAdapter implements ThreadHistoryAdapter {
         );
       },
       async load(): Promise<MessageFormatRepository<TMessage>> {
-        pinCurrent();
+        // Loads re-pin and resolve through the pinned item, so the id mapping
+        // they populate lives on the same persistence instance later writes
+        // resolve, whichever of the list item or the live graft won the pin.
+        const pinned = pinCurrent();
         const live = adapter.aui.threadListItem;
         const remoteId = live.source ? live.getState().remoteId : undefined;
         if (!remoteId) return { messages: [] };
-        return getFormatted().load(remoteId);
+        return getTargetFormatted(pinned ?? live).load(remoteId);
       },
     };
   }

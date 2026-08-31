@@ -19,11 +19,22 @@ jobs:
     runs-on: blacksmith-4vcpu-ubuntu-2404
     timeout-minutes: 2
     steps:
-      - name: Checkout PR head
+      - name: Checkout PR merge ref
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # ratchet:actions/checkout@v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
+
+      - name: Setup pnpm and node.js
+        uses: pnpm/setup@703c52620218391530e48b9e8870d5c0082e1b9b # ratchet:pnpm/setup@v2.1.0
+        with:
+          runtime: node@24
+          install: false
+
+      - name: Test the changeset checker
+        run: node --test scripts/check-changesets.test.mjs
+
+      - name: Verify changesets only name releasable packages
+        run: node scripts/check-changesets.mjs
 
       - name: Check changeset bump types against package versions
         id: check
@@ -159,9 +170,19 @@ jobs:
                 ...pkgJson.dependencies,
                 ...pkgJson.peerDependencies,
               };
-              for (const [depName, range] of Object.entries(allDeps)) {
-                if (typeof range !== "string" || !range.startsWith("^")) continue;
+              for (const [depName, rawRange] of Object.entries(allDeps)) {
+                if (typeof rawRange !== "string") continue;
                 if (!pkgMap.has(depName)) continue;
+                // `workspace:^` publishes as `^<the dependency version>`, so it
+                // constrains consumers exactly like the literal range a sibling
+                // writes by hand. Only this form is handled because
+                // scripts/check-workspace-ranges.mjs rejects every other
+                // protocol spelling in a published dependency field.
+                const range =
+                  rawRange === "workspace:^"
+                    ? `^${pkgMap.get(depName).version}`
+                    : rawRange;
+                if (!range.startsWith("^")) continue;
                 if (!revDeps.has(depName)) revDeps.set(depName, []);
                 revDeps.get(depName).push({
                   name: pkgJson.name,

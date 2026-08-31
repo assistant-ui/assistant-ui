@@ -51,4 +51,26 @@ describe("PreviewCode", () => {
     );
     expect(code).toContain("function MermaidSample()");
   });
+
+  it("keeps an import the sample binds under an inline type specifier", async () => {
+    const { code } = await getPreviewCode(
+      "components/pages/design/specimens",
+      "TooltipSpecimen",
+    );
+
+    expect(code).toContain('import { useState, type ReactNode } from "react";');
+    expect(code).toContain("): ReactNode {");
+  });
+
+  it("keeps only the type import used by the preview function", async () => {
+    const { code } = await getPreviewCode(
+      "components/pages/docs/samples/tool-ui/custom-renderer",
+      "WeatherToolUI",
+    );
+
+    expect(code).toContain(
+      'import type { ToolCallMessagePartProps } from "@assistant-ui/react";',
+    );
+    expect(code).not.toContain("AssistantRuntime");
+  });
 });

@@ -108,6 +108,99 @@ describe("CloudMessagePersistence", () => {
     });
   });
 
+  it("deduplicates concurrent child appends while the parent is pending", async () => {
+    let resolveParent!: (value: { message_id: string }) => void;
+    vi.mocked(cloud.threads.messages.create)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveParent = resolve;
+          }),
+      )
+      .mockResolvedValue({ message_id: "remote-child" });
+
+    const parent = persistence.append("thread-1", "parent", null, "aui/v0", {
+      text: "parent",
+    });
+    const firstChild = persistence.append(
+      "thread-1",
+      "child",
+      "parent",
+      "aui/v0",
+      { text: "child" },
+    );
+    const secondChild = persistence.append(
+      "thread-1",
+      "child",
+      "parent",
+      "aui/v0",
+      { text: "child" },
+    );
+
+    expect(persistence.isPersisted("child")).toBe(true);
+    resolveParent({ message_id: "remote-parent" });
+    await Promise.all([parent, firstChild, secondChild]);
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledTimes(2);
+  });
+
+  it("resolves remote IDs throughout a concurrent message chain", async () => {
+    let resolveParent!: (value: { message_id: string }) => void;
+    vi.mocked(cloud.threads.messages.create)
+      .mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveParent = resolve;
+          }),
+      )
+      .mockResolvedValueOnce({ message_id: "remote-child" })
+      .mockResolvedValueOnce({ message_id: "remote-grandchild" });
+
+    const parent = persistence.append("thread-1", "parent", null, "aui/v0", {
+      text: "parent",
+    });
+    const child = persistence.append("thread-1", "child", "parent", "aui/v0", {
+      text: "child",
+    });
+    const grandchild = persistence.append(
+      "thread-1",
+      "grandchild",
+      "child",
+      "aui/v0",
+      { text: "grandchild" },
+    );
+
+    resolveParent({ message_id: "remote-parent" });
+    await Promise.all([parent, child, grandchild]);
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledWith("thread-1", {
+      parent_id: "remote-parent",
+      format: "aui/v0",
+      content: { text: "child" },
+    });
+    expect(cloud.threads.messages.create).toHaveBeenCalledWith("thread-1", {
+      parent_id: "remote-child",
+      format: "aui/v0",
+      content: { text: "grandchild" },
+    });
+  });
+
+  it("re-appends a message after its mapping has settled", async () => {
+    vi.mocked(cloud.threads.messages.create)
+      .mockResolvedValueOnce({ message_id: "remote-1" })
+      .mockResolvedValueOnce({ message_id: "remote-2" });
+
+    await persistence.append("thread-1", "local-1", null, "aui/v0", {
+      text: "first",
+    });
+    await persistence.append("thread-1", "local-1", null, "aui/v0", {
+      text: "second",
+    });
+
+    expect(cloud.threads.messages.create).toHaveBeenCalledTimes(2);
+    expect(await persistence.getRemoteId("local-1")).toBe("remote-2");
+  });
+
   it("loaded messages are marked as persisted and not re-created", async () => {
     vi.mocked(cloud.threads.messages.list).mockResolvedValue({
       messages: [

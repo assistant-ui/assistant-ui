@@ -1,0 +1,237 @@
+---
+title: "Edit a sent message"
+description: "Rewrite a turn in place, told up front how many replies the edit throws away."
+---
+
+The sent bubble becomes a small composer in place: rewrite it, and a warning names how many replies sending the edit will throw away. With a runtime, editing opens the same message in its own composer and forks a new branch on send; standalone you hold the value, the editing flag, and the warning count yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+`s.message.composer.isEditing` flips true the moment `ActionBarPrimitive.Edit` is pressed; render an edit composer in place of the bubble while it's true.
+
+<Steps>
+  <Step>
+
+### Trigger editing from the bubble
+
+```tsx title="components/assistant-ui/elements/edit-message.tsx"
+"use client";
+
+import { ActionBarPrimitive, MessagePrimitive, useAuiState } from "@assistant-ui/react";
+import { PencilLineIcon } from "lucide-react";
+import { cn } from "@/lib/utils";
+import { field, ghostButton } from "@/components/assistant-ui/elements/surfaces";
+
+export function UserTurn() {
+  const isEditing = useAuiState((s) => s.message.composer.isEditing);
+
+  return (
+    <MessagePrimitive.Root className="flex w-full max-w-sm flex-col items-end gap-1">
+      {isEditing ? (
+        <EditComposer />
+      ) : (
+        <div className={cn(field, "flex items-center gap-2 rounded-2xl px-3.5 py-2.5")}>
+          <MessagePrimitive.Parts />
+          <ActionBarPrimitive.Edit aria-label="Edit message" className={cn(ghostButton, "size-6 shrink-0")}>
+            <PencilLineIcon className="size-3.5" />
+          </ActionBarPrimitive.Edit>
+        </div>
+      )}
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Render the edit composer
+
+Inside a message that's editing, `ComposerPrimitive.*` scopes itself to that message's own composer rather than the thread's.
+
+```tsx
+import { ComposerPrimitive } from "@assistant-ui/react";
+
+function EditComposer() {
+  return (
+    <ComposerPrimitive.Root className={cn(field, "flex w-full flex-col gap-3 rounded-2xl p-3.5")}>
+      <ComposerPrimitive.Input rows={2} autoFocus className="resize-none bg-transparent px-3 py-2.5 text-[13.5px] outline-none" />
+      <div className="flex items-center justify-end gap-2">
+        <ComposerPrimitive.Cancel className="h-8 rounded-full px-3.5 text-xs font-medium">
+          Cancel
+        </ComposerPrimitive.Cancel>
+        <ComposerPrimitive.Send className="bg-foreground text-background h-8 rounded-full px-3.5 text-xs font-medium">
+          Send
+        </ComposerPrimitive.Send>
+      </div>
+    </ComposerPrimitive.Root>
+  );
+}
+```
+
+`Thread` already ships this exact swap for user and assistant messages, without the discard warning covered below; install `@assistant-ui/thread` for the full composition.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `EditMessage` is a controlled component: the bubble calls `onStartEdit`, and while `editing` is true it renders a textarea plus Cancel and Send.
+
+<Steps>
+  <Step>
+
+### Hold the edit state
+
+```tsx title="app/turn.tsx"
+"use client";
+
+import { useState } from "react";
+import { EditMessage } from "@/components/assistant-ui/elements/edit-message";
+
+export function Turn() {
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState("What's the capital of France?");
+
+  return (
+    <EditMessage
+      value={value}
+      discardedReplies={2}
+      editing={editing}
+      onValueChange={setValue}
+      onStartEdit={() => setEditing(true)}
+      onCancel={() => setEditing(false)}
+      onSave={async () => {
+        await resend(value);
+        setEditing(false);
+      }}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Compute `discardedReplies` yourself
+
+The element only renders the number you pass; count the replies that follow this message in your own transcript state before rendering it.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="edit-message">
+  <button>{/* the sent bubble; click to start editing */}</button>
+</div>
+```
+
+While editing, the same slot renders a different shape instead:
+
+```tsx
+<div data-slot="edit-message">
+  <textarea />
+  <div>{/* "sending discards N replies", only when discardedReplies > 0 */}</div>
+  <div>
+    <button>Cancel</button>
+    <button>Send</button>
+  </div>
+</div>
+```
+
+Standalone, `discardedReplies` is a plain number you supply and can define however your app models deletion. At runtime, editing does not delete anything: sending calls the message's edit composer's `send()`, which appends the rewrite as a new sibling of the original under the same parent, exactly like reloading an assistant message. The original message and everything under it stay in the thread's history, reachable again through the branch picker's `n / m` stepper, so nothing is actually discarded, only no longer the branch showing. If you want the same up-front warning, compute the count that would drop out of view: the assistant replies after this message on the branch currently displayed.
+
+## Examples
+
+### Compute the warning count
+
+<RuntimeMode>
+
+`s.message.index` is this message's position in the currently displayed branch; everything after it that would stop showing is `s.thread.messages.slice(s.message.index + 1)`.
+
+```tsx
+const discardedReplies = useAuiState(
+  (s) => s.thread.messages.slice(s.message.index + 1).filter((m) => m.role === "assistant").length,
+);
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+There's no transcript to derive from; pass whatever count matches how your app actually handles a resend; some apps really do delete, in which case the count is literal.
+
+</StandaloneMode>
+
+### Cancel drops the draft, not the branch
+
+<RuntimeMode>
+
+`ComposerPrimitive.Cancel` calls the edit composer's `cancel()`, which discards the in-progress edit text and flips `isEditing` back to false; the original message is untouched, since nothing was sent.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+`onCancel` should do the same: reset `value` to the original text (or just flip `editing` back to false and let the parent re-seed it) without touching whatever the message list actually holds.
+
+</StandaloneMode>
+
+### Restyle the composer
+
+Both lanes take `className` on the root; the `field` token from `surfaces.tsx` is the only surface either state uses.
+
+```tsx
+<EditMessage className="max-w-none" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### ActionBarPrimitive and ComposerPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `ActionBarPrimitive.Edit` | `button` | Calls `aui.composer.beginEdit()` for this message; disabled while already editing. |
+| `ComposerPrimitive.Root` | `form` | Scopes to the message's edit composer when rendered inside an editing message. |
+| `ComposerPrimitive.Input` | `textarea` | The editable text. |
+| `ComposerPrimitive.Cancel` | `button` | Discards the edit and exits editing mode. |
+| `ComposerPrimitive.Send` | `button` | Sends the edit as a new sibling branch; disabled while the text is empty. |
+
+### Message and composer state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.message.composer.isEditing` | `boolean` | Whether this message is currently being edited. |
+| `s.message.index` | `number` | This message's position in the currently displayed branch. |
+| `s.thread.messages` | `readonly MessageState[]` | The full displayed branch, in order. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### EditMessage
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `value` | `string` | required | The text in the edit textarea. |
+| `discardedReplies` | `number` | required | Shown in the warning row when greater than `0`. |
+| `editing` | `boolean` | required | Switches between the bubble and the composer. |
+| `onValueChange` | `(value: string) => void` | | Called as the textarea changes. |
+| `onSave` | `() => void` | | Called when Send is pressed. |
+| `onCancel` | `() => void` | | Called when Cancel is pressed. |
+| `onStartEdit` | `() => void` | | Called when the bubble is clicked. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

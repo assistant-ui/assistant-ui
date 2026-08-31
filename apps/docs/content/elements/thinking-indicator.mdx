@@ -1,0 +1,163 @@
+---
+title: "Thinking indicator"
+description: "A live status line that names what the agent is doing right now, with elapsed time."
+---
+
+A pulsing dot, a label that fades in fresh every time it changes, and an optional elapsed-time badge. With a runtime you derive the label from whatever the message can tell you and tick the elapsed badge yourself; standalone you pass both in directly.
+
+## Getting started
+
+<RuntimeMode>
+
+The runtime does not hand you a phrase like "Reading the docs"; it hands you the parts that make up the message so far. The most concrete label you can build from that is the name of whatever tool call is still pending, falling back to a plain "Thinking" while the run is active and nothing else is happening yet.
+
+<Steps>
+  <Step>
+
+### Name what is happening from the message parts
+
+```tsx title="components/assistant-ui/elements/thinking-indicator.tsx"
+"use client";
+
+import { useAuiState } from "@assistant-ui/react";
+
+function useThinkingLabel() {
+  return useAuiState((s) => {
+    if (s.message.status?.type !== "running") return undefined;
+    const pending = s.message.parts.find(
+      (part) => part.type === "tool-call" && part.result === undefined,
+    );
+    if (pending?.type === "tool-call") return `Running ${pending.toolName}`;
+    return s.message.parts.length === 0 ? "Thinking" : undefined;
+  });
+}
+```
+
+Once the assistant has streamed visible text and no tool call is pending, this returns `undefined`: that is your cue to stop rendering the indicator and let the real content show instead.
+
+  </Step>
+  <Step>
+
+### Tick the elapsed badge
+
+```tsx
+import { useEffect, useState } from "react";
+import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
+
+function useElapsedLabel(active: boolean) {
+  const [label, setLabel] = useState<string | undefined>(undefined);
+  useEffect(() => {
+    if (!active) {
+      setLabel(undefined);
+      return;
+    }
+    const start = Date.now();
+    const id = setInterval(() => {
+      setLabel(`${Math.round((Date.now() - start) / 1000)}s`);
+    }, 1000);
+    return () => clearInterval(id);
+  }, [active]);
+  return label;
+}
+
+function AssistantThinking() {
+  const label = useThinkingLabel();
+  const elapsed = useElapsedLabel(label !== undefined);
+  if (label === undefined) return null;
+  return <ThinkingIndicator label={label} elapsed={elapsed} />;
+}
+```
+
+There is no runtime selector for "seconds elapsed so far": `metadata.timing` only finalizes once the message stops streaming, so a live badge needs its own timer, started the moment you have a label to show.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `label` is a plain string and `elapsed` is a plain string; the component only handles the fade between labels and the layout.
+
+<Steps>
+  <Step>
+
+### Hold the label yourself
+
+```tsx title="app/status.tsx"
+"use client";
+
+import { useState } from "react";
+import { ThinkingIndicator } from "@/components/assistant-ui/elements/thinking-indicator";
+
+export function Status() {
+  const [label, setLabel] = useState("Thinking");
+  return <ThinkingIndicator label={label} />;
+}
+```
+
+Changing `label` replays the shimmer and slide-in on the new text; the component keys its inner label on the string itself.
+
+  </Step>
+  <Step>
+
+### Add elapsed time
+
+```tsx
+<ThinkingIndicator label={label} elapsed="12s" />
+```
+
+Omit `elapsed` entirely to hide the badge; passing an empty string still renders it.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Examples
+
+### Reacting to a pending tool call
+
+The label only needs to change; the fade-in is automatic because the element keys its shimmer span on the label text.
+
+```tsx
+const pending = message.parts.find(
+  (part) => part.type === "tool-call" && part.result === undefined,
+);
+const label = pending?.type === "tool-call" ? `Running ${pending.toolName}` : "Thinking";
+```
+
+### Restyle the status line
+
+The dot is fixed to `bg-blue-500`; the label uses `ShimmerLabel` and the elapsed badge uses the shared `mono` token from `surfaces.tsx`. `className` on the root only affects layout (it starts as `flex items-center gap-2.5`).
+
+```tsx
+<ThinkingIndicator label={label} elapsed={elapsed} className="gap-1.5 text-xs" />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Message state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.message.status` | `MessageStatus \| undefined` | `status.type === "running"` while the assistant is still producing this message. |
+| `s.message.parts` | `readonly PartState[]` | Scan for a `"tool-call"` part with no `result` yet to name what is running; an empty array with the message still running means nothing has arrived at all. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ThinkingIndicator
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | Status text; changing it replays the fade-in. |
+| `elapsed` | `string \| undefined` | | Preformatted elapsed time shown after the label. Omit to hide the badge. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props except `children` are forwarded to the root.
+
+</StandaloneMode>

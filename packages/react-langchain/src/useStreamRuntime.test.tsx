@@ -10,7 +10,7 @@ import type {
 } from "@assistant-ui/core";
 import { useAui } from "@assistant-ui/store";
 import type { LangChainBaseMessage } from "./types";
-import type { ReactNode } from "react";
+import { startTransition, Suspense, type ReactNode } from "react";
 import {
   useLangChainRespond,
   useLangChainRespondAll,
@@ -896,5 +896,78 @@ describe("useStreamRuntime staged messages", () => {
         "second staged",
       ]);
     });
+  });
+});
+
+describe("useStreamRuntime committed refs", () => {
+  it("submits through the committed stream after an abandoned render", async () => {
+    const streamA = createMockStream();
+    const streamB = createMockStream();
+    const adapter = makeThreadListAdapter();
+    mockUseStream.mockImplementation((options: { apiUrl: string }) =>
+      options.apiUrl === "/api/b" ? streamB : streamA,
+    );
+    const host = renderHook(() =>
+      useStreamRuntime({
+        apiUrl: "/api/a",
+        unstable_threadListAdapter: adapter,
+      } as never),
+    );
+
+    const pending = new Promise<never>(() => {});
+    let blocked = false;
+    const interruptedRender = vi.fn();
+    const Blocker = () => {
+      if (blocked) {
+        interruptedRender();
+        throw pending;
+      }
+      return null;
+    };
+
+    const capture: { runtime: AssistantRuntime | null } = { runtime: null };
+    const Nested = ({ apiUrl }: { apiUrl: string }) => {
+      capture.runtime = useStreamRuntime({
+        apiUrl,
+        unstable_threadListAdapter: adapter,
+      } as never);
+      return null;
+    };
+    const Tree = ({ apiUrl }: { apiUrl: string }) => (
+      <AssistantRuntimeProvider runtime={host.result.current}>
+        <Suspense fallback={null}>
+          <Nested apiUrl={apiUrl} />
+          <Blocker />
+        </Suspense>
+      </AssistantRuntimeProvider>
+    );
+
+    const view = render(<Tree apiUrl="/api/a" />);
+    expect(capture.runtime).not.toBeNull();
+
+    act(() => {
+      blocked = true;
+      startTransition(() => view.rerender(<Tree apiUrl="/api/b" />));
+    });
+    expect(interruptedRender).toHaveBeenCalled();
+
+    await act(async () => {
+      await capture.runtime!.thread.append("hello");
+    });
+
+    expect(streamA.submit).toHaveBeenCalledOnce();
+    expect(streamB.submit).not.toHaveBeenCalled();
+
+    await act(async () => {
+      blocked = false;
+      view.rerender(<Tree apiUrl="/api/b" />);
+    });
+    await act(async () => {
+      await capture.runtime!.thread.append("second");
+    });
+
+    expect(streamB.submit).toHaveBeenCalledOnce();
+    view.unmount();
+    host.unmount();
   });
 });

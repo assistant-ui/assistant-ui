@@ -25,7 +25,7 @@ export function ShowcaseCard({
         rel="noopener noreferrer"
         className="group flex flex-1 flex-col"
       >
-        <div className="border-foreground/10 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative flex aspect-[16/10] items-center justify-center overflow-hidden rounded-[20px] border">
+        <div className="border-foreground/10 group-hover:border-foreground/25 bg-foreground/[0.025] dark:bg-foreground/[0.04] relative flex aspect-[16/10] items-center justify-center overflow-hidden border transition-colors">
           {isLogo ? (
             <Image
               src={image}
@@ -45,23 +45,23 @@ export function ShowcaseCard({
           )}
         </div>
         <div className="mt-4 flex items-baseline gap-2.5">
-          <span className="text-foreground/30 font-mono text-[11px] tracking-tight tabular-nums">
+          <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide tabular-nums">
             {String(index).padStart(2, "0")}
           </span>
-          <h3 className="text-[13.5px] font-medium group-hover:underline group-hover:underline-offset-4">
+          <h3 className="text-sm font-medium">
             {title}
+            <ArrowUpRight className="ms-1.5 mb-0.5 inline size-3.5 opacity-0 transition-opacity group-hover:opacity-50" />
           </h3>
-          <ArrowUpRight className="text-foreground/35 size-3.5 shrink-0" />
         </div>
-        <p className="text-foreground/50 mt-1 text-[13px] leading-relaxed">
+        <p className="text-muted-foreground mt-1 text-[13px] leading-relaxed">
           {description}
         </p>
       </Link>
       {hasMeta ? (
-        <div className="mt-auto flex flex-wrap items-center gap-x-3 gap-y-1 pt-3 text-[12.5px]">
+        <div className="mt-auto flex flex-wrap items-center gap-x-4 gap-y-1 pt-3">
           {openSource && !repositoryLink ? (
-            <span className="text-foreground/35 font-mono text-[11px] tracking-tight">
-              Open source
+            <span className="text-muted-foreground/60 font-mono text-[11px] tracking-wide">
+              open source
             </span>
           ) : null}
           {repositoryLink ? (
@@ -69,9 +69,9 @@ export function ShowcaseCard({
               href={repositoryLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-foreground/45 hover:text-foreground/90 transition-colors"
+              className="text-muted-foreground/70 hover:text-foreground font-mono text-[11px] tracking-wide transition-colors"
             >
-              Source
+              source
             </Link>
           ) : null}
           {announcementLink ? (
@@ -79,9 +79,9 @@ export function ShowcaseCard({
               href={announcementLink}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-foreground/45 hover:text-foreground/90 transition-colors"
+              className="text-muted-foreground/70 hover:text-foreground font-mono text-[11px] tracking-wide transition-colors"
             >
-              Blog
+              write-up
             </Link>
           ) : null}
         </div>

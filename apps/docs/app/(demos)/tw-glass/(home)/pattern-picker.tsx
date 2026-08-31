@@ -25,8 +25,11 @@ export function PatternPicker({
   onChange: (index: number) => void;
 }) {
   return (
-    <div className="fixed inset-x-0 bottom-6 z-50 flex justify-center">
-      <div className="glass glass-surface flex gap-2 rounded-2xl p-2">
+    <div className="flex items-center gap-3">
+      <span className="text-muted-foreground/70 font-mono text-[11px] tracking-wide">
+        behind the glass
+      </span>
+      <div className="flex gap-1.5">
         {PATTERNS.map((p, i) => (
           <button
             key={p.name}
@@ -35,10 +38,10 @@ export function PatternPicker({
             aria-label={p.name}
             title={p.name}
             className={cn(
-              "bg-muted size-11 cursor-pointer overflow-hidden rounded-xl transition-all",
+              "size-7 cursor-pointer overflow-hidden border transition-all",
               active === i
-                ? "ring-foreground/40 ring-offset-background ring-2 ring-offset-2"
-                : "opacity-70 hover:opacity-100",
+                ? "border-foreground/60"
+                : "border-foreground/10 opacity-60 hover:opacity-100",
             )}
             style={{
               backgroundImage: unsplashThumb(p.id),

@@ -2,10 +2,10 @@ import type { MetadataRoute } from "next";
 import { source, getTapDocsPages, blog, examples, careers } from "@/lib/source";
 import { ELEMENTS } from "@/components/pages/elements/registry";
 import { DEMOS } from "@/lib/demos";
-import { STANDALONE_COMPONENTS } from "@/lib/standalone";
+import { DESIGN_COMPONENTS } from "@/components/pages/design/registry-meta";
 import { BASE_URL, PRODUCTS } from "@/lib/constants";
 
-export default function sitemap(): MetadataRoute.Sitemap {
+export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const staticPages: MetadataRoute.Sitemap = [
     { url: BASE_URL, changeFrequency: "weekly", priority: 1 },
     { url: `${BASE_URL}/blog`, changeFrequency: "weekly", priority: 0.8 },
@@ -23,7 +23,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       priority: 0.6,
     },
     {
-      url: `${BASE_URL}/standalone`,
+      url: `${BASE_URL}/design`,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${BASE_URL}/design/components`,
       changeFrequency: "weekly",
       priority: 0.7,
     },
@@ -48,19 +53,23 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.4,
   }));
 
-  const docsPages: MetadataRoute.Sitemap = source.getPages().map((page) => ({
-    url: `${BASE_URL}${page.url}`,
-    lastModified: page.data.lastModified,
-    changeFrequency: "weekly",
-    priority: 0.9,
-  }));
+  const docsPages: MetadataRoute.Sitemap = await Promise.all(
+    source.getPages().map(async (page) => ({
+      url: `${BASE_URL}${page.url}`,
+      lastModified: (await page.data.load()).lastModified,
+      changeFrequency: "weekly" as const,
+      priority: 0.9,
+    })),
+  );
 
-  const tapDocsPages: MetadataRoute.Sitemap = getTapDocsPages().map((page) => ({
-    url: `${BASE_URL}${page.url}`,
-    lastModified: page.data.lastModified,
-    changeFrequency: "weekly",
-    priority: 0.7,
-  }));
+  const tapDocsPages: MetadataRoute.Sitemap = await Promise.all(
+    getTapDocsPages().map(async (page) => ({
+      url: `${BASE_URL}${page.url}`,
+      lastModified: (await page.data.load()).lastModified,
+      changeFrequency: "weekly" as const,
+      priority: 0.7,
+    })),
+  );
 
   const blogPages: MetadataRoute.Sitemap = blog.getPages().map((page) => ({
     url: `${BASE_URL}${page.url}`,
@@ -69,14 +78,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.7,
   }));
 
-  const examplePages: MetadataRoute.Sitemap = examples
-    .getPages()
-    .map((page) => ({
+  const examplePages: MetadataRoute.Sitemap = await Promise.all(
+    examples.getPages().map(async (page) => ({
       url: `${BASE_URL}${page.url}`,
-      lastModified: page.data.lastModified,
-      changeFrequency: "monthly",
+      lastModified: (await page.data.load()).lastModified,
+      changeFrequency: "monthly" as const,
       priority: 0.6,
-    }));
+    })),
+  );
 
   const elementPages: MetadataRoute.Sitemap = ELEMENTS.map((element) => ({
     url: `${BASE_URL}/elements/${element.slug}`,
@@ -84,13 +93,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }));
 
-  const standalonePages: MetadataRoute.Sitemap = STANDALONE_COMPONENTS.map(
-    (item) => ({
-      url: `${BASE_URL}/standalone/${item.slug}`,
-      changeFrequency: "weekly" as const,
-      priority: 0.6,
-    }),
-  );
+  const designPages: MetadataRoute.Sitemap = DESIGN_COMPONENTS.map((item) => ({
+    url: `${BASE_URL}/design/components/${item.slug}`,
+    changeFrequency: "weekly" as const,
+    priority: 0.6,
+  }));
 
   const demoPages: MetadataRoute.Sitemap = DEMOS.map((demo) => ({
     url: `${BASE_URL}/demos/${demo.slug}`,
@@ -113,7 +120,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ...blogPages,
     ...examplePages,
     ...elementPages,
-    ...standalonePages,
+    ...designPages,
     ...demoPages,
     ...careerPages,
   ];

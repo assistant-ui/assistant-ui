@@ -1,0 +1,202 @@
+---
+title: "Cost meter"
+description: "What the run spent, split by model, against the session total."
+---
+
+CostMeter shows what a run cost as a big number, a segmented bar split by model, and a row per model with its token counts and price. With a runtime you build the numbers from the message's own step usage; standalone you already hold them.
+
+## Getting started
+
+<RuntimeMode>
+
+assistant-ui tracks token usage per step of a run, but not dollars and not which model produced a given step, both of those are your own bookkeeping. The closest real data is `message.metadata.steps`, an array of `{ usage: { inputTokens, outputTokens } }` entries.
+
+<Steps>
+  <Step>
+
+### Turn a run's steps into a cost line
+
+```tsx title="components/assistant-ui/elements/run-cost.tsx"
+"use client";
+
+import { useAuiState } from "@assistant-ui/react";
+import {
+  CostMeter,
+  type CostLine,
+} from "@/components/assistant-ui/elements/cost-meter";
+
+const PRICE_PER_MILLION = { in: 3, out: 15 };
+
+function useRunCost(model: string): CostLine {
+  const usage = useAuiState((s) =>
+    s.message.role === "assistant"
+      ? s.message.metadata.steps.reduce(
+          (total, step) => ({
+            inputTokens: total.inputTokens + (step.usage?.inputTokens ?? 0),
+            outputTokens: total.outputTokens + (step.usage?.outputTokens ?? 0),
+          }),
+          { inputTokens: 0, outputTokens: 0 },
+        )
+      : { inputTokens: 0, outputTokens: 0 },
+  );
+  const dollars =
+    (usage.inputTokens / 1_000_000) * PRICE_PER_MILLION.in +
+    (usage.outputTokens / 1_000_000) * PRICE_PER_MILLION.out;
+  return { model, ...usage, cost: `$${dollars.toFixed(2)}`, share: 1 };
+}
+
+export function RunCost({ model }: { model: string }) {
+  const line = useRunCost(model);
+  return <CostMeter runCost={line.cost} sessionCost={line.cost} lines={[line]} />;
+}
+```
+
+`PRICE_PER_MILLION` and the `model` label are yours; assistant-ui never names a price or a provider.
+
+  </Step>
+  <Step>
+
+### Add a session total
+
+```tsx
+const sessionTokens = useAuiState((s) =>
+  s.thread.messages.reduce(
+    (total, message) =>
+      message.role === "assistant"
+        ? message.metadata.steps.reduce(
+            (sum, step) =>
+              sum + (step.usage?.inputTokens ?? 0) + (step.usage?.outputTokens ?? 0),
+            total,
+          )
+        : total,
+    0,
+  ),
+);
+```
+
+`s.thread.messages` is every message on the active branch, so summing its assistant messages' steps gives a real session total in tokens. Turning that into `sessionCost` still takes your own price table, and if a thread genuinely calls more than one model, keeping track of which message used which model is on you too, `ThreadStep` carries no model name.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, you already have the numbers, from wherever your backend reports them.
+
+<Steps>
+  <Step>
+
+### Hold the lines and totals
+
+```tsx title="app/usage.tsx"
+"use client";
+
+import {
+  CostMeter,
+  type CostLine,
+} from "@/components/assistant-ui/elements/cost-meter";
+
+const LINES: CostLine[] = [
+  { model: "Opus 5", inputTokens: 48_200, outputTokens: 12_400, cost: "$1.66", share: 0.62 },
+  { model: "Sonnet 5", inputTokens: 92_800, outputTokens: 21_100, cost: "$0.86", share: 0.29 },
+  { model: "Haiku 4.5", inputTokens: 140_000, outputTokens: 8_900, cost: "$0.24", share: 0.09 },
+];
+
+export function Usage() {
+  return <CostMeter runCost="$2.76" sessionCost="$18.40" lines={LINES} />;
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="cost-meter">
+  <div>
+    <span>{/* runCost, large */}</span>
+    <span>this run</span>
+    <span>{/* "{sessionCost} session" */}</span>
+  </div>
+  <div>{/* segmented bar, one span per line, width = share */}</div>
+  <div>
+    {/* one row per line: model name, token counts, cost */}
+  </div>
+</div>
+```
+
+The segmented bar's color is assigned by index, not by value: the first line always gets the solid blue tone, the second a faded blue, and every line after that shares one neutral gray, regardless of how large its `share` is. `share` isn't validated against the others, so shares that don't sum to 1 leave the bar under or overfull. `inputTokens` and `outputTokens` are raw numbers the component formats to one decimal in thousands (`48200` becomes `"48.2k in"`); `runCost`, `sessionCost`, and each line's `cost` are already-formatted strings the component only displays, it does no currency math of its own.
+
+## Examples
+
+### Restyle the meter
+
+Both lanes take `className` on the root. The root uses `paper`; token counts and cost use `mono`.
+
+```tsx
+<CostMeter className="max-w-none" /* ... */ />
+```
+
+### Computing share from raw costs
+
+Whichever lane supplies the dollar amounts, `share` is just each line's fraction of the total, the bar doesn't compute this for you.
+
+```tsx
+const raw = [
+  { model: "Opus 5", inputTokens: 48_200, outputTokens: 12_400, dollars: 1.66 },
+  { model: "Sonnet 5", inputTokens: 92_800, outputTokens: 21_100, dollars: 0.86 },
+];
+const total = raw.reduce((sum, r) => sum + r.dollars, 0);
+const lines: CostLine[] = raw.map((r) => ({
+  model: r.model,
+  inputTokens: r.inputTokens,
+  outputTokens: r.outputTokens,
+  cost: `$${r.dollars.toFixed(2)}`,
+  share: total > 0 ? r.dollars / total : 0,
+}));
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Message and thread state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.message.metadata.steps` | `readonly ThreadStep[]` | Present on assistant messages. Each step's `usage` gives `inputTokens` / `outputTokens` for that step; sum across steps for one message's run cost. |
+| `s.thread.messages` | `readonly MessageState[]` | Every message on the active branch. Sum `.metadata.steps` across its assistant messages for a session total. |
+
+assistant-ui tracks token counts, not dollars, and `ThreadStep` carries no model name. `cost`, `share`, and any per-model split are computed by your own price table and your own record of which model ran which message.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### CostMeter
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `runCost` | `string` | required | Pre-formatted total for this run, shown large. |
+| `sessionCost` | `string` | required | Pre-formatted running total, shown at the end of the header row. |
+| `lines` | `readonly CostLine[]` | required | One row per model, in the order they render. |
+| `className` | `string` | | Merged onto the root. |
+
+### CostLine
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `model` | `string` | Row label, truncated if long. |
+| `inputTokens` | `number` | Formatted by the component as `"{n}k in"`. |
+| `outputTokens` | `number` | Formatted by the component as `"{n}k out"`. |
+| `cost` | `string` | Pre-formatted, shown as-is. |
+| `share` | `number` | This line's fraction of the segmented bar. The first two lines get distinct blue tones, the rest share one neutral tone; shares aren't normalized for you. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

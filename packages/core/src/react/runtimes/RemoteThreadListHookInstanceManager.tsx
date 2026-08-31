@@ -10,14 +10,17 @@ import {
   type ComponentType,
   Fragment,
 } from "react";
-import { create } from "zustand";
 import { useResources, withKey } from "@assistant-ui/tap";
 import type { AssistantClient } from "@assistant-ui/store";
 import { ThreadListItemRuntimeProvider } from "../providers/ThreadListItemRuntimeProvider";
 import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
 import type { ThreadListRuntimeCore } from "../../runtime/interfaces/thread-list-runtime-core";
 import type { Unsubscribe } from "../../types/unsubscribe";
-import { BaseSubscribable } from "../../subscribable/subscribable";
+import {
+  BaseSubscribable,
+  WritableSubscribable,
+} from "../../subscribable/subscribable";
+import { useSubscribable } from "../../store/runtime-clients/useSubscribable";
 import { getThreadRuntimeCoreIsRunning } from "../../runtime/api/thread-runtime";
 import { ThreadListRuntimeImpl } from "../../runtime/api/thread-list-runtime";
 import { invalidateThreadRuntime } from "../../runtime/utils/thread-runtime-lifecycle";
@@ -59,14 +62,14 @@ const ProviderRenderDetector: FC<{
 
 export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   private runtimeHook: RemoteThreadListHook;
-  private readonly adapterStore = create<AdapterSnapshot>(() => ({
+  private readonly adapterStore = new WritableSubscribable<AdapterSnapshot>({
     defaultAdapters: null,
     threadAdapters: new Map(),
-  }));
-  private readonly hostStore = create<HostSnapshot>(() => ({
+  });
+  private readonly hostStore = new WritableSubscribable<HostSnapshot>({
     threads: [],
     hookEpoch: 0,
-  }));
+  });
   private readonly pendingThreadAdapters = new Map<
     string,
     RuntimeAdapters | null
@@ -225,16 +228,14 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public setRuntimeHook(newRuntimeHook: RemoteThreadListHook) {
     if (this.runtimeHook === newRuntimeHook) return;
     this.runtimeHook = newRuntimeHook;
-    this.hostStore.setState(
-      (state) => ({ ...state, hookEpoch: state.hookEpoch + 1 }),
-      true,
-    );
+    const host = this.hostStore.getState();
+    this.hostStore.setState({ ...host, hookEpoch: host.hookEpoch + 1 });
   }
 
   public __internal_setDefaultAdapters(adapters: RuntimeAdapters | null) {
     const current = this.adapterStore.getState();
     if (current.defaultAdapters === adapters) return;
-    this.adapterStore.setState({ ...current, defaultAdapters: adapters }, true);
+    this.adapterStore.setState({ ...current, defaultAdapters: adapters });
   }
 
   public __internal_setThreadAdapters(
@@ -245,7 +246,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
     const next = new Map(current.threadAdapters);
     if (adapters === null) next.delete(threadId);
     else next.set(threadId, adapters);
-    this.adapterStore.setState({ ...current, threadAdapters: next }, true);
+    this.adapterStore.setState({ ...current, threadAdapters: next });
   }
 
   public __internal_dispose() {
@@ -255,20 +256,18 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   }
 
   private _syncHostThreads() {
-    this.hostStore.setState(
-      (state) => ({
-        ...state,
-        threads: Array.from(this.instances.entries()).map(
-          ([id, { generation }]) => ({ id, generation }),
-        ),
-      }),
-      true,
-    );
+    const host = this.hostStore.getState();
+    this.hostStore.setState({
+      ...host,
+      threads: Array.from(this.instances.entries()).map(
+        ([id, { generation }]) => ({ id, generation }),
+      ),
+    });
   }
 
   public __internal_useHost(parentClient: AssistantClient) {
-    const { threads, hookEpoch } = this.hostStore();
-    const adapters = this.adapterStore();
+    const { threads, hookEpoch } = useSubscribable(this.hostStore);
+    const adapters = useSubscribable(this.adapterStore);
     const runtimeHook = this.runtimeHook;
     return useResources(
       threads.map(({ id, generation }) => {
@@ -294,7 +293,7 @@ export class RemoteThreadListHookInstanceManager extends BaseSubscribable {
   public __internal_RenderThreadRuntimes: FC<{
     provider: ComponentType<PropsWithChildren>;
   }> = ({ provider }) => {
-    this.hostStore();
+    useSubscribable(this.hostStore);
 
     return Array.from(this.instances.entries()).map(
       ([threadId, { generation }]) => (

@@ -131,7 +131,7 @@ To fold the `More` menu into the same navigation, opt it in with `sharedFocusGro
 </ThreadListItemMorePrimitive.Root>
 ```
 
-`sharedFocusGroup` joins the menu to the list's focus group, so its trigger and the open menu act as one keyboard-navigable unit: Right opens it and Left/Escape close it, synchronously restoring focus to the trigger so a `group-has-focus-visible` highlight never flickers. Enabling it forces the menu non-modal, because a focus trap and a shared focus group are mutually exclusive — the trap keeps focus inside the menu, the shared group lets it move out across the boundary. Without `sharedFocusGroup` the menu keeps its standard Radix `DropdownMenu` keyboard behavior (modal by default), so menus you already render are unchanged. Our assistant-ui [thread-list](/docs/ui/thread-list) registry component sets `sharedFocusGroup` for you.
+`sharedFocusGroup` joins the menu to the list's focus group, so its trigger and the open menu act as one keyboard-navigable unit: Right opens it and Left/Escape close it, synchronously restoring focus to the trigger so a `group-has-focus-visible` highlight never flickers. Enabling it forces the menu non-modal, because a focus trap and a shared focus group are mutually exclusive — the trap keeps focus inside the menu, the shared group lets it move out across the boundary. Without `sharedFocusGroup` the menu keeps its standard Radix `DropdownMenu` keyboard behavior (modal by default), so menus you already render are unchanged. Our assistant-ui [thread-list](/elements/thread-list) registry component sets `sharedFocusGroup` for you.
 
 ### Items Iterator
 
@@ -456,7 +456,7 @@ In the `ArchivedItem` component, use `ThreadListItemPrimitive.Unarchive` instead
 
 ## Relationship to Components
 
-The shadcn [ThreadList](/docs/ui/thread-list) component wraps these primitives with Tailwind styling in a sidebar layout, including a skeleton loading state and a prebuilt more menu with archive and delete actions. Start there for a default thread list implementation. Reach for the primitives directly when you need a custom layout, different actions, or integration with your own sidebar or navigation system.
+The shadcn [ThreadList](/elements/thread-list) component wraps these primitives with Tailwind styling in a sidebar layout, including a skeleton loading state and a prebuilt more menu with archive and delete actions. Start there for a default thread list implementation. Reach for the primitives directly when you need a custom layout, different actions, or integration with your own sidebar or navigation system.
 
 ## API Reference
 

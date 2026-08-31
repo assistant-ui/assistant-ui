@@ -67,38 +67,33 @@ Use by typing the command in Claude Code, e.g., `/assistant-ui` for the main gui
 
 ## MCP
 
-`@assistant-ui/mcp-docs-server` provides direct access to assistant-ui documentation and examples in your IDE via the Model Context Protocol.
+assistant-ui hosts an MCP server at `https://www.assistant-ui.com/mcp` (Streamable HTTP). It serves the live documentation, examples, design components, and Tap docs, and exposes the hosted app templates. There is nothing to install and it is always current.
 
-Once installed, your AI assistant will understand everything about assistant-ui - just ask naturally:
+Once connected, your AI assistant will understand everything about assistant-ui. Just ask naturally:
 
 - "Add a chat interface with streaming support to my app"
 - "How do I integrate assistant-ui with the Vercel AI SDK?"
 - "My Thread component isn't updating, what could be wrong?"
 
-### Quick Install (CLI)
+### Quick Install
+
+For Claude Code:
 
 ```bash
-npx add-mcp @assistant-ui/mcp-docs-server
+claude mcp add --transport http assistant-ui https://www.assistant-ui.com/mcp
 ```
 
-Or specify your IDE directly:
+For other IDEs, the assistant-ui CLI configures the right client for you:
 
 ```bash
-npx add-mcp @assistant-ui/mcp-docs-server -a claude-code
-npx add-mcp @assistant-ui/mcp-docs-server -a claude-desktop
-npx add-mcp @assistant-ui/mcp-docs-server -a codex
-npx add-mcp @assistant-ui/mcp-docs-server -a cursor
-npx add-mcp @assistant-ui/mcp-docs-server -a gemini-cli
-npx add-mcp @assistant-ui/mcp-docs-server -a opencode
-npx add-mcp @assistant-ui/mcp-docs-server -a vscode
-npx add-mcp @assistant-ui/mcp-docs-server -a zed
+npx assistant-ui@latest mcp
 ```
 
 ### Manual Installation
 
 <Tabs items={["Cursor", "Windsurf", "VSCode", "Zed", "Claude Code", "Claude Desktop"]}>
   <Tab>
-<a href="cursor://anysphere.cursor-deeplink/mcp/install?name=assistant-ui&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsIkBhc3Npc3RhbnQtdWkvbWNwLWRvY3Mtc2VydmVyIl19">
+<a href="cursor://anysphere.cursor-deeplink/mcp/install?name=assistant-ui&config=eyJ1cmwiOiJodHRwczovL3d3dy5hc3Npc3RhbnQtdWkuY29tL21jcCJ9">
   <img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Install in Cursor" className="not-prose" />
 </a>
 
@@ -108,8 +103,7 @@ Or add to `.cursor/mcp.json`:
 {
   "mcpServers": {
     "assistant-ui": {
-      "command": "npx",
-      "args": ["-y", "@assistant-ui/mcp-docs-server"]
+      "url": "https://www.assistant-ui.com/mcp"
     }
   }
 }
@@ -124,8 +118,7 @@ Add to `~/.codeium/windsurf/mcp_config.json`:
 {
   "mcpServers": {
     "assistant-ui": {
-      "command": "npx",
-      "args": ["-y", "@assistant-ui/mcp-docs-server"]
+      "serverUrl": "https://www.assistant-ui.com/mcp"
     }
   }
 }
@@ -140,9 +133,8 @@ Add to `.vscode/mcp.json` in your project:
 {
   "servers": {
     "assistant-ui": {
-      "command": "npx",
-      "args": ["-y", "@assistant-ui/mcp-docs-server"],
-      "type": "stdio"
+      "type": "http",
+      "url": "https://www.assistant-ui.com/mcp"
     }
   }
 }
@@ -151,12 +143,10 @@ Add to `.vscode/mcp.json` in your project:
 Enable MCP in Settings → search "MCP" → enable "Chat > MCP". Use GitHub Copilot Chat in Agent mode.
   </Tab>
   <Tab>
-Add to your Zed settings file:
+Zed launches MCP servers as local commands, so use the stdio package. Add to your Zed settings file:
 - macOS: `~/.zed/settings.json`
 - Linux: `~/.config/zed/settings.json`
 - Windows: `%APPDATA%\Zed\settings.json`
-
-Or open via `Cmd/Ctrl + ,` → "Open JSON Settings"
 
 ```json
 {
@@ -175,13 +165,13 @@ The server starts automatically with the Assistant Panel.
   </Tab>
   <Tab>
 ```bash
-claude mcp add assistant-ui -- npx -y @assistant-ui/mcp-docs-server
+claude mcp add --transport http assistant-ui https://www.assistant-ui.com/mcp
 ```
 
-The server starts automatically once added.
+The server is available immediately once added.
   </Tab>
   <Tab>
-Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
+Claude Desktop's configuration file only supports local commands, so use the stdio package. Add to `~/Library/Application Support/Claude/claude_desktop_config.json` (macOS) or `%APPDATA%\Claude\claude_desktop_config.json` (Windows):
 
 ```json
 {
@@ -202,10 +192,25 @@ Restart Claude Desktop after updating the configuration.
 
 | Tool | Description |
 |------|-------------|
-| `assistantUIDocs` | Access documentation: getting started, component APIs, runtime docs, integration guides |
-| `assistantUIExamples` | Browse code examples: AI SDK, LangGraph, OpenAI Assistants, tool UI patterns |
+| `list_pages` | List documentation pages, optionally filtered by a path prefix such as `/docs/tools` or `/examples` |
+| `get_navigation` | Return the docs navigation tree |
+| `search_docs` | Search docs, examples, design components, and Tap docs |
+| `read_page` | Read one page as markdown by slug, path, or URL |
+| `list_templates` | List the hosted app templates and fixed demos |
+| `read_template` | Get a template's full authoring surface: config schemas, rules, and an example config |
+| `preview_template` | Create a configured preview session and return preview and download URLs |
+
+The server also exposes every page as an MCP resource (`assistant-ui://{path}`) and an `assistant-ui-template-workflow` prompt for template-driven app building.
+
+### Local stdio Server
+
+`@assistant-ui/mcp-docs-server` stays published for clients that only launch local stdio servers. It is a thin proxy to the hosted endpoint, so it serves the same live content:
+
+```bash
+npx add-mcp @assistant-ui/mcp-docs-server
+```
 
 ### Troubleshooting
 
-- **Server not starting**: Ensure `npx` is installed and working. Check configuration file syntax.
-- **Tool calls failing**: Restart the MCP server and/or your IDE. Update to latest IDE version.
+- **Connection failing**: The hosted server requires network access. Check that the URL is exactly `https://www.assistant-ui.com/mcp` and that your client supports Streamable HTTP.
+- **Stdio server not starting**: Ensure `npx` is installed and working, then restart the MCP server and your IDE.

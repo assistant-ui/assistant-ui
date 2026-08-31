@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Thread } from "../components/assistant-ui/thread";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { Thread } from "../components/assistant-ui/elements/thread";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 import { usePiThreadState } from "@assistant-ui/react-pi";
 import type { PiRuntimeReadiness } from "@assistant-ui/react-pi";
 // Type-only import — erased at build time, so no server code reaches the client.

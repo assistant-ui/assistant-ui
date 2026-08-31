@@ -1,0 +1,307 @@
+---
+title: "Job progress"
+description: "Work measured in minutes: weighted stages, an ETA, and a way out."
+---
+
+A single long-running job: a title, a weighted sequence of stages, and one overall bar that fills as the current stage advances toward the end of the list. With a runtime the stage sequence comes from a tool call and its outcome from that call's result; standalone you drive `stageIndex` and `stageProgress` yourself, live, for as long as the job runs.
+
+## Getting started
+
+<RuntimeMode>
+
+This element has no assistant-ui primitive of its own, so the runtime wiring is a tool renderer rather than a primitive composition. A tool call's result is a one-shot value: setting it settles the call, so there is no channel for a backend to keep pushing new stage numbers into an already-open call. What the result can honestly report is where the job landed by the time the call finished, whether that is every stage or only the one it stopped at, and the card's own checkmark still depends only on whether that final `stageIndex` reached the end of `stages`.
+
+<Steps>
+  <Step>
+
+### Register the render function
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { JobProgress } from "@/components/assistant-ui/elements/job-progress";
+
+export const toolkit = defineToolkit({
+  run_ci_job: {
+    type: "backend",
+    render: ({ args, result, addResult }) => {
+      if (!result) {
+        return (
+          <JobProgress
+            title={args.target}
+            stages={args.stages ?? []}
+            stageIndex={0}
+            stageProgress={0}
+            eta="starting"
+            onCancel={() =>
+              addResult({ stageIndex: 0, stageProgress: 0, eta: "cancelled" })
+            }
+          />
+        );
+      }
+      return (
+        <JobProgress
+          title={args.target}
+          stages={args.stages ?? []}
+          stageIndex={result.stageIndex}
+          stageProgress={result.stageProgress}
+          eta={result.eta}
+        />
+      );
+    },
+  },
+});
+```
+
+`args.stages` is what the model declares up front when it starts the job, so it is already available before any result exists, which is what lets the loading branch render a real `JobProgress` instead of a bare placeholder. `stageIndex`, `stageProgress`, and `eta` live only on `result`, and since setting a result settles the call, `onCancel` only makes sense in the branch where `result` is still undefined; once a result exists there is nothing left to cancel. A terminal result can still report a `stageIndex` short of `stages.length`, for a job that failed or was cancelled partway, and the card keeps its in-progress spinner styling rather than a checkmark, because "finished" is purely a function of the numbers you pass it, not of whether the tool call itself has settled.
+
+  </Step>
+  <Step>
+
+### Let the message list render it
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import {
+  AssistantRuntimeProvider,
+  AuiConfig,
+  Tools,
+} from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { toolkit } from "./toolkit";
+
+export function MyRuntimeProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Once the toolkit is registered, `Thread` and any custom message list built on assistant-ui's message part primitives (`MessagePrimitive.Parts` or `MessagePrimitive.GroupedParts`) render the registered UI automatically wherever the `run_ci_job` call appears in the message, so nothing needs to be placed by hand.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a controlled component: you own `stageIndex` and `stageProgress`, and it draws whatever snapshot you hand it.
+
+<Steps>
+  <Step>
+
+### Pass a fixed snapshot straight through
+
+```tsx title="app/ci-job.tsx"
+"use client";
+
+import {
+  JobProgress,
+  type JobStage,
+} from "@/components/assistant-ui/elements/job-progress";
+
+const stages: readonly JobStage[] = [
+  { name: "clone", weight: 1 },
+  { name: "install", weight: 4 },
+  { name: "build", weight: 3 },
+  { name: "test", weight: 2 },
+];
+
+export function CiJob() {
+  return (
+    <JobProgress
+      title="Verify the fix on CI"
+      stages={stages}
+      stageIndex={1}
+      stageProgress={0.6}
+      eta="about 3 min"
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Advance it as the job actually runs
+
+Poll or subscribe to whatever is running the job and write its progress into state, then wire `onCancel` to something that actually stops the work, such as an `AbortController` your fetch call listens to.
+
+```tsx
+"use client";
+
+import { useEffect, useRef, useState } from "react";
+
+export function CiJob({ jobId }: { jobId: string }) {
+  const [stageIndex, setStageIndex] = useState(0);
+  const [stageProgress, setStageProgress] = useState(0);
+  const controller = useRef(new AbortController());
+
+  useEffect(() => {
+    const source = subscribeToJob(jobId, controller.current.signal, (update) => {
+      setStageIndex(update.stageIndex);
+      setStageProgress(update.stageProgress);
+    });
+    return () => source.close();
+  }, [jobId]);
+
+  return (
+    <JobProgress
+      title="Verify the fix on CI"
+      stages={stages}
+      stageIndex={stageIndex}
+      stageProgress={stageProgress}
+      eta="about 3 min"
+      onCancel={() => controller.current.abort()}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="job-progress">
+  <div>
+    {/* check icon once finished, else a spinning loader */}
+    <span>{/* title */}</span>
+    <span>{/* eta, or "done" once finished */}</span>
+    {/* cancel button, hidden once finished */}
+  </div>
+
+  <span>{/* overall progress bar */}</span>
+
+  <div>
+    {/* one label per stage, dimmed by position relative to the current stage */}
+  </div>
+</div>
+```
+
+`stageIndex` is floored and clamped into `0…stages.length` rather than `0…stages.length − 1`, so reaching `stages.length` itself, one past the last stage's own index, is what "finished" means. That is when the checkmark, the "done" label, and the filled green bar appear, and the cancel button disappears. `stageProgress` clamps into `0…1` and only scales the current stage's own contribution to the overall bar; every stage already passed counts its full `weight` regardless of `stageProgress`. The stages' weights are summed once and that total falls back to `1` when it would otherwise be `0`, so an all-zero or empty `stages` array never divides by zero; it just never fills. Stage name labels dim by position: already passed stages read faintly, the current stage reads bright, stages still ahead read faintest of all.
+
+## Examples
+
+### The finished state
+
+Set `stageIndex` to `stages.length`, not to the last stage's own index, to show a job as done. `stageProgress` stops mattering once you cross that line.
+
+```tsx
+<JobProgress
+  title="Verify the fix on CI"
+  stages={stages}
+  stageIndex={stages.length}
+  stageProgress={0}
+  eta="seconds"
+/>
+```
+
+### Where the progress comes from
+
+<RuntimeMode>
+
+The backend entry only needs to resolve once, however long the job actually takes; there is no interim update to send back over the tool-call channel itself. If the job fails or gets cancelled partway, resolve with wherever it stopped rather than throwing, so the finished card can still say where things stood.
+
+```ts title="app/api/chat/route.ts"
+run_ci_job: tool({
+  description: "Kick off CI for the current change and report where it lands.",
+  inputSchema: z.object({
+    target: z.string(),
+    stages: z.array(z.object({ name: z.string(), weight: z.number() })),
+  }),
+  execute: async ({ target }) => runCiJob(target),
+}),
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+`subscribeToJob` in the previous step stands in for whatever transport you already use. A `WebSocket`, server-sent events, and plain polling on an interval all reduce to the same shape: write `{ stageIndex, stageProgress }` into state whenever a new update arrives.
+
+```tsx
+function pollJob(jobId: string, onUpdate: (u: JobUpdate) => void) {
+  const id = setInterval(async () => {
+    onUpdate(await fetchJobStatus(jobId));
+  }, 2000);
+  return { close: () => clearInterval(id) };
+}
+```
+
+</StandaloneMode>
+
+### Restyle the bar
+
+Both lanes take `className` on the root. The ETA text and stage labels use the shared `mono` surface, and the cancel button uses the shared `ghostButton` surface, both from `surfaces.tsx`, so restyling those tokens restyles every element that uses them.
+
+```tsx
+<JobProgress className="max-w-none gap-4" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ target: string; stages: { name: string; weight: number }[] }` | The tool's arguments; `stages` is what the loading branch renders even before a result exists. |
+| `result` | `{ stageIndex: number; stageProgress: number; eta: string } \| undefined` | The call's one-shot outcome, undefined until the executor resolves; once set, the call is already complete. |
+| `addResult` | `(result: TResult) => void` | Supplies a result from the renderer itself, used here to settle the call early when the user cancels before `result` exists. |
+
+### run_ci_job arguments
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `target` | `string` | What is being verified, shown as the job's title. |
+| `stages[].name` | `string` | Stage label, shown in monospace. |
+| `stages[].weight` | `number` | Relative share of the overall bar this stage accounts for. |
+
+### run_ci_job result
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `stageIndex` | `number` | How far the job got; `stages.length` means every stage finished. |
+| `stageProgress` | `number` | Progress through that stage, `0…1`. |
+| `eta` | `string` | Shown in place of "done" while `stageIndex` is short of `stages.length`. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### JobProgress
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `title` | `string` | required | The job's title. |
+| `stages` | `readonly JobStage[]` | required | The weighted stage sequence. |
+| `stageIndex` | `number` | required | Index of the current stage, floored and clamped into `0…stages.length`. |
+| `stageProgress` | `number` | required | Progress through the current stage, clamped into `0…1`. |
+| `eta` | `string` | required | Shown in place of "done" while the job is running. |
+| `onCancel` | `() => void` | | Called when the cancel button is pressed. The button's own visibility depends only on `stageIndex`, not on whether this is supplied. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+### JobStage
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | `string` | Stage label, shown in monospace. |
+| `weight` | `number` | Relative share of the overall bar this stage accounts for. |
+
+</StandaloneMode>

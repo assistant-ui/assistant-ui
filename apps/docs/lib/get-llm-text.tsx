@@ -12,7 +12,13 @@ import remarkStringify from "remark-stringify";
 import { unified } from "unified";
 import { AGENT_DOCS_DIRECTIVE_MARKDOWN } from "@/lib/agent-docs-directive";
 import { LLM_COMPONENTS } from "@/lib/llm-components";
-import type { examples, source, standalone, tapDocs } from "@/lib/source";
+import type {
+  design,
+  elementsDocs,
+  examples,
+  source,
+  tapDocs,
+} from "@/lib/source";
 import type { InferPageType } from "fumadocs-core/source";
 
 const processor = unified()
@@ -336,14 +342,15 @@ async function resolveStaticReactNode(
 type LLMPage =
   | InferPageType<typeof source>
   | InferPageType<typeof examples>
-  | InferPageType<typeof standalone>
+  | InferPageType<typeof design>
+  | InferPageType<typeof elementsDocs>
   | InferPageType<typeof tapDocs>;
 
 export async function getLLMText(
   page: LLMPage,
   ctx: LLMRenderContext = DEFAULT_LLM_CONTEXT,
 ) {
-  const Body = page.data.body;
+  const { body: Body } = await page.data.load();
 
   // TODO: Platform-scoped MDX currently renders with the server default
   // platform ("react"). If llms output should include React Native or Ink

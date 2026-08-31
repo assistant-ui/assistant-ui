@@ -7,7 +7,11 @@ import type {
 } from "../../runtime/utils/chat-model-adapter";
 import type { AppendMessage } from "../../types/message";
 import type { LocalRuntimeOptionsBase } from "./local-runtime-options";
-import type { ExportedMessageRepositoryItem } from "../../runtime/utils/message-repository";
+import {
+  ExportedMessageRepository,
+  type ExportedMessageRepositoryItem,
+} from "../../runtime/utils/message-repository";
+import type { ThreadMessageLike } from "../../runtime/utils/thread-message-like";
 import type { ThreadSuggestion } from "../../runtime/interfaces/thread-runtime-core";
 import { isMessageNotSentError } from "../../types/error";
 
@@ -2000,5 +2004,172 @@ describe("LocalRuntimeCore composer.canCancel", () => {
 
     expect(thread.composer.canCancel).toBe(true);
     thread.cancelRun();
+  });
+});
+
+describe("LocalThreadRuntimeCore imported approvals", () => {
+  const pausedOnApproval = (
+    approval: { id: string } | undefined,
+    extra: Record<string, unknown> = {},
+  ): ThreadMessageLike[] => [
+    { role: "user", content: [{ type: "text", text: "send an email" }] },
+    {
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "call-send_email",
+          toolName: "send_email",
+          args: {},
+          argsText: "{}",
+          ...(approval !== undefined ? { approval } : {}),
+          ...extra,
+        },
+      ],
+    },
+  ];
+
+  const createImportedThread = (
+    initialMessages: ThreadMessageLike[],
+    history?: LocalRuntimeOptionsBase["adapters"]["history"],
+  ) => {
+    const runs: ChatModelRunOptions[] = [];
+    const core = new LocalRuntimeCore(
+      {
+        adapters: {
+          chatModel: {
+            async run(options) {
+              runs.push(options);
+              return { content: [{ type: "text", text: "done" }] };
+            },
+          },
+          ...(history !== undefined && { history }),
+        },
+        unstable_humanToolNames: ["send_email"],
+      },
+      initialMessages,
+    );
+    return { thread: core.threads.getMainThreadRuntimeCore(), runs };
+  };
+
+  it("resumes the run after approving an imported pending approval", async () => {
+    const { thread, runs } = createImportedThread(
+      pausedOnApproval({ id: "a1" }),
+    );
+
+    expect(thread.messages.at(-1)?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
+  it("keeps the interrupt reason for an imported interrupted tool call", () => {
+    const { thread } = createImportedThread(
+      pausedOnApproval(undefined, {
+        interrupt: { type: "human", payload: { question: "which one?" } },
+      }),
+    );
+
+    expect(thread.messages.at(-1)?.status).toMatchObject({
+      type: "requires-action",
+      reason: "interrupt",
+    });
+  });
+
+  it("resumes the run after approving an approval restored by the history adapter", async () => {
+    const { thread, runs } = createImportedThread([], {
+      async load() {
+        return ExportedMessageRepository.fromArray(
+          pausedOnApproval({ id: "a1" }),
+        );
+      },
+      async append() {},
+      async update() {},
+    });
+
+    thread.__internal_load();
+    await flush();
+
+    expect(thread.messages.at(-1)?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
+  it("normalizes a serialized approval pause that lost its auto-status marker", async () => {
+    const { thread, runs } = createImportedThread([]);
+    thread.import(
+      JSON.parse(
+        JSON.stringify(
+          ExportedMessageRepository.fromArray(pausedOnApproval({ id: "a1" })),
+        ),
+      ),
+    );
+
+    expect(thread.messages.at(-1)?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+
+    thread.respondToToolApproval({ approvalId: "a1", approved: true });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
+  it("completes an imported interrupt that has nothing left to act on", () => {
+    const { thread } = createImportedThread([
+      { role: "user", content: [{ type: "text", text: "send an email" }] },
+      {
+        role: "assistant",
+        status: { type: "requires-action", reason: "interrupt" },
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "call-send_email",
+            toolName: "send_email",
+            args: {},
+            argsText: "{}",
+            result: { sent: true },
+          },
+        ],
+      } as ThreadMessageLike,
+    ]);
+
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
+  });
+
+  it("resumes the run after adding a result to an imported resultless tool call", async () => {
+    const { thread, runs } = createImportedThread(pausedOnApproval(undefined));
+
+    expect(thread.messages.at(-1)?.status).toMatchObject({
+      type: "requires-action",
+      reason: "tool-calls",
+    });
+
+    thread.addToolResult({
+      messageId: thread.messages.at(-1)!.id,
+      toolCallId: "call-send_email",
+      toolName: "send_email",
+      result: { sent: true },
+      isError: false,
+    });
+    await flush();
+
+    expect(runs).toHaveLength(1);
+    expect(thread.messages.at(-1)?.status?.type).toBe("complete");
   });
 });

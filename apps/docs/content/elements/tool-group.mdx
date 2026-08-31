@@ -1,0 +1,285 @@
+---
+title: "Tool group"
+description: "A collapsible runtime wrapper around consecutive tool calls in one assistant turn."
+---
+
+Tool group collapses a run of consecutive tool calls behind a single row: a count, a status icon while any of them are still running, and a chevron that expands into every call underneath. With a runtime, `Thread` decides which tool calls are adjacent and feeds the group a live count and status; there is no standalone form of this exact wrapper, since grouping only exists across a run's own tool calls. It comes in two designs: the runtime variant groups a message's own tool-call parts automatically, and the static variant, `ToolGroup`, takes the calls as an explicit array and lets you group and control them yourself (see [The parallel-tools design](#the-parallel-tools-design)).
+
+## Getting started
+
+<RuntimeMode>
+
+`Thread` already wires this in for you.
+
+<Steps>
+  <Step>
+
+### It's already the default
+
+`Thread` groups adjacent tool-call parts with `MessagePrimitive.GroupedParts`, and renders each group with exactly the pieces below.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { groupPartByType, MessagePrimitive } from "@assistant-ui/react";
+import {
+  ToolGroupContent,
+  ToolGroupRoot,
+  ToolGroupTrigger,
+} from "@/components/assistant-ui/elements/tool-group.aui";
+
+<MessagePrimitive.GroupedParts
+  groupBy={groupPartByType({
+    "tool-call": ["group-tool"],
+  })}
+>
+  {({ part, children }) => {
+    switch (part.type) {
+      case "group-tool":
+        return (
+          <ToolGroupRoot variant="ghost">
+            <ToolGroupTrigger
+              count={part.indices.length}
+              active={part.status.type === "running"}
+            />
+            <ToolGroupContent>{children}</ToolGroupContent>
+          </ToolGroupRoot>
+        );
+      // ...other cases
+    }
+  }}
+</MessagePrimitive.GroupedParts>
+```
+
+  </Step>
+  <Step>
+
+### Override it for every group
+
+Pass `components.ToolGroup` to `Thread` to replace this composition everywhere a group of tool calls appears. Your component receives the same `group` (with `status` and `indices`) and pre-rendered `children` that the default composition above receives.
+
+```tsx
+<Thread
+  components={{
+    ToolGroup: ({ group, children }) => (
+      <MyToolGroup running={group.status.type === "running"} count={group.indices.length}>
+        {children}
+      </MyToolGroup>
+    ),
+  }}
+/>
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, there's no run to group calls from. See [The parallel-tools design](#the-parallel-tools-design) below for the props-driven version you group and control yourself.
+
+</StandaloneMode>
+
+## Anatomy
+
+<RuntimeMode>
+
+```tsx
+<div data-slot="tool-group-root" data-variant="outline">
+  <button data-slot="tool-group-trigger" aria-expanded={/* open */}>
+    {/* spinner, only while active */}
+    <span data-slot="tool-group-trigger-label">{/* "3 tool calls" / "1 tool call" */}</span>
+    {/* chevron, rotates open */}
+  </button>
+  <div data-slot="tool-group-content">
+    {/* each tool call, revealed with a staggered fade/slide */}
+  </div>
+</div>
+```
+
+The trigger's label always reads the plural "tool calls" except for a group of exactly one, which reads "1 tool call". The content's children fade and slide in with a small stagger, each child's delay increasing up to the fifth; beyond that every remaining child shares the same delay. Collapsing or expanding briefly locks the page's scroll position so the height change doesn't jump the viewport.
+
+</RuntimeMode>
+
+## Examples
+
+<RuntimeMode>
+
+### Variants
+
+`variant` changes the group's chrome: `"outline"` (the default) draws a bordered card with padding; `"ghost"` (what `Thread` actually uses) has no border or background at all; `"muted"` draws a bordered card with a muted background.
+
+```tsx
+<ToolGroupRoot variant="outline">{/* ... */}</ToolGroupRoot>
+<ToolGroupRoot variant="ghost">{/* ... */}</ToolGroupRoot>
+<ToolGroupRoot variant="muted">{/* ... */}</ToolGroupRoot>
+```
+
+### Controlled open state
+
+`ToolGroupRoot` is uncontrolled by default (`defaultOpen={false}`); pass `open` and `onOpenChange` to drive it yourself, for example to expand every group at once.
+
+```tsx
+<ToolGroupRoot open={expanded} onOpenChange={setExpanded}>
+  {/* ... */}
+</ToolGroupRoot>
+```
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Parts
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `ToolGroupRoot` | `div` | Collapsible container. Accepts `variant`, `open`, `onOpenChange`, `defaultOpen`. |
+| `ToolGroupTrigger` | `button` | Takes `count` and `active`; toggles the group. |
+| `ToolGroupContent` | `div` | The collapsible panel; renders `children` when open. |
+
+### ToolGroupRoot props
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Visual chrome. |
+| `open` | `boolean` | | Controlled open state. |
+| `onOpenChange` | `(open: boolean) => void` | | Called on toggle. |
+| `defaultOpen` | `boolean` | `false` | Initial state when uncontrolled. |
+
+### ToolGroupTrigger props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `count` | `number` | Number of tool calls in the group; drives the label text. |
+| `active` | `boolean` | Shows a spinner and a shimmering label while `true`. |
+
+### Composition
+
+| Part | Type | Description |
+|------|------|-------------|
+| `group.status` | `MessagePartStatus \| ToolCallMessagePartStatus` | Running when any contained call runs, otherwise mirrors the last one. |
+| `group.indices` | `readonly number[]` | Indices of the message parts in this group; its length is the tool count. |
+| `components.ToolGroup` | `ComponentType<PropsWithChildren<{ group }>>` | `Thread` prop that overrides the default composition for every `"group-tool"` node. |
+
+</RuntimeMode>
+
+## The parallel-tools design
+
+The Static variant in the rail is a second design for the same collapse: `ToolGroup` takes the calls as an explicit `tools` array instead of reading a message's grouped parts, and computes its own summary (progress, a failure count, or a done count) from each call's `state` rather than the `count` and `active` props the kit's trigger takes. It is a single props-driven component with no runtime dependency:
+
+```sh
+npx shadcn@latest add "@assistant-ui/elements-tool-group"
+```
+
+<RuntimeMode>
+
+Wire it by mapping a message's `tool-call` parts into `GroupedTool` records. `s.message.parts` is the store's own array, so selecting it directly is cheap; deriving `tools` still needs `useMemo`, since mapping to a fresh array on every call would re-render the group on every store update.
+
+```tsx title="components/assistant-ui/elements/tool-group-live.tsx"
+"use client";
+
+import { useMemo, useState } from "react";
+import { useAuiState, type ToolCallMessagePart } from "@assistant-ui/react";
+import {
+  ToolGroup,
+  type GroupedTool,
+} from "@/components/assistant-ui/elements/tool-group";
+
+function toGroupedTool(part: ToolCallMessagePart): GroupedTool {
+  const args = part.args as Record<string, unknown>;
+  const state =
+    part.status.type === "running"
+      ? "running"
+      : part.status.type === "complete"
+        ? "done"
+        : "failed";
+  return {
+    id: part.toolCallId,
+    name: part.toolName,
+    target: String(args.path ?? args.command ?? part.toolCallId),
+    state,
+    durationMs:
+      part.timing && part.timing.completedAt
+        ? part.timing.completedAt - part.timing.startedAt
+        : undefined,
+  };
+}
+
+function AssistantToolGroup() {
+  const parts = useAuiState((s) => s.message.parts);
+  const tools = useMemo(
+    () =>
+      parts.flatMap((part) =>
+        part.type === "tool-call" ? [toGroupedTool(part)] : [],
+      ),
+    [parts],
+  );
+  const [open, setOpen] = useState(false);
+
+  if (tools.length === 0) return null;
+
+  return (
+    <ToolGroup
+      label={tools.length === 1 ? "1 tool call" : `${tools.length} tool calls`}
+      tools={tools}
+      open={open}
+      onOpenChange={setOpen}
+    />
+  );
+}
+```
+
+`state` collapses the part's own status into the three values `ToolGroup` expects, treating anything short of `"complete"` as `"failed"` once a call stops `"running"`. Unlike the kit's `ToolGroupTrigger`, `ToolGroup` does not pluralize `label` for you, so the caller composes that string itself.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone you hold the array of calls yourself and flip `open` on click; the trigger recomputes from `tools` on every render, so updating one call's `state` moves the whole group from running to done with no extra plumbing.
+
+```tsx title="app/turn.tsx"
+"use client";
+
+import { useState } from "react";
+import { ToolGroup, type GroupedTool } from "@/components/assistant-ui/elements/tool-group";
+
+const initialCalls: GroupedTool[] = [
+  { id: "1", name: "read_file", target: "src/index.ts", state: "done", durationMs: 120 },
+  { id: "2", name: "read_file", target: "src/utils.ts", state: "running" },
+];
+
+export function Turn() {
+  const [open, setOpen] = useState(false);
+  const [tools, setTools] = useState(initialCalls);
+  return (
+    <ToolGroup label="2 tool calls" tools={tools} open={open} onOpenChange={setOpen} />
+  );
+}
+```
+
+</StandaloneMode>
+
+The trigger's trailing text and icon come from `tools`, not from a prop: while any call is `"running"` it reads `done/total` with a spinner, a settled group with a nonzero failed count reads `n failed` with a red X, and a fully settled group with none reads `n done` with a green check.
+
+### ToolGroup
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `label` | `string` | required | Text shown next to the chevron. |
+| `tools` | `readonly GroupedTool[]` | required | The calls in this group, in order. |
+| `open` | `boolean` | required | Whether the list is expanded. |
+| `onOpenChange` | `(open: boolean) => void` | | Called when the trigger is clicked. |
+| `className` | `string` | | Merged onto the root. |
+
+### GroupedTool
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | React key. |
+| `name` | `string` | Tool name, shown in monospace. |
+| `target` | `string` | What the call acted on. |
+| `state` | `"running" \| "done" \| "failed"` | Drives the row's icon and the trigger's summary. |
+| `durationMs` | `number` | Optional; shown at the end of the row when present. |
+
+All other `div` props are forwarded to the root.

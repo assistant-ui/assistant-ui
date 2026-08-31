@@ -1,11 +1,12 @@
 // @vitest-environment jsdom
-import { act } from "react";
+import { act, startTransition, Suspense } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const { renderHtmlMock } = vi.hoisted(() => ({ renderHtmlMock: vi.fn() }));
 
-vi.mock("safe-content-frame", () => ({
+vi.mock("safe-content-frame", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("safe-content-frame")>()),
   SafeContentFrame: class {
     renderHtml = renderHtmlMock;
   },
@@ -34,7 +35,7 @@ function fakeRendered() {
     origin: "https://fake.scf.test",
     sendMessage: vi.fn(),
     dispose: vi.fn(),
-    fullyLoadedPromiseWithTimeout: vi.fn(),
+    fullyLoadedPromiseWithTimeout: vi.fn(() => new Promise<void>(() => {})),
   };
 }
 
@@ -138,6 +139,123 @@ describe("SandboxHost", () => {
       }),
     );
     expect(onMessage).toHaveBeenCalledTimes(1);
+  });
+
+  it("reports a frame that never finishes loading through onError", async () => {
+    const rendered = fakeRendered();
+    rendered.fullyLoadedPromiseWithTimeout.mockImplementation(() =>
+      Promise.reject(
+        Object.assign(new Error("Failed to load shim: https://fake.scf.test"), {
+          code: "shim-unavailable",
+        }),
+      ),
+    );
+    renderHtmlMock.mockResolvedValue(rendered);
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+          onError={onError}
+        />,
+      );
+    });
+    await flush();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]![0]).toBeInstanceOf(Error);
+    expect(onError.mock.calls[0]![0]).toMatchObject({
+      code: "shim-unavailable",
+      message: "Failed to load shim: https://fake.scf.test",
+    });
+    expect(rendered.dispose).not.toHaveBeenCalled();
+  });
+
+  it("stays silent when the shim started and the render is merely slow", async () => {
+    const rendered = fakeRendered();
+    rendered.fullyLoadedPromiseWithTimeout.mockImplementation(() =>
+      Promise.reject(
+        Object.assign(new Error("Timeout"), { code: "render-timeout" }),
+      ),
+    );
+    renderHtmlMock.mockResolvedValue(rendered);
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+          onError={onError}
+        />,
+      );
+    });
+    await flush();
+
+    expect(rendered.fullyLoadedPromiseWithTimeout).toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
+    expect(rendered.dispose).not.toHaveBeenCalled();
+  });
+
+  it("reports a load failure that carries no shim code", async () => {
+    const rendered = fakeRendered();
+    rendered.fullyLoadedPromiseWithTimeout.mockImplementation(() =>
+      Promise.reject(new Error("Failed to load iframe")),
+    );
+    renderHtmlMock.mockResolvedValue(rendered);
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+          onError={onError}
+        />,
+      );
+    });
+    await flush();
+
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0]![0].message).toBe("Failed to load iframe");
+  });
+
+  it("does not report a load failure after unmount", async () => {
+    const rendered = fakeRendered();
+    let rejectLoad: (error: Error) => void;
+    rendered.fullyLoadedPromiseWithTimeout.mockReturnValue(
+      new Promise<void>((_, reject) => {
+        rejectLoad = reject;
+      }),
+    );
+    renderHtmlMock.mockResolvedValue(rendered);
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+          onError={onError}
+        />,
+      );
+    });
+    await flush();
+
+    await act(async () => {
+      root.unmount();
+    });
+    rejectLoad!(new Error("Timeout"));
+    await flush();
+
+    expect(rendered.fullyLoadedPromiseWithTimeout).toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
   });
 
   it("clamps the bridge-reported height to maxHeight and ignores invalid values", async () => {
@@ -317,5 +435,49 @@ describe("SandboxHost", () => {
       root.unmount();
     });
     expect(rendered.dispose).toHaveBeenCalledTimes(1);
+  });
+
+  it("keeps bridge options scoped to committed renders", async () => {
+    let resolveRender!: (frame: ReturnType<typeof fakeRendered>) => void;
+    renderHtmlMock.mockReturnValue(
+      new Promise((resolve) => {
+        resolveRender = resolve;
+      }),
+    );
+    const rendered = fakeRendered();
+    const bridge = { onMessage: vi.fn(), dispose: vi.fn() };
+    const createBridgeA = vi.fn(() => bridge);
+    const createBridgeB = vi.fn(() => bridge);
+    const interruptedRender = vi.fn();
+    const pending = new Promise<never>(() => {});
+    const Block = () => {
+      interruptedRender();
+      throw pending;
+    };
+    const view = (createBridge: typeof createBridgeA, blocked: boolean) => (
+      <Suspense fallback={null}>
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={createBridge}
+        />
+        {blocked ? <Block /> : null}
+      </Suspense>
+    );
+
+    await act(async () => {
+      root.render(view(createBridgeA, false));
+    });
+    act(() => {
+      startTransition(() => root.render(view(createBridgeB, true)));
+    });
+    await vi.waitFor(() => expect(interruptedRender).toHaveBeenCalled());
+    await act(async () => {
+      resolveRender(rendered);
+      await new Promise((resolve) => setTimeout(resolve, 0));
+    });
+
+    expect(createBridgeA).toHaveBeenCalledTimes(1);
+    expect(createBridgeB).not.toHaveBeenCalled();
   });
 });

@@ -28,9 +28,21 @@ export const buildContextNav = (data: ApiInfo): ContextNavGroup[] => {
     });
   }
 
+  const nextToolOccurrence = new Map<string, number>();
+  const toolNodeIds = new Set<string>();
   for (const tool of model?.tools ?? []) {
+    const baseId = `ctx:tool:${tool.name}` as const;
+    let occurrence = nextToolOccurrence.get(tool.name) ?? 1;
+    let id: `ctx:tool:${string}` =
+      occurrence === 1 ? baseId : `${baseId}:${occurrence}`;
+    while (toolNodeIds.has(id)) {
+      occurrence += 1;
+      id = `${baseId}:${occurrence}`;
+    }
+    nextToolOccurrence.set(tool.name, occurrence + 1);
+    toolNodeIds.add(id);
     modelNodes.push({
-      id: `ctx:tool:${tool.name}`,
+      id,
       kind: "tool",
       tool,
     });

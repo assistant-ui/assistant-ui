@@ -1,20 +1,21 @@
 import { NextResponse } from "next/server";
 import type { DocumentRecord } from "fumadocs-core/search/algolia";
-import { source, getTapDocsPages, standalone } from "@/lib/source";
+import { design, elementsDocs, source, getTapDocsPages } from "@/lib/source";
 
 export const revalidate = false;
 
-export function GET() {
+export async function GET() {
   const results: DocumentRecord[] = [];
 
   for (const page of [
     ...source.getPages(),
     ...getTapDocsPages(),
-    ...standalone.getPages(),
+    ...design.getPages(),
+    ...elementsDocs.getPages(),
   ]) {
     results.push({
       _id: page.url,
-      structured: page.data.structuredData,
+      structured: await page.data.structuredData(),
       url: page.url,
       title: page.data.title,
       description: page.data.description ?? "",

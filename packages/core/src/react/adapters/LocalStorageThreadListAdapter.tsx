@@ -21,6 +21,7 @@ import type {
   ExportedMessageRepository,
   ExportedMessageRepositoryItem,
 } from "../../internal";
+import { isRecord } from "../../utils/json/is-json";
 import {
   RuntimeAdapterProvider,
   type RuntimeAdapters,
@@ -81,9 +82,6 @@ type StoredThreadMetadata = {
 type StoredSystemMessage = Extract<ThreadMessage, { role: "system" }>;
 type StoredUserMessage = Extract<ThreadMessage, { role: "user" }>;
 type StoredAssistantMessage = Extract<ThreadMessage, { role: "assistant" }>;
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === "object" && value !== null && !Array.isArray(value);
 
 const parseJSON = (raw: string | null): unknown => {
   if (!raw) return undefined;

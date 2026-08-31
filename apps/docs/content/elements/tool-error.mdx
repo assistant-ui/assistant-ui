@@ -1,0 +1,219 @@
+---
+title: "Tool failure"
+description: "One call failed. The error, the attempt count, and a retry that doesn't restart the turn."
+---
+
+A failed tool call gets its own card: what was called, the error, how many attempts it's had, and a way to retry or skip. With a runtime the failure comes from the tool call's status; standalone you hold the attempt and message yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+A failed call is one whose status settled on `"incomplete"`. Branch on it inside the same renderer that shows the tool's normal result.
+
+<Steps>
+  <Step>
+
+### Render the failure from the toolkit entry
+
+```tsx title="app/search-toolkit.tsx"
+"use client";
+
+import { useState } from "react";
+import { useAui, type ToolCallMessagePartProps } from "@assistant-ui/react";
+import { ToolError } from "@/components/assistant-ui/elements/tool-error";
+
+function SearchTool({ toolName, args, status, result }: ToolCallMessagePartProps<{ query: string }, string>) {
+  const [attempt, setAttempt] = useState(1);
+  const aui = useAui();
+
+  if (status?.type === "incomplete") {
+    return (
+      <ToolError
+        name={toolName}
+        target={args.query}
+        message={typeof status.error === "string" ? status.error : JSON.stringify(status.error)}
+        attempt={attempt}
+        maxAttempts={3}
+        retrying={false}
+        onRetry={() => {
+          setAttempt((a) => Math.min(a + 1, 3));
+          aui.message.reload();
+        }}
+      />
+    );
+  }
+
+  return <p>{result}</p>;
+}
+```
+
+`status.error` carries whatever the failed `execute` threw or whatever the backend reported; it's `unknown`, so guard the string case before rendering it directly.
+
+  </Step>
+  <Step>
+
+### Regenerate the turn to retry
+
+```tsx title="app/providers.tsx"
+import { AuiConfig, AuiProvider, Tools, defineToolkit, useAui } from "@assistant-ui/react";
+import { z } from "zod";
+import { SearchTool } from "./search-toolkit";
+
+const toolkit = defineToolkit({
+  search_web: {
+    type: "frontend",
+    description: "Search the web for a query.",
+    parameters: z.object({ query: z.string() }),
+    execute: async ({ query }) => runSearch(query),
+    render: SearchTool,
+  },
+});
+
+function Providers({ children }: { children: React.ReactNode }) {
+  const aui = useAui();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+  return (
+    <AuiProvider extends={aui} config={config}>
+      {children}
+    </AuiProvider>
+  );
+}
+```
+
+assistant-ui doesn't retry a single tool call in place; `aui.message.reload()` reissues the whole turn, which calls `search_web` again with a fresh attempt.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, there's no turn to restart: `onRetry` can call whatever produced the failure again directly, and the attempt count is yours to track.
+
+<Steps>
+  <Step>
+
+### Hold the attempt count
+
+```tsx title="app/search-failure.tsx"
+"use client";
+
+import { useState } from "react";
+import { ToolError } from "@/components/assistant-ui/elements/tool-error";
+
+export function SearchFailure({ query }: { query: string }) {
+  const [attempt, setAttempt] = useState(1);
+  const [retrying, setRetrying] = useState(false);
+  const [message, setMessage] = useState("The search API timed out.");
+
+  return (
+    <ToolError
+      name="search_web"
+      target={query}
+      message={message}
+      attempt={attempt}
+      maxAttempts={3}
+      retrying={retrying}
+      onRetry={() => retry(query)}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Retry without restarting the turn
+
+```tsx
+async function retry(query: string) {
+  setRetrying(true);
+  try {
+    const result = await runSearch(query);
+    // success: replace this card with `result` in your own state
+  } catch (err) {
+    setAttempt((a) => a + 1);
+    setMessage(err instanceof Error ? err.message : String(err));
+  } finally {
+    setRetrying(false);
+  }
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="tool-error">
+  <div>{/* icon, name, target, "attempt/maxAttempts" */}</div>
+  <div>{/* message, monospace */}</div>
+  <div>
+    <button>{/* Skip, disabled when onSkip is absent */}</button>
+    <button>{/* Retry, disabled and spinning while retrying */}</button>
+  </div>
+</div>
+```
+
+Skip has no default behavior: passing no `onSkip` leaves the button rendered but disabled, so a card with only a retry path still shows both actions. Retry disables itself while `retrying` is true and swaps its icon for a spinner; nothing else in the card reacts to `retrying`.
+
+## Examples
+
+### Read the real failure reason
+
+<RuntimeMode>
+
+`status.type === "incomplete"` covers more than tool errors: `status.reason` can also be `"cancelled"`, `"length"`, `"content-filter"`, or `"other"`. Only show the retry card for `"error"`, and give the rest their own message:
+
+```tsx
+if (status?.type === "incomplete" && status.reason !== "error") {
+  return <p>Cancelled before it finished.</p>;
+}
+```
+
+</RuntimeMode>
+
+### Restyle the card
+
+Both lanes take `className` on the root. The root uses the shared `paper` surface, the message box uses `field`, and the name and attempt counter use `mono`, so retargeting those tokens in `surfaces.tsx` restyles this card along with everything else built on them. The skip and retry buttons keep their own inline classes rather than a shared token.
+
+## API reference
+
+<RuntimeMode>
+
+### Tool call status
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | `"incomplete"` is the failed (or cancelled) state. |
+| `status.reason` | `"cancelled" \| "length" \| "content-filter" \| "other" \| "error"` | Only present when `status.type` is `"incomplete"`. |
+| `status.error` | `unknown` | Only present when `status.type` is `"incomplete"`; the thrown value or backend-reported error. |
+| `useToolCallElapsed()` | `number \| undefined` | Elapsed time for the current call; `undefined` once it has settled with no recorded duration. |
+| `aui.message.reload()` | `() => void` | Reissues the current assistant turn, including its tool calls. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ToolError
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `name` | `string` | required | Tool name. |
+| `target` | `string` | required | What the call acted on. |
+| `message` | `string` | required | The error text. |
+| `attempt` | `number` | required | Current attempt number. |
+| `maxAttempts` | `number` | required | Attempts allowed. |
+| `retrying` | `boolean` | required | Disables and spins the retry button while true. |
+| `onRetry` | `() => void` | | Called from the retry button. |
+| `onSkip` | `() => void` | | Called from the skip button. Omit it and the button stays disabled. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>
