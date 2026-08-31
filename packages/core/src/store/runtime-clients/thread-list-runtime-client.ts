@@ -44,7 +44,18 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
 
   useEffect(() => {
     let currentThreadId = runtime.getState().mainThreadId;
+    const runningThreadIds = new Set<string>();
     const pending = new Map<string, Unsubscribe>();
+
+    if (runtime.main.getState().isRunning) {
+      runningThreadIds.add(currentThreadId);
+    }
+    const unsubscribeRunStart = runtime.main.unstable_on("runStart", () => {
+      runningThreadIds.add(runtime.getState().mainThreadId);
+    });
+    const unsubscribeRunEnd = runtime.main.unstable_on("runEnd", () => {
+      runningThreadIds.delete(runtime.getState().mainThreadId);
+    });
 
     const unsubscribeRuntime = runtime.subscribe(() => {
       const nextThreadId = runtime.getState().mainThreadId;
@@ -54,14 +65,15 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
       currentThreadId = nextThreadId;
 
       if (
-        !runtime.getItemById(previousThreadId).getState().isRunning ||
-        pending.has(previousThreadId)
+        pending.has(previousThreadId) ||
+        !runningThreadIds.has(previousThreadId)
       ) {
         return;
       }
 
       const previousThread = runtime.getById(previousThreadId);
       const unsubscribe = previousThread.unstable_on("runEnd", () => {
+        runningThreadIds.delete(previousThreadId);
         pending.delete(previousThreadId);
         unsubscribe();
         if (runtime.getState().mainThreadId === previousThreadId) return;
@@ -72,6 +84,8 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
 
     return () => {
       unsubscribeRuntime();
+      unsubscribeRunStart();
+      unsubscribeRunEnd();
       for (const unsubscribe of pending.values()) unsubscribe();
     };
   }, [runtime, emit]);
