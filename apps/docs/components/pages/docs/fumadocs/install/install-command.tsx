@@ -5,6 +5,7 @@ import {
   resolveAllComponents,
   ComponentSourceFromFile,
   type ResolvedComponents,
+  type RegistryFlavor,
   type ResolvedFile,
   type ResolvedGroup,
 } from "@/components/pages/docs/fumadocs/install/component-source";
@@ -114,7 +115,23 @@ export async function InstallCommand(props: InstallCommandProps) {
 
 const REPO = "assistant-ui/assistant-ui";
 const GITHUB_BLOB = `https://github.com/${REPO}/blob/main`;
-const GITHUB_RAW = `https://raw.githubusercontent.com/${REPO}/main`;
+
+// The registry serves each item's packaged file contents under files/, so the
+// copy path ships exactly what `shadcn add` would install — raw GitHub sources
+// differ for the radix flavor, whose shipped imports are rewritten. Segments
+// (including item names, which may contain slashes) are percent-encoded so
+// bracketed route paths ([streamId]) stay inside RFC 3986 and outside curl's
+// URL globbing.
+const encodeUrlPath = (value: string) =>
+  value.split("/").map(encodeURIComponent).join("/");
+
+const packagedFileUrl = (
+  flavor: RegistryFlavor,
+  file: { name: string; path: string },
+) =>
+  flavor === "base"
+    ? `https://r.assistant-ui.com/base/files/${encodeUrlPath(file.name)}/${encodeUrlPath(file.path)}`
+    : `https://r.assistant-ui.com/files/${encodeUrlPath(file.name)}/${encodeUrlPath(file.path)}`;
 
 const CommandBlock = ({ command }: { command: string }) => (
   <pre>
@@ -122,16 +139,22 @@ const CommandBlock = ({ command }: { command: string }) => (
   </pre>
 );
 
-function buildDownloadCommand(files: ResolvedFile[]): string {
+function buildDownloadCommand(
+  files: ResolvedFile[],
+  flavor: RegistryFlavor,
+): string {
+  // The -o path is quoted: bracketed route segments ([streamId]) are zsh
+  // globs, and an unmatched glob aborts the whole command under the default
+  // nomatch option.
   const args = files
-    .map((file) => `  -o ${file.path} ${GITHUB_RAW}/${file.sourcePath}`)
+    .map((file) => `  -o '${file.path}' ${packagedFileUrl(flavor, file)}`)
     .join(" \\\n");
-  return `curl -sSL --create-dirs \\\n${args}`;
+  return `curl -fsSL --create-dirs \\\n${args}`;
 }
 
 // Instead of dumping each component's full source (the visual Manual tab), give
 // the CLI command plus a manual path: npm deps, shadcn components, and the
-// GitHub-linked aui files with one curl to fetch them all.
+// registry-served aui files with one curl to fetch them all.
 export const InstallCommandLLM = async (
   props: InstallCommandProps,
   ctx?: LLMRenderContext,
@@ -165,7 +188,7 @@ export const InstallCommandLLM = async (
       ...resolved.auiDeps.dependencies,
     ]),
   ];
-  // shadcn/ui components can't be GitHub-linked (not under packages/ui/src), so
+  // shadcn/ui components are not part of the aui registry payloads, so
   // the manual path adds them via the shadcn CLI instead.
   const shadcnComponents = resolved.shadcn.files.map((file) => file.name);
 
@@ -191,15 +214,19 @@ export const InstallCommandLLM = async (
               command={`npx shadcn@latest add ${shadcnComponents.join(" ")}`}
             />
           )}
-          <p>Then copy these source files from GitHub:</p>
+          <p>
+            Then copy these files (packaged registry content; the source links
+            show where each ships from):
+          </p>
           <ul>
             {files.map((file) => (
               <li key={file.path}>
-                <a href={`${GITHUB_BLOB}/${file.sourcePath}`}>{file.path}</a>
+                <a href={packagedFileUrl(flavor, file)}>{file.path}</a> (
+                <a href={`${GITHUB_BLOB}/${file.sourcePath}`}>source</a>)
               </li>
             ))}
           </ul>
-          <CommandBlock command={buildDownloadCommand(files)} />
+          <CommandBlock command={buildDownloadCommand(files, flavor)} />
         </>
       )}
     </>

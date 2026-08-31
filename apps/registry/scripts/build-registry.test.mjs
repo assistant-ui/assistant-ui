@@ -7,6 +7,7 @@ const {
   buildRegistry,
   collectAttributeSelectorValues,
   createRegistryPayload,
+  writePackagedFiles,
   createRegistryDependencyUsageExemptions,
   createBaseRegistryItem,
   createRadixRegistryItem,
@@ -2366,4 +2367,109 @@ test("every emitted sourcePath exists at the repo root", async () => {
     }
   }
   assert.deepEqual(missing, [], `emitted sourcePaths missing from the repo`);
+});
+
+test("packaged file contents are written per item at the install target", async () => {
+  const { mkdtemp, readFile: readTmp, rm } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const { join } = await import("node:path");
+
+  const root = await mkdtemp(join(tmpdir(), "aui-registry-files-"));
+  try {
+    await writePackagedFiles(root, [
+      {
+        name: "alpha",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/api/chat/route.ts",
+            content: "alpha content",
+          },
+        ],
+      },
+      {
+        name: "beta",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/api/chat/route.ts",
+            content: "beta content",
+          },
+        ],
+      },
+      {
+        name: "gamma",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/ai-sdk/assistant.tsx",
+            target: "app/assistant.tsx",
+            content: "gamma content",
+          },
+        ],
+      },
+    ]);
+
+    assert.equal(
+      await readTmp(join(root, "files/alpha/app/api/chat/route.ts"), "utf8"),
+      "alpha content",
+    );
+    assert.equal(
+      await readTmp(join(root, "files/beta/app/api/chat/route.ts"), "utf8"),
+      "beta content",
+    );
+    // Keyed on target ?? path: the location shadcn installs to, which is the
+    // path the docs' packaged-file URLs and curl -o both use.
+    assert.equal(
+      await readTmp(join(root, "files/gamma/app/assistant.tsx"), "utf8"),
+      "gamma content",
+    );
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("the built dist serves every packaged file at the docs' URL convention", async () => {
+  const {
+    access: accessTmp,
+    readFile: readJson,
+    readdir,
+  } = await import("node:fs/promises");
+  const { join } = await import("node:path");
+
+  // Item names may contain slashes, so the walk is recursive and files/ is
+  // excluded from the item scan.
+  const collectItemJsons = async (dir, out) => {
+    for (const entry of await readdir(dir, { withFileTypes: true })) {
+      if (entry.isDirectory()) {
+        if (entry.name === "files" || entry.name === "base") continue;
+        await collectItemJsons(join(dir, entry.name), out);
+      } else if (entry.name.endsWith(".json")) {
+        out.push(join(dir, entry.name));
+      }
+    }
+  };
+
+  for (const distRoot of ["dist", "dist/base"]) {
+    const jsonPaths = [];
+    await collectItemJsons(distRoot, jsonPaths);
+    for (const jsonPath of jsonPaths) {
+      let item;
+      try {
+        item = JSON.parse(await readJson(jsonPath, "utf8"));
+      } catch {
+        continue;
+      }
+      if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
+        continue;
+      }
+      for (const file of item.files) {
+        const key = file.target ?? file.path;
+        await accessTmp(join(distRoot, "files", item.name, key));
+      }
+    }
+  }
 });

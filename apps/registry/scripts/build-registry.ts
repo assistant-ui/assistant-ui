@@ -235,6 +235,41 @@ export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
   throwIfFindings("Invalid emitted UI specifiers:", findings);
 }
 
+/** The on-disk key the docs' packaged-file URLs mirror: what shadcn installs. */
+export function packagedFilePath(file: {
+  path: string;
+  target?: string;
+}): string {
+  return file.target ?? file.path;
+}
+
+/**
+ * The manual install path curls individual files, and for the radix flavor the
+ * shipped content differs from the raw source (flavor-directory imports are
+ * rewritten), so the packaged bytes are served per file under files/ instead
+ * of pointing readers at GitHub raw sources they cannot use as-is. Namespaced
+ * by item: two items may ship different content at the same consumer path
+ * (ai-sdk-backend vs ai-sdk-backend-resumable both ship app/api/chat/route.ts).
+ */
+export async function writePackagedFiles(
+  root: string,
+  items: RegistryOutputItem[],
+): Promise<void> {
+  await fs.rm(path.join(root, "files"), { force: true, recursive: true });
+  for (const item of items) {
+    for (const file of item.files ?? []) {
+      const target = path.join(
+        root,
+        "files",
+        item.name,
+        packagedFilePath(file),
+      );
+      await fs.mkdir(path.dirname(target), { recursive: true });
+      await fs.writeFile(target, file.content, "utf8");
+    }
+  }
+}
+
 export function createRegistryPayload(
   item: RegistryPayloadInput,
   useRadixVariants = false,
@@ -1431,6 +1466,7 @@ export async function buildRegistry(
 
     await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
   }
+  await writePackagedFiles(REGISTRY_PATH, payloads);
 
   for (const payload of basePayloads) {
     const p = path.join(BASE_REGISTRY_PATH, `${payload.name}.json`);
@@ -1438,6 +1474,7 @@ export async function buildRegistry(
 
     await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
   }
+  await writePackagedFiles(BASE_REGISTRY_PATH, basePayloads);
 
   for (const payload of vuePayloads) {
     const p = path.join(VUE_REGISTRY_PATH, `${payload.name}.json`);
