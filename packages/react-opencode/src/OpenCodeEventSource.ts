@@ -9,6 +9,25 @@ const asRecord = (value: unknown): Record<string, unknown> | null => {
     : null;
 };
 
+const isValidMessageUpdated = (
+  properties: Record<string, unknown>,
+): boolean => {
+  const info = asRecord(properties.info);
+  if (
+    !info ||
+    typeof info.id !== "string" ||
+    typeof info.sessionID !== "string" ||
+    (info.role !== "user" && info.role !== "assistant")
+  ) {
+    return false;
+  }
+
+  return (
+    typeof properties.sessionID !== "string" ||
+    properties.sessionID === info.sessionID
+  );
+};
+
 const extractSessionId = (
   type: string,
   properties: Record<string, unknown>,
@@ -56,13 +75,18 @@ const normalizeEventPayload = (event: unknown): OpenCodeServerEvent | null => {
     return null;
   }
 
+  const properties = candidate.properties as Record<string, unknown>;
+  if (
+    candidate.type === "message.updated" &&
+    !isValidMessageUpdated(properties)
+  ) {
+    return null;
+  }
+
   const normalized = {
     type: candidate.type,
-    properties: candidate.properties as Record<string, unknown>,
-    sessionId: extractSessionId(
-      candidate.type,
-      candidate.properties as Record<string, unknown>,
-    ),
+    properties,
+    sessionId: extractSessionId(candidate.type, properties),
     raw: event,
   } satisfies OpenCodeServerEvent;
 

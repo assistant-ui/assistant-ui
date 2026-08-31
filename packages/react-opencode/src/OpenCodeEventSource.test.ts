@@ -32,7 +32,63 @@ const createAbortableStream = (signal: AbortSignal) =>
     });
   })();
 
+const createEventStream = (signal: AbortSignal, events: readonly unknown[]) =>
+  (async function* () {
+    yield* events;
+    yield* createAbortableStream(signal);
+  })();
+
 describe("OpenCodeEventSource", () => {
+  it("rejects malformed message updates without dropping unknown events", async () => {
+    const client = {
+      event: {
+        subscribe: vi.fn((_: unknown, options: { signal: AbortSignal }) =>
+          Promise.resolve({
+            stream: createEventStream(options.signal, [
+              {
+                type: "message.updated",
+                properties: {
+                  sessionID: "ses_1",
+                  info: { id: "malformed-message", sessionID: "ses_1" },
+                },
+              },
+              {
+                type: "message.updated",
+                properties: {
+                  sessionID: "ses_1",
+                  info: {
+                    id: "wrong-session",
+                    sessionID: "ses_2",
+                    role: "assistant",
+                  },
+                },
+              },
+              {
+                type: "future.event",
+                properties: { sessionID: "ses_1", value: 42 },
+              },
+            ]),
+          }),
+        ),
+      },
+    };
+    const source = new OpenCodeEventSource(client as never);
+    const listener = vi.fn();
+
+    try {
+      source.subscribe(listener);
+
+      await waitFor(() => {
+        expect(listener).toHaveBeenCalledWith(
+          expect.objectContaining({ type: "future.event" }),
+        );
+      });
+      expect(listener).toHaveBeenCalledTimes(1);
+    } finally {
+      source.dispose();
+    }
+  });
+
   it("reconnects immediately when a listener returns during backoff", async () => {
     const client = {
       event: {
