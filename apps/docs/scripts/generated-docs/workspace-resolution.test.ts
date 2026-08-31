@@ -1,8 +1,7 @@
 import * as path from "node:path";
 import { ts } from "ts-morph";
+import { DOCS_ROOT, REPO_ROOT } from "./paths.mts";
 
-const REPO_ROOT = path.resolve(import.meta.dirname, "../../../..");
-const DOCS_ROOT = path.join(REPO_ROOT, "apps/docs");
 const DOCS_TSCONFIG = path.join(DOCS_ROOT, "tsconfig.json");
 const PROBE_FILE = path.join(
   DOCS_ROOT,
@@ -21,12 +20,17 @@ function resolveWorkspaceModule(specifier: string): string | undefined {
 }
 
 describe("workspace package resolution", () => {
-  it("resolves safe-content-frame exports from source", () => {
-    expect(resolveWorkspaceModule("safe-content-frame")).toBe(
-      path.join(REPO_ROOT, "packages/safe-content-frame/src/index.ts"),
-    );
-    expect(resolveWorkspaceModule("safe-content-frame/shadow_dom")).toBe(
-      path.join(REPO_ROOT, "packages/safe-content-frame/src/shadow_dom.ts"),
+  it.each([
+    ["assistant-stream", "packages/assistant-stream/src/index.ts"],
+    ["assistant-cloud", "packages/cloud/src/index.ts"],
+    ["safe-content-frame", "packages/safe-content-frame/src/index.ts"],
+    [
+      "safe-content-frame/shadow_dom",
+      "packages/safe-content-frame/src/shadow_dom.ts",
+    ],
+  ])("resolves %s from source", (specifier, sourceFile) => {
+    expect(resolveWorkspaceModule(specifier)).toBe(
+      path.join(REPO_ROOT, sourceFile),
     );
   });
 });
