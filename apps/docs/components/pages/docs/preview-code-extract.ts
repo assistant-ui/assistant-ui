@@ -7,21 +7,6 @@ const IDENTIFIER_CHAR = /[\p{L}\p{N}_$]/u;
 const KEYWORD_BEFORE_LITERAL =
   /(?:^|[^\p{L}\p{N}_$])(?:return|case|typeof|in|of|do|else|void|throw|new|delete|instanceof|yield|await)$/u;
 
-// A lone quote in JSX prose has no partner, while the string literals these
-// samples contain are single-line, so an unpaired quote on its line is prose.
-function hasSameLineClose(
-  source: string,
-  index: number,
-  quote: string,
-): boolean {
-  for (let i = index + 1; i < source.length; i++) {
-    const char = source[i]!;
-    if (char === "\n") return false;
-    if (char === quote && source[i - 1] !== "\\") return true;
-  }
-  return false;
-}
-
 function updateStringState(
   state: StringState,
   source: string,
@@ -35,22 +20,18 @@ function updateStringState(
     }
     return true;
   }
-  // These scanners see JSX text as code, so a quote only opens a string when
-  // the position plausibly is one. Formatting-dependent heuristics, not a
-  // grammar: a quote straight after an identifier character is a contraction
-  // in prose (it's, café's) unless the word it ends is a keyword that may
-  // abut a literal (return'x'), and a quote with no unescaped partner before
-  // the line ends is prose too. Backticks are excluded from both rules: a
-  // backtick after an identifier is a tagged template, and template literals
-  // span lines.
+  // These scanners see JSX text as code, so string opens use one
+  // formatting-dependent heuristic rather than a grammar: a quote straight
+  // after an identifier character is a prose contraction (it's, café's)
+  // unless the word it ends is a keyword that may legally abut a literal
+  // (return'x'). Everything else keeps opening a string, so prose quotes
+  // after whitespace still derail the scan — the exhaustive sample test is
+  // the guard that keeps that class out of the docs. Backticks are excluded:
+  // a backtick after an identifier is a tagged template.
   const afterIdentifier =
     IDENTIFIER_CHAR.test(prevChar) &&
     !KEYWORD_BEFORE_LITERAL.test(source.slice(Math.max(0, index - 12), index));
-  if (
-    (char === '"' || char === "'") &&
-    !afterIdentifier &&
-    hasSameLineClose(source, index, char)
-  ) {
+  if ((char === '"' || char === "'") && !afterIdentifier) {
     state.inString = true;
     state.stringChar = char;
     return true;

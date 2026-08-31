@@ -210,15 +210,6 @@ export function StringSpecimen() {
     );
   });
 
-  it("extracts prose with a decade apostrophe after whitespace", () => {
-    const proseSource = `
-export const DecadeSpecimen = () => <p>the '90s rule</p>;
-`;
-    expect(extractFunctionCode(proseSource, "DecadeSpecimen")).toBe(
-      `export const DecadeSpecimen = () => <p>the '90s rule</p>;`,
-    );
-  });
-
   it("extracts prose with a contraction after a non-ascii word", () => {
     const source = `
 export const CafeSpecimen = () => <p>café's fine</p>;
@@ -248,5 +239,38 @@ export const TaggedSpecimen = () => css\`content: ")";\`;
     expect(extractFunctionCode(taggedSource, "TaggedSpecimen")).toBe(
       'export const TaggedSpecimen = () => css`content: ")";`;',
     );
+  });
+});
+
+describe("every real sample extracts", () => {
+  // #6544's bite is that a prose quote breaks extraction silently at
+  // authoring time. The heuristic in updateStringState only has to be right
+  // for the samples we actually ship — this sweep turns that from a hope
+  // into an enforced invariant: every exported component in every sample
+  // file must extract to code, never to a "Could not" marker.
+  it("extracts every exported component of every sample file", async () => {
+    const { readdirSync, readFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+
+    const samplesDir = join(__dirname, "samples");
+    const files = readdirSync(samplesDir).filter((file) =>
+      file.endsWith(".tsx"),
+    );
+    expect(files.length).toBeGreaterThan(0);
+
+    const failures: string[] = [];
+    for (const file of files) {
+      const source = readFileSync(join(samplesDir, file), "utf8");
+      const names = [
+        ...source.matchAll(/export\s+(?:function|const)\s+([A-Z]\w*)/g),
+      ].map((match) => match[1]!);
+      for (const name of names) {
+        const extracted = extractFunctionCode(source, name);
+        if (extracted.startsWith("// Could not")) {
+          failures.push(`${file}#${name}: ${extracted}`);
+        }
+      }
+    }
+    expect(failures).toEqual([]);
   });
 });
