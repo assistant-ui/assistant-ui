@@ -37,8 +37,12 @@ const MessageClientById = resource(useMessageClientById);
 
 const useThreadClient = ({
   runtime,
+  __internal_runStartEmitRef,
 }: {
   runtime: ThreadRuntime;
+  __internal_runStartEmitRef?:
+    | RefObject<((threadId: string) => void) | null>
+    | undefined;
 }): ClientOutput<"thread"> => {
   const runtimeState = useSubscribable(runtime);
   const emit = useAssistantEmit();
@@ -67,6 +71,19 @@ const useThreadClient = ({
       for (const unsub of unsubscribers) unsub();
     };
   }, [runtime, emit]);
+
+  useEffect(() => {
+    if (!__internal_runStartEmitRef) return;
+    const emitRunStart = (threadId: string) => {
+      emit("thread.runStart", { threadId });
+    };
+    __internal_runStartEmitRef.current = emitRunStart;
+    return () => {
+      if (__internal_runStartEmitRef.current === emitRunStart) {
+        __internal_runStartEmitRef.current = null;
+      }
+    };
+  }, [__internal_runStartEmitRef, emit]);
 
   const threadIdRef = useMemo(
     () => liveRef(() => runtime.getState()!.threadId),

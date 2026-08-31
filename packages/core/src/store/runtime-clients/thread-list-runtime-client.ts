@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef, type RefObject } from "react";
 import { useResource, withKey, resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
 import {
@@ -46,7 +46,10 @@ const useThreadListItemClientById = ({
 
 const ThreadListItemClientById = resource(useThreadListItemClientById);
 
-const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
+const useBackgroundThreadRunEnd = (
+  runtime: ThreadListRuntime,
+  runStartEmitRef: RefObject<((threadId: string) => void) | null>,
+) => {
   const emit = useAssistantEmit();
 
   useEffect(() => {
@@ -69,15 +72,20 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
       const generation = captureThreadRuntimeGeneration(core);
       const existing = runningThreads.get(threadId);
       const pendingRunStartForwarded = forwardedRunStarts.delete(threadId);
+      const nextRunStartForwarded =
+        runStartForwarded ||
+        pendingRunStartForwarded ||
+        (existing?.core === core &&
+          existing.generation === generation &&
+          existing.runStartForwarded);
+      if (existing?.core === core && existing.generation === generation) {
+        existing.runStartForwarded = nextRunStartForwarded;
+        return;
+      }
       runningThreads.set(threadId, {
         core,
         generation,
-        runStartForwarded:
-          runStartForwarded ||
-          pendingRunStartForwarded ||
-          (existing?.core === core &&
-            existing.generation === generation &&
-            existing.runStartForwarded),
+        runStartForwarded: nextRunStartForwarded,
       });
     };
     const trackRunningMainThread = (threadId: string) => {
@@ -113,6 +121,12 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
           stopPending(threadId);
         }
       }
+      for (const threadId of runningThreads.keys()) {
+        if (!Object.hasOwn(nextState.threadItems, threadId)) {
+          runningThreads.delete(threadId);
+          forwardedRunStarts.delete(threadId);
+        }
+      }
 
       const nextThreadId = nextState.mainThreadId;
       if (nextThreadId === currentThreadId) return;
@@ -131,7 +145,7 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
       ) {
         forwardedRunStarts.add(nextThreadId);
         if (nextThread) nextThread.runStartForwarded = true;
-        emit("thread.runStart", { threadId: nextThreadId });
+        runStartEmitRef.current?.(nextThreadId);
       }
 
       if (pending.has(previousThreadId)) return;
@@ -179,7 +193,7 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
       unsubscribeMainState();
       for (const unsubscribe of pending.values()) unsubscribe();
     };
-  }, [runtime, emit]);
+  }, [runtime, emit, runStartEmitRef]);
 };
 
 const useThreadListClient = ({
@@ -191,11 +205,13 @@ const useThreadListClient = ({
 }): ClientOutput<"threads"> => {
   const runtimeState = useSubscribable(runtime);
   useThreadSelectionEvents(runtimeState.mainThreadId);
-  useBackgroundThreadRunEnd(runtime);
+  const runStartEmitRef = useRef<((threadId: string) => void) | null>(null);
+  useBackgroundThreadRunEnd(runtime, runStartEmitRef);
 
   const main = useClientResource(
     ThreadClient({
       runtime: runtime.main,
+      __internal_runStartEmitRef: runStartEmitRef,
     }),
   );
   const threadItems = useClientLookup(

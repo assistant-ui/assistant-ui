@@ -400,12 +400,14 @@ describe("thread switch events", () => {
     });
     const globalRunStart = vi.fn();
     const globalRunEnd = vi.fn();
+    const selectedRunStart = vi.fn();
     const selectedRunEnd = vi.fn();
     let runtime!: AssistantRuntime;
 
     const Listener = () => {
       useAuiEvent({ scope: "*", event: "thread.runStart" }, globalRunStart);
       useAuiEvent({ scope: "*", event: "thread.runEnd" }, globalRunEnd);
+      useAuiEvent("thread.runStart", selectedRunStart);
       useAuiEvent("thread.runEnd", selectedRunEnd);
       return null;
     };
@@ -446,6 +448,9 @@ describe("thread switch events", () => {
     });
     await waitFor(() => {
       expect(globalRunStart).toHaveBeenCalledExactlyOnceWith({
+        threadId: threadBId,
+      });
+      expect(selectedRunStart).toHaveBeenCalledExactlyOnceWith({
         threadId: threadBId,
       });
     });
