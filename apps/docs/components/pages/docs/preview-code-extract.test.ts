@@ -219,6 +219,15 @@ export const CafeSpecimen = () => <p>café's fine</p>;
     );
   });
 
+  it("extracts prose with a contraction after an astral letter", () => {
+    const source = `
+export const AstralSpecimen = () => <p>𝕏's rule</p>;
+`;
+    expect(extractFunctionCode(source, "AstralSpecimen")).toBe(
+      `export const AstralSpecimen = () => <p>𝕏's rule</p>;`,
+    );
+  });
+
   it("tracks a keyword-adjacent literal as a string", () => {
     const source = `
 export function CompactSpecimen() {
@@ -243,11 +252,11 @@ export const TaggedSpecimen = () => css\`content: ")";\`;
 });
 
 describe("every real preview extracts", () => {
-  // #6544's bite is that a prose quote breaks extraction silently at
-  // authoring time. The scanner heuristic only has to be right for the
-  // sources we actually preview — this sweep walks every <PreviewCode>
-  // reference in the MDX content (both flavors when a .radix variant
-  // exists) and turns that from a hope into an enforced invariant.
+  // A prose quote breaks extraction silently at authoring time. The scanner
+  // heuristic only has to be right for the sources we actually preview —
+  // this sweep walks every <PreviewCode> reference in the MDX content (both
+  // flavors when a .radix variant exists) and turns that from a hope into an
+  // enforced invariant.
   it("extracts every <PreviewCode> pair referenced from content", async () => {
     const { readdirSync, readFileSync, existsSync } = await import("node:fs");
     const { join, resolve } = await import("node:path");
@@ -263,16 +272,25 @@ describe("every real preview extracts", () => {
     };
     walk(join(docsRoot, "content"));
 
+    // Every <PreviewCode occurrence must yield a parsed pair, so a call site
+    // the pair regex cannot read (attribute reordering, an expression
+    // attribute containing ">") fails the sweep instead of silently leaving
+    // that preview unguarded.
+    let occurrences = 0;
+    let parsed = 0;
     const pairs = new Set<string>();
     for (const mdxFile of mdxFiles) {
       const mdx = readFileSync(mdxFile, "utf8");
+      occurrences += mdx.match(/<PreviewCode[\s>]/g)?.length ?? 0;
       for (const match of mdx.matchAll(
         /<PreviewCode\s[^>]*?file="([^"]+)"[^>]*?name="([^"]+)"/gs,
       )) {
+        parsed += 1;
         pairs.add(`${match[1]}\u0000${match[2]}`);
       }
     }
-    expect(pairs.size).toBeGreaterThanOrEqual(60);
+    expect(occurrences).toBeGreaterThan(0);
+    expect(parsed).toBe(occurrences);
 
     const failures: string[] = [];
     const checkExtraction = (sourceFile: string, name: string) => {
@@ -289,7 +307,7 @@ describe("every real preview extracts", () => {
       const rest = source.slice(endIndex).replace(/^[\s;]*/, "");
       if (
         rest !== "" &&
-        !/^(export\s|import\s|const\s|function\s|type\s|interface\s|\/\/|\/\*)/.test(
+        !/^(export\s|import\s|const\s|let\s|var\s|class\s|function\s|async\s|type\s|interface\s|["']use client["']|\/\/|\/\*)/.test(
           rest,
         )
       ) {

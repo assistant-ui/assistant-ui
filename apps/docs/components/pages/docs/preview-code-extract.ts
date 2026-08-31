@@ -7,6 +7,16 @@ const IDENTIFIER_CHAR = /[\p{L}\p{N}_$]/u;
 const KEYWORD_BEFORE_LITERAL =
   /(?:^|[^\p{L}\p{N}_$])(?:return|case|typeof|in|of|do|else|void|throw|new|delete|instanceof|yield|await)$/u;
 
+// An astral letter sits in the source as a surrogate pair, so the unit at
+// index - 1 alone never matches the identifier class.
+function precedingCodePoint(source: string, index: number): string {
+  const prev = source[index - 1] ?? "";
+  const lead = source[index - 2] ?? "";
+  return /[\uD800-\uDBFF]/.test(lead) && /[\uDC00-\uDFFF]/.test(prev)
+    ? lead + prev
+    : prev;
+}
+
 function updateStringState(
   state: StringState,
   source: string,
@@ -29,7 +39,7 @@ function updateStringState(
   // the guard that keeps that class out of the docs. Backticks are excluded:
   // a backtick after an identifier is a tagged template.
   const afterIdentifier =
-    IDENTIFIER_CHAR.test(prevChar) &&
+    IDENTIFIER_CHAR.test(precedingCodePoint(source, index)) &&
     !KEYWORD_BEFORE_LITERAL.test(source.slice(Math.max(0, index - 12), index));
   if ((char === '"' || char === "'") && !afterIdentifier) {
     state.inString = true;
