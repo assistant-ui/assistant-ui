@@ -32,7 +32,11 @@ function readFlavor(name: string, flavor: "base" | "radix") {
     if (!IGNORED_DEPS.has(pkg)) deps.add(pkg);
   }
 
-  return { content, deps: Array.from(deps).sort() };
+  return {
+    content,
+    deps: Array.from(deps).sort(),
+    sourcePath: `packages/ui/src/components/react/ui/${flavor}/${name}.tsx`,
+  };
 }
 
 function KitInstallFlavor({
@@ -42,7 +46,7 @@ function KitInstallFlavor({
   name: string;
   flavor: "base" | "radix";
 }) {
-  let file: { content: string; deps: string[] };
+  let file: { content: string; deps: string[]; sourcePath: string };
   try {
     file = readFlavor(name, flavor);
   } catch {
@@ -73,6 +77,7 @@ function KitInstallFlavor({
             name,
             path: `components/ui/${name}.tsx`,
             content: file.content,
+            sourcePath: file.sourcePath,
           }}
         />
       </div>
