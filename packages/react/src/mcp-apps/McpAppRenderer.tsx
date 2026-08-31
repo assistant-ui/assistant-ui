@@ -194,6 +194,8 @@ function InlineRenderer({
     const targetUri = resourceUri;
     const targetServerId = serverId;
 
+    // Host changes are published later in this passive flush. Defer until that
+    // publication lands, then verify this effect still owns the current host.
     const loadResource = async () => {
       await Promise.resolve();
       if (cancelled || useRendererStore.getState().host !== targetHost) return;
