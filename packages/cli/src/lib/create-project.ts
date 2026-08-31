@@ -456,7 +456,16 @@ export function reconcileAssistantUIImportLayout(projectDir: string): void {
       if (!normalized.includes("/")) continue;
       const specifier = normalized.replace(/\.[cm]?[tj]sx?$/, "");
       const name = path.posix.basename(specifier).replace(/\.aui$/, "");
-      if (!installedByName.has(name)) installedByName.set(name, specifier);
+      // A flat legacy import maps to the registry's `<name>` item, which is
+      // the `.aui` file; a colliding bare file with the same basename belongs
+      // to the distinct `elements-<name>` item, so the `.aui` variant wins.
+      const existing = installedByName.get(name);
+      if (
+        existing === undefined ||
+        (!existing.endsWith(".aui") && specifier.endsWith(".aui"))
+      ) {
+        installedByName.set(name, specifier);
+      }
     }
   }
   if (installedByName.size === 0) return;

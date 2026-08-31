@@ -61,6 +61,21 @@ describe("reconcileAssistantUIImportLayout", () => {
     );
   });
 
+  it("prefers the .aui variant when both variants share a basename", () => {
+    write(
+      "app/page.tsx",
+      'import { Reasoning } from "@/components/assistant-ui/reasoning";\n',
+    );
+    write("components/assistant-ui/elements/reasoning.tsx", "export {};");
+    write("components/assistant-ui/elements/reasoning.aui.tsx", "export {};");
+
+    reconcileAssistantUIImportLayout(projectDir);
+
+    expect(read("app/page.tsx")).toBe(
+      'import { Reasoning } from "@/components/assistant-ui/elements/reasoning.aui";\n',
+    );
+  });
+
   it("supports the src/ project layout", () => {
     write(
       "src/routes/index.tsx",
