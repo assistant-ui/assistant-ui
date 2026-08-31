@@ -76,7 +76,9 @@ export const getConnectionDependencies = (
     props.redirectUri,
     props.cache?.defaultTtlMs,
     props.elicitation !== false,
-    props.storage.scopeId,
+    // The none transport never reads storage, so a scope swap alone must not
+    // drop an active connection there.
+    auth.type === "none" ? undefined : props.storage.scopeId,
   ];
 };
 
