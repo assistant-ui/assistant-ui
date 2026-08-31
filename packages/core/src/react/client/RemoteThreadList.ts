@@ -784,6 +784,8 @@ const useRemoteThreadList = (
         if (current.status === "archived" && options?.unarchive !== false) {
           const { remoteId } = await current.initializeTask;
           if (generation !== session.switchGeneration) return;
+          current = getThreadData(store.value, targetId);
+          if (current?.id !== targetId) return;
           await store.optimisticUpdate({
             execute: () => session.adapter.unarchive(remoteId),
             optimistic: (state) =>

@@ -1,14 +1,14 @@
 import { describe, expect, it, vi } from "vitest";
+import { RemoteThreadListThreadListRuntimeCore } from "./RemoteThreadListThreadListRuntimeCore";
 import {
+  contextProvider,
   createCore,
   deferred,
   makeAdapter,
-  setStartThreadRuntime,
 } from "../../tests/remote-thread-list-test-helpers";
 
 describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
-  it("does not unarchive a thread deleted while its runtime is starting", async () => {
-    const startThreadRuntime = deferred<unknown>();
+  it("rejects when a thread is deleted before its runtime attaches", async () => {
     const adapter = makeAdapter({
       list: vi.fn(async () => ({
         threads: [
@@ -21,20 +21,19 @@ describe("RemoteThreadListThreadListRuntimeCore switch/delete ordering", () => {
         ],
       })),
     });
-    const core = createCore(adapter);
-    const start = vi.fn(() => startThreadRuntime.promise);
-    setStartThreadRuntime(core, start);
+    const core = new RemoteThreadListThreadListRuntimeCore(
+      { adapter, runtimeHook: () => ({}) as never },
+      contextProvider,
+    );
     await core.getLoadThreadsPromise();
     const initialMainThreadId = core.mainThreadId;
 
     const switchToB = core.switchToThread("thread-b");
-    await vi.waitFor(() => {
-      expect(start).toHaveBeenCalledWith("thread-b");
-    });
+    const rejection = expect(switchToB).rejects.toThrow(
+      "Thread was deleted before runtime was started",
+    );
     await core.delete("thread-b");
-
-    startThreadRuntime.resolve({});
-    await expect(switchToB).resolves.toBeUndefined();
+    await rejection;
 
     expect(adapter.unarchive).not.toHaveBeenCalled();
     expect(core.getItemById("thread-b")).toBeUndefined();
