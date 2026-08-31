@@ -51,6 +51,7 @@ const upsertMessage = (
   updater: (
     current: OpenCodeServerMessage | undefined,
   ) => OpenCodeServerMessage,
+  includeInOrder: boolean,
 ): OpenCodeThreadState => {
   const current = state.messagesById[messageId];
   const nextMessage = updater(current);
@@ -58,9 +59,10 @@ const upsertMessage = (
     ...state.messagesById,
     [messageId]: nextMessage,
   };
-  const messageOrder = current
-    ? state.messageOrder
-    : sortMessageIds(messagesById, [...state.messageOrder, messageId]);
+  const messageOrder =
+    current || !includeInOrder
+      ? state.messageOrder
+      : sortMessageIds(messagesById, [...state.messageOrder, messageId]);
 
   return {
     ...state,
@@ -391,16 +393,21 @@ export const reduceOpenCodeThreadState = (
           ? findPendingMatchByMessageInfo(state, event.info)
           : undefined;
 
-      let nextState = upsertMessage(state, event.info.id, (current) => ({
-        id: event.info.id,
-        info: event.info,
-        parts: current?.parts ?? [],
-        shadowParts:
-          current?.shadowParts ??
-          (pendingMatch && (current?.parts?.length ?? 0) === 0
-            ? pendingMatch.parts
-            : undefined),
-      }));
+      let nextState = upsertMessage(
+        state,
+        event.info.id,
+        (current) => ({
+          id: event.info.id,
+          info: event.info,
+          parts: current?.parts ?? [],
+          shadowParts:
+            current?.shadowParts ??
+            (pendingMatch && (current?.parts?.length ?? 0) === 0
+              ? pendingMatch.parts
+              : undefined),
+        }),
+        event.info.role === "user" || event.info.role === "assistant",
+      );
 
       if (pendingMatch) {
         nextState = removePending(nextState, pendingMatch.clientId);

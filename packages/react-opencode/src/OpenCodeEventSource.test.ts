@@ -39,7 +39,7 @@ const createEventStream = (signal: AbortSignal, events: readonly unknown[]) =>
   })();
 
 describe("OpenCodeEventSource", () => {
-  it("rejects malformed message updates without dropping unknown events", async () => {
+  it("rejects unroutable message updates without dropping compatible events", async () => {
     const client = {
       event: {
         subscribe: vi.fn((_: unknown, options: { signal: AbortSignal }) =>
@@ -49,7 +49,7 @@ describe("OpenCodeEventSource", () => {
                 type: "message.updated",
                 properties: {
                   sessionID: "ses_1",
-                  info: { id: "malformed-message", sessionID: "ses_1" },
+                  info: { sessionID: "ses_1", role: "assistant" },
                 },
               },
               {
@@ -60,6 +60,17 @@ describe("OpenCodeEventSource", () => {
                     id: "wrong-session",
                     sessionID: "ses_2",
                     role: "assistant",
+                  },
+                },
+              },
+              {
+                type: "message.updated",
+                properties: {
+                  sessionID: "ses_1",
+                  info: {
+                    id: "future-role",
+                    sessionID: "ses_1",
+                    role: "system",
                   },
                 },
               },
@@ -83,7 +94,15 @@ describe("OpenCodeEventSource", () => {
           expect.objectContaining({ type: "future.event" }),
         );
       });
-      expect(listener).toHaveBeenCalledTimes(1);
+      expect(listener).toHaveBeenCalledTimes(2);
+      expect(listener).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: "message.updated",
+          properties: expect.objectContaining({
+            info: expect.objectContaining({ role: "system" }),
+          }),
+        }),
+      );
     } finally {
       source.dispose();
     }

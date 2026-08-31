@@ -16,8 +16,7 @@ const isValidMessageUpdated = (
   if (
     !info ||
     typeof info.id !== "string" ||
-    typeof info.sessionID !== "string" ||
-    (info.role !== "user" && info.role !== "assistant")
+    typeof info.sessionID !== "string"
   ) {
     return false;
   }

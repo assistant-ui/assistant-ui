@@ -357,6 +357,35 @@ describe("reduceOpenCodeThreadState", () => {
     expect(withPart.messagesById.msg_assistant?.parts).toHaveLength(1);
   });
 
+  it("stores messages with unknown roles without exposing them", () => {
+    const initial = createOpenCodeThreadState("ses_1");
+
+    const withMessage = reduceOpenCodeThreadState(initial, {
+      type: "message.updated",
+      info: {
+        id: "msg_system",
+        role: "system",
+        sessionID: "ses_1",
+        time: { created: 1001 },
+      } as never,
+    });
+
+    const withPart = reduceOpenCodeThreadState(withMessage, {
+      type: "part.updated",
+      messageId: "msg_system",
+      part: {
+        id: "prt_1",
+        type: "text",
+        text: "Hidden context",
+        sessionID: "ses_1",
+        messageID: "msg_system",
+      } as never,
+    });
+
+    expect(withPart.messageOrder).toEqual([]);
+    expect(withPart.messagesById.msg_system?.parts).toHaveLength(1);
+  });
+
   it("reconciles a pending user message with a streamed message update", () => {
     const initial = createOpenCodeThreadState("ses_1");
     const pending: PendingUserMessage = {
