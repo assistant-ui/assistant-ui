@@ -1323,6 +1323,51 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("keeps item(main) resolvable when deleting an archived thread during unarchive", async () => {
+    const unarchive = deferred<void>();
+    const onSwitchToThread = vi.fn();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "archived" as const, remoteId: "t1", title: "One" },
+        ],
+      })),
+      unarchive: vi.fn(() => unarchive.promise),
+    });
+    const { handle } = mountList(
+      adapter,
+      undefined,
+      undefined,
+      onSwitchToThread,
+    );
+    const aui = handle.getClient();
+    await aui.threads.getLoadThreadsPromise();
+    const initialMainThreadId = aui.threads.getState().mainThreadId;
+
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    await vi.waitFor(() => {
+      expect(adapter.unarchive).toHaveBeenCalledWith("t1");
+    });
+    flushTapSync(() => aui.threads.item({ id: "t1" }).delete());
+    await vi.waitFor(() => {
+      const state = handle.getClient().threads.getState();
+      expect(state.threadIds).not.toContain("t1");
+      expect(state.archivedThreadIds).not.toContain("t1");
+    });
+
+    unarchive.resolve();
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(handle.getClient().threads.getState().mainThreadId).toBe(
+      initialMainThreadId,
+    );
+    expect(() =>
+      handle.getClient().threads.item("main").getState(),
+    ).not.toThrow();
+    expect(onSwitchToThread).not.toHaveBeenCalled();
+    handle.destroy();
+  });
+
   it("keeps item(main) resolvable when deleting a thread mid-initialize", async () => {
     const initialize = deferred<{
       remoteId: string;
