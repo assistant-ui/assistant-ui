@@ -45,10 +45,19 @@ type SubagentRunState = {
 
 type ToolApproval = NonNullable<ToolCallMessagePart["approval"]>;
 
+type PartOrderEntry =
+  | { kind: "text"; key: string; subagentRunId?: string }
+  | { kind: "reasoning"; key: string; subagentRunId?: string }
+  | { kind: "tool-call"; toolCallId: string }
+  | { kind: "data"; name: string; value: unknown };
+
 type BuildContext = {
   subagentsByParentToolCallId: Map<string, string[]>;
   reachable: Set<string>;
   approvals: ReadonlyMap<string, ToolApproval>;
+  // partOrder bucketed by the scope each part renders in, so one emit walks
+  // every part once however many subagents the run spawned.
+  partsByScope: Map<string, { index: number; part: PartOrderEntry }[]>;
   // Present only for the root walk: the pass that builds the snapshot is also
   // the one that decides where a retracted reasoning signature anchors, so the
   // two can never disagree about what materialized.
@@ -154,12 +163,7 @@ export class RunAggregator {
   private readonly a2uiBuckets = new Map<string, A2uiState>();
   private readonly a2uiToolCallIds = new Set<string>();
   private readonly lastResolvedToolCallIdByScope = new Map<string, string>();
-  private readonly partOrder: (
-    | { kind: "text"; key: string; subagentRunId?: string }
-    | { kind: "reasoning"; key: string; subagentRunId?: string }
-    | { kind: "tool-call"; toolCallId: string }
-    | { kind: "data"; name: string; value: unknown }
-  )[] = [];
+  private readonly partOrder: PartOrderEntry[] = [];
   private textPartCounter = 0;
   private serverMessageIdReported = false;
   private reportedServerMessageId: string | undefined;
@@ -205,12 +209,22 @@ export class RunAggregator {
         }
 
         this.interrupts = undefined;
-        const toolCallValues = Array.from(this.toolCalls.values());
-        const hasUnresolvedRootToolCalls = toolCallValues.some(
-          (tc) => tc.subagentRunId === undefined && tc.result === undefined,
+        const reachable = this.reachableSubagentRunIds(
+          this.subagentsByParentToolCallId(),
         );
-        const hasUnresolvedSubagentToolCalls = toolCallValues.some(
-          (tc) => tc.subagentRunId !== undefined && tc.result === undefined,
+        // Classified by the scope a call actually renders in: one flattened to
+        // root is reachable by getPendingToolCalls and therefore answerable,
+        // while one nested inside a subagent message is not.
+        const unresolved = Array.from(this.toolCalls.values()).filter(
+          (tc) => tc.result === undefined,
+        );
+        const hasUnresolvedRootToolCalls = unresolved.some(
+          (tc) =>
+            tc.subagentRunId === undefined || !reachable.has(tc.subagentRunId),
+        );
+        const hasUnresolvedSubagentToolCalls = unresolved.some(
+          (tc) =>
+            tc.subagentRunId !== undefined && reachable.has(tc.subagentRunId),
         );
 
         this.status = hasUnresolvedRootToolCalls
@@ -269,7 +283,8 @@ export class RunAggregator {
         if (scope === ROOT_SCOPE) this.reportServerMessageId(event.messageId);
         if (
           event.messageId &&
-          this.activeTextMessageIdByScope.get(scope) === event.messageId
+          this.activeTextMessageIdByScope.get(scope) ===
+            this.partKey(scope, event.messageId)
         ) {
           this.activeTextMessageIdByScope.delete(scope);
         }
@@ -304,9 +319,10 @@ export class RunAggregator {
           // entityId names any message, not necessarily a reasoning one, so an
           // unmatched id may only claim a block that has no id to contradict it.
           const active = this.activeReasoningKeyByScope.get(scope);
+          const entityKey = this.partKey(scope, event.entityId);
           const key = this.showThinking
-            ? this.reasoningParts.has(event.entityId)
-              ? event.entityId
+            ? this.reasoningParts.has(entityKey)
+              ? entityKey
               : active !== undefined && this.anonymousReasoningKeys.has(active)
                 ? active
                 : undefined
@@ -465,6 +481,19 @@ export class RunAggregator {
       }
 
       case "SUBAGENT_STARTED": {
+        // A suspended subagent is re-announced with the same id on resume, so
+        // a repeat is a continuation: it may refresh the descriptive fields
+        // and reopen the status, but re-parenting an established run would
+        // move its already-rendered output to a different tool call.
+        const existing = this.subagentRuns.get(event.subagentRunId);
+        if (existing) {
+          existing.name = event.name;
+          if (event.description !== undefined)
+            existing.description = event.description;
+          existing.status = { type: "running" };
+          this.emit();
+          break;
+        }
         this.subagentRuns.set(event.subagentRunId, {
           subagentRunId: event.subagentRunId,
           name: event.name,
@@ -632,6 +661,13 @@ export class RunAggregator {
     return event.subagentRunId ?? ROOT_SCOPE;
   }
 
+  // Nothing in the AG-UI schema makes a messageId unique across subagent runs,
+  // so the accumulators key on the scope too. Root keys stay bare, which is
+  // what the wire-id collision checks against reported message ids compare on.
+  private partKey(scope: string, id: string): string {
+    return scope === ROOT_SCOPE ? id : `${scope}\u0000${id}`;
+  }
+
   private beginDistinctTextMessage(messageId: string | undefined): void {
     if (
       !messageId ||
@@ -652,16 +688,16 @@ export class RunAggregator {
 
   private startTextMessage(scope: string, messageId?: string): string {
     const id = messageId ?? this.generateTextKey();
-    this.ensureTextPart(scope, id);
-    this.activeTextMessageIdByScope.set(scope, id);
-    return id;
+    const key = this.ensureTextPart(scope, id);
+    this.activeTextMessageIdByScope.set(scope, key);
+    return key;
   }
 
   private resolveTextMessageId(scope: string, messageId?: string): string {
     if (messageId) {
-      this.ensureTextPart(scope, messageId);
-      this.activeTextMessageIdByScope.set(scope, messageId);
-      return messageId;
+      const key = this.ensureTextPart(scope, messageId);
+      this.activeTextMessageIdByScope.set(scope, key);
+      return key;
     }
 
     const active = this.activeTextMessageIdByScope.get(scope);
@@ -669,25 +705,26 @@ export class RunAggregator {
       return active;
     }
 
-    const generated = this.generateTextKey();
-    this.ensureTextPart(scope, generated);
-    this.activeTextMessageIdByScope.set(scope, generated);
-    return generated;
+    const key = this.ensureTextPart(scope, this.generateTextKey());
+    this.activeTextMessageIdByScope.set(scope, key);
+    return key;
   }
 
-  private ensureTextPart(scope: string, id: string): void {
-    if (!this.textParts.has(id)) {
-      this.textParts.set(id, { buffer: "" });
+  private ensureTextPart(scope: string, id: string): string {
+    const key = this.partKey(scope, id);
+    if (!this.textParts.has(key)) {
+      this.textParts.set(key, { buffer: "" });
       if (
-        !this.partOrder.some((part) => part.kind === "text" && part.key === id)
+        !this.partOrder.some((part) => part.kind === "text" && part.key === key)
       ) {
         this.partOrder.push(
           scope === ROOT_SCOPE
-            ? { kind: "text", key: id }
-            : { kind: "text", key: id, subagentRunId: scope },
+            ? { kind: "text", key }
+            : { kind: "text", key, subagentRunId: scope },
         );
       }
     }
+    return key;
   }
 
   private appendText(id: string, delta: string): void {
@@ -870,14 +907,6 @@ export class RunAggregator {
     return reachable;
   }
 
-  // Parts belonging to a subagent that has no nesting site fall back to the
-  // root scope rather than disappearing, which is also how the protocol's own
-  // pre-subagent downgrade renders them.
-  private effectiveScope(rawScope: string, ctx: BuildContext): string {
-    if (rawScope === ROOT_SCOPE) return ROOT_SCOPE;
-    return ctx.reachable.has(rawScope) ? rawScope : ROOT_SCOPE;
-  }
-
   private materializeSubagentMessage(
     subagentRunId: string,
     depth: number,
@@ -927,7 +956,7 @@ export class RunAggregator {
     const snapshot: ThreadAssistantMessagePart[] = [];
     const isRoot = scope === ROOT_SCOPE;
 
-    for (const [index, part] of this.partOrder.entries()) {
+    for (const { index, part } of ctx.partsByScope.get(scope) ?? []) {
       const materialized = () => {
         if (isRoot && ctx.root) ctx.root.lastMaterializedIndex = index;
       };
@@ -935,10 +964,6 @@ export class RunAggregator {
       if (part.kind === "tool-call") {
         const entry = this.toolCalls.get(part.toolCallId);
         if (!entry) continue;
-        if (
-          this.effectiveScope(entry.subagentRunId ?? ROOT_SCOPE, ctx) !== scope
-        )
-          continue;
         const approval = ctx.approvals.get(entry.toolCallId);
         const nestedMessages = (
           ctx.subagentsByParentToolCallId.get(entry.toolCallId) ?? []
@@ -985,7 +1010,6 @@ export class RunAggregator {
         "subagentRunId" in part
           ? (part.subagentRunId ?? ROOT_SCOPE)
           : ROOT_SCOPE;
-      if (this.effectiveScope(rawScope, ctx) !== scope) continue;
 
       if (part.kind === "reasoning") {
         if (this.showThinking) {
@@ -1069,9 +1093,29 @@ export class RunAggregator {
     // render at root scope, which is also exactly what getPendingToolCalls can
     // reach: a call nested inside a subagent message is unanswerable, so the
     // projector collapses the batch rather than showing half of it.
+    const partsByScope = new Map<
+      string,
+      { index: number; part: PartOrderEntry }[]
+    >();
+    for (const [index, part] of this.partOrder.entries()) {
+      const rawScope =
+        part.kind === "tool-call"
+          ? (this.toolCalls.get(part.toolCallId)?.subagentRunId ?? ROOT_SCOPE)
+          : "subagentRunId" in part
+            ? (part.subagentRunId ?? ROOT_SCOPE)
+            : ROOT_SCOPE;
+      const bucketScope =
+        rawScope === ROOT_SCOPE || reachable.has(rawScope)
+          ? rawScope
+          : ROOT_SCOPE;
+      const bucket = partsByScope.get(bucketScope);
+      if (bucket) bucket.push({ index, part });
+      else partsByScope.set(bucketScope, [{ index, part }]);
+    }
     const ctx: BuildContext = {
       subagentsByParentToolCallId,
       reachable,
+      partsByScope,
       approvals: projectAgUiToolApprovals(
         this.status?.type === "requires-action" ? this.interrupts : undefined,
         new Set(
@@ -1214,7 +1258,10 @@ export class RunAggregator {
     // A reasoning block acts as a boundary: anonymous text arriving after it
     // should be a new part, not appended to any pre-reasoning text — scoped.
     this.activeTextMessageIdByScope.delete(scope);
-    const key = messageId ?? `__auto-reasoning-${++this.reasoningPartCounter}`;
+    const key = this.partKey(
+      scope,
+      messageId ?? `__auto-reasoning-${++this.reasoningPartCounter}`,
+    );
     // Two different questions: which id may be replayed as a ReasoningMessage.id
     // (only the message-scoped aliases carry one), and which block an unmatched
     // signature may claim (any block opened without an id at all).

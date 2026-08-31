@@ -1326,9 +1326,21 @@ describe("RunAggregator", () => {
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-spawn",
+      toolCallName: "task",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_RESULT",
+      toolCallId: "t-spawn",
+      content: "spawned",
+      role: "tool",
+    } as AgUiEvent);
+    aggregator.handle({
       type: "SUBAGENT_STARTED",
       subagentRunId: "sub-1",
       name: "investigate",
+      parentToolCallId: "t-spawn",
     } as AgUiEvent);
     aggregator.handle({
       type: "TOOL_CALL_START",
@@ -1347,6 +1359,33 @@ describe("RunAggregator", () => {
     const last = results.at(-1);
     expect(last?.status).toMatchObject({
       type: "incomplete",
+      reason: "tool-calls",
+    });
+  });
+
+  it("reports requires-action for a dangling tool call belonging to a subagent that flattened to root", () => {
+    // The nesting-site rule above decides both where a call renders and
+    // whether it is answerable: a flattened call is top-level content, so
+    // getPendingToolCalls reaches it and the run is genuinely resumable.
+    const aggregator = createAggregator(false);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-free",
+      name: "investigate",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "tool1",
+      toolCallName: "search",
+      subagentRunId: "sub-free",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1);
+    expect(last?.status).toMatchObject({
+      type: "requires-action",
       reason: "tool-calls",
     });
   });
@@ -2921,6 +2960,46 @@ describe("RunAggregator", () => {
     expect(results.at(-1)?.content).toEqual([]);
   });
 
+  it("keeps a messageId reused by the root run and a subagent in separate buffers", () => {
+    const aggregator = createAggregator(true);
+
+    aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-spawn",
+      toolCallName: "task",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-1",
+      name: "worker",
+      parentToolCallId: "t-spawn",
+    } as AgUiEvent);
+    // The schema does not make messageId unique across subagent runs.
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "m-1",
+      delta: "root text",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TEXT_MESSAGE_CONTENT",
+      messageId: "m-1",
+      delta: "subagent text",
+      subagentRunId: "sub-1",
+    } as AgUiEvent);
+    aggregator.handle({ type: "RUN_FINISHED", runId: "r1" } as AgUiEvent);
+
+    const last = results.at(-1)!;
+    const rootText = last.content.filter((p: any) => p.type === "text");
+    expect(rootText).toEqual([{ type: "text", text: "root text" }]);
+    const toolPart = last.content.find(
+      (p: any) => p.type === "tool-call",
+    ) as any;
+    expect(toolPart.messages[0].content).toEqual([
+      { type: "text", text: "subagent text" },
+    ]);
+  });
+
   it("attributes TEXT_MESSAGE_CHUNK to its subagent, the same as TEXT_MESSAGE_CONTENT", () => {
     const aggregator = createAggregator(true);
 
@@ -3699,13 +3778,25 @@ describe("RunAggregator", () => {
       toolCallName: "spawn",
       subagentRunId: "sub-a",
     } as AgUiEvent);
-    // sub-a is reachable from t-root and also claims to be spawned by its own
-    // descendant call; the cycle must not re-enter it.
     aggregator.handle({
       type: "SUBAGENT_STARTED",
       subagentRunId: "sub-b",
       name: "b",
       parentToolCallId: "t-a",
+    } as AgUiEvent);
+    aggregator.handle({
+      type: "TOOL_CALL_START",
+      toolCallId: "t-b",
+      toolCallName: "spawn",
+      subagentRunId: "sub-b",
+    } as AgUiEvent);
+    // Closes the loop: sub-a claims to be spawned by a call inside its own
+    // descendant, so a walk with no visited set would re-enter it forever.
+    aggregator.handle({
+      type: "SUBAGENT_STARTED",
+      subagentRunId: "sub-a",
+      name: "a",
+      parentToolCallId: "t-b",
     } as AgUiEvent);
     aggregator.handle({
       type: "TEXT_MESSAGE_CONTENT",
@@ -3717,10 +3808,15 @@ describe("RunAggregator", () => {
     const last = results[results.length - 1]!;
     const rootTool = last.content[0] as any;
     expect(rootTool.messages.map((m: any) => m.id)).toEqual(["sub-a"]);
-    const nestedTool = rootTool.messages[0].content[0];
-    expect(nestedTool.messages.map((m: any) => m.id)).toEqual(["sub-b"]);
-    expect(nestedTool.messages[0].content).toEqual([
-      { type: "text", text: "deep" },
-    ]);
+    const subATool = rootTool.messages[0].content[0];
+    expect(subATool.toolCallId).toBe("t-a");
+    expect(subATool.messages.map((m: any) => m.id)).toEqual(["sub-b"]);
+    const subBContent = subATool.messages[0].content;
+    expect(subBContent.map((p: any) => p.type)).toEqual(["tool-call", "text"]);
+    // The loop closes here: t-b lives inside sub-b and claims to spawn sub-a,
+    // which is already materialized further up. It must not be re-entered.
+    expect(subBContent[0].toolCallId).toBe("t-b");
+    expect(subBContent[0].messages).toBeUndefined();
+    expect(subBContent[1]).toEqual({ type: "text", text: "deep" });
   });
 });
