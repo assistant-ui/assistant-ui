@@ -2411,6 +2411,17 @@ test("packaged file contents are written per item at the install target", async 
           },
         ],
       },
+      {
+        name: "chat/b/delta",
+        type: "registry:page",
+        files: [
+          {
+            type: "registry:page",
+            path: "app/api/chat/resume/[streamId]/route.ts",
+            content: "delta content",
+          },
+        ],
+      },
     ]);
 
     assert.equal(
@@ -2427,6 +2438,18 @@ test("packaged file contents are written per item at the install target", async 
       await readTmp(join(root, "files/gamma/app/assistant.tsx"), "utf8"),
       "gamma content",
     );
+    // A slash-bearing item name nests as directories, and a bracketed route
+    // segment is preserved verbatim on disk — the URL side percent-encodes it.
+    assert.equal(
+      await readTmp(
+        join(
+          root,
+          "files/chat/b/delta/app/api/chat/resume/[streamId]/route.ts",
+        ),
+        "utf8",
+      ),
+      "delta content",
+    );
   } finally {
     await rm(root, { recursive: true, force: true });
   }
@@ -2439,6 +2462,11 @@ test("the built dist serves every packaged file at the docs' URL convention", as
     readdir,
   } = await import("node:fs/promises");
   const { join } = await import("node:path");
+
+  // Build inside the test so it neither ENOENTs in isolation nor validates a
+  // stale dist from an earlier run.
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
 
   // Item names may contain slashes, so the walk is recursive. files/ holds the
   // packaged bytes themselves, base/ is walked as its own root, and vue/ is a

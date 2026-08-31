@@ -5,10 +5,13 @@ import {
   resolveAllComponents,
   ComponentSourceFromFile,
   type ResolvedComponents,
-  type RegistryFlavor,
   type ResolvedFile,
   type ResolvedGroup,
 } from "@/components/pages/docs/fumadocs/install/component-source";
+import {
+  buildDownloadCommand,
+  packagedFileUrl,
+} from "@/components/pages/docs/fumadocs/install/packaged-file-url";
 import { SetupInstructions } from "@/components/pages/docs/fumadocs/install/setup-instructions";
 import {
   ExpoInstallTabs,
@@ -116,41 +119,11 @@ export async function InstallCommand(props: InstallCommandProps) {
 const REPO = "assistant-ui/assistant-ui";
 const GITHUB_BLOB = `https://github.com/${REPO}/blob/main`;
 
-// The registry serves each item's packaged file contents under files/, so the
-// copy path ships exactly what `shadcn add` would install — raw GitHub sources
-// differ for the radix flavor, whose shipped imports are rewritten. Segments
-// (including item names, which may contain slashes) are percent-encoded so
-// bracketed route paths ([streamId]) stay inside RFC 3986 and outside curl's
-// URL globbing.
-const encodeUrlPath = (value: string) =>
-  value.split("/").map(encodeURIComponent).join("/");
-
-const packagedFileUrl = (
-  flavor: RegistryFlavor,
-  file: { name: string; path: string },
-) =>
-  flavor === "base"
-    ? `https://r.assistant-ui.com/base/files/${encodeUrlPath(file.name)}/${encodeUrlPath(file.path)}`
-    : `https://r.assistant-ui.com/files/${encodeUrlPath(file.name)}/${encodeUrlPath(file.path)}`;
-
 const CommandBlock = ({ command }: { command: string }) => (
   <pre>
     <code className="language-bash">{command}</code>
   </pre>
 );
-
-function buildDownloadCommand(
-  files: ResolvedFile[],
-  flavor: RegistryFlavor,
-): string {
-  // The -o path is quoted: bracketed route segments ([streamId]) are zsh
-  // globs, and an unmatched glob aborts the whole command under the default
-  // nomatch option.
-  const args = files
-    .map((file) => `  -o '${file.path}' ${packagedFileUrl(flavor, file)}`)
-    .join(" \\\n");
-  return `curl -fsSL --create-dirs \\\n${args}`;
-}
 
 // Instead of dumping each component's full source (the visual Manual tab), give
 // the CLI command plus a manual path: npm deps, shadcn components, and the
