@@ -9,6 +9,7 @@ type RegistryFile = {
   type: string;
   path: string;
   target?: string;
+  sourcePath?: string;
 };
 
 type RegistryItem = {
@@ -23,6 +24,8 @@ export type ResolvedFile = {
   name: string;
   path: string;
   content: string;
+  /** Repo-root-relative source location, when the registry build emitted it. */
+  sourcePath?: string;
 };
 
 export type ResolvedGroup = {
@@ -211,6 +214,9 @@ export async function resolveAllComponents(
           name,
           path: filePath,
           content: file.content,
+          ...(file.sourcePath !== undefined
+            ? { sourcePath: file.sourcePath }
+            : {}),
         });
       }
     }

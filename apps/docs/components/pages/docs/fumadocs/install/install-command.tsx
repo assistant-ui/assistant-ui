@@ -113,11 +113,10 @@ export async function InstallCommand(props: InstallCommandProps) {
   );
 }
 
-// Every resolvable file is an assistant-ui component, sourced from packages/ui.
 const REPO = "assistant-ui/assistant-ui";
 const UI_SRC = "packages/ui/src";
-const GITHUB_BLOB = `https://github.com/${REPO}/blob/main/${UI_SRC}`;
-const GITHUB_RAW = `https://raw.githubusercontent.com/${REPO}/main/${UI_SRC}`;
+const GITHUB_BLOB = `https://github.com/${REPO}/blob/main`;
+const GITHUB_RAW = `https://raw.githubusercontent.com/${REPO}/main`;
 
 const CommandBlock = ({ command }: { command: string }) => (
   <pre>
@@ -158,12 +157,15 @@ export const InstallCommandLLM = async (
       : `https://r.assistant-ui.com/${c}.json`,
   );
   const resolved = await resolveAllComponents(props.shadcn, flavor);
+  // The registry build emits each file's repo-root source location; the kit
+  // probe remains as the fallback for registries built before it existed.
   const files: LinkedFile[] = [
     ...resolved.main.files,
     ...resolved.auiDeps.files,
   ].map((file) => ({
     ...file,
-    sourcePath: githubSourcePath(file.path, flavor),
+    sourcePath:
+      file.sourcePath ?? `${UI_SRC}/${githubSourcePath(file.path, flavor)}`,
   }));
   // npm packages the copied files import. shadcn deps (e.g. radix-ui) are
   // omitted here — they install with the shadcn components below.

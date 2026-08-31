@@ -6,6 +6,7 @@ import "tsx/esm";
 const {
   buildRegistry,
   collectAttributeSelectorValues,
+  createRegistryPayload,
   createRegistryDependencyUsageExemptions,
   createBaseRegistryItem,
   createRadixRegistryItem,
@@ -2258,4 +2259,40 @@ test("the real registry build satisfies the emitted install metadata contract", 
       `${outputPath} excludes internal validation metadata`,
     );
   }
+});
+
+test("emitted files carry a repo-root sourcePath for source links", () => {
+  const kit = createRegistryPayload({
+    name: "sourcepath-kit",
+    type: "registry:component",
+    files: [
+      {
+        type: "registry:component",
+        path: "components/assistant-ui/elements/thread.aui.tsx",
+        sourcePath:
+          "../../packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+      },
+    ],
+  });
+  assert.equal(
+    kit.payload.files[0].sourcePath,
+    "packages/ui/src/components/react/assistant-ui/elements/thread.aui.tsx",
+  );
+
+  const template = createRegistryPayload({
+    name: "sourcepath-template",
+    type: "registry:page",
+    files: [
+      {
+        type: "registry:page",
+        path: "app/api/chat/route.ts",
+        sourcePath: "templates/ai-sdk-backend-resumable/app/api/chat/route.ts",
+        target: "app/api/chat/route.ts",
+      },
+    ],
+  });
+  assert.equal(
+    template.payload.files[0].sourcePath,
+    "apps/registry/templates/ai-sdk-backend-resumable/app/api/chat/route.ts",
+  );
 });

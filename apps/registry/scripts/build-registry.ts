@@ -60,6 +60,8 @@ type RegistryPayloadInput = RegistryBuildItem &
 type UiFlavor = "radix" | "base";
 type RegistryOutputFile = Omit<RegistryFile, "sourcePath"> & {
   content: string;
+  /** Repo-root-relative location of the shipped content, for source links. */
+  sourcePath: string;
 };
 type RegistryOutputItem = Omit<RegistryBuildItem, "files"> & {
   $schema: string;
@@ -233,7 +235,7 @@ export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
   throwIfFindings("Invalid emitted UI specifiers:", findings);
 }
 
-function createRegistryPayload(
+export function createRegistryPayload(
   item: RegistryPayloadInput,
   useRadixVariants = false,
 ): BuiltRegistryPayload {
@@ -267,6 +269,11 @@ function createRegistryPayload(
     const { sourcePath: _, ...fileOutput } = file;
     return {
       ...fileOutput,
+      // The docs' manual-install links need the true source location; paths
+      // here are cwd-relative (apps/registry), so re-root them at the repo.
+      sourcePath: path.posix.normalize(
+        path.posix.join("apps/registry", readPath.split(path.sep).join("/")),
+      ),
       content,
     };
   });
