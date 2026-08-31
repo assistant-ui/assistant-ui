@@ -1,7 +1,6 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { downloadTemplate } from "giget";
-import jscodeshift from "jscodeshift";
 import {
   parse as parseJsonc,
   printParseErrorCode,
@@ -51,8 +50,6 @@ const LOCAL_PROJECT_ARTIFACT_DIRS: readonly string[] = [
 const LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES = LOCAL_PROJECT_ARTIFACT_DIRS.map(
   (dir) => `**/${dir}/**`,
 );
-
-const j = jscodeshift.withParser("tsx");
 
 export function resolvePackageManager(opts: {
   useNpm?: boolean;
@@ -236,7 +233,7 @@ export async function transformProject(
       pm,
     );
     if (failure) return { registryInstallFailure: failure };
-    reconcileAssistantUIImportLayout(projectDir);
+    await reconcileAssistantUIImportLayout(projectDir);
   }
   return {};
 }
@@ -435,7 +432,9 @@ function toAssistantUIItem(specifier: string): string | null {
  * specifier against the files the registry actually installed and rewrite it
  * only when the legacy path is absent and the elements layout has it.
  */
-export function reconcileAssistantUIImportLayout(projectDir: string): void {
+export async function reconcileAssistantUIImportLayout(
+  projectDir: string,
+): Promise<void> {
   const componentRoots = ["components", "src/components"]
     .map((dir) => path.join(projectDir, dir, "assistant-ui"))
     .filter((dir) => fs.existsSync(dir));
@@ -472,6 +471,12 @@ export function reconcileAssistantUIImportLayout(projectDir: string): void {
     }
   }
   if (installedByName.size === 0) return;
+
+  const { default: jscodeshift } = await import("jscodeshift");
+  const parsers = {
+    ts: jscodeshift.withParser("ts"),
+    tsx: jscodeshift.withParser("tsx"),
+  };
 
   for (const { fullPath, content } of readProjectFiles("**/*.{ts,tsx}", {
     cwd: projectDir,
@@ -513,7 +518,13 @@ export function reconcileAssistantUIImportLayout(projectDir: string): void {
       });
     };
 
-    const root = j(content);
+    const j = fullPath.endsWith(".tsx") ? parsers.tsx : parsers.ts;
+    let root;
+    try {
+      root = j(content);
+    } catch {
+      continue;
+    }
     root
       .find(j.ImportDeclaration)
       .forEach(({ node }) => collectReplacement(node.source));
