@@ -3805,7 +3805,7 @@ describe("RunAggregator", () => {
     ]);
   });
 
-  it("terminates on a mutually cyclic parentToolCallId graph and flattens both runs", () => {
+  it("flattens a pair of subagents that name each other's tool calls as their parent", () => {
     const results: ChatModelRunResult[] = [];
     const aggregator = new RunAggregator({
       showThinking: true,
@@ -3815,8 +3815,11 @@ describe("RunAggregator", () => {
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
     // sub-x is spawned by a call inside sub-y, and sub-y by a call inside
-    // sub-x. Neither is reachable from the root, so a walk without a visited
-    // set would not terminate.
+    // sub-x. A run's parentToolCallId is fixed at its first announcement, so a
+    // mutual pair like this can never be entered from the root at all: both
+    // stay unreachable and flatten. The visited set and depth cap in
+    // reachableSubagentRunIds are defensive against a malformed registry
+    // rather than a graph this API can produce.
     aggregator.handle({
       type: "SUBAGENT_STARTED",
       subagentRunId: "sub-x",
