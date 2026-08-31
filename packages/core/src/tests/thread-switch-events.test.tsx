@@ -370,11 +370,13 @@ describe("thread switch events", () => {
         ],
       })),
     });
+    const globalRunStart = vi.fn();
     const globalRunEnd = vi.fn();
     const selectedRunEnd = vi.fn();
     let runtime!: AssistantRuntime;
 
     const Listener = () => {
+      useAuiEvent({ scope: "*", event: "thread.runStart" }, globalRunStart);
       useAuiEvent({ scope: "*", event: "thread.runEnd" }, globalRunEnd);
       useAuiEvent("thread.runEnd", selectedRunEnd);
       return null;
@@ -413,6 +415,11 @@ describe("thread switch events", () => {
     await waitFor(() => expect(threadB.getState().isRunning).toBe(true));
     await act(async () => {
       await runtime.threads.switchToThread("thread-b");
+    });
+    await waitFor(() => {
+      expect(globalRunStart).toHaveBeenCalledExactlyOnceWith({
+        threadId: threadBId,
+      });
     });
     await act(async () => {
       await runtime.threads.switchToThread("thread-a");
