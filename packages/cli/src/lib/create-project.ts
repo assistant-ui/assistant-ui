@@ -1,6 +1,7 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { downloadTemplate } from "giget";
+import jscodeshift from "jscodeshift";
 import {
   parse as parseJsonc,
   printParseErrorCode,
@@ -50,6 +51,8 @@ const LOCAL_PROJECT_ARTIFACT_DIRS: readonly string[] = [
 const LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES = LOCAL_PROJECT_ARTIFACT_DIRS.map(
   (dir) => `**/${dir}/**`,
 );
+
+const j = jscodeshift.withParser("tsx");
 
 export function resolvePackageManager(opts: {
   useNpm?: boolean;
@@ -474,17 +477,60 @@ export function reconcileAssistantUIImportLayout(projectDir: string): void {
     cwd: projectDir,
     ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
   })) {
-    const next = content.replace(
-      /(from\s+["'])@\/components\/assistant-ui\/([^"'/]+)(["'])/g,
-      (match, prefix, specifier, suffix) => {
-        const name = stripImportExtension(specifier);
-        const installed = installedByName.get(name);
-        if (resolvesAtLegacyPath(name) || installed === undefined) {
-          return match;
-        }
-        return `${prefix}@/components/assistant-ui/${installed}${suffix}`;
-      },
-    );
+    if (!content.includes("@/components/assistant-ui/")) continue;
+
+    const replacements: Array<{ start: number; end: number; value: string }> =
+      [];
+    const collectReplacement = (source: {
+      value?: unknown;
+      start?: number | null;
+      end?: number | null;
+    }) => {
+      if (
+        typeof source.value !== "string" ||
+        source.start == null ||
+        source.end == null
+      ) {
+        return;
+      }
+
+      const prefix = "@/components/assistant-ui/";
+      if (!source.value.startsWith(prefix)) return;
+      const specifier = source.value.slice(prefix.length);
+      if (specifier.includes("/")) return;
+
+      const name = stripImportExtension(specifier);
+      const installed = installedByName.get(name);
+      if (resolvesAtLegacyPath(name) || installed === undefined) return;
+
+      const raw = content.slice(source.start, source.end);
+      const quote = raw[0];
+      if ((quote !== '"' && quote !== "'") || raw.at(-1) !== quote) return;
+      replacements.push({
+        start: source.start,
+        end: source.end,
+        value: `${quote}@/components/assistant-ui/${installed}${quote}`,
+      });
+    };
+
+    const root = j(content);
+    root
+      .find(j.ImportDeclaration)
+      .forEach(({ node }) => collectReplacement(node.source));
+    root
+      .find(j.ExportNamedDeclaration)
+      .forEach(({ node }) => node.source && collectReplacement(node.source));
+    root
+      .find(j.ExportAllDeclaration)
+      .forEach(({ node }) => collectReplacement(node.source));
+
+    let next = content;
+    for (const replacement of replacements.sort((a, b) => b.start - a.start)) {
+      next =
+        next.slice(0, replacement.start) +
+        replacement.value +
+        next.slice(replacement.end);
+    }
     if (next !== content) fs.writeFileSync(fullPath, next);
   }
 }

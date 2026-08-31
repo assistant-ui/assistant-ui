@@ -41,6 +41,27 @@ describe("reconcileAssistantUIImportLayout", () => {
     );
   });
 
+  it("rewrites module declarations without changing import-like source text", () => {
+    write(
+      "app/page.tsx",
+      'import { Thread } from "@/components/assistant-ui/thread";\n' +
+        'export { ThreadList } from "@/components/assistant-ui/thread-list";\n' +
+        "const example = 'from \"@/components/assistant-ui/thread\"';\n" +
+        '// from "@/components/assistant-ui/thread-list"\n',
+    );
+    write("components/assistant-ui/elements/thread.aui.tsx", "export {};");
+    write("components/assistant-ui/elements/thread-list.aui.tsx", "export {};");
+
+    reconcileAssistantUIImportLayout(projectDir);
+
+    expect(read("app/page.tsx")).toBe(
+      'import { Thread } from "@/components/assistant-ui/elements/thread.aui";\n' +
+        'export { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";\n' +
+        "const example = 'from \"@/components/assistant-ui/thread\"';\n" +
+        '// from "@/components/assistant-ui/thread-list"\n',
+    );
+  });
+
   it("rewrites a legacy import to a bare elements file without the .aui segment", () => {
     write(
       "app/MyThread.tsx",
