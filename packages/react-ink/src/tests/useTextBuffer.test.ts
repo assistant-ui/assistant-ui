@@ -156,16 +156,18 @@ describe("textBufferReducer", () => {
     expect(state.cursorOffset).toBe(3);
   });
 
-  it("does not move backward when killing between CRLF characters", () => {
+  it("keeps the cursor outside CRLF when insertion creates the boundary", () => {
     const state = reduce(
       createTextBufferState("a\nb"),
       { type: "set-cursor", cursorOffset: 1 },
       { type: "insert", text: "\r" },
-      { type: "kill-end", multiLine: true },
     );
+    const killed = reduce(state, { type: "kill-end", multiLine: true });
 
-    expect(state.text).toBe("a\rb");
-    expect(state.cursorOffset).toBe(2);
+    expect(state.text).toBe("a\r\nb");
+    expect(state.cursorOffset).toBe(3);
+    expect(killed.text).toBe("a\r\n");
+    expect(killed.cursorOffset).toBe(3);
   });
 
   it("kills to line boundaries in multi-line mode", () => {

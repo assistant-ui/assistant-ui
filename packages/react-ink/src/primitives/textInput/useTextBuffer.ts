@@ -55,6 +55,16 @@ const snapToGraphemeBoundary = (text: string, offset: number) => {
   return previous;
 };
 
+const snapToNextGraphemeBoundary = (text: string, offset: number) => {
+  if (offset <= 0) return 0;
+  if (offset >= text.length) return text.length;
+  for (const { index, segment } of graphemeSegmenter.segment(text)) {
+    const end = index + segment.length;
+    if (offset <= end) return end;
+  }
+  return text.length;
+};
+
 const stepGraphemeRight = (text: string, offset: number) => {
   if (offset >= text.length) return text.length;
   for (const { index, segment } of graphemeSegmenter.segment(text)) {
@@ -171,7 +181,10 @@ export const textBufferReducer = (
         state.text.slice(0, state.cursorOffset) +
         action.text +
         state.text.slice(state.cursorOffset);
-      const nextCursorOffset = state.cursorOffset + action.text.length;
+      const nextCursorOffset = snapToNextGraphemeBoundary(
+        nextText,
+        state.cursorOffset + action.text.length,
+      );
       return clearPreferredColumn(
         { ...state, text: nextText },
         nextCursorOffset,
