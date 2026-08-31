@@ -121,16 +121,15 @@ function expandPackageGlobs(packageNames, patterns) {
 
 export function findUnreleasablePackages(packages, bumps, rules) {
   const ignored = expandPackageGlobs(packages.keys(), rules.ignored);
+  const isSkipped = (name, pkg) =>
+    ignored.has(name) ||
+    (pkg.isPrivate && rules.skipsPrivate) ||
+    !pkg.hasVersion;
   const filesWithReleasedBumps = new Set(
     bumps
       .filter(({ name }) => {
         const pkg = packages.get(name);
-        return (
-          pkg &&
-          pkg.hasVersion &&
-          !ignored.has(name) &&
-          (!pkg.isPrivate || !rules.skipsPrivate)
-        );
+        return pkg && !isSkipped(name, pkg);
       })
       .map(({ file }) => file),
   );
