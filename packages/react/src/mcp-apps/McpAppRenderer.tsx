@@ -196,7 +196,7 @@ function InlineRenderer({
 
     const loadResource = async () => {
       await Promise.resolve();
-      if (cancelled) return;
+      if (cancelled || useRendererStore.getState().host !== targetHost) return;
       try {
         const res = await targetHost.loadResource({
           uri: targetUri,
@@ -229,7 +229,7 @@ function InlineRenderer({
     return () => {
       cancelled = true;
     };
-  }, [host, resourceUri, serverId]);
+  }, [host, resourceUri, serverId, useRendererStore]);
 
   const bridgeHandlers = useMemo<McpAppBridgeHandlers>(
     () => ({
