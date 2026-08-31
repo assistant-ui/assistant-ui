@@ -277,8 +277,7 @@ function FollowUps() {
           <ThreadPrimitive.Suggestion
             key={i}
             prompt={s.prompt}
-            method="replace"
-            autoSend
+            send
           >
             {s.title ?? s.prompt}
             {s.label && (
