@@ -6,6 +6,7 @@ import {
   watch,
   type PropType,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import {
   createAssistantClient,
@@ -42,7 +43,7 @@ export const AuiProvider = defineComponent({
       default: undefined,
     },
   },
-  slots: Object as SlotsType<{ default?: () => unknown }>,
+  slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
   setup(props, { slots }) {
     const injected = inject(auiInjectionKey, null);
     const hasExtends = props.extends !== undefined;

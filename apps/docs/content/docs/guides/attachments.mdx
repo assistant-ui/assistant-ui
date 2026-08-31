@@ -29,7 +29,7 @@ First, add the attachment UI components to your project:
 
 <InstallCommand shadcn={["attachment"]} />
 
-This adds `/components/assistant-ui/attachment.tsx` to your project.
+This adds `/components/assistant-ui/elements/attachment.tsx` to your project.
 
 <Callout type="tip">
   **Next steps:** Feel free to adjust these auto-generated components (styling,
@@ -58,7 +58,7 @@ const runtime = useChatRuntime();
 
 ### Add UI Components
 
-Integrate the attachment components into your chat interface. See [Attachment UI components](/docs/ui/attachment) for the full install and usage guide.
+Integrate the attachment components into your chat interface. See [Attachment UI components](/elements/attachment) for the full install and usage guide.
 
   </Step>
 </Steps>
@@ -114,7 +114,7 @@ const compositeAdapter = new CompositeAttachmentAdapter([
 
 ## Creating Custom Attachment Adapters
 
-Build your own adapters for specialized file handling. Below are complete examples for common use cases. For `PendingAttachment` and `CompleteAttachment` type definitions, see [Attachment types](/docs/ui/attachment#attachment-types).
+Build your own adapters for specialized file handling. Below are complete examples for common use cases. For `PendingAttachment` and `CompleteAttachment` type definitions, see [Attachment types](/elements/attachment#attachment-types).
 
 ### Vision-Capable Image Adapter
 
@@ -615,5 +615,5 @@ class ServerUploadAdapter implements AttachmentAdapter {
 
 ## Resources
 
-- [Attachment UI Components](/docs/ui/attachment) - UI implementation details
+- [Attachment UI Components](/elements/attachment) - UI implementation details
 - [API Reference](/docs/api-reference/overview) - Detailed type definitions

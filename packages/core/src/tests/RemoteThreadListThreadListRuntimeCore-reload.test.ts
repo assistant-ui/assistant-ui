@@ -95,6 +95,58 @@ describe("RemoteThreadListThreadListRuntimeCore.reload", () => {
     expect(core.threadIds).not.toContain("stale");
   });
 
+  it("clears loading when the superseded request never settles", async () => {
+    const listFn = vi
+      .fn<() => Promise<RemoteThreadListResponse>>()
+      .mockReturnValueOnce(new Promise<never>(() => {}))
+      .mockResolvedValueOnce({
+        threads: [
+          {
+            status: "regular",
+            remoteId: "fresh",
+            externalId: "fresh",
+            title: "Fresh",
+          },
+        ],
+      });
+    const adapter = makeAdapter({ list: listFn });
+    const core = createCore(adapter);
+
+    void core.getLoadThreadsPromise();
+    await core.reload();
+
+    expect(core.threadIds).toEqual(["fresh"]);
+    expect(core.isLoading).toBe(false);
+  });
+
+  it("clears loading once the fresh list arrives, before the superseded request settles", async () => {
+    const first = deferred<RemoteThreadListResponse>();
+    const listFn = vi
+      .fn<() => Promise<RemoteThreadListResponse>>()
+      .mockReturnValueOnce(first.promise)
+      .mockResolvedValueOnce({
+        threads: [
+          {
+            status: "regular",
+            remoteId: "fresh",
+            externalId: "fresh",
+            title: "Fresh",
+          },
+        ],
+      });
+    const core = createCore(makeAdapter({ list: listFn }));
+
+    void core.getLoadThreadsPromise();
+    await core.reload();
+
+    expect(core.threadIds).toEqual(["fresh"]);
+    expect(core.isLoading).toBe(false);
+
+    first.resolve({ threads: [] });
+    await Promise.resolve();
+    expect(core.isLoading).toBe(false);
+  });
+
   it("recovers after a failed initial load", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const listFn = vi

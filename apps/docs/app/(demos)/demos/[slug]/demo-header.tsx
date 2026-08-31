@@ -2,7 +2,13 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Select } from "@/components/assistant-ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { GitHubIcon } from "@/components/icons/github";
 import { HeaderBrandLink } from "@/components/shared/header-brand-link";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
@@ -11,6 +17,10 @@ import { DEMO_META } from "@/lib/demos-meta";
 export function DemoHeader({ slug }: { slug: string }) {
   const router = useRouter();
   const demo = DEMO_META.find((entry) => entry.slug === slug);
+  const demos = DEMO_META.map((entry) => ({
+    value: entry.slug,
+    label: entry.name,
+  }));
 
   return (
     <header className="bg-background z-50 flex h-12 shrink-0 items-center justify-between px-4">
@@ -18,11 +28,23 @@ export function DemoHeader({ slug }: { slug: string }) {
         <HeaderBrandLink labelClassName="hidden sm:inline" />
         <span className="text-muted-foreground/40 ml-3">/</span>
         <Select
-          variant="ghost"
           value={slug}
-          onValueChange={(value) => router.push(`/demos/${value}`)}
-          options={DEMO_META.map((d) => ({ value: d.slug, label: d.name }))}
-        />
+          onValueChange={(value) => {
+            if (value !== null) router.push(`/demos/${value}`);
+          }}
+          items={demos}
+        >
+          <SelectTrigger className="hover:bg-accent h-8 border-0 bg-transparent px-2 shadow-none">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent align="start">
+            {demos.map((entry) => (
+              <SelectItem key={entry.value} value={entry.value}>
+                {entry.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
       <div className="flex items-center gap-2">
         <Link

@@ -1,0 +1,131 @@
+---
+title: "Dropdown Menu"
+description: "Actions behind a trigger: items, shortcuts, and separators on a quiet surface."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/dropdown-menu.tsx
+  - label: Base UI Menu
+    url: https://base-ui.com/react/components/menu
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  DropdownMenuSpecimen,
+  DropdownMenuChecklistSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="DropdownMenuSpecimen" base={<DropdownMenuSpecimen />}>
+  <RadixSpecimens.DropdownMenuSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="dropdown-menu" />
+
+## Usage
+
+```tsx
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger render={<Button variant="outline">Open</Button>} />
+      <DropdownMenuContent>
+        <DropdownMenuItem>Profile</DropdownMenuItem>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem>Sign out</DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+```
+
+## Examples
+
+### Checkboxes and submenus
+
+`DropdownMenuCheckboxItem` holds a checked state, `DropdownMenuLabel` titles a group, and `DropdownMenuSub` nests a second level.
+
+<PreviewCode file="components/pages/design/specimens" name="DropdownMenuChecklistSpecimen" base={<DropdownMenuChecklistSpecimen />}>
+  <RadixSpecimens.DropdownMenuChecklistSpecimen />
+</PreviewCode>
+
+## API Reference
+
+The parts wrap Base UI's Menu primitives and accept their props.
+
+### DropdownMenu
+
+<ParametersTable
+  type="DropdownMenuProps"
+  parameters={[
+    {
+      name: "open",
+      type: "boolean",
+      description: "Controlled open state.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description: "Called when the open state changes.",
+    },
+    {
+      name: "defaultOpen",
+      type: "boolean",
+      default: "false",
+      description: "Uncontrolled initial open state.",
+    },
+  ]}
+/>
+
+### DropdownMenuContent
+
+<ParametersTable
+  type="DropdownMenuContentProps"
+  parameters={[
+    {
+      name: "align",
+      type: '"start" | "center" | "end"',
+      default: '"center"',
+      description: "Alignment against the trigger.",
+    },
+    {
+      name: "sideOffset",
+      type: "number",
+      default: "4",
+      description: "Distance from the trigger in pixels.",
+    },
+  ]}
+/>
+
+### DropdownMenuItem
+
+<ParametersTable
+  type="DropdownMenuItemProps"
+  parameters={[
+    {
+      name: "onSelect",
+      type: "() => void",
+      description: "Called when the item is selected.",
+    },
+    {
+      name: "disabled",
+      type: "boolean",
+      default: "false",
+      description: "Prevents selection and mutes the item.",
+    },
+  ]}
+/>

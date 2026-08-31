@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { getLatestThreadTokenUsage, getThreadMessageTokenUsage } from "./usage";
+import { getThreadMessageTokenUsage } from "./usage";
 
 function msg(metadata: unknown): { role: "assistant"; metadata: unknown } {
   return {
@@ -9,6 +9,22 @@ function msg(metadata: unknown): { role: "assistant"; metadata: unknown } {
 }
 
 describe("getThreadMessageTokenUsage", () => {
+  it("reads usage from legacy custom.usage metadata path", () => {
+    const usage = getThreadMessageTokenUsage(
+      msg({
+        custom: {
+          usage: { inputTokens: 4, outputTokens: 6 },
+        },
+      }),
+    );
+
+    expect(usage).toEqual({
+      totalTokens: 10,
+      inputTokens: 4,
+      outputTokens: 6,
+    });
+  });
+
   it("does not double-count reasoning/cached in fallback totalTokens", () => {
     const usage = getThreadMessageTokenUsage(
       msg({
@@ -157,25 +173,27 @@ describe("getThreadMessageTokenUsage", () => {
   });
 });
 
-describe("getLatestThreadTokenUsage", () => {
-  it("falls back to the latest assistant message with usage", () => {
-    const usage = getLatestThreadTokenUsage([
+describe("getThreadMessageTokenUsage", () => {
+  it("returns token usage from an earlier assistant message", () => {
+    const messages = [
       { role: "assistant", metadata: { usage: { totalTokens: 100 } } },
       { role: "user", metadata: {} },
       { role: "assistant", metadata: {} },
-    ]);
+    ];
+    const usage = getThreadMessageTokenUsage(messages[0]);
 
     expect(usage).toEqual({ totalTokens: 100 });
   });
 
-  it("prefers the newest assistant message when it has usage", () => {
-    const usage = getLatestThreadTokenUsage([
+  it("returns token usage from the newest assistant message", () => {
+    const messages = [
       { role: "assistant", metadata: { usage: { totalTokens: 100 } } },
       {
         role: "assistant",
         metadata: { usage: { inputTokens: 40, outputTokens: 2 } },
       },
-    ]);
+    ];
+    const usage = getThreadMessageTokenUsage(messages[1]);
 
     expect(usage).toEqual({
       totalTokens: 42,

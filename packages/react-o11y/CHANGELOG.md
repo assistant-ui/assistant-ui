@@ -1,5 +1,14 @@
 # @assistant-ui/react-o11y
 
+## 0.0.42
+
+### Patch Changes
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+- Updated dependencies [[`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d)]:
+  - @assistant-ui/store@0.3.11
+  - @assistant-ui/tap@0.9.15
+
 ## 0.0.41
 
 ### Patch Changes

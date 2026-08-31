@@ -1,0 +1,86 @@
+---
+title: "Code Block"
+description: "Highlighted code on a field panel, with a title bar and a copy button."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/code-block.tsx
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  CodeBlockSpecimen,
+  CodeBlockBareSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="CodeBlockSpecimen" base={<CodeBlockSpecimen />}>
+  <RadixSpecimens.CodeBlockSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="code-block" />
+
+## Usage
+
+The component is the chrome; pass it a `pre` element, highlighted or plain. In MDX every fenced code block on this site renders through it.
+
+```tsx
+import { CodeBlock } from "@/components/ui/code-block";
+
+export function Example() {
+  return (
+    <CodeBlock title="example.ts">
+      <pre>
+        <code>{'const answer = 42;'}</code>
+      </pre>
+    </CodeBlock>
+  );
+}
+```
+
+## Examples
+
+### Without a title
+
+When there is no header, the copy button floats in the corner and appears on hover.
+
+<PreviewCode file="components/pages/design/specimens" name="CodeBlockBareSpecimen" base={<CodeBlockBareSpecimen />}>
+  <RadixSpecimens.CodeBlockBareSpecimen />
+</PreviewCode>
+
+## API Reference
+
+### CodeBlock
+
+<ParametersTable
+  type="CodeBlockProps"
+  parameters={[
+    {
+      name: "title",
+      type: "ReactNode",
+      description: "Header label, usually the file name. Without it the copy button floats in the corner.",
+    },
+    {
+      name: "viewportClassName",
+      type: "string",
+      description: "Classes for the scrollable code region, e.g. a max height.",
+    },
+    {
+      name: "copyText",
+      type: "string",
+      description: "Text for the copy button; defaults to the rendered code's text.",
+    },
+    {
+      name: "className",
+      type: "string",
+      description: "Additional CSS classes on the outer figure.",
+    },
+  ]}
+/>
+
+Lines marked `.highlighted` by the highlighter get the blue gutter bar, and `data-line-numbers` on the `pre` turns on the counter gutter. In dark mode each token falls back to its `--shiki-dark` variable.

@@ -576,6 +576,83 @@ describe("MessageRepository", () => {
     });
   });
 
+  describe("ExportedMessageRepository auto status", () => {
+    const pendingToolCall: ThreadMessageLike = {
+      id: "a1",
+      role: "assistant",
+      content: [
+        {
+          type: "tool-call",
+          toolCallId: "t1",
+          toolName: "search",
+          args: {},
+          argsText: "{}",
+          approval: { id: "a1" },
+        },
+      ],
+    };
+
+    it("fromArray reports requires-action for an unresolved approval", () => {
+      const result = ExportedMessageRepository.fromArray([pendingToolCall]);
+      expect(result.messages[0]!.message.status).toMatchObject({
+        type: "requires-action",
+        reason: "interrupt",
+      });
+    });
+
+    it("fromBranchableArray reports requires-action for an unresolved approval", () => {
+      const result = ExportedMessageRepository.fromBranchableArray([
+        { message: pendingToolCall, parentId: null },
+      ]);
+      expect(result.messages[0]!.message.status).toMatchObject({
+        type: "requires-action",
+        reason: "interrupt",
+      });
+    });
+
+    it("fromArray reports requires-action with reason tool-calls for a resultless tool call", () => {
+      const result = ExportedMessageRepository.fromArray([
+        {
+          ...pendingToolCall,
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "t1",
+              toolName: "search",
+              args: {},
+              argsText: "{}",
+            },
+          ],
+        },
+      ]);
+      expect(result.messages[0]!.message.status).toMatchObject({
+        type: "requires-action",
+        reason: "tool-calls",
+      });
+    });
+
+    it("keeps complete for a resolved tool call", () => {
+      const result = ExportedMessageRepository.fromArray([
+        {
+          ...pendingToolCall,
+          content: [
+            {
+              type: "tool-call",
+              toolCallId: "t1",
+              toolName: "search",
+              args: {},
+              argsText: "{}",
+              result: "ok",
+            },
+          ],
+        },
+      ]);
+      expect(result.messages[0]!.message.status).toMatchObject({
+        type: "complete",
+      });
+    });
+  });
+
   describe("ExportedMessageRepository.fromBranchableArray", () => {
     it("should create a branching tree structure", () => {
       const items = [

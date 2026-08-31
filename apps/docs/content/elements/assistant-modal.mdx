@@ -1,0 +1,98 @@
+---
+title: "Assistant modal"
+description: "A floating chat bubble for support widgets, help desks, and embedded assistants."
+---
+
+Assistant modal tucks a complete Thread behind a floating corner trigger: a bot icon that becomes a chevron once open, above a popover that holds the conversation. It has no standalone form, since it is a fixed composition of Thread and a runtime-driven open state rather than a set of props.
+
+## Getting started
+
+<RuntimeMode>
+
+`AssistantModal` needs nothing beyond a runtime provider higher up the tree; it positions and opens itself.
+
+<Steps>
+  <Step>
+
+### Drop it in
+
+```tsx title="app/layout.tsx"
+import { AssistantModal } from "@/components/assistant-ui/elements/assistant-modal.aui";
+
+export default function Layout({ children }: { children: React.ReactNode }) {
+  return (
+    <>
+      {children}
+      <AssistantModal />
+    </>
+  );
+}
+```
+
+Needs an `AssistantRuntimeProvider` ancestor. Render it once, anywhere under the provider, since it is fixed-positioned to the viewport corner on its own.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Assistant modal has no standalone form: it composes the runtime-only [Thread](/elements/thread) inside a popover it opens itself, tied to the runtime's `thread.runStart` event. Build your own floating trigger around a popover and Thread's primitives if you need different open behavior.
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div className="aui-modal-anchor fixed end-4 bottom-4 size-11">
+  <button aria-label="Open Assistant">{/* bot icon, crossfades to a chevron once open */}</button>
+</div>
+
+<div className="aui-modal-content"> {/* opens above the trigger */}
+  <Thread />
+</div>
+```
+
+The modal opens itself on the runtime's `thread.runStart` event, so sending the first message expands it even if it was launched collapsed. Once open, clicking outside or losing focus does not close it; only clicking the trigger again does, since the popover cancels every outside-press and focus-out close and honors just the explicit toggle. The trigger's accessible label switches between "Open Assistant" and "Close Assistant" along with the icon crossfade.
+
+## Examples
+
+### Trigger it from elsewhere
+
+`AssistantModal` owns its open state internally and exposes no `open` prop or ref. To open it from a different control, such as a header button, lift the `open`/`setOpen` pair already at the top of the component into your own copy of the file.
+
+### Restyle the trigger and panel
+
+The anchor, panel, and button each carry a stable class name you can target from outside without touching the copied file: `aui-modal-anchor` positions the trigger, `aui-modal-content` sizes and animates the panel, and `aui-modal-button` styles the trigger itself.
+
+```css
+.aui-modal-content {
+  width: 28rem;
+  border-radius: 1rem;
+}
+```
+
+## API reference
+
+<RuntimeMode>
+
+### AssistantModal
+
+Takes no props.
+
+### Behavior
+
+| Event | Fires | Effect |
+|-------|-------|--------|
+| `thread.runStart` | Once per run start, any thread | Opens the modal via `aui.on("thread.runStart", ...)`. |
+
+### Class names
+
+| Class | Targets |
+|-------|---------|
+| `aui-modal-anchor` | The fixed-position trigger wrapper. |
+| `aui-modal-content` | The popover panel that holds `Thread`. |
+| `aui-modal-button` | The floating trigger button. |
+
+</RuntimeMode>

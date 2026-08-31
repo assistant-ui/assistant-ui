@@ -108,6 +108,10 @@ export {
   createRuntimeExtrasBrand,
   type RuntimeExtrasBrand,
 } from "../runtime/utils/runtime-extras-brand";
+export {
+  resolveToolCallText,
+  type ToolCallText,
+} from "../model-context/tool-call-text";
 export { defineToolkit } from "../react/model-context/define-toolkit";
 export {
   defineMcpToolkit,

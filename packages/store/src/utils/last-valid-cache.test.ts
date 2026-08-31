@@ -101,4 +101,20 @@ describe("createStaleReporter", () => {
       errorSpy.mockRestore();
     }
   });
+
+  it("names the id in reports for an id-addressed provider", () => {
+    const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      createStaleReporter({
+        name: "Probe",
+        index: "msg_1",
+        isCurrent: () => true,
+        isValid: () => false,
+      })();
+      expect(errorSpy).toHaveBeenCalledTimes(1);
+      expect(String(errorSpy.mock.calls[0]![0])).toContain('id "msg_1"');
+    } finally {
+      errorSpy.mockRestore();
+    }
+  });
 });

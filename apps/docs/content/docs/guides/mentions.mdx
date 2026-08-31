@@ -23,11 +23,11 @@ Under the hood, mentions are one kind of [trigger popover](/docs/guides/slash-co
 
 ## Quick Start
 
-The fastest path is the pre-built [Mention UI components](/docs/ui/composer-trigger-popover), which wire everything together with two shadcn components — the popover picker and the message-side chip renderer:
+The fastest path is the pre-built [Mention UI components](/elements/composer-trigger-popover), which wire everything together with two shadcn components — the popover picker and the message-side chip renderer:
 
 <InstallCommand shadcn={["composer-trigger-popover", "directive-text"]} />
 
-See the [Composer Trigger Popover](/docs/ui/composer-trigger-popover) and [Directive Text](/docs/ui/directive-text) guides for setup steps.
+See the [Composer Trigger Popover](/elements/composer-trigger-popover) and [Directive Text](/elements/directive-text) guides for setup steps.
 
 The rest of this guide covers the underlying concepts and customization points.
 
@@ -89,7 +89,7 @@ import {
   unstable_useLiveCompletionAdapter,
   unstable_defaultDirectiveFormatter,
 } from "@assistant-ui/react";
-import { ComposerTriggerPopover } from "@/components/assistant-ui/composer-trigger-popover";
+import { ComposerTriggerPopover } from "@/components/assistant-ui/elements/composer-trigger-popover.aui";
 
 function MentionPopover() {
   const mentions = unstable_useLiveCompletionAdapter({
@@ -446,7 +446,7 @@ function MaxLengthPlugin({ maxLength }: { maxLength: number }) {
 
 ## Rendering Mentions in Messages
 
-Use `DirectiveText` as the `Text` component for user messages so directives render as inline chips instead of raw syntax. See the [Directive Text](/docs/ui/directive-text) guide for setup and customization.
+Use `DirectiveText` as the `Text` component for user messages so directives render as inline chips instead of raw syntax. See the [Directive Text](/elements/directive-text) guide for setup and customization.
 
 ## Processing Mentions on the Backend
 
@@ -568,8 +568,8 @@ Mentions and slash commands coexist on the same composer. See [Combining Slash C
 
 ## Related
 
-- [ComposerTriggerPopover UI Component](/docs/ui/composer-trigger-popover) — pre-built shadcn component
-- [DirectiveText UI Component](/docs/ui/directive-text) — renders mention chips in user messages
+- [ComposerTriggerPopover UI Component](/elements/composer-trigger-popover) — pre-built shadcn component
+- [DirectiveText UI Component](/elements/directive-text) — renders mention chips in user messages
 - [Slash Commands Guide](/docs/guides/slash-commands) — `/` command system built on the same architecture
 - [Tools Guide](/docs/tools/defining-tools) — register tools that appear in the mention picker
 - [Composer Primitives](/docs/primitives/composer) — underlying composer primitives

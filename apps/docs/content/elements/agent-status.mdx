@@ -1,0 +1,177 @@
+---
+title: "Agent status"
+description: "One pill that always answers: what is it doing, and for how long."
+---
+
+A rounded pill with a state dot, a label that crossfades when it changes, an elapsed time while the agent is still going, and a trailing icon. With a runtime the state and label track a tool call's own lifecycle; standalone you hold all three and update them yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+The pill maps naturally onto a single tool call: what the call is doing is the label, and whether it is still running, waiting on something, or finished is the state.
+
+<Steps>
+  <Step>
+
+### Render the tool call
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+import { AgentStatus } from "@/components/assistant-ui/elements/agent-status";
+
+export const toolkit = defineToolkit({
+  report_status: {
+    type: "backend",
+    render: ({ args, status }) => (
+      <AgentStatus
+        state={
+          status.type === "requires-action"
+            ? "waiting"
+            : status.type === "running"
+              ? "working"
+              : "done"
+        }
+        label={args.label}
+        elapsed={args.elapsed}
+      />
+    ),
+  },
+});
+```
+
+`state` follows the call's own status: `requires-action` reads as waiting, `running` as working, and both `complete` and `incomplete` read as done, since either way the call is no longer active. `label` and `elapsed` are whatever the call's `args` carry, so your server formats `elapsed` (`"2m14s"`) the way you want it shown.
+
+  </Step>
+  <Step>
+
+### Register the toolkit
+
+```tsx title="app/MyRuntimeProvider.tsx"
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { toolkit } from "./toolkit";
+
+const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+export function MyRuntimeProvider({ children }: { children: React.ReactNode }) {
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      {children}
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a controlled display: you own `state`, `label`, and `elapsed`, and update them as the agent's work moves along.
+
+<Steps>
+  <Step>
+
+### Hold the status state
+
+```tsx title="app/status.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  AgentStatus,
+  type AgentState,
+} from "@/components/assistant-ui/elements/agent-status";
+
+export function Status() {
+  const [state, setState] = useState<AgentState>("working");
+  const [label, setLabel] = useState("Refactoring composer");
+  const [elapsed, setElapsed] = useState("0:04");
+
+  return <AgentStatus state={state} label={label} elapsed={elapsed} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Move through the run
+
+```tsx
+setState("waiting");
+setLabel("Waiting for approval");
+// later
+setState("done");
+setLabel("Finished, 2 files changed");
+```
+
+Changing `label` alone still animates: the text fades and blurs between values because the element keys the label on its own content.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="agent-status">
+  <span>{/* check, or a pulsing dot */}</span>
+  <span>{/* label */}</span>
+  <span>{/* elapsed, only while state !== "done" */}</span>
+  <button aria-label="Pause agent" /* or "Run again" once done */ />
+</div>
+```
+
+The leading indicator is a check once `state` is `"done"`, otherwise a pulsing dot: blue while `"working"`, muted while `"waiting"`. `elapsed` only renders when it is supplied and `state` is not `"done"`. The trailing button swaps its icon and label between "Pause agent" and "Run again" based on `state`, but it has no `onClick` prop in this version; it is presentational until you fork the component or attach a handler to it directly. Props spread onto the root pill, not onto that button.
+
+## Examples
+
+### Restyle the pill
+
+Both lanes take `className` on the root. The elapsed text uses the `mono` token and the button uses `ghostButton`, both from `surfaces.tsx`.
+
+```tsx
+<AgentStatus className="gap-3" state={state} label={label} elapsed={elapsed} />
+```
+
+### A pill with no elapsed time
+
+Omit `elapsed` for work that is not worth timing, like a wait state with no useful duration.
+
+```tsx
+<AgentStatus state="waiting" label="Waiting for approval" />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Render props
+
+| Source | Type | Description |
+|--------|------|-------------|
+| `status.type` | `"running" \| "requires-action" \| "incomplete" \| "complete"` | Drives `state`: `requires-action` to `"waiting"`, `running` to `"working"`, otherwise `"done"`. |
+| `args.label` | `string` | What the agent is doing right now. |
+| `args.elapsed` | `string \| undefined` | Preformatted elapsed time, shown only while the mapped `state` is not `"done"`. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### AgentStatus
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `state` | `"working" \| "waiting" \| "done"` | required | Drives the leading indicator and the trailing button's icon. |
+| `label` | `string` | required | Crossfades in whenever its value changes. |
+| `elapsed` | `string` | | Shown only while `state` is not `"done"`. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useChat, type Chat, type UIMessage } from "@ai-sdk/react";
+import type { MessageRepository } from "@assistant-ui/core/internal";
 import {
   pickExternalStoreSharedOptions,
   type AssistantRuntime,
@@ -60,6 +61,12 @@ export type ChatThreadEnvironment<UI_MESSAGE extends UIMessage = UIMessage> = {
    * from the instance.
    */
   chat?: Chat<UI_MESSAGE> | undefined;
+  /**
+   * An externally owned per-thread message repository. Hosts that route
+   * multiple threads through one mounting pass a distinct instance per
+   * thread so histories and branches stay isolated.
+   */
+  messageRepositoryInstance?: MessageRepository | undefined;
 };
 
 const useDynamicChatTransport = <UI_MESSAGE extends UIMessage = UIMessage>(
@@ -183,6 +190,7 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     getThreadListItem,
     stopOnClientDestroy = false,
     chat: externalChat,
+    messageRepositoryInstance,
   } = env;
 
   const defaultTransport = useMemo(() => new AssistantChatTransport(), []);
@@ -209,6 +217,9 @@ export const useChatThread = <UI_MESSAGE extends UIMessage = UIMessage>(
     ...(onResumeToolCall && { onResumeToolCall }),
     ...(joinStrategy && { joinStrategy }),
     ...(messageRepository && { messageRepository }),
+    ...(messageRepositoryInstance && {
+      unstable_messageRepositoryInstance: messageRepositoryInstance,
+    }),
     ...(unstable_onBranchChange && { unstable_onBranchChange }),
   });
 

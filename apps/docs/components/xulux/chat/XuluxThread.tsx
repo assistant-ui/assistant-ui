@@ -1,6 +1,6 @@
 "use client";
 
-import { ModelSelector } from "@/components/assistant-ui/model-selector";
+import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
 import { Button } from "@/components/ui/button";
 import { AssistantComposer } from "@/components/pages/docs/assistant/composer";
 import { AssistantActionBar } from "@/components/pages/docs/assistant/assistant-action-bar";
@@ -8,8 +8,8 @@ import { XuluxMarkdownText } from "./XuluxMarkdownText";
 import { AssistantFooter } from "@/components/pages/docs/assistant/footer";
 import { UserMessage } from "@/components/pages/docs/assistant/messages";
 import { useAssistantPanel } from "@/components/pages/docs/assistant/context";
-import { Reasoning } from "@/components/assistant-ui/reasoning";
-import { DotMatrix } from "@/components/assistant-ui/dot-matrix";
+import { Reasoning } from "@/components/assistant-ui/elements/reasoning.aui";
+import { DotMatrix } from "@/components/ui/dot-matrix";
 import { analytics } from "@/lib/analytics";
 import { getComposerMessageMetrics } from "@/lib/assistant-analytics-helpers";
 import {

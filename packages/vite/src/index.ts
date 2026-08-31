@@ -1,11 +1,8 @@
 import type { Plugin, TransformResult } from "vite";
 import {
   compileGenerative,
-  isGenerativeModule,
+  isGenerativeSource,
 } from "@assistant-ui/x-generative-compiler";
-
-/** Source modules a `"use generative"` directive can appear in. */
-const SOURCE_RE = /\.[cm]?[jt]sx?($|\?)/;
 
 export interface AuiOptions {
   /**
@@ -22,8 +19,7 @@ function generativePlugin(pluginOptions: AuiOptions): Plugin {
     name: "assistant-ui:use-generative",
     enforce: "pre",
     transform(code, id, options) {
-      if (!SOURCE_RE.test(id)) return;
-      if (!isGenerativeModule(code)) return;
+      if (!isGenerativeSource(id.split("?")[0]!, code)) return;
 
       // Vite 6+ exposes the environment; `consumer` is the stable client/server
       // axis. Fall back to the legacy `options.ssr` boolean for older Vite.

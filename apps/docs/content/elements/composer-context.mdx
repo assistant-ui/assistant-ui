@@ -1,0 +1,171 @@
+---
+title: "Context"
+description: "A token ring in the rail fills as the conversation grows, warning near the limit."
+---
+
+A ring button that sits in the composer's rail. Hovering or focusing it opens a small breakdown of system, tool, and message tokens against the model's window, and the ring itself fills to match. With a runtime the running total comes from the thread's own token usage; standalone you compute and pass every number yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+With a runtime, assistant-ui does not track a system, tools, and messages split on its own. What it does track is per-turn usage: a `ChatModelAdapter` can report `inputTokens` and `outputTokens` for each generation step, and the thread carries that on every assistant message.
+
+<Steps>
+  <Step>
+
+### Read the running total
+
+Reduce every message's steps into a single count. Steps without a `usage` object (a provider that does not report it, or a message still streaming) contribute nothing.
+
+```tsx title="components/assistant-ui/elements/composer-context-rail.tsx"
+"use client";
+
+import { useAuiState } from "@assistant-ui/react";
+
+function useThreadTokensUsed(): number {
+  return useAuiState((s) =>
+    s.thread.messages.reduce((sum, message) => {
+      const steps = message.metadata.steps ?? [];
+      return (
+        sum +
+        steps.reduce(
+          (stepSum, step) =>
+            stepSum +
+            (step.usage?.inputTokens ?? 0) +
+            (step.usage?.outputTokens ?? 0),
+          0,
+        )
+      );
+    }, 0),
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Feed the ring
+
+`ComposerContext` expects a category breakdown, and the runtime does not meter tokens by category. Your system prompt and tool schemas cost roughly the same fixed amount on every turn, so treat those as constants you already know; the number that actually grows is the conversation, and that is the one real figure above. The values are read as thousands (the ring appends `k` without dividing), and the total is the active model's context window, which you already picked and the thread state does not expose.
+
+```tsx
+import { ComposerContext } from "@/components/assistant-ui/elements/composer";
+
+const SYSTEM_PROMPT_TOKENS = 1;
+const TOOL_SCHEMA_TOKENS = 3;
+const MODEL_CONTEXT_WINDOW = 200;
+
+export function ComposerContextRail() {
+  const used = useThreadTokensUsed();
+  return (
+    <ComposerContext
+      usage={{
+        system: SYSTEM_PROMPT_TOKENS,
+        tools: TOOL_SCHEMA_TOKENS,
+        messages: Math.round(used / 1000),
+        total: MODEL_CONTEXT_WINDOW,
+      }}
+    />
+  );
+}
+```
+
+The reduction re-runs from an empty array on every new thread, so switching threads resets the ring without any extra bookkeeping.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `ComposerContext` is fully controlled by its one `usage` prop. Nothing in the element measures tokens; you own that math and pass the result in.
+
+<Steps>
+  <Step>
+
+### Pass the breakdown
+
+The three category values and the total are read as thousands: `system: 12` reads as 12k, not 12 tokens.
+
+```tsx title="app/composer-rail.tsx"
+"use client";
+
+import { ComposerContext } from "@/components/assistant-ui/elements/composer";
+
+export function ComposerRail() {
+  return (
+    <ComposerContext usage={{ system: 12, tools: 8, messages: 54, total: 200 }} />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="composer-context">
+  <div>{/* hover/focus panel: header, stacked bar, per-segment legend, total line */}</div>
+  <button aria-label="Context usage">{/* ring svg */}</button>
+</div>
+```
+
+The trigger is always a ring: an outer track and a foreground arc whose `stroke-dashoffset` follows `system + tools + messages` against `total`. A zero total is treated as zero fraction rather than dividing by it. Past 85 percent the ring, the percentage readout, and the trigger itself turn red. The detail panel opens on hover or keyboard focus through CSS group state; there is no `open` prop to control it, unlike `ComposerMenu`. Its three segments (System, Tools, Messages) have fixed colors at increasing opacity and are not restylable per segment; if you need arbitrary labeled categories with your own colors, use `Context breakdown` instead.
+
+## Examples
+
+### Placing it in the toolbar
+
+The ring is sized to sit beside the send button, inside `ComposerActions`.
+
+```tsx
+<ComposerToolbar>
+  <ComposerActions>
+    <ComposerAttachButton onClick={pick} />
+  </ComposerActions>
+  <ComposerActions>
+    <ComposerContext usage={usage} />
+    <ComposerSend streaming={streaming} idle={!value} onClick={send} />
+  </ComposerActions>
+</ComposerToolbar>
+```
+
+### Restyle the trigger
+
+`className` merges onto the root, which wraps both the trigger button and the panel; style the ring's size through it.
+
+```tsx
+<ComposerContext className="[&_button]:size-9" usage={usage} />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Thread state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.thread.messages` | `readonly MessageState[]` | Every message in the active thread. Each assistant message's `metadata.steps` is a `readonly ThreadStep[]`, and a step may carry `usage: { inputTokens: number; outputTokens: number }` when the model adapter reports it. |
+
+There is no selector for a category breakdown or for the model's context window size; both are derived or supplied as shown above.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ComposerContext
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `usage` | `ComposerUsage` | required | System, tools, and message tokens, each read as thousands, against `total`. The ring fills from their sum and turns red past 85 percent; a zero total is treated as zero rather than dividing by it. |
+| `className` | `string` | | Merged onto the root. |
+
+`ComposerUsage` is `{ system: number; tools: number; messages: number; total: number }`. All other `div` props are forwarded to the root.
+
+</StandaloneMode>

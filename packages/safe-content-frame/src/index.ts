@@ -14,12 +14,55 @@ export interface SafeContentFrameOptions {
   salt?: string;
 }
 
+/**
+ * Why a frame never signalled a completed render. `shim-unavailable` means the
+ * shim never acknowledged that it started, so the document at the shim URL is
+ * missing or is not a shim. `shim-error` is the shim reporting its own failure.
+ * `render-timeout` is the shim running normally with the content still not
+ * rendered, which is the one case that may still resolve on its own.
+ */
+export type ShimLoadErrorCode =
+  | "shim-unavailable"
+  | "shim-error"
+  | "render-timeout";
+
+export interface ShimLoadError extends Error {
+  code: ShimLoadErrorCode;
+}
+
 export interface RenderedFrame {
   iframe: HTMLIFrameElement;
   origin: string;
   sendMessage(data: unknown, transfer?: Transferable[]): void;
   fullyLoadedPromiseWithTimeout(timeoutMs: number): Promise<void>;
   dispose(): void;
+}
+
+const SHIM_LOAD_ERROR_CODES: readonly string[] = [
+  "shim-unavailable",
+  "shim-error",
+  "render-timeout",
+] satisfies readonly ShimLoadErrorCode[];
+
+function shimLoadError(
+  code: ShimLoadErrorCode,
+  message: string,
+): ShimLoadError {
+  return Object.assign(new Error(message), { code });
+}
+
+/**
+ * Narrows a rejection from `fullyLoadedPromiseWithTimeout`. The promise also
+ * rejects with plain errors that carry no code, so a bare property read is not
+ * enough to tell why a frame failed. Membership of the code set is the test
+ * rather than `instanceof`, which does not survive a duplicated copy of this
+ * package in a consumer's bundle.
+ */
+export function isShimLoadError(error: unknown): error is ShimLoadError {
+  return (
+    error instanceof Error &&
+    SHIM_LOAD_ERROR_CODES.includes((error as { code?: unknown }).code as string)
+  );
 }
 
 const SCF_HOST = "scf.auiusercontent.com";
@@ -153,16 +196,7 @@ export class SafeContentFrame {
       const channel = new MessageChannel();
       let channelTransferred = false;
       let cleanedUp = false;
-      const cleanup = () => {
-        if (cleanedUp) return;
-        cleanedUp = true;
-        iframe.onload = null;
-        iframe.onerror = null;
-        channel.port1.onmessage = null;
-        channel.port1.close();
-        if (!channelTransferred) channel.port2.close();
-        mountElement.remove();
-      };
+      let shimReady = false;
 
       let onLoaded: () => void;
       let onLoadError: (error: Error) => void;
@@ -172,11 +206,33 @@ export class SafeContentFrame {
       });
       void loaded.catch(() => {});
 
+      const onWindowMessage = (event: MessageEvent) => {
+        if (event.origin !== iframeOrigin) return;
+        if (event.source !== iframe.contentWindow) return;
+
+        if (event.data?.type === "ready") shimReady = true;
+        else if (event.data?.type === "error") {
+          onLoadError(shimLoadError("shim-error", event.data.message));
+        }
+      };
+      window.addEventListener("message", onWindowMessage);
+
+      const cleanup = () => {
+        if (cleanedUp) return;
+        cleanedUp = true;
+        iframe.onload = null;
+        iframe.onerror = null;
+        window.removeEventListener("message", onWindowMessage);
+        channel.port1.onmessage = null;
+        channel.port1.close();
+        if (!channelTransferred) channel.port2.close();
+        mountElement.remove();
+      };
+
       channel.port1.onmessage = (e) => {
         if (e.data?.type === "msg") onLoaded();
         else if (e.data?.type === "error") {
-          const error = new Error(e.data.message);
-          onLoadError(error);
+          onLoadError(shimLoadError("shim-error", e.data.message));
           cleanup();
         }
       };
@@ -218,7 +274,18 @@ export class SafeContentFrame {
             Promise.race([
               loaded,
               new Promise<void>((_, rej) =>
-                setTimeout(() => rej(new Error("Timeout")), ms),
+                setTimeout(
+                  () =>
+                    rej(
+                      shimReady
+                        ? shimLoadError("render-timeout", "Timeout")
+                        : shimLoadError(
+                            "shim-unavailable",
+                            `Failed to load shim: ${shimUrl}`,
+                          ),
+                    ),
+                  ms,
+                ),
               ),
             ]),
           dispose: cleanup,

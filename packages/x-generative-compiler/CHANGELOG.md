@@ -1,5 +1,13 @@
 # @assistant-ui/x-generative-compiler
 
+## 0.0.15
+
+### Patch Changes
+
+- [#6305](https://github.com/assistant-ui/assistant-ui/pull/6305) [`e96d3de`](https://github.com/assistant-ui/assistant-ui/commit/e96d3dea9370159e04f82bf4eb39d6b1b1c4d21d) - chore: update dependencies ([@okisdev](https://github.com/okisdev))
+
+- [#6424](https://github.com/assistant-ui/assistant-ui/pull/6424) [`bb1e79a`](https://github.com/assistant-ui/assistant-ui/commit/bb1e79aef77b9c3519663e9dd5ffec6d60b5deb9) - refactor: share the generative source predicate across bundler integrations ([@okisdev](https://github.com/okisdev))
+
 ## 0.0.14
 
 ### Patch Changes

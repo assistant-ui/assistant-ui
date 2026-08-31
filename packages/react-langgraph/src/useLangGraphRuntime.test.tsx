@@ -268,6 +268,51 @@ describe("useLangGraphRuntime", () => {
     });
   });
 
+  it("attaches UI messages carrying JS SDK parent IDs", async () => {
+    const streamMock = vi.fn().mockImplementation(() =>
+      mockStreamCallbackFactory([
+        {
+          event: "custom",
+          data: {
+            type: "ui",
+            id: "ui-1",
+            name: "chart",
+            props: { series: [1, 2, 3] },
+            metadata: { id: "ai-1" },
+          },
+        },
+        {
+          event: "messages",
+          data: [{ type: "ai", id: "ai-1", content: "Here's your chart." }, {}],
+        },
+      ])(),
+    );
+
+    const { result: runtimeResult } = renderHook(() =>
+      useLangGraphRuntime({ stream: streamMock }),
+    );
+    const wrapper = wrapperFactory(runtimeResult.current);
+    const { result: auiResult } = renderHook(() => useAui(), { wrapper });
+
+    await act(async () => {
+      auiResult.current.composer.setText("show a chart");
+      await auiResult.current.composer.send();
+    });
+
+    await waitFor(() => {
+      const assistantMessage = runtimeResult.current.thread
+        .getState()
+        .messages.find((message) => message.id === "ai-1");
+      expect(assistantMessage).toMatchObject({
+        role: "assistant",
+        content: [
+          { type: "text", text: "Here's your chart." },
+          { type: "data", name: "chart", data: { series: [1, 2, 3] } },
+        ],
+      });
+    });
+  });
+
   it("should work without any provided callbacks", async () => {
     const streamMock = vi
       .fn()

@@ -647,6 +647,7 @@ type ExternalStoreAdapterBase<T> = {
   isLoading?: boolean | undefined;
   messages?: readonly T[];
   messageRepository?: ExportedMessageRepository;
+  unstable_messageRepositoryInstance?: MessageRepository | undefined;
   suggestions?: readonly ThreadSuggestion[] | undefined;
   state?: ReadonlyJSONValue | undefined;
   extras?: unknown;
@@ -1009,6 +1010,26 @@ type MessagePartStreamStatus = {
   readonly reason: "cancelled" | "content-filter" | "error" | "length" | "other";
 };
 
+declare class MessageRepository {
+  #private;
+  get headId(): string | null;
+  get canonicalHeadId(): string | null;
+  getMessages(headId?: string): readonly ThreadMessage[];
+  addOrUpdateMessage(parentId: string | null, message: ThreadMessage): void;
+  getMessage(messageId: string): {
+    parentId: string | null;
+    message: ThreadMessage;
+    index: number;
+  };
+  deleteMessage(messageId: string, replacementId?: string | null | undefined): void;
+  getBranches(messageId: string): string[];
+  switchToBranch(messageId: string): void;
+  resetHead(messageId: string | null): void;
+  clear(): void;
+  export(): ExportedMessageRepository;
+  import(_param0: ExportedMessageRepository): void;
+}
+
 type MessageRole = ThreadMessage["role"];
 
 type MessageRuntime = {
@@ -1019,10 +1040,10 @@ type MessageRuntime = {
   reload(config?: ReloadConfig): void;
   speak(): void;
   stopSpeaking(): void;
-  submitFeedback(_param0: {
+  submitFeedback(_param1: {
     type: "positive" | "negative";
   }): void;
-  switchToBranch(_param1: {
+  switchToBranch(_param2: {
     position?: "previous" | "next" | undefined;
     branchId?: string | undefined;
   }): void;

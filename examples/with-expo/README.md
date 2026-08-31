@@ -10,7 +10,7 @@ The chat is powered by `@assistant-ui/react-native` with the AI SDK runtime (`@a
 - **Clipboard** (`expo-clipboard`) so the copy action works natively.
 - A native **drawer** (`@react-navigation/drawer`) for the thread list, with a swipe gesture to switch conversations.
 
-It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for message rendering, `AuiIf` for declarative state-driven UI, the `ThreadList` / `ThreadListItem` primitives for the drawer, and a `"use generative"` toolkit (`components/assistant-ui/tools.tsx`) that renders weather cards inline.
+It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for message rendering, `AuiIf` for declarative state-driven UI, the `ThreadList` / `ThreadListItem` primitives for the drawer, and a `"use generative"` toolkit (`components/assistant-ui/elements/tools.tsx`) that renders weather cards inline.
 
 ## Get started
 
@@ -40,7 +40,7 @@ It follows the assistant-ui component conventions: `MessagePrimitive.Parts` for 
 
 - `app/_layout.tsx` wires the runtime, the toolkit, and the drawer navigation.
 - `app/index.tsx` renders the `Thread`.
-- `components/assistant-ui/` holds the composer, message, action bar, branch picker, and tool UIs.
+- `components/assistant-ui/elements/` holds the composer, message, action bar, branch picker, and tool UIs.
 - `components/thread-list/` holds the drawer thread list.
 - `constants/theme.ts` and `hooks/use-theme.ts` define the shared design tokens.
 - `components/ui/icon.tsx` is the cross-platform icon (SF Symbols on iOS, Material Icons elsewhere).

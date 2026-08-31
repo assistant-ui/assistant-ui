@@ -1,0 +1,231 @@
+---
+title: "Context display"
+description: "Model context usage as a ring, bar, or text value with a detailed hover view."
+---
+
+Context display turns a model's token usage into a small gauge with three faces: a ring, a bar, or a plain text fraction, each opening the same tooltip breakdown on hover. With a runtime it reads usage off the latest assistant message; standalone you hand it a usage object yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+Runtime usage needs two things: your server actually returning token counts, and a preset mounted somewhere in the UI.
+
+<Steps>
+  <Step>
+
+### Forward token usage from your route handler
+
+`useThreadTokenUsage()` reads usage off the latest assistant message's `metadata`, so your AI SDK route has to attach it. Return `usage` on the `finish` step and `modelId` on `finish-step` through `messageMetadata`:
+
+```tsx title="app/api/chat/route.ts"
+import { streamText, convertToModelMessages } from "ai";
+
+export async function POST(req: Request) {
+  const { messages } = await req.json();
+  const result = streamText({
+    model: getModel(),
+    messages: await convertToModelMessages(messages),
+  });
+  return result.toUIMessageStreamResponse({
+    messageMetadata: ({ part }) => {
+      if (part.type === "finish") return { usage: part.totalUsage };
+      if (part.type === "finish-step")
+        return { modelId: part.response.modelId };
+      return undefined;
+    },
+  });
+}
+```
+
+Without this step every preset reads a total of zero and the tooltip's breakdown stays empty.
+
+  </Step>
+  <Step>
+
+### Mount a preset
+
+Pick `Ring`, `Bar`, or `Text` and pass your model's `modelContextWindow`. Each preset fetches usage internally through `useThreadTokenUsage()` and restarts its running total whenever the active thread's id changes.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { ContextDisplay } from "@/components/assistant-ui/elements/context-display.aui";
+
+function ThreadFooter() {
+  return (
+    <div className="flex items-center justify-end px-3 py-1.5">
+      <ContextDisplay.Bar modelContextWindow={128000} />
+    </div>
+  );
+}
+```
+
+`Thread` does not mount a preset by default; place one in a footer, the composer rail, or a sidebar.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, every preset and the composable `Root` take a `usage` object as a prop instead of reading one from a runtime, plus an optional `resetKey` to restart the running total yourself (a thread id, for instance) when you switch conversations.
+
+<Steps>
+  <Step>
+
+### Pass usage as a prop
+
+```tsx title="app/usage-badge.tsx"
+import { ContextDisplayBar } from "@/components/assistant-ui/elements/context-display";
+
+export function UsageBadge() {
+  return (
+    <ContextDisplayBar
+      modelContextWindow={128000}
+      usage={{ totalTokens: 42000, inputTokens: 38000, outputTokens: 4000 }}
+    />
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+Every preset is the same shape: a trigger wrapped in a shared tooltip.
+
+```tsx
+<button data-slot="context-display-trigger">
+  {/* Ring: SVG donut + percent. Bar: fill bar + token count. Text: "12k / 128k" */}
+</button>
+<div data-slot="context-display-popover">
+  <div>Context usage   <span>{/* used of total */}</span></div>
+  <div>{/* progress bar, min-width 1px once usage is nonzero */}</div>
+  <div>Input           <span>{/* only when > 0 */}</span></div>
+  <div>Cached input    <span>{/* only when > 0 */}</span></div>
+  <div>Output          <span>{/* only when > 0 */}</span></div>
+  <div>Reasoning       <span>{/* only when > 0 */}</span></div>
+</div>
+```
+
+The breakdown only lists segments with a nonzero token count, so a usage object that carries only `totalTokens` shows the summary line with no rows underneath it. Percent is clamped to 100 even when usage exceeds the context window. The running total is sticky rather than reactive to every update: it only moves when the incoming total is itself nonzero, or when `resetKey` changes. A momentary usage of `undefined` (or zero) between turns does not flash the number back down, but a changed `resetKey` snaps it immediately to whatever the new usage reports.
+
+## Examples
+
+### Three presets
+
+Each preset wraps `Root`, `Trigger`, and `Content` with one specific visual. `Ring` draws an SVG donut with a percent label, `Bar` draws a fill bar with a token count beside it, and `Text` prints a plain fraction with no severity color at all. `Ring` and `Bar` both shift color at the same two thresholds: the default tone below 65% usage, amber from 65% to 85%, and red above 85%.
+
+<RuntimeMode>
+
+```tsx
+<ContextDisplay.Ring modelContextWindow={128000} />
+<ContextDisplay.Bar modelContextWindow={128000} />
+<ContextDisplay.Text modelContextWindow={128000} />
+```
+
+Any preset also accepts `usage` directly. Supplying it skips the internal `useThreadTokenUsage()` fetch and, along with it, the automatic thread-id reset key. This is useful when you already have usage from elsewhere and want to drive the badge yourself without giving up the runtime wiring for anything else on the page.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+```tsx
+<ContextDisplay.Ring modelContextWindow={128000} usage={usage} />
+<ContextDisplay.Bar modelContextWindow={128000} usage={usage} />
+<ContextDisplay.Text modelContextWindow={128000} usage={usage} />
+```
+
+</StandaloneMode>
+
+### Compose your own visual
+
+`Root`, `Trigger`, and `Content` are exported on their own for a fully custom trigger visual. `Root` computes the shared percent and segment breakdown for `Content`'s tooltip, but that computation is internal to the module. A custom child passed to `Trigger` renders whatever you put there, so pair it with your own `modelContextWindow`/usage math rather than expecting it to read `Root`'s numbers.
+
+<RuntimeMode>
+
+```tsx
+<ContextDisplay.Root modelContextWindow={128000}>
+  <ContextDisplay.Trigger aria-label="Context usage">
+    <MyCustomGauge />
+  </ContextDisplay.Trigger>
+  <ContextDisplay.Content side="top" />
+</ContextDisplay.Root>
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, pass `usage` on `Root` the same way as the presets above; `Trigger` and `Content` take the same props either way.
+
+</StandaloneMode>
+
+### Restyle the trigger
+
+Both lanes take `className` on the trigger, and `side` controls which edge the popover opens toward.
+
+```tsx
+<ContextDisplay.Bar className="px-1" side="bottom" modelContextWindow={128000} />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Preset props (Ring, Bar, Text)
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `modelContextWindow` | `number` | required | Token limit used to compute the percentage. |
+| `className` | `string` | | Merged onto the trigger. |
+| `side` | `"top" \| "bottom" \| "left" \| "right"` | `"top"` | Tooltip placement. |
+| `usage` | `TokenUsage` | | Supply usage directly to skip the internal fetch; when set, the preset also skips its automatic thread-id reset key. |
+
+### Composable Root
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `modelContextWindow` | `number` | Token limit used to compute the percentage. |
+| `children` | `ReactNode` | Required; typically `Trigger` and `Content`. |
+| `usage` | `TokenUsage` | Same override behavior as on the presets above. |
+
+`Trigger` and `Content` take the exact same props in both lanes; see their tables under Standalone below.
+
+### Thread state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `useThreadTokenUsage()` | `ThreadTokenUsage \| undefined` | Usage extracted from the latest assistant message that carries any, read from `metadata.usage`, a legacy `metadata.custom.usage`, or summed across `metadata.steps`. |
+| `s.threadListItem.id` | `string` | Used internally as each preset's reset key, so switching threads restarts the running total. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### Root
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `modelContextWindow` | `number` | required | Token limit used to compute the percentage. |
+| `usage` | `TokenUsage` | | `{ totalTokens?, inputTokens?, cachedInputTokens?, outputTokens?, reasoningTokens? }`. |
+| `resetKey` | `string` | | Changing this snaps the running total to the current usage immediately, bypassing the sticky behavior described in Anatomy. |
+
+### Trigger
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `className` | `string` | Merged onto the button. |
+| `children` | `ReactNode` | The visual shown inside the tooltip trigger. |
+
+### Content
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `side` | `"top" \| "bottom" \| "left" \| "right"` | `"top"` | Tooltip placement. |
+| `className` | `string` | | Merged onto the popover. |
+
+</StandaloneMode>

@@ -29,22 +29,22 @@ const serializeModelContext = (
   }),
 });
 
+const getDefaultTargetOrigin = () => window.location.origin;
+
 export class AssistantFrameProvider {
   private static _instance: AssistantFrameProvider | null = null;
 
-  private _providers = new Set<ModelContextProvider>();
-  private _providerUnsubscribes = new Map<
-    ModelContextProvider,
-    Unsubscribe | undefined
-  >();
+  private _providers = new Map<symbol, ModelContextProvider>();
+  private _providerUnsubscribes = new Map<symbol, Unsubscribe | undefined>();
   private _activeToolCalls = new Map<
     string,
     { abortController: AbortController; event: MessageEvent }
   >();
   private _targetOrigin: string;
   private _strictRegistrations = 0;
+  private _wildcardRegistrations = 0;
 
-  private constructor(targetOrigin: string = "*") {
+  private constructor(targetOrigin: string = getDefaultTargetOrigin()) {
     this._targetOrigin = targetOrigin;
     this.handleMessage = this.handleMessage.bind(this);
     window.addEventListener("message", this.handleMessage);
@@ -63,8 +63,17 @@ export class AssistantFrameProvider {
     return AssistantFrameProvider._instance;
   }
 
-  private reconcileTargetOrigin(targetOrigin: string = "*") {
-    if (targetOrigin === "*" || targetOrigin === this._targetOrigin) return;
+  private reconcileTargetOrigin(
+    targetOrigin: string = getDefaultTargetOrigin(),
+  ) {
+    if (targetOrigin === this._targetOrigin) return;
+
+    if (this._providers.size === 0) {
+      this._targetOrigin = targetOrigin;
+      return;
+    }
+
+    if (targetOrigin === "*") return;
 
     if (this._targetOrigin === "*") {
       this._targetOrigin = targetOrigin;
@@ -160,7 +169,7 @@ export class AssistantFrameProvider {
   }
 
   private getModelContext(): ModelContext {
-    const contexts = Array.from(this._providers).map((p) =>
+    const contexts = Array.from(new Set(this._providers.values())).map((p) =>
       p.getModelContext(),
     );
 
@@ -191,34 +200,87 @@ export class AssistantFrameProvider {
     }
   }
 
+  private removeProvider(id: symbol, origin: string): Unsubscribe | undefined {
+    this._providers.delete(id);
+    const unsubscribe = this._providerUnsubscribes.get(id);
+    this._providerUnsubscribes.delete(id);
+    if (origin === "*") {
+      this._wildcardRegistrations -= 1;
+      if (
+        this._wildcardRegistrations === 0 &&
+        this._strictRegistrations === 0
+      ) {
+        this._targetOrigin = getDefaultTargetOrigin();
+      }
+    } else {
+      this._strictRegistrations -= 1;
+      if (this._strictRegistrations === 0) {
+        this._targetOrigin =
+          this._wildcardRegistrations > 0 ? "*" : getDefaultTargetOrigin();
+      }
+    }
+    return unsubscribe;
+  }
+
   static addModelContextProvider(
     provider: ModelContextProvider,
     targetOrigin?: string,
   ): Unsubscribe {
-    const origin = targetOrigin ?? "*";
+    const origin = targetOrigin ?? getDefaultTargetOrigin();
     const instance = AssistantFrameProvider.getInstance(origin);
-    instance._providers.add(provider);
-    if (origin !== "*") instance._strictRegistrations += 1;
-
-    const unsubscribe = provider.subscribe?.(() => instance.broadcastUpdate());
-    if (unsubscribe) {
-      instance._providerUnsubscribes.set(provider, unsubscribe);
+    const id = Symbol();
+    instance._providers.set(id, provider);
+    if (origin === "*") {
+      instance._wildcardRegistrations += 1;
+    } else {
+      instance._strictRegistrations += 1;
     }
 
-    instance.broadcastUpdate();
+    try {
+      const unsubscribe = provider.subscribe?.(() =>
+        instance.broadcastUpdate(),
+      );
+      if (unsubscribe) {
+        instance._providerUnsubscribes.set(id, unsubscribe);
+      }
+
+      instance.broadcastUpdate();
+    } catch (error) {
+      const unsubscribe = instance.removeProvider(id, origin);
+      // Rollback failures must not replace the registration error.
+      try {
+        unsubscribe?.();
+      } catch (unsubscribeError) {
+        console.error(unsubscribeError);
+      }
+      try {
+        instance.broadcastUpdate();
+      } catch (broadcastError) {
+        console.error(broadcastError);
+      }
+      throw error;
+    }
 
     let released = false;
     return () => {
       if (released) return;
       released = true;
-      instance._providers.delete(provider);
-      instance._providerUnsubscribes.get(provider)?.();
-      instance._providerUnsubscribes.delete(provider);
-      if (origin !== "*") {
-        instance._strictRegistrations -= 1;
-        if (instance._strictRegistrations === 0) instance._targetOrigin = "*";
+      const unsubscribe = instance.removeProvider(id, origin);
+      let unsubscribeFailed = false;
+      let unsubscribeError: unknown;
+      try {
+        unsubscribe?.();
+      } catch (error) {
+        unsubscribeFailed = true;
+        unsubscribeError = error;
       }
-      instance.broadcastUpdate();
+      try {
+        instance.broadcastUpdate();
+      } catch (error) {
+        if (!unsubscribeFailed) throw error;
+        console.error(error);
+      }
+      if (unsubscribeFailed) throw unsubscribeError;
     };
   }
 
@@ -227,20 +289,40 @@ export class AssistantFrameProvider {
       const instance = AssistantFrameProvider._instance;
       window.removeEventListener("message", instance.handleMessage);
 
-      instance._providerUnsubscribes.forEach((unsubscribe) => unsubscribe?.());
+      let cleanupFailed = false;
+      let cleanupError: unknown;
+      const runCleanup = (cleanup: () => void) => {
+        try {
+          cleanup();
+        } catch (error) {
+          if (cleanupFailed) {
+            console.error(error);
+          } else {
+            cleanupFailed = true;
+            cleanupError = error;
+          }
+        }
+      };
+
+      instance._providerUnsubscribes.forEach((unsubscribe) => {
+        if (unsubscribe) runCleanup(unsubscribe);
+      });
       instance._providerUnsubscribes.clear();
       instance._providers.clear();
       instance._activeToolCalls.forEach(({ abortController, event }, id) => {
-        abortController.abort();
-        instance.sendMessage(event, {
-          type: "tool-result",
-          id,
-          error: "AssistantFrameProvider has been disposed",
+        runCleanup(() => {
+          abortController.abort();
+          instance.sendMessage(event, {
+            type: "tool-result",
+            id,
+            error: "AssistantFrameProvider has been disposed",
+          });
         });
       });
       instance._activeToolCalls.clear();
 
       AssistantFrameProvider._instance = null;
+      if (cleanupFailed) throw cleanupError;
     }
   }
 }

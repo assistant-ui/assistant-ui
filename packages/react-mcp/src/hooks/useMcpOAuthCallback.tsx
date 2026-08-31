@@ -1,4 +1,11 @@
-import { type FC, type ReactNode, useEffect, useRef, useState } from "react";
+import {
+  type FC,
+  type ReactNode,
+  useEffect,
+  useInsertionEffect,
+  useRef,
+  useState,
+} from "react";
 import { useAui } from "@assistant-ui/store";
 import { decodeServerIdFromState } from "../auth/createOAuthProvider";
 import { invokeMcpCallback } from "../utils/invokeMcpCallback";
@@ -44,7 +51,9 @@ export function useMcpOAuthCallback(
   // single-use OAuth code is double-redeemed and the second attempt 4xxs.
   const startedRef = useRef<string | null>(null);
   const optsRef = useRef(opts);
-  optsRef.current = opts;
+  useInsertionEffect(() => {
+    optsRef.current = opts;
+  });
 
   useEffect(() => {
     const url =
@@ -59,12 +68,6 @@ export function useMcpOAuthCallback(
         const parsed = new URL(url);
         const state = parsed.searchParams.get("state");
         if (state) serverId = decodeServerIdFromState(state);
-        const error = parsed.searchParams.get("error");
-        if (error) {
-          throw new Error(
-            parsed.searchParams.get("error_description") ?? error,
-          );
-        }
         if (!state) throw new Error('missing "state" parameter');
         if (!serverId) {
           throw new Error("state was not created by assistant-ui MCP");

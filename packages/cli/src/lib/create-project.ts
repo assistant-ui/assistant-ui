@@ -1,17 +1,15 @@
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { downloadTemplate } from "giget";
-import { sync as globSync } from "glob";
-import { detect } from "detect-package-manager";
 import {
   parse as parseJsonc,
   printParseErrorCode,
   type ParseError,
 } from "jsonc-parser";
 import { logger } from "./utils/logger";
-import { runSpawn, SpawnExitError } from "./run-spawn";
-
-export type PackageManagerName = "npm" | "pnpm" | "yarn" | "bun";
+import { runSpawn, SpawnExitError, SpawnSignalError } from "./run-spawn";
+import { type PackageManagerName } from "./utils/package-manager";
+import { readProjectFiles } from "./utils/file-scanner";
 
 export function dlxCommand(pm: PackageManagerName): [string, string[]] {
   switch (pm) {
@@ -183,30 +181,6 @@ export async function scaffoldProject(
       );
     }
     throw error;
-  }
-}
-
-function detectFromUserAgent(): PackageManagerName | undefined {
-  const ua = process.env.npm_config_user_agent;
-  if (!ua) return undefined;
-  if (ua.startsWith("bun/")) return "bun";
-  if (ua.startsWith("pnpm/")) return "pnpm";
-  if (ua.startsWith("yarn/")) return "yarn";
-  if (ua.startsWith("npm/")) return "npm";
-  return undefined;
-}
-
-export async function resolvePackageManagerForCwd(
-  cwd: string,
-  packageManager?: PackageManagerName,
-): Promise<PackageManagerName> {
-  if (packageManager) return packageManager;
-  const fromAgent = detectFromUserAgent();
-  if (fromAgent) return fromAgent;
-  try {
-    return await detect({ cwd });
-  } catch {
-    return "npm";
   }
 }
 
@@ -383,16 +357,11 @@ function transformTsConfig(projectDir: string): void {
 }
 
 function transformCssFiles(projectDir: string): void {
-  const cssFiles = globSync("**/*.css", {
+  for (const { fullPath, content } of readProjectFiles("**/*.css", {
     cwd: projectDir,
     ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
-  });
-
-  for (const file of cssFiles) {
-    const fullPath = path.join(projectDir, file);
+  })) {
     try {
-      const content = fs.readFileSync(fullPath, "utf-8");
-
       const newContent = content.replace(
         /@source\s+["'][^"']*packages\/ui\/src[^"']*["'];\s*\n?/g,
         "",
@@ -402,7 +371,7 @@ function transformCssFiles(projectDir: string): void {
         fs.writeFileSync(fullPath, newContent);
       }
     } catch {
-      // Ignore files that cannot be read/written
+      continue;
     }
   }
 }
@@ -416,32 +385,67 @@ function stripImportExtension(component: string): string {
   return component.replace(/\.[cm]?[tj]sx?$/, "");
 }
 
-function scanRequiredComponents(projectDir: string): RequiredComponents {
-  const files = globSync("**/*.{ts,tsx}", {
-    cwd: projectDir,
-    ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
-  });
+const ASSISTANT_UI_OWNED_UI = new Set([
+  "accordion",
+  "badge",
+  "diff-viewer",
+  "direction",
+  "dot-matrix",
+  "number-roll",
+  "select",
+  "tabs",
+]);
 
+const BARE_ELEMENT_ITEMS = new Set([
+  "file",
+  "generative-ui",
+  "heat-graph",
+  "image",
+  "logos",
+  "markdown-text",
+  "syntax-highlighter",
+  "tooltip-icon-button",
+]);
+
+function toAssistantUIItem(specifier: string): string | null {
+  let name = stripImportExtension(specifier);
+  const inElements = name.startsWith("elements/");
+  if (inElements) {
+    name = name.slice("elements/".length);
+  } else if (name.includes("/")) {
+    return null;
+  }
+  if (name.endsWith(".aui")) {
+    return name.slice(0, -".aui".length);
+  }
+  return inElements && !BARE_ELEMENT_ITEMS.has(name)
+    ? `elements-${name}`
+    : name;
+}
+
+function scanRequiredComponents(projectDir: string): RequiredComponents {
   const assistantUIComponents = new Set<string>();
   const shadcnUIComponents = new Set<string>();
 
-  for (const file of files) {
-    const fullPath = path.join(projectDir, file);
-    try {
-      const content = fs.readFileSync(fullPath, "utf-8");
+  for (const { content } of readProjectFiles("**/*.{ts,tsx}", {
+    cwd: projectDir,
+    ignore: LOCAL_PROJECT_ARTIFACT_GLOB_IGNORES,
+  })) {
+    const assistantUIRegex =
+      /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
+    for (const match of content.matchAll(assistantUIRegex)) {
+      const item = toAssistantUIItem(match[1]!);
+      if (item) assistantUIComponents.add(item);
+    }
 
-      const assistantUIRegex =
-        /from\s+["']@\/components\/assistant-ui\/([^"']+)["']/g;
-      for (const match of content.matchAll(assistantUIRegex)) {
-        assistantUIComponents.add(stripImportExtension(match[1]!));
+    const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;
+    for (const match of content.matchAll(uiRegex)) {
+      const name = stripImportExtension(match[1]!);
+      if (ASSISTANT_UI_OWNED_UI.has(name)) {
+        assistantUIComponents.add(name);
+      } else {
+        shadcnUIComponents.add(name);
       }
-
-      const uiRegex = /from\s+["']@\/components\/ui\/([^"']+)["']/g;
-      for (const match of content.matchAll(uiRegex)) {
-        shadcnUIComponents.add(stripImportExtension(match[1]!));
-      }
-    } catch {
-      // Ignore files that cannot be read
     }
   }
 
@@ -459,6 +463,9 @@ async function installDependencies(
   try {
     await runSpawn(pm, args, projectDir);
   } catch (error) {
+    if (error instanceof SpawnSignalError) {
+      throw error;
+    }
     if (error instanceof SpawnExitError) {
       throw new Error(`${pm} install exited with code ${error.code}`);
     }
@@ -483,6 +490,9 @@ async function installShadcnRegistry(
     await runSpawn(cmd, addArgs, projectDir);
     return undefined;
   } catch (error) {
+    if (error instanceof SpawnSignalError) {
+      throw error;
+    }
     if (error instanceof SpawnExitError) {
       logger.warn(`shadcn exited with code ${error.code}.`);
       return { retryCommand: `${cmd} ${retryArgs.join(" ")}` };

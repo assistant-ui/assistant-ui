@@ -1,0 +1,227 @@
+---
+title: "Web search"
+description: "A search query and its results landing one by one as the agent reads."
+---
+
+Web search shows a live query in a pill, a status line, and a growing list of results, each with a domain-lettered avatar, a title, and the source domain. With a runtime the query and results come from a tool call the model made; standalone you drive `query`, `results`, and how many of them are visible.
+
+## Getting started
+
+<RuntimeMode>
+
+A search tool renders through that tool's own toolkit entry: the model's arguments arrive as `args`, the provider's results as `result`, and the call's lifecycle as `status`.
+
+<Steps>
+  <Step>
+
+### Define the search toolkit
+
+```tsx title="app/toolkit.tsx"
+"use generative";
+
+import { defineToolkit, externalTool } from "@assistant-ui/react";
+import { WebSearch } from "@/components/assistant-ui/elements/web-search";
+
+export default defineToolkit({
+  web_search: {
+    execute: externalTool(),
+    render: ({ args, result, status }) => (
+      <WebSearch
+        query={args.query ?? ""}
+        results={result?.results ?? []}
+        visibleResults={result?.results.length ?? 0}
+        searching={status.type === "running"}
+        cycle={0}
+      />
+    ),
+  },
+});
+```
+
+`execute: externalTool()` marks a tool that a backend route or provider runs, not the browser: the compiler drops it from the client bundle and keeps only `render`. Give `execute` a real function instead when the search itself should run client-side.
+
+  </Step>
+  <Step>
+
+### Register the toolkit
+
+```tsx title="app/MyRuntimeProvider.tsx"
+"use client";
+
+import { AssistantRuntimeProvider, AuiConfig, Tools } from "@assistant-ui/react";
+import { useChatRuntime } from "@assistant-ui/ai-sdk";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import toolkit from "./toolkit";
+
+export function App() {
+  const runtime = useChatRuntime();
+  const config = AuiConfig({ tools: Tools({ toolkit }) });
+
+  return (
+    <AssistantRuntimeProvider runtime={runtime} config={config}>
+      <Thread />
+    </AssistantRuntimeProvider>
+  );
+}
+```
+
+Every `web_search` tool call in the thread now renders as this element, wherever `MessagePrimitive.Parts` places it in the assistant's reply.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `WebSearch` is fully controlled: you hold the query, the full result list, and a count of how many of them to reveal.
+
+<Steps>
+  <Step>
+
+### Hold the search state
+
+```tsx title="app/answer.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  WebSearch,
+  type WebSearchResult,
+} from "@/components/assistant-ui/elements/web-search";
+
+const RESULTS: readonly WebSearchResult[] = [
+  { title: "Persisting composer state across threads", domain: "assistant-ui.com" },
+  { title: "Draft autosave patterns in chat UIs", domain: "patterns.dev" },
+];
+
+export function Search() {
+  const [searching, setSearching] = useState(true);
+  const [visibleResults, setVisibleResults] = useState(0);
+
+  return (
+    <WebSearch
+      query="assistant-ui draft persistence"
+      results={RESULTS}
+      visibleResults={visibleResults}
+      searching={searching}
+      cycle={0}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Reveal results as the search finishes
+
+Flip `searching` off and step `visibleResults` up once results are ready, instead of jumping straight to the full list:
+
+```tsx
+useEffect(() => {
+  fetchResults(query).then((found) => {
+    setSearching(false);
+    found.forEach((_, i) => {
+      setTimeout(() => setVisibleResults((n) => Math.max(n, i + 1)), i * 300);
+    });
+  });
+}, [query]);
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="web-search">
+  <span>{/* query, in a rounded field with a search icon */}</span>
+  <div>{/* "Searching" (shimmer) while searching, else fixed "Read 3 sources" text */}</div>
+  <div>{/* the first `visibleResults` results: domain-initial avatar, title, domain */}</div>
+</div>
+```
+
+`visibleResults` clamps to `0…results.length`, so a value out of range never throws: negative or `NaN` shows nothing, one past the end shows everything. The "Read 3 sources" line is literal text in the source, not derived from `results.length`; edit it directly if the count should track what you pass in. `cycle` is mixed into each visible result's key, so bumping it re-triggers the entrance animation even when `results` and `visibleResults` are unchanged, useful for a search that runs again with the same shape of answer. An empty `results` array renders the status line with no rows beneath it; the results region keeps its reserved height either way.
+
+## Examples
+
+### Streaming the query as it arrives
+
+<RuntimeMode>
+
+`args.query` is a partial parse while the model is still writing the tool call. `useToolArgsStatus` reports which argument fields are still streaming, so the pill can hold a placeholder instead of a half-typed string:
+
+```tsx
+import { useToolArgsStatus, type ToolCallMessagePartProps } from "@assistant-ui/react";
+import {
+  WebSearch,
+  type WebSearchResult,
+} from "@/components/assistant-ui/elements/web-search";
+
+type SearchArgs = { query: string };
+type SearchResult = { results: WebSearchResult[] };
+
+function SearchToolUI({
+  args,
+  result,
+  status,
+}: ToolCallMessagePartProps<SearchArgs, SearchResult>) {
+  const { propStatus } = useToolArgsStatus<SearchArgs>();
+
+  return (
+    <WebSearch
+      query={propStatus.query === "streaming" ? "Searching…" : (args.query ?? "")}
+      results={result?.results ?? []}
+      visibleResults={result?.results.length ?? 0}
+      searching={status.type === "running"}
+      cycle={0}
+    />
+  );
+}
+```
+
+</RuntimeMode>
+
+### Restyle the results
+
+Both lanes take `className` on the root. The query pill uses the shared `field` surface and the domain labels use `mono`, both from `surfaces.tsx`, so retheming those tokens retheme every element built on them.
+
+```tsx
+<WebSearch className="max-w-none" /* ... */ />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Tool render props
+
+| Prop | Type | Description |
+|------|------|-------------|
+| `args` | `{ query?: string }` | Model-supplied arguments. Partial while streaming; use `useToolArgsStatus` to tell a finished field from one still arriving. |
+| `result` | `{ results: WebSearchResult[] } \| undefined` | Set once the tool call resolves. |
+| `status.type` | `"running" \| "complete" \| "incomplete" \| "requires-action"` | Lifecycle of the call. `"running"` is the only state that should show the searching shimmer. |
+
+`WebSearchResult` is `{ title: string; domain: string }`. See [Tool UI](/docs/tools/tool-ui) for the full tool-call part shape.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### WebSearch
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `query` | `string` | required | The search query shown in the pill. |
+| `results` | `readonly WebSearchResult[]` | required | The full result list. |
+| `visibleResults` | `number` | required | How many results, from the start of `results`, to render. |
+| `searching` | `boolean` | required | Shows the shimmering "Searching" label in place of the result count while true. |
+| `cycle` | `number` | required | Mixed into each result's key to force its entrance animation to replay. Pass a value you bump between searches, or a constant if you only ever search once. |
+| `className` | `string` | | Merged onto the root. |
+
+`WebSearchResult` is `{ title: string; domain: string }`. All other `div` props are forwarded to the root.
+
+</StandaloneMode>

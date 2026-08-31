@@ -27,7 +27,7 @@ describe("AssistantFrame Integration", () => {
             parentHandler({
               data,
               source: iframeWindow,
-              origin: "*",
+              origin: window.location.origin,
             } as MessageEvent);
           });
         }
@@ -44,7 +44,7 @@ describe("AssistantFrame Integration", () => {
             iframeHandler({
               data,
               source: parentWindow, // parent window is the source for subscription
-              origin: "*",
+              origin: window.location.origin,
             } as MessageEvent);
           });
         }
@@ -104,7 +104,7 @@ describe("AssistantFrame Integration", () => {
             type: "model-context-request",
           }),
         }),
-        "*",
+        window.location.origin,
       );
     });
 

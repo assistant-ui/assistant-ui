@@ -3,14 +3,11 @@ import { statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import {
   compileGenerative,
-  isGenerativeModule,
+  isGenerativeSource,
 } from "@assistant-ui/x-generative-compiler";
 import { BACKENDLESS_ENV, UPSTREAM_TRANSFORMER_ENV } from "./index";
 
 const require = createRequire(import.meta.url);
-
-/** Source modules a `"use generative"` directive can appear in. */
-const SOURCE_RE = /\.[cm]?[jt]sx?$/;
 
 /** Minimal shape of a Metro babel transformer. */
 type BabelTransformer = {
@@ -72,7 +69,7 @@ export function transform(
   const upstream = upstreamTransformer();
   const { filename, src, options } = props;
 
-  if (SOURCE_RE.test(filename) && isGenerativeModule(src)) {
+  if (isGenerativeSource(filename, src)) {
     const target = isServerEnvironment(
       options?.customTransformOptions?.environment,
     )

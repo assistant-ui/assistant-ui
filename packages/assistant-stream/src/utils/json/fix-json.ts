@@ -28,6 +28,7 @@ type State =
   | "FINISH"
   | "INSIDE_STRING"
   | "INSIDE_STRING_ESCAPE"
+  | "INSIDE_STRING_UNICODE_ESCAPE"
   | "INSIDE_LITERAL"
   | "INSIDE_NUMBER"
   | "INSIDE_OBJECT_START"
@@ -61,10 +62,13 @@ type State =
 // Example input: '{"foo":'
 // Example output: ['{}', []]
 
+const HEX_DIGIT = /[0-9a-fA-F]/;
+
 export function fixJson(input: string): [string, string[]] {
   const stack: State[] = ["ROOT"];
   let lastValidIndex = -1;
   let literalStart: number | null = null;
+  let unicodeEscapeDigits = 0;
   const path: string[] = [];
   let currentKey: string | undefined;
 
@@ -335,10 +339,41 @@ export function fixJson(input: string): [string, string[]] {
 
       case "INSIDE_STRING_ESCAPE": {
         stack.pop();
+        const parent = stack[stack.length - 1];
 
-        if (stack[stack.length - 1] === "INSIDE_STRING") {
+        if (char === "u") {
+          stack.push("INSIDE_STRING_UNICODE_ESCAPE");
+          unicodeEscapeDigits = 0;
+        } else if (parent === "INSIDE_STRING") {
           lastValidIndex = i;
-        } else if (stack[stack.length - 1] === "INSIDE_OBJECT_KEY") {
+        }
+
+        if (parent === "INSIDE_OBJECT_KEY") {
+          currentKey += char;
+        }
+
+        break;
+      }
+
+      case "INSIDE_STRING_UNICODE_ESCAPE": {
+        const parent = stack[stack.length - 2];
+
+        // The pop guarantees the re-read lands outside this state, so the scan stays linear.
+        if (!HEX_DIGIT.test(char)) {
+          stack.pop();
+          i--;
+          break;
+        }
+
+        unicodeEscapeDigits++;
+        if (unicodeEscapeDigits === 4) {
+          stack.pop();
+          if (parent === "INSIDE_STRING") {
+            lastValidIndex = i;
+          }
+        }
+
+        if (parent === "INSIDE_OBJECT_KEY") {
           currentKey += char;
         }
 

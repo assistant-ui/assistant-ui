@@ -142,6 +142,9 @@ export function isGenerativeModule(code: string): boolean {
   return hasDirectiveTerminator(code, directiveEnd + 1);
 }
 
+export const isGenerativeSource = (filename: string, source: string): boolean =>
+  /\.[cm]?[jt]sx?$/.test(filename) && isGenerativeModule(source);
+
 function hasDirectiveTerminator(code: string, start: number): boolean {
   let i = start;
   let sawLineTerminator = false;

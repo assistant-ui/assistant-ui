@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { typeEyebrow } from "@/components/shared/type";
 import { cn } from "@/lib/utils";
 
 type TOCItem = {
@@ -59,9 +60,9 @@ export function BlogTOC({ items }: { items: TOCItem[] }) {
   if (headings.length < 2) return null;
 
   return (
-    <nav aria-label="On this page" className="w-64 max-lg:hidden">
+    <nav aria-label="On this page" className="w-full max-lg:hidden">
       <div className="lg:sticky lg:top-24">
-        <p className="text-muted-foreground mb-3 text-sm">On this page</p>
+        <p className={cn(typeEyebrow, "mb-4")}>On this page</p>
         <ul className="flex flex-col gap-2">
           {headings.map((item) => {
             const id = item.url.slice(1);
@@ -74,9 +75,9 @@ export function BlogTOC({ items }: { items: TOCItem[] }) {
                   onClick={() => handleClick(id)}
                   aria-current={isActive ? "location" : undefined}
                   className={cn(
-                    "block text-sm leading-snug text-pretty transition-colors",
+                    "block text-[13px] leading-snug text-pretty transition-colors",
                     isActive
-                      ? "text-foreground"
+                      ? "text-blue-500"
                       : "text-muted-foreground hover:text-foreground",
                   )}
                 >

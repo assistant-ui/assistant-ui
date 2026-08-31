@@ -1,6 +1,6 @@
 "use client";
 
-import { MarkdownText } from "@/components/assistant-ui/markdown-text";
+import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";
 import {
   ComposerPrimitive,
   MessagePrimitive,

@@ -213,7 +213,7 @@ npx shadcn@latest add https://r.assistant-ui.com/thread.json
 ## 2. Render it inside your runtime provider
 
 \`\`\`tsx
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function Chat() {
   return (
@@ -261,7 +261,7 @@ export async function POST(req: Request) {
 
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function Chat() {
   const runtime = useChatRuntime({ api: "/api/chat" });
@@ -336,8 +336,8 @@ For a tool executed by your backend, register the same tool name with \`type: "b
 import { useMemo } from "react";
 import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 
 export default function ChatPage() {
   const cloud = useMemo(
@@ -379,8 +379,8 @@ Set \`NEXT_PUBLIC_ASSISTANT_BASE_URL\` to your project’s frontend API URL. Ass
 import { useMemo } from "react";
 import { AssistantCloud, AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
-import { Thread } from "@/components/assistant-ui/thread";
-import { ThreadList } from "@/components/assistant-ui/thread-list";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
+import { ThreadList } from "@/components/assistant-ui/elements/thread-list.aui";
 
 export default function ChatPage() {
   const cloud = useMemo(
