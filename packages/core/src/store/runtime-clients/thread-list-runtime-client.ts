@@ -1,10 +1,15 @@
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { useResource, withKey, resource } from "@assistant-ui/tap";
 import type { ClientOutput } from "@assistant-ui/store";
-import { useClientLookup, useClientResource } from "@assistant-ui/store/client";
+import {
+  useAssistantEmit,
+  useClientLookup,
+  useClientResource,
+} from "@assistant-ui/store/client";
 import { useThreadSelectionEvents } from "../clients/thread-selection-events";
 import type { ThreadListRuntime } from "../../runtime/api/thread-list-runtime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
+import type { Unsubscribe } from "../../types/unsubscribe";
 import { useSubscribable } from "./useSubscribable";
 import { ThreadListItemClient } from "./thread-list-item-runtime-client";
 import { ThreadClient } from "./thread-runtime-client";
@@ -34,6 +39,44 @@ const useThreadListItemClientById = ({
 
 const ThreadListItemClientById = resource(useThreadListItemClientById);
 
+const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
+  const emit = useAssistantEmit();
+
+  useEffect(() => {
+    let currentThreadId = runtime.getState().mainThreadId;
+    const pending = new Map<string, Unsubscribe>();
+
+    const unsubscribeRuntime = runtime.subscribe(() => {
+      const nextThreadId = runtime.getState().mainThreadId;
+      if (nextThreadId === currentThreadId) return;
+
+      const previousThreadId = currentThreadId;
+      currentThreadId = nextThreadId;
+
+      if (
+        !runtime.getItemById(previousThreadId).getState().isRunning ||
+        pending.has(previousThreadId)
+      ) {
+        return;
+      }
+
+      const previousThread = runtime.getById(previousThreadId);
+      const unsubscribe = previousThread.unstable_on("runEnd", () => {
+        pending.delete(previousThreadId);
+        unsubscribe();
+        if (runtime.getState().mainThreadId === previousThreadId) return;
+        emit("thread.runEnd", { threadId: previousThreadId });
+      });
+      pending.set(previousThreadId, unsubscribe);
+    });
+
+    return () => {
+      unsubscribeRuntime();
+      for (const unsubscribe of pending.values()) unsubscribe();
+    };
+  }, [runtime, emit]);
+};
+
 const useThreadListClient = ({
   runtime,
   __internal_assistantRuntime,
@@ -43,6 +86,7 @@ const useThreadListClient = ({
 }): ClientOutput<"threads"> => {
   const runtimeState = useSubscribable(runtime);
   useThreadSelectionEvents(runtimeState.mainThreadId);
+  useBackgroundThreadRunEnd(runtime);
 
   const main = useClientResource(
     ThreadClient({
