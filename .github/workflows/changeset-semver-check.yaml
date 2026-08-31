@@ -175,8 +175,9 @@ jobs:
                 if (!pkgMap.has(depName)) continue;
                 // `workspace:^` publishes as `^<the dependency version>`, so it
                 // constrains consumers exactly like the literal range a sibling
-                // writes by hand. Left raw it fails the caret test below and the
-                // edge never reaches the graph.
+                // writes by hand. Only this form is handled because
+                // scripts/check-workspace-ranges.mjs rejects every other
+                // protocol spelling in a published dependency field.
                 const range =
                   rawRange === "workspace:^"
                     ? `^${pkgMap.get(depName).version}`
