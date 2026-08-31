@@ -9,8 +9,10 @@ export function DocsPageShell({
   children: ReactNode;
 }) {
   return (
-    <div id="nd-docs-layout">
-      <main id="nd-page">{children}</main>
+    <div className="docs-layout">
+      <main className="mx-auto w-full max-w-(--docs-article-width) justify-self-center px-4 pt-4 pb-10 md:px-6">
+        {children}
+      </main>
       {toc}
     </div>
   );

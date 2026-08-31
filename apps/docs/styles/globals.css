@@ -3,7 +3,7 @@
 @import "tw-animate-css";
 @import "tw-glass";
 @import "tw-shimmer";
-@import "./fumadocs.css";
+@import "./docs.css";
 @import "./animate.css";
 @import "./codehike.css";
 
@@ -60,6 +60,8 @@
 @plugin "tailwind-scrollbar";
 @plugin "@fumadocs/tailwind/typography";
 
+/* Consumed by the prose styles that @fumadocs/tailwind/typography generates,
+   not by app code. Removing these leaves --tw-prose-* unresolved. */
 @theme inline {
   --color-fd-background: var(--background);
   --color-fd-foreground: var(--foreground);

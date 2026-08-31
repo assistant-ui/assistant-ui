@@ -1,0 +1,264 @@
+:root {
+  --docs-header-height: 48px;
+  --docs-article-width: 56rem;
+}
+
+.docs-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+
+  @media (min-width: 1280px) {
+    &:has(.docs-toc) {
+      grid-template-columns: minmax(0, 1fr) 14rem;
+    }
+  }
+}
+
+html:has(.docs-layout) {
+  scroll-padding-top: calc(var(--docs-header-height) + 6rem);
+
+  @media (min-width: 768px) {
+    scroll-padding-top: calc(var(--docs-header-height) + 2.5rem);
+  }
+
+  @media (min-width: 1280px) {
+    scroll-padding-top: calc(var(--docs-header-height) + 2rem);
+  }
+}
+
+.prose {
+  font-size: 0.875rem;
+  line-height: 1.7;
+
+  & :where(p):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 1.25rem;
+    margin-bottom: 1.25rem;
+  }
+
+  & :where(h2):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 1.25rem;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    margin-top: 2.5rem;
+    margin-bottom: 1rem;
+    line-height: 1.4;
+  }
+
+  & :where(h3):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 1rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    margin-top: 2rem;
+    margin-bottom: 0.75rem;
+    line-height: 1.5;
+  }
+
+  & :where(h4):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    font-size: 0.875rem;
+    font-weight: 600;
+    margin-top: 1.5rem;
+    margin-bottom: 0.5rem;
+    line-height: 1.5;
+  }
+
+  & :where(ul, ol):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 1rem;
+    margin-bottom: 1rem;
+  }
+
+  & :where(li):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 0.25rem;
+    margin-bottom: 0.25rem;
+  }
+
+  &
+    :where(code):not(:where(pre code)):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    ) {
+    font-size: 0.8125rem;
+    padding: 0.15rem 0.4rem;
+    border-radius: 0.5rem;
+    border: none;
+    background: var(--muted);
+    font-weight: 500;
+  }
+
+  & [class~="not-prose"] :where(code):not(:where(pre code)) {
+    font-size: 0.75rem;
+    padding: 0.0625rem 0.3rem;
+    border-radius: 0.5rem;
+    border: none;
+    background: var(--muted);
+    font-weight: 500;
+  }
+
+  & :where(pre):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 1.25rem;
+    margin-bottom: 1.25rem;
+    border-radius: 0.75rem;
+  }
+
+  &
+    :where(blockquote):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    ) {
+    font-style: normal;
+    font-weight: 400;
+    color: var(--muted-foreground);
+    margin-top: 1.25rem;
+    margin-bottom: 1.25rem;
+    padding-left: 1rem;
+    border-left-width: 2px;
+    border-left-color: var(--border);
+  }
+
+  &
+    :where(a):not(:where([class~="not-prose"], [class~="not-prose"] *)):not(
+      [data-card]
+    ) {
+    text-decoration: underline;
+    text-underline-offset: 2px;
+    text-decoration-color: var(--muted-foreground);
+  }
+
+  & :where(.prose-no-margin):has(table) {
+    margin-top: 0rem;
+    margin-bottom: 0rem;
+  }
+
+  & :where(table):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 0rem;
+    margin-bottom: 0rem;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--muted);
+    border-radius: 0.75rem;
+    overflow: hidden;
+
+    & thead {
+      background: transparent;
+    }
+
+    & th {
+      padding: 0.5rem 0.75rem;
+      text-align: left;
+      font-weight: 500;
+      color: var(--muted-foreground);
+      border: none;
+    }
+
+    & td {
+      padding: 0.5rem 0.75rem;
+      border: none;
+      vertical-align: top;
+    }
+
+    & tr {
+      border: none;
+    }
+
+    & tbody tr {
+      background: var(--background);
+    }
+
+    & tbody tr:first-child td:first-child {
+      border-top-left-radius: 0.5rem;
+    }
+
+    & tbody tr:first-child td:last-child {
+      border-top-right-radius: 0.5rem;
+    }
+
+    & tbody tr:last-child td:first-child {
+      border-bottom-left-radius: 0.5rem;
+    }
+
+    & tbody tr:last-child td:last-child {
+      border-bottom-right-radius: 0.5rem;
+    }
+
+    & code {
+      font-size: 0.75rem;
+      padding: 0.0625rem 0.25rem;
+    }
+  }
+
+  & :where(hr):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    border-color: var(--border);
+  }
+
+  &
+    :where(h2 + p, h3 + p, h4 + p):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    ) {
+    margin-top: 0;
+  }
+
+  &
+    :where(h2 + ul, h3 + ul, h4 + ul, h2 + ol, h3 + ol, h4 + ol):not(
+      :where([class~="not-prose"], [class~="not-prose"] *)
+    ) {
+    margin-top: 0.5rem;
+  }
+
+  & :where(img):not(:where([class~="not-prose"], [class~="not-prose"] *)) {
+    margin-left: auto;
+    margin-right: auto;
+    border-radius: 0.75rem;
+  }
+}
+
+.prose-blog {
+  font-size: 0.9375rem;
+  line-height: 1.75;
+
+  & :where(code):not(:where(pre code)) {
+    font-size: 0.8125rem;
+    font-weight: 500;
+    padding: 0.125rem 0.3125rem;
+    border-radius: var(--radius-sm);
+    border: none;
+    background: color-mix(in oklab, var(--foreground) 6%, transparent);
+  }
+}
+
+/* Content inside tabs */
+[role="tabpanel"] {
+  & > :first-child {
+    margin-top: 0;
+  }
+  & > :last-child {
+    margin-bottom: 0;
+  }
+}
+
+/* A Callout (or any not-prose block) inside a tab owns its own link styling.
+   The tab's [&_a] color/weight would otherwise bleed in, turning callout links
+   foreground-white and medium-weight. Let them inherit, like .prose does. */
+[role="tabpanel"] :where([class~="not-prose"], [class~="not-prose"] *) a {
+  color: inherit;
+  font-weight: inherit;
+}
+
+/* PreviewCode component - remove nested SampleFrame styling */
+.preview-code-preview > div > .not-prose {
+  margin: 0;
+}
+
+.preview-code-preview > div > .not-prose > div {
+  border: none;
+  border-radius: 0;
+  height: auto;
+}
+
+.sidebar-tree-content {
+  scrollbar-width: none;
+}
+
+.sidebar-tree-content::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}

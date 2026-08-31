@@ -20,8 +20,8 @@ function PropName({ row }: { row: TypeTableRow }) {
   return (
     <code
       className={cn(
-        "text-fd-primary w-1/4 min-w-0 [scrollbar-width:none] overflow-x-auto bg-transparent! mask-[linear-gradient(to_right,black_calc(100%-12px),transparent)] p-0! pe-2 font-mono font-medium whitespace-nowrap [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
-        row.deprecated && "text-fd-primary/50 line-through",
+        "text-primary w-1/4 min-w-0 [scrollbar-width:none] overflow-x-auto bg-transparent! mask-[linear-gradient(to_right,black_calc(100%-12px),transparent)] p-0! pe-2 font-mono font-medium whitespace-nowrap [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden",
+        row.deprecated && "text-primary/50 line-through",
       )}
     >
       {row.name}
@@ -103,15 +103,15 @@ function Item({
       }}
       className={cn(
         "group scroll-m-20 overflow-hidden rounded-xl border transition-all",
-        open ? "bg-fd-background not-last:mb-2" : "border-transparent",
+        open ? "bg-background not-last:mb-2" : "border-transparent",
       )}
     >
-      <Collapsible.Trigger className="not-prose group/trigger hover:bg-fd-accent relative flex w-full flex-row items-center px-3 py-2 text-start">
+      <Collapsible.Trigger className="not-prose group/trigger hover:bg-accent relative flex w-full flex-row items-center px-3 py-2 text-start">
         <PropName row={row} />
         <TypeCell className="me-4 mask-[linear-gradient(to_right,black_calc(100%-1rem),transparent)]">
           {row.type}
         </TypeCell>
-        <ChevronDown className="text-fd-muted-foreground absolute inset-e-2 size-4 transition-transform group-data-panel-open/trigger:rotate-180" />
+        <ChevronDown className="text-muted-foreground absolute inset-e-2 size-4 transition-transform group-data-panel-open/trigger:rotate-180" />
       </Collapsible.Trigger>
 
       <Collapsible.Panel
@@ -127,9 +127,7 @@ function Item({
           </div>
           {row.typeFull && (
             <>
-              <span className="not-prose text-fd-muted-foreground pe-2">
-                Type
-              </span>
+              <span className="not-prose text-muted-foreground pe-2">Type</span>
               <TypeCell>
                 <span className="[&_pre]:inline">{row.typeFull}</span>
               </TypeCell>
@@ -137,7 +135,7 @@ function Item({
           )}
           {row.default && (
             <>
-              <span className="not-prose text-fd-muted-foreground pe-2">
+              <span className="not-prose text-muted-foreground pe-2">
                 Default
               </span>
               <TypeCell className="my-auto">
@@ -169,11 +167,11 @@ export function TypeTableClient({
     <div
       id={id}
       className={cn(
-        "border-fd-border/60 text-fd-card-foreground flex flex-col overflow-hidden rounded-2xl border p-1 text-sm",
-        nested ? "bg-fd-secondary/50" : "my-6",
+        "border-border/60 text-card-foreground flex flex-col overflow-hidden rounded-2xl border p-1 text-sm",
+        nested ? "bg-secondary/50" : "my-6",
       )}
     >
-      <div className="not-prose text-fd-muted-foreground flex items-center px-3 py-1 font-medium">
+      <div className="not-prose text-muted-foreground flex items-center px-3 py-1 font-medium">
         <p className="w-1/4 shrink-0 pe-2">Prop</p>
         <p className="min-w-0 flex-1 pl-4">Type</p>
       </div>
