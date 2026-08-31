@@ -24,6 +24,10 @@ export function toCanvasSnapshot(
   canvas: XuluxCanvasState,
   title: string | undefined,
 ): XuluxCanvasSnapshot {
+  // A selected template's title wins; the canvas's own title (set when an
+  // agent template populated the canvas) is the fallback so it survives
+  // persistence when no template is selected.
+  const resolvedTitle = title ?? canvas.title;
   return {
     status: canvas.status === "loading" ? "empty" : canvas.status,
     url: canvas.url,
@@ -33,7 +37,7 @@ export function toCanvasSnapshot(
     ...(canvas.previewFrame ? { previewFrame: canvas.previewFrame } : {}),
     ...(canvas.templateId ? { templateId: canvas.templateId } : {}),
     ...(canvas.versionId ? { versionId: canvas.versionId } : {}),
-    ...(title ? { title } : {}),
+    ...(resolvedTitle ? { title: resolvedTitle } : {}),
   };
 }
 
