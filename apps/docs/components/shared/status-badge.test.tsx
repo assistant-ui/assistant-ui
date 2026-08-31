@@ -61,6 +61,8 @@ describe("StatusBadge", () => {
     render(<StatusBadge />);
     await settle();
 
-    expect(screen.getByRole("link").textContent).toBe("Status");
+    const link = screen.getByRole("link");
+    expect(link.textContent).toBe("Status");
+    expect(link.querySelector("span")).toBeNull();
   });
 });
