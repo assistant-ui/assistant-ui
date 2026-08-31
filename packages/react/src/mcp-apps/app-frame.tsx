@@ -18,6 +18,7 @@ import type {
   McpAppFrameProps,
   McpAppHostContext,
 } from "./types";
+import { isJSONValueEqual } from "@assistant-ui/core/internal";
 
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
 const INIT_TIMEOUT_MS = 5000;
@@ -30,18 +31,19 @@ function useBridgeNotify<T>(
   pendingRef: MutableRefObject<T | undefined>,
   lastSentRef: MutableRefObject<T | undefined>,
   notify: (bridge: McpAppBridge, v: T) => void,
+  isEqual: (sent: T | undefined, next: T) => boolean = Object.is,
 ) {
   useEffect(() => {
     if (!bridgeRef.current) return;
     if (value === undefined) return;
-    if (lastSentRef.current === value) return;
+    if (isEqual(lastSentRef.current, value)) return;
     if (!widgetReadyRef.current) {
       pendingRef.current = value;
       return;
     }
     notify(bridgeRef.current, value);
     lastSentRef.current = value;
-    // oxlint-disable-next-line react/exhaustive-deps -- refs are stable; notify is assumed stable; re-run only when value changes
+    // oxlint-disable-next-line react/exhaustive-deps -- refs are stable; notify and isEqual are assumed stable; re-run only when value changes
   }, [value]);
 }
 
@@ -208,8 +210,9 @@ export function McpAppFrame({
 
     if (current.input !== undefined) pendingInputRef.current = current.input;
     if (current.output !== undefined) pendingOutputRef.current = current.output;
-    // hostContext is delivered inside the ui/initialize response; subsequent
-    // changes flow through useBridgeNotify's pending path.
+    // hostContext is delivered inside the ui/initialize response; recording it
+    // as sent keeps the first later change from repeating that same value.
+    lastSentHostContextRef.current = current.hostContext;
 
     return {
       onMessage: bridge.onMessage,
@@ -254,6 +257,9 @@ export function McpAppFrame({
     pendingHostContextRef,
     lastSentHostContextRef,
     (b, v) => b.notifyHostContextChanged(v),
+    // Hosts commonly rebuild an equal context object on every render, and the
+    // widget cannot tell a repeated notification apart from a real change.
+    isJSONValueEqual,
   );
 
   return (

@@ -515,6 +515,7 @@ export {
   getMcpAppFromToolPart,
 } from "./mcp-apps";
 export type {
+  McpAppPartOptions,
   McpAppRendererOptions,
   McpAppMetadata,
   McpAppResource,

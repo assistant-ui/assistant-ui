@@ -6,10 +6,9 @@ import {
   useMemo,
   useRef,
   useState,
-  type MutableRefObject,
   type ReactNode,
 } from "react";
-import type { McpAppMetadata } from "@assistant-ui/core";
+import type { McpAppMetadata, ToolCallMessagePart } from "@assistant-ui/core";
 import type {
   ToolCallMessagePartComponent,
   ToolCallMessagePartProps,
@@ -30,13 +29,11 @@ import type {
 import { getMcpAppFromToolPart } from "./utils";
 import { isRecord } from "@assistant-ui/core/internal";
 
-export type McpAppRendererOptions = {
-  /**
-   * Provides the data-plane operations the widget can request
-   * (`loadResource`, `callTool`, `readResource`, `listResources`). Use
-   * `McpAppsRemoteHost({ url })` for the default HTTP-route convention.
-   */
-  host: ResourceElement<McpAppsHost>;
+/**
+ * Options that apply to a single MCP app. `McpAppRenderer` takes them as
+ * thread-wide defaults, and its `forPart` resolver overrides them for one part.
+ */
+export type McpAppPartOptions = {
   /** Sandbox + container styling. Passes through to SafeContentFrame. */
   sandbox?: McpAppSandboxConfig;
   /**
@@ -51,6 +48,10 @@ export type McpAppRendererOptions = {
   /**
    * Optional widget interaction and lifecycle handlers. Data-plane handlers
    * (`callTool`, `readResource`, `listResources`) always use `host`.
+   *
+   * Which handlers a widget may call is captured when its frame mounts, so a
+   * `forPart` resolver returns the same handler keys for a part on every
+   * render even when the implementations change.
    */
   handlers?: Omit<
     McpAppBridgeHandlers,
@@ -64,6 +65,21 @@ export type McpAppRendererOptions = {
   errorFallback?: ReactNode | ((error: Error) => ReactNode);
 };
 
+export type McpAppRendererOptions = McpAppPartOptions & {
+  /**
+   * Provides the data-plane operations the widget can request
+   * (`loadResource`, `callTool`, `readResource`, `listResources`). Use
+   * `McpAppsRemoteHost({ url })` for the default HTTP-route convention.
+   */
+  host: ResourceElement<McpAppsHost>;
+  /**
+   * Resolves the options for one part. Each returned value replaces the
+   * thread-wide option of the same name, so a host can give every MCP app its
+   * own display mode and answer `requestDisplayMode` for the part that asked.
+   */
+  forPart?: (part: ToolCallMessagePart) => McpAppPartOptions;
+};
+
 type LoadedResourceState = {
   host: McpAppsHost;
   resourceUri: string;
@@ -72,7 +88,12 @@ type LoadedResourceState = {
   error?: Error;
 };
 
-type UseHostStore = UseBoundStore<StoreApi<{ host: McpAppsHost }>>;
+type RendererState = {
+  host: McpAppsHost;
+  options: McpAppRendererOptions;
+};
+
+type UseRendererStore = UseBoundStore<StoreApi<RendererState>>;
 
 function getInput(part: {
   status: { type: string };
@@ -104,15 +125,17 @@ function extractSendMessageText(params: unknown): string | undefined {
 
 function InlineRenderer({
   part,
-  useHostStore,
-  optionsRef,
+  useRendererStore,
 }: {
   part: ToolCallMessagePartProps;
-  useHostStore: UseHostStore;
-  optionsRef: MutableRefObject<McpAppRendererOptions>;
+  useRendererStore: UseRendererStore;
 }) {
-  const opts = optionsRef.current;
   const aui = useAui();
+  const rendererOptions = useRendererStore((state) => state.options);
+  const partOptions = rendererOptions.forPart?.(part);
+  const opts = partOptions
+    ? { ...rendererOptions, ...partOptions }
+    : rendererOptions;
   const app = getMcpAppFromToolPart(part);
   const cachedAppRef = useRef<McpAppMetadata | undefined>(undefined);
   useLayoutEffect(() => {
@@ -122,7 +145,7 @@ function InlineRenderer({
 
   const [loadedResource, setLoadedResource] = useState<LoadedResourceState>();
 
-  const host = useHostStore((state) => state.host);
+  const host = useRendererStore((state) => state.host);
   const resourceUri = appForRender?.resourceUri;
   const serverId = appForRender?.serverId;
   const callerHandlers = opts.handlers;
@@ -180,26 +203,26 @@ function InlineRenderer({
           return { ok: true };
         }),
       callTool: (params) =>
-        useHostStore.getState().host.callTool({
+        useRendererStore.getState().host.callTool({
           ...params,
           ...(serverId ? { serverId } : {}),
         }),
       readResource: (params) =>
-        useHostStore.getState().host.readResource({
+        useRendererStore.getState().host.readResource({
           ...params,
           ...(serverId ? { serverId } : {}),
         }),
       listResources: (params) => {
         if (!serverId) {
-          return useHostStore.getState().host.listResources(params);
+          return useRendererStore.getState().host.listResources(params);
         }
-        return useHostStore.getState().host.listResources({
+        return useRendererStore.getState().host.listResources({
           ...(isRecord(params) ? params : {}),
           serverId,
         });
       },
     }),
-    [aui, callerHandlers, serverId, useHostStore],
+    [aui, callerHandlers, serverId, useRendererStore],
   );
 
   const loadedResourceForApp =
@@ -253,27 +276,22 @@ const useMcpAppRenderer = (
 ): { readonly render: ToolCallMessagePartComponent } => {
   const host = useResource(options.host);
 
-  const optionsRef = useRef<McpAppRendererOptions>(options);
-  optionsRef.current = options;
-
-  const [useHostStore] = useState(() =>
-    create<{ host: McpAppsHost }>(() => ({ host })),
+  // The rendered component identity has to stay stable, or every part remounts
+  // its frame; options reach the parts through the store instead of props.
+  const [useRendererStore] = useState(() =>
+    create<RendererState>(() => ({ host, options })),
   );
   useEffect(() => {
-    useHostStore.setState({ host });
-  }, [host, useHostStore]);
+    useRendererStore.setState({ host, options });
+  }, [host, options, useRendererStore]);
 
   const render = useMemo((): ToolCallMessagePartComponent => {
     const Render: ToolCallMessagePartComponent = (props) => (
-      <InlineRenderer
-        part={props}
-        useHostStore={useHostStore}
-        optionsRef={optionsRef}
-      />
+      <InlineRenderer part={props} useRendererStore={useRendererStore} />
     );
     Render.displayName = "McpAppRenderer";
     return Render;
-  }, [useHostStore]);
+  }, [useRendererStore]);
 
   return { render };
 };
