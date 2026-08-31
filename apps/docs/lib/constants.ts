@@ -2,6 +2,7 @@ import { isAiPlaygroundEnabled } from "./feature-flags";
 
 export const BASE_URL = "https://www.assistant-ui.com";
 export const CLOUD_URL = "https://cloud.assistant-ui.com";
+export const STATUS_URL = "https://status.assistant-ui.com";
 
 export const PLATFORMS = ["react", "rn", "ink"] as const;
 export type Platform = (typeof PLATFORMS)[number];
@@ -127,7 +128,8 @@ export type NavGlyphKind =
   | "traction"
   | "blog"
   | "careers"
-  | "brand";
+  | "brand"
+  | "status";
 
 export type DropdownItem = {
   label: string;
@@ -362,6 +364,13 @@ export const NAV_ITEMS: NavItem[] = [
             description: "Stars and downloads, live",
             external: false,
             glyph: "traction",
+          },
+          {
+            label: "Status",
+            href: STATUS_URL,
+            description: "Uptime and incident history",
+            external: true,
+            glyph: "status",
           },
         ],
       },

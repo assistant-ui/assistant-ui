@@ -326,6 +326,18 @@ function GlyphTraction() {
   );
 }
 
+function GlyphStatus() {
+  return (
+    <span className="flex h-6 items-center gap-[3px]">
+      <span className="bg-foreground/15 h-[3px] w-[4px]" />
+      <span className="bg-foreground/15 h-[3px] w-[4px]" />
+      <span className={cn("bg-foreground/40 h-[16px] w-[4px]", ACCENT)} />
+      <span className="bg-foreground/25 h-[8px] w-[4px]" />
+      <span className="bg-foreground/15 h-[3px] w-[4px]" />
+    </span>
+  );
+}
+
 const GLYPHS: Record<NavGlyphKind, () => React.ReactNode> = {
   elements: GlyphElements,
   design: GlyphDesign,
@@ -349,6 +361,7 @@ const GLYPHS: Record<NavGlyphKind, () => React.ReactNode> = {
   blog: GlyphBlog,
   careers: GlyphCareers,
   brand: GlyphBrand,
+  status: GlyphStatus,
 };
 
 export function NavGlyph({

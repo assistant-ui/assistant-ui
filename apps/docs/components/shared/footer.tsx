@@ -2,6 +2,7 @@ import type { FC, ReactNode } from "react";
 import Link from "next/link";
 import { DiscordIcon } from "@/components/icons/discord";
 import { GitHubIcon } from "@/components/icons/github";
+import { StatusBadge } from "@/components/shared/status-badge";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 
 type FooterLinkItem = {
@@ -86,42 +87,45 @@ export function Footer(): React.ReactElement {
             <span aria-hidden>·</span>
             <FooterLink href="/terms-of-service">Terms</FooterLink>
           </div>
-          <div className="flex flex-wrap items-center gap-1.5">
-            <a
-              href="https://x.com/assistantui"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
-              aria-label="X (Twitter)"
-            >
-              <svg
-                aria-hidden="true"
-                className="size-4"
-                viewBox="0 0 24 24"
-                fill="currentColor"
+          <div className="flex flex-wrap items-center gap-4">
+            <StatusBadge />
+            <div className="flex flex-wrap items-center gap-1.5">
+              <a
+                href="https://x.com/assistantui"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
+                aria-label="X (Twitter)"
               >
-                <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-              </svg>
-            </a>
-            <a
-              href="https://github.com/assistant-ui/assistant-ui"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
-              aria-label="GitHub"
-            >
-              <GitHubIcon className="size-4" />
-            </a>
-            <a
-              href="https://discord.gg/S9dwgCNEFs"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
-              aria-label="Discord"
-            >
-              <DiscordIcon className="size-4" />
-            </a>
-            <ThemeToggle className="hover:text-foreground" />
+                <svg
+                  aria-hidden="true"
+                  className="size-4"
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                >
+                  <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                </svg>
+              </a>
+              <a
+                href="https://github.com/assistant-ui/assistant-ui"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
+                aria-label="GitHub"
+              >
+                <GitHubIcon className="size-4" />
+              </a>
+              <a
+                href="https://discord.gg/S9dwgCNEFs"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="hover:text-foreground flex size-7 items-center justify-center transition-colors"
+                aria-label="Discord"
+              >
+                <DiscordIcon className="size-4" />
+              </a>
+              <ThemeToggle className="hover:text-foreground" />
+            </div>
           </div>
         </div>
       </div>
