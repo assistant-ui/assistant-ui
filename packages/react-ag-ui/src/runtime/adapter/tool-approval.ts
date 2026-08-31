@@ -194,7 +194,9 @@ const isPending = (approval: ToolCallMessagePart["approval"]) =>
  * render can never be decided through this seam, so the batch it belongs to
  * could never be completed either: the decisions taken on its visible siblings
  * would sit on the message while the run waited for a response that no click
- * can produce. `boundToolCallIds` leaves such a batch bespoke instead.
+ * can produce. `boundToolCallIds` spans every call the run produced — root or
+ * nested on ToolCallMessagePart.messages — so only a gate naming a call the
+ * message renders nowhere leaves the batch bespoke.
  */
 export const projectAgUiToolApprovals = (
   interrupts: readonly AgUiInterrupt[] | undefined,
@@ -347,16 +349,13 @@ export const withSettledToolApprovals = (
 ): readonly ThreadAssistantMessagePart[] => {
   if (resume.length === 0) return content;
   const byId = new Map(resume.map((entry) => [entry.interruptId, entry]));
-  let changed = false;
-  const next = content.map((part) => {
-    if (part.type !== "tool-call") return part;
+  const { content: next, changed } = mapToolCallPartsDeep(content, (part) => {
     const approval = part.approval;
     if (!approval) return part;
     const entry = byId.get(approval.id);
     if (!entry) return part;
     const settled = settle(approval, entry);
     if (!settled) return part;
-    changed = true;
     return { ...part, approval: settled };
   });
   return changed ? next : content;

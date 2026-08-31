@@ -43,7 +43,9 @@ A subagent's frontend-executed tool calls work the same way the root agent's do:
 
 Approval gates cover nested calls too: a gate that names a subagent-scoped call projects onto the nested part, the frontend tool stays unexecuted while the gate is open, decisions recorded through `respondToToolApproval` land on the nested part, and an undecided gate's result is never exported to the backend.
 
-One limitation is worth knowing before you rely on this:
+Two limitations are worth knowing before you rely on this:
+
+- **Nested structure does not survive a reload.** Thread restore reads the flattened wire shape, so a restored subagent tool call comes back as a root-level part rather than nested under its spawning call. Results and decisions are preserved; only the nesting is not.
 
 - **Nested human-in-the-loop is not wired up.** A `SUBAGENT_FINISHED` with a `suspended` outcome marks the nested message `requires-action`, and its `interruptIds` are preserved on the message metadata, but there is no resume path that answers them yet.
 

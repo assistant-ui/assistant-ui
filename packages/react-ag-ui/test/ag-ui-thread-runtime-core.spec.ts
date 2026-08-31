@@ -3578,6 +3578,132 @@ describe("AGUIThreadRuntimeCore", () => {
     expect(nestedPart?.mcp?.app?.resourceUri).toBe("ui://apps/dashboard");
   });
 
+  it("decides a nested approval gate through respondToToolApproval and resumes", async () => {
+    let runCount = 0;
+    const runInputs: any[] = [];
+    const runAgent = vi.fn(async (input: any, subscriber: any) => {
+      runInputs.push(JSON.parse(JSON.stringify(input)));
+      runCount++;
+      if (runCount === 1) {
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "t-spawn",
+            toolCallName: "task",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: { type: "TOOL_CALL_END", toolCallId: "t-spawn" },
+        });
+        subscriber.onToolCallResultEvent?.({
+          event: {
+            type: "TOOL_CALL_RESULT",
+            messageId: "m-spawn",
+            toolCallId: "t-spawn",
+            content: "spawned",
+            role: "tool",
+          },
+        });
+        subscriber.onSubagentStartedEvent?.({
+          event: {
+            type: "SUBAGENT_STARTED",
+            subagentRunId: "sub-1",
+            name: "investigate",
+            parentToolCallId: "t-spawn",
+          },
+        });
+        subscriber.onToolCallStartEvent?.({
+          event: {
+            type: "TOOL_CALL_START",
+            toolCallId: "nested-1",
+            toolCallName: "delete_file",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onToolCallArgsEvent?.({
+          event: {
+            type: "TOOL_CALL_ARGS",
+            toolCallId: "nested-1",
+            delta: '{"path":"/tmp/a"}',
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onToolCallEndEvent?.({
+          event: {
+            type: "TOOL_CALL_END",
+            toolCallId: "nested-1",
+            subagentRunId: "sub-1",
+          },
+        });
+        subscriber.onRunFinishedEvent?.({
+          event: {
+            type: "RUN_FINISHED",
+            runId: input.runId,
+            outcome: {
+              type: "interrupt",
+              interrupts: [
+                {
+                  id: "int-nested",
+                  reason: "tool_call",
+                  toolCallId: "nested-1",
+                  message: "Delete /tmp/a?",
+                },
+              ],
+            },
+          },
+        });
+        subscriber.onRunFinalized?.();
+        return;
+      }
+      subscriber.onRunFinishedEvent?.({
+        event: {
+          type: "RUN_FINISHED",
+          runId: input.runId,
+          outcome: { type: "success" },
+        },
+      });
+      subscriber.onRunFinalized?.();
+    });
+
+    const core = createCore({ runAgent } as unknown as HttpAgent);
+    await core.append(createAppendMessage());
+    await new Promise((r) => setTimeout(r, 0));
+
+    const assistant = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const spawn = assistant.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-spawn",
+    ) as any;
+    const nestedBefore = spawn.messages?.[0]?.content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "nested-1",
+    );
+    expect(nestedBefore?.approval).toEqual({ id: "int-nested" });
+
+    await core.respondToToolApproval({
+      approvalId: "int-nested",
+      approved: true,
+    });
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(runCount).toBe(2);
+    expect(JSON.stringify(runInputs[1])).toContain("int-nested");
+
+    const updated = core
+      .getMessages()
+      .find((m) => m.role === "assistant") as ThreadAssistantMessage;
+    const spawnAfter = updated.content.find(
+      (p) => p.type === "tool-call" && p.toolCallId === "t-spawn",
+    ) as any;
+    const nestedAfter = spawnAfter.messages?.[0]?.content.find(
+      (p: any) => p.type === "tool-call" && p.toolCallId === "nested-1",
+    );
+    expect(nestedAfter?.approval).toMatchObject({
+      id: "int-nested",
+      approved: true,
+    });
+  });
+
   it("steerAway cancels every pending client-side tool call", async () => {
     const runInputs: any[] = [];
     let runCount = 0;
