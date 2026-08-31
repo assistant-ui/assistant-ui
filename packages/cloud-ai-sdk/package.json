@@ -50,7 +50,7 @@
     }
   },
   "devDependencies": {
-    "@ai-sdk/react": "^4.0.86",
+    "@ai-sdk/react": "^4.0.88",
     "@ai-sdk/react-v3": "npm:@ai-sdk/react@^3.0.211",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
@@ -58,7 +58,7 @@
     "@testing-library/react": "^16.3.3",
     "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
-    "ai": "^7.0.83",
+    "ai": "^7.0.85",
     "ai-v6": "npm:ai@^6.0.209",
     "assistant-stream": "^0.3.40",
     "jsdom": "^30.0.1",

@@ -70,7 +70,7 @@
     "radix-ui": "^1.6.7",
     "react-textarea-autosize": "^8.5.9",
     "safe-content-frame": "^0.0.28",
-    "zod": "^4.4.3",
+    "zod": "^4.5.4",
     "zustand": "^5.0.15"
   },
   "peerDependencies": {

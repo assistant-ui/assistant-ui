@@ -36,7 +36,7 @@
   "dependencies": {
     "@assistant-ui/core": "^0.3.16",
     "@assistant-ui/store": "^0.3.11",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "peerDependencies": {
     "@types/react": "*",
@@ -55,7 +55,7 @@
     "@types/react-dom": "^19.2.5",
     "jsdom": "^30.0.1",
     "react": "^19.2.8",
-    "react-hook-form": "^7.86.0",
+    "react-hook-form": "^7.87.0",
     "vitest": "^4.1.11"
   },
   "publishConfig": {

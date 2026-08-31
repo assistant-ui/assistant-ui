@@ -10,21 +10,21 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "@ai-sdk/openai": "^4.0.50",
+    "@ai-sdk/openai": "^4.0.52",
     "@assistant-ui/ai-sdk": "workspace:*",
     "@assistant-ui/react": "workspace:*",
     "@assistant-ui/react-generative-ui": "workspace:*",
     "@assistant-ui/ui": "workspace:*",
-    "ai": "^7.0.83",
+    "ai": "^7.0.85",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
-    "lucide-react": "^1.34.0",
+    "lucide-react": "^1.37.0",
     "next": "^16.3.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "recharts": "^3.10.1",
     "tailwind-merge": "^3.6.0",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "devDependencies": {
     "@assistant-ui/next": "workspace:*",

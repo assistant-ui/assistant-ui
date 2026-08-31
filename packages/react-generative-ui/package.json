@@ -76,7 +76,7 @@
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
     "vitest": "^4.1.11",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "publishConfig": {
     "access": "public",

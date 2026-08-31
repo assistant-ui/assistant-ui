@@ -64,7 +64,7 @@
     "ink": "^7.1.1",
     "ink-testing-library": "^4.0.0",
     "react": "^19.2.8",
-    "tsx": "^4.23.12",
+    "tsx": "^4.23.13",
     "vitest": "^4.1.11"
   },
   "publishConfig": {

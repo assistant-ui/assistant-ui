@@ -33,7 +33,7 @@
   },
   "dependencies": {
     "clsx": "^2.1.1",
-    "zod": "^4.4.3"
+    "zod": "^4.5.4"
   },
   "peerDependencies": {
     "@assistant-ui/react": "^0.15.0",
