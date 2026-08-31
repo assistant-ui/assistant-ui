@@ -62,6 +62,7 @@ function readWorkspacePackages(root) {
       byName.set(pkg.name, {
         manifest: manifest.replaceAll("\\", "/"),
         isPrivate: pkg.private === true,
+        hasVersion: Boolean(pkg.version),
       });
     }
   }
@@ -125,7 +126,10 @@ export function findUnreleasablePackages(packages, bumps, rules) {
       .filter(({ name }) => {
         const pkg = packages.get(name);
         return (
-          pkg && !ignored.has(name) && (!pkg.isPrivate || !rules.skipsPrivate)
+          pkg &&
+          pkg.hasVersion &&
+          !ignored.has(name) &&
+          (!pkg.isPrivate || !rules.skipsPrivate)
         );
       })
       .map(({ file }) => file),
@@ -151,6 +155,12 @@ export function findUnreleasablePackages(packages, bumps, rules) {
         name,
         reason:
           "matches `ignore` in .changeset/config.json and shares a changeset with a released package",
+      });
+    } else if (!pkg.hasVersion && filesWithReleasedBumps.has(file)) {
+      problems.push({
+        file,
+        name,
+        reason: "has no version and shares a changeset with a released package",
       });
     }
   }

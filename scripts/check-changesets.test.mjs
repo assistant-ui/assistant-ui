@@ -23,6 +23,7 @@ function createWorkspace(changeset, config = {}) {
   for (const [dir, manifest] of [
     ["published", { name: "@fixture/published", version: "1.0.0" }],
     ["held", { name: "@fixture/held", version: "1.0.0" }],
+    ["unversioned", { name: "@fixture/unversioned" }],
     ["internal", { name: "@fixture/internal", private: true }],
   ]) {
     mkdirSync(path.join(root, "packages", dir), { recursive: true });
@@ -109,11 +110,19 @@ test("findUnreleasablePackages flags private and unknown names", () => {
   const packages = new Map([
     [
       "@assistant-ui/core",
-      { manifest: "packages/core/package.json", isPrivate: false },
+      {
+        manifest: "packages/core/package.json",
+        isPrivate: false,
+        hasVersion: true,
+      },
     ],
     [
       "@assistant-ui/vue",
-      { manifest: "packages/vue/package.json", isPrivate: true },
+      {
+        manifest: "packages/vue/package.json",
+        isPrivate: true,
+        hasVersion: false,
+      },
     ],
   ]);
 
@@ -149,7 +158,32 @@ test("runCheck accepts a workspace whose changesets are all releasable", () => {
     '---\n"@fixture/published": patch\n---\n\nfix: something\n',
   );
   try {
-    assert.deepEqual(runCheck(root), { packageCount: 3, problems: [] });
+    assert.deepEqual(runCheck(root), { packageCount: 4, problems: [] });
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("runCheck rejects a versionless package mixed with a released package", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/unversioned": patch\n"@fixture/published": patch\n---\n\nfix: something\n',
+  );
+  try {
+    const { problems } = runCheck(root);
+    assert.equal(problems.length, 1);
+    assert.equal(problems[0].name, "@fixture/unversioned");
+    assert.match(problems[0].reason, /has no version/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("runCheck allows a versionless-only changeset", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/unversioned": patch\n---\n\nfix: something\n',
+  );
+  try {
+    assert.deepEqual(runCheck(root).problems, []);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }
