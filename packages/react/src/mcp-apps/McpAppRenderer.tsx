@@ -95,6 +95,25 @@ type RendererState = {
 
 type UseRendererStore = UseBoundStore<StoreApi<RendererState>>;
 
+// Callers pass options as an object literal, so the resource hands this a fresh
+// identity on every run; comparing the values keeps an unchanged run from
+// re-rendering every mounted part. `host` is excluded because it is an element
+// rebuilt on every run, and the store carries the resolved host separately.
+const isSameOptions = (
+  a: McpAppRendererOptions,
+  b: McpAppRendererOptions,
+): boolean => {
+  const aKeys = Object.keys(a).filter((key) => key !== "host");
+  const bKeys = Object.keys(b).filter((key) => key !== "host");
+  if (aKeys.length !== bKeys.length) return false;
+  const aValues = a as Record<string, unknown>;
+  const bValues = b as Record<string, unknown>;
+  return aKeys.every(
+    (key) =>
+      Object.hasOwn(bValues, key) && Object.is(aValues[key], bValues[key]),
+  );
+};
+
 function getInput(part: {
   status: { type: string };
   argsText: string;
@@ -282,7 +301,11 @@ const useMcpAppRenderer = (
     create<RendererState>(() => ({ host, options })),
   );
   useEffect(() => {
-    useRendererStore.setState({ host, options });
+    useRendererStore.setState((prev) =>
+      prev.host === host && isSameOptions(prev.options, options)
+        ? prev
+        : { host, options },
+    );
   }, [host, options, useRendererStore]);
 
   const render = useMemo((): ToolCallMessagePartComponent => {

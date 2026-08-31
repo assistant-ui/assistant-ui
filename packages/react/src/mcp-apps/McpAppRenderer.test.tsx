@@ -186,6 +186,19 @@ describe("McpAppRenderer", () => {
     framePropsMock.mockReset();
   });
 
+  it("leaves mounted parts alone when renderer options are unchanged", async () => {
+    const host = loadingHost();
+    const hostContext: McpAppHostContext = { displayMode: "inline" };
+    const view = () => <OptionsHarness host={host} hostContext={hostContext} />;
+
+    const rendered = render(view());
+    await waitFor(() => expect(framePropsCalls().length).toBeGreaterThan(0));
+    const rendersBefore = framePropsCalls().length;
+
+    rendered.rerender(view());
+    expect(framePropsCalls().length).toBe(rendersBefore);
+  });
+
   it("delivers a changed renderer host context to mounted parts", async () => {
     const host = loadingHost();
     const view = render(

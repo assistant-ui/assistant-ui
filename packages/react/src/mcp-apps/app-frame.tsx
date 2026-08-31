@@ -18,11 +18,38 @@ import type {
   McpAppFrameProps,
   McpAppHostContext,
 } from "./types";
-import { isJSONValueEqual } from "@assistant-ui/core/internal";
+import { isRecord } from "@assistant-ui/core/internal";
 
 const DEFAULT_PRODUCT = "assistant-ui-mcp-app";
 const INIT_TIMEOUT_MS = 5000;
 const DEFAULT_MAX_HEIGHT = 800;
+
+// Hosts commonly rebuild an equal context object on every render, and the
+// widget cannot tell a repeated notification apart from a real change. The
+// open index signature on McpAppHostContext admits values JSON rejects (an
+// undefined property value is enough), so unequal leaves fall back to identity
+// rather than failing the whole comparison.
+const isSameHostContext = (a: unknown, b: unknown, depth = 0): boolean => {
+  if (Object.is(a, b)) return true;
+  if (depth > 100) return false;
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return (
+      Array.isArray(a) &&
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((item, index) => isSameHostContext(item, b[index], depth + 1))
+    );
+  }
+  if (!isRecord(a) || !isRecord(b)) return false;
+  const aKeys = Object.keys(a);
+  return (
+    aKeys.length === Object.keys(b).length &&
+    aKeys.every(
+      (key) =>
+        Object.hasOwn(b, key) && isSameHostContext(a[key], b[key], depth + 1),
+    )
+  );
+};
 
 function useBridgeNotify<T>(
   value: T | undefined,
@@ -35,8 +62,13 @@ function useBridgeNotify<T>(
 ) {
   useEffect(() => {
     if (!bridgeRef.current) return;
-    if (value === undefined) return;
-    if (isEqual(lastSentRef.current, value)) return;
+    // Nothing to deliver, either because there is no value or because the
+    // widget already holds it; a queued value here is superseded and would
+    // otherwise flush after initialization as a stale update.
+    if (value === undefined || isEqual(lastSentRef.current, value)) {
+      pendingRef.current = undefined;
+      return;
+    }
     if (!widgetReadyRef.current) {
       pendingRef.current = value;
       return;
@@ -257,9 +289,7 @@ export function McpAppFrame({
     pendingHostContextRef,
     lastSentHostContextRef,
     (b, v) => b.notifyHostContextChanged(v),
-    // Hosts commonly rebuild an equal context object on every render, and the
-    // widget cannot tell a repeated notification apart from a real change.
-    isJSONValueEqual,
+    isSameHostContext,
   );
 
   return (
