@@ -104,9 +104,24 @@ test("a pin is reported whichever spelling it uses", () => {
   );
 });
 
+test("an aliased key does not hide a workspace protocol range", () => {
+  const problems = findNarrowWorkspaceRanges([
+    dep,
+    consumer({ "dep-alias": "workspace:*" }),
+  ]);
+
+  assert.deepEqual(
+    problems.map(({ dependency, range }) => ({ dependency, range })),
+    [{ dependency: "dep-alias", range: "workspace:*" }],
+  );
+});
+
 test("a pinned dependency outside the workspace is not this check's business", () => {
   assert.deepEqual(
-    findNarrowWorkspaceRanges([dep, consumer({ "react-dom": "19.2.3" })]),
+    findNarrowWorkspaceRanges([
+      dep,
+      consumer({ "react-dom": "19.2.3", "ts-alias": "npm:typescript@5.9.3" }),
+    ]),
     [],
   );
 });

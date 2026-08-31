@@ -55,7 +55,12 @@ export function findNarrowWorkspaceRanges(manifests) {
     for (const field of PUBLISHED_FIELDS) {
       for (const [dependency, range] of Object.entries(pkg[field] ?? {})) {
         if (typeof range !== "string") continue;
-        if (!workspaceNames.has(dependency)) continue;
+        if (
+          !workspaceNames.has(dependency) &&
+          !range.startsWith(WORKSPACE_PROTOCOL)
+        ) {
+          continue;
+        }
         if (dedupesWithCaret(range)) continue;
         problems.push({ manifest, name: pkg.name, field, dependency, range });
       }
