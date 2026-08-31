@@ -8,6 +8,7 @@ import type {
   PendingUserMessage,
   ThreadUserMessagePart,
 } from "./types";
+import { isOpenCodeMessageRoleRenderable } from "./openCodeMessageRoles";
 import { serializeOpenCodeParts } from "./serializeUserParts";
 
 const PENDING_MATCH_WINDOW_MS = 2 * 60 * 1000;
@@ -44,9 +45,6 @@ const sortMessageIds = (
     return leftId.localeCompare(rightId);
   });
 };
-
-const isVisibleMessageRole = (role: unknown) =>
-  role === "user" || role === "assistant";
 
 const upsertMessage = (
   state: OpenCodeThreadState,
@@ -183,7 +181,7 @@ const historyLoaded = (
           ? pendingMatch.parts
           : undefined,
     };
-    if (isVisibleMessageRole(message.info.role)) {
+    if (isOpenCodeMessageRoleRenderable(message.info.role)) {
       nextMessageOrder.push(message.info.id);
     }
 
@@ -410,7 +408,7 @@ export const reduceOpenCodeThreadState = (
               ? pendingMatch.parts
               : undefined),
         }),
-        isVisibleMessageRole(event.info.role),
+        isOpenCodeMessageRoleRenderable(event.info.role),
       );
 
       if (pendingMatch) {

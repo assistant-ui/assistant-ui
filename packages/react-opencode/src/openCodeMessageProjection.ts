@@ -21,6 +21,7 @@ import {
   projectOpenCodePermissionApproval,
   projectResolvedOpenCodePermissionApproval,
 } from "./openCodePermissionApproval";
+import { isOpenCodeMessageRoleRenderable } from "./openCodeMessageRoles";
 import { getOpenCodeTaskSessionId } from "./openCodeTaskSession";
 
 type ProjectedContentPart = Exclude<
@@ -604,7 +605,9 @@ const projectServerMessage = (
   message: OpenCodeServerMessage,
   timing?: MessageTiming,
 ): OpenCodeProjectedThreadMessage | null => {
-  if (!message.info) return null;
+  if (!message.info || !isOpenCodeMessageRoleRenderable(message.info.role)) {
+    return null;
+  }
 
   const metadata = {
     custom: {
