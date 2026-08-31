@@ -189,6 +189,23 @@ describe("McpAppRenderer", () => {
     framePropsMock.mockReset();
   });
 
+  it("loads newly mounted parts through the committed host", async () => {
+    const hostA = loadingHost();
+    const hostB = loadingHost();
+    const view = render(
+      <OptionsHarness host={hostA} toolCallIds={["call-1"]} />,
+    );
+    await waitFor(() => expect(hostA.loadResource).toHaveBeenCalledOnce());
+    vi.mocked(hostA.loadResource).mockClear();
+
+    view.rerender(
+      <OptionsHarness host={hostB} toolCallIds={["call-1", "call-2"]} />,
+    );
+    await waitFor(() => expect(hostB.loadResource).toHaveBeenCalled());
+
+    expect(hostA.loadResource).not.toHaveBeenCalled();
+  });
+
   it("merges forPart handlers over the thread-wide handlers", async () => {
     const onInitialized = vi.fn();
     render(
@@ -428,7 +445,7 @@ describe("McpAppRenderer", () => {
     framePropsMock.mockClear();
     view.rerender(<MemoizedHarness host={nextHost} />);
 
-    expect(nextHost.loadResource).toHaveBeenCalledTimes(1);
+    await waitFor(() => expect(nextHost.loadResource).toHaveBeenCalledTimes(1));
     expect(framePropsMock).not.toHaveBeenCalled();
 
     nextResource.resolve({

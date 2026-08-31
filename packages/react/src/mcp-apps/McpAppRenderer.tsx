@@ -194,12 +194,14 @@ function InlineRenderer({
     const targetUri = resourceUri;
     const targetServerId = serverId;
 
-    targetHost
-      .loadResource({
-        uri: targetUri,
-        ...(targetServerId ? { serverId: targetServerId } : {}),
-      })
-      .then((res) => {
+    const loadResource = async () => {
+      await Promise.resolve();
+      if (cancelled) return;
+      try {
+        const res = await targetHost.loadResource({
+          uri: targetUri,
+          ...(targetServerId ? { serverId: targetServerId } : {}),
+        });
         if (!cancelled)
           setLoadedResource({
             host: targetHost,
@@ -209,8 +211,7 @@ function InlineRenderer({
               : {}),
             resource: res,
           });
-      })
-      .catch((error: unknown) => {
+      } catch (error: unknown) {
         if (!cancelled) {
           setLoadedResource({
             host: targetHost,
@@ -221,7 +222,9 @@ function InlineRenderer({
             error: error instanceof Error ? error : new Error(String(error)),
           });
         }
-      });
+      }
+    };
+    void loadResource();
 
     return () => {
       cancelled = true;
