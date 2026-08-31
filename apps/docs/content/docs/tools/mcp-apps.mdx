@@ -107,6 +107,35 @@ McpAppRenderer({
 
 Caller handlers override the default `openLink` and `sendMessage` behavior and can provide `requestDisplayMode`, `updateModelContext`, and lifecycle hooks such as `onInitialized` and `onSizeChange`. `callTool`, `readResource`, and `listResources` remain bound to the configured `host`; use a custom host to change those data-plane operations.
 
+### Per-app options
+
+One renderer serves every MCP app in the thread, so `hostContext`, `handlers`, and the other display options are thread-wide defaults. Pass `forPart` when an app needs its own values. It runs for each MCP-app tool call, and every option it returns replaces the thread-wide one for that app alone.
+
+```tsx
+const [modes, setModes] = useState<Record<string, McpAppDisplayMode>>({});
+
+McpAppRenderer({
+  host: McpAppsRemoteHost({ url: "/api/mcp-apps" }),
+  hostInfo: { name: "my-app", version: "1.0.0" },
+  hostContext: { theme },
+  forPart: (part) => ({
+    hostContext: {
+      theme,
+      displayMode: modes[part.toolCallId] ?? "inline",
+      availableDisplayModes: ["inline", "fullscreen", "pip"],
+    },
+    handlers: {
+      requestDisplayMode: ({ mode }) => {
+        setModes((current) => ({ ...current, [part.toolCallId]: mode }));
+        return { mode };
+      },
+    },
+  }),
+});
+```
+
+The resolver closes over the part, so `requestDisplayMode` knows which app asked and the granted mode reaches that app alone through `notifications/host_context/changed`. Returned values may be rebuilt on every render; a host context that is structurally unchanged never reaches the widget. Handler capabilities are still advertised at mount, so return the same handler keys for a part on every render.
+
 ### Route handler
 
 The route accepts `POST` requests with `{ method, params }` JSON bodies. Dispatch by method name and return the result as JSON. Example for Next.js App Router:
