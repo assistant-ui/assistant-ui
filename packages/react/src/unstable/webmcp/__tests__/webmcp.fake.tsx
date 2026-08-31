@@ -55,15 +55,14 @@ export const createAsyncModelContext = (): Map<
 > => {
   const registry = new Map<string, WebMcpToolDescriptor>();
   const context: WebMcpModelContext = {
-    registerTool: (tool) => {
+    registerTool: (tool, options) => {
       registry.set(tool.name, tool);
-      return Promise.resolve();
-    },
-    unregisterTool: (name) => {
-      const removing = registry.get(name);
-      queueMicrotask(() => {
-        if (registry.get(name) === removing) registry.delete(name);
+      options?.signal?.addEventListener("abort", () => {
+        queueMicrotask(() => {
+          if (registry.get(tool.name) === tool) registry.delete(tool.name);
+        });
       });
+      return Promise.resolve();
     },
   };
   (document as { modelContext?: WebMcpModelContext }).modelContext = context;

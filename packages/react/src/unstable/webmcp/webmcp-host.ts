@@ -18,16 +18,15 @@ export type WebMcpToolDescriptor = {
 };
 
 export type WebMcpModelContext = {
+  /**
+   * Aborting `options.signal` is what unregisters the tool. The explainer
+   * defines no other removal method, and a name-keyed one could not be used
+   * safely: a later registration may already hold the name.
+   */
   registerTool(
     tool: WebMcpToolDescriptor,
     options?: { signal?: AbortSignal },
-  ): Promise<void> | { unregister?(): void } | void;
-  /**
-   * Not part of the WebMCP explainer, which unregisters by aborting the signal
-   * passed to `registerTool`. Tolerated for hosts that expose it; the abort is
-   * what disposal relies on.
-   */
-  unregisterTool?(name: string): void;
+  ): Promise<void> | void;
 };
 
 export type WebMcpHost = {
@@ -57,95 +56,20 @@ const resolveModelContext = (): WebMcpModelContext | undefined => {
   return undefined;
 };
 
-// Shared by every handle over one host, so a registration disposed by one
-// cannot unregister a name a later one has taken over. React remounts the
-// provider effect on every StrictMode pass.
-const ownersByContext = new WeakMap<WebMcpModelContext, Map<string, object>>();
-
-const ownersOf = (context: WebMcpModelContext): Map<string, object> => {
-  const existing = ownersByContext.get(context);
-  if (existing) return existing;
-  const owners = new Map<string, object>();
-  ownersByContext.set(context, owners);
-  return owners;
-};
-
-const createHost = (context: WebMcpModelContext): WebMcpHost => {
-  const owners = ownersOf(context);
-
-  return {
-    available: true,
-    registerTool: (def, onError) => {
-      const controller = new AbortController();
-      const owner = {};
-      const displaced = owners.get(def.name);
-      let settled: "fulfilled" | "rejected" | undefined;
-      let disposed = false;
-
-      // Hands the claim back rather than clearing it: the displaced
-      // registration may still be pending its own deferred release.
-      const disownName = () => {
-        if (owners.get(def.name) !== owner) return;
-        if (displaced === undefined) owners.delete(def.name);
-        else owners.set(def.name, displaced);
-      };
-      // Unregistration is keyed by name, so a registration that no longer owns
-      // its name would delete whoever holds it now.
-      const releaseName = () => {
-        if (owners.get(def.name) !== owner) return;
-        owners.delete(def.name);
-        context.unregisterTool?.(def.name);
-      };
-
-      owners.set(def.name, owner);
-      let handle: ReturnType<WebMcpModelContext["registerTool"]>;
-      try {
-        handle = context.registerTool(def, { signal: controller.signal });
-      } catch (error) {
-        disownName();
-        throw error;
-      }
-      if (isThenable(handle)) {
-        handle.then(
-          () => {
-            settled = "fulfilled";
-            if (!disposed) return;
-            try {
-              releaseName();
-            } catch (error) {
-              console.warn(
-                `[assistant-ui] Unregistering WebMCP tool "${def.name}" failed.`,
-                error,
-              );
-            }
-          },
-          (error) => {
-            settled = "rejected";
-            disownName();
-            onError?.(error);
-          },
-        );
-      }
-
-      return () => {
-        if (disposed) return;
-        disposed = true;
-        controller.abort();
-        if (settled === "rejected") return;
-        if (isThenable(handle)) {
-          if (settled === "fulfilled") releaseName();
-          return;
-        }
-        if (handle && typeof handle.unregister === "function") {
-          disownName();
-          handle.unregister();
-        } else {
-          releaseName();
-        }
-      };
-    },
-  };
-};
+const createHost = (context: WebMcpModelContext): WebMcpHost => ({
+  available: true,
+  registerTool: (def, onError) => {
+    const controller = new AbortController();
+    const handle = context.registerTool(def, { signal: controller.signal });
+    if (isThenable(handle)) {
+      handle.then(
+        () => {},
+        (error) => onError?.(error),
+      );
+    }
+    return () => controller.abort();
+  },
+});
 
 export const getDefaultWebMcpHost = (): WebMcpHost => {
   const context = resolveModelContext();

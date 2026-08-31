@@ -65,10 +65,9 @@ describe("getDefaultWebMcpHost", () => {
     expect(fromNavigator).toHaveBeenCalledOnce();
   });
 
-  it("registers with an abort signal and unregisters by name on dispose", () => {
-    const unregisterTool = vi.fn();
+  it("registers with an abort signal and aborts it on dispose", () => {
     const registerTool = vi.fn();
-    install({ registerTool, unregisterTool });
+    install({ registerTool });
 
     const dispose = getDefaultWebMcpHost().registerTool(descriptor);
     const options = registerTool.mock.calls[0]![1];
@@ -77,199 +76,67 @@ describe("getDefaultWebMcpHost", () => {
 
     dispose();
     expect(options.signal.aborted).toBe(true);
-    expect(unregisterTool).toHaveBeenCalledWith("get_weather");
-
-    dispose();
-    expect(unregisterTool).toHaveBeenCalledOnce();
+    expect(() => dispose()).not.toThrow();
   });
 
-  it("prefers the unregister handle a synchronous registration returns", () => {
-    const unregister = vi.fn();
-    const unregisterTool = vi.fn();
-    install({ registerTool: () => ({ unregister }), unregisterTool });
-
-    getDefaultWebMcpHost().registerTool(descriptor)();
-    expect(unregister).toHaveBeenCalledOnce();
-    expect(unregisterTool).not.toHaveBeenCalled();
-  });
-
-  it("reports a rejected registration and leaves the page's tool alone", async () => {
-    const unregisterTool = vi.fn();
+  it("reports a rejected registration to the caller", async () => {
     install({
       registerTool: () => Promise.reject(new Error("already registered")),
-      unregisterTool,
+    });
+
+    const onError = vi.fn();
+    getDefaultWebMcpHost().registerTool(descriptor, onError);
+    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
+    expect(onError.mock.calls[0]![0]).toBeInstanceOf(Error);
+  });
+
+  it("aborts the signal even when the registration was rejected", async () => {
+    let options: { signal?: AbortSignal } | undefined;
+    install({
+      registerTool: (_def, registerOptions) => {
+        options = registerOptions;
+        return Promise.reject(new Error("already registered"));
+      },
     });
 
     const onError = vi.fn();
     const dispose = getDefaultWebMcpHost().registerTool(descriptor, onError);
     await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
-    expect(onError.mock.calls[0]![0]).toBeInstanceOf(Error);
 
     dispose();
-    expect(unregisterTool).not.toHaveBeenCalled();
+    expect(options?.signal?.aborted).toBe(true);
   });
 
-  it("defers cleanup when disposed while the registration is still pending", async () => {
-    const unregisterTool = vi.fn();
-    let settle!: (value?: unknown) => void;
-    let fail!: (error: unknown) => void;
-    install({
-      registerTool: () =>
-        new Promise<void>((resolve, reject) => {
-          settle = resolve as (value?: unknown) => void;
-          fail = reject;
-        }),
-      unregisterTool,
-    });
-
-    const onError = vi.fn();
-    getDefaultWebMcpHost().registerTool(descriptor, onError)();
-    expect(unregisterTool).not.toHaveBeenCalled();
-
-    fail(new Error("already registered"));
-    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
-    expect(unregisterTool).not.toHaveBeenCalled();
-
-    getDefaultWebMcpHost().registerTool(descriptor)();
-    settle();
-    await vi.waitFor(() =>
-      expect(unregisterTool).toHaveBeenCalledWith("get_weather"),
-    );
-    expect(unregisterTool).toHaveBeenCalledOnce();
-  });
-
-  it("warns instead of rejecting when a deferred unregister throws", async () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    try {
-      let settle!: () => void;
-      install({
-        registerTool: () =>
-          new Promise<void>((resolve) => {
-            settle = resolve;
-          }),
-        unregisterTool: () => {
-          throw new Error("unregister boom");
-        },
-      });
-
-      getDefaultWebMcpHost().registerTool(descriptor)();
-      settle();
-
-      await vi.waitFor(() =>
-        expect(warn).toHaveBeenCalledWith(
-          expect.stringContaining('Unregistering WebMCP tool "get_weather"'),
-          expect.any(Error),
-        ),
-      );
-    } finally {
-      warn.mockRestore();
-    }
-  });
-
-  it("does not unregister a name a later registration has taken over", async () => {
-    const settles: Array<() => void> = [];
-    const unregisterTool = vi.fn();
-    install({
-      registerTool: () =>
-        new Promise<void>((resolve) => {
-          settles.push(resolve);
-        }),
-      unregisterTool,
-    });
-
-    const disposeFirst = getDefaultWebMcpHost().registerTool(descriptor);
-    disposeFirst();
-
-    getDefaultWebMcpHost().registerTool(descriptor);
-    expect(settles).toHaveLength(2);
-
-    settles[1]!();
-    settles[0]!();
-    await vi.waitFor(() => expect(settles).toHaveLength(2));
-    await Promise.resolve();
-
-    expect(unregisterTool).not.toHaveBeenCalled();
-  });
-
-  it("still releases the name when the registration that displaced it is refused", async () => {
-    const settles: Array<() => void> = [];
-    const fails: Array<(error: Error) => void> = [];
-    const unregisterTool = vi.fn();
-    install({
-      registerTool: () =>
-        new Promise<void>((resolve, reject) => {
-          settles.push(resolve);
-          fails.push(reject);
-        }),
-      unregisterTool,
-    });
-
-    const disposeFirst = getDefaultWebMcpHost().registerTool(descriptor);
-    disposeFirst();
-
-    const onError = vi.fn();
-    getDefaultWebMcpHost().registerTool(descriptor, onError);
-    fails[1]!(new Error("already registered"));
-    await vi.waitFor(() => expect(onError).toHaveBeenCalledOnce());
-
-    settles[0]!();
-    await vi.waitFor(() =>
-      expect(unregisterTool).toHaveBeenCalledWith("get_weather"),
-    );
-  });
-
-  it("still releases the name when the registration that displaced it throws", async () => {
-    let settle!: () => void;
-    let throwOnRegister = false;
-    const unregisterTool = vi.fn();
+  it("lets a synchronous registration failure propagate", () => {
     install({
       registerTool: () => {
-        if (throwOnRegister) throw new Error("already registered");
-        return new Promise<void>((resolve) => {
-          settle = resolve;
-        });
+        throw new Error("already registered");
       },
-      unregisterTool,
     });
 
-    const disposeFirst = getDefaultWebMcpHost().registerTool(descriptor);
-    disposeFirst();
-
-    throwOnRegister = true;
     expect(() => getDefaultWebMcpHost().registerTool(descriptor)).toThrow(
       "already registered",
     );
-
-    settle();
-    await vi.waitFor(() =>
-      expect(unregisterTool).toHaveBeenCalledWith("get_weather"),
-    );
   });
 
-  it("survives a registration handle that settles synchronously", () => {
-    const unregisterTool = vi.fn();
+  it("survives a registration that returns a bare thenable", () => {
     install({
       registerTool: () =>
         ({
           then: (resolve: () => void) => resolve(),
         }) as unknown as Promise<void>,
-      unregisterTool,
     });
 
     const dispose = getDefaultWebMcpHost().registerTool(descriptor);
-    expect(unregisterTool).not.toHaveBeenCalled();
-
-    dispose();
-    expect(unregisterTool).toHaveBeenCalledWith("get_weather");
+    expect(() => dispose()).not.toThrow();
   });
 
-  it("unregisters by name when the registration promise resolves", async () => {
-    const unregisterTool = vi.fn();
-    install({ registerTool: () => Promise.resolve(), unregisterTool });
+  it("survives a registration that returns nothing", () => {
+    const registerTool = vi.fn();
+    install({ registerTool });
 
     const dispose = getDefaultWebMcpHost().registerTool(descriptor);
-    await Promise.resolve();
     dispose();
-    expect(unregisterTool).toHaveBeenCalledWith("get_weather");
+    expect(registerTool.mock.calls[0]![1].signal.aborted).toBe(true);
   });
 });
