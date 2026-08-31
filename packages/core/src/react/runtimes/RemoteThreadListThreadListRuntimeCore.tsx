@@ -692,7 +692,9 @@ export class RemoteThreadListThreadListRuntimeCore
       await this.unarchive(data.id);
       if (generation !== this._switchGeneration) return;
     }
-    this._mainThreadId = data.id;
+    const current = this.getItemById(data.id);
+    if (current?.id !== data.id) return;
+    this._mainThreadId = current.id;
 
     this._notifySubscribers();
     this._notifyThreadIdChange(emitThreadIdChange);
