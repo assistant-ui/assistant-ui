@@ -47,30 +47,35 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
 
   useEffect(() => {
     let currentThreadId = runtime.getState().mainThreadId;
-    const runningThreadCores = new Map<string, ThreadRuntimeCore>();
+    const runningThreads = new Map<string, ThreadRuntimeCore>();
     const pending = new Map<string, Unsubscribe>();
 
     const getMainThreadCore = () =>
       (runtime.main as ThreadRuntimeImpl).__internal_threadBinding.getState();
+    const recordMainThread = (threadId: string) => {
+      const core = getMainThreadCore();
+      runningThreads.set(threadId, core);
+    };
+    const trackRunningMainThread = (threadId: string) => {
+      if (runtime.main.getState().isRunning) recordMainThread(threadId);
+    };
 
-    if (runtime.main.getState().isRunning) {
-      runningThreadCores.set(currentThreadId, getMainThreadCore());
-    }
+    trackRunningMainThread(currentThreadId);
     const unsubscribeMainRunStart = runtime.main.unstable_on("runStart", () => {
-      runningThreadCores.set(
-        runtime.getState().mainThreadId,
-        getMainThreadCore(),
-      );
+      recordMainThread(runtime.getState().mainThreadId);
     });
     const unsubscribeMainRunEnd = runtime.main.unstable_on("runEnd", () => {
-      runningThreadCores.delete(runtime.getState().mainThreadId);
+      runningThreads.delete(runtime.getState().mainThreadId);
+    });
+    const unsubscribeMainState = runtime.main.subscribe(() => {
+      trackRunningMainThread(runtime.getState().mainThreadId);
     });
 
     const stopPending = (threadId: string) => {
       const unsubscribe = pending.get(threadId);
       if (!unsubscribe) return;
       pending.delete(threadId);
-      runningThreadCores.delete(threadId);
+      runningThreads.delete(threadId);
       unsubscribe();
     };
 
@@ -87,9 +92,16 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
 
       const previousThreadId = currentThreadId;
       currentThreadId = nextThreadId;
-      const previousThreadCore = runningThreadCores.get(previousThreadId);
+      const previousThreadCore = runningThreads.get(previousThreadId);
+      trackRunningMainThread(nextThreadId);
 
-      if (pending.has(previousThreadId) || !previousThreadCore) {
+      if (
+        pending.has(previousThreadId) ||
+        !previousThreadCore ||
+        !Object.hasOwn(nextState.threadItems, previousThreadId) ||
+        !runtime.getItemById(previousThreadId).getState().isRunning
+      ) {
+        runningThreads.delete(previousThreadId);
         return;
       }
 
@@ -115,6 +127,7 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
       unsubscribeRuntime();
       unsubscribeMainRunStart();
       unsubscribeMainRunEnd();
+      unsubscribeMainState();
       for (const unsubscribe of pending.values()) unsubscribe();
     };
   }, [runtime, emit]);

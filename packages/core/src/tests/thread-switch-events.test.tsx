@@ -25,7 +25,7 @@ const useTestThreadRuntime = () =>
     onNew: async () => {},
   });
 
-const createRuntime = () => {
+const createRuntime = (runningByThreadId = new Map<string, boolean>()) => {
   const threads = [
     {
       id: "t1",
@@ -41,6 +41,7 @@ const createRuntime = () => {
   let currentId = "t1";
   const makeAdapter = (): ExternalStoreAdapter<DemoMessage> => ({
     messages: threads.find((t) => t.id === currentId)!.messages,
+    isRunning: runningByThreadId.get(currentId) ?? false,
     convertMessage: (m) => ({
       id: m.id,
       role: m.role,
@@ -66,12 +67,12 @@ const createRuntime = () => {
   const core = new ExternalStoreRuntimeCore(makeAdapter());
   const runtime = new AssistantRuntimeImpl(core);
   const sync = () => core.setAdapter(makeAdapter());
-  return runtime;
+  return { runtime, sync };
 };
 
 describe("thread switch events", () => {
   it("delivers switchedTo to default-scope, star-scope, and aui.on listeners", async () => {
-    const runtime = createRuntime();
+    const { runtime } = createRuntime();
     const defaultScope = vi.fn();
     const starScope = vi.fn();
     const auiOn = vi.fn();
@@ -126,7 +127,7 @@ describe("thread switch events", () => {
   });
 
   it("delivers threads.selectionChanged with the new and previous thread ids", async () => {
-    const runtime = createRuntime();
+    const { runtime } = createRuntime();
     const selectionChanged = vi.fn();
     const auiOn = vi.fn();
     let aui!: ReturnType<typeof useAui>;
@@ -177,7 +178,7 @@ describe("thread switch events", () => {
   });
 
   it("does not emit for the initially selected thread on mount", async () => {
-    const runtime = createRuntime();
+    const { runtime } = createRuntime();
     const anySwitch = vi.fn();
     const Consumer = () => {
       useAuiEvent(
@@ -202,6 +203,36 @@ describe("thread switch events", () => {
     await act(async () => {});
 
     expect(anySwitch).not.toHaveBeenCalled();
+  });
+
+  it("does not hand off an external-store runtime discarded during a switch", async () => {
+    const runningByThreadId = new Map<string, boolean>();
+    const { runtime, sync } = createRuntime(runningByThreadId);
+    const globalRunEnd = vi.fn();
+    const Listener = () => {
+      useAuiEvent({ scope: "*", event: "thread.runEnd" }, globalRunEnd);
+      return null;
+    };
+    const Harness = () => {
+      const aui = useAui({ threads: RuntimeAdapter(runtime) } as never);
+      return (
+        <AuiProvider value={aui}>
+          <Listener />
+        </AuiProvider>
+      );
+    };
+    render(<Harness />);
+    await act(async () => {});
+
+    runningByThreadId.set("t1", true);
+    await act(async () => sync());
+    await waitFor(() => expect(runtime.thread.getState().isRunning).toBe(true));
+
+    await act(async () => {
+      await runtime.threads.switchToThread("t2");
+    });
+    expect(runtime.threads.getState().mainThreadId).toBe("t2");
+    expect(globalRunEnd).not.toHaveBeenCalled();
   });
 
   it("delivers runEnd globally after switching away without duplicating selected-thread events", async () => {
@@ -314,6 +345,75 @@ describe("thread switch events", () => {
     expect(globalRunStart).toHaveBeenLastCalledWith({ threadId: threadBId });
     expect(selectedRunStart).toHaveBeenCalledTimes(2);
     expect(selectedRunStart).toHaveBeenLastCalledWith({ threadId: threadBId });
+  });
+
+  it("hands off a retained thread that was already running when selected", async () => {
+    const backgroundRun = deferred<{ content: [] }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "regular" as const, remoteId: "thread-a", title: "A" },
+          { status: "regular" as const, remoteId: "thread-b", title: "B" },
+        ],
+      })),
+    });
+    const globalRunEnd = vi.fn();
+    const selectedRunEnd = vi.fn();
+    let runtime!: AssistantRuntime;
+
+    const Listener = () => {
+      useAuiEvent({ scope: "*", event: "thread.runEnd" }, globalRunEnd);
+      useAuiEvent("thread.runEnd", selectedRunEnd);
+      return null;
+    };
+    const Harness = () => {
+      runtime = useRemoteThreadListRuntime({
+        adapter,
+        initialThreadId: "thread-a",
+        runtimeHook: function RuntimeHook() {
+          return useLocalRuntime({ run: () => backgroundRun.promise });
+        },
+      });
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Listener />
+        </AssistantRuntimeProvider>
+      );
+    };
+    render(<Harness />);
+
+    await waitFor(() => {
+      expect(runtime.threads.mainItem.getState().remoteId).toBe("thread-a");
+    });
+    await act(async () => {
+      await runtime.threads.switchToThread("thread-b");
+    });
+    const threadBId = runtime.threads.mainItem.getState().id;
+    const threadB = runtime.threads.getById(threadBId);
+    await act(async () => {
+      await runtime.threads.switchToThread("thread-a");
+    });
+
+    await act(async () => {
+      threadB.startRun({ parentId: null });
+    });
+    await waitFor(() => expect(threadB.getState().isRunning).toBe(true));
+    await act(async () => {
+      await runtime.threads.switchToThread("thread-b");
+    });
+    await act(async () => {
+      await runtime.threads.switchToThread("thread-a");
+    });
+    await act(async () => {
+      backgroundRun.resolve({ content: [] });
+    });
+
+    await waitFor(() => {
+      expect(globalRunEnd).toHaveBeenCalledExactlyOnceWith({
+        threadId: threadBId,
+      });
+    });
+    expect(selectedRunEnd).not.toHaveBeenCalled();
   });
 
   it.each([
