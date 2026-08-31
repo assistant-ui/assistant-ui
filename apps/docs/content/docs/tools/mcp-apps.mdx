@@ -136,7 +136,9 @@ McpAppRenderer({
 });
 ```
 
-The resolver closes over the part, so `requestDisplayMode` knows which app asked and the granted mode reaches that app alone through `notifications/host_context/changed`. Returned values may be rebuilt on every render; a host context that is structurally unchanged never reaches the widget. Handler capabilities are still advertised at mount, so return the same handler keys for a part on every render.
+The resolver closes over the part, so `requestDisplayMode` knows which app asked and the granted mode reaches that app alone through `notifications/host_context/changed`. Returned values may be rebuilt on every render; a host context that is structurally unchanged never reaches the widget.
+
+`forPart` resolves before a part's first render, so a per-part value is always in place from the start. What a *later* change to one reaches depends on the option. `hostContext` is delivered again whenever it changes. Handlers are called through live references, but which handler keys exist is captured when the frame mounts, so return the same keys for a part on every render. `hostInfo` and the frame settings in `sandbox` (`className` and `style` aside) are also read once at mount, so changing them mid-life does nothing until the app's resource URI changes and the frame is rebuilt.
 
 ### Route handler
 
