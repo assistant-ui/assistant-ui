@@ -377,6 +377,7 @@ declare const McpLocalStorage: Resource<MCPStorage, [
 type McpLocalStorageOptions = {
   keyPrefix?: string;
   storage?: Storage;
+  scopeId?: string;
 };
 
 declare namespace McpManagerPrimitiveAddCustomTrigger {
