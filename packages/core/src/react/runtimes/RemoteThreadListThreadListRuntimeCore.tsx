@@ -1003,6 +1003,8 @@ export class RemoteThreadListThreadListRuntimeCore
         try {
           const { remoteId } = await data.initializeTask;
           this._requireAdapterGeneration(adapterGeneration);
+          const current = this.getItemById(data.id);
+          if (current?.id !== data.id) return;
           return await adapter.unarchive(remoteId);
         } catch (error) {
           if (adapterGeneration === this._adapterGeneration) {

@@ -1323,6 +1323,68 @@ describe("RemoteThreadList", () => {
     handle.destroy();
   });
 
+  it("does not start unarchive after initialization when the target was deleted", async () => {
+    const initialization = deferred<{
+      remoteId: string;
+      externalId: undefined;
+    }>();
+    const nativeResolve = Promise.resolve.bind(Promise);
+    const resolveSpy = vi.spyOn(Promise, "resolve").mockImplementation(((
+      value?: unknown,
+    ) => {
+      if (
+        typeof value === "object" &&
+        value !== null &&
+        "remoteId" in value &&
+        value.remoteId === "t1" &&
+        "externalId" in value &&
+        value.externalId === undefined
+      ) {
+        return initialization.promise;
+      }
+      return nativeResolve(value);
+    }) as typeof Promise.resolve);
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          { status: "archived" as const, remoteId: "t1", title: "One" },
+        ],
+      })),
+    });
+    const { handle } = mountList(adapter);
+    const aui = handle.getClient();
+    try {
+      await aui.threads.getLoadThreadsPromise();
+    } finally {
+      resolveSpy.mockRestore();
+    }
+    await vi.waitFor(() => {
+      expect(aui.threads.getState().archivedThreadIds).toEqual(["t1"]);
+    });
+    const initialMainThreadId = aui.threads.getState().mainThreadId;
+
+    flushTapSync(() => aui.threads.switchToThread("t1"));
+    let deletion: Promise<void> | undefined;
+    flushTapSync(() => {
+      deletion = aui.threads.item({ id: "t1" }).delete() as unknown as
+        | Promise<void>
+        | undefined;
+    });
+    await vi.waitFor(() => {
+      const state = aui.threads.getState();
+      expect(state.threadIds).not.toContain("t1");
+      expect(state.archivedThreadIds).not.toContain("t1");
+    });
+
+    initialization.resolve({ remoteId: "t1", externalId: undefined });
+    await deletion;
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(adapter.unarchive).not.toHaveBeenCalled();
+    expect(aui.threads.getState().mainThreadId).toBe(initialMainThreadId);
+    handle.destroy();
+  });
+
   it("keeps item(main) resolvable when deleting an archived thread during unarchive", async () => {
     const unarchive = deferred<void>();
     const onSwitchToThread = vi.fn();
