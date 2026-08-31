@@ -17,6 +17,7 @@ const PUBLISHED_FIELDS = [
   "optionalDependencies",
 ];
 
+const WORKSPACE_PROTOCOL = "workspace:";
 const REQUIRED_PROTOCOL = "workspace:^";
 
 function readWorkspaceManifests(root) {
@@ -41,15 +42,21 @@ function readWorkspaceManifests(root) {
   return manifests.sort((a, b) => a.manifest.localeCompare(b.manifest));
 }
 
+export function dedupesWithCaret(range) {
+  if (range.startsWith(WORKSPACE_PROTOCOL)) return range === REQUIRED_PROTOCOL;
+  return range === "*" || range.startsWith("^");
+}
+
 export function findNarrowWorkspaceRanges(manifests) {
+  const workspaceNames = new Set(manifests.map(({ pkg }) => pkg.name));
   const problems = [];
   for (const { manifest, pkg } of manifests) {
     if (pkg.private === true) continue;
     for (const field of PUBLISHED_FIELDS) {
       for (const [dependency, range] of Object.entries(pkg[field] ?? {})) {
         if (typeof range !== "string") continue;
-        if (!range.startsWith("workspace:")) continue;
-        if (range === REQUIRED_PROTOCOL) continue;
+        if (!workspaceNames.has(dependency)) continue;
+        if (dedupesWithCaret(range)) continue;
         problems.push({ manifest, name: pkg.name, field, dependency, range });
       }
     }
@@ -72,7 +79,7 @@ function main() {
 
   if (problems.length > 0) {
     console.error(
-      `Published packages declare workspace dependencies that do not publish as \`${REQUIRED_PROTOCOL}\`:\n`,
+      "Published packages declare a workspace dependency on a range that cannot deduplicate:\n",
     );
     for (const { manifest, name, field, dependency, range } of problems) {
       console.error(
@@ -80,28 +87,29 @@ function main() {
       );
     }
     console.error(
-      "\npnpm rewrites `workspace:*` to the exact version at publish time, and an exact pin never",
+      "\npnpm rewrites `workspace:*` to the exact version at publish time, and a literal exact or",
     );
     console.error(
-      "unifies with the caret range every other package publishes. A consumer that installs both",
+      "tilde range pins just as hard. Neither unifies with the caret range a sibling publishes for",
     );
     console.error(
-      "ends up with two physical copies, which breaks the singleton contract for @assistant-ui/core,",
+      "the same package, so a consumer that installs both ends up with two physical copies. That",
     );
     console.error(
-      "@assistant-ui/store, and @assistant-ui/tap: React contexts resolve to the wrong provider,",
+      "breaks the singleton contract for @assistant-ui/core, @assistant-ui/store, and",
     );
     console.error(
-      "tools never reach the runtime, and `instanceof` checks fail.",
+      "@assistant-ui/tap: React contexts resolve to the wrong provider, tools never reach the",
     );
+    console.error("runtime, and `instanceof` checks fail.");
     console.error(
-      `\nDeclare the dependency as \`${REQUIRED_PROTOCOL}\`, which publishes as \`^<version>\`.`,
+      `\nDeclare the dependency as \`${REQUIRED_PROTOCOL}\`, which publishes as \`^<version>\`, or as a literal \`^\` range.`,
     );
     process.exit(1);
   }
 
   console.log(
-    `All published workspace dependencies use \`${REQUIRED_PROTOCOL}\`. (${packageCount} packages scanned)`,
+    `All published workspace dependencies deduplicate. (${packageCount} packages scanned)`,
   );
 }
 

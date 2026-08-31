@@ -5,6 +5,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import test from "node:test";
 import {
+  dedupesWithCaret,
   findNarrowWorkspaceRanges,
   runCheck,
 } from "./check-workspace-ranges.mjs";
@@ -27,22 +28,52 @@ function createWorkspace(manifests) {
   return root;
 }
 
-test("workspace:^ is the only accepted protocol range", () => {
+function consumer(dependencies, field = "dependencies") {
+  return {
+    manifest: "packages/consumer/package.json",
+    pkg: { name: "@fixture/consumer", version: "1.0.0", [field]: dependencies },
+  };
+}
+
+const dep = {
+  manifest: "packages/dep/package.json",
+  pkg: { name: "@fixture/dep", version: "1.0.0" },
+};
+
+test("only ranges that unify with a caret are accepted", () => {
+  for (const range of ["workspace:^", "^1.0.0", "*"]) {
+    assert.equal(dedupesWithCaret(range), true, range);
+  }
+  for (const range of [
+    "workspace:*",
+    "workspace:~",
+    "workspace:1.0.0",
+    "1.0.0",
+    "~1.0.0",
+    "=1.0.0",
+    ">=1.0.0 <1.1.0",
+  ]) {
+    assert.equal(dedupesWithCaret(range), false, range);
+  }
+});
+
+test("a pin is reported whichever spelling it uses", () => {
   const problems = findNarrowWorkspaceRanges([
+    dep,
     {
-      manifest: "packages/ok/package.json",
+      manifest: "packages/protocol/package.json",
       pkg: {
-        name: "@fixture/ok",
+        name: "@fixture/protocol",
         version: "1.0.0",
-        dependencies: { "@fixture/dep": "workspace:^" },
+        dependencies: { "@fixture/dep": "workspace:*" },
       },
     },
     {
-      manifest: "packages/star/package.json",
+      manifest: "packages/literal/package.json",
       pkg: {
-        name: "@fixture/star",
+        name: "@fixture/literal",
         version: "1.0.0",
-        dependencies: { "@fixture/dep": "workspace:*" },
+        peerDependencies: { "@fixture/dep": "1.0.0" },
       },
     },
     {
@@ -50,15 +81,7 @@ test("workspace:^ is the only accepted protocol range", () => {
       pkg: {
         name: "@fixture/tilde",
         version: "1.0.0",
-        peerDependencies: { "@fixture/dep": "workspace:~" },
-      },
-    },
-    {
-      manifest: "packages/pinned/package.json",
-      pkg: {
-        name: "@fixture/pinned",
-        version: "1.0.0",
-        optionalDependencies: { "@fixture/dep": "workspace:1.0.0" },
+        optionalDependencies: { "@fixture/dep": "~1.0.0" },
       },
     },
   ]);
@@ -67,26 +90,30 @@ test("workspace:^ is the only accepted protocol range", () => {
     problems.map(({ name, field, range }) => ({ name, field, range })),
     [
       {
-        name: "@fixture/star",
+        name: "@fixture/protocol",
         field: "dependencies",
         range: "workspace:*",
       },
+      { name: "@fixture/literal", field: "peerDependencies", range: "1.0.0" },
       {
         name: "@fixture/tilde",
-        field: "peerDependencies",
-        range: "workspace:~",
-      },
-      {
-        name: "@fixture/pinned",
         field: "optionalDependencies",
-        range: "workspace:1.0.0",
+        range: "~1.0.0",
       },
     ],
   );
 });
 
+test("a pinned dependency outside the workspace is not this check's business", () => {
+  assert.deepEqual(
+    findNarrowWorkspaceRanges([dep, consumer({ "react-dom": "19.2.3" })]),
+    [],
+  );
+});
+
 test("fields that never ship and private packages are exempt", () => {
   const problems = findNarrowWorkspaceRanges([
+    dep,
     {
       manifest: "packages/tooling/package.json",
       pkg: {
@@ -101,14 +128,6 @@ test("fields that never ship and private packages are exempt", () => {
         name: "@fixture/internal",
         private: true,
         dependencies: { "@fixture/dep": "workspace:*" },
-      },
-    },
-    {
-      manifest: "packages/registry/package.json",
-      pkg: {
-        name: "@fixture/registry",
-        version: "1.0.0",
-        dependencies: { "@fixture/dep": "^1.0.0" },
       },
     },
   ]);
@@ -173,7 +192,7 @@ test("the executable reports success and exits 0", () => {
     assert.equal(result.status, 0, result.stderr);
     assert.match(
       result.stdout,
-      /All published workspace dependencies use `workspace:\^`\./,
+      /All published workspace dependencies deduplicate\./,
       "the guard produced no verdict, so main() never ran",
     );
   } finally {
@@ -189,7 +208,7 @@ test("the executable reports the offending dependency and exits 1", () => {
       {
         name: "@fixture/consumer",
         version: "1.0.0",
-        dependencies: { "@fixture/dep": "workspace:*" },
+        dependencies: { "@fixture/dep": "1.0.0" },
       },
     ],
   ]);
@@ -198,7 +217,7 @@ test("the executable reports the offending dependency and exits 1", () => {
     assert.equal(result.status, 1);
     assert.match(
       result.stderr,
-      /packages\/consumer\/package\.json: "@fixture\/consumer" dependencies\["@fixture\/dep"\] is "workspace:\*"/,
+      /packages\/consumer\/package\.json: "@fixture\/consumer" dependencies\["@fixture\/dep"\] is "1\.0\.0"/,
     );
   } finally {
     rmSync(root, { recursive: true, force: true });

@@ -20,6 +20,7 @@ on:
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - ".github/workflows/code-quality.yaml"
   pull_request:
     branches: [main]
@@ -40,6 +41,7 @@ on:
       - "turbo.json"
       - "package.json"
       - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
       - ".github/workflows/code-quality.yaml"
 
 permissions:
