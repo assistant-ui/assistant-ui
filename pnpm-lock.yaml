@@ -5252,6 +5252,9 @@ importers:
       '@assistant-ui/core':
         specifier: workspace:*
         version: link:../core
+      '@assistant-ui/tap':
+        specifier: workspace:*
+        version: link:../tap
       '@assistant-ui/vue':
         specifier: workspace:*
         version: link:../vue
@@ -5276,6 +5279,9 @@ importers:
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
+      '@vitejs/plugin-vue':
+        specifier: ^6.0.8
+        version: 6.0.8(vite@8.2.2(@types/node@26.4.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.51.2)(tsx@4.23.12)(yaml@2.9.0))(vue@3.5.42(typescript@7.0.2))
       jsdom:
         specifier: ^30.0.1
         version: 30.0.1
