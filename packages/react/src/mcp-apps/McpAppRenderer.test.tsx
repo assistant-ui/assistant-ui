@@ -268,6 +268,7 @@ describe("McpAppRenderer", () => {
       const rendererStore = rendererStores.at(-1);
       expect(rendererStore).toBeDefined();
       const staleHost = rendererStore!.getState().host;
+      expect(staleHost).toBe(hostA);
 
       global.IS_REACT_ACT_ENVIRONMENT = false;
       flushSync(() => {
