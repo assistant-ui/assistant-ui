@@ -2316,3 +2316,33 @@ test("emitted files carry a repo-root sourcePath for source links", () => {
     "apps/registry/templates/ai-sdk-backend-resumable/app/api/chat/route.ts",
   );
 });
+
+test("every emitted sourcePath exists at the repo root", async () => {
+  const { readdirSync, existsSync, readFileSync } = await import("node:fs");
+  const { join, resolve } = await import("node:path");
+
+  const repoRoot = resolve(process.cwd(), "../..");
+  const missing = [];
+  for (const distRoot of ["dist", "dist/base"]) {
+    for (const entry of readdirSync(distRoot, { withFileTypes: true })) {
+      if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
+      let item;
+      try {
+        item = JSON.parse(readFileSync(join(distRoot, entry.name), "utf8"));
+      } catch {
+        continue;
+      }
+      if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
+        continue;
+      }
+      for (const file of item.files) {
+        if (typeof file.sourcePath !== "string") {
+          missing.push(`${entry.name}: ${file.path} has no sourcePath`);
+        } else if (!existsSync(join(repoRoot, file.sourcePath))) {
+          missing.push(`${entry.name}: ${file.sourcePath}`);
+        }
+      }
+    }
+  }
+  assert.deepEqual(missing, [], `emitted sourcePaths missing from the repo`);
+});

@@ -8,7 +8,6 @@ import {
   type ResolvedFile,
   type ResolvedGroup,
 } from "@/components/pages/docs/fumadocs/install/component-source";
-import { githubSourcePath } from "@/components/pages/docs/fumadocs/install/install-source-path";
 import { SetupInstructions } from "@/components/pages/docs/fumadocs/install/setup-instructions";
 import {
   ExpoInstallTabs,
@@ -114,7 +113,6 @@ export async function InstallCommand(props: InstallCommandProps) {
 }
 
 const REPO = "assistant-ui/assistant-ui";
-const UI_SRC = "packages/ui/src";
 const GITHUB_BLOB = `https://github.com/${REPO}/blob/main`;
 const GITHUB_RAW = `https://raw.githubusercontent.com/${REPO}/main`;
 
@@ -124,9 +122,7 @@ const CommandBlock = ({ command }: { command: string }) => (
   </pre>
 );
 
-type LinkedFile = ResolvedFile & { sourcePath: string };
-
-function buildDownloadCommand(files: LinkedFile[]): string {
+function buildDownloadCommand(files: ResolvedFile[]): string {
   const args = files
     .map((file) => `  -o ${file.path} ${GITHUB_RAW}/${file.sourcePath}`)
     .join(" \\\n");
@@ -157,16 +153,10 @@ export const InstallCommandLLM = async (
       : `https://r.assistant-ui.com/${c}.json`,
   );
   const resolved = await resolveAllComponents(props.shadcn, flavor);
-  // The registry build emits each file's repo-root source location; the kit
-  // probe remains as the fallback for registries built before it existed.
-  const files: LinkedFile[] = [
+  const files: ResolvedFile[] = [
     ...resolved.main.files,
     ...resolved.auiDeps.files,
-  ].map((file) => ({
-    ...file,
-    sourcePath:
-      file.sourcePath ?? `${UI_SRC}/${githubSourcePath(file.path, flavor)}`,
-  }));
+  ];
   // npm packages the copied files import. shadcn deps (e.g. radix-ui) are
   // omitted here — they install with the shadcn components below.
   const npmDeps = [
