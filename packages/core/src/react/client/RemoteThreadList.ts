@@ -779,8 +779,7 @@ const useRemoteThreadList = (
         if (isSameThread(store.value, data.id, session.mainThreadId)) return;
 
         const targetId = data.id;
-        let current = getThreadData(store.value, targetId);
-        if (current?.id !== targetId) return;
+        let current = data;
 
         if (current.status === "archived" && options?.unarchive !== false) {
           const { remoteId } = await current.initializeTask;
