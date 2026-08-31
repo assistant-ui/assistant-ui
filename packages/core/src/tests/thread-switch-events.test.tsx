@@ -5,8 +5,9 @@ import { describe, expect, it, vi } from "vitest";
 import { AuiProvider, useAui, useAuiEvent } from "@assistant-ui/store";
 import { AssistantRuntimeProvider } from "../react/AssistantRuntimeProvider";
 import { useExternalStoreRuntime } from "../react/runtimes/useExternalStoreRuntime";
+import { useLocalRuntime } from "../react/runtimes/useLocalRuntime";
 import { useRemoteThreadListRuntime } from "../react/runtimes/useRemoteThreadListRuntime";
-import { makeAdapter } from "./remote-thread-list-test-helpers";
+import { deferred, makeAdapter } from "./remote-thread-list-test-helpers";
 import { RuntimeAdapter } from "../react/RuntimeAdapter";
 import { AssistantRuntimeImpl } from "../runtime/api/assistant-runtime";
 import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
@@ -230,5 +231,78 @@ describe("thread switch events", () => {
     };
     expect(payload.threadId).toBe("thread-a");
     expect(payload.previousThreadId).toMatch(/^__LOCALID_/);
+  });
+
+  it("delivers runEnd from a retained thread after switching", async () => {
+    const run = deferred<{ content: never[] }>();
+    const adapter = makeAdapter({
+      list: vi.fn(async () => ({
+        threads: [
+          {
+            status: "regular" as const,
+            remoteId: "thread-a",
+            externalId: "thread-a",
+          },
+          {
+            status: "regular" as const,
+            remoteId: "thread-b",
+            externalId: "thread-b",
+          },
+        ],
+      })),
+    });
+    const runtimeRef: {
+      current: ReturnType<typeof useRemoteThreadListRuntime> | null;
+    } = { current: null };
+    const coreRunEnd = vi.fn();
+    const storeRunEnd = vi.fn();
+
+    const Listener = () => {
+      useAuiEvent({ scope: "*", event: "thread.runEnd" }, storeRunEnd);
+      return null;
+    };
+
+    const App = () => {
+      const runtime = useRemoteThreadListRuntime({
+        adapter,
+        initialThreadId: "thread-a",
+        runtimeHook: function RuntimeHook() {
+          return useLocalRuntime({ run: () => run.promise });
+        },
+      });
+      runtimeRef.current = runtime;
+      return (
+        <AssistantRuntimeProvider runtime={runtime}>
+          <Listener />
+        </AssistantRuntimeProvider>
+      );
+    };
+
+    render(<App />);
+    await waitFor(() => {
+      expect(runtimeRef.current?.threads.mainItem.getState().remoteId).toBe(
+        "thread-a",
+      );
+    });
+
+    const runtime = runtimeRef.current!;
+    const threadAId = runtime.threads.mainItem.getState().id;
+    const threadA = runtime.threads.getById(threadAId);
+    threadA.unstable_on("runEnd", coreRunEnd);
+
+    act(() => {
+      threadA.startRun({ parentId: null });
+    });
+    await waitFor(() => expect(threadA.getState().isRunning).toBe(true));
+
+    await act(async () => {
+      await runtime.threads.switchToThread("thread-b");
+    });
+    run.resolve({ content: [] });
+
+    await waitFor(() => expect(coreRunEnd).toHaveBeenCalledTimes(1));
+    expect(storeRunEnd).toHaveBeenCalledExactlyOnceWith({
+      threadId: threadAId,
+    });
   });
 });

@@ -35,29 +35,29 @@ const useMessageClientById = ({
 
 const MessageClientById = resource(useMessageClientById);
 
-const useThreadClient = ({
-  runtime,
-}: {
-  runtime: ThreadRuntime;
-}): ClientOutput<"thread"> => {
-  const runtimeState = useSubscribable(runtime);
+const THREAD_EVENTS: readonly ThreadRuntimeEventType[] = [
+  "runStart",
+  "runEnd",
+  "initialize",
+  "modelContextUpdate",
+];
+
+export const useThreadEventBridge = (
+  runtime: ThreadRuntime | undefined,
+  threadId?: string,
+) => {
   const emit = useAssistantEmit();
 
   useEffect(() => {
+    if (!runtime) return undefined;
+
     const unsubscribers: Unsubscribe[] = [];
 
-    const threadEvents: ThreadRuntimeEventType[] = [
-      "runStart",
-      "runEnd",
-      "initialize",
-      "modelContextUpdate",
-    ];
-
-    for (const event of threadEvents) {
+    for (const event of THREAD_EVENTS) {
       const unsubscribe = runtime.unstable_on(event, () => {
-        const threadId = runtime.getState()?.threadId || "unknown";
+        const emittedThreadId = threadId ?? runtime.getState()?.threadId;
         emit(`thread.${event}`, {
-          threadId,
+          threadId: emittedThreadId || "unknown",
         });
       });
       unsubscribers.push(unsubscribe);
@@ -66,7 +66,16 @@ const useThreadClient = ({
     return () => {
       for (const unsub of unsubscribers) unsub();
     };
-  }, [runtime, emit]);
+  }, [runtime, threadId, emit]);
+};
+
+const useThreadClient = ({
+  runtime,
+}: {
+  runtime: ThreadRuntime;
+}): ClientOutput<"thread"> => {
+  const runtimeState = useSubscribable(runtime);
+  useThreadEventBridge(runtime);
 
   const threadIdRef = useMemo(
     () => liveRef(() => runtime.getState()!.threadId),

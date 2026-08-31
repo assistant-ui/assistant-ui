@@ -7,9 +7,33 @@ import type { ThreadListRuntime } from "../../runtime/api/thread-list-runtime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
 import { useSubscribable } from "./useSubscribable";
 import { ThreadListItemClient } from "./thread-list-item-runtime-client";
-import { ThreadClient } from "./thread-runtime-client";
+import { ThreadClient, useThreadEventBridge } from "./thread-runtime-client";
 import type { ThreadsState } from "../scopes/threads";
 import { handleThreadListAction } from "./handle-thread-list-action";
+
+const useThreadEventClientById = ({
+  runtime,
+  id,
+  mainThreadId,
+}: {
+  runtime: ThreadListRuntime;
+  id: string;
+  mainThreadId: string;
+}) => {
+  const threadRuntime = useMemo(() => {
+    if (id === mainThreadId) return undefined;
+
+    try {
+      return runtime.getById(id);
+    } catch {
+      return undefined;
+    }
+  }, [runtime, id, mainThreadId]);
+  useThreadEventBridge(threadRuntime, id);
+  return { getState: () => undefined };
+};
+
+const ThreadEventClientById = resource(useThreadEventClientById);
 
 const useThreadListItemClientById = ({
   runtime,
@@ -48,6 +72,26 @@ const useThreadListClient = ({
     ThreadClient({
       runtime: runtime.main,
     }),
+  );
+  const retainedThreadIds = useMemo(
+    () =>
+      Object.keys(runtimeState.threadItems).filter(
+        (id) => id !== runtimeState.mainThreadId,
+      ),
+    [runtimeState.threadItems, runtimeState.mainThreadId],
+  );
+  useClientLookup(
+    retainedThreadIds.map((id) =>
+      withKey(
+        id,
+        ThreadEventClientById({
+          runtime,
+          id,
+          mainThreadId: runtimeState.mainThreadId,
+        }),
+        [runtime, id, runtimeState.mainThreadId],
+      ),
+    ),
   );
   const threadItems = useClientLookup(
     Object.keys(runtimeState.threadItems).map((id) =>
