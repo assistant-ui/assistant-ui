@@ -142,8 +142,12 @@ describe("SandboxHost", () => {
 
   it("reports a frame that never finishes loading through onError", async () => {
     const rendered = fakeRendered();
-    rendered.fullyLoadedPromiseWithTimeout.mockReturnValue(
-      Promise.reject(new Error("Failed to load shim: https://fake.scf.test")),
+    rendered.fullyLoadedPromiseWithTimeout.mockImplementation(() =>
+      Promise.reject(
+        Object.assign(new Error("Failed to load shim: https://fake.scf.test"), {
+          code: "shim-unavailable",
+        }),
+      ),
     );
     renderHtmlMock.mockResolvedValue(rendered);
     const onError = vi.fn();
@@ -165,6 +169,33 @@ describe("SandboxHost", () => {
     expect(onError.mock.calls[0]![0].message).toBe(
       "Failed to load shim: https://fake.scf.test",
     );
+    expect(rendered.dispose).not.toHaveBeenCalled();
+  });
+
+  it("stays silent when the shim started and the render is merely slow", async () => {
+    const rendered = fakeRendered();
+    rendered.fullyLoadedPromiseWithTimeout.mockImplementation(() =>
+      Promise.reject(
+        Object.assign(new Error("Timeout"), { code: "render-timeout" }),
+      ),
+    );
+    renderHtmlMock.mockResolvedValue(rendered);
+    const onError = vi.fn();
+
+    await act(async () => {
+      root.render(
+        <SandboxHost
+          content={{ html: "" }}
+          contentKey="k"
+          createBridge={() => ({ onMessage: vi.fn(), dispose: vi.fn() })}
+          onError={onError}
+        />,
+      );
+    });
+    await flush();
+
+    expect(rendered.fullyLoadedPromiseWithTimeout).toHaveBeenCalled();
+    expect(onError).not.toHaveBeenCalled();
     expect(rendered.dispose).not.toHaveBeenCalled();
   });
 

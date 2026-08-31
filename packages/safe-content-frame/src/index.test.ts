@@ -169,8 +169,11 @@ describe("SafeContentFrame", () => {
     iframe.dispatchEvent(new Event("load"));
     const frame = await framePromise;
 
-    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toThrow(
-      `Failed to load shim: ${iframe.src}`,
+    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toMatchObject(
+      {
+        code: "shim-unavailable",
+        message: `Failed to load shim: ${iframe.src}`,
+      },
     );
     frame.dispose();
   });
@@ -206,8 +209,11 @@ describe("SafeContentFrame", () => {
     iframe.dispatchEvent(new Event("load"));
     const frame = await framePromise;
 
-    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toThrow(
-      `Failed to load shim: ${iframe.src}`,
+    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toMatchObject(
+      {
+        code: "shim-unavailable",
+        message: `Failed to load shim: ${iframe.src}`,
+      },
     );
     frame.dispose();
   });
@@ -236,8 +242,11 @@ describe("SafeContentFrame", () => {
     iframe.dispatchEvent(new Event("load"));
     const frame = await framePromise;
 
-    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toThrow(
-      "Product name was either invalid or null",
+    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toMatchObject(
+      {
+        code: "shim-error",
+        message: "Product name was either invalid or null",
+      },
     );
     frame.dispose();
   });
@@ -314,8 +323,8 @@ describe("SafeContentFrame", () => {
     iframe.dispatchEvent(new Event("load"));
     const frame = await framePromise;
 
-    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toThrow(
-      "Timeout",
+    await expect(frame.fullyLoadedPromiseWithTimeout(10)).rejects.toMatchObject(
+      { code: "render-timeout", message: "Timeout" },
     );
     frame.dispose();
   });

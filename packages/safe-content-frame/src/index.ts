@@ -14,12 +14,35 @@ export interface SafeContentFrameOptions {
   salt?: string;
 }
 
+/**
+ * Why a frame never signalled a completed render. `shim-unavailable` means the
+ * shim never acknowledged that it started, so the document at the shim URL is
+ * missing or is not a shim. `shim-error` is the shim reporting its own failure.
+ * `render-timeout` is the shim running normally with the content still not
+ * rendered, which is the one case that may still resolve on its own.
+ */
+export type ShimLoadErrorCode =
+  | "shim-unavailable"
+  | "shim-error"
+  | "render-timeout";
+
+export interface ShimLoadError extends Error {
+  code: ShimLoadErrorCode;
+}
+
 export interface RenderedFrame {
   iframe: HTMLIFrameElement;
   origin: string;
   sendMessage(data: unknown, transfer?: Transferable[]): void;
   fullyLoadedPromiseWithTimeout(timeoutMs: number): Promise<void>;
   dispose(): void;
+}
+
+function shimLoadError(
+  code: ShimLoadErrorCode,
+  message: string,
+): ShimLoadError {
+  return Object.assign(new Error(message), { code });
 }
 
 const SCF_HOST = "scf.auiusercontent.com";
@@ -169,7 +192,7 @@ export class SafeContentFrame {
 
         if (event.data?.type === "ready") shimReady = true;
         else if (event.data?.type === "error") {
-          onLoadError(new Error(event.data.message));
+          onLoadError(shimLoadError("shim-error", event.data.message));
         }
       };
       window.addEventListener("message", onWindowMessage);
@@ -189,8 +212,7 @@ export class SafeContentFrame {
       channel.port1.onmessage = (e) => {
         if (e.data?.type === "msg") onLoaded();
         else if (e.data?.type === "error") {
-          const error = new Error(e.data.message);
-          onLoadError(error);
+          onLoadError(shimLoadError("shim-error", e.data.message));
           cleanup();
         }
       };
@@ -235,11 +257,12 @@ export class SafeContentFrame {
                 setTimeout(
                   () =>
                     rej(
-                      new Error(
-                        shimReady
-                          ? "Timeout"
-                          : `Failed to load shim: ${shimUrl}`,
-                      ),
+                      shimReady
+                        ? shimLoadError("render-timeout", "Timeout")
+                        : shimLoadError(
+                            "shim-unavailable",
+                            `Failed to load shim: ${shimUrl}`,
+                          ),
                     ),
                   ms,
                 ),
