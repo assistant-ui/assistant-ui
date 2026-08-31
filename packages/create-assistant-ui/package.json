@@ -29,7 +29,7 @@
     "test": "vitest run"
   },
   "dependencies": {
-    "assistant-ui": "workspace:*",
+    "assistant-ui": "workspace:^",
     "cross-spawn": "^7.0.6"
   },
   "devDependencies": {

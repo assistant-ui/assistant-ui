@@ -3795,7 +3795,7 @@ importers:
   packages/cli:
     dependencies:
       '@assistant-ui/agent-launcher':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../agent-launcher
       '@clack/prompts':
         specifier: ^1.7.0
@@ -3881,7 +3881,7 @@ importers:
   packages/cloud-ai-sdk:
     dependencies:
       assistant-cloud:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../cloud
     devDependencies:
       '@ai-sdk/react':
@@ -3973,7 +3973,7 @@ importers:
   packages/create-assistant-ui:
     dependencies:
       assistant-ui:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../cli
       cross-spawn:
         specifier: ^7.0.6
@@ -4735,13 +4735,13 @@ importers:
   packages/react-mcp:
     dependencies:
       '@assistant-ui/core':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../core
       '@assistant-ui/store':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../store
       '@assistant-ui/tap':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../tap
       '@modelcontextprotocol/client':
         specifier: ^2.0.0
@@ -4753,7 +4753,7 @@ importers:
         specifier: ^2.1.10
         version: 2.1.10(@types/react-dom@19.2.5(@types/react@19.2.18))(@types/react@19.2.18)(react-dom@19.2.8(react@19.2.8))(react@19.2.8)
       assistant-stream:
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../assistant-stream
     devDependencies:
       '@assistant-ui/x-buildutils':
@@ -4827,10 +4827,10 @@ importers:
   packages/react-o11y:
     dependencies:
       '@assistant-ui/store':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../store
       '@assistant-ui/tap':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../tap
       '@radix-ui/react-primitive':
         specifier: ^2.1.10
