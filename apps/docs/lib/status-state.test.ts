@@ -1,4 +1,4 @@
-import { normalizeStatusState } from "./status";
+import { normalizeStatusState } from "./status-state";
 
 describe("normalizeStatusState", () => {
   it("maps the documented operational state", () => {

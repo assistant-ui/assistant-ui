@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { LiveDot } from "@/components/shared/live-dot";
 import { STATUS_URL } from "@/lib/constants";
-import type { StatusState } from "@/lib/status";
+import type { StatusState } from "@/lib/status-state";
 
 const PRESENTATION: Record<StatusState, { label: string; dot: string }> = {
   operational: { label: "All systems operational", dot: "bg-emerald-500" },
