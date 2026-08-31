@@ -189,6 +189,18 @@ test("runCheck allows a versionless-only changeset", () => {
   }
 });
 
+test("runCheck allows an ignored package sharing a changeset with a versionless one", () => {
+  const root = createWorkspace(
+    '---\n"@fixture/held": patch\n"@fixture/unversioned": patch\n---\n\nfix: something\n',
+    { ignore: ["@fixture/held"] },
+  );
+  try {
+    assert.deepEqual(runCheck(root).problems, []);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test("runCheck rejects a changeset naming a private package", () => {
   const root = createWorkspace(
     '---\n"@fixture/published": patch\n"@fixture/internal": "patch" # slipped past the old matcher\n---\n\nfix: something\n',
