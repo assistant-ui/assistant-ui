@@ -170,9 +170,18 @@ jobs:
                 ...pkgJson.dependencies,
                 ...pkgJson.peerDependencies,
               };
-              for (const [depName, range] of Object.entries(allDeps)) {
-                if (typeof range !== "string" || !range.startsWith("^")) continue;
+              for (const [depName, rawRange] of Object.entries(allDeps)) {
+                if (typeof rawRange !== "string") continue;
                 if (!pkgMap.has(depName)) continue;
+                // `workspace:^` publishes as `^<the dependency version>`, so it
+                // constrains consumers exactly like the literal range a sibling
+                // writes by hand. Left raw it fails the caret test below and the
+                // edge never reaches the graph.
+                const range =
+                  rawRange === "workspace:^"
+                    ? `^${pkgMap.get(depName).version}`
+                    : rawRange;
+                if (!range.startsWith("^")) continue;
                 if (!revDeps.has(depName)) revDeps.set(depName, []);
                 revDeps.get(depName).push({
                   name: pkgJson.name,
