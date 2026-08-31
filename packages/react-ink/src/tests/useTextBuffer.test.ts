@@ -80,6 +80,18 @@ describe("textBufferReducer", () => {
     expect(movedDown.cursorOffset).toBe(11);
   });
 
+  it("keeps vertical movement on grapheme boundaries", () => {
+    const movedDown = reduce(
+      createTextBufferState("a\n😀b"),
+      { type: "set-cursor", cursorOffset: 1 },
+      { type: "move-down" },
+    );
+    const inserted = reduce(movedDown, { type: "insert", text: "X" });
+
+    expect(movedDown.cursorOffset).toBe(4);
+    expect(inserted.text).toBe("a\n😀Xb");
+  });
+
   it("moves by words and deletes the previous word", () => {
     const movedLeft = reduce(createTextBufferState("alpha beta gamma"), {
       type: "move-word-left",
