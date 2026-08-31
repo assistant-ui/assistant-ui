@@ -166,9 +166,10 @@ describe("SandboxHost", () => {
 
     expect(onError).toHaveBeenCalledTimes(1);
     expect(onError.mock.calls[0]![0]).toBeInstanceOf(Error);
-    expect(onError.mock.calls[0]![0].message).toBe(
-      "Failed to load shim: https://fake.scf.test",
-    );
+    expect(onError.mock.calls[0]![0]).toMatchObject({
+      code: "shim-unavailable",
+      message: "Failed to load shim: https://fake.scf.test",
+    });
     expect(rendered.dispose).not.toHaveBeenCalled();
   });
 

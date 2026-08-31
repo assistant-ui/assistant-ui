@@ -173,13 +173,11 @@ export function SandboxHost({
         window.addEventListener("message", onMessage);
 
         // renderHtml resolves at iframe load, which a shim that was never
-        // served also reaches, so the content is only known to have arrived
-        // once the frame says so. A render-timeout is excluded because the
-        // shim is running and the guest may still paint; reporting it would
-        // leave a host that renders an error state showing one over a frame
-        // that recovers. The frame is never disposed here: the report is a
-        // notification, and a shim that failed its own checks has a readable
-        // error painted inside it.
+        // served also reaches, so a completed render is only known once the
+        // frame says so. render-timeout is excluded because the shim is
+        // running and the guest may still paint, and reporting it would leave
+        // a host that renders an error state showing one over a frame that
+        // recovers.
         rendered.fullyLoadedPromiseWithTimeout(LOAD_TIMEOUT_MS).catch((err) => {
           if (cancelled) return;
           if ((err as ShimLoadError).code === "render-timeout") return;
