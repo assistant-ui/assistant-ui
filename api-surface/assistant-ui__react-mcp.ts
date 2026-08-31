@@ -199,6 +199,7 @@ type MCPServerState = {
 };
 
 type MCPStorage = {
+  scopeId?: string;
   loadCustomServers: () => Promise<MCPCustomServerRecord[]>;
   saveCustomServers: (records: MCPCustomServerRecord[]) => Promise<void>;
   loadAuthState: (serverId: string) => Promise<MCPPersistedAuthState | null>;
