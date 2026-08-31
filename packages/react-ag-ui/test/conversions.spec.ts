@@ -19,6 +19,47 @@ import {
 } from "../src/runtime/adapter/conversions";
 
 describe("adapter conversions", () => {
+  it("emits tool records for resolved tool calls nested in subagent messages", () => {
+    const result = toAgUiMessages([
+      {
+        id: "a1",
+        role: "assistant",
+        content: [
+          {
+            type: "tool-call",
+            toolCallId: "t-spawn",
+            toolName: "task",
+            args: {},
+            result: "spawned",
+            messages: [
+              {
+                id: "sub-1",
+                role: "assistant",
+                content: [
+                  {
+                    type: "tool-call",
+                    toolCallId: "nested-1",
+                    toolName: "search",
+                    args: { q: "x" },
+                    result: { found: true },
+                  },
+                ],
+              },
+            ],
+          },
+        ],
+      },
+    ] as any);
+
+    const toolRecords = result.filter((m) => m.role === "tool");
+    expect(toolRecords.map((m: any) => m.toolCallId).sort()).toEqual([
+      "nested-1",
+      "t-spawn",
+    ]);
+    const nested = toolRecords.find((m: any) => m.toolCallId === "nested-1");
+    expect(nested?.content).toContain("found");
+  });
+
   it("converts thread messages to AG-UI format", () => {
     const result = toAgUiMessages([
       {

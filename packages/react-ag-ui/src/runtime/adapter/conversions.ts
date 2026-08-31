@@ -5,6 +5,7 @@ import { generateId } from "@assistant-ui/core";
 import type {
   ThreadMessageLike as CoreThreadMessageLike,
   PartProviderMetadata,
+  ThreadMessage,
   ToolCallMessagePartMcpMetadata,
   ToolModelContentPart,
 } from "@assistant-ui/core";
@@ -106,6 +107,7 @@ type ToolCallPart = {
   modelContent?: readonly ToolModelContentPart[];
   unstable_toolMessageId?: string;
   mcp?: ToolCallMessagePartMcpMetadata;
+  messages?: readonly ThreadMessage[];
 };
 
 const isObject = (value: unknown): value is Record<string, unknown> =>
@@ -1062,23 +1064,56 @@ function convertAssistantMessage(
   });
 
   for (const { id: toolCallId, part } of toolCalls) {
-    if (part.result === undefined) continue;
-
-    const resultContent =
-      part.modelContent !== undefined
-        ? extractText(part.modelContent)
-        : typeof part.result === "string"
-          ? part.result
-          : JSON.stringify(part.result);
-
-    converted.push({
-      id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,
-      role: "tool",
-      content: resultContent,
-      toolCallId,
-      ...(part.isError ? { error: resultContent } : {}),
-    });
+    emitToolResult(toolCallId, part, converted);
+    // A subagent's frontend-executed call lives on the nested assistant
+    // message, and its backend waits for that call's tool record like any
+    // other; the nested assistant content itself is backend-owned state and
+    // is not re-sent.
+    emitNestedToolResults(part, converted);
   }
+}
+
+function emitNestedToolResults(
+  part: ToolCallPart,
+  converted: AgUiMessage[],
+): void {
+  for (const nested of part.messages ?? []) {
+    if (!isObject(nested) || nested.role !== "assistant") continue;
+    const nestedContent = Array.isArray(nested.content) ? nested.content : [];
+    for (const nestedPart of nestedContent) {
+      if (!isObject(nestedPart) || nestedPart.type !== "tool-call") continue;
+      const nestedToolCall = nestedPart as ToolCallPart;
+      emitToolResult(
+        normalizeToolCall(nestedToolCall).id,
+        nestedToolCall,
+        converted,
+      );
+      emitNestedToolResults(nestedToolCall, converted);
+    }
+  }
+}
+
+function emitToolResult(
+  toolCallId: string,
+  part: ToolCallPart,
+  converted: AgUiMessage[],
+): void {
+  if (part.result === undefined) return;
+
+  const resultContent =
+    part.modelContent !== undefined
+      ? extractText(part.modelContent)
+      : typeof part.result === "string"
+        ? part.result
+        : JSON.stringify(part.result);
+
+  converted.push({
+    id: part.unstable_toolMessageId ?? `${toolCallId}:tool`,
+    role: "tool",
+    content: resultContent,
+    toolCallId,
+    ...(part.isError ? { error: resultContent } : {}),
+  });
 }
 
 function convertToolMessage(

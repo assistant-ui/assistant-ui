@@ -218,27 +218,17 @@ export class RunAggregator {
         }
 
         this.interrupts = undefined;
-        const { reachable } = this.nesting();
-        // Classified by the scope a call actually renders in: one flattened to
-        // root is reachable by getPendingToolCalls and therefore answerable,
-        // while one nested inside a subagent message is not.
-        const unresolved = Array.from(this.toolCalls.values()).filter(
+        // A call nested inside a subagent message is answerable the same way
+        // a root call is: getPendingToolCalls and addToolResult walk
+        // ToolCallMessagePart.messages, so any unresolved call keeps the run
+        // resumable.
+        const hasUnresolvedToolCalls = Array.from(this.toolCalls.values()).some(
           (tc) => tc.result === undefined,
         );
-        const hasUnresolvedRootToolCalls = unresolved.some(
-          (tc) =>
-            tc.subagentRunId === undefined || !reachable.has(tc.subagentRunId),
-        );
-        const hasUnresolvedSubagentToolCalls = unresolved.some(
-          (tc) =>
-            tc.subagentRunId !== undefined && reachable.has(tc.subagentRunId),
-        );
 
-        this.status = hasUnresolvedRootToolCalls
+        this.status = hasUnresolvedToolCalls
           ? { type: "requires-action", reason: "tool-calls" }
-          : hasUnresolvedSubagentToolCalls
-            ? { type: "incomplete", reason: "tool-calls" }
-            : { type: "complete", reason: "unknown" };
+          : { type: "complete", reason: "unknown" };
         this.closeOpenSubagentRuns(this.status);
         this.emit();
         break;

@@ -74,6 +74,59 @@ const isResolvedToolCall = (
 ): boolean =>
   part.type === "tool-call" && "result" in part && part.result !== undefined;
 
+type AssistantContent = ThreadAssistantMessage["content"];
+type AssistantContentPart = AssistantContent[number];
+
+// A subagent run renders as a nested assistant message on its spawning call's
+// ToolCallMessagePart.messages, so the subagent's own tool calls live below
+// the top-level content. Every seam that resolves or inspects tool calls has
+// to walk that tree, or a subagent's frontend-executed call is unreachable.
+function* iterateToolCallParts(
+  content: AssistantContent,
+): Generator<ToolCallMessagePart> {
+  for (const part of content) {
+    if (part.type !== "tool-call") continue;
+    yield part;
+    for (const nested of part.messages ?? []) {
+      if (nested.role !== "assistant") continue;
+      yield* iterateToolCallParts((nested as ThreadAssistantMessage).content);
+    }
+  }
+}
+
+function mapToolCallPartsDeep(
+  content: AssistantContent,
+  fn: (part: ToolCallMessagePart) => ToolCallMessagePart,
+): { content: AssistantContent; changed: boolean } {
+  let changed = false;
+  const next = content.map((part): AssistantContentPart => {
+    if (part.type !== "tool-call") return part;
+    let mapped = fn(part);
+    if (mapped.messages !== undefined) {
+      let nestedChanged = false;
+      const nestedMessages = mapped.messages.map((nested) => {
+        if (nested.role !== "assistant") return nested;
+        const assistant = nested as ThreadAssistantMessage;
+        const result = mapToolCallPartsDeep(assistant.content, fn);
+        if (!result.changed) return nested;
+        nestedChanged = true;
+        return { ...assistant, content: result.content };
+      });
+      if (nestedChanged) {
+        mapped =
+          mapped === part
+            ? { ...part, messages: nestedMessages }
+            : { ...mapped, messages: nestedMessages };
+      }
+    }
+    if (mapped !== part) changed = true;
+    return mapped;
+  });
+  return changed
+    ? { content: next as AssistantContent, changed }
+    : { content, changed };
+}
+
 type RunConfig = NonNullable<AppendMessage["runConfig"]>;
 type ResumeStream = (
   options: ChatModelRunOptions,
@@ -434,8 +487,7 @@ export class AgUiThreadRuntimeCore {
     const assistant = this.findRequiresActionAssistant("tool-calls");
     if (!assistant) return null;
     const toolCallIds: string[] = [];
-    for (const part of assistant.content) {
-      if (part.type !== "tool-call") continue;
+    for (const part of iterateToolCallParts(assistant.content)) {
       if (isResolvedToolCall(part)) continue;
       toolCallIds.push(part.toolCallId);
     }
@@ -769,9 +821,8 @@ export class AgUiThreadRuntimeCore {
     for (let index = messages.length - 1; index >= 0; index--) {
       const message = messages[index];
       if (!message || message.role !== "assistant") continue;
-      for (const part of message.content) {
-        if (part.type !== "tool-call" || part.toolCallId !== toolCallId)
-          continue;
+      for (const part of iterateToolCallParts(message.content)) {
+        if (part.toolCallId !== toolCallId) continue;
         if (!isResolvedToolCall(part)) {
           return message.id;
         }
@@ -785,8 +836,8 @@ export class AgUiThreadRuntimeCore {
     const updated = this.session.updateMessage(messageId, (message) => {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
-      const content = assistant.content.map((part) => {
-        if (part.type !== "tool-call" || isResolvedToolCall(part)) return part;
+      const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
+        if (isResolvedToolCall(part)) return part;
         return {
           ...part,
           result: { error: "Tool call cancelled by user" },
@@ -803,9 +854,8 @@ export class AgUiThreadRuntimeCore {
       if (message.role !== "assistant") return message;
       const assistant = message as ThreadAssistantMessage;
       let matchedToolCall = false;
-      const content = assistant.content.map((part) => {
-        if (part.type !== "tool-call" || part.toolCallId !== options.toolCallId)
-          return part;
+      const { content } = mapToolCallPartsDeep(assistant.content, (part) => {
+        if (part.toolCallId !== options.toolCallId) return part;
         matchedToolCall = true;
         return {
           ...part,
@@ -873,9 +923,13 @@ export class AgUiThreadRuntimeCore {
     ) {
       return false;
     }
-    const allResolved = assistant.content.every(
-      (part) => part.type !== "tool-call" || isResolvedToolCall(part),
-    );
+    let allResolved = true;
+    for (const part of iterateToolCallParts(assistant.content)) {
+      if (!isResolvedToolCall(part)) {
+        allResolved = false;
+        break;
+      }
+    }
     if (!allResolved) return false;
 
     const updated = this.session.updateMessage(messageId, (current) =>
@@ -1472,19 +1526,17 @@ export class AgUiThreadRuntimeCore {
     next: ThreadAssistantMessage["content"],
   ): ThreadAssistantMessage["content"] {
     const resolved = new Map<string, ToolCallMessagePart>();
-    for (const part of previous) {
-      if (part.type === "tool-call" && isResolvedToolCall(part)) {
+    for (const part of iterateToolCallParts(previous)) {
+      if (isResolvedToolCall(part)) {
         resolved.set(part.toolCallId, part);
       }
     }
     if (resolved.size === 0) return next;
 
-    let changed = false;
-    const merged = next.map((part) => {
-      if (part.type !== "tool-call" || isResolvedToolCall(part)) return part;
+    const { content: merged, changed } = mapToolCallPartsDeep(next, (part) => {
+      if (isResolvedToolCall(part)) return part;
       const prior = resolved.get(part.toolCallId);
       if (!prior) return part;
-      changed = true;
       return {
         ...part,
         result: prior.result,
@@ -1492,7 +1544,7 @@ export class AgUiThreadRuntimeCore {
         ...(prior.isError !== undefined ? { isError: prior.isError } : {}),
       };
     });
-    return changed ? (merged as ThreadAssistantMessage["content"]) : next;
+    return changed ? merged : next;
   }
 
   private mergeAssistantMetadata(

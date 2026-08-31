@@ -1313,15 +1313,10 @@ describe("RunAggregator", () => {
     });
   });
 
-  it("reports incomplete/tool-calls (not requires-action, not complete) for a dangling subagent-scoped tool call", () => {
-    // This adapter cannot surface a subagent-scoped tool call through
-    // getPendingToolCalls (it only walks top-level content, not nested
-    // .messages), so it cannot honestly claim "requires-action": there is
-    // no path for a caller to resolve it. Reporting "complete" would be
-    // worse — it would tell the app the run finished cleanly while an
-    // AG-UI backend still waits on a TOOL_CALL_RESULT that never arrives.
-    // "incomplete"/"tool-calls" (the same status core's local runtime uses
-    // when it deliberately stops resolving tool calls) says neither.
+  it("reports requires-action/tool-calls for a dangling subagent-scoped tool call", () => {
+    // getPendingToolCalls and addToolResult walk ToolCallMessagePart.messages,
+    // so a subagent-scoped call is answerable the same way a root call is:
+    // the run stays resumable and honestly reports requires-action.
     const aggregator = createAggregator(false);
 
     aggregator.handle({ type: "RUN_STARTED", runId: "r1" } as AgUiEvent);
@@ -1358,7 +1353,7 @@ describe("RunAggregator", () => {
 
     const last = results.at(-1);
     expect(last?.status).toMatchObject({
-      type: "incomplete",
+      type: "requires-action",
       reason: "tool-calls",
     });
   });
