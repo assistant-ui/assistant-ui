@@ -29,7 +29,10 @@ import { z } from "zod";
 const registry = new ModelContextRegistry();
 
 // Expose the registry to the parent window
-AssistantFrameProvider.addModelContextProvider(registry);
+AssistantFrameProvider.addModelContextProvider(
+  registry,
+  "https://parent-app.com",
+);
 
 // Add tools that will be available to the parent assistant
 registry.addTool({
@@ -70,7 +73,7 @@ function ParentComponent() {
   // Connect to the iframe's model context
   useAssistantFrameHost({
     iframeRef,
-    targetOrigin: "https://trusted-iframe-domain.com", // optional for increased security
+    targetOrigin: "https://trusted-iframe-domain.com",
   });
 
   return (
@@ -160,9 +163,15 @@ analyticsRegistry.addTool({
 
 // Register both providers
 const unsubscribe1 =
-  AssistantFrameProvider.addModelContextProvider(catalogRegistry);
+  AssistantFrameProvider.addModelContextProvider(
+    catalogRegistry,
+    "https://parent-app.com",
+  );
 const unsubscribe2 =
-  AssistantFrameProvider.addModelContextProvider(analyticsRegistry);
+  AssistantFrameProvider.addModelContextProvider(
+    analyticsRegistry,
+    "https://parent-app.com",
+  );
 
 // Later, unsubscribe if needed
 unsubscribe1();
@@ -173,7 +182,7 @@ unsubscribe2();
 
 #### Origin Validation
 
-Both the provider and host can specify allowed origins for security:
+Both the provider and host validate message origins. They default to the current page's origin, so cross-origin frames must specify the exact trusted origin on both sides:
 
 ```tsx
 // In iframe - only accept messages from specific parent
@@ -222,11 +231,11 @@ Registers a model context provider to share with parent windows.
 ```tsx
 const unsubscribe = AssistantFrameProvider.addModelContextProvider(
   registry,
-  "https://parent-domain.com", // Optional origin restriction
+  "https://parent-domain.com",
 );
 ```
 
-All providers in a frame share one origin policy. Registering an explicit origin tightens an existing wildcard policy, while registering two different explicit origins throws an error. Unsubscribing drops that registration's requirement. When no explicit origin remains, the policy returns to `*`.
+When `targetOrigin` is omitted, the provider only communicates with `window.location.origin`. All providers in a frame share one origin policy. Registering an explicit origin tightens an existing wildcard policy, while registering two different explicit origins throws an error. Unsubscribing drops that registration's requirement. The wildcard value `*` is available as an explicit opt-in, but it should not be used for contexts that expose tools or sensitive instructions.
 
 ##### `dispose()`
 
@@ -245,7 +254,7 @@ Class that connects to an iframe's model context providers.
 ```tsx
 const host = new AssistantFrameHost(
   iframeWindow,
-  targetOrigin? // Optional origin restriction
+  targetOrigin?, // Defaults to window.location.origin
 );
 ```
 
@@ -285,7 +294,7 @@ React hook that manages the lifecycle of an AssistantFrameHost.
 ```tsx
 useAssistantFrameHost({
   iframeRef: RefObject<HTMLIFrameElement>,
-  targetOrigin?: string,
+  targetOrigin?: string, // Defaults to window.location.origin
 });
 ```
 

@@ -1,0 +1,251 @@
+---
+title: "Server panel"
+description: "Which servers are connected, what each one brought, and which is still waiting on you."
+---
+
+A compact list of MCP servers, each row collapsed to a name and a status dot until you open it for its transport and tool list. With a runtime the servers come from your MCP connections; standalone you pass the list in.
+
+## Getting started
+
+<RuntimeMode>
+
+`@assistant-ui/react-mcp` owns MCP connection state. Mount its manager once, then read servers and their tools from it anywhere in the tree.
+
+<Steps>
+  <Step>
+
+### Mount the MCP manager
+
+```tsx title="app/providers.tsx"
+"use client";
+
+import { useAui } from "@assistant-ui/store";
+import { McpManagerResource } from "@assistant-ui/react-mcp";
+
+function McpManagerMount({ connectors }: { connectors: MCPConnector[] }) {
+  useAui({ mcp: McpManagerResource({ connectors }) });
+  return null;
+}
+```
+
+Each connector in `connectors` becomes one server the manager connects, tracks, and lists tools for. Custom servers a user adds through `McpAddFormPrimitive` join the same list without another mount.
+
+  </Step>
+  <Step>
+
+### List servers and their tools
+
+```tsx title="components/assistant-ui/elements/mcp-servers.tsx"
+"use client";
+
+import { useState } from "react";
+import { McpManagerPrimitive, McpServerPrimitive } from "@assistant-ui/react-mcp";
+import { useAuiState } from "@assistant-ui/store";
+import { PlugIcon } from "lucide-react";
+
+function ServerRow() {
+  const [open, setOpen] = useState(false);
+  const name = useAuiState((s) => s.mcpServer.name);
+  return (
+    <McpServerPrimitive.Root>
+      <button type="button" onClick={() => setOpen((v) => !v)}>
+        <PlugIcon className="size-3.5" />
+        {name}
+      </button>
+      {open && (
+        <McpServerPrimitive.Tools>
+          {(tool) => <span key={tool.name}>{tool.name}</span>}
+        </McpServerPrimitive.Tools>
+      )}
+    </McpServerPrimitive.Root>
+  );
+}
+
+export function McpServerList() {
+  return (
+    <McpManagerPrimitive.Root>
+      <McpManagerPrimitive.Connectors>{() => <ServerRow />}</McpManagerPrimitive.Connectors>
+      <McpManagerPrimitive.CustomServers>{() => <ServerRow />}</McpManagerPrimitive.CustomServers>
+    </McpManagerPrimitive.Root>
+  );
+}
+```
+
+`McpServerPrimitive.Root` scopes the row so `useAuiState((s) => s.mcpServer...)` and `McpServerPrimitive.Tools` resolve to that one server. Each row tracks its own `open` state here, so more than one can be expanded at a time; the [MCP config dialog](/elements/mcp-config) ships a fuller version of this same list, with connect and authorize actions, inside a dialog shell.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the panel is a controlled list: you own the servers, their status, and which row is expanded.
+
+<Steps>
+  <Step>
+
+### Hold the server list
+
+```tsx title="app/servers.tsx"
+"use client";
+
+import { useState } from "react";
+import { McpServerPanel, type McpServer } from "@/components/assistant-ui/elements/mcp-server-panel";
+
+const servers: McpServer[] = [
+  { id: "files", name: "Filesystem", transport: "stdio", status: "connected", tools: ["read_file", "write_file"] },
+  { id: "search", name: "Web search", transport: "http", status: "needs-auth", tools: ["search"] },
+];
+
+export function Servers() {
+  const [expandedId, setExpandedId] = useState<string>();
+  return (
+    <McpServerPanel
+      servers={servers}
+      expandedId={expandedId}
+      onToggle={(id) => setExpandedId((current) => (current === id ? undefined : id))}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Expand one server at a time
+
+`expandedId` holds a single id, so toggling it to a new server closes whichever row was open. Clicking the open row's own trigger again clears it, matching the `current === id ? undefined : id` check above.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="mcp-server-panel">
+  <div>{/* "n of m connected" */}</div>
+  <button aria-expanded>
+    {/* chevron, plug icon, name, tool count, status dot */}
+  </button>
+  {/* expanded: transport, status label, optional Authorize action, tool chips */}
+</div>
+```
+
+The header count only tallies servers whose `status` is `"connected"`. The status dot is emerald for connected, a pulsing dim dot for connecting, amber for needs-auth, and red for failed, each paired with screen-reader-only text. The Authorize pill only renders on a needs-auth row when `onAuthorize` is passed; without it the row expands with no way to act on it.
+
+## Examples
+
+### Map connection states onto four dots
+
+<RuntimeMode>
+
+`McpServerPrimitive.Status` (and the `s.mcpServer.connectionState` selector behind it) carries six states: `connected`, `connecting`, `authRequired`, `authPending`, `error`, `disconnected`. The panel's own `McpServerStatus` type only has four. Fold the extra two into their nearest dot before handing the value to the panel:
+
+```tsx
+import type { MCPConnectionState } from "@assistant-ui/react-mcp";
+import type { McpServerStatus } from "@/components/assistant-ui/elements/mcp-server-panel";
+
+function toPanelStatus(state: MCPConnectionState): McpServerStatus {
+  switch (state) {
+    case "connected":
+      return "connected";
+    case "connecting":
+    case "authPending":
+      return "connecting";
+    case "authRequired":
+      return "needs-auth";
+    case "error":
+    case "disconnected":
+      return "failed";
+  }
+}
+```
+
+</RuntimeMode>
+
+### Wire the authorize action
+
+<RuntimeMode>
+
+`McpServerPrimitive.OAuthLink` starts the same OAuth flow the config dialog uses. Render it as the row's authorize action once `connectionState` is `authRequired`:
+
+```tsx
+<McpServerPrimitive.OAuthLink className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-medium text-amber-700">
+  Authorize
+</McpServerPrimitive.OAuthLink>
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+```tsx
+<McpServerPanel
+  servers={servers}
+  onAuthorize={(id) => startOAuthFlow(id)}
+/>
+```
+
+</StandaloneMode>
+
+### Restyle the panel
+
+Both lanes take `className` on the root. The panel uses the shared `paper` surface for its background, `mono` for the counts and status text, and `field` alongside `mono` for the tool chips, so retargeting those tokens in `surfaces.tsx` restyles every element built on them.
+
+## API reference
+
+<RuntimeMode>
+
+### McpManagerPrimitive and McpServerPrimitive
+
+| Part | Renders | Notes |
+|------|---------|-------|
+| `McpManagerPrimitive.Root` | `div` | Provides the manager scope; wrap the list in it. |
+| `McpManagerPrimitive.Connectors` | render prop | Iterates app-declared connectors, one `{ server }` per call. |
+| `McpManagerPrimitive.CustomServers` | render prop | Iterates user-added custom servers the same way. |
+| `McpServerPrimitive.Root` | `div` | Scopes `useAuiState((s) => s.mcpServer...)` and the sub-parts below to one server. |
+| `McpServerPrimitive.Name` | text | The server's display name. |
+| `McpServerPrimitive.Status` | `span` | `data-state` set to the connection state; renders the state as text by default. |
+| `McpServerPrimitive.Tools` | render prop | Iterates the server's tools, one `MCPToolInfo` per call. Renders nothing while the list is empty. |
+| `McpServerPrimitive.ConnectButton` / `.DisconnectButton` / `.OAuthLink` / `.RemoveButton` | `button` | Call `connect()`, `disconnect()`, start OAuth, or `remove()` on the scoped server. |
+
+### Server state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.mcpServer.name` | `string` | Display name. |
+| `s.mcpServer.connectionState` | `"connected" \| "connecting" \| "authRequired" \| "authPending" \| "error" \| "disconnected"` | Full connection state, six values. |
+| `s.mcpServer.tools` | `MCPToolInfo[]` | `{ name, description?, inputSchema }` for each tool the server listed. |
+| `s.mcpServer.lastError` | `{ message: string } \| null` | Set when a connect or list-tools call failed. |
+| `useMcpServerTool()` | `MCPToolInfo` | The current tool inside `McpServerPrimitive.Tools`; throws outside it. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### McpServerPanel
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `servers` | `readonly McpServer[]` | required | Servers to list. |
+| `expandedId` | `string` | | Id of the currently expanded server. |
+| `onToggle` | `(id: string) => void` | | Called with a server's id when its row is clicked. |
+| `onAuthorize` | `(id: string) => void` | | Called from the Authorize pill on a needs-auth row. Omit it and the pill doesn't render. |
+| `className` | `string` | | Merged onto the root. |
+
+### McpServer and McpServerStatus
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Stable key for the server. |
+| `name` | `string` | Display name. |
+| `transport` | `string` | Shown next to the status label when expanded, e.g. `"stdio"` or `"http"`. |
+| `status` | `McpServerStatus` | `"connected" \| "connecting" \| "needs-auth" \| "failed"`. |
+| `tools` | `readonly string[]` | Tool names, rendered as chips when expanded. |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>

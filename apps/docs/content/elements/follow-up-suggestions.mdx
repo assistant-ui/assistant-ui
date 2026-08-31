@@ -1,0 +1,222 @@
+---
+title: "Follow-up suggestions"
+description: "Prompt chips populated from the runtime's generated follow-up suggestions."
+---
+
+Follow-up suggestions renders the thread's own suggested next prompts as a row of chips beneath the latest reply, ready to send with one tap. With a runtime the chips come from the runtime's `suggestions`; there is no standalone form of this exact row, since the whole point is following a runtime's own generated list. It comes in two designs: the runtime variant renders a horizontally scrolling, fade-masked row, and the static variant, `Suggestions`, renders a staggered row of pills or a list (see [The paper-pill design](#the-paper-pill-design)).
+
+## Getting started
+
+<RuntimeMode>
+
+`Thread` already renders this in its viewport footer; use it directly only if you're composing your own layout.
+
+<Steps>
+  <Step>
+
+### Give your runtime suggestions
+
+Any runtime built on the external-store adapter, including `useExternalStoreRuntime` and the AI SDK integration, accepts a static `suggestions` list.
+
+```tsx title="app/assistant.tsx" {6-9}
+const runtime = useExternalStoreRuntime({
+  messages,
+  convertMessage,
+  onNew: async (message) => {
+    /* append the message in your store */
+  },
+  suggestions: [
+    { prompt: "Summarize this as action items" },
+    { prompt: "Write a shorter version" },
+  ],
+});
+```
+
+The AI SDK integration can generate this list instead of taking a static one: pass `adapters: { suggestion: createSuggestionAdapter({ complete }) }` to `useAISDKRuntime`, and it re-generates suggestions from the recent transcript after every reply.
+
+  </Step>
+  <Step>
+
+### Render it after the messages
+
+Place `ThreadFollowupSuggestions` after the message list and before the composer.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { ThreadPrimitive } from "@assistant-ui/react";
+import { ThreadFollowupSuggestions } from "@/components/assistant-ui/elements/follow-up-suggestions.aui";
+
+function ThreadViewportFooter() {
+  return (
+    <ThreadPrimitive.ViewportFooter>
+      <ThreadFollowupSuggestions />
+      <Composer />
+    </ThreadPrimitive.ViewportFooter>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, there is no runtime to generate a list from. Render your own chip row with the static `Suggestions` component instead (see [The paper-pill design](#the-paper-pill-design)).
+
+</StandaloneMode>
+
+## Anatomy
+
+<RuntimeMode>
+
+```tsx
+<div> {/* horizontally scrolling, no visible scrollbar */}
+  <button>{/* title (or prompt as fallback) */}<span>{/* label, when set */}</span></button>
+  {/* one per suggestion */}
+</div>
+```
+
+The whole row renders only while the thread is not empty, not currently running, and has at least one suggestion. Any one of those failing hides the row entirely rather than showing it empty. Chips stay on a single line; when they overflow, the row scrolls horizontally and each clipped edge fades out, so no fade shows on the leading edge until you've actually scrolled past it.
+
+</RuntimeMode>
+
+## Examples
+
+<RuntimeMode>
+
+### Title, label, and prompt
+
+A chip shows `title` when set, falling back to `prompt`; `label` renders as trailing muted text. The full `prompt` is always what gets sent, even when the chip displays a shorter title.
+
+```tsx
+suggestions: [
+  { title: "Weather", label: "in SF", prompt: "What is the weather in San Francisco today?" },
+  { prompt: "Summarize this" },
+]
+```
+
+The first chip reads "Weather" with "in SF" trailing it, but sends the full weather prompt; the second reads "Summarize this" plainly, since it has no `title`.
+
+### How a suggestion sends
+
+Each chip uses `ThreadPrimitive.Suggestion` with `method="replace"` and `autoSend`, so clicking one replaces whatever's in the composer with the suggestion's prompt and sends it immediately, with no confirmation step.
+
+</RuntimeMode>
+
+## API reference
+
+<RuntimeMode>
+
+`ThreadFollowupSuggestions` takes no props.
+
+### Thread state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.thread.suggestions` | `readonly ThreadSuggestion[]` | `{ prompt: string; title?: string; label?: string }[]`, from the runtime's `suggestions` option. |
+| `s.thread.isEmpty` | `boolean` | The row hides while the thread has no messages yet. |
+| `s.thread.isRunning` | `boolean` | The row hides while a run is in progress. |
+
+### Primitive composed
+
+| Part | Notes |
+|------|-------|
+| `ThreadPrimitive.Suggestion` | One chip. Takes `prompt`, `method`, and `autoSend`. |
+
+</RuntimeMode>
+
+## The paper-pill design
+
+The Static variant in the rail is a second design for the same follow-up row: `Suggestions` renders a staggered row of rounded pills, or a left-aligned list, from a plain list of strings you hold yourself, instead of the horizontally scrolling row driven by a runtime's own `suggestions`. It is a single props-driven component with no runtime dependency:
+
+```sh
+npx shadcn@latest add "@assistant-ui/elements-suggestions"
+```
+
+<RuntimeMode>
+
+A runtime tracks the active thread's follow-ups as `s.thread.suggestions`; `ThreadPrimitive.Suggestion` turns one into a clickable prompt. Style it to match the paper-pill look instead of driving `Suggestions` itself, since a runtime suggestion sends immediately and the row unmounts rather than holding a selection:
+
+```tsx title="components/assistant-ui/elements/suggestions.tsx"
+"use client";
+
+import { ThreadPrimitive, useAuiState } from "@assistant-ui/react";
+import { cn } from "@/lib/utils";
+import { paper } from "@/components/assistant-ui/elements/surfaces";
+
+function SuggestionRow() {
+  const suggestions = useAuiState((s) => s.thread.suggestions);
+
+  return (
+    <div className="flex max-w-md flex-wrap justify-center gap-2">
+      {suggestions.map((suggestion, index) => (
+        <ThreadPrimitive.Suggestion
+          key={suggestion.prompt}
+          prompt={suggestion.prompt}
+          send
+          className={cn(
+            paper,
+            "fade-in slide-in-from-bottom-2 animate-in fill-mode-both rounded-full px-4 py-2 text-[13px]",
+          )}
+          style={{ animationDelay: `${index * 70}ms` }}
+        >
+          {suggestion.title ?? suggestion.prompt}
+        </ThreadPrimitive.Suggestion>
+      ))}
+    </div>
+  );
+}
+```
+
+`send` submits the prompt immediately; omit it to load the prompt into the composer instead, ready for the user to edit before sending (add `clearComposer={false}` to append rather than replace what's already typed there).
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `Suggestions` renders the list you pass it and reports which one was pressed; nothing about sending or composer state is built in.
+
+```tsx title="app/next-turn.tsx"
+"use client";
+
+import { useState } from "react";
+import { Suggestions } from "@/components/assistant-ui/elements/suggestions";
+
+export function NextTurn() {
+  const [cycle, setCycle] = useState(0);
+  const [selected, setSelected] = useState<string | null>(null);
+  const suggestions = ["Explain that differently", "Show an example", "What's next?"];
+
+  return (
+    <Suggestions
+      suggestions={suggestions}
+      selectedSuggestion={selected}
+      cycle={cycle}
+      onSuggestion={(suggestion) => {
+        setSelected(suggestion);
+        send(suggestion);
+      }}
+    />
+  );
+}
+```
+
+`cycle` is used as the root's React `key`; bump it whenever you swap in a fresh batch of suggestions to replay the fade-and-slide entrance.
+
+</StandaloneMode>
+
+Each button fades and slides in with `index * 70ms` of delay, so the row reads left to right, or top to bottom in `list`. A suggestion matching `selectedSuggestion` inverts to a solid foreground-on-background fill and stays that way until the prop changes, with `aria-pressed` reflecting the same match; `variant="list"` stacks the buttons full width with start-aligned text instead of wrapping them into a centered row of pills.
+
+### Suggestions
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `suggestions` | `readonly string[]` | required | The prompts to show. |
+| `selectedSuggestion` | `string \| null` | required | Which suggestion, if any, renders as selected. |
+| `cycle` | `number` | required | Used as the root's `key`; increment it to replay the entrance animation. |
+| `onSuggestion` | `(suggestion: string) => void` | required | Called with the pressed suggestion's text. |
+| `variant` | `"pills" \| "list"` | `"pills"` | The row's layout. |
+| `className` | `string` | | Merged onto the root. |
+
+All other `div` props are forwarded to the root.

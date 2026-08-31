@@ -1,9 +1,14 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
 import type { Metadata } from "next";
+import { ArrowUpRight } from "lucide-react";
 import { createOgMetadata } from "@/lib/og";
 import { careers, type CareerPage } from "@/lib/source";
-import { PageCopy, PageFrame } from "@/components/shared/page-frame";
+import { sceneFor } from "@/components/pages/careers/scenes";
+import { GlyphPlate } from "@/components/shared/glyph-scene";
+import { PageFrame } from "@/components/shared/page-frame";
+import { typeDeck, typeEyebrow, typePage } from "@/components/shared/type";
+import { cn } from "@/lib/utils";
 
 const title = "Careers";
 const description =
@@ -21,8 +26,8 @@ const roleOrder = (value: unknown, fallback: number) => {
   return Number.isFinite(parsed) ? parsed : fallback;
 };
 
-export default function CareersPage(): ReactElement {
-  const roles = [...(careers.getPages() as CareerPage[])].sort((a, b) => {
+function sortedRoles(): CareerPage[] {
+  return [...(careers.getPages() as CareerPage[])].sort((a, b) => {
     const orderA = roleOrder(a.data.order, Number.MAX_SAFE_INTEGER);
     const orderB = roleOrder(b.data.order, Number.MAX_SAFE_INTEGER);
     if (orderA === orderB) {
@@ -30,63 +35,81 @@ export default function CareersPage(): ReactElement {
     }
     return orderA - orderB;
   });
+}
+
+export default function CareersPage(): ReactElement {
+  const roles = sortedRoles();
 
   return (
     <PageFrame pad="sub">
-      <PageCopy>
-        <header className="mb-12">
-          <p className="text-muted-foreground mb-3 text-sm">Careers</p>
-          <h1 className="text-2xl font-medium tracking-tight">
-            Build the future of agentic UI
-          </h1>
-          <p className="text-muted-foreground mt-2 max-w-xl">
-            We&apos;re a small, product-obsessed team crafting the tools that
-            power the next generation of AI-native products.
-          </p>
-        </header>
+      <header className="max-w-2xl">
+        <h1 className={typePage}>Work on the library.</h1>
+        <p className={cn(typeDeck, "mt-4 max-w-[52ch]")}>
+          A small team making the frontend layer for AI agents. Three crafts,
+          one product.
+        </p>
+      </header>
 
-        <section>
-          <div className="mb-6 flex items-center justify-between">
-            <h2 className="text-sm font-medium">Open roles</h2>
-            <p className="text-muted-foreground text-sm">
-              {roles.length} {roles.length === 1 ? "position" : "positions"}
-            </p>
-          </div>
+      <p className={cn(typeEyebrow, "mt-16 md:mt-20")}>
+        Open roles · {String(roles.length).padStart(2, "0")}
+      </p>
+      <div className="border-foreground/10 mt-4 border-t">
+        <div className="divide-foreground/10 border-foreground/10 grid divide-y border-b md:[grid-template-columns:calc((100%-8rem)/3+2rem)_calc((100%-8rem)/3+4rem)_calc((100%-8rem)/3+2rem)] md:divide-x md:divide-y-0">
+          {roles.map((role, index) => (
+            <RoleCell key={role.url} role={role} fig={index + 1} />
+          ))}
+        </div>
+      </div>
 
-          <div className="space-y-6">
-            {roles.map((role) => (
-              <Link key={role.url} href={role.url} className="group block">
-                <h3 className="text-foreground/80 group-hover:text-foreground font-medium transition-colors">
-                  {role.data.title}
-                </h3>
-                <p className="text-muted-foreground mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
-                  <span>{role.data.location}</span>
-                  <span className="text-muted-foreground/40">·</span>
-                  <span>{role.data.type}</span>
-                  {role.data.salary && (
-                    <>
-                      <span className="text-muted-foreground/40">·</span>
-                      <span>{role.data.salary}</span>
-                    </>
-                  )}
-                </p>
-              </Link>
-            ))}
-          </div>
-        </section>
-
-        <section className="mt-16">
-          <p className="text-muted-foreground">
-            Don&apos;t see the perfect fit?{" "}
-            <a
-              href="mailto:hello@assistant-ui.com"
-              className="text-foreground hover:text-foreground/70 font-medium transition-colors"
-            >
-              Reach out anyway →
-            </a>
-          </p>
-        </section>
-      </PageCopy>
+      <footer className="mt-24">
+        <p className="text-muted-foreground text-sm">
+          Don&apos;t see the perfect fit?{" "}
+          <a
+            href="mailto:hello@assistant-ui.com"
+            className="text-foreground group inline-flex items-center gap-1.5 font-medium transition-colors"
+          >
+            Reach out anyway
+            <ArrowUpRight className="size-3.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+          </a>
+        </p>
+      </footer>
     </PageFrame>
+  );
+}
+
+function RoleCell({ role, fig }: { role: CareerPage; fig: number }) {
+  const scene = sceneFor(role.slugs[0]!);
+  return (
+    <Link
+      href={role.url}
+      className="group flex h-full flex-col py-8 md:px-8 md:py-10 md:first:ps-0 md:last:pe-0"
+    >
+      <span className="mb-6 block">
+        <GlyphPlate scene={scene} />
+        <span className="text-muted-foreground/70 mt-2 flex items-baseline justify-between font-mono text-[11px] tracking-wide">
+          <span>fig. {String(fig).padStart(2, "0")}</span>
+          <span>{scene.name}</span>
+        </span>
+      </span>
+      <span className="text-muted-foreground block text-xs">
+        {role.data.location}
+        <span className="text-muted-foreground/40"> · </span>
+        {role.data.type}
+      </span>
+      <span className="mt-2 block text-lg leading-snug font-medium text-balance">
+        {role.data.title}
+        <ArrowUpRight className="ms-1.5 mb-0.5 inline size-3.5 opacity-0 transition-opacity group-hover:opacity-50" />
+      </span>
+      {role.data.summary ? (
+        <span className="text-muted-foreground mt-2 block text-sm leading-relaxed">
+          {role.data.summary}
+        </span>
+      ) : null}
+      {role.data.salary ? (
+        <span className="text-muted-foreground/70 mt-auto block pt-5 font-mono text-[11px] tracking-wide">
+          {role.data.salary}
+        </span>
+      ) : null}
+    </Link>
   );
 }

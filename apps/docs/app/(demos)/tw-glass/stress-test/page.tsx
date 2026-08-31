@@ -452,7 +452,7 @@ function ComposabilitySection() {
     <Section
       id="composability"
       title="Composability"
-      description="All modifiers stacked on a single element — everything at once."
+      description="All modifiers stacked on a single element, everything at once."
     >
       <TestCard
         title="Full composition"

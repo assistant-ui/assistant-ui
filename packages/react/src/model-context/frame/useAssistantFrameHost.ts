@@ -20,7 +20,7 @@ type UseAssistantFrameHostOptions = {
  *
  *   useAssistantFrameHost({
  *     iframeRef,
- *     targetOrigin: "https://trusted-domain.com", // optional
+ *     targetOrigin: "https://trusted-domain.com",
  *   });
  *
  *   return <iframe ref={iframeRef} src="..." />;
@@ -29,7 +29,7 @@ type UseAssistantFrameHostOptions = {
  */
 export const useAssistantFrameHost = ({
   iframeRef,
-  targetOrigin = "*",
+  targetOrigin,
   register,
 }: UseAssistantFrameHostOptions): void => {
   useEffect(() => {

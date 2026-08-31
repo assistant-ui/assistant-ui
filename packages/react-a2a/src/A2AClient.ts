@@ -159,33 +159,41 @@ function toWireMessage(msg: A2AMessage): unknown {
 function discriminateStreamResponse(
   data: Record<string, unknown>,
 ): A2AStreamEvent | null {
-  if ("task" in data && data.task) {
-    return { type: "task", task: data.task as A2ATask };
+  if ("task" in data) {
+    const task = toWrappedTask(data.task);
+    if (task) return { type: "task", task };
   }
-  if ("message" in data && data.message) {
-    return { type: "message", message: data.message as A2AMessage };
+  if ("message" in data) {
+    const message = toWrappedMessage(data.message);
+    if (message) return { type: "message", message };
   }
-  if ("statusUpdate" in data && data.statusUpdate) {
-    return {
-      type: "statusUpdate",
-      event: data.statusUpdate as A2AStreamEvent extends {
-        type: "statusUpdate";
-        event: infer E;
-      }
-        ? E
-        : never,
-    };
+  if ("statusUpdate" in data) {
+    const statusUpdate = toWrappedStatusUpdate(data.statusUpdate);
+    if (statusUpdate) {
+      return {
+        type: "statusUpdate",
+        event: statusUpdate as A2AStreamEvent extends {
+          type: "statusUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+    }
   }
-  if ("artifactUpdate" in data && data.artifactUpdate) {
-    return {
-      type: "artifactUpdate",
-      event: data.artifactUpdate as A2AStreamEvent extends {
-        type: "artifactUpdate";
-        event: infer E;
-      }
-        ? E
-        : never,
-    };
+  if ("artifactUpdate" in data) {
+    const artifactUpdate = toWrappedArtifactUpdate(data.artifactUpdate);
+    if (artifactUpdate) {
+      return {
+        type: "artifactUpdate",
+        event: artifactUpdate as A2AStreamEvent extends {
+          type: "artifactUpdate";
+          event: infer E;
+        }
+          ? E
+          : never,
+      };
+    }
   }
   // JSON-RPC streaming results are the event itself, flat, discriminated by
   // `kind` (per the A2A JSON-RPC schema), rather than wrapped in a
@@ -200,8 +208,7 @@ function discriminateStreamResponse(
       if (!isMessage(flat)) break;
       return { type: "message", message: flat };
     case "status-update": {
-      if (typeof flat.taskId !== "string" || flat.taskId.length === 0) break;
-      if (!isRecord(flat.status) || !isTaskState(flat.status.state)) break;
+      if (!isStatusUpdate(flat)) break;
       const { final: _final, ...event } = flat;
       return {
         type: "statusUpdate",
@@ -214,13 +221,7 @@ function discriminateStreamResponse(
       };
     }
     case "artifact-update":
-      if (
-        !isRecord(flat.artifact) ||
-        typeof flat.artifact.artifactId !== "string" ||
-        !Array.isArray(flat.artifact.parts) ||
-        !flat.artifact.parts.every(isRecord)
-      )
-        break;
+      if (!isArtifactUpdate(flat)) break;
       return {
         type: "artifactUpdate",
         event: flat as unknown as A2AStreamEvent extends {
@@ -262,10 +263,20 @@ const ROLES: ReadonlySet<string> = new Set(
 const isRole = (value: unknown): value is A2ARole =>
   typeof value === "string" && ROLES.has(value);
 
+// Ids reach task state and the next request body unchecked by anything
+// downstream, so an id that is present and not null must be a string.
+// An omitted or null id keeps the acceptance each path already had.
+const hasOptionalStringIds = (
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean =>
+  keys.every((key) => value[key] == null || typeof value[key] === "string");
+
 const isTask = (value: unknown): value is A2ATask =>
   isRecord(value) &&
   typeof value.id === "string" &&
   value.id.length > 0 &&
+  hasOptionalStringIds(value, ["contextId"]) &&
   isRecord(value.status) &&
   isTaskState(value.status.state);
 
@@ -273,9 +284,127 @@ const isMessage = (value: unknown): value is A2AMessage =>
   isRecord(value) &&
   typeof value.messageId === "string" &&
   value.messageId.length > 0 &&
+  hasOptionalStringIds(value, ["contextId", "taskId"]) &&
   isRole(value.role) &&
   Array.isArray(value.parts) &&
   value.parts.every(isRecord);
+
+// Legacy wrappers use ProtoJSON, where omitted and null fields decode to proto
+// defaults. Normalize those defaults before enforcing semantic requirements.
+// Filling a null id with the ProtoJSON default does not make it a string, and
+// the shape guards below check the fields they name rather than the ids. The
+// runtime reads these straight into task state and the next request body.
+const hasStringIds = (
+  value: Record<string, unknown>,
+  keys: readonly string[],
+): boolean => keys.every((key) => typeof value[key] === "string");
+
+const toWrappedTaskStatus = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  if (!isRecord(value)) return null;
+  return {
+    ...value,
+    state: value.state == null ? "unspecified" : value.state,
+  };
+};
+
+const toWrappedTask = (value: unknown): A2ATask | null => {
+  if (!isRecord(value)) return null;
+  const status = toWrappedTaskStatus(value.status);
+  if (!status) return null;
+
+  const task = {
+    ...value,
+    contextId: value.contextId == null ? "" : value.contextId,
+    status,
+  };
+  return isTask(task) && hasStringIds(task, ["contextId"]) ? task : null;
+};
+
+const toWrappedMessage = (value: unknown): A2AMessage | null => {
+  if (!isRecord(value)) return null;
+
+  const message = {
+    ...value,
+    contextId: value.contextId == null ? "" : value.contextId,
+    taskId: value.taskId == null ? "" : value.taskId,
+    role: value.role == null ? "unspecified" : value.role,
+    parts: value.parts == null ? [] : value.parts,
+  };
+  return isMessage(message) && hasStringIds(message, ["contextId", "taskId"])
+    ? message
+    : null;
+};
+
+const isStatusUpdate = (
+  value: unknown,
+  allowEmptyTaskId = false,
+): value is Record<string, unknown> =>
+  isRecord(value) &&
+  typeof value.taskId === "string" &&
+  (allowEmptyTaskId || value.taskId.length > 0) &&
+  hasOptionalStringIds(value, ["contextId"]) &&
+  isRecord(value.status) &&
+  isTaskState(value.status.state);
+
+const toWrappedStatusUpdate = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  if (!isRecord(value) || !isRecord(value.status)) return null;
+
+  const statusUpdate = {
+    ...value,
+    taskId: value.taskId == null ? "" : value.taskId,
+    contextId: value.contextId == null ? "" : value.contextId,
+    status: toWrappedTaskStatus(value.status),
+  };
+  return isStatusUpdate(statusUpdate, true) &&
+    hasStringIds(statusUpdate, ["taskId", "contextId"])
+    ? statusUpdate
+    : null;
+};
+
+const isArtifact = (value: unknown): value is Record<string, unknown> =>
+  isRecord(value) &&
+  typeof value.artifactId === "string" &&
+  Array.isArray(value.parts) &&
+  value.parts.every(isRecord);
+
+const isArtifactUpdate = (value: unknown): value is Record<string, unknown> =>
+  isRecord(value) &&
+  hasOptionalStringIds(value, ["contextId", "taskId"]) &&
+  isArtifact(value.artifact);
+
+const toWrappedArtifact = (value: unknown): Record<string, unknown> | null => {
+  if (!isRecord(value)) return null;
+
+  const artifact = {
+    ...value,
+    artifactId: value.artifactId == null ? "" : value.artifactId,
+    parts: value.parts == null ? [] : value.parts,
+  };
+  return isArtifact(artifact) ? artifact : null;
+};
+
+const toWrappedArtifactUpdate = (
+  value: unknown,
+): Record<string, unknown> | null => {
+  if (!isRecord(value)) return null;
+  const artifact = toWrappedArtifact(value.artifact);
+  if (!artifact) return null;
+
+  const artifactUpdate = {
+    ...value,
+    taskId: value.taskId == null ? "" : value.taskId,
+    contextId: value.contextId == null ? "" : value.contextId,
+    artifact,
+  };
+  return isArtifactUpdate(artifactUpdate) &&
+    hasStringIds(artifactUpdate, ["taskId", "contextId"])
+    ? artifactUpdate
+    : null;
+};
 
 const isStringArray = (value: unknown): value is string[] =>
   Array.isArray(value) && value.every((item) => typeof item === "string");

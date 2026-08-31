@@ -2,18 +2,21 @@ import { existsSync, promises as fs, readFileSync } from "node:fs";
 import * as path from "node:path";
 import { pathToFileURL } from "node:url";
 import * as ts from "typescript";
+import { parse } from "@vue/compiler-sfc";
 import {
   isDeclarationBlock,
   type CssDeclarationBlock,
   type CssMediaBlock,
 } from "@assistant-ui/ui/lib/generative-ui-vocabulary-css.ts";
-import { registry } from "../src/registry";
+import { registry, vueRegistry } from "../src/registry";
 import { registrySchema, type RegistryItem } from "../src/schema";
 
 const REGISTRY_PATH = path.join(process.cwd(), "dist");
 const BASE_REGISTRY_PATH = path.join(REGISTRY_PATH, "base");
+const VUE_REGISTRY_PATH = path.join(REGISTRY_PATH, "vue");
 const REGISTRY_INDEX_PATH = path.join(REGISTRY_PATH, "registry.json");
 const BASE_REGISTRY_INDEX_PATH = path.join(BASE_REGISTRY_PATH, "registry.json");
+const VUE_REGISTRY_INDEX_PATH = path.join(VUE_REGISTRY_PATH, "registry.json");
 const REGISTRY_ITEM_SCHEMA_URL =
   "https://ui.shadcn.com/schema/registry-item.json";
 const ASSISTANT_REGISTRY_DEPENDENCY_RE =
@@ -29,7 +32,7 @@ const BASE_VARIANT_FORBIDDEN_PATTERNS = [
 const MARKED_UI_SPECIFIERS = ["radix", "base"].map(
   (flavor) => `@/components/ui/${flavor}/`,
 );
-const UI_PRIMITIVE_SOURCE_ROOT = "../../packages/ui/src/components/ui";
+const UI_PRIMITIVE_SOURCE_ROOT = "../../packages/ui/src/components/react/ui";
 const UI_PRIMITIVE_PACKAGE = {
   radix: "radix-ui",
   base: "@base-ui/react",
@@ -39,16 +42,21 @@ const PROJECT_PACKAGE_IMPORTS = new Set([
   "next-themes",
   "react",
   "react-dom",
+  "vue",
 ]);
 
 type RegistryFile = NonNullable<RegistryItem["files"]>[number];
 type RegistryBuildItem = Omit<
   RegistryItem,
   | "bundledRegistryDependencies"
+  | "registryDependencyUsageExemptions"
+  | "radixRegistryDependencies"
   | "baseRegistryDependencies"
   | "radixDependencies"
   | "baseDependencies"
 >;
+type RegistryPayloadInput = RegistryBuildItem &
+  Pick<RegistryItem, "registryDependencyUsageExemptions">;
 type UiFlavor = "radix" | "base";
 type RegistryOutputFile = Omit<RegistryFile, "sourcePath"> & {
   content: string;
@@ -58,16 +66,10 @@ type RegistryOutputItem = Omit<RegistryBuildItem, "files"> & {
   files?: RegistryOutputFile[];
 };
 
-/**
- * Transform @assistant-ui/react-ui/* imports to @/* imports for standalone projects
- * This is needed because the monorepo uses @assistant-ui/react-ui/* for internal imports
- * but the registry output should use @/* which works with standard shadcn setup
- */
-function transformImports(content: string): string {
-  return content
-    .replace(/@assistant-ui\/react-ui\/lib\//g, "@/lib/")
-    .replace(/@assistant-ui\/react-ui\/components\/ui\//g, "@/components/ui/")
-    .replace(/@assistant-ui\/react-ui\/hooks\//g, "@/hooks/");
+function stripRegistryDependencyUsageExemptions(item: RegistryItem) {
+  const { registryDependencyUsageExemptions: _usageExemptions, ...publicItem } =
+    item;
+  return publicItem;
 }
 
 function validateRegistrySchema(registry: RegistryItem[]) {
@@ -97,6 +99,13 @@ function throwIfFindings(header: string, findings: Set<string>): void {
 
 export function getRadixVariantSourcePath(sourcePath: string) {
   if (!sourcePath.endsWith(".tsx")) return null;
+
+  if (sourcePath.includes("/components/react/ui/base/")) {
+    return sourcePath.replace(
+      "/components/react/ui/base/",
+      "/components/react/ui/radix/",
+    );
+  }
 
   return `${sourcePath.slice(0, -4)}.radix.tsx`;
 }
@@ -158,6 +167,56 @@ export function validateBaseTreeRadixImports(
   throwIfFindings("Invalid base tree imports:", findings);
 }
 
+const VUE_FORBIDDEN_PACKAGES = [
+  "react",
+  "react-dom",
+  "lucide-react",
+  "radix-ui",
+  "@radix-ui",
+  "@base-ui",
+  "@assistant-ui/react",
+];
+const VUE_FORBIDDEN_PREFIXES = ["@assistant-ui/react-"];
+
+function isVueForbiddenPackage(specifier: string) {
+  return (
+    VUE_FORBIDDEN_PACKAGES.some(
+      (packageName) =>
+        specifier === packageName || specifier.startsWith(`${packageName}/`),
+    ) || VUE_FORBIDDEN_PREFIXES.some((prefix) => specifier.startsWith(prefix))
+  );
+}
+
+export function validateVueFlavorContent(vueBuilt: BuiltRegistryPayload[]) {
+  const findings = new Set<string>();
+
+  for (const { payload } of vueBuilt) {
+    for (const file of payload.files ?? []) {
+      for (const script of getScriptContents(file)) {
+        if (
+          script.lang !== undefined &&
+          script.lang !== "ts" &&
+          script.lang !== "js"
+        ) {
+          findings.add(
+            `${payload.name}: vue tree file ${file.path} has unsupported script lang "${script.lang}"`,
+          );
+        }
+      }
+
+      for (const specifier of collectModuleSpecifiers(file)) {
+        if (isVueForbiddenPackage(specifier)) {
+          findings.add(
+            `${payload.name}: vue tree file ${file.path} imports forbidden "${specifier}"`,
+          );
+        }
+      }
+    }
+  }
+
+  throwIfFindings("Invalid vue flavor content:", findings);
+}
+
 export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
   const findings = new Set<string>();
 
@@ -175,7 +234,7 @@ export function validateEmittedSpecifierHygiene(built: BuiltRegistryPayload[]) {
 }
 
 function createRegistryPayload(
-  item: RegistryBuildItem,
+  item: RegistryPayloadInput,
   useRadixVariants = false,
 ): BuiltRegistryPayload {
   const readPaths: string[] = [];
@@ -205,15 +264,14 @@ function createRegistryPayload(
       );
     }
 
-    content = transformImports(content);
-
     const { sourcePath: _, ...fileOutput } = file;
     return {
       ...fileOutput,
       content,
     };
   });
-  const { files: _, ...itemOutput } = item;
+  const { files: _, ...itemOutput } =
+    stripRegistryDependencyUsageExemptions(item);
 
   const payload = {
     $schema: REGISTRY_ITEM_SCHEMA_URL,
@@ -581,6 +639,62 @@ function getAssistantRegistryDependencyName(dependency: string) {
   return ASSISTANT_REGISTRY_DEPENDENCY_RE.exec(dependency)?.[1] ?? null;
 }
 
+function getFlavorRegistryDependency(
+  dependency: string,
+  flavor: UiFlavor | undefined,
+) {
+  const name = getAssistantRegistryDependencyName(dependency);
+  return flavor === "base" && name
+    ? `https://r.assistant-ui.com/base/${name}.json`
+    : dependency;
+}
+
+type RegistryDependencyUsageExemptions = Map<string, Set<string>>;
+
+export function createRegistryDependencyUsageExemptions(
+  items: RegistryItem[],
+  flavor?: UiFlavor,
+): RegistryDependencyUsageExemptions {
+  const exemptionsByItem = new Map<string, Set<string>>();
+  const findings = new Set<string>();
+
+  for (const item of items) {
+    const declaredDependencies = new Set([
+      ...(item.registryDependencies ?? []),
+      ...(item.radixRegistryDependencies ?? []),
+      ...(item.baseRegistryDependencies ?? []),
+    ]);
+    const activeDependencies = new Set([
+      ...(item.registryDependencies ?? []),
+      ...(flavor === "radix" ? (item.radixRegistryDependencies ?? []) : []),
+      ...(flavor === "base" ? (item.baseRegistryDependencies ?? []) : []),
+    ]);
+    const activeExemptions = new Set<string>();
+
+    for (const dependency of Object.keys(
+      item.registryDependencyUsageExemptions ?? {},
+    )) {
+      if (!declaredDependencies.has(dependency)) {
+        findings.add(
+          `${item.name}: registryDependencyUsageExemptions entry "${dependency}" does not match a declared registry dependency`,
+        );
+        continue;
+      }
+
+      if (activeDependencies.has(dependency)) {
+        activeExemptions.add(getFlavorRegistryDependency(dependency, flavor));
+      }
+    }
+
+    if (activeExemptions.size > 0) {
+      exemptionsByItem.set(item.name, activeExemptions);
+    }
+  }
+
+  throwIfFindings("Invalid registry dependency usage exemptions:", findings);
+  return exemptionsByItem;
+}
+
 /**
  * Inlines the files and dependencies of `bundledRegistryDependencies` into the item.
  *
@@ -630,9 +744,9 @@ export function expandBundledRegistryDependencies(
       bundled.push(dependencyItem);
       walk([
         ...(dependencyItem.registryDependencies ?? []),
-        ...(flavor === "base"
-          ? (dependencyItem.baseRegistryDependencies ?? [])
-          : []),
+        ...(flavor === "radix"
+          ? (dependencyItem.radixRegistryDependencies ?? [])
+          : (dependencyItem.baseRegistryDependencies ?? [])),
       ]);
     }
   };
@@ -706,21 +820,41 @@ export function expandBundledRegistryDependencies(
 export function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
   const {
     baseRegistryDependencies: _,
+    registryDependencyUsageExemptions: _usageExemptions,
+    radixRegistryDependencies,
     radixDependencies,
     baseDependencies: __,
     ...radixItem
   } = item;
 
+  const hasRegistryDependencies =
+    radixItem.registryDependencies !== undefined ||
+    radixRegistryDependencies !== undefined;
+
   const hasDependencies =
     radixItem.dependencies !== undefined || radixDependencies !== undefined;
 
-  if (!hasDependencies) return radixItem;
+  let result = radixItem;
+
+  if (hasRegistryDependencies) {
+    result = {
+      ...result,
+      registryDependencies: [
+        ...new Set([
+          ...(radixItem.registryDependencies ?? []),
+          ...(radixRegistryDependencies ?? []),
+        ]),
+      ],
+    };
+  }
+
+  if (!hasDependencies) return result;
 
   return {
-    ...radixItem,
+    ...result,
     dependencies: [
       ...new Set([
-        ...(radixItem.dependencies ?? []),
+        ...(result.dependencies ?? []),
         ...(radixDependencies ?? []),
       ]),
     ],
@@ -730,7 +864,9 @@ export function createRadixRegistryItem(item: RegistryItem): RegistryBuildItem {
 export function createBaseRegistryItem(item: RegistryItem): RegistryBuildItem {
   const {
     baseRegistryDependencies,
-    radixDependencies: _,
+    registryDependencyUsageExemptions: _usageExemptions,
+    radixRegistryDependencies: _,
+    radixDependencies: __,
     baseDependencies,
     ...baseItem
   } = item;
@@ -748,10 +884,7 @@ export function createBaseRegistryItem(item: RegistryItem): RegistryBuildItem {
     const registryDependencies = [
       ...(baseItem.registryDependencies ?? []),
       ...(baseRegistryDependencies ?? []),
-    ].map((dependency) => {
-      const name = getAssistantRegistryDependencyName(dependency);
-      return name ? `https://r.assistant-ui.com/base/${name}.json` : dependency;
-    });
+    ].map((dependency) => getFlavorRegistryDependency(dependency, "base"));
 
     result = {
       ...result,
@@ -784,6 +917,7 @@ function isStringLiteralLike(
 }
 
 function getScriptKind(filePath: string) {
+  if (filePath.endsWith(".vue")) return ts.ScriptKind.TS;
   if (filePath.endsWith(".tsx")) return ts.ScriptKind.TSX;
   if (filePath.endsWith(".jsx")) return ts.ScriptKind.JSX;
   if (filePath.endsWith(".ts")) return ts.ScriptKind.TS;
@@ -791,75 +925,81 @@ function getScriptKind(filePath: string) {
   return ts.ScriptKind.Unknown;
 }
 
+function getScriptContents(file: RegistryOutputFile) {
+  if (!file.path.endsWith(".vue")) return [{ content: file.content }];
+
+  const { descriptor, errors } = parse(file.content, { filename: file.path });
+  if (errors.length > 0) {
+    throw new Error(
+      `Failed to parse ${file.path}: ${errors.map((error) => error.message).join("; ")}`,
+    );
+  }
+
+  return [descriptor.script, descriptor.scriptSetup]
+    .filter((script) => script !== null)
+    .map((script) => ({
+      content: script.content,
+      lang: script.lang,
+    }));
+}
+
 function collectModuleSpecifiers(file: RegistryOutputFile) {
-  const sourceFile = ts.createSourceFile(
-    file.path,
-    file.content,
-    ts.ScriptTarget.Latest,
-    true,
-    getScriptKind(file.path),
-  );
   const specifiers = new Set<string>();
 
-  const visit = (node: ts.Node) => {
-    if (
-      (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
-      node.moduleSpecifier &&
-      isStringLiteralLike(node.moduleSpecifier)
-    ) {
-      specifiers.add(node.moduleSpecifier.text);
-    }
+  for (const { content } of getScriptContents(file)) {
+    const sourceFile = ts.createSourceFile(
+      file.path,
+      content,
+      ts.ScriptTarget.Latest,
+      true,
+      getScriptKind(file.path),
+    );
 
-    if (
-      ts.isCallExpression(node) &&
-      node.expression.kind === ts.SyntaxKind.ImportKeyword &&
-      node.arguments.length === 1
-    ) {
-      const importArgument = node.arguments[0];
-      if (importArgument && isStringLiteralLike(importArgument)) {
-        specifiers.add(importArgument.text);
+    const visit = (node: ts.Node) => {
+      if (
+        (ts.isImportDeclaration(node) || ts.isExportDeclaration(node)) &&
+        node.moduleSpecifier &&
+        isStringLiteralLike(node.moduleSpecifier)
+      ) {
+        specifiers.add(node.moduleSpecifier.text);
       }
-    }
 
-    if (
-      ts.isImportTypeNode(node) &&
-      ts.isLiteralTypeNode(node.argument) &&
-      isStringLiteralLike(node.argument.literal)
-    ) {
-      specifiers.add(node.argument.literal.text);
-    }
+      if (
+        ts.isCallExpression(node) &&
+        node.expression.kind === ts.SyntaxKind.ImportKeyword &&
+        node.arguments.length === 1
+      ) {
+        const importArgument = node.arguments[0];
+        if (importArgument && isStringLiteralLike(importArgument)) {
+          specifiers.add(importArgument.text);
+        }
+      }
 
-    ts.forEachChild(node, visit);
-  };
+      if (
+        ts.isImportTypeNode(node) &&
+        ts.isLiteralTypeNode(node.argument) &&
+        isStringLiteralLike(node.argument.literal)
+      ) {
+        specifiers.add(node.argument.literal.text);
+      }
 
-  visit(sourceFile);
+      ts.forEachChild(node, visit);
+    };
+
+    visit(sourceFile);
+  }
+
   return specifiers;
 }
 
-function getLocalComponentCandidates(specifier: string) {
-  if (
-    !specifier.startsWith("@/components/") &&
-    !specifier.startsWith("@/hooks/")
-  )
-    return null;
+function getAliasImportCandidates(specifier: string) {
+  if (!specifier.startsWith("@/")) return null;
 
-  const componentPath = specifier.replace(/[?#].*$/, "").slice(2);
-  const extension = path.extname(componentPath);
-  if (EXPLICIT_EXTENSIONS.has(extension.toLowerCase())) return [componentPath];
-  if (!extension)
-    return MODULE_EXTENSIONS.map(
-      (moduleExtension) => `${componentPath}${moduleExtension}`,
-    );
-
-  return [
-    componentPath,
-    ...MODULE_EXTENSIONS.map(
-      (moduleExtension) => `${componentPath}${moduleExtension}`,
-    ),
-    ...MODULE_EXTENSIONS.map(
-      (moduleExtension) => `${componentPath}/index${moduleExtension}`,
-    ),
-  ];
+  const installPath = path.posix.normalize(
+    specifier.replace(/[?#].*$/, "").slice(2),
+  );
+  if (installPath === ".." || installPath.startsWith("../")) return [];
+  return getInstallPathCandidates(installPath);
 }
 
 const MODULE_EXTENSIONS = [".tsx", ".ts", ".jsx", ".js"];
@@ -886,8 +1026,43 @@ const EXPLICIT_EXTENSIONS = new Set([
   ".otf",
   ".md",
   ".mdx",
+  ".vue",
   ".txt",
 ]);
+
+const AMBIENT_LOCAL_IMPORT_PATHS = new Set(
+  MODULE_EXTENSIONS.map((extension) => `lib/utils${extension}`),
+);
+
+function getInstallPathCandidates(installPath: string) {
+  const extension = path.posix.extname(installPath).toLowerCase();
+  const candidates = new Set<string>();
+
+  if (EXPLICIT_EXTENSIONS.has(extension)) {
+    candidates.add(installPath);
+    if (extension === ".js" || extension === ".jsx") {
+      const base = installPath.slice(0, -extension.length);
+      for (const moduleExtension of MODULE_EXTENSIONS) {
+        candidates.add(`${base}${moduleExtension}`);
+      }
+    }
+  } else {
+    for (const moduleExtension of MODULE_EXTENSIONS) {
+      candidates.add(`${installPath}${moduleExtension}`);
+    }
+    for (const moduleExtension of MODULE_EXTENSIONS) {
+      candidates.add(`${installPath}/index${moduleExtension}`);
+    }
+  }
+
+  return [...candidates];
+}
+
+function isAmbientLocalImport(candidates: string[]) {
+  return candidates.some((candidate) =>
+    AMBIENT_LOCAL_IMPORT_PATHS.has(candidate),
+  );
+}
 
 /**
  * The install paths a relative specifier may resolve to once the item is
@@ -896,10 +1071,10 @@ const EXPLICIT_EXTENSIONS = new Set([
  * extension, an extensionless module, a directory index, or the TypeScript
  * source behind a `.js` specifier. A dot in a basename is only treated as an
  * explicit extension when it is one of the recognized module or asset
- * extensions; a dotted module name (`./tool.config`) keeps the literal
- * candidate and probes module and index forms too. `null` means the specifier
- * points outside the installed tree, where no closure file can ever satisfy
- * it.
+ * extensions; a dotted module name (`./badge.aui`) probes module and index
+ * forms only, since closure files always carry a real extension. `null` means
+ * the specifier points outside the installed tree, where no closure file can
+ * ever satisfy it.
  */
 export function getRelativeImportCandidates(
   specifier: string,
@@ -911,28 +1086,7 @@ export function getRelativeImportCandidates(
   );
   if (resolved === ".." || resolved.startsWith("../")) return null;
 
-  const extension = path.posix.extname(resolved).toLowerCase();
-  const candidates = new Set<string>();
-
-  if (EXPLICIT_EXTENSIONS.has(extension)) {
-    candidates.add(resolved);
-    if (extension === ".js" || extension === ".jsx") {
-      const base = resolved.slice(0, -extension.length);
-      for (const moduleExtension of MODULE_EXTENSIONS) {
-        candidates.add(`${base}${moduleExtension}`);
-      }
-    }
-  } else {
-    if (extension) candidates.add(resolved);
-    for (const moduleExtension of MODULE_EXTENSIONS) {
-      candidates.add(`${resolved}${moduleExtension}`);
-    }
-    for (const moduleExtension of MODULE_EXTENSIONS) {
-      candidates.add(`${resolved}/index${moduleExtension}`);
-    }
-  }
-
-  return [...candidates];
+  return getInstallPathCandidates(resolved);
 }
 
 function collectCssPackageImports(value: unknown, imports = new Set<string>()) {
@@ -998,20 +1152,86 @@ function collectInstallContext(
   return { files, packages };
 }
 
+function collectDirectImportedPaths(item: RegistryOutputItem) {
+  const paths = new Set<string>();
+
+  for (const file of item.files ?? []) {
+    for (const specifier of collectModuleSpecifiers(file)) {
+      const aliasCandidates = getAliasImportCandidates(specifier);
+      if (aliasCandidates) {
+        for (const candidate of aliasCandidates) paths.add(candidate);
+        continue;
+      }
+
+      if (specifier.startsWith(".")) {
+        const candidates = getRelativeImportCandidates(
+          specifier,
+          file.target ?? file.path,
+        );
+        for (const candidate of candidates ?? []) paths.add(candidate);
+      }
+    }
+  }
+
+  return paths;
+}
+
+function isDirectRegistryDependencyUsed(
+  dependency: string,
+  dependencyItem: RegistryOutputItem | undefined,
+  directImportedPaths: Set<string>,
+) {
+  const providedPaths = dependencyItem
+    ? (dependencyItem.files ?? []).map((file) => file.target ?? file.path)
+    : dependency.startsWith("http")
+      ? []
+      : [`components/ui/${dependency}.tsx`];
+
+  return providedPaths.some((providedPath) =>
+    directImportedPaths.has(providedPath),
+  );
+}
+
 export function validateRegistryInstallMetadata(
   payloads: RegistryOutputItem[],
+  usageExemptions: RegistryDependencyUsageExemptions = new Map(),
 ) {
   const itemByName = new Map(payloads.map((item) => [item.name, item]));
   const findings = new Set<string>();
 
   for (const item of payloads) {
+    const directImportedPaths = collectDirectImportedPaths(item);
+
     for (const dependency of item.registryDependencies ?? []) {
       const assistantDependencyName =
         getAssistantRegistryDependencyName(dependency);
 
-      if (assistantDependencyName && !itemByName.has(assistantDependencyName)) {
+      const dependencyItem = assistantDependencyName
+        ? itemByName.get(assistantDependencyName)
+        : undefined;
+
+      if (assistantDependencyName && !dependencyItem) {
         findings.add(
           `${item.name}: registry dependency "${dependency}" does not match a local registry item`,
+        );
+        continue;
+      }
+
+      const isDirectlyUsed = isDirectRegistryDependencyUsed(
+        dependency,
+        dependencyItem,
+        directImportedPaths,
+      );
+      const isUsageExempt =
+        usageExemptions.get(item.name)?.has(dependency) ?? false;
+
+      if (isDirectlyUsed && isUsageExempt) {
+        findings.add(
+          `${item.name}: registryDependencyUsageExemptions entry "${dependency}" is unnecessary because the dependency is imported directly`,
+        );
+      } else if (!isDirectlyUsed && !isUsageExempt) {
+        findings.add(
+          `${item.name}: registry dependency "${dependency}" is not imported directly by this item and has no registryDependencyUsageExemptions entry`,
         );
       }
     }
@@ -1020,16 +1240,18 @@ export function validateRegistryInstallMetadata(
 
     for (const file of item.files ?? []) {
       for (const specifier of collectModuleSpecifiers(file)) {
-        const localCandidates = getLocalComponentCandidates(specifier);
+        const aliasCandidates = getAliasImportCandidates(specifier);
 
-        if (localCandidates) {
+        if (aliasCandidates) {
+          if (isAmbientLocalImport(aliasCandidates)) continue;
+
           if (
-            !localCandidates.some((candidate) =>
+            !aliasCandidates.some((candidate) =>
               installContext.files.has(candidate),
             )
           ) {
             findings.add(
-              `${item.name}: ${file.path} imports "${specifier}", but no file or registryDependency provides ${localCandidates.join(" or ")}`,
+              `${item.name}: ${file.path} imports "${specifier}", but no file or registryDependency provides ${aliasCandidates.join(" or ")}`,
             );
           }
 
@@ -1056,10 +1278,6 @@ export function validateRegistryInstallMetadata(
             );
           }
 
-          continue;
-        }
-
-        if (specifier.startsWith("@/")) {
           continue;
         }
 
@@ -1129,8 +1347,22 @@ export function validateUniversalItems(
   throwIfFindings("Invalid universal registry items:", findings);
 }
 
-async function buildRegistry(registry: RegistryItem[]) {
+export async function buildRegistry(
+  registry: RegistryItem[],
+  vueRegistry: RegistryItem[],
+) {
   validateRegistrySchema(registry);
+  validateRegistrySchema(vueRegistry);
+  const radixUsageExemptions = createRegistryDependencyUsageExemptions(
+    registry,
+    "radix",
+  );
+  const baseUsageExemptions = createRegistryDependencyUsageExemptions(
+    registry,
+    "base",
+  );
+  const vueUsageExemptions =
+    createRegistryDependencyUsageExemptions(vueRegistry);
 
   const universalNames = new Set(
     registry
@@ -1162,6 +1394,7 @@ async function buildRegistry(registry: RegistryItem[]) {
   const baseBuilt = baseRegistry.map((item) =>
     createRegistryPayload(item, false),
   );
+  const vueBuilt = vueRegistry.map((item) => createRegistryPayload(item));
   validateBaseVariantContent(radixBuilt, baseBuilt);
   validateBaseTreeRadixImports(baseBuilt);
   validateEmittedSpecifierHygiene([...radixBuilt, ...baseBuilt]);
@@ -1170,14 +1403,19 @@ async function buildRegistry(registry: RegistryItem[]) {
   validateVariantSlotParity(radixBuilt, baseBuilt);
   validateVariantExportParity(radixBuilt, baseBuilt);
   validateStyleScopedDependencies(radixBuilt, baseBuilt);
+  validateVueFlavorContent(vueBuilt);
 
   const payloads = radixBuilt.map((built) => built.payload);
   const basePayloads = baseBuilt.map((built) => built.payload);
-  validateRegistryInstallMetadata(payloads);
-  validateRegistryInstallMetadata(basePayloads);
+  const vuePayloads = vueBuilt.map((built) => built.payload);
+  validateRegistryInstallMetadata(payloads, radixUsageExemptions);
+  validateRegistryInstallMetadata(basePayloads, baseUsageExemptions);
+  validateRegistryInstallMetadata(vuePayloads, vueUsageExemptions);
 
   await fs.mkdir(REGISTRY_PATH, { recursive: true });
   await fs.mkdir(BASE_REGISTRY_PATH, { recursive: true });
+  await fs.rm(VUE_REGISTRY_PATH, { force: true, recursive: true });
+  await fs.mkdir(VUE_REGISTRY_PATH, { recursive: true });
 
   for (const payload of payloads) {
     const p = path.join(REGISTRY_PATH, `${payload.name}.json`);
@@ -1193,11 +1431,18 @@ async function buildRegistry(registry: RegistryItem[]) {
     await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
   }
 
+  for (const payload of vuePayloads) {
+    const p = path.join(VUE_REGISTRY_PATH, `${payload.name}.json`);
+    await fs.mkdir(path.dirname(p), { recursive: true });
+
+    await fs.writeFile(p, JSON.stringify(payload, null, 2), "utf8");
+  }
+
   const registryIndex = {
     $schema: "https://ui.shadcn.com/schema/registry.json",
     name: "assistant-ui",
     homepage: "https://assistant-ui.com",
-    items: radixRegistry,
+    items: radixRegistry.map(stripRegistryDependencyUsageExemptions),
   };
 
   await fs.writeFile(
@@ -1208,7 +1453,27 @@ async function buildRegistry(registry: RegistryItem[]) {
 
   await fs.writeFile(
     BASE_REGISTRY_INDEX_PATH,
-    JSON.stringify({ ...registryIndex, items: baseRegistry }, null, 2),
+    JSON.stringify(
+      {
+        ...registryIndex,
+        items: baseRegistry.map(stripRegistryDependencyUsageExemptions),
+      },
+      null,
+      2,
+    ),
+    "utf8",
+  );
+
+  await fs.writeFile(
+    VUE_REGISTRY_INDEX_PATH,
+    JSON.stringify(
+      {
+        ...registryIndex,
+        items: vueRegistry.map(stripRegistryDependencyUsageExemptions),
+      },
+      null,
+      2,
+    ),
     "utf8",
   );
 }
@@ -1218,5 +1483,5 @@ if (
   entrypoint &&
   import.meta.url === pathToFileURL(path.resolve(entrypoint)).href
 ) {
-  await buildRegistry(registry);
+  await buildRegistry(registry, vueRegistry);
 }

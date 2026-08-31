@@ -1,0 +1,222 @@
+---
+title: "Subagent list"
+description: "Parallel workers with their own progress, models, and completions."
+---
+
+A stack of cards, one per worker, each with a done or spinning icon, its model, and a progress bar, plus an optional trailing card for a synthesis step. With a runtime each worker is its own tool call and the list is assembled from them; standalone you pass in the roster and its progress directly.
+
+## Getting started
+
+<RuntimeMode>
+
+A dispatch to several sub-agents is naturally several tool calls in one assistant turn, one per worker. The list itself is not any single call's UI; it is assembled from all of them.
+
+<Steps>
+  <Step>
+
+### Render the dispatch calls invisibly
+
+Register the dispatch tool with a `render` that returns nothing. Its schema and execution live on your server; here it only needs to stop the default tool card from also appearing inline, since the aggregate list below owns the visual.
+
+```tsx title="app/toolkit.tsx"
+"use client";
+
+import { defineToolkit } from "@assistant-ui/react";
+
+export const toolkit = defineToolkit({
+  dispatch_subagent: { type: "backend", render: () => null },
+  summarize_findings: { type: "backend", render: () => null },
+});
+```
+
+  </Step>
+  <Step>
+
+### Aggregate them below the message
+
+Read every part of the current message, keep the `dispatch_subagent` calls, and fold them into the props `SubagentList` expects. `summarize_findings` becomes the trailing summary card when it is present at all.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { MessagePrimitive, useAuiState } from "@assistant-ui/react";
+import { SubagentList } from "@/components/assistant-ui/elements/subagent-list";
+
+function SubagentProgress() {
+  const parts = useAuiState((s) => s.message.parts);
+  const calls = parts.filter(
+    (p) => p.type === "tool-call" && p.toolName === "dispatch_subagent",
+  );
+  const summaryCall = parts.find(
+    (p) => p.type === "tool-call" && p.toolName === "summarize_findings",
+  );
+  if (calls.length === 0) return null;
+
+  return (
+    <SubagentList
+      agents={calls.map((c) => ({ name: c.args.name, model: c.args.model }))}
+      completedCount={calls.filter((c) => c.status.type === "complete").length}
+      progress={calls.map((c) => (c.status.type === "complete" ? 100 : 0))}
+      showSummary={summaryCall !== undefined}
+      summaryAgent={
+        summaryCall
+          ? { name: summaryCall.args.name, model: summaryCall.args.model }
+          : { name: "", model: "" }
+      }
+    />
+  );
+}
+
+function AssistantMessage() {
+  return (
+    <MessagePrimitive.Root>
+      <MessagePrimitive.Parts />
+      <SubagentProgress />
+    </MessagePrimitive.Root>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the element is a controlled display: you own the roster and report each worker's progress into it as it changes.
+
+<Steps>
+  <Step>
+
+### Hold the roster and its progress
+
+```tsx title="app/agents.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  SubagentList,
+  type SubagentItem,
+} from "@/components/assistant-ui/elements/subagent-list";
+
+const AGENTS: readonly SubagentItem[] = [
+  { name: "Explore the runtime", model: "haiku" },
+  { name: "Fix composer types", model: "sonnet" },
+  { name: "Write regression tests", model: "sonnet" },
+];
+
+export function Agents() {
+  const [completedCount, setCompletedCount] = useState(0);
+  const [progress, setProgress] = useState([0, 0, 0]);
+
+  return (
+    <SubagentList
+      agents={AGENTS}
+      completedCount={completedCount}
+      progress={progress}
+      showSummary={false}
+      summaryAgent={{ name: "Summarize findings", model: "haiku" }}
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Report progress and completion
+
+```tsx
+function onWorkerProgress(index: number, percent: number) {
+  setProgress((prev) => prev.with(index, percent));
+}
+
+function onWorkerDone() {
+  setCompletedCount((count) => count + 1);
+}
+```
+
+`completedCount` marks agents done from the front of the array, so finish them in order for the checkmarks to land on the right cards.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="subagent-list">
+  <div>
+    <span>{/* check or spinner */}</span>
+    <span>{/* agent name */}</span>
+    <span>{/* model */}</span>
+    <span>{/* progress bar */}</span>
+  </div>
+  {/* one card per agent, then the summary card when shown */}
+</div>
+```
+
+An agent at index `i` is done when `i < completedCount`; its bar width comes from `progress[i]`, clamped into `0…100` with a missing or `NaN` entry read as `0`. The summary card, when `showSummary` is true, always shows the spinner treatment and a fixed bar; this version has no way to mark the summary itself done, only to show or hide it. The root carries a minimum height so the layout does not jump as agents complete and the summary card fades in.
+
+## Examples
+
+### Restyle the roster
+
+Both lanes take `className` on the root. Each card uses the shared `paper` surface and the `mono` token for its model label, so retheming those in `surfaces.tsx` restyles every card here alongside every other element built on them.
+
+```tsx
+<SubagentList className="max-w-sm gap-3" /* ... */ />
+```
+
+### Where progress comes from
+
+<RuntimeMode>
+
+A tool call's `status` only distinguishes running from complete, so the mapping above reads as two states: `0` while a worker's call is in flight, `100` once its result lands. A smoother live percentage needs your own progress channel, for example an app-level store keyed by the call's `toolCallId` that a websocket or polling update fills in, read into `progress` the same way.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+```tsx
+async function runWorker(index: number) {
+  for (let pct = 0; pct <= 100; pct += 20) {
+    await tick();
+    setProgress((prev) => prev.with(index, pct));
+  }
+  setCompletedCount((count) => count + 1);
+}
+```
+
+</StandaloneMode>
+
+## API reference
+
+<RuntimeMode>
+
+### Render props
+
+| Source | Type | Description |
+|--------|------|-------------|
+| `dispatch_subagent` call `args.name` / `args.model` | `string` | One roster entry per call. |
+| `dispatch_subagent` call `status.type` | `"running" \| "requires-action" \| "incomplete" \| "complete"` | `"complete"` counts toward `completedCount` and reads as `100` progress; anything else reads as `0`. |
+| `summarize_findings` call | tool call or `undefined` | Presence alone drives `showSummary`; its `args` become `summaryAgent`. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### SubagentList
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `agents` | `readonly SubagentItem[]` | required | The roster, in display order. |
+| `completedCount` | `number` | required | How many agents, counted from the front of `agents`, are done. |
+| `progress` | `readonly number[]` | required | Bar width per agent, index-aligned with `agents`. Out-of-range or `NaN` entries read as `0`. |
+| `showSummary` | `boolean` | required | Whether the trailing summary card renders. |
+| `summaryAgent` | `SubagentItem` | required | Name and model for the summary card. |
+| `className` | `string` | | Merged onto the root. |
+
+`SubagentItem` is `{ name: string; model: string }`. All other `div` props are forwarded to the root.
+
+</StandaloneMode>

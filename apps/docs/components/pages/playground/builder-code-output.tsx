@@ -93,21 +93,21 @@ function generateComponentCode(config: BuilderConfig): string {
 
   const internalImports = [
     `import { Button } from "@/components/ui/button";`,
-    `import { TooltipIconButton } from "@/components/assistant-ui/tooltip-icon-button";`,
+    `import { TooltipIconButton } from "@/components/assistant-ui/elements/tooltip-icon-button";`,
     components.markdown &&
-      `import { MarkdownText } from "@/components/assistant-ui/markdown-text";`,
+      `import { MarkdownText } from "@/components/assistant-ui/elements/markdown-text";`,
     components.markdown &&
-      `import { ToolFallback } from "@/components/assistant-ui/tool-fallback";`,
+      `import { ToolFallback } from "@/components/assistant-ui/elements/tool-fallback.aui";`,
     components.reasoning &&
-      `import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/reasoning";`,
+      `import { Reasoning, ReasoningGroup } from "@/components/assistant-ui/elements/reasoning.aui";`,
     components.sources &&
-      `import { Sources } from "@/components/assistant-ui/sources";`,
+      `import { Sources } from "@/components/assistant-ui/elements/sources.aui";`,
     components.attachments &&
       `import {
   ComposerAddAttachment,
   ComposerAttachments,
   UserMessageAttachments,
-} from "@/components/assistant-ui/attachment";`,
+} from "@/components/assistant-ui/elements/attachment.aui";`,
     `import { cn } from "@/lib/utils";`,
   ]
     .filter(Boolean)

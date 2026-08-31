@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo } from "react";
-import { Rocket } from "lucide-react";
 import * as HeatGraph from "heat-graph";
 import type { ActivityPoint } from "@/lib/traction";
 
@@ -106,7 +105,6 @@ export function ActivityHeatmap({
             const released = releaseDays.has(localDateKey(cell.date));
             return (
               <HeatGraph.Cell
-                className="rounded-[2px]"
                 style={released ? { backgroundImage: RELEASE_DOT } : undefined}
               />
             );
@@ -121,17 +119,20 @@ export function ActivityHeatmap({
         <div className="flex items-center" style={{ gap: 4 }}>
           <span>Less</span>
           <HeatGraph.Legend>
-            {() => (
-              <HeatGraph.LegendLevel
-                className="rounded-[2px]"
-                style={{ width: 10, height: 10 }}
-              />
-            )}
+            {() => <HeatGraph.LegendLevel style={{ width: 10, height: 10 }} />}
           </HeatGraph.Legend>
           <span>More</span>
         </div>
         <div className="flex items-center" style={{ gap: 4 }}>
-          <Rocket style={{ width: 11, height: 11 }} />
+          <span
+            className="inline-block"
+            style={{
+              width: 10,
+              height: 10,
+              backgroundColor: COMMIT_COLORS[1],
+              backgroundImage: RELEASE_DOT,
+            }}
+          />
           <span>Shipped</span>
         </div>
       </div>

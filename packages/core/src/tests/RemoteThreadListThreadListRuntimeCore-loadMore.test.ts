@@ -195,6 +195,30 @@ describe("RemoteThreadListThreadListRuntimeCore.loadMore", () => {
     expect(core.hasMore).toBe(false);
   });
 
+  it("clears loadingMore when the superseded request never settles", async () => {
+    const listFn = vi
+      .fn<ListFn>()
+      .mockResolvedValueOnce({
+        threads: [{ status: "regular", remoteId: "a", externalId: "a" }],
+        nextCursor: "c1",
+      })
+      .mockReturnValueOnce(new Promise<never>(() => {}))
+      .mockResolvedValueOnce({
+        threads: [
+          { status: "regular", remoteId: "fresh", externalId: "fresh" },
+        ],
+      });
+    const adapter = makeAdapter({ list: listFn });
+    const core = createCore(adapter);
+
+    await core.getLoadThreadsPromise();
+    void core.loadMore();
+    await core.reload();
+
+    expect(core.threadIds).toEqual(["fresh"]);
+    expect(core.isLoadingMore).toBe(false);
+  });
+
   it("releases the dedup handle after a rejection so retries can proceed", async () => {
     vi.spyOn(console, "error").mockImplementation(() => {});
     const listFn = vi

@@ -147,6 +147,134 @@ describe("McpManagerResource server ids", () => {
       root.unmount();
     }
   });
+
+  it("replaces a connected transport when connector settings change", async () => {
+    mocks.StreamableHTTPClientTransport.mockClear();
+    let updateConnector = (_connector: MCPConnector) => {};
+    const DynamicManager = resource(function useDynamicManager() {
+      const [currentConnector, setCurrentConnector] = useState(
+        connector("docs"),
+      );
+      updateConnector = setCurrentConnector;
+
+      return useResource(
+        McpManagerResource({
+          connectors: [currentConnector],
+          storage: McpMemoryStorage(),
+        }),
+      );
+    });
+    const root = createTapRoot(function Root() {
+      return useResource(DynamicManager());
+    });
+    let resolveFirstClose = () => {};
+
+    try {
+      await vi.waitFor(() =>
+        expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledOnce(),
+      );
+      const firstTransport = mocks.StreamableHTTPClientTransport.mock
+        .instances[0] as { close: ReturnType<typeof vi.fn> };
+      firstTransport.close.mockImplementation(
+        () =>
+          new Promise<void>((resolve) => {
+            resolveFirstClose = resolve;
+          }),
+      );
+
+      updateConnector(
+        defineConnector({
+          id: "docs",
+          name: "Docs",
+          url: "https://other.example.com/docs/mcp",
+          auth: { type: "none" },
+        }),
+      );
+
+      await vi.waitFor(() =>
+        expect(firstTransport.close).toHaveBeenCalledOnce(),
+      );
+      expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledOnce();
+
+      resolveFirstClose();
+      await vi.waitFor(() =>
+        expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledTimes(2),
+      );
+
+      expect(mocks.StreamableHTTPClientTransport).toHaveBeenLastCalledWith(
+        new URL("https://other.example.com/docs/mcp"),
+      );
+    } finally {
+      resolveFirstClose();
+      root.unmount();
+    }
+  });
+
+  it("keeps a connection across equivalent and cosmetic connector updates", async () => {
+    mocks.StreamableHTTPClientTransport.mockClear();
+    let rerenderEquivalent = () => {};
+    let updatePresentation = () => {};
+    const DynamicManager = resource(function useDynamicManager() {
+      const [, setVersion] = useState(0);
+      const [presentation, setPresentation] = useState({
+        name: "Docs",
+        icon: "docs.svg",
+      });
+      rerenderEquivalent = () => setVersion((version) => version + 1);
+      updatePresentation = () =>
+        setPresentation({ name: "Documentation", icon: "book.svg" });
+
+      return useResource(
+        McpManagerResource({
+          connectors: [
+            defineConnector({
+              id: "docs",
+              name: presentation.name,
+              icon: presentation.icon,
+              url: "https://example.com/docs/mcp",
+              auth: { type: "none" },
+            }),
+          ],
+          storage: McpCustomStorage({
+            loadCustomServers: vi.fn(async () => []),
+            saveCustomServers: vi.fn(async () => {}),
+            loadAuthState: vi.fn(async () => null),
+            saveAuthState: vi.fn(async () => {}),
+            clearAuthState: vi.fn(async () => {}),
+          }),
+          autoConnect: false,
+        }),
+      );
+    });
+    const root = createTapRoot(function Root() {
+      return useResource(DynamicManager());
+    });
+
+    try {
+      await root.getValue().connector({ index: 0 }).connect();
+      const transport = mocks.StreamableHTTPClientTransport.mock
+        .instances[0] as { close: ReturnType<typeof vi.fn> };
+
+      rerenderEquivalent();
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledOnce();
+      expect(transport.close).not.toHaveBeenCalled();
+
+      updatePresentation();
+      await vi.waitFor(() =>
+        expect(
+          root.getValue().connector({ index: 0 }).getState(),
+        ).toMatchObject({
+          name: "Documentation",
+          icon: "book.svg",
+        }),
+      );
+      expect(mocks.StreamableHTTPClientTransport).toHaveBeenCalledOnce();
+      expect(transport.close).not.toHaveBeenCalled();
+    } finally {
+      root.unmount();
+    }
+  });
 });
 
 describe("McpManagerResource storage failures", () => {

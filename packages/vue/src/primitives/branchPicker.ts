@@ -4,6 +4,7 @@ import {
   mergeProps,
   type ComputedRef,
   type SlotsType,
+  type VNodeChild,
 } from "vue";
 import {
   branchPickerNextDisabled,
@@ -21,7 +22,7 @@ const branchButton = (
   defineComponent({
     name,
     inheritAttrs: false,
-    slots: Object as SlotsType<{ default?: () => unknown }>,
+    slots: Object as SlotsType<{ default?: () => VNodeChild[] }>,
     setup(_, { attrs, slots }) {
       const aui = useAui();
       const disabled = useDisabled();

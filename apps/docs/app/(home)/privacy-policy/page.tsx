@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { createOgMetadata } from "@/lib/og";
 import { PageCopy, PageFrame } from "@/components/shared/page-frame";
 
-const title = "Privacy Policy — assistant-ui";
+const title = "Privacy Policy";
 const description =
   "Privacy Policy for AgentbaseAI Inc. and assistant-ui services.";
 

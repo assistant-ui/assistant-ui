@@ -5,7 +5,7 @@ import {
   DotMatrix,
   dotMatrixStates,
   type DotMatrixState,
-} from "@/components/assistant-ui/dot-matrix";
+} from "@/components/ui/dot-matrix";
 import { Button } from "@/components/ui/button";
 import { SampleFrame } from "@/components/pages/docs/samples/sample-frame";
 

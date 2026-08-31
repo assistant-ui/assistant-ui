@@ -1,0 +1,126 @@
+---
+title: "Shiki highlighter"
+description: "Shiki code highlighting that defers tokenization until a message part settles."
+---
+
+SyntaxHighlighter tokenizes one fenced code block with Shiki, skipping highlighting entirely while `streaming` is true and rendering the same plain code Shiki will later tokenize. With a runtime it derives that flag from the active message part; standalone you pass `streaming` yourself.
+
+## Getting started
+
+<RuntimeMode>
+
+The kit wraps the base highlighter and reads whether the current message part is still running, so it never spends a Shiki pass on code that is about to change again.
+
+<Steps>
+  <Step>
+
+### Add it to MarkdownText's components
+
+```tsx title="components/assistant-ui/elements/markdown-text.tsx"
+import { SyntaxHighlighter } from "./shiki-highlighter.aui";
+
+const defaultComponents = memoizeMarkdownComponents({
+  SyntaxHighlighter,
+  h1: /* ... */,
+  // ...other elements...
+});
+```
+
+Every fenced code block in an assistant message now highlights with Shiki, and skips tokenization for whichever block is still streaming.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, you own the streaming flag yourself.
+
+<Steps>
+  <Step>
+
+### Render code with a controlled streaming flag
+
+```tsx
+import { SyntaxHighlighter } from "@/components/assistant-ui/elements/shiki-highlighter";
+
+<SyntaxHighlighter language="tsx" code={code} streaming={isStreaming} />;
+```
+
+While `streaming` is true, the code renders as plain, unhighlighted text in the same container; flip it to `false` once the source is final and it tokenizes.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div className="aui-shiki-base">
+  {/* streaming: <pre><code>{code}</code></pre>, unhighlighted */}
+  {/* settled: useShikiHighlighter's tokenized output */}
+</div>
+```
+
+While `streaming`, the root also gets an `aui-shiki-streaming` class and renders the trimmed source as a plain `<pre><code>`. Once `streaming` is false, `useShikiHighlighter` tokenizes the code; until that resolves, the same plain fallback shows, so there is no flash of empty content between the two states.
+
+## Examples
+
+### Set a fixed theme
+
+```tsx
+<SyntaxHighlighter language="tsx" code={code} theme="github-dark-default" />
+```
+
+The default is `{ dark: "github-dark-default", light: "github-light-default" }`. Pass a single theme name to fix one theme in both modes, or a `{ light, dark, ... }` map for multi-theme output.
+
+### Tune the streaming delay
+
+```tsx
+<SyntaxHighlighter language="tsx" code={code} delay={0} />
+```
+
+`delay` (default `150`) is how long, in milliseconds, `useShikiHighlighter` waits after the code last changed before tokenizing. The default absorbs the last few characters a smooth text reveal drains in after the underlying part has already settled.
+
+### Restyle the container
+
+Both lanes take `className` on the root; the rendered `<pre>` picks up border, background, and padding from the fixed `aui-shiki-base` selectors.
+
+```tsx
+<SyntaxHighlighter className="[&_pre]:rounded-none" language="tsx" code={code} />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Message part state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.optional.part?.status.type === "running"` | `boolean` | Read with `useAuiState`. Forwarded as `streaming`. `true` while the current message part exists and is running. |
+
+Every other prop below is forwarded unchanged. `node` and `components` (react-markdown's code-block wrapper props) are accepted for type compatibility with `MarkdownText`'s `SyntaxHighlighter` slot and otherwise unused.
+
+</RuntimeMode>
+
+### SyntaxHighlighter
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `code` | `string` | required | The code to highlight. Trimmed before rendering. |
+| `language` | `ShikiHighlighterProps["language"]` | required | Passed to `useShikiHighlighter`. |
+| `theme` | `ShikiHighlighterProps["theme"]` | `{ dark: "github-dark-default", light: "github-light-default" }` | A single theme name or a `{ light, dark, ... }` map. |
+| `streaming` | `boolean` | `false` | Skips tokenization and renders the plain code while `true`. |
+| `delay` | `number` | `150` | Milliseconds `useShikiHighlighter` waits after `code` last changed before tokenizing. |
+| `className` | `string` | | Merged onto the root. |
+
+Every other `react-shiki` option (`showLineNumbers`, `langStyle`, Shiki's own `codeToHast` options, and so on) forwards straight to `useShikiHighlighter`, except `addDefaultStyles` and `showLanguage`, which react-shiki uses only for its own default styling and language label; this component supplies neither, so both are accepted and ignored.
+
+<StandaloneMode>
+
+Pass `streaming` yourself, as in the standalone step above; every other prop behaves identically to the runtime lane.
+
+</StandaloneMode>

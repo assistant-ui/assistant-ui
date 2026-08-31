@@ -22,6 +22,7 @@ import type {
   SyntaxHighlighterProps,
   CodeHeaderProps,
 } from "../overrides/types";
+import type { ComponentsByLanguage } from "../code-fence";
 import { PreOverride } from "../overrides/PreOverride";
 import {
   DefaultPre,
@@ -56,15 +57,7 @@ export type MarkdownTextPrimitiveProps = Omit<
    * Language-specific component overrides.
    * @example { mermaid: { SyntaxHighlighter: MermaidDiagram } }
    */
-  componentsByLanguage?:
-    | Record<
-        string,
-        {
-          CodeHeader?: ComponentType<CodeHeaderProps> | undefined;
-          SyntaxHighlighter?: ComponentType<SyntaxHighlighterProps> | undefined;
-        }
-      >
-    | undefined;
+  componentsByLanguage?: ComponentsByLanguage | undefined;
   /**
    * Whether to enable smooth text streaming animation.
    * When enabled, text appears with a typing effect as it streams in.

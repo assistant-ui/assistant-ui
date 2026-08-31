@@ -120,7 +120,7 @@ export async function POST(req: Request) {
 ```tsx title="@/app/page.tsx"
 "use client";
 
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 import { AssistantRuntimeProvider } from "@assistant-ui/react";
 import { useChatRuntime } from "@assistant-ui/ai-sdk";
 
@@ -146,7 +146,7 @@ import {
   useChatRuntime,
 } from "@assistant-ui/ai-sdk";
 import { View } from "react-native";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
 
@@ -205,7 +205,7 @@ export function App() {
 <PlatformTabs>
 <Tab value="React">
 
-Follow the [UI Components guide](/docs/ui/thread) to wire up the Thread, composer, and supporting primitives.
+Follow the [UI Components guide](/elements/thread) to wire up the Thread, composer, and supporting primitives.
 
 </Tab>
 <Tab value="React Native">
@@ -343,7 +343,7 @@ import {
   useAISDKRuntime,
 } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 export default function Page() {
   const chat = useChat({
@@ -374,7 +374,7 @@ import {
 } from "@assistant-ui/react";
 import { useAISDKRuntime } from "@assistant-ui/ai-sdk";
 import { lastAssistantMessageIsCompleteWithApprovalResponses } from "ai";
-import { Thread } from "@/components/assistant-ui/thread";
+import { Thread } from "@/components/assistant-ui/elements/thread.aui";
 
 const toolkit = defineToolkit({
   deploy: {

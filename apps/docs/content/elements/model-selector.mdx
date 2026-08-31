@@ -1,0 +1,385 @@
+---
+title: "Model selector"
+description: "A searchable runtime model picker with grouped providers and reasoning effort controls."
+---
+
+Model selector is a popover that lists AI models and, for models that support it, a reasoning effort level: Low, Medium, High, or a custom set. With a runtime the selection registers with assistant-ui's `ModelContext` system automatically, so it reaches your backend on every request; standalone you hold the value and effort yourself. It comes in two designs: the runtime variant renders a popover of models with reasoning-effort controls, and the static variant, `ModelPicker`, renders a full-page list grouped by family with pricing and capability chips (see [The model-picker design](#the-model-picker-design)).
+
+## Getting started
+
+<RuntimeMode>
+
+<Steps>
+  <Step>
+
+### Add the picker
+
+Each model needs an `id` and a display `name`; everything else is optional.
+
+```tsx title="components/assistant-ui/elements/thread.aui.tsx"
+import { ModelSelector } from "@/components/assistant-ui/elements/model-selector.aui";
+
+function ComposerAction() {
+  return (
+    <ModelSelector
+      models={[
+        { id: "gpt-5.6-luna", name: "GPT-5.6 Luna", description: "Fast and efficient" },
+        { id: "gpt-5.6-terra", name: "GPT-5.6 Terra", description: "Balanced performance" },
+        { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", description: "Most capable", efforts: true },
+      ]}
+      defaultValue="gpt-5.6-luna"
+      defaultEffort="medium"
+      size="sm"
+    />
+  );
+}
+```
+
+  </Step>
+  <Step>
+
+### Read the selection in your API route
+
+The selected model's `id` arrives as `config.modelName`, and its effort level, when the model supports one, as `config.reasoningEffort`.
+
+```tsx title="app/api/chat/route.ts"
+export async function POST(req: Request) {
+  const { messages, config } = await req.json();
+
+  const result = streamText({
+    model: openai(config?.modelName ?? "gpt-5.6-luna"),
+    providerOptions: {
+      openai:
+        config?.reasoningEffort !== undefined
+          ? { reasoningEffort: config.reasoningEffort }
+          : {},
+    },
+    messages: await convertToModelMessages(messages),
+  });
+
+  return result.toUIMessageStreamResponse();
+}
+```
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, the same pieces render with no registration: you own the value, the effort, and what happens when they change.
+
+<Steps>
+  <Step>
+
+### Hold the value yourself
+
+```tsx title="app/chat.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  ModelSelectorRoot,
+  ModelSelectorTrigger,
+  ModelSelectorContent,
+} from "@/components/assistant-ui/elements/model-selector";
+
+const MODELS = [
+  { id: "gpt-5.6-luna", name: "GPT-5.6 Luna" },
+  { id: "gpt-5.6-sol", name: "GPT-5.6 Sol", efforts: true },
+];
+
+export function ModelSelect() {
+  const [value, setValue] = useState("gpt-5.6-luna");
+  const [effort, setEffort] = useState<string>();
+
+  return (
+    <ModelSelectorRoot
+      models={MODELS}
+      value={value}
+      onValueChange={setValue}
+      effort={effort}
+      onEffortChange={setEffort}
+    >
+      <ModelSelectorTrigger />
+      <ModelSelectorContent />
+    </ModelSelectorRoot>
+  );
+}
+```
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<button role="combobox" aria-haspopup="listbox" data-slot="model-selector-trigger" />
+
+<div data-slot="model-selector-content"> {/* a Command (cmdk) list */}
+  <input data-slot="model-selector-search" /> {/* only when searchable */}
+  <div data-slot="model-selector-list">
+    <div data-slot="model-selector-empty" /> {/* only when search has no matches */}
+    <div data-slot="model-selector-group">
+      <div data-slot="model-selector-item" /> {/* one per model */}
+    </div>
+  </div>
+  <div data-slot="model-selector-effort" /> {/* only when the selected model declares efforts */}
+</div>
+```
+
+The Thinking row (`Effort`) mounts only while the selected model has `efforts` set; switching to a model without it hides the row without discarding your effort choice; switching back to a model that supports it restores whatever level was selected before, as long as that model also offers it. `Content` needs a focused input to drive the keyboard: with no custom `children` (or `searchable={false}`), it renders a visually hidden `FocusAnchor` automatically; a custom layout that omits both `Search` and `searchable={false}` has no anchor and needs one added by hand to stay keyboard-operable.
+
+## Examples
+
+### Reasoning efforts
+
+A model that declares `efforts` shows the Thinking row. `efforts: true` enables the default Low / Medium / High levels; a list of `{ id, name }` objects defines a custom set instead, and omitting `efforts` hides the row entirely for that model.
+
+```tsx
+{
+  id: "gpt-5.6-sol",
+  name: "GPT-5.6 Sol",
+  efforts: [
+    { id: "minimal", name: "Minimal" },
+    { id: "high", name: "High" },
+  ],
+}
+```
+
+### Custom effort UI
+
+`Effort`'s default layout is horizontal segments, which overflows once a model offers more than a few levels. `useModelSelectorEfforts` exposes the selected model's levels and the active selection for any other layout, from inside `Content`:
+
+```tsx
+import { useModelSelectorEfforts } from "@/components/assistant-ui/elements/model-selector";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+
+function EffortDropdown() {
+  const { efforts, effort, setEffort } = useModelSelectorEfforts();
+  if (!efforts?.length) return null;
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger>{efforts.find((e) => e.id === effort)?.name ?? "Select"}</DropdownMenuTrigger>
+      <DropdownMenuContent align="end">
+        <DropdownMenuRadioGroup value={effort} onValueChange={setEffort}>
+          {efforts.map((option) => (
+            <DropdownMenuRadioItem key={option.id} value={option.id}>
+              {option.name}
+            </DropdownMenuRadioItem>
+          ))}
+        </DropdownMenuRadioGroup>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+```
+
+Render it inside `Content` in place of `Effort`.
+
+### Provider logos
+
+Each model's `icon` accepts any `ReactNode` and renders in both the trigger and the dropdown item. [Model logos](/elements/logos) ships ready-made `OpenAILogo`, `ClaudeLogo`, and `GeminiLogo` marks for this.
+
+```tsx
+{ id: "claude-opus-4.5", name: "Claude Opus 4.5", icon: <ClaudeLogo /> }
+```
+
+### Search
+
+Search is opt-in: pass `searchable` to the connected `ModelSelector`, or to `ModelSelectorContent` directly when it renders its default children. Matching runs against each model's `id`, `name`, and `keywords`; add a provider name to `keywords` so typing it finds that provider's models.
+
+```tsx
+<ModelSelector models={models} searchable />
+{/* or, standalone: */}
+<ModelSelectorContent searchable />
+```
+
+### Variants and sizes
+
+`variant` and `size` live on the trigger: pass them to the connected `ModelSelector`, or to `ModelSelectorTrigger` directly in a standalone layout.
+
+```tsx
+<ModelSelector variant="ghost" size="lg" />
+{/* or, standalone: */}
+<ModelSelectorTrigger variant="ghost" size="lg" />
+```
+
+| Variant | Description |
+|---------|-------------|
+| `outline` | Border, transparent background (default) |
+| `ghost` | No background |
+| `muted` | Solid secondary background |
+
+| Size | Description |
+|------|-------------|
+| `sm` | Compact, `h-8` |
+| `default` | Standard, `h-9` |
+| `lg` | Larger, `h-10` |
+
+## API reference
+
+<RuntimeMode>
+
+### ModelSelector
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `models` | `ModelOption[]` | required | Models to display. |
+| `value` / `defaultValue` | `string` | first model | Controlled or initial selected model id. |
+| `onValueChange` | `(value: string) => void` | | Called when the selection changes. |
+| `effort` / `defaultEffort` | `string` | | Controlled or initial effort level id. |
+| `onEffortChange` | `(effort: string) => void` | | Called when the effort level changes. |
+| `searchable` | `boolean` | `false` | Renders a search input above the model list. |
+| `variant` | `"outline" \| "ghost" \| "muted"` | `"outline"` | Trigger style. |
+| `size` | `"sm" \| "default" \| "lg"` | `"default"` | Trigger size. |
+| `align` | `"start" \| "center" \| "end"` | `"start"` | Popover alignment relative to the trigger. |
+| `className` / `contentClassName` | `string` | | Merged onto the trigger / popover content. |
+
+### How registration works
+
+1. `ModelSelector` calls `aui.modelContext.register()` with `config.modelName` set to the selected id, plus `config.reasoningEffort` whenever the selected model supports the chosen level.
+2. `AssistantChatTransport` (from `@assistant-ui/ai-sdk`) includes `config` in the body of every chat request.
+3. Your API route reads `config.modelName` and `config.reasoningEffort`.
+
+`ModelSelector.Root` (the same `ModelSelectorRoot` documented below) performs no registration on its own; it is purely presentational.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### ModelSelectorRoot and sub-components
+
+| Export | Renders | Notes |
+|--------|---------|-------|
+| `ModelSelectorRoot` | provider + Popover | Holds `models` and controlled/uncontrolled value, effort, and open state. No DOM of its own. |
+| `ModelSelectorTrigger` | `button` | `role="combobox"`; `ArrowDown`/`ArrowUp` open the popover when focused. |
+| `ModelSelectorValue` | `span` | Selected model's icon, name, and (if `showEffort`) effort name; a placeholder when nothing is selected. |
+| `ModelSelectorContent` | popover + `Command` | Wraps a cmdk `Command`; `searchable` and `side` are the notable props. |
+| `ModelSelectorSearch` | `input` (cmdk) | Filters `List` as you type. |
+| `ModelSelectorFocusAnchor` | visually hidden `input` | Anchors keyboard navigation when there is no visible search box. |
+| `ModelSelectorList` | cmdk list | Renders all models grouped under one `Group` by default. |
+| `ModelSelectorEmpty` | cmdk empty state | Shown when a search has no matches. |
+| `ModelSelectorGroup` | cmdk group | A labeled group of items, e.g. one per provider. |
+| `ModelSelectorSeparator` | cmdk separator | Divider between groups or items. |
+| `ModelSelectorItem` | cmdk item | One model; takes a `model: ModelOption` prop. |
+| `ModelSelectorEffort` | `div` + radiogroup | The Thinking row; renders `null` when the selected model has no `efforts`. |
+
+### ModelOption
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | Sent to the backend as `modelName` by the connected `ModelSelector`; not read by `ModelSelectorRoot` itself. |
+| `name` | `string` | Shown in the trigger and the item. |
+| `description` | `string` | Optional subtitle under the name in the item. |
+| `icon` | `ReactNode` | Optional, shown before the name. |
+| `disabled` | `boolean` | Disables selecting this model. |
+| `keywords` | `string[]` | Extra terms `ModelSelectorSearch` matches, beyond `id` and `name`. |
+| `efforts` | `boolean \| { id: string; name: string }[]` | `true` for the default Low/Medium/High; a list for a custom set; omitted to hide the Thinking row for this model. |
+
+### Effort helpers
+
+| Export | Type | Description |
+|--------|------|-------------|
+| `useModelSelectorEfforts()` | `() => { efforts, effort, setEffort }` | The selected model's effort levels and the active selection; must be called inside `ModelSelectorRoot`. |
+| `resolveModelEffort(models, modelId, effort)` | `(models, modelId, effort) => string \| undefined` | Returns `effort` when the given model supports it, otherwise `undefined`; the sticky-selection rule `ModelSelectorRoot` applies internally. |
+| `useModelSelectorContext()` | `() => ModelSelectorContextValue` | The raw context sub-components read from; throws outside `ModelSelectorRoot`. Not re-exported from the `.aui` path. |
+
+</StandaloneMode>
+
+
+## The model-picker design
+
+The Static variant in the rail is a second design for the same picker: `ModelPicker` renders every model in a full-page list grouped by family, each row carrying its context window, price, and capability chips, with the active model checked, instead of a searchable popover. It is a single props-driven component with no runtime dependency:
+
+```sh
+npx shadcn@latest add "@assistant-ui/elements-model-picker"
+```
+
+<RuntimeMode>
+
+With a runtime there is no catalog of available models to read: assistant-ui tracks the model configuration for the next call, not a directory of every model you could switch to. Unlike the popover, `ModelPicker` does no registration on its own, so register a provider that reports the selected id and seed the initial selection from whatever the model context already reports, for example a default set on the server.
+
+```tsx title="components/assistant-ui/elements/model-picker.tsx"
+"use client";
+
+import { useAui, useAuiState } from "@assistant-ui/react";
+import { useEffect, useState } from "react";
+import {
+  ModelPicker,
+  type PickableModel,
+} from "@/components/assistant-ui/elements/model-picker";
+
+export function ModelPickerPanel({
+  models,
+}: {
+  models: readonly PickableModel[];
+}) {
+  const aui = useAui();
+  const activeModelName = useAuiState((s) => s.modelContext.modelName);
+  const [selectedId, setSelectedId] = useState(
+    () => models.find((model) => model.id === activeModelName)?.id ?? models[0]!.id,
+  );
+
+  useEffect(() => {
+    return aui.modelContext.register({
+      getModelContext: () => ({ config: { modelName: selectedId } }),
+    });
+  }, [aui, selectedId]);
+
+  return (
+    <ModelPicker models={models} selectedId={selectedId} onSelect={setSelectedId} />
+  );
+}
+```
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, `ModelPicker` is a plain controlled list: it groups `models` by family, keeping each family's first-seen order, and reports a pick through `onSelect`.
+
+```tsx title="app/model-picker-panel.tsx"
+"use client";
+
+import { useState } from "react";
+import {
+  ModelPicker,
+  type PickableModel,
+} from "@/components/assistant-ui/elements/model-picker";
+
+const MODELS: PickableModel[] = [
+  { id: "sonnet", name: "Claude Sonnet", family: "Anthropic", context: "200k", price: "$3 / 1M", capabilities: ["vision", "tools"] },
+  { id: "gpt-5", name: "GPT-5", family: "OpenAI", context: "400k", price: "$5 / 1M", capabilities: ["tools", "thinking"] },
+];
+
+export function ModelPickerPanel() {
+  const [selectedId, setSelectedId] = useState(MODELS[0]!.id);
+  return (
+    <ModelPicker models={MODELS} selectedId={selectedId} onSelect={setSelectedId} />
+  );
+}
+```
+
+</StandaloneMode>
+
+Families are derived from `models` with `[...new Set(models.map((m) => m.family))]`, so a family's position is set by the first model that names it, not alphabetically. Each row is a plain toggle button (`aria-pressed`, not a listbox option), so there is no arrow-key navigation built in; Tab moves between rows the same as any button list. The check mark's column keeps its width whether or not the row is selected, so rows never shift when the selection changes.
+
+### ModelPicker
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `models` | `PickableModel[]` | required | `{ id, name, family, context, price, capabilities }[]`. Families keep first-seen order; `context` and `price` are pre-formatted strings (the element does no currency math), `capabilities` renders as chip labels. |
+| `selectedId` | `string` | required | Which model is active. |
+| `onSelect` | `(id: string) => void` | | Called when a model is picked. |
+| `className` | `string` | | Merged onto the root. |

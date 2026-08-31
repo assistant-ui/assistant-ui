@@ -12,7 +12,7 @@
     "@assistant-ui/react-o11y": "workspace:*",
     "@assistant-ui/store": "workspace:*",
     "@assistant-ui/tap": "workspace:*",
-    "next": "^16.3.2",
+    "next": "^16.3.3",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"
   },
@@ -20,7 +20,7 @@
     "@assistant-ui/next": "workspace:*",
     "@assistant-ui/x-buildutils": "workspace:*",
     "@tailwindcss/postcss": "^4.3.3",
-    "@types/node": "^26.2.0",
+    "@types/node": "^26.4.0",
     "@types/react": "^19.2.18",
     "@types/react-dom": "^19.2.5",
     "postcss": "^8.5.26",

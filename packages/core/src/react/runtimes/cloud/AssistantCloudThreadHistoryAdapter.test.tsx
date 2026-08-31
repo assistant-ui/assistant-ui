@@ -21,12 +21,33 @@ const mocks = vi.hoisted(() => {
     };
     return {
       threadListItem,
-      threads: { item: vi.fn(() => threadListItem) },
+      threads: {
+        item: vi.fn(() => threadListItem),
+        getState: () => ({ threadItems: [{ id, remoteId }] }),
+      },
+    } as unknown as import("@assistant-ui/store").AssistantClient;
+  };
+
+  const makeSplitClient = (remoteId: string) => {
+    const itemShape = () => ({
+      source: "threads",
+      getState: () => ({ id: remoteId, remoteId }),
+      initialize: async () => ({ remoteId, externalId: undefined }),
+    });
+    const live = itemShape();
+    const listItem = itemShape();
+    return {
+      threadListItem: live,
+      threads: {
+        item: vi.fn(() => listItem),
+        getState: () => ({ threadItems: [{ id: remoteId, remoteId }] }),
+      },
     } as unknown as import("@assistant-ui/store").AssistantClient;
   };
 
   return {
     makeClient,
+    makeSplitClient,
     aui: makeClient("thread-1"),
   };
 });
@@ -305,6 +326,49 @@ describe("useAssistantCloudThreadHistoryAdapter", () => {
 
     expect(cloud.threads.messages.create).toHaveBeenCalledWith(
       "thread-1",
+      expect.anything(),
+    );
+  });
+
+  it("updates a history-loaded message when the list item identity differs from the live item", async () => {
+    mocks.aui = mocks.makeSplitClient("thread-split");
+    const cloud = makeCloud();
+    (cloud.threads.messages.list as ReturnType<typeof vi.fn>).mockResolvedValue(
+      {
+        messages: [
+          {
+            id: "m1",
+            parent_id: null,
+            format: "test",
+            content: { id: "m1" },
+          },
+        ],
+      },
+    );
+    const cloudRef = { current: cloud };
+    const { result } = renderHook(() =>
+      useAssistantCloudThreadHistoryAdapter(cloudRef),
+    );
+    const formatted = result.current.withFormat<
+      { id: string },
+      Record<string, unknown>
+    >({
+      format: "test",
+      encode: ({ message }) => message,
+      decode: ({ parent_id, content }) => ({
+        parentId: parent_id,
+        message: content as { id: string },
+      }),
+      getId: (message) => message.id,
+    });
+
+    formatted.pin!();
+    await formatted.load();
+    await formatted.update!({ parentId: null, message: { id: "m1" } }, "m1");
+
+    expect(cloud.threads.messages.update).toHaveBeenCalledWith(
+      "thread-split",
+      "m1",
       expect.anything(),
     );
   });

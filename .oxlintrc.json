@@ -74,9 +74,9 @@
   "overrides": [
     {
       "files": [
-        "packages/ui/src/components/ui/**",
-        "packages/ui/src/components/assistant-ui/**",
-        "packages/ui/src/components/icons/**",
+        "packages/ui/src/components/react/ui/**",
+        "packages/ui/src/components/react/assistant-ui/**",
+        "packages/ui/src/components/react/icons/**",
         "templates/*/components/ui/**",
         "templates/*/components/assistant-ui/**",
         "templates/*/components/icons/**"

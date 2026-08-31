@@ -11,7 +11,16 @@ import {
   useIsMarkdownCodeBlock,
 } from "@assistant-ui/react-markdown";
 import remarkGfm from "remark-gfm";
-import { type CSSProperties, type FC, memo } from "react";
+import {
+  type CSSProperties,
+  type FC,
+  type ReactNode,
+  memo,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import { CheckIcon, CopyIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import ShikiHighlighter from "react-shiki";
@@ -24,6 +33,7 @@ const MarkdownTextImpl = () => {
       remarkPlugins={[remarkGfm]}
       className="aui-md-assistant"
       components={markdownComponents}
+      defer
     />
   );
 };
@@ -57,27 +67,98 @@ const CodeHeader: FC<CodeHeaderProps> = ({ language, code }) => {
   );
 };
 
+const CollapsibleCode: FC<{ children: ReactNode }> = ({ children }) => {
+  const [expanded, setExpanded] = useState(false);
+  const [overflowing, setOverflowing] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const contentId = useId();
+
+  useEffect(() => {
+    const content = contentRef.current;
+    if (!content) return;
+
+    const observer = new ResizeObserver(() => {
+      setOverflowing(content.scrollHeight > 320);
+    });
+
+    observer.observe(content);
+    setOverflowing(content.scrollHeight > 320);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div
+      ref={containerRef}
+      className={cn(overflowing && !expanded && "relative")}
+    >
+      <div
+        ref={contentRef}
+        id={contentId}
+        className={cn(overflowing && !expanded && "max-h-64 overflow-hidden")}
+      >
+        {children}
+      </div>
+      {overflowing && !expanded && (
+        <>
+          <div className="from-background pointer-events-none absolute inset-x-0 bottom-0 h-16 rounded-b-lg bg-gradient-to-t to-transparent" />
+          <div className="absolute inset-x-0 bottom-2 flex justify-center">
+            <button
+              type="button"
+              aria-expanded={false}
+              aria-controls={contentId}
+              onClick={() => setExpanded(true)}
+              className="text-muted-foreground hover:text-foreground bg-background/90 pointer-events-auto rounded-full border px-3 py-1 text-xs backdrop-blur"
+            >
+              Show more
+            </button>
+          </div>
+        </>
+      )}
+      {overflowing && expanded && (
+        <div className="flex justify-center">
+          <button
+            type="button"
+            aria-expanded={true}
+            aria-controls={contentId}
+            onClick={() => {
+              setExpanded(false);
+              containerRef.current?.scrollIntoView({ block: "nearest" });
+            }}
+            className="text-muted-foreground hover:text-foreground bg-background/90 mt-1 rounded-full border px-3 py-1 text-xs backdrop-blur"
+          >
+            Show less
+          </button>
+        </div>
+      )}
+    </div>
+  );
+};
+
 const SyntaxHighlighter: FC<SyntaxHighlighterProps> = ({ code, language }) => {
   return (
-    <ShikiHighlighter
-      language={language}
-      theme={{ dark: "github-dark-default", light: "github-light-default" }}
-      addDefaultStyles={false}
-      showLanguage={false}
-      showLineNumbers
-      defaultColor={false}
-      className="[&_pre]:border-border/50 [&_pre]:bg-muted/30 [&_pre]:scrollbar-none [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-t-0 [&_pre]:py-3 [&_pre]:pr-3 [&_pre]:pl-1 [&_pre]:text-xs [&_pre]:leading-relaxed"
-      style={
-        {
-          "--line-numbers-foreground": "var(--color-muted-foreground)",
-          "--line-numbers-width": "2ch",
-          "--line-numbers-padding-left": "0",
-          "--line-numbers-padding-right": "1ch",
-        } as CSSProperties
-      }
-    >
-      {code.trim()}
-    </ShikiHighlighter>
+    <CollapsibleCode>
+      <ShikiHighlighter
+        language={language}
+        theme={{ dark: "github-dark-default", light: "github-light-default" }}
+        addDefaultStyles={false}
+        showLanguage={false}
+        showLineNumbers
+        defaultColor={false}
+        className="[&_pre]:border-border/50 [&_pre]:bg-muted/30 [&_pre]:scrollbar-none [&_pre]:overflow-x-auto [&_pre]:rounded-t-none [&_pre]:rounded-b-lg [&_pre]:border [&_pre]:border-t-0 [&_pre]:py-3 [&_pre]:pr-3 [&_pre]:pl-1 [&_pre]:text-xs [&_pre]:leading-relaxed"
+        style={
+          {
+            "--line-numbers-foreground": "var(--color-muted-foreground)",
+            "--line-numbers-width": "2ch",
+            "--line-numbers-padding-left": "0",
+            "--line-numbers-padding-right": "1ch",
+          } as CSSProperties
+        }
+      >
+        {code.trim()}
+      </ShikiHighlighter>
+    </CollapsibleCode>
   );
 };
 
@@ -231,14 +312,18 @@ const markdownComponents = memoizeMarkdownComponents({
     />
   ),
   tr: (props) => <tr {...props} />,
-  pre: ({ className, ...props }) => (
-    <pre
-      className={cn(
-        "border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-lg border border-t-0 p-3 text-xs leading-relaxed",
-        className,
-      )}
-      {...props}
-    />
+  pre: ({ className, children, ...props }) => (
+    <CollapsibleCode>
+      <pre
+        className={cn(
+          "border-border/50 bg-muted/30 overflow-x-auto rounded-t-none rounded-b-lg border border-t-0 p-3 text-xs leading-relaxed",
+          className,
+        )}
+        {...props}
+      >
+        {children}
+      </pre>
+    </CollapsibleCode>
   ),
   code: function Code({ className, ...props }) {
     const isCodeBlock = useIsMarkdownCodeBlock();

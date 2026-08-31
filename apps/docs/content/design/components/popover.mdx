@@ -1,0 +1,103 @@
+---
+title: "Popover"
+description: "Anchored detail on demand, dismissed by clicking away."
+links:
+  - label: Source
+    url: https://github.com/assistant-ui/assistant-ui/blob/main/packages/ui/src/components/ui/base/popover.tsx
+  - label: Base UI Popover
+    url: https://base-ui.com/react/components/popover
+---
+
+import { PreviewCode } from "@/components/pages/docs/preview-code.server";
+import { KitInstall } from "@/components/pages/design/kit-install";
+import {
+  PopoverSpecimen,
+} from "@/components/pages/design/specimens";
+import * as RadixSpecimens from "@/components/pages/design/specimens.radix";
+import { FlavorSwitcher } from "@/components/pages/docs/contexts/flavor.server";
+
+<FlavorSwitcher />
+
+<PreviewCode file="components/pages/design/specimens" name="PopoverSpecimen" base={<PopoverSpecimen />}>
+  <RadixSpecimens.PopoverSpecimen />
+</PreviewCode>
+
+## Installation
+
+<KitInstall name="popover" />
+
+## Usage
+
+```tsx
+import {
+  Popover,
+  PopoverContent,
+  PopoverDescription,
+  PopoverHeader,
+  PopoverTitle,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { Button } from "@/components/ui/button";
+
+export function Example() {
+  return (
+    <Popover>
+      <PopoverTrigger render={<Button variant="outline">Details</Button>} />
+      <PopoverContent>
+        <PopoverHeader>
+          <PopoverTitle>Context usage</PopoverTitle>
+          <PopoverDescription>12.4k of 200k tokens.</PopoverDescription>
+        </PopoverHeader>
+      </PopoverContent>
+    </Popover>
+  );
+}
+```
+
+## API Reference
+
+The parts wrap Base UI's Popover primitives and accept their props.
+
+### Popover
+
+<ParametersTable
+  type="PopoverProps"
+  parameters={[
+    {
+      name: "open",
+      type: "boolean",
+      description: "Controlled open state.",
+    },
+    {
+      name: "onOpenChange",
+      type: "(open: boolean) => void",
+      description: "Called when the open state changes.",
+    },
+  ]}
+/>
+
+### PopoverContent
+
+<ParametersTable
+  type="PopoverContentProps"
+  parameters={[
+    {
+      name: "side",
+      type: '"top" | "right" | "bottom" | "left"',
+      default: '"bottom"',
+      description: "Preferred side of the trigger.",
+    },
+    {
+      name: "align",
+      type: '"start" | "center" | "end"',
+      default: '"center"',
+      description: "Alignment against the trigger.",
+    },
+    {
+      name: "sideOffset",
+      type: "number",
+      default: "4",
+      description: "Distance from the trigger in pixels.",
+    },
+  ]}
+/>

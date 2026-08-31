@@ -158,7 +158,11 @@ describe("ComposerPrimitive.Queue", () => {
   it("renders children once per queued item with the queueItem state", () => {
     mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
       selector({
-        composer: { queue: { length: 3 } },
+        composer: {
+          queue: Array.from({ length: 3 }, (_, index) => ({
+            id: `queue-item-${index}`,
+          })),
+        },
         queueItem: { prompt: "p" },
       } as never),
     );
@@ -187,7 +191,7 @@ describe("ComposerPrimitive.Queue", () => {
   it("does not call children when the queue is empty", () => {
     mockUseAuiState.mockImplementation((selector: UseAuiStateSelector) =>
       selector({
-        composer: { queue: { length: 0 } },
+        composer: { queue: [] },
         queueItem: { prompt: "" },
       } as never),
     );

@@ -1,0 +1,177 @@
+---
+title: "Timestamps"
+description: "Chronology in a long thread: days marked, times on hover."
+---
+
+DaySeparator lays a flat list of messages out as a transcript, inserting a day header whenever the day changes and revealing each message's time on hover. With a runtime you derive that list from the thread's own messages; standalone you already hold it.
+
+## Getting started
+
+<RuntimeMode>
+
+Every message carries a real `createdAt` (a `Date`) and `role`, and a thread's full message list is available as plain state, so building the day-grouped shape is formatting and text extraction, not new wiring.
+
+<Steps>
+  <Step>
+
+### Read the thread's messages
+
+```tsx title="components/assistant-ui/elements/thread-history.tsx"
+"use client";
+
+import { useAuiState } from "@assistant-ui/react";
+import { DaySeparator, type DatedMessage } from "@/components/assistant-ui/elements/day-separator";
+
+const dayFormat = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric" });
+const timeFormat = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit" });
+
+export function ThreadHistory() {
+  const messages = useAuiState((s) => s.thread.messages);
+
+  const dated: DatedMessage[] = messages
+    .filter((m) => m.role !== "system")
+    .map((m) => ({
+      id: m.id,
+      day: dayFormat.format(m.createdAt),
+      time: timeFormat.format(m.createdAt),
+      role: m.role === "user" ? "user" : "assistant",
+      text: m.content
+        .filter((part): part is { type: "text"; text: string } => part.type === "text")
+        .map((part) => part.text)
+        .join(" "),
+    }));
+
+  return <DaySeparator messages={dated} />;
+}
+```
+
+`s.thread.messages` is the active branch only: reloading a message or editing an earlier one swaps which messages appear here, the same way it does everywhere else in the thread.
+
+  </Step>
+  <Step>
+
+### Keep it to a preview, not the transcript
+
+Flattening to `text` drops tool calls, images, and reasoning, so this composition suits a compact history view rather than the live conversation. Render the thread itself with `ThreadPrimitive.Messages` and `MessagePrimitive.Parts`, the composition `Thread` already ships, so rich content still renders in full there.
+
+  </Step>
+</Steps>
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+Standalone, DaySeparator takes the whole list at once: you hold the array and append to it as the conversation grows.
+
+<Steps>
+  <Step>
+
+### Hold the message list
+
+```tsx title="app/history.tsx"
+"use client";
+
+import { useState } from "react";
+import { DaySeparator, type DatedMessage } from "@/components/assistant-ui/elements/day-separator";
+
+const MESSAGES: DatedMessage[] = [
+  { id: "1", day: "Yesterday", time: "16:04", role: "user", text: "Why does the draft survive a reload?" },
+  { id: "2", day: "Yesterday", time: "16:04", role: "assistant", text: "It's persisted per thread." },
+];
+
+export function History() {
+  const [messages, setMessages] = useState(MESSAGES);
+  return <DaySeparator messages={messages} />;
+}
+```
+
+  </Step>
+  <Step>
+
+### Append as the conversation grows
+
+```tsx
+setMessages((prev) => [
+  ...prev,
+  { id: crypto.randomUUID(), day: "Today", time: "09:12", role: "user", text },
+]);
+```
+
+A day header appears automatically the moment an entry's `day` differs from the one before it; nothing else needs to change.
+
+  </Step>
+</Steps>
+
+</StandaloneMode>
+
+## Anatomy
+
+```tsx
+<div data-slot="day-separator">
+  {/* per message: an optional day header (rule, label, rule) when `day` differs from the previous entry, then the row */}
+  <div>{/* user rows sit right-aligned in a filled bubble; assistant rows sit left-aligned as plain text */}</div>
+</div>
+```
+
+The day comparison only looks at the immediately preceding entry, so the list must already be in chronological order; out-of-order entries repeat a header instead of merging into the last one. Each row's time is transparent by default and fades in only on hover of that row (`group-hover`), so the list stays quiet until you look for a timestamp.
+
+## Examples
+
+### A compact history, not the live transcript
+
+<RuntimeMode>
+
+Pair `ThreadHistory` alongside the real `Thread`, for example as a searchable sidebar or a "jump to" list, rather than in place of it. Selecting an entry there is a normal branch or thread switch, not something this component does on its own.
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+The same shape works for a read-only transcript you did not stream yourself, for example one fetched whole from an API and rendered without any runtime attached.
+
+</StandaloneMode>
+
+### Restyle the rule and bubble
+
+Both lanes take `className` on the root. The day label and hover time read the shared `mono` surface from `surfaces.tsx`.
+
+```tsx
+<DaySeparator className="max-w-none gap-3" messages={messages} />
+```
+
+## API reference
+
+<RuntimeMode>
+
+### Thread state
+
+| Selector | Type | Description |
+|----------|------|-------------|
+| `s.thread.messages` | `readonly MessageState[]` | Every message on the thread's active branch, each with `id`, `role`, `createdAt`, and `content`. |
+| `message.createdAt` | `Date` | Used to derive `day` and `time`; formatting is your own choice, not something the runtime provides pre-formatted. |
+| `message.content` | `readonly ThreadAssistantMessagePart[] \| readonly ThreadUserMessagePart[]` | Filter for `type === "text"` parts to build a flat preview string. |
+
+</RuntimeMode>
+
+<StandaloneMode>
+
+### DaySeparator
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `messages` | `readonly DatedMessage[]` | required | The full, ordered list to render. |
+| `className` | `string` | | Merged onto the root. |
+
+### DatedMessage
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `id` | `string` | |
+| `day` | `string` | Compared against the previous entry's `day` to decide whether a header renders. |
+| `time` | `string` | Shown on hover of the row. |
+| `role` | `"user" \| "assistant"` | Drives alignment and bubble styling. |
+| `text` | `string` | |
+
+All other `div` props are forwarded to the root.
+
+</StandaloneMode>
