@@ -2318,29 +2318,50 @@ test("emitted files carry a repo-root sourcePath for source links", () => {
 });
 
 test("every emitted sourcePath exists at the repo root", async () => {
-  const { readdirSync, existsSync, readFileSync } = await import("node:fs");
+  const { existsSync, readFileSync, readdirSync } = await import("node:fs");
   const { join, resolve } = await import("node:path");
 
+  // Build inside the test so it neither ENOENTs in isolation nor validates a
+  // stale dist from an earlier run.
+  const { registry, stagedVueRegistry } = await import("../src/registry.ts");
+  await buildRegistry(registry, stagedVueRegistry);
+
   const repoRoot = resolve(process.cwd(), "../..");
+  const jsonPaths = [];
+  const walk = (dir) => {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) {
+        if (entry.name === "files") continue;
+        walk(full);
+      } else if (entry.name.endsWith(".json")) {
+        jsonPaths.push(full);
+      }
+    }
+  };
+  walk("dist");
+
+  assert.ok(
+    jsonPaths.length > 50,
+    `unexpectedly few items: ${jsonPaths.length}`,
+  );
+
   const missing = [];
-  for (const distRoot of ["dist", "dist/base"]) {
-    for (const entry of readdirSync(distRoot, { withFileTypes: true })) {
-      if (!entry.isFile() || !entry.name.endsWith(".json")) continue;
-      let item;
-      try {
-        item = JSON.parse(readFileSync(join(distRoot, entry.name), "utf8"));
-      } catch {
-        continue;
-      }
-      if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
-        continue;
-      }
-      for (const file of item.files) {
-        if (typeof file.sourcePath !== "string") {
-          missing.push(`${entry.name}: ${file.path} has no sourcePath`);
-        } else if (!existsSync(join(repoRoot, file.sourcePath))) {
-          missing.push(`${entry.name}: ${file.sourcePath}`);
-        }
+  for (const jsonPath of jsonPaths) {
+    let item;
+    try {
+      item = JSON.parse(readFileSync(jsonPath, "utf8"));
+    } catch {
+      continue;
+    }
+    if (!item || typeof item !== "object" || !Array.isArray(item.files)) {
+      continue;
+    }
+    for (const file of item.files) {
+      if (typeof file.sourcePath !== "string") {
+        missing.push(`${jsonPath}: ${file.path} has no sourcePath`);
+      } else if (!existsSync(join(repoRoot, file.sourcePath))) {
+        missing.push(`${jsonPath}: ${file.sourcePath}`);
       }
     }
   }

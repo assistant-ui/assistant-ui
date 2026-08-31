@@ -330,7 +330,7 @@ export function ComponentSourceFromFile({
   file,
   collapsible = true,
 }: {
-  file: ResolvedFile;
+  file: Pick<ResolvedFile, "name" | "path" | "content">;
   collapsible?: boolean;
 }) {
   let code = file.content;
