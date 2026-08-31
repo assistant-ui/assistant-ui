@@ -82,7 +82,7 @@ describe("toCanvasSnapshot", () => {
     );
   });
 
-  it("prefers the supplied title over the canvas title", () => {
+  it("prefers the canvas title over the supplied title", () => {
     const canvas: XuluxCanvasState = {
       status: "ready",
       url: "/templates/preview",
@@ -92,7 +92,7 @@ describe("toCanvasSnapshot", () => {
     };
 
     expect(toCanvasSnapshot(canvas, "Support agent").title).toBe(
-      "Support agent",
+      "Generated dashboard",
     );
   });
 
