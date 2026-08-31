@@ -692,6 +692,10 @@ export class RemoteThreadListThreadListRuntimeCore
     if (current?.id !== data.id) return;
 
     if (current.status === "archived" && options?.unarchive !== false) {
+      await current.initializeTask;
+      if (generation !== this._switchGeneration) return;
+      current = this.getItemById(data.id);
+      if (current?.id !== data.id) return;
       await this.unarchive(current.id);
       if (generation !== this._switchGeneration) return;
       current = this.getItemById(data.id);
@@ -1003,8 +1007,6 @@ export class RemoteThreadListThreadListRuntimeCore
         try {
           const { remoteId } = await data.initializeTask;
           this._requireAdapterGeneration(adapterGeneration);
-          const current = this.getItemById(data.id);
-          if (current?.id !== data.id) return;
           return await adapter.unarchive(remoteId);
         } catch (error) {
           if (adapterGeneration === this._adapterGeneration) {
