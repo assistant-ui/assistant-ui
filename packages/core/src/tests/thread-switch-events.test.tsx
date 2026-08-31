@@ -11,6 +11,7 @@ import { deferred, makeAdapter } from "./remote-thread-list-test-helpers";
 import { RuntimeAdapter } from "../react/RuntimeAdapter";
 import { AssistantRuntimeImpl } from "../runtime/api/assistant-runtime";
 import type { AssistantRuntime } from "../runtime/api/assistant-runtime";
+import { ThreadRuntimeImpl } from "../runtime/api/thread-runtime";
 import { ExternalStoreRuntimeCore } from "../runtimes/external-store/external-store-runtime-core";
 import type { ExternalStoreAdapter } from "../runtimes/external-store/external-store-adapter";
 
@@ -227,9 +228,21 @@ describe("thread switch events", () => {
     runningByThreadId.set("t1", true);
     await act(async () => sync());
     await waitFor(() => expect(runtime.thread.getState().isRunning).toBe(true));
+    const discardedCore = (
+      runtime.thread as ThreadRuntimeImpl
+    ).__internal_threadBinding.getState() as {
+      __internal_setAdapter(adapter: ExternalStoreAdapter<DemoMessage>): void;
+    };
 
     await act(async () => {
       await runtime.threads.switchToThread("t2");
+    });
+    await act(async () => {
+      discardedCore.__internal_setAdapter({
+        messages: [],
+        isRunning: false,
+        onNew: async () => {},
+      });
     });
     expect(runtime.threads.getState().mainThreadId).toBe("t2");
     expect(globalRunEnd).not.toHaveBeenCalled();
@@ -423,6 +436,7 @@ describe("thread switch events", () => {
     "drops the background runEnd handoff when its thread is $state",
     async ({ operation }) => {
       const runA = deferred<{ content: [] }>();
+      const runSettled = vi.fn();
       const adapter = makeAdapter({
         list: vi.fn(async () => ({
           threads: [
@@ -443,7 +457,13 @@ describe("thread switch events", () => {
           adapter,
           initialThreadId: "thread-a",
           runtimeHook: function RuntimeHook() {
-            return useLocalRuntime({ run: () => runA.promise });
+            return useLocalRuntime({
+              run: async () => {
+                const result = await runA.promise;
+                runSettled();
+                return result;
+              },
+            });
           },
         });
         return (
@@ -478,6 +498,7 @@ describe("thread switch events", () => {
         runA.resolve({ content: [] });
       });
 
+      await waitFor(() => expect(runSettled).toHaveBeenCalledExactlyOnceWith());
       expect(globalRunEnd).not.toHaveBeenCalled();
     },
   );

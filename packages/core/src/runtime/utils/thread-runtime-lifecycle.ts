@@ -28,7 +28,7 @@ export const subscribeThreadRuntimeInvalidation = (
   }
   subscribers.add(callback);
   return () => {
-    subscribers.delete(callback);
+    if (!subscribers.delete(callback)) return;
     if (subscribers.size === 0) invalidationSubscribers.delete(runtime);
   };
 };
