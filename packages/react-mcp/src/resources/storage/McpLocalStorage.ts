@@ -215,6 +215,7 @@ const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
   // Callers key per-server coordination state on this instance, so it has to
   // stay referentially stable for as long as the underlying store does.
   return useMemo(() => {
+    const scopeId = `local-storage:${prefix}`;
     const customServersKey = `${prefix}:custom-servers`;
     const authKey = (id: string) => `${prefix}:auth:${id}`;
 
@@ -248,6 +249,7 @@ const useMcpLocalStorage = (opts: McpLocalStorageOptions = {}): MCPStorage => {
     };
 
     return {
+      scopeId,
       loadCustomServers: async () =>
         normalizeCustomServerRecords(read<unknown>(customServersKey, [])),
       saveCustomServers: async (records) => {

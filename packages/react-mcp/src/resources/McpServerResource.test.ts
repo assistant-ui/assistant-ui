@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { MCPAuthConfig } from "../mcp-scope";
 import type { MCPStorage } from "./storage/types";
+import {
+  getConnectionDependencies,
+  McpServerResource,
+  type McpServerResourceProps,
+} from "./McpServerResource";
 
 const mocks = vi.hoisted(() => {
   const clients: any[] = [];
@@ -1705,5 +1710,44 @@ describe("McpServerResource resource methods", () => {
     } finally {
       root.unmount();
     }
+  });
+});
+
+describe("getConnectionDependencies storage scope", () => {
+  const propsWith = (storage: MCPStorage): McpServerResourceProps =>
+    ({
+      id: "docs",
+      kind: "connector",
+      name: "Docs",
+      url: "https://example.com/mcp",
+      auth: { type: "oauth" },
+      storage,
+      redirectUri: "https://example.com/callback",
+      autoConnect: false,
+      onRemove: async () => {},
+    }) as McpServerResourceProps;
+
+  it("keys the connection on a declared storage scopeId", () => {
+    const a = { ...createStorage(), scopeId: "local-storage:a" };
+    const b = { ...createStorage(), scopeId: "local-storage:b" };
+
+    expect(getConnectionDependencies(propsWith(a))).not.toEqual(
+      getConnectionDependencies(propsWith(b)),
+    );
+  });
+
+  it("treats storages sharing a scopeId as the same connection target", () => {
+    const a = { ...createStorage(), scopeId: "local-storage:same" };
+    const b = { ...createStorage(), scopeId: "local-storage:same" };
+
+    expect(getConnectionDependencies(propsWith(a))).toEqual(
+      getConnectionDependencies(propsWith(b)),
+    );
+  });
+
+  it("does not key the connection on storage identity when no scopeId is declared", () => {
+    expect(getConnectionDependencies(propsWith(createStorage()))).toEqual(
+      getConnectionDependencies(propsWith(createStorage())),
+    );
   });
 });

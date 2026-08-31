@@ -425,6 +425,20 @@ describe("McpLocalStorage auth state", () => {
 });
 
 describe("McpLocalStorage instance identity", () => {
+  it("exposes a scope identity derived from the key prefix", () => {
+    const backing = createStorage();
+    let storage!: MCPStorage;
+
+    createTapRoot(function McpStorageScopeRoot() {
+      storage = useResource(
+        McpLocalStorage({ keyPrefix: "test-mcp", storage: backing }),
+      );
+      return storage;
+    });
+
+    expect(storage.scopeId).toBe("local-storage:test-mcp");
+  });
+
   it("returns the same instance across re-renders", () => {
     const backing = createStorage();
     const seen: MCPStorage[] = [];

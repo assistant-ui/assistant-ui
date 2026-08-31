@@ -49,7 +49,7 @@ type McpServerResourceInstanceProps = McpServerResourceProps & {
   transportCloseQueueRef: { current: Promise<void> };
 };
 
-const getConnectionDependencies = (
+export const getConnectionDependencies = (
   props: McpServerResourceProps,
 ): readonly unknown[] => {
   const auth = props.auth;
@@ -76,6 +76,7 @@ const getConnectionDependencies = (
     props.redirectUri,
     props.cache?.defaultTtlMs,
     props.elicitation !== false,
+    props.storage.scopeId,
   ];
 };
 
@@ -751,8 +752,11 @@ export const McpServerResource = resource(function useMcpServerResource(
     setConnection(currentConnection);
   }
 
-  // Storage resources do not expose a stable scope identity and may return a
-  // fresh client on ordinary renders, so storage changes cannot key remounts.
+  // Storage participates through its optional scopeId: a storage that
+  // declares one keys reconnects on it, so an OAuth provider never keeps
+  // reading a replaced store. Object identity alone still cannot key
+  // remounts, because a defaulted storage element may be rebuilt on ordinary
+  // renders.
   return useResource(
     withKey(
       currentConnection.generation,
