@@ -316,6 +316,72 @@ describe("thread switch events", () => {
     expect(selectedRunStart).toHaveBeenLastCalledWith({ threadId: threadBId });
   });
 
+  it.each([
+    { operation: "delete", state: "deleted" },
+    { operation: "detach", state: "detached" },
+  ] as const)(
+    "drops the background runEnd handoff when its thread is $state",
+    async ({ operation }) => {
+      const runA = deferred<{ content: [] }>();
+      const adapter = makeAdapter({
+        list: vi.fn(async () => ({
+          threads: [
+            { status: "regular" as const, remoteId: "thread-a", title: "A" },
+            { status: "regular" as const, remoteId: "thread-b", title: "B" },
+          ],
+        })),
+      });
+      const globalRunEnd = vi.fn();
+      let runtime!: AssistantRuntime;
+
+      const Listener = () => {
+        useAuiEvent({ scope: "*", event: "thread.runEnd" }, globalRunEnd);
+        return null;
+      };
+      const Harness = () => {
+        runtime = useRemoteThreadListRuntime({
+          adapter,
+          initialThreadId: "thread-a",
+          runtimeHook: function RuntimeHook() {
+            return useLocalRuntime({ run: () => runA.promise });
+          },
+        });
+        return (
+          <AssistantRuntimeProvider runtime={runtime}>
+            <Listener />
+          </AssistantRuntimeProvider>
+        );
+      };
+      render(<Harness />);
+
+      await waitFor(() => {
+        expect(runtime.threads.mainItem.getState().remoteId).toBe("thread-a");
+      });
+      const threadAId = runtime.threads.mainItem.getState().id;
+
+      await act(async () => {
+        runtime.thread.startRun({ parentId: null });
+      });
+      await waitFor(() =>
+        expect(runtime.thread.getState().isRunning).toBe(true),
+      );
+      await act(async () => {
+        await runtime.threads.switchToThread("thread-b");
+      });
+
+      await act(async () => {
+        const item = runtime.threads.getItemById(threadAId);
+        if (operation === "delete") await item.delete();
+        else item.detach();
+      });
+      await act(async () => {
+        runA.resolve({ content: [] });
+      });
+
+      expect(globalRunEnd).not.toHaveBeenCalled();
+    },
+  );
+
   it("emits when a deep-linked initial thread resolves after mount", async () => {
     const adapter = makeAdapter();
     const selectionChanged = vi.fn();

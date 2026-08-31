@@ -8,7 +8,10 @@ import {
 } from "@assistant-ui/store/client";
 import { useThreadSelectionEvents } from "../clients/thread-selection-events";
 import type { ThreadListRuntime } from "../../runtime/api/thread-list-runtime";
+import { ThreadRuntimeImpl } from "../../runtime/api/thread-runtime";
 import type { AssistantRuntime } from "../../runtime/api/assistant-runtime";
+import type { ThreadRuntimeCore } from "../../runtime/interfaces/thread-runtime-core";
+import { subscribeThreadRuntimeInvalidation } from "../../runtime/utils/thread-runtime-lifecycle";
 import type { Unsubscribe } from "../../types/unsubscribe";
 import { useSubscribable } from "./useSubscribable";
 import { ThreadListItemClient } from "./thread-list-item-runtime-client";
@@ -44,48 +47,74 @@ const useBackgroundThreadRunEnd = (runtime: ThreadListRuntime) => {
 
   useEffect(() => {
     let currentThreadId = runtime.getState().mainThreadId;
-    const runningThreadIds = new Set<string>();
+    const runningThreadCores = new Map<string, ThreadRuntimeCore>();
     const pending = new Map<string, Unsubscribe>();
 
+    const getMainThreadCore = () =>
+      (runtime.main as ThreadRuntimeImpl).__internal_threadBinding.getState();
+
     if (runtime.main.getState().isRunning) {
-      runningThreadIds.add(currentThreadId);
+      runningThreadCores.set(currentThreadId, getMainThreadCore());
     }
-    const unsubscribeRunStart = runtime.main.unstable_on("runStart", () => {
-      runningThreadIds.add(runtime.getState().mainThreadId);
+    const unsubscribeMainRunStart = runtime.main.unstable_on("runStart", () => {
+      runningThreadCores.set(
+        runtime.getState().mainThreadId,
+        getMainThreadCore(),
+      );
     });
-    const unsubscribeRunEnd = runtime.main.unstable_on("runEnd", () => {
-      runningThreadIds.delete(runtime.getState().mainThreadId);
+    const unsubscribeMainRunEnd = runtime.main.unstable_on("runEnd", () => {
+      runningThreadCores.delete(runtime.getState().mainThreadId);
     });
 
+    const stopPending = (threadId: string) => {
+      const unsubscribe = pending.get(threadId);
+      if (!unsubscribe) return;
+      pending.delete(threadId);
+      runningThreadCores.delete(threadId);
+      unsubscribe();
+    };
+
     const unsubscribeRuntime = runtime.subscribe(() => {
-      const nextThreadId = runtime.getState().mainThreadId;
+      const nextState = runtime.getState();
+      for (const threadId of pending.keys()) {
+        if (!Object.hasOwn(nextState.threadItems, threadId)) {
+          stopPending(threadId);
+        }
+      }
+
+      const nextThreadId = nextState.mainThreadId;
       if (nextThreadId === currentThreadId) return;
 
       const previousThreadId = currentThreadId;
       currentThreadId = nextThreadId;
+      const previousThreadCore = runningThreadCores.get(previousThreadId);
 
-      if (
-        pending.has(previousThreadId) ||
-        !runningThreadIds.has(previousThreadId)
-      ) {
+      if (pending.has(previousThreadId) || !previousThreadCore) {
         return;
       }
 
-      const previousThread = runtime.getById(previousThreadId);
-      const unsubscribe = previousThread.unstable_on("runEnd", () => {
-        runningThreadIds.delete(previousThreadId);
-        pending.delete(previousThreadId);
-        unsubscribe();
-        if (runtime.getState().mainThreadId === previousThreadId) return;
-        emit("thread.runEnd", { threadId: previousThreadId });
+      const unsubscribeBackgroundRunEnd = previousThreadCore.unstable_on(
+        "runEnd",
+        () => {
+          stopPending(previousThreadId);
+          if (runtime.getState().mainThreadId === previousThreadId) return;
+          emit("thread.runEnd", { threadId: previousThreadId });
+        },
+      );
+      const unsubscribeInvalidation = subscribeThreadRuntimeInvalidation(
+        previousThreadCore,
+        () => stopPending(previousThreadId),
+      );
+      pending.set(previousThreadId, () => {
+        unsubscribeBackgroundRunEnd();
+        unsubscribeInvalidation();
       });
-      pending.set(previousThreadId, unsubscribe);
     });
 
     return () => {
       unsubscribeRuntime();
-      unsubscribeRunStart();
-      unsubscribeRunEnd();
+      unsubscribeMainRunStart();
+      unsubscribeMainRunEnd();
       for (const unsubscribe of pending.values()) unsubscribe();
     };
   }, [runtime, emit]);
